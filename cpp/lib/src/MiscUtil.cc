@@ -7,7 +7,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2016,2017 Universitätsbibliothek Tübingen
+ *  Copyright 2016-2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -28,11 +28,15 @@
 
 #include "MiscUtil.h"
 #include <map>
+#include <queue>
 #include <set>
 #include <sstream>
 #include <stack>
 #include <stdexcept>
+#include <unordered_set>
 #include <cctype>
+#include <cxxabi.h>
+#include <execinfo.h>
 #include <unistd.h>
 #include "Compiler.h"
 #include "FileUtil.h"
@@ -413,7 +417,7 @@ std::istream::streampos Scope::getStartStreamPos() const {
     if (unlikely(type_ != LOOP))
         logger->error("in MiscUtil::Scope::getStartStreamPos: this should never happen!");
 
-        return start_stream_pos_;
+    return start_stream_pos_;
 }
 
 
@@ -746,11 +750,11 @@ std::string ExpandTemplate(const std::string &template_string,
 
 
 char GeneratePPNChecksumDigit(const std::string &ppn_without_checksum_digit) {
-    if (unlikely(ppn_without_checksum_digit.length() != 8))
-        throw std::runtime_error("in MiscUtil::GeneratePPNChecksumDigit: argument's length is not 8!");
+    if (unlikely(ppn_without_checksum_digit.length() != 8 and ppn_without_checksum_digit.length() != 9))
+        throw std::runtime_error("in MiscUtil::GeneratePPNChecksumDigit: argument's length is neither 8 nor 9!");
 
     unsigned checksum(0);
-    for (unsigned i(0); i < 8; ++i)
+    for (unsigned i(0); i < ppn_without_checksum_digit.length(); ++i)
         checksum += (9 - i) * (ppn_without_checksum_digit[i] - '0');
     checksum = (11 - (checksum % 11)) % 11;
 
@@ -759,15 +763,16 @@ char GeneratePPNChecksumDigit(const std::string &ppn_without_checksum_digit) {
 
 
 bool IsValidPPN(const std::string &ppn_candidate) {
-    if (ppn_candidate.length() != 9)
+    if (ppn_candidate.length() != 9 and ppn_candidate.length() != 10)
         return false;
 
-    for (unsigned i(0); i < 8; ++i) {
+    for (unsigned i(0); i < ppn_candidate.length() - 1; ++i) {
         if (not StringUtil::IsDigit(ppn_candidate[i]))
             return false;
     }
 
-    return ppn_candidate[8] == GeneratePPNChecksumDigit(ppn_candidate.substr(0, 8));
+    return ppn_candidate[ppn_candidate.length() - 1]
+           == GeneratePPNChecksumDigit(ppn_candidate.substr(0, ppn_candidate.length() - 1));
 }
 
 
@@ -932,6 +937,81 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count) {
             logger->error("in MiscUtil::LogRotate:: failed to rename \"" + dirname + "/" + *filename + "\" to \""
                           + dirname + "/" + IncrementFile(basename, *filename) + "\"!");
     }
+}
+
+
+bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &edges, std::vector<unsigned> * const node_order) {
+    std::unordered_set<unsigned> nodes;
+    int max_node(-1);
+    for (const auto &edge : edges) {
+        nodes.emplace(edge.first);
+        if (static_cast<int>(edge.first) > max_node)
+            max_node = edge.first;
+        nodes.emplace(edge.second);
+        if (static_cast<int>(edge.second) > max_node)
+            max_node = edge.second;
+    }
+    if (max_node != static_cast<int>(nodes.size() - 1))
+        logger->error("in MiscUtil::TopologicalSort: we don't have the required 0..N-1 labelling of nodes!");
+
+    std::vector<std::vector<unsigned>> neighbours(nodes.size());
+    std::vector<unsigned> indegrees(nodes.size());
+    for (const auto &edge : edges) {
+        neighbours[edge.first].emplace_back(edge.second);
+        ++indegrees[edge.second];
+    }
+
+    // Enqueue all nodes with no incident edges:
+    std::queue<unsigned> queue;
+    for (unsigned node(0); node < nodes.size(); ++node) {
+        if (indegrees[node] == 0)
+            queue.push(node);
+    }
+
+    unsigned visited_node_count(0);
+    while (not queue.empty()) {
+        const unsigned current_node(queue.front());
+        node_order->emplace_back(current_node);
+        queue.pop();
+
+        for (auto neighbour : neighbours[current_node]) {
+            if (--indegrees[neighbour] == 0)
+                queue.push(neighbour);
+        }
+
+        ++visited_node_count;
+    }
+
+    return visited_node_count == nodes.size(); // If this is nor true we have at least one cycle!
+}
+
+
+std::vector<std::string> GetCallStack() {
+    std::vector<std::string> call_stack;
+
+    const int MAX_ADDR_COUNT(100);
+    char buffer[MAX_ADDR_COUNT * sizeof(void *)];
+    const int address_count(::backtrace((void **)buffer, MAX_ADDR_COUNT));
+    char **symbols(backtrace_symbols(reinterpret_cast<void **>(buffer), address_count));
+    for (int addr_no(0); addr_no < address_count; ++addr_no) {
+        char *symbol_start(std::strchr(symbols[addr_no], '('));
+        if (symbol_start == nullptr)
+            continue;
+        ++symbol_start; // Skip over the opening parenthesis.
+        // Symbols end at a plus sign which is followed by an address.
+        char *plus(std::strchr(symbol_start, '+'));
+        if (plus == nullptr)
+            continue;
+        *plus = '\0';
+        int status;
+        char *demangled_name(abi::__cxa_demangle(symbol_start, nullptr, nullptr, &status));
+        if (status == 0)
+            call_stack.emplace_back(demangled_name);
+        ::free(reinterpret_cast<void *>(demangled_name));
+    }
+    ::free(reinterpret_cast<void *>(symbols));
+    
+    return call_stack;
 }
 
 

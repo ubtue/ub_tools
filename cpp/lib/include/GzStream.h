@@ -53,8 +53,7 @@ private:
     Type type_;
 public:
     explicit GzStream(const Type type, const unsigned compression_level = 9,
-                      void *(*_zalloc)(void *, unsigned int, unsigned int) = nullptr,
-                      void (*_zfree)(void *, void *) = nullptr) throw(std::exception);
+                      void *(*_zalloc)(void *, unsigned int, unsigned int) = nullptr, void (*_zfree)(void *, void *) = nullptr);
     ~GzStream();
 
 
@@ -70,8 +69,7 @@ public:
      *          nullptr and retrieve "output_data" until "compress" returns false.
      */
     bool compress(const char * const input_data, unsigned input_data_size, char * const output_data,
-                  unsigned output_data_size, unsigned * const bytes_consumed, unsigned * const bytes_produced)
-        throw(std::exception);
+                  unsigned output_data_size, unsigned * const bytes_consumed, unsigned * const bytes_produced);
 
 
     /** \brief  Decompresses bytes taken from "input_data" and deposits the decompressed output into "output_data."
@@ -86,8 +84,7 @@ public:
      *          nullptr and/or "input_data_size" set to 0 and retrieve "output_data" until "decompress" returns false.
      */
     bool decompress(const char * const input_data, unsigned input_data_size, char * const output_data,
-                    unsigned output_data_size, unsigned * const bytes_consumed, unsigned * const bytes_produced)
-        throw(std::exception);
+                    unsigned output_data_size, unsigned * const bytes_consumed, unsigned * const bytes_produced);
 
 
     /** \brief   Decompress a string

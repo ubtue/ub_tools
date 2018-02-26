@@ -130,19 +130,6 @@ public:
 };
 
 
-bool MatchCookieAttributeName::operator()(const std::string &attribute_name_and_value) const {
-    if (::strncasecmp(attribute_name_.c_str(), attribute_name_and_value.c_str(), attribute_name_.length()) != 0)
-        return false;
-
-    // Skip over any optional linear whitespace that may come before an equal sign:
-    std::string::const_iterator ch(attribute_name_and_value.begin() + attribute_name_.length());
-    while (ch != attribute_name_and_value.end() and (*ch == ' ' or *ch == '\t'))
-        ++ch;
-
-    return ch != attribute_name_and_value.end() and *ch == '=';
-}
-
-
 inline bool DomainMatch(const std::string &domain_pattern, const std::string &domain_name) {
     return StringUtil::IsSuffixOf(domain_pattern, "." + domain_name);
 }

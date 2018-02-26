@@ -2,7 +2,7 @@
  *  \brief  Implementation of file related utility classes and functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -198,7 +198,7 @@ bool Directory::const_iterator::operator==(const const_iterator &rhs) {
 off_t GetFileSize(const std::string &path) {
     struct stat stat_buf;
     if (::stat(path.c_str(), &stat_buf) == -1)
-        logger->error("in FileUtil::GetFileSize: can't stat(2) \"" + path + "\"!");
+        ERROR("can't stat(2) \"" + path + "\"!");
 
     return stat_buf.st_size;
 }
@@ -214,6 +214,12 @@ bool WriteString(const std::string &path, const std::string &data) {
 }
 
 
+void WriteStringOrDie(const std::string &path, const std::string &data) {
+    if (not FileUtil::WriteString(path, data))
+        ERROR("failed to write data to \"" + path + "\"!");
+}
+
+
 bool ReadString(const std::string &path, std::string * const data) {
     std::ifstream input(path, std::ios_base::in | std::ios_base::binary);
     if (input.fail())
@@ -223,7 +229,20 @@ bool ReadString(const std::string &path, std::string * const data) {
     data->resize(file_size);
     input.read(const_cast<char *>(data->data()), file_size);
     return not input.bad();
+}
 
+
+void ReadStringOrDie(const std::string &path, std::string * const data) {
+    if (not FileUtil::ReadString(path, data))
+        ERROR("failed to read \"" + path + "\"!");
+}
+
+
+std::string ReadStringOrDie(const std::string &path) {
+    std::string data;
+    if (not FileUtil::ReadString(path, &data))
+        ERROR("failed to read \"" + path + "\"!");
+    return data;
 }
 
 
@@ -470,6 +489,7 @@ void DirnameAndBasename(const std::string &path, std::string * const dirname, st
 //
 bool IsDirectory(const std::string &dir_name) {
     struct stat statbuf;
+    errno = 0;
     if (::stat(dir_name.c_str(), &statbuf) != 0)
         return false;
 
@@ -522,6 +542,7 @@ static void CloseDirWhilePreservingErrno(DIR * const dir_handle) {
 
 
 bool RemoveDirectory(const std::string &dir_name) {
+    errno = 0;
     DIR *dir_handle(::opendir(dir_name.c_str()));
     if (unlikely(dir_handle == nullptr))
         return false;
@@ -557,6 +578,27 @@ bool RemoveDirectory(const std::string &dir_name) {
     }
 
     return likely(::closedir(dir_handle) == 0);
+}
+
+
+AutoTempDirectory::AutoTempDirectory(const std::string &path_prefix) {
+    std::string path_template(path_prefix + "XXXXXX");
+    const char * const path(::mkdtemp(const_cast<char *>(path_template.c_str())));
+    if (path == nullptr)
+        ERROR("mkdtemp(3) for path prefix \"" + path_prefix + "\" failed!");
+    char resolved_path[PATH_MAX];
+    if (unlikely(::realpath(path, resolved_path) == nullptr))
+        ERROR("realpath(3) for path \"" + std::string(path) + "\" failed!");
+    path_ = resolved_path;
+}
+
+
+AutoTempDirectory::~AutoTempDirectory() {
+    if (not IsDirectory(path_))
+        ERROR("\"" + path_ + "\" doesn't exist anymore!");
+
+    if (not RemoveDirectory(path_))
+        ERROR("can't remove \"" + path_ + "\"!");
 }
 
 
@@ -681,6 +723,7 @@ FileUtil::FileType GuessFileType(const std::string &filename) {
         case 'l':
             if (file_extension == "pl")
                 file_type = FILE_TYPE_HTML; // it might be a source code too!
+            break;
         case 'n':
             if (file_extension == "png")
                 file_type = FILE_TYPE_GRAPHIC;
@@ -795,11 +838,13 @@ size_t GetFileNameList(const std::string &filename_regex, std::vector<std::strin
 }
 
 
-bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target) {
+bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target,
+                const bool copy_if_cross_device)
+{
     struct stat stat_buf;
     if (::stat(new_name.c_str(), &stat_buf) == -1) {
         if (errno != ENOENT)
-            throw std::runtime_error("in FileUtil::: stat(2) failed: " + std::string(::strerror(errno)));
+            ERROR("stat(2) failed!");
     } else { // Target file or directory already exists!
         if (not remove_target) {
             errno = EEXIST;
@@ -809,20 +854,33 @@ bool RenameFile(const std::string &old_name, const std::string &new_name, const 
         if (S_ISDIR(stat_buf.st_mode)) {
             if (unlikely(not RemoveDirectory(new_name)))
                 return false;
-        } else {
-            if (unlikely(::unlink(new_name.c_str()) == -1))
-                throw std::runtime_error("in FileUtil::: unlink(2) failed: " + std::string(::strerror(errno)));
-        }
+        } else if (unlikely(::unlink(new_name.c_str()) == -1))
+            ERROR("unlink(2) failed!");
     }
 
-    return ::rename(old_name.c_str(), new_name.c_str()) == 0;
+    if (::rename(old_name.c_str(), new_name.c_str()) == 0)
+        return true;
+    else if (errno == EXDEV and copy_if_cross_device) {
+        if (not Copy(old_name, new_name))
+            return false;
+        return ::unlink(old_name.c_str()) == 0;
+    } else
+        return false;
+}
+
+
+void RenameFileOrDie(const std::string &old_name, const std::string &new_name, const bool remove_target,
+                     const bool copy_if_cross_device)
+{
+    if (not RenameFile(old_name, new_name, remove_target, copy_if_cross_device))
+        ERROR("failed to rename \"" + old_name + "\" to \"" + new_name + "\"!");
 }
 
 
 std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "r"));
     if (file->fail())
-        logger->error("can't open \"" + filename + "\" for reading!");
+        ERROR("can't open \"" + filename + "\" for reading!");
 
     return file;
 }
@@ -831,7 +889,7 @@ std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename) {
 std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "w"));
     if (file->fail())
-        logger->error("can't open \"" + filename + "\" for writing!");
+        ERROR("can't open \"" + filename + "\" for writing!");
 
     return file;
 }
@@ -840,7 +898,7 @@ std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename) {
 std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "a"));
     if (file->fail())
-        logger->error("can't open \"" + filename + "\" for appending!");
+        ERROR("can't open \"" + filename + "\" for appending!");
 
     return file;
 }
@@ -856,14 +914,16 @@ bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
 }
 
 
-void CopyOrDie(const std::string &from_path, const std::string &to_path) {
+bool Copy(const std::string &from_path, const std::string &to_path) {
     const int from_fd(::open(from_path.c_str(), O_RDONLY));
     if (unlikely(from_fd == -1))
-        logger->error("in FileUtil::CopyOrDie: failed to open \"" + from_path  + "\" for reading!");
+        return false;
 
-    const int to_fd(::open(to_path.c_str(), O_WRONLY | O_CREAT));
-    if (unlikely(to_fd == -1))
-        logger->error("in FileUtil::CopyOrDie: failed to open \"" + to_path  + "\" for writing!");
+    const int to_fd(::open(to_path.c_str(), O_WRONLY | O_CREAT, 0600));
+    if (unlikely(to_fd == -1)) {
+        ::close(from_fd);
+        return false;
+    }
 
     char buf[BUFSIZ];
     for (;;) {
@@ -871,15 +931,29 @@ void CopyOrDie(const std::string &from_path, const std::string &to_path) {
         if (no_of_bytes == 0)
             break;
 
-        if (unlikely(no_of_bytes < 0))
-            logger->error("in FileUtil::CopyOrDie: read(2) failed!");
+        if (unlikely(no_of_bytes < 0)) {
+            ::close(from_fd);
+            ::close(to_fd);
+            return false;
+        }
 
-        if (unlikely(::write(to_fd, &buf[0], no_of_bytes) != no_of_bytes))
-            logger->error("in FileUtil::CopyOrDie: write(2) failed!");
+        if (unlikely(::write(to_fd, &buf[0], no_of_bytes) != no_of_bytes)) {
+            ::close(from_fd);
+            ::close(to_fd);
+            return false;
+        }
     }
 
     ::close(from_fd);
     ::close(to_fd);
+
+    return true;
+}
+
+
+void CopyOrDie(const std::string &from_path, const std::string &to_path) {
+    if (not Copy(from_path, to_path))
+        ERROR("failed to copy \"" + from_path + "\" to \"" + to_path + "\"!");
 }
 
 
@@ -972,17 +1046,18 @@ bool FilesDiffer(const std::string &path1, const std::string &path2) {
 void AppendStringToFile(const std::string &path, const std::string &text) {
     std::unique_ptr<File> file(OpenForAppendingOrDie(path));
     if (unlikely(file->write(text.data(), text.size()) != text.size()))
-        logger->error("in FileUtil::AppendStringToFile: failed to append data to \"" + path + "\"!");
+        ERROR("failed to append data to \"" + path + "\"!");
 }
 
 
 // Creates a symlink called "link_filename" pointing to "target_filename".
 void CreateSymlink(const std::string &target_filename, const std::string &link_filename) {
     if (unlikely(::unlink(link_filename.c_str()) == -1 and errno != ENOENT /* "No such file or directory." */))
-        throw std::runtime_error("unlink(2) of \"" + link_filename + "\" failed: " + std::string(::strerror(errno)));
+        throw std::runtime_error("in FileUtil::CreateSymlink: unlink(2) of \"" + link_filename + "\" failed: "
+				 + std::string(::strerror(errno)));
     if (unlikely(::symlink(target_filename.c_str(), link_filename.c_str()) != 0))
-        throw std::runtime_error("failed to create symlink \"" + link_filename + "\" => \"" + target_filename + "\"! ("
-                           + std::string(::strerror(errno)) + ")");
+        throw std::runtime_error("in FileUtil::CreateSymlink: failed to create symlink \"" + link_filename + "\" => \""
+				 + target_filename + "\"! (" + std::string(::strerror(errno)) + ")");
 }
 
 
@@ -990,26 +1065,24 @@ size_t ConcatFiles(const std::string &target_path, const std::vector<std::string
                    const mode_t target_mode)
 {
     if (filenames.empty())
-        logger->error("in FileUtil::ConcatFiles: no files to concatenate!");
+        ERROR("no files to concatenate!");
 
     FileDescriptor target_fd(::open(target_path.c_str(), O_WRONLY | O_CREAT | O_LARGEFILE | O_TRUNC, target_mode));
     if (target_fd == -1)
-        logger->error("in FileUtil::ConcatFiles: failed to open or create \"" + target_path + "\"!");
+        ERROR("failed to open or create \"" + target_path + "\"!");
 
     size_t total_size(0);
     for (const auto &filename : filenames) {
         FileDescriptor source_fd(::open(filename.c_str(), O_RDONLY | O_LARGEFILE));
         if (source_fd == -1)
-            logger->error("in FileUtil::ConcatFiles: failed to open \"" + filename + "\" for reading!");
+            ERROR("failed to open \"" + filename + "\" for reading!");
 
         struct stat statbuf;
         if (::fstat(source_fd, &statbuf) == -1)
-            logger->error("in FileUtil::ConcatFiles: failed to fstat(2) \"" + filename + "\"! ("
-                  + std::string(::strerror(errno)) + ")");
+            ERROR("failed to fstat(2) \"" + filename + "\"!");
         const ssize_t count(::sendfile(target_fd, source_fd, nullptr, statbuf.st_size));
         if (count == -1)
-            logger->error("in FileUtil::ConcatFiles: failed to append \"" + filename + "\" to \"" + target_path
-                          + "\"!");
+            ERROR("failed to append \"" + filename + "\" to \"" + target_path + "\"!");
         total_size += static_cast<size_t>(count);
     }
 
@@ -1020,11 +1093,11 @@ size_t ConcatFiles(const std::string &target_path, const std::vector<std::string
 bool IsMountPoint(const std::string &path) {
     struct stat statbuf;
     if (::stat(path.c_str(), &statbuf) == -1)
-        logger->error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "\" failed!");
+        ERROR("stat(2) on \"" + path + "\" failed!");
 
     struct stat parent_statbuf;
     if (::stat((path + "/..").c_str(), &parent_statbuf) == -1)
-        logger->error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "/..\" failed!");
+        ERROR("stat(2) on \"" + path + "/..\" failed!");
 
     return statbuf.st_dev != parent_statbuf.st_dev;
 }
@@ -1043,6 +1116,37 @@ size_t CountLines(const std::string &filename) {
     }
 
     return line_count;
+}
+
+
+// Strips all extensions from "filename" and returns what is left after that.
+std::string GetFilenameWithoutExtensionOrDie(const std::string &filename) {
+    const auto first_dot_pos(filename.find('.'));
+    if (unlikely(first_dot_pos == std::string::npos))
+        ERROR("\"" + filename + "\" has no extension!");
+    return filename.substr(0, first_dot_pos);
+}
+
+
+std::string GetExtension(const std::string &filename, const bool to_lowercase) {
+    const std::string::size_type last_dot_pos(filename.rfind('.'));
+
+    if (last_dot_pos == std::string::npos)
+        return "";
+    else if (not to_lowercase)
+        return filename.substr(last_dot_pos + 1);
+    else
+        return StringUtil::ToLower(filename.substr(last_dot_pos + 1));
+
+}
+
+
+std::string StripLastPathComponent(const std::string &path) {
+    std::vector<std::string> path_components;
+    if (StringUtil::Split(path, '/', &path_components) < 1)
+        ERROR("\"" + path + "\" has no path components");
+    path_components.pop_back();
+    return (path[0] == '/' ? "/" : "") + StringUtil::Join(path_components, '/');
 }
 
 

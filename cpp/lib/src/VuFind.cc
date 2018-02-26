@@ -2,7 +2,7 @@
  *  \brief  VuFind-related constants and utility functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -39,9 +39,7 @@ std::string GetDefaultDatabaseConf() {
 }
 
 
-void GetMysqlURL(std::string * const mysql_url, const std::string &vufind_config_file_path)
-        throw(std::exception)
-{
+void GetMysqlURL(std::string * const mysql_url, const std::string &vufind_config_file_path) {
     const std::string database_conf_filename(vufind_config_file_path.empty()
                                              ? GetDefaultDatabaseConf() : vufind_config_file_path);
     File database_conf(database_conf_filename, "r", File::THROW_ON_ERROR);

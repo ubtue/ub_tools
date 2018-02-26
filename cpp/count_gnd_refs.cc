@@ -22,8 +22,7 @@
 #include <unordered_map>
 #include <cstdlib>
 #include "FileUtil.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
+#include "MARC.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -36,8 +35,8 @@ void Usage() __attribute__((noreturn));
 
 void Usage() {
     std::cerr << "Usage: " << ::progname << " [--control-number-list=list_filename] gnd_number_list marc_data counts\n"
-              << "       If a control-number-list filename has been specifiec only references of records\n"
-              << "       matching in entries in that file will be counted.\n\n";
+              << "       If a control-number-list filename has been specified only references of records\n"
+              << "       matching entries in that file will be counted.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -56,39 +55,43 @@ void LoadGNDNumbers(File * const input, std::unordered_map<std::string, unsigned
 const std::vector<std::string> GND_REFERENCE_FIELDS{ "100", "600", "689", "700" };
 
 
-void ProcessRecords(MarcReader * const marc_reader, const std::unordered_set<std::string> &filter_set,
+void ProcessRecords(MARC::Reader * const marc_reader, const std::unordered_set<std::string> &filter_set,
                     std::unordered_map<std::string, unsigned> * const gnd_numbers_and_counts)
 {
-    while (const MarcRecord record = marc_reader->read()) {
+    unsigned matched_count(0);
+    while (const MARC::Record record = marc_reader->read()) {
         if (not filter_set.empty()) {
             if (filter_set.find(record.getControlNumber()) == filter_set.cend())
                 continue;
         }
 
         for (const auto &gnd_reference_field : GND_REFERENCE_FIELDS) {
-            const std::string field_contents(record.getFieldData(gnd_reference_field));
-            if (field_contents.empty())
-                continue;
+            for (const auto &field : record.getTagRange(gnd_reference_field)) {
+                const MARC::Subfields subfields(field.getSubfields());
+                for (const auto &subfield0 : subfields.extractSubfields('0')) {
+                    if (subfield0.length() <= __builtin_strlen("(DE-588)") or not StringUtil::StartsWith(subfield0, "(DE-588)"))
+                        continue;
 
-            const Subfields subfields(field_contents);
-            const auto begin_end(subfields.getIterators('0'));
-            for (auto subfield0(begin_end.first); subfield0 != begin_end.second; ++subfield0) {
-                if (not StringUtil::StartsWith(subfield0->value_, "(DE-588)"))
-                    continue;
-
-                const auto gnd_number_and_count(gnd_numbers_and_counts->find(subfield0->value_));
-                if (gnd_number_and_count != gnd_numbers_and_counts->end())
-                    ++gnd_number_and_count->second;
+                    const std::string gnd_number(subfield0.substr(__builtin_strlen("(DE-588)")));
+                    const auto gnd_number_and_count(gnd_numbers_and_counts->find(gnd_number));
+                    if (gnd_number_and_count != gnd_numbers_and_counts->end()) {
+                        ++gnd_number_and_count->second;
+                        ++matched_count;
+                    }
+                }
             }
         }
     }
+
+    std::cerr << "Found " << matched_count << " reference(s) to " << gnd_numbers_and_counts->size()
+              << " matching GND number(s).\n";
 }
 
 
 void WriteCounts(const std::unordered_map<std::string, unsigned> &gnd_numbers_and_counts, File * const output) {
     for (const auto &gnd_number_and_count : gnd_numbers_and_counts) {
         if (gnd_number_and_count.second > 0)
-            (*output) << gnd_number_and_count.first.substr(8) << '|' << gnd_number_and_count.second << '\n';
+            (*output) << gnd_number_and_count.first << '|' << gnd_number_and_count.second << '\n';
     }
 }
 
@@ -130,7 +133,7 @@ int main(int argc, char *argv[]) {
         std::unordered_map<std::string, unsigned> gnd_numbers_and_counts;
         LoadGNDNumbers(gnd_numbers_and_counts_file.get(), &gnd_numbers_and_counts);
 
-        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[2]));
+        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
         ProcessRecords(marc_reader.get(), filter_set, &gnd_numbers_and_counts);
 
         std::unique_ptr<File> counts_file(FileUtil::OpenOutputFileOrDie(argv[3]));

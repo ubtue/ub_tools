@@ -25,7 +25,7 @@
 bool RegexMatcher::utf8_configured_;
 
 
-bool CompileRegex(const std::string &pattern, const bool enable_utf8, ::pcre **pcre_arg,
+bool CompileRegex(const std::string &pattern, const unsigned options, ::pcre **pcre_arg,
                   ::pcre_extra **pcre_extra_arg, std::string * const err_msg)
 {
     if (err_msg != nullptr)
@@ -33,7 +33,14 @@ bool CompileRegex(const std::string &pattern, const bool enable_utf8, ::pcre **p
 
     const char *errptr;
     int erroffset;
-    *pcre_arg = ::pcre_compile(pattern.c_str(), enable_utf8 ? PCRE_UTF8 : 0, &errptr, &erroffset, nullptr);
+
+    int pcre_options(0);
+    if (options & RegexMatcher::ENABLE_UTF8)
+        pcre_options |= PCRE_UTF8;
+    if (options & RegexMatcher::CASE_INSENSITIVE)
+        pcre_options |= PCRE_CASELESS;
+
+    *pcre_arg = ::pcre_compile(pattern.c_str(), pcre_options, &errptr, &erroffset, nullptr);
     if (*pcre_arg == nullptr) {
         *pcre_extra_arg = nullptr;
         if (err_msg != nullptr)
@@ -57,10 +64,10 @@ bool CompileRegex(const std::string &pattern, const bool enable_utf8, ::pcre **p
 
 
 RegexMatcher *RegexMatcher::RegexMatcherFactory(const std::string &pattern, std::string * const err_msg,
-                                                const bool enable_utf8)
+                                                const unsigned options)
 {
     // Make sure the PCRE library supports UTF8:
-    if (enable_utf8 and not RegexMatcher::utf8_configured_) {
+    if ((options & RegexMatcher::ENABLE_UTF8) and not RegexMatcher::utf8_configured_) {
         int utf8_available;
         if (::pcre_config(PCRE_CONFIG_UTF8, reinterpret_cast<void *>(&utf8_available)) == PCRE_ERROR_BADOPTION) {
             if (err_msg != nullptr)
@@ -79,10 +86,10 @@ RegexMatcher *RegexMatcher::RegexMatcherFactory(const std::string &pattern, std:
 
     ::pcre *pcre_ptr;
     ::pcre_extra *pcre_extra_ptr;
-    if (not CompileRegex(pattern, enable_utf8, &pcre_ptr, &pcre_extra_ptr, err_msg))
+    if (not CompileRegex(pattern, options, &pcre_ptr, &pcre_extra_ptr, err_msg))
         return nullptr;
 
-    return new RegexMatcher(pattern, enable_utf8, pcre_ptr, pcre_extra_ptr);
+    return new RegexMatcher(pattern, options, pcre_ptr, pcre_extra_ptr);
 }
 
 
@@ -95,7 +102,7 @@ RegexMatcher::RegexMatcher(const RegexMatcher &that): pattern_(that.pattern_) {
         pcre_extra_ = nullptr;
     } else {
         std::string err_msg;
-        if (not CompileRegex(pattern_, that.utf8_enabled_, &pcre_, &pcre_extra_, &err_msg))
+        if (not CompileRegex(pattern_, that.options_, &pcre_, &pcre_extra_, &err_msg))
             logger->error("In RegexMatcher copy constructor: unexpected error: " + err_msg);
         substr_vector_    = that.substr_vector_;
         last_match_count_ = that.last_match_count_;
@@ -104,7 +111,7 @@ RegexMatcher::RegexMatcher(const RegexMatcher &that): pattern_(that.pattern_) {
 
 
 RegexMatcher::RegexMatcher(RegexMatcher &&that)
-    : pattern_(std::move(that.pattern_)), utf8_enabled_(that.utf8_enabled_), pcre_(that.pcre_),
+    : pattern_(std::move(that.pattern_)), options_(that.options_), pcre_(that.pcre_),
       pcre_extra_(that.pcre_extra_), last_subject_(std::move(that.last_subject_)),
       substr_vector_(std::move(that.substr_vector_)), last_match_count_(that.last_match_count_)
 {
@@ -151,7 +158,7 @@ bool RegexMatcher::matched(const std::string &subject, std::string * const err_m
 }
 
 
-std::string RegexMatcher::operator[](const unsigned group) const throw(std::out_of_range) {
+std::string RegexMatcher::operator[](const unsigned group) const {
     if (unlikely(group >= last_match_count_))
         throw std::out_of_range("in RegexMatcher::operator[]: group(" + std::to_string(group) + ") >= "
                                 + std::to_string(last_match_count_) + "!");

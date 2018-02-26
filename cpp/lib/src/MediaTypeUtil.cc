@@ -36,6 +36,7 @@
 #include "PerlCompatRegExp.h"
 #include "StringUtil.h"
 #include "Url.h"
+#include "util.h"
 #include "WebUtil.h"
 
 
@@ -114,7 +115,7 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
 
 
 std::string GetFileMediaType(const std::string &filename, const bool auto_simplify) {
-    const magic_t cookie = ::magic_open(MAGIC_MIME | MAGIC_SYMLINK);
+    const magic_t cookie(::magic_open(MAGIC_MIME | MAGIC_SYMLINK));
     if (unlikely(cookie == nullptr))
         throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not open libmagic!");
 
@@ -145,8 +146,10 @@ std::string GetFileMediaType(const std::string &filename, const bool auto_simpli
         SimplifyMediaType(&media_type);
 
     if (StringUtil::StartsWith(media_type, "application/octet-stream")) {
-        File input(filename, "rb");
-        char *buf = reinterpret_cast<char *>(::alloca(LZ4_MAGIC.size()));
+        File input(filename, "r");
+        if (unlikely(input.anErrorOccurred()))
+            logger->error("in MediaTypeUtil::GetFileMediaType: failed to open \"" + filename + "\" for reading!");
+        char * const buf(reinterpret_cast<char *>(::alloca(LZ4_MAGIC.size())));
         if ((input.read(buf, sizeof(buf)) == sizeof(buf)) and std::strncmp(LZ4_MAGIC.c_str(), buf, LZ4_MAGIC.size()) == 0)
             return "application/lz4";
     }

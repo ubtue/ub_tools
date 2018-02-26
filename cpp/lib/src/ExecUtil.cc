@@ -1,3 +1,31 @@
+/** \file    ExecUtil.cc
+ *  \brief   Implementation of the ExecUtil class.
+ *  \author  Dr. Gordon W. Paynter
+ *  \author  Dr. Johannes Ruscheinski
+ */
+
+/*
+ *  Copyright 2004-2008 Project iVia.
+ *  Copyright 2004-2008 The Regents of The University of California.
+ *  Copyright 2017-2018 Universitätsbibliothek Tübingen
+ *
+ *  This file is part of the libiViaCore package.
+ *
+ *  The libiViaCore package is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public License as published
+ *  by the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  libiViaCore is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with libiViaCore; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include "ExecUtil.h"
 #include <stdexcept>
 #include <cassert>
@@ -13,6 +41,7 @@
 #include <unistd.h>
 #include <unordered_map>
 #include "StringUtil.h"
+#include "FileUtil.h"
 #include "util.h"
 
 
@@ -47,11 +76,12 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
          const std::string &new_stdout, const std::string &new_stderr, const ExecMode exec_mode,
          unsigned timeout_in_seconds, const int tardy_child_signal)
 {
+    errno = 0;
     if (::access(command.c_str(), X_OK) != 0)
         throw std::runtime_error("in ExecUtil::Exec: can't execute \"" + command + "\"!");
 
     if (exec_mode == ExecMode::DETACH and timeout_in_seconds > 0)
-        throw std::runtime_error("in ExecUtil::Exec: non-zero timeout is imcompatible w/ ExecMode::DETACH!");
+        throw std::runtime_error("in ExecUtil::Exec: non-zero timeout is incompatible w/ ExecMode::DETACH!");
 
     const int EXECVE_FAILURE(248);
 
@@ -142,6 +172,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
                 while (::wait4(-pid, &child_exit_status, 0, nullptr) != -1)
                     /* Intentionally empty! */;
 
+                errno = ETIME;
                 return -1;
             }
         }
@@ -192,6 +223,16 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 {
     return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::WAIT, timeout_in_seconds,
                   tardy_child_signal);
+}
+
+
+void ExecOrDie(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
+               const std::string &new_stdout, const std::string &new_stderr, const unsigned timeout_in_seconds,
+               const int tardy_child_signal)
+{
+    int exit_code;
+    if ((exit_code = Exec(command, args, new_stdin, new_stdout, new_stderr, timeout_in_seconds, tardy_child_signal)) != 0)
+        ERROR("Failed to execute \"" + command + "\"! (exit code was " + std::to_string(exit_code) + ")");
 }
 
 
@@ -272,6 +313,25 @@ bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * co
         logger->error("pclose(3) failed: " + std::string(::strerror(errno)));
 
     return WEXITSTATUS(ret_code) == 0;
+}
+
+
+bool ExecSubcommandAndCaptureStdoutAndStderr(const std::string &command, const std::vector<std::string> &args,
+                                             std::string * const stdout_output, std::string * const stderr_output)
+{
+    FileUtil::AutoTempFile stdout_temp;
+    FileUtil::AutoTempFile stderr_temp;
+
+    const int retcode(Exec(command, args, /* new_stdin = */ "", stdout_temp.getFilePath(), stderr_temp.getFilePath()));
+    if (retcode != 0)
+        return false;
+
+    if (not FileUtil::ReadString(stdout_temp.getFilePath(), stdout_output))
+        logger->error("failed to read temporary file w/ stdout contents!");
+    if (not FileUtil::ReadString(stderr_temp.getFilePath(), stderr_output))
+        logger->error("failed to read temporary file w/ stderr contents!");
+
+    return true;
 }
 
 

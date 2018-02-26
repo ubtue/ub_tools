@@ -31,16 +31,10 @@
 #endif
 
 
-TimeLimit::TimeLimit(const unsigned time_limit) {
+void TimeLimit::initialize(const unsigned time_limit) {
     ::gettimeofday(&expire_time_, nullptr);
+    limit_ = time_limit;
     expire_time_ += time_limit;
-}
-
-
-const TimeLimit TimeLimit::operator=(const unsigned new_time_limit) {
-    ::gettimeofday(&expire_time_, nullptr);
-    expire_time_ += new_time_limit;
-    return *this;
 }
 
 
@@ -65,14 +59,4 @@ bool TimeLimit::limitExceeded() const {
     timersub(&expire_time_, &now, &diff_time);
 
     return diff_time.tv_sec < 0 or diff_time.tv_usec < 0;
-}
-
-
-bool TimeLimit::operator==(const TimeLimit &rhs) {
-    return TimeValToMilliseconds(expire_time_) == TimeValToMilliseconds(rhs.expire_time_);
-}
-
-
-bool TimeLimit::operator!=(const TimeLimit &rhs) {
-    return TimeValToMilliseconds(expire_time_) != TimeValToMilliseconds(rhs.expire_time_);
 }

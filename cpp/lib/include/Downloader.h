@@ -4,7 +4,7 @@
  *
  *  \copyright 2005-2008 Project iVia.
  *  \copyright 2005-2008 The Regents of The University of California.
- *  \copyright 2015-2017 Universitätsbibliothek Tübingen.
+ *  \copyright 2015-2018 Universitätsbibliothek Tübingen.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -43,36 +43,41 @@ class Downloader {
     CURL *easy_handle_;
     static CURLSH *share_handle_;
     static unsigned instance_count_;
-    static std::mutex *dns_mutex_;
-    static std::mutex *cookie_mutex_;
-    static std::mutex *robots_dot_txt_mutex_;
+    static std::mutex dns_mutex_;
+    static std::mutex cookie_mutex_;
+    static std::mutex header_mutex_;
+    static std::mutex robots_dot_txt_mutex_;
+    static std::mutex write_mutex_;
     static std::unordered_map<std::string, RobotsDotTxt> url_to_robots_dot_txt_map_;
 protected:
     bool multi_mode_;
 public:
     static const long DEFAULT_MAX_REDIRECTS     = 10;
     static const long MAX_MAX_REDIRECT_COUNT    = 20;
-    static const long DEFAULT_DNS_CACHE_TIMEOUT = 600;
+    static const long DEFAULT_DNS_CACHE_TIMEOUT = 10; // In s
     static const std::string DEFAULT_USER_AGENT_STRING;
     static const std::string DEFAULT_ACCEPTABLE_LANGUAGES;
     static const unsigned DEFAULT_TIME_LIMIT    = 20000; // In ms.
+    static const long DEFAULT_META_REDIRECT_THRESHOLD = 30; // In s
 private:
     CURLcode curl_error_code_;
     mutable std::string last_error_message_;
-    std::string header_;
+    std::string concatenated_headers_;
     std::string body_;
     std::vector<std::string> redirect_urls_;
     char error_buffer_[CURL_ERROR_SIZE];
     Url current_url_;
     curl_slist *additional_http_headers_;
+    class UploadBuffer *upload_buffer_;
     static std::string default_user_agent_string_;
 public:
+
     enum TextTranslationMode {
         TRANSPARENT   = 0, //< If set, perform no character set translations.
         MAP_TO_LATIN9 = 1  //< If set, attempt to convert from whatever to Latin-9.  Note: Currently only used for HTTP and HTTPS!
     };
 
-    static std::string DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG;
+    static const std::string DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG;
 
     struct Params {
         std::string user_agent_;
@@ -84,9 +89,11 @@ public:
         PerlCompatRegExps banned_reg_exps_; // Do not download anything matching these regular expressions.
         bool debugging_;
         bool follow_redirects_;
+        unsigned meta_redirect_threshold_; // only redirect if less than this value in seconds
         bool ignore_ssl_certificates_;
         std::string proxy_host_and_port_;
         std::vector<std::string> additional_headers_;
+        std::string post_data_;
     public:
         explicit Params(const std::string &user_agent = DEFAULT_USER_AGENT_STRING,
                         const std::string &acceptable_languages = DEFAULT_ACCEPTABLE_LANGUAGES,
@@ -95,9 +102,11 @@ public:
                         const bool honour_robots_dot_txt = false,
                         const TextTranslationMode text_translation_mode = TRANSPARENT,
                         const PerlCompatRegExps &banned_reg_exps = PerlCompatRegExps(), const bool debugging = false,
-                        const bool follow_redirects = true, bool ignore_ssl_certificates = false,
+                        const bool follow_redirects = true, const unsigned meta_redirect_threshold = DEFAULT_META_REDIRECT_THRESHOLD,
+                        const bool ignore_ssl_certificates = false,
                         const std::string &proxy_host_and_port = "",
-                        const std::vector<std::string> &additional_headers = {});
+                        const std::vector<std::string> &additional_headers = {},
+                        const std::string &post_data = "");
     } params_;
 
     typedef size_t (*WriteFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);
@@ -107,7 +116,7 @@ public:
     typedef int (*DebugFunc)(CURL *handle, curl_infotype infotype, char *data, size_t size, void *this_pointer);
 public:
     explicit Downloader(const Params &params = Params()): multi_mode_(false), additional_http_headers_(nullptr),
-                                                          params_(params) { init(); }
+                                                          upload_buffer_(nullptr), params_(params) { init(); }
     explicit Downloader(const Url &url, const Params &params = Params(),
                         const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
     explicit Downloader(const std::string &url, const Params &params = Params(),
@@ -117,6 +126,10 @@ public:
     bool newUrl(const Url &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
     bool newUrl(const std::string &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
         { return newUrl(Url(url), time_limit); }
+
+    bool putData(const Url &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
+    bool putData(const std::string &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
+        { return putData(Url(url), data, time_limit); }
 
     std::string getMessageHeader() const;
     const std::string &getMessageBody() const { return body_; }
@@ -129,13 +142,18 @@ public:
      */
     std::string getMediaType(const bool auto_simplify = true) const;
 
+    std::string getCharset() const;
+
     /** \note Returns \em{all} URLs encountered in downloading the last document, including the original URL. */
     const std::vector<std::string> &getRedirectUrls() const { return redirect_urls_; }
 
-    bool anErrorOccurred() const { return curl_error_code_ != CURLE_OK; }
+    bool anErrorOccurred() const { return not getLastErrorMessage().empty(); }
     CURLcode getLastErrorCode() const { return curl_error_code_; }
     const std::string &getLastErrorMessage() const;
     const std::string &getUserAgent() const { return params_.user_agent_; }
+
+    /** \note Get HTTP response code */
+    unsigned getResponseCode();
 
     static unsigned GetInstanceCount() { return instance_count_; }
 
@@ -184,23 +202,17 @@ private:
 /** \brief Downloads a Web document.
  *  \param url              The address.
  *  \param output_filename  Where to store the downloaded document.
- *  \param timeout          Max. amount of time to try to download a document in seconds.
- *  \param cookie_file      Cookies will be read before the attempted download and later stored here.
- *  \return Exit code of the child process.  0 upon success.
+ *  \param time_limit          Max. amount of time to try to download a document in seconds.
  */
-int Download(const std::string &url, const std::string &output_filename, const unsigned timeout,
-             const std::string &cookie_file = "");
+bool Download(const std::string &url, const std::string &output_filename, const TimeLimit &time_limit);
 
 
 /** \brief Downloads a Web document.
- *  \param url      The address.
- *  \param timeout  Max. amount of time to try to download a document in seconds.
- *  \param output   Where to store the downloaded document.
- *  \param cookie_file      Cookies will be read before the attempted download and later stored here.
- *  \return Exit code of the child process.  0 upon success.
+ *  \param url         The address.
+ *  \param time_limit  Max. amount of time to try to download a document in seconds.
+ *  \param output      Where to store the downloaded document.
  */
-int Download(const std::string &url, const unsigned timeout, std::string * const output,
-             const std::string &cookie_file = "");
+bool Download(const std::string &url, const TimeLimit &time_limit, std::string * const output);
 
 
 #endif // ifndef DOWNLOADER_H

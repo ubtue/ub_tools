@@ -14,6 +14,8 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
+import org.apache.lucene.search.MultiPhraseQuery;
+import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
@@ -38,7 +40,7 @@ import org.slf4j.LoggerFactory;
 public class MultiLanguageQueryParser extends QParser {
     private String searchString;
     private static Logger logger = LoggerFactory.getLogger(MultiLanguageQueryParser.class);
-    private String[] SUPPORTED_LANGUAGES = { "de", "en", "fr", "it", "es", "hant", "hans" };
+    private String[] SUPPORTED_LANGUAGES = { "de", "en", "fr", "it", "es", "hant", "hans", "pt", "ru", "el" };
     private SolrQueryRequest newRequest;
     private ModifiableSolrParams newParams;
     private IndexSchema schema;
@@ -88,13 +90,13 @@ public class MultiLanguageQueryParser extends QParser {
                 String newFieldName = strippedParam + "_" + lang;
                 if (schema.getFieldOrNull(newFieldName) != null) {
                     newParams.remove("facet.field", param);
-                    if (useDismax)
-                        newParams.add("facet.field", fieldLocalParams + newFieldName);
-                    else {
-                        String newLocalParams = fieldLocalParams.equals("") ?  "{!key=" + strippedParam + "}" :
-                                                fieldLocalParams.replace("}", " key=" + strippedParam + "}");
-                        newParams.add("facet.field", newLocalParams + newFieldName);
+                    String newLocalParams = "";
+                    // Skip renaming the returned field names if we have prefix sorting for facets
+                    if (!newParams.get("facet.sort").equals("prefix")) {
+                        newLocalParams = fieldLocalParams.equals("") ?  "{!key=" + strippedParam + "}" :
+                                            fieldLocalParams.replace("}", " key=" + strippedParam + "}");
                     }
+                    newParams.add("facet.field", newLocalParams + newFieldName);
                 }
             }
             this.newRequest.setParams(newParams);
@@ -104,16 +106,29 @@ public class MultiLanguageQueryParser extends QParser {
         // Handle filter queries
         final String[] filterQueries = newParams.getParams("fq");
         if (filterQueries != null && filterQueries.length > 0) {
-            for (String filterQuery : filterQueries) {
-                String[] fieldNameAndFilterValue = filterQuery.split(":");
-                if (fieldNameAndFilterValue.length == 2) {
-                    String newFieldName = fieldNameAndFilterValue[0] + "_" + lang;
-                    if (schema.getFieldOrNull(newFieldName) != null) {
-                        newParams.remove("fq", filterQuery);
-                        newParams.add("fq", newFieldName + ":" + fieldNameAndFilterValue[1]);
+            for (final String filterQuery : filterQueries) {
+                final String[] fieldNameAndFilterValues = filterQuery.split(":");
+                final int fieldNameAndFilterValuesLength = fieldNameAndFilterValues.length;
+                // The usual case is an ordinary expression made up of a field + ":" + query
+                // Moreover, we can have complex (i.e. parenthesized) expressions on the right hand side
+                // so we try to replace any field left to a colon
+                if (fieldNameAndFilterValuesLength >= 2) {
+                    String newFilterQuery = new String();
+                    for (int i = 0; i < fieldNameAndFilterValuesLength - 1; ++i) {
+                         final String newFieldExpression = fieldNameAndFilterValues[i] + "_" + lang;
+                         //Strip potential local parameters or a leading opening bracket of any tokens to the left
+                         final String newFieldName = newFieldExpression.replaceAll("(\\{.*\\}|^\\(|.*\\s+)", "");
+                         if (schema.getFieldOrNull(newFieldName) != null)
+                             newFilterQuery += newFieldExpression + ":";
+                         else
+                             newFilterQuery += fieldNameAndFilterValues[i] + ":";
                     }
-                }
-           }
+                    newFilterQuery += fieldNameAndFilterValues[fieldNameAndFilterValuesLength - 1];
+                    newParams.remove("fq", filterQuery);
+                    newParams.add("fq", newFilterQuery);
+                } else
+                    throw new MultiLanguageQueryParserException("Cannot appropriately rewrite " + filterQuery);
+            }
         }
 
         // Handling for [e]dismax
@@ -181,23 +196,42 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     private Query processPhraseQuery(final PhraseQuery queryCandidate) {
-      PhraseQuery.Builder phraseQueryBuilder = new PhraseQuery.Builder();
-      for (final Term term : queryCandidate.getTerms()) {
-          String newFieldName = term.field() + "_" + lang;
-          if (schema.getFieldOrNull(newFieldName) != null)
-              phraseQueryBuilder.add(new Term(newFieldName, term.text()));
-          else
-              phraseQueryBuilder.add(term);
-      }
+        final PhraseQuery.Builder phraseQueryBuilder = new PhraseQuery.Builder();
+        for (final Term term : queryCandidate.getTerms()) {
+            final String newFieldName = term.field() + "_" + lang;
+            if (schema.getFieldOrNull(newFieldName) != null)
+                phraseQueryBuilder.add(new Term(newFieldName, term.text()));
+            else
+                phraseQueryBuilder.add(term);
+        }
 
-      phraseQueryBuilder.setSlop(queryCandidate.getSlop());
-      return phraseQueryBuilder.build();
+        phraseQueryBuilder.setSlop(queryCandidate.getSlop());
+        return phraseQueryBuilder.build();
+    }
+
+
+    private Query processMultiPhraseQuery(final MultiPhraseQuery queryCandidate) {
+       final MultiPhraseQuery.Builder multiPhraseQueryBuilder = new MultiPhraseQuery.Builder();
+       for (final Term[] termArray : queryCandidate.getTermArrays()) {
+           int arrayOffset = 0;
+           for (final Term term : termArray) {
+               String newFieldName = term.field() + "_" + lang;
+               if (schema.getFieldOrNull(newFieldName) != null)
+                  termArray[arrayOffset] = new Term(newFieldName, term.text());
+               else
+                  termArray[arrayOffset] = term;
+               ++arrayOffset;
+           }
+           multiPhraseQueryBuilder.add(termArray);
+       }
+       multiPhraseQueryBuilder.setSlop(queryCandidate.getSlop());
+       return multiPhraseQueryBuilder.build();
     }
 
 
     private Query processDisjunctionMaxQuery(DisjunctionMaxQuery queryCandidate) {
         final List<Query> queryList = new ArrayList<Query>();
-        DisjunctionMaxQuery disjunctionMaxQuery = (DisjunctionMaxQuery) queryCandidate;
+        final DisjunctionMaxQuery disjunctionMaxQuery = (DisjunctionMaxQuery) queryCandidate;
         for (Query currentClause : disjunctionMaxQuery.getDisjuncts()) {
              if (currentClause instanceof BoostQuery)
                  currentClause = processBoostQuery((BoostQuery)currentClause);
@@ -205,8 +239,11 @@ public class MultiLanguageQueryParser extends QParser {
                  currentClause = processTermQuery((TermQuery)currentClause);
              else if (currentClause instanceof BooleanQuery)
                  currentClause = processBooleanQuery((BooleanQuery)currentClause);
+             else if (currentClause instanceof PhraseQuery)
+                 currentClause = processPhraseQuery((PhraseQuery)currentClause);
              else
-                 throw new SolrException(ErrorCode.SERVER_ERROR, "Unknown currentClause type in DisjunctionMaxQuery");
+                 throw new SolrException(ErrorCode.SERVER_ERROR, "Unknown currentClause type in DisjunctionMaxQuery: " +
+                                         currentClause.getClass().getName());
 
              queryList.add(currentClause);
         }
@@ -219,24 +256,26 @@ public class MultiLanguageQueryParser extends QParser {
         if (subquery instanceof TermQuery) {
             subquery = processTermQuery((TermQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
-        }
-        else if (subquery instanceof BooleanQuery) {
+        } else if (subquery instanceof BooleanQuery) {
             subquery = processBooleanQuery((BooleanQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
-
-        }
-        else if (subquery instanceof PrefixQuery) {
+        } else if (subquery instanceof PrefixQuery) {
             subquery = processPrefixQuery((PrefixQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
-        }
-        else
+        } else if (subquery instanceof PhraseQuery) {
+            subquery = processPhraseQuery((PhraseQuery)subquery);
+            return new BoostQuery(subquery, queryCandidate.getBoost());
+        } else if (subquery instanceof MultiPhraseQuery) {
+            subquery = processMultiPhraseQuery((MultiPhraseQuery)subquery);
+            return new BoostQuery(subquery, queryCandidate.getBoost());
+        } else
 	    throw new SolrException(ErrorCode.SERVER_ERROR, "Boost Query: Unable to handle " +  subquery.getClass().getName());
     }
 
 
     private Query processPrefixQuery(final PrefixQuery queryCandidate) {
-        Term term = queryCandidate.getPrefix();
-        TermQuery newTermQuery = (TermQuery)processTermQuery(new TermQuery(term));
+        final Term term = queryCandidate.getPrefix();
+        final TermQuery newTermQuery = (TermQuery)processTermQuery(new TermQuery(term));
         return new PrefixQuery(new Term(newTermQuery.getTerm().field(), newTermQuery.getTerm().text()));
     }
 
@@ -255,6 +294,12 @@ public class MultiLanguageQueryParser extends QParser {
                 subquery = processBoostQuery((BoostQuery)subquery);
             } else if (subquery instanceof BooleanQuery) {
                 subquery = processBooleanQuery((BooleanQuery)subquery);
+            } else if (subquery instanceof PrefixQuery) {
+                subquery = processPrefixQuery((PrefixQuery)subquery);
+            } else if (subquery instanceof PhraseQuery) {
+                subquery = processPhraseQuery((PhraseQuery)subquery);
+            } else if (subquery instanceof MultiPhraseQuery) {
+                subquery = processMultiPhraseQuery((MultiPhraseQuery)subquery);
             } else
                 logger.warn("No appropriate Query in BooleanClause for " + subquery.getClass().getName());
             queryBuilder.add(subquery, currentClause.getOccur());
@@ -277,6 +322,12 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
+    private Query processMatchAllDocsQuery(final MatchAllDocsQuery queryCandidate) {
+        //Since all docs are matched, no modifications are needed
+        return queryCandidate;
+    }
+
+
     private void handleLuceneParser(String[] query, SolrQueryRequest request, String lang, IndexSchema schema) throws MultiLanguageQueryParserException {
         if (query.length != 1)
            throw new MultiLanguageQueryParserException("Only one q-parameter is supported [1]");
@@ -295,6 +346,8 @@ public class MultiLanguageQueryParser extends QParser {
                 newQuery = processDisjunctionMaxQuery((DisjunctionMaxQuery)newQuery);
             else if (newQuery instanceof BoostQuery)
                 newQuery = processBoostQuery((BoostQuery)newQuery);
+            else if (newQuery instanceof MatchAllDocsQuery)
+                newQuery = processMatchAllDocsQuery((MatchAllDocsQuery)newQuery);
             else
                 logger.warn("No rewrite rule did match for " + newQuery.getClass());
             this.searchString = newQuery.toString();

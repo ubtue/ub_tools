@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015-2017, Library of the University of Tübingen
+    Copyright (C) 2015-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -39,6 +39,7 @@
 #include "MarcUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
+#include "TextUtil.h"
 #include "util.h"
 
 
@@ -50,10 +51,6 @@ void Usage() {
               << " [--verbose] ix_theo_titles ix_theo_norm augmented_ix_theo_titles\n";
     std::exit(EXIT_FAILURE);
 }
-
-
-const std::string BIB_REF_RANGE_TAG("801");
-const std::string BIB_BROWSE_TAG("802");
 
 
 void LoadBibleOrderMap(const bool verbose, File * const input,
@@ -93,8 +90,8 @@ bool FindPericopes(const MarcRecord &record, const std::set<std::pair<std::strin
     {
         const Subfields subfields(record.getSubfields(index));
         std::string a_subfield(subfields.getFirstSubfieldValue('a'));
-        StringUtil::ToLower(&a_subfield);
-        StringUtil::CollapseAndTrimWhitespace(&a_subfield);
+        TextUtil::UTF8ToLower(&a_subfield);
+        TextUtil::CollapseAndTrimWhitespace(&a_subfield);
         pericopes.push_back(a_subfield);
     }
 
@@ -351,23 +348,28 @@ void LoadNormData(const bool verbose, const std::unordered_map<std::string, std:
     unsigned count(0), bible_ref_count(0), pericope_count(0);
     std::unordered_multimap<std::string, std::string> pericopes_to_ranges_map;
     while (const MarcRecord record = authority_reader->read()) {
-        ++count;
+        try {
+            ++count;
 
-        std::string gnd_code;
-        if (not MarcUtil::GetGNDCode(record, &gnd_code))
-            continue;
+            std::string gnd_code;
+            if (not MarcUtil::GetGNDCode(record, &gnd_code))
+                continue;
 
-        std::set<std::pair<std::string, std::string>> ranges;
-        if (not GetBibleRanges("130", record, books_of_the_bible, bible_book_to_code_map, &ranges)) {
-            if (not GetBibleRanges("430", record, books_of_the_bible, bible_book_to_code_map, &ranges))
-                continue;
-            if (not FindPericopes(record, ranges, &pericopes_to_ranges_map))
-                continue;
-            ++pericope_count;
+            std::set<std::pair<std::string, std::string>> ranges;
+            if (not GetBibleRanges("130", record, books_of_the_bible, bible_book_to_code_map, &ranges)) {
+                if (not GetBibleRanges("430", record, books_of_the_bible, bible_book_to_code_map, &ranges))
+                    continue;
+                if (not FindPericopes(record, ranges, &pericopes_to_ranges_map))
+                    continue;
+                ++pericope_count;
+            }
+
+            gnd_codes_to_bible_ref_codes_map->emplace(gnd_code, ranges);
+            ++bible_ref_count;
+        } catch (const std::exception &x) {
+            logger->error("caught exception for authority record w/ PPN " + record.getControlNumber() + ": "
+                          + std::string(x.what()));
         }
-
-        gnd_codes_to_bible_ref_codes_map->emplace(gnd_code, ranges);
-        ++bible_ref_count;
     }
 
     if (verbose)
@@ -435,35 +437,37 @@ void AugmentBibleRefs(const bool verbose, MarcReader * const marc_reader, MarcWr
 
     unsigned total_count(0), augment_count(0);
     while (MarcRecord record = marc_reader->read()) {
-        ++total_count;
+        try {
+            ++total_count;
 
-        // Make sure that we don't use a bible reference tag that is already in use for another
-        // purpose:
-        const size_t bib_ref_index(record.getFieldIndex(BIB_REF_RANGE_TAG));
-        if (bib_ref_index != MarcRecord::FIELD_NOT_FOUND)
-            logger->error("We need another bible reference tag than \"" + BIB_REF_RANGE_TAG + "\"!");
+            // Make sure that we don't use a bible reference tag that is already in use for another
+            // purpose:
+            const size_t bib_ref_index(record.getFieldIndex(BibleUtil::BIB_REF_RANGE_TAG));
+            if (bib_ref_index != MarcRecord::FIELD_NOT_FOUND)
+                logger->error("We need another bible reference tag than \"" + BibleUtil::BIB_REF_RANGE_TAG + "\"!");
 
-        std::set<std::string> ranges;
-        if (FindGndCodes(verbose, "600:610:611:630:648:651:655:689", record, gnd_codes_to_bible_ref_codes_map,
-                         &ranges))
-        {
-            ++augment_count;
-             std::string range_string;
-            for (auto &range : ranges) {
-                if (not range_string.empty())
-                    range_string += ',';
-                range_string += StringUtil::Map(range, ':', '_');
+            std::set<std::string> ranges;
+            if (FindGndCodes(verbose, "600:610:611:630:648:651:655:689", record, gnd_codes_to_bible_ref_codes_map, &ranges)) {
+                ++augment_count;
+                std::string range_string;
+                for (auto &range : ranges) {
+                    if (not range_string.empty())
+                        range_string += ',';
+                    range_string += StringUtil::Map(range, ':', '_');
+                }
+
+                // Put the data into the $a subfield:
+                record.insertSubfield(BibleUtil::BIB_REF_RANGE_TAG, 'a', range_string);
             }
 
-            // Put the data into the $a subfield:
-            record.insertSubfield(BIB_REF_RANGE_TAG, 'a', range_string);
+            marc_writer->write(record);
+        } catch (const std::exception &x) {
+            logger->error("caught exception for title record w/ PPN " + record.getControlNumber() + ": " + std::string(x.what()));
         }
-
-        marc_writer->write(record);
     }
 
     if (verbose)
-        logger->info("Augmented the " + BIB_REF_RANGE_TAG + "$a field of " + std::to_string(augment_count)
+        logger->info("Augmented the " + BibleUtil::BIB_REF_RANGE_TAG + "$a field of " + std::to_string(augment_count)
                      + " records of a total of " + std::to_string(total_count) + " records.");
 }
 

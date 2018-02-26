@@ -52,7 +52,7 @@ public:
     HttpHeader()
         : status_code_(0), date_(TimeUtil::BAD_TIME_T), last_modified_(TimeUtil::BAD_TIME_T), expires_(TimeUtil::BAD_TIME_T),
           content_length_(0), is_valid_(false) { }
-    explicit HttpHeader(const std::string &header) throw(std::exception);
+    explicit HttpHeader(const std::string &header);
 
     bool isValid() const { return is_valid_; }
 
