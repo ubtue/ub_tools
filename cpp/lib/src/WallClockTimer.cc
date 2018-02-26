@@ -31,6 +31,7 @@
 #include <cerrno>
 #include <ctime>
 #include "Compiler.h"
+#include "util.h"
 
 
 WallClockTimer::WallClockTimer(const WallClockTimerType timer_type, const std::string &name)
@@ -57,9 +58,9 @@ WallClockTimer::~WallClockTimer() {
 
     if (unlikely(is_running_)) {
         if (not name_.empty())
-            throw std::runtime_error("in WallClockTimer::~WallClockTimer: timer \"" + name_ + "\" is running!");
+            logger->error("in WallClockTimer::~WallClockTimer: timer \"" + name_ + "\" is running!");
         else
-            throw std::runtime_error("in WallClockTimer::~WallClockTimer: timer is running!");
+            logger->error("in WallClockTimer::~WallClockTimer: timer is running!");
     }
 }
 

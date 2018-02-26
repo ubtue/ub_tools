@@ -2,7 +2,7 @@
  *  \brief  Various utility functions related to SELinux
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -119,6 +119,36 @@ bool HasFileType(const std::string &path, const std::string &type) {
 
 
 } // namespace FileContext
+
+
+namespace Port {
+
+
+void AddRecord(const std::string &type, const std::string &protocol, const uint16_t port) {
+    AssertEnabled(std::string(__func__));
+    ExecUtil::Exec(ExecUtil::Which("semanage"), { "port", "-a", "-t", type, "-p", protocol, std::to_string(port) });
+}
+
+
+void AddRecordIfMissing(const std::string &type, const std::string &protocol, const uint16_t port) {
+    AssertEnabled(std::string(__func__));
+    if (not HasPortType(type, protocol, port))
+        AddRecord(type, protocol, port);
+}
+
+
+bool HasPortType(const std::string &type, const std::string &protocol, const uint16_t port) {
+    AssertEnabled(std::string(__func__));
+    std::string semanage_output, semanage_error;
+    ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::Which("semanage"), { "port", "-l" },
+                                                      &semanage_output, &semanage_error);
+
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(type + "\\s+" + protocol + ".*" + "\\b" + std::to_string(port) + "\\b"));
+    return matcher->matched(semanage_output);
+}
+
+
+} // namespace Port
 
 
 } // namespace SELinuxUtil

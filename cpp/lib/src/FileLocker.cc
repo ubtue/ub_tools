@@ -31,28 +31,21 @@
 #include <cstring>
 #include <fcntl.h>
 #include <unistd.h>
+#include "util.h"
 
 
-FileLocker::FileLocker(const std::string &filename, const LockType &lock_type)
-        : filename_(filename), lock_type_(lock_type)
+FileLocker::FileLocker(const int fd, const LockType lock_type)
+    : lock_fd_(fd)
 {
     struct flock lock_struct;
-    lock_struct.l_type   = static_cast<short>((lock_type_ == READ_ONLY) ? F_RDLCK : F_WRLCK); /* F_RDLCK, F_WRLCK, F_UNLCK    */
-    lock_struct.l_whence = SEEK_SET;                                                          /* SEEK_SET, SEEK_CUR, SEEK_END */
-    lock_struct.l_start  = 0;                                                                 /* Offset from l_whence         */
-    lock_struct.l_len    = 0;                                                                 /* length, 0 = to EOF           */
-    lock_struct.l_pid    = ::getpid();                                                        /* our PID                      */
+    lock_struct.l_type   = static_cast<short>((lock_type == READ_ONLY) ? F_RDLCK : F_WRLCK); /* F_RDLCK, F_WRLCK, F_UNLCK    */
+    lock_struct.l_whence = SEEK_SET;                                                         /* SEEK_SET, SEEK_CUR, SEEK_END */
+    lock_struct.l_start  = 0;                                                                /* Offset from l_whence         */
+    lock_struct.l_len    = 0;                                                                /* length, 0 = to EOF           */
+    lock_struct.l_pid    = ::getpid();                                                       /* our PID                      */
 
-    lock_fd_ = ::open(filename_.c_str(), (lock_type_ == READ_ONLY) ? O_RDONLY : O_WRONLY);
-    if (lock_fd_ == -1)
-        throw std::runtime_error("in FileLocker::FileLocker: open(2) failed on \"" + filename_ + "\" ("
-                                 + std::to_string(errno) + ")!");
-
-    if (::fcntl(lock_fd_, F_SETLKW, &lock_struct) == -1) {
-        ::close(lock_fd_);
-        throw std::runtime_error("in FileLocker::FileLocker: fcntl(2) failed for \"" + filename_ + "\" ("
-                                 + std::to_string(errno) + ")!");
-    }
+    if (::fcntl(lock_fd_, F_SETLKW, &lock_struct) == -1)
+        throw std::runtime_error("in FileLocker::FileLocker: fcntl(2) failed! (" + std::to_string(errno) + ")!");
 }
 
 
@@ -66,10 +59,7 @@ FileLocker::~FileLocker() {
 
     if (::fcntl(lock_fd_, F_SETLKW, &lock_struct) == -1) {                /* F_GETLK, F_SETLK, F_SETLKW */
         ::close(lock_fd_);
-        throw std::runtime_error("in FileLocker::~FileLocker: fcntl(2) failed for \""
-                                 + filename_ + "\" (" + std::to_string(errno) + ")!");
+        ERROR("in FileLocker::~FileLocker: fcntl(2) failed ! (" + std::to_string(errno) + ")!");
     }
-
-    ::close(lock_fd_);
 }
 

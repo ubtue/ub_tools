@@ -44,6 +44,7 @@
 #ifndef COMPILER_H
 #   include "Compiler.h"
 #endif
+#include "util.h"
 
 
 SystemAndUserTimer::SystemAndUserTimer(const SystemAndUserTimerType timer_type, const std::string &name)
@@ -63,10 +64,9 @@ SystemAndUserTimer::~SystemAndUserTimer() {
         stop();
     if (unlikely(is_running_)) {
         if (not name_.empty())
-            throw std::runtime_error("in SystemAndUserTimer::~SystemAndUserTimer: timer \"" + name_
-                                     + "\" is running!");
+            logger->error("in SystemAndUserTimer::~SystemAndUserTimer: timer \"" + name_ + "\" is running!");
         else
-            throw std::runtime_error("in SystemAndUserTimer::~SystemAndUserTimer: timer is running!");
+            logger->error("in SystemAndUserTimer::~SystemAndUserTimer: timer is running!");
     }
 }
 

@@ -65,7 +65,7 @@ public:
     /** \brief Delete all records whose expiration field is in the past */
     void expireEntries();
     std::vector<std::string> getDomains();
-    bool getDomainFromUrl(const std::string &url, std::string &domain);
+    bool getDomainFromUrl(const std::string &url, std::string * const domain);
     bool getEntry(const std::string &id, Entry * const entry);
     std::vector<EntryUrl> getEntryUrls(const std::string &id);
     std::vector<std::string> getEntryUrlsAsStrings(const std::string &id);

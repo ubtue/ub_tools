@@ -370,9 +370,9 @@ std::string RobotsDotTxt::toString() const {
 
 
 RobotsMetaTagExtractor::RobotsMetaTagExtractor(const std::string &html_document)
-        : HtmlParser(html_document, HtmlParser::OPENING_TAG, true /* = header_only */)
+    : HtmlParser(html_document, /* http_header_charset = */"", HtmlParser::OPENING_TAG, true /* = header_only */)
 {
-        parse();
+    parse();
 }
 
 

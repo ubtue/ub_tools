@@ -19,6 +19,31 @@ class MetadataHarvester {
     const FILE_CRAWLER_EXAMPLE = '/usr/local/ub_tools/cpp/data/zotero_crawler.conf';
 
     /**
+     * Mapping of format to file extension
+     */
+    const OUTPUT_FORMATS = [
+        // custom formats
+        'json'              => 'json',
+        'marc21'            => 'mrc',
+        'marcxml'           => 'xml',
+
+        // native zotero formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
+        'bibtex'            => 'bibtex',
+        'biblatex'          => 'biblatex',
+        'bookmarks'         => 'bookmarks',
+        'coins'             => 'coins',
+        'csljson'           => 'csljson',
+        'mods'              => 'mods',
+        'refer'             => 'refer',
+        'rdf_bibliontology' => 'rdf_bib',
+        'rdf_dc'            => 'rdf_dc',
+        'rdf_zotero'        => 'rdf_zotero',
+        'ris'               => 'ris',
+        'tei'               => 'tei',
+        'wikipedia'         => 'wikipedia',
+    ];
+
+    /**
      * URL of Server
      * @var string
      */
@@ -38,11 +63,10 @@ class MetadataHarvester {
      * @param string $urlBase
      * @param string $urlRegex
      * @param int $depth
-     * @param bool $ignoreRobots
-     * @param string $fileExtension     supported extension, e.g. "xml" for MARCXML or "mrc" for MARC21
+     * @param string $format     see zts_client for valid formats (e.g. json)
      * @return \Zotero\BackgroundTask
      */
-    public function start($urlBase, $urlRegex, $depth, $ignoreRobots, $fileExtension) {
+    public function start($urlBase, $urlRegex, $depth, $format) {
         $uniqid = uniqid('Zts_' . date('Y-m-d_H-i-s_'));
         $cfgPath = DIR_TMP . $uniqid . '.conf';
 
@@ -58,11 +82,11 @@ class MetadataHarvester {
             symlink('/dev/null', $filePrevDownloaded);
         }
 
-        // only .mrc or .xml (type will be auto detected)
+        $fileExtension = MetadataHarvester::OUTPUT_FORMATS[$format];
         $outPath = DIR_TMP . $uniqid . '.' . $fileExtension;
 
         self::_writeConfigFile($cfgPath, $urlBase, $urlRegex, $depth);
-        return $this->_executeCommand($uniqid, $cfgPath, $dirMapLocal, $outPath, $ignoreRobots);
+        return $this->_executeCommand($uniqid, $cfgPath, $dirMapLocal, $format, $outPath);
     }
 
     /**
@@ -71,22 +95,23 @@ class MetadataHarvester {
      * @param string $taskId
      * @param string $cfgPath
      * @param string $dirMap
+     * @param string $outFormat
      * @param string $outPath
-     * @param bool $ignoreRobots
      * @return \Zotero\BackgroundTask
      */
-    protected function _executeCommand($taskId, $cfgPath, $dirMap, $outPath, $ignoreRobots=false) {
+    protected function _executeCommand($taskId, $cfgPath, $dirMap, $outFormat, $outPath) {
         $progressPath = BackgroundTask::getProgressPath($taskId);
 
         $cmd = 'zts_client';
-        if ($ignoreRobots) {
-            $cmd .= ' --ignore-robots-dot-txt';
+        if (ZOTERO_PROXY_SERVER != '') {
+            $cmd .= ' "--proxy=' . ZOTERO_PROXY_SERVER . '"';
         }
-        $cmd .= ' --zotero-crawler-config-file="' . $cfgPath . '"';
+        $cmd .= ' "--simple-crawler-config-file=' . $cfgPath . '"';
         if ($progressPath != null) {
-            $cmd .= ' --progress-file="' . $progressPath . '"';
+            $cmd .= ' "--progress-file=' . $progressPath . '"';
         }
-        $cmd .= ' ' . $this->url . ' ' . $dirMap . ' "' . $outPath . '"';
+        $cmd .= ' "--output-format=' . $outFormat . '"';
+        $cmd .= ' "' . $this->url . '" "' . $dirMap . '" "' . $outPath . '"';
         $cmd .= ' 2>&1';
 
         $task = new BackgroundTask();
@@ -172,19 +197,23 @@ class BackgroundTask {
     }
 
     /**
-     * Get progress (in percent)
-     * Might also be false, if the subprocess didnt write the progress file yet.
-     * So it is recommended to treat false as 0 percent, and not as error.
+     * Get progress information.
      *
-     * @return mixed        int (percentage) or false (error)
+     * Might also be false, if the subprocess didnt write the progress file yet.
+     * So it is recommended to treat false as no progress, and not as error.
+     *
+     * @return array ['processed_url_count' => int, 'remaining_depth' => int, 'current_url' => string] or false (error)
      */
     public function getProgress() {
         $path = self::getProgressPath($this->taskId);
         if (is_file($path)) {
             $progressRaw = file_get_contents($path);
             if ($progressRaw !== false && $progressRaw !== '') {
-                $progressPercent = intval($progressRaw * 100);
-                return $progressPercent;
+                $progress = explode(';', $progressRaw);
+                return ['processed_url_count' => intval($progress[0]),
+                        'remaining_depth'     => intval($progress[1]),
+                        'current_url'         => $progress[2],
+                ];
             } else {
                 return false;
             }

@@ -113,7 +113,7 @@ std::string ExtractInventory(const std::string &_910_subfield_a, const bool is_m
             logger->error("in ExtractInventory: expected an object node!");
         const JSON::ObjectNode * const object(reinterpret_cast<const JSON::ObjectNode * const>(tree_root));
 
-        const JSON::JSONNode * const inventory_node(object->getValue("bestand8032"));
+        const JSON::JSONNode * const inventory_node(object->getNode("bestand8032"));
         if (inventory_node == nullptr)
             return "";
         if (inventory_node->getType() != JSON::JSONNode::STRING_NODE)
@@ -121,7 +121,7 @@ std::string ExtractInventory(const std::string &_910_subfield_a, const bool is_m
         std::string inventory(reinterpret_cast<const JSON::StringNode * const>(inventory_node)->getValue());
 
         if (not is_monograph) {
-            const JSON::JSONNode * const comment_node(object->getValue("komment"));
+            const JSON::JSONNode * const comment_node(object->getNode("komment"));
             if (comment_node != nullptr) {
                 if (comment_node->getType() != JSON::JSONNode::STRING_NODE)
                     logger->error("in ExtractInventory: expected a string node! (2)");

@@ -8,6 +8,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
+ *  Copyright 2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -35,6 +36,8 @@
 #include <ctime>
 #include <sys/time.h>
 #include "Compiler.h"
+#include "RegexMatcher.h"
+#include "StringUtil.h"
 
 
 namespace TimeUtil {
@@ -145,7 +148,7 @@ time_t TimeGm(const struct tm &tm) {
     const char * const saved_time_zone = ::getenv("TZ");
 
     // Set the time zone to UTC:
-    ::setenv("TZ", "", 1);
+    ::setenv("TZ", "UTC", /* overwrite = */true);
     ::tzset();
 
     struct tm temp_tm(tm);
@@ -172,7 +175,7 @@ struct tm StringToStructTm(const std::string &date_and_time, const std::string &
     return tm;
 }
 
-    
+
 unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * const year, unsigned * const month,
                                 unsigned * const day, unsigned * const hour, unsigned * const minute,
                                 unsigned * const second, bool * const is_definitely_zulu_time)
@@ -408,5 +411,182 @@ std::string GetCurrentYear(const TimeZone time_zone) {
     return TimeTToString(now, "%Y", time_zone);
 }
 
-    
+
+time_t _mkgmtime(const struct tm &tm) {
+    // Month-to-day offset for non-leap-years.
+    static const int month_day[12] =
+    {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
+
+    // Most of the calculation is easy; leap years are the main difficulty.
+    int month = tm.tm_mon % 12;
+    int year = tm.tm_year + tm.tm_mon / 12;
+    if (month < 0) {   // Negative values % 12 are still negative.
+        month += 12;
+        --year;
+    }
+
+    // This is the number of Februaries since 1900.
+    const int year_for_leap = (month > 1) ? year + 1 : year;
+
+    time_t rt = tm.tm_sec                             // Seconds
+        + 60 * (tm.tm_min                          // Minute = 60 seconds
+        + 60 * (tm.tm_hour                         // Hour = 60 minutes
+        + 24 * (month_day[month] + tm.tm_mday - 1  // Day = 24 hours
+        + 365 * (year - 70)                         // Year = 365 days
+        + (year_for_leap - 69) / 4                  // Every 4 years is     leap...
+        - (year_for_leap - 1) / 100                 // Except centuries...
+        + (year_for_leap + 299) / 400)));           // Except 400s.
+    return rt < 0 ? -1 : rt;
+}
+
+
+time_t UTCStructTmToTimeT(const struct tm &tm) {
+    // Month-to-day offset for non-leap-years.
+    static const int month_day[12] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
+
+    // Most of the calculation is easy; leap years are the main difficulty.
+    time_t month(tm.tm_mon % 12);
+    time_t year(tm.tm_year + tm.tm_mon / 12);
+    if (month < 0) { // Negative values % 12 are still negative.
+        month += 12;
+        --year;
+    }
+
+    // This is the number of Februaries since 1900.
+    const time_t year_for_leap((month > 1) ? year + 1 : year);
+
+    const time_t retval_candidate(tm.tm_sec        // Seconds
+        + 60 * (tm.tm_min                          // Minute = 60 seconds
+        + 60 * (tm.tm_hour                         // Hour = 60 minutes
+        + 24 * (month_day[month] + tm.tm_mday - 1  // Day = 24 hours
+        + 365 * (year - 70)                        // Year = 365 days
+        + (year_for_leap - 69) / 4                 // Every 4 years is     leap...
+        - (year_for_leap - 1) / 100                // Except centuries...
+        + (year_for_leap + 299) / 400))));         // Except 400s.
+    return retval_candidate < 0 ? BAD_TIME_T : retval_candidate;
+}
+
+
+// See https://www.rfc-editor.org/rfc/rfc822.txt section 5.1.
+static bool ZoneAdjustment(const std::string &rfc822_zone, time_t * const adjustment) {
+    if (rfc822_zone == "GMT" or rfc822_zone == "UT")
+        *adjustment = 0;
+    else if (rfc822_zone == "EST")
+        *adjustment = +5 * 3600;
+    else if (rfc822_zone == "EDT")
+        *adjustment = +4 * 3600;
+    else if (rfc822_zone == "CST")
+        *adjustment = +6 * 3600;
+    else if (rfc822_zone == "CDT")
+        *adjustment = +5 * 3600;
+    else if (rfc822_zone == "MST")
+        *adjustment = +7 * 3600;
+    else if (rfc822_zone == "MDT")
+        *adjustment = +6 * 3600;
+    else if (rfc822_zone == "PST")
+        *adjustment = +8 * 3600;
+    else if (rfc822_zone == "PDT")
+        *adjustment = +7 * 3600;
+    else if (rfc822_zone == "A")
+        *adjustment = -1 * 3600;
+    else if (rfc822_zone == "M")
+        *adjustment = -12 * 3600;
+    else if (rfc822_zone == "N")
+        *adjustment = +1 * 3600;
+    else if (rfc822_zone == "Y")
+        *adjustment = +12 * 3600;
+    else // Unrecognized tiem zone.
+        return false;
+
+    return true;
+}
+
+
+// In order to understand this insanity, have a look at section 5.1 of RFC822.  Please note that we also support 4-digit
+// years as specified by RFC1123.
+bool ParseRFC1123DateTime(const std::string &date_time_candidate, time_t * const date_time) {
+    const auto first_comma_pos(date_time_candidate.find(','));
+    const std::string::size_type start_pos(first_comma_pos == std::string::npos ? 0 : first_comma_pos + 1);
+    std::string simplified_candidate(StringUtil::TrimWhite(date_time_candidate.substr(start_pos)));
+
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
+        "^(\\d{1,2}) (...) (\\d{2}|\\d{4}) (\\d{2}:\\d{2}(:\\d{2})?)"));
+    if (not matcher->matched(simplified_candidate)) {
+        *date_time = BAD_TIME_T;
+        return false;
+    }
+
+    const bool double_digit_year((*matcher)[3].length() == 2);
+    const bool has_seconds((*matcher)[4].length() == 8);
+
+    std::string format(double_digit_year ? "%d %b %y %H:%M" : "%d %b %Y %H:%M");
+    if (has_seconds)
+        format += ":%S";
+
+    static RegexMatcher * const local_differential_matcher(RegexMatcher::RegexMatcherFactory("[+-]?\\d{4}$"));
+    time_t local_differential_offset(0);
+    if (local_differential_matcher->matched(simplified_candidate)) {
+        std::string local_differential_time((*local_differential_matcher)[0]);
+
+        // Trim the local differential time offset off the end of our date and time string:
+        auto cp(simplified_candidate.begin() + simplified_candidate.length() - local_differential_time.length() - 1);
+        while (*cp == ' ')
+            --cp;
+        simplified_candidate.resize(cp - simplified_candidate.begin() + 1);
+
+        bool is_negative(false);
+        if (local_differential_time[0] == '+')
+            local_differential_time = local_differential_time.substr(1);
+        else if (local_differential_time[0] == '-') {
+            is_negative = true;
+            local_differential_time = local_differential_time.substr(1);
+        }
+
+        local_differential_offset = (local_differential_time[0] - '0') * 600 + (local_differential_time[1] - '0') * 60
+                                    + (local_differential_time[2] - '0') * 10 + (local_differential_time[3] - '0');
+        local_differential_offset *= 60; // convert minutes to seconds
+
+        if (is_negative)
+            local_differential_offset = -local_differential_offset;
+    } else {
+        const auto last_space_pos(simplified_candidate.rfind(' '));
+        if (unlikely(last_space_pos == std::string::npos
+                     or not ZoneAdjustment(simplified_candidate.substr(last_space_pos + 1), &local_differential_offset)))
+            return false;
+        simplified_candidate.resize(last_space_pos);
+    }
+
+    struct tm tm;
+    std::memset(&tm, 0, sizeof tm);
+    const char * const first_not_processed(::strptime(simplified_candidate.c_str(), format.c_str(), &tm));
+    if (first_not_processed == nullptr or *first_not_processed != '\0') {
+        *date_time = BAD_TIME_T;
+        return false;
+    }
+
+    tm.tm_gmtoff = 0;
+    *date_time = TimeGm(tm) + local_differential_offset;
+
+    return true;
+}
+
+
+std::string StructTmToString(const struct tm &tm) {
+    std::string tm_as_string;
+    tm_as_string += "tm_sec: " + std::to_string(tm.tm_sec);
+    tm_as_string += ", tm_min: " + std::to_string(tm.tm_min);
+    tm_as_string += ", tm_hour: " + std::to_string(tm.tm_hour);
+    tm_as_string += ", tm_mday: " + std::to_string(tm.tm_mday);
+    tm_as_string += ", tm_mon: " + std::to_string(tm.tm_mon);
+    tm_as_string += ",tm_year: " + std::to_string(tm.tm_year);
+    tm_as_string += ",tm_wday: " + std::to_string(tm.tm_wday);
+    tm_as_string += ",tm_yday: " + std::to_string(tm.tm_yday);
+    tm_as_string += ",tm_isdst: " + std::to_string(tm.tm_isdst);
+    tm_as_string += ",tm_gmtoff: " + std::to_string(tm.tm_gmtoff);
+    tm_as_string += ",tm_zone: ";
+    tm_as_string += (tm.tm_zone == nullptr) ? "NULL" : tm.tm_zone;
+    return tm_as_string;
+}
+
+
 } // namespace TimeUtil

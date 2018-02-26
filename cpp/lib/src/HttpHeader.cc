@@ -52,7 +52,7 @@ public:
 } // unnamed namespace
 
 
-HttpHeader::HttpHeader(const std::string &header) throw(std::exception) {
+HttpHeader::HttpHeader(const std::string &header) {
     // Assume the header is not valid until we discover otherwise:
     is_valid_ = false;
 
@@ -434,6 +434,10 @@ std::string HttpHeader::GetCharsetFromContentType(const std::string &content_typ
         return "";
 
     std::string charset(start + 8);
+    auto first_semicolon_pos(charset.find(';'));
+    if (first_semicolon_pos != std::string::npos)
+        charset.resize(first_semicolon_pos);
+
     return StringUtil::TrimWhite(charset);
 }
 

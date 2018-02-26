@@ -33,13 +33,15 @@
 class RegexMatcher {
     static bool utf8_configured_;
     std::string pattern_;
-    bool utf8_enabled_;
+    unsigned options_;
     pcre *pcre_;
     pcre_extra* pcre_extra_;
     static constexpr size_t MAX_SUBSTRING_MATCHES = 20;
     mutable std::string last_subject_;
     mutable std::vector<int> substr_vector_;
     mutable unsigned last_match_count_;
+public:
+    enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2 }; // These need to be powers of 2.
 public:
     /** Copy constructor. */
     RegexMatcher(const RegexMatcher &that);
@@ -62,7 +64,8 @@ public:
                  size_t * const start_pos = nullptr, size_t * const end_pos = nullptr) const;
 
     const std::string &getPattern() const { return pattern_; }
-    bool utf8Enabled() const { return utf8_enabled_; }
+    bool utf8Enabled() const { return options_ & ENABLE_UTF8; }
+    bool caseInsensitive() const { return options_ & CASE_INSENSITIVE; }
 
     /** \return The number of matched parenthesised groups in the pattern.
      *  \note   Obviously you may only call this after a call to matched().
@@ -74,7 +77,7 @@ public:
      *                will be returned.
      *  \throws std::out_of_range_error when "group" is greater than the 1-based index of the last substring match.
      */
-    std::string operator[](const unsigned group) const throw(std::out_of_range);
+    std::string operator[](const unsigned group) const;
 
     /** \return The number of substring matches + 1 for the full match of the last match. */
     unsigned getLastMatchCount() const { return last_match_count_; }
@@ -82,15 +85,15 @@ public:
     /** \brief Creates a RegexMatcher.
      *  \param pattern      The pattern to be compiled.
      *  \param err_msg      If non-nullptr, an explanation of a possible error will be written here.
-     *  \param enable_utf8  If true, support matching of UTF8 text.
+     *  \param options      Or'ed together values of type enum Option.
      *  \return nullptr if "pattern" failed to compile and then also sets "err_msg".
      */
     static RegexMatcher *RegexMatcherFactory(const std::string &pattern, std::string * const err_msg = nullptr,
-                                             const bool enable_utf8 = false);
+                                             const unsigned options = 0);
 private:
-    RegexMatcher(const std::string &pattern, const bool utf8_enabled, pcre * const pcre_arg,
+    RegexMatcher(const std::string &pattern, const unsigned options, pcre * const pcre_arg,
                  pcre_extra * const pcre_extra_arg)
-        : pattern_(pattern), utf8_enabled_(utf8_enabled), pcre_(pcre_arg), pcre_extra_(pcre_extra_arg),
+        : pattern_(pattern), options_(options), pcre_(pcre_arg), pcre_extra_(pcre_extra_arg),
           substr_vector_((1 + MAX_SUBSTRING_MATCHES) * 3), last_match_count_(0) {}
 };
 

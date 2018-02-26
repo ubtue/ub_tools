@@ -25,6 +25,7 @@
 #include <unordered_map>
 #include <vector>
 #include <cinttypes>
+#include "util.h"
 
 
 namespace JSON {
@@ -72,6 +73,15 @@ private:
 };
 
 
+// Forward declarations:
+class ArrayNode;
+class BooleanNode;
+class DoubleNode;
+class IntegerNode;
+class ObjectNode;
+class StringNode;
+
+
 class JSONNode {
 public:
     enum Type { BOOLEAN_NODE, NULL_NODE, STRING_NODE, INT64_NODE, DOUBLE_NODE, OBJECT_NODE, ARRAY_NODE };
@@ -82,6 +92,31 @@ public:
     virtual JSONNode *clone() const = 0;
     virtual std::string toString() const = 0;
     static std::string TypeToString(const Type type);
+private:
+    template<typename NodeType> static const NodeType * CastToConstNodeOrDie(const std::string &node_name, const Type node_type, const JSONNode * const node) {
+        if (unlikely(node->getType() != node_type))
+            ERROR("expected \"" + node_name + "\" to be " + JSONNode::TypeToString(node_type) + "!");
+        return reinterpret_cast<const NodeType *>(node);
+    }
+
+    template<typename NodeType> static NodeType * CastToNodeOrDie(const std::string &node_name, const Type node_type, JSONNode * const node) {
+        if (unlikely(node->getType() != node_type))
+            ERROR("expected \"" + node_name + "\" to be " + JSONNode::TypeToString(node_type) + "!");
+        return reinterpret_cast<NodeType *>(node);
+    }
+public:
+    static const ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, const JSONNode * const node) { return CastToConstNodeOrDie<ArrayNode>(node_name, ARRAY_NODE, node); };
+    static ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, JSONNode * const node) { return CastToNodeOrDie<ArrayNode>(node_name, ARRAY_NODE, node); };
+    static const BooleanNode *CastToBooleanNodeOrDie(const std::string &node_name, const JSONNode * const node) { return CastToConstNodeOrDie<BooleanNode>(node_name, BOOLEAN_NODE, node); };
+    static BooleanNode *CastToBooleanNodeOrDie(const std::string &node_name, JSONNode * const node) { return CastToNodeOrDie<BooleanNode>(node_name, BOOLEAN_NODE, node); };
+    static const DoubleNode *CastToDoubleNodeOrDie(const std::string &node_name, const JSONNode * const node) { return CastToConstNodeOrDie<DoubleNode>(node_name, DOUBLE_NODE, node); };
+    static DoubleNode *CastToDoubleNodeOrDie(const std::string &node_name, JSONNode * const node) { return CastToNodeOrDie<DoubleNode>(node_name, DOUBLE_NODE, node); };
+    static const IntegerNode *CastToIntegerNodeOrDie(const std::string &node_name, const JSONNode * const node) { return CastToConstNodeOrDie<IntegerNode>(node_name, INT64_NODE, node); };
+    static IntegerNode *CastToIntegerNodeOrDie(const std::string &node_name, JSONNode * const node) { return CastToNodeOrDie<IntegerNode>(node_name, INT64_NODE, node); };
+    static const ObjectNode *CastToObjectNodeOrDie(const std::string &node_name, const JSONNode * const node) { return CastToConstNodeOrDie<ObjectNode>(node_name, OBJECT_NODE, node); };
+    static ObjectNode *CastToObjectNodeOrDie(const std::string &node_name, JSONNode * const node) { return CastToNodeOrDie<ObjectNode>(node_name, OBJECT_NODE, node); };
+    static const StringNode *CastToStringNodeOrDie(const std::string &node_name, const JSONNode * const node) { return CastToConstNodeOrDie<StringNode>(node_name, STRING_NODE, node); };
+    static StringNode *CastToStringNodeOrDie(const std::string &node_name, JSONNode * const node) { return CastToNodeOrDie<StringNode>(node_name, STRING_NODE, node); };
 };
 
 
@@ -94,6 +129,7 @@ public:
     inline virtual BooleanNode *clone() const override { return new BooleanNode(value_); }
     inline virtual std::string toString() const override { return value_ ? "true" : "false"; }
     inline bool getValue() const { return value_; }
+    void setValue(const bool value) { value_ = value; }
 };
 
 
@@ -129,6 +165,7 @@ public:
     inline virtual Type getType() const override { return INT64_NODE; }
     inline virtual std::string toString() const override { return std::to_string(value_); }
     inline int64_t getValue() const { return value_; }
+    void setValue(const int64_t value) { value_ = value; }
 };
 
 
@@ -141,6 +178,7 @@ public:
     virtual Type getType() const override { return DOUBLE_NODE; }
     virtual std::string toString() const override { return std::to_string(value_); }
     double getValue() const { return value_; }
+    void setValue(const double value) { value_ = value; }
 };
 
 
@@ -148,6 +186,36 @@ class ObjectNode final : public JSONNode {
     std::unordered_map<std::string, JSONNode *> entries_;
 public:
     typedef std::unordered_map<std::string, JSONNode *>::const_iterator const_iterator;
+    template<typename ReturnType> ReturnType * getNode(const std::string &label, const Type node_type) const {
+        const auto entry(entries_.find(label));
+        if (unlikely(entry == entries_.cend()))
+            ERROR("label \"" + label + "\" not found!");
+        if (unlikely(entry->second->getType() != node_type))
+            ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
+        return reinterpret_cast<ReturnType *>(entry->second);
+    }
+    template<typename ReturnType> ReturnType * getOptionalNode(const std::string &label, const Type node_type) const {
+        const auto entry(entries_.find(label));
+        if (unlikely(entry == entries_.cend()))
+            return nullptr;
+        if (unlikely(entry->second->getType() != node_type))
+            ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
+        return reinterpret_cast<ReturnType *>(entry->second);
+    }
+    template<typename ReturnType, typename NodeType> ReturnType getValue(const std::string &label, const Type node_type) const {
+        const NodeType * node(getNode<NodeType>(label, node_type));
+        return node->getValue();
+    }
+    template<typename ReturnType, typename NodeType> ReturnType getOptionalValue(const std::string &label, const ReturnType default_value,
+                                                                                     const Type node_type) const
+    {
+        const auto entry(entries_.find(label));
+        if (entry == entries_.cend())
+            return default_value;
+        if (unlikely(entry->second->getType() != node_type))
+            ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
+        return reinterpret_cast<NodeType *>(entry->second)->getValue();
+    }
 public:
     ObjectNode() { }
     virtual ~ObjectNode();
@@ -164,16 +232,69 @@ public:
     bool remove(const std::string &label);
 
     // Member accessors, they return NULL if there is no entry for the provided label o/w they return the entry.
-    const JSONNode *getValue(const std::string &label) const;
-    JSONNode *getValue(const std::string &label);
+    const JSONNode *getNode(const std::string &label) const;
+    JSONNode *getNode(const std::string &label);
 
-    const_iterator cbegin() const { return entries_.cbegin(); }
-    const_iterator cend() const { return entries_.cend(); }
+    // Automatic cast value retrieval.  If the requested type is not applicable, the functions abort.
+    const ArrayNode *getArrayNode(const std::string &label) const { return getNode<ArrayNode>(label, ARRAY_NODE); }
+    ArrayNode *getArrayNode(const std::string &label) { return getNode<ArrayNode>(label, ARRAY_NODE); }
+    const BooleanNode *getBooleanNode(const std::string &label) const { return getNode<BooleanNode>(label, BOOLEAN_NODE); }
+    BooleanNode *getBooleanNode(const std::string &label) { return getNode<BooleanNode>(label, BOOLEAN_NODE); }
+    const DoubleNode *getDoubleNode(const std::string &label) const { return getNode<DoubleNode>(label, DOUBLE_NODE); }
+    DoubleNode *getDoubleNode(const std::string &label) { return getNode<DoubleNode>(label, DOUBLE_NODE); }
+    const IntegerNode *getIntegerNode(const std::string &label) const { return getNode<IntegerNode>(label, INT64_NODE); }
+    IntegerNode *getIntegerNode(const std::string &label) { return getNode<IntegerNode>(label, INT64_NODE); }
+    const ObjectNode *getObjectNode(const std::string &label) const { return getNode<ObjectNode>(label, OBJECT_NODE); }
+    ObjectNode *getObjectNode(const std::string &label) { return getNode<ObjectNode>(label, OBJECT_NODE); }
+    const StringNode *getStringNode(const std::string &label) const { return getNode<StringNode>(label, STRING_NODE); }
+    StringNode *getStringNode(const std::string &label) { return getNode<StringNode>(label, STRING_NODE); }
+    bool isNullNode(const std::string &label) const;
+
+    // Automatic cast value retrieval.  Returns nullptr if node not found.  If the requested type is not applicable, the functions abort.
+    const ArrayNode *getOptionalArrayNode(const std::string &label) const { return getOptionalNode<ArrayNode>(label, ARRAY_NODE); }
+    ArrayNode *getOptionalArrayNode(const std::string &label) { return getOptionalNode<ArrayNode>(label, ARRAY_NODE); }
+    const BooleanNode *getOptionalBooleanNode(const std::string &label) const { return getOptionalNode<BooleanNode>(label, BOOLEAN_NODE); }
+    BooleanNode *getOptionalBooleanNode(const std::string &label) { return getOptionalNode<BooleanNode>(label, BOOLEAN_NODE); }
+    const DoubleNode *getOptionalDoubleNode(const std::string &label) const { return getNode<DoubleNode>(label, DOUBLE_NODE); }
+    DoubleNode *getOptionalDoubleNode(const std::string &label) { return getOptionalNode<DoubleNode>(label, DOUBLE_NODE); }
+    const IntegerNode *getOptionalIntegerNode(const std::string &label) const { return getOptionalNode<IntegerNode>(label, INT64_NODE); }
+    IntegerNode *getOptionalIntegerNode(const std::string &label) { return getOptionalNode<IntegerNode>(label, INT64_NODE); }
+    const ObjectNode *getOptionalObjectNode(const std::string &label) const { return getOptionalNode<ObjectNode>(label, OBJECT_NODE); }
+    ObjectNode *getOptionalObjectNode(const std::string &label) { return getOptionalNode<ObjectNode>(label, OBJECT_NODE); }
+    const StringNode *getOptionalStringNode(const std::string &label) const { return getOptionalNode<StringNode>(label, STRING_NODE); }
+    StringNode *getOptionalStringNode(const std::string &label) { return getOptionalNode<StringNode>(label, STRING_NODE); }
+
+    bool getBooleanValue(const std::string &label) const { return getValue<bool, BooleanNode>(label, BOOLEAN_NODE); }
+    double getDoubleValue(const std::string &label) const { return getValue<double, DoubleNode>(label, DOUBLE_NODE); }
+    int64_t getIntegerValue(const std::string &label) const { return getValue<int64_t, IntegerNode>(label, INT64_NODE); }
+    std::string getStringValue(const std::string &label) const { return getValue<std::string, StringNode>(label, STRING_NODE); }
+
+    bool getOptionalBooleanValue(const std::string &label, const bool default_value) const { return getOptionalValue<bool, BooleanNode>(label, default_value, BOOLEAN_NODE); }
+    double getOptionalDoubleValue(const std::string &label, const double default_value) const { return getOptionalValue<double, DoubleNode>(label, default_value, DOUBLE_NODE); }
+    int64_t getOptionalIntegerValue(const std::string &label, const int64_t default_value) const { return getOptionalValue<int64_t, IntegerNode>(label, default_value, INT64_NODE); }
+    std::string getOptionalStringValue(const std::string &label, const std::string &default_value = "") const { return getOptionalValue<std::string, StringNode>(label, default_value, STRING_NODE); }
+
+    const_iterator begin() const { return entries_.cbegin(); }
+    const_iterator end() const { return entries_.cend(); }
 };
 
 
 class ArrayNode final : public JSONNode {
     std::vector<JSONNode *> values_;
+    template<typename NodeType> NodeType * getNode(const size_t index, const JSONNode::Type node_type) const {
+        if (unlikely(index >= values_.size()))
+            ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
+        if (unlikely(values_[index]->getType() != node_type))
+            ERROR("entry with index \"" + std::to_string(index) + "\" is not a " + JSONNode::TypeToString(node_type) + " node!");
+        return (reinterpret_cast<NodeType *>(values_[index]));
+    }
+    template<typename NodeType> NodeType * getOptionalNode(const size_t index, const JSONNode::Type node_type) const {
+        if (unlikely(index >= values_.size()))
+            return nullptr;
+        if (unlikely(values_[index]->getType() != node_type))
+            ERROR("entry with index \"" + std::to_string(index) + "\" is not a " + JSONNode::TypeToString(node_type) + " node!");
+        return (reinterpret_cast<NodeType *>(values_[index]));
+    }
 public:
     typedef std::vector<JSONNode *>::const_iterator const_iterator;
 public:
@@ -184,11 +305,33 @@ public:
     virtual Type getType() const override { return ARRAY_NODE; }
     virtual std::string toString() const override;
     bool empty() const { return values_.empty(); }
-    const JSONNode *getValue(const size_t index) const { return values_[index]; }
-    JSONNode *getValue(const size_t index) { return values_[index]; }
+    const JSONNode *getNode(const size_t index) const { return values_[index]; }
+    JSONNode *getNode(const size_t index) { return values_[index]; }
+
+    // Automatic cast value retrieval.  If the requested type is not applicable, the functions abort.
+    bool getBooleanValue(const size_t index) const { return this->getNode<BooleanNode>(index, BOOLEAN_NODE)->getValue(); }
+    std::string getStringValue(const size_t index) const { return this->getNode<StringNode>(index, STRING_NODE)->getValue(); }
+    int64_t getIntegerValue(const size_t index) const { return this->getNode<IntegerNode>(index, INT64_NODE)->getValue(); }
+    double getDoubleValue(const size_t index) const { return this->getNode<DoubleNode>(index, DOUBLE_NODE)->getValue(); }
+    const ObjectNode *getObjectNode(const size_t index) const { return this->getNode<ObjectNode>(index, OBJECT_NODE); }
+    ObjectNode *getObjectNode(const size_t index) { return this->getNode<ObjectNode>(index, OBJECT_NODE); };
+    const StringNode *getStringNode(const size_t index) const { return this->getNode<StringNode>(index, STRING_NODE); }
+    StringNode *getStringNode(const size_t index) { return this->getNode<StringNode>(index, STRING_NODE); }
+    const ArrayNode *getArrayNode(const size_t index) const { return this->getNode<ArrayNode>(index, ARRAY_NODE); }
+    ArrayNode *getArrayNode(const size_t index) { return this->getNode<ArrayNode>(index, ARRAY_NODE); }
+    bool isNullNode(const size_t index) const;
+
+    // Automatic cast value retrieval.  Returns nullptr if node not found.  If the requested type is not applicable, the functions abort.
+    const ObjectNode *getOptionalObjectNode(const size_t index) const { return this->getOptionalNode<ObjectNode>(index, OBJECT_NODE); }
+    ObjectNode *getOptionalObjectNode(const size_t index) { return this->getOptionalNode<ObjectNode>(index, OBJECT_NODE); };
+    const StringNode *getOptionalStringNode(const size_t index) const { return this->getOptionalNode<StringNode>(index, STRING_NODE); }
+    StringNode *getOptionalStringNode(const size_t index) { return this->getOptionalNode<StringNode>(index, STRING_NODE); }
+    const ArrayNode *getOptionalArrayNode(const size_t index) const { return this->getOptionalNode<ArrayNode>(index, ARRAY_NODE); }
+    ArrayNode *getOptionalArrayNode(const size_t index) { return this->getOptionalNode<ArrayNode>(index, ARRAY_NODE); }
+
     size_t size() const { return values_.size(); }
-    const_iterator cbegin() const { return values_.cbegin(); }
-    const_iterator cend() const { return values_.cend(); }
+    const_iterator begin() const { return values_.cbegin(); }
+    const_iterator end() const { return values_.cend(); }
     void push_back(JSONNode * const node) { values_.push_back(node); }
 };
 
@@ -224,14 +367,26 @@ std::string TokenTypeToString(const TokenType token);
  *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
  *                        supported.
  *  \param tree           The root of a JSON tree structure.
- *  \param default_value  If not NULL, a value which will be returned if "path" does not reference a scalar value.
  *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
- *  \throws std::runtime_error if the datum is not found and "default_value" is NULL
+ *  \throws std::runtime_error if the datum is not found.
+ *  \note Should "path" reference a scalar node that is not a string, a string representation. thereof will be
+ *        returned.
+ */
+std::string LookupString(const std::string &path, const JSONNode * const tree);
+
+
+/** \brief Extracts a string datum from a JSON tree structure.
+ *  \param path           A path of the form /X/Y/X...  Individual path components may contain slashes if they are
+ *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
+ *                        supported.
+ *  \param tree           The root of a JSON tree structure.
+ *  \param default_value  If "path" can't be found, return this.
+ *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
  *  \note Should "path" reference a scalar node that is not a string, a string representation. thereof will be
  *        returned.
  */
 std::string LookupString(const std::string &path, const JSONNode * const tree,
-                         const std::string * const default_value = nullptr);
+                         const std::string &default_value);
 
 
 /** \brief Extracts an integer datum from a JSON tree structure.
@@ -239,12 +394,26 @@ std::string LookupString(const std::string &path, const JSONNode * const tree,
  *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
  *                        supported.
  *  \param tree           The root of a JSON tree structure.
- *  \param default_value  If not NULL, a value which will be returned if "path" does not reference a scalar value.
+ *  \param default_value  If "path" can't be found, return this.
  *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
- *  \throws std::runtime_error if the datum is not found and "default_value" is NULL
+ *  \throws std::runtime_error if path refers to an existing non-integer node.
  */
-int64_t LookupInteger(const std::string &path, const JSONNode * const tree,
-                      const int64_t * const default_value = nullptr);
+int64_t LookupInteger(const std::string &path, const JSONNode * const tree, const int64_t default_value);
+
+
+/** \brief Extracts an integer datum from a JSON tree structure.
+ *  \param path           A path of the form /X/Y/X...  Individual path components may contain slashes if they are
+ *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
+ *                        supported.
+ *  \param tree           The root of a JSON tree structure.
+ *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
+ *  \throws std::runtime_error if "path" refers to an existing non-integer node or the node "path" refers to does not exist.
+ */
+int64_t LookupInteger(const std::string &path, const JSONNode * const tree);
+
+
+// Escapes control codes, backslashes, double quotes, form feeds, newlines, carriage returns, and tab characters.
+std::string EscapeString(const std::string &unescaped_string);
 
 
 } // namespace JSON

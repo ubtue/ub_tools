@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  Copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -146,7 +146,7 @@ off_t GetFileSize(const std::string &path);
 class AutoTempFile {
     std::string path_;
 public:
-    explicit AutoTempFile(const std::string &path_prefix = "/tmp/AT");
+    explicit AutoTempFile(const std::string &path_prefix = "/tmp/ATF");
     ~AutoTempFile() { if (not path_.empty()) ::unlink(path_.c_str()); }
 
     const std::string &getFilePath() const { return path_; }
@@ -154,7 +154,10 @@ public:
 
 
 bool WriteString(const std::string &path, const std::string &data);
+void WriteStringOrDie(const std::string &path, const std::string &data);
 bool ReadString(const std::string &path, std::string * const data);
+void ReadStringOrDie(const std::string &path, std::string * const data);
+std::string ReadStringOrDie(const std::string &path);
 
 
 /** \brief Append "data" to "path".  If "path" does not exist, it will be created. */
@@ -260,6 +263,19 @@ bool MakeDirectory(const std::string &path, const bool recursive = false, const 
 bool RemoveDirectory(const std::string &dir_name);
 
 
+/** \class AutoTempDirectory
+ *  \brief Creates a temp directory and removes it when going out of scope.
+ */
+class AutoTempDirectory {
+    std::string path_;
+public:
+    explicit AutoTempDirectory(const std::string &path_prefix = "/tmp/ATD");
+    ~AutoTempDirectory();
+
+    const std::string &getDirectoryPath() const { return path_; }
+};
+
+
 /** \brief Removes files and possibly directories matching a regular expression pattern.
  *  \param  filename_regex       The pattern for the file and possibly the directory names to be deleted.
  *  \param  include_directories  If true, matching directories will also be deleted, even if non-empty.
@@ -323,15 +339,18 @@ size_t GetFileNameList(const std::string &filename_regex, std::vector<std::strin
                        const std::string &directory_to_scan = ".");
 
 /** \brief Rename a file or directory.
- *  \param old_name       The original name.
- *  \param new_name       The target name.
- *  \param remove_target  If "new_name" already exists and this is set to true we will attempt to delete the existing
- *                        renaming target before attempting to rename "old_name".
+ *  \param old_name              The original name.
+ *  \param new_name              The target name.
+ *  \param remove_target         If "new_name" already exists and this is set to true we will attempt to delete the existing
+ *                               renaming target before attempting to rename "old_name".
+ *  \param copy_if_cross_device  We will use copying if we're attempting a coss-device rename if this is set to true.
  *  \return True, upon success, else false.
  *  \note Sets errno if there was a failure.
  */
-bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target = false);
-
+bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target = false,
+                const bool copy_if_cross_device = false);
+void RenameFileOrDie(const std::string &old_name, const std::string &new_name, const bool remove_target = false,
+                     const bool copy_if_cross_device = false);
 
 /** \brief Opens a file for reading or aborts. */
 std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename);
@@ -352,6 +371,7 @@ std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename);
 bool Copy(File * const from, File * const to, const size_t no_of_bytes);
 
 
+bool Copy(const std::string &from_path, const std::string &to_path);
 void CopyOrDie(const std::string &from_path, const std::string &to_path);
 
 
@@ -423,6 +443,21 @@ bool IsMountPoint(const std::string &path);
 
 
 size_t CountLines(const std::string &filename);
+
+
+// Strips all extensions from "filename" and returns what is left after that.
+std::string GetFilenameWithoutExtensionOrDie(const std::string &filename);
+
+
+// If "filename" has at least one period in its name, we return everything after the last period.  O/w we return an empty string.
+std::string GetExtension(const std::string &filename, const bool to_lowercase = false);
+
+
+/** \brief Nomen est omen.
+ *  \note Aborts if "path" is no path components.
+ *  \return The shortend path.
+ */
+std::string StripLastPathComponent(const std::string &path);
 
 
 } // namespace FileUtil
