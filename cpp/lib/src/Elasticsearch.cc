@@ -2,7 +2,7 @@
  *  \brief   Implementation of utility functions relating to Elasticsearch.
  *  \author  Mario Trojan
  *
- *  \copyright 2018 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
