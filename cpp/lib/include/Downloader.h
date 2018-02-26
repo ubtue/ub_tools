@@ -131,6 +131,7 @@ public:
     bool putData(const std::string &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
         { return putData(Url(url), data, time_limit); }
 
+    /** \brief Issues an HTTP DELETE request. */
     bool deleteUrl(const Url &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
     bool deleteUrl(const std::string &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
         { return deleteUrl(Url(url), time_limit); }
