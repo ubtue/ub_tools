@@ -60,8 +60,8 @@ public:
     typedef std::unordered_map<std::string, Document> Documents;
 private:
     static std::shared_ptr<JSON::ObjectNode> FieldsToJSON(const Fields fields);
-    static Fields JSONToFields(const JSON::ObjectNode * const json_object);
-    JSON::ObjectNode * query(const std::string &action, const REST::QueryType query_type, const std::shared_ptr<JSON::JSONNode> &data = nullptr);
+    static Fields JSONToFields(const std::shared_ptr<const JSON::ObjectNode> &json_object);
+    std::shared_ptr<JSON::ObjectNode> query(const std::string &action, const REST::QueryType query_type, const std::shared_ptr<const JSON::JSONNode> &data = nullptr);
 public:
     void createDocument(const Document &document);
     void createIndex();

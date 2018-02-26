@@ -24,14 +24,14 @@
 std::shared_ptr<JSON::ObjectNode> Elasticsearch::FieldsToJSON(const Fields fields) {
     std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
     for (const auto &field : fields) {
-        JSON::StringNode * value_node = new JSON::StringNode(field.second);
+        std::shared_ptr<JSON::StringNode> value_node(new JSON::StringNode(field.second));
         tree_root->insert(field.first, value_node);
     }
     return tree_root;
 }
 
 
-Elasticsearch::Fields Elasticsearch::JSONToFields(const JSON::ObjectNode * const json_object) {
+Elasticsearch::Fields Elasticsearch::JSONToFields(const std::shared_ptr<const JSON::ObjectNode> &json_object) {
     Fields fields;
     for (const auto &key_and_value : *json_object)
         fields[key_and_value.first] = key_and_value.second->toString();
@@ -39,13 +39,13 @@ Elasticsearch::Fields Elasticsearch::JSONToFields(const JSON::ObjectNode * const
 }
 
 
-JSON::ObjectNode * Elasticsearch::query(const std::string &action, const REST::QueryType query_type, const std::shared_ptr<JSON::JSONNode> &data) {
+std::shared_ptr<JSON::ObjectNode> Elasticsearch::query(const std::string &action, const REST::QueryType query_type, const std::shared_ptr<const JSON::JSONNode> &data) {
     Url url(host_.toString() + "/" + action);
     Downloader::Params params;
     if (data != nullptr)
         params.additional_headers_.push_back("Content-Type: application/json");
-    JSON::JSONNode *result(REST::QueryJSON(url, query_type, data, params));
-    JSON::ObjectNode *result_object(JSON::JSONNode::CastToObjectNodeOrDie("Elasticsearch result", result));
+    std::shared_ptr<JSON::JSONNode> result(REST::QueryJSON(url, query_type, data, params));
+    std::shared_ptr<JSON::ObjectNode> result_object(JSON::JSONNode::CastToObjectNodeOrDie("Elasticsearch result", result));
     if (result_object->hasNode("error"))
         throw std::runtime_error(result_object->getNode("error")->toString());
 
@@ -80,7 +80,7 @@ void Elasticsearch::deleteIndex() {
 
 Elasticsearch::Document Elasticsearch::getDocument(const std::string &id) {
     std::string action(index_ + "/" + document_type_ + "/" + id);
-    const JSON::ObjectNode * const result(query(action, REST::QueryType::GET));
+    std::shared_ptr<JSON::ObjectNode> result(query(action, REST::QueryType::GET));
     bool found(result->getOptionalBooleanValue("found", false));
     if (not found)
         throw std::runtime_error("document not found!" + result->toString());
@@ -94,12 +94,12 @@ Elasticsearch::Document Elasticsearch::getDocument(const std::string &id) {
 
 std::vector<std::string> Elasticsearch::getIndexList() {
     std::string action("_cluster/health?level=indices");
-    const JSON::ObjectNode * const result_node(query(action, REST::QueryType::GET));
+    const std::shared_ptr<const JSON::ObjectNode> result_node(query(action, REST::QueryType::GET));
 
     if (not result_node->hasNode("indices"))
         throw std::runtime_error("indices key not found in result: " + result_node->toString());
 
-    const JSON::ObjectNode * const index_list_node(result_node->getObjectNode("indices"));
+    const std::shared_ptr<const JSON::ObjectNode> index_list_node(result_node->getObjectNode("indices"));
     std::vector<std::string> index_list;
     for (const auto &key_and_node : *index_list_node)
         index_list.push_back(key_and_node.first);
@@ -110,11 +110,11 @@ std::vector<std::string> Elasticsearch::getIndexList() {
 
 Elasticsearch::IndexStatistics Elasticsearch::getIndexStatistics() {
     std::string action(index_ + "/_stats");
-    JSON::ObjectNode *result_object(query(action, REST::QueryType::GET));
-    JSON::ObjectNode *indices_object(result_object->getObjectNode("indices"));
-    JSON::ObjectNode *index_object(indices_object->getObjectNode(index_));
-    JSON::ObjectNode *total_object(index_object->getObjectNode("total"));
-    JSON::ObjectNode *docs_object(total_object->getObjectNode("docs"));
+    const std::shared_ptr<const JSON::ObjectNode> result_object(query(action, REST::QueryType::GET));
+    const std::shared_ptr<const JSON::ObjectNode> indices_object(result_object->getObjectNode("indices"));
+    const std::shared_ptr<const JSON::ObjectNode> index_object(indices_object->getObjectNode(index_));
+    const std::shared_ptr<const JSON::ObjectNode> total_object(index_object->getObjectNode("total"));
+    const std::shared_ptr<const JSON::ObjectNode> docs_object(total_object->getObjectNode("docs"));
     IndexStatistics stats;
     stats.document_count_ = static_cast<unsigned>(docs_object->getIntegerValue("count"));
     return stats;
@@ -123,7 +123,7 @@ Elasticsearch::IndexStatistics Elasticsearch::getIndexStatistics() {
 
 bool Elasticsearch::hasDocument(const std::string &id) {
     std::string action(index_ + "/" + document_type_ + "/" + id);
-    const JSON::ObjectNode * const result(query(action, REST::QueryType::GET));
+    const std::shared_ptr<const JSON::ObjectNode> result(query(action, REST::QueryType::GET));
     return result->getOptionalBooleanValue("found", false);
 }
 
@@ -132,23 +132,23 @@ Elasticsearch::Documents Elasticsearch::searchAllDocuments() {
     std::string action(index_ + "/_search");
 
     const std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
-    JSON::ObjectNode * query_node(new JSON::ObjectNode);
+    std::shared_ptr<JSON::ObjectNode> query_node(new JSON::ObjectNode);
     tree_root->insert("query", query_node);
-    JSON::ObjectNode * match_all_node(new JSON::ObjectNode);
+    std::shared_ptr<JSON::ObjectNode> match_all_node(new JSON::ObjectNode);
     query_node->insert("match_all", match_all_node);
 
-    const JSON::ObjectNode * const result_node(query(action, REST::QueryType::GET, tree_root));
+    const std::shared_ptr<const JSON::ObjectNode> result_node(query(action, REST::QueryType::GET, tree_root));
 
     Documents documents;
     if (result_node->hasNode("hits")) {
-        const JSON::ObjectNode * const hits_object(result_node->getObjectNode("hits"));
-        const JSON::ArrayNode * const hits_array(hits_object->getArrayNode("hits"));
+        const std::shared_ptr<const JSON::ObjectNode> hits_object(result_node->getObjectNode("hits"));
+        const std::shared_ptr<const JSON::ArrayNode> hits_array(hits_object->getArrayNode("hits"));
         for (const auto &hit_node : *hits_array) {
-            const JSON::ObjectNode * const hit_object(JSON::JSONNode::CastToObjectNodeOrDie("hit", hit_node));
+            const std::shared_ptr<const JSON::ObjectNode> hit_object(JSON::JSONNode::CastToObjectNodeOrDie("hit", hit_node));
             Document document;
             document.id_ = hit_object->getStringValue("_id");
             if (hit_object->hasNode("_source")) {
-                const JSON::ObjectNode * const fields_object(hit_object->getObjectNode("_source"));
+                const std::shared_ptr<const JSON::ObjectNode> fields_object(hit_object->getObjectNode("_source"));
                 document.fields_ = JSONToFields(fields_object);
             }
             documents[document.id_] = document;
@@ -159,9 +159,9 @@ Elasticsearch::Documents Elasticsearch::searchAllDocuments() {
 
 
 void Elasticsearch::updateDocument(const Document &document) {
-    const std::shared_ptr<JSON::ObjectNode> doc_node(FieldsToJSON(document.fields_));
-    const std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
-    tree_root->insert("doc", doc_node.get());
+    std::shared_ptr<JSON::ObjectNode> doc_node(FieldsToJSON(document.fields_));
+    std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
+    tree_root->insert("doc", doc_node);
     std::string action(index_ + "/" + document_type_ + "/" + document.id_ + "_update?pretty");
     query(action, REST::QueryType::POST, tree_root);
 }
