@@ -381,6 +381,15 @@ ObjectNode::~ObjectNode() {
 }
 
 
+ObjectNode *ObjectNode::clone() const {
+    ObjectNode *the_clone(new ObjectNode);
+    for (const auto &entry : entries_)
+        the_clone->entries_[entry.first] = entry.second->clone();
+
+    return the_clone;
+}
+
+
 std::string ObjectNode::toString() const {
     std::string as_string;
     as_string += "{ ";
@@ -445,6 +454,16 @@ bool ObjectNode::isNullNode(const std::string &label) const {
 ArrayNode::~ArrayNode() {
     for (auto &value : values_)
         delete value;
+}
+
+
+ArrayNode *ArrayNode::clone() const {
+    ArrayNode *the_clone(new ArrayNode);
+    the_clone->values_.reserve(values_.size());
+    for (const auto &node : values_)
+        the_clone->values_.emplace_back(node->clone());
+
+    return the_clone;
 }
 
 
