@@ -50,13 +50,13 @@ std::string Query(const Url &url, const QueryType query_type, const std::string 
 }
 
 
-JSON::JSONNode *QueryJSON(const Url &url, const QueryType query_type, const std::shared_ptr<JSON::JSONNode> &data, Downloader::Params params) {
+std::shared_ptr<JSON::JSONNode> QueryJSON(const Url &url, const QueryType query_type, const std::shared_ptr<const JSON::JSONNode> &data, Downloader::Params params) {
     std::string json_in;
     if (data != nullptr)
         json_in = data->toString();
     std::string json_out(Query(url, query_type, json_in, params));
     JSON::Parser parser(json_out);
-    JSON::JSONNode *tree_root;
+    std::shared_ptr<JSON::JSONNode> tree_root;
     if (not parser.parse(&tree_root))
         throw std::runtime_error("could not parse JSON response");
 

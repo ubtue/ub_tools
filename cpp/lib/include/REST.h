@@ -38,9 +38,9 @@ std::string Query(const Url &url, const QueryType query_type, const std::string 
                   Downloader::Params params = Downloader::Params());
 
 
-JSON::JSONNode *QueryJSON(const Url &url, const QueryType query_type,
-                          const std::shared_ptr<JSON::JSONNode> &data = nullptr,
-                          Downloader::Params params = Downloader::Params());
+std::shared_ptr<JSON::JSONNode> QueryJSON(const Url &url, const QueryType query_type,
+                                          const std::shared_ptr<const JSON::JSONNode> &data = nullptr,
+                                          Downloader::Params params = Downloader::Params());
 
 
 } // namespace REST
