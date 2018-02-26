@@ -27,7 +27,8 @@
 namespace PdfUtil {
 
 
-std::string ExtractText(const std::string &pdf_document);
+constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 60; // seconds
+bool ExtractText(const std::string &pdf_document, std::string * const extracted_text);
 
 
 /** \brief Returns whether a document contains text or not.
@@ -44,9 +45,14 @@ bool PdfFileContainsNoText(const std::string &path);
 bool PdfDocContainsNoText(const std::string &document);
 
 
-/** \brief Uses tesseract to attempt OCR. */
+/** \brief Uses tesseract API to attempt OCR. */
+bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_language_code,
+                      std::string * const extracted_text);
+
+
+/** \brief Uses pdfimages + tesseract API to attempt OCR. */
 bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tesseract_language_code,
-                         std::string * const extracted_text);
+                         std::string * const extracted_text, unsigned timeout=DEFAULT_PDF_EXTRACTION_TIMEOUT /* in s */);
 
 
 } // namespace PdfUtil

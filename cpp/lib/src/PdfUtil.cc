@@ -17,38 +17,47 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "PdfUtil.h"
+#include <leptonica/allheaders.h>
+#include <tesseract/baseapi.h>
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "MiscUtil.h"
+#include "PdfUtil.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
 namespace PdfUtil {
 
 
-std::string ExtractText(const std::string &pdf_document) {
+bool ExtractText(const std::string &pdf_document, std::string * const extracted_text) {
     static std::string pdftotext_path;
     if (pdftotext_path.empty())
         pdftotext_path = ExecUtil::LocateOrDie("pdftotext");
 
     const FileUtil::AutoTempFile auto_temp_file1;
     const std::string &input_filename(auto_temp_file1.getFilePath());
-    if (not FileUtil::WriteString(input_filename, pdf_document))
-        logger->error("in PdfUtil::ExtractText: can't write document to \"" + input_filename + "\"!");
+    if (not FileUtil::WriteString(input_filename, pdf_document)) {
+        WARNING("can't write document to \"" + input_filename + "\"!");
+        return false;
+    }
 
     const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &output_filename(auto_temp_file2.getFilePath());
 
     const int retval(ExecUtil::Exec(pdftotext_path,
                                     { "-enc", "UTF-8", "-nopgbrk", input_filename, output_filename }));
-    if (retval != 0)
-        logger->error("in PdfUtil::ExtractText: failed to execute \"" + pdftotext_path + "\"!");
-    std::string extracted_text;
-    if (not FileUtil::ReadString(output_filename, &extracted_text))
-        logger->error("in PdfUtil::ExtractText: failed to read extracted text from \"" + output_filename + "\"!");
+    if (retval != 0) {
+        WARNING("failed to execute \"" + pdftotext_path + "\"!");
+        return false;
+    }
 
-    return extracted_text;
+    if (not FileUtil::ReadString(output_filename, extracted_text)) {
+        WARNING("failed to read extracted text from \"" + output_filename + "\"!");
+        return false;
+    }
+
+    return not extracted_text->empty();
 }
 
 
@@ -74,47 +83,73 @@ bool PdfFileContainsNoText(const std::string &path) {
 bool PdfDocContainsNoText(const std::string &document) {
     const FileUtil::AutoTempFile auto_temp_file;
     const std::string &output_filename(auto_temp_file.getFilePath());
-    const FileUtil::AutoDeleteFile auto_delete(output_filename);
     if (not FileUtil::WriteString(output_filename, document))
         return false;
     return PdfFileContainsNoText(output_filename);
 }
 
 
-bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tesseract_language_code,
-                         std::string * const extracted_text)
+bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_language_code,
+                      std::string * const extracted_text)
 {
-    extracted_text->clear();
-
-    static std::string pdf_images_script_path;
-    if (pdf_images_script_path.empty())
-        pdf_images_script_path = ExecUtil::LocateOrDie("pdf_images_to_text.sh");
-
-    const FileUtil::AutoTempFile auto_temp_file;
-    const std::string &input_filename(auto_temp_file.getFilePath());
-    if (not FileUtil::WriteString(input_filename, pdf_document))
-        logger->error("failed to write the PDF to a temp file!");
-
-    const FileUtil::AutoTempFile auto_temp_file2;
-    const std::string &output_filename(auto_temp_file2.getFilePath());
-    static constexpr unsigned TIMEOUT(60); // in seconds
-
-    const std::string UPDATE_DB_LOG_PATH("/usr/local/var/log/tuefind/update_full_text_db/log");
-    MiscUtil::LogRotate(UPDATE_DB_LOG_PATH, /* max_count = */5);
-
-    if (ExecUtil::Exec(pdf_images_script_path, { input_filename, output_filename, tesseract_language_code },
-                       /* new_stdin = */"", /* new_stdout = */UPDATE_DB_LOG_PATH,
-                       /* new_stderr = */UPDATE_DB_LOG_PATH, TIMEOUT) != 0)
-    {
-        logger->warning("failed to execute conversion script \"" + pdf_images_script_path + "\" w/in "
-                        + std::to_string(TIMEOUT) + " seconds!");
+    tesseract::TessBaseAPI * const api(new tesseract::TessBaseAPI());
+    if (api->Init(nullptr, tesseract_language_code.c_str())) {
+        WARNING("Could not initialize Tesseract API!");
         return false;
     }
 
-    std::string plain_text;
-    if (not FileUtil::ReadString(output_filename, extracted_text))
-        logger->error("failed to read OCR output!");
+    Pix *image(pixRead(img_path.c_str()));
+    api->SetImage(image);
 
+    char *utf8_text(api->GetUTF8Text());
+    *extracted_text = utf8_text;
+    delete[] utf8_text;
+
+    api->End();
+    delete api;
+    pixDestroy(&image);
+    delete image;
+
+    return not extracted_text->empty();
+}
+
+
+bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tesseract_language_code,
+                         std::string * const extracted_text, unsigned timeout)
+{
+    extracted_text->clear();
+
+    static std::string pdf_images_script_path(ExecUtil::LocateOrDie("pdfimages"));
+
+    const FileUtil::AutoTempDirectory auto_temp_dir;
+    const std::string &output_dirname(auto_temp_dir.getDirectoryPath());
+    const std::string input_filename(output_dirname + "/in.pdf");
+    if (not FileUtil::WriteString(input_filename, pdf_document)) {
+        WARNING("failed to write the PDF to a temp file!");
+        return false;
+    }
+
+    if (ExecUtil::Exec(pdf_images_script_path, { input_filename, output_dirname + "/out" }, "", "", "", timeout) != 0) {
+        WARNING("failed to extract images from PDF file!");
+        return false;
+    }
+
+    std::vector<std::string> pdf_image_filenames;
+    if (FileUtil::GetFileNameList("out.*", &pdf_image_filenames, output_dirname) == 0) {
+        WARNING("PDF did not contain any images!");
+        return false;
+    }
+
+    for (const std::string &pdf_image_filename : pdf_image_filenames) {
+        std::string image_text;
+        if (not GetTextFromImage(output_dirname + "/" + pdf_image_filename, tesseract_language_code, &image_text)) {
+            WARNING("failed to extract text from image " + pdf_image_filename);
+            return false;
+        }
+         *extracted_text += " " + image_text;
+    }
+
+    *extracted_text = StringUtil::TrimWhite(*extracted_text);
     return not extracted_text->empty();
 }
 

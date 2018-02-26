@@ -59,7 +59,7 @@ ArchiveReader::ArchiveReader(const std::string &archive_file_name) {
 
 ArchiveReader::~ArchiveReader() {
     if (unlikely(::archive_read_free(archive_handle_) != ARCHIVE_OK))
-        throw std::runtime_error("in ArchiveReader::~ArchiveReader: archive_read_free(3) failed!");
+        logger->error("in ArchiveReader::~ArchiveReader: archive_read_free(3) failed!");
 }
 
 
@@ -100,7 +100,7 @@ bool ArchiveReader::extractEntry(const std::string &member_name, std::string out
         if (entry_info.isDirectory())
             logger->error("in ArchiveReader::extractEntry: can't extract a directory!");
 
-        const int to_fd(::open(output_filename.c_str(), O_WRONLY | O_CREAT));
+        const int to_fd(::open(output_filename.c_str(), O_WRONLY | O_CREAT, 0600));
         if (unlikely(to_fd == -1))
             logger->error("in  ArchiveReader::extractEntry: failed to open \"" + output_filename  + "\" for writing!");
 
@@ -163,11 +163,11 @@ ArchiveWriter::~ArchiveWriter() {
         ::archive_entry_free(archive_entry_);
 
     if (unlikely(::archive_write_close(archive_handle_) != ARCHIVE_OK))
-        throw std::runtime_error("in ArchiveWriter::~Archive!Writer: archive_write_close(3) failed: "
-                                 + std::string(::archive_error_string(archive_handle_)));
+        logger->error("in ArchiveWriter::~Archive!Writer: archive_write_close(3) failed: "
+                      + std::string(::archive_error_string(archive_handle_)));
     if (unlikely(::archive_write_free(archive_handle_) != ARCHIVE_OK))
-        throw std::runtime_error("in ArchiveWriter::~Archive!Writer: archive_write_free(3) failed: "
-                                 + std::string(::archive_error_string(archive_handle_)));
+        logger->error("in ArchiveWriter::~Archive!Writer: archive_write_free(3) failed: "
+                      + std::string(::archive_error_string(archive_handle_)));
 }
 
 

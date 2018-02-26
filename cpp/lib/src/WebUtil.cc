@@ -483,7 +483,7 @@ void GetArgvArgs(const int argc, char * argv[], std::multimap<std::string, std::
 namespace {
 
 
-void ParseMultiPartFormNumber(std::string * const random_number) throw(std::exception) {
+void ParseMultiPartFormNumber(std::string * const random_number) {
     // Read 29 dashes:
     char dashes[29]; // Caution: intentionally no room for a trailing NUL
     std::cin.read(dashes, 29);
@@ -508,8 +508,7 @@ void ParseMultiPartFormNumber(std::string * const random_number) throw(std::exce
 
 // ParseMultiPartFormDataHeader -- parses a multipart/form-data header.
 //
-void ParseMultiPartFormDataHeader(std::string * const field_name, std::string * const file_name) throw(std::exception)
-{
+void ParseMultiPartFormDataHeader(std::string * const field_name, std::string * const file_name) {
     // Read Content-disposition line
     const char TEXT[] = "Content-Disposition: form-data; name=";
     char buf[sizeof(TEXT)];

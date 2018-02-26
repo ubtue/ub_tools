@@ -662,6 +662,9 @@ bool Resolver::DecodeReply(const unsigned char * const packet_start, const size_
     case 1:
         if (verbosity >= 2)
             logger->info("in Resolver::DecodeReply: the server indicated that we sent an invalid request!");
+        #if __GNUC__ >= 7
+        [[fallthrough]];
+        #endif
     default:
         /* Some kind of error condition that we ignore. */
         return false;
@@ -1010,7 +1013,7 @@ bool SimpleResolver::processServerReply(const unsigned char * const reply_packet
                                         const uint16_t expected_reply_id, std::set<in_addr_t> * const ip_addresses)
 {
     std::set<std::string> hostnames;
-    uint32_t ttl;
+    uint32_t ttl(0);
     uint16_t reply_id;
     bool truncated;
     if (not Resolver::DecodeReply(reply_packet, reply_packet_size, &hostnames, ip_addresses, &ttl,

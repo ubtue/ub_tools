@@ -12,8 +12,8 @@ endif
 OBJ            = .
 MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep
 LIBS           = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
-                 -larchive -lboost_graph -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt \
-                 -lssl -lcrypto -lpthread -ldl -luuid
+                 -larchive -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt -lssl -lcrypto -lpthread -ldl \
+                 -luuid -llept -ltesseract
 ifneq ("$(wildcard /usr/include/selinux)","")
   CCCFLAGS += -DHAS_SELINUX_HEADERS
   LIBS += -lselinux
@@ -34,7 +34,7 @@ all: .deps $(PROGS)
 
 $(PROGS): % : %.o lib/libubtue.a
 	@echo "Linking $@..."
-	@$(CCC) $< -o $@ $(LIBS)
+	@$(CCC) -rdynamic $< -o $@ $(LIBS)
 
 -include .deps
 .deps: *.cc $(INC)/*.h Makefile
@@ -62,7 +62,7 @@ data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.tem
 	@echo "Installing data..."
 	mkdir --parents /usr/local/var/lib/tuelib/bibleRef/
 	cp data/books_of_the_bible_to_canonical_form.map data/books_of_the_bible_to_code.map \
-           /usr/local/var/lib/tuelib/bibleRef/
+           data/pericopes_to_codes.map /usr/local/var/lib/tuelib/bibleRef/
 	mkdir --parents /usr/local/var/lib/tuelib/translate_chainer
 	cp data/done_translating.html data/translate.html data/translation_front_page.html \
            data/mytranslations_template.msg /usr/local/var/lib/tuelib/translate_chainer/

@@ -7,11 +7,13 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.YearMonth;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
@@ -21,6 +23,8 @@ import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.DataUtil;
 import org.solrmarc.tools.Utils;
+import org.vufind.index.DatabaseManager;
+import java.sql.*;
 
 public class TuelibMixin extends SolrIndexerMixin {
     public final static String UNASSIGNED_STRING = "[Unassigned]";
@@ -38,6 +42,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
+    private final static Pattern UNICODE_QUOTATION_MARKS_PATTERN = Pattern.compile("[«‹»›„‚“‟‘‛”’\"❛❜❟❝❞❮❯⹂〝〞〟＂¿…]");
 
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
@@ -528,6 +533,23 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
+     * Use solrmarc default "getSortableTitle" logic.
+     * Also remove all unicode quotation marks
+     *
+     * @param record
+     *
+     * @return
+     */
+    public String getSortableTitleUnicode(final Record record) {
+        String title = SolrIndexer.instance().getSortableTitle(record);
+        final Matcher matcher = UNICODE_QUOTATION_MARKS_PATTERN.matcher(title);
+        title = matcher.replaceAll("");
+        // Remove all Unicode control characters
+        // (cf. https://stackoverflow.com/questions/3438854/replace-unicode-control-characters/3439206#3439206) (180201)
+        return title.replaceAll("\\p{Cc}", "").trim();
+    }
+
+    /**
      * @param record
      *            the record
      * @param fieldnums
@@ -765,10 +787,41 @@ public class TuelibMixin extends SolrIndexerMixin {
                                   + "! (PPN: " + record.getControlNumber() + ")");
                     return null;
                 }
-                return year + "-" + month + "-01T11:00:00.000Z";
+                // If we use a fixed day we underrun a plausible span of time for the new items
+                // but we have to make sure that no invalid date is generated that leads to an import problem
+                return year + "-" + month + "-" +
+                       String.format("%02d",
+                       isCurrentYearAndMonth(year, month) ? getCurrentDayOfMonth() : getLastDayForYearAndMonth(year, month))
+                       + "T11:00:00.000Z";
             }
         }
         return null;
+    }
+
+
+    /*
+     * Check whether given year and date is equivalent to current year and date
+     */
+    boolean isCurrentYearAndMonth(final String year, final String month) {
+        Calendar calendar = Calendar.getInstance();
+        return (Integer.valueOf(year) == calendar.get(Calendar.YEAR)) &&
+               (Integer.valueOf(month) == calendar.get(Calendar.MONTH));
+    }
+
+
+    /*
+     * Get day of current month
+     */
+    int getCurrentDayOfMonth() {
+        return Calendar.getInstance().get(Calendar.DAY_OF_MONTH);
+    }
+
+
+    /*
+     * Get last day of a given month for a given year
+     */
+    int getLastDayForYearAndMonth(final String year, final String month) {
+        return YearMonth.of(Integer.valueOf(year), Integer.valueOf(month)).atEndOfMonth().getDayOfMonth();
     }
 
     /*
@@ -780,6 +833,9 @@ public class TuelibMixin extends SolrIndexerMixin {
     static private Map<String, String> translation_map_es = new HashMap<String, String>();
     static private Map<String, String> translation_map_hant = new HashMap<String, String>();
     static private Map<String, String> translation_map_hans = new HashMap<String, String>();
+    static private Map<String, String> translation_map_pt = new HashMap<String, String>();
+    static private Map<String, String> translation_map_ru = new HashMap<String, String>();
+    static private Map<String, String> translation_map_el = new HashMap<String, String>();
 
     /**
      * get translation map for normdata translations
@@ -813,6 +869,15 @@ public class TuelibMixin extends SolrIndexerMixin {
         case "hans":
             translation_map = translation_map_hans;
             break;
+        case "pt":
+            translation_map = translation_map_pt;
+            break;
+        case "ru":
+            translation_map = translation_map_ru;
+            break;
+        case "el":
+            translation_map = translation_map_el;
+            break;
         default:
             throw new IllegalArgumentException("Invalid language shortcut: " + langShortcut);
         }
@@ -830,7 +895,10 @@ public class TuelibMixin extends SolrIndexerMixin {
                 String line;
 
                 while ((line = in.readLine()) != null) {
-                    String[] translations = line.split("\\|");
+                    // We now also have synonyms in the translation files
+                    // These are not relevant in this context and are thus discarded
+                    line = line.replaceAll(Pattern.quote("||") + ".*", "");
+                    final String[] translations = line.split("\\|");
                     if (!translations[0].isEmpty() && !translations[1].isEmpty())
                         translation_map.put(translations[0], translations[1]);
                 }
@@ -1107,9 +1175,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         final String subfieldDelim = "$";
         final String esc = "\\";
         final String regexColon = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(fieldDelim);
-        final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(subfieldDelim) + "([a-zA-Z])(.*)";
+        final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(subfieldDelim) + "([0-9][a-z]|[a-zA-Z])(.*)";
         final Pattern SUBFIELD_PATTERN = Pattern.compile(regexSubfield);
-
         String[] subfieldSeparatorList = separatorSpec.split(regexColon);
         for (String s : subfieldSeparatorList) {
             // Create map of subfields and separators
@@ -1128,7 +1195,6 @@ public class TuelibMixin extends SolrIndexerMixin {
                 separators.put("default", s.replace(esc, ""));
             }
         }
-
         return separators;
     }
 
@@ -1212,9 +1278,15 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     /**
      * Generate Separator according to specification
+     * For some subfields there are standards how the values extracted must be attached to the resulting keyword string
+     * Examples are $p must be separated y ".". We must also examine the term itself since there a constructions like
+     * $9g:
      */
-    public String getSubfieldBasedSeparator(Map<String, String> separators, char subfieldCodeChar) {
+    public String getSubfieldBasedSeparator(Map<String, String> separators, char subfieldCodeChar, String term) {
         String subfieldCodeString = Character.toString(subfieldCodeChar);
+        // In some cases of numeric Subfields we have ':'-delimited subfield of a subfield to remove complexity ;-)
+        // i.e. $9 g:xxxx
+        subfieldCodeString += Character.isDigit(subfieldCodeChar) ? term.split(":")[0] : "";
         String separator = separators.get(subfieldCodeString) != null ? separators.get(subfieldCodeString)
                                                                       : separators.get("default");
 
@@ -1266,14 +1338,33 @@ public class TuelibMixin extends SolrIndexerMixin {
         getTopicsCollector(record, fieldSpec, separators, collector, langShortcut, null);
     }
 
+
+    /**
+     * Construct a regular expression from the subfield tags where all character subfields are extracted and for number
+     * subfields the subsequent character subSubfield-Code is skipped (e.g. abctnpz9g => a|b|c|t|n|p|z|9 (without the g)
+     */
+    private String extractNormalizedSubfieldPatternHelper(final String subfldTags) {
+        String[] tokens =  subfldTags.split("(?<=[0-9]?[a-z])");
+        Stream<String> tokenStream = Arrays.stream(tokens);
+        Stream<String> normalizedTokenStream = tokenStream.map(t -> "" + t.charAt(0)); // extract only first character
+        return String.join("|", normalizedTokenStream.toArray(String[]::new));
+    }
+
+
+    /**
+     * Strip subSubfield-Codes from the value part of a field
+     */
+    private String stripSubSubfieldCode(final String term) {
+        return term.replaceAll("^[a-z]:", "");
+    }
+
+
     /**
      * Abstract out topic extract from LOK and ordinary field handling
      */
     private void extractTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<String> collector,
                             final  String langShortcut, final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate) {
-        final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*"
-                                              : String.join("|", subfldTags.split("(?!^)")));
-
+        final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "[a-z]" : extractNormalizedSubfieldPatternHelper(subfldTags));
         for (final VariableField vf : marcFieldList) {
             final StringBuffer buffer = new StringBuffer("");
             final DataField marcField = (DataField) vf;
@@ -1296,32 +1387,34 @@ public class TuelibMixin extends SolrIndexerMixin {
             // separators
             else {
                 for (final Subfield subfield : subfields) {
-                    // Skip numeric fields
-                    if (Character.isDigit(subfield.getCode()))
-                        continue;
+                    char subfieldCode = subfield.getCode();
                     final Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
-                    if (matcher.find()) {
-                        final String term = subfield.getData().trim();
-                        if (buffer.length() > 0) {
-                            String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
-                            if (separator != null) {
-                                if (isBracketDirective(separator)) {
+                    if (!matcher.matches())
+                        continue;
+                    String term = subfield.getData().trim();
+                    if (buffer.length() > 0) {
+                        String separator = getSubfieldBasedSeparator(separators, subfield.getCode(), term);
+                        // Make sure we strip the subSubfield code from our term
+                        if (Character.isDigit(subfieldCode))
+                            term = stripSubSubfieldCode(term);
+                        if (separator != null) {
+                            if (isBracketDirective(separator)) {
+                                final SymbolPair symbolPair = parseBracketDirective(separator);
+                                final String translatedTerm = translateTopic(term.replace("/", "\\/"), langShortcut);
+                                buffer.append(" " + symbolPair.opening + translatedTerm + symbolPair.closing);
+                                continue;
+                            } else if (buffer.length() > 0)
+                                buffer.append(separator);
+                        }
 
-                                    final SymbolPair symbolPair = parseBracketDirective(separator);
-                                    final String translatedTerm = translateTopic(term.replace("/", "\\/"), langShortcut);
-                                    buffer.append(" " + symbolPair.opening + translatedTerm + symbolPair.closing);
-                                    continue;
-                                 } else if (buffer.length() > 0)
-                                    buffer.append(separator);
-                            }
-                         }
-                         buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
                     }
+                    buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
                 }
             }
             if (buffer.length() > 0)
                 collector.add(DataUtil.cleanData(buffer.toString()));
         }
+
     } // end extractTopicsHelper
 
     /**
@@ -1332,8 +1425,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * Generic function for topics that abstracts from a set or list collector
      * It is based on original SolrIndex.getAllSubfieldsCollector but allows to
      * specify several different separators to concatenate the single subfields
-     * Moreover numeric subfields are filtered out since they do not contain data
-     * to be displayed. Separators can be defined on a subfield basis as a list in
+     * Separators can be defined on a subfield basis as a list in
      * the format
      *   separator_spec          :== separator | subfield_separator_list
      *   subfield_separator_list :== subfield_separator_spec |  subfield_separator_spec ":" subfield_separator_list |
@@ -1447,7 +1539,10 @@ public class TuelibMixin extends SolrIndexerMixin {
                                             });
         valuesTranslated.removeAll(toRemove);
         valuesTranslated.addAll(toAdd);
-        return addHonourees(record, valuesTranslated);
+        addHonourees(record, valuesTranslated);
+        if (valuesTranslated.size() == 0)
+            valuesTranslated.add(UNASSIGNED_STRING);
+        return valuesTranslated;
     }
 
     public String getFirstValueOrUnassigned(final Record record, final String fieldSpecs) {
@@ -1539,7 +1634,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
             if (dates.isEmpty())
-                logger.severe("getDatesBasedOnRecordType [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
+                logger.severe("getDatesBasedOnRecordType [Could not find proper 936 field date content for: "
+                              + record.getControlNumber() + "]");
             else
                 return dates;
         }
@@ -1573,12 +1669,13 @@ public class TuelibMixin extends SolrIndexerMixin {
         final String year = checkValidYear(yearExtracted);
         // log error if year is empty or not a year like "19uu"
         if (year.isEmpty() && !VALID_YEAR_RANGE_PATTERN.matcher(yearExtracted).matches())
-            logger.severe("getDatesBasedOnRecordType [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
+            logger.severe("getDatesBasedOnRecordType [\"" + yearExtracted + "\" is not a valid year for PPN "
+                          + record.getControlNumber() + "]");
         else
             dates.add(year);
 
         return dates;
-}
+    }
 
 
     public String isSuperiorWork(final Record record) {
@@ -1650,6 +1747,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return iso8601_date.toString();
     }
 
+
     public Set<String> getGenreTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> genres = new HashSet<String>();
@@ -1666,8 +1764,8 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        if (genres.size() > 1)
-            genres.remove(UNASSIGNED_STRING);
+        if (genres.size() == 0)
+            genres.add(UNASSIGNED_STRING);
 
         return genres;
     }
@@ -1678,8 +1776,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         Set<String> region = new HashSet<String>();
         getTopicsCollector(record, fieldSpecs, separators, region, lang, _689IsRegionSubject);
 
-        if (region.size() > 1)
-            region.remove(UNASSIGNED_STRING);
+        if (region.size() == 0)
+            region.add(UNASSIGNED_STRING);
 
         return region;
     }
@@ -1690,8 +1788,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         Set<String> time = new HashSet<String>();
         getTopicsCollector(record, fieldSpecs, separators, time, lang, _689IsTimeSubject);
 
-        if (time.size() > 1)
-            time.remove(UNASSIGNED_STRING);
+        if (time.size() == 0)
+            time.add(UNASSIGNED_STRING);
 
         return time;
     }
@@ -2086,6 +2184,10 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
+        // If we classified an object as "DictionaryEntryOrArticle" we don't also want it to be classified as an article:
+        if (result.contains("Article") && result.contains("DictionaryEntryOrArticle"))
+            result.remove("Article");
+
         // Nothing worked!
         if (result.isEmpty()) {
             result.add("Unknown");
@@ -2247,6 +2349,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         return formats;
     }
 
+    private final static String electronicRessource = "Electronic";
+    private final static String nonElectronicRessource = "Non-Electronic";
+
     /**
      * Determine Mediatype For facets we need to differentiate between
      * electronic and non-electronic resources
@@ -2259,12 +2364,15 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getMediatype(final Record record) {
         final Set<String> mediatype = new HashSet<>();
         final Set<String> formats = getFormatIncludingElectronic(record);
-        final String electronicRessource = "Electronic";
-        final String nonElectronicRessource = "Non-Electronic";
 
-        if (formats.contains(electronicRessource)) {
+        if (formats.contains(electronicRessource))
             mediatype.add(electronicRessource);
-        } else {
+        else
+            mediatype.add(nonElectronicRessource);
+
+        final VariableField field = record.getVariableField("ZWI");
+        if (field != null) {
+            mediatype.add(electronicRessource);
             mediatype.add(nonElectronicRessource);
         }
 
@@ -2282,7 +2390,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     public String calculateFirstPublicationDate(Set<String> dates) {
         String firstPublicationDate = null;
         for (final String current : dates) {
-            if (firstPublicationDate == null || current != null && Integer.parseInt(current) < Integer.parseInt(firstPublicationDate))
+            if (firstPublicationDate == null || current != null
+                && Integer.parseInt(current) < Integer.parseInt(firstPublicationDate))
                 firstPublicationDate = current;
         }
         return firstPublicationDate;
@@ -2402,9 +2511,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return "non-open-access";
     }
 
-
     // Try to get a numerically sortable representation of an issue
-
     public String getIssueSort(final Record record) {
         for (final VariableField variableField : record.getVariableFields("936")) {
             final DataField dataField = (DataField) variableField;
@@ -2421,5 +2528,42 @@ public class TuelibMixin extends SolrIndexerMixin {
                 return issueString.split("/")[0];
         }
         return "0";
+    }
+
+    public Set<String> getRVKs(final Record record) {
+        final Set<String> result = new TreeSet<String>();
+
+        for (final VariableField variableField : record.getVariableFields("936")) {
+            final DataField dataField = (DataField) variableField;
+            final Subfield subfield_a = dataField.getSubfield('a');
+            if (subfield_a != null)
+                result.add(subfield_a.getData());
+        }
+
+        return result;
+    }
+
+
+    public String getFullText(final Record record) {
+        final DataField fullTextField = (DataField) record.getVariableField("FUL");
+        if (fullTextField == null)
+            return "";
+
+        Connection dbConnection = DatabaseManager.instance().getConnection();
+
+        try {
+            final Statement statement = dbConnection.createStatement();
+            final ResultSet resultSet = statement.executeQuery("SELECT full_text FROM full_text_cache WHERE id=\""
+                                                               + record.getControlNumber() + "\"");
+            if (!resultSet.isBeforeFirst())
+                return "";
+
+            resultSet.next();
+            return resultSet.getString("full_text");
+        } catch (SQLException e) {
+            logger.severe("SQL error: " + e.toString());
+            System.exit(1);
+            return ""; // Keep the compiler happy!
+        }
     }
 }

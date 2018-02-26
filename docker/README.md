@@ -30,7 +30,7 @@ Lässt man --no-cache weg, legt sich Docker einen Cache für alles an was er bei
 `docker images`
 
 ## Image in einem Container ausführen
-`docker run -e ZOTERO_TRANSLATION_SERVER_URL="http://ub28.uni-tuebingen.de:1969/web" -p 8080:80 -d example`
+`docker run -e ZOTERO_TRANSLATION_SERVER_URL="http://mb028.ub.uni-tuebingen.de:1969" -p 8080:80 -d example`
 * -e => wird verwendet um beim Start des Containers spezielle Umgebungsvariablen zu setzen
 * -p 8080:80 => Port 80 des Containers wird auf Port 8080 auf dem Host gemappt
 * -d => detach, wird im Hintergrund ausgeführt
@@ -47,6 +47,9 @@ Wichtig: Pro Image können theoretisch mehrere Container laufen, für weitere Be
 `docker exec -it 6714d8880fad bash`
 
 Hinweis: Bei bestimmten Aktionen, z.B. Neustarten des Apache Servers kann der Container abstürzen!
+
+## File vom Host in laufenden Container kopieren
+`docker cp test.js 6714d880fad:/tmp/test.js`
 
 ## Laufenden Container stoppen
 `docker stop 6714d8880fad`

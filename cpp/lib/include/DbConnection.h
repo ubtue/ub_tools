@@ -2,7 +2,7 @@
  *  \brief  Interface for the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,6 +24,7 @@
 #include <string>
 #include <mysql/mysql.h>
 #include "DbResultSet.h"
+#include "util.h"
 
 
 class DbConnection {
@@ -59,10 +60,12 @@ public:
      */
     unsigned getNoOfAffectedRows() const { return ::mysql_affected_rows(&mysql_); }
 
+public:
+
     /** Converts the binary contents of "unescaped_string" into a form that can used as a string (you still
         need to add quotes around it) in SQL statements. */
     std::string escapeString(const std::string &unescaped_string);
-public:
+
     void init(const std::string &database_name, const std::string &user, const std::string &passwd,
               const std::string &host, const unsigned port);
 };

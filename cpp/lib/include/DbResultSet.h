@@ -2,7 +2,7 @@
  *  \brief  Interface for the DbResultSet class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2016,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <map>
+#include <unordered_set>
 #include <mysql/mysql.h>
 #include "DbRow.h"
 
@@ -55,6 +56,9 @@ public:
     DbRow getNextRow();
 
     bool hasColumn(const std::string &column_name) const;
+
+    /** \return The set of all values in column "column" contained in this result set. */
+    std::unordered_set<std::string> getColumnSet(const std::string &column);
 };
 
 

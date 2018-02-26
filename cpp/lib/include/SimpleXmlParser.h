@@ -2,7 +2,7 @@
  *  \brief  A non-validating XML parser class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -21,6 +21,8 @@
 #define SIMPLE_XML_PARSER_H
 
 
+#include <algorithm>
+#include <deque>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -40,8 +42,7 @@ public:
     enum Type { UNINITIALISED, START_OF_DOCUMENT, END_OF_DOCUMENT, ERROR, OPENING_TAG, CLOSING_TAG, CHARACTERS };
 private:
     DataSource * const input_;
-    unsigned pushed_back_count_;
-    int pushed_back_chars_[2];
+    std::deque<int> pushed_back_chars_;
     unsigned line_no_;
     Type last_type_;
     std::string last_error_message_;
@@ -49,6 +50,7 @@ private:
     std::string last_tag_name_;
     std::string *data_collector_;
     TextUtil::UTF8ToUTF32Decoder utf8_to_utf32_decoder_;
+    static const std::deque<int> CDATA_DEQUE;
 public:
     SimpleXmlParser(DataSource * const input);
 
@@ -60,7 +62,22 @@ public:
 
     /** \brief Skip forward until we encounter a certain element.
      *  \param expected_type  The type of element we're looking for.
+     *  \param expected_tags  If "type" is OPENING_TAG or CLOSING_TAG, the name of the tags we're looking for.  We return when we
+     *                        have found the first matching one.
+     *  \param found_tag      If "type" is OPENING_TAG or CLOSING_TAG, the name of the actually found tag.
+     *  \param attrib_map     If not NULL and if we find what we're looking for and if it is an opening tag, the attribute map
+     *                        for the found opening tag.
+     *  \param data           If not NULL, the skipped over XML will be returned here.
+     *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
+     */
+    bool skipTo(const Type expected_type, const std::vector<std::string> &expected_tags, std::string * const found_tag,
+                std::map<std::string, std::string> * const attrib_map = nullptr, std::string * const data = nullptr);
+
+    /** \brief Skip forward until we encounter a certain element.
+     *  \param expected_type  The type of element we're looking for.
      *  \param expected_tag   If "type" is OPENING_TAG or CLOSING_TAG, the name of the tag we're looking for.
+     *  \param attrib_map     If not NULL and if we find what we're looking for and if it is an opening tag, the attribute map
+     *                        for the found opening tag.
      *  \param data           If not NULL, the skipped over XML will be returned here.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
@@ -73,7 +90,7 @@ public:
     static std::string TypeToString(const Type type);
 private:
     int getUnicodeCodePoint();
-    int get();
+    int get(bool * const cdata_mode = nullptr);
     int peek();
     void unget(const int ch);
     bool extractAttribute(std::string * const name, std::string * const value, std::string * const error_message);
@@ -81,15 +98,19 @@ private:
     void skipOptionalProcessingInstruction();
     bool extractName(std::string * const name);
     bool extractQuotedString(const int closing_quote, std::string * const s);
+    bool parseCDATA(std::string * const data);
     bool parseOpeningTag(std::string * const tag_name, std::map<std::string, std::string> * const attrib_map,
                          std::string * const error_message);
     bool parseClosingTag(std::string * const tag_name);
 };
 
 
+template<typename DataSource> const std::deque<int> SimpleXmlParser<DataSource>::CDATA_DEQUE{
+    '<', '!', 'C', 'D', 'A', 'T', 'A', '[' };
+
+
 template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataSource * const input)
-    : input_(input), pushed_back_count_(0), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false),
-      data_collector_(nullptr)
+    : input_(input), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false), data_collector_(nullptr)
 {
     parseOptionalPrologue();
 }
@@ -110,43 +131,54 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoi
 }
 
 
-template<typename DataSource> int SimpleXmlParser<DataSource>::get() {
-    if (unlikely(pushed_back_count_ > 0)) {
-        const int pushed_back_char(pushed_back_chars_[0]);
-        --pushed_back_count_;
-        for (unsigned i(0); i < pushed_back_count_; ++i)
-            pushed_back_chars_[i] = pushed_back_chars_[i + 1];
+template<typename DataSource> int SimpleXmlParser<DataSource>::get(bool * const cdata_mode) {
+    if (cdata_mode != nullptr) {
+        // Look for a cached EOF:
+        if (std::find(pushed_back_chars_.cbegin(), pushed_back_chars_.cend(), EOF) != pushed_back_chars_.cend())
+            *cdata_mode = false;
+        else {
+            while (pushed_back_chars_.size() < __builtin_strlen("<![CDATA[")) {
+                const int ch(getUnicodeCodePoint());
+                pushed_back_chars_.push_back(ch);
+                if (unlikely(ch == EOF)) {
+                    *cdata_mode = false;
+                    goto pop_char;
+                }
+            }
+
+            *cdata_mode = pushed_back_chars_ == CDATA_DEQUE;
+            if (*cdata_mode) {
+                pushed_back_chars_.clear();
+                pushed_back_chars_.push_back(getUnicodeCodePoint());
+            }
+        }
+    } else if (pushed_back_chars_.empty())
+        pushed_back_chars_.push_back(getUnicodeCodePoint());
+
+pop_char:
+    const int ch(pushed_back_chars_.front());
+    if (unlikely(ch != EOF)) {
         if (data_collector_ != nullptr)
-            *data_collector_ += TextUtil::UTF32ToUTF8(pushed_back_char);
-        return pushed_back_char;
+            *data_collector_ += TextUtil::UTF32ToUTF8(ch);
+        pushed_back_chars_.pop_front();
     }
 
-    const int ch(getUnicodeCodePoint());
-    if (likely(ch != EOF) and data_collector_ != nullptr)
-        *data_collector_ += TextUtil::UTF32ToUTF8(ch );
     return ch;
 }
 
 
 template<typename DataSource> int SimpleXmlParser<DataSource>::peek() {
-    if (unlikely(pushed_back_count_ > 0))
-        return pushed_back_chars_[0];
-    const int ch(get());
-    if (likely(ch != EOF))
-        unget(ch);
-    return ch;
+    if (pushed_back_chars_.empty())
+        pushed_back_chars_.push_back(getUnicodeCodePoint());
+    return pushed_back_chars_.front();
 }
 
 
 template<typename DataSource> void SimpleXmlParser<DataSource>::unget(const int ch) {
-    if (unlikely(pushed_back_count_ == ARRAY_SIZE(pushed_back_chars_)))
+    if (unlikely(pushed_back_chars_.size() == __builtin_strlen("<![CDATA[")))
         throw std::runtime_error("in SimpleXmlParser::unget: can't push back more than "
-                                 + std::to_string(ARRAY_SIZE(pushed_back_chars_)) + " characters in a row!");
-    for (unsigned i(pushed_back_count_); i > 0; --i)
-        pushed_back_chars_[i] = pushed_back_chars_[i - i];
-    pushed_back_chars_[0] = ch;
-    ++pushed_back_count_;
-
+                                 + std::to_string(__builtin_strlen("<![CDATA[")) + " characters in a row!");
+    pushed_back_chars_.push_front(ch);
     if (data_collector_ != nullptr) {
         if (unlikely(not TextUtil::TrimLastCharFromUTF8Sequence(data_collector_)))
             throw std::runtime_error("in SimpleXmlParser<DataSource>::unget: \"" + *data_collector_
@@ -304,6 +336,32 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractQuotedStr
 }
 
 
+// Collects characters while looking for the end of a CDATA section.
+template<typename DataSource> bool SimpleXmlParser<DataSource>::parseCDATA(std::string * const data) {
+    int consecutive_closing_bracket_count(0);
+    for (;;) {
+        const int ch(get());
+        if (unlikely(ch == EOF) ) {
+            last_error_message_ = "Unexpected EOF while looking for the end of CDATA!";
+            return false;
+        } else if (ch == ']')
+            ++consecutive_closing_bracket_count;
+        else if (ch == '>') {
+            if (consecutive_closing_bracket_count >= 2) {
+                data->resize(data->length() - 2); // Trim off the last 2 closing brackets.
+                return true;
+            }
+            consecutive_closing_bracket_count = 0;
+        } else {
+            if (unlikely(ch == '\n'))
+                ++line_no_;
+            consecutive_closing_bracket_count = 0;
+        }
+        *data += TextUtil::UTF32ToUTF8(ch);
+    }
+}
+
+
 template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
     Type * const type, std::map<std::string, std::string> * const attrib_map, std::string * const data)
 {
@@ -328,14 +386,22 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
         last_type_ = *type = CHARACTERS;
 
 collect_next_character:
-        while ((ch = get()) != '<') {
-            if (unlikely(ch == EOF)) {
-                last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
-                return false;
+        bool cdata_mode;
+        while ((ch = get(&cdata_mode)) != '<') {
+            if (cdata_mode) {
+                *data += TextUtil::UTF32ToUTF8(ch);
+                if (not parseCDATA(data))
+                    return false;
+                cdata_mode = false;
+            } else {
+                if (unlikely(ch == EOF)) {
+                    last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
+                    return false;
+                }
+                if (unlikely(ch == '\n'))
+                    ++line_no_;
+                *data += TextUtil::UTF32ToUTF8(ch);
             }
-            if (unlikely(ch == '\n'))
-                ++line_no_;
-            *data += TextUtil::UTF32ToUTF8(ch);
         }
         const int lookahead(peek());
         if (likely(lookahead != EOF)
@@ -418,12 +484,12 @@ collect_next_character:
 
 
 template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
-    const Type expected_type, const std::string &expected_tag, std::map<std::string, std::string> * const attrib_map,
-    std::string * const data)
+    const Type expected_type, const std::vector<std::string> &expected_tags, std::string * const found_tag,
+    std::map<std::string, std::string> * const attrib_map, std::string * const data)
 {
-    if (unlikely((expected_type == OPENING_TAG or expected_type == CLOSING_TAG) and expected_tag.empty()))
-    throw std::runtime_error("in SimpleXmlParser::skipTo: \"expected_type\" is OPENING_TAG or CLOSING_TAG but no "
-                             "tag name has been specified!");
+    if (unlikely((expected_type == OPENING_TAG or expected_type == CLOSING_TAG) and expected_tags.empty()))
+        throw std::runtime_error("in SimpleXmlParser::skipTo: \"expected_type\" is OPENING_TAG or CLOSING_TAG but no "
+                                 "tag names have been specified!");
 
     if (data != nullptr)
         data_collector_ = data;
@@ -436,7 +502,9 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
 
         if (expected_type == type) {
             if (expected_type == OPENING_TAG or expected_type == CLOSING_TAG) {
-                if (data2 == expected_tag) {
+                const auto found(std::find(expected_tags.cbegin(), expected_tags.cend(), data2));
+                if (found != expected_tags.cend()) {
+                    *found_tag = *found;
                     data_collector_ = nullptr;
                     return true;
                 }
@@ -452,6 +520,15 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
 }
 
 
+template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
+    const Type expected_type, const std::string &expected_tag, std::map<std::string, std::string> * const attrib_map,
+    std::string * const data)
+{
+    std::string found_tag;
+    return skipTo(expected_type, { expected_tag }, &found_tag, attrib_map, data);
+}
+
+
 template<typename DataSource> void SimpleXmlParser<DataSource>::rewind() {
     input_->rewind();
 
@@ -459,7 +536,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::rewind() {
     last_type_              = UNINITIALISED;
     last_element_was_empty_ = false;
     data_collector_         = nullptr;
-    pushed_back_count_      = 0;
+    pushed_back_chars_.clear();
 
     parseOptionalPrologue();
 }

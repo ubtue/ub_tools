@@ -182,7 +182,7 @@ public:
     off_t size() const;
 
     inline bool eof() const { return (buffer_ptr_ == buffer_ + read_count_) and std::feof(file_) != 0; }
-    inline bool anErrorOccurred() const { return std::ferror(file_) != 0; }
+    inline bool anErrorOccurred() const { return file_ == nullptr or std::ferror(file_) != 0; }
 
     /** Will the next I/O operation fail? */
     inline bool fail() const { return file_ == nullptr or eof() or std::ferror(file_) != 0; }

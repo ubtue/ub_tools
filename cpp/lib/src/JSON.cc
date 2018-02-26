@@ -19,6 +19,7 @@
  */
 #include "JSON.h"
 #include <stdexcept>
+#include <string>
 #include <cctype>
 #include "Compiler.h"
 #include "StringUtil.h"
@@ -90,7 +91,7 @@ TokenType Scanner::getToken() {
 
 void Scanner::ungetToken(const TokenType token) {
     if (unlikely(pushed_back_))
-        throw std::runtime_error("in JSON::Scanner::ungetToken: can't push back two tokesn in a row!");
+        throw std::runtime_error("in JSON::Scanner::ungetToken: can't push back two tokens in a row!");
     pushed_back_token_ = token;
     pushed_back_ = true;
 }
@@ -244,6 +245,27 @@ bool Scanner::UTF16EscapeToUTF8(std::string * const utf8) {
 }
 
 
+// Helper for parseStringConstant; copies a singe Unicode codepoint from ch to s.
+// See https://en.wikipedia.org/wiki/UTF-8 in order to understand the implementation.
+inline static void UTF8Advance(std::string::const_iterator &ch, std::string * const s) {
+    if ((static_cast<unsigned char>(*ch) & 0b10000000u) == 0) { // High bit is not set.
+        *s += *ch++;
+    } else if ((static_cast<unsigned char>(*ch) & 0b11100000u) == 0b11000000u) {
+        *s += *ch++;
+        *s += *ch++;
+    } else if ((static_cast<unsigned char>(*ch) & 0b11110000u) == 0b11100000u) {
+        *s += *ch++;
+        *s += *ch++;
+        *s += *ch++;
+    } else if ((static_cast<unsigned char>(*ch) & 0b11111000u) == 0b11110000u) {
+        *s += *ch++;
+        *s += *ch++;
+        *s += *ch++;
+        *s += *ch++;
+    }
+}
+
+
 TokenType Scanner::parseStringConstant() {
     ++ch_; // Skip over initial double quote.
 
@@ -251,7 +273,7 @@ TokenType Scanner::parseStringConstant() {
     std::string string_value;
     while (ch_ != end_ and *ch_ != '"') {
         if (*ch_ != '\\')
-            string_value += *ch_++;
+            UTF8Advance(ch_, &string_value);
         else { // Deal w/ an escape sequence.
             if (unlikely(ch_ + 1 == end_)) {
                 last_error_message_ = "end-of-input encountered while parsing a string constant, starting on line "
@@ -403,15 +425,23 @@ bool ObjectNode::remove(const std::string &label) {
 }
 
 
-const JSONNode *ObjectNode::getValue(const std::string &label) const {
+const JSONNode *ObjectNode::getNode(const std::string &label) const {
     const auto entry(entries_.find(label));
     return entry == entries_.cend() ? nullptr : entry->second;
 }
 
 
-JSONNode *ObjectNode::getValue(const std::string &label) {
+JSONNode *ObjectNode::getNode(const std::string &label) {
     const auto entry(entries_.find(label));
     return entry == entries_.cend() ? nullptr : entry->second;
+}
+
+
+bool ObjectNode::isNullNode(const std::string &label) const {
+    const auto entry(entries_.find(label));
+    if (unlikely(entry == entries_.cend()))
+        ERROR("label \"" + label + "\" not found!");
+    return entry->second->getType() == NULL_NODE;
 }
 
 
@@ -443,6 +473,13 @@ std::string ArrayNode::toString() const {
     as_string += " ]";
 
     return as_string;
+}
+
+
+bool ArrayNode::isNullNode(const size_t index) const {
+    if (unlikely(index >= values_.size()))
+        ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
+    return values_[index]->getType() == NULL_NODE;
 }
 
 
@@ -669,7 +706,7 @@ static const JSONNode *GetLastPathComponent(const std::string &path, const JSONN
         case JSONNode::DOUBLE_NODE:
             throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node!");
         case JSONNode::OBJECT_NODE:
-            next_node = reinterpret_cast<const ObjectNode *>(next_node)->getValue(path_component);
+            next_node = reinterpret_cast<const ObjectNode *>(next_node)->getNode(path_component);
             if (next_node == nullptr) {
                 if (unlikely(not have_default))
                     throw std::runtime_error("in JSON::GetLastPathComponent: can't find path component \""
@@ -686,7 +723,7 @@ static const JSONNode *GetLastPathComponent(const std::string &path, const JSONN
             if (unlikely(index >= array_node->size()))
                 throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
                                          + "\" in path \"" + path + "\" is too large as an array index!");
-            next_node = array_node->getValue(index);
+            next_node = array_node->getNode(index);
             break;
         }
     }
@@ -695,12 +732,12 @@ static const JSONNode *GetLastPathComponent(const std::string &path, const JSONN
 }
 
 
-std::string LookupString(const std::string &path, const JSONNode * const tree,
-                         const std::string * const default_value)
+static std::string LookupString(const std::string &path, const JSONNode * const tree,
+                                const std::string &default_value, const bool use_default_value)
 {
-    const JSONNode * const bottommost_node(GetLastPathComponent(path, tree, default_value != nullptr));
+    const JSONNode * const bottommost_node(GetLastPathComponent(path, tree, use_default_value));
     if (bottommost_node == nullptr)
-        return *default_value;
+        return default_value;
 
     switch (bottommost_node->getType()) {
     case JSONNode::BOOLEAN_NODE:
@@ -727,10 +764,22 @@ std::string LookupString(const std::string &path, const JSONNode * const tree,
 }
 
 
-int64_t LookupInteger(const std::string &path, const JSONNode * const tree, const int64_t * const default_value) {
-    const JSONNode * const bottommost_node(GetLastPathComponent(path, tree, default_value != nullptr));
+std::string LookupString(const std::string &path, const JSONNode * const tree) {
+    return LookupString(path, tree, "", /* use_default_value = */ false);
+}
+
+
+std::string LookupString(const std::string &path, const JSONNode * const tree, const std::string &default_value) {
+    return LookupString(path, tree, default_value, /* use_default_value = */ true);
+}
+
+
+static int64_t LookupInteger(const std::string &path, const JSONNode * const tree, const int64_t default_value,
+                             const bool use_default_value)
+{
+    const JSONNode * const bottommost_node(GetLastPathComponent(path, tree, use_default_value));
     if (bottommost_node == nullptr)
-        return *default_value;
+        return default_value;
 
     switch (bottommost_node->getType()) {
     case JSONNode::BOOLEAN_NODE:
@@ -754,6 +803,59 @@ int64_t LookupInteger(const std::string &path, const JSONNode * const tree, cons
             __builtin_unreachable();
         #endif
     #endif
+}
+
+
+int64_t LookupInteger(const std::string &path, const JSONNode * const tree) {
+    return LookupInteger(path, tree, 0L, /* use_default_value = */ false);
+}
+
+
+int64_t LookupInteger(const std::string &path, const JSONNode * const tree, const int64_t default_value) {
+    return LookupInteger(path, tree, default_value, /* use_default_value = */ true);
+}
+
+
+std::string EscapeString(const std::string &unescaped_string) {
+    std::string escaped_string;
+    for (const char ch : unescaped_string) {
+        if (static_cast<unsigned char>(ch) <= 0x1Fu) { // Escape control characters.
+            escaped_string += "\\x";
+            escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) >> 4u);
+            escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) & 0xFu);
+        } else {
+            switch (ch) {
+            case '\\':
+                escaped_string += "\\\\";
+                break;
+            case '"':
+                escaped_string += "\\\"";
+                break;
+            case '/':
+                escaped_string += "\\/";
+                break;
+            case '\b':
+                escaped_string += "\\b";
+                break;
+            case '\f':
+                escaped_string += "\\f";
+                break;
+            case '\n':
+                escaped_string += "\\n";
+                break;
+            case '\r':
+                escaped_string += "\\r";
+                break;
+            case '\t':
+                escaped_string += "\\t";
+                break;
+            default:
+                escaped_string += ch;
+            }
+        }
+    }
+
+    return escaped_string;
 }
 
 

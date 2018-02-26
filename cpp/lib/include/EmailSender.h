@@ -2,7 +2,7 @@
  *  \brief  Utility functions etc. related to the sending of email messages.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -22,6 +22,7 @@
 
 
 #include <string>
+#include <vector>
 
 
 namespace EmailSender {
@@ -31,14 +32,25 @@ enum Priority { DO_NOT_SET_PRIORITY = 0, VERY_LOW = 5, LOW = 4, MEDIUM = 3, HIGH
 enum Format { PLAIN_TEXT, HTML };
 
 
-/** \note Please note that "sender" and "recipient" email addresses may either be regular email addresses or of the
+/** \note Please note that "sender", "recipient", and "cc" email addresses may either be regular email addresses or of the
  *        form "Name<email_address>".  Also "subject" and "message_body" are assumed to be in UTF-8.  Also, at least
  *        one of "sender" or "reply_to" have to be specified.
+ *  \note The message body must be UTF-8!
  */
-bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
-               const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
+bool SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
+               const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
+               const std::string &subject, const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
                const Format format = PLAIN_TEXT, const std::string &reply_to = "", const bool use_ssl = true,
                const bool use_authentication = true);
+
+inline bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
+                      const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
+                      const Format format = PLAIN_TEXT, const std::string &reply_to = "", const bool use_ssl = true,
+                      const bool use_authentication = true)
+{
+    return SendEmail(sender, { recipient }, /* cc_recipients = */ { }, /* bcc_recipients = */ { }, subject, message_body,
+                     priority, format, reply_to, use_ssl, use_authentication);
+}
 
 
 } // namespace EmailSender

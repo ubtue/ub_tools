@@ -201,7 +201,7 @@ public class FacetPrefixSortComponent extends org.apache.solr.handler.component.
 
                     // Split up each KWC and calculate the scoring
 
-                    ArrayList<String> facetList = new ArrayList<>(Arrays.asList(facetTerms.split("/|\\\\/")));
+                    ArrayList<String> facetList = new ArrayList<>(Arrays.asList(facetTerms.split("(?<!" + Pattern.quote("\\") + ")/")));
 
                     // For usability reasons sort the result facets according to
                     // the order of the search

@@ -121,7 +121,7 @@ EndPhase
 
 StartPhase "Cleanup of Intermediate Files"
 for p in $(seq "$((PHASE-1))"); do
-    rm -f GesamtTiteldaten-post-phase"$PHASE"-??????.mrc
+    rm -f GesamtTiteldaten-post-phase"$p"-??????.mrc
 done
 rm -f full_text.db
 EndPhase
