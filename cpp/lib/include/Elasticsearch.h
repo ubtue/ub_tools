@@ -3,7 +3,7 @@
  *  \author  Mario Trojan
  *  \see     https://www.elastic.co/guide/en/elasticsearch/reference/current/docs.html
  *
- *  \copyright 2018 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
