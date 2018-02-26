@@ -53,11 +53,15 @@ public:
         Fields fields_;
     };
 
+    struct IndexStatistics {
+        unsigned document_count_;
+    };
+
     typedef std::unordered_map<std::string, Document> Documents;
 private:
     static std::shared_ptr<JSON::ObjectNode> FieldsToJSON(const Fields fields);
     static Fields JSONToFields(const JSON::ObjectNode * const json_object);
-    JSON::ObjectNode * query(const std::string &action, const REST::QueryType query_type, std::shared_ptr<JSON::JSONNode> data);
+    JSON::ObjectNode * query(const std::string &action, const REST::QueryType query_type, const std::shared_ptr<JSON::JSONNode> &data = nullptr);
 public:
     void createDocument(const Document &document);
     void createIndex();
@@ -65,6 +69,7 @@ public:
     void deleteIndex();
     Document getDocument(const std::string &id);
     std::vector<std::string> getIndexList();
+    IndexStatistics getIndexStatistics();
     bool hasDocument(const std::string &id);
     Documents searchAllDocuments();
 
