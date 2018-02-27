@@ -308,12 +308,7 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
         Elasticsearch::Document document;
         document.id_ = id;
         document.fields_["fulltext"] = full_text;
-        if (elasticsearch_->hasDocument(id)) {
-            INFO("updating Elasticsearch fulltext for " + id);
-            elasticsearch_->updateDocument(document);
-        } else {
-            INFO("creating Elasticsearch fulltext for " + id);
-            elasticsearch_->createDocument(document);
-        }
+        INFO("updating Elasticsearch fulltext for " + id);
+        elasticsearch_->updateOrInsertDocument(document);
     }
 }
