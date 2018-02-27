@@ -42,15 +42,7 @@ FullTextCache::FullTextCache() {
     std::string mysql_url;
     VuFind::GetMysqlURL(&mysql_url);
     db_connection_ = new DbConnection(mysql_url);
-    elasticsearch_ = nullptr;
-}
-
-
-FullTextCache::FullTextCache(const Elasticsearch::Credentials &elasticsearch_credentials) {
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    db_connection_ = new DbConnection(mysql_url);
-    elasticsearch_ = new Elasticsearch(elasticsearch_credentials);
+    elasticsearch_ = Elasticsearch::Factory();
 }
 
 
@@ -290,6 +282,14 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
             expiration = now + MIN_CACHE_EXPIRE_TIME_ON_ERROR + rand(MAX_CACHE_EXPIRE_TIME_ON_ERROR - MIN_CACHE_EXPIRE_TIME_ON_ERROR);
     }
 
+    if (elasticsearch_ != nullptr) {
+        Elasticsearch::Document document;
+        document.id_ = id;
+        document.fields_["fulltext"] = full_text;
+        INFO("updating Elasticsearch fulltext for " + id);
+        elasticsearch_->updateOrInsertDocument(document);
+    }
+
     const std::string escaped_id(db_connection_->escapeString(id));
     db_connection_->queryOrDie("INSERT INTO full_text_cache "
                                "SET id=\"" + escaped_id + "\","
@@ -302,13 +302,5 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
                                "url=\"" + db_connection_->escapeString(entry_url.url_) + "\","
                                "domain=\"" + db_connection_->escapeString(entry_url.domain_) + "\""
                                + (entry_url.error_message_.empty() ? "" : ", error_message=\"" + db_connection_->escapeString(entry_url.error_message_) + "\""));
-    }
-
-    if (elasticsearch_ != nullptr) {
-        Elasticsearch::Document document;
-        document.id_ = id;
-        document.fields_["fulltext"] = full_text;
-        INFO("updating Elasticsearch fulltext for " + id);
-        elasticsearch_->updateOrInsertDocument(document);
     }
 }
