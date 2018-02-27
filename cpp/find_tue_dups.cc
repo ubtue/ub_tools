@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2017, Library of the University of Tübingen
+    Copyright (C) 2017,2018 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -105,24 +105,24 @@ std::string ExtractInventory(const std::string &_910_subfield_a, const bool is_m
     std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
     JSON::Parser json_parser(_910_subfield_a);
     if (not (json_parser.parse(&tree_root)))
-        logger->error("in ExtractInventory: failed to parse returned JSON: " + json_parser.getErrorMessage()
-              + "(input was: " + StringUtil::CStyleEscape(_910_subfield_a) + ")");
+       ERROR("failed to parse returned JSON: " + json_parser.getErrorMessage() + "(input was: "
+             + StringUtil::CStyleEscape(_910_subfield_a) + ")");
 
     if (tree_root->getType() != JSON::JSONNode::OBJECT_NODE)
-        logger->error("in ExtractInventory: expected an object node!");
+        ERROR("expected an object node!");
     const std::shared_ptr<const JSON::ObjectNode> object(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root));
     const std::shared_ptr<const JSON::JSONNode> inventory_node(object->getNode("bestand8032"));
     if (inventory_node == nullptr)
         return "";
     if (inventory_node->getType() != JSON::JSONNode::STRING_NODE)
-        logger->error("in ExtractInventory: expected a string node!");
+        ERROR("expected a string node!");
     std::string inventory(JSON::JSONNode::CastToStringNodeOrDie("bestand8032", inventory_node)->getValue());
 
     if (not is_monograph) {
         const std::shared_ptr<const JSON::StringNode> comment_node(object->getStringNode("komment"));
         if (comment_node != nullptr) {
             if (comment_node->getType() != JSON::JSONNode::STRING_NODE)
-                logger->error("in ExtractInventory: expected a string node! (2)");
+                ERROR("expected a string node! (2)");
             inventory += "(" + comment_node->getValue() + ")";
         }
     }
