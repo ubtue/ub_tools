@@ -359,7 +359,7 @@ std::string JSONNode::TypeToString(const Type type) {
 
 std::string DoubleNode::toString() const {
     char as_string[30];
-    std::sprintf(as_string, "%20E", value_);
+    std::sprintf(as_string, "%20G", value_);
     return as_string;
 }
 
