@@ -24,7 +24,7 @@
 namespace REST {
 
 
-std::string Query(const Url &url, const QueryType query_type, const std::string &data, Downloader::Params params) {
+std::string Query(const Url &url, const QueryType query_type, const std::string &data, const Downloader::Params &params) {
     Downloader downloader(params);
 
     switch(query_type) {
@@ -49,15 +49,15 @@ std::string Query(const Url &url, const QueryType query_type, const std::string 
 }
 
 
-std::shared_ptr<JSON::JSONNode> QueryJSON(const Url &url, const QueryType query_type, const std::shared_ptr<const JSON::JSONNode> &data, Downloader::Params params) {
+std::shared_ptr<JSON::JSONNode> QueryJSON(const Url &url, const QueryType query_type, const std::shared_ptr<const JSON::JSONNode> &data, const Downloader::Params &params) {
     std::string json_in;
     if (data != nullptr)
         json_in = data->toString();
-    std::string json_out(Query(url, query_type, json_in, params));
+    const std::string json_out(Query(url, query_type, json_in, params));
     JSON::Parser parser(json_out);
     std::shared_ptr<JSON::JSONNode> tree_root;
     if (not parser.parse(&tree_root))
-        throw std::runtime_error("could not parse JSON response");
+        throw std::runtime_error("in REST::QueryJSON: could not parse JSON response");
 
     return tree_root;
 }
