@@ -421,7 +421,7 @@ bool ObjectNode::remove(const std::string &label) {
 
 bool ObjectNode::hasNode(const std::string &label) const {
     const auto entry(entries_.find(label));
-    return entry == entries_.cend() ? false : true;
+    return entry != entries_.cend();
 }
 
 
