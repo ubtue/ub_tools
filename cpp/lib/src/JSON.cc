@@ -334,20 +334,6 @@ TokenType Scanner::parseStringConstant() {
 }
 
 
-static std::string EscapeDoubleQuotes(const std::string &unescaped) {
-    std::string escaped;
-    escaped.reserve(unescaped.length());
-    for (const char ch : unescaped) {
-        if (ch == '"')
-            escaped += "\\\"";
-        else
-            escaped += ch;
-    }
-
-    return escaped;
-}
-
-
 std::string JSONNode::TypeToString(const Type type) {
     switch (type) {
     case BOOLEAN_NODE:
@@ -371,7 +357,7 @@ std::string JSONNode::TypeToString(const Type type) {
 
 
 std::string StringNode::toString() const {
-    return "\"" + EscapeDoubleQuotes(value_) + "\"";
+    return "\"" + EscapeString(value_) + "\"";
 }
 
 
@@ -388,7 +374,7 @@ std::string ObjectNode::toString() const {
     std::string as_string;
     as_string += "{ ";
     for (const auto &entry : entries_) {
-        as_string += "\"" + EscapeDoubleQuotes(entry.first) + "\"";
+        as_string += "\"" + EscapeString(entry.first) + "\"";
         as_string += ": ";
         as_string += entry.second->toString();
         as_string += ", ";
@@ -808,6 +794,7 @@ int64_t LookupInteger(const std::string &path, const std::shared_ptr<const JSONN
 }
 
 
+// See https://www.ietf.org/rfc/rfc4627.txt section 2.5 in order to understand this.
 std::string EscapeString(const std::string &unescaped_string) {
     std::string escaped_string;
     for (const char ch : unescaped_string) {
