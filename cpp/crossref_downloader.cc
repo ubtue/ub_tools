@@ -323,7 +323,7 @@ std::vector<std::string> ExtractStringVector(const JSON::ObjectNode &object_node
     if (array_node == nullptr)
         return extracted_values;
 
-    for (auto array_entry : *array_node) {
+    for (auto &array_entry : *array_node) {
         std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie("ExtractStringVector", array_entry));
         extracted_values.emplace_back(string_node->getValue());
         if (not is_repeatable)
