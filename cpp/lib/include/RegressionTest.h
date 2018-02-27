@@ -2,7 +2,7 @@
  *  \brief  Regression test related utility functions and classes.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -30,7 +30,7 @@ namespace RegressionTest {
 /** \brief Abort if the condition has not been met. */
 void Assert(const std::string &test_name, const std::string &condition_as_string, const bool condition);
 
-    
+
 /** \brief Compare two strings that should be identical.
  *  \param test_name      The name used in logs.
  *
@@ -40,7 +40,7 @@ void Assert(const std::string &test_name, const std::string &condition_as_string
 bool CompareStrings(const std::string &test_name, const std::string &actual_string,
                     const std::string &expected_string);
 
-    
+
 /** \brief Compares two files that should be identical.
  *
  *  \param test_name      The name used in logs.
