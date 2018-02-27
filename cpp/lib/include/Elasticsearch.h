@@ -74,6 +74,9 @@ public:
 
     /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).*/
     void updateDocument(const Document &document);
+
+    /** \brief For more information, search for "upsert" and "doc_as_upsert" in Elasticsearch documentation. */
+    void updateOrInsertDocument(const Document &document);
 }; // class Elasticsearch
 
 

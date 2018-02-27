@@ -163,6 +163,19 @@ void Elasticsearch::updateDocument(const Document &document) {
     std::shared_ptr<JSON::ObjectNode> doc_node(FieldsToJSON(document.fields_));
     std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
     tree_root->insert("doc", doc_node);
+
+    const std::string action(index_ + "/" + document_type_ + "/" + document.id_ + "/_update");
+    query(action, REST::QueryType::POST, tree_root);
+}
+
+
+void Elasticsearch::updateOrInsertDocument(const Document &document) {
+    std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
+    std::shared_ptr<JSON::ObjectNode> doc_node(FieldsToJSON(document.fields_));
+    tree_root->insert("doc", doc_node);
+    std::shared_ptr<JSON::BooleanNode> doc_as_upsert_node(new JSON::BooleanNode(true));
+    tree_root->insert("doc_as_upsert", doc_as_upsert_node);
+
     const std::string action(index_ + "/" + document_type_ + "/" + document.id_ + "/_update");
     query(action, REST::QueryType::POST, tree_root);
 }
