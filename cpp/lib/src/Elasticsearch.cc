@@ -32,8 +32,10 @@ std::shared_ptr<JSON::ObjectNode> Elasticsearch::FieldsToJSON(const Fields &fiel
 
 Elasticsearch::Fields Elasticsearch::JSONToFields(const std::shared_ptr<const JSON::ObjectNode> &json_object) {
     Fields fields;
-    for (const auto &key_and_value : *json_object)
-        fields[key_and_value.first] = key_and_value.second->toString();
+    for (const auto &key_and_value : *json_object) {
+        std::shared_ptr<JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie(key_and_value.first, key_and_value.second));
+        fields[key_and_value.first] = string_node->getValue();
+    }
     return fields;
 }
 
