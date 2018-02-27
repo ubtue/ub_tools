@@ -3,7 +3,7 @@
  */
 
 /*
-    Copyright (C) 2016,2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,7 +20,6 @@
 */
 
 #include <iostream>
-#include <memory>
 #include <cstdlib>
 #include "FileUtil.h"
 #include "JSON.h"
