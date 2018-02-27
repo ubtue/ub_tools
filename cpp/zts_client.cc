@@ -19,6 +19,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <iostream>
+#include <memory>
 #include <unordered_map>
 #include <cinttypes>
 #include "Compiler.h"
@@ -148,37 +149,37 @@ public:
 };
 
 
-void AugmentJsonCreators(JSON::ArrayNode * const creators_array,
+void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
                          std::vector<std::string> * const comments)
 {
     for (size_t i(0); i < creators_array->size(); ++i) {
-        JSON::ObjectNode * const creator_object(creators_array->getObjectNode(i));
+        const std::shared_ptr<JSON::ObjectNode> creator_object(creators_array->getObjectNode(i));
 
-        const JSON::JSONNode * const last_name_node(creator_object->getNode("lastName"));
+        const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
         if (last_name_node == nullptr)
             ERROR("creator is missing a last name!");
         std::string name(creator_object->getStringValue("lastName"));
 
-        const JSON::JSONNode * const first_name_node(creator_object->getNode("firstName"));
+        const std::shared_ptr<const JSON::JSONNode> first_name_node(creator_object->getNode("firstName"));
         if (first_name_node != nullptr)
             name += ", " + creator_object->getStringValue("firstName");
 
         const std::string PPN(DownloadAuthorPPN(name));
         if (not PPN.empty()) {
             comments->emplace_back("Added author PPN " + PPN + " for author " + name);
-            creator_object->insert("ppn", new JSON::StringNode(PPN));
+            creator_object->insert("ppn", std::make_shared<JSON::StringNode>(PPN));
         }
     }
 }
 
 
 // Improve JSON result delivered by Zotero Translation Server
-void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client_maps) {
+void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, ZtsClientMaps &zts_client_maps) {
     INFO("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
     std::string issn_raw, issn_normalized;
-    JSON::StringNode *language_node(nullptr);
+    std::shared_ptr<JSON::StringNode> language_node(nullptr);
     for (auto &key_and_node : *object_node) {
         if (key_and_node.first == "language") {
             language_node = JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second);
@@ -191,7 +192,7 @@ void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client
             }
         }
         else if (key_and_node.first == "creators") {
-            JSON::ArrayNode * creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", key_and_node.second));
+            std::shared_ptr<JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", key_and_node.second));
             AugmentJsonCreators(creators_array, &comments);
         }
         else if (key_and_node.first == "ISSN") {
@@ -232,7 +233,7 @@ void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client
                 language_node->setValue(ISSN_and_language->second);
                 comments.emplace_back("changed \"language\" from \"" + language_old + "\" to \"" + ISSN_and_language->second + "\" due to ISSN map");
             } else {
-                language_node = new JSON::StringNode(ISSN_and_language->second);
+                language_node = std::make_shared<JSON::StringNode>(ISSN_and_language->second);
                 object_node->insert("language", language_node);
                 comments.emplace_back("added \"language\" \"" + ISSN_and_language->second + "\" due to ISSN map");
             }
@@ -244,10 +245,10 @@ void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client
             const auto ISSN_and_volume(zts_client_maps.ISSN_to_volume_map_.find(issn_normalized));
             if (ISSN_and_volume != zts_client_maps.ISSN_to_volume_map_.cend()) {
                 if (volume.empty()) {
-                    JSON::JSONNode * const volume_node = object_node->getNode("volume");
-                    reinterpret_cast<JSON::StringNode *>(volume_node)->setValue(ISSN_and_volume->second);
+                    const std::shared_ptr<JSON::JSONNode> volume_node(object_node->getNode("volume"));
+                    JSON::JSONNode::CastToStringNodeOrDie("volume", volume_node)->setValue(ISSN_and_volume->second);
                 } else {
-                    JSON::StringNode *volume_node(new JSON::StringNode(ISSN_and_volume->second));
+                    std::shared_ptr<JSON::StringNode> volume_node(new JSON::StringNode(ISSN_and_volume->second));
                     object_node->insert("volume", volume_node);
                 }
             }
@@ -272,11 +273,11 @@ void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client
 
     // Insert custom node with fields and comments
     if (comments.size() > 0 or custom_fields.size() > 0) {
-        JSON::ObjectNode *custom_object(new JSON::ObjectNode);
+        std::shared_ptr<JSON::ObjectNode> custom_object(new JSON::ObjectNode);
         if (comments.size() > 0) {
-            JSON::ArrayNode *comments_node(new JSON::ArrayNode);
+            std::shared_ptr<JSON::ArrayNode> comments_node(new JSON::ArrayNode);
             for (const auto &comment : comments) {
-                JSON::StringNode *comment_node(new JSON::StringNode(comment));
+                std::shared_ptr<JSON::StringNode> comment_node(new JSON::StringNode(comment));
                 comments_node->push_back(comment_node);
             }
             custom_object->insert("comments", comments_node);
@@ -306,7 +307,7 @@ public:
     virtual ~FormatHandler() {}
 
     virtual void prepareProcessing() = 0;
-    virtual std::pair<unsigned, unsigned> processRecord(const JSON::ObjectNode * const object_node) = 0;
+    virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) = 0;
     virtual void finishProcessing() = 0;
 
     static std::unique_ptr<FormatHandler> Factory(const std::string &output_format,
@@ -327,7 +328,7 @@ public:
         output_file_object_->write("[");
     }
 
-    std::pair<unsigned, unsigned> processRecord(const JSON::ObjectNode * const object_node) {
+    std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
         if (record_count_ > 0)
             output_file_object_->write(",");
         output_file_object_->write(object_node->toString());
@@ -352,7 +353,7 @@ public:
         json_buffer_ = "[";
     }
 
-    std::pair<unsigned, unsigned> processRecord(const JSON::ObjectNode * const object_node) {
+    std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
         if (record_count_ > 0)
             json_buffer_ += ",";
         json_buffer_ += object_node->toString();
@@ -369,19 +370,19 @@ class MarcFormatHandler : public FormatHandler {
     std::unique_ptr<MARC::Writer> marc_writer_;
 
 
-    inline std::string CreateSubfieldFromStringNode(const std::string &key, const JSON::JSONNode * const node,
+    inline std::string CreateSubfieldFromStringNode(const std::string &key, const std::shared_ptr<const JSON::JSONNode> node,
                                                 const std::string &tag, const char subfield_code,
                                                 MARC::Record * const marc_record, const char indicator1 = ' ',
                                                 const char indicator2 = ' ')
     {
-        const JSON::StringNode * const string_node(JSON::JSONNode::CastToStringNodeOrDie(key, node));
+        const std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie(key, node));
         const std::string value(string_node->getValue());
         marc_record->insertField(tag, { { subfield_code, value } }, indicator1, indicator2);
         return value;
     }
 
 
-    inline std::string CreateSubfieldFromStringNode(const std::pair<std::string, JSON::JSONNode *> &key_and_node,
+    inline std::string CreateSubfieldFromStringNode(const std::pair<std::string, std::shared_ptr<JSON::JSONNode>> &key_and_node,
                                                     const std::string &tag, const char subfield_code,
                                                     MARC::Record * const marc_record, const char indicator1 = ' ',
                                                     const char indicator2 = ' ')
@@ -391,11 +392,11 @@ class MarcFormatHandler : public FormatHandler {
     }
 
 
-    void ExtractKeywords(const JSON::JSONNode * tags_node, const std::string &issn,
+    void ExtractKeywords(std::shared_ptr<const JSON::JSONNode> tags_node, const std::string &issn,
                      const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
                      MARC::Record * const new_record)
     {
-        const JSON::ArrayNode * const tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
+        const std::shared_ptr<const JSON::ArrayNode> tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
 
         // Where to stuff the data:
         std::string marc_field("653");
@@ -412,8 +413,8 @@ class MarcFormatHandler : public FormatHandler {
         }
 
         for (auto tag : *tags) {
-            const JSON::ObjectNode * const tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
-            const JSON::JSONNode * const tag_node(tag_object->getNode("tag"));
+            const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
+            const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
             if (tag_node == nullptr)
                 WARNING("unexpected: tag object does not contain a \"tag\" entry!");
             else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
@@ -451,35 +452,35 @@ class MarcFormatHandler : public FormatHandler {
     }
 
 
-    void CreateCreatorFields(const JSON::JSONNode * const creators_node, MARC::Record * const marc_record) {
-        const JSON::ArrayNode * const creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", creators_node));
+    void CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record) {
+        const std::shared_ptr<const JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", creators_node));
         for (auto creator_node : *creators_array) {
-            const JSON::ObjectNode * const creator_object(JSON::JSONNode::CastToObjectNodeOrDie("creator", creator_node));
+            const std::shared_ptr<const JSON::ObjectNode> creator_object(JSON::JSONNode::CastToObjectNodeOrDie("creator", creator_node));
 
-            const JSON::JSONNode * const last_name_node(creator_object->getNode("lastName"));
+            const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
             if (last_name_node == nullptr)
                 ERROR("creator is missing a last name!");
-            const JSON::StringNode * const last_name(JSON::JSONNode::CastToStringNodeOrDie("lastName", last_name_node));
+            const std::shared_ptr<const JSON::StringNode> last_name(JSON::JSONNode::CastToStringNodeOrDie("lastName", last_name_node));
             std::string name(last_name->getValue());
 
-            const JSON::JSONNode * const first_name_node(creator_object->getNode("firstName"));
+            const std::shared_ptr<const JSON::JSONNode> first_name_node(creator_object->getNode("firstName"));
             if (first_name_node != nullptr) {
-                const JSON::StringNode * const first_name(JSON::JSONNode::CastToStringNodeOrDie("firstName", first_name_node));
+                const std::shared_ptr<const JSON::StringNode> first_name(JSON::JSONNode::CastToStringNodeOrDie("firstName", first_name_node));
                 name += ", " + first_name->getValue();
             }
 
             std::string PPN;
-            const JSON::JSONNode * const ppn_node(creator_object->getNode("ppn"));
+            const std::shared_ptr<const JSON::JSONNode> ppn_node(creator_object->getNode("ppn"));
             if (ppn_node != nullptr) {
-                const JSON::StringNode * const ppn_string_node(JSON::JSONNode::CastToStringNodeOrDie("ppn", first_name_node));
+                const std::shared_ptr<const JSON::StringNode> ppn_string_node(JSON::JSONNode::CastToStringNodeOrDie("ppn", first_name_node));
                 PPN = ppn_string_node->getValue();
                 name = "!" + PPN + "!";
             }
 
-            const JSON::JSONNode * const creator_type(creator_object->getNode("creatorType"));
+            const std::shared_ptr<const JSON::JSONNode> creator_type(creator_object->getNode("creatorType"));
             std::string creator_role;
             if (creator_type != nullptr) {
-                const JSON::StringNode * const creator_role_node(JSON::JSONNode::CastToStringNodeOrDie("creatorType", creator_type));
+                const std::shared_ptr<const JSON::StringNode> creator_role_node(JSON::JSONNode::CastToStringNodeOrDie("creatorType", creator_type));
                 creator_role = creator_role_node->getValue();
             }
 
@@ -503,7 +504,7 @@ public:
         marc_writer_ = MARC::Writer::Factory(output_file_);
     }
 
-    std::pair<unsigned, unsigned> processRecord(const JSON::ObjectNode * const object_node) {
+    std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
         static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
             "^issue|pages|publicationTitle|volume|date|tags|libraryCatalog|itemVersion|accessDate$"));
         unsigned record_count(0), previously_downloaded_count(0);
@@ -531,7 +532,7 @@ public:
                 if (unlikely(key_and_node.second->getType() != JSON::JSONNode::STRING_NODE))
                     ERROR("expected DOI node to be a string node!");
                 new_record.insertField(
-                    "856", { { 'u', "urn:doi:" + reinterpret_cast<JSON::StringNode *>(key_and_node.second)->getValue()} });
+                    "856", { { 'u', "urn:doi:" + JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue()} });
             } else if (key_and_node.first == "shortTitle")
                 CreateSubfieldFromStringNode(key_and_node, "246", 'a', &new_record);
             else if (key_and_node.first == "creators")
@@ -558,9 +559,9 @@ public:
                                 + key_and_node.second->toString() + ")");
         }
 
-        const JSON::JSONNode * custom_node(object_node->getNode("ubtue"));
+        std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
         if (custom_node != nullptr) {
-            const JSON::ObjectNode * const custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
+            const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
             parent_issn = custom_object->getOptionalStringValue("issnRaw");
             issn = custom_object->getOptionalStringValue("issnNormalized");
 
@@ -601,7 +602,7 @@ public:
         }
 
         // keywords:
-        const JSON::JSONNode * const tags_node(object_node->getNode("tags"));
+        const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
         if (tags_node != nullptr)
             ExtractKeywords(tags_node, issn, zts_client_maps_.ISSN_to_keyword_field_map_, &new_record);
 
@@ -808,39 +809,33 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
         return std::make_pair(0, 0);
     }
 
-    JSON::JSONNode *tree_root(nullptr);
-    try {
-        JSON::Parser json_parser(response_body);
-        if (not (json_parser.parse(&tree_root)))
-            ERROR("failed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
+    std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
+    JSON::Parser json_parser(response_body);
+    if (not (json_parser.parse(&tree_root)))
+        ERROR("failed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
 
-        // 300 => multiple matches found, try to harvest children
-        if (response_code == 300) {
-            logger->info("multiple articles found => trying to harvest children");
-            if (tree_root->getType() == JSON::ArrayNode::OBJECT_NODE) {
-                const JSON::ObjectNode * const object_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root));
-                for (const auto &key_and_node : *object_node) {
-                    std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
-                        Harvest(key_and_node.first, "", zts_client_params, zts_client_maps, false /* log */);
+    // 300 => multiple matches found, try to harvest children
+    if (response_code == 300) {
+        logger->info("multiple articles found => trying to harvest children");
+        if (tree_root->getType() == JSON::ArrayNode::OBJECT_NODE) {
+            const std::shared_ptr<const JSON::ObjectNode>object_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root));
+            for (const auto &key_and_node : *object_node) {
+                std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
+                    Harvest(key_and_node.first, "", zts_client_params, zts_client_maps, false /* log */);
 
-                    record_count_and_previously_downloaded_count.first += record_count_and_previously_downloaded_count2.first;
-                    record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
-                }
-            }
-        } else {
-            const JSON::ArrayNode * const json_array(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
-            for (const auto entry : *json_array) {
-                JSON::ObjectNode * const json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
-                AugmentJson(json_object, zts_client_maps);
-                record_count_and_previously_downloaded_count = zts_client_params.format_handler_->processRecord(json_object);
+                record_count_and_previously_downloaded_count.first += record_count_and_previously_downloaded_count2.first;
+                record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
             }
         }
-        ++zts_client_params.harvested_url_count_;
-        delete tree_root;
-    } catch (...) {
-        delete tree_root;
-        throw;
+    } else {
+        const std::shared_ptr<const JSON::ArrayNode>json_array(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
+        for (const auto entry : *json_array) {
+            const std::shared_ptr<JSON::ObjectNode> json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
+            AugmentJson(json_object, zts_client_maps);
+            record_count_and_previously_downloaded_count = zts_client_params.format_handler_->processRecord(json_object);
+        }
     }
+    ++zts_client_params.harvested_url_count_;
 
     if (log) {
         logger->info("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "

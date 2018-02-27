@@ -127,9 +127,18 @@ public:
     bool newUrl(const std::string &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
         { return newUrl(Url(url), time_limit); }
 
+    bool postData(const Url &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
+    bool postData(const std::string &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
+        { return putData(Url(url), data, time_limit); }
+
     bool putData(const Url &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
     bool putData(const std::string &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
         { return putData(Url(url), data, time_limit); }
+
+    /** \brief Issues an HTTP DELETE request. */
+    bool deleteUrl(const Url &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
+    bool deleteUrl(const std::string &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
+        { return deleteUrl(Url(url), time_limit); }
 
     std::string getMessageHeader() const;
     const std::string &getMessageBody() const { return body_; }

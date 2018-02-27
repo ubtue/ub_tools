@@ -2,7 +2,7 @@
  *  \brief   A simple tool for performing single lookups in a JSON file.
  *  \author  Dr. Johannes Ruscheinski
  *
- *  \copyright (C) 2017, Library of the University of Tübingen
+ *  \copyright (C) 2017,2018 Library of the University of Tübingen
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -67,10 +67,9 @@ int main(int /*argc*/, char *argv[]) {
             logger->error("could not read \"" + json_input_filename + "\"!");
 
         JSON::Parser parser(json_document);
-        JSON::JSONNode *tree;
+        std::shared_ptr<JSON::JSONNode> tree;
         if (not parser.parse(&tree)) {
             std::cerr << ::progname << ": " << parser.getErrorMessage() << '\n';
-            delete tree;
             return EXIT_FAILURE;
         }
 
@@ -82,8 +81,6 @@ int main(int /*argc*/, char *argv[]) {
                       << (default_value.empty() ? JSON::LookupString(lookup_path, tree)
                                                 : JSON::LookupString(lookup_path, tree), default_value)
                       << '\n';
-
-        delete tree;
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
