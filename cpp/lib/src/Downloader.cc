@@ -217,6 +217,16 @@ bool Downloader::newUrl(const Url &url, const TimeLimit &time_limit) {
 }
 
 
+bool Downloader::postData(const Url &url, const std::string &data, const TimeLimit &time_limit) {
+    if (::curl_easy_setopt(easy_handle_, CURLOPT_POST, 1L) != CURLE_OK)
+        throw std::runtime_error("in Downloader::postData: curl_easy_setopt() failed! (1)");
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_POSTFIELDS, data.c_str())))
+        throw std::runtime_error("in Downloader::postData: curl_easy_setopt() failed (2)!");
+
+    return newUrl(url, time_limit);
+}
+
+
 bool Downloader::putData(const Url &url, const std::string &data, const TimeLimit &time_limit) {
     if (::curl_easy_setopt(easy_handle_, CURLOPT_UPLOAD, 1L) != CURLE_OK)
         throw std::runtime_error("in Downloader::putData: curl_easy_setopt() failed! (1)");
