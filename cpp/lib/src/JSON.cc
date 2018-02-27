@@ -21,6 +21,7 @@
 #include <stdexcept>
 #include <string>
 #include <cctype>
+#include <cstdio>
 #include "Compiler.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -353,6 +354,13 @@ std::string JSONNode::TypeToString(const Type type) {
     default:
         throw std::runtime_error("in JSON::JSONNode::TypeToString: we should never get here!");
     };
+}
+
+
+std::string DoubleNode::toString() const {
+    char as_string[30];
+    std::sprintf(as_string, "%20E", value_);
+    return as_string;
 }
 
 
