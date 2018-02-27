@@ -304,7 +304,7 @@ std::vector<std::string> ExtractAuthorVector(const JSON::ObjectNode &object_node
     if (array_node == nullptr)
         return extracted_values;
 
-    for (auto array_entry : *array_node) {
+    for (auto &array_entry : *array_node) {
         std::shared_ptr<const JSON::ObjectNode> author_node(JSON::JSONNode::CastToObjectNodeOrDie("authors_array[n]", array_entry));
         if (author_node != nullptr)
             extracted_values.emplace_back(ExtractAuthor(*author_node));
