@@ -21,7 +21,7 @@
 #include <cstdlib>
 
 
-std::shared_ptr<JSON::ObjectNode> Elasticsearch::FieldsToJSON(const Fields fields) {
+std::shared_ptr<JSON::ObjectNode> Elasticsearch::FieldsToJSON(const Fields &fields) {
     std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
     for (const auto &field : fields) {
         std::shared_ptr<JSON::StringNode> value_node(new JSON::StringNode(field.second));
