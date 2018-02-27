@@ -2,7 +2,7 @@
  *  \brief A tool creating authority data records from expert-translated keywords.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016,2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -45,7 +45,7 @@ void GetMainAndAdditionalTranslations(const std::string &translation, std::strin
                                       std::string * additional_translation)
 {
     main_translation->clear(), additional_translation->clear();
-    
+
     const size_t first_lt_pos(translation.find('<'));
     if (first_lt_pos == std::string::npos)
         *main_translation = translation;

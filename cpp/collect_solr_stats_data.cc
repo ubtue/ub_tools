@@ -3,7 +3,7 @@
  */
 
 /*
-    Copyright (C) 2016,2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -49,14 +49,13 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
         logger->error("in IssueQueryAndWriteOutput: Solr query \"" + query + "\" failed!");
 
     JSON::Parser parser(json_result);
-    JSON::JSONNode *tree_root;
+    std::shared_ptr<JSON::JSONNode> tree_root;
     if (not parser.parse(&tree_root))
         logger->error("in IssueQueryAndWriteOutput: JSON parser failed: " + parser.getErrorMessage());
 
     *output << '"' << TextUtil::CSVEscape(system_type) << "\",\"" << TextUtil::CSVEscape(category) << "\",\""
             << TextUtil::CSVEscape(variable) << "\"," << JSON::LookupInteger("/response/numFound", tree_root) << ",\""
             << TextUtil::CSVEscape(TimeUtil::GetCurrentDateAndTime()) << "\"\n";
-    delete tree_root;
 }
 
 

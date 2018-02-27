@@ -97,7 +97,7 @@ std::string ConvertDateFromZuluDate(std::string date) {
 }
 
 
-std::string GetIssueId(const JSON::ObjectNode * const doc_obj) {
+std::string GetIssueId(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
     const std::string id(JSON::LookupString("/id", doc_obj, /* default_value = */ ""));
     if (unlikely(id.empty()))
         ERROR("Did not find 'id' node in JSON tree!");
@@ -106,7 +106,7 @@ std::string GetIssueId(const JSON::ObjectNode * const doc_obj) {
 }
 
 
-std::string GetIssueTitle(const std::string &id, const JSON::ObjectNode * const doc_obj) {
+std::string GetIssueTitle(const std::string &id, const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
     const std::string NO_AVAILABLE_TITLE("*No available title*");
     const auto issue_title(JSON::LookupString("/title", doc_obj, /* default_value = */ NO_AVAILABLE_TITLE));
     if (unlikely(issue_title == NO_AVAILABLE_TITLE))
@@ -116,7 +116,7 @@ std::string GetIssueTitle(const std::string &id, const JSON::ObjectNode * const 
 }
 
 
-std::string GetLastModificationTime(const JSON::ObjectNode * const doc_obj) {
+std::string GetLastModificationTime(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
     const std::string last_modification_time(JSON::LookupString("/last_modification_time", doc_obj, /* default_value = */ ""));
     if (unlikely(last_modification_time.empty()))
         ERROR("Did not find 'last_modification_time' node in JSON tree!");
@@ -125,15 +125,15 @@ std::string GetLastModificationTime(const JSON::ObjectNode * const doc_obj) {
 }
 
 
-std::string GetSeriesTitle(const JSON::ObjectNode * const doc_obj) {
+std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
     const std::string NO_SERIES_TITLE("*No Series Title*");
-    const JSON::JSONNode * const container_ids_and_titles(doc_obj->getNode("container_ids_and_titles"));
+    const std::shared_ptr<const JSON::JSONNode> container_ids_and_titles(doc_obj->getNode("container_ids_and_titles"));
     if (container_ids_and_titles == nullptr) {
         WARNING("\"container_ids_and_titles\" is null");
         return NO_SERIES_TITLE;
     }
 
-    const JSON::ArrayNode * const container_ids_and_titles_array(JSON::JSONNode::CastToArrayNodeOrDie("container_ids_and_titles", container_ids_and_titles));
+    const std::shared_ptr<const JSON::ArrayNode> container_ids_and_titles_array(JSON::JSONNode::CastToArrayNodeOrDie("container_ids_and_titles", container_ids_and_titles));
     if (container_ids_and_titles_array->empty()) {
         WARNING("\"container_ids_and_titles\" is empty");
         return NO_SERIES_TITLE;
@@ -159,16 +159,16 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
     bool found_at_least_one_new_issue(false);
 
     JSON::Parser parser(json_document);
-    JSON::JSONNode *tree;
+    std::shared_ptr<JSON::JSONNode> tree;
     if (not parser.parse(&tree))
         ERROR("JSON parser failed: " + parser.getErrorMessage());
 
-    JSON::ObjectNode * tree_obj(JSON::JSONNode::CastToObjectNodeOrDie("top level JSON entity", tree));
-    const JSON::ObjectNode * const response(tree_obj->getObjectNode("response"));
-    const JSON::ArrayNode * const docs(response->getArrayNode("docs"));
+    const std::shared_ptr<const JSON::ObjectNode> tree_obj(JSON::JSONNode::CastToObjectNodeOrDie("top level JSON entity", tree));
+    const std::shared_ptr<const JSON::ObjectNode> response(tree_obj->getObjectNode("response"));
+    const std::shared_ptr<const JSON::ArrayNode> docs(response->getArrayNode("docs"));
 
     for (auto doc : *docs) {
-        const JSON::ObjectNode * const doc_obj(JSON::JSONNode::CastToObjectNodeOrDie("document object", doc));
+        const std::shared_ptr<const JSON::ObjectNode> doc_obj(JSON::JSONNode::CastToObjectNodeOrDie("document object", doc));
 
         const std::string id(GetIssueId(doc_obj));
         if (notified_db->check(id) > 0)

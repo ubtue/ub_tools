@@ -1,7 +1,7 @@
 /** \brief Test cases for MarcRecord
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2016,2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -52,7 +52,7 @@ TEST(getNumberOfFields) {
 
     size_t index(record.insertSubfield("TST", 'a', "TEST"));
     BOOST_CHECK_EQUAL(record.getNumberOfFields(), 14);
-    
+
     record.deleteField(index);
     BOOST_CHECK_EQUAL(record.getNumberOfFields(), 13);
 }

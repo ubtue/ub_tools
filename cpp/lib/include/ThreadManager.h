@@ -1,8 +1,8 @@
 /** \file   ThreadManager.h
- *  \brief  A class that handles creation and destruction of threads. 
+ *  \brief  A class that handles creation and destruction of threads.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as

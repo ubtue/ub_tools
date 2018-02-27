@@ -23,6 +23,7 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DbRow.h"
+#include "Elasticsearch.h"
 #include "Random.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
@@ -41,6 +42,15 @@ FullTextCache::FullTextCache() {
     std::string mysql_url;
     VuFind::GetMysqlURL(&mysql_url);
     db_connection_ = new DbConnection(mysql_url);
+    elasticsearch_ = nullptr;
+}
+
+
+FullTextCache::FullTextCache(const Elasticsearch::Credentials &elasticsearch_credentials) {
+    std::string mysql_url;
+    VuFind::GetMysqlURL(&mysql_url);
+    db_connection_ = new DbConnection(mysql_url);
+    elasticsearch_ = new Elasticsearch(elasticsearch_credentials);
 }
 
 
@@ -292,5 +302,18 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
                                "url=\"" + db_connection_->escapeString(entry_url.url_) + "\","
                                "domain=\"" + db_connection_->escapeString(entry_url.domain_) + "\""
                                + (entry_url.error_message_.empty() ? "" : ", error_message=\"" + db_connection_->escapeString(entry_url.error_message_) + "\""));
+    }
+
+    if (elasticsearch_ != nullptr) {
+        Elasticsearch::Document document;
+        document.id_ = id;
+        document.fields_["fulltext"] = full_text;
+        if (elasticsearch_->hasDocument(id)) {
+            INFO("updating Elasticsearch fulltext for " + id);
+            elasticsearch_->updateDocument(document);
+        } else {
+            INFO("creating Elasticsearch fulltext for " + id);
+            elasticsearch_->createDocument(document);
+        }
     }
 }
