@@ -122,7 +122,7 @@ std::string ExtractInventory(const std::string &_910_subfield_a, const bool is_m
         const std::shared_ptr<const JSON::StringNode> comment_node(object->getStringNode("komment"));
         if (comment_node != nullptr) {
             if (comment_node->getType() != JSON::JSONNode::STRING_NODE)
-                logger->error("in ExtractInventory: expected a string node! (2)");
+                ERROR("expected a string node! (2)");
             inventory += "(" + comment_node->getValue() + ")";
         }
     }
