@@ -35,8 +35,7 @@ std::string Query(const Url &url, const QueryType query_type, const std::string 
         downloader.putData(url, data);
         break;
     case QueryType::POST:
-        params.post_data_ = data;
-        downloader.newUrl(url);
+        downloader.postData(url, data);
         break;
     case QueryType::DELETE:
         downloader.deleteUrl(url);

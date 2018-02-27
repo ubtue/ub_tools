@@ -162,6 +162,6 @@ void Elasticsearch::updateDocument(const Document &document) {
     std::shared_ptr<JSON::ObjectNode> doc_node(FieldsToJSON(document.fields_));
     std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
     tree_root->insert("doc", doc_node);
-    const std::string action(index_ + "/" + document_type_ + "/" + document.id_ + "_update?pretty");
+    const std::string action(index_ + "/" + document_type_ + "/" + document.id_ + "/_update");
     query(action, REST::QueryType::POST, tree_root);
 }
