@@ -24,13 +24,16 @@
 #include <string>
 #include <vector>
 #include "DbConnection.h"
+#include "Elasticsearch.h"
 
 
 class FullTextCache {
     DbConnection *db_connection_;
+    Elasticsearch *elasticsearch_;
 public:
     FullTextCache();
-    ~FullTextCache() { delete db_connection_; }
+    FullTextCache(const Elasticsearch::Credentials &elasticsearch_credentials);
+    ~FullTextCache() { delete db_connection_; delete elasticsearch_; }
     struct Entry {
         std::string id_;
         time_t expiration_;

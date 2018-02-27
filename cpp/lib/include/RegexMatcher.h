@@ -2,7 +2,7 @@
  *  \brief  Interface for the RegexMatcher class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014,2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2014,2015 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -71,7 +71,7 @@ public:
      *  \note   Obviously you may only call this after a call to matched().
      */
     unsigned getNoOfGroups() const { return last_match_count_ - 1; }
-    
+
     /** \brief Returns either the full last match or matched substrings.
      *  \param group  When "group" is 0, the full last match will be returned, o/w the n-th substring match
      *                will be returned.

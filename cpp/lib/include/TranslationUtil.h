@@ -2,7 +2,7 @@
  *  \brief  Utility functions used by our translation-related tools.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -73,5 +73,5 @@ bool IsValidFake3Or4LetterEnglishLanguagesCode(const std::string &english_3lette
 
 } // namespace TranslationUtil
 
-   
+
 #endif // ifndef TRANSLATION_UTIL_H
