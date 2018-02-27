@@ -101,10 +101,7 @@ void Logger::info(const std::string &msg) {
 
 
 void Logger::debug(const std::string &msg) {
-    if (min_log_level_ < LL_DEBUG)
-        return;
-
-    if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") != "true")
+    if ((min_log_level_ < LL_DEBUG) and (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") != "true"))
         return;
 
     std::lock_guard<std::mutex> mutex_locker(mutex_);
