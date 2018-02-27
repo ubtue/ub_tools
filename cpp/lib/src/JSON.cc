@@ -371,7 +371,7 @@ std::string JSONNode::TypeToString(const Type type) {
 
 
 std::string StringNode::toString() const {
-    return "\"" + EscapeDoubleQuotes(value_) + "\"";
+    return "\"" + EscapeString(value_) + "\"";
 }
 
 
