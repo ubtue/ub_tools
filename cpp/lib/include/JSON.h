@@ -22,6 +22,7 @@
 
 
 #include <string>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 #include <cinttypes>
@@ -89,34 +90,34 @@ public:
     virtual ~JSONNode() { }
 
     virtual Type getType() const = 0;
-    virtual JSONNode *clone() const = 0;
+    virtual std::shared_ptr<JSONNode> clone() const = 0;
     virtual std::string toString() const = 0;
     static std::string TypeToString(const Type type);
 private:
-    template<typename NodeType> static const NodeType * CastToConstNodeOrDie(const std::string &node_name, const Type node_type, const JSONNode * const node) {
+    template<typename NodeType> static std::shared_ptr<const NodeType> CastToConstNodeOrDie(const std::string &node_name, const Type node_type, const std::shared_ptr<const JSONNode> &node) {
         if (unlikely(node->getType() != node_type))
             ERROR("expected \"" + node_name + "\" to be " + JSONNode::TypeToString(node_type) + "!");
-        return reinterpret_cast<const NodeType *>(node);
+        return std::static_pointer_cast<const NodeType>(node);
     }
 
-    template<typename NodeType> static NodeType * CastToNodeOrDie(const std::string &node_name, const Type node_type, JSONNode * const node) {
+    template<typename NodeType> static std::shared_ptr<NodeType> CastToNodeOrDie(const std::string &node_name, const Type node_type, const std::shared_ptr<JSONNode> &node) {
         if (unlikely(node->getType() != node_type))
             ERROR("expected \"" + node_name + "\" to be " + JSONNode::TypeToString(node_type) + "!");
-        return reinterpret_cast<NodeType *>(node);
+        return std::static_pointer_cast<NodeType>(node);
     }
 public:
-    static const ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, const JSONNode * const node) { return CastToConstNodeOrDie<ArrayNode>(node_name, ARRAY_NODE, node); };
-    static ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, JSONNode * const node) { return CastToNodeOrDie<ArrayNode>(node_name, ARRAY_NODE, node); };
-    static const BooleanNode *CastToBooleanNodeOrDie(const std::string &node_name, const JSONNode * const node) { return CastToConstNodeOrDie<BooleanNode>(node_name, BOOLEAN_NODE, node); };
-    static BooleanNode *CastToBooleanNodeOrDie(const std::string &node_name, JSONNode * const node) { return CastToNodeOrDie<BooleanNode>(node_name, BOOLEAN_NODE, node); };
-    static const DoubleNode *CastToDoubleNodeOrDie(const std::string &node_name, const JSONNode * const node) { return CastToConstNodeOrDie<DoubleNode>(node_name, DOUBLE_NODE, node); };
-    static DoubleNode *CastToDoubleNodeOrDie(const std::string &node_name, JSONNode * const node) { return CastToNodeOrDie<DoubleNode>(node_name, DOUBLE_NODE, node); };
-    static const IntegerNode *CastToIntegerNodeOrDie(const std::string &node_name, const JSONNode * const node) { return CastToConstNodeOrDie<IntegerNode>(node_name, INT64_NODE, node); };
-    static IntegerNode *CastToIntegerNodeOrDie(const std::string &node_name, JSONNode * const node) { return CastToNodeOrDie<IntegerNode>(node_name, INT64_NODE, node); };
-    static const ObjectNode *CastToObjectNodeOrDie(const std::string &node_name, const JSONNode * const node) { return CastToConstNodeOrDie<ObjectNode>(node_name, OBJECT_NODE, node); };
-    static ObjectNode *CastToObjectNodeOrDie(const std::string &node_name, JSONNode * const node) { return CastToNodeOrDie<ObjectNode>(node_name, OBJECT_NODE, node); };
-    static const StringNode *CastToStringNodeOrDie(const std::string &node_name, const JSONNode * const node) { return CastToConstNodeOrDie<StringNode>(node_name, STRING_NODE, node); };
-    static StringNode *CastToStringNodeOrDie(const std::string &node_name, JSONNode * const node) { return CastToNodeOrDie<StringNode>(node_name, STRING_NODE, node); };
+    static std::shared_ptr<const ArrayNode> CastToArrayNodeOrDie(const std::string &node_name, const std::shared_ptr<const JSONNode> &node) { return CastToConstNodeOrDie<ArrayNode>(node_name, ARRAY_NODE, node); };
+    static std::shared_ptr<ArrayNode> CastToArrayNodeOrDie(const std::string &node_name, const std::shared_ptr<JSONNode> &node) { return CastToNodeOrDie<ArrayNode>(node_name, ARRAY_NODE, node); };
+    static std::shared_ptr<const BooleanNode> CastToBooleanNodeOrDie(const std::string &node_name, const std::shared_ptr<const JSONNode> &node) { return CastToConstNodeOrDie<BooleanNode>(node_name, BOOLEAN_NODE, node); };
+    static std::shared_ptr<BooleanNode> CastToBooleanNodeOrDie(const std::string &node_name, const std::shared_ptr<JSONNode> &node) { return CastToNodeOrDie<BooleanNode>(node_name, BOOLEAN_NODE, node); };
+    static std::shared_ptr<const DoubleNode> CastToDoubleNodeOrDie(const std::string &node_name, const std::shared_ptr<const JSONNode> &node) { return CastToConstNodeOrDie<DoubleNode>(node_name, DOUBLE_NODE, node); };
+    static std::shared_ptr<DoubleNode> CastToDoubleNodeOrDie(const std::string &node_name, const std::shared_ptr<JSONNode> &node) { return CastToNodeOrDie<DoubleNode>(node_name, DOUBLE_NODE, node); };
+    static std::shared_ptr<const IntegerNode> CastToIntegerNodeOrDie(const std::string &node_name, const std::shared_ptr<const JSONNode> &node) { return CastToConstNodeOrDie<IntegerNode>(node_name, INT64_NODE, node); };
+    static std::shared_ptr<IntegerNode> CastToIntegerNodeOrDie(const std::string &node_name, const std::shared_ptr<JSONNode> &node) { return CastToNodeOrDie<IntegerNode>(node_name, INT64_NODE, node); };
+    static std::shared_ptr<const ObjectNode> CastToObjectNodeOrDie(const std::string &node_name, const std::shared_ptr<const JSONNode> &node) { return CastToConstNodeOrDie<ObjectNode>(node_name, OBJECT_NODE, node); };
+    static std::shared_ptr<ObjectNode> CastToObjectNodeOrDie(const std::string &node_name, const std::shared_ptr<JSONNode> &node) { return CastToNodeOrDie<ObjectNode>(node_name, OBJECT_NODE, node); };
+    static std::shared_ptr<const StringNode> CastToStringNodeOrDie(const std::string &node_name, const std::shared_ptr<const JSONNode> &node) { return CastToConstNodeOrDie<StringNode>(node_name, STRING_NODE, node); };
+    static std::shared_ptr<StringNode> CastToStringNodeOrDie(const std::string &node_name, const std::shared_ptr<JSONNode> &node) { return CastToNodeOrDie<StringNode>(node_name, STRING_NODE, node); };
 };
 
 
@@ -125,10 +126,10 @@ class BooleanNode final : public JSONNode {
 public:
     explicit BooleanNode(const bool value): value_(value) { }
 
-    virtual Type getType() const override { return BOOLEAN_NODE; }
-    virtual BooleanNode *clone() const override { return new BooleanNode(value_); }
-    virtual std::string toString() const override { return value_ ? "true" : "false"; }
-    bool getValue() const { return value_; }
+    inline virtual Type getType() const override { return BOOLEAN_NODE; }
+    inline virtual std::shared_ptr<JSONNode> clone() const override { return std::make_shared<BooleanNode>(value_); }
+    inline virtual std::string toString() const override { return value_ ? "true" : "false"; }
+    inline bool getValue() const { return value_; }
     void setValue(const bool value) { value_ = value; }
 };
 
@@ -137,9 +138,9 @@ class NullNode final : public JSONNode {
 public:
     NullNode() { }
 
-    virtual Type getType() const override { return NULL_NODE; }
-    virtual NullNode *clone() const override { return new NullNode; }
-    virtual std::string toString() const override { return "null"; }
+    inline virtual Type getType() const override { return NULL_NODE; }
+    inline virtual std::shared_ptr<JSONNode> clone() const override { return std::make_shared<NullNode>(); }
+    inline virtual std::string toString() const override { return "null"; }
 };
 
 
@@ -148,10 +149,11 @@ class StringNode final : public JSONNode {
 public:
     explicit StringNode(const std::string value): value_(value) { }
 
-    virtual Type getType() const override { return STRING_NODE; }
-    virtual StringNode *clone() const override { return new StringNode(value_); }
+    inline virtual Type getType() const override { return STRING_NODE; }
+    inline virtual std::shared_ptr<JSONNode> clone() const override { return std::make_shared<StringNode>(value_); }
     virtual std::string toString() const override;
-    const std::string &getValue() const { return value_; }
+    inline const std::string &getValue() const { return value_; }
+    inline void setValue(const std::string &new_value) { value_ = new_value; }
 };
 
 
@@ -160,10 +162,10 @@ class IntegerNode final : public JSONNode {
 public:
     explicit IntegerNode(const int64_t value): value_(value) { }
 
-    virtual IntegerNode *clone() const override { return new IntegerNode(value_); }
-    virtual Type getType() const override { return INT64_NODE; }
-    virtual std::string toString() const override { return std::to_string(value_); }
-    int64_t getValue() const { return value_; }
+    inline virtual std::shared_ptr<JSONNode> clone() const override { return std::make_shared<IntegerNode>(value_); }
+    inline virtual Type getType() const override { return INT64_NODE; }
+    inline virtual std::string toString() const override { return std::to_string(value_); }
+    inline int64_t getValue() const { return value_; }
     void setValue(const int64_t value) { value_ = value; }
 };
 
@@ -173,7 +175,7 @@ class DoubleNode final : public JSONNode {
 public:
     explicit DoubleNode(const double value): value_(value) { }
 
-    virtual DoubleNode *clone() const override { return new DoubleNode(value_); }
+    virtual std::shared_ptr<JSONNode> clone() const override { return std::make_shared<DoubleNode>(value_); }
     virtual Type getType() const override { return DOUBLE_NODE; }
     virtual std::string toString() const override { return std::to_string(value_); }
     double getValue() const { return value_; }
@@ -182,27 +184,27 @@ public:
 
 
 class ObjectNode final : public JSONNode {
-    std::unordered_map<std::string, JSONNode *> entries_;
+    std::unordered_map<std::string, std::shared_ptr<JSONNode>> entries_;
 public:
-    typedef std::unordered_map<std::string, JSONNode *>::const_iterator const_iterator;
-    template<typename ReturnType> ReturnType * getNode(const std::string &label, const Type node_type) const {
+    typedef std::unordered_map<std::string, std::shared_ptr<JSONNode>>::const_iterator const_iterator;
+    template<typename ReturnType> std::shared_ptr<ReturnType> getNode(const std::string &label, const Type node_type) const {
         const auto entry(entries_.find(label));
         if (unlikely(entry == entries_.cend()))
             ERROR("label \"" + label + "\" not found!");
         if (unlikely(entry->second->getType() != node_type))
             ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
-        return reinterpret_cast<ReturnType *>(entry->second);
+        return std::static_pointer_cast<ReturnType>(entry->second);
     }
-    template<typename ReturnType> ReturnType * getOptionalNode(const std::string &label, const Type node_type) const {
+    template<typename ReturnType> std::shared_ptr<ReturnType> getOptionalNode(const std::string &label, const Type node_type) const {
         const auto entry(entries_.find(label));
         if (unlikely(entry == entries_.cend()))
             return nullptr;
         if (unlikely(entry->second->getType() != node_type))
             ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
-        return reinterpret_cast<ReturnType *>(entry->second);
+        return std::static_pointer_cast<ReturnType>(entry->second);
     }
     template<typename ReturnType, typename NodeType> ReturnType getValue(const std::string &label, const Type node_type) const {
-        const NodeType * node(getNode<NodeType>(label, node_type));
+        std::shared_ptr<const NodeType> node(getNode<NodeType>(label, node_type));
         return node->getValue();
     }
     template<typename ReturnType, typename NodeType> ReturnType getOptionalValue(const std::string &label, const ReturnType default_value,
@@ -213,55 +215,57 @@ public:
             return default_value;
         if (unlikely(entry->second->getType() != node_type))
             ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
-        return reinterpret_cast<NodeType *>(entry->second)->getValue();
+        return std::static_pointer_cast<NodeType>(entry->second)->getValue();
     }
 public:
     ObjectNode() { }
-    virtual ~ObjectNode();
 
-    virtual ObjectNode *clone() const override;
+    virtual std::shared_ptr<JSONNode> clone() const override;
     virtual Type getType() const override { return OBJECT_NODE; }
     virtual std::string toString() const override;
     bool empty() const { return entries_.empty(); }
 
     /** \return False if the new node was not inserted because the label already existed, o/w true. */
-    bool insert(const std::string &label, JSONNode * const node);
+    bool insert(const std::string &label, std::shared_ptr<JSONNode> const node);
 
     /** \return False if there was nothing to remove, o/w true. */
     bool remove(const std::string &label);
 
+    /** \return False if no entry for the provided label exists, o/w true. */
+    bool hasNode(const std::string &label) const;
+
     // Member accessors, they return NULL if there is no entry for the provided label o/w they return the entry.
-    const JSONNode *getNode(const std::string &label) const;
-    JSONNode *getNode(const std::string &label);
+    std::shared_ptr<const JSONNode> getNode(const std::string &label) const;
+    std::shared_ptr<JSONNode> getNode(const std::string &label);
 
     // Automatic cast value retrieval.  If the requested type is not applicable, the functions abort.
-    const ArrayNode *getArrayNode(const std::string &label) const { return getNode<ArrayNode>(label, ARRAY_NODE); }
-    ArrayNode *getArrayNode(const std::string &label) { return getNode<ArrayNode>(label, ARRAY_NODE); }
-    const BooleanNode *getBooleanNode(const std::string &label) const { return getNode<BooleanNode>(label, BOOLEAN_NODE); }
-    BooleanNode *getBooleanNode(const std::string &label) { return getNode<BooleanNode>(label, BOOLEAN_NODE); }
-    const DoubleNode *getDoubleNode(const std::string &label) const { return getNode<DoubleNode>(label, DOUBLE_NODE); }
-    DoubleNode *getDoubleNode(const std::string &label) { return getNode<DoubleNode>(label, DOUBLE_NODE); }
-    const IntegerNode *getIntegerNode(const std::string &label) const { return getNode<IntegerNode>(label, INT64_NODE); }
-    IntegerNode *getIntegerNode(const std::string &label) { return getNode<IntegerNode>(label, INT64_NODE); }
-    const ObjectNode *getObjectNode(const std::string &label) const { return getNode<ObjectNode>(label, OBJECT_NODE); }
-    ObjectNode *getObjectNode(const std::string &label) { return getNode<ObjectNode>(label, OBJECT_NODE); }
-    const StringNode *getStringNode(const std::string &label) const { return getNode<StringNode>(label, STRING_NODE); }
-    StringNode *getStringNode(const std::string &label) { return getNode<StringNode>(label, STRING_NODE); }
+    std::shared_ptr<const ArrayNode> getArrayNode(const std::string &label) const { return getNode<ArrayNode>(label, ARRAY_NODE); }
+    std::shared_ptr<ArrayNode> getArrayNode(const std::string &label) { return getNode<ArrayNode>(label, ARRAY_NODE); }
+    std::shared_ptr<const BooleanNode> getBooleanNode(const std::string &label) const { return getNode<BooleanNode>(label, BOOLEAN_NODE); }
+    std::shared_ptr<BooleanNode> getBooleanNode(const std::string &label) { return getNode<BooleanNode>(label, BOOLEAN_NODE); }
+    std::shared_ptr<const DoubleNode> getDoubleNode(const std::string &label) const { return getNode<DoubleNode>(label, DOUBLE_NODE); }
+    std::shared_ptr<DoubleNode> getDoubleNode(const std::string &label) { return getNode<DoubleNode>(label, DOUBLE_NODE); }
+    std::shared_ptr<const IntegerNode> getIntegerNode(const std::string &label) const { return getNode<IntegerNode>(label, INT64_NODE); }
+    std::shared_ptr<IntegerNode> getIntegerNode(const std::string &label) { return getNode<IntegerNode>(label, INT64_NODE); }
+    std::shared_ptr<const ObjectNode> getObjectNode(const std::string &label) const { return getNode<ObjectNode>(label, OBJECT_NODE); }
+    std::shared_ptr<ObjectNode> getObjectNode(const std::string &label) { return getNode<ObjectNode>(label, OBJECT_NODE); }
+    std::shared_ptr<const StringNode> getStringNode(const std::string &label) const { return getNode<StringNode>(label, STRING_NODE); }
+    std::shared_ptr<StringNode> getStringNode(const std::string &label) { return getNode<StringNode>(label, STRING_NODE); }
     bool isNullNode(const std::string &label) const;
 
     // Automatic cast value retrieval.  Returns nullptr if node not found.  If the requested type is not applicable, the functions abort.
-    const ArrayNode *getOptionalArrayNode(const std::string &label) const { return getOptionalNode<ArrayNode>(label, ARRAY_NODE); }
-    ArrayNode *getOptionalArrayNode(const std::string &label) { return getOptionalNode<ArrayNode>(label, ARRAY_NODE); }
-    const BooleanNode *getOptionalBooleanNode(const std::string &label) const { return getOptionalNode<BooleanNode>(label, BOOLEAN_NODE); }
-    BooleanNode *getOptionalBooleanNode(const std::string &label) { return getOptionalNode<BooleanNode>(label, BOOLEAN_NODE); }
-    const DoubleNode *getOptionalDoubleNode(const std::string &label) const { return getNode<DoubleNode>(label, DOUBLE_NODE); }
-    DoubleNode *getOptionalDoubleNode(const std::string &label) { return getOptionalNode<DoubleNode>(label, DOUBLE_NODE); }
-    const IntegerNode *getOptionalIntegerNode(const std::string &label) const { return getOptionalNode<IntegerNode>(label, INT64_NODE); }
-    IntegerNode *getOptionalIntegerNode(const std::string &label) { return getOptionalNode<IntegerNode>(label, INT64_NODE); }
-    const ObjectNode *getOptionalObjectNode(const std::string &label) const { return getOptionalNode<ObjectNode>(label, OBJECT_NODE); }
-    ObjectNode *getOptionalObjectNode(const std::string &label) { return getOptionalNode<ObjectNode>(label, OBJECT_NODE); }
-    const StringNode *getOptionalStringNode(const std::string &label) const { return getOptionalNode<StringNode>(label, STRING_NODE); }
-    StringNode *getOptionalStringNode(const std::string &label) { return getOptionalNode<StringNode>(label, STRING_NODE); }
+    std::shared_ptr<const ArrayNode> getOptionalArrayNode(const std::string &label) const { return getOptionalNode<ArrayNode>(label, ARRAY_NODE); }
+    std::shared_ptr<ArrayNode> getOptionalArrayNode(const std::string &label) { return getOptionalNode<ArrayNode>(label, ARRAY_NODE); }
+    std::shared_ptr<const BooleanNode> getOptionalBooleanNode(const std::string &label) const { return getOptionalNode<BooleanNode>(label, BOOLEAN_NODE); }
+    std::shared_ptr<BooleanNode> getOptionalBooleanNode(const std::string &label) { return getOptionalNode<BooleanNode>(label, BOOLEAN_NODE); }
+    std::shared_ptr<const DoubleNode> getOptionalDoubleNode(const std::string &label) const { return getNode<DoubleNode>(label, DOUBLE_NODE); }
+    std::shared_ptr<DoubleNode> getOptionalDoubleNode(const std::string &label) { return getOptionalNode<DoubleNode>(label, DOUBLE_NODE); }
+    std::shared_ptr<const IntegerNode> getOptionalIntegerNode(const std::string &label) const { return getOptionalNode<IntegerNode>(label, INT64_NODE); }
+    std::shared_ptr<IntegerNode> getOptionalIntegerNode(const std::string &label) { return getOptionalNode<IntegerNode>(label, INT64_NODE); }
+    std::shared_ptr<const ObjectNode> getOptionalObjectNode(const std::string &label) const { return getOptionalNode<ObjectNode>(label, OBJECT_NODE); }
+    std::shared_ptr<ObjectNode> getOptionalObjectNode(const std::string &label) { return getOptionalNode<ObjectNode>(label, OBJECT_NODE); }
+    std::shared_ptr<const StringNode> getOptionalStringNode(const std::string &label) const { return getOptionalNode<StringNode>(label, STRING_NODE); }
+    std::shared_ptr<StringNode> getOptionalStringNode(const std::string &label) { return getOptionalNode<StringNode>(label, STRING_NODE); }
 
     bool getBooleanValue(const std::string &label) const { return getValue<bool, BooleanNode>(label, BOOLEAN_NODE); }
     double getDoubleValue(const std::string &label) const { return getValue<double, DoubleNode>(label, DOUBLE_NODE); }
@@ -279,59 +283,58 @@ public:
 
 
 class ArrayNode final : public JSONNode {
-    std::vector<JSONNode *> values_;
-    template<typename NodeType> NodeType * getNode(const size_t index, const JSONNode::Type node_type) const {
+    std::vector<std::shared_ptr<JSONNode>> values_;
+    template<typename NodeType> std::shared_ptr<NodeType> getNode(const size_t index, const JSONNode::Type node_type) const {
         if (unlikely(index >= values_.size()))
             ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
         if (unlikely(values_[index]->getType() != node_type))
             ERROR("entry with index \"" + std::to_string(index) + "\" is not a " + JSONNode::TypeToString(node_type) + " node!");
-        return (reinterpret_cast<NodeType *>(values_[index]));
+        return (std::static_pointer_cast<NodeType>(values_[index]));
     }
-    template<typename NodeType> NodeType * getOptionalNode(const size_t index, const JSONNode::Type node_type) const {
+    template<typename NodeType> std::shared_ptr<NodeType> getOptionalNode(const size_t index, const JSONNode::Type node_type) const {
         if (unlikely(index >= values_.size()))
             return nullptr;
         if (unlikely(values_[index]->getType() != node_type))
             ERROR("entry with index \"" + std::to_string(index) + "\" is not a " + JSONNode::TypeToString(node_type) + " node!");
-        return (reinterpret_cast<NodeType *>(values_[index]));
+        return (std::static_pointer_cast<NodeType>(values_[index]));
     }
 public:
-    typedef std::vector<JSONNode *>::const_iterator const_iterator;
+    typedef std::vector<std::shared_ptr<JSONNode>>::const_iterator const_iterator;
 public:
     explicit ArrayNode() { }
-    virtual ~ArrayNode();
 
-    virtual ArrayNode *clone() const override;
+    virtual std::shared_ptr<JSONNode> clone() const override;
     virtual Type getType() const override { return ARRAY_NODE; }
     virtual std::string toString() const override;
     bool empty() const { return values_.empty(); }
-    const JSONNode *getNode(const size_t index) const { return values_[index]; }
-    JSONNode *getNode(const size_t index) { return values_[index]; }
+    std::shared_ptr<const JSONNode> getNode(const size_t index) const { return values_[index]; }
+    std::shared_ptr<JSONNode> getNode(const size_t index) { return values_[index]; }
 
     // Automatic cast value retrieval.  If the requested type is not applicable, the functions abort.
     bool getBooleanValue(const size_t index) const { return this->getNode<BooleanNode>(index, BOOLEAN_NODE)->getValue(); }
     std::string getStringValue(const size_t index) const { return this->getNode<StringNode>(index, STRING_NODE)->getValue(); }
     int64_t getIntegerValue(const size_t index) const { return this->getNode<IntegerNode>(index, INT64_NODE)->getValue(); }
     double getDoubleValue(const size_t index) const { return this->getNode<DoubleNode>(index, DOUBLE_NODE)->getValue(); }
-    const ObjectNode *getObjectNode(const size_t index) const { return this->getNode<ObjectNode>(index, OBJECT_NODE); }
-    ObjectNode *getObjectNode(const size_t index) { return this->getNode<ObjectNode>(index, OBJECT_NODE); };
-    const StringNode *getStringNode(const size_t index) const { return this->getNode<StringNode>(index, STRING_NODE); }
-    StringNode *getStringNode(const size_t index) { return this->getNode<StringNode>(index, STRING_NODE); }
-    const ArrayNode *getArrayNode(const size_t index) const { return this->getNode<ArrayNode>(index, ARRAY_NODE); }
-    ArrayNode *getArrayNode(const size_t index) { return this->getNode<ArrayNode>(index, ARRAY_NODE); }
+    std::shared_ptr<const ObjectNode> getObjectNode(const size_t index) const { return this->getNode<ObjectNode>(index, OBJECT_NODE); }
+    std::shared_ptr<ObjectNode> getObjectNode(const size_t index) { return this->getNode<ObjectNode>(index, OBJECT_NODE); };
+    std::shared_ptr<const StringNode> getStringNode(const size_t index) const { return this->getNode<StringNode>(index, STRING_NODE); }
+    std::shared_ptr<StringNode> getStringNode(const size_t index) { return this->getNode<StringNode>(index, STRING_NODE); }
+    std::shared_ptr<const ArrayNode> getArrayNode(const size_t index) const { return this->getNode<ArrayNode>(index, ARRAY_NODE); }
+    std::shared_ptr<ArrayNode> getArrayNode(const size_t index) { return this->getNode<ArrayNode>(index, ARRAY_NODE); }
     bool isNullNode(const size_t index) const;
 
     // Automatic cast value retrieval.  Returns nullptr if node not found.  If the requested type is not applicable, the functions abort.
-    const ObjectNode *getOptionalObjectNode(const size_t index) const { return this->getOptionalNode<ObjectNode>(index, OBJECT_NODE); }
-    ObjectNode *getOptionalObjectNode(const size_t index) { return this->getOptionalNode<ObjectNode>(index, OBJECT_NODE); };
-    const StringNode *getOptionalStringNode(const size_t index) const { return this->getOptionalNode<StringNode>(index, STRING_NODE); }
-    StringNode *getOptionalStringNode(const size_t index) { return this->getOptionalNode<StringNode>(index, STRING_NODE); }
-    const ArrayNode *getOptionalArrayNode(const size_t index) const { return this->getOptionalNode<ArrayNode>(index, ARRAY_NODE); }
-    ArrayNode *getOptionalArrayNode(const size_t index) { return this->getOptionalNode<ArrayNode>(index, ARRAY_NODE); }
+    std::shared_ptr<const ObjectNode> getOptionalObjectNode(const size_t index) const { return this->getOptionalNode<ObjectNode>(index, OBJECT_NODE); }
+    std::shared_ptr<ObjectNode> getOptionalObjectNode(const size_t index) { return this->getOptionalNode<ObjectNode>(index, OBJECT_NODE); };
+    std::shared_ptr<const StringNode> getOptionalStringNode(const size_t index) const { return this->getOptionalNode<StringNode>(index, STRING_NODE); }
+    std::shared_ptr<StringNode> getOptionalStringNode(const size_t index) { return this->getOptionalNode<StringNode>(index, STRING_NODE); }
+    std::shared_ptr<const ArrayNode> getOptionalArrayNode(const size_t index) const { return this->getOptionalNode<ArrayNode>(index, ARRAY_NODE); }
+    std::shared_ptr<ArrayNode> getOptionalArrayNode(const size_t index) { return this->getOptionalNode<ArrayNode>(index, ARRAY_NODE); }
 
     size_t size() const { return values_.size(); }
     const_iterator begin() const { return values_.cbegin(); }
     const_iterator end() const { return values_.cend(); }
-    void push_back(JSONNode * const node) { values_.push_back(node); }
+    void push_back(std::shared_ptr<JSONNode> const node) { values_.push_back(node); }
 };
 
 
@@ -343,18 +346,18 @@ public:
 
     // Typical use case:
     //
-    // JSONNode *tree_root;
+    // std::shared_ptr<JSONNode>tree_root;
     // if (not (parser.parse(&tree_root)))
     //     ...
     //  ...
     //  delete tree_root;
-    bool parse(JSONNode **tree_root);
+    bool parse(std::shared_ptr<JSONNode> * const tree_root);
 
     const std::string &getErrorMessage() const { return error_message_; }
 private:
-    bool parseObject(JSONNode **new_object_node);
-    bool parseArray(JSONNode **new_array_node);
-    bool parseAny(JSONNode **new_node);
+    bool parseObject(std::shared_ptr<JSONNode> * const new_object_node);
+    bool parseArray(std::shared_ptr<JSONNode> * const new_array_node);
+    bool parseAny(std::shared_ptr<JSONNode> * const new_node);
 };
 
 
@@ -371,7 +374,7 @@ std::string TokenTypeToString(const TokenType token);
  *  \note Should "path" reference a scalar node that is not a string, a string representation. thereof will be
  *        returned.
  */
-std::string LookupString(const std::string &path, const JSONNode * const tree);
+std::string LookupString(const std::string &path, const std::shared_ptr<const JSONNode> &tree);
 
 
 /** \brief Extracts a string datum from a JSON tree structure.
@@ -384,7 +387,7 @@ std::string LookupString(const std::string &path, const JSONNode * const tree);
  *  \note Should "path" reference a scalar node that is not a string, a string representation. thereof will be
  *        returned.
  */
-std::string LookupString(const std::string &path, const JSONNode * const tree,
+std::string LookupString(const std::string &path, const std::shared_ptr<const JSONNode> &tree,
                          const std::string &default_value);
 
 
@@ -397,7 +400,7 @@ std::string LookupString(const std::string &path, const JSONNode * const tree,
  *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
  *  \throws std::runtime_error if path refers to an existing non-integer node.
  */
-int64_t LookupInteger(const std::string &path, const JSONNode * const tree, const int64_t default_value);
+int64_t LookupInteger(const std::string &path, const std::shared_ptr<const JSONNode> &tree, const int64_t default_value);
 
 
 /** \brief Extracts an integer datum from a JSON tree structure.
@@ -408,7 +411,7 @@ int64_t LookupInteger(const std::string &path, const JSONNode * const tree, cons
  *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
  *  \throws std::runtime_error if "path" refers to an existing non-integer node or the node "path" refers to does not exist.
  */
-int64_t LookupInteger(const std::string &path, const JSONNode * const tree);
+int64_t LookupInteger(const std::string &path, const std::shared_ptr<const JSONNode> &tree);
 
 
 // Escapes control codes, backslashes, double quotes, form feeds, newlines, carriage returns, and tab characters.

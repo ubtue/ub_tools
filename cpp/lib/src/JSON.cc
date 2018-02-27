@@ -375,14 +375,8 @@ std::string StringNode::toString() const {
 }
 
 
-ObjectNode::~ObjectNode() {
-    for (auto &entry : entries_)
-        delete entry.second;
-}
-
-
-ObjectNode *ObjectNode::clone() const {
-    ObjectNode *the_clone(new ObjectNode);
+std::shared_ptr<JSONNode> ObjectNode::clone() const {
+    std::shared_ptr<ObjectNode> the_clone(new ObjectNode);
     for (const auto &entry : entries_)
         the_clone->entries_[entry.first] = entry.second->clone();
 
@@ -407,7 +401,7 @@ std::string ObjectNode::toString() const {
 }
 
 
-bool ObjectNode::insert(const std::string &label, JSONNode * const node) {
+bool ObjectNode::insert(const std::string &label, std::shared_ptr<JSONNode> node) {
     if (entries_.find(label) != entries_.end())
         return false;
     entries_.insert(std::make_pair(label, node));
@@ -425,13 +419,19 @@ bool ObjectNode::remove(const std::string &label) {
 }
 
 
-const JSONNode *ObjectNode::getNode(const std::string &label) const {
+bool ObjectNode::hasNode(const std::string &label) const {
+    const auto entry(entries_.find(label));
+    return entry != entries_.cend();
+}
+
+
+std::shared_ptr<const JSONNode> ObjectNode::getNode(const std::string &label) const {
     const auto entry(entries_.find(label));
     return entry == entries_.cend() ? nullptr : entry->second;
 }
 
 
-JSONNode *ObjectNode::getNode(const std::string &label) {
+std::shared_ptr<JSONNode> ObjectNode::getNode(const std::string &label) {
     const auto entry(entries_.find(label));
     return entry == entries_.cend() ? nullptr : entry->second;
 }
@@ -445,14 +445,8 @@ bool ObjectNode::isNullNode(const std::string &label) const {
 }
 
 
-ArrayNode::~ArrayNode() {
-    for (auto &value : values_)
-        delete value;
-}
-
-
-ArrayNode *ArrayNode::clone() const {
-    ArrayNode *the_clone(new ArrayNode);
+std::shared_ptr<JSONNode> ArrayNode::clone() const {
+    std::shared_ptr<ArrayNode> the_clone(new ArrayNode);
     the_clone->values_.reserve(values_.size());
     for (const auto &node : values_)
         the_clone->values_.emplace_back(node->clone());
@@ -483,8 +477,8 @@ bool ArrayNode::isNullNode(const size_t index) const {
 }
 
 
-bool Parser::parseObject(JSONNode **new_object_node) {
-    *new_object_node = new ObjectNode();
+bool Parser::parseObject(std::shared_ptr<JSONNode> * const new_object_node) {
+    *new_object_node = std::shared_ptr<ObjectNode>(new ObjectNode());
     TokenType token(scanner_.getToken());
     if (unlikely(token == CLOSE_BRACE))
         return true; // We have an empty object.
@@ -504,13 +498,11 @@ bool Parser::parseObject(JSONNode **new_object_node) {
             return false;
         }
 
-        JSONNode *new_node(nullptr);
-        if (unlikely(not parseAny(&new_node))) {
-            delete new_node;
+        std::shared_ptr<JSONNode> new_node;
+        if (unlikely(not parseAny(&new_node)))
             return false;
-        }
 
-        reinterpret_cast<ObjectNode *>(*new_object_node)->insert(label, new_node);
+        JSONNode::CastToObjectNodeOrDie("new_object_node", *new_object_node)->insert(label, new_node);
 
         token = scanner_.getToken();
         if (token == COMMA)
@@ -526,20 +518,20 @@ bool Parser::parseObject(JSONNode **new_object_node) {
 }
 
 
-bool Parser::parseArray(JSONNode **new_array_node) {
-    *new_array_node = new ArrayNode();
+bool Parser::parseArray(std::shared_ptr<JSONNode> * const new_array_node) {
+    *new_array_node = std::shared_ptr<ArrayNode>(new ArrayNode());
     TokenType token(scanner_.getToken());
     if (unlikely(token == CLOSE_BRACKET))
         return true; // Empty array.
     scanner_.ungetToken(token);
 
     for (;;) {
-        JSONNode *new_node(nullptr);
+        std::shared_ptr<JSONNode> new_node(nullptr);
         if (unlikely(not parseAny(&new_node))) {
-            delete new_node;
             return false;
         }
-        reinterpret_cast<ArrayNode *>(*new_array_node)->push_back(new_node);
+        JSONNode::CastToArrayNodeOrDie("new_array_node", *new_array_node)->push_back(new_node);
+
 
         token = scanner_.getToken();
         if (token == COMMA)
@@ -557,7 +549,7 @@ bool Parser::parseArray(JSONNode **new_array_node) {
 }
 
 
-bool Parser::parseAny(JSONNode **new_node) {
+bool Parser::parseAny(std::shared_ptr<JSONNode> * const new_node) {
     *new_node = nullptr;
 
     TokenType token(scanner_.getToken());
@@ -567,22 +559,22 @@ bool Parser::parseAny(JSONNode **new_node) {
     case OPEN_BRACKET:
         return parseArray(new_node);
     case INTEGER_CONST:
-        *new_node = new IntegerNode(scanner_.getLastIntegerConstant());
+        *new_node = std::make_shared<IntegerNode>(scanner_.getLastIntegerConstant());
         return true;
     case DOUBLE_CONST:
-        *new_node = new DoubleNode(scanner_.getLastDoubleConstant());
+        *new_node = std::make_shared<DoubleNode>(scanner_.getLastDoubleConstant());
         return true;
     case STRING_CONST:
-        *new_node = new StringNode(scanner_.getLastStringConstant());
+        *new_node = std::make_shared<StringNode>(scanner_.getLastStringConstant());
         return true;
     case TRUE_CONST:
-        *new_node = new BooleanNode(true);
+        *new_node = std::make_shared<BooleanNode>(true);
         return true;
     case FALSE_CONST:
-        *new_node = new BooleanNode(false);
+        *new_node = std::make_shared<BooleanNode>(false);
         return true;
     case NULL_CONST:
-        *new_node = new NullNode();
+        *new_node = std::make_shared<NullNode>();
         return true;
     case ERROR:
         error_message_ = scanner_.getLastErrorMessage() + "(line: " + std::to_string(scanner_.getLineNumber())
@@ -600,7 +592,7 @@ bool Parser::parseAny(JSONNode **new_node) {
 }
 
 
-bool Parser::parse(JSONNode **tree_root) {
+bool Parser::parse(std::shared_ptr<JSONNode> * const tree_root) {
     if (unlikely(not parseAny(tree_root)))
         return false;
 
@@ -682,14 +674,14 @@ static size_t ParsePath(const std::string &path, std::vector<std::string> * cons
 }
 
 
-static const JSONNode *GetLastPathComponent(const std::string &path, const JSONNode * const tree,
-                                            const bool have_default)
+static std::shared_ptr<const JSONNode> GetLastPathComponent(const std::string &path, const std::shared_ptr<const JSONNode> &tree,
+                                                            const bool have_default)
 {
     std::vector<std::string> path_components;
     if (unlikely(ParsePath(path, &path_components) == 0))
         throw std::runtime_error("in JSON::GetLastPathComponent: an empty path is invalid!");
 
-    const JSONNode *next_node(tree);
+    std::shared_ptr<const JSONNode> next_node(tree);
     for (const auto &path_component : path_components) {
         if (next_node == nullptr) {
             if (unlikely(not have_default))
@@ -706,7 +698,7 @@ static const JSONNode *GetLastPathComponent(const std::string &path, const JSONN
         case JSONNode::DOUBLE_NODE:
             throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node!");
         case JSONNode::OBJECT_NODE:
-            next_node = reinterpret_cast<const ObjectNode *>(next_node)->getNode(path_component);
+            next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component);
             if (next_node == nullptr) {
                 if (unlikely(not have_default))
                     throw std::runtime_error("in JSON::GetLastPathComponent: can't find path component \""
@@ -719,7 +711,7 @@ static const JSONNode *GetLastPathComponent(const std::string &path, const JSONN
             if (unlikely(not StringUtil::ToUnsigned(path_component, &index)))
                 throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
                                          + "\" in path \"" + path + "\" can't be converted to an array index!");
-            const ArrayNode * const array_node(reinterpret_cast<const ArrayNode *>(next_node));
+            const std::shared_ptr<const ArrayNode> array_node(JSONNode::CastToArrayNodeOrDie("next_node", next_node));
             if (unlikely(index >= array_node->size()))
                 throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
                                          + "\" in path \"" + path + "\" is too large as an array index!");
@@ -732,24 +724,24 @@ static const JSONNode *GetLastPathComponent(const std::string &path, const JSONN
 }
 
 
-static std::string LookupString(const std::string &path, const JSONNode * const tree,
+static std::string LookupString(const std::string &path, const std::shared_ptr<const JSONNode> &tree,
                                 const std::string &default_value, const bool use_default_value)
 {
-    const JSONNode * const bottommost_node(GetLastPathComponent(path, tree, use_default_value));
+    const std::shared_ptr<const JSONNode> bottommost_node(GetLastPathComponent(path, tree, use_default_value));
     if (bottommost_node == nullptr)
         return default_value;
 
     switch (bottommost_node->getType()) {
     case JSONNode::BOOLEAN_NODE:
-        return reinterpret_cast<const BooleanNode *>(bottommost_node)->getValue() ? "true" : "false";
+        return JSONNode::CastToBooleanNodeOrDie("bottommost_node", bottommost_node)->getValue() ? "true" : "false";
     case JSONNode::NULL_NODE:
         return "null";
     case JSONNode::STRING_NODE:
-        return reinterpret_cast<const StringNode *>(bottommost_node)->getValue();
+        return JSONNode::CastToStringNodeOrDie("bottommost_node", bottommost_node)->getValue();
     case JSONNode::INT64_NODE:
-        return std::to_string(reinterpret_cast<const IntegerNode *>(bottommost_node)->getValue());
+        return std::to_string(JSONNode::CastToIntegerNodeOrDie("bottommost_node", bottommost_node)->getValue());
     case JSONNode::DOUBLE_NODE:
-        return std::to_string(reinterpret_cast<const DoubleNode *>(bottommost_node)->getValue());
+        return std::to_string(JSONNode::CastToDoubleNodeOrDie("bottommost_node", bottommost_node)->getValue());
     case JSONNode::OBJECT_NODE:
         throw std::runtime_error("in JSON::LookupString: can't get a unique value from an object node!");
     case JSONNode::ARRAY_NODE:
@@ -764,20 +756,20 @@ static std::string LookupString(const std::string &path, const JSONNode * const 
 }
 
 
-std::string LookupString(const std::string &path, const JSONNode * const tree) {
+std::string LookupString(const std::string &path, const std::shared_ptr<const JSONNode> &tree) {
     return LookupString(path, tree, "", /* use_default_value = */ false);
 }
 
 
-std::string LookupString(const std::string &path, const JSONNode * const tree, const std::string &default_value) {
+std::string LookupString(const std::string &path, const std::shared_ptr<const JSONNode> &tree, const std::string &default_value) {
     return LookupString(path, tree, default_value, /* use_default_value = */ true);
 }
 
 
-static int64_t LookupInteger(const std::string &path, const JSONNode * const tree, const int64_t default_value,
+static int64_t LookupInteger(const std::string &path, const std::shared_ptr<const JSONNode> &tree, const int64_t default_value,
                              const bool use_default_value)
 {
-    const JSONNode * const bottommost_node(GetLastPathComponent(path, tree, use_default_value));
+    const std::shared_ptr<const JSONNode> bottommost_node(GetLastPathComponent(path, tree, use_default_value));
     if (bottommost_node == nullptr)
         return default_value;
 
@@ -789,7 +781,7 @@ static int64_t LookupInteger(const std::string &path, const JSONNode * const tre
     case JSONNode::STRING_NODE:
         throw std::runtime_error("in JSON::LookupInteger: can't convert a string value to an integer!");
     case JSONNode::INT64_NODE:
-        return reinterpret_cast<const IntegerNode *>(bottommost_node)->getValue();
+        return JSONNode::CastToIntegerNodeOrDie("bottommost_node", bottommost_node)->getValue();
     case JSONNode::DOUBLE_NODE:
         throw std::runtime_error("in JSON::LookupInteger: can't convert a double value to an integer!");
     case JSONNode::OBJECT_NODE:
@@ -806,12 +798,12 @@ static int64_t LookupInteger(const std::string &path, const JSONNode * const tre
 }
 
 
-int64_t LookupInteger(const std::string &path, const JSONNode * const tree) {
+int64_t LookupInteger(const std::string &path, const std::shared_ptr<const JSONNode> &tree) {
     return LookupInteger(path, tree, 0L, /* use_default_value = */ false);
 }
 
 
-int64_t LookupInteger(const std::string &path, const JSONNode * const tree, const int64_t default_value) {
+int64_t LookupInteger(const std::string &path, const std::shared_ptr<const JSONNode> &tree, const int64_t default_value) {
     return LookupInteger(path, tree, default_value, /* use_default_value = */ true);
 }
 
