@@ -88,13 +88,13 @@ static std::string ExtractText(SimpleXmlParser<StringDataSource> * const parser,
     std::string data;
     if (unlikely(not parser->getNext(&type, &attrib_map, &data)))
         throw std::runtime_error("in ExtractText(SyndicationFormat.cc): parse error while looking for characters for \""
-                                 + closing_tag + "\" tag not found!" + extra);
+                                 + closing_tag + "\" tag!" + extra);
     std::string extracted_text;
     if (type == SimpleXmlParser<StringDataSource>::CHARACTERS)
         extracted_text = data;
     else if (SimpleXmlParser<StringDataSource>::CLOSING_TAG) {
         if (unlikely(data != closing_tag))
-            throw std::runtime_error("in ExtractText(SyndicationFormat.cc): uneexpected closing tag \"" + data
+            throw std::runtime_error("in ExtractText(SyndicationFormat.cc): unexpected closing tag \"" + data
                                      + "\" while looking for the \"" + closing_tag + "\" closing tag!" + extra);
         return "";
     } else
