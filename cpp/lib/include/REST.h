@@ -22,7 +22,6 @@
 
 
 #include <string>
-#include <memory>
 #include "Downloader.h"
 #include "JSON.h"
 #include "Url.h"
