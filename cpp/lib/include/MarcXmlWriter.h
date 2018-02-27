@@ -2,7 +2,7 @@
  *  \brief   Declaration of the MarcXmlWriter class.
  *  \author  Dr. Johannes Ruscheinski
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as

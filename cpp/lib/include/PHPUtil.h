@@ -2,7 +2,7 @@
  *  \brief  Utility functions and classes relating to PHP.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -34,7 +34,7 @@ namespace PHPUtil {
 
 enum class Type { OBJECT, ARRAY, STRING, INTEGER, FLOAT };
 
-        
+
 class DataType {
 protected:
     Type type_;
@@ -108,13 +108,13 @@ public:
 
     double getValue() const { return value_; }
 };
-    
+
 
 class ParseException: public std::runtime_error {
 public:
     explicit ParseException(const std::string &err_msg): std::runtime_error(err_msg) { }
 };
-    
+
 
 /** \brief Parses a serialised PHP object.
  *  \param serialised_object  Hopefully the serialised version of a PHP object.
