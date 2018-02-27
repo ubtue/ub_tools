@@ -177,7 +177,7 @@ public:
 
     virtual std::shared_ptr<JSONNode> clone() const override { return std::make_shared<DoubleNode>(value_); }
     virtual Type getType() const override { return DOUBLE_NODE; }
-    virtual std::string toString() const override { return std::to_string(value_); }
+    virtual std::string toString() const override;
     double getValue() const { return value_; }
     void setValue(const double value) { value_ = value; }
 };
