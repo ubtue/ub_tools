@@ -21,6 +21,7 @@
 #include <stdexcept>
 #include <string>
 #include <cctype>
+#include <cstdio>
 #include "Compiler.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -334,20 +335,6 @@ TokenType Scanner::parseStringConstant() {
 }
 
 
-static std::string EscapeDoubleQuotes(const std::string &unescaped) {
-    std::string escaped;
-    escaped.reserve(unescaped.length());
-    for (const char ch : unescaped) {
-        if (ch == '"')
-            escaped += "\\\"";
-        else
-            escaped += ch;
-    }
-
-    return escaped;
-}
-
-
 std::string JSONNode::TypeToString(const Type type) {
     switch (type) {
     case BOOLEAN_NODE:
@@ -370,6 +357,13 @@ std::string JSONNode::TypeToString(const Type type) {
 }
 
 
+std::string DoubleNode::toString() const {
+    char as_string[30];
+    std::sprintf(as_string, "%20G", value_);
+    return as_string;
+}
+
+
 std::string StringNode::toString() const {
     return "\"" + EscapeString(value_) + "\"";
 }
@@ -388,7 +382,7 @@ std::string ObjectNode::toString() const {
     std::string as_string;
     as_string += "{ ";
     for (const auto &entry : entries_) {
-        as_string += "\"" + EscapeDoubleQuotes(entry.first) + "\"";
+        as_string += "\"" + EscapeString(entry.first) + "\"";
         as_string += ": ";
         as_string += entry.second->toString();
         as_string += ", ";
