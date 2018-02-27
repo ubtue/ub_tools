@@ -18,6 +18,21 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Elasticsearch.h"
+#include <memory>
+#include "FileUtil.h"
+#include "IniFile.h"
+
+
+std::unique_ptr<Elasticsearch> Elasticsearch::Factory() {
+    const std::string ini_path("/usr/local/var/lib/tuelib/Elasticsearch.conf");
+    if (not FileUtil::Exists(ini_path))
+        return nullptr;
+
+    const IniFile ini_file(ini_path);
+    return std::unique_ptr<Elasticsearch>(new Elasticsearch(Url(ini_file.getString("Elasticsearch", "host")),
+                                          ini_file.getString("Elasticsearch", "index"),
+                                          ini_file.getString("Elasticsearch", "document_type")));
+}
 
 
 std::shared_ptr<JSON::ObjectNode> Elasticsearch::FieldsToJSON(const Fields &fields) {
