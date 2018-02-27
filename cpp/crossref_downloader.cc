@@ -18,7 +18,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iostream>
-#include <memory>
 #include <stdexcept>
 #include <unordered_set>
 #include <vector>
