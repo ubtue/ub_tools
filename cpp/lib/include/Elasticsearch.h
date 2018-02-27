@@ -23,7 +23,6 @@
 
 
 #include <string>
-#include <memory>
 #include <vector>
 #include "JSON.h"
 #include "REST.h"

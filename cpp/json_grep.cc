@@ -2,7 +2,7 @@
  *  \brief   A simple tool for performing single lookups in a JSON file.
  *  \author  Dr. Johannes Ruscheinski
  *
- *  \copyright (C) 2017, Library of the University of Tübingen
+ *  \copyright (C) 2017,2018 Library of the University of Tübingen
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -18,7 +18,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iostream>
-#include <memory>
 #include <cstdlib>
 #include "FileUtil.h"
 #include "JSON.h"
