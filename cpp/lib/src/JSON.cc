@@ -498,10 +498,9 @@ bool Parser::parseObject(std::shared_ptr<JSONNode> * const new_object_node) {
             return false;
         }
 
-        std::shared_ptr<JSONNode> new_node(nullptr);
-        if (unlikely(not parseAny(&new_node))) {
+        std::shared_ptr<JSONNode> new_node;
+        if (unlikely(not parseAny(&new_node)))
             return false;
-        }
 
         JSONNode::CastToObjectNodeOrDie("new_object_node", *new_object_node)->insert(label, new_node);
 
