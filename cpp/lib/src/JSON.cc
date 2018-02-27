@@ -816,6 +816,7 @@ int64_t LookupInteger(const std::string &path, const JSONNode * const tree, cons
 }
 
 
+// See https://www.ietf.org/rfc/rfc4627.txt section 2.5 in order to understand this.
 std::string EscapeString(const std::string &unescaped_string) {
     std::string escaped_string;
     for (const char ch : unescaped_string) {
