@@ -18,7 +18,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Elasticsearch.h"
-#include <cstdlib>
 
 
 std::shared_ptr<JSON::ObjectNode> Elasticsearch::FieldsToJSON(const Fields &fields) {
