@@ -340,7 +340,7 @@ bool ShouldScheduleNewProcess() {
     double loadavg;
     if (unlikely(::getloadavg(&loadavg, 1) == -1))
         ERROR("getloadavg(3) failed!");
-    return loadavg < NO_OF_CORES + 0.5;
+    return loadavg < NO_OF_CORES - 0.5;
 }
 
 
