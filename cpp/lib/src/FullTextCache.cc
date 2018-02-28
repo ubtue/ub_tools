@@ -38,11 +38,12 @@ const unsigned MIN_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60); // About 1 month in s
 const unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 months in seconds.
 
 
-FullTextCache::FullTextCache() {
+FullTextCache::FullTextCache(const bool use_elasticsearch) {
     std::string mysql_url;
     VuFind::GetMysqlURL(&mysql_url);
     db_connection_ = new DbConnection(mysql_url);
-    elasticsearch_ = Elasticsearch::FactoryByConfigFile();
+    if (use_elasticsearch)
+        elasticsearch_ = Elasticsearch::FactoryByConfigFile();
 }
 
 
