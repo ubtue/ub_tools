@@ -892,7 +892,7 @@ int main(int argc, char *argv[]) {
             logger->info("identified " + std::to_string(deletion_list_filenames.size())
                          + " deletion list filenames for application.");
 
-        const std::string incremental_dump_pattern("TA-MARC-" + tuefind_flavour + "(_o)?-\\d{6}\\.tar\\.gz");
+        const std::string incremental_dump_pattern("(T|W)A-MARC-" + tuefind_flavour + "(_o)?-\\d{6}\\.tar\\.gz");
         std::vector<std::string> incremental_dump_filenames;
         GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, incremental_dump_pattern, &incremental_dump_filenames);
         if (not incremental_dump_filenames.empty())
