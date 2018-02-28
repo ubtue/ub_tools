@@ -22,7 +22,6 @@
 
 
 #include <algorithm>
-#include <iostream>//XXX
 #include <deque>
 #include <map>
 #include <stdexcept>
@@ -97,7 +96,7 @@ private:
     void unget(const int ch);
     bool extractAttribute(std::string * const name, std::string * const value, std::string * const error_message);
     void parseOptionalPrologue();
-    bool skipOptionalProcessingInstructionOrComment();
+    bool skipOptionalProcessingInstruction();
     bool extractName(std::string * const name);
     bool extractQuotedString(const int closing_quote, std::string * const s);
     bool parseCDATA(std::string * const data);
@@ -163,7 +162,7 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::get(const bool sk
                     return EOF;
                 } else {
                     if (ch == '>' and consecutive_dash_count >= 2)
-                        return true;
+                        break;
                     consecutive_dash_count = 0;
                 }
             }
@@ -201,7 +200,6 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::get(const bool sk
         pushed_back_chars_.pop_front();
     }
 
-std::cerr << (char)ch;
     return ch;
 }
 
@@ -214,7 +212,6 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::peek() {
 
 
 template<typename DataSource> void SimpleXmlParser<DataSource>::unget(const int ch) {
-std::cerr << '[' << (char)ch << ']';
     if (unlikely(pushed_back_chars_.size() == __builtin_strlen("<![CDATA[")))
         throw std::runtime_error("in SimpleXmlParser::unget: can't push back more than "
                                  + std::to_string(__builtin_strlen("<![CDATA[")) + " characters in a row!");
@@ -340,7 +337,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractName(std:
 }
 
 
-template<typename DataSource> bool SimpleXmlParser<DataSource>::skipOptionalProcessingInstructionOrComment() {
+template<typename DataSource> bool SimpleXmlParser<DataSource>::skipOptionalProcessingInstruction() {
     int ch(get(/* skip_comment = */false));
     if (ch != '<' or peek() != '?') {
         unget(ch);
@@ -381,7 +378,6 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractQuotedStr
 
 // Collects characters while looking for the end of a CDATA section.
 template<typename DataSource> bool SimpleXmlParser<DataSource>::parseCDATA(std::string * const data) {
-std::cerr << "\nentering parseCDATA()\n";
     int consecutive_closing_bracket_count(0);
     for (;;) {
         const int ch(get(/* skip_comment = */false));
@@ -423,11 +419,6 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
         return true;
     }
 
-    if (not skipOptionalProcessingInstructionOrComment()) {
-        *type = ERROR;
-        return false;
-    }
-
     int ch;
     if (last_type_ == OPENING_TAG) {
         last_type_ = *type = CHARACTERS;
@@ -436,8 +427,10 @@ collect_next_character:
         bool cdata_start;
         while ((ch = get(/* skip_comment = */true, &cdata_start)) != '<') {
             if (cdata_start) {
-                if (not parseCDATA(data))
+                std::string cdata;
+                if (not parseCDATA(&cdata))
                     return false;
+                data->append(XmlUtil::XmlEscape(cdata));
             } else {
                 if (unlikely(ch == EOF)) {
                     last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
@@ -463,6 +456,10 @@ collect_next_character:
             return false;
         }
     } else { // end-of-document or opening or closing tag
+        if (not skipOptionalProcessingInstruction()) {
+            *type = ERROR;
+            return false;
+        }
         skipWhiteSpace();
 
         ch = get();
@@ -474,7 +471,7 @@ collect_next_character:
         if (ch != '<') {
             last_type_ = *type = ERROR;
             last_error_message_ = "Expected '<' on line " + std::to_string(line_no_) + ", found '"
-                                  + TextUtil::UTF32ToUTF8(ch) + "' instead!";
+                                  + TextUtil::UTF32ToUTF8(ch) + "' (#" + std::to_string(ch) + ") instead!";
             return false;
         }
 
