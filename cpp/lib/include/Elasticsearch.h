@@ -115,7 +115,7 @@ public:
      */
     void reindex(const std::string &source_index, const std::string &target_index);
 
-    /** \brief Search for all documents of the current type in the current index
+    /** \brief Search for all documents in the current index
      *  \throws error (see "query")
      */
     Documents searchAllDocuments();
