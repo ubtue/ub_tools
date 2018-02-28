@@ -63,22 +63,66 @@ public:
 private:
     static std::shared_ptr<JSON::ObjectNode> FieldsToJSON(const Fields &fields);
     static Fields JSONToFields(const std::shared_ptr<const JSON::ObjectNode> &json_object);
+
+    /** \brief Sends REST queries to Elasticsearch server
+     *  \throws std::runtime_error on REST error or if the JSON response contained an error flag.
+     */
     std::shared_ptr<JSON::ObjectNode> query(const std::string &action, const REST::QueryType query_type, const std::shared_ptr<const JSON::JSONNode> &data = nullptr);
 public:
+    /** \brief Creates a new document.
+     *  \throws error (see "query"), or if a document with this id already exists
+     *          for the current index and document type
+     */
     void createDocument(const Document &document);
+
+    /** \brief Creates the current index
+     *  \throws error (see "query"), or if the index already exists
+     */
     void createIndex();
+
+    /** \brief Deletes an existing document.
+     *  \throws error (see "query"), or if the document doesn't exist
+     */
     void deleteDocument(const std::string &id);
+
+    /** \brief Deletes the current index.
+     *  \throws error (see "query"), or if the index doesn't exist
+     */
     void deleteIndex();
+
+    /** \brief Gets an existing document
+     *  \throws error (see "query"), or if the document doesn't exist
+     */
     Document getDocument(const std::string &id);
+
+    /** \brief Get IDs of all existing indices
+     *  \throws error (see "query")
+     */
     std::vector<std::string> getIndexList();
+
+    /** \brief Get statistics for the current index
+     *  \throws error (see "query"), or if the index doesn't exist
+     */
     IndexStatistics getIndexStatistics();
+
+    /** \brief Check if the current index has an id with the current document type
+     *  \throws error (see "query")
+     */
     bool hasDocument(const std::string &id);
+
+    /** \brief Search for all documents of the current type in the current index
+     *  \throws error (see "query")
+     */
     Documents searchAllDocuments();
 
-    /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).*/
+    /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).
+     *  \throws error (see "query"), or if the document doesn't exist
+     */
     void updateDocument(const Document &document);
 
-    /** \brief Insert document if not exists, else update. On update, only given fields will be updated. */
+    /** \brief Insert document if not exists, else update. On update, only given fields will be updated.
+     *  \throws error (see "query")
+     */
     void updateOrInsertDocument(const Document &document);
 }; // class Elasticsearch
 
