@@ -144,6 +144,23 @@ bool Elasticsearch::hasDocument(const std::string &id) {
 }
 
 
+void Elasticsearch::reindex(const std::string &source_index, const std::string &target_index) {
+    std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
+
+    std::shared_ptr<JSON::ObjectNode> source_node(new JSON::ObjectNode);
+    std::shared_ptr<JSON::StringNode> source_index_node(new JSON::StringNode(source_index));
+    source_node->insert("index", source_index_node);
+    tree_root->insert("source", source_node);
+
+    std::shared_ptr<JSON::ObjectNode> dest_node(new JSON::ObjectNode);
+    std::shared_ptr<JSON::StringNode> dest_index_node(new JSON::StringNode(target_index));
+    dest_node->insert("index", dest_index_node);
+    tree_root->insert("dest", dest_node);
+
+    query("_reindex", REST::QueryType::POST, tree_root);
+}
+
+
 Elasticsearch::Documents Elasticsearch::searchAllDocuments() {
     const std::string action(index_ + "/_search");
 

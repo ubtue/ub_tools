@@ -110,6 +110,11 @@ public:
      */
     bool hasDocument(const std::string &id);
 
+    /** \brief copy all documents from source index to target index
+     *  \throws error (see "query"), or if one of the indices doesn't exist
+     */
+    void reindex(const std::string &source_index, const std::string &target_index);
+
     /** \brief Search for all documents of the current type in the current index
      *  \throws error (see "query")
      */
