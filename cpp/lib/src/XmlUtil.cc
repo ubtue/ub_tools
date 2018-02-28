@@ -2,7 +2,7 @@
  *  \brief  Implementation of XML-related utility functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -79,7 +79,7 @@ bool DecodeEntities(std::string * const data) {
             if (ch == ';') {
                 std::string decoded_char;
                 if (not DecodeEntity(entity, &decoded_char)) {
-                    logger->warning("in XmlUtil::DecodeEntities: can't decode \"" + entity + "\"!");
+                    WARNING("can't decode \"" + entity + "\"!");
                     return false;
                 }
                 for (const auto dch : decoded_char)
@@ -101,10 +101,33 @@ bool DecodeEntities(std::string * const data) {
 }
 
 
-std::string DecodeEntities(std::string data) {
-    if (unlikely(not DecodeEntities(&data)))
-        throw std::runtime_error("in XmlUtil::DecodeEntities: failed to decode one or more XML entities!");
-    return data;
+void XmlEscape(std::string * const data) {
+    std::string escaped_data;
+    escaped_data.reserve(data->length() * 2);
+
+    for (const char ch : *data) {
+        switch (ch) {
+        case '"':
+            escaped_data += "&quot;";
+            break;
+        case '\'':
+            escaped_data += "&apos;";
+            break;
+        case '<':
+            escaped_data += "&lt;";
+            break;
+        case '>':
+            escaped_data += "&gt;";
+            break;
+        case '&':
+            escaped_data += "&amp;";
+            break;
+        default:
+            escaped_data += ch;
+        }
+    }
+
+    escaped_data.swap(*data);
 }
 
 

@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015 Universitätsbibliothek Tübingen
+ *  Copyright 2015,2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -103,13 +103,20 @@ public:
         bool lookup(const std::string &section_name, const std::string &variable_name,
                     std::string * const s) const;
 
+
+        /** \brief   Retrieves an integer value from a configuration file.
+         *  \param   section_name   The name of the section to search.
+         *  \param   variable_name  The name of the section entry to read.
+         *  \return  The value of the string in the specified section.
+         *  \throws  A std::runtime_error if the variable is not found or the value cannot be converted to an integer.
+         */
         long getInteger(const std::string &section_name, const std::string &variable_name) const;
 
         /** \brief   Retrieves a floating point value from a configuration file.
          *  \param   section_name   The name of the section to search.
          *  \param   variable_name  The name of the section entry to read.
          *  \return  The value of the string in the specified section.
-         *  \note    If the variable is not defined in the section, the program throws an exception.
+         *  \throws  A std::runtime_error if the variable is not found or the value cannot be converted to a double.
          */
         double getDouble(const std::string &section_name, const std::string &variable_name) const;
 
@@ -118,6 +125,7 @@ public:
          *  \param   variable_name  The name of the section entry to read.
          *  \param   default_value  A default to return if the variable is not defined.
          *  \return  The value of the string in the specified section.
+         *  \throws  A std::runtime_error if the value was found but cannot be converted to a double.
          */
         double getDouble(const std::string &section_name, const std::string &variable_name,
                          const double &default_value) const;
@@ -126,6 +134,7 @@ public:
          *  \param   section_name   The name of the section to search.
          *  \param   variable_name  The name of the section entry to read.
          *  \return  The value of the string in the specified section.
+         *  \throws  A std::runtime_error if the variable is not found.
          *  \note    If the variable is not defined in the section, the program throws an exception.
          */
         std::string getString(const std::string &section_name, const std::string &variable_name) const;
