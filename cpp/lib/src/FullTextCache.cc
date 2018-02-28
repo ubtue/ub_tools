@@ -42,7 +42,7 @@ FullTextCache::FullTextCache() {
     std::string mysql_url;
     VuFind::GetMysqlURL(&mysql_url);
     db_connection_ = new DbConnection(mysql_url);
-    elasticsearch_ = Elasticsearch::Factory();
+    elasticsearch_ = Elasticsearch::FactoryByConfigFile();
 }
 
 

@@ -23,7 +23,7 @@
 #include "IniFile.h"
 
 
-std::unique_ptr<Elasticsearch> Elasticsearch::Factory() {
+std::unique_ptr<Elasticsearch> Elasticsearch::FactoryByConfigFile() {
     const std::string ini_path("/usr/local/var/lib/tuelib/Elasticsearch.conf");
     if (not FileUtil::Exists(ini_path))
         return nullptr;
