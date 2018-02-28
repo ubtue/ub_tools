@@ -2,7 +2,7 @@
  *  \brief  XML-related utility functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -37,6 +37,17 @@ bool DecodeEntities(std::string * const data);
  *  \throws std::runtime_error if there was a decoding error.
  */
 std::string DecodeEntities(std::string data);
+
+
+// Escapes the 5 special XML characters.
+void XmlEscape(std::string * const data);
+
+
+// Escapes the 5 special XML characters.
+inline std::string XmlEscape(std::string data) {
+    XmlEscape(&data);
+    return data;
+}
 
 
 } // namespace XmlUtil

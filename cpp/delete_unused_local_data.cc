@@ -8,7 +8,7 @@
  */
 
 /*
-    Copyright (C) 2016-2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -35,7 +35,7 @@ static ssize_t count(0), before_count(0), after_count(0);
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << "  marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -93,8 +93,8 @@ int main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], MarcWriter::BINARY));
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
 
     try {
         DeleteUnusedLocalData(marc_reader.get(), marc_writer.get());
