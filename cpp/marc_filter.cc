@@ -1,7 +1,7 @@
 /** \brief A MARC-21 filter utility that can remove records or fields based on patterns for MARC subfields.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -37,7 +37,7 @@ namespace {
 
 
 void Usage() {
-    std::cerr << "usage: " << ::progname << " marc_input marc_output [--input-format=(marc-xml|marc-21)]\n"
+    std::cerr << "Usage: " << ::progname << " marc_input marc_output [--input-format=(marc-xml|marc-21)]\n"
               << "       [--output-format=(marc-xml|marc-21)] op1 [op2 .. opN]\n"
               << "       where each operation must start with the operation type. Operation-type flags are\n"
               << "           --drop field_or_subfield_specs\n"
@@ -864,14 +864,18 @@ int main(int argc, char **argv) {
     const std::string input_filename(*argv++);
     const std::string output_filename(*argv++);
 
-    MARC::Reader::ReaderType reader_type(MARC::Reader::AUTO);
+    MARC::Reader::ReaderType reader_type;
     if (std::strcmp("--input-format=marc-xml", *argv) == 0) {
         reader_type = MARC::Reader::XML;
         ++argv;
     } else if (std::strcmp("--input-format=marc-21", *argv) == 0) {
         reader_type = MARC::Reader::BINARY;
         ++argv;
-    }
+    } else if (StringUtil::StartsWith(*argv, "--input-format="))
+        ERROR("unknown input format \"" + std::string(*argv + __builtin_strlen("--input-format="))
+              + "\" use \"marc-xml\" or \"marc-21\"!");
+    else
+        reader_type = MARC::Reader::AUTO;
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename, reader_type));
 
     MARC::Writer::WriterType writer_type;
@@ -881,8 +885,11 @@ int main(int argc, char **argv) {
     } else if (std::strcmp("--output-format=marc-21", *argv) == 0) {
         writer_type = MARC::Writer::BINARY;
         ++argv;
-    } else
-        writer_type = (marc_reader->getReaderType() == MARC::Reader::BINARY) ? MARC::Writer::BINARY : MARC::Writer::XML;
+    } else if (StringUtil::StartsWith(*argv, "--output-format="))
+        ERROR("unknown output format \"" + std::string(*argv + __builtin_strlen("--output-format="))
+              + "\" use \"marc-xml\" or \"marc-21\"!");
+    else
+        writer_type = MARC::Writer::AUTO;
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(output_filename, writer_type));
 
     try {

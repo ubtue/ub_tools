@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015 Universitätsbibliothek Tübingen
+ *  Copyright 2015,2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -29,10 +29,6 @@
 
 #include "IniFile.h"
 #include <cctype>
-#if defined(__GNUC__) && __GNUC__ < 3
-#undef isblank
-extern "C" int isblank(const int ch);
-#endif
 #include <cstdio>
 #include <cerrno>
 #include <cstring>
@@ -462,7 +458,7 @@ long IniFile::getInteger(const std::string &section_name, const std::string &var
     char *endp;
     long number = std::strtol(variable_value.c_str(), &endp, 10);
     if (errno != 0 or *endp != '\0')
-        throw std::runtime_error("invalid integer in \"" + variable_name + "\" in section \""
+        throw std::runtime_error("in IniFile::getInteger: invalid integer in \"" + variable_name + "\" in section \""
                                  + section_name + "\" in \"" + ini_file_name_ + "\"!");
 
     return number;
@@ -472,15 +468,15 @@ long IniFile::getInteger(const std::string &section_name, const std::string &var
 double IniFile::getDouble(const std::string &section_name, const std::string &variable_name) const {
     std::string variable_value;
     if (not lookup(section_name, variable_name, &variable_value))
-        throw std::runtime_error("can't find \"" + variable_name + "\" in section \"" + section_name
+        throw std::runtime_error("in IniFile::getDouble: can't find \"" + variable_name + "\" in section \"" + section_name
                                  + "\" in \"" + ini_file_name_ + "\"!");
 
     errno = 0;
     char *endp;
     double number = std::strtod(variable_value.c_str(), &endp);
     if (errno != 0 or *endp != '\0')
-        throw std::runtime_error("invalid double-precision floating point number in \"" + variable_name
-                                 + "\" in section \"" + section_name + "\" in \"" + ini_file_name_ + "\"!");
+        throw std::runtime_error("in IniFile::getDouble: invalid double-precision floating point number in \"" + variable_name
+                                 + "\" in section \"" + section_name + "\" in \"" + ini_file_name_ + "\"! (1)");
 
     return number;
 }
@@ -497,8 +493,8 @@ double IniFile::getDouble(const std::string &section_name, const std::string &va
     char *endp;
     double number = std::strtod(variable_value.c_str(), &endp);
     if (errno != 0 or *endp != '\0')
-        throw std::runtime_error("invalid double-precision floating point number in \"" + variable_name
-                                 + "\" in section \"" + section_name + "\" in \"" + ini_file_name_ + "\"!");
+        throw std::runtime_error("in IniFile::getDouble: invalid double-precision floating point number in \"" + variable_name
+                                 + "\" in section \"" + section_name + "\" in \"" + ini_file_name_ + "\"! (2)");
 
     return number;
 }
@@ -507,7 +503,7 @@ double IniFile::getDouble(const std::string &section_name, const std::string &va
 std::string IniFile::getString(const std::string &section_name, const std::string &variable_name) const {
     std::string variable_value;
     if (not lookup(section_name, variable_name, &variable_value))
-        throw std::runtime_error("can't find \"" + variable_name + "\" in section \"" + section_name
+        throw std::runtime_error("in IniFile::getString: can't find \"" + variable_name + "\" in section \"" + section_name
                                  + "\" in \"" + ini_file_name_ + "\"!");
 
     return variable_value;

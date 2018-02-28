@@ -117,6 +117,7 @@ regex_matcher
 remove_redundant_includes
 remove_unused_authority_records
 replace_marc_records
+rss_client
 send_email
 set_tad_access_flag
 simple_crawler
