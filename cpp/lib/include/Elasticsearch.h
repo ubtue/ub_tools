@@ -46,7 +46,7 @@ public:
                   index_(credentials.index_), document_type_(credentials.document_type_) {}
 
     /** \brief return Elasticsearch if config file exists, else nullptr */
-    static std::unique_ptr<Elasticsearch> Factory();
+    static std::unique_ptr<Elasticsearch> FactoryByConfigFile();
 
     typedef std::unordered_map<std::string, std::string> Fields;
 
@@ -78,7 +78,7 @@ public:
     /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).*/
     void updateDocument(const Document &document);
 
-    /** \brief For more information, search for "upsert" and "doc_as_upsert" in Elasticsearch documentation. */
+    /** \brief Insert document if not exists, else update. On update, only given fields will be updated. */
     void updateOrInsertDocument(const Document &document);
 }; // class Elasticsearch
 
