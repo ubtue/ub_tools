@@ -45,7 +45,7 @@ public:
     Elasticsearch(const Credentials credentials) : host_(credentials.host_),
                   index_(credentials.index_), document_type_(credentials.document_type_) {}
 
-    /** \brief return Elasticsearch if global "Elasticsearch.conf" config file exists, else nullptr */
+    /** \brief return Elasticsearch using settings from global "Elasticsearch.conf" config file. */
     static std::unique_ptr<Elasticsearch> FactoryByConfigFile();
 
     typedef std::unordered_map<std::string, std::string> Fields;

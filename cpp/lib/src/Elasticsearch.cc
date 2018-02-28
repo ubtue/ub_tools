@@ -26,7 +26,7 @@
 std::unique_ptr<Elasticsearch> Elasticsearch::FactoryByConfigFile() {
     const std::string ini_path("/usr/local/var/lib/tuelib/Elasticsearch.conf");
     if (not FileUtil::Exists(ini_path))
-        return nullptr;
+        ERROR("config file missing: " + ini_path);
 
     const IniFile ini_file(ini_path);
     return std::unique_ptr<Elasticsearch>(new Elasticsearch(Url(ini_file.getString("Elasticsearch", "host")),
