@@ -42,8 +42,11 @@ FullTextCache::FullTextCache(const bool use_elasticsearch) {
     std::string mysql_url;
     VuFind::GetMysqlURL(&mysql_url);
     db_connection_ = new DbConnection(mysql_url);
-    if (use_elasticsearch)
-        elasticsearch_ = Elasticsearch::FactoryByConfigFile();
+    if (use_elasticsearch) {
+        std::shared_ptr<Elasticsearch::Configuration> config(Elasticsearch::Configuration::FactoryByConfigFile());
+        elasticsearch_index_ = std::make_shared<Elasticsearch::Index>(config->host_, config->index_);
+        elasticsearch_document_type_ = config->document_type_;
+    }
 }
 
 
@@ -283,12 +286,13 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
             expiration = now + MIN_CACHE_EXPIRE_TIME_ON_ERROR + rand(MAX_CACHE_EXPIRE_TIME_ON_ERROR - MIN_CACHE_EXPIRE_TIME_ON_ERROR);
     }
 
-    if (elasticsearch_ != nullptr) {
+    if (elasticsearch_index_ != nullptr) {
         Elasticsearch::Document document;
         document.id_ = id;
+        document.type_ = elasticsearch_document_type_;
         document.fields_["fulltext"] = full_text;
         INFO("updating Elasticsearch fulltext for " + id);
-        elasticsearch_->updateOrInsertDocument(document);
+        elasticsearch_index_->updateOrInsertDocument(document);
     }
 
     const std::string escaped_id(db_connection_->escapeString(id));
