@@ -26,6 +26,7 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "Downloader.h"
+#include "ExecUtil.h"
 #include "FullTextCache.h"
 #include "MARC.h"
 #include "MediaTypeUtil.h"
@@ -175,6 +176,8 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
     }
 
     if (StringUtil::StartsWith(media_type, "application/pdf")) {
+        while (not ExecUtil::ShouldScheduleNewProcess())
+            ::sleep(5); // Seconds.
         if (PdfUtil::PdfDocContainsNoText(document)) {
             if (not PdfUtil::GetTextFromImagePDF(document, tesseract_language_code, &extracted_text, pdf_extraction_timeout)) {
                 *error_message = "Failed to extract text from an image PDF!";
