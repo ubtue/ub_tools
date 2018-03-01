@@ -26,7 +26,6 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "Downloader.h"
-#include "ExecUtil.h"
 #include "FullTextCache.h"
 #include "MARC.h"
 #include "MediaTypeUtil.h"
@@ -174,9 +173,6 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
             WARNING("conversion error while converting text from \"" + http_header_charset + "\" to UTF-8!");
         return TextUtil::CollapseWhitespace(&utf8_document);
     }
-
-    while (not ExecUtil::ShouldScheduleNewProcess())
-        ::sleep(5); // Seconds.
     
     if (StringUtil::StartsWith(media_type, "application/pdf")) {
         if (PdfUtil::PdfDocContainsNoText(document)) {
