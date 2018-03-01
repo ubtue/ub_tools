@@ -112,6 +112,11 @@ bool ExecSubcommandAndCaptureStdoutAndStderr(const std::string &command, const s
                                              std::string * const stdout_output, std::string * const stderr_output);
 
 
+// Based on CPU load and number of cores, tells us if it would be prudent to spawn a new process at this time or not.
+// \return false if the CPU is too buasy, o/w true.
+bool ShouldScheduleNewProcess();
+
+
 } // namespace ExecUtil
 
 
