@@ -29,7 +29,7 @@
 
 
 DbConnection::DbConnection(const std::string &mysql_url) {
-    static const RegexMatcher * const mysql_url_matcher(
+    static RegexMatcher * const mysql_url_matcher(
         RegexMatcher::RegexMatcherFactory("mysql://([^:]+):([^@]+)@([^:/]+)(\\d+:)?/(.+)"));
     std::string err_msg;
     if (not mysql_url_matcher->matched(mysql_url, &err_msg))
