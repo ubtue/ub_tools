@@ -109,6 +109,7 @@ Elasticsearch::Document Elasticsearch::Api::GetDocument(const Url &host, const s
 
     Document document;
     document.id_ = id;
+    document.type_ = type;
     document.fields_ = JSONToFields(result->getObjectNode("_source"));
     return document;
 }
