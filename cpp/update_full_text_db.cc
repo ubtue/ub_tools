@@ -175,9 +175,10 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
         return TextUtil::CollapseWhitespace(&utf8_document);
     }
 
+    while (not ExecUtil::ShouldScheduleNewProcess())
+        ::sleep(5); // Seconds.
+    
     if (StringUtil::StartsWith(media_type, "application/pdf")) {
-        while (not ExecUtil::ShouldScheduleNewProcess())
-            ::sleep(5); // Seconds.
         if (PdfUtil::PdfDocContainsNoText(document)) {
             if (not PdfUtil::GetTextFromImagePDF(document, tesseract_language_code, &extracted_text, pdf_extraction_timeout)) {
                 *error_message = "Failed to extract text from an image PDF!";
