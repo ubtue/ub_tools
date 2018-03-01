@@ -59,7 +59,7 @@ public:
         unsigned document_count_;
     };
 
-    typedef std::unordered_map<std::string, Document> Documents;
+    typedef std::unordered_map<std::string, Document> IdToDocumentMap;
 private:
     static std::shared_ptr<JSON::ObjectNode> FieldsToJSON(const Fields &fields);
     static Fields JSONToFields(const std::shared_ptr<const JSON::ObjectNode> &json_object);
@@ -118,7 +118,7 @@ public:
     /** \brief Search for all documents in the current index
      *  \throws std::runtime_error (see "query")
      */
-    Documents searchAllDocuments();
+    IdToDocumentMap searchAllDocuments();
 
     /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).
      *  \throws std::runtime_error (see "query"), or if the document doesn't exist

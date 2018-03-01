@@ -35,8 +35,37 @@ const std::vector<std::string> Zotero::ExportFormats
 
 const std::string Zotero::DEFAULT_SUBFIELD_CODE = "eng";
 
+
+struct Date {
+    static const unsigned INVALID = 0;
+    unsigned day_;
+    unsigned month_;
+    unsigned year_;
+public:
+    Date(): day_(INVALID), month_(INVALID), year_(INVALID) { }
+};
+
+
+Date StringToDate(const std::string &date_str) {
+    Date date;
+
+    time_t unix_time(WebUtil::ParseWebDateAndTime(date_str));
+    if (unix_time != TimeUtil::BAD_TIME_T) {
+        tm *tm(::gmtime(&unix_time));
+        if (unlikely(tm == nullptr))
+            ERROR("gmtime(3) failed to convert a time_t! (" + date_str + ")");
+        date.day_   = tm->tm_mday;
+        date.month_ = tm->tm_mon;
+        date.year_  = tm->tm_year;
+    } else
+        WARNING("don't know how to convert \"" + date_str + "\" to a Date instance!");
+
+    return date;
+}
+
+
 // We try to be unique for the machine we're on.  Beyond that we may have a problem.
-std::string Zotero::TranslationServer::GetNextSessionId() {
+std::string GetNextSessionId() {
     static unsigned counter;
     static uint32_t uuid[4];
     if (unlikely(counter == 0))
@@ -44,6 +73,14 @@ std::string Zotero::TranslationServer::GetNextSessionId() {
     ++counter;
     return "ub_tools_zts_client_" + StringUtil::ToString(uuid[0]) + StringUtil::ToString(uuid[1])
            + StringUtil::ToString(uuid[2]) + StringUtil::ToString(uuid[3]) + "_" + StringUtil::ToString(counter);
+}
+
+
+std::string GetNextControlNumber() {
+    static unsigned last_control_number;
+    ++last_control_number;
+    static const std::string prefix("ZTS");
+    return prefix + StringUtil::PadLeading(std::to_string(last_control_number), 7, '0');
 }
 
 
@@ -427,39 +464,15 @@ void Zotero::MarcFormatHandler::finishProcessing() {
 }
 
 
-Zotero::Date Zotero::StringToDate(const std::string &date_str) {
-    Date date;
-
-    time_t unix_time(WebUtil::ParseWebDateAndTime(date_str));
-    if (unix_time != TimeUtil::BAD_TIME_T) {
-        tm *tm(::gmtime(&unix_time));
-        if (unlikely(tm == nullptr))
-            ERROR("gmtime(3) failed to convert a time_t! (" + date_str + ")");
-        date.day_   = tm->tm_mday;
-        date.month_ = tm->tm_mon;
-        date.year_  = tm->tm_year;
-    } else
-        WARNING("don't know how to convert \"" + date_str + "\" to a Date instance!");
-
-    return date;
-}
-
-
-std::string Zotero::GetNextControlNumber() {
-    static unsigned last_control_number;
-    ++last_control_number;
-    static const std::string prefix("ZTS");
-    return prefix + StringUtil::PadLeading(std::to_string(last_control_number), 7, '0');
-}
-
-
-inline std::string Zotero::OptionalMap(const std::string &key, const std::unordered_map<std::string, std::string> &map) {
+// If "key" is in "map", then return the mapped value, o/w return "key".
+inline std::string OptionalMap(const std::string &key, const std::unordered_map<std::string, std::string> &map) {
     const auto &key_and_value(map.find(key));
     return (key_and_value == map.cend()) ? key : key_and_value->second;
 }
 
 
-std::string Zotero::DownloadAuthorPPN(const std::string &author) {
+// "author" must be in the lastname,firstname format. Returns the empty string if no PPN was found.
+std::string DownloadAuthorPPN(const std::string &author) {
     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
          "<SMALL>PPN</SMALL>.*<div><SMALL>([0-9X]+)"));
     const std::string lookup_url("http://swb.bsz-bw.de/DB=2.104/SET=70/TTL=1/CMD?SGE=&ACT=SRCHM&MATCFILTER=Y"
@@ -477,7 +490,7 @@ std::string Zotero::DownloadAuthorPPN(const std::string &author) {
 }
 
 
-void Zotero::AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
+void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
                                  std::vector<std::string> * const comments)
 {
     for (size_t i(0); i < creators_array->size(); ++i) {
@@ -501,7 +514,8 @@ void Zotero::AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators
 }
 
 
-void Zotero::AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps) {
+// Improve JSON result delivered by Zotero Translation Server
+void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps) {
     INFO("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
@@ -614,7 +628,7 @@ void Zotero::AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, co
 }
 
 
-bool Zotero::ParseLine(const std::string &line, std::string * const key, std::string * const value) {
+bool ParseLine(const std::string &line, std::string * const key, std::string * const value) {
     key->clear(), value->clear();
 
     // Extract the key:
