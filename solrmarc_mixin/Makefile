@@ -6,13 +6,15 @@ TARGET_JAR_FILE=$(VUFIND_HOME)/import/lib/Tuelib$(PROJECT_NAME).jar
 RESOURCES=resources
 BIN=bin
 SRC=src
+VUFIND_SRC=/usr/local/vufind/import/index_java/src
 PACKAGE_DIRECTORY=de/unituebingen/ub/ubtools/solrmarcMixin
+PACKAGE_DIRECTORY_VUFIND=org/vufind/index
 LIB_DIRECTORY=lib/*:/usr/local/vufind/solr/lib/*:/usr/local/vufind/solr/jetty/lib/ext/*:/usr/local/vufind/solr/jetty/work/jetty-0.0.0.0-8080-solr.war-_solr-any-/webapp/WEB-INF/lib/*:/usr/local/vufind/import/lib/*:/usr/local/vufind/import/lib_local/*
 JAVA_VERSION=1.8
 
 # Compiler
 JAVAC=javac
-JAVAFLAGS=-g -Xlint:unchecked -Xlint:deprecation -d $(BIN) -classpath $(BIN):$(LIB_DIRECTORY) -sourcepath $(SRC):/usr/local/vufind/import/index_java/src \
+JAVAFLAGS=-g -Xlint:unchecked -Xlint:deprecation -d $(BIN) -classpath $(BIN):$(LIB_DIRECTORY) -sourcepath $(SRC):$(VUFIND_SRC) \
           -source $(JAVA_VERSION) -target $(JAVA_VERSION)
 COMPILE = $(JAVAC) $(JAVAFLAGS)
 
@@ -23,9 +25,9 @@ CP=cp -f
 
 $(JAR_FILE): $(SRC)/$(PACKAGE_DIRECTORY)/*.java
 	test -d bin || mkdir bin
-	$(COMPILE) $(SRC)/$(PACKAGE_DIRECTORY)/*.java
+	$(COMPILE) $(SRC)/$(PACKAGE_DIRECTORY)/*.java $(VUFIND_SRC)/$(PACKAGE_DIRECTORY_VUFIND)/*.java
 	$(CP) $(RESOURCES)/* $(BIN)
-	$(JAR) $(JAR_FILE) $(JAR_FLAGS) $(PACKAGE_DIRECTORY) bin/log4j.properties
+	$(JAR) $(JAR_FILE) $(JAR_FLAGS) $(PACKAGE_DIRECTORY) bin/$(PACKAGE_DIRECTORY_VUFIND) bin/log4j.properties
 
 install: $(JAR_FILE)
 	$(CP) $(JAR_FILE) $(TARGET_JAR_FILE)

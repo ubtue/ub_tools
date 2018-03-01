@@ -29,11 +29,10 @@
 
 class FullTextCache {
     DbConnection *db_connection_;
-    Elasticsearch *elasticsearch_;
+    std::unique_ptr<Elasticsearch> elasticsearch_;
 public:
-    FullTextCache();
-    FullTextCache(const Elasticsearch::Credentials &elasticsearch_credentials);
-    ~FullTextCache() { delete db_connection_; delete elasticsearch_; }
+    FullTextCache(const bool use_elasticsearch = false);
+    ~FullTextCache() { delete db_connection_; }
     struct Entry {
         std::string id_;
         time_t expiration_;

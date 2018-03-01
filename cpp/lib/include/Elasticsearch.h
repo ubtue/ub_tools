@@ -45,6 +45,9 @@ public:
     Elasticsearch(const Credentials credentials) : host_(credentials.host_),
                   index_(credentials.index_), document_type_(credentials.document_type_) {}
 
+    /** \brief return Elasticsearch using settings from global "Elasticsearch.conf" config file. */
+    static std::unique_ptr<Elasticsearch> FactoryByConfigFile();
+
     typedef std::unordered_map<std::string, std::string> Fields;
 
     struct Document {
@@ -74,6 +77,9 @@ public:
 
     /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).*/
     void updateDocument(const Document &document);
+
+    /** \brief Insert document if not exists, else update. On update, only given fields will be updated. */
+    void updateOrInsertDocument(const Document &document);
 }; // class Elasticsearch
 
 
