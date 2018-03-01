@@ -80,7 +80,6 @@ public:
 
     // forward declaration
     class FormatHandler;
-public:
 
     struct HarvestParams {
         Url zts_server_url_;
@@ -183,6 +182,7 @@ public:
         Date(): day_(INVALID), month_(INVALID), year_(INVALID) { }
     };
 
+private:
     static Date StringToDate(const std::string &date_str);
     static std::string GetNextControlNumber();
 
@@ -200,10 +200,11 @@ public:
     static void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std::shared_ptr<HarvestMaps> harvest_maps);
 
     static bool ParseLine(const std::string &line, std::string * const key, std::string * const value);
+
+public:
     static void LoadMapFile(const std::string &filename, std::unordered_map<std::string, std::string> * const from_to_map);
     static RegexMatcher *LoadSupportedURLsRegex(const std::string &map_directory_path);
 
-public:
     static std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_directory_path);
 
     static std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
