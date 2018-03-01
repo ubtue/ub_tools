@@ -30,28 +30,22 @@
 
 
 class Elasticsearch {
-    Url host_;
-    std::string index_;
-    std::string document_type_;
 public:
-    struct Credentials {
+    class Configuration {
+    public:
         Url host_;
         std::string index_;
         std::string document_type_;
+
+        /** \brief return Configuration by parsing global "Elasticsearch.conf" config file. */
+        static std::shared_ptr<Elasticsearch::Configuration> FactoryByConfigFile();
     };
-
-    Elasticsearch(const Url &host, const std::string &index, const std::string &document_type) :
-                  host_(host), index_(index), document_type_(document_type) {}
-    Elasticsearch(const Credentials credentials) : host_(credentials.host_),
-                  index_(credentials.index_), document_type_(credentials.document_type_) {}
-
-    /** \brief return Elasticsearch using settings from global "Elasticsearch.conf" config file. */
-    static std::unique_ptr<Elasticsearch> FactoryByConfigFile();
 
     typedef std::unordered_map<std::string, std::string> Fields;
 
     struct Document {
         std::string id_;
+        std::string type_;
         Fields fields_;
     };
 
@@ -60,75 +54,89 @@ public:
     };
 
     typedef std::unordered_map<std::string, Document> IdToDocumentMap;
-private:
-    static std::shared_ptr<JSON::ObjectNode> FieldsToJSON(const Fields &fields);
-    static Fields JSONToFields(const std::shared_ptr<const JSON::ObjectNode> &json_object);
 
-    /** \brief Sends REST queries to Elasticsearch server
-     *  \throws std::runtime_error on REST error or if the JSON response contained an error flag.
-     */
-    std::shared_ptr<JSON::ObjectNode> query(const std::string &action, const REST::QueryType query_type, const std::shared_ptr<const JSON::JSONNode> &data = nullptr);
-public:
-    /** \brief Creates a new document.
-     *  \throws std::runtime_error (see "query"), or if a document with this ID already exists
-     *          for the current index and document type
-     */
-    void createDocument(const Document &document);
+    class Api {
+        /** \brief Executes REST Query to Elasticsearch server
+        *   \throws std::runtime_error on REST error or if API reports an error
+        */
+        static std::shared_ptr<JSON::ObjectNode> Query(const Url &host, const std::string &action, const REST::QueryType query_type, const std::shared_ptr<const JSON::JSONNode> &data = nullptr);
+    public:
+        /** \brief Creates a new document.
+        *   \throws std::runtime_error (see Query)
+        */
+        static void CreateDocument(const Url &host, const std::string &index, const Document &document);
 
-    /** \brief Creates the current index
-     *  \throws std::runtime_error (see "query"), or if the index already exists
-     */
-    void createIndex();
+        /** \brief Creates a new index
+        *   \throws std::runtime_error (see Query)
+        */
+        static void CreateIndex(const Url &host, const std::string &index);
 
-    /** \brief Deletes an existing document.
-     *  \throws std::runtime_error (see "query"), or if the document doesn't exist
-     */
-    void deleteDocument(const std::string &id);
+        /** \brief Deletes an existing document.
+        *   \throws std::runtime_error (see Query)
+        */
+        static void DeleteDocument(const Url &host, const std::string &index, const std::string &type, const std::string &id);
 
-    /** \brief Deletes the current index.
-     *  \throws std::runtime_error (see "query"), or if the index doesn't exist
-     */
-    void deleteIndex();
+        /** \brief Deletes the given index.
+        *   \throws std::runtime_error (see Query)
+        */
+        static void DeleteIndex(const Url &host, const std::string &index);
 
-    /** \brief Gets an existing document
-     *  \throws std::runtime_error (see "query"), or if the document doesn't exist
-     */
-    Document getDocument(const std::string &id);
+        /** \brief Gets an existing document
+        *   \throws std::runtime_error (see Query)
+        */
+        static Document GetDocument(const Url &host, const std::string &index, const std::string &type, const std::string &id);
 
-    /** \brief Get IDs of all existing indices
-     *  \throws std::runtime_error (see "query")
-     */
-    std::vector<std::string> getIndexList();
+        /** \brief Get IDs of all existing indices
+        *   \throws std::runtime_error (see Query)
+        */
+        static std::vector<std::string> GetIndexList(const Url &host);
 
-    /** \brief Get statistics for the current index
-     *  \throws std::runtime_error (see "query"), or if the index doesn't exist
-     */
-    IndexStatistics getIndexStatistics();
+        /** \brief Get statistics for the given index
+        *   \throws std::runtime_error (see Query)
+        */
+        static IndexStatistics GetIndexStatistics(const Url &host, const std::string &index);
 
-    /** \brief Check if the current index has an ID with the current document type
-     *  \throws std::runtime_error (see "query")
-     */
-    bool hasDocument(const std::string &id);
+        /** \brief Check if the given index has an ID with the given document type
+        *   \throws std::runtime_error (see Query)
+        */
+        static bool HasDocument(const Url &host, const std::string &index, const std::string &type, const std::string &id);
 
-    /** \brief copy all documents from source index to target index
-     *  \throws std::runtime_error (see "query"), or if one of the indices doesn't exist
-     */
-    void reindex(const std::string &source_index, const std::string &target_index);
+        /** \brief copy all documents from source index to target index
+        *   \throws std::runtime_error (see Query)
+        */
+        static void Reindex(const Url &host, const std::string &source_index, const std::string &target_index);
 
-    /** \brief Search for all documents in the current index
-     *  \throws std::runtime_error (see "query")
-     */
-    IdToDocumentMap searchAllDocuments();
+        /** \brief Search for all documents in the given index
+        *   \throws std::runtime_error (see Query)
+        */
+        static IdToDocumentMap SearchAllDocuments(const Url &host, const std::string &index);
 
-    /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).
-     *  \throws std::runtime_error (see "query"), or if the document doesn't exist
-     */
-    void updateDocument(const Document &document);
+        /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).
+        *   \throws std::runtime_error (see Query)
+        */
+        static void UpdateDocument(const Url &host, const std::string &index, const Document &document);
 
-    /** \brief Insert document if not exists, else update. On update, only given fields will be updated.
-     *  \throws std::runtime_error (see "query")
-     */
-    void updateOrInsertDocument(const Document &document);
+        /** \brief Insert document if not exists, else update. On update, only given fields will be updated.
+        *   \throws std::runtime_error (see Query)
+        */
+        static void UpdateOrInsertDocument(const Url &host, const std::string &index, const Document &document);
+    };
+
+    class Index {
+        Url host_;
+        std::string index_;
+    public:
+        Index(const Url &host, const std::string &index) : host_(host), index_(index) {}
+
+        void createDocument(const Document &document) { return Api::CreateDocument(host_, index_, document); }
+        void deleteDocument(const std::string &type, const std::string &id) { return Api::DeleteDocument(host_, index_, type, id); }
+        Document getDocument(const std::string &type, const std::string &id) { return Api::GetDocument(host_, index_, type, id); }
+        IndexStatistics getStatistics() { return Api::GetIndexStatistics(host_, index_); }
+        bool hasDocument(const std::string &type, const std::string &id) { return Api::HasDocument(host_, index_, type, id); }
+        IdToDocumentMap SearchAllDocuments() { return Api::SearchAllDocuments(host_, index_); }
+        void updateDocument(const Document &document) { return Api::UpdateDocument(host_, index_, document); }
+        void updateOrInsertDocument(const Document &document) { return Api::UpdateOrInsertDocument(host_, index_, document); }
+    };
 }; // class Elasticsearch
 
 
