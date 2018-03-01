@@ -161,7 +161,7 @@ void Elasticsearch::reindex(const std::string &source_index, const std::string &
 }
 
 
-Elasticsearch::Documents Elasticsearch::searchAllDocuments() {
+Elasticsearch::IdToDocumentMap Elasticsearch::searchAllDocuments() {
     const std::string action(index_ + "/_search");
 
     const std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
@@ -172,7 +172,7 @@ Elasticsearch::Documents Elasticsearch::searchAllDocuments() {
 
     const std::shared_ptr<const JSON::ObjectNode> result_node(query(action, REST::QueryType::GET, tree_root));
 
-    Documents documents;
+    IdToDocumentMap documents;
     if (result_node->hasNode("hits")) {
         const std::shared_ptr<const JSON::ObjectNode> hits_object(result_node->getObjectNode("hits"));
         const std::shared_ptr<const JSON::ArrayNode> hits_array(hits_object->getArrayNode("hits"));

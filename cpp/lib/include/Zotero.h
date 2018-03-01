@@ -1,6 +1,4 @@
 /** \brief Interaction with Zotero Translation Server
- *         - public functions are named like endpoints, see
- *           https://github.com/zotero/translation-server
  *         - For a list of Zotero field types ("itemFields") in JSON, see
  *           https://github.com/zotero/zotero/blob/master/chrome/locale/de/zotero/zotero.properties#L409
  *  \author Mario Trojan
@@ -39,6 +37,10 @@ public:
     // native supported formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
     static const std::vector<std::string> ExportFormats;
 
+    /**
+     * public functions are named like endpoints, see
+     * https://github.com/zotero/translation-server
+     */
     class TranslationServer {
     public:
         /** \brief Use builtin translator to convert JSON to output format. */
@@ -50,13 +52,10 @@ public:
         static bool Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
                            const std::string &input_content, std::string * const output_json, std::string * const error_message);
 
-        /** \brief Download URL and return as JSON. (If harvested_html is given, URL is not downloaded again. ) */
+        /** \brief Download URL and return as JSON. (If harvested_html is given, URL is not downloaded again.) */
         static bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
                         const Url &harvest_url, const std::string &harvested_html,
                         std::string * const response_body, unsigned * response_code, std::string * const error_message);
-
-    private:
-        static std::string GetNextSessionId();
     };
 
     static const std::string DEFAULT_SUBFIELD_CODE;
@@ -112,29 +111,29 @@ public:
                                                       std::shared_ptr<HarvestParams> harvest_params);
     };
 
-    class JsonFormatHandler : public FormatHandler {
+    class JsonFormatHandler final : public FormatHandler {
         unsigned record_count_ = 0;
         File *output_file_object_;
     public:
         using FormatHandler::FormatHandler;
-        void prepareProcessing();
-        std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node);
-        void finishProcessing();
+        virtual void prepareProcessing() override;
+        virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
+        virtual void finishProcessing() override;
     };
 
 
-    class ZoteroFormatHandler : public FormatHandler {
+    class ZoteroFormatHandler final : public FormatHandler {
         unsigned record_count_ = 0;
         std::string json_buffer_;
     public:
         using FormatHandler::FormatHandler;
-        void prepareProcessing();
-        std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node);
-        void finishProcessing();
+        virtual void prepareProcessing() override;
+        virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
+        virtual void finishProcessing() override;
     };
 
 
-    class MarcFormatHandler : public FormatHandler {
+    class MarcFormatHandler final : public FormatHandler {
         std::unique_ptr<MARC::Writer> marc_writer_;
 
 
@@ -167,39 +166,10 @@ public:
         void CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record);
     public:
         using FormatHandler::FormatHandler;
-        void prepareProcessing();
-        std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node);
-        void finishProcessing();
+        virtual void prepareProcessing() override;
+        virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
+        virtual void finishProcessing() override;
     };
-
-
-    struct Date {
-        static const unsigned INVALID = 0;
-        unsigned day_;
-        unsigned month_;
-        unsigned year_;
-    public:
-        Date(): day_(INVALID), month_(INVALID), year_(INVALID) { }
-    };
-
-private:
-    static Date StringToDate(const std::string &date_str);
-    static std::string GetNextControlNumber();
-
-    // If "key" is in "map", then return the mapped value, o/w return "key".
-    static inline std::string OptionalMap(const std::string &key, const std::unordered_map<std::string, std::string> &map);
-
-    // "author" must be in the lastname,firstname format. Returns the empty string if no PPN was found.
-    static std::string DownloadAuthorPPN(const std::string &author);
-
-
-    static void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
-                                    std::vector<std::string> * const comments);
-
-    // Improve JSON result delivered by Zotero Translation Server
-    static void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std::shared_ptr<const HarvestMaps> harvest_maps);
-
-    static bool ParseLine(const std::string &line, std::string * const key, std::string * const value);
 
 public:
     static void LoadMapFile(const std::string &filename, std::unordered_map<std::string, std::string> * const from_to_map);
