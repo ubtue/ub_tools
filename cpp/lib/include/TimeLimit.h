@@ -80,7 +80,7 @@ public:
     void restart() { initialize(limit_); }
 
     /** Sleep until the limit has been exceeded. */
-    void sleepUntilExpired() { TimeUtil::Millisleep(getRemainingTime()); }
+    void sleepUntilExpired() const { TimeUtil::Millisleep(getRemainingTime()); }
 private:
     void initialize(const unsigned time_limit);
 };

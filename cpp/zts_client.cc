@@ -82,18 +82,11 @@ void StorePreviouslyDownloadedHashes(File * const output,
 }
 
 
-void StartHarvesting(const bool ignore_robots_dot_txt, const std::string &proxy_host_and_port, const RegexMatcher * const supported_urls_regex, const std::string &simple_crawler_config_path,
-                     std::shared_ptr<Zotero::HarvestParams> harvest_params, std::shared_ptr<Zotero::HarvestMaps> harvest_maps, std::unique_ptr<File> &progress_file,
-                     unsigned * const total_record_count, unsigned * const total_previously_downloaded_count)
+void HarvestSites(const SimpleCrawler::Params &crawler_params, const std::shared_ptr<RegexMatcher> supported_urls_regex, const std::vector<SimpleCrawler::SiteDesc> &site_descs,
+                  const std::shared_ptr<Zotero::HarvestParams> harvest_params, const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps, std::unique_ptr<File> &progress_file,
+                  unsigned * const total_record_count, unsigned * const total_previously_downloaded_count)
 {
-    SimpleCrawler::Params crawler_params;
-    crawler_params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
-    crawler_params.timeout_ = Zotero::DEFAULT_TIMEOUT;
-    crawler_params.min_url_processing_time_ = Zotero::DEFAULT_MIN_URL_PROCESSING_TIME;
-    crawler_params.proxy_host_and_port_ = proxy_host_and_port;
-
-    std::vector<SimpleCrawler::SiteDesc> site_descs;
-    SimpleCrawler::ParseConfigFile(simple_crawler_config_path, &site_descs);
+    harvest_params->format_handler_->prepareProcessing();
 
     unsigned processed_url_count(0);
     for (const auto &site_desc : site_descs) {
@@ -120,6 +113,7 @@ void StartHarvesting(const bool ignore_robots_dot_txt, const std::string &proxy_
         }
     }
 
+    harvest_params->format_handler_->finishProcessing();
     logger->info("Processed " + std::to_string(processed_url_count) + " URL's.");
 }
 
@@ -175,7 +169,7 @@ void Main(int argc, char *argv[]) {
     try {
         harvest_params->zts_server_url_ = Url(argv[1]);
         std::shared_ptr<Zotero::HarvestMaps> harvest_maps(Zotero::LoadMapFilesFromDirectory(map_directory_path));
-        const RegexMatcher * const supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
+        const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
         const std::string PREVIOUSLY_DOWNLOADED_HASHES_PATH(map_directory_path + "previously_downloaded.hashes");
         if (FileUtil::Exists(PREVIOUSLY_DOWNLOADED_HASHES_PATH)) {
@@ -192,11 +186,18 @@ void Main(int argc, char *argv[]) {
         if (not progress_filename.empty())
             progress_file = FileUtil::OpenOutputFileOrDie(progress_filename);
 
-        harvest_params->format_handler_->prepareProcessing();
-        StartHarvesting(ignore_robots_dot_txt, proxy_host_and_port, supported_urls_regex, simple_crawler_config_path,
-                        harvest_params, harvest_maps, progress_file,
-                        &total_record_count, &total_previously_downloaded_count);
-        harvest_params->format_handler_->finishProcessing();
+        SimpleCrawler::Params crawler_params;
+        crawler_params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
+        crawler_params.min_url_processing_time_ = Zotero::DEFAULT_MIN_URL_PROCESSING_TIME;
+        crawler_params.proxy_host_and_port_ = proxy_host_and_port;
+        crawler_params.timeout_ = Zotero::DEFAULT_TIMEOUT;
+
+        std::vector<SimpleCrawler::SiteDesc> site_descs;
+        SimpleCrawler::ParseConfigFile(simple_crawler_config_path, &site_descs);
+
+        HarvestSites(crawler_params, supported_urls_regex, site_descs,
+                     harvest_params, harvest_maps, progress_file,
+                     &total_record_count, &total_previously_downloaded_count);
 
         INFO("Harvested a total of " + StringUtil::ToString(total_record_count) + " records of which "
              + StringUtil::ToString(total_previously_downloaded_count) + " were already previously downloaded.");
@@ -204,7 +205,6 @@ void Main(int argc, char *argv[]) {
         std::unique_ptr<File> previously_downloaded_output(
             FileUtil::OpenOutputFileOrDie(map_directory_path + "previously_downloaded.hashes"));
         StorePreviouslyDownloadedHashes(previously_downloaded_output.get(), harvest_maps->previously_downloaded_);
-        delete supported_urls_regex;
     } catch (const std::exception &x) {
         ERROR("caught exception: " + std::string(x.what()));
     }

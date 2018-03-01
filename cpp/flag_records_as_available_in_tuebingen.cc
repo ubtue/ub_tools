@@ -36,8 +36,8 @@
 static unsigned extracted_count(0);
 static unsigned modified_count(0);
 static std::unordered_set<std::string> de21_superior_ppns;
-static const RegexMatcher * const tue_sigil_matcher(RegexMatcher::RegexMatcherFactory("^DE-21.*"));
-static const RegexMatcher * const superior_ppn_matcher(RegexMatcher::RegexMatcherFactory(".DE-576.(.*)"));
+static RegexMatcher * const tue_sigil_matcher(RegexMatcher::RegexMatcherFactory("^DE-21.*"));
+static RegexMatcher * const superior_ppn_matcher(RegexMatcher::RegexMatcherFactory(".DE-576.(.*)"));
 
 
 void Usage() {

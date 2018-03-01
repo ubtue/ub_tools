@@ -460,7 +460,7 @@ inline std::string Zotero::OptionalMap(const std::string &key, const std::unorde
 
 
 std::string Zotero::DownloadAuthorPPN(const std::string &author) {
-    static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
          "<SMALL>PPN</SMALL>.*<div><SMALL>([0-9X]+)"));
     const std::string lookup_url("http://swb.bsz-bw.de/DB=2.104/SET=70/TTL=1/CMD?SGE=&ACT=SRCHM&MATCFILTER=Y"
                                  "&MATCSET=Y&NOSCAN=Y&PARSE_MNEMONICS=N&PARSE_OPWORDS=N&PARSE_OLDSETS=N&IMPLAND=Y"
@@ -501,7 +501,7 @@ void Zotero::AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators
 }
 
 
-void Zotero::AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, std::shared_ptr<Zotero::HarvestMaps> harvest_maps) {
+void Zotero::AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps) {
     INFO("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
@@ -664,7 +664,7 @@ void Zotero::LoadMapFile(const std::string &filename, std::unordered_map<std::st
 }
 
 
-RegexMatcher *Zotero::LoadSupportedURLsRegex(const std::string &map_directory_path) {
+const std::shared_ptr<RegexMatcher> Zotero::LoadSupportedURLsRegex(const std::string &map_directory_path) {
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(map_directory_path + "targets.regex"));
 
     std::string combined_regex;
@@ -679,7 +679,7 @@ RegexMatcher *Zotero::LoadSupportedURLsRegex(const std::string &map_directory_pa
     }
 
     std::string err_msg;
-    RegexMatcher * const supported_urls_regex(RegexMatcher::RegexMatcherFactory(combined_regex, &err_msg));
+    std::shared_ptr<RegexMatcher> supported_urls_regex(RegexMatcher::RegexMatcherFactory(combined_regex, &err_msg));
     if (supported_urls_regex == nullptr)
         ERROR("compilation of the combined regex failed: " + err_msg);
 
@@ -703,8 +703,8 @@ std::shared_ptr<Zotero::HarvestMaps> Zotero::LoadMapFilesFromDirectory(const std
 
 std::pair<unsigned, unsigned> Zotero::Harvest(const std::string &harvest_url,
                                               const std::string &harvested_html,
-                                              std::shared_ptr<Zotero::HarvestParams> harvest_params,
-                                              std::shared_ptr<Zotero::HarvestMaps> harvest_maps,
+                                              const std::shared_ptr<Zotero::HarvestParams> harvest_params,
+                                              const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps,
                                               bool log)
 {
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;

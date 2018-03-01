@@ -121,7 +121,7 @@ RegexMatcher::RegexMatcher(RegexMatcher &&that)
 
 
 bool RegexMatcher::matched(const std::string &subject, std::string * const err_msg,
-                           size_t * const start_pos, size_t * const end_pos) const
+                           size_t * const start_pos, size_t * const end_pos)
 {
     if (err_msg != nullptr)
         err_msg->clear();

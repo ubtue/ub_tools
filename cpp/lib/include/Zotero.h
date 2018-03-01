@@ -197,20 +197,20 @@ private:
                                     std::vector<std::string> * const comments);
 
     // Improve JSON result delivered by Zotero Translation Server
-    static void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std::shared_ptr<HarvestMaps> harvest_maps);
+    static void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std::shared_ptr<const HarvestMaps> harvest_maps);
 
     static bool ParseLine(const std::string &line, std::string * const key, std::string * const value);
 
 public:
     static void LoadMapFile(const std::string &filename, std::unordered_map<std::string, std::string> * const from_to_map);
-    static RegexMatcher *LoadSupportedURLsRegex(const std::string &map_directory_path);
+    static const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &map_directory_path);
 
     static std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_directory_path);
 
     static std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
                                                  const std::string &harvested_html,
-                                                 std::shared_ptr<HarvestParams> harvest_params,
-                                                 std::shared_ptr<HarvestMaps> harvest_maps,
+                                                 const std::shared_ptr<HarvestParams> harvest_params,
+                                                 const std::shared_ptr<const HarvestMaps> harvest_maps,
                                                  bool log = true);
 }; // class Zotero
 
