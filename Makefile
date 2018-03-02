@@ -10,7 +10,7 @@ all:
 	    $(MAKE) -C cronjobs;\
 	fi
 
-install: install_configs
+install: install_configs Makefile
 	$(MAKE) -C cpp/lib/mkdep install;
 	$(MAKE) -C cpp install;
 	if [ $(TUEFIND_FLAVOUR) != "unknown" ]; then\

@@ -29,7 +29,7 @@ $(JAR_FILE): $(SRC)/$(PACKAGE_DIRECTORY)/*.java Makefile
 	$(CP) $(RESOURCES)/* $(BIN)
 	$(JAR) $(JAR_FILE) $(JAR_FLAGS) $(PACKAGE_DIRECTORY) bin/$(PACKAGE_DIRECTORY_VUFIND) bin/log4j.properties
 
-install: $(JAR_FILE)
+install: $(JAR_FILE) Makefile
 	$(CP) $(JAR_FILE) $(TARGET_JAR_FILE)
 
 clean:
