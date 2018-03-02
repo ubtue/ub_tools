@@ -64,7 +64,7 @@ public:
         /** \brief Creates a new document.
         *   \throws std::runtime_error (see Query)
         */
-        static void CreateDocument(const Url &host, const std::string &index, const Document &document);
+        static void InsertDocument(const Url &host, const std::string &index, const Document &document);
 
         /** \brief Creates a new index
         *   \throws std::runtime_error (see Query)
