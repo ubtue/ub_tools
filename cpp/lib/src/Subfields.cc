@@ -32,7 +32,7 @@ bool Subfields::hasSubfieldWithValue(const char subfield_code, const std::string
 }
 
 
-bool Subfields::hasSubfieldWithPattern(const char subfield_code, const RegexMatcher &regex) const {
+bool Subfields::hasSubfieldWithPattern(const char subfield_code, RegexMatcher &regex) const {
     auto code_and_value(std::find_if(begin(), end(), CompareSubfieldCode(subfield_code)));
     for (/* empty */; code_and_value != end() && code_and_value->code_ == subfield_code; ++code_and_value) {
         if (regex.matched(code_and_value->value_))
@@ -42,7 +42,7 @@ bool Subfields::hasSubfieldWithPattern(const char subfield_code, const RegexMatc
 }
 
 
-bool Subfields::extractSubfieldWithPattern(const char subfield_code, const RegexMatcher &regex,
+bool Subfields::extractSubfieldWithPattern(const char subfield_code, RegexMatcher &regex,
                                            std::string * const value) const
 {
     auto code_and_value(std::find_if(begin(), end(), CompareSubfieldCode(subfield_code)));

@@ -57,7 +57,7 @@ std::string GetNextToken(File * const input) {
     if (likely(first_ch != '<'))
         return token;
 
-    
+
     int ch;
     while ((ch = input->get()) != EOF) {
         token += static_cast<char>(ch);
@@ -84,7 +84,7 @@ XMLComponent::XMLComponent(const std::string &text)
     : text_(text)
 {
     if (StringUtil::StartsWith(text_, "<datafield")) {
-        static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
+        static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
             "(tag=\"...\")( +ind1=\".\")?( +ind2=\".\")?"));
         if (matcher->matched(text_) and matcher->getLastMatchCount() != 4) {
             const size_t first_closing_angle_bracket_pos(text_.find('>'));
@@ -102,7 +102,7 @@ std::string XMLComponent::getTag() const {
         return "\2\2\2";
     if (StringUtil::EndsWith(text_, "</record>"))
         return "\255\255\255";
-    static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(" tag=\"(...)\""));
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(" tag=\"(...)\""));
     return matcher->matched(text_) ? (*matcher)[1] : "";
 }
 
@@ -145,8 +145,8 @@ void Convert(File * const input, File * const output) {
     std::string token(GetNextToken(input));
     bool leader_open_seen(false); // We only like to see one of these.
     std::string component_text;
-    const RegexMatcher * const open_tag_matcher(RegexMatcher::RegexMatcherFactory("^<controlfield|^<datafield"));
-    const RegexMatcher * const close_tag_matcher(
+    RegexMatcher * const open_tag_matcher(RegexMatcher::RegexMatcherFactory("^<controlfield|^<datafield"));
+    RegexMatcher * const close_tag_matcher(
         RegexMatcher::RegexMatcherFactory("</controlfield>|</datafield>|</leader>"));
     while (not token.empty()) {
         if (converting) {

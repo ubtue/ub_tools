@@ -32,7 +32,7 @@
 
 
 bool IsPossibleDDC(const std::string &ddc_candidate) {
-    static const RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory("^\\d\\d\\d"));
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\d\\d\\d"));
     std::string err_msg;
     if (not matcher->matched(ddc_candidate, &err_msg)) {
         if (err_msg.empty())
@@ -135,7 +135,7 @@ void AugmentRecordsWithDDCs(const bool verbose, MarcReader * const title_reader,
         ExtractDDCsFromField("083", record, &existing_ddcs);
         if (not existing_ddcs.empty())
             ++already_had_ddcs;
-        
+
         std::set<std::string> topic_ids; // = the IDs of the corresponding norm data records
         ExtractTopicIDs("600:610:611:630:650:653:656:689", record, existing_ddcs, &topic_ids);
         if (topic_ids.empty()) {
