@@ -89,7 +89,7 @@ ConditionDescriptor::ConditionDescriptor(const std::string &field_or_subfield_re
 
 
 ConditionDescriptor::ConditionDescriptor(const std::string &field_or_subfield_reference, const CompType comp_type,
-                                         const RegexMatcher * const data_matcher)
+                                         RegexMatcher * const data_matcher)
     : comp_type_(comp_type), field_or_subfield_reference_(field_or_subfield_reference),
       data_matcher_(data_matcher)
 {
@@ -221,7 +221,7 @@ ConditionDescriptor ParseCondition(Tokenizer * const tokenizer) {
                                  "multiple subfield codes!");
 
     TokenType token(tokenizer->getToken());
-    if ((token == SINGLE_FIELD_EQUAL or token == SINGLE_FIELD_NOT_EQUAL) 
+    if ((token == SINGLE_FIELD_EQUAL or token == SINGLE_FIELD_NOT_EQUAL)
         and field_or_subfield_reference.length() == DirectoryEntry::TAG_LENGTH)
         throw std::runtime_error("Field reference \"" + field_or_subfield_reference + "\"before \""
                                  + std::string(token == SINGLE_FIELD_EQUAL ? "===" : "!==")
@@ -236,7 +236,7 @@ ConditionDescriptor ParseCondition(Tokenizer * const tokenizer) {
             throw std::runtime_error("Expected regex string constant after \"==\" or \"!=\"!");
         const std::string string_const(tokenizer->getLastStringConstant());
         std::string err_msg;
-        const RegexMatcher * const regex_matcher(RegexMatcher::RegexMatcherFactory(string_const, &err_msg));
+        RegexMatcher * const regex_matcher(RegexMatcher::RegexMatcherFactory(string_const, &err_msg));
         if (not err_msg.empty())
             throw std::runtime_error("Bad regex in condition: \"" + Tokenizer::EscapeString(string_const) + "\"!");
         return ConditionDescriptor(field_or_subfield_reference, comp_type, regex_matcher);

@@ -94,7 +94,7 @@ std::string GetPossibleBibleReference(const std::string &normalised_title,
                                       const BibleUtil::BibleBookToCodeMapper &bible_book_to_code_mapper)
 {
     // Regex taken from https://stackoverflow.com/questions/22254746/bible-verse-regex
-    static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
         "(\\d*)\\s*([a-z]+)\\s*(\\d+)(:(\\d+))?(\\s*-\\s*(\\d+)(\\s*([a-z]+)\\s*(\\d+))?(:(\\d+))?)?"));
     if (not matcher->matched(normalised_title))
         return "";

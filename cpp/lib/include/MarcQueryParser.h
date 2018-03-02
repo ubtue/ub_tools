@@ -41,7 +41,7 @@ public:
 private:
     CompType comp_type_;
     const std::string field_or_subfield_reference_;
-    const std::shared_ptr<const RegexMatcher> data_matcher_;
+    const std::shared_ptr<RegexMatcher> data_matcher_;
 public:
     explicit ConditionDescriptor(): comp_type_(NO_COMPARISION) { }
 
@@ -51,14 +51,14 @@ public:
     // "comp_type" must be EQUAL_EQUAL, NOT_EQUAL, SINGLE_FIELD_EQUAL or SINGLE_FIELD_NOT_EQUAL.
     // Warning: "data_matcher" must be the address of a heap object!  ConditionDescriptor then takes the ownership.
     ConditionDescriptor(const std::string &field_or_subfield_reference, const CompType comp_type,
-                        const RegexMatcher * const data_matcher);
+                        RegexMatcher * const data_matcher);
 
     CompType getCompType() const { return comp_type_; }
     const std::string &getFieldOrSubfieldReference() const { return field_or_subfield_reference_; }
 
     // Warning: Only call this member function if the ConditionDescriptor is of a type that logically requires
     //          a regex to compare against.  If that is not the case you will get a nasty error!
-    const RegexMatcher &getDataMatcher() const { return *data_matcher_; }
+    RegexMatcher &getDataMatcher() const { return *data_matcher_; }
 
     std::string toString() const;
 };
