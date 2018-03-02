@@ -21,6 +21,7 @@
 #include <memory>
 #include "FileUtil.h"
 #include "IniFile.h"
+#include "UrlUtil.h"
 
 
 std::shared_ptr<Elasticsearch::Configuration> Elasticsearch::Configuration::FactoryByConfigFile() {
@@ -64,13 +65,15 @@ Elasticsearch::Fields JSONToFields(const std::shared_ptr<const JSON::ObjectNode>
 std::shared_ptr<JSON::ObjectNode> Elasticsearch::Api::Query(const Url &host, const std::string &action, const REST::QueryType query_type, const std::shared_ptr<const JSON::JSONNode> &data) {
     Url url(host.toString() + "/" + action);
     Downloader::Params params;
-    if (data != nullptr)
+    if (data != nullptr) {
         params.additional_headers_.push_back("Content-Type: application/json");
+        DEBUG(data->toString());
+    }
     std::shared_ptr<JSON::JSONNode> result(REST::QueryJSON(url, query_type, data, params));
+
     std::shared_ptr<JSON::ObjectNode> result_object(JSON::JSONNode::CastToObjectNodeOrDie("Elasticsearch result", result));
     if (result_object->hasNode("error"))
         throw std::runtime_error("in Elasticsearch::query: " + result_object->getNode("error")->toString());
-
     DEBUG(result_object->toString());
 
     return result_object;
@@ -168,14 +171,25 @@ void Elasticsearch::Api::Reindex(const Url &host, const std::string &source_inde
 }
 
 
-Elasticsearch::IdToDocumentMap Elasticsearch::Api::GetDocuments(const Url &host, const std::string &index) {
-    const std::string action(index + "/_search");
+Elasticsearch::IdToDocumentMap Elasticsearch::Api::GetDocuments(const Url &host, const std::string &index, const Fields &fields) {
+    std::string action(index + "/_search");
 
     const std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
     std::shared_ptr<JSON::ObjectNode> query_node(new JSON::ObjectNode);
     tree_root->insert("query", query_node);
-    std::shared_ptr<JSON::ObjectNode> match_all_node(new JSON::ObjectNode);
-    query_node->insert("match_all", match_all_node);
+
+    if (fields.size() == 0) {
+        std::shared_ptr<JSON::ObjectNode> match_all_node(new JSON::ObjectNode);
+        query_node->insert("match_all", match_all_node);
+    } else {
+        std::string params;
+        for (const auto &field : fields) {
+            if (not params.empty())
+                params += "&";
+            params += UrlUtil::UrlEncode(field.first) + ":" + UrlUtil::UrlEncode(field.second);
+        }
+        action += "?q=" + params;
+    }
 
     const std::shared_ptr<const JSON::ObjectNode> result_node(Query(host, action, REST::QueryType::GET, tree_root));
 

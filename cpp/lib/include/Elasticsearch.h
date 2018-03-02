@@ -106,10 +106,10 @@ public:
         */
         static void Reindex(const Url &host, const std::string &source_index, const std::string &target_index);
 
-        /** \brief Search for all documents in the given index
+        /** \brief Search for all documents in the given index. If fields are given, filter by fields.
         *   \throws std::runtime_error (see Query)
         */
-        static IdToDocumentMap GetDocuments(const Url &host, const std::string &index);
+        static IdToDocumentMap GetDocuments(const Url &host, const std::string &index, const Fields &fields = Fields());
 
         /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).
         *   \throws std::runtime_error (see Query)
@@ -133,7 +133,7 @@ public:
         Document getDocument(const std::string &type, const std::string &id) { return Api::GetDocument(host_, index_, type, id); }
         IndexStatistics getStatistics() { return Api::GetIndexStatistics(host_, index_); }
         bool hasDocument(const std::string &type, const std::string &id) { return Api::HasDocument(host_, index_, type, id); }
-        IdToDocumentMap getDocuments() { return Api::GetDocuments(host_, index_); }
+        IdToDocumentMap getDocuments(const Fields &fields = Fields()) { return Api::GetDocuments(host_, index_, fields); }
         void updateDocument(const Document &document) { return Api::UpdateDocument(host_, index_, document); }
         void updateOrInsertDocument(const Document &document) { return Api::UpdateOrInsertDocument(host_, index_, document); }
     };
