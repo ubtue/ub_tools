@@ -109,7 +109,7 @@ public:
         /** \brief Search for all documents in the given index
         *   \throws std::runtime_error (see Query)
         */
-        static IdToDocumentMap SearchAllDocuments(const Url &host, const std::string &index);
+        static IdToDocumentMap GetAllDocuments(const Url &host, const std::string &index);
 
         /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).
         *   \throws std::runtime_error (see Query)
@@ -128,12 +128,12 @@ public:
     public:
         Index(const Url &host, const std::string &index) : host_(host), index_(index) {}
 
-        void createDocument(const Document &document) { return Api::CreateDocument(host_, index_, document); }
+        void insertDocument(const Document &document) { return Api::InsertDocument(host_, index_, document); }
         void deleteDocument(const std::string &type, const std::string &id) { return Api::DeleteDocument(host_, index_, type, id); }
         Document getDocument(const std::string &type, const std::string &id) { return Api::GetDocument(host_, index_, type, id); }
         IndexStatistics getStatistics() { return Api::GetIndexStatistics(host_, index_); }
         bool hasDocument(const std::string &type, const std::string &id) { return Api::HasDocument(host_, index_, type, id); }
-        IdToDocumentMap SearchAllDocuments() { return Api::SearchAllDocuments(host_, index_); }
+        IdToDocumentMap getAllDocuments() { return Api::GetAllDocuments(host_, index_); }
         void updateDocument(const Document &document) { return Api::UpdateDocument(host_, index_, document); }
         void updateOrInsertDocument(const Document &document) { return Api::UpdateOrInsertDocument(host_, index_, document); }
     };
