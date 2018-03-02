@@ -23,7 +23,7 @@ JAR_FLAGS=-C $(BIN)
 
 CP=cp -f
 
-$(JAR_FILE): $(SRC)/$(PACKAGE_DIRECTORY)/*.java
+$(JAR_FILE): $(SRC)/$(PACKAGE_DIRECTORY)/*.java Makefile
 	test -d bin || mkdir bin
 	$(COMPILE) $(SRC)/$(PACKAGE_DIRECTORY)/*.java $(VUFIND_SRC)/$(PACKAGE_DIRECTORY_VUFIND)/*.java
 	$(CP) $(RESOURCES)/* $(BIN)
