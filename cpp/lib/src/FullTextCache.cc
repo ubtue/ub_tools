@@ -32,10 +32,10 @@
 #include "VuFind.h"
 
 
-const unsigned MIN_CACHE_EXPIRE_TIME(42300 * 60 * 2); // About 2 months in seconds.
-const unsigned MAX_CACHE_EXPIRE_TIME(42300 * 60 * 4); // About 4 months in seconds.
-const unsigned MIN_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60); // About 1 month in seconds.
-const unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 months in seconds.
+constexpr unsigned MIN_CACHE_EXPIRE_TIME(42300 * 60 * 2); // About 2 months in seconds.
+constexpr unsigned MAX_CACHE_EXPIRE_TIME(42300 * 60 * 4); // About 4 months in seconds.
+constexpr unsigned MIN_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60); // About 1 month in seconds.
+constexpr unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 months in seconds.
 
 
 FullTextCache::FullTextCache(const bool use_elasticsearch) {
