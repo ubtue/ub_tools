@@ -90,20 +90,20 @@ class CompiledPattern {
 public:
     static const char NO_SUBFIELD_CODE;
 public:
-    CompiledPattern(const std::string &tag, const char subfield_code,  const RegexMatcher &matcher)
+    CompiledPattern(const std::string &tag, const char subfield_code, RegexMatcher &matcher)
         : tag_(tag), subfield_code_(subfield_code), matcher_(matcher) {}
     const std::string &getTag() const { return tag_; }
     bool hasSubfieldCode() const { return subfield_code_ != NO_SUBFIELD_CODE; }
     char getSubfieldCode() const { return subfield_code_; }
-    bool fieldMatched(const std::string &field_contents) const;
-    bool subfieldMatched(const std::string &subfield_contents) const;
+    bool fieldMatched(const std::string &field_contents);
+    bool subfieldMatched(const std::string &subfield_contents);
 };
 
 
 const char CompiledPattern::NO_SUBFIELD_CODE('\0');
 
 
-bool CompiledPattern::fieldMatched(const std::string &field_contents) const {
+bool CompiledPattern::fieldMatched(const std::string &field_contents) {
     std::string err_msg;
     const bool retval = matcher_.matched(field_contents, &err_msg);
     if (not retval and not err_msg.empty())
@@ -113,7 +113,7 @@ bool CompiledPattern::fieldMatched(const std::string &field_contents) const {
 }
 
 
-bool CompiledPattern::subfieldMatched(const std::string &subfield_contents) const {
+bool CompiledPattern::subfieldMatched(const std::string &subfield_contents) {
     std::string err_msg;
     const bool retval = matcher_.matched(subfield_contents, &err_msg);
     if (not retval and not err_msg.empty())
@@ -158,7 +158,7 @@ bool CompilePatterns(const std::vector<std::string> &patterns,
             return false;
         }
 
-        compiled_patterns->push_back(new CompiledPattern(tag, subfield_code, std::move(*new_matcher)));
+        compiled_patterns->push_back(new CompiledPattern(tag, subfield_code, *new_matcher));
         delete new_matcher;
     }
 
@@ -359,7 +359,7 @@ public:
     inline const TranslateMap &getTranslateMap() const { return *translate_map_; }
 
     /** \note Only call this if the filter type is REPLACE! */
-    inline const RegexMatcher &getRegexMatcher() const { return *regex_matcher_; }
+    inline RegexMatcher &getRegexMatcher() const { return *regex_matcher_; }
 
     /** \note Only call this if the filter type is REPLACE! */
     inline const std::vector<StringFragmentOrBackreference> &getStringFragmentsAndBackreferences() const {
@@ -554,7 +554,7 @@ bool TranslateCharacters(const std::vector<std::string> &subfield_specs, const T
 }
 
 
-bool ReplaceSubfields(const std::vector<std::string> &subfield_specs, const RegexMatcher &matcher,
+bool ReplaceSubfields(const std::vector<std::string> &subfield_specs, RegexMatcher &matcher,
                       const std::vector<StringFragmentOrBackreference> &string_fragments_and_back_references,
                       MARC::Record * const record)
 {
@@ -569,7 +569,7 @@ bool ReplaceSubfields(const std::vector<std::string> &subfield_specs, const Rege
         for (auto &subfield : subfields) {
             if (subfield_codes.find(subfield.code_) == std::string::npos)
                 continue;
-            
+
             if (matcher.matched(subfield.value_)) {
                 const unsigned no_of_match_groups(matcher.getNoOfGroups());
                 std::string replacement;

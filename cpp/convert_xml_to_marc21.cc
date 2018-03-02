@@ -73,13 +73,13 @@ bool Matcher::xmlTagAttribsAndValuesMatched(const std::map<std::string, std::str
 class SingleMatchMatcher:public Matcher {
     std::string field_tag_;
     char subfield_code_, indicator1_, indicator2_;
-    const RegexMatcher * const matching_regex_;
-    const RegexMatcher * const extraction_regex_;
+    RegexMatcher * const matching_regex_;
+    RegexMatcher * const extraction_regex_;
 public:
     SingleMatchMatcher(const std::string &field_tag, const char subfield_code,
                        const std::map<std::string, std::string> &required_attribs_and_values, const bool required,
-                       const RegexMatcher * const matching_regex = nullptr,
-                       const RegexMatcher * const extraction_regex = nullptr, const char indicator1 = ' ',
+                       RegexMatcher * const matching_regex = nullptr,
+                       RegexMatcher * const extraction_regex = nullptr, const char indicator1 = ' ',
                        const char indicator2 = ' ')
         : Matcher(required_attribs_and_values, required), field_tag_(field_tag), subfield_code_(subfield_code),
           indicator1_(indicator1), indicator2_(indicator2), matching_regex_(matching_regex),
@@ -308,7 +308,7 @@ void ParseSimpleMatchRequirement(const std::string &xml_tag, std::string::const_
         } else
             marc_tag = optional_indicators_marc_tag_and_subfield_code.substr(0, DirectoryEntry::TAG_LENGTH);
     }
-    
+
     const SingleMatchMatcher * const new_matcher(
         new SingleMatchMatcher(do_not_copy ? "do_not_copy" : marc_tag,
                                optional_indicators_marc_tag_and_subfield_code.back(), required_attribs, required,
