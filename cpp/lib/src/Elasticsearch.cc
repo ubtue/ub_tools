@@ -77,7 +77,7 @@ std::shared_ptr<JSON::ObjectNode> Elasticsearch::Api::Query(const Url &host, con
 }
 
 
-void Elasticsearch::Api::CreateDocument(const Url &host, const std::string &index, const Document &document) {
+void Elasticsearch::Api::InsertDocument(const Url &host, const std::string &index, const Document &document) {
     const std::shared_ptr<JSON::ObjectNode> tree_root(FieldsToJSON(document.fields_));
     const std::string action(index + "/" + document.type_ + "/" + document.id_ + "?op_type=create");
     Query(host, action, REST::QueryType::PUT, tree_root);
@@ -168,7 +168,7 @@ void Elasticsearch::Api::Reindex(const Url &host, const std::string &source_inde
 }
 
 
-Elasticsearch::IdToDocumentMap Elasticsearch::Api::SearchAllDocuments(const Url &host, const std::string &index) {
+Elasticsearch::IdToDocumentMap Elasticsearch::Api::GetDocuments(const Url &host, const std::string &index) {
     const std::string action(index + "/_search");
 
     const std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);

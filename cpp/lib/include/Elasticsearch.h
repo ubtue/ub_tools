@@ -109,7 +109,7 @@ public:
         /** \brief Search for all documents in the given index
         *   \throws std::runtime_error (see Query)
         */
-        static IdToDocumentMap GetAllDocuments(const Url &host, const std::string &index);
+        static IdToDocumentMap GetDocuments(const Url &host, const std::string &index);
 
         /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).
         *   \throws std::runtime_error (see Query)
@@ -133,7 +133,7 @@ public:
         Document getDocument(const std::string &type, const std::string &id) { return Api::GetDocument(host_, index_, type, id); }
         IndexStatistics getStatistics() { return Api::GetIndexStatistics(host_, index_); }
         bool hasDocument(const std::string &type, const std::string &id) { return Api::HasDocument(host_, index_, type, id); }
-        IdToDocumentMap getAllDocuments() { return Api::GetAllDocuments(host_, index_); }
+        IdToDocumentMap getDocuments() { return Api::GetDocuments(host_, index_); }
         void updateDocument(const Document &document) { return Api::UpdateDocument(host_, index_, document); }
         void updateOrInsertDocument(const Document &document) { return Api::UpdateOrInsertDocument(host_, index_, document); }
     };
