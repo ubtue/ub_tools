@@ -23,13 +23,13 @@ JAR_FLAGS=-C $(BIN)
 
 CP=cp -f
 
-$(JAR_FILE): $(SRC)/$(PACKAGE_DIRECTORY)/*.java
+$(JAR_FILE): $(SRC)/$(PACKAGE_DIRECTORY)/*.java Makefile
 	test -d bin || mkdir bin
 	$(COMPILE) $(SRC)/$(PACKAGE_DIRECTORY)/*.java $(VUFIND_SRC)/$(PACKAGE_DIRECTORY_VUFIND)/*.java
 	$(CP) $(RESOURCES)/* $(BIN)
 	$(JAR) $(JAR_FILE) $(JAR_FLAGS) $(PACKAGE_DIRECTORY) bin/$(PACKAGE_DIRECTORY_VUFIND) bin/log4j.properties
 
-install: $(JAR_FILE)
+install: $(JAR_FILE) Makefile
 	$(CP) $(JAR_FILE) $(TARGET_JAR_FILE)
 
 clean:
