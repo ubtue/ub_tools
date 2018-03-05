@@ -47,12 +47,12 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
     std::string json_result;
     if (not Solr::Query(query, /* fields = */"", &json_result, "localhost:8080",
                         /* timeout in seconds = */Solr::DEFAULT_TIMEOUT, Solr::JSON, /* max_no_of_rows = */0))
-        logger->error("in IssueQueryAndWriteOutput: Solr query \"" + query + "\" failed!");
+        ERROR("in IssueQueryAndWriteOutput: Solr query \"" + query + "\" failed!");
 
     JSON::Parser parser(json_result);
     std::shared_ptr<JSON::JSONNode> tree_root;
     if (not parser.parse(&tree_root))
-        logger->error("in IssueQueryAndWriteOutput: JSON parser failed: " + parser.getErrorMessage());
+        ERROR("in IssueQueryAndWriteOutput: JSON parser failed: " + parser.getErrorMessage());
 
     *output << '"' << TextUtil::CSVEscape(system_type) << "\",\"" << TextUtil::CSVEscape(category) << "\",\""
             << TextUtil::CSVEscape(variable) << "\"," << JSON::LookupInteger("/response/numFound", tree_root) << ",\""
@@ -143,7 +143,7 @@ int main(int argc, char **argv) {
 
     const std::string system_type(argv[1]);
     if (system_type != "ixtheo" and system_type != "relbib" and system_type != "krimdok")
-        logger->error("system type must be one of {ixtheo, relbib, krimdok}!");
+        ERROR("system type must be one of {ixtheo, relbib, krimdok}!");
 
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argv[2]));
 
@@ -154,6 +154,6 @@ int main(int argc, char **argv) {
         else
             CollectIxTheoOrRelBibSpecificStats(system_type, output.get());
     } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+        ERROR("caught exception: " + std::string(x.what()));
     }
 }
