@@ -164,6 +164,11 @@ public:
 
     void addSubfield(const char subfield_code, const std::string &subfield_value);
 
+    /** \brief Replaces the constents of the first subfield w/ the specified subfield code.
+     *  \return True if we replaced the subfield contents and false if a subfield w/ the given code was not found.
+     */
+    bool replaceFirstSubfield(const char subfield_code, const std::string &new_subfield_value);
+
     /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes".
      *  \return The values of the subfields with matching codes.
      */

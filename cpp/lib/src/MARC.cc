@@ -61,6 +61,17 @@ void Subfields::addSubfield(const char subfield_code, const std::string &subfiel
 }
 
 
+bool Subfields::replaceFirstSubfield(const char subfield_code, const std::string &new_subfield_value) {
+    auto replacement_location(subfields_.begin());
+    while (replacement_location != subfields_.end() and replacement_location->code_ < subfield_code)
+        ++replacement_location;
+    if (replacement_location == subfields_.end())
+        return false;
+    replacement_location->value_ = new_subfield_value;
+    return true;
+}
+
+
 bool Record::Field::operator<(const Record::Field &rhs) const {
     if (tag_ < rhs.tag_)
         return true;
