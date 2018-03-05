@@ -125,7 +125,7 @@ public:
         Url host_;
         std::string index_;
     public:
-        Index(const Url &host, const std::string &index) : host_(host), index_(index) {}
+        Index(const Url &host, const std::string &index): host_(host), index_(index) {}
 
         /** \see InsertDocument */
         void insertDocument(const Document &document) { InsertDocument(host_, index_, document); }
