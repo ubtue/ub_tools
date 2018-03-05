@@ -45,7 +45,8 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
                               const std::string &variable, File * const output)
 {
     std::string json_result;
-    if (not Solr::Query(query, /* fields = */"", &json_result, "localhost:8080", /* timeout in seconds = */10, Solr::JSON))
+    if (not Solr::Query(query, /* fields = */"", &json_result, "localhost:8080",
+                        /* timeout in seconds = */Solr::DEFAULT_TIMEOUT, Solr::JSON, /* max_no_of_rows = */0))
         logger->error("in IssueQueryAndWriteOutput: Solr query \"" + query + "\" failed!");
 
     JSON::Parser parser(json_result);

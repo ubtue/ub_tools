@@ -27,6 +27,9 @@
 namespace Solr {
 
 
+const unsigned DEFAULT_TIMEOUT(10); // in s
+
+
 enum QueryResultFormat { XML, JSON };
 
 
@@ -39,8 +42,8 @@ enum QueryResultFormat { XML, JSON };
  *  \return True if we got a valid response, else false.
  */
 bool Query(const std::string &query, const std::string &fields, std::string * const xml_result,
-           const std::string &host_and_port = "localhost:8080", const unsigned timeout = 10,
-           const QueryResultFormat query_result_format = XML);
+           const std::string &host_and_port = "localhost:8080", const unsigned timeout = DEFAULT_TIMEOUT,
+           const QueryResultFormat query_result_format = XML, const unsigned max_no_of_rows = 99999999);
 
 
 } // namespace Solr
