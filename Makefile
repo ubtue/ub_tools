@@ -14,9 +14,9 @@ install: install_configs
 	$(MAKE) -C cpp/lib/mkdep install;
 	$(MAKE) -C cpp install;
 	if [ $(TUEFIND_FLAVOUR) != "unknown" ]; then\
-	    $(MAKE) -C solr_plugins;\
-	    $(MAKE) -C solrmarc_mixin;\
-	    $(MAKE) -C cronjobs;\
+	    $(MAKE) -C solr_plugins install;\
+	    $(MAKE) -C solrmarc_mixin install;\
+	    $(MAKE) -C cronjobs install;\
 	fi
 
 clean:
