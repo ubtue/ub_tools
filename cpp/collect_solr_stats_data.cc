@@ -47,12 +47,12 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
     std::string json_result;
     if (not Solr::Query(query, /* fields = */"", &json_result, "localhost:8080",
                         /* timeout in seconds = */Solr::DEFAULT_TIMEOUT, Solr::JSON, /* max_no_of_rows = */0))
-        ERROR("in IssueQueryAndWriteOutput: Solr query \"" + query + "\" failed!");
+        ERROR("Solr query \"" + query + "\" failed!");
 
     JSON::Parser parser(json_result);
     std::shared_ptr<JSON::JSONNode> tree_root;
     if (not parser.parse(&tree_root))
-        ERROR("in IssueQueryAndWriteOutput: JSON parser failed: " + parser.getErrorMessage());
+        ERROR("JSON parser failed: " + parser.getErrorMessage());
 
     *output << '"' << TextUtil::CSVEscape(system_type) << "\",\"" << TextUtil::CSVEscape(category) << "\",\""
             << TextUtil::CSVEscape(variable) << "\"," << JSON::LookupInteger("/response/numFound", tree_root) << ",\""
