@@ -67,13 +67,17 @@ std::shared_ptr<JSON::ObjectNode> Elasticsearch::Query(const Url &host, const st
     Downloader::Params params;
     if (data != nullptr) {
         params.additional_headers_.push_back("Content-Type: application/json");
+
+        // debug request data
         DEBUG(data->toString());
     }
     std::shared_ptr<JSON::JSONNode> result(REST::QueryJSON(url, query_type, data, params));
 
     std::shared_ptr<JSON::ObjectNode> result_object(JSON::JSONNode::CastToObjectNodeOrDie("Elasticsearch result", result));
     if (result_object->hasNode("error"))
-        throw std::runtime_error("in Elasticsearch::query: " + result_object->getNode("error")->toString());
+        throw std::runtime_error("in Elasticsearch::Query: " + result_object->getNode("error")->toString());
+
+    // debug response data
     DEBUG(result_object->toString());
 
     return result_object;
