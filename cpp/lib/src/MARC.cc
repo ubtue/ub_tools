@@ -334,11 +334,15 @@ size_t Record::findFieldsInLocalBlock(const Tag &field_tag, const std::string &i
 }
 
 
-void Record::insertField(const Tag &new_field_tag, const std::string &new_field_value) {
+bool Record::insertField(const Tag &new_field_tag, const std::string &new_field_value) {
     auto insertion_location(fields_.begin());
     while (insertion_location != fields_.end() and new_field_tag > insertion_location->getTag())
         ++insertion_location;
+    if (insertion_location != fields_.begin() and (insertion_location - 1)->getTag() == new_field_tag
+        and not IsRepeatableField(new_field_tag))
+        return false;
     fields_.emplace(insertion_location, new_field_tag, new_field_value);
+    return true;
 }
 
 
