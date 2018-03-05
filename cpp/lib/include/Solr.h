@@ -22,6 +22,7 @@
 
 
 #include <string>
+#include <climits>
 
 
 namespace Solr {
@@ -43,7 +44,7 @@ enum QueryResultFormat { XML, JSON };
  */
 bool Query(const std::string &query, const std::string &fields, std::string * const xml_result,
            const std::string &host_and_port = "localhost:8080", const unsigned timeout = DEFAULT_TIMEOUT,
-           const QueryResultFormat query_result_format = XML, const unsigned max_no_of_rows = 99999999);
+           const QueryResultFormat query_result_format = XML, const unsigned max_no_of_rows = UINT_MAX);
 
 
 } // namespace Solr
