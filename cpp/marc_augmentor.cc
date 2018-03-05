@@ -81,9 +81,6 @@ public:
     CompiledPattern(const std::string &tag, const char subfield_code,  const RegexMatcher &matcher)
         : tag_(tag), subfield_code_(subfield_code), matcher_(matcher) {}
     CompiledPattern(const CompiledPattern &other) = default;
-    const std::string &getTag() const { return tag_; }
-    bool hasSubfieldCode() const { return subfield_code_ != NO_SUBFIELD_CODE; }
-    char getSubfieldCode() const { return subfield_code_; }
     bool matched(const MARC::Record &record);
 };
 
