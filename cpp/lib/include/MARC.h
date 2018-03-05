@@ -371,7 +371,7 @@ public:
         return insertField(new_field_tag, new_field_value);
     }
 
-    inline void insertField(const Tag &new_field_tag, std::vector<Subfield> subfields, const char indicator1 = ' ',
+    inline bool insertField(const Tag &new_field_tag, std::vector<Subfield> subfields, const char indicator1 = ' ',
                             const char indicator2 = ' ')
     {
         std::string new_field_value;
@@ -379,7 +379,7 @@ public:
         new_field_value += indicator2;
         for (const auto &subfield : subfields)
             new_field_value += subfield.toString();
-        insertField(new_field_tag, new_field_value);
+        return insertField(new_field_tag, new_field_value);
     }
 
     inline void appendField(const Tag &new_field_tag, const std::string &field_contents, const char indicator1 = ' ',
