@@ -74,6 +74,8 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
 
         boolean gnd_seen = false;
         StringBuilder keyword = new StringBuilder();
+        // Collect elements within one chain in case there is a translation for a whole string
+        List<String> complexElements = new ArrayList<String>();
         for (final Subfield subfield : dataField.getSubfields()) {
             if (gnd_seen) {
                 if (SUBFIELD_CODES.indexOf(subfield.getCode()) != -1) {
@@ -89,7 +91,9 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                         else
                             keyword.append(", ");
                     }
-                    keyword.append(tuelibMixin.translateTopic(subfield.getData(), lang));
+                    final String term = subfield.getData().trim();
+                    keyword.append(tuelibMixin.translateTopic(term, lang));
+                    complexElements.add(term);
                 } else if (subfield.getCode() == '9' && keyword.length() > 0 && subfield.getData().startsWith("g:")) {
                     // For Ixtheo-translations the specification in the g:-Subfield is appended in angle
                     // brackets, so this is a special case where we have to begin from scratch
@@ -113,7 +117,11 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
         }
 
         if (keyword.length() > 0) {
-            String keywordString = keyword.toString().replace("/", "\\/");
+            // Check whether there exists a translation for the whole chain
+            final String complexTranslation = (complexElements.size() > 1) ?
+                                              tuelibMixin.getTranslationOrNull(String.join(" / ", complexElements), lang) : null;
+            String keywordString = (complexTranslation != null) ? complexTranslation : keyword.toString();
+            keywordString = keywordString.replace("/", "\\/");
             keyWordChain.add(keywordString);
         }
     }
