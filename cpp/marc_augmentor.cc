@@ -59,8 +59,9 @@ void Usage() {
               << "               Any fields that matched or that have subfields that matched will be dropped.\n"
               << "           --add-subfield-if field_or_subfield_spec field_or_subfield_spec_and_pcre_regex"
               << " new_field_or_subfield_data\n"
-              << "                Any field with a matching tag will have a new subfield inserted if the regex matched.\n"
+              << "               Any field with a matching tag will have a new subfield inserted if the regex matched.\n"
               << "           --config-path filename\n"
+              << "               If --config-path has been specified, no other operation may be used.\n"
               << "       Field or subfield data may contain any of the following escapes:\n"
               << "         \\n, \\t, \\b, \\r, \\f, \\v, \\a, \\\\, \\uNNNN and \\UNNNNNNNN\n"
               << "       \"field_or_subfield_spec_and_pcre_regex\" consists of a 3-character tag, an optional 1-character\n"
@@ -94,7 +95,7 @@ bool CompiledPattern::matched(const MARC::Record &record) {
     for (const auto &field : record) {
         if (field.getTag() != tag_)
             continue;
-        
+
         std::string err_msg;
         if (subfield_code_ == NO_SUBFIELD_CODE) { // Match a field.
             if (matcher_.matched(field.getContents(), &err_msg))
@@ -214,6 +215,37 @@ bool InsertField(MARC::Record * const record, const MARC::Tag &tag, const char s
 }
 
 
+// Returns true, if we modified the record, else false.
+bool ReplaceField(MARC::Record * const record, const MARC::Tag &tag, const char subfield_code,
+                  const std::string &replacement_text, CompiledPattern * const condition = nullptr)
+{
+    if (condition != nullptr) {
+        if (not condition->matched(*record))
+            return false;
+    }
+
+    bool replaced_at_least_one(false);
+    for (auto &field : *record) {
+        if (field.getTag() != tag)
+            continue;
+
+        if (subfield_code == CompiledPattern::NO_SUBFIELD_CODE) {
+            field.setContents(replacement_text);
+            replaced_at_least_one = true;
+        } else {
+            MARC::Subfields subfields(field.getContents());
+            if (subfields.replaceFirstSubfield(subfield_code, replacement_text)) {
+                field.setContents(std::string(1, field.getIndicator1()) + std::string(1, field.getIndicator2())
+                                  + subfields.toString());
+                replaced_at_least_one = true;
+            }
+        }
+    }
+
+    return replaced_at_least_one;
+}
+
+
 void Augment(std::vector<AugmentorDescriptor> &augmentors, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     unsigned total_count(0), modified_count(0);
     std::string error_message;
@@ -233,7 +265,15 @@ void Augment(std::vector<AugmentorDescriptor> &augmentors, MARC::Reader * const 
                     modified_record = true;
                 else if (not error_message.empty())
                     WARNING(error_message);
-            }
+            } else if (augmentor.getAugmentorType() == AugmentorType::REPLACE_FIELD) {
+                if (ReplaceField(&record, augmentor.getTag(), augmentor.getSubfieldCode(), augmentor.getInsertionText()))
+                    modified_record = true;
+            } else if (augmentor.getAugmentorType() == AugmentorType::REPLACE_FIELD_IF) {
+                if (ReplaceField(&record, augmentor.getTag(), augmentor.getSubfieldCode(), augmentor.getInsertionText(),
+                                 augmentor.getCompiledPattern()))
+                    modified_record = true;
+            } else
+                ERROR("unhandled Augmentor type!");
         }
 
         if (modified_record)
@@ -296,7 +336,7 @@ void ExtractCommandArgs(char ***argvp, MARC::Tag * const tag, char * const subfi
         ERROR("failed to compile regular expression: \"" + regex_string + "\" for \"" + command + "\"! (" + err_msg +")");
     *compiled_pattern = new CompiledPattern(match_tag, match_subfield_code, std::move(*new_matcher));
     ++*argvp;
-    
+
     *field_or_subfield_contents = **argvp;
     ++*argvp;
 }
@@ -307,7 +347,7 @@ void ProcessAugmentorArgs(char **argv, std::vector<AugmentorDescriptor> * const 
     char subfield_code;
     CompiledPattern *compiled_pattern;
     std::string field_or_subfield_contents;
-    
+
     while (*argv != nullptr) {
         if (std::strcmp(*argv, "--insert-field") == 0) {
             ExtractCommandArgs(&argv, &tag, &subfield_code, &field_or_subfield_contents);
@@ -370,7 +410,7 @@ int main(int argc, char **argv) {
     ::progname = argv[0];
     ++argv;
 
-    if (argc < 5)
+    if (argc < 4)
         Usage();
 
     const std::string input_filename(*argv++);
