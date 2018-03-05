@@ -351,7 +351,8 @@ public:
     char getBibliographicLevel() const { return leader_[7]; }
     void setBibliographicLevel(const char new_bibliographic_level) { leader_[7] = new_bibliographic_level; }
 
-    void insertField(const Tag &new_field_tag, const std::string &new_field_value);
+    /** \return True if we added the new field and false if it is a non-repeatable field and we already have this tag. */
+    bool insertField(const Tag &new_field_tag, const std::string &new_field_value);
 
     inline Field getField(const size_t field_index) { return fields_[field_index]; }
     inline const Field &getField(const size_t field_index) const { return fields_[field_index]; }
