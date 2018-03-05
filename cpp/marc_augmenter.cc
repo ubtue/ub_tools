@@ -219,6 +219,7 @@ void Augment(std::vector<AugmentorDescriptor> &augmentors, MARC::Reader * const 
     std::string error_message;
     while (MARC::Record record = marc_reader->read()) {
         ++total_count;
+
         bool modified_record(false);
         for (auto &augmentor : augmentors) {
             if (augmentor.getAugmentorType() == AugmentorType::INSERT_FIELD) {
