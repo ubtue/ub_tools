@@ -127,14 +127,29 @@ public:
     public:
         Index(const Url &host, const std::string &index) : host_(host), index_(index) {}
 
-        void insertDocument(const Document &document) { return InsertDocument(host_, index_, document); }
-        void deleteDocument(const std::string &type, const std::string &id) { return DeleteDocument(host_, index_, type, id); }
+        /** \see InsertDocument */
+        void insertDocument(const Document &document) { InsertDocument(host_, index_, document); }
+
+        /** \see DeleteDocument */
+        void deleteDocument(const std::string &type, const std::string &id) { DeleteDocument(host_, index_, type, id); }
+
+        /** \see GetDocument */
         Document getDocument(const std::string &type, const std::string &id) { return GetDocument(host_, index_, type, id); }
+
+        /** \see GetStatistics */
         IndexStatistics getStatistics() { return GetIndexStatistics(host_, index_); }
+
+        /** \see HasStatistics */
         bool hasDocument(const std::string &type, const std::string &id) { return HasDocument(host_, index_, type, id); }
+
+        /** \see GetDocuments */
         IdToDocumentMap getDocuments(const Fields &fields = Fields()) { return GetDocuments(host_, index_, fields); }
-        void updateDocument(const Document &document) { return UpdateDocument(host_, index_, document); }
-        void updateOrInsertDocument(const Document &document) { return UpdateOrInsertDocument(host_, index_, document); }
+
+        /** \see UpdateDocuments */
+        void updateDocument(const Document &document) { UpdateDocument(host_, index_, document); }
+
+        /** \see UpdateOrInsertDocument */
+        void updateOrInsertDocument(const Document &document) { UpdateOrInsertDocument(host_, index_, document); }
     };
 }; // class Elasticsearch
 
