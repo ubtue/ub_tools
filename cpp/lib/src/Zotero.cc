@@ -572,7 +572,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
             if (language_node != nullptr) {
                 const std::string language_old(language_node->getValue());
                 language_node->setValue(ISSN_and_language->second);
-                comments.emplace_back("changed \"language\" from \"" + language_old + "\" to \"" + ISSN_and_language->second + "\" due to ISSN map");
+                comments.emplace_back("changed \"language\" from \"" + language_old + "\" to \"" + ISSN_and_language->second
+                                      + "\" due to ISSN map");
             } else {
                 language_node = std::make_shared<JSON::StringNode>(ISSN_and_language->second);
                 object_node->insert("language", language_node);
@@ -628,56 +629,6 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
 }
 
 
-bool ParseLine(const std::string &line, std::string * const key, std::string * const value) {
-    key->clear(), value->clear();
-
-    // Extract the key:
-    auto ch(line.cbegin());
-    while (ch != line.cend() and *ch != '=') {
-        if (unlikely(*ch == '\\')) {
-            ++ch;
-            if (unlikely(ch == line.cend()))
-                return false;
-        }
-        *key += *ch++;
-    }
-    if (unlikely(ch == line.cend()))
-        return false;
-    ++ch; // Skip over the equal-sign.
-
-    // Extract value:
-    while (ch != line.cend() and *ch != '#' /* Comment start. */) {
-        if (unlikely(*ch == '\\')) {
-            ++ch;
-            if (unlikely(ch == line.cend()))
-                return false;
-        }
-        *value += *ch++;
-    }
-    StringUtil::RightTrim(value);
-
-    return not key->empty() and not value->empty();
-}
-
-
-void Zotero::LoadMapFile(const std::string &filename, std::unordered_map<std::string, std::string> * const from_to_map) {
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(filename));
-
-    unsigned line_no(0);
-    while (not input->eof()) {
-        std::string line(input->getline());
-        ++line_no;
-
-        StringUtil::Trim(&line);
-        std::string key, value;
-        if (not ParseLine(line, &key, &value))
-            ERROR("invalid input on line \"" + std::to_string(line_no) + "\" in \""
-                          + input->getPath() + "\"!");
-        from_to_map->emplace(key, value);
-    }
-}
-
-
 const std::shared_ptr<RegexMatcher> Zotero::LoadSupportedURLsRegex(const std::string &map_directory_path) {
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(map_directory_path + "targets.regex"));
 
@@ -703,14 +654,14 @@ const std::shared_ptr<RegexMatcher> Zotero::LoadSupportedURLsRegex(const std::st
 
 std::shared_ptr<Zotero::HarvestMaps> Zotero::LoadMapFilesFromDirectory(const std::string &map_directory_path) {
     std::shared_ptr<HarvestMaps> maps(new HarvestMaps);
-    LoadMapFile(map_directory_path + "language_to_language_code.map", &maps->language_to_language_code_map_);
-    LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &maps->ISSN_to_language_code_map_);
-    LoadMapFile(map_directory_path + "ISSN_to_licence.map", &maps->ISSN_to_licence_map_);
-    LoadMapFile(map_directory_path + "ISSN_to_keyword_field.map", &maps->ISSN_to_keyword_field_map_);
-    LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &maps->ISSN_to_physical_form_map_);
-    LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &maps->ISSN_to_superior_ppn_map_);
-    LoadMapFile(map_directory_path + "ISSN_to_volume.map", &maps->ISSN_to_volume_map_);
-    LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &maps->ISSN_to_SSG_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "language_to_language_code.map", &maps->language_to_language_code_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &maps->ISSN_to_language_code_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_licence.map", &maps->ISSN_to_licence_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_keyword_field.map", &maps->ISSN_to_keyword_field_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &maps->ISSN_to_physical_form_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &maps->ISSN_to_superior_ppn_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_volume.map", &maps->ISSN_to_volume_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &maps->ISSN_to_SSG_map_);
     return maps;
 }
 
