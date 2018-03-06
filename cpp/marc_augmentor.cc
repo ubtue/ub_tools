@@ -318,15 +318,15 @@ void ExtractCommandArgs(char ***argvp, MARC::Tag * const tag, char * const subfi
     ++*argvp;
 
     const std::string tag_and_optional_subfield_code(**argvp);
-    if (tag_and_optional_subfield_code.length() != MARC::Record::TAG_LENGTH
-        and tag_and_optional_subfield_code.length() != MARC::Record::TAG_LENGTH + 1)
-        ERROR("invalid tag and optional subfield code after \"" + command + "\"!");
+    const auto first_colon_pos(tag_and_optional_subfield_code.find(':'));
+    if (first_colon_pos != MARC::Record::TAG_LENGTH and first_colon_pos != MARC::Record::TAG_LENGTH + 1)
+        ERROR("invalid tag and optional subfield code after \"" + command + "\": \"" + tag_and_optional_subfield_code + "\"!");
     *tag = MARC::Tag(tag_and_optional_subfield_code.substr(0, MARC::Record::TAG_LENGTH));
-    *subfield_code = (tag_and_optional_subfield_code.length() > MARC::Record::TAG_LENGTH)
+    *subfield_code = (first_colon_pos > MARC::Record::TAG_LENGTH)
                      ? tag_and_optional_subfield_code[MARC::Record::TAG_LENGTH] : CompiledPattern::NO_SUBFIELD_CODE;
-    ++*argvp;
-
-    *field_or_subfield_contents = **argvp;
+    *field_or_subfield_contents = tag_and_optional_subfield_code.substr(first_colon_pos + 1);
+    if (field_or_subfield_contents->empty())
+        ERROR("text after colon for \"" + command + "\" must not be empty!");
     ++*argvp;
 }
 
@@ -338,16 +338,20 @@ void ExtractCommandArgs(char ***argvp, MARC::Tag * const tag, char * const subfi
     ++*argvp;
 
     const std::string tag_and_optional_subfield_code(**argvp);
-    if (tag_and_optional_subfield_code.length() != MARC::Record::TAG_LENGTH
-        and tag_and_optional_subfield_code.length() != MARC::Record::TAG_LENGTH + 1)
+    auto first_colon_pos(tag_and_optional_subfield_code.find(':'));
+    if (first_colon_pos != MARC::Record::TAG_LENGTH and first_colon_pos != MARC::Record::TAG_LENGTH + 1)
         ERROR("invalid tag and optional subfield code after \"" + command + "\"!");
     *tag = MARC::Tag(tag_and_optional_subfield_code.substr(0, MARC::Record::TAG_LENGTH));
     *subfield_code = (tag_and_optional_subfield_code.length() > MARC::Record::TAG_LENGTH)
                      ? tag_and_optional_subfield_code[MARC::Record::TAG_LENGTH] : CompiledPattern::NO_SUBFIELD_CODE;
+
+    *field_or_subfield_contents = tag_and_optional_subfield_code.substr(first_colon_pos + 1);
+    if (field_or_subfield_contents->empty())
+        ERROR("text after colon for \"" + command + "\" must not be empty!");
     ++*argvp;
 
     const std::string tag_optional_subfield_code_and_regex(**argvp);
-    const auto first_colon_pos(tag_optional_subfield_code_and_regex.find(':'));
+    first_colon_pos = tag_optional_subfield_code_and_regex.find(':');
     if (first_colon_pos != MARC::Record::TAG_LENGTH and first_colon_pos != MARC::Record::TAG_LENGTH + 1)
         ERROR("invalid tag and optional subfield code after \"" + command + "\"!");
     const std::string match_tag(tag_optional_subfield_code_and_regex.substr(0, MARC::Record::TAG_LENGTH));
@@ -360,9 +364,6 @@ void ExtractCommandArgs(char ***argvp, MARC::Tag * const tag, char * const subfi
     if (new_matcher == nullptr)
         ERROR("failed to compile regular expression: \"" + regex_string + "\" for \"" + command + "\"! (" + err_msg +")");
     *compiled_pattern = new CompiledPattern(match_tag, match_subfield_code, std::move(*new_matcher));
-    ++*argvp;
-
-    *field_or_subfield_contents = **argvp;
     ++*argvp;
 }
 
