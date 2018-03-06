@@ -235,8 +235,7 @@ bool ReplaceField(MARC::Record * const record, const MARC::Tag &tag, const char 
         } else {
             MARC::Subfields subfields(field.getContents());
             if (subfields.replaceFirstSubfield(subfield_code, replacement_text)) {
-                field.setContents(std::string(1, field.getIndicator1()) + std::string(1, field.getIndicator2())
-                                  + subfields.toString());
+                field.setContents(subfields, field.getIndicator1(), field.getIndicator2());
                 replaced_at_least_one = true;
             }
         }
@@ -245,6 +244,29 @@ bool ReplaceField(MARC::Record * const record, const MARC::Tag &tag, const char 
     return replaced_at_least_one;
 }
 
+
+// Returns true, if we modified the record, else false.
+bool AddSubfield(MARC::Record * const record, const MARC::Tag &tag, const char subfield_code, const std::string &insertion_text,
+                 CompiledPattern * const condition = nullptr)
+{
+    if (condition != nullptr) {
+        if (not condition->matched(*record))
+            return false;
+    }
+
+    bool modified_at_least_one(false);
+    for (auto &field : *record) {
+        if (field.getTag() == tag) {
+            MARC::Subfields subfields(field.getSubfields());
+            subfields.addSubfield(subfield_code, insertion_text);
+            field.setContents(subfields, field.getIndicator1(), field.getIndicator2());
+            modified_at_least_one = true;
+        }
+    }
+
+    return modified_at_least_one;
+}
+    
 
 void Augment(std::vector<AugmentorDescriptor> &augmentors, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     unsigned total_count(0), modified_count(0);
@@ -271,6 +293,13 @@ void Augment(std::vector<AugmentorDescriptor> &augmentors, MARC::Reader * const 
             } else if (augmentor.getAugmentorType() == AugmentorType::REPLACE_FIELD_IF) {
                 if (ReplaceField(&record, augmentor.getTag(), augmentor.getSubfieldCode(), augmentor.getInsertionText(),
                                  augmentor.getCompiledPattern()))
+                    modified_record = true;
+            } else if (augmentor.getAugmentorType() == AugmentorType::ADD_SUBFIELD) {
+                if (AddSubfield(&record, augmentor.getTag(), augmentor.getSubfieldCode(), augmentor.getInsertionText()))
+                    modified_record = true;
+            } else if (augmentor.getAugmentorType() == AugmentorType::ADD_SUBFIELD_IF) {
+                if (AddSubfield(&record, augmentor.getTag(), augmentor.getSubfieldCode(), augmentor.getInsertionText(),
+                                augmentor.getCompiledPattern()))
                     modified_record = true;
             } else
                 ERROR("unhandled Augmentor type!");
@@ -359,6 +388,8 @@ void ProcessAugmentorArgs(char **argv, std::vector<AugmentorDescriptor> * const 
                                                                                     field_or_subfield_contents));
         } else if (std::strcmp(*argv, "--add-subfield") == 0) {
             ExtractCommandArgs(&argv, &tag, &subfield_code, &field_or_subfield_contents);
+            if (subfield_code == CompiledPattern::NO_SUBFIELD_CODE)
+                ERROR("missing subfield code for --add-subfield operation!");
             augmentors->emplace_back(AugmentorDescriptor::MakeAddSubfieldAugmentor(tag, subfield_code,
                                                                                    field_or_subfield_contents));
         } else if (std::strcmp(*argv, "--insert-field-if") == 0) {
@@ -371,6 +402,8 @@ void ProcessAugmentorArgs(char **argv, std::vector<AugmentorDescriptor> * const 
                                                                                     field_or_subfield_contents));
         } else if (std::strcmp(*argv, "--add-subfield-if") == 0) {
             ExtractCommandArgs(&argv, &tag, &subfield_code, &compiled_pattern, &field_or_subfield_contents);
+            if (subfield_code == CompiledPattern::NO_SUBFIELD_CODE)
+                ERROR("missing subfield code for --add-subfield-if operation!");
             augmentors->emplace_back(AugmentorDescriptor::MakeAddSubfieldIfAugmentor(tag, subfield_code, compiled_pattern,
                                                                                      field_or_subfield_contents));
         } else
