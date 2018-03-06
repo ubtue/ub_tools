@@ -100,6 +100,12 @@ bool CompiledPattern::matched(const MARC::Record &record) {
                 ERROR("Unexpected error while trying to match \"" + matcher_.getPattern() + "\" against a field: " + err_msg);
         } else { // Match a subfield.
             const MARC::Subfields subfields(field.getSubfields());
+            for (const auto &subfield : subfields) {
+                if (subfield.code_ == subfield_code_ and matcher_.matched(subfield.value_, &err_msg))
+                    return true;
+                if (unlikely(not err_msg.empty()))
+                    ERROR("Unexpected error while trying to match \"" + matcher_.getPattern() + "\" against a field: " + err_msg);
+            }
         }
     }
 
