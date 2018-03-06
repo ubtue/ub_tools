@@ -50,7 +50,7 @@ void Usage() {
               << "               contents replaced.\n"
               << "           --add-subfield field_and_subfield_spec new_subfield_data\n"
               << "               Any field with a matching tag will have a new subfield inserted.\n"
-              << "           --insert-field-if field_or_subfield_spec field_or_subfield_spec_and_pcre_regex\n"
+              << "           --insert-field-if field_or_subfield_spec field_or_subfield_spec_and_pcre_regex"
               << " new_field_or_subfield_data\n"
               << "               Keep only records that have a bibliographic level matching any of the specified\n"
               << "               characters.  (Comparsion against leader position 07.)\n"
