@@ -172,7 +172,6 @@ public:
     };
 
 public:
-    static void LoadMapFile(const std::string &filename, std::unordered_map<std::string, std::string> * const from_to_map);
     static const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &map_directory_path);
 
     static std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_directory_path);
