@@ -164,6 +164,11 @@ public:
 
     void addSubfield(const char subfield_code, const std::string &subfield_value);
 
+    /** \brief Replaces the contents of the first subfield w/ the specified subfield code.
+     *  \return True if we replaced the subfield contents and false if a subfield w/ the given code was not found.
+     */
+    bool replaceFirstSubfield(const char subfield_code, const std::string &new_subfield_value);
+
     /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes".
      *  \return The values of the subfields with matching codes.
      */
@@ -235,6 +240,9 @@ public:
         inline const std::string &getContents() const { return contents_; }
         inline std::string getContents() { return contents_; }
         inline void setContents(const std::string &new_field_contents) { contents_ = new_field_contents; }
+        inline void setContents(const Subfields &subfields, const char indicator1 = ' ', const char indicator2 = ' ') {
+            setContents(std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString());
+        }
         inline bool isControlField() const __attribute__ ((pure)) { return tag_ <= "009"; }
         inline bool isDataField() const __attribute__ ((pure)) { return tag_ > "009"; }
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
