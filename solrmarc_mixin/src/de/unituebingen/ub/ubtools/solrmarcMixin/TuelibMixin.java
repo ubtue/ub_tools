@@ -911,8 +911,24 @@ public class TuelibMixin extends SolrIndexerMixin {
         return translation_map;
     }
 
+    /*
+     * try to translate a string
+     *
+     * @param string        string to translate
+     * @param langShortcut  language code
+     *
+     * @return              translated string if available in a foreign language, null else
+     */
+    static public String getTranslationOrNull(final String string, final String langShortcut) {
+       if (langShortcut.equals("de"))
+           return null;
+       final Map<String, String> translationMap = getTranslationMap(langShortcut);
+       return translationMap.get(string);
+    }
+
+
     /**
-     * translate a string
+     * translate a string if available
      *
      * @param string        string to translate
      * @param langShortcut  language code
@@ -923,14 +939,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (langShortcut.equals("de")) {
             return string;
         }
-
-        Map<String, String> translationMap = getTranslationMap(langShortcut);
+        final Map<String, String> translationMap = getTranslationMap(langShortcut);
         final String translatedString = translationMap.get(string);
-        if (translatedString != null) {
-            return translatedString;
-        } else {
-            return string;
-        }
+        return (translatedString != null) ? translatedString : string;
     }
 
     // Returns the contents of the first data field with tag "tag" and subfield code "subfield_code" or null if no
@@ -1367,6 +1378,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "[a-z]" : extractNormalizedSubfieldPatternHelper(subfldTags));
         for (final VariableField vf : marcFieldList) {
             final StringBuffer buffer = new StringBuffer("");
+            final List<String> complexElements = new ArrayList<String>();
             final DataField marcField = (DataField) vf;
             // Skip fields that do not match our criteria
             if (includeFieldPredicate != null && (!includeFieldPredicate.test(marcField)))
@@ -1409,10 +1421,15 @@ public class TuelibMixin extends SolrIndexerMixin {
 
                     }
                     buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
+                    complexElements.add(term);
                 }
             }
-            if (buffer.length() > 0)
-                collector.add(DataUtil.cleanData(buffer.toString()));
+            if (buffer.length() > 0) {
+                // Try a translation once again in case a whole expression matches
+                final String complexTranslation = (complexElements.size() > 1) ?
+                                                  getTranslationOrNull(String.join(" / ", complexElements), langShortcut) : null;
+                collector.add(complexTranslation != null ? complexTranslation : DataUtil.cleanData(buffer.toString()));
+            }
         }
 
     } // end extractTopicsHelper
