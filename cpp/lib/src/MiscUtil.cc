@@ -837,6 +837,8 @@ static std::string ExtractBourneString(std::string::const_iterator &ch, const st
                     value += '\\';
                 value += *ch;
                 backslash_seen = false;
+            else if (*ch == '\\')
+                state = backslash_seen;
             } else if (*ch == '"')
                 state = NOT_ESCAPED;
             else
@@ -865,7 +867,7 @@ static bool ExportsParseLine(std::string line, std::string * const key, std::str
     *key = ExtractBourneString(ch, line.cend(), '=');
     if (key->empty())
         return false;
-    ++ch;
+    ++ch; //
     *value = ExtractBourneString(ch, line.cend(), '#');
     return true;
 }
