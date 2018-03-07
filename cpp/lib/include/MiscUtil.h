@@ -114,6 +114,13 @@ bool EnvironmentVariableExists(const std::string &name);
 void SetEnv(const std::string &name, const std::string &value, const bool overwrite = true);
 
 
+/** \brief Expects Bourne Shell "export" statments in "path" and calls setenv(3) on any export found.
+ *  \param overwrite Whether or not the current values of environment variables should be overwritten.
+ *  \note Aborts if we fail to parse any line starting w/ "export.
+ */
+void LoadExports(const std::string &path, const bool overwrite = true);
+
+
 // \return The POSIX login name. */
 std::string GetUserName();
 
