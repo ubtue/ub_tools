@@ -442,13 +442,13 @@ void SetEnvironmentVariables(const std::string &vufind_system_type_string) {
     };
 
     std::string variables;
-    for (const auto &key_and_value : keys_and_values) {
-        MiscUtil::SetEnv(key_and_value.first, key_and_value.second, /* overwrite = */ true);
+    for (const auto &key_and_value : keys_and_values)
         variables += "export " + key_and_value.first + "=" + key_and_value.second + "\n";
-    }
 
-    const std::string script_path("/etc/profile.d/vufind.sh");
-    FileUtil::WriteString(script_path, variables);
+    const std::string vufind_script_path("/etc/profile.d/vufind.sh");
+    FileUtil::WriteString(vufind_script_path, variables);
+    MiscUtil::LoadExports(vufind_script_path, /* overwrite = */ true);
+    MiscUtil::LoadExports("/etc/profile.d/rh-php71.sh", /* overwrite = */ true);
 }
 
 
