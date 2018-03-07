@@ -407,7 +407,7 @@ int main(int argc, char **argv) {
     // Read optional stopword lists:
     std::map<std::string, std::unordered_set<std::string>> language_codes_to_stopword_sets;
     for (int arg_no(verbose ? 4 : 3); arg_no < argc; ++arg_no) {
-        const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("stopwords\\....$"));
+        RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("stopwords\\....$"));
         const std::string stopwords_filename(argv[arg_no]);
         std::string err_msg;
         if (not matcher->matched(stopwords_filename, &err_msg))

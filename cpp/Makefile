@@ -28,16 +28,16 @@ all: .deps $(PROGS)
 	$(MAKE) -C tests
 	$(MAKE) -C test
 
-%.o: %.cc
+%.o: %.cc Makefile
 	@echo "Compiling $<..."
 	@$(CCC) $(CCCFLAGS) $< -c
 
-$(PROGS): % : %.o lib/libubtue.a
+$(PROGS): % : %.o lib/libubtue.a Makefile
 	@echo "Linking $@..."
 	@$(CCC) -rdynamic $< -o $@ $(LIBS)
 
 -include .deps
-.deps: *.cc $(INC)/*.h Makefile
+.deps: *.cc $(INC)/*.h
 	$(MAKE_DEPS) -I $(INC) *.cc
 
 lib/libubtue.a: $(wildcard lib/src/*.cc) $(wildcard lib/include/*.h)
@@ -48,17 +48,17 @@ tests:
 
 install: regular_install cgi_install data_install
 
-regular_install: $(INSTALL_PROGS)
+regular_install: $(INSTALL_PROGS) Makefile
 	@echo "Installing programs..."
 	cp $(INSTALL_PROGS) /usr/local/bin/
 
-cgi_install: $(CGI_PROGS)
+cgi_install: $(CGI_PROGS) Makefile
 	@echo "Installing CGI programs..."
 	mkdir --parents /var/www/cgi-bin
 	cp $(CGI_PROGS) /var/www/cgi-bin/
 
 data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.template data/*.conf \
-              data/crossref_journal_list data/keyword_normalistion.map
+              data/crossref_journal_list data/keyword_normalistion.map Makefile
 	@echo "Installing data..."
 	mkdir --parents /usr/local/var/lib/tuelib/bibleRef/
 	cp data/books_of_the_bible_to_canonical_form.map data/books_of_the_bible_to_code.map \
@@ -77,7 +77,7 @@ data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.tem
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
 
-clean: local_clean
+clean: local_clean Makefile
 	make -C lib clean
 	make -C tests clean
 	make -C test clean

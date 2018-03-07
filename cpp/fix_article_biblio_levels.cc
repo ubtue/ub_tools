@@ -92,7 +92,7 @@ bool HasMonographParent(const std::string &subfield, const MarcRecord &record) {
     if (subfield_contents.empty())
         return false;
 
-    static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\\(.+\\)(\\d{8}[\\dX])"));
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\\(.+\\)(\\d{8}[\\dX])"));
     if (not matcher->matched(subfield_contents))
         return false;
 
