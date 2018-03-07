@@ -35,9 +35,10 @@
 #include <list>
 #include <map>
 #include <set>
-#include <vector>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
+#include <vector>
 #include <cerrno>
 #include <clocale>
 #include <cstdlib>
@@ -113,6 +114,13 @@ bool EnvironmentVariableExists(const std::string &name);
 void SetEnv(const std::string &name, const std::string &value, const bool overwrite = true);
 
 
+/** \brief Expects Bourne Shell "export" statments in "path" and calls setenv(3) on any export found.
+ *  \param overwrite Whether or not the current values of environment variables should be overwritten.
+ *  \note Aborts if we fail to parse any line starting w/ "export.
+ */
+void LoadExports(const std::string &path, const bool overwrite = true);
+
+
 // \return The POSIX login name. */
 std::string GetUserName();
 
@@ -156,6 +164,16 @@ bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &vertices,
 
 // \return the list of functions that were called at the point of invocation of this function.
 std::vector<std::string> GetCallStack();
+
+
+/** \brief Loads key/value pairs from a file.
+ *  \note Keys and values must occur one pair per line.  Keys and values are separated by an equal sign.  A backslash acts as
+ *        an escape character, allowing the embedding of equal signs, hash signs, backslashes etc.  Unescaped hash signs allow
+ *        for comments which always extend to the end of a line.
+ *  \return  The number size of the map after loading the keys and values.
+ *  \note If "filename" does not exist or can't bne read, this function aborts.
+ */
+size_t LoadMapFile(const std::string &filename, std::unordered_map<std::string, std::string> * const from_to_map);
 
 
 } // namespace MiscUtil

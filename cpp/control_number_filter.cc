@@ -44,7 +44,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MarcRe
                        MarcWriter * const marc_writer)
 {
     std::string err_msg;
-    const RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
+    RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
     if (matcher == nullptr)
         logger->error("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
 

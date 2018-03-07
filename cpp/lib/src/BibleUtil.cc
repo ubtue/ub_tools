@@ -346,7 +346,7 @@ bool CanParseBibleReference(const std::string &bib_ref_candidate) {
 
 // Squeezes out spaces after a leading number, e.g. "1. mos" => "1.mos" or "1 mos" => "1mos".
 static std::string CanoniseLeadingNumber(const std::string &bible_reference_candidate) {
-    static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\d\\.?\\s+\\S+"));
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\d\\.?\\s+\\S+"));
     std::string err_msg;
     if (not matcher->matched(bible_reference_candidate, &err_msg)) {
         if (not err_msg.empty())

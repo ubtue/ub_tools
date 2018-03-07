@@ -33,10 +33,19 @@ namespace REST {
 enum QueryType { GET, PUT, POST, DELETE };
 
 
+/** \brief  Executes a REST operation of a given type by using Downloader
+ *  \return The response body.
+ *  \throws std::runtime_error if an error occurred.
+ */
 std::string Query(const Url &url, const QueryType query_type, const std::string &data = "",
                   const Downloader::Params &params = Downloader::Params());
 
 
+/** \brief  Same as "Query", but takes JSON as request body and delivers JSON result object.
+ *  \return The response body as parsed JSONNode.
+ *  \throws std::runtime_error if an error occurred
+ *          (e.g. Downloader problems, or response could not be parsed as JSON)
+ */
 std::shared_ptr<JSON::JSONNode> QueryJSON(const Url &url, const QueryType query_type,
                                           const std::shared_ptr<const JSON::JSONNode> &data = nullptr,
                                           const Downloader::Params &params = Downloader::Params());

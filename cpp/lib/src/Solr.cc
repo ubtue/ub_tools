@@ -28,11 +28,12 @@ namespace Solr {
 
 
 bool Query(const std::string &query, const std::string &fields, std::string * const xml_result,
-           const std::string &host_and_port, const unsigned timeout, const QueryResultFormat query_result_format)
+           const std::string &host_and_port, const unsigned timeout, const QueryResultFormat query_result_format,
+           const unsigned max_no_of_rows)
 {
     const std::string url("http://" + host_and_port + "/solr/biblio/select?q=" + UrlUtil::UrlEncode(query)
                           + "&wt=" + std::string(query_result_format == XML ? "xml" : "json")
-                          + (fields.empty() ? "" : "&fl=" + fields) + "&rows=999999");
+                          + (fields.empty() ? "" : "&fl=" + fields) + "&rows=" + std::to_string(max_no_of_rows));
     return Download(url, timeout * 1000, xml_result);
 }
 
