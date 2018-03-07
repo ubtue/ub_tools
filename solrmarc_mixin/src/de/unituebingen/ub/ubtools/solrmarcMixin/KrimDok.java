@@ -6,8 +6,8 @@ import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexerMixin;
 
 public class KrimDok extends SolrIndexerMixin {
-    public boolean isAvailableForPDA(final Record record) {
+    public String isAvailableForPDA(final Record record) {
         final List fields = record.getVariableFields("PDA");
-        return !fields.isEmpty();
+        return Boolean.toString(!fields.isEmpty());
     }
 }

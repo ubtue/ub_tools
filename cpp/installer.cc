@@ -219,14 +219,14 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tool
 void InstallUBTools(const bool make_install) {
     // First install iViaCore-mkdep...
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY + "/cpp/lib/mkdep");
-    ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "-j4", "install" });
+    ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4", "install" });
 
     // ...and then install the rest of ub_tools:
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
     if (make_install)
-        ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "-j4", "install" });
+        ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4", "install" });
     else
-        ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "-j4" });
+        ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4" });
 
     Echo("Installed ub_tools.");
 }
@@ -442,13 +442,12 @@ void SetEnvironmentVariables(const std::string &vufind_system_type_string) {
     };
 
     std::string variables;
-    for (const auto &key_and_value : keys_and_values) {
-        MiscUtil::SetEnv(key_and_value.first, key_and_value.second, /* overwrite = */ true);
+    for (const auto &key_and_value : keys_and_values)
         variables += "export " + key_and_value.first + "=" + key_and_value.second + "\n";
-    }
 
-    const std::string script_path("/etc/profile.d/vufind.sh");
-    FileUtil::WriteString(script_path, variables);
+    const std::string vufind_script_path("/etc/profile.d/vufind.sh");
+    FileUtil::WriteString(vufind_script_path, variables);
+    MiscUtil::LoadExports(vufind_script_path, /* overwrite = */ true);
 }
 
 

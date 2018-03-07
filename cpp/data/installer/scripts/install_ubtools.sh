@@ -41,10 +41,10 @@ else
 fi
 
 echo "building prerequisites"
-cd /usr/local/ub_tools/cpp/lib/mkdep && CCC=clang++ make install
+cd /usr/local/ub_tools/cpp/lib/mkdep && CCC=clang++ make --jobs=4 install
 
 echo "building cpp installer"
-cd /usr/local/ub_tools/cpp && CCC=clang++ make installer
+cd /usr/local/ub_tools/cpp && CCC=clang++ make --jobs=4 installer
 
 echo "starting cpp installer"
 /usr/local/ub_tools/cpp/installer $*
