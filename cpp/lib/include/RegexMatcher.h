@@ -61,7 +61,7 @@ public:
      *  character of the matched part of "s" respectively.
      */
     bool matched(const std::string &subject, std::string * const err_msg = nullptr,
-                 size_t * const start_pos = nullptr, size_t * const end_pos = nullptr) const;
+                 size_t * const start_pos = nullptr, size_t * const end_pos = nullptr);
 
     const std::string &getPattern() const { return pattern_; }
     bool utf8Enabled() const { return options_ & ENABLE_UTF8; }
