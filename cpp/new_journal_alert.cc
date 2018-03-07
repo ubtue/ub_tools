@@ -216,7 +216,7 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
 
     std::string json_result;
     if (unlikely(not Solr::Query(QUERY, "id,title,last_modification_time,container_ids_and_titles", &json_result,
-                                 solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
+                                 solr_host_and_port, /* timeout = */ 5, Solr::JSON, /* max_no_of_rows */ 1000000)))
         ERROR("Solr query failed or timed-out: \"" + QUERY + "\".");
 
     return ExtractNewIssueInfos(notified_db, new_notification_ids, json_result, new_issue_infos,
