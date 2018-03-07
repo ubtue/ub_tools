@@ -867,7 +867,7 @@ static bool ExportsParseLine(std::string line, std::string * const key, std::str
     *key = ExtractBourneString(ch, line.cend(), '=');
     if (key->empty())
         return false;
-    ++ch; //
+    ++ch;
     *value = ExtractBourneString(ch, line.cend(), '#');
     return true;
 }
