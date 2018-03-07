@@ -30,8 +30,8 @@ EXPOSE 80
 # download & install ub_tools
 RUN git clone https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
 RUN /usr/local/ub_tools/cpp/data/installer/scripts/install_ubuntu_packages.sh
-RUN cd /usr/local/ub_tools/cpp/lib/mkdep && CCC=clang++ make install
-RUN cd /usr/local/ub_tools/cpp && CCC=clang++ make zts_client && CCC=clang++ make zotero_crawler && cp zts_client zotero_crawler /usr/local/bin/
+RUN cd /usr/local/ub_tools/cpp/lib/mkdep && CCC=clang++ make --jobs=4 install
+RUN cd /usr/local/ub_tools/cpp && CCC=clang++ make --jobs=4 zts_client && CCC=clang++ make --jobs=4 zotero_crawler && cp zts_client zotero_crawler /usr/local/bin/
 
 # Update the default apache site with the config we created
 ADD apache-config.conf /etc/apache2/sites-enabled/000-default.conf

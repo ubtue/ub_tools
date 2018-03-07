@@ -42,24 +42,15 @@ if [[ $1 == "tuefind" ]]; then
         java-*-openjdk-devel \
         httpd mariadb mariadb-server mod_ssl
 
-    # special handling for php+composer: use rh-php71
-    # remove old php71w (Webtatic) if installed
+    # special handling for php+composer: standard php needs to be replaced by php71w
+    # (standard is installed as dependancy)
     if yum list installed php71w-common | grep --quiet php71w-common; then
-        ColorEcho "Removing PHP 7.1 (Webtatic)..."
-        yum --assumeyes remove php71w*
-        yum --assumeyes remove *php71w
-    fi
-
-    # install PHP 7.1 (RedHat)
-    if yum list installed rh-php71 | grep --quiet rh-php71; then
-        ColorEcho "PHP7.1 (RedHat) already installed"
+        ColorEcho "PHP 7.1 already installed"
     else
-        ColorEcho "Installing PHP 7.1 (RedHat)"
-        yum --assumeyes install centos-release-scl
-        yum --assumeyes install rh-php71 rh-php71-php rh-php71-php-common rh-php71-php-devel rh-php71-php-gd rh-php71-php-intl rh-php71-php-ldap rh-php71-php-mbstring rh-php71-php-mcrypt rh-php71-php-mysqlnd rh-php71-php-xml
-        sed -i 's/short_open_tag = Off/short_open_tag = On/' /etc/opt/rh/rh-php71/php.ini
-        ln -s /opt/rh/rh-php71/enable /etc/profile.d/rh-php71.sh
-        source /opt/rh/rh-php71/enable
+        ColorEcho "replacing standard PHP with PHP 7.1"
+        rpm -Uvh https://mirror.webtatic.com/yum/el7/webtatic-release.rpm
+        yum --assumeyes remove 'php-*'
+        yum --assumeyes install php71w-cli php71w-common php71w-devel php71w-gd php71w-intl php71w-ldap php71w-mbstring php71w-mcrypt php71w-mysqlnd php71w-xml mod_php71w
         systemctl restart httpd
     fi
 
