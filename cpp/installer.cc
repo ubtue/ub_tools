@@ -219,14 +219,14 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tool
 void InstallUBTools(const bool make_install) {
     // First install iViaCore-mkdep...
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY + "/cpp/lib/mkdep");
-    ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "-j4", "install" });
+    ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4", "install" });
 
     // ...and then install the rest of ub_tools:
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
     if (make_install)
-        ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "-j4", "install" });
+        ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4", "install" });
     else
-        ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "-j4" });
+        ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4" });
 
     Echo("Installed ub_tools.");
 }
