@@ -335,4 +335,13 @@ bool ExecSubcommandAndCaptureStdoutAndStderr(const std::string &command, const s
 }
 
 
+bool ShouldScheduleNewProcess() {
+    static const long NO_OF_CORES(::sysconf(_SC_NPROCESSORS_ONLN));
+    double loadavg;
+    if (unlikely(::getloadavg(&loadavg, 1) == -1))
+        ERROR("getloadavg(3) failed!");
+    return loadavg < NO_OF_CORES - 0.5;
+}
+
+
 } // namespace ExecUtil

@@ -164,6 +164,11 @@ public:
 
     void addSubfield(const char subfield_code, const std::string &subfield_value);
 
+    /** \brief Replaces the contents of the first subfield w/ the specified subfield code.
+     *  \return True if we replaced the subfield contents and false if a subfield w/ the given code was not found.
+     */
+    bool replaceFirstSubfield(const char subfield_code, const std::string &new_subfield_value);
+
     /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes".
      *  \return The values of the subfields with matching codes.
      */
@@ -235,6 +240,9 @@ public:
         inline const std::string &getContents() const { return contents_; }
         inline std::string getContents() { return contents_; }
         inline void setContents(const std::string &new_field_contents) { contents_ = new_field_contents; }
+        inline void setContents(const Subfields &subfields, const char indicator1 = ' ', const char indicator2 = ' ') {
+            setContents(std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString());
+        }
         inline bool isControlField() const __attribute__ ((pure)) { return tag_ <= "009"; }
         inline bool isDataField() const __attribute__ ((pure)) { return tag_ > "009"; }
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
@@ -351,12 +359,16 @@ public:
     char getBibliographicLevel() const { return leader_[7]; }
     void setBibliographicLevel(const char new_bibliographic_level) { leader_[7] = new_bibliographic_level; }
 
-    void insertField(const Tag &new_field_tag, const std::string &new_field_value);
+    /** \return True if we added the new field and false if it is a non-repeatable field and we already have this tag.
+     *  \note   "new_field_value" includes the two indicators and any subfield structure if "new_field_tag" references a
+     *          variable field.
+     */
+    bool insertField(const Tag &new_field_tag, const std::string &new_field_value);
 
     inline Field getField(const size_t field_index) { return fields_[field_index]; }
     inline const Field &getField(const size_t field_index) const { return fields_[field_index]; }
 
-    inline void insertField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
+    inline bool insertField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
                             const char indicator2 = ' ')
     {
         std::string new_field_value;
@@ -364,10 +376,10 @@ public:
         new_field_value += indicator2;
         for (const auto &subfield : subfields)
             new_field_value += subfield.toString();
-        insertField(new_field_tag, new_field_value);
+        return insertField(new_field_tag, new_field_value);
     }
 
-    inline void insertField(const Tag &new_field_tag, std::vector<Subfield> subfields, const char indicator1 = ' ',
+    inline bool insertField(const Tag &new_field_tag, std::vector<Subfield> subfields, const char indicator1 = ' ',
                             const char indicator2 = ' ')
     {
         std::string new_field_value;
@@ -375,7 +387,7 @@ public:
         new_field_value += indicator2;
         for (const auto &subfield : subfields)
             new_field_value += subfield.toString();
-        insertField(new_field_tag, new_field_value);
+        return insertField(new_field_tag, new_field_value);
     }
 
     inline void appendField(const Tag &new_field_tag, const std::string &field_contents, const char indicator1 = ' ',

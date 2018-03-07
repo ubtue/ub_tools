@@ -61,6 +61,17 @@ void Subfields::addSubfield(const char subfield_code, const std::string &subfiel
 }
 
 
+bool Subfields::replaceFirstSubfield(const char subfield_code, const std::string &new_subfield_value) {
+    auto replacement_location(subfields_.begin());
+    while (replacement_location != subfields_.end() and replacement_location->code_ < subfield_code)
+        ++replacement_location;
+    if (replacement_location == subfields_.end())
+        return false;
+    replacement_location->value_ = new_subfield_value;
+    return true;
+}
+
+
 bool Record::Field::operator<(const Record::Field &rhs) const {
     if (tag_ < rhs.tag_)
         return true;
@@ -334,11 +345,15 @@ size_t Record::findFieldsInLocalBlock(const Tag &field_tag, const std::string &i
 }
 
 
-void Record::insertField(const Tag &new_field_tag, const std::string &new_field_value) {
+bool Record::insertField(const Tag &new_field_tag, const std::string &new_field_value) {
     auto insertion_location(fields_.begin());
     while (insertion_location != fields_.end() and new_field_tag > insertion_location->getTag())
         ++insertion_location;
+    if (insertion_location != fields_.begin() and (insertion_location - 1)->getTag() == new_field_tag
+        and not IsRepeatableField(new_field_tag))
+        return false;
     fields_.emplace(insertion_location, new_field_tag, new_field_value);
+    return true;
 }
 
 

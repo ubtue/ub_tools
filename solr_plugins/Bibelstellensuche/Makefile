@@ -26,7 +26,7 @@ COMPILE = $(JAVAC) $(JAVAFLAGS)
 JAR=jar cvf 
 JAR_FLAGS=-C $(BIN)
 
-$(JAR_FILE): $(SRC)/$(PACKAGE_DIRECOTRY)/*.java
+$(JAR_FILE): $(SRC)/$(PACKAGE_DIRECOTRY)/*.java Makefile
 	test -d bin || mkdir bin
 	$(COMPILE) $(SRC)/$(PACKAGE_DIRECOTRY)/*.java
 	$(JAR) $(JAR_FILE) $(JAR_FLAGS) $(PACKAGE_DIRECOTRY)

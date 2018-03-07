@@ -21,21 +21,25 @@
 #include <memory>
 #include "FileUtil.h"
 #include "IniFile.h"
+#include "UrlUtil.h"
 
 
-std::unique_ptr<Elasticsearch> Elasticsearch::FactoryByConfigFile() {
+std::shared_ptr<Elasticsearch::Configuration> Elasticsearch::Configuration::FactoryByConfigFile() {
     const std::string ini_path("/usr/local/var/lib/tuelib/Elasticsearch.conf");
     if (not FileUtil::Exists(ini_path))
         ERROR("config file missing: " + ini_path);
 
     const IniFile ini_file(ini_path);
-    return std::unique_ptr<Elasticsearch>(new Elasticsearch(Url(ini_file.getString("Elasticsearch", "host")),
-                                          ini_file.getString("Elasticsearch", "index"),
-                                          ini_file.getString("Elasticsearch", "document_type")));
+
+    std::shared_ptr<Elasticsearch::Configuration> config(new Elasticsearch::Configuration);
+    config->host_ = Url(ini_file.getString("Elasticsearch", "host"));
+    config->index_ = ini_file.getString("Elasticsearch", "index");
+    config->document_type_ = ini_file.getString("Elasticsearch", "document_type");
+    return config;
 }
 
 
-std::shared_ptr<JSON::ObjectNode> Elasticsearch::FieldsToJSON(const Fields &fields) {
+std::shared_ptr<JSON::ObjectNode> FieldsToJSON(const Elasticsearch::Fields &fields) {
     std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
     for (const auto &field : fields) {
         std::shared_ptr<JSON::StringNode> value_node(new JSON::StringNode(field.second));
@@ -45,8 +49,8 @@ std::shared_ptr<JSON::ObjectNode> Elasticsearch::FieldsToJSON(const Fields &fiel
 }
 
 
-Elasticsearch::Fields Elasticsearch::JSONToFields(const std::shared_ptr<const JSON::ObjectNode> &json_object) {
-    Fields fields;
+Elasticsearch::Fields JSONToFields(const std::shared_ptr<const JSON::ObjectNode> &json_object) {
+    Elasticsearch::Fields fields;
     for (const auto &key_and_value : *json_object) {
         std::shared_ptr<JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie(key_and_value.first, key_and_value.second));
         fields[key_and_value.first] = string_node->getValue();
@@ -55,62 +59,72 @@ Elasticsearch::Fields Elasticsearch::JSONToFields(const std::shared_ptr<const JS
 }
 
 
-std::shared_ptr<JSON::ObjectNode> Elasticsearch::query(const std::string &action, const REST::QueryType query_type, const std::shared_ptr<const JSON::JSONNode> &data) {
-    Url url(host_.toString() + "/" + action);
+/** \brief Sends REST queries to Elasticsearch server
+*   \throws std::runtime_error on REST error or if the JSON response contained an error flag.
+*/
+std::shared_ptr<JSON::ObjectNode> Elasticsearch::Query(const Url &host, const std::string &action, const REST::QueryType query_type, const std::shared_ptr<const JSON::JSONNode> &data) {
+    Url url(host.toString() + "/" + action);
     Downloader::Params params;
-    if (data != nullptr)
+    if (data != nullptr) {
         params.additional_headers_.push_back("Content-Type: application/json");
+
+        // debug request data
+        DEBUG(data->toString());
+    }
     std::shared_ptr<JSON::JSONNode> result(REST::QueryJSON(url, query_type, data, params));
+
     std::shared_ptr<JSON::ObjectNode> result_object(JSON::JSONNode::CastToObjectNodeOrDie("Elasticsearch result", result));
     if (result_object->hasNode("error"))
-        throw std::runtime_error("in Elasticsearch::query: " + result_object->getNode("error")->toString());
+        throw std::runtime_error("in Elasticsearch::Query: " + result_object->getNode("error")->toString());
 
+    // debug response data
     DEBUG(result_object->toString());
 
     return result_object;
 }
 
 
-void Elasticsearch::createDocument(const Document &document) {
+void Elasticsearch::InsertDocument(const Url &host, const std::string &index, const Document &document) {
     const std::shared_ptr<JSON::ObjectNode> tree_root(FieldsToJSON(document.fields_));
-    const std::string action(index_ + "/" + document_type_ + "/" + document.id_ + "?op_type=create");
-    query(action, REST::QueryType::PUT, tree_root);
+    const std::string action(index + "/" + document.type_ + "/" + document.id_ + "?op_type=create");
+    Query(host, action, REST::QueryType::PUT, tree_root);
 }
 
 
-void Elasticsearch::createIndex() {
-    query(index_, REST::QueryType::PUT);
+void Elasticsearch::CreateIndex(const Url &host, const std::string &index) {
+    Query(host, index, REST::QueryType::PUT);
 }
 
 
-void Elasticsearch::deleteDocument(const std::string &id) {
-    const std::string action(index_ + "/" + document_type_ + "/" + id);
-    query(action, REST::QueryType::DELETE);
+void Elasticsearch::DeleteDocument(const Url &host, const std::string &index, const std::string &type, const std::string &id) {
+    const std::string action(index + "/" + type + "/" + id);
+    Query(host, action, REST::QueryType::DELETE);
 }
 
 
-void Elasticsearch::deleteIndex() {
-    query(index_, REST::QueryType::DELETE);
+void Elasticsearch::DeleteIndex(const Url &host, const std::string &index) {
+    Query(host, index, REST::QueryType::DELETE);
 }
 
 
-Elasticsearch::Document Elasticsearch::getDocument(const std::string &id) {
-    const std::string action(index_ + "/" + document_type_ + "/" + id);
-    std::shared_ptr<JSON::ObjectNode> result(query(action, REST::QueryType::GET));
+Elasticsearch::Document Elasticsearch::GetDocument(const Url &host, const std::string &index, const std::string &type, const std::string &id) {
+    const std::string action(index + "/" + type + "/" + id);
+    std::shared_ptr<JSON::ObjectNode> result(Query(host, action, REST::QueryType::GET));
     bool found(result->getOptionalBooleanValue("found", false));
     if (not found)
         throw std::runtime_error("in Elasticsearch::getDocument: document not found!" + result->toString());
 
     Document document;
     document.id_ = id;
+    document.type_ = type;
     document.fields_ = JSONToFields(result->getObjectNode("_source"));
     return document;
 }
 
 
-std::vector<std::string> Elasticsearch::getIndexList() {
+std::vector<std::string> Elasticsearch::GetIndexList(const Url &host) {
     const std::string action("_cluster/health?level=indices");
-    const std::shared_ptr<const JSON::ObjectNode> result_node(query(action, REST::QueryType::GET));
+    const std::shared_ptr<const JSON::ObjectNode> result_node(Query(host, action, REST::QueryType::GET));
 
     if (not result_node->hasNode("indices"))
         throw std::runtime_error("in Elasticsearch::getIndexList: indices key not found in result: " + result_node->toString());
@@ -124,11 +138,11 @@ std::vector<std::string> Elasticsearch::getIndexList() {
 }
 
 
-Elasticsearch::IndexStatistics Elasticsearch::getIndexStatistics() {
-    const std::string action(index_ + "/_stats");
-    const std::shared_ptr<const JSON::ObjectNode> result_object(query(action, REST::QueryType::GET));
+Elasticsearch::IndexStatistics Elasticsearch::GetIndexStatistics(const Url &host, const std::string &index) {
+    const std::string action(index + "/_stats");
+    const std::shared_ptr<const JSON::ObjectNode> result_object(Query(host, action, REST::QueryType::GET));
     const std::shared_ptr<const JSON::ObjectNode> indices_object(result_object->getObjectNode("indices"));
-    const std::shared_ptr<const JSON::ObjectNode> index_object(indices_object->getObjectNode(index_));
+    const std::shared_ptr<const JSON::ObjectNode> index_object(indices_object->getObjectNode(index));
     const std::shared_ptr<const JSON::ObjectNode> total_object(index_object->getObjectNode("total"));
     const std::shared_ptr<const JSON::ObjectNode> docs_object(total_object->getObjectNode("docs"));
     IndexStatistics stats;
@@ -137,25 +151,53 @@ Elasticsearch::IndexStatistics Elasticsearch::getIndexStatistics() {
 }
 
 
-bool Elasticsearch::hasDocument(const std::string &id) {
-    const std::string action(index_ + "/" + document_type_ + "/" + id);
-    const std::shared_ptr<const JSON::ObjectNode> result(query(action, REST::QueryType::GET));
+bool Elasticsearch::HasDocument(const Url &host, const std::string &index, const std::string &type, const std::string &id) {
+    const std::string action(index + "/" + type + "/" + id);
+    const std::shared_ptr<const JSON::ObjectNode> result(Query(host, action, REST::QueryType::GET));
     return result->getOptionalBooleanValue("found", false);
 }
 
 
-Elasticsearch::Documents Elasticsearch::searchAllDocuments() {
-    const std::string action(index_ + "/_search");
+void Elasticsearch::Reindex(const Url &host, const std::string &source_index, const std::string &target_index) {
+    std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
+
+    std::shared_ptr<JSON::ObjectNode> source_node(new JSON::ObjectNode);
+    std::shared_ptr<JSON::StringNode> source_index_node(new JSON::StringNode(source_index));
+    source_node->insert("index", source_index_node);
+    tree_root->insert("source", source_node);
+
+    std::shared_ptr<JSON::ObjectNode> dest_node(new JSON::ObjectNode);
+    std::shared_ptr<JSON::StringNode> dest_index_node(new JSON::StringNode(target_index));
+    dest_node->insert("index", dest_index_node);
+    tree_root->insert("dest", dest_node);
+
+    Query(host, "_reindex", REST::QueryType::POST, tree_root);
+}
+
+
+Elasticsearch::IdToDocumentMap Elasticsearch::GetDocuments(const Url &host, const std::string &index, const Fields &fields) {
+    std::string action(index + "/_search");
 
     const std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
     std::shared_ptr<JSON::ObjectNode> query_node(new JSON::ObjectNode);
     tree_root->insert("query", query_node);
-    std::shared_ptr<JSON::ObjectNode> match_all_node(new JSON::ObjectNode);
-    query_node->insert("match_all", match_all_node);
 
-    const std::shared_ptr<const JSON::ObjectNode> result_node(query(action, REST::QueryType::GET, tree_root));
+    if (fields.empty()) {
+        std::shared_ptr<JSON::ObjectNode> match_all_node(new JSON::ObjectNode);
+        query_node->insert("match_all", match_all_node);
+    } else {
+        std::string params;
+        for (const auto &field : fields) {
+            if (not params.empty())
+                params += "&";
+            params += UrlUtil::UrlEncode(field.first) + ":" + UrlUtil::UrlEncode(field.second);
+        }
+        action += "?q=" + params;
+    }
 
-    Documents documents;
+    const std::shared_ptr<const JSON::ObjectNode> result_node(Query(host, action, REST::QueryType::GET, tree_root));
+
+    IdToDocumentMap documents;
     if (result_node->hasNode("hits")) {
         const std::shared_ptr<const JSON::ObjectNode> hits_object(result_node->getObjectNode("hits"));
         const std::shared_ptr<const JSON::ArrayNode> hits_array(hits_object->getArrayNode("hits"));
@@ -174,23 +216,23 @@ Elasticsearch::Documents Elasticsearch::searchAllDocuments() {
 }
 
 
-void Elasticsearch::updateDocument(const Document &document) {
+void Elasticsearch::UpdateDocument(const Url &host, const std::string &index, const Document &document) {
     std::shared_ptr<JSON::ObjectNode> doc_node(FieldsToJSON(document.fields_));
     std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
     tree_root->insert("doc", doc_node);
 
-    const std::string action(index_ + "/" + document_type_ + "/" + document.id_ + "/_update");
-    query(action, REST::QueryType::POST, tree_root);
+    const std::string action(index + "/" + document.type_ + "/" + document.id_ + "/_update");
+    Query(host, action, REST::QueryType::POST, tree_root);
 }
 
 
-void Elasticsearch::updateOrInsertDocument(const Document &document) {
+void Elasticsearch::UpdateOrInsertDocument(const Url &host, const std::string &index, const Document &document) {
     std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
     std::shared_ptr<JSON::ObjectNode> doc_node(FieldsToJSON(document.fields_));
     tree_root->insert("doc", doc_node);
     std::shared_ptr<JSON::BooleanNode> doc_as_upsert_node(new JSON::BooleanNode(true));
     tree_root->insert("doc_as_upsert", doc_as_upsert_node);
 
-    const std::string action(index_ + "/" + document_type_ + "/" + document.id_ + "/_update");
-    query(action, REST::QueryType::POST, tree_root);
+    const std::string action(index + "/" + document.type_ + "/" + document.id_ + "/_update");
+    Query(host, action, REST::QueryType::POST, tree_root);
 }
