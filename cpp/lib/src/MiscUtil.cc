@@ -797,6 +797,99 @@ void SetEnv(const std::string &name, const std::string &value, const bool overwr
 }
 
 
+enum EscapeState { NOT_ESCAPED, SINGLE_QUOTED, DOUBLE_QUOTED };
+
+
+// Helper for ParseLine(),
+static std::string ExtractBourneString(std::string::const_iterator &ch, const std::string::const_iterator &end,
+                                       const char barrier)
+{
+    std::string value;
+
+    bool backslash_seen(false);
+    EscapeState state(NOT_ESCAPED);
+    for (;;) {
+        if (ch == end)
+            return value;
+
+        if (state == NOT_ESCAPED) {
+            if (backslash_seen) {
+                value += *ch;
+                backslash_seen = false;
+            } else if (*ch == '\'')
+                state = SINGLE_QUOTED;
+            else if (*ch == '"')
+                state = DOUBLE_QUOTED;
+            else if (*ch == '\\')
+                backslash_seen = true;
+            else if (*ch == barrier)
+                return value;
+            else
+                value += *ch;
+        } else if (state == SINGLE_QUOTED) {
+            if (*ch == '\'')
+                state = NOT_ESCAPED;
+            else
+                value += *ch;
+        } else if (state == DOUBLE_QUOTED) {
+            if (backslash_seen) {
+                if (*ch != '"' and *ch != '\\')
+                    value += '\\';
+                value += *ch;
+                backslash_seen = false;
+            } else if (*ch == '"')
+                state = NOT_ESCAPED;
+            else
+                value += *ch;
+        }
+
+        ++ch;
+    }
+
+    return value;
+}
+
+
+static bool ExportsParseLine(std::string line, std::string * const key, std::string * const value) {
+    key->clear(), value->clear();
+    
+    StringUtil::TrimWhite(&line);
+    if (not StringUtil::StartsWith(line, "export"))
+        return true;
+
+    // Remove leading "export":
+    line = line.substr(__builtin_strlen("export"));
+
+    StringUtil::TrimWhite(&line);
+    auto ch(line.cbegin());
+    *key = ExtractBourneString(ch, line.cend(), '=');
+    if (key->empty())
+        return false;
+    ++ch;
+    *value = ExtractBourneString(ch, line.cend(), '#');
+    return true;
+}
+
+
+void LoadExports(const std::string &path, const bool overwrite) {
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(path));
+    unsigned line_no(0);
+    while (not input->eof()) {
+        ++line_no;
+        
+        std::string line;
+        input->getline(&line);
+        std::string key, value;
+        if (not ExportsParseLine(line, &key, &value))
+            ERROR("failed to parse an export statement on line #" + std::to_string(line_no) + " in \"" + input->getPath()
+                  + "\"!");
+        if (not key.empty())
+            SetEnv(key, value, overwrite);
+    }
+}
+
+
+
 bool EnvironmentVariableExists(const std::string &name) {
     const char * const value(::getenv(name.c_str()));
     return value != nullptr;
