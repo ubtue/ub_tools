@@ -57,13 +57,6 @@ rm -f "${log}"
 OVERALL_START=$(date +%s.%N)
 
 
-StartPhase "Filter out Records of Other Institutions"
-delete_unused_local_data GesamtTiteldaten-"${date}".mrc \
-                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                         >> "${log}" 2>&1
-EndPhase
-
-
 StartPhase "Normalise URL's"
 normalise_urls GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
