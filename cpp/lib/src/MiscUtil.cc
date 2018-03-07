@@ -837,9 +837,9 @@ static std::string ExtractBourneString(std::string::const_iterator &ch, const st
                     value += '\\';
                 value += *ch;
                 backslash_seen = false;
-            else if (*ch == '\\')
-                state = backslash_seen;
-            } else if (*ch == '"')
+            } else if (*ch == '\\')
+                backslash_seen = true;
+            else if (*ch == '"')
                 state = NOT_ESCAPED;
             else
                 value += *ch;
