@@ -22,13 +22,13 @@
 
 
 #include <string>
-#include <climits>
 
 
 namespace Solr {
 
 
-const unsigned DEFAULT_TIMEOUT(10); // in s
+constexpr unsigned DEFAULT_TIMEOUT(10); // in s
+constexpr unsigned JAVA_INT_MAX(2147483647);
 
 
 enum QueryResultFormat { XML, JSON };
@@ -44,7 +44,7 @@ enum QueryResultFormat { XML, JSON };
  */
 bool Query(const std::string &query, const std::string &fields, std::string * const xml_result,
            const std::string &host_and_port = "localhost:8080", const unsigned timeout = DEFAULT_TIMEOUT,
-           const QueryResultFormat query_result_format = XML, const unsigned max_no_of_rows = UINT_MAX);
+           const QueryResultFormat query_result_format = XML, const unsigned max_no_of_rows = JAVA_INT_MAX);
 
 
 } // namespace Solr
