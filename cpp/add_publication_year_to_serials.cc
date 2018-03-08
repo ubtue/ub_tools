@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -41,14 +41,13 @@
 #include "util.h"
 
 
-static unsigned record_count(0);
-static unsigned modified_count(0);
+namespace {
 
 
 typedef std::map<std::string, std::string> SortList;
 
-  
-void Usage() {
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " sort_year_list title_data_marc_input title_date_marc_output\n";
     std::exit(EXIT_FAILURE);
 }
@@ -59,14 +58,17 @@ void SetupPublicationYearMap(File * const sort_year_list, SortList * const sort_
        std::string line(sort_year_list->getline());
        std::vector<std::string> ppns_and_sort_year;
        if (unlikely(StringUtil::SplitThenTrim(line, ":", " ",  &ppns_and_sort_year) != 2)) {
-           logger->warning("Invalid line: " + line);
+           WARNING("Invalid line: " + line);
            continue;
-       }       
+       }
        const std::string ppn(ppns_and_sort_year[0]);
        const std::string sort_year(ppns_and_sort_year[1]);
-       sort_year_map->insert(std::make_pair(ppn, sort_year));     
+       sort_year_map->insert(std::make_pair(ppn, sort_year));
     }
 }
+
+
+static unsigned modified_count(0);
 
 
 void ProcessRecord(MarcRecord * const record, const SortList &sort_year_map) {
@@ -77,23 +79,21 @@ void ProcessRecord(MarcRecord * const record, const SortList &sort_year_map) {
     std::string sort_year(iter->second);
 
     // We insert in 190j
-    const std::string _190Tag("190");
-    const char subfield_code('j');
     std::vector<size_t> _190Indices;
-    record->getFieldIndices(_190Tag, &_190Indices);
+    record->getFieldIndices("190", &_190Indices);
 
     // Case 1: If there is no 190 tag yet, insert subfield j and we are done
     if (_190Indices.empty()) {
-        record->insertSubfield(_190Tag, 'j', sort_year);
+        record->insertSubfield("190", 'j', sort_year);
         ++modified_count;
         return;
     }
 
     // Case 2: There is a 190 tag
-    for(auto &_190Index : _190Indices) {
-        Subfields _190Subfields = record->getSubfields(_190Tag);
-        if (_190Subfields.hasSubfield(subfield_code))
-            logger->error("We already have a 190j subfield for PPN " + record->getControlNumber());
+    for (auto &_190Index : _190Indices) {
+        Subfields _190Subfields = record->getSubfields("190");
+        if (_190Subfields.hasSubfield('j'))
+            ERROR("We already have a 190j subfield for PPN " + record->getControlNumber());
 
         // If there is no 190j subfield yet, we insert at the last field occurence
         if (_190Index == _190Indices.back()) {
@@ -106,15 +106,20 @@ void ProcessRecord(MarcRecord * const record, const SortList &sort_year_map) {
 
 
 void AddPublicationYearField(MarcReader * const marc_reader, MarcWriter * const marc_writer,
-                             const SortList &sort_year_map) {
+                             const SortList &sort_year_map)
+{
+    unsigned record_count(0);
     while (MarcRecord record = marc_reader->read()) {
         ProcessRecord(&record, sort_year_map);
         marc_writer->write(record);
         ++record_count;
     }
 
-    std::cerr << "Modified " << modified_count << " of " << record_count << " record(s).\n";
+    std::cout << "Modified " << modified_count << " of " << record_count << " record(s).\n";
 }
+
+
+} // unnamed namespace
 
 
 int main(int argc, char **argv) {
@@ -128,10 +133,10 @@ int main(int argc, char **argv) {
     const std::string marc_output_filename(argv[3]);
 
     if (unlikely(marc_input_filename == marc_output_filename))
-        logger->error("Marc input filename equals marc output filename");
+        ERROR("Marc input filename equals marc output filename");
 
     if (unlikely(marc_input_filename == sort_year_list_filename || marc_output_filename == sort_year_list_filename))
-        logger->error("Either marc input filename or marc output filename equals the sort list filename");
+        ERROR("Either marc input filename or marc output filename equals the sort list filename");
 
     try {
         std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
@@ -141,6 +146,6 @@ int main(int argc, char **argv) {
         SetupPublicationYearMap(sort_year_list.get(), &sort_year_map);
         AddPublicationYearField(marc_reader.get(), marc_writer.get(), sort_year_map);
     } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+        ERROR("caught exception: " + std::string(x.what()));
     }
 }
