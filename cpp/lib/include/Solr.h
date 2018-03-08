@@ -35,16 +35,18 @@ enum QueryResultFormat { XML, JSON };
 
 
 /** \brief Sends a query to a Solr instance.
- *  \param  query          The search query.
- *  \param  fields         The result fields that we want to get back.
- *  \param  xml_result     Here the returned XML will be stored.
- *  \param  host_and_port  Where we want to contact a Solr instance.
- *  \param  timeout        Up to how long, in seconds, we're willing to wait for a response.
+ *  \param  query               The search query.
+ *  \param  fields              The result fields that we want to get back.
+ *  \param  xml_or_json_result  Here the returned XML will be stored.
+ *  \param  err_msg             An error message will be stored here if anything goes.
+ *  \param  host_and_port       Where we want to contact a Solr instance.
+ *  \param  timeout             Up to how long, in seconds, we're willing to wait for a response.
  *  \return True if we got a valid response, else false.
  */
-bool Query(const std::string &query, const std::string &fields, std::string * const xml_result,
-           const std::string &host_and_port = "localhost:8080", const unsigned timeout = DEFAULT_TIMEOUT,
-           const QueryResultFormat query_result_format = XML, const unsigned max_no_of_rows = JAVA_INT_MAX);
+bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
+           std::string * const err_msg, const std::string &host_and_port = "localhost:8080",
+           const unsigned timeout = DEFAULT_TIMEOUT, const QueryResultFormat query_result_format = XML,
+           const unsigned max_no_of_rows = JAVA_INT_MAX);
 
 
 } // namespace Solr
