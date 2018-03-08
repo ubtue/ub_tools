@@ -104,6 +104,7 @@ marc_info
 marc_size
 marc_split
 marc_tag_grep
+marc21_size
 merge_differential_and_full_marc_updates
 merge_print_and_online
 mpi_stats
