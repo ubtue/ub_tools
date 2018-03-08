@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016,2017,2018 Library of the University of Tübingen
+    Copyright (C) 2016-2018 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -216,7 +216,7 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
 
     std::string json_result;
     if (unlikely(not Solr::Query(QUERY, "id,title,last_modification_time,container_ids_and_titles", &json_result,
-                                 solr_host_and_port, /* timeout = */ 5, Solr::JSON, /* max_no_of_rows */ 1000000)))
+                                 solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         ERROR("Solr query failed or timed-out: \"" + QUERY + "\".");
 
     return ExtractNewIssueInfos(notified_db, new_notification_ids, json_result, new_issue_infos,
