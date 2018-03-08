@@ -67,7 +67,9 @@ int main(int argc, char *argv[]) {
 
     try {
         std::string xml_or_json_result, err_msg;
-        if (not Solr::Query(query, fields, &xml_or_json_result, &err_msg, host_and_port, timeout, result_format)) {
+        if (not Solr::Query(query, fields, &xml_or_json_result, &err_msg, host_and_port, timeout, result_format,
+                            max_no_of_rows))
+        {
             std::cerr << xml_or_json_result << '\n';
             ERROR("Query failed! (" + err_msg + ")");
         }
