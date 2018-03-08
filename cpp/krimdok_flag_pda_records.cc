@@ -95,7 +95,7 @@ void FindNonMPIInstitutions(const MARC::Record &record,
 {
     non_mpi_institutions->clear();
 
-    for (const auto local_block_boundary : local_block_boundaries) {
+    for (const auto &local_block_boundary : local_block_boundaries) {
         std::vector<MARC::Record::const_iterator> fields;
         if (record.findFieldsInLocalBlock("852", "??", local_block_boundary, &fields) == 0)
             return;
@@ -129,7 +129,7 @@ void AddPDAFieldToRecords(const std::string &cutoff_year, MARC::Reader * const m
                 FindNonMPIInstitutions(record, local_block_boundaries, &non_mpi_institutions);
                 if (non_mpi_institutions.empty()) {
                     ++pda_field_added_count;
-                    record.insertField("PDA", MARC::Subfields({ MARC::Subfield('a', "yes") }));
+                    record.insertField("PDA", { { 'a', "yes" } });
                     marc_writer->write(record);
                     continue;
                 }
@@ -149,9 +149,6 @@ std::string GetCutoffYear(const unsigned no_of_years) {
 }
 
 
-const unsigned MAX_NO_OF_YEARS_TO_CONSIDER(10);
-
-
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
@@ -160,9 +157,6 @@ int main(int argc, char *argv[]) {
             Usage();
 
         const unsigned no_of_years(StringUtil::ToUnsigned(argv[1]));
-        if (no_of_years > MAX_NO_OF_YEARS_TO_CONSIDER)
-            logger->error("the number of years we want to consider is probably incorrect!");
-
         const std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2], MARC::Reader::AUTO));
         const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3], MARC::Writer::AUTO));
         AddPDAFieldToRecords(GetCutoffYear(no_of_years), marc_reader.get(), marc_writer.get());
