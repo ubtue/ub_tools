@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -29,8 +29,8 @@
 #include "StringUtil.h"
 
 
-__attribute__((noreturn)) void Usage() {
-    std::cerr << "usage: " << ::progname << " query fields host_and_port timeout query_result_format\n";
+[[noreturn]] void Usage() {
+    std::cerr << "usage: " << ::progname << " query fields host_and_port timeout query_result_format [max_no_of_rows]\n";
     std::cerr << "       Where \"query_result_format\" must be either \"XML\" or \"JSON\".\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -39,7 +39,7 @@ __attribute__((noreturn)) void Usage() {
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 6)
+    if (argc != 6 and argc != 7)
         Usage();
 
     const std::string query(argv[1]);
@@ -57,15 +57,23 @@ int main(int argc, char *argv[]) {
     else if (result_format_candidate == "json")
         result_format = Solr::QueryResultFormat::JSON;
     else
-        logger->error("unknown query result format \"" + result_format_candidate + "\"!");
+        ERROR("unknown query result format \"" + result_format_candidate + "\"!");
+
+    unsigned max_no_of_rows(0);
+    if (argc == 7) {
+        if (not StringUtil::ToUnsigned(argv[6], &max_no_of_rows))
+            ERROR("can't convert \"" + std::string(argv[6]) + "\" to an unsigned integer!");
+    }
 
     try {
-        std::string xml_result;
-        if (not Solr::Query(query, fields, &xml_result, host_and_port, timeout, result_format))
-            logger->error("query failed");
+        std::string xml_or_json_result, err_msg;
+        if (not Solr::Query(query, fields, &xml_or_json_result, &err_msg, host_and_port, timeout, result_format)) {
+            std::cerr << xml_or_json_result << '\n';
+            ERROR("Query failed! (" + err_msg + ")");
+        }
 
-        std::cout << xml_result;
+        std::cout << xml_or_json_result;
     } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+        ERROR("caught exception: " + std::string(x.what()));
     }
 }
