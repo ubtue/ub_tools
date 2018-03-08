@@ -61,7 +61,7 @@ public:
     std::string toString() const;
 
     bool isRedirect() const { return status_code_ == 302 and not location_.empty(); }
-    unsigned getStatusCode() const { return status_code_; }
+    inline unsigned getStatusCode() const  __attribute__((pure)) { return status_code_; }
     std::string getStatusLine() const { return status_line_; }
 
     time_t getDate() const { return date_; }
