@@ -21,12 +21,35 @@
 */
 #include "Solr.h"
 #include "Downloader.h"
+#include "JSON.h"
 #include "UrlUtil.h"
 
 
 namespace Solr {
 
 
+std::string JSONError(const std::string &json_response) {
+    try {
+        JSON::Parser parser(json_response);
+        std::shared_ptr<JSON::JSONNode> tree_root;
+        if (not parser.parse(&tree_root) or tree_root->getType() != JSON::JSONNode::OBJECT_NODE)
+            return "";
+        const std::shared_ptr<const JSON::ObjectNode> top_level_object(JSON::JSONNode::CastToObjectNodeOrDie("tree_root",
+                                                                                                             tree_root));
+        const std::shared_ptr<const JSON::ObjectNode> error_object(top_level_object->getOptionalObjectNode("error"));
+        return (error_object == nullptr) ? "" : error_object->toString();
+    } catch (...) {
+        return "";
+    }
+}
+
+
+std::string XMLError(const std::string &xml_response) {
+    // We can do better but for now we won't bother.
+    return xml_response;
+}
+
+    
 bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
            std::string * const err_msg, const std::string &host_and_port, const unsigned timeout,
            const QueryResultFormat query_result_format, const unsigned max_no_of_rows)
@@ -41,10 +64,15 @@ bool Query(const std::string &query, const std::string &fields, std::string * co
         *err_msg = downloader.getLastErrorMessage();
         return false;
     }
-
     *xml_or_json_result = downloader.getMessageBody();
+
     const HttpHeader header(downloader.getMessageHeader());
-    return header.getStatusCode() >= 200 and header.getStatusCode() <= 299;
+    if (header.getStatusCode() >= 200 and header.getStatusCode() <= 299)
+        return  true;
+
+    if (not xml_or_json_result->empty())
+        *err_msg = (query_result_format == JSON) ? JSONError(*xml_or_json_result) : XMLError(*xml_or_json_result);
+    return false;
 }
 
 
