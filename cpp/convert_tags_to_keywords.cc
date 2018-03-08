@@ -3,7 +3,7 @@
  *  \author  Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  */
 /*
-    Copyright (C) 2017, Library of the University of Tübingen
+    Copyright (C) 2017,2018 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -33,6 +33,9 @@
 #include "VuFind.h"
 
 
+namespace {
+
+
 void Usage() {
     std::cerr << "Usage: " << ::progname << " [--input-format=(marc_binary|marc_xml)] marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
@@ -51,7 +54,7 @@ void PopulateResourceIdToRecordIdMap(
     while (const auto db_row = result_set.getNextRow())
         resource_id_to_record_id_map->emplace(db_row["id"], db_row["record_id"]);
 
-    std::cerr << "Found " << resource_id_to_record_id_map->size() << " mappings from resource ID's to record ID's.\n";
+    std::cout << "Found " << resource_id_to_record_id_map->size() << " mappings from resource ID's to record ID's.\n";
 }
 
 
@@ -67,7 +70,7 @@ void PopulateTagIdToResourceIdMap(
     while (const auto db_row = result_set.getNextRow())
         tag_id_to_resource_id_map->emplace(db_row["tag_id"], db_row["resource_id"]);
 
-    std::cerr << "Found " << tag_id_to_resource_id_map->size() << " mappings from tag ID's to resource ID's.\n";
+    std::cout << "Found " << tag_id_to_resource_id_map->size() << " mappings from tag ID's to resource ID's.\n";
 }
 
 
@@ -104,15 +107,17 @@ void ExtractTags(DbConnection * const connection,
             record_id_and_tags->second.insert(db_row["tag"]);
     }
 
-    std::cerr << "Found " << tag_count << " tags.\n";
+    std::cout << "Found " << tag_count << " tag(s).\n";
 }
 
 
 void AddTagsToRecords(MarcReader * const reader, MarcWriter * const writer,
                       const std::unordered_map<std::string, std::set<std::string>> &record_id_to_tags_map)
 {
-    unsigned modified_count(0);
+    unsigned total_count(0), modified_count(0);
     while (MarcRecord record = reader->read()) {
+        ++total_count;
+
         const auto record_id_and_tags(record_id_to_tags_map.find(record.getControlNumber()));
         if (record_id_and_tags != record_id_to_tags_map.end()) {
             for (const auto &tag : record_id_and_tags->second)
@@ -122,8 +127,12 @@ void AddTagsToRecords(MarcReader * const reader, MarcWriter * const writer,
         writer->write(record);
     }
 
-    std::cerr << "Added tags to " << modified_count << " records.\n";
+    std::cout << "Processed a total of " << total_count << " record(s).\n";
+    std::cout << "Added tags to " << modified_count << " record(s).\n";
 }
+
+
+} // unnamed namespace
 
 
 int main(int argc, char *argv[]) {
