@@ -129,7 +129,7 @@ void AddPDAFieldToRecords(const std::string &cutoff_year, MARC::Reader * const m
                 FindNonMPIInstitutions(record, local_block_boundaries, &non_mpi_institutions);
                 if (non_mpi_institutions.empty()) {
                     ++pda_field_added_count;
-                    record.insertField("PDA", "yes");
+                    record.insertField("PDA", MARC::Subfields({ MARC::Subfield('a', "yes") }));
                     marc_writer->write(record);
                     continue;
                 }
