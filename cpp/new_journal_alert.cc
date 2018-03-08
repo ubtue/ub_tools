@@ -133,7 +133,8 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
         return NO_SERIES_TITLE;
     }
 
-    const std::shared_ptr<const JSON::ArrayNode> container_ids_and_titles_array(JSON::JSONNode::CastToArrayNodeOrDie("container_ids_and_titles", container_ids_and_titles));
+    const std::shared_ptr<const JSON::ArrayNode> container_ids_and_titles_array(
+        JSON::JSONNode::CastToArrayNodeOrDie("container_ids_and_titles", container_ids_and_titles));
     if (container_ids_and_titles_array->empty()) {
         WARNING("\"container_ids_and_titles\" is empty");
         return NO_SERIES_TITLE;
@@ -167,7 +168,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
     const std::shared_ptr<const JSON::ObjectNode> response(tree_obj->getObjectNode("response"));
     const std::shared_ptr<const JSON::ArrayNode> docs(response->getArrayNode("docs"));
 
-    for (auto doc : *docs) {
+    for (const auto &doc : *docs) {
         const std::shared_ptr<const JSON::ObjectNode> doc_obj(JSON::JSONNode::CastToObjectNodeOrDie("document object", doc));
 
         const std::string id(GetIssueId(doc_obj));
@@ -214,10 +215,10 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                             + " AND year:[" + std::to_string(year_min) + " TO " + std::to_string(year_current) + "]"
     );
 
-    std::string json_result;
-    if (unlikely(not Solr::Query(QUERY, "id,title,last_modification_time,container_ids_and_titles", &json_result,
+    std::string json_result, err_msg;
+    if (unlikely(not Solr::Query(QUERY, "id,title,last_modification_time,container_ids_and_titles", &json_result, &err_msg,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
-        ERROR("Solr query failed or timed-out: \"" + QUERY + "\".");
+        ERROR("Solr query failed or timed-out: \"" + QUERY + "\". (" + err_msg + ")");
 
     return ExtractNewIssueInfos(notified_db, new_notification_ids, json_result, new_issue_infos,
                                 max_last_modification_time);
