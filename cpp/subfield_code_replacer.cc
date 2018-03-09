@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2017, Library of the University of Tübingen
+    Copyright (C) 2017,2018 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -84,8 +84,8 @@ void ReplaceCodes(MarcReader * const marc_reader, MarcWriter * const marc_writer
         marc_writer->write(record);
     }
 
-    std::cerr << "Read " << total_count << " records.\n";
-    std::cerr << "Modified " << modified_count << " record(s).\n";
+    std::cout << ::progname << ": Read " << total_count << " records.\n";
+    std::cout << ::progname << ": Modified " << modified_count << " record(s).\n";
 }
 
 
