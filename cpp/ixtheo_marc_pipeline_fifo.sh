@@ -162,14 +162,14 @@ wait
 
 
 StartPhase "Adding of ISBN's and ISSN's to Component Parts"
-(add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_isbns_or_issns_to_articles --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
 
 StartPhase "Extracting Keywords from Titles"
-(enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(enrich_keywords_with_title_words --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  ../cpp/data/stopwords.??? && \
 EndPhase) &
@@ -178,7 +178,7 @@ wait
 
 StartPhase "Augment Bible References"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(augment_bible_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(augment_bible_references --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          GefilterteNormdaten-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 cp pericopes_to_codes.map /usr/local/var/lib/tuelib/bibleRef/ && \
@@ -196,7 +196,7 @@ EndPhase || Abort) &
 
 StartPhase "Replace 689\$A with 689\$q"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(subfield_code_replacer --input-format=marc-21\
+(subfield_code_replacer --input-format=marc-21 \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     "689A=q" >> "${log}" 2>&1 && \
