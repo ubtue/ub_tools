@@ -3,7 +3,7 @@
  *  \author  Mario Trojan
  */
 /*
-    Copyright (C) 2016,2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,9 +28,9 @@
 #include "FileUtil.h"
 #include "FullTextCache.h"
 #include "HtmlUtil.h"
-#include "MiscUtil.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
+#include "Template.h"
 #include "UrlUtil.h"
 #include "util.h"
 #include "WebUtil.h"
@@ -57,7 +57,7 @@ void ExpandTemplate(const std::string &template_name,
 {
     std::ifstream template_html(template_directory + template_name + ".html", std::ios::binary);
     std::ostringstream template_out;
-    MiscUtil::ExpandTemplate(template_html, template_out, template_variables);
+    Template::ExpandTemplate(template_html, template_out, template_variables);
     *body += template_out.str();
 }
 
@@ -224,7 +224,7 @@ int main(int argc, char *argv[]) {
         std::ifstream template_html(template_directory + "index.html", std::ios::binary);
         names_to_values_map.emplace("body", std::vector<std::string> {body});
 
-        MiscUtil::ExpandTemplate(template_html, std::cout, names_to_values_map);
+        Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
