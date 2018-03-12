@@ -92,7 +92,7 @@ static std::string ExtractText(SimpleXmlParser<StringDataSource> * const parser,
     std::string extracted_text;
     if (type == SimpleXmlParser<StringDataSource>::CHARACTERS)
         extracted_text = data;
-    else if (SimpleXmlParser<StringDataSource>::CLOSING_TAG) {
+    else if (type == SimpleXmlParser<StringDataSource>::CLOSING_TAG) {
         if (unlikely(data != closing_tag))
             throw std::runtime_error("in ExtractText(SyndicationFormat.cc): unexpected closing tag \"" + data
                                      + "\" while looking for the \"" + closing_tag + "\" closing tag!" + extra);
@@ -131,6 +131,8 @@ std::unique_ptr<SyndicationFormat> SyndicationFormat::Factory(const std::string 
         *err_msg = "Error while parsing syndication format: " + std::string(x.what());
         return nullptr;
     }
+
+    __builtin_unreachable();
 }
 
 

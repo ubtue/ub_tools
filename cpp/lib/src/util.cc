@@ -110,7 +110,8 @@ void Logger::debug(const std::string &msg) {
         writeString("You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use Logger::debug().");
         _exit(EXIT_FAILURE);
     } else
-        writeString(TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " DEBUG " + std::string(::progname) + ": " + msg);
+        writeString(TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " DEBUG " + std::string(::progname) + ": "
+                    + msg);
 }
 
 
@@ -132,7 +133,7 @@ Logger::LogLevel Logger::StringToLogLevel(const std::string &level_candidate) {
     if (level_candidate == "DEBUG")
         return Logger::LL_DEBUG;
     ERROR("not a valid minimum log level: \"" + level_candidate + "\"! (Use ERROR, WARNING, INFO or DEBUG)");
-};
+}
 
 
 void Logger::writeString(std::string msg) {
