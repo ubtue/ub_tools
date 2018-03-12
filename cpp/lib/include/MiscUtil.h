@@ -29,19 +29,12 @@
 #define MISC_UTIL_H
 
 
-#include <algorithm>
-#include <istream>
-#include <ostream>
-#include <list>
 #include <map>
 #include <set>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <cerrno>
-#include <clocale>
-#include <cstdlib>
 
 
 namespace MiscUtil {
@@ -52,26 +45,6 @@ namespace MiscUtil {
  *  \return The character representing the hexadecimal value.
  */
 char HexDigit(const unsigned value);
-
-
-/** A simple template expander.  All special constructs are in curly brackets.  To emit normal curly brackets
- *  you must duplicate them.  Variable names as defined by "names_to_values_map" must start with a lowercase ASCII
- *  letter, followed by lowercase ASCII letters, underscores or ASCII digits.  All keywords are all uppercase.
- *  The list of keywords is IF, ELSE, ENDIF, DEFINED, LOOP and ENDLOOP.  The conditionals for an IF are either
- *  DEFINED(var), var == "value" var1 == var2, var != "value" and var1 != var2.  The DEFINED(var) returns true if
- *  "var" is a key in "names_to_values_map", else false.  Two conditions may be combined with the keywords AND or OR
- *  String constants must start and end with a double quote.  Three backslash escapes are supported, "\\" for a
- *  literal backslash, "\n" for a newline and "\"" for an embedded double quote.  Output gets suppressed if a
- *  condition evaluates to false.  ELSE is optional.  Loops look like "LOOP var1[,var2..]" if more than one variable
- *  name has been specified, all variables must have the same cardinality.  In a loop "var1" etc. are automatically
- *  indexed based on the current iteration.
- *
- *  \throws std::runtime_error if anything goes wrong, i.e. if a syntax error has been detected.
- */
-void ExpandTemplate(std::istream &input, std::ostream &output,
-                    const std::map<std::string, std::vector<std::string>> &names_to_values_map);
-std::string ExpandTemplate(const std::string &template_string,
-                           const std::map<std::string, std::vector<std::string>> &names_to_values_map);
 
 
 /** Given a Pica Production Number w/o the checksum digit, this function will return said digit. */

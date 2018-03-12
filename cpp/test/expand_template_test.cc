@@ -8,8 +8,8 @@
 #include <vector>
 #include <cstdlib>
 #include "FileUtil.h"
-#include "MiscUtil.h"
 #include "StringUtil.h"
+#include "Template.h"
 #include "util.h"
 
 
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
         std::map<std::string, std::vector<std::string>> names_to_values_map;
         ExtractNamesAndValues(argc, argv, &names_to_values_map);
         std::istringstream input(template_string);
-        MiscUtil::ExpandTemplate(input, std::cout, names_to_values_map);
+        Template::ExpandTemplate(input, std::cout, names_to_values_map);
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
