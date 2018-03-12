@@ -1069,7 +1069,7 @@ static inline bool CompareField(const Record::Field * const field1, const Record
     if (field1->getTag() > field2->getTag())
         return false;
     return field1->getContents() < field2->getContents();
-};
+}
 
 
 std::string CalcChecksum(const Record &record, const bool exclude_001) {
