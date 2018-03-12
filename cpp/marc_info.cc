@@ -1,7 +1,7 @@
 /** \brief Utility for displaying various bits of info about a collection of MARC records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -67,7 +67,7 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
         const unsigned record_length(record.size());
         if (record_length > max_record_length)
             max_record_length = record_length;
-        if (record_length >= 100000)
+        if (record_length > MARC::Record::MAX_RECORD_LENGTH)
             ++oversized_record_count;
 
         for (const auto &field : record) {
