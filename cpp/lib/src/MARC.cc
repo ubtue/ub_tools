@@ -208,8 +208,12 @@ Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibli
 
 
 void Record::merge(const Record &other) {
-    for (const auto &other_field : other)
-        insertField(other_field);
+    for (const auto &other_field : other) {
+        if (likely(other_field.getTag() != "001")) {
+            if (unlikely(not insertField(other_field)))
+                ERROR("can't merge field w/ tag " + other_field.getTag().to_string() + "!");
+        }
+    }
 }
 
 
