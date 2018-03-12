@@ -2271,15 +2271,18 @@ public class TuelibMixin extends SolrIndexerMixin {
         final List<VariableField> _655Fields = record.getVariableFields("655");
         for (final VariableField _655Field : _655Fields) {
             final DataField dataField = (DataField) _655Field;
-            if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7' && dataField.getSubfield('a').getData().startsWith("Rezension")) {
-                formats.remove("Article");
-                formats.add("Review");
-                break;
-            }
-            if (dataField.getSubfield('a').getData().startsWith("Weblog")) {
-                formats.remove("Journal");
-                formats.add("Blog");
-                break;
+            final Subfield aSubfield = dataField.getSubfield('a');
+            if (aSubfield != null) {
+                if (aSubfield.getData().startsWith("Rezension") && dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7') {
+                    formats.remove("Article");
+                    formats.add("Review");
+                    break;
+                }
+                if (aSubfield.getData().startsWith("Weblog")) {
+                    formats.remove("Journal");
+                    formats.add("Blog");
+                    break;
+                }
             }
         }
 
@@ -2336,7 +2339,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (foundMatch == true)
                 break;
         }
-
 
         // Rewrite all E-Books as electronic Books
         if (formats.contains("eBook")) {
