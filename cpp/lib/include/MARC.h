@@ -333,6 +333,10 @@ public:
         leader_.clear();
         fields_.clear();
     }
+
+    /** \brief Adds fields of "other" to this.
+     *  \note  If non-repeatable fields of "other" already exist in this they will be silently ignored.
+     */
     void merge(const Record &other);
     inline size_t getNumberOfFields() const { return fields_.size(); }
     inline const std::string &getLeader() const { return leader_; }
@@ -532,12 +536,14 @@ public:
 class BinaryReader: public Reader {
     Record last_record_;
 public:
-    explicit BinaryReader(File * const input): Reader(input), last_record_(read()) { }
+    explicit BinaryReader(File * const input): Reader(input), last_record_(actualRead()) { }
     virtual ~BinaryReader() = default;
 
     virtual ReaderType getReaderType() final { return Reader::BINARY; }
     virtual Record read() final;
     virtual void rewind() final { input_->rewind(); }
+private:
+    Record actualRead();
 };
 
 
