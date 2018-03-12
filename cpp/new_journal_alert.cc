@@ -42,7 +42,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] [solr_host_and_port] user_type hostname sender_email "
+    std::cerr << "Usage: " << ::progname << " [--verbose|--debug] [solr_host_and_port] user_type hostname sender_email "
               << "email_subject\n"
               << "  Sends out notification emails for journal subscribers.\n"
               << "  Should \"solr_host_and_port\" be missing \"localhost:8080\" will be used.\n"
@@ -73,9 +73,11 @@ struct NewIssueInfo {
     std::string series_title_;
     std::string issue_title_;
     std::string last_modification_time_;
+    std::vector<std::string> authors_;
 public:
-    NewIssueInfo(const std::string &control_number, const std::string &series_title, const std::string &issue_title)
-        : control_number_(control_number), series_title_(series_title), issue_title_(issue_title) { }
+    NewIssueInfo(const std::string &control_number, const std::string &series_title, const std::string &issue_title,
+                 const std::vector<std::string> &authors)
+        : control_number_(control_number), series_title_(series_title), issue_title_(issue_title), authors_(authors) { }
 };
 
 
@@ -151,6 +153,31 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
 }
 
 
+std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
+    const std::shared_ptr<const JSON::JSONNode> author(doc_obj->getNode("author"));
+    if (author == nullptr) {
+        WARNING("\"author\" is null");
+        return std::vector<std::string>();
+    }
+
+    const std::shared_ptr<const JSON::ArrayNode> author_array(
+        JSON::JSONNode::CastToArrayNodeOrDie("author", author));
+    if (author_array->empty()) {
+        WARNING("\"author\" is empty");
+        return std::vector<std::string>();
+    }
+
+    std::vector<std::string> authors;
+    for (const auto &array_entry : *author_array) {
+        const std::shared_ptr<const JSON::StringNode> author_string(JSON::JSONNode::CastToStringNodeOrDie("author string",
+                                                                                                          array_entry));
+        authors.emplace_back(author_string->getValue());
+    }
+
+    return authors;
+}
+
+
 /** \return True if new issues were found, false o/w. */
 bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                           std::unordered_set<std::string> * const new_notification_ids,
@@ -178,8 +205,9 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
 
         const std::string issue_title(GetIssueTitle(id, doc_obj));
         const std::string series_title(GetSeriesTitle(doc_obj));
+        const std::vector<std::string> authors(GetAuthors(doc_obj));
 
-        new_issue_infos->emplace_back(id, series_title, issue_title);
+        new_issue_infos->emplace_back(id, series_title, issue_title, authors);
 
         const std::string last_modification_time(GetLastModificationTime(doc_obj));
         if (last_modification_time > *max_last_modification_time) {
@@ -216,7 +244,7 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
     );
 
     std::string json_result, err_msg;
-    if (unlikely(not Solr::Query(QUERY, "id,title,last_modification_time,container_ids_and_titles", &json_result, &err_msg,
+    if (unlikely(not Solr::Query(QUERY, "id,title,author,last_modification_time,container_ids_and_titles", &json_result, &err_msg,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         ERROR("Solr query failed or timed-out: \"" + QUERY + "\". (" + err_msg + ")");
 
@@ -225,7 +253,10 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
 }
 
 
-void SendNotificationEmail(const std::string &firstname, const std::string &lastname,
+enum Mode { NORMAL, VERBOSE, DEBUG };
+
+
+void SendNotificationEmail(const Mode mode, const std::string &firstname, const std::string &lastname,
                            const std::string &recipient_email, const std::string &vufind_host,
                            const std::string &sender_email, const std::string &email_subject,
                            const std::vector<NewIssueInfo> &new_issue_infos,
@@ -250,13 +281,16 @@ void SendNotificationEmail(const std::string &firstname, const std::string &last
     std::ostringstream email_contents;
     MiscUtil::ExpandTemplate(input, email_contents, names_to_values_map);
 
-    if (unlikely(not EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents.str(),
-                                            EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
+    if (mode == DEBUG)
+        std::cerr << "Debug mode, email address is " << sender_email << ", template expanded to:\n" << email_contents.str()
+                  << '\n';
+    else if (unlikely(not EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents.str(),
+                                                   EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
         ERROR("failed to send a notification email to \"" + recipient_email + "\"!");
 }
 
 
-void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
+void ProcessSingleUser(const Mode mode, DbConnection * const db_connection,
                        const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                        std::unordered_set<std::string> * const new_notification_ids, const std::string &user_id,
                        const std::string &solr_host_and_port, const std::string &hostname,
@@ -276,8 +310,8 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
     const DbRow row(result_set.getNextRow());
 
     const std::string username(row["username"]);
-    if (verbose)
-        std::cerr << "Found " << control_numbers_and_last_modification_times.size() << " subscriptions for \""
+    if (mode != NORMAL)
+        std::cout << ::progname << ": Found " << control_numbers_and_last_modification_times.size() << " subscriptions for \""
                   << username << "\".\n";
 
     const std::string firstname(row["firstname"]);
@@ -295,11 +329,11 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
                          &max_last_modification_time))
             control_number_and_last_modification_time.setMaxLastModificationTime(max_last_modification_time);
     }
-    if (verbose)
-        std::cerr << "Found " << new_issue_infos.size() << " new issues for " << "\"" << username << "\".\n";
+    if (mode != NORMAL)
+        std::cout << ::progname << ": Found " << new_issue_infos.size() << " new issues for " << "\"" << username << "\".\n";
 
     if (not new_issue_infos.empty())
-        SendNotificationEmail(firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos,
+        SendNotificationEmail(mode, firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos,
                               user_type);
 
     // Update the database with the new last issue dates.
@@ -317,7 +351,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
 }
 
 
-void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection,
+void ProcessSubscriptions(const Mode mode, DbConnection * const db_connection,
                           const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                           std::unordered_set<std::string> * const new_notification_ids,
                           const std::string &solr_host_and_port, const std::string &user_type,
@@ -342,12 +376,12 @@ void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection
                 row["journal_control_number"], ConvertDateToZuluDate(row["max_last_modification_time"])));
             ++subscription_count;
         }
-        ProcessSingleUser(verbose, db_connection, notified_db, new_notification_ids, user_id, solr_host_and_port,
+        ProcessSingleUser(mode, db_connection, notified_db, new_notification_ids, user_id, solr_host_and_port,
                           hostname, sender_email, email_subject, control_numbers_and_last_modification_times);
     }
 
-    if (verbose)
-        std::cout << "Processed " << user_count << " users and " << subscription_count << " subscriptions.\n";
+    if (mode != NORMAL)
+        std::cout << ::progname << ": Processed " << user_count << " users and " << subscription_count << " subscriptions.\n";
 }
 
 
@@ -358,7 +392,7 @@ void RecordNewlyNotifiedIds(const std::unique_ptr<kyotocabinet::HashDB> &notifie
     for (const auto &id : new_notification_ids) {
         if (not notified_db->add(id, now))
             ERROR("Failed to add key/value pair to database \"" + notified_db->path() + "\" ("
-                          + std::string(notified_db->error().message()) + ")!");
+                  + std::string(notified_db->error().message()) + ")!");
     }
 }
 
@@ -381,14 +415,19 @@ int main(int argc, char **argv) {
     if (argc < 5)
         Usage();
 
-    bool verbose;
+    Mode mode;
     if (std::strcmp("--verbose", argv[1]) == 0) {
         if (argc < 6)
             Usage();
-        verbose = true;
+        mode = VERBOSE;
+        --argc, ++argv;
+    } else if (std::strcmp("--debug", argv[1]) == 0) {
+        if (argc < 6)
+            Usage();
+        mode = DEBUG;
         --argc, ++argv;
     } else
-        verbose = false;
+        mode = NORMAL;
 
     std::string solr_host_and_port;
     if (argc == 5)
@@ -415,8 +454,8 @@ int main(int argc, char **argv) {
         DbConnection db_connection(mysql_url);
 
         std::unordered_set<std::string> new_notification_ids;
-        ProcessSubscriptions(verbose, &db_connection, notified_db, &new_notification_ids, solr_host_and_port,
-                             user_type, hostname, sender_email, email_subject);
+        ProcessSubscriptions(mode, &db_connection, notified_db, &new_notification_ids, solr_host_and_port, user_type, hostname,
+                             sender_email, email_subject);
         RecordNewlyNotifiedIds(notified_db, new_notification_ids);
     } catch (const std::exception &x) {
         ERROR("caught exception: " + std::string(x.what()));
