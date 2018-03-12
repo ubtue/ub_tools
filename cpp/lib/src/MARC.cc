@@ -207,6 +207,7 @@ Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibli
 }
 
 
+
 void Record::merge(const Record &other) {
     for (const auto &other_field : other)
         insertField(other_field);
@@ -509,11 +510,11 @@ Record BinaryReader::actualRead() {
 
     bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH, record_length - Record::RECORD_LENGTH_FIELD_LENGTH);
     if (unlikely(bytes_read != record_length - Record::RECORD_LENGTH_FIELD_LENGTH))
-        throw std::runtime_error("in MARC::BinaryReader::read: failed to read a record from \"" + input_->getPath() + "\"!");
+        ERROR("failed to read a record from \"" + input_->getPath() + "\"!");
 
     return Record(record_length, buf);
 }
- 
+
 
 Record XmlReader::read() {
     Record new_record;

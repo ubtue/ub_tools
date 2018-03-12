@@ -344,8 +344,12 @@ public:
     inline bool isSerial() const { return leader_[7] == 's'; }
     inline bool isArticle() const { return leader_[7] == 'a' or leader_[7] == 'b'; }
     bool isElectronicResource() const;
-    inline std::string getControlNumber() const
-        { return likely(fields_.front().getTag() == "001") ? fields_.front().getContents() : ""; }
+    inline std::string getControlNumber() const {
+        if (unlikely(fields_.empty() or fields_.front().getTag() != "001"))
+            return "";
+        else
+            return fields_.front().getContents();
+    }
 
     /** \return An iterator pointing to the first field w/ tag "field_tag" or end() if no such field was found. */
     inline const_iterator getFirstField(const Tag &field_tag) const {
