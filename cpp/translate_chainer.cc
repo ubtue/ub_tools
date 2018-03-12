@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,8 +28,8 @@
 #include "Compiler.h"
 #include "ExecUtil.h"
 #include "HtmlUtil.h"
-#include "MiscUtil.h"
 #include "StringUtil.h"
+#include "Template.h"
 #include "UrlUtil.h"
 #include "WebUtil.h"
 #include "util.h"
@@ -190,7 +190,7 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(
         names_to_values_map.emplace("translator", std::vector<std::string>{ getTranslatorOrEmptyString()});
 
         std::ifstream translate_html("/usr/local/var/lib/tuelib/translate_chainer/translate.html", std::ios::binary);
-        MiscUtil::ExpandTemplate(translate_html, std::cout, names_to_values_map);
+        Template::ExpandTemplate(translate_html, std::cout, names_to_values_map);
     }
 }
 

@@ -33,9 +33,9 @@
 #include "FileUtil.h"
 #include "HtmlUtil.h"
 #include "JSON.h"
-#include "MiscUtil.h"
 #include "Solr.h"
 #include "StringUtil.h"
+#include "Template.h"
 #include "TimeUtil.h"
 #include "util.h"
 #include "VuFind.h"
@@ -279,7 +279,7 @@ void SendNotificationEmail(const Mode mode, const std::string &firstname, const 
     names_to_values_map["issue_title"]   = issue_titles;
     std::istringstream input(email_template);
     std::ostringstream email_contents;
-    MiscUtil::ExpandTemplate(input, email_contents, names_to_values_map);
+    Template::ExpandTemplate(input, email_contents, names_to_values_map);
 
     if (mode == DEBUG)
         std::cerr << "Debug mode, email address is " << sender_email << ", template expanded to:\n" << email_contents.str()

@@ -31,8 +31,8 @@
 #include "EmailSender.h"
 #include "HtmlUtil.h"
 #include "IniFile.h"
-#include "MiscUtil.h"
 #include "StringUtil.h"
+#include "Template.h"
 #include "UrlUtil.h"
 #include "util.h"
 #include "WebUtil.h"
@@ -617,7 +617,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     names_to_values_map.emplace("filter_untranslated", std::vector<std::string> { filter_untranslated ? "checked" : "" });
 
     std::ifstream translate_html("/usr/local/var/lib/tuelib/translate_chainer/translation_front_page.html", std::ios::binary);
-    MiscUtil::ExpandTemplate(translate_html, std::cout, names_to_values_map);
+    Template::ExpandTemplate(translate_html, std::cout, names_to_values_map);
 }
 
 
@@ -715,7 +715,7 @@ void MailMyTranslations(DbConnection &db_connection, const IniFile &ini_file, co
     std::stringstream mail_content;
     std::ifstream mytranslations_template("/usr/local/var/lib/tuelib/translate_chainer/mytranslations_template.msg",
                                           std::ios::binary);
-    MiscUtil::ExpandTemplate(mytranslations_template, mail_content, names_to_values_map);
+    Template::ExpandTemplate(mytranslations_template, mail_content, names_to_values_map);
 
     // Get Mail address
     const std::string recipient(ini_file.getString(EMAIL_SECTION, translator, ""));

@@ -4,7 +4,7 @@
  *  \note Compile with   g++ -std=gnu++14 -O3 -o installer installer.cc
  *  \note or             clang++ -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions -O3 -o installer installer.cc
  *
- *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -46,6 +46,7 @@
 #include "MiscUtil.h"
 #include "SELinuxUtil.h"
 #include "StringUtil.h"
+#include "Template.h"
 #include "util.h"
 
 
@@ -266,7 +267,8 @@ void InstallCronjobs(const VuFindSystemType vufind_system_type) {
     if (vufind_system_type == KRIMDOK)
         cronjobs_generated += FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/krimdok.cronjobs");
     else
-        cronjobs_generated += MiscUtil::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/ixtheo.cronjobs"), names_to_values_map);
+        cronjobs_generated += Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/ixtheo.cronjobs"),
+                                                       names_to_values_map);
     cronjobs_generated += crontab_block_end + "\n";
 
     FileUtil::AutoTempFile crontab_temp_file_new;
@@ -397,7 +399,7 @@ static void InstallVuFindServiceTemplate(const VuFindSystemType system_type) {
         ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", SYSTEMD_SERVICE_DIRECTORY });
         std::map<std::string, std::vector<std::string>> names_to_values_map
             { { "solr_heap", { (system_type == KRIMDOK ? "4G" : "8G") } } };
-        const std::string vufind_service(MiscUtil::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
+        const std::string vufind_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
                                                                                             + "/vufind.service.template"),
                                                                  names_to_values_map));
         FileUtil::WriteStringOrDie(SYSTEMD_SERVICE_DIRECTORY + "/vufind.service", vufind_service);
