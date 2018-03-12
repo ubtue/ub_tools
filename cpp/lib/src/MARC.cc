@@ -207,6 +207,12 @@ Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibli
 }
 
 
+void Record::merge(const Record &other) {
+    for (const auto &other_field : other)
+        insertField(other_field);
+}
+
+
 bool Record::isElectronicResource() const {
     if (std::toupper(leader_[6]) == 'M')
         return true;
@@ -353,6 +359,7 @@ bool Record::insertField(const Tag &new_field_tag, const std::string &new_field_
         and not IsRepeatableField(new_field_tag))
         return false;
     fields_.emplace(insertion_location, new_field_tag, new_field_value);
+    record_size_ += DIRECTORY_ENTRY_LENGTH + new_field_value.length() + 1 /* field separator */;
     return true;
 }
 
@@ -470,26 +477,38 @@ std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, Reade
 
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
     return (reader_type == XML) ? std::unique_ptr<Reader>(new XmlReader(input.release()))
-        : std::unique_ptr<Reader>(new BinaryReader(input.release()));
+                                : std::unique_ptr<Reader>(new BinaryReader(input.release()));
 }
 
 
 Record BinaryReader::read() {
-    char buf[Record::MAX_RECORD_LENGTH];
-    size_t bytes_read;
-    if (unlikely((bytes_read = input_->read(buf, Record::RECORD_LENGTH_FIELD_LENGTH)) == 0))
-        return Record();
+    if (unlikely(not last_record_))
+        return last_record_;
 
-    if (unlikely(bytes_read != Record::RECORD_LENGTH_FIELD_LENGTH))
-        ERROR("failed to read record length!");
-    const unsigned record_length(ToUnsigned(buf, Record::RECORD_LENGTH_FIELD_LENGTH));
+    Record new_record;
+    do {
+        char buf[Record::MAX_RECORD_LENGTH];
+        size_t bytes_read;
+        if (unlikely((bytes_read = input_->read(buf, Record::RECORD_LENGTH_FIELD_LENGTH)) == 0)) {
+            new_record.clear();
+            break;
+        }
 
-    bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH,
-                              record_length - Record::RECORD_LENGTH_FIELD_LENGTH);
-    if (unlikely(bytes_read != record_length - Record::RECORD_LENGTH_FIELD_LENGTH))
-        throw std::runtime_error("in MARC::BinaryReader::read: failed to read a record from \"" + input_->getPath() + "\"!");
+        if (unlikely(bytes_read != Record::RECORD_LENGTH_FIELD_LENGTH))
+            ERROR("failed to read record length!");
+        const unsigned record_length(ToUnsigned(buf, Record::RECORD_LENGTH_FIELD_LENGTH));
 
-    return Record(record_length, buf);
+        bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH, record_length - Record::RECORD_LENGTH_FIELD_LENGTH);
+        if (unlikely(bytes_read != record_length - Record::RECORD_LENGTH_FIELD_LENGTH))
+            throw std::runtime_error("in MARC::BinaryReader::read: failed to read a record from \"" + input_->getPath() + "\"!");
+
+        new_record = Record(record_length, buf);
+        if (unlikely(new_record.getControlNumber() == last_record_.getControlNumber()))
+            last_record_.merge(new_record);
+    } while (new_record.getControlNumber() == last_record_.getControlNumber());
+
+    new_record.swap(last_record_);
+    return new_record;
 }
 
 
