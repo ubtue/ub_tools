@@ -1,7 +1,7 @@
 /** \brief  A MARC-21 filter utility that adds ACO tags with entry $a set to 1 for article collections.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -82,8 +82,8 @@ void MarkArticleCollections(MarcReader * const reader, MarcWriter * const writer
         writer->write(record);
     }
 
-    std::cerr << "Read " << count << " records.\n";
-    std::cerr << "Identified " << modified_count << " record(s) as an article collection.\n";
+    std::cout << ::progname << ": Read " << count << " records.\n";
+    std::cout << ::progname << ":Identified " << modified_count << " record(s) as an article collection.\n";
 }
 
 
