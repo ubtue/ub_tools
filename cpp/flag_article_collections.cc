@@ -83,7 +83,7 @@ void MarkArticleCollections(MarcReader * const reader, MarcWriter * const writer
     }
 
     std::cout << ::progname << ": Read " << count << " records.\n";
-    std::cout << ::progname << ":Identified " << modified_count << " record(s) as an article collection.\n";
+    std::cout << ::progname << ": Identified " << modified_count << " record(s) as an article collection.\n";
 }
 
 
