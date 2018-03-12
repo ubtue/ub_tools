@@ -316,17 +316,28 @@ public:
            const std::string &control_number = "");
     Record(const Record &other) = default;
 
-    inline Record(Record &&other) {
-        std::swap(record_size_, other.record_size_);
-        leader_.swap(other.leader_);
-        fields_.swap(other.fields_);
-    }
+    inline Record(Record &&other) { this->swap(other); }
 
     // Copy-assignment operator.
     Record &operator=(const Record &rhs) = default;
 
+    inline void swap(Record &other) {
+        std::swap(record_size_, other.record_size_);
+        leader_.swap(other.leader_);
+        fields_.swap(other.fields_);
+    }
     operator bool () const { return not fields_.empty(); }
     inline size_t size() const { return record_size_; }
+    inline void clear() {
+        record_size_  = 0;
+        leader_.clear();
+        fields_.clear();
+    }
+
+    /** \brief Adds fields of "other" to this.
+     *  \note  If non-repeatable fields of "other" already exist in this they will be silently ignored.
+     */
+    void merge(const Record &other);
     inline size_t getNumberOfFields() const { return fields_.size(); }
     inline const std::string &getLeader() const { return leader_; }
     inline bool isMonograph() const { return leader_[7] == 'm'; }
@@ -364,6 +375,8 @@ public:
      *          variable field.
      */
     bool insertField(const Tag &new_field_tag, const std::string &new_field_value);
+
+    inline bool insertField(const Field &field) { return insertField(field.getTag(), field.getContents()); }
 
     inline Field getField(const size_t field_index) { return fields_[field_index]; }
     inline const Field &getField(const size_t field_index) const { return fields_[field_index]; }
@@ -521,13 +534,16 @@ public:
 
 
 class BinaryReader: public Reader {
+    Record last_record_;
 public:
-    explicit BinaryReader(File * const input): Reader(input) { }
+    explicit BinaryReader(File * const input): Reader(input), last_record_(actualRead()) { }
     virtual ~BinaryReader() = default;
 
     virtual ReaderType getReaderType() final { return Reader::BINARY; }
     virtual Record read() final;
     virtual void rewind() final { input_->rewind(); }
+private:
+    Record actualRead();
 };
 
 
