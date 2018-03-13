@@ -49,7 +49,7 @@ void Usage() {
               << "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm."
               << "  \"hostname\" should be the symbolic hostname which will be used in constructing\n"
               << "  URL's that a user might see.\n"
-              << "  If \"--debug\" is given, mails will not be sent and database will not be updated.\n\n";
+              << "  If \"--debug\" is given, emails will not be sent and database will not be updated.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
