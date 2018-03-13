@@ -424,7 +424,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
         last_type_ = *type = CHARACTERS;
 
 collect_next_character:
-        bool cdata_start;
+        bool cdata_start(false);
         while ((ch = get(/* skip_comment = */true, &cdata_start)) != '<') {
             if (cdata_start) {
                 std::string cdata;
