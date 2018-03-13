@@ -265,18 +265,20 @@ void SendNotificationEmail(const Mode mode, const std::string &firstname, const 
     std::string email_template = GetEmailTemplate(user_type);
 
     // Process the email template:
-    std::map<std::string, std::vector<std::string>> names_to_values_map;
-    names_to_values_map["firstname"] = std::vector<std::string>{ firstname };
-    names_to_values_map["lastname"] = std::vector<std::string>{ lastname };
+    std::map<std::string, std::shared_ptr<Template::Value>> names_to_values_map;
+    names_to_values_map["firstname"] = std::shared_ptr<Template::Value>(new Template::ScalarValue("firstname", firstname));
+    names_to_values_map["lastname"] = std::shared_ptr<Template::Value>(new Template::ScalarValue("lastname", lastname));
     std::vector<std::string> urls, series_titles, issue_titles;
     for (const auto &new_issue_info : new_issue_infos) {
         urls.emplace_back("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
         series_titles.emplace_back(new_issue_info.series_title_);
         issue_titles.emplace_back(HtmlUtil::HtmlEscape(new_issue_info.issue_title_));
     }
-    names_to_values_map["url"]           = urls;
-    names_to_values_map["series_title"]  = series_titles;
-    names_to_values_map["issue_title"]   = issue_titles;
+    names_to_values_map["url"]           = std::shared_ptr<Template::Value>(new Template::ArrayValue("url", urls));
+    names_to_values_map["series_title"]  = std::shared_ptr<Template::Value>(new Template::ArrayValue("series_title",
+                                                                                                     series_titles));
+    names_to_values_map["issue_title"]   = std::shared_ptr<Template::Value>(new Template::ArrayValue("issue_title",
+                                                                                                     issue_titles));
     std::istringstream input(email_template);
     std::ostringstream email_contents;
     Template::ExpandTemplate(input, email_contents, names_to_values_map);
