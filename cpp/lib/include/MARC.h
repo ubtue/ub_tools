@@ -316,25 +316,40 @@ public:
            const std::string &control_number = "");
     Record(const Record &other) = default;
 
-    inline Record(Record &&other) {
-        std::swap(record_size_, other.record_size_);
-        leader_.swap(other.leader_);
-        fields_.swap(other.fields_);
-    }
+    inline Record(Record &&other) { this->swap(other); }
 
     // Copy-assignment operator.
     Record &operator=(const Record &rhs) = default;
 
+    inline void swap(Record &other) {
+        std::swap(record_size_, other.record_size_);
+        leader_.swap(other.leader_);
+        fields_.swap(other.fields_);
+    }
     operator bool () const { return not fields_.empty(); }
     inline size_t size() const { return record_size_; }
+    inline void clear() {
+        record_size_  = 0;
+        leader_.clear();
+        fields_.clear();
+    }
+
+    /** \brief Adds fields of "other" to this.
+     *  \note  If non-repeatable fields of "other" already exist in this they will be silently ignored.
+     */
+    void merge(const Record &other);
     inline size_t getNumberOfFields() const { return fields_.size(); }
     inline const std::string &getLeader() const { return leader_; }
     inline bool isMonograph() const { return leader_[7] == 'm'; }
     inline bool isSerial() const { return leader_[7] == 's'; }
     inline bool isArticle() const { return leader_[7] == 'a' or leader_[7] == 'b'; }
     bool isElectronicResource() const;
-    inline std::string getControlNumber() const
-        { return likely(fields_.front().getTag() == "001") ? fields_.front().getContents() : ""; }
+    inline std::string getControlNumber() const {
+        if (unlikely(fields_.empty() or fields_.front().getTag() != "001"))
+            return "";
+        else
+            return fields_.front().getContents();
+    }
 
     /** \return An iterator pointing to the first field w/ tag "field_tag" or end() if no such field was found. */
     inline const_iterator getFirstField(const Tag &field_tag) const {
@@ -364,6 +379,8 @@ public:
      *          variable field.
      */
     bool insertField(const Tag &new_field_tag, const std::string &new_field_value);
+
+    inline bool insertField(const Field &field) { return insertField(field.getTag(), field.getContents()); }
 
     inline Field getField(const size_t field_index) { return fields_[field_index]; }
     inline const Field &getField(const size_t field_index) const { return fields_[field_index]; }
@@ -509,8 +526,8 @@ public:
     /** \return The path of the underlying file. */
     inline const std::string &getPath() const { return input_->getPath(); }
 
-    /** \return The current file position of the underlying file. */
-    inline off_t tell() const { return input_->tell(); }
+    /** \return The file position of the start of the next record. */
+    virtual off_t tell() const = 0;
 
     inline bool seek(const off_t offset, const int whence = SEEK_SET) { return input_->seek(offset, whence); }
 
@@ -521,13 +538,20 @@ public:
 
 
 class BinaryReader: public Reader {
+    Record last_record_;
+    off_t next_record_start_;
 public:
-    explicit BinaryReader(File * const input): Reader(input) { }
+    explicit BinaryReader(File * const input): Reader(input), last_record_(actualRead()), next_record_start_(0) { }
     virtual ~BinaryReader() = default;
 
     virtual ReaderType getReaderType() final { return Reader::BINARY; }
     virtual Record read() final;
     virtual void rewind() final { input_->rewind(); }
+
+    /** \return The file position of the start of the next record. */
+    virtual off_t tell() const { return next_record_start_; }
+private:
+    Record actualRead();
 };
 
 
@@ -551,6 +575,9 @@ public:
     virtual ReaderType getReaderType() final { return Reader::XML; }
     virtual Record read() final;
     virtual void rewind() final;
+
+    /** \return The file position of the start of the next record. */
+    virtual inline off_t tell() const { return input_->tell(); }
 private:
     void parseLeader(const std::string &input_filename, Record * const new_record);
     void parseControlfield(const std::string &input_filename, const std::string &tag, Record * const record);
