@@ -577,17 +577,16 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
                    const std::vector<std::string> &translator_languages,
                    const std::vector<std::string> &additional_view_languages, const bool filter_untranslated)
 {
-    std::map<std::string, std::vector<std::string>> names_to_values_map;
+    Template::Map names_to_values_map;
     std::vector<std::string> rows;
     std::string headline;
     std::vector<std::string> jump_entries_keywords;
     GenerateDirectJumpTable(&jump_entries_keywords, KEYWORDS, filter_untranslated);
-    names_to_values_map.emplace("direct_jump_keywords", jump_entries_keywords);
-
+    names_to_values_map.insertArray("direct_jump_keywords", jump_entries_keywords);
     std::vector<std::string> jump_entries_vufind;
     GenerateDirectJumpTable(&jump_entries_vufind, VUFIND, filter_untranslated);
-    names_to_values_map.emplace("direct_jump_vufind", jump_entries_vufind);
-    names_to_values_map.emplace("translator", std::vector<std::string> { translator });
+    names_to_values_map.insertArray("direct_jump_vufind", jump_entries_vufind);
+    names_to_values_map.insertScalar("translator", translator);
 
     if (target == "vufind")
         GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
@@ -598,23 +597,21 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     else
         ShowErrorPageAndDie("Error - Invalid Target", "No valid target selected");
 
-    names_to_values_map.emplace("vufind_token_row", rows);
-    names_to_values_map.emplace("vufind_token_table_headline", std::vector<std::string> {headline});
+    names_to_values_map.insertArray("vufind_token_row", rows);
+    names_to_values_map.insertScalar("vufind_token_table_headline", headline);
 
-    names_to_values_map.emplace("keyword_row", rows);
-    names_to_values_map.emplace("keyword_table_headline", std::vector<std::string> {headline});
+    names_to_values_map.insertArray("keyword_row", rows);
+    names_to_values_map.insertScalar("keyword_table_headline", headline);
 
-    names_to_values_map.emplace("lookfor", std::vector<std::string> {lookfor});
-    names_to_values_map.emplace("prev_offset", std::vector<std::string>
-                                               { std::to_string(std::max(0, std::stoi(offset) - ENTRIES_PER_PAGE)) });
-    names_to_values_map.emplace("next_offset",
-                                std::vector<std::string> {std::to_string(std::stoi(offset) + ENTRIES_PER_PAGE)});
+    names_to_values_map.insertScalar("lookfor", lookfor);
+    names_to_values_map.insertScalar("prev_offset", std::to_string(std::max(0, std::stoi(offset) - ENTRIES_PER_PAGE)));
+    names_to_values_map.insertScalar("next_offset", std::to_string(std::stoi(offset) + ENTRIES_PER_PAGE));
 
-    names_to_values_map.emplace("current_offset", std::vector<std::string> {offset});
+    names_to_values_map.insertScalar("current_offset", offset);
 
-    names_to_values_map.emplace("target_language_code", std::vector<std::string> { "" });
-    names_to_values_map.emplace("target_translation_scope", std::vector<std::string> { target });
-    names_to_values_map.emplace("filter_untranslated", std::vector<std::string> { filter_untranslated ? "checked" : "" });
+    names_to_values_map.insertScalar("target_language_code", "");
+    names_to_values_map.insertScalar("target_translation_scope", target);
+    names_to_values_map.insertScalar("filter_untranslated", filter_untranslated ? "checked" : "");
 
     std::ifstream translate_html("/usr/local/var/lib/tuelib/translate_chainer/translation_front_page.html", std::ios::binary);
     Template::ExpandTemplate(translate_html, std::cout, names_to_values_map);
@@ -668,11 +665,11 @@ void GetTableForQuery(DbConnection &db_connection, std::vector<std::string> *con
 
 
 bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_file,
-                                std::map<std::string, std::vector<std::string>> *const names_to_values_map,
+                                Template::Map *const names_to_values_map,
                                 const std::string &translator)
 {
     // Insert Translator
-    names_to_values_map->emplace("translator", std::vector<std::string> {translator});
+    names_to_values_map->insertScalar("translator", translator);
 
     // Get Translator Languages
     std::vector<std::string> translator_languages;
@@ -689,7 +686,7 @@ bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_
 
     std::vector<std::string> vufind_rows;
     GetTableForQuery(db_connection, &vufind_rows, vufind_query, display_languages, VUFIND);
-    names_to_values_map->emplace("vufind_translations", vufind_rows);
+    names_to_values_map->insertArray("vufind_translations", vufind_rows);
 
     // Get Keyword Translations
     const std::string keyword_query("SELECT l.ppn, l.translation, l.language_code, l.translator FROM "
@@ -701,13 +698,13 @@ bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_
 
     std::vector<std::string> keyword_rows;
     GetTableForQuery(db_connection, &keyword_rows, keyword_query, display_languages, KEYWORDS);
-    names_to_values_map->emplace("keyword_translations", keyword_rows);
+    names_to_values_map->insertArray("keyword_translations", keyword_rows);
     return true;
 }
 
 
 void MailMyTranslations(DbConnection &db_connection, const IniFile &ini_file, const std::string translator) {
-    std::map<std::string, std::vector<std::string>> names_to_values_map;
+    Template::Map names_to_values_map;
     if (unlikely(not AssembleMyTranslationsData(db_connection, ini_file, &names_to_values_map, translator)))
         ERROR("Could not send mail");
 

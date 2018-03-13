@@ -242,14 +242,10 @@ std::string GetStringFromTerminal(const std::string &prompt) {
 
 
 void InstallCronjobs(const VuFindSystemType vufind_system_type) {
-    std::map<std::string, std::vector<std::string>> names_to_values_map;
+    Template::Map names_to_values_map;
     if (vufind_system_type == IXTHEO) {
-        names_to_values_map.insert(
-            std::make_pair<std::string, std::vector<std::string>>(
-                "ixtheo_host", { GetStringFromTerminal("IxTheo Hostname") }));
-        names_to_values_map.insert(
-            std::make_pair<std::string, std::vector<std::string>>(
-                "relbib_host", { GetStringFromTerminal("RelBib Hostname") }));
+        names_to_values_map.insertScalar("ixtheo_host", GetStringFromTerminal("IxTheo Hostname"));
+        names_to_values_map.insertScalar("relbib_host", GetStringFromTerminal("RelBib Hostname"));
     }
 
     FileUtil::AutoTempFile crontab_temp_file_old;
@@ -372,7 +368,9 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
             { "-i", "s/Group apache/Group " + username + "/", config_filename });
     }
 
-    ExecUtil::ExecOrDie(ExecUtil::Which("find"), { VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}", "+" });
+    ExecUtil::ExecOrDie(ExecUtil::Which("find"),
+                        { VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}",
+                          "+" });
     ExecUtil::ExecOrDie(ExecUtil::Which("chown"), { "-R", username + ":" + username, "/usr/local/var/log/tuefind" });
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/ixtheo/cache",
@@ -397,8 +395,8 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
 static void InstallVuFindServiceTemplate(const VuFindSystemType system_type) {
         const std::string SYSTEMD_SERVICE_DIRECTORY("/usr/local/lib/systemd/system/");
         ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", SYSTEMD_SERVICE_DIRECTORY });
-        std::map<std::string, std::vector<std::string>> names_to_values_map
-            { { "solr_heap", { (system_type == KRIMDOK ? "4G" : "8G") } } };
+        Template::Map names_to_values_map;
+        names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "8G");
         const std::string vufind_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
                                                                                             + "/vufind.service.template"),
                                                                  names_to_values_map));
@@ -420,8 +418,10 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
     CreateUserIfNotExists(USER_AND_GROUP_NAME);
 
     Echo("Setting directory permissions for Solr user...");
-    ExecUtil::ExecOrDie(ExecUtil::Which("chown"), { "-R", USER_AND_GROUP_NAME + ":" + USER_AND_GROUP_NAME, VUFIND_DIRECTORY + "/solr" });
-    ExecUtil::ExecOrDie(ExecUtil::Which("chown"), { "-R", USER_AND_GROUP_NAME + ":" + USER_AND_GROUP_NAME, VUFIND_DIRECTORY + "/import" });
+    ExecUtil::ExecOrDie(ExecUtil::Which("chown"),
+                        { "-R", USER_AND_GROUP_NAME + ":" + USER_AND_GROUP_NAME, VUFIND_DIRECTORY + "/solr" });
+    ExecUtil::ExecOrDie(ExecUtil::Which("chown"),
+                        { "-R", USER_AND_GROUP_NAME + ":" + USER_AND_GROUP_NAME, VUFIND_DIRECTORY + "/import" });
 
     // systemctl: we do enable as well as daemon-reload and restart
     // to achieve an idempotent installation
