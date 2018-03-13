@@ -42,13 +42,14 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose|--debug] [solr_host_and_port] user_type hostname sender_email "
+    std::cerr << "Usage: " << ::progname << " [--debug] [solr_host_and_port] user_type hostname sender_email "
               << "email_subject\n"
               << "  Sends out notification emails for journal subscribers.\n"
               << "  Should \"solr_host_and_port\" be missing \"localhost:8080\" will be used.\n"
               << "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm."
               << "  \"hostname\" should be the symbolic hostname which will be used in constructing\n"
-              << "  URL's that a user might see.\n\n";
+              << "  URL's that a user might see.\n"
+              << "  If \"--debug\" is given, mails will not be sent and database will not be updated.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -253,10 +254,7 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
 }
 
 
-enum Mode { NORMAL, VERBOSE, DEBUG };
-
-
-void SendNotificationEmail(const Mode mode, const std::string &firstname, const std::string &lastname,
+void SendNotificationEmail(const bool debug, const std::string &firstname, const std::string &lastname,
                            const std::string &recipient_email, const std::string &vufind_host,
                            const std::string &sender_email, const std::string &email_subject,
                            const std::vector<NewIssueInfo> &new_issue_infos,
@@ -281,7 +279,7 @@ void SendNotificationEmail(const Mode mode, const std::string &firstname, const 
     std::ostringstream email_contents;
     Template::ExpandTemplate(input, email_contents, names_to_values_map);
 
-    if (mode == DEBUG)
+    if (debug)
         std::cerr << "Debug mode, email address is " << sender_email << ", template expanded to:\n" << email_contents.str()
                   << '\n';
     else if (unlikely(not EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents.str(),
@@ -290,7 +288,7 @@ void SendNotificationEmail(const Mode mode, const std::string &firstname, const 
 }
 
 
-void ProcessSingleUser(const Mode mode, DbConnection * const db_connection,
+void ProcessSingleUser(const bool debug, DbConnection * const db_connection,
                        const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                        std::unordered_set<std::string> * const new_notification_ids, const std::string &user_id,
                        const std::string &solr_host_and_port, const std::string &hostname,
@@ -308,11 +306,10 @@ void ProcessSingleUser(const Mode mode, DbConnection * const db_connection,
         ERROR("found multiple user attribute sets in table \"user\" for ID \"" + user_id + "\"!");
 
     const DbRow row(result_set.getNextRow());
-
     const std::string username(row["username"]);
-    if (mode != NORMAL)
-        std::cout << ::progname << ": Found " << control_numbers_and_last_modification_times.size() << " subscriptions for \""
-                  << username << "\".\n";
+
+    INFO("Found " + std::to_string(control_numbers_and_last_modification_times.size()) + " subscriptions for \""
+         + username + "\".");
 
     const std::string firstname(row["firstname"]);
     const std::string lastname(row["lastname"]);
@@ -329,14 +326,18 @@ void ProcessSingleUser(const Mode mode, DbConnection * const db_connection,
                          &max_last_modification_time))
             control_number_and_last_modification_time.setMaxLastModificationTime(max_last_modification_time);
     }
-    if (mode != NORMAL)
-        std::cout << ::progname << ": Found " << new_issue_infos.size() << " new issues for " << "\"" << username << "\".\n";
+
+    INFO("Found " + std::to_string(new_issue_infos.size()) + " new issues for " + "\"" + username + "\".");
 
     if (not new_issue_infos.empty())
-        SendNotificationEmail(mode, firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos,
+        SendNotificationEmail(debug, firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos,
                               user_type);
 
-    // Update the database with the new last issue dates.
+    // Update the database with the new last issue dates
+    // skip in DEBUG mode
+    if (debug)
+        return;
+
     for (const auto &control_number_and_last_modification_time : control_numbers_and_last_modification_times) {
         if (not control_number_and_last_modification_time.changed())
             continue;
@@ -351,7 +352,7 @@ void ProcessSingleUser(const Mode mode, DbConnection * const db_connection,
 }
 
 
-void ProcessSubscriptions(const Mode mode, DbConnection * const db_connection,
+void ProcessSubscriptions(const bool debug, DbConnection * const db_connection,
                           const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                           std::unordered_set<std::string> * const new_notification_ids,
                           const std::string &solr_host_and_port, const std::string &user_type,
@@ -376,12 +377,11 @@ void ProcessSubscriptions(const Mode mode, DbConnection * const db_connection,
                 row["journal_control_number"], ConvertDateToZuluDate(row["max_last_modification_time"])));
             ++subscription_count;
         }
-        ProcessSingleUser(mode, db_connection, notified_db, new_notification_ids, user_id, solr_host_and_port,
+        ProcessSingleUser(debug, db_connection, notified_db, new_notification_ids, user_id, solr_host_and_port,
                           hostname, sender_email, email_subject, control_numbers_and_last_modification_times);
     }
 
-    if (mode != NORMAL)
-        std::cout << ::progname << ": Processed " << user_count << " users and " << subscription_count << " subscriptions.\n";
+    INFO(": Processed " + std::to_string(user_count) + " users and " + std::to_string(subscription_count) + " subscriptions.\n");
 }
 
 
@@ -415,19 +415,13 @@ int main(int argc, char **argv) {
     if (argc < 5)
         Usage();
 
-    Mode mode;
-    if (std::strcmp("--verbose", argv[1]) == 0) {
+    bool debug(false);
+    if (std::strcmp("--debug", argv[1]) == 0) {
         if (argc < 6)
             Usage();
-        mode = VERBOSE;
+        debug = true;
         --argc, ++argv;
-    } else if (std::strcmp("--debug", argv[1]) == 0) {
-        if (argc < 6)
-            Usage();
-        mode = DEBUG;
-        --argc, ++argv;
-    } else
-        mode = NORMAL;
+    }
 
     std::string solr_host_and_port;
     if (argc == 5)
@@ -454,9 +448,10 @@ int main(int argc, char **argv) {
         DbConnection db_connection(mysql_url);
 
         std::unordered_set<std::string> new_notification_ids;
-        ProcessSubscriptions(mode, &db_connection, notified_db, &new_notification_ids, solr_host_and_port, user_type, hostname,
+        ProcessSubscriptions(debug, &db_connection, notified_db, &new_notification_ids, solr_host_and_port, user_type, hostname,
                              sender_email, email_subject);
-        RecordNewlyNotifiedIds(notified_db, new_notification_ids);
+        if (not debug)
+            RecordNewlyNotifiedIds(notified_db, new_notification_ids);
     } catch (const std::exception &x) {
         ERROR("caught exception: " + std::string(x.what()));
     }
