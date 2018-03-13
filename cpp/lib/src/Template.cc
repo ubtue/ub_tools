@@ -24,7 +24,8 @@
  */
 
 #include "Template.h"
-#include <memory>
+#include <map>
+#include <stdexcept>
 #include <sstream>
 #include <stack>
 #include "Compiler.h"
@@ -34,6 +35,20 @@
 
 
 namespace Template {
+
+
+ArrayValue::ArrayValue(const std::string &name, const std::vector<std::string> &values): Value(name) {
+    for (unsigned i(0); i < values.size(); ++i)
+        values_.emplace_back(std::shared_ptr<Value>(new ScalarValue(name + "[" + std::to_string(i) + "]", values[i])));
+}
+
+
+const std::shared_ptr<Value> &ArrayValue::operator[](const size_t index) const {
+    if (unlikely(index >= values_.size()))
+        throw std::out_of_range("in ArrayValue::operator[]: index (" + std::to_string(index) + ") >= size ("
+                                + std::to_string(values_.size()) + ")!");
+    return values_[index];
+}
 
 
 namespace {
@@ -92,13 +107,13 @@ TemplateScanner::TokenType TemplateScanner::getToken(const bool emit_output) {
     if (unlikely(input_.eof()))
         return END_OF_INPUT;
     if (unlikely(not last_error_message_.empty()))
-        logger->error("in TemplateScanner::getToken: attempting to continue scanning after an error occurred!");
+        ERROR("attempting to continue scanning after an error occurred!");
 
     for (;;) {
         int ch(input_.get());
         if (unlikely(ch == EOF)) {
             if (unlikely(in_syntax_))
-                throw std::runtime_error("in MiscUtil::TemplateScanner::getToken: unexpected EOF on line "
+                throw std::runtime_error("in Template::TemplateScanner::getToken: unexpected EOF on line "
                                          + std::to_string(line_no_) + "!");
             return END_OF_INPUT;
         }
@@ -121,7 +136,7 @@ TemplateScanner::TokenType TemplateScanner::getToken(const bool emit_output) {
                 if (likely(ch == '='))
                     return EQUALS;
                 else
-                    throw std::runtime_error("in MiscUtil::TemplateScanner::getToken: expected '=' after '=' on line "
+                    throw std::runtime_error("in Template::TemplateScanner::getToken: expected '=' after '=' on line "
                                              + std::to_string(line_no_) + "!");
             }
             if (ch == '!') {
@@ -129,7 +144,7 @@ TemplateScanner::TokenType TemplateScanner::getToken(const bool emit_output) {
                 if (likely(ch == '='))
                     return NOT_EQUALS;
                 else
-                    throw std::runtime_error("in MiscUtil::TemplateScanner::getToken: expected '=' after '!' on line "
+                    throw std::runtime_error("in Template::TemplateScanner::getToken: expected '=' after '!' on line "
                                              + std::to_string(line_no_) + "!");
             }
 
@@ -175,7 +190,7 @@ std::string TemplateScanner::extractKeywordCandidate() {
 void TemplateScanner::seek(const std::istream::streampos stream_position, const unsigned line_no) {
     input_.seekg(stream_position);
     if (unlikely(not input_))
-        logger->error("in TemplateScanner::seek: this should never happen!");
+        ERROR("this should never happen!");
     line_no_ = line_no;
 }
 
@@ -227,7 +242,7 @@ std::string TemplateScanner::TokenTypeToString(const TemplateScanner::TokenType 
         return "ERROR";
     }
 
-    logger->error("in TemplateScanner::TokenTypeToString: we should *never* get here!");
+    ERROR("we should *never* get here!");
 }
 
 
@@ -315,7 +330,7 @@ public:
     static Scope MakeIfScope(const unsigned start_line_number) { return Scope(IF, start_line_number); }
     static Scope MakeLoopScope(const unsigned start_line_number, const std::istream::streampos start_stream_pos,
                                const std::set<std::string> &loop_vars, const unsigned loop_count)
-    { return Scope(LOOP, start_line_number, start_stream_pos, loop_vars, loop_count); }
+        { return Scope(LOOP, start_line_number, start_stream_pos, loop_vars, loop_count); }
 private:
     explicit Scope(const Type type): type_(type) { }
     explicit Scope(const Type type, const unsigned start_line_number)
@@ -330,8 +345,7 @@ private:
 
 bool Scope::isLoopVariable(const std::string &variable_name) const {
     if (unlikely(type_ != LOOP))
-        logger->error("in MiscUtil::Scope::isLoopVariable: this should never happen! (type is "
-                      + TypeToString(type_) + ", variable is \"" + variable_name + "\")");
+        ERROR("this should never happen! (type is " + TypeToString(type_) + ", variable is \"" + variable_name + "\")");
 
     return loop_vars_.find(variable_name) != loop_vars_.cend();
 }
@@ -339,8 +353,7 @@ bool Scope::isLoopVariable(const std::string &variable_name) const {
 
 unsigned Scope::getCurrentIterationCount() const {
     if (unlikely(type_ != LOOP))
-        logger->error("in MiscUtil::Scope::getCurrentIterationCount: this should never happen! (type is "
-                      + TypeToString(type_) + ")");
+        ERROR("this should never happen! (type is " + TypeToString(type_) + ")");
 
     return iteration_count_;
 }
@@ -348,7 +361,7 @@ unsigned Scope::getCurrentIterationCount() const {
 
 unsigned Scope::getLoopCount() const {
     if (unlikely(type_ != LOOP))
-        logger->error("in MiscUtil::Scope::getLoopCount: this should never happen!");
+        ERROR("this should never happen!");
 
     return loop_count_;
 }
@@ -356,7 +369,7 @@ unsigned Scope::getLoopCount() const {
 
 void Scope::incIterationCount() {
     if (unlikely(type_ != LOOP))
-        logger->error("in MiscUtil::Scope::incIterationCount: this should never happen!");
+        ERROR("this should never happen!");
 
     ++iteration_count_;
 }
@@ -364,7 +377,7 @@ void Scope::incIterationCount() {
 
 std::istream::streampos Scope::getStartStreamPos() const {
     if (unlikely(type_ != LOOP))
-        logger->error("in MiscUtil::Scope::getStartStreamPos: this should never happen!");
+        ERROR("this should never happen!");
 
     return start_stream_pos_;
 }
@@ -380,28 +393,35 @@ std::string Scope::TypeToString(const Type type) {
         return "LOOP";
     }
 
-    logger->error("in Scope::TypeToString: we should *never* get here!");
+    ERROR("we should *never* get here!");
 }
 
 
 // Returns true, if "variable_name" exists and can be accessed as a scalar based on the current scope.
-bool GetScalarValue(const std::string &variable_name,
-                    const std::map<std::string, std::vector<std::string>> &names_to_values_map,
+bool GetScalarValue(const std::string &variable_name, const Map &names_to_values_map,
                     const std::vector<Scope> &active_scopes, std::string * const value)
 {
     const auto &name_and_values(names_to_values_map.find(variable_name));
-    if (name_and_values == names_to_values_map.cend())
+    if (name_and_values == names_to_values_map.end())
         return false;
 
-    if (name_and_values->second.size() == 1) { // We can always access this variable in a scalar context!
-        *value = name_and_values->second[0];
+    // If we have a scalar we have no problem:
+    if (ScalarValue *scalar = dynamic_cast<ScalarValue *>(name_and_values->second.get())) {
+        *value = scalar->getValue();
         return true;
     }
 
     // Now deal w/ multivalued variables:
     for (auto scope(active_scopes.crbegin()); scope != active_scopes.crend(); ++scope) {
         if (scope->isLoopVariable(variable_name)) {
-            *value = name_and_values->second[scope->getCurrentIterationCount()];
+            // N.B. The following reinterpret_cast is safe as we know that we are not dealing w/ a ScalarValue
+            // because of the earlier failed dynamic_cast.
+            const ArrayValue * const array(reinterpret_cast<ArrayValue *>(name_and_values->second.get()));
+            const Value * const array_entry((*array)[scope->getCurrentIterationCount()].get());
+            const ScalarValue * const array_entry_as_scalar(dynamic_cast<const ScalarValue * const>(array_entry));
+            if (unlikely(array_entry_as_scalar == nullptr))
+                return false;
+            *value = array_entry_as_scalar->getValue();
             return true;
         }
     }
@@ -410,14 +430,13 @@ bool GetScalarValue(const std::string &variable_name,
 }
 
 
-bool ParseIfCondition(TemplateScanner * const scanner,
-                      const std::map<std::string, std::vector<std::string>> &names_to_values_map,
+bool ParseIfCondition(TemplateScanner * const scanner, const Map &names_to_values_map,
                       const std::vector<Scope> &active_scopes, const bool parse_only = false)
 {
     scanner->skipWhitespace();
     TemplateScanner::TokenType token(scanner->getToken(/* emit_output = */false));
     if (unlikely(token != TemplateScanner::DEFINED and token != TemplateScanner::VARIABLE_NAME))
-        throw std::runtime_error("in MiscUtil::ParseIfCondition: error on line "
+        throw std::runtime_error("in Template::ParseIfCondition: error on line "
                                  + std::to_string(scanner->getLineNo())
                                  + " DEFINED or variable name expected but found "
                                  + TemplateScanner::TokenTypeToString(token) + " instead!");
@@ -426,41 +445,40 @@ bool ParseIfCondition(TemplateScanner * const scanner,
     if (token == TemplateScanner::DEFINED) {
         token = scanner->getToken(/* emit_output = */false);
         if (unlikely(token != TemplateScanner::OPEN_PAREN))
-            throw std::runtime_error("in MiscUtil::ParseIfCondition: error on line "
+            throw std::runtime_error("in Template::ParseIfCondition: error on line "
                                      + std::to_string(scanner->getLineNo()) + " '(' expected but found "
                                      + TemplateScanner::TokenTypeToString(token) + " instead!");
 
         token = scanner->getToken(/* emit_output = */false);
         if (unlikely(token != TemplateScanner::VARIABLE_NAME))
-            throw std::runtime_error("in MiscUtil::ParseIfCondition: error on line "
+            throw std::runtime_error("in Template::ParseIfCondition: error on line "
                                      + std::to_string(scanner->getLineNo()) + " variable name expected but found "
                                      + TemplateScanner::TokenTypeToString(token) + " instead!");
-        expression_value = names_to_values_map.find(scanner->getLastVariableName())
-                           != names_to_values_map.cend();
+        expression_value = names_to_values_map.find(scanner->getLastVariableName()) != names_to_values_map.end();
 
         token = scanner->getToken(/* emit_output = */false);
         if (unlikely(token != TemplateScanner::CLOSE_PAREN))
-            throw std::runtime_error("in MiscUtil::ParseIfCondition: error on line "
+            throw std::runtime_error("in Template::ParseIfCondition: error on line "
                                      + std::to_string(scanner->getLineNo()) + " '(' expected but found "
                                      + TemplateScanner::TokenTypeToString(token) + " instead!");
     } else { // Comparison.
         std::string variable_name(scanner->getLastVariableName());
         std::string lhs;
         if (not parse_only and unlikely(not GetScalarValue(variable_name, names_to_values_map, active_scopes, &lhs)))
-            throw std::runtime_error("in MiscUtil::ParseIfCondition: error on line "
+            throw std::runtime_error("in Template::ParseIfCondition: error on line "
                                      + std::to_string(scanner->getLineNo())
                                      + " unknown or non-scalar variable name \"" + variable_name + "\"!");
         scanner->skipWhitespace();
         const TemplateScanner::TokenType operator_token(scanner->getToken(/* emit_output = */false));
         if (unlikely(operator_token != TemplateScanner::EQUALS and operator_token != TemplateScanner::NOT_EQUALS))
-            throw std::runtime_error("in MiscUtil::ParseIfCondition: error on line "
+            throw std::runtime_error("in Template::ParseIfCondition: error on line "
                                      + std::to_string(scanner->getLineNo())
                                      + " \"==\" or \"!=\" expected after variable name!");
 
         scanner->skipWhitespace();
         token = scanner->getToken(/* emit_output = */false);
         if (unlikely(token != TemplateScanner::VARIABLE_NAME and token != TemplateScanner::STRING_CONSTANT))
-            throw std::runtime_error("in MiscUtil::ParseIfCondition: error on line "
+            throw std::runtime_error("in Template::ParseIfCondition: error on line "
                                      + std::to_string(scanner->getLineNo())
                                      + " variable name or string constant expected after comparison operator! ("
                                      "Found " + TemplateScanner::TokenTypeToString(token) + " instead.)");
@@ -470,7 +488,7 @@ bool ParseIfCondition(TemplateScanner * const scanner,
         else {
             variable_name = scanner->getLastVariableName();
             if (unlikely(not GetScalarValue(variable_name, names_to_values_map, active_scopes, &rhs)))
-                throw std::runtime_error("in MiscUtil::ParseIfCondition: error on line "
+                throw std::runtime_error("in Template::ParseIfCondition: error on line "
                                          + std::to_string(scanner->getLineNo())
                                          + " unknown or non-scalar variable name \"" + variable_name + "\"!");
         }
@@ -485,10 +503,7 @@ bool ParseIfCondition(TemplateScanner * const scanner,
 
 
 // \return The value of the conditional expression.
-bool ParseIf(TemplateScanner * const scanner,
-             const std::map<std::string, std::vector<std::string>> &names_to_values_map,
-             const std::vector<Scope> &active_scopes)
-{
+bool ParseIf(TemplateScanner * const scanner, const Map &names_to_values_map, const std::vector<Scope> &active_scopes) {
     const bool condition1(ParseIfCondition(scanner, names_to_values_map, active_scopes));
 
     scanner->skipWhitespace();
@@ -497,7 +512,7 @@ bool ParseIf(TemplateScanner * const scanner,
         return condition1;
 
     if (unlikely(token != TemplateScanner::AND and token != TemplateScanner::OR))
-        throw std::runtime_error("in MiscUtil::ParseIf: error on line " + std::to_string(scanner->getLineNo())
+        throw std::runtime_error("in Template::ParseIf: error on line " + std::to_string(scanner->getLineNo())
                                  + " '}' expected but found " + TemplateScanner::TokenTypeToString(token)
                                  + " instead!");
 
@@ -519,20 +534,22 @@ bool ParseIf(TemplateScanner * const scanner,
 
 
 /** \return False if "variable_name_candidate" is an unknown variable name, else true. */
-bool GetVariableCardinality(const std::string variable_name_candidate,
-                            const std::map<std::string, std::vector<std::string>> &names_to_values_map,
-                            unsigned * const cardinality)
+bool GetVariableCardinality(const std::string &variable_name_candidate, const Map &names_to_values_map,
+                            size_t * const cardinality)
 {
     const auto name_and_values(names_to_values_map.find(variable_name_candidate));
-    if (unlikely(name_and_values == names_to_values_map.cend()))
+    if (unlikely(name_and_values == names_to_values_map.end()))
         return false;
-    *cardinality = name_and_values->second.size();
+    const ArrayValue * const array_value(dynamic_cast<const ArrayValue * const>(name_and_values->second.get()));
+    if (unlikely(array_value == nullptr))
+        return false;
+    *cardinality = array_value->size();
     return true;
 }
 
 
-void ParseLoop(TemplateScanner * const scanner, std::set<std::string> * const loop_vars, unsigned * const loop_count,
-               const std::map<std::string, std::vector<std::string>> &names_to_values_map)
+void ParseLoop(TemplateScanner * const scanner, std::set<std::string> * const loop_vars, size_t * const loop_count,
+               const Map &names_to_values_map)
 {
     scanner->skipWhitespace();
 
@@ -555,7 +572,7 @@ void ParseLoop(TemplateScanner * const scanner, std::set<std::string> * const lo
                                      + ": variable name expected after comma, found "
                                      + TemplateScanner::TokenTypeToString(token) + " instead!");
         variable_name_candidate = scanner->getLastVariableName();
-        unsigned cardinality;
+        size_t cardinality;
         if (unlikely(not GetVariableCardinality(variable_name_candidate, names_to_values_map, &cardinality)))
             throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
                                      + ": undefined loop variable \"" + variable_name_candidate + "\"!"
@@ -576,7 +593,7 @@ void ParseLoop(TemplateScanner * const scanner, std::set<std::string> * const lo
 void ProcessEndOfSyntax(const std::string &name_of_syntactic_construct, TemplateScanner * const scanner) {
     const TemplateScanner::TokenType token(scanner->getToken(/* emit_output = */false));
     if (unlikely(token != TemplateScanner::END_OF_SYNTAX))
-        throw std::runtime_error("in MiscUtil::ProcessEndOfSyntax: error on line "
+        throw std::runtime_error("in Template::ProcessEndOfSyntax: error on line "
                                  + std::to_string(scanner->getLineNo()) + " expected '}' after "
                                  + name_of_syntactic_construct + " but found "
                                  + TemplateScanner::TokenTypeToString(token) + "!");
@@ -586,9 +603,9 @@ void ProcessEndOfSyntax(const std::string &name_of_syntactic_construct, Template
 void SkipToToken(TemplateScanner * const scanner, TemplateScanner::TokenType target_token) {
     TemplateScanner::TokenType token;
     while ((token = scanner->getToken(false)) != target_token and token != TemplateScanner::END_OF_INPUT)
-    { /* do nothing */ }
+        /* do nothing */;
     if (token == TemplateScanner::END_OF_INPUT)
-        throw std::runtime_error("in MiscUtil::SkipToToken: error on line "
+        throw std::runtime_error("in Template::SkipToToken: error on line "
                                  + std::to_string(scanner->getLineNo())
                                  + " expected '" + TemplateScanner::TokenTypeToString(token)
                                  + "' but none was found.");
@@ -598,9 +615,7 @@ void SkipToToken(TemplateScanner * const scanner, TemplateScanner::TokenType tar
 } // unnamed namespace
 
 
-void ExpandTemplate(std::istream &input, std::ostream &output,
-                    const std::map<std::string, std::vector<std::string>> &names_to_values_map)
-{
+void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_to_values_map) {
     TemplateScanner scanner(input, output);
     std::vector<Scope> scopes;
     scopes.push_back(Scope::MakeTopLevelScope());
@@ -609,7 +624,7 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
     TemplateScanner::TokenType token;
     while ((token = scanner.getToken(skipping.empty() or not skipping.top())) != TemplateScanner::END_OF_INPUT) {
         if (unlikely(token == TemplateScanner::ERROR))
-            throw std::runtime_error("in MiscUtil::ExpandTemplate: error on line "
+            throw std::runtime_error("in Template::ExpandTemplate: error on line "
                                      + std::to_string(scanner.getLineNo()) + ": " + scanner.getLastErrorMessage());
         if (token == TemplateScanner::IF) {
             const unsigned start_line_no(scanner.getLineNo());
@@ -617,14 +632,14 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
             scopes.push_back(Scope::MakeIfScope(start_line_no));
         } else if (token == TemplateScanner::ELSE) {
             if (unlikely(scopes.back().getType() != Scope::IF))
-                throw std::runtime_error("in MiscUtil::ExpandTemplate: error on line "
+                throw std::runtime_error("in Template::ExpandTemplate: error on line "
                                          + std::to_string(scanner.getLineNo())
                                          + ": ELSE found w/o corresponding earlier IF!");
             skipping.top() = not skipping.top();
             ProcessEndOfSyntax("ELSE", &scanner);
         } else if (token == TemplateScanner::ENDIF) {
             if (unlikely(scopes.back().getType() != Scope::IF))
-                throw std::runtime_error("in MiscUtil::ExpandTemplate: error on line "
+                throw std::runtime_error("in Template::ExpandTemplate: error on line "
                                          + std::to_string(scanner.getLineNo())
                                          + ": ENDIF found w/o corresponding earlier IF!");
             scopes.pop_back();
@@ -632,11 +647,11 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
             ProcessEndOfSyntax("ENDIF", &scanner);
         } else if (token == TemplateScanner::LOOP) {
             std::set<std::string> loop_vars;
-            unsigned loop_count;
+            size_t loop_count;
             try {
                 ParseLoop(&scanner, &loop_vars, &loop_count, names_to_values_map);
             } catch (const std::exception &x) {
-                throw std::runtime_error("in MiscUtil::ExpandTemplate: " + std::string(x.what()));
+                throw std::runtime_error("in Template::ExpandTemplate: " + std::string(x.what()));
             }
             const unsigned start_line_no(scanner.getLineNo());
             if (likely(loop_count > 0))
@@ -648,7 +663,7 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
         } else if (token == TemplateScanner::ENDLOOP) {
             Scope &current_scope(scopes.back());
             if (unlikely(current_scope.getType() != Scope::LOOP))
-                throw std::runtime_error("in MiscUtil::ExpandTemplate: error on line "
+                throw std::runtime_error("in Template::ExpandTemplate: error on line "
                                          + std::to_string(scanner.getLineNo())
                                          + ": ENDLOOP found w/o corresponding earlier LOOP!");
             ProcessEndOfSyntax("ENDLOOP", &scanner);
@@ -663,7 +678,7 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
             if (skipping.empty() or not skipping.top()) {
                 std::string variable_value;
                 if (not GetScalarValue(last_variable_name, names_to_values_map, scopes, &variable_value))
-                    throw std::runtime_error("in MiscUtil::ExpandTemplate: error on line "
+                    throw std::runtime_error("in Template::ExpandTemplate: error on line "
                                              + std::to_string(scanner.getLineNo()) + ": found unexpected variable \""
                                              + last_variable_name + "\"!");
                 output << variable_value;
@@ -677,20 +692,18 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
     case Scope::TOP_LEVEL:
         return;
     case Scope::IF:
-        throw std::runtime_error("in MiscUtil::ExpandTemplate: error on line "
+        throw std::runtime_error("in Template::ExpandTemplate: error on line "
                                  + std::to_string(scanner.getLineNo()) + ": IF started on line "
                                  + std::to_string(scope.getStartLineNumber()) + " was never closed!");
     case Scope::LOOP:
-        throw std::runtime_error("in MiscUtil::ExpandTemplate: error on line "
+        throw std::runtime_error("in Template::ExpandTemplate: error on line "
                                  + std::to_string(scanner.getLineNo()) + ": LOOP started on line "
                                  + std::to_string(scope.getStartLineNumber()) + " was never closed!");
     }
 }
 
 
-std::string ExpandTemplate(const std::string &template_string,
-                           const std::map<std::string, std::vector<std::string>> &names_to_values_map)
-{
+std::string ExpandTemplate(const std::string &template_string, const Map &names_to_values_map) {
     std::istringstream input(template_string);
     std::ostringstream expanded_template;
     ExpandTemplate(input, expanded_template, names_to_values_map);

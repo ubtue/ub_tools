@@ -28,7 +28,8 @@
 
 
 #include <istream>
-#include <map>
+#include <unordered_map>
+#include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -37,6 +38,61 @@
 namespace Template {
 
 
+class Value {
+    std::string name_;
+public:
+    explicit Value(const std::string &name): name_(name) { }
+    inline const std::string &getName() const { return name_; }
+    virtual ~Value() { }
+};
+
+
+class ScalarValue final : public Value {
+    std::string value_;
+public:
+    ScalarValue(const std::string &name, const std::string &value): Value(name), value_(value) { }
+    virtual ~ScalarValue() { }
+    inline const std::string &getValue() const { return value_; }
+    static std::shared_ptr<Value> Factory(const std::string &name, const std::string &value)
+        { return std::shared_ptr<Value>(new ScalarValue(name, value)); }
+};
+
+
+class ArrayValue final : public Value {
+    std::vector<std::shared_ptr<Value>> values_;
+public:
+    ArrayValue(const std::string &name, const std::vector<std::shared_ptr<Value>> &values)
+        : Value(name), values_(values) { }
+    ArrayValue(const std::string &name, const std::vector<std::string> &values);
+    virtual ~ArrayValue() { }
+    inline size_t size() const { return values_.size(); }
+    const std::shared_ptr<Value> &operator[](const size_t index) const;
+    static std::shared_ptr<Value> Factory(const std::string &name, const std::vector<std::shared_ptr<Value>> &values)
+        { return std::shared_ptr<Value>(new ArrayValue(name, values)); }
+    static std::shared_ptr<Value> Factory(const std::string &name, const std::vector<std::string> &values)
+        { return std::shared_ptr<Value>(new ArrayValue(name, values)); }
+};
+
+
+class Map {
+    std::unordered_map<std::string, std::shared_ptr<Value>> map_;
+public:
+    typedef std::unordered_map<std::string, std::shared_ptr<Value>>::const_iterator const_iterator;
+public:
+    inline void insertScalar(const std::string &name, const std::string &value)
+        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, value))); }
+    inline void insertArray(const std::string &name, const std::vector<std::string> &values)
+        { map_.emplace(name, std::shared_ptr<Value>(new ArrayValue(name, values))); }
+    inline void insertArray(const std::string &name, const std::vector<std::shared_ptr<Value>> &values)
+        { map_.emplace(name, std::shared_ptr<Value>(new ArrayValue(name, values))); }
+    inline const_iterator begin() const { return map_.begin(); }
+    inline const_iterator end() const { return map_.end(); }
+    inline std::shared_ptr<Value> operator[](const std::string &key) { return map_[key]; }
+    inline const_iterator find(const std::string &key) const { return map_.find(key); }
+    inline void clear() { map_.clear(); }
+};
+
+    
 /** A simple template expander.  All special constructs are in curly brackets.  To emit normal curly brackets
  *  you must duplicate them.  Variable names as defined by "names_to_values_map" must start with a lowercase ASCII
  *  letter, followed by lowercase ASCII letters, underscores or ASCII digits.  All keywords are all uppercase.
@@ -51,10 +107,8 @@ namespace Template {
  *
  *  \throws std::runtime_error if anything goes wrong, i.e. if a syntax error has been detected.
  */
-void ExpandTemplate(std::istream &input, std::ostream &output,
-                    const std::map<std::string, std::vector<std::string>> &names_to_values_map);
-std::string ExpandTemplate(const std::string &template_string,
-                           const std::map<std::string, std::vector<std::string>> &names_to_values_map);
+void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_to_values_map);
+std::string ExpandTemplate(const std::string &template_string, const Map &names_to_values_map);
 
 
 } // namespace MiscUtil
