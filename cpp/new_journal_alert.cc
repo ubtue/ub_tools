@@ -381,7 +381,7 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection,
                           hostname, sender_email, email_subject, control_numbers_and_last_modification_times);
     }
 
-    INFO(": Processed " + std::to_string(user_count) + " users and " + std::to_string(subscription_count) + " subscriptions.\n");
+    INFO("Processed " + std::to_string(user_count) + " users and " + std::to_string(subscription_count) + " subscriptions.\n");
 }
 
 
