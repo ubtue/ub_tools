@@ -225,7 +225,7 @@ std::string GetEmailTemplate(const std::string user_type) {
     std::string result;
     const std::string EMAIL_TEMPLATE_PATH("/usr/local/var/lib/tuelib/subscriptions_email." + user_type + ".template");
 
-    if (unlikely(!FileUtil::ReadString(EMAIL_TEMPLATE_PATH, &result)))
+    if (unlikely(not FileUtil::ReadString(EMAIL_TEMPLATE_PATH, &result)))
         ERROR("can't load email template \"" + EMAIL_TEMPLATE_PATH + "\"!");
 
     return result;
@@ -267,14 +267,20 @@ void SendNotificationEmail(const bool debug, const std::string &firstname, const
     names_to_values_map.insertScalar("firstname", firstname);
     names_to_values_map.insertScalar("lastname", lastname);
     std::vector<std::string> urls, series_titles, issue_titles;
+    std::vector<std::shared_ptr<Template::Value>> authors;
     for (const auto &new_issue_info : new_issue_infos) {
         urls.emplace_back("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
         series_titles.emplace_back(new_issue_info.series_title_);
         issue_titles.emplace_back(HtmlUtil::HtmlEscape(new_issue_info.issue_title_));
+        std::shared_ptr<Template::ArrayValue> issue_authors(new Template::ArrayValue("authors"));
+        for (const auto &author : new_issue_info.authors_)
+            issue_authors->appendValue(author);
+        authors.emplace_back(issue_authors);
     }
     names_to_values_map.insertArray("url", urls);
     names_to_values_map.insertArray("series_title", series_titles);
     names_to_values_map.insertArray("issue_title", issue_titles);
+    names_to_values_map.insertArray("authors", authors);
     std::istringstream input(email_template);
     std::ostringstream email_contents;
     Template::ExpandTemplate(input, email_contents, names_to_values_map);
