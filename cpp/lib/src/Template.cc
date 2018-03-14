@@ -545,55 +545,36 @@ bool ParseIf(TemplateScanner * const scanner, const Map &names_to_values_map, co
 }
 
 
-/** \return False if "variable_name_candidate" is an unknown variable name, else true. */
-bool GetVariableCardinality(const std::string &variable_name_candidate, const Map &names_to_values_map,
-                            size_t * const cardinality)
-{
-    const auto name_and_values(names_to_values_map.find(variable_name_candidate));
-    if (unlikely(name_and_values == names_to_values_map.end()))
-        return false;
-    const ArrayValue * const array_value(dynamic_cast<const ArrayValue * const>(name_and_values->second.get()));
-    if (unlikely(array_value == nullptr))
-        return false;
-    *cardinality = array_value->size();
-    return true;
-}
-
-
 void ParseLoop(TemplateScanner * const scanner, std::set<std::string> * const loop_vars, size_t * const loop_count,
-               const Map &names_to_values_map)
+               const Map &names_to_values_map, const std::vector<Scope> &active_scopes)
 {
     scanner->skipWhitespace();
 
-    TemplateScanner::TokenType token(scanner->getToken(/* emit_output = */false));
-    if (unlikely(token != TemplateScanner::VARIABLE_NAME))
-        throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
-                                 + ": variable name expected, found " + TemplateScanner::TokenTypeToString(token)
-                                 + " instead!");
-    std::string variable_name_candidate(scanner->getLastVariableName());
-    if (unlikely(not GetVariableCardinality(variable_name_candidate, names_to_values_map, loop_count)))
-        throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
-                                 + ": undefined loop variable \"" + variable_name_candidate + "\"!");
-    loop_vars->insert(variable_name_candidate);
-
-    while ((token = scanner->getToken(/* emit_output = */false)) == TemplateScanner::COMMA) {
+    TemplateScanner::TokenType token;
+    *loop_count = 0;
+    do {
         token = scanner->getToken(/* emit_output = */false);
         if (unlikely(token != TemplateScanner::VARIABLE_NAME))
-            throw std::runtime_error("error on line "
-                                     + std::to_string(scanner->getLineNo())
-                                     + ": variable name expected after comma, found "
-                                     + TemplateScanner::TokenTypeToString(token) + " instead!");
-        variable_name_candidate = scanner->getLastVariableName();
-        size_t cardinality;
-        if (unlikely(not GetVariableCardinality(variable_name_candidate, names_to_values_map, &cardinality)))
             throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
-                                     + ": undefined loop variable \"" + variable_name_candidate + "\"!"
-                                     + " (Possible loop variables are: " + StringUtil::Join(*loop_vars, ", ") + ")");
-        if (unlikely(cardinality != *loop_count))
+                                     + ": variable name expected after comma, found " + TemplateScanner::TokenTypeToString(token)
+                                     + " instead!");
+        const std::string variable_name_candidate(scanner->getLastVariableName());
+        const auto name_and_values(names_to_values_map.find(variable_name_candidate));
+        if (unlikely(name_and_values == names_to_values_map.end()))
+            throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo()) + ": undefined loop variable \""
+                                     + variable_name_candidate + "\"!");
+        const Value *value(GetArrayValue(active_scopes, variable_name_candidate, name_and_values->second.get()));
+        const ArrayValue * const array_value(dynamic_cast<const ArrayValue * const>(value));
+        if (unlikely(array_value == nullptr))
+            throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo()) + ": loop variable \""
+                                     + variable_name_candidate + "\" is scalar in this context!");
+        if (*loop_count == 0)
+            *loop_count = array_value->size();
+        else if (*loop_count != array_value->size())
             throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
-                                     + " loop variables do not all have the same cardinality!");
-        loop_vars->insert(variable_name_candidate);
-    }
+                                     + ": all loop variables must have the same cardinality!");
+        loop_vars->emplace(variable_name_candidate);
+    } while ((token = scanner->getToken(/* emit_output = */false)) == TemplateScanner::COMMA);
 
     if (unlikely(token != TemplateScanner::END_OF_SYNTAX))
         throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
@@ -661,7 +642,7 @@ void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_
             std::set<std::string> loop_vars;
             size_t loop_count;
             try {
-                ParseLoop(&scanner, &loop_vars, &loop_count, names_to_values_map);
+                ParseLoop(&scanner, &loop_vars, &loop_count, names_to_values_map, scopes);
             } catch (const std::exception &x) {
                 throw std::runtime_error("in Template::ExpandTemplate: " + std::string(x.what()));
             }
