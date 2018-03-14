@@ -34,7 +34,7 @@ void ExtractNamesAndValues(const int argc, char *argv[], Template::Map * const n
         arg = arg.substr(first_colon_pos + 1);
         std::vector<std::string> values;
         const auto first_semicolon_pos(arg.find(';'));
-        if (first_semicolon_pos != std::string::npos) { // We have an arry of arrays.
+        if (first_semicolon_pos != std::string::npos) { // We have an array of arrays.
             std::vector<std::string> arrays;
             StringUtil::Split(arg, ';', &arrays);
             std::vector<std::shared_ptr<Template::Value>> array_of_arrays;
