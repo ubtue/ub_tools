@@ -51,6 +51,11 @@ const std::shared_ptr<Value> &ArrayValue::operator[](const size_t index) const {
 }
 
 
+const Value *ArrayValue::getValueAt(const size_t index) const {
+    return unlikely(index >= values_.size()) ? nullptr : values_[index].get();
+}
+
+
 namespace {
 
 
@@ -397,6 +402,20 @@ std::string Scope::TypeToString(const Type type) {
 }
 
 
+const Value *GetArrayValue(const std::vector<Scope> &active_scopes, const std::string &variable_name, const Value *value) {
+    for (const auto &scope : active_scopes) {
+        if (scope.getType() == Scope::LOOP and scope.isLoopVariable(variable_name)) {
+            const ArrayValue * const array(dynamic_cast<const ArrayValue *>(value));
+            if (array == nullptr)
+                return nullptr;
+            value = array->getValueAt(scope.getCurrentIterationCount());
+        }
+    }
+
+    return value;
+}
+
+    
 // Returns true, if "variable_name" exists and can be accessed as a scalar based on the current scope.
 bool GetScalarValue(const std::string &variable_name, const Map &names_to_values_map,
                     const std::vector<Scope> &active_scopes, std::string * const value)
@@ -412,19 +431,12 @@ bool GetScalarValue(const std::string &variable_name, const Map &names_to_values
     }
 
     // Now deal w/ multivalued variables:
-    for (auto scope(active_scopes.crbegin()); scope != active_scopes.crend(); ++scope) {
-        if (scope->isLoopVariable(variable_name)) {
-            // N.B. The following reinterpret_cast is safe as we know that we are not dealing w/ a ScalarValue
-            // because of the earlier failed dynamic_cast.
-            const ArrayValue * const array(reinterpret_cast<ArrayValue *>(name_and_values->second.get()));
-            const Value * const array_entry((*array)[scope->getCurrentIterationCount()].get());
-            const ScalarValue * const array_entry_as_scalar(dynamic_cast<const ScalarValue * const>(array_entry));
-            if (unlikely(array_entry_as_scalar == nullptr))
-                return false;
-            *value = array_entry_as_scalar->getValue();
-            return true;
-        }
-    }
+    const Value * const array_entry(GetArrayValue(active_scopes, variable_name, name_and_values->second.get()));
+    const ScalarValue * const array_entry_as_scalar(dynamic_cast<const ScalarValue * const>(array_entry));
+    if (unlikely(array_entry_as_scalar == nullptr))
+        return false;
+    *value = array_entry_as_scalar->getValue();
+    return true;
 
     return false;
 }
