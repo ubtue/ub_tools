@@ -73,6 +73,10 @@ public:
                                                                     new_value)));
     }
     const std::shared_ptr<Value> &operator[](const size_t index) const;
+
+    // \return NULL if index is out of range, else the value at the index.
+    const Value *getValueAt(const size_t index) const;
+
     static std::shared_ptr<Value> Factory(const std::string &name, const std::vector<std::shared_ptr<Value>> &values)
         { return std::shared_ptr<Value>(new ArrayValue(name, values)); }
     static std::shared_ptr<Value> Factory(const std::string &name, const std::vector<std::string> &values)
@@ -98,7 +102,7 @@ public:
     inline void clear() { map_.clear(); }
 };
 
-    
+
 /** A simple template expander.  All special constructs are in curly brackets.  To emit normal curly brackets
  *  you must duplicate them.  Variable names as defined by "names_to_values_map" must start with a lowercase ASCII
  *  letter, followed by lowercase ASCII letters, underscores or ASCII digits.  All keywords are all uppercase.
