@@ -63,9 +63,15 @@ class ArrayValue final : public Value {
 public:
     ArrayValue(const std::string &name, const std::vector<std::shared_ptr<Value>> &values)
         : Value(name), values_(values) { }
+    explicit ArrayValue(const std::string &name): Value(name) { }
     ArrayValue(const std::string &name, const std::vector<std::string> &values);
     virtual ~ArrayValue() { }
     inline size_t size() const { return values_.size(); }
+    void appendValue(const std::shared_ptr<Value> &new_value) { values_.emplace_back(new_value); }
+    void appendValue(const std::string &new_value) {
+        values_.emplace_back(std::shared_ptr<Value>(new ScalarValue(getName() + "[" + std::to_string(values_.size()) + "]",
+                                                                    new_value)));
+    }
     const std::shared_ptr<Value> &operator[](const size_t index) const;
     static std::shared_ptr<Value> Factory(const std::string &name, const std::vector<std::shared_ptr<Value>> &values)
         { return std::shared_ptr<Value>(new ArrayValue(name, values)); }
