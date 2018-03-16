@@ -517,6 +517,16 @@ Record BinaryReader::actualRead() {
 }
 
 
+bool BinaryReader::seek(const off_t offset, const int whence) {
+    if (input_->seek(offset, whence)) {
+        next_record_start_ = input_->tell();
+        new_record = actualRead();
+        return true;
+    } else
+        return false;
+}
+
+
 Record XmlReader::read() {
     Record new_record;
 
