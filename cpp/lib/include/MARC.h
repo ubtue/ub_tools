@@ -230,7 +230,6 @@ public:
         friend class Record;
         Tag tag_;
         std::string contents_;
-    private:
     public:
         Field(const Field &other) = default;
         Field(const std::string &tag, const std::string &contents): tag_(tag), contents_(contents) { }
@@ -529,7 +528,7 @@ public:
     /** \return The file position of the start of the next record. */
     virtual off_t tell() const = 0;
 
-    inline bool seek(const off_t offset, const int whence = SEEK_SET) { return input_->seek(offset, whence); }
+    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) { return input_->seek(offset, whence); }
 
     /** \return a BinaryMarcReader or an XmlMarcReader. */
     static std::unique_ptr<Reader> Factory(const std::string &input_filename,
@@ -549,7 +548,9 @@ public:
     virtual void rewind() final { input_->rewind(); }
 
     /** \return The file position of the start of the next record. */
-    virtual off_t tell() const { return next_record_start_; }
+    virtual off_t tell() const override { return next_record_start_; }
+
+    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) override;
 private:
     Record actualRead();
 };
