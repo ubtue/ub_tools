@@ -72,6 +72,7 @@ constexpr unsigned DEFAULT_CONVERSION_TIMEOUT = 60000;
 constexpr unsigned DEFAULT_TIMEOUT = 10000;
 constexpr unsigned DEFAULT_MIN_URL_PROCESSING_TIME = 200;
 
+
 struct HarvestMaps {
     std::unordered_map<std::string, std::string> ISSN_to_SSG_map_;
     std::unordered_map<std::string, std::string> ISSN_to_keyword_field_map_;
@@ -173,8 +174,8 @@ private:
                          const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
                          MARC::Record * const new_record);
 
-        void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MARC::Record * const new_record);
-        void CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record);
+    void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MARC::Record * const new_record);
+    void CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record);
 };
 
 
@@ -198,7 +199,7 @@ public:
     ~PreviouslyDownloadedHashesManager();
 };
 
-    
+
 } // namespace Zotero
 
 
