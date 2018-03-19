@@ -19,7 +19,10 @@
  */
 #include <iostream>
 #include <cstring>
+#include "DbConnection.h"
+#include "DbResultSet.h"
 #include "Downloader.h"
+#include "IniFile.h"
 #include "SyndicationFormat.h"
 #include "util.h"
 
@@ -33,7 +36,7 @@ namespace {
 }
 
 
-void ProcessSyndicationURL(const bool verbose, const std::string &url) {
+void ProcessSyndicationURL(const bool verbose, const std::string &url, DbConnection * const db_connection) {
     if (verbose)
         std::cerr << "Processing URL: " << url << '\n';
 
@@ -58,6 +61,18 @@ void ProcessSyndicationURL(const bool verbose, const std::string &url) {
     }
 
     for (const auto &item : *syndication_format) {
+        db_connection->queryOrDie("SELECT creation_datetime FROM rss WHERE server_url='" + db_connection->escapeString(url)
+                                  + "' AND item_id='" + db_connection->escapeString(item.getId()) + "'");
+        DbResultSet result_set(db_connection->getLastResultSet());
+        if (not result_set.empty()) {
+            if (verbose) {
+                const DbRow first_row(result_set.getNextRow());
+                std::cout << "Previously retrieved item w/ ID \"" << item.getId() + "\" at " << first_row["creation_datetime"]
+                          << ".\n";
+            }
+            continue;
+        }
+        
         std::cout << "\tItem:\n";
         const std::string title(item.getTitle());
         if (not title.empty())
@@ -77,8 +92,14 @@ void ProcessSyndicationURL(const bool verbose, const std::string &url) {
         const std::unordered_map<std::string, std::string> &dc_and_prism_data(item.getDCAndPrismData());
         for (const auto &key_and_value : dc_and_prism_data)
             std::cout << "\t\t" << key_and_value.first << ": " << key_and_value.second << '\n';
+
+        db_connection->queryOrDie("INSERT INTO rss SET server_url='" + db_connection->escapeString(url) + "',item_id='"
+                                  + db_connection->escapeString(item.getId()) + "'");
     }
 }
+
+
+const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_client.conf");
 
 
 } // unnamed namespace
@@ -100,8 +121,15 @@ int main(int argc, char *argv[]) {
         Usage();
 
     try {
+
+        const IniFile ini_file(CONF_FILE_PATH);
+        const std::string sql_database(ini_file.getString("Database", "sql_database"));
+        const std::string sql_username(ini_file.getString("Database", "sql_username"));
+        const std::string sql_password(ini_file.getString("Database", "sql_password"));
+        DbConnection db_connection(sql_database, sql_username, sql_password);
+
         for (int arg_no(1); arg_no < argc; ++arg_no)
-            ProcessSyndicationURL(verbose, argv[arg_no]);
+            ProcessSyndicationURL(verbose, argv[arg_no], &db_connection);
     } catch (const std::exception &x) {
         ERROR("caught exception: " + std::string(x.what()));
     }
