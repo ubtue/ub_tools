@@ -88,7 +88,7 @@ unsigned ProcessSyndicationURL(const bool verbose, const std::string &url,
         const std::unordered_map<std::string, std::string> &dc_and_prism_data(item.getDCAndPrismData());
         if (dc_and_prism_data.empty()) {
             const auto record_count_and_previously_downloaded_count(
-                Zotero::Harvest(item.getLink(), "", harvest_params, harvest_maps));
+                Zotero::Harvest(item.getLink(), harvest_params, harvest_maps));
             successfully_processed_count += record_count_and_previously_downloaded_count.first;
         } else
             ERROR("create a MARC record from the RSS DC and PRISM metadata!");
