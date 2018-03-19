@@ -1,6 +1,7 @@
 /** \brief Interaction with Zotero Translation Server
  *         public functions are named like endpoints
  *         see https://github.com/zotero/translation-server
+ *  \author Dr. Johannes Ruscheinski
  *  \author Mario Trojan
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -28,12 +29,19 @@
 #include "util.h"
 
 
-const std::vector<std::string> Zotero::ExportFormats
-    { "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
-    "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei" };
+namespace Zotero {
 
 
-const std::string Zotero::DEFAULT_SUBFIELD_CODE = "eng";
+const std::vector<std::string> ExportFormats{
+    "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
+    "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei"
+};
+
+
+const std::string DEFAULT_SUBFIELD_CODE("eng");
+
+
+namespace {
 
 
 struct Date {
@@ -84,9 +92,15 @@ std::string GetNextControlNumber() {
 }
 
 
-bool Zotero::TranslationServer::Export(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
-                                       const std::string &format, const std::string &json,
-                                       std::string * const response_body, std::string * const error_message)
+} // unnamed namespace
+
+
+namespace TranslationServer {
+
+
+bool Export(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
+            const std::string &format, const std::string &json,
+            std::string * const response_body, std::string * const error_message)
 {
     const std::string endpoint_url(Url(zts_server_url.toString() + "/export?format=" + format));
     downloader_params.additional_headers_ = { "Content-Type: application/json" };
@@ -103,8 +117,8 @@ bool Zotero::TranslationServer::Export(const Url &zts_server_url, const TimeLimi
 }
 
 
-bool Zotero::TranslationServer::Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
-                                       const std::string &input_content, std::string * const output_json, std::string * const error_message)
+bool Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
+            const std::string &input_content, std::string * const output_json, std::string * const error_message)
 {
     const std::string endpoint_url(Url(zts_server_url.toString() + "/import"));
     downloader_params.post_data_ = input_content;
@@ -120,9 +134,9 @@ bool Zotero::TranslationServer::Import(const Url &zts_server_url, const TimeLimi
 }
 
 
-bool Zotero::TranslationServer::Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
-                                    const Url &harvest_url, const std::string &harvested_html,
-                                    std::string * const response_body, unsigned * response_code, std::string * const error_message)
+bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
+         const Url &harvest_url, const std::string &harvested_html,
+         std::string * const response_body, unsigned * response_code, std::string * const error_message)
 {
     const std::string endpoint_url(Url(zts_server_url.toString() + "/web"));
     downloader_params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json" };
@@ -146,7 +160,10 @@ bool Zotero::TranslationServer::Web(const Url &zts_server_url, const TimeLimit &
 }
 
 
-std::unique_ptr<Zotero::FormatHandler> Zotero::FormatHandler::Factory(const std::string &output_format,
+} // namespace TranslationServer
+
+
+std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &output_format,
                                                                       const std::string &output_file,
                                                                       std::shared_ptr<HarvestMaps> harvest_maps,
                                                                       std::shared_ptr<HarvestParams> harvest_params)
@@ -155,19 +172,19 @@ std::unique_ptr<Zotero::FormatHandler> Zotero::FormatHandler::Factory(const std:
         return std::unique_ptr<FormatHandler>(new MarcFormatHandler(output_format, output_file, harvest_maps, harvest_params));
     else if (output_format == "json")
         return std::unique_ptr<FormatHandler>(new JsonFormatHandler(output_format, output_file, harvest_maps, harvest_params));
-    else if (std::find(Zotero::ExportFormats.begin(), Zotero::ExportFormats.end(), output_format) != Zotero::ExportFormats.end())
+    else if (std::find(ExportFormats.begin(), ExportFormats.end(), output_format) != ExportFormats.end())
         return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(output_format, output_file, harvest_maps, harvest_params));
     else
         ERROR("invalid output-format: " + output_format);
 }
 
-void Zotero::JsonFormatHandler::prepareProcessing() {
+void JsonFormatHandler::prepareProcessing() {
     output_file_object_ = new File(output_file_, "w");
     output_file_object_->write("[");
 }
 
 
-std::pair<unsigned, unsigned> Zotero::JsonFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
+std::pair<unsigned, unsigned> JsonFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
     if (record_count_ > 0)
         output_file_object_->write(",");
     output_file_object_->write(object_node->toString());
@@ -176,18 +193,18 @@ std::pair<unsigned, unsigned> Zotero::JsonFormatHandler::processRecord(const std
 }
 
 
-void Zotero::JsonFormatHandler::finishProcessing() {
+void JsonFormatHandler::finishProcessing() {
     output_file_object_->write("]");
     output_file_object_->close();
 }
 
 
-void Zotero::ZoteroFormatHandler::prepareProcessing() {
+void ZoteroFormatHandler::prepareProcessing() {
     json_buffer_ = "[";
 }
 
 
-std::pair<unsigned, unsigned> Zotero::ZoteroFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
+std::pair<unsigned, unsigned> ZoteroFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
     if (record_count_ > 0)
         json_buffer_ += ",";
     json_buffer_ += object_node->toString();
@@ -196,14 +213,14 @@ std::pair<unsigned, unsigned> Zotero::ZoteroFormatHandler::processRecord(const s
 }
 
 
-void Zotero::ZoteroFormatHandler::finishProcessing() {
+void ZoteroFormatHandler::finishProcessing() {
     json_buffer_ += "]";
 
     Downloader::Params downloader_params;
     std::string response_body;
     std::string error_message;
 
-    if (not Zotero::TranslationServer::Export(harvest_params_->zts_server_url_, Zotero::DEFAULT_CONVERSION_TIMEOUT, downloader_params,
+    if (not TranslationServer::Export(harvest_params_->zts_server_url_, DEFAULT_CONVERSION_TIMEOUT, downloader_params,
                                               output_format_, json_buffer_, &response_body, &error_message))
         ERROR("converting to target format failed: " + error_message);
     else
@@ -211,7 +228,7 @@ void Zotero::ZoteroFormatHandler::finishProcessing() {
 }
 
 
-void Zotero::MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSONNode> tags_node, const std::string &issn,
+void MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSONNode> tags_node, const std::string &issn,
                                                 const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
                                                 MARC::Record * const new_record)
 {
@@ -244,7 +261,7 @@ void Zotero::MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSON
 }
 
 
-void Zotero::MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node,
+void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node,
                                                                MARC::Record * const new_record)
 {
     std::vector<MARC::Subfield> subfields;
@@ -273,7 +290,7 @@ void Zotero::MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::Objec
 }
 
 
-void Zotero::MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node,
+void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node,
                                                     MARC::Record * const marc_record)
 {
     const std::shared_ptr<const JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", creators_node));
@@ -322,12 +339,12 @@ void Zotero::MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const 
 }
 
 
-void Zotero::MarcFormatHandler::prepareProcessing() {
+void MarcFormatHandler::prepareProcessing() {
     marc_writer_ = MARC::Writer::Factory(output_file_);
 }
 
 
-std::pair<unsigned, unsigned> Zotero::MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
+std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
         "^issue|pages|publicationTitle|volume|date|tags|libraryCatalog|itemVersion|accessDate$"));
     unsigned record_count(0), previously_downloaded_count(0);
@@ -459,7 +476,7 @@ std::pair<unsigned, unsigned> Zotero::MarcFormatHandler::processRecord(const std
 }
 
 
-void Zotero::MarcFormatHandler::finishProcessing() {
+void MarcFormatHandler::finishProcessing() {
     marc_writer_.reset();
 }
 
@@ -515,7 +532,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
 
 
 // Improve JSON result delivered by Zotero Translation Server
-void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps) {
+void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std::shared_ptr<const HarvestMaps> harvest_maps) {
     INFO("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
@@ -629,7 +646,7 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
 }
 
 
-const std::shared_ptr<RegexMatcher> Zotero::LoadSupportedURLsRegex(const std::string &map_directory_path) {
+const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &map_directory_path) {
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(map_directory_path + "targets.regex"));
 
     std::string combined_regex;
@@ -652,7 +669,7 @@ const std::shared_ptr<RegexMatcher> Zotero::LoadSupportedURLsRegex(const std::st
 }
 
 
-std::shared_ptr<Zotero::HarvestMaps> Zotero::LoadMapFilesFromDirectory(const std::string &map_directory_path) {
+std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_directory_path) {
     std::shared_ptr<HarvestMaps> maps(new HarvestMaps);
     MiscUtil::LoadMapFile(map_directory_path + "language_to_language_code.map", &maps->language_to_language_code_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &maps->ISSN_to_language_code_map_);
@@ -666,10 +683,10 @@ std::shared_ptr<Zotero::HarvestMaps> Zotero::LoadMapFilesFromDirectory(const std
 }
 
 
-std::pair<unsigned, unsigned> Zotero::Harvest(const std::string &harvest_url,
+std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
                                               const std::string &harvested_html,
-                                              const std::shared_ptr<Zotero::HarvestParams> harvest_params,
-                                              const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps,
+                                              const std::shared_ptr<HarvestParams> harvest_params,
+                                              const std::shared_ptr<const HarvestMaps> harvest_maps,
                                               bool log)
 {
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
@@ -686,7 +703,7 @@ std::pair<unsigned, unsigned> Zotero::Harvest(const std::string &harvest_url,
     unsigned response_code;
     harvest_params->min_url_processing_time_.sleepUntilExpired();
     Downloader::Params downloader_params;
-    const bool download_result(Zotero::TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ Zotero::DEFAULT_TIMEOUT, downloader_params,
+    const bool download_result(TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT, downloader_params,
                                                               Url(harvest_url), harvested_html, &response_body, &response_code, &error_message));
 
     harvest_params->min_url_processing_time_.restart();
@@ -744,3 +761,6 @@ std::pair<unsigned, unsigned> Zotero::Harvest(const std::string &harvest_url,
     }
     return record_count_and_previously_downloaded_count;
 }
+
+
+} // namespace Zotero

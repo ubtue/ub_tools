@@ -60,12 +60,10 @@ public:
      */
     unsigned getNoOfAffectedRows() const { return ::mysql_affected_rows(&mysql_); }
 
-public:
-
     /** Converts the binary contents of "unescaped_string" into a form that can used as a string (you still
         need to add quotes around it) in SQL statements. */
     std::string escapeString(const std::string &unescaped_string);
-
+private:
     void init(const std::string &database_name, const std::string &user, const std::string &passwd,
               const std::string &host, const unsigned port);
 };
