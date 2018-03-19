@@ -114,7 +114,7 @@ int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLim
 {
     error_message->clear();
 
-    FileDescriptor socket_fd(::socket(AF_INET, SOCK_STREAM, 0));
+    FileDescriptor socket_fd(::socket(AF_INET6, SOCK_STREAM, 0));
     if (unlikely(not socket_fd.isValid())) {
         *error_message = "socket(2) failed (" + std::to_string(errno) + ")!";
         return -1;
@@ -123,7 +123,7 @@ int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLim
     // Initialise the address of the server we're connecting to:
     struct sockaddr_in server_address;
     std::memset(&server_address, '\0', sizeof server_address);
-    server_address.sin_family = AF_INET;
+    server_address.sin_family = AF_INET6;
     server_address.sin_port = htons(port);
     server_address.sin_addr.s_addr = address;
 
@@ -432,7 +432,7 @@ bool SendUdpRequest(const int socket_fd, const in_addr_t server_ip_address, cons
                     const unsigned char * const packet, const unsigned packet_size)
 {
     sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
+    server_addr.sin_family = AF_INET6;
     server_addr.sin_port = htons(port_no);
     server_addr.sin_addr.s_addr = server_ip_address;
     std::memset(&server_addr.sin_zero, '\0', sizeof(server_addr.sin_zero));
