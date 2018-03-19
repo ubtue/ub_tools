@@ -24,7 +24,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include "Compiler.h"
-#include "DbConnection.h"
 #include "Downloader.h"
 #include "FullTextCache.h"
 #include "MARC.h"
