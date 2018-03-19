@@ -21,6 +21,7 @@
 */
 #include "Zotero.h"
 #include <uuid/uuid.h>
+#include "FileUtil.h"
 #include "JSON.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
@@ -760,6 +761,35 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
                   + " records were new records.");
     }
     return record_count_and_previously_downloaded_count;
+}
+
+
+PreviouslyDownloadedHashesManager::PreviouslyDownloadedHashesManager(
+    const std::string &hashes_path,std::unordered_set<std::string> * const previously_downloaded)
+    : hashes_path_(hashes_path), previously_downloaded_(*previously_downloaded)
+{
+    if (not FileUtil::Exists(hashes_path))
+        return;
+
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie((hashes_path_)));
+    while (not input->eof()) {
+        std::string line(input->getline());
+        StringUtil::Trim(&line);
+        if (likely(not line.empty()))
+            previously_downloaded->emplace(TextUtil::Base64Decode(line));
+    }
+
+    logger->info("Loaded " + StringUtil::ToString(previously_downloaded->size()) + " hashes of previously generated records.");
+}
+
+
+PreviouslyDownloadedHashesManager::~PreviouslyDownloadedHashesManager() {
+    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(hashes_path_));
+
+    for (const auto &hash : previously_downloaded_)
+        output->write(TextUtil::Base64Encode(hash) + '\n');
+
+    logger->info("Stored " + StringUtil::ToString(previously_downloaded_.size()) + " hashes of previously generated records.");
 }
 
 
