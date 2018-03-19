@@ -90,7 +90,8 @@ unsigned ProcessSyndicationURL(const bool verbose, const std::string &url,
             const auto record_count_and_previously_downloaded_count(
                 Zotero::Harvest(item.getLink(), "", harvest_params, harvest_maps));
             successfully_processed_count += record_count_and_previously_downloaded_count.first;
-        }
+        } else
+            ERROR("create a MARC record from the RSS DC and PRISM metadata!");
 
         db_connection->queryOrDie("INSERT INTO rss SET server_url='" + db_connection->escapeString(url) + "',item_id='"
                                   + db_connection->escapeString(item.getId()) + "'");
