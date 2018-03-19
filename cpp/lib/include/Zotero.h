@@ -189,6 +189,9 @@ std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_di
  *  \param  harvest_maps    The map files to use after harvesting.
  *  \param  harvested_html  If not empty, the html will be used for harvesting
  *                          instead of downloading the URL again.
+ *                          However, if the page contains a list of multiple
+ *                          items (e.g. HTML page with a search result),
+ *                          all results will be downloaded.
  *  \param  log             If true, additional statistics will be logged.
  *  \return count of all records / previously downloaded records
  */
