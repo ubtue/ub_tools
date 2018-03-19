@@ -32,156 +32,163 @@
 #include "Url.h"
 
 
-class Zotero {
+namespace Zotero {
+
+
+// native supported formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
+extern const std::vector<std::string> ExportFormats;
+
+
+/**
+ * Functions are named like endpoints, see
+ * https://github.com/zotero/translation-server
+ */
+namespace TranslationServer {
+
+
+/** \brief Use builtin translator to convert JSON to output format. */
+bool Export(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
+            const std::string &format, const std::string &json, std::string * const response_body,
+            std::string * const error_message);
+
+/** \brief Use builtin translator to convert input format to JSON. */
+bool Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
+            const std::string &input_content, std::string * const output_json, std::string * const error_message);
+
+/** \brief Download URL and return as JSON. (If harvested_html is given, URL is not downloaded again.) */
+bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
+         const Url &harvest_url, const std::string &harvested_html,
+         std::string * const response_body, unsigned * response_code, std::string * const error_message);
+
+
+} // namespace TranslationServer
+
+
+extern const std::string DEFAULT_SUBFIELD_CODE;
+
+
+// Default timeout values in milliseconds
+constexpr unsigned DEFAULT_CONVERSION_TIMEOUT = 60000;
+constexpr unsigned DEFAULT_TIMEOUT = 10000;
+constexpr unsigned DEFAULT_MIN_URL_PROCESSING_TIME = 200;
+
+struct HarvestMaps {
+    std::unordered_map<std::string, std::string> ISSN_to_SSG_map_;
+    std::unordered_map<std::string, std::string> ISSN_to_keyword_field_map_;
+    std::unordered_map<std::string, std::string> ISSN_to_language_code_map_;
+    std::unordered_map<std::string, std::string> ISSN_to_licence_map_;
+    std::unordered_map<std::string, std::string> ISSN_to_physical_form_map_;
+    std::unordered_map<std::string, std::string> ISSN_to_superior_ppn_map_;
+    std::unordered_map<std::string, std::string> ISSN_to_volume_map_;
+    std::unordered_map<std::string, std::string> language_to_language_code_map_;
+    std::unordered_set<std::string> previously_downloaded_;
+};
+
+
+// forward declaration
+class FormatHandler;
+
+
+struct HarvestParams {
+    Url zts_server_url_;
+    TimeLimit min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
+    unsigned harvested_url_count_ = 0;
+    std::unique_ptr<FormatHandler> format_handler_;
+};
+
+
+class FormatHandler {
+protected:
+    std::string output_format_;
+    std::string output_file_;
+    std::shared_ptr<HarvestMaps> harvest_maps_;
+    std::shared_ptr<HarvestParams> harvest_params_;
 public:
-    // native supported formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
-    static const std::vector<std::string> ExportFormats;
+    FormatHandler(const std::string &output_format, const std::string &output_file, std::shared_ptr<HarvestMaps> harvest_maps,
+                  std::shared_ptr<HarvestParams> harvest_params)
+        : output_format_(output_format), output_file_(output_file), harvest_maps_(harvest_maps), harvest_params_(harvest_params) {}
+    virtual ~FormatHandler() {}
 
-    /**
-     * public functions are named like endpoints, see
-     * https://github.com/zotero/translation-server
-     */
-    class TranslationServer {
-    public:
-        /** \brief Use builtin translator to convert JSON to output format. */
-        static bool Export(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
-                           const std::string &format, const std::string &json,
-                           std::string * const response_body, std::string * const error_message);
+    virtual void prepareProcessing() = 0;
+    virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) = 0;
+    virtual void finishProcessing() = 0;
 
-        /** \brief Use builtin translator to convert input format to JSON. */
-        static bool Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
-                           const std::string &input_content, std::string * const output_json, std::string * const error_message);
-
-        /** \brief Download URL and return as JSON. (If harvested_html is given, URL is not downloaded again.) */
-        static bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
-                        const Url &harvest_url, const std::string &harvested_html,
-                        std::string * const response_body, unsigned * response_code, std::string * const error_message);
-    };
-
-    static const std::string DEFAULT_SUBFIELD_CODE;
-
-    // Default timeout values in milliseconds
-    static const unsigned DEFAULT_CONVERSION_TIMEOUT = 60000;
-    static const unsigned DEFAULT_TIMEOUT = 10000;
-    static const unsigned DEFAULT_MIN_URL_PROCESSING_TIME = 200;
-
-    struct HarvestMaps {
-        std::unordered_map<std::string, std::string> ISSN_to_SSG_map_;
-        std::unordered_map<std::string, std::string> ISSN_to_keyword_field_map_;
-        std::unordered_map<std::string, std::string> ISSN_to_language_code_map_;
-        std::unordered_map<std::string, std::string> ISSN_to_licence_map_;
-        std::unordered_map<std::string, std::string> ISSN_to_physical_form_map_;
-        std::unordered_map<std::string, std::string> ISSN_to_superior_ppn_map_;
-        std::unordered_map<std::string, std::string> ISSN_to_volume_map_;
-        std::unordered_map<std::string, std::string> language_to_language_code_map_;
-        std::unordered_set<std::string> previously_downloaded_;
-    };
-
-    // forward declaration
-    class FormatHandler;
-
-    struct HarvestParams {
-        Url zts_server_url_;
-        TimeLimit min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
-        unsigned harvested_url_count_ = 0;
-        std::unique_ptr<FormatHandler> format_handler_;
-    };
-
-    class FormatHandler {
-    protected:
-        std::string output_format_;
-        std::string output_file_;
-        std::shared_ptr<HarvestMaps> harvest_maps_;
-        std::shared_ptr<HarvestParams> harvest_params_;
-    public:
-        FormatHandler(const std::string &output_format, const std::string &output_file,
-                      std::shared_ptr<HarvestMaps> harvest_maps,
-                      std::shared_ptr<HarvestParams> harvest_params) :
-                      output_format_(output_format), output_file_(output_file),
-                      harvest_maps_(harvest_maps), harvest_params_(harvest_params) {}
-        virtual ~FormatHandler() {}
-
-        virtual void prepareProcessing() = 0;
-        virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) = 0;
-        virtual void finishProcessing() = 0;
-
-        static std::unique_ptr<FormatHandler> Factory(const std::string &output_format,
-                                                      const std::string &output_file,
-                                                      std::shared_ptr<HarvestMaps> harvest_maps,
-                                                      std::shared_ptr<HarvestParams> harvest_params);
-    };
-
-    class JsonFormatHandler final : public FormatHandler {
-        unsigned record_count_ = 0;
-        File *output_file_object_;
-    public:
-        using FormatHandler::FormatHandler;
-        virtual void prepareProcessing() override;
-        virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
-        virtual void finishProcessing() override;
-    };
+    static std::unique_ptr<FormatHandler> Factory(const std::string &output_format, const std::string &output_file,
+                                                  std::shared_ptr<HarvestMaps> harvest_maps,
+                                                  std::shared_ptr<HarvestParams> harvest_params);
+};
 
 
-    class ZoteroFormatHandler final : public FormatHandler {
-        unsigned record_count_ = 0;
-        std::string json_buffer_;
-    public:
-        using FormatHandler::FormatHandler;
-        virtual void prepareProcessing() override;
-        virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
-        virtual void finishProcessing() override;
-    };
+class JsonFormatHandler final : public FormatHandler {
+    unsigned record_count_ = 0;
+    File *output_file_object_ = nullptr;
+public:
+    using FormatHandler::FormatHandler;
+    virtual void prepareProcessing() override;
+    virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
+    virtual void finishProcessing() override;
+};
 
 
-    class MarcFormatHandler final : public FormatHandler {
-        std::unique_ptr<MARC::Writer> marc_writer_;
+class ZoteroFormatHandler final : public FormatHandler {
+    unsigned record_count_ = 0;
+    std::string json_buffer_;
+public:
+    using FormatHandler::FormatHandler;
+    virtual void prepareProcessing() override;
+    virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
+    virtual void finishProcessing() override;
+};
 
 
-        inline std::string CreateSubfieldFromStringNode(const std::string &key, const std::shared_ptr<const JSON::JSONNode> node,
-                                                        const std::string &tag, const char subfield_code,
-                                                        MARC::Record * const marc_record, const char indicator1 = ' ',
-                                                        const char indicator2 = ' ')
-        {
-            const std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie(key, node));
-            const std::string value(string_node->getValue());
-            marc_record->insertField(tag, { { subfield_code, value } }, indicator1, indicator2);
-            return value;
-        }
+class MarcFormatHandler final : public FormatHandler {
+    std::unique_ptr<MARC::Writer> marc_writer_;
+public:
+    using FormatHandler::FormatHandler;
+    virtual void prepareProcessing() override;
+    virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
+    virtual void finishProcessing() override;
+private:
+    inline std::string CreateSubfieldFromStringNode(const std::string &key, const std::shared_ptr<const JSON::JSONNode> node,
+                                                    const std::string &tag, const char subfield_code,
+                                                    MARC::Record * const marc_record, const char indicator1 = ' ',
+                                                    const char indicator2 = ' ')
+    {
+        const std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie(key, node));
+        const std::string value(string_node->getValue());
+        marc_record->insertField(tag, { { subfield_code, value } }, indicator1, indicator2);
+        return value;
+    }
 
+    inline std::string CreateSubfieldFromStringNode(const std::pair<std::string, std::shared_ptr<JSON::JSONNode>> &key_and_node,
+                                                    const std::string &tag, const char subfield_code,
+                                                    MARC::Record * const marc_record, const char indicator1 = ' ',
+                                                    const char indicator2 = ' ')
+    {
+        return CreateSubfieldFromStringNode(key_and_node.first, key_and_node.second, tag, subfield_code, marc_record,
+                                            indicator1, indicator2);
+    }
 
-        inline std::string CreateSubfieldFromStringNode(const std::pair<std::string, std::shared_ptr<JSON::JSONNode>> &key_and_node,
-                                                        const std::string &tag, const char subfield_code,
-                                                        MARC::Record * const marc_record, const char indicator1 = ' ',
-                                                        const char indicator2 = ' ')
-        {
-            return CreateSubfieldFromStringNode(key_and_node.first, key_and_node.second, tag, subfield_code, marc_record,
-                                                indicator1, indicator2);
-        }
-
-        void ExtractKeywords(std::shared_ptr<const JSON::JSONNode> tags_node, const std::string &issn,
-                             const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
-                             MARC::Record * const new_record);
+    void ExtractKeywords(std::shared_ptr<const JSON::JSONNode> tags_node, const std::string &issn,
+                         const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
+                         MARC::Record * const new_record);
 
         void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MARC::Record * const new_record);
         void CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record);
-    public:
-        using FormatHandler::FormatHandler;
-        virtual void prepareProcessing() override;
-        virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
-        virtual void finishProcessing() override;
-    };
+};
 
-public:
-    static const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &map_directory_path);
 
-    static std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_directory_path);
+const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &map_directory_path);
 
-    static std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
-                                                 const std::string &harvested_html,
-                                                 const std::shared_ptr<HarvestParams> harvest_params,
-                                                 const std::shared_ptr<const HarvestMaps> harvest_maps,
-                                                 bool log = true);
-}; // class Zotero
+std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_directory_path);
+
+std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::string &harvested_html,
+                                      const std::shared_ptr<HarvestParams> harvest_params,
+                                      const std::shared_ptr<const HarvestMaps> harvest_maps,
+                                      const bool log = true);
+
+
+} // namespace Zotero
 
 
 #endif // ifndef ZOTERO_H
