@@ -36,6 +36,7 @@ namespace Zotero {
 
 
 // native supported formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
+// also allowed: json, marc21 and marcxml
 extern const std::vector<std::string> ExportFormats;
 
 
@@ -55,10 +56,10 @@ bool Export(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::
 bool Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
             const std::string &input_content, std::string * const output_json, std::string * const error_message);
 
-/** \brief Download URL and return as JSON. (If harvested_html is given, URL is not downloaded again.) */
+/** \brief Download URL and return as JSON. (If harvested_html is not empty, URL is not downloaded again.) */
 bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
-         const Url &harvest_url, const std::string &harvested_html,
-         std::string * const response_body, unsigned * response_code, std::string * const error_message);
+         const Url &harvest_url, std::string * const response_body, unsigned * response_code,
+         std::string * const error_message, const std::string &harvested_html = "");
 
 
 } // namespace TranslationServer
@@ -182,9 +183,19 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
 
 std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_directory_path);
 
-std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::string &harvested_html,
+/** \brief  Harvest a single URL.
+ *  \param  harvest_url     The URL to harvest.
+ *  \param  harvest_params  The parameters for downloading.
+ *  \param  harvest_maps    The map files to use after harvesting.
+ *  \param  harvested_html  If not empty, the html will be used for harvesting
+ *                          instead of downloading the URL again.
+ *  \param  log             If true, additional statistics will be logged.
+ *  \return count of all records / previously downloaded records
+ */
+std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
                                       const std::shared_ptr<HarvestParams> harvest_params,
                                       const std::shared_ptr<const HarvestMaps> harvest_maps,
+                                      const std::string &harvested_html = "",
                                       const bool log = true);
 
 
@@ -198,7 +209,7 @@ public:
     ~PreviouslyDownloadedHashesManager();
 };
 
-    
+
 } // namespace Zotero
 
 
