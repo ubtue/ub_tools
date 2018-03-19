@@ -59,8 +59,10 @@ void Usage() {
 }
 
 
-void HarvestSites(const SimpleCrawler::Params &crawler_params, const std::shared_ptr<RegexMatcher> supported_urls_regex, const std::vector<SimpleCrawler::SiteDesc> &site_descs,
-                  const std::shared_ptr<Zotero::HarvestParams> harvest_params, const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps, std::unique_ptr<File> &progress_file,
+void HarvestSites(const SimpleCrawler::Params &crawler_params, const std::shared_ptr<RegexMatcher> supported_urls_regex,
+                  const std::vector<SimpleCrawler::SiteDesc> &site_descs,
+                  const std::shared_ptr<Zotero::HarvestParams> harvest_params,
+                  const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps, std::unique_ptr<File> &progress_file,
                   unsigned * const total_record_count, unsigned * const total_previously_downloaded_count)
 {
     harvest_params->format_handler_->prepareProcessing();
@@ -83,7 +85,8 @@ void HarvestSites(const SimpleCrawler::Params &crawler_params, const std::shared
                 if (progress_file != nullptr) {
                     progress_file->rewind();
                     if (unlikely(not progress_file->write(
-                            std::to_string(processed_url_count) + ";" + std::to_string(crawler.getRemainingCallDepth()) + ";" + page_details.url_)))
+                            std::to_string(processed_url_count) + ";" + std::to_string(crawler.getRemainingCallDepth())
+                            + ";" + page_details.url_)))
                         ERROR("failed to write progress to \"" + progress_file->getPath());
                 }
             }
