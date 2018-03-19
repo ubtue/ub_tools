@@ -76,7 +76,7 @@ void HarvestSites(const SimpleCrawler::Params &crawler_params, const std::shared
                 INFO("Skipping unsupported URL: " + page_details.url_);
             else if (page_details.error_message_.empty()) {
                 const auto record_count_and_previously_downloaded_count(
-                    Zotero::Harvest(page_details.url_, page_details.body_, harvest_params, harvest_maps)
+                    Zotero::Harvest(page_details.url_, harvest_params, harvest_maps, page_details.body_)
                 );
                 *total_record_count                += record_count_and_previously_downloaded_count.first;
                 *total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
