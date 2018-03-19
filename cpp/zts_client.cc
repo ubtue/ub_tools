@@ -44,7 +44,8 @@ void Usage() {
     std::cerr << "Usage: " << ::progname << " [options] zts_server_url map_directory output_file\n"
               << "\t[ --ignore-robots-dot-txt)                                Nomen est omen.\n"
               << "\t[ --proxy=<proxy_host_and_port>)                          Proxy host and port, default none.\n"
-              << "\t[ --simple-crawler-config-file=<path> ]                   Nomen est omen, default: " << DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH << "\n"
+              << "\t[ --simple-crawler-config-file=<path> ]                   Nomen est omen, default: "
+              << DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH << "\n"
               << "\t[ --progress-file=<path> ]                                Nomen est omen.\n"
               << "\t[ --output-format=<format> ]                              marcxml (default), marc21 or json.\n"
               << "\n"
@@ -55,30 +56,6 @@ void Usage() {
               << "\toutput_file                                               Nomen est omen.\n"
               << "\n";
     std::exit(EXIT_FAILURE);
-}
-
-
-void LoadPreviouslyDownloadedHashes(File * const input,
-                                    std::unordered_set<std::string> * const previously_downloaded)
-{
-    while (not input->eof()) {
-        std::string line(input->getline());
-        StringUtil::Trim(&line);
-        if (likely(not line.empty()))
-            previously_downloaded->emplace(TextUtil::Base64Decode(line));
-    }
-
-    logger->info("Loaded " + StringUtil::ToString(previously_downloaded->size()) + " hashes of previously generated records.");
-}
-
-
-void StorePreviouslyDownloadedHashes(File * const output,
-                                     const std::unordered_set<std::string> &previously_downloaded)
-{
-    for (const auto &hash : previously_downloaded)
-        output->write(TextUtil::Base64Encode(hash) + '\n');
-
-    logger->info("Stored " + StringUtil::ToString(previously_downloaded.size()) + " hashes of previously generated records.");
 }
 
 
@@ -172,11 +149,8 @@ void Main(int argc, char *argv[]) {
         const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
         const std::string PREVIOUSLY_DOWNLOADED_HASHES_PATH(map_directory_path + "previously_downloaded.hashes");
-        if (FileUtil::Exists(PREVIOUSLY_DOWNLOADED_HASHES_PATH)) {
-            std::unique_ptr<File> previously_downloaded_input(
-                FileUtil::OpenInputFileOrDie(PREVIOUSLY_DOWNLOADED_HASHES_PATH));
-            LoadPreviouslyDownloadedHashes(previously_downloaded_input.get(), &harvest_maps->previously_downloaded_);
-        }
+        Zotero::PreviouslyDownloadedHashesManager previously_downloaded_hashes_manager(PREVIOUSLY_DOWNLOADED_HASHES_PATH,
+                                                                                       &harvest_maps->previously_downloaded_);
 
         const std::string output_file(argv[3]);
         harvest_params->format_handler_ = Zotero::FormatHandler::Factory(output_format, output_file, harvest_maps, harvest_params);
@@ -204,7 +178,6 @@ void Main(int argc, char *argv[]) {
 
         std::unique_ptr<File> previously_downloaded_output(
             FileUtil::OpenOutputFileOrDie(map_directory_path + "previously_downloaded.hashes"));
-        StorePreviouslyDownloadedHashes(previously_downloaded_output.get(), harvest_maps->previously_downloaded_);
     } catch (const std::exception &x) {
         ERROR("caught exception: " + std::string(x.what()));
     }

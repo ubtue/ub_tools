@@ -188,6 +188,17 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
                                       const bool log = true);
 
 
+// \brief Loads and stores the hashes of previously downloaded metadata records.
+class PreviouslyDownloadedHashesManager {
+    std::string hashes_path_;
+    std::unordered_set<std::string> &previously_downloaded_;
+public:
+    PreviouslyDownloadedHashesManager(const std::string &hashes_path,
+                                      std::unordered_set<std::string> * const previously_downloaded);
+    ~PreviouslyDownloadedHashesManager();
+};
+
+    
 } // namespace Zotero
 
 
