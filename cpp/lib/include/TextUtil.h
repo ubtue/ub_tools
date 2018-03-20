@@ -97,6 +97,13 @@ public:
 std::string ExtractTextFromHtml(const std::string &html, const std::string &initial_charset = "");
 
 
+/** \brief Extracts text from TEI files.
+ *  \param tei The TEI content to process.
+ *  \return The extracted text with collapsed whitespaces.
+ */
+std::string ExtractTextFromTei(const std::string &tei);
+
+
 /** \brief Recognises roman numerals up to a few thousand. */
 bool IsRomanNumeral(const std::string &s);
 
