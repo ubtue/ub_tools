@@ -150,6 +150,7 @@ public:
     virtual void prepareProcessing() override;
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
     virtual void finishProcessing() override;
+    MARC::Writer *getWriter() { return marc_writer_.get(); }
 private:
     inline std::string CreateSubfieldFromStringNode(const std::string &key, const std::shared_ptr<const JSON::JSONNode> node,
                                                     const std::string &tag, const char subfield_code,
