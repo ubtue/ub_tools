@@ -34,7 +34,8 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--verbose|--test] [--proxy=<proxy_host_and_port>] rss_url_list_filename zts_server_url map_directory marc_output\n";
+              << " [--verbose|--test] [--proxy=<proxy_host_and_port>] rss_url_list_filename zts_server_url map_directory marc_output\n"
+              << "       When --test has been specified duplicate checks are disabled and verbose mode is enabled.\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -92,12 +93,11 @@ unsigned ProcessSyndicationURL(const Mode mode, const std::string &url, MARC::Wr
     }
 
     for (const auto &item : *syndication_format) {
-        if (mode != TEST)
+        if (mode != TEST) {
             db_connection->queryOrDie("SELECT creation_datetime FROM rss WHERE server_url='" + db_connection->escapeString(url)
                                       + "' AND item_id='" + db_connection->escapeString(item.getId()) + "'");
-        DbResultSet result_set(db_connection->getLastResultSet());
-        if (not result_set.empty()) {
-            if (mode != NORMAL) {
+            DbResultSet result_set(db_connection->getLastResultSet());
+            if (not result_set.empty()) {
                 const DbRow first_row(result_set.getNextRow());
                 std::cout << "Previously retrieved item w/ ID \"" << item.getId() + "\" at " << first_row["creation_datetime"]
                           << ".\n";
