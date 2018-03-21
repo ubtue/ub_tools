@@ -87,8 +87,7 @@ struct HarvestMaps {
 };
 
 
-/** \brief  This function can be used to apply information from HarvestMaps
- *          onto a Zotero JSON structure.
+/** \brief  This function can be used to augment  Zotero JSON structure with information from HarvestMaps.
  *  \param  object_node     The JSON ObjectNode with Zotero JSON structure of a single dataset
  *  \param  harvest_maps    The map files to apply.
  */
