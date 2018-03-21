@@ -40,10 +40,24 @@ namespace {
 
 
 // Create a MARC record from the RSS DC and PRISM metadata.
-void GenerateMARCRecord(MARC::Writer * const /*marc_writer*/, const SyndicationFormat::Item &/*item*/) {
+void GenerateMARCRecordFromDcAndPrismData(MARC::Writer * const marc_writer, const SyndicationFormat::Item &item) {
+    static unsigned counter;
+    ++counter;
+    const std::string control_number("FROM_DC_AND_PRIM" + StringUtil::ToString(counter, 10));
+    MARC::Record record(MARC::Record::LANGUAGE_MATERIAL, MARC::Record::SERIAL_COMPONENT_PART, control_number);
+
+    for (const auto &label_and_value : item.getDCAndPrismData()) {
+        if (label_and_value.first == "Title") {
+            if (unlikely(not record.insertField("245", { { 'a', label_and_value.second } })))
+                ERROR("failed to insert a 254$a subfield!");
+        } else
+            ERROR("unhandled DC or PRSIM tag: \"" + label_and_value.first + "\"!");
+    }
+
+    marc_writer->write(record);
 }
 
-    
+
 unsigned ProcessSyndicationURL(const bool verbose, const std::string &url, MARC::Writer * const marc_writer,
                                const std::shared_ptr<Zotero::HarvestParams> harvest_params,
                                const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps,
@@ -96,7 +110,7 @@ unsigned ProcessSyndicationURL(const bool verbose, const std::string &url, MARC:
                 Zotero::Harvest(item.getLink(), harvest_params, harvest_maps, "", verbose));
             successfully_processed_count += record_count_and_previously_downloaded_count.first;
         } else
-            GenerateMARCRecord(marc_writer, item);
+            GenerateMARCRecordFromDcAndPrismData(marc_writer, item);
 
         db_connection->queryOrDie("INSERT INTO rss SET server_url='" + db_connection->escapeString(url) + "',item_id='"
                                   + db_connection->escapeString(item.getId()) + "'");
