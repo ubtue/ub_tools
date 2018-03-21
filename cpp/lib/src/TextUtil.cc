@@ -174,7 +174,7 @@ std::string ExtractTextFromTei(const std::string &tei) {
     const std::string word_wrap("¬");
     bool concat_without_whitespace(false);
 
-    while(parser->skipTo(SimpleXmlParser<StringDataSource>::Type::OPENING_TAG, "span")) {
+    while (parser->skipTo(SimpleXmlParser<StringDataSource>::Type::OPENING_TAG, "span")) {
         SimpleXmlParser<StringDataSource>::Type type;
         std::map<std::string, std::string> attrib_map;
         std::string data;
