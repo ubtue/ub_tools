@@ -477,8 +477,13 @@ public:
     /** \return Values for all fields with tag "tag" and subfield code "subfield_code". */
     std::vector<std::string> getSubfieldValues(const Tag &tag, const char subfield_code) const;
 
-    /** \return Values for all fields with tag "tag" and subfield code "subfield_code". */
+    /** \return Values for all fields with tag "tag" and subfield codes "subfield_codes". */
     std::vector<std::string> getSubfieldValues(const Tag &tag, const std::string &subfield_codes) const;
+
+    /** \return Values for all fields with tag "tag" and subfield codes "subfield_codes". Handle subfields of numeric subfields like 9v appropriately*/
+    std::vector<std::string> getSubfieldAndNumericSubfieldValues(const Tag &tag, const std::string &subfield_spec) const;
+ 
+
 
     /** \brief Finds local ("LOK") block boundaries.
      *  \param local_block_boundaries  Each entry contains the iterator pointing to the first field of a local block
