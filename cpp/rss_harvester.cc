@@ -39,7 +39,12 @@ namespace {
 }
 
 
-unsigned ProcessSyndicationURL(const bool verbose, const std::string &url,
+// Create a MARC record from the RSS DC and PRISM metadata.
+void GenerateMARCRecord(MARC::Writer * const /*marc_writer*/, const SyndicationFormat::Item &/*item*/) {
+}
+
+    
+unsigned ProcessSyndicationURL(const bool verbose, const std::string &url, MARC::Writer * const marc_writer,
                                const std::shared_ptr<Zotero::HarvestParams> harvest_params,
                                const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps,
                                DbConnection * const db_connection)
@@ -91,7 +96,7 @@ unsigned ProcessSyndicationURL(const bool verbose, const std::string &url,
                 Zotero::Harvest(item.getLink(), harvest_params, harvest_maps, "", verbose));
             successfully_processed_count += record_count_and_previously_downloaded_count.first;
         } else
-            ERROR("create a MARC record from the RSS DC and PRISM metadata!");
+            GenerateMARCRecord(marc_writer, item);
 
         db_connection->queryOrDie("INSERT INTO rss SET server_url='" + db_connection->escapeString(url) + "',item_id='"
                                   + db_connection->escapeString(item.getId()) + "'");
@@ -123,7 +128,7 @@ std::string GetMarcFormat(const std::string &output_filename) {
 }
 
 
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_client.conf");
+const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_harvester.conf");
 
 
 } // unnamed namespace
@@ -180,9 +185,16 @@ int main(int argc, char *argv[]) {
 
         harvest_params->format_handler_->prepareProcessing();
 
+        Zotero::MarcFormatHandler * const marc_format_handler(reinterpret_cast<Zotero::MarcFormatHandler *>(
+            harvest_params->format_handler_.get()));
+        if (unlikely(marc_format_handler == nullptr))
+            ERROR("expected a MarcFormatHandler!");
+        MARC::Writer * const marc_writer(marc_format_handler->getWriter());
+
         unsigned download_count(0);
         for (const auto &server_url : server_urls)
-            download_count += ProcessSyndicationURL(verbose, server_url, harvest_params, harvest_maps, &db_connection);
+            download_count += ProcessSyndicationURL(verbose, server_url, marc_writer, harvest_params, harvest_maps,
+                                                    &db_connection);
 
         harvest_params->format_handler_->finishProcessing();
 
