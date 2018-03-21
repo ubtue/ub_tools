@@ -34,7 +34,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--verbose] [--proxy=<proxy_host_and_port>] rss_url_list_filename zts_server_url map_directory marc_output\n";
+              << " [--verbose|--test] [--proxy=<proxy_host_and_port>] rss_url_list_filename zts_server_url map_directory marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -58,14 +58,17 @@ void GenerateMARCRecordFromDcAndPrismData(MARC::Writer * const marc_writer, cons
 }
 
 
-unsigned ProcessSyndicationURL(const bool verbose, const std::string &url, MARC::Writer * const marc_writer,
+enum Mode { VERBOSE, TEST, NORMAL };
+
+
+unsigned ProcessSyndicationURL(const Mode mode, const std::string &url, MARC::Writer * const marc_writer,
                                const std::shared_ptr<Zotero::HarvestParams> harvest_params,
                                const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps,
                                DbConnection * const db_connection)
 {
     unsigned successfully_processed_count(0);
 
-    if (verbose)
+    if (mode != NORMAL)
         std::cerr << "Processing URL: " << url << '\n';
 
     Downloader downloader(url);
@@ -81,19 +84,20 @@ unsigned ProcessSyndicationURL(const bool verbose, const std::string &url, MARC:
         return successfully_processed_count;
     }
 
-    std::cout << url << " (" << syndication_format->getFormatName() << "):\n";
-    if (verbose) {
+    if (mode != NORMAL) {
+        std::cout << url << " (" << syndication_format->getFormatName() << "):\n";
         std::cout << "\tTitle: " << syndication_format->getTitle() << '\n';
         std::cout << "\tLink: " << syndication_format->getLink() << '\n';
         std::cout << "\tDescription: " << syndication_format->getDescription() << '\n';
     }
 
     for (const auto &item : *syndication_format) {
-        db_connection->queryOrDie("SELECT creation_datetime FROM rss WHERE server_url='" + db_connection->escapeString(url)
-                                  + "' AND item_id='" + db_connection->escapeString(item.getId()) + "'");
+        if (mode != TEST)
+            db_connection->queryOrDie("SELECT creation_datetime FROM rss WHERE server_url='" + db_connection->escapeString(url)
+                                      + "' AND item_id='" + db_connection->escapeString(item.getId()) + "'");
         DbResultSet result_set(db_connection->getLastResultSet());
         if (not result_set.empty()) {
-            if (verbose) {
+            if (mode != NORMAL) {
                 const DbRow first_row(result_set.getNextRow());
                 std::cout << "Previously retrieved item w/ ID \"" << item.getId() + "\" at " << first_row["creation_datetime"]
                           << ".\n";
@@ -102,18 +106,19 @@ unsigned ProcessSyndicationURL(const bool verbose, const std::string &url, MARC:
         }
 
         const std::string title(item.getTitle());
-        if (not title.empty() and verbose)
+        if (not title.empty() and mode != NORMAL)
             std::cout << "\t\tTitle: " << title << '\n';
         const std::unordered_map<std::string, std::string> &dc_and_prism_data(item.getDCAndPrismData());
         if (dc_and_prism_data.empty()) {
             const auto record_count_and_previously_downloaded_count(
-                Zotero::Harvest(item.getLink(), harvest_params, harvest_maps, "", verbose));
+                Zotero::Harvest(item.getLink(), harvest_params, harvest_maps, "", /* verbose = */ mode != NORMAL));
             successfully_processed_count += record_count_and_previously_downloaded_count.first;
         } else
             GenerateMARCRecordFromDcAndPrismData(marc_writer, item);
 
-        db_connection->queryOrDie("INSERT INTO rss SET server_url='" + db_connection->escapeString(url) + "',item_id='"
-                                  + db_connection->escapeString(item.getId()) + "'");
+        if (mode != TEST)
+            db_connection->queryOrDie("INSERT INTO rss SET server_url='" + db_connection->escapeString(url) + "',item_id='"
+                                      + db_connection->escapeString(item.getId()) + "'");
 
     }
 
@@ -154,11 +159,15 @@ int main(int argc, char *argv[]) {
     if (argc < 5)
         Usage();
 
-    bool verbose(false);
+    Mode mode;
     if (std::strcmp(argv[1], "--verbose") == 0) {
-        verbose = true;
+        mode = VERBOSE;
         --argc, ++argv;
-    }
+    } else if (std::strcmp(argv[1], "--test") == 0) {
+        mode = TEST;
+        --argc, ++argv;
+    } else
+        mode = NORMAL;
 
     std::string proxy_host_and_port;
     const std::string PROXY_FLAG_PREFIX("--proxy=");
@@ -191,11 +200,14 @@ int main(int argc, char *argv[]) {
         harvest_params->format_handler_ = Zotero::FormatHandler::Factory(GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE,
                                                                          harvest_maps, harvest_params);
 
-        const IniFile ini_file(CONF_FILE_PATH);
-        const std::string sql_database(ini_file.getString("Database", "sql_database"));
-        const std::string sql_username(ini_file.getString("Database", "sql_username"));
-        const std::string sql_password(ini_file.getString("Database", "sql_password"));
-        DbConnection db_connection(sql_database, sql_username, sql_password);
+        std::unique_ptr<DbConnection> db_connection;
+        if (mode != TEST) {
+            const IniFile ini_file(CONF_FILE_PATH);
+            const std::string sql_database(ini_file.getString("Database", "sql_database"));
+            const std::string sql_username(ini_file.getString("Database", "sql_username"));
+            const std::string sql_password(ini_file.getString("Database", "sql_password"));
+            db_connection.reset(new DbConnection(sql_database, sql_username, sql_password));
+        }
 
         harvest_params->format_handler_->prepareProcessing();
 
@@ -207,8 +219,8 @@ int main(int argc, char *argv[]) {
 
         unsigned download_count(0);
         for (const auto &server_url : server_urls)
-            download_count += ProcessSyndicationURL(verbose, server_url, marc_writer, harvest_params, harvest_maps,
-                                                    &db_connection);
+            download_count += ProcessSyndicationURL(mode, server_url, marc_writer, harvest_params, harvest_maps,
+                                                    db_connection.get());
 
         harvest_params->format_handler_->finishProcessing();
 
