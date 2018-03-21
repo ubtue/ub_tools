@@ -178,7 +178,7 @@ std::string ExtractTextFromTei(const std::string &tei) {
         SimpleXmlParser<StringDataSource>::Type type;
         std::map<std::string, std::string> attrib_map;
         std::string data;
-        if (parser->getNext(&type, &attrib_map, &data) && type == SimpleXmlParser<StringDataSource>::Type::CHARACTERS) {
+        if (parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<StringDataSource>::Type::CHARACTERS) {
             if (StringUtil::EndsWith(data, word_wrap)) {
                 extracted_text += StringUtil::RightTrim(word_wrap, &data);
                 concat_without_whitespace = true;
