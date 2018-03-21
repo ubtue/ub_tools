@@ -21,7 +21,6 @@
 */
 #include "Zotero.h"
 #include <uuid/uuid.h>
-#include "JSON.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
@@ -34,7 +33,8 @@ namespace Zotero {
 
 const std::vector<std::string> ExportFormats{
     "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
-    "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei"
+    "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei",
+    "json", "marc21", "marcxml"
 };
 
 
@@ -135,8 +135,8 @@ bool Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::
 
 
 bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
-         const Url &harvest_url, const std::string &harvested_html,
-         std::string * const response_body, unsigned * response_code, std::string * const error_message)
+         const Url &harvest_url, std::string * const response_body, unsigned * response_code,
+         std::string * const error_message, const std::string &harvested_html)
 {
     const std::string endpoint_url(Url(zts_server_url.toString() + "/web"));
     downloader_params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json" };
@@ -684,9 +684,9 @@ std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_di
 
 
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
-                                              const std::string &harvested_html,
                                               const std::shared_ptr<HarvestParams> harvest_params,
                                               const std::shared_ptr<const HarvestMaps> harvest_maps,
+                                              const std::string &harvested_html,
                                               bool log)
 {
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
@@ -704,7 +704,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
     harvest_params->min_url_processing_time_.sleepUntilExpired();
     Downloader::Params downloader_params;
     const bool download_result(TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT, downloader_params,
-                                                              Url(harvest_url), harvested_html, &response_body, &response_code, &error_message));
+                                                              Url(harvest_url), &response_body, &response_code, &error_message, harvested_html));
 
     harvest_params->min_url_processing_time_.restart();
     if (not download_result) {
@@ -736,7 +736,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
             const std::shared_ptr<const JSON::ObjectNode>object_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root));
             for (const auto &key_and_node : *object_node) {
                 std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
-                    Harvest(key_and_node.first, "", harvest_params, harvest_maps, false /* log */);
+                    Harvest(key_and_node.first, harvest_params, harvest_maps, "", false /* log */);
 
                 record_count_and_previously_downloaded_count.first += record_count_and_previously_downloaded_count2.first;
                 record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
@@ -760,6 +760,35 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
                   + " records were new records.");
     }
     return record_count_and_previously_downloaded_count;
+}
+
+
+PreviouslyDownloadedHashesManager::PreviouslyDownloadedHashesManager(
+    const std::string &hashes_path,std::unordered_set<std::string> * const previously_downloaded)
+    : hashes_path_(hashes_path), previously_downloaded_(*previously_downloaded)
+{
+    if (not FileUtil::Exists(hashes_path))
+        return;
+
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie((hashes_path_)));
+    while (not input->eof()) {
+        std::string line(input->getline());
+        StringUtil::Trim(&line);
+        if (likely(not line.empty()))
+            previously_downloaded->emplace(TextUtil::Base64Decode(line));
+    }
+
+    logger->info("Loaded " + StringUtil::ToString(previously_downloaded->size()) + " hashes of previously generated records.");
+}
+
+
+PreviouslyDownloadedHashesManager::~PreviouslyDownloadedHashesManager() {
+    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(hashes_path_));
+
+    for (const auto &hash : previously_downloaded_)
+        output->write(TextUtil::Base64Encode(hash) + '\n');
+
+    logger->info("Stored " + StringUtil::ToString(previously_downloaded_.size()) + " hashes of previously generated records.");
 }
 
 
