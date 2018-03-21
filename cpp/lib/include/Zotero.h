@@ -87,6 +87,13 @@ struct HarvestMaps {
 };
 
 
+/** \brief  This function can be used to augment  Zotero JSON structure with information from HarvestMaps.
+ *  \param  object_node     The JSON ObjectNode with Zotero JSON structure of a single dataset
+ *  \param  harvest_maps    The map files to apply.
+ */
+void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std::shared_ptr<const HarvestMaps> harvest_maps);
+
+
 // forward declaration
 class FormatHandler;
 
@@ -111,8 +118,13 @@ public:
         : output_format_(output_format), output_file_(output_file), harvest_maps_(harvest_maps), harvest_params_(harvest_params) {}
     virtual ~FormatHandler() {}
 
+    /** \brief Init output file + write header */
     virtual void prepareProcessing() = 0;
+
+    /** \brief Convert & write single record to output file */
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) = 0;
+
+    /** \brief Write footer to output file, finish writing */
     virtual void finishProcessing() = 0;
 
     static std::unique_ptr<FormatHandler> Factory(const std::string &output_format, const std::string &output_file,
