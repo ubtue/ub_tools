@@ -37,6 +37,8 @@
 #include "Locale.h"
 #include "HtmlParser.h"
 #include "RegexMatcher.h"
+#include "SimpleXmlParser.h"
+#include "StringDataSource.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -160,6 +162,37 @@ std::string ExtractTextFromHtml(const std::string &html, const std::string &init
     TextExtractor extractor(html, initial_charset, &extracted_text);
     extractor.parse();
     return StringUtil::TrimWhite(extracted_text);
+}
+
+
+std::string ExtractTextFromUBTei(const std::string &tei) {
+    std::string extracted_text;
+
+    const std::unique_ptr<StringDataSource> source(new StringDataSource(tei));
+    SimpleXmlParser<StringDataSource> parser(source.get());
+
+    const std::string WORD_WRAP("¬");
+    bool concat_with_whitespace(true);
+
+    SimpleXmlParser<StringDataSource>::Type type;
+    std::map<std::string, std::string> attrib_map;
+    std::string data;
+    while (parser.skipTo(SimpleXmlParser<StringDataSource>::Type::OPENING_TAG, "span")) {
+        if (parser.getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<StringDataSource>::Type::CHARACTERS) {
+            if (concat_with_whitespace)
+                extracted_text += ' ';
+
+            if (StringUtil::EndsWith(data, WORD_WRAP)) {
+                StringUtil::RightTrim(WORD_WRAP, &data);
+                concat_with_whitespace = false;
+            } else
+                concat_with_whitespace = true;
+
+            extracted_text += data;
+        }
+    }
+
+    return CollapseWhitespace(&extracted_text);
 }
 
 

@@ -21,8 +21,6 @@
 */
 #include "Zotero.h"
 #include <uuid/uuid.h>
-#include "FileUtil.h"
-#include "JSON.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
