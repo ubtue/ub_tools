@@ -98,10 +98,11 @@ std::string ExtractTextFromHtml(const std::string &html, const std::string &init
 
 
 /** \brief Extracts text from TEI files.
+ *         Can only be used for non-generic idb/diglit TEI files.
  *  \param tei The TEI content to process.
  *  \return The extracted text with collapsed whitespaces.
  */
-std::string ExtractTextFromTei(const std::string &tei);
+std::string ExtractTextFromUBTei(const std::string &tei);
 
 
 /** \brief Recognises roman numerals up to a few thousand. */

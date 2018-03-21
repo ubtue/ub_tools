@@ -165,35 +165,34 @@ std::string ExtractTextFromHtml(const std::string &html, const std::string &init
 }
 
 
-std::string ExtractTextFromTei(const std::string &tei) {
+std::string ExtractTextFromUBTei(const std::string &tei) {
     std::string extracted_text;
 
-    StringDataSource *source(new StringDataSource(tei));
-    SimpleXmlParser<StringDataSource> *parser(new SimpleXmlParser<StringDataSource>(source));
+    const std::unique_ptr<StringDataSource> source(new StringDataSource(tei));
+    SimpleXmlParser<StringDataSource> parser(source.get());
 
-    const std::string word_wrap("¬");
-    bool concat_without_whitespace(false);
+    const std::string WORD_WRAP("¬");
+    bool concat_with_whitespace(true);
 
-    while (parser->skipTo(SimpleXmlParser<StringDataSource>::Type::OPENING_TAG, "span")) {
-        SimpleXmlParser<StringDataSource>::Type type;
-        std::map<std::string, std::string> attrib_map;
-        std::string data;
-        if (parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<StringDataSource>::Type::CHARACTERS) {
-            if (StringUtil::EndsWith(data, word_wrap)) {
-                extracted_text += StringUtil::RightTrim(word_wrap, &data);
-                concat_without_whitespace = true;
-            } else {
-                if (concat_without_whitespace)
-                    concat_without_whitespace = false;
-                else
-                    extracted_text += " ";
-                extracted_text += data;
-            }
+    SimpleXmlParser<StringDataSource>::Type type;
+    std::map<std::string, std::string> attrib_map;
+    std::string data;
+    while (parser.skipTo(SimpleXmlParser<StringDataSource>::Type::OPENING_TAG, "span")) {
+        if (parser.getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<StringDataSource>::Type::CHARACTERS) {
+            if (concat_with_whitespace)
+                extracted_text += ' ';
+
+            if (StringUtil::EndsWith(data, WORD_WRAP)) {
+                StringUtil::RightTrim(WORD_WRAP, &data);
+                concat_with_whitespace = false;
+            } else
+                concat_with_whitespace = true;
+
+            extracted_text += data;
         }
     }
 
-    CollapseWhitespace(&extracted_text);
-    return extracted_text;
+    return CollapseWhitespace(&extracted_text);
 }
 
 
