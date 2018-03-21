@@ -25,7 +25,9 @@
     <link rel="stylesheet" href="../res/bootstrap4/css/bootstrap.min.css"/>
     <link rel="stylesheet" href="style.css"/>
     <script type="text/javascript" src="../res/jquery/jquery-3.2.1.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+
+    <!-- popper is required by bootstrap for tabs -->
+    <script type="text/javascript" src="../res/bootstrap4/js/popper.min.js"></script>
     <script type="text/javascript" src="../res/bootstrap4/js/bootstrap.min.js"></script>
 
     <script type="text/javascript">
