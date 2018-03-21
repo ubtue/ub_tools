@@ -181,6 +181,14 @@ public:
         return extracted_values;
     }
 
+   /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes"
+     * and appropriately treat subfields of numeric fields
+     *  \return The values of the subfields with matching codes.
+     */
+
+
+    std::vector<std::string> extractSubfieldsAndNumericSubfields(const std::string &subfield_spec) const;
+
     /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
     inline std::string getFirstSubfieldWithCode(const char subfield_code) const {
         const auto iter(std::find_if(subfields_.cbegin(), subfields_.cend(),

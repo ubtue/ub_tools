@@ -341,43 +341,10 @@ std::vector<std::string> Record::getSubfieldValues(const Tag &tag, const std::st
 
 std::vector<std::string> Record::getSubfieldAndNumericSubfieldValues(const Tag &tag, const std::string &subfield_spec) const {
     std::vector<std::string> subfield_values;
-    std::set<std::string> numeric_subfield_specs;
-    std::string subfield_codes;
-
-    // Extract the proper subfield and save numeric subspecifications
-    pcrecpp::StringPiece subfield_spec_input(subfield_spec);
-    static pcrecpp::RE subfield_spec_matcher("(((?<![[:digit:]])[[:lower:]])|([[:digit:]][[:lower:]]))");
-    std::string subfield_candidate;
-    while (subfield_spec_matcher.FindAndConsume(&subfield_spec_input, &subfield_candidate)) {
-         if (subfield_candidate.length() == 1)
-             subfield_codes += subfield_candidate;
-         else {
-             subfield_codes += subfield_candidate[0];
-             numeric_subfield_specs.insert(subfield_candidate);
-         }
-    }
-
-    if (subfield_codes.empty())
-        return subfield_values;
-
-    // Extract values
-    for (const auto &field: getTagRange(tag)) {
+    for (const auto &field : getTagRange(tag)) {
         const Subfields subfields(field.getContents());
-        for (const auto &subfield_code : subfield_codes) {
-            for (const auto subfield_value : subfields.extractSubfields(subfield_code)) {
-                // Extract an ordinary subfield completely
-                if (std::islower(subfield_code)) {
-                    subfield_values.emplace_back(subfield_value);
-                    continue;
-                }
-                // For numeric subfields check matching subspecification
-                if (numeric_subfield_specs.find(std::string(1,subfield_code) + subfield_value[0]) != numeric_subfield_specs.end()) {
-                   // Subspecifications have a trailing ":"
-                   if (subfield_value[1] == ':')
-                       subfield_values.emplace_back(subfield_value.substr(2));
-                }
-            }
-        }
+        const std::vector<std::string> one_tag_subfield_values(subfields.extractSubfieldsAndNumericSubfields(subfield_spec));
+        subfield_values.insert(std::end(subfield_values), one_tag_subfield_values.cbegin(), one_tag_subfield_values.cend());
     }
     return subfield_values;
 }
