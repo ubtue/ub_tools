@@ -44,7 +44,8 @@ void Usage() {
     std::cerr << "Usage: " << ::progname << " [options] zts_server_url map_directory output_file\n"
               << "\t[ --ignore-robots-dot-txt)                                Nomen est omen.\n"
               << "\t[ --proxy=<proxy_host_and_port>)                          Proxy host and port, default none.\n"
-              << "\t[ --simple-crawler-config-file=<path> ]                   Nomen est omen, default: " << DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH << "\n"
+              << "\t[ --simple-crawler-config-file=<path> ]                   Nomen est omen, default: "
+              << DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH << "\n"
               << "\t[ --progress-file=<path> ]                                Nomen est omen.\n"
               << "\t[ --output-format=<format> ]                              marcxml (default), marc21 or json.\n"
               << "\n"
@@ -58,32 +59,10 @@ void Usage() {
 }
 
 
-void LoadPreviouslyDownloadedHashes(File * const input,
-                                    std::unordered_set<std::string> * const previously_downloaded)
-{
-    while (not input->eof()) {
-        std::string line(input->getline());
-        StringUtil::Trim(&line);
-        if (likely(not line.empty()))
-            previously_downloaded->emplace(TextUtil::Base64Decode(line));
-    }
-
-    logger->info("Loaded " + StringUtil::ToString(previously_downloaded->size()) + " hashes of previously generated records.");
-}
-
-
-void StorePreviouslyDownloadedHashes(File * const output,
-                                     const std::unordered_set<std::string> &previously_downloaded)
-{
-    for (const auto &hash : previously_downloaded)
-        output->write(TextUtil::Base64Encode(hash) + '\n');
-
-    logger->info("Stored " + StringUtil::ToString(previously_downloaded.size()) + " hashes of previously generated records.");
-}
-
-
-void HarvestSites(const SimpleCrawler::Params &crawler_params, const std::shared_ptr<RegexMatcher> supported_urls_regex, const std::vector<SimpleCrawler::SiteDesc> &site_descs,
-                  const std::shared_ptr<Zotero::HarvestParams> harvest_params, const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps, std::unique_ptr<File> &progress_file,
+void HarvestSites(const SimpleCrawler::Params &crawler_params, const std::shared_ptr<RegexMatcher> supported_urls_regex,
+                  const std::vector<SimpleCrawler::SiteDesc> &site_descs,
+                  const std::shared_ptr<Zotero::HarvestParams> harvest_params,
+                  const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps, std::unique_ptr<File> &progress_file,
                   unsigned * const total_record_count, unsigned * const total_previously_downloaded_count)
 {
     harvest_params->format_handler_->prepareProcessing();
@@ -99,14 +78,15 @@ void HarvestSites(const SimpleCrawler::Params &crawler_params, const std::shared
                 INFO("Skipping unsupported URL: " + page_details.url_);
             else if (page_details.error_message_.empty()) {
                 const auto record_count_and_previously_downloaded_count(
-                    Zotero::Harvest(page_details.url_, page_details.body_, harvest_params, harvest_maps)
+                    Zotero::Harvest(page_details.url_, harvest_params, harvest_maps, page_details.body_)
                 );
                 *total_record_count                += record_count_and_previously_downloaded_count.first;
                 *total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
                 if (progress_file != nullptr) {
                     progress_file->rewind();
                     if (unlikely(not progress_file->write(
-                            std::to_string(processed_url_count) + ";" + std::to_string(crawler.getRemainingCallDepth()) + ";" + page_details.url_)))
+                            std::to_string(processed_url_count) + ";" + std::to_string(crawler.getRemainingCallDepth())
+                            + ";" + page_details.url_)))
                         ERROR("failed to write progress to \"" + progress_file->getPath());
                 }
             }
@@ -172,11 +152,8 @@ void Main(int argc, char *argv[]) {
         const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
         const std::string PREVIOUSLY_DOWNLOADED_HASHES_PATH(map_directory_path + "previously_downloaded.hashes");
-        if (FileUtil::Exists(PREVIOUSLY_DOWNLOADED_HASHES_PATH)) {
-            std::unique_ptr<File> previously_downloaded_input(
-                FileUtil::OpenInputFileOrDie(PREVIOUSLY_DOWNLOADED_HASHES_PATH));
-            LoadPreviouslyDownloadedHashes(previously_downloaded_input.get(), &harvest_maps->previously_downloaded_);
-        }
+        Zotero::PreviouslyDownloadedHashesManager previously_downloaded_hashes_manager(PREVIOUSLY_DOWNLOADED_HASHES_PATH,
+                                                                                       &harvest_maps->previously_downloaded_);
 
         const std::string output_file(argv[3]);
         harvest_params->format_handler_ = Zotero::FormatHandler::Factory(output_format, output_file, harvest_maps, harvest_params);
@@ -204,7 +181,6 @@ void Main(int argc, char *argv[]) {
 
         std::unique_ptr<File> previously_downloaded_output(
             FileUtil::OpenOutputFileOrDie(map_directory_path + "previously_downloaded.hashes"));
-        StorePreviouslyDownloadedHashes(previously_downloaded_output.get(), harvest_maps->previously_downloaded_);
     } catch (const std::exception &x) {
         ERROR("caught exception: " + std::string(x.what()));
     }
