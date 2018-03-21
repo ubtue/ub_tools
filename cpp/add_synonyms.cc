@@ -100,8 +100,8 @@ void ExtractSynonyms(MARC::Reader * const authority_reader,
             ++primary, ++synonym, ++i)
         {
             // Fill maps with synonyms
-            std::vector<std::string> primary_values(record.getSubfieldValues(GetTag(*primary), GetSubfieldCodes(*primary)));
-            std::vector<std::string> synonym_values(record.getSubfieldValues(GetTag(*synonym), GetSubfieldCodes(*synonym)));
+            std::vector<std::string> primary_values(record.getSubfieldAndNumericSubfieldValues(GetTag(*primary), GetSubfieldCodes(*primary)));
+            std::vector<std::string> synonym_values(record.getSubfieldAndNumericSubfieldValues(GetTag(*synonym), GetSubfieldCodes(*synonym)));
 
             if (FilterPasses(record, filter_spec, *primary) and primary_values.size() and synonym_values.size()) {
                     (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','),
@@ -147,7 +147,7 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
         std::vector<std::string> synonym_values;
         for (const auto &field : record->getTagRange(GetTag(*primary))) {
             const MARC::Subfields subfields(field.getSubfields());
-            std::vector<std::string> primary_values(subfields.extractSubfields(GetSubfieldCodes(*primary)));
+            std::vector<std::string> primary_values(subfields.extractSubfieldsAndNumericSubfields(GetSubfieldCodes(*primary)));
             if (not primary_values.empty()) {
                 std::string searchterm(StringUtil::Join(primary_values, ','));
                 // Look up synonyms in all categories
@@ -371,9 +371,9 @@ int main(int argc, char **argv) {
     try {
         // Determine possible mappings
         // Values in square brackets specify a positive criterion for values to be taken into account
-        const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcd[079v=piz]:110abcd:111abcd:130abcd:150abcd:151abcd:100a");
-        const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcd:410abcd:411abcd:430abcd:450abcd:451abcd:700a");
-        const std::string TITLE_DATA_PRIMARY_SPEC("600abcd:610abcd:611abcd:630abcd:650abcd:651abcd:689abcdt");
+        const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcd9g[079v=piz]:110abcd9g:111abcd9g:130abcd9g:150abcd9g:151abcd9g:100a9g");
+        const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcd9g:410abcd9g:411abcd9g:430abcd9g:450abcd9g:451abcd9g:700a9g");
+        const std::string TITLE_DATA_PRIMARY_SPEC("600abcd9g:610abcd9g:611abcd:630abcd:650abcd9g:651abcd9g:689abcdt9g");
         const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("180a:181a:182a:183a:184a:185a:186a");
         const std::string TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS("950a:951a:952a:953a:954a:955a:956a:957a:958a");
 
