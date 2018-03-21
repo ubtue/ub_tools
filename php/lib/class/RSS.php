@@ -3,7 +3,9 @@
 
 namespace RSS;
 
-
+/**
+ * Class for Metadata Harvesting of RSS feeds (using c++ rss_harvester)
+ */
 class MetadataHarvester {
     /**
      * Mapping of format to file extension
