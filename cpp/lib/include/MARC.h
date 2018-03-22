@@ -182,7 +182,12 @@ public:
     }
 
    /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes".
-     * Handle subfields of numeric subfields like 9v appropriately 
+     * \note In the case of numeric subfield codes the following character in "subfield_codes" will also be considered and
+     *       only subfield values starting with this character followed by a colon will be extracted (w/o the character and
+     *       colon).
+     *  \example "abcd9v" => Subfield values for subfields with codes "abcd9" will be extracterd with the proviso that only
+     *           those values of subfields with code '9' will be extracted that start w/ "v:" and those will be returned w/o the
+     *           leading "v:".
      *  \return The values of the subfields with matching codes.
      */
     std::vector<std::string> extractSubfieldsAndNumericSubfields(const std::string &subfield_spec) const;
