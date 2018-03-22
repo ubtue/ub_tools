@@ -405,10 +405,6 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         parent_issn = custom_object->getOptionalStringValue("issnRaw");
         issn = custom_object->getOptionalStringValue("issnNormalized");
 
-        // issn (parent)
-        if (not parent_issn.empty())
-            new_record.addSubfield("773", 'x', parent_issn);
-
         // physical form
         const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
         if (not physical_form.empty()) {
