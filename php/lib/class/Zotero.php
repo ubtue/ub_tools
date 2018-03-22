@@ -53,20 +53,20 @@ class MetadataHarvester {
      * Initialize new Server
      * @param string $url
      */
-    public function __construct($url) {
+    public function __construct(string $url) {
         $this->url = $url;
     }
 
     /**
      * Start crawling, using zts_client
      *
-     * @param string $urlBase
-     * @param string $urlRegex
-     * @param int $depth
+     * @param string $urlBase    Base URL to start crawling
+     * @param string $urlRegex   Positive pattern for crawler
+     * @param int $depth         Max depth for crawling
      * @param string $format     see zts_client for valid formats (e.g. json)
-     * @return \Zotero\BackgroundTask
+     * @return BackgroundTask
      */
-    public function start($urlBase, $urlRegex, $depth, $format) {
+    public function start(string $urlBase, string $urlRegex, int $depth, string $format): BackgroundTask {
         $uniqid = uniqid('Zts_' . date('Y-m-d_H-i-s_'));
         $cfgPath = DIR_TMP . $uniqid . '.conf';
 
@@ -92,14 +92,14 @@ class MetadataHarvester {
     /**
      * Call zts_client (start background task, dont wait for result)
      *
-     * @param string $taskId
-     * @param string $cfgPath
-     * @param string $dirMap
-     * @param string $outFormat
-     * @param string $outPath
-     * @return \Zotero\BackgroundTask
+     * @param string $taskId        Unique ID for task
+     * @param string $cfgPath       Path to config file for crawler
+     * @param string $dirMap        Map directory for crawler
+     * @param string $outFormat     see zts_client for valid formats (e.g. json)
+     * @param string $outPath       Path to write out file
+     * @return BackgroundTask
      */
-    protected function _executeCommand($taskId, $cfgPath, $dirMap, $outFormat, $outPath) {
+    protected function _executeCommand(string $taskId, string $cfgPath, string $dirMap, string $outFormat, string $outPath): BackgroundTask {
         $progressPath = BackgroundTask::getProgressPath($taskId);
 
         $cmd = 'zts_client';
@@ -130,12 +130,12 @@ class MetadataHarvester {
     /**
      * Prepare config file for zts_client
      *
-     * @param string $cfgPath
-     * @param string $urlBase
-     * @param string $urlRegex
-     * @param int $depth
+     * @param string $cfgPath   Path to config file for crawler
+     * @param string $urlBase   Base URL to start crawling
+     * @param string $urlRegex  Positive pattern for crawler
+     * @param int $depth        Max depth for crawling
      */
-    static protected function _writeConfigFile($cfgPath, $urlBase, $urlRegex, $depth) {
+    static protected function _writeConfigFile(string $cfgPath, string $urlBase, string $urlRegex, int $depth) {
         $CfgContents = '# start_URL max_crawl_depth URL_regex' . PHP_EOL;
         $CfgContents .= implode(' ', array($urlBase, $depth, $urlRegex));
         file_put_contents($cfgPath, $CfgContents);
@@ -192,19 +192,19 @@ class BackgroundTask {
      *
      * @return string
      */
-    public function getOutput() {
+    public function getOutput(): string {
         return stream_get_contents($this->pipes[1]);
     }
 
     /**
      * Get progress information.
      *
-     * Might also be false, if the subprocess didnt write the progress file yet.
+     * Might also be null, if the subprocess didnt write the progress file yet.
      * So it is recommended to treat false as no progress, and not as error.
      *
-     * @return array ['processed_url_count' => int, 'remaining_depth' => int, 'current_url' => string] or false (error)
+     * @return array ['processed_url_count' => int, 'remaining_depth' => int, 'current_url' => string] or null
      */
-    public function getProgress() {
+    public function getProgress(): ?array {
         $path = self::getProgressPath($this->taskId);
         if (is_file($path)) {
             $progressRaw = file_get_contents($path);
@@ -215,7 +215,7 @@ class BackgroundTask {
                         'current_url'         => $progress[2],
                 ];
             } else {
-                return false;
+                return null;
             }
         }
     }
@@ -226,7 +226,7 @@ class BackgroundTask {
      * @param string $taskId
      * @return string
      */
-    static public function getProgressPath($taskId) {
+    static public function getProgressPath(string $taskId): string {
         return DIR_TMP . $taskId . '.progress';
     }
 

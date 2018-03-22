@@ -4,7 +4,7 @@
 namespace RSS;
 
 /**
- * Class for Metadata Harvesting of RSS feeds (using the C++ rss_harvester)
+ * Class for Metadata Harvesting of RSS feeds (using C++ rss_harvester)
  */
 class MetadataHarvester {
     /**
@@ -26,18 +26,18 @@ class MetadataHarvester {
      * Initialize new Harvester
      * @param string $zoteroUrl
      */
-    public function __construct($zoteroUrl) {
+    public function __construct(string $zoteroUrl) {
         $this->zoteroUrl = $zoteroUrl;
     }
 
     /**
      * Start harvesting, using rss_harvester
      *
-     * @param string $urlBase
-     * @param string $format     see OUTPUT_FORMATS for valid formats (e.g. marcxml)
+     * @param string $urlBase   RSS feed URL
+     * @param string $format    see OUTPUT_FORMATS for valid formats (e.g. marcxml)
      * @return TaskResult
      */
-    public function start($urlBase, $format) {
+    public function start(string $urlBase, string $format): TaskResult {
         $uniqid = uniqid('Zts_' . date('Y-m-d_H-i-s_'));
 
         // generate local copy of zts_client_maps
@@ -57,19 +57,18 @@ class MetadataHarvester {
         $rssUrlPath = DIR_TMP . $uniqid . '.url';
         file_put_contents($rssUrlPath, $urlBase);
 
-        return $this->_executeCommand($uniqid, $rssUrlPath, $mapDirLocal, $outPath);
+        return $this->_executeCommand($rssUrlPath, $mapDirLocal, $outPath);
     }
 
     /**
      * Call rss_harvester
      *
-     * @param string $taskId
-     * @param string $rssUrlFile
-     * @param string $mapDir
-     * @param string $outPath
+     * @param string $rssUrlFile    Path to file with RSS feed URL
+     * @param string $mapDir        Path to map directory
+     * @param string $outPath       Path to write out file
      * @return TaskResult
      */
-    protected function _executeCommand($taskId, $rssUrlFile, $mapDir, $outPath) {
+    protected function _executeCommand(string $rssUrlFile, string $mapDir, string $outPath): TaskResult {
         $cmd = 'rss_harvester --test';
         if (ZOTERO_PROXY_SERVER != '') {
             $cmd .= ' "--proxy=' . ZOTERO_PROXY_SERVER . '"';
