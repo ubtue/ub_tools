@@ -1013,11 +1013,11 @@ static char DecodeOctalEscapeSequence(std::string::const_iterator &ch, const std
 
 std::string &CStyleUnescape(std::string * const s) {
     std::string unescaped_string;
-    bool slash_seen(false);
+    bool backslash_seen(false);
     for (auto ch(s->cbegin()); ch != s->cend(); ++ch) {
-        if (not slash_seen) {
+        if (not backslash_seen) {
             if (*ch == '\\')
-                slash_seen = true;
+                backslash_seen = true;
             else
                 unescaped_string += *ch;
         } else {
@@ -1065,11 +1065,11 @@ std::string &CStyleUnescape(std::string * const s) {
             default:
                 unescaped_string += *ch;
             }
-            slash_seen = false;
+            backslash_seen = false;
         }
     }
 
-    if (unlikely(slash_seen))
+    if (unlikely(backslash_seen))
         throw std::runtime_error("in TextUtil::CStyleUnescape: trailing slash in input string!");
 
     s->swap(unescaped_string);
