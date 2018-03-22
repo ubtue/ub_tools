@@ -20,7 +20,6 @@
 #include "MARC.h"
 #include <set>
 #include <unordered_map>
-#include <pcrecpp.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -73,24 +72,23 @@ bool Subfields::replaceFirstSubfield(const char subfield_code, const std::string
     return true;
 }
 
+    
 std::vector<std::string> Subfields::extractSubfieldsAndNumericSubfields(const std::string &subfield_spec) const {
-    std::vector<std::string> subfield_values;
     std::set<std::string> numeric_subfield_specs;
     std::string subfield_codes;
 
-    // Extract the proper subfield and save numeric subspecifications
-    pcrecpp::StringPiece subfield_spec_input(subfield_spec);
-    static pcrecpp::RE subfield_spec_matcher("(((?<![[:digit:]])[[:lower:]])|([[:digit:]][[:lower:]]))");
-    std::string subfield_candidate;
-    while (subfield_spec_matcher.FindAndConsume(&subfield_spec_input, &subfield_candidate)) {
-         if (subfield_candidate.length() == 1)
-             subfield_codes += subfield_candidate;
-         else {
-             subfield_codes += subfield_candidate[0];
-             numeric_subfield_specs.insert(subfield_candidate);
-         }
+    for (auto code(subfield_spec.cbegin()); code != subfield_spec.cend(); ++code) {
+        if (StringUtil::IsDigit(*code)) {
+            if (unlikely((code + 1) == subfield_spec.cend()))
+                ERROR("numeric subfield code is missing a following character!");
+            numeric_subfield_specs.insert(std::string(1, *code) + std::string(1, *(code + 1)));
+            subfield_codes += *code;
+            ++code;
+        } else
+            subfield_codes += *code;
     }
 
+    std::vector<std::string> subfield_values;
     if (subfield_codes.empty())
        return subfield_values;
 
@@ -107,7 +105,6 @@ std::vector<std::string> Subfields::extractSubfieldsAndNumericSubfields(const st
     }
     return subfield_values;
 }
-
 
 
 bool Record::Field::operator<(const Record::Field &rhs) const {
