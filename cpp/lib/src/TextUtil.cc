@@ -1004,6 +1004,7 @@ static char DecodeOctalEscapeSequence(std::string::const_iterator &ch, const std
         code <<= 3u;
         code += *ch - '0';
         ++ch;
+        ++count;
     }
     --ch;
 
