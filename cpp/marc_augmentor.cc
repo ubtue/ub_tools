@@ -30,6 +30,7 @@
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "util.h"
 
 
@@ -74,7 +75,8 @@ void Usage() {
               << "           --config-path filename\n"
               << "               If --config-path has been specified, no other operation may be used.\n"
               << "       Field or subfield data may contain any of the following escapes:\n"
-              << "         \\n, \\t, \\b, \\r, \\f, \\v, \\a, \\\\, \\uNNNN and \\UNNNNNNNN\n"
+              << "         \\n, \\t, \\b, \\r, \\f, \\v, \\a, \\\\, \\uNNNN and \\UNNNNNNNN as well as \\o, \\oo and \\ooo\n"
+              << "         octal escape sequences.\n"
               << "       \"field_or_subfield_spec_and_pcre_regex\" consists of a 3-character tag, an optional 1-character\n"
               << "       subfield code, a colon and a PCRE regex.  \"field_or_subfield_spec_pair\" consists of 2 field or\n"
               << "       field or subfield references separated by a colon.\n\n";
@@ -154,7 +156,7 @@ public:
                                                                const std::string &text_to_insert)
     {
         AugmentorDescriptor descriptor(AugmentorType::INSERT_FIELD, tag, subfield_code);
-        descriptor.text_to_insert_ = text_to_insert;
+        descriptor.text_to_insert_ = TextUtil::CStyleUnescape(text_to_insert);
         return descriptor;
     }
 
@@ -162,7 +164,7 @@ public:
                                                                 const std::string &text_to_insert)
     {
         AugmentorDescriptor descriptor(AugmentorType::REPLACE_FIELD, tag, subfield_code);
-        descriptor.text_to_insert_ = text_to_insert;
+        descriptor.text_to_insert_ = TextUtil::CStyleUnescape(text_to_insert);
         return descriptor;
     }
 
@@ -170,7 +172,7 @@ public:
                                                                const std::string &text_to_insert)
     {
         AugmentorDescriptor descriptor(AugmentorType::ADD_SUBFIELD, tag, subfield_code);
-        descriptor.text_to_insert_ = text_to_insert;
+        descriptor.text_to_insert_ = TextUtil::CStyleUnescape(text_to_insert);
         return descriptor;
     }
 
@@ -179,7 +181,7 @@ public:
                                                                  const std::string &text_to_insert)
     {
         AugmentorDescriptor descriptor(AugmentorType::INSERT_FIELD_IF, tag, subfield_code, compiled_pattern);
-        descriptor.text_to_insert_ = text_to_insert;
+        descriptor.text_to_insert_ = TextUtil::CStyleUnescape(text_to_insert);
         return descriptor;
     }
 
@@ -188,7 +190,7 @@ public:
                                                                   const std::string &text_to_insert)
     {
         AugmentorDescriptor descriptor(AugmentorType::REPLACE_FIELD_IF, tag, subfield_code, compiled_pattern);
-        descriptor.text_to_insert_ = text_to_insert;
+        descriptor.text_to_insert_ = TextUtil::CStyleUnescape(text_to_insert);
         return descriptor;
     }
 
@@ -197,7 +199,7 @@ public:
                                                                  const std::string &text_to_insert)
     {
         AugmentorDescriptor descriptor(AugmentorType::ADD_SUBFIELD_IF, tag, subfield_code, compiled_pattern);
-        descriptor.text_to_insert_ = text_to_insert;
+        descriptor.text_to_insert_ = TextUtil::CStyleUnescape(text_to_insert);
         return descriptor;
     }
 
