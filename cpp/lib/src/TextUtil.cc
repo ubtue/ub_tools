@@ -997,13 +997,28 @@ static std::string DecodeUnicodeEscapeSequence(std::string::const_iterator &ch, 
 }
 
 
+// Helper function for CStyleUnescape().
+static char DecodeOctalEscapeSequence(std::string::const_iterator &ch, const std::string::const_iterator &end) {
+    unsigned code(0), count(0);
+    while (count < 3 and ch != end and (*ch >= '0' and *ch <= '7')) {
+        code <<= 3u;
+        code += *ch - '0';
+        ++ch;
+        ++count;
+    }
+    --ch;
+
+    return static_cast<char>(code);
+}
+
+
 std::string &CStyleUnescape(std::string * const s) {
     std::string unescaped_string;
-    bool slash_seen(false);
+    bool backslash_seen(false);
     for (auto ch(s->cbegin()); ch != s->cend(); ++ch) {
-        if (not slash_seen) {
+        if (not backslash_seen) {
             if (*ch == '\\')
-                slash_seen = true;
+                backslash_seen = true;
             else
                 unescaped_string += *ch;
         } else {
@@ -1032,6 +1047,16 @@ std::string &CStyleUnescape(std::string * const s) {
             case '\\':
                 unescaped_string += '\\';
                 break;
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+                unescaped_string += DecodeOctalEscapeSequence(ch, s->cend());
+                break;
             case 'u':
                 unescaped_string += DecodeUnicodeEscapeSequence(ch, s->cend(), /* width = */ 4);
                 break;
@@ -1041,11 +1066,11 @@ std::string &CStyleUnescape(std::string * const s) {
             default:
                 unescaped_string += *ch;
             }
-            slash_seen = false;
+            backslash_seen = false;
         }
     }
 
-    if (unlikely(slash_seen))
+    if (unlikely(backslash_seen))
         throw std::runtime_error("in TextUtil::CStyleUnescape: trailing slash in input string!");
 
     s->swap(unescaped_string);
