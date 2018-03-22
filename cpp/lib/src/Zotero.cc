@@ -405,6 +405,10 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         parent_issn = custom_object->getOptionalStringValue("issnRaw");
         issn = custom_object->getOptionalStringValue("issnNormalized");
 
+        // issn (parent)
+        if (not parent_issn.empty())
+            new_record.addSubfield("773", 'x', parent_issn);
+
         // physical form
         const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
         if (not physical_form.empty()) {
@@ -641,6 +645,12 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
             }
             custom_object->insert("comments", comments_node);
         }
+
+        for (const auto &custom_field : custom_fields) {
+            std::shared_ptr<JSON::StringNode> custom_field_node(new JSON::StringNode(custom_field.second));
+            custom_object->insert(custom_field.first, custom_field_node);
+        }
+
         object_node->insert("ubtue", custom_object);
     }
 }
@@ -708,13 +718,13 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
 
     harvest_params->min_url_processing_time_.restart();
     if (not download_result) {
-        logger->info("Zotero conversion failed: " + error_message);
+        logger->warning("Zotero conversion failed: " + error_message);
         return std::make_pair(0, 0);
     }
 
     // 500 => internal server error (e.g. error in translator))
     if (response_code == 500) {
-        logger->info("Error: " + response_body);
+        logger->warning("Error: " + response_body);
         return std::make_pair(0, 0);
     }
 
