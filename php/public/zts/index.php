@@ -6,12 +6,12 @@
     require('inc.php');
 
     // Helper functions for javascript
-    function updateProgress($progress) {
+    function updateProgress(string $progress) {
         print '<script type="text/javascript">updateProgress(atob("'.base64_encode($progress).'"));</script>' . PHP_EOL;
         ob_flush_real();
     }
 
-    function updateRuntime($seconds) {
+    function updateRuntime(int $seconds) {
         print '<script type="text/javascript">updateRuntime('.$seconds.');</script>' . PHP_EOL;
         ob_flush_real();
     }
@@ -66,7 +66,7 @@
                             <?php
                                 $default = 1;
                                 if (isset($_POST['depth'])) $default = $_POST['depth'];
-                                for ($i = 1; $i <= 3; $i++) {
+                                for ($i = 1; $i <= MAX_CRAWLING_DEPTH; $i++) {
                                     if ($i == $default) {
                                         print '<option selected="selected">'.$i.'</option>';
                                     } else {
@@ -102,7 +102,7 @@
         <?php
         if ($action == 'crawling' && isset($_POST['urlBase'])) {
             $zotero = new Zotero\MetadataHarvester(ZOTERO_TRANSLATION_SERVER_URL);
-            $task = $zotero->start($_POST['urlBase'], $_POST['urlRegex'], $_POST['depth'], $_POST['outputFormat']);
+            $task = $zotero->start($_POST['urlBase'], $_POST['urlRegex'], intval($_POST['depth']), $_POST['outputFormat']);
             ?>
             <h2>Result</h2>
             <table>
@@ -125,7 +125,7 @@
                 sleep(1);
                 updateRuntime(time() - $starttime);
                 $progress = $task->getProgress();
-                if ($progress !== false && $progress !== $progressOld) {
+                if ($progress !== null && $progress !== $progressOld) {
                     $progress_string = 'Current URL: ' . $progress['current_url'] . '<br/>';
                     $progress_string .= 'Current Depth: ' . ($_POST['depth'] - $progress['remaining_depth']) . '<br/>';
                     $progress_string .= 'Processed URL count: ' . $progress['processed_url_count'] . '<br/>';
