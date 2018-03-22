@@ -18,6 +18,7 @@
 */
 
 #include "MARC.h"
+#include <set>
 #include <unordered_map>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -69,6 +70,40 @@ bool Subfields::replaceFirstSubfield(const char subfield_code, const std::string
         return false;
     replacement_location->value_ = new_subfield_value;
     return true;
+}
+
+    
+std::vector<std::string> Subfields::extractSubfieldsAndNumericSubfields(const std::string &subfield_spec) const {
+    std::set<std::string> numeric_subfield_specs;
+    std::string subfield_codes;
+
+    for (auto code(subfield_spec.cbegin()); code != subfield_spec.cend(); ++code) {
+        if (StringUtil::IsDigit(*code)) {
+            if (unlikely((code + 1) == subfield_spec.cend()))
+                ERROR("numeric subfield code is missing a following character!");
+            numeric_subfield_specs.insert(std::string(1, *code) + std::string(1, *(code + 1)));
+            subfield_codes += *code;
+            ++code;
+        } else
+            subfield_codes += *code;
+    }
+
+    std::vector<std::string> subfield_values;
+    if (subfield_codes.empty())
+        return subfield_values;
+
+    for (const auto &subfield : subfields_) {
+        if (subfield_codes.find(subfield.code_) != std::string::npos) {
+            if (not StringUtil::IsDigit(subfield.code_))
+                subfield_values.emplace_back(subfield.value_);
+            else {
+               numeric_subfield_specs.find(std::string(1, subfield.code_) + subfield.value_[0]);
+               if (subfield.value_[1] == ':')
+                    subfield_values.emplace_back(subfield.value_.substr(2));
+            }
+        }
+    }
+    return subfield_values;
 }
 
 
@@ -296,6 +331,17 @@ std::vector<std::string> Record::getSubfieldValues(const Tag &tag, const std::st
         for (const auto &subfield_code : subfield_codes)
             for (const auto &subfield_value : subfields.extractSubfields(subfield_code))
                 subfield_values.emplace_back(subfield_value);
+    }
+    return subfield_values;
+}
+
+
+std::vector<std::string> Record::getSubfieldAndNumericSubfieldValues(const Tag &tag, const std::string &subfield_spec) const {
+    std::vector<std::string> subfield_values;
+    for (const auto &field : getTagRange(tag)) {
+        const Subfields subfields(field.getContents());
+        const std::vector<std::string> one_tag_subfield_values(subfields.extractSubfieldsAndNumericSubfields(subfield_spec));
+        subfield_values.insert(std::end(subfield_values), one_tag_subfield_values.cbegin(), one_tag_subfield_values.cend());
     }
     return subfield_values;
 }
