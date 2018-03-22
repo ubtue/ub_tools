@@ -185,7 +185,7 @@ public:
      * \note In the case of numeric subfield codes the following character in "subfield_codes" will also be considered and
      *       only subfield values starting with this character followed by a colon will be extracted (w/o the character and
      *       colon).
-     *  \example "abcd9v" => Subfield values for subfields with codes "abcd9" will be extracterd with the proviso that only
+     *  \example "abcd9v" => Subfield values for subfields with codes "abcd9" will be extracted with the proviso that only
      *           those values of subfields with code '9' will be extracted that start w/ "v:" and those will be returned w/o the
      *           leading "v:".
      *  \return The values of the subfields with matching codes.
