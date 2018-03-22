@@ -181,6 +181,17 @@ public:
         return extracted_values;
     }
 
+   /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes".
+     * \note In the case of numeric subfield codes the following character in "subfield_codes" will also be considered and
+     *       only subfield values starting with this character followed by a colon will be extracted (w/o the character and
+     *       colon).
+     *  \example "abcd9v" => Subfield values for subfields with codes "abcd9" will be extracted with the proviso that only
+     *           those values of subfields with code '9' will be extracted that start w/ "v:" and those will be returned w/o the
+     *           leading "v:".
+     *  \return The values of the subfields with matching codes.
+     */
+    std::vector<std::string> extractSubfieldsAndNumericSubfields(const std::string &subfield_spec) const;
+
     /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
     inline std::string getFirstSubfieldWithCode(const char subfield_code) const {
         const auto iter(std::find_if(subfields_.cbegin(), subfields_.cend(),
@@ -477,8 +488,11 @@ public:
     /** \return Values for all fields with tag "tag" and subfield code "subfield_code". */
     std::vector<std::string> getSubfieldValues(const Tag &tag, const char subfield_code) const;
 
-    /** \return Values for all fields with tag "tag" and subfield code "subfield_code". */
+    /** \return Values for all fields with tag "tag" and subfield codes "subfield_codes". */
     std::vector<std::string> getSubfieldValues(const Tag &tag, const std::string &subfield_codes) const;
+
+    /** \return Values for all fields with tag "tag" and subfield codes "subfield_codes". Handle subfields of numeric subfields like 9v appropriately*/
+    std::vector<std::string> getSubfieldAndNumericSubfieldValues(const Tag &tag, const std::string &subfield_spec) const;
 
     /** \brief Finds local ("LOK") block boundaries.
      *  \param local_block_boundaries  Each entry contains the iterator pointing to the first field of a local block
