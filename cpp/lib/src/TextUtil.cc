@@ -997,6 +997,20 @@ static std::string DecodeUnicodeEscapeSequence(std::string::const_iterator &ch, 
 }
 
 
+// Helper function for CStyleUnescape().
+static char DecodeOctalEscapeSequence(std::string::const_iterator &ch, const std::string::const_iterator &end) {
+    unsigned code(0), count(0);
+    while (count < 3 and ch != end and (*ch >= '0' and *ch <= '7')) {
+        code <<= 3u;
+        code += *ch - '0';
+        ++ch;
+    }
+    --ch;
+
+    return static_cast<char>(code);
+}
+
+
 std::string &CStyleUnescape(std::string * const s) {
     std::string unescaped_string;
     bool slash_seen(false);
@@ -1031,6 +1045,16 @@ std::string &CStyleUnescape(std::string * const s) {
                 break;
             case '\\':
                 unescaped_string += '\\';
+                break;
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+                unescaped_string += DecodeOctalEscapeSequence(ch, s->cend());
                 break;
             case 'u':
                 unescaped_string += DecodeUnicodeEscapeSequence(ch, s->cend(), /* width = */ 4);
