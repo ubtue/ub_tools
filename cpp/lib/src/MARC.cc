@@ -99,7 +99,7 @@ std::vector<std::string> Subfields::extractSubfieldsAndNumericSubfields(const st
             if (not isdigit(subfield.code_))
                 subfield_values.emplace_back(subfield.value_);
             else {
-               numeric_subfield_specs.find(std::string(1,subfield.code_) + subfield.value_[0]);
+               numeric_subfield_specs.find(std::string(1, subfield.code_) + subfield.value_[0]);
                if (subfield.value_[1] == ':')
                     subfield_values.emplace_back(subfield.value_.substr(2));
             }
