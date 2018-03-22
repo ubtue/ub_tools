@@ -90,11 +90,11 @@ std::vector<std::string> Subfields::extractSubfieldsAndNumericSubfields(const st
 
     std::vector<std::string> subfield_values;
     if (subfield_codes.empty())
-       return subfield_values;
+        return subfield_values;
 
     for (const auto &subfield : subfields_) {
         if (subfield_codes.find(subfield.code_) != std::string::npos) {
-            if (not isdigit(subfield.code_))
+            if (not StringUtil::IsDigit(subfield.code_))
                 subfield_values.emplace_back(subfield.value_);
             else {
                numeric_subfield_specs.find(std::string(1, subfield.code_) + subfield.value_[0]);
