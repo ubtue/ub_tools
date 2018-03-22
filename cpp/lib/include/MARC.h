@@ -181,6 +181,14 @@ public:
         return extracted_values;
     }
 
+   /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes"
+     * and appropriately treat subfields of numeric fields
+     *  \return The values of the subfields with matching codes.
+     */
+
+
+    std::vector<std::string> extractSubfieldsAndNumericSubfields(const std::string &subfield_spec) const;
+
     /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
     inline std::string getFirstSubfieldWithCode(const char subfield_code) const {
         const auto iter(std::find_if(subfields_.cbegin(), subfields_.cend(),
@@ -477,8 +485,13 @@ public:
     /** \return Values for all fields with tag "tag" and subfield code "subfield_code". */
     std::vector<std::string> getSubfieldValues(const Tag &tag, const char subfield_code) const;
 
-    /** \return Values for all fields with tag "tag" and subfield code "subfield_code". */
+    /** \return Values for all fields with tag "tag" and subfield codes "subfield_codes". */
     std::vector<std::string> getSubfieldValues(const Tag &tag, const std::string &subfield_codes) const;
+
+    /** \return Values for all fields with tag "tag" and subfield codes "subfield_codes". Handle subfields of numeric subfields like 9v appropriately*/
+    std::vector<std::string> getSubfieldAndNumericSubfieldValues(const Tag &tag, const std::string &subfield_spec) const;
+ 
+
 
     /** \brief Finds local ("LOK") block boundaries.
      *  \param local_block_boundaries  Each entry contains the iterator pointing to the first field of a local block
