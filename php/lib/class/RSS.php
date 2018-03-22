@@ -65,7 +65,7 @@ class MetadataHarvester {
      *
      * @param string $rssUrlFile    Path to file with RSS feed URL
      * @param string $mapDir        Path to map directory
-     * @param string $outPath       Path to write out file
+     * @param string $outPath       Path to write output file
      * @return TaskResult
      */
     protected function _executeCommand(string $rssUrlFile, string $mapDir, string $outPath): TaskResult {
