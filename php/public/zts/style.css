@@ -9,14 +9,6 @@ td {
     vertical-align: top;
 }
 
-a {
-    color: #825d2d;
-}
-
-a:hover {
-    color: #A51E37;
-}
-
 textarea {
     width: 100%;
 }
