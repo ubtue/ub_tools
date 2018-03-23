@@ -74,6 +74,8 @@ SyndicationFormatType GetFormatType(const std::string &xml_document) {
     static RegexMatcher *rss20_regex_matcher;
     if (unlikely(rss20_regex_matcher == nullptr))
         rss20_regex_matcher = InitRegexMatcher("<rss[^>]+version=\"2.0\"");
+    if (rss20_regex_matcher->matched(xml_document))
+        return TYPE_RSS20;
 
     static RegexMatcher *rss091_regex_matcher;
     if (unlikely(rss091_regex_matcher == nullptr))
