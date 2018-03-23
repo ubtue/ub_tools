@@ -93,6 +93,16 @@ RegexMatcher *RegexMatcher::RegexMatcherFactory(const std::string &pattern, std:
 }
 
 
+RegexMatcher *RegexMatcher::FactoryOrDie(const std::string &regex, const unsigned options) {
+    std::string error_message;
+    RegexMatcher *regex_matcher(RegexMatcher::RegexMatcherFactory(regex, &error_message, options));
+    if (not error_message.empty())
+        ERROR("failed to compile regex \"" + regex + "\": " + error_message);
+
+    return regex_matcher;
+}
+
+
 RegexMatcher::RegexMatcher(const RegexMatcher &that): pattern_(that.pattern_) {
     if (this == &that)
         return;
