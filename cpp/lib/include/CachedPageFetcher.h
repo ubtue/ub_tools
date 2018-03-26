@@ -6,8 +6,8 @@
 
 /*
  *  \copyright 2002-2009 Project iVia.
- *  \copyright 2002-2009 The Regents of The University of California. // 
- *  \copyright 2017 Universitätsbibliothek Tübingen
+ *  \copyright 2002-2009 The Regents of The University of California. //
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -37,7 +37,6 @@
 #include "DbConnection.h"
 #include "PerlCompatRegExp.h"
 #include "RobotsDotTxt.h"
-#include "SList.h"
 #include "TimeLimit.h"
 
 
@@ -179,7 +178,8 @@ private:
         TimeoutOverride(const std::string &reg_exp, const unsigned timeout): reg_exp_(reg_exp), timeout_(timeout) { }
     };
 
-    class TimeoutOverrides: public SList<TimeoutOverride> {
+    class TimeoutOverrides {
+        std::vector<TimeoutOverride> overrides_;
         unsigned default_timeout_; // In seconds.
     public:
         void setDefaultTimeout(const unsigned default_timeout) { default_timeout_ = default_timeout; }
@@ -193,8 +193,10 @@ private:
          *  \note   This function will never return a value that is greater then the default timeout unless it is
          *          -1, meaning not set.
          */
-        std::string getTimeoutForError(const std::string &error_message, const long default_timeout_override = -1)
-            const;
+        std::string getTimeoutForError(const std::string &error_message, const long default_timeout_override = -1) const;
+
+        inline void push_back(const std::string &reg_exp, const unsigned timeout)
+            { overrides_.emplace_back(reg_exp, timeout); }
     };
 
     /** The list of special page cache timeouts for certain types of errors. */
