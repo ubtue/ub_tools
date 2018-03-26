@@ -7,6 +7,7 @@
 /*
  *  Copyright 2003-2008 Project iVia.
  *  Copyright 2003-2008 The Regents of The University of California.
+ *  Copyright 2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -1871,18 +1872,19 @@ private:
 };
 
 
-class UrlMaps: public SList<UrlMap> {
+class UrlMaps {
+    std::vector<UrlMap> url_maps_;
 public:
-        void push_back(const std::string &from_pattern, const std::string &to_pattern)
-                { SList<UrlMap>::push_back(UrlMap(from_pattern, to_pattern)); }
+        inline void push_back(const std::string &from_pattern, const std::string &to_pattern)
+            { url_maps_.emplace_back(from_pattern, to_pattern); }
         std::string map(const std::string &url) const;
 };
 
 
 std::string UrlMaps::map(const std::string &url) const {
-    for (const_iterator url_map(begin()); url_map != end(); ++url_map) {
-        const std::string new_url(PerlCompatRegExp::Subst(url_map->getFromPattern(), url_map->getToPattern(), url,
-                                                          false/*= global*/, PCRE_ANCHORED));
+    for (const auto &url_map : url_maps_) {
+        const std::string new_url(PerlCompatRegExp::Subst(url_map.getFromPattern(), url_map.getToPattern(), url,
+                                                          /*global = */false, PCRE_ANCHORED));
         if (new_url != url)
             return new_url;
     }
