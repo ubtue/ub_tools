@@ -56,7 +56,6 @@ if [[ $1 == "tuefind" ]]; then
     chown -R mysql:mysql /var/run/mysqld
 
     a2enmod rewrite
-    phpenmod mcrypt
     /etc/init.d/apache2 restart
 fi
 
