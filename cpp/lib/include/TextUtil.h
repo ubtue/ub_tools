@@ -97,6 +97,14 @@ public:
 std::string ExtractTextFromHtml(const std::string &html, const std::string &initial_charset = "");
 
 
+/** \brief Extracts text from TEI files.
+ *         Can only be used for non-generic idb/diglit TEI files.
+ *  \param tei The TEI content to process.
+ *  \return The extracted text with collapsed whitespaces.
+ */
+std::string ExtractTextFromUBTei(const std::string &tei);
+
+
 /** \brief Recognises roman numerals up to a few thousand. */
 bool IsRomanNumeral(const std::string &s);
 
@@ -334,7 +342,10 @@ inline std::string CollapseAndTrimWhitespace(const std::string &utf8_string) {
 bool FromHex(const char ch, unsigned * const u);
 
 
-/** \brief Converts \n, \t, \b, \r, \f, \v, \a, \\, \uNNNN and \UNNNNNNNN to the corresponding byte sequences.
+/** \brief Converts \n, \t, \b, \r, \f, \v, \a, \\, \uNNNN and \UNNNNNNNN and octal escape sequences to the corresponding byte
+ *         sequences.
+ *  \note Octal escape sequences consists of a backslash followed by one, two, or three octal digits, e,g. \1111 is the
+ *        octal escape sequence \111 followed by the digit 1.
  *  \return The converted string.
  */
 std::string &CStyleUnescape(std::string * const s);

@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2015-2017, Library of the University of Tübingen
+    Copyright (C) 2015-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -163,8 +163,10 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, MarcReader * con
             record.updateField(_773_index, subfields.toString());
             ++issns_added;
         } else { // Deal with ISBNs.
-            if (not record.extractFirstSubfield("020", 'a').empty())
+            if (not record.extractFirstSubfield("020", 'a').empty()) {
+                marc_writer->write(record);
                 continue; // We already have an ISBN.
+            }
 
             record.insertSubfield("020", 'a', parent_isbn_or_issn_iter->second);
             ++isbns_added;
@@ -173,11 +175,12 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, MarcReader * con
     }
 
     if (verbose) {
-        std::cerr << "Read " << count << " records.\n";
-        std::cerr << "Added ISBN's to " << isbns_added << " article record(s).\n";
-        std::cerr << "Added ISSN's to " << issns_added << " article record(s).\n";
-        std::cerr << missing_host_record_ctrl_num_count << " articles had missing host record control number(s).\n";
-        std::cerr << "For " << missing_isbn_or_issn_count << " articles no host ISBN nor ISSN was found.\n";
+        std::cout << ::progname << ": Read " << count << " records.\n";
+        std::cout << ::progname << ": Added ISBN's to " << isbns_added << " article record(s).\n";
+        std::cout << ::progname << ": Added ISSN's to " << issns_added << " article record(s).\n";
+        std::cout << ::progname << ": " << missing_host_record_ctrl_num_count
+                 << " articles had missing host record control number(s).\n";
+        std::cout << ::progname << ": For " << missing_isbn_or_issn_count << " articles no host ISBN nor ISSN was found.\n";
     }
 }
 

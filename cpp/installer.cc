@@ -4,7 +4,7 @@
  *  \note Compile with   g++ -std=gnu++14 -O3 -o installer installer.cc
  *  \note or             clang++ -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions -O3 -o installer installer.cc
  *
- *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -46,6 +46,7 @@
 #include "MiscUtil.h"
 #include "SELinuxUtil.h"
 #include "StringUtil.h"
+#include "Template.h"
 #include "util.h"
 
 
@@ -219,14 +220,14 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tool
 void InstallUBTools(const bool make_install) {
     // First install iViaCore-mkdep...
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY + "/cpp/lib/mkdep");
-    ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "-j4", "install" });
+    ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4", "install" });
 
     // ...and then install the rest of ub_tools:
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
     if (make_install)
-        ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "-j4", "install" });
+        ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4", "install" });
     else
-        ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "-j4" });
+        ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4" });
 
     Echo("Installed ub_tools.");
 }
@@ -241,14 +242,10 @@ std::string GetStringFromTerminal(const std::string &prompt) {
 
 
 void InstallCronjobs(const VuFindSystemType vufind_system_type) {
-    std::map<std::string, std::vector<std::string>> names_to_values_map;
+    Template::Map names_to_values_map;
     if (vufind_system_type == IXTHEO) {
-        names_to_values_map.insert(
-            std::make_pair<std::string, std::vector<std::string>>(
-                "ixtheo_host", { GetStringFromTerminal("IxTheo Hostname") }));
-        names_to_values_map.insert(
-            std::make_pair<std::string, std::vector<std::string>>(
-                "relbib_host", { GetStringFromTerminal("RelBib Hostname") }));
+        names_to_values_map.insertScalar("ixtheo_host", GetStringFromTerminal("IxTheo Hostname"));
+        names_to_values_map.insertScalar("relbib_host", GetStringFromTerminal("RelBib Hostname"));
     }
 
     FileUtil::AutoTempFile crontab_temp_file_old;
@@ -266,7 +263,8 @@ void InstallCronjobs(const VuFindSystemType vufind_system_type) {
     if (vufind_system_type == KRIMDOK)
         cronjobs_generated += FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/krimdok.cronjobs");
     else
-        cronjobs_generated += MiscUtil::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/ixtheo.cronjobs"), names_to_values_map);
+        cronjobs_generated += Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/ixtheo.cronjobs"),
+                                                       names_to_values_map);
     cronjobs_generated += crontab_block_end + "\n";
 
     FileUtil::AutoTempFile crontab_temp_file_new;
@@ -370,7 +368,9 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
             { "-i", "s/Group apache/Group " + username + "/", config_filename });
     }
 
-    ExecUtil::ExecOrDie(ExecUtil::Which("find"), { VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}", "+" });
+    ExecUtil::ExecOrDie(ExecUtil::Which("find"),
+                        { VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}",
+                          "+" });
     ExecUtil::ExecOrDie(ExecUtil::Which("chown"), { "-R", username + ":" + username, "/usr/local/var/log/tuefind" });
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/ixtheo/cache",
@@ -395,9 +395,9 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
 static void InstallVuFindServiceTemplate(const VuFindSystemType system_type) {
         const std::string SYSTEMD_SERVICE_DIRECTORY("/usr/local/lib/systemd/system/");
         ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", SYSTEMD_SERVICE_DIRECTORY });
-        std::map<std::string, std::vector<std::string>> names_to_values_map
-            { { "solr_heap", { (system_type == KRIMDOK ? "4G" : "8G") } } };
-        const std::string vufind_service(MiscUtil::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
+        Template::Map names_to_values_map;
+        names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "8G");
+        const std::string vufind_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
                                                                                             + "/vufind.service.template"),
                                                                  names_to_values_map));
         FileUtil::WriteStringOrDie(SYSTEMD_SERVICE_DIRECTORY + "/vufind.service", vufind_service);
@@ -418,8 +418,10 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
     CreateUserIfNotExists(USER_AND_GROUP_NAME);
 
     Echo("Setting directory permissions for Solr user...");
-    ExecUtil::ExecOrDie(ExecUtil::Which("chown"), { "-R", USER_AND_GROUP_NAME + ":" + USER_AND_GROUP_NAME, VUFIND_DIRECTORY + "/solr" });
-    ExecUtil::ExecOrDie(ExecUtil::Which("chown"), { "-R", USER_AND_GROUP_NAME + ":" + USER_AND_GROUP_NAME, VUFIND_DIRECTORY + "/import" });
+    ExecUtil::ExecOrDie(ExecUtil::Which("chown"),
+                        { "-R", USER_AND_GROUP_NAME + ":" + USER_AND_GROUP_NAME, VUFIND_DIRECTORY + "/solr" });
+    ExecUtil::ExecOrDie(ExecUtil::Which("chown"),
+                        { "-R", USER_AND_GROUP_NAME + ":" + USER_AND_GROUP_NAME, VUFIND_DIRECTORY + "/import" });
 
     // systemctl: we do enable as well as daemon-reload and restart
     // to achieve an idempotent installation
@@ -442,13 +444,12 @@ void SetEnvironmentVariables(const std::string &vufind_system_type_string) {
     };
 
     std::string variables;
-    for (const auto &key_and_value : keys_and_values) {
-        MiscUtil::SetEnv(key_and_value.first, key_and_value.second, /* overwrite = */ true);
+    for (const auto &key_and_value : keys_and_values)
         variables += "export " + key_and_value.first + "=" + key_and_value.second + "\n";
-    }
 
-    const std::string script_path("/etc/profile.d/vufind.sh");
-    FileUtil::WriteString(script_path, variables);
+    const std::string vufind_script_path("/etc/profile.d/vufind.sh");
+    FileUtil::WriteString(vufind_script_path, variables);
+    MiscUtil::LoadExports(vufind_script_path, /* overwrite = */ true);
 }
 
 

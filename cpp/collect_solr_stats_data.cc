@@ -44,10 +44,10 @@ void Usage() {
 void IssueQueryAndWriteOutput(const std::string &query, const std::string &system_type, const std::string &category,
                               const std::string &variable, File * const output)
 {
-    std::string json_result;
-    if (not Solr::Query(query, /* fields = */"", &json_result, "localhost:8080",
+    std::string json_result, err_msg;
+    if (not Solr::Query(query, /* fields = */"", &json_result, &err_msg, "localhost:8080",
                         /* timeout in seconds = */Solr::DEFAULT_TIMEOUT, Solr::JSON, /* max_no_of_rows = */0))
-        ERROR("Solr query \"" + query + "\" failed!");
+        ERROR("Solr query \"" + query + "\" failed! (" + err_msg + ")");
 
     JSON::Parser parser(json_result);
     std::shared_ptr<JSON::JSONNode> tree_root;

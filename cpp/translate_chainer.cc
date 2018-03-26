@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,8 +28,8 @@
 #include "Compiler.h"
 #include "ExecUtil.h"
 #include "HtmlUtil.h"
-#include "MiscUtil.h"
 #include "StringUtil.h"
+#include "Template.h"
 #include "UrlUtil.h"
 #include "WebUtil.h"
 #include "util.h"
@@ -160,16 +160,15 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(
             if (translation.language_code_ == language_code)
                 existing_translation = translation.text_;
         }
-        std::map<std::string, std::vector<std::string>> names_to_values_map;
-        names_to_values_map.emplace("index", std::vector<std::string>{ translations.front().index_ });
-        names_to_values_map.emplace("remaining_count",
-                                    std::vector<std::string>{ translations.front().remaining_count_ });
-        names_to_values_map.emplace("target_language_code", std::vector<std::string>{ language_code });
-        names_to_values_map.emplace("action", std::vector<std::string>{ action });
-        names_to_values_map.emplace("translation_value", std::vector<std::string>{ existing_translation });
-        names_to_values_map.emplace("category", std::vector<std::string>{ translations.front().category_ });
+        Template::Map names_to_values_map;
+        names_to_values_map.insertScalar("index", translations.front().index_);
+        names_to_values_map.insertScalar("remaining_count", translations.front().remaining_count_);
+        names_to_values_map.insertScalar("target_language_code", language_code);
+        names_to_values_map.insertScalar("action", action);
+        names_to_values_map.insertScalar("translation_value", existing_translation);
+        names_to_values_map.insertScalar("category", translations.front().category_);
         if (translations.front().category_ != "vufind_translations")
-            names_to_values_map.emplace("gnd_code", std::vector<std::string>{ translations.front().gnd_code_ });
+            names_to_values_map.insertScalar("gnd_code", translations.front().gnd_code_);
 
         std::vector<std::string> language_codes, example_texts, url_escaped_example_texts;
         for (const auto &translation : translations) {
@@ -177,20 +176,19 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(
             example_texts.emplace_back(HtmlUtil::HtmlEscape(translation.text_));
             url_escaped_example_texts.emplace_back(UrlUtil::UrlEncode(translation.text_));
         }
-        names_to_values_map.emplace(std::make_pair(std::string("language_code"), language_codes));
-        names_to_values_map.emplace(std::make_pair(std::string("example_text"), example_texts));
-        names_to_values_map.emplace(std::make_pair(std::string("url_escaped_example_text"),
-                                                   url_escaped_example_texts));
+        names_to_values_map.insertArray("language_code", language_codes);
+        names_to_values_map.insertArray("example_text", example_texts);
+        names_to_values_map.insertArray("url_escaped_example_text", url_escaped_example_texts);
 
         if (not error_message.empty()) {
-            names_to_values_map.emplace("error_message", std::vector<std::string>{ error_message });
-            names_to_values_map.emplace("user_translation", std::vector<std::string>{ user_translation });
+            names_to_values_map.insertScalar("error_message", error_message);
+            names_to_values_map.insertScalar("user_translation", user_translation);
         }
 
-        names_to_values_map.emplace("translator", std::vector<std::string>{ getTranslatorOrEmptyString()});
+        names_to_values_map.insertScalar("translator", getTranslatorOrEmptyString());
 
         std::ifstream translate_html("/usr/local/var/lib/tuelib/translate_chainer/translate.html", std::ios::binary);
-        MiscUtil::ExpandTemplate(translate_html, std::cout, names_to_values_map);
+        Template::ExpandTemplate(translate_html, std::cout, names_to_values_map);
     }
 }
 

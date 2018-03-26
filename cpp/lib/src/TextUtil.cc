@@ -37,6 +37,8 @@
 #include "Locale.h"
 #include "HtmlParser.h"
 #include "RegexMatcher.h"
+#include "SimpleXmlParser.h"
+#include "StringDataSource.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -160,6 +162,37 @@ std::string ExtractTextFromHtml(const std::string &html, const std::string &init
     TextExtractor extractor(html, initial_charset, &extracted_text);
     extractor.parse();
     return StringUtil::TrimWhite(extracted_text);
+}
+
+
+std::string ExtractTextFromUBTei(const std::string &tei) {
+    std::string extracted_text;
+
+    const std::unique_ptr<StringDataSource> source(new StringDataSource(tei));
+    SimpleXmlParser<StringDataSource> parser(source.get());
+
+    const std::string WORD_WRAP("¬");
+    bool concat_with_whitespace(true);
+
+    SimpleXmlParser<StringDataSource>::Type type;
+    std::map<std::string, std::string> attrib_map;
+    std::string data;
+    while (parser.skipTo(SimpleXmlParser<StringDataSource>::Type::OPENING_TAG, "span")) {
+        if (parser.getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<StringDataSource>::Type::CHARACTERS) {
+            if (concat_with_whitespace)
+                extracted_text += ' ';
+
+            if (StringUtil::EndsWith(data, WORD_WRAP)) {
+                StringUtil::RightTrim(WORD_WRAP, &data);
+                concat_with_whitespace = false;
+            } else
+                concat_with_whitespace = true;
+
+            extracted_text += data;
+        }
+    }
+
+    return CollapseWhitespace(&extracted_text);
 }
 
 
@@ -964,13 +997,28 @@ static std::string DecodeUnicodeEscapeSequence(std::string::const_iterator &ch, 
 }
 
 
+// Helper function for CStyleUnescape().
+static char DecodeOctalEscapeSequence(std::string::const_iterator &ch, const std::string::const_iterator &end) {
+    unsigned code(0), count(0);
+    while (count < 3 and ch != end and (*ch >= '0' and *ch <= '7')) {
+        code <<= 3u;
+        code += *ch - '0';
+        ++ch;
+        ++count;
+    }
+    --ch;
+
+    return static_cast<char>(code);
+}
+
+
 std::string &CStyleUnescape(std::string * const s) {
     std::string unescaped_string;
-    bool slash_seen(false);
+    bool backslash_seen(false);
     for (auto ch(s->cbegin()); ch != s->cend(); ++ch) {
-        if (not slash_seen) {
+        if (not backslash_seen) {
             if (*ch == '\\')
-                slash_seen = true;
+                backslash_seen = true;
             else
                 unescaped_string += *ch;
         } else {
@@ -999,6 +1047,16 @@ std::string &CStyleUnescape(std::string * const s) {
             case '\\':
                 unescaped_string += '\\';
                 break;
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+                unescaped_string += DecodeOctalEscapeSequence(ch, s->cend());
+                break;
             case 'u':
                 unescaped_string += DecodeUnicodeEscapeSequence(ch, s->cend(), /* width = */ 4);
                 break;
@@ -1008,11 +1066,11 @@ std::string &CStyleUnescape(std::string * const s) {
             default:
                 unescaped_string += *ch;
             }
-            slash_seen = false;
+            backslash_seen = false;
         }
     }
 
-    if (unlikely(slash_seen))
+    if (unlikely(backslash_seen))
         throw std::runtime_error("in TextUtil::CStyleUnescape: trailing slash in input string!");
 
     s->swap(unescaped_string);

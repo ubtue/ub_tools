@@ -2,20 +2,20 @@ FROM ubuntu:latest
 MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 
 # Install apache, PHP, and supplimentary programs. openssh-server, curl, and lynx-cur are for debugging the container.
-RUN apt-get update && apt-get -y upgrade && DEBIAN_FRONTEND=noninteractive apt-get -y install apache2 php7.0 php7.0-mysql libapache2-mod-php7.0 curl git lynx-cur locales
+RUN apt-get update && apt-get -y upgrade && DEBIAN_FRONTEND=noninteractive apt-get -y install apache2 php7.1 php7.1-mbstring php7.1-mysql libapache2-mod-php7.1 curl git lynx-cur locales
 
 # Enable the iVia standard locale:
 RUN locale-gen en_US.utf8
 RUN update-locale
 
 # Enable apache mods
-RUN a2enmod php7.0
+RUN a2enmod php7.1
 RUN a2enmod rewrite
 
 # Update the PHP.ini file, enable <? ?> tags and quieten logging
-RUN sed -i "s/short_open_tag = Off/short_open_tag = On/" /etc/php/7.0/apache2/php.ini
-RUN sed -i "s/error_reporting = .*$/error_reporting = E_ERROR | E_WARNING | E_PARSE/" /etc/php/7.0/apache2/php.ini
-RUN sed -i "s/variables_order = .*$/variables_order = EGPCS/" /etc/php/7.0/apache2/php.ini
+RUN sed -i "s/short_open_tag = Off/short_open_tag = On/" /etc/php/7.1/apache2/php.ini
+RUN sed -i "s/error_reporting = .*$/error_reporting = E_ERROR | E_WARNING | E_PARSE/" /etc/php/7.1/apache2/php.ini
+RUN sed -i "s/variables_order = .*$/variables_order = EGPCS/" /etc/php/7.1/apache2/php.ini
 
 # Manually set up the apache environment variables
 ENV APACHE_RUN_USER www-data
@@ -30,8 +30,8 @@ EXPOSE 80
 # download & install ub_tools
 RUN git clone https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
 RUN /usr/local/ub_tools/cpp/data/installer/scripts/install_ubuntu_packages.sh
-RUN cd /usr/local/ub_tools/cpp/lib/mkdep && CCC=clang++ make install
-RUN cd /usr/local/ub_tools/cpp && CCC=clang++ make zts_client && CCC=clang++ make zotero_crawler && cp zts_client zotero_crawler /usr/local/bin/
+RUN cd /usr/local/ub_tools/cpp/lib/mkdep && CCC=clang++ make --jobs=4 install
+RUN cd /usr/local/ub_tools/cpp && CCC=clang++ make --jobs=4 zts_client && CCC=clang++ make --jobs=4 rss_harvester && cp zts_client rss_harvester /usr/local/bin/
 
 # Update the default apache site with the config we created
 ADD apache-config.conf /etc/apache2/sites-enabled/000-default.conf

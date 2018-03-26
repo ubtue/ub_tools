@@ -346,11 +346,10 @@ public:
 
     // Typical use case:
     //
-    // std::shared_ptr<JSONNode>tree_root;
+    // std::shared_ptr<JSONNode> tree_root;
     // if (not (parser.parse(&tree_root)))
-    //     ...
+    //     ERROR(...);
     //  ...
-    //  delete tree_root;
     bool parse(std::shared_ptr<JSONNode> * const tree_root);
 
     const std::string &getErrorMessage() const { return error_message_; }

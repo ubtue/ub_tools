@@ -3,7 +3,7 @@
  *  \author  Mario Trojan
  */
 /*
-    Copyright (C) 2016,2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,9 +28,8 @@
 #include "FileUtil.h"
 #include "FullTextCache.h"
 #include "HtmlUtil.h"
-#include "MiscUtil.h"
 #include "SqlUtil.h"
-#include "StringUtil.h"
+#include "Template.h"
 #include "UrlUtil.h"
 #include "util.h"
 #include "WebUtil.h"
@@ -51,20 +50,15 @@ const std::string template_directory("/usr/local/var/lib/tuelib/full_text_cache_
 std::multimap<std::string, std::string> cgi_args;
 
 
-void ExpandTemplate(const std::string &template_name,
-                    std::string * const body,
-                    const std::map<std::string, std::vector<std::string>> &template_variables = {})
-{
+void ExpandTemplate(const std::string &template_name, std::string * const body, const Template::Map &template_variables = {}) {
     std::ifstream template_html(template_directory + template_name + ".html", std::ios::binary);
     std::ostringstream template_out;
-    MiscUtil::ExpandTemplate(template_html, template_out, template_variables);
+    Template::ExpandTemplate(template_html, template_out, template_variables);
     *body += template_out.str();
 }
 
 
-std::string GetCGIParameterOrDefault(const std::string &parameter_name,
-                                     const std::string &default_value = "")
-{
+std::string GetCGIParameterOrDefault(const std::string &parameter_name, const std::string &default_value = "") {
     const auto key_and_value(cgi_args.find(parameter_name));
     if (key_and_value == cgi_args.cend())
         return default_value;
@@ -85,15 +79,15 @@ void ShowPageHeader(FullTextCache * const cache, std::string * const body) {
     std::string error_rate_string("-");
     if (cache_size > 0) {
         float error_rate((static_cast<float>(error_count) / cache_size) * 100);
-        error_rate_string = StringUtil::ToString(error_rate);
+        error_rate_string = std::to_string(error_rate);
     }
 
-    std::map<std::string, std::vector<std::string>> template_variables;
+    Template::Map template_variables;
     std::string id(GetCGIParameterOrDefault("id"));
-    template_variables.emplace("cache_size", std::vector<std::string> { StringUtil::ToString(cache_size) });
-    template_variables.emplace("error_count", std::vector<std::string> { StringUtil::ToString(error_count) });
-    template_variables.emplace("error_rate", std::vector<std::string> { error_rate_string });
-    template_variables.emplace("id", std::vector<std::string> {id});
+    template_variables.insertScalar("cache_size", std::to_string(cache_size));
+    template_variables.insertScalar("error_count", std::to_string(error_count));
+    template_variables.insertScalar("error_rate", error_rate_string);
+    template_variables.insertScalar("id", id);
     ExpandTemplate("header", body, template_variables);
 }
 
@@ -107,29 +101,33 @@ void ShowPageIdDetails(FullTextCache * const cache, std::string * const body) {
     if (not cache->getEntry(id, &entry))
         throw PageException("ID not found: " + id);
 
-    std::map<std::string, std::vector<std::string>> template_variables;
-    template_variables.emplace("id", std::vector<std::string> {HtmlUtil::HtmlEscape(id)});
-    template_variables.emplace("expiration", std::vector<std::string> {HtmlUtil::HtmlEscape(SqlUtil::TimeTToDatetime(entry.expiration_))});
-    template_variables.emplace("link_sobek", std::vector<std::string> {"<a href=\"https://sobek.ub.uni-tuebingen.de/Record/" + UrlUtil::UrlEncode(id) + "\" target=\"sobek\">test (sobek)</a>"});
-    template_variables.emplace("link_ub15", std::vector<std::string> {"<a href=\"https://krimdok.uni-tuebingen.de/Record/" + UrlUtil::UrlEncode(id) + "\" target=\"ub15\">live (ub15)</a>"});
+    Template::Map template_variables;
+    template_variables.insertScalar("id", HtmlUtil::HtmlEscape(id));
+    template_variables.insertScalar("expiration", HtmlUtil::HtmlEscape(SqlUtil::TimeTToDatetime(entry.expiration_)));
+    template_variables.insertScalar("link_sobek",
+                                    "<a href=\"https://sobek.ub.uni-tuebingen.de/Record/"
+                                    + UrlUtil::UrlEncode(id) + "\" target=\"sobek\">test (sobek)</a>");
+    template_variables.insertScalar("link_ub15",
+                                    "<a href=\"https://krimdok.uni-tuebingen.de/Record/"
+                                    + UrlUtil::UrlEncode(id) + "\" target=\"ub15\">live (ub15)</a>");
 
     std::vector<std::string> urls;
     std::vector<std::string> domains;
     std::vector<std::string> error_messages;
-    std::vector<FullTextCache::EntryUrl> entry_urls = cache->getEntryUrls(id);
+    std::vector<FullTextCache::EntryUrl> entry_urls(cache->getEntryUrls(id));
     for (const auto &entry_url : entry_urls) {
         urls.emplace_back("<a href=\"" + entry_url.url_ + "\">" + entry_url.url_ + "</a>");
         domains.emplace_back("<a href=\"http://" + entry_url.domain_ + "\">" + entry_url.domain_ + "</a>");
         error_messages.emplace_back(HtmlUtil::HtmlEscape(entry_url.error_message_));
     }
-    template_variables.emplace("url", urls);
-    template_variables.emplace("domain", domains);
-    template_variables.emplace("error_message", error_messages);
+    template_variables.insertArray("url", urls);
+    template_variables.insertArray("domain", domains);
+    template_variables.insertArray("error_message", error_messages);
 
     std::string fulltext;
     if (not cache->getFullText(id, &fulltext))
         fulltext = "-";
-    template_variables.emplace("fulltext", std::vector<std::string> {HtmlUtil::HtmlEscape(fulltext)});
+    template_variables.insertScalar("fulltext", HtmlUtil::HtmlEscape(fulltext));
 
     ExpandTemplate("id_details", body, template_variables);
 }
@@ -148,15 +146,15 @@ void ShowPageErrorSummary(FullTextCache * const cache, std::string * const body)
         links_error_details.emplace_back("<a href=\"?page=error_list&domain=" + UrlUtil::UrlEncode(group.domain_) + "&error_message=" + UrlUtil::UrlEncode(group.error_message_) + "\">Show error list</a>");
     }
 
-    std::map<std::string, std::vector<std::string>> template_variables;
-    template_variables.emplace("id", ids);
-    template_variables.emplace("url", urls);
-    template_variables.emplace("error_message", error_messages);
-    template_variables.emplace("domain", domains);
-    template_variables.emplace("count", counts);
-    template_variables.emplace("url", urls);
-    template_variables.emplace("link_details", links_details);
-    template_variables.emplace("link_error_details", links_error_details);
+    Template::Map template_variables;
+    template_variables.insertArray("id", ids);
+    template_variables.insertArray("url", urls);
+    template_variables.insertArray("error_message", error_messages);
+    template_variables.insertArray("domain", domains);
+    template_variables.insertArray("count", counts);
+    template_variables.insertArray("url", urls);
+    template_variables.insertArray("link_details", links_details);
+    template_variables.insertArray("link_error_details", links_error_details);
     ExpandTemplate("error_summary", body, template_variables);
 }
 
@@ -167,19 +165,17 @@ void ShowPageErrorList(FullTextCache * const cache, std::string * const body) {
 
     std::vector<std::string> ids;
     std::vector<std::string> urls;
-    std::vector<std::string> error_messages;
     std::vector<FullTextCache::JoinedEntry> entries = cache->getJoinedEntriesByDomainAndErrorMessage(domain, error_message);
     for (const auto &entry : entries) {
         ids.emplace_back("<a href=\"?page=id_details&id=" + UrlUtil::UrlEncode(entry.id_) + "\">" + HtmlUtil::HtmlEscape(entry.id_) + "</a>");
         urls.emplace_back("<a href=\"" + entry.url_ + "\">" + entry.url_ + "</a>");
-        error_messages.emplace_back(HtmlUtil::HtmlEscape(error_message));
     }
 
-    std::map<std::string, std::vector<std::string>> template_variables;
-    template_variables.emplace("domain", std::vector<std::string> { "<a href=\"http://" + domain + "\">" + domain + "</a>" });
-    template_variables.emplace("error_message", std::vector<std::string> { HtmlUtil::HtmlEscape(error_message) });
-    template_variables.emplace("id", ids);
-    template_variables.emplace("url", urls);
+    Template::Map template_variables;
+    template_variables.insertScalar("domain", "<a href=\"http://" + domain + "\">" + domain + "</a>");
+    template_variables.insertScalar("error_message", HtmlUtil::HtmlEscape(error_message));
+    template_variables.insertArray("id", ids);
+    template_variables.insertArray("url", urls);
     ExpandTemplate("error_list", body, template_variables);
 }
 
@@ -215,16 +211,16 @@ int main(int argc, char *argv[]) {
             ShowError(e.what(), &body);
         }
 
-        std::map<std::string, std::vector<std::string>> names_to_values_map;
+        Template::Map names_to_values_map;
 
         std::string css;
         FileUtil::ReadString(template_directory + "style.css", &css);
-        names_to_values_map.emplace("css", std::vector<std::string> {css});
+        names_to_values_map.insertScalar("css", css);
 
         std::ifstream template_html(template_directory + "index.html", std::ios::binary);
-        names_to_values_map.emplace("body", std::vector<std::string> {body});
+        names_to_values_map.insertScalar("body", body);
 
-        MiscUtil::ExpandTemplate(template_html, std::cout, names_to_values_map);
+        Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
