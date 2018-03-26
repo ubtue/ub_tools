@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016,2017,2018 Library of the University of Tübingen
+    Copyright (C) 2016-2018 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -33,22 +33,23 @@
 #include "FileUtil.h"
 #include "HtmlUtil.h"
 #include "JSON.h"
-#include "MiscUtil.h"
 #include "Solr.h"
 #include "StringUtil.h"
+#include "Template.h"
 #include "TimeUtil.h"
 #include "util.h"
 #include "VuFind.h"
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] [solr_host_and_port] user_type hostname sender_email "
+    std::cerr << "Usage: " << ::progname << " [--debug] [solr_host_and_port] user_type hostname sender_email "
               << "email_subject\n"
               << "  Sends out notification emails for journal subscribers.\n"
               << "  Should \"solr_host_and_port\" be missing \"localhost:8080\" will be used.\n"
               << "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm."
               << "  \"hostname\" should be the symbolic hostname which will be used in constructing\n"
-              << "  URL's that a user might see.\n\n";
+              << "  URL's that a user might see.\n"
+              << "  If \"--debug\" is given, emails will not be sent and database will not be updated.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -73,9 +74,11 @@ struct NewIssueInfo {
     std::string series_title_;
     std::string issue_title_;
     std::string last_modification_time_;
+    std::vector<std::string> authors_;
 public:
-    NewIssueInfo(const std::string &control_number, const std::string &series_title, const std::string &issue_title)
-        : control_number_(control_number), series_title_(series_title), issue_title_(issue_title) { }
+    NewIssueInfo(const std::string &control_number, const std::string &series_title, const std::string &issue_title,
+                 const std::vector<std::string> &authors)
+        : control_number_(control_number), series_title_(series_title), issue_title_(issue_title), authors_(authors) { }
 };
 
 
@@ -133,7 +136,8 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
         return NO_SERIES_TITLE;
     }
 
-    const std::shared_ptr<const JSON::ArrayNode> container_ids_and_titles_array(JSON::JSONNode::CastToArrayNodeOrDie("container_ids_and_titles", container_ids_and_titles));
+    const std::shared_ptr<const JSON::ArrayNode> container_ids_and_titles_array(
+        JSON::JSONNode::CastToArrayNodeOrDie("container_ids_and_titles", container_ids_and_titles));
     if (container_ids_and_titles_array->empty()) {
         WARNING("\"container_ids_and_titles\" is empty");
         return NO_SERIES_TITLE;
@@ -147,6 +151,31 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
         ERROR("strange id and title value \"" + first_id_and_title_string_value + "\"!");
 
     return parts[1];
+}
+
+
+std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
+    const std::shared_ptr<const JSON::JSONNode> author(doc_obj->getNode("author"));
+    if (author == nullptr) {
+        WARNING("\"author\" is null");
+        return std::vector<std::string>();
+    }
+
+    const std::shared_ptr<const JSON::ArrayNode> author_array(
+        JSON::JSONNode::CastToArrayNodeOrDie("author", author));
+    if (author_array->empty()) {
+        WARNING("\"author\" is empty");
+        return std::vector<std::string>();
+    }
+
+    std::vector<std::string> authors;
+    for (const auto &array_entry : *author_array) {
+        const std::shared_ptr<const JSON::StringNode> author_string(JSON::JSONNode::CastToStringNodeOrDie("author string",
+                                                                                                          array_entry));
+        authors.emplace_back(author_string->getValue());
+    }
+
+    return authors;
 }
 
 
@@ -167,7 +196,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
     const std::shared_ptr<const JSON::ObjectNode> response(tree_obj->getObjectNode("response"));
     const std::shared_ptr<const JSON::ArrayNode> docs(response->getArrayNode("docs"));
 
-    for (auto doc : *docs) {
+    for (const auto &doc : *docs) {
         const std::shared_ptr<const JSON::ObjectNode> doc_obj(JSON::JSONNode::CastToObjectNodeOrDie("document object", doc));
 
         const std::string id(GetIssueId(doc_obj));
@@ -177,8 +206,9 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
 
         const std::string issue_title(GetIssueTitle(id, doc_obj));
         const std::string series_title(GetSeriesTitle(doc_obj));
+        const std::vector<std::string> authors(GetAuthors(doc_obj));
 
-        new_issue_infos->emplace_back(id, series_title, issue_title);
+        new_issue_infos->emplace_back(id, series_title, issue_title, authors);
 
         const std::string last_modification_time(GetLastModificationTime(doc_obj));
         if (last_modification_time > *max_last_modification_time) {
@@ -195,7 +225,7 @@ std::string GetEmailTemplate(const std::string user_type) {
     std::string result;
     const std::string EMAIL_TEMPLATE_PATH("/usr/local/var/lib/tuelib/subscriptions_email." + user_type + ".template");
 
-    if (unlikely(!FileUtil::ReadString(EMAIL_TEMPLATE_PATH, &result)))
+    if (unlikely(not FileUtil::ReadString(EMAIL_TEMPLATE_PATH, &result)))
         ERROR("can't load email template \"" + EMAIL_TEMPLATE_PATH + "\"!");
 
     return result;
@@ -214,17 +244,17 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                             + " AND year:[" + std::to_string(year_min) + " TO " + std::to_string(year_current) + "]"
     );
 
-    std::string json_result;
-    if (unlikely(not Solr::Query(QUERY, "id,title,last_modification_time,container_ids_and_titles", &json_result,
+    std::string json_result, err_msg;
+    if (unlikely(not Solr::Query(QUERY, "id,title,author,last_modification_time,container_ids_and_titles", &json_result, &err_msg,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
-        ERROR("Solr query failed or timed-out: \"" + QUERY + "\".");
+        ERROR("Solr query failed or timed-out: \"" + QUERY + "\". (" + err_msg + ")");
 
     return ExtractNewIssueInfos(notified_db, new_notification_ids, json_result, new_issue_infos,
                                 max_last_modification_time);
 }
 
 
-void SendNotificationEmail(const std::string &firstname, const std::string &lastname,
+void SendNotificationEmail(const bool debug, const std::string &firstname, const std::string &lastname,
                            const std::string &recipient_email, const std::string &vufind_host,
                            const std::string &sender_email, const std::string &email_subject,
                            const std::vector<NewIssueInfo> &new_issue_infos,
@@ -233,29 +263,38 @@ void SendNotificationEmail(const std::string &firstname, const std::string &last
     std::string email_template = GetEmailTemplate(user_type);
 
     // Process the email template:
-    std::map<std::string, std::vector<std::string>> names_to_values_map;
-    names_to_values_map["firstname"] = std::vector<std::string>{ firstname };
-    names_to_values_map["lastname"] = std::vector<std::string>{ lastname };
+    Template::Map names_to_values_map;
+    names_to_values_map.insertScalar("firstname", firstname);
+    names_to_values_map.insertScalar("lastname", lastname);
     std::vector<std::string> urls, series_titles, issue_titles;
+    std::vector<std::shared_ptr<Template::Value>> authors;
     for (const auto &new_issue_info : new_issue_infos) {
         urls.emplace_back("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
         series_titles.emplace_back(new_issue_info.series_title_);
         issue_titles.emplace_back(HtmlUtil::HtmlEscape(new_issue_info.issue_title_));
+        std::shared_ptr<Template::ArrayValue> issue_authors(new Template::ArrayValue("authors"));
+        for (const auto &author : new_issue_info.authors_)
+            issue_authors->appendValue(author);
+        authors.emplace_back(issue_authors);
     }
-    names_to_values_map["url"]           = urls;
-    names_to_values_map["series_title"]  = series_titles;
-    names_to_values_map["issue_title"]   = issue_titles;
+    names_to_values_map.insertArray("url", urls);
+    names_to_values_map.insertArray("series_title", series_titles);
+    names_to_values_map.insertArray("issue_title", issue_titles);
+    names_to_values_map.insertArray("authors", authors);
     std::istringstream input(email_template);
     std::ostringstream email_contents;
-    MiscUtil::ExpandTemplate(input, email_contents, names_to_values_map);
+    Template::ExpandTemplate(input, email_contents, names_to_values_map);
 
-    if (unlikely(not EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents.str(),
-                                            EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
+    if (debug)
+        std::cerr << "Debug mode, email address is " << sender_email << ", template expanded to:\n" << email_contents.str()
+                  << '\n';
+    else if (unlikely(not EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents.str(),
+                                                 EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
         ERROR("failed to send a notification email to \"" + recipient_email + "\"!");
 }
 
 
-void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
+void ProcessSingleUser(const bool debug, DbConnection * const db_connection,
                        const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                        std::unordered_set<std::string> * const new_notification_ids, const std::string &user_id,
                        const std::string &solr_host_and_port, const std::string &hostname,
@@ -273,11 +312,10 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
         ERROR("found multiple user attribute sets in table \"user\" for ID \"" + user_id + "\"!");
 
     const DbRow row(result_set.getNextRow());
-
     const std::string username(row["username"]);
-    if (verbose)
-        std::cerr << "Found " << control_numbers_and_last_modification_times.size() << " subscriptions for \""
-                  << username << "\".\n";
+
+    INFO("Found " + std::to_string(control_numbers_and_last_modification_times.size()) + " subscriptions for \""
+         + username + "\".");
 
     const std::string firstname(row["firstname"]);
     const std::string lastname(row["lastname"]);
@@ -294,14 +332,18 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
                          &max_last_modification_time))
             control_number_and_last_modification_time.setMaxLastModificationTime(max_last_modification_time);
     }
-    if (verbose)
-        std::cerr << "Found " << new_issue_infos.size() << " new issues for " << "\"" << username << "\".\n";
+
+    INFO("Found " + std::to_string(new_issue_infos.size()) + " new issues for " + "\"" + username + "\".");
 
     if (not new_issue_infos.empty())
-        SendNotificationEmail(firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos,
+        SendNotificationEmail(debug, firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos,
                               user_type);
 
-    // Update the database with the new last issue dates.
+    // Update the database with the new last issue dates
+    // skip in DEBUG mode
+    if (debug)
+        return;
+
     for (const auto &control_number_and_last_modification_time : control_numbers_and_last_modification_times) {
         if (not control_number_and_last_modification_time.changed())
             continue;
@@ -316,7 +358,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
 }
 
 
-void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection,
+void ProcessSubscriptions(const bool debug, DbConnection * const db_connection,
                           const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                           std::unordered_set<std::string> * const new_notification_ids,
                           const std::string &solr_host_and_port, const std::string &user_type,
@@ -341,12 +383,11 @@ void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection
                 row["journal_control_number"], ConvertDateToZuluDate(row["max_last_modification_time"])));
             ++subscription_count;
         }
-        ProcessSingleUser(verbose, db_connection, notified_db, new_notification_ids, user_id, solr_host_and_port,
+        ProcessSingleUser(debug, db_connection, notified_db, new_notification_ids, user_id, solr_host_and_port,
                           hostname, sender_email, email_subject, control_numbers_and_last_modification_times);
     }
 
-    if (verbose)
-        std::cout << "Processed " << user_count << " users and " << subscription_count << " subscriptions.\n";
+    INFO("Processed " + std::to_string(user_count) + " users and " + std::to_string(subscription_count) + " subscriptions.\n");
 }
 
 
@@ -357,7 +398,7 @@ void RecordNewlyNotifiedIds(const std::unique_ptr<kyotocabinet::HashDB> &notifie
     for (const auto &id : new_notification_ids) {
         if (not notified_db->add(id, now))
             ERROR("Failed to add key/value pair to database \"" + notified_db->path() + "\" ("
-                          + std::string(notified_db->error().message()) + ")!");
+                  + std::string(notified_db->error().message()) + ")!");
     }
 }
 
@@ -380,14 +421,13 @@ int main(int argc, char **argv) {
     if (argc < 5)
         Usage();
 
-    bool verbose;
-    if (std::strcmp("--verbose", argv[1]) == 0) {
+    bool debug(false);
+    if (std::strcmp("--debug", argv[1]) == 0) {
         if (argc < 6)
             Usage();
-        verbose = true;
+        debug = true;
         --argc, ++argv;
-    } else
-        verbose = false;
+    }
 
     std::string solr_host_and_port;
     if (argc == 5)
@@ -414,9 +454,10 @@ int main(int argc, char **argv) {
         DbConnection db_connection(mysql_url);
 
         std::unordered_set<std::string> new_notification_ids;
-        ProcessSubscriptions(verbose, &db_connection, notified_db, &new_notification_ids, solr_host_and_port,
-                             user_type, hostname, sender_email, email_subject);
-        RecordNewlyNotifiedIds(notified_db, new_notification_ids);
+        ProcessSubscriptions(debug, &db_connection, notified_db, &new_notification_ids, solr_host_and_port, user_type, hostname,
+                             sender_email, email_subject);
+        if (not debug)
+            RecordNewlyNotifiedIds(notified_db, new_notification_ids);
     } catch (const std::exception &x) {
         ERROR("caught exception: " + std::string(x.what()));
     }

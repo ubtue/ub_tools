@@ -29,14 +29,14 @@ RUN git clone https://github.com/tesseract-ocr/tesseract.git /usr/local/tesserac
 # build tesseract
 RUN cd /usr/local/tesseract-ocr && ./autogen.sh
 RUN cd /usr/local/tesseract-ocr && ./configure
-RUN cd /usr/local/tesseract-ocr && make
-RUN cd /usr/local/tesseract-ocr && make install
+RUN cd /usr/local/tesseract-ocr && make --jobs=4
+RUN cd /usr/local/tesseract-ocr && make --jobs=4 install
 RUN cd /usr/local/tesseract-ocr && ldconfig
 
 # build training tools
 # see https://github.com/tesseract-ocr/tesseract/wiki/TrainingTesseract-4.00
-RUN cd /usr/local/tesseract-ocr && make training
-RUN cd /usr/local/tesseract-ocr && make training-install
+RUN cd /usr/local/tesseract-ocr && make --jobs=4 training
+RUN cd /usr/local/tesseract-ocr && make --jobs=4 training-install
 
 # allow container to run infinitely
 ADD startup.sh /startup.sh

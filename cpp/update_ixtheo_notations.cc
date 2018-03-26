@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015,2017 Library of the University of Tübingen
+    Copyright (C) 2015,2017,2018 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -136,9 +136,9 @@ void ProcessRecords(MarcReader * const marc_reader, MarcWriter * const marc_writ
         marc_writer->write(record);
     }
 
-    std::cerr << "Read " << count << " records.\n";
-    std::cerr << records_with_ixtheo_notations << " records had ixTheo notations.\n";
-    std::cerr << "Found " << ixtheo_notation_count << " ixTheo notations overall.\n";
+    std::cout << ::progname << ": Read " << count << " records.\n";
+    std::cout << ::progname << ": " << records_with_ixtheo_notations << " records had ixTheo notations.\n";
+    std::cout << ::progname << ": Found " << ixtheo_notation_count << " ixTheo notations overall.\n";
 }
 
 

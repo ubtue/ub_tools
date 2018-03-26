@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015-2017, Library of the University of Tübingen
+    Copyright (C) 2015-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -138,6 +138,7 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader, MarcWrit
             or std::find(ddc_values.cbegin(), ddc_values.cend(), "B") != ddc_values.cend())
         {
             ++skipped_group_count;
+            marc_writer->write(record);
             continue;
         }
 
@@ -174,10 +175,11 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader, MarcWrit
         marc_writer->write(record);
     }
 
-    std::cerr << "Read " << count << " records.\n";
-    std::cerr << records_with_ixtheo_notations << " records had Ixtheo notations.\n";
-    std::cerr << records_with_new_notations << " records received new Ixtheo notations.\n";
-    std::cerr << skipped_group_count << " records where skipped because they were in a group that we are not interested in.\n";
+    std::cout << ::progname << ": Read " << count << " records.\n";
+    std::cout << ::progname << ": " << records_with_ixtheo_notations << " records had Ixtheo notations.\n";
+    std::cout << ::progname << ": " << records_with_new_notations << " records received new Ixtheo notations.\n";
+    std::cout << ::progname << ": " << skipped_group_count
+              << " records where skipped because they were in a group that we are not interested in.\n";
 }
 
 

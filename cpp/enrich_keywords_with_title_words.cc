@@ -1,6 +1,6 @@
 // A tool for adding keywords extracted from titles to MARC records.
 /*
-    Copyright (C) 2015-2017, Library of the University of Tübingen
+    Copyright (C) 2015-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -381,7 +381,7 @@ void AugmentRecordsWithTitleKeywords(
     }
 
     if (verbose)
-        std::cerr << augmented_record_count << " records of " << total_count
+        std::cout << ::progname << ": " << augmented_record_count << " records of " << total_count
                   << " were augmented w/ additional keywords.\n";
 }
 

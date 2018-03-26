@@ -104,6 +104,7 @@ marc_info
 marc_size
 marc_split
 marc_tag_grep
+marc21_size
 merge_differential_and_full_marc_updates
 merge_print_and_online
 mpi_stats
@@ -118,7 +119,7 @@ regex_matcher
 remove_redundant_includes
 remove_unused_authority_records
 replace_marc_records
-rss_client
+rss_harvester
 send_email
 set_tad_access_flag
 simple_crawler

@@ -8,6 +8,9 @@ define('DIR_LIB', '/usr/local/ub_tools/php/lib/');
 // tmp directory (for CLI processing + downloads)
 define('DIR_TMP', '/tmp/Zts/');
 
+// max depth for crawling
+define('MAX_CRAWLING_DEPTH', 3);
+
 // max script runtime in seconds
 define('MAX_SCRIPT_RUNTIME', 600);
 ini_set('max_input_time', MAX_SCRIPT_RUNTIME);

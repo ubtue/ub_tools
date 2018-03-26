@@ -18,6 +18,7 @@
 */
 
 #include "MARC.h"
+#include <set>
 #include <unordered_map>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -69,6 +70,40 @@ bool Subfields::replaceFirstSubfield(const char subfield_code, const std::string
         return false;
     replacement_location->value_ = new_subfield_value;
     return true;
+}
+
+    
+std::vector<std::string> Subfields::extractSubfieldsAndNumericSubfields(const std::string &subfield_spec) const {
+    std::set<std::string> numeric_subfield_specs;
+    std::string subfield_codes;
+
+    for (auto code(subfield_spec.cbegin()); code != subfield_spec.cend(); ++code) {
+        if (StringUtil::IsDigit(*code)) {
+            if (unlikely((code + 1) == subfield_spec.cend()))
+                ERROR("numeric subfield code is missing a following character!");
+            numeric_subfield_specs.insert(std::string(1, *code) + std::string(1, *(code + 1)));
+            subfield_codes += *code;
+            ++code;
+        } else
+            subfield_codes += *code;
+    }
+
+    std::vector<std::string> subfield_values;
+    if (subfield_codes.empty())
+        return subfield_values;
+
+    for (const auto &subfield : subfields_) {
+        if (subfield_codes.find(subfield.code_) != std::string::npos) {
+            if (not StringUtil::IsDigit(subfield.code_))
+                subfield_values.emplace_back(subfield.value_);
+            else {
+               numeric_subfield_specs.find(std::string(1, subfield.code_) + subfield.value_[0]);
+               if (subfield.value_[1] == ':')
+                    subfield_values.emplace_back(subfield.value_.substr(2));
+            }
+        }
+    }
+    return subfield_values;
 }
 
 
@@ -207,6 +242,13 @@ Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibli
 }
 
 
+
+void Record::merge(const Record &other) {
+    for (const auto &other_field : other)
+        insertField(other_field);
+}
+
+
 bool Record::isElectronicResource() const {
     if (std::toupper(leader_[6]) == 'M')
         return true;
@@ -294,6 +336,17 @@ std::vector<std::string> Record::getSubfieldValues(const Tag &tag, const std::st
 }
 
 
+std::vector<std::string> Record::getSubfieldAndNumericSubfieldValues(const Tag &tag, const std::string &subfield_spec) const {
+    std::vector<std::string> subfield_values;
+    for (const auto &field : getTagRange(tag)) {
+        const Subfields subfields(field.getContents());
+        const std::vector<std::string> one_tag_subfield_values(subfields.extractSubfieldsAndNumericSubfields(subfield_spec));
+        subfield_values.insert(std::end(subfield_values), one_tag_subfield_values.cbegin(), one_tag_subfield_values.cend());
+    }
+    return subfield_values;
+}
+
+
 size_t Record::findAllLocalDataBlocks(
     std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const
 {
@@ -353,6 +406,7 @@ bool Record::insertField(const Tag &new_field_tag, const std::string &new_field_
         and not IsRepeatableField(new_field_tag))
         return false;
     fields_.emplace(insertion_location, new_field_tag, new_field_value);
+    record_size_ += DIRECTORY_ENTRY_LENGTH + new_field_value.length() + 1 /* field separator */;
     return true;
 }
 
@@ -470,11 +524,28 @@ std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, Reade
 
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
     return (reader_type == XML) ? std::unique_ptr<Reader>(new XmlReader(input.release()))
-        : std::unique_ptr<Reader>(new BinaryReader(input.release()));
+                                : std::unique_ptr<Reader>(new BinaryReader(input.release()));
 }
 
 
 Record BinaryReader::read() {
+    if (unlikely(not last_record_))
+        return last_record_;
+
+    Record new_record;
+    do {
+        next_record_start_ = input_->tell();
+        new_record = actualRead();
+        if (unlikely(new_record.getControlNumber() == last_record_.getControlNumber()))
+            last_record_.merge(new_record);
+    } while (new_record.getControlNumber() == last_record_.getControlNumber());
+
+    new_record.swap(last_record_);
+    return new_record;
+}
+
+
+Record BinaryReader::actualRead() {
     char buf[Record::MAX_RECORD_LENGTH];
     size_t bytes_read;
     if (unlikely((bytes_read = input_->read(buf, Record::RECORD_LENGTH_FIELD_LENGTH)) == 0))
@@ -484,12 +555,21 @@ Record BinaryReader::read() {
         ERROR("failed to read record length!");
     const unsigned record_length(ToUnsigned(buf, Record::RECORD_LENGTH_FIELD_LENGTH));
 
-    bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH,
-                              record_length - Record::RECORD_LENGTH_FIELD_LENGTH);
+    bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH, record_length - Record::RECORD_LENGTH_FIELD_LENGTH);
     if (unlikely(bytes_read != record_length - Record::RECORD_LENGTH_FIELD_LENGTH))
-        throw std::runtime_error("in MARC::BinaryReader::read: failed to read a record from \"" + input_->getPath() + "\"!");
+        ERROR("failed to read a record from \"" + input_->getPath() + "\"!");
 
     return Record(record_length, buf);
+}
+
+
+bool BinaryReader::seek(const off_t offset, const int whence) {
+    if (input_->seek(offset, whence)) {
+        next_record_start_ = input_->tell();
+        last_record_ = actualRead();
+        return true;
+    } else
+        return false;
 }
 
 
@@ -1069,7 +1149,7 @@ static inline bool CompareField(const Record::Field * const field1, const Record
     if (field1->getTag() > field2->getTag())
         return false;
     return field1->getContents() < field2->getContents();
-};
+}
 
 
 std::string CalcChecksum(const Record &record, const bool exclude_001) {
