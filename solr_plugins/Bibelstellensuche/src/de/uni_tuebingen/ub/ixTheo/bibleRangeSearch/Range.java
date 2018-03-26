@@ -1,5 +1,6 @@
 package de.uni_tuebingen.ub.ixTheo.bibleRangeSearch;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
@@ -120,5 +121,43 @@ class Range {
         }
         builder.append(']');
         return builder.toString();
+    }
+
+    static Range[] StringToRanges(final String range_list) {
+        final String[] parts = range_list.split(",");
+        final ArrayList<Range> list = new ArrayList<Range>(parts.length);
+
+        for (final String part : parts) {
+            final String[] range = part.split(":");
+            if (range.length != 2) {
+                System.err.println(range + " is not a valid range! (1)");
+                System.exit(-1);
+            }
+
+            try {
+                final int lower = Integer.parseInt(range[0]);
+                final int upper = Integer.parseInt(range[1]);
+                final Range new_range = new Range(lower, upper);
+                list.add(new_range);
+            } catch (NumberFormatException e) {
+                System.err.println(range + " is not a valid range! (2)");
+                System.exit(-1);
+            }
+        }
+
+        final Range[] ranges = new Range[list.size()];
+        return list.toArray(ranges);
+    }
+
+    public static void main(String[] args) {
+        if (args.length != 2) {
+            System.err.println("Usage: comma_separated_ranges comma_separated_query_ranges "
+                               + "(lower and upper are separated by a colon)");
+            System.exit(-1);
+        }
+
+        final Range[] ranges = StringToRanges(args[0]);
+        final Range[] queryRanges = StringToRanges(args[1]);
+        System.out.println("Score: " + Float.toString(getRangesScore(ranges, queryRanges)));
     }
 }
