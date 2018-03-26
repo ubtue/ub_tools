@@ -2,7 +2,7 @@
  *  \brief  Implementation of the RegexMatcher class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -90,6 +90,16 @@ RegexMatcher *RegexMatcher::RegexMatcherFactory(const std::string &pattern, std:
         return nullptr;
 
     return new RegexMatcher(pattern, options, pcre_ptr, pcre_extra_ptr);
+}
+
+
+RegexMatcher *RegexMatcher::FactoryOrDie(const std::string &regex, const unsigned options) {
+    std::string error_message;
+    RegexMatcher *regex_matcher(RegexMatcher::RegexMatcherFactory(regex, &error_message, options));
+    if (not error_message.empty())
+        ERROR("failed to compile regex \"" + regex + "\": " + error_message);
+
+    return regex_matcher;
 }
 
 
