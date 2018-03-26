@@ -152,7 +152,7 @@ template<typename EntryType> SList<EntryType>::~SList() {
 }
 
 
-template<typename EntryType> typename SList<EntryType>::SList &SList<EntryType>::operator=(const SList<EntryType> &rhs) {
+template<typename EntryType> SList<EntryType> &SList<EntryType>::operator=(const SList<EntryType> &rhs) {
     // Avoid self-assignment:
     if (&rhs != this) {
         this->~SList();
