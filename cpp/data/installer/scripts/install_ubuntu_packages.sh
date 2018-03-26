@@ -45,7 +45,7 @@ if [[ $1 == "tuefind" ]]; then
     apt-get --quiet --yes install \
         composer openjdk-8-jdk \
         apache2 mysql-server \
-        php7.1 php7.1-curl php7.1-dev php7.1-gd php7.1-intl php7.1-json php7.1-ldap php7.1-mbstring php7.1-mcrypt php7.1-mysql php7.1-xsl php-pear \
+        php7.1 php7.1-curl php7.1-gd php7.1-intl php7.1-json php7.1-ldap php7.1-mbstring php7.1-mysql php7.1-xsl php-pear \
         libapache2-mod-gnutls libapache2-mod-php7.1
 
     # create /var/run/mysqld and change user (mysql installation right now has a bug not doing that itself)
