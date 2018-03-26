@@ -6,6 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
+ *  Copyright 2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -139,8 +140,7 @@ bool RobotsDotTxt::UserAgentDescriptor::match(const std::string &user_agent_stri
 
 
 void RobotsDotTxt::UserAgentDescriptor::copyRules(const UserAgentDescriptor &from) {
-    for (SList<Rule>::const_iterator rule(from.rules_.begin()); rule != from.rules_.end(); ++rule)
-        rules_.push_back(*rule);
+    rules_.insert(rules_.end(), from.rules_.begin(), from.rules_.end());
 }
 
 
@@ -156,8 +156,8 @@ std::string RobotsDotTxt::UserAgentDescriptor::toString() const {
         user_agent_descriptor_as_string += "Crawl-delay: " + StringUtil::ToString(crawl_delay_) + "\n";
 
     // Rules:
-    for (SList<Rule>::const_iterator rule(rules_.begin()); rule != rules_.end(); ++rule)
-        user_agent_descriptor_as_string += rule->toString() + "\n";
+    for (const auto &rule : rules_)
+        user_agent_descriptor_as_string += rule.toString() + "\n";
 
     return user_agent_descriptor_as_string;
 }
@@ -176,16 +176,12 @@ bool RobotsDotTxt::accessAllowed(const std::string &user_agent, const std::strin
     if (::strcasecmp("/robots.txt", path.c_str()) == 0)
         return true;
 
-    for (SList<UserAgentDescriptor>::const_iterator user_agent_descriptor(user_agent_descriptors_.begin());
-         user_agent_descriptor != user_agent_descriptors_.end(); ++user_agent_descriptor)
-    {
-        if (user_agent_descriptor->match(user_agent)) {
-            for (SList<Rule>::const_iterator rule(user_agent_descriptor->getRules().begin());
-                 rule != user_agent_descriptor->getRules().end(); ++rule)
-                {
-                    if (rule->match(path))
-                        return rule->getRuleType() == ALLOW;
-                }
+    for (const auto &user_agent_descriptor : user_agent_descriptors_) {
+        if (user_agent_descriptor.match(user_agent)) {
+            for (const auto &rule : user_agent_descriptor.getRules()) {
+                if (rule.match(path))
+                    return rule.getRuleType() == ALLOW;
+            }
 
             // If we make it here it means we had a match on the user-agent string and must bail out!
             return true;
@@ -198,11 +194,9 @@ bool RobotsDotTxt::accessAllowed(const std::string &user_agent, const std::strin
 
 
 unsigned RobotsDotTxt::getCrawlDelay(const std::string &user_agent) const {
-    for (SList<UserAgentDescriptor>::const_iterator user_agent_descriptor(user_agent_descriptors_.begin());
-         user_agent_descriptor != user_agent_descriptors_.end(); ++user_agent_descriptor)
-    {
-        if (user_agent_descriptor->match(user_agent))
-            return user_agent_descriptor->getCrawlDelay();
+    for (const auto &user_agent_descriptor : user_agent_descriptors_) {
+        if (user_agent_descriptor.match(user_agent))
+            return user_agent_descriptor.getCrawlDelay();
     }
 
     return 0; // Default: no specified delay found.
@@ -357,8 +351,8 @@ void RobotsDotTxt::reinitialize(const std::string &robots_dot_txt) {
 
 std::string RobotsDotTxt::toString() const {
     std::string robots_dot_txt_as_string;
-    for (SList<UserAgentDescriptor>::const_iterator user_agent_descriptor(user_agent_descriptors_.begin());
-         user_agent_descriptor != user_agent_descriptors_.end(); ++user_agent_descriptor)
+    for (auto user_agent_descriptor(user_agent_descriptors_.begin()); user_agent_descriptor != user_agent_descriptors_.end();
+         ++user_agent_descriptor)
     {
         if (user_agent_descriptor != user_agent_descriptors_.begin())
             robots_dot_txt_as_string += "\n\n";
@@ -382,21 +376,21 @@ void RobotsMetaTagExtractor::notify(const Chunk &chunk) {
         if (iter != chunk.attribute_map_->end() and ::strcasecmp(iter->second.c_str(), "robots") == 0) {
             iter = chunk.attribute_map_->find("content");
             if (iter != chunk.attribute_map_->end()) {
-                SList<std::string> values;
+                std::vector<std::string> values;
                 const std::string lowercase_content(StringUtil::ToLower(iter->second));
                 StringUtil::SplitThenTrim(lowercase_content, ",", " \t\r\f", &values);
-                for (SList<std::string>::const_iterator value(values.begin()); value != values.end(); ++value) {
-                    if (*value == "index")
+                for (const auto &value : values) {
+                    if (value == "index")
                         index_ = true;
-                    else if (*value == "noindex")
+                    else if (value == "noindex")
                         index_ = false;
-                    else if (*value == "follow")
+                    else if (value == "follow")
                         follow_ = true;
-                    else if (*value == "nofollow")
+                    else if (value == "nofollow")
                         follow_ = false;
-                    else if (*value == "archive")
+                    else if (value == "archive")
                         archive_ = true;
-                    else if (*value == "noarchive")
+                    else if (value == "noarchive")
                         archive_ = false;
                 }
             }

@@ -6,6 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
+ *  Copyright 2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -34,7 +35,6 @@
 #include <string>
 #include <ctime>
 #include <HtmlParser.h>
-#include <SList.h>
 #include <ThreadUtil.h>
 #include <Url.h>
 
@@ -61,24 +61,23 @@ class RobotsDotTxt {
     };
 
     class UserAgentDescriptor {
-        SList<std::string> user_agent_patterns_;
-        SList<Rule> rules_;
+        std::vector<std::string> user_agent_patterns_;
+        std::vector<Rule> rules_;
         unsigned crawl_delay_;
     public:
         UserAgentDescriptor(): crawl_delay_(0) { }
-        void addUserAgent(const std::string &user_agent_pattern)
-        { user_agent_patterns_.push_back(user_agent_pattern); }
+        void addUserAgent(const std::string &user_agent_pattern) { user_agent_patterns_.push_back(user_agent_pattern); }
         void addRule(const RuleType rule_type, const std::string &value);
         void setCrawlDelay(const unsigned new_crawl_delay) { crawl_delay_ = new_crawl_delay; }
         bool match(const std::string &user_agent_string) const;
-        const SList<Rule> &getRules() const { return rules_; }
+        const std::vector<Rule> &getRules() const { return rules_; }
         unsigned getCrawlDelay() const { return crawl_delay_; }
         void copyRules(const UserAgentDescriptor &from);
         size_t getNoOfUserAgentPatterns() const { return user_agent_patterns_.size(); }
         void clear() { user_agent_patterns_.clear();  rules_.clear();  crawl_delay_ = 0; }
         std::string toString() const;
     };
-    SList<UserAgentDescriptor> user_agent_descriptors_;
+    std::vector<UserAgentDescriptor> user_agent_descriptors_;
 public:
     /** \brief  Constructs a RobotsDotTxt object.
      *  \note   If you use this constructor you must call "reinitialize" at some later point.
