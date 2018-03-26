@@ -6,6 +6,7 @@
 /*
  *  Copyright 2004-2008 Project iVia.
  *  Copyright 2004-2008 The Regents of The University of California.
+ *  Copyright 2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -29,7 +30,6 @@
 
 #include <string>
 #include "PerlCompatRegExp.h"
-#include "SList.h"
 #include "Url.h"
 
 
