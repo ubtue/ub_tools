@@ -22,10 +22,6 @@ apt-get --yes update
 # install software-properties-common for apt-add-repository
 apt-get --yes install software-properties-common
 
-# needed for PHP-7.1
-apt-add-repository --yes ppa:ondrej/php
-apt-get --yes update
-
 # main installation
 # (use "quiet" so mysql hopefully doesnt ask for a root password, geographic area and timezone)
 apt-get --quiet --yes --allow-unauthenticated install \
@@ -45,8 +41,8 @@ if [[ $1 == "tuefind" ]]; then
     apt-get --quiet --yes install \
         composer openjdk-8-jdk \
         apache2 mysql-server \
-        php7.1 php7.1-curl php7.1-gd php7.1-intl php7.1-json php7.1-ldap php7.1-mbstring php7.1-mysql php7.1-xsl php-pear \
-        libapache2-mod-gnutls libapache2-mod-php7.1
+        php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-xsl php-pear \
+        libapache2-mod-gnutls libapache2-mod-php
 
     # create /var/run/mysqld and change user (mysql installation right now has a bug not doing that itself)
     # (chown needs to be done after installation = after the user has been created)
