@@ -7,7 +7,7 @@
 /*
  *  Copyright 2005-2007 Project iVia.
  *  Copyright 2005-2007 The Regents of The University of California.
- *  Copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  Copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -26,8 +26,6 @@
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "util.h"
-#undef LOG
 #include "SparseMatrixAndVector.h"
 #include <iomanip>
 #include <stdexcept>
@@ -36,7 +34,8 @@
 #include <climits>
 #include <cstdint>
 #include <cmath>
-#include <Compiler.h>
+#include "Compiler.h"
+#include "util.h"
 
 
 SparseMatrix::SparseMatrix(const size_type n): size_(n), default_value_(0.0) {

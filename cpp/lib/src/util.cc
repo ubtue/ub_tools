@@ -115,21 +115,6 @@ void Logger::debug(const std::string &msg) {
 }
 
 
-void Logger::log(const LogLevel log_level, const std::string &msg) {
-    if (min_log_level_ < log_level)
-        return;
-
-    std::lock_guard<std::mutex> mutex_locker(mutex_);
-
-    if (unlikely(progname == nullptr)) {
-        writeString("You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use Logger::log().");
-        _exit(EXIT_FAILURE);
-    } else
-        writeString(TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " " + LogLevelToString(log_level) + " "
-                    + std::string(::progname) + ": " + msg);
-}
-
-
 inline Logger *LoggerInstantiator() {
     return new Logger();
 }
