@@ -73,18 +73,26 @@ public:
     void debug(const std::string &msg);
     inline void debug(const std::string &function_name, const std::string &msg) { debug("in " + function_name + ": " + msg); }
 
+    void log(const LogLevel level, const std::string &msg);
+    inline void log(const LogLevel level, const std::string &function_name, const std::string &msg)
+        { log(level, "in " + function_name + ": " + msg); }
+
     //* \note Aborts if ""level_candidate" is not one of "ERROR", "WARNING", "INFO" or "DEBUG".
     static LogLevel StringToLogLevel(const std::string &level_candidate);
+
+    // \brief Returns a string representation of "log_level".
+    static std::string LogLevelToString(const LogLevel log_level);
 private:
     void writeString(std::string msg);
 };
 extern Logger *logger;
 
 
-#define ERROR(message)   logger->error(__PRETTY_FUNCTION__, message)
-#define WARNING(message) logger->warning(__PRETTY_FUNCTION__, message)
-#define INFO(message)    logger->info(__PRETTY_FUNCTION__, message)
-#define DEBUG(message)   logger->debug(__PRETTY_FUNCTION__, message)
+#define ERROR(message)      logger->error(__PRETTY_FUNCTION__, message)
+#define WARNING(message)    logger->warning(__PRETTY_FUNCTION__, message)
+#define INFO(message)       logger->info(__PRETTY_FUNCTION__, message)
+#define DEBUG(message)      logger->debug(__PRETTY_FUNCTION__, message)
+#define LOG(level, message) logger->log(level, __PRETTY_FUNCTION__, message)
 
 
 // TestAndThrowOrReturn -- tests condition "cond" and, if it evaluates to "true", throws an exception unless another

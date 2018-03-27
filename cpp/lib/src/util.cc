@@ -115,6 +115,21 @@ void Logger::debug(const std::string &msg) {
 }
 
 
+void Logger::log(const LogLevel log_level, const std::string &msg) {
+    if (min_log_level_ < log_level)
+        return;
+
+    std::lock_guard<std::mutex> mutex_locker(mutex_);
+
+    if (unlikely(progname == nullptr)) {
+        writeString("You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use Logger::log().");
+        _exit(EXIT_FAILURE);
+    } else
+        writeString(TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " " + LogLevelToString(log_level) + " "
+                    + std::string(::progname) + ": " + msg);
+}
+
+
 inline Logger *LoggerInstantiator() {
     return new Logger();
 }
@@ -133,6 +148,19 @@ Logger::LogLevel Logger::StringToLogLevel(const std::string &level_candidate) {
     if (level_candidate == "DEBUG")
         return Logger::LL_DEBUG;
     ERROR("not a valid minimum log level: \"" + level_candidate + "\"! (Use ERROR, WARNING, INFO or DEBUG)");
+}
+
+
+std::string Logger::LogLevelToString(const LogLevel log_level) {
+    if (log_level == Logger::LL_ERROR)
+        return "ERROR";
+    if (log_level == Logger::LL_WARNING)
+        return "WARNING";
+    if (log_level == Logger::LL_INFO)
+        return "INFO";
+    if (log_level == Logger::LL_DEBUG)
+        return "DEBUG";
+    ERROR("unsupported log level, we should *never* get here!");
 }
 
 
