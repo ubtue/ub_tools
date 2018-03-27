@@ -12,8 +12,8 @@ class MetadataHarvester {
      */
     const OUTPUT_FORMATS = [
         // custom formats
-        'marc21'            => 'mrc',
         'marcxml'           => 'xml',
+        'marc21'            => 'mrc',
     ];
 
     /**
