@@ -39,7 +39,7 @@ if [[ $1 == "tuefind" ]]; then
     export DEBIAN_FRONTEND="noninteractive"
 
     apt-get --quiet --yes install \
-        composer openjdk-8-jdk \
+        composer unzip openjdk-8-jdk \
         apache2 mysql-server \
         php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-xsl php-pear \
         libapache2-mod-gnutls libapache2-mod-php
