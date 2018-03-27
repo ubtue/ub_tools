@@ -49,268 +49,272 @@
  */
 class IniFile {
 public:
-        typedef std::list< std::pair<std::string, std::string> > SectionContents;
+    typedef std::list< std::pair<std::string, std::string> > SectionContents;
+    typedef std::map<std::string, SectionContents>::const_iterator const_iterator;
 protected:
-        mutable std::map<std::string, SectionContents> sections_;
-        std::string ini_file_name_;
-        std::string current_section_name_;
+    mutable std::map<std::string, SectionContents> sections_;
+    std::string ini_file_name_;
+    std::string current_section_name_;
 
-        struct IncludeFileInfo {
-                std::string filename_;
-                unsigned current_lineno_;
-        public:
-                explicit IncludeFileInfo(const std::string &filename)
-                        : filename_(filename), current_lineno_(0) { }
-        };
-        std::stack<IncludeFileInfo> include_file_infos_;
+    struct IncludeFileInfo {
+        std::string filename_;
+        unsigned current_lineno_;
+    public:
+        explicit IncludeFileInfo(const std::string &filename)
+            : filename_(filename), current_lineno_(0) { }
+    };
+    std::stack<IncludeFileInfo> include_file_infos_;
 
-        bool ignore_failed_includes_;
+    bool ignore_failed_includes_;
 public:
-        /** \brief  Construct an IniFile based on the named file.
-         *  \param  ini_file_name           The name of the .ini file.
-         *  \param  ignore_failed_includes  If "true", don't throw an exception if an "include" directive can't be
-         *                                  honoured.  The special name "empty" will create an ini_file object without
-         *                                  attempting to open a file
-         *  \param  create_empty            Creates an empty INI file if none is found.
-         */
-        explicit IniFile(const std::string &ini_file_name, const bool ignore_failed_includes = false,
-                         const bool create_empty = false);
+    /** \brief  Construct an IniFile based on the named file.
+     *  \param  ini_file_name           The name of the .ini file.
+     *  \param  ignore_failed_includes  If "true", don't throw an exception if an "include" directive can't be
+     *                                  honoured.  The special name "empty" will create an ini_file object without
+     *                                  attempting to open a file
+     *  \param  create_empty            Creates an empty INI file if none is found.
+     */
+    explicit IniFile(const std::string &ini_file_name, const bool ignore_failed_includes = false,
+                     const bool create_empty = false);
 
-        /**  \brief  Construct an IniFile based on the program's configuration file.
-         *
-         *   This constructor creates an instance based on a program-specific configuration file.  The file is in the
-         *   libiViaCore etc directory, and is named X.conf (where "X" is the program name, as stored in "progname"
-         *   in "util.h".
-         */
-        IniFile();
+    /**  \brief  Construct an IniFile based on the program's configuration file.
+     *
+     *   This constructor creates an instance based on a program-specific configuration file.  The file is in the
+     *   libiViaCore etc directory, and is named X.conf (where "X" is the program name, as stored in "progname"
+     *   in "util.h".
+     */
+    IniFile();
 
-        /** \brief  Assigns one IniFile to another.
-         *  \param  rhs    The IniFile to copy into "this" IniFile.
-         *  \param  clear  If "true", first erase all settings of the "this" InfFile.
-         *  \note   The purpose of setting the "clear" parameter to "false" is to allow for loading an IniFile as a
-         *          default and then override selected values by later loading another IniFile and assigning it to
-         *          the IniFile that was loaded earlier while setting "clear" to "false".
-         */
-        void assign(const IniFile &rhs, const bool clear = true);
+    inline const_iterator begin() const { return sections_.begin(); }
+    inline const_iterator end() const { return sections_.end(); }
 
-        const IniFile &operator=(const IniFile &rhs) { assign(rhs); return *this; }
+    /** \brief  Assigns one IniFile to another.
+     *  \param  rhs    The IniFile to copy into "this" IniFile.
+     *  \param  clear  If "true", first erase all settings of the "this" InfFile.
+     *  \note   The purpose of setting the "clear" parameter to "false" is to allow for loading an IniFile as a
+     *          default and then override selected values by later loading another IniFile and assigning it to
+     *          the IniFile that was loaded earlier while setting "clear" to "false".
+     */
+    void assign(const IniFile &rhs, const bool clear = true);
 
-        /** \brief   Get the name of the file used to construct the object.
-         *  \return  The file name.
-         */
-        std::string getFilename() const { return ini_file_name_; }
+    const IniFile &operator=(const IniFile &rhs) { assign(rhs); return *this; }
 
-        bool lookup(const std::string &section_name, const std::string &variable_name,
-                    std::string * const s) const;
+    /** \brief   Get the name of the file used to construct the object.
+     *  \return  The file name.
+     */
+    std::string getFilename() const { return ini_file_name_; }
 
-
-        /** \brief   Retrieves an integer value from a configuration file.
-         *  \param   section_name   The name of the section to search.
-         *  \param   variable_name  The name of the section entry to read.
-         *  \return  The value of the string in the specified section.
-         *  \throws  A std::runtime_error if the variable is not found or the value cannot be converted to an integer.
-         */
-        long getInteger(const std::string &section_name, const std::string &variable_name) const;
-
-        /** \brief   Retrieves a floating point value from a configuration file.
-         *  \param   section_name   The name of the section to search.
-         *  \param   variable_name  The name of the section entry to read.
-         *  \return  The value of the string in the specified section.
-         *  \throws  A std::runtime_error if the variable is not found or the value cannot be converted to a double.
-         */
-        double getDouble(const std::string &section_name, const std::string &variable_name) const;
-
-        /** \brief   Retrieves a floating point value from a configuration file.
-         *  \param   section_name   The name of the section to search.
-         *  \param   variable_name  The name of the section entry to read.
-         *  \param   default_value  A default to return if the variable is not defined.
-         *  \return  The value of the string in the specified section.
-         *  \throws  A std::runtime_error if the value was found but cannot be converted to a double.
-         */
-        double getDouble(const std::string &section_name, const std::string &variable_name,
-                         const double &default_value) const;
-
-        /** \brief   Retrieves a string value from a configuration file.
-         *  \param   section_name   The name of the section to search.
-         *  \param   variable_name  The name of the section entry to read.
-         *  \return  The value of the string in the specified section.
-         *  \throws  A std::runtime_error if the variable is not found.
-         *  \note    If the variable is not defined in the section, the program throws an exception.
-         */
-        std::string getString(const std::string &section_name, const std::string &variable_name) const;
-
-        /** \brief   Retrieves a string value from a configuration file.
-         *  \param   section_name   The name of the section to search.
-         *  \param   variable_name  The name of the section entry to read.
-         *  \param   default_value  A default to return if the variable is not defined.
-         *  \return  The value of the specified variable in the specified section, or "default_value" if it is not
-         *           defined.
-         */
-        std::string getString(const std::string &section_name, const std::string &variable_name,
-                              const std::string &default_value) const;
-
-        /** \brief   Retrieves a single character value from a configuration file.
-         *  \param   section_name   The name of the section to search.
-         *  \param   variable_name  The name of the section entry to read.
-         *  \return  The value of the character in the specified section.
-         *  \note    If the variable is not defined in the section, the program throws an exception.
-         */
-        char getChar(const std::string &section_name, const std::string &variable_name) const;
-
-        /** \brief   Retrieves a single character value from a configuration file.
-         *  \param   section_name   The name of the section to search.
-         *  \param   variable_name  The name of the section entry to read.
-         *  \param   default_value  A default to return if the variable is not defined.
-         *  \return  The value of the specified variable in the specified section, or "default_value" if it is not
-         *           defined.
-         */
-        char getChar(const std::string &section_name, const std::string &variable_name, const char default_value) const;
-
-        /** \brief   Retrieves an unsigned value from a configuration file.
-         *  \param   section_name   The name of the section to search.
-         *  \param   variable_name  The name of the section entry to read.
-         *  \return  The value of the specified variable in the specified section.
-         *  \note    If the variable is not defined in the section, an exception is thrown.
-         */
-        unsigned getUnsigned(const std::string &section_name, const std::string &variable_name) const;
-
-        /** \brief   Retrieves an unsigned value from a configuration file.
-         *  \param   section_name   The name of the section to search.
-         *  \param   variable_name  The name of the section entry to read.
-         *  \param   default_value  A default to return if the variable is not defined.
-         *  \return  The value of the specified variable in the specified section, or "default_value" if it is not
-         *           defined.
-         */
-        unsigned getUnsigned(const std::string &section_name, const std::string &variable_name,
-                             const unsigned &default_value) const;
-
-        /** \brief   Retrieves a uint64_t value from a configuration file.
-         *  \param   section_name   The name of the section to search.
-         *  \param   variable_name  The name of the section entry to read.
-         *  \return  The value of the specified variable in the specified section.
-         *  \note    If the variable is not defined in the section, an exception is thrown.
-         */
-        uint64_t getUint64T(const std::string &section_name, const std::string &variable_name) const;
-
-        /** \brief   Retrieves a uint64_t value from a configuration file.
-         *  \param   section_name   The name of the section to search.
-         *  \param   variable_name  The name of the section entry to read.
-         *  \param   default_value  A default to return if the variable is not defined.
-         *  \return  The value of the specified variable in the specified section, or "default_value" if it is not
-         *           defined.
-         */
-        uint64_t getUint64T(const std::string &section_name, const std::string &variable_name,
-                            const uint64_t &default_value) const;
-
-        /** \brief   Retrieves a boolean value from a configuration file.
-         *  \param   section_name   The name of the configuration file section to search for the entry.
-         *  \param   variable_name  The name of the section entry to read.
-         *  \return  True if the retrieved value was "true", "yes" or "on" and false if the retrieved value was "false",
-         *           "no" or "off".
-         *  \note    If the variable is not defined in the section, the program throws an exception.  The expected
-         *           values for the variable are case insensitive and can be any of "true", "yes", "on", "false", "no" or
-         *           "off", and any other value results in an exception being thrown.
-         */
-        bool getBool(const std::string &section_name, const std::string &variable_name) const;
-
-        /** \brief   Retrieves a boolean value from a configuration file.
-         *  \param   section_name   The name of the configuration file section to search for the entry.
-         *  \param   variable_name  The name of the section entry to read.
-         *  \param   default_value  A default to return if the variable is not defined.
-         *  \return  True if the retrieved value was "true", "yes" or "on" and false if the retrieved value was "false",
-         *           "no" or "off", or the default if it was not defined.
-         *  \note    If the variable is not defined in the section, the program returns the default value.  The expected
-         *           values for the variable are case insensitive and can be any of "true", "yes", "on" "false", "no" or
-         *           "off".  Any unknown value results in an exception being thrown.
-         */
-        bool getBool(const std::string &section_name, const std::string &variable_name,
-                     const bool default_value) const;
+    bool lookup(const std::string &section_name, const std::string &variable_name,
+                std::string * const s) const;
 
 
+    /** \brief   Retrieves an integer value from a configuration file.
+     *  \param   section_name   The name of the section to search.
+     *  \param   variable_name  The name of the section entry to read.
+     *  \return  The value of the string in the specified section.
+     *  \throws  A std::runtime_error if the variable is not found or the value cannot be converted to an integer.
+     */
+    long getInteger(const std::string &section_name, const std::string &variable_name) const;
 
-        /** \brief   Retrieves an enum value from a configuration file.
-         *  \param   section_name         The name of the configuration file section to search for the entry.
-         *  \param   variable_name        The name of the section entry to read.
-         *  \param   string_to_value_map  A mapping of allowable string constants in the config file, to integer values.
-         *  \return  The integer corresponding to the numeric value of the string constant found in the IniFile and
-         *           specified via "string_to_value_map" or the default value if no entry has been found.
-         *  \note    The expected values for the variable are case sensitive.  The caller will have to use a static_cast
-         *           to convert the int-encoded enum to a variable of the approriate enumumerated type.  An unknown or
-         *           missing value results in an exception being thrown.
-         */
-        int getEnum(const std::string &section_name, const std::string &variable_name,
-                    const std::list< std::pair<std::string, int> > &string_to_value_map) const;
+    /** \brief   Retrieves a floating point value from a configuration file.
+     *  \param   section_name   The name of the section to search.
+     *  \param   variable_name  The name of the section entry to read.
+     *  \return  The value of the string in the specified section.
+     *  \throws  A std::runtime_error if the variable is not found or the value cannot be converted to a double.
+     */
+    double getDouble(const std::string &section_name, const std::string &variable_name) const;
+
+    /** \brief   Retrieves a floating point value from a configuration file.
+     *  \param   section_name   The name of the section to search.
+     *  \param   variable_name  The name of the section entry to read.
+     *  \param   default_value  A default to return if the variable is not defined.
+     *  \return  The value of the string in the specified section.
+     *  \throws  A std::runtime_error if the value was found but cannot be converted to a double.
+     */
+    double getDouble(const std::string &section_name, const std::string &variable_name,
+                     const double &default_value) const;
+
+    /** \brief   Retrieves a string value from a configuration file.
+     *  \param   section_name   The name of the section to search.
+     *  \param   variable_name  The name of the section entry to read.
+     *  \return  The value of the string in the specified section.
+     *  \throws  A std::runtime_error if the variable is not found.
+     *  \note    If the variable is not defined in the section, the program throws an exception.
+     */
+    std::string getString(const std::string &section_name, const std::string &variable_name) const;
+
+    /** \brief   Retrieves a string value from a configuration file.
+     *  \param   section_name   The name of the section to search.
+     *  \param   variable_name  The name of the section entry to read.
+     *  \param   default_value  A default to return if the variable is not defined.
+     *  \return  The value of the specified variable in the specified section, or "default_value" if it is not
+     *           defined.
+     */
+    std::string getString(const std::string &section_name, const std::string &variable_name,
+                          const std::string &default_value) const;
+
+    /** \brief   Retrieves a single character value from a configuration file.
+     *  \param   section_name   The name of the section to search.
+     *  \param   variable_name  The name of the section entry to read.
+     *  \return  The value of the character in the specified section.
+     *  \note    If the variable is not defined in the section, the program throws an exception.
+     */
+    char getChar(const std::string &section_name, const std::string &variable_name) const;
+
+    /** \brief   Retrieves a single character value from a configuration file.
+     *  \param   section_name   The name of the section to search.
+     *  \param   variable_name  The name of the section entry to read.
+     *  \param   default_value  A default to return if the variable is not defined.
+     *  \return  The value of the specified variable in the specified section, or "default_value" if it is not
+     *           defined.
+     */
+    char getChar(const std::string &section_name, const std::string &variable_name, const char default_value) const;
+
+    /** \brief   Retrieves an unsigned value from a configuration file.
+     *  \param   section_name   The name of the section to search.
+     *  \param   variable_name  The name of the section entry to read.
+     *  \return  The value of the specified variable in the specified section.
+     *  \note    If the variable is not defined in the section, an exception is thrown.
+     */
+    unsigned getUnsigned(const std::string &section_name, const std::string &variable_name) const;
+
+    /** \brief   Retrieves an unsigned value from a configuration file.
+     *  \param   section_name   The name of the section to search.
+     *  \param   variable_name  The name of the section entry to read.
+     *  \param   default_value  A default to return if the variable is not defined.
+     *  \return  The value of the specified variable in the specified section, or "default_value" if it is not
+     *           defined.
+     */
+    unsigned getUnsigned(const std::string &section_name, const std::string &variable_name,
+                         const unsigned &default_value) const;
+
+    /** \brief   Retrieves a uint64_t value from a configuration file.
+     *  \param   section_name   The name of the section to search.
+     *  \param   variable_name  The name of the section entry to read.
+     *  \return  The value of the specified variable in the specified section.
+     *  \note    If the variable is not defined in the section, an exception is thrown.
+     */
+    uint64_t getUint64T(const std::string &section_name, const std::string &variable_name) const;
+
+    /** \brief   Retrieves a uint64_t value from a configuration file.
+     *  \param   section_name   The name of the section to search.
+     *  \param   variable_name  The name of the section entry to read.
+     *  \param   default_value  A default to return if the variable is not defined.
+     *  \return  The value of the specified variable in the specified section, or "default_value" if it is not
+     *           defined.
+     */
+    uint64_t getUint64T(const std::string &section_name, const std::string &variable_name,
+                        const uint64_t &default_value) const;
+
+    /** \brief   Retrieves a boolean value from a configuration file.
+     *  \param   section_name   The name of the configuration file section to search for the entry.
+     *  \param   variable_name  The name of the section entry to read.
+     *  \return  True if the retrieved value was "true", "yes" or "on" and false if the retrieved value was "false",
+     *           "no" or "off".
+     *  \note    If the variable is not defined in the section, the program throws an exception.  The expected
+     *           values for the variable are case insensitive and can be any of "true", "yes", "on", "false", "no" or
+     *           "off", and any other value results in an exception being thrown.
+     */
+    bool getBool(const std::string &section_name, const std::string &variable_name) const;
+
+    /** \brief   Retrieves a boolean value from a configuration file.
+     *  \param   section_name   The name of the configuration file section to search for the entry.
+     *  \param   variable_name  The name of the section entry to read.
+     *  \param   default_value  A default to return if the variable is not defined.
+     *  \return  True if the retrieved value was "true", "yes" or "on" and false if the retrieved value was "false",
+     *           "no" or "off", or the default if it was not defined.
+     *  \note    If the variable is not defined in the section, the program returns the default value.  The expected
+     *           values for the variable are case insensitive and can be any of "true", "yes", "on" "false", "no" or
+     *           "off".  Any unknown value results in an exception being thrown.
+     */
+    bool getBool(const std::string &section_name, const std::string &variable_name,
+                 const bool default_value) const;
 
 
-        /** \brief   Retrieves an enum value from a configuration file.
-         *  \param   section_name         The name of the configuration file section to search for the entry.
-         *  \param   variable_name        The name of the section entry to read.
-         *  \param   string_to_value_map  A mapping of allowable string constants in the config file,
-         *                                to integer values.
-         *  \param   default_value        A default to return if the variable is not defined.
-         *  \return  The integer corresponding to the numeric value of the string constant found in the IniFile and
-         *           specified via "string_to_value_map" or the default value if no entry has been found.
-         *  \note    If the variable is not defined in the section, the program returns the default value.
-         *           The expected values for the variable are case sensitive.  The caller will have to use a
-         *           static_cast to convert the int-encoded enum to a variable of the approriate enumumerated
-         *           type.  Any unknown value results in an exception being thrown.
-         */
-        int getEnum(const std::string &section_name, const std::string &variable_name,
-                    const std::list< std::pair<std::string, int> > &string_to_value_map, const int default_value) const;
 
-        std::list<std::string> getSections() const;
-        std::list<std::string> getSectionEntryNames(const std::string &section_name) const;
+    /** \brief   Retrieves an enum value from a configuration file.
+     *  \param   section_name         The name of the configuration file section to search for the entry.
+     *  \param   variable_name        The name of the section entry to read.
+     *  \param   string_to_value_map  A mapping of allowable string constants in the config file, to integer values.
+     *  \return  The integer corresponding to the numeric value of the string constant found in the IniFile and
+     *           specified via "string_to_value_map" or the default value if no entry has been found.
+     *  \note    The expected values for the variable are case sensitive.  The caller will have to use a static_cast
+     *           to convert the int-encoded enum to a variable of the approriate enumumerated type.  An unknown or
+     *           missing value results in an exception being thrown.
+     */
+    int getEnum(const std::string &section_name, const std::string &variable_name,
+                const std::list< std::pair<std::string, int> > &string_to_value_map) const;
 
-        /** \brief  Returns entry values from a section that start with a particular string, case insensitive
-         *  \param            section_name     The section name to check
-         *  \param            starting_with    The string which determines which items will be returned.
-         *  \return           the std::string values of all the items that matched.
-         *  \note             This is used to workaround the limitation that InFiles cannot have two
-         *                    elements in a section with the same name. So, if you want to simulate this,
-         *                    you must call them something like entry1, entry2, entry_last and then use
-         *                    this function like this: getSectionEntryValuesHavingNamesStartingWith("init", "entry");
-         */
-        std::list<std::string> getSectionEntryValuesHavingNamesStartingWith(const std::string &section_name,
-                                                                            const std::string &starting_with) const;
 
-        /** \brief  Returns entry names from a section that start with a particular string, case insensitive
-         *  \param            section_name     The section name to check
-         *  \param            starting_with    The string which determines which items will be returned.
-         *  \return           the std::string values of all the items that matched.
-         *  \note             This is used to workaround the limiation that InFiles cannot have two
-         *                    elements in a section with the same name. So, if you want to simulate this,
-         *                    you must call them something like entry1, entry2, entry_last and
-         *                    then use this function like this: getSectionEntryNamesThatStartWith("init", "entry");
-         */
-        std::list<std::string> getSectionEntryNamesThatStartWith(const std::string &section_name,
-                                                                 const std::string &starting_with) const;
+    /** \brief   Retrieves an enum value from a configuration file.
+     *  \param   section_name         The name of the configuration file section to search for the entry.
+     *  \param   variable_name        The name of the section entry to read.
+     *  \param   string_to_value_map  A mapping of allowable string constants in the config file,
+     *                                to integer values.
+     *  \param   default_value        A default to return if the variable is not defined.
+     *  \return  The integer corresponding to the numeric value of the string constant found in the IniFile and
+     *           specified via "string_to_value_map" or the default value if no entry has been found.
+     *  \note    If the variable is not defined in the section, the program returns the default value.
+     *           The expected values for the variable are case sensitive.  The caller will have to use a
+     *           static_cast to convert the int-encoded enum to a variable of the approriate enumumerated
+     *           type.  Any unknown value results in an exception being thrown.
+     */
+    int getEnum(const std::string &section_name, const std::string &variable_name,
+                const std::list< std::pair<std::string, int> > &string_to_value_map, const int default_value) const;
 
-        /** \brief  Generates a map from a sections' entries to it's values.
-         *  \param  section_name  The name of the section whose map will be returned.
-         *  \return The mapping of entry names to values for the "section_name" section.
-         */
-        SectionContents getSection(const std::string &section_name) const;
+    std::list<std::string> getSections() const;
+    std::list<std::string> getSectionEntryNames(const std::string &section_name) const;
 
-        bool sectionIsDefined(const std::string &section_name) const;
-        bool variableIsDefined(const std::string &section_name, const std::string &variable_name) const;
+    /** \brief  Returns entry values from a section that start with a particular string, case insensitive
+     *  \param            section_name     The section name to check
+     *  \param            starting_with    The string which determines which items will be returned.
+     *  \return           the std::string values of all the items that matched.
+     *  \note             This is used to workaround the limitation that InFiles cannot have two
+     *                    elements in a section with the same name. So, if you want to simulate this,
+     *                    you must call them something like entry1, entry2, entry_last and then use
+     *                    this function like this: getSectionEntryValuesHavingNamesStartingWith("init", "entry");
+     */
+    std::list<std::string> getSectionEntryValuesHavingNamesStartingWith(const std::string &section_name,
+                                                                        const std::string &starting_with) const;
 
-        /** \brief  Generate an ini file name based upon the program name, i.e, programname.conf */
-        static std::string DefaultIniFileName();
+    /** \brief  Returns entry names from a section that start with a particular string, case insensitive
+     *  \param            section_name     The section name to check
+     *  \param            starting_with    The string which determines which items will be returned.
+     *  \return           the std::string values of all the items that matched.
+     *  \note             This is used to workaround the limiation that InFiles cannot have two
+     *                    elements in a section with the same name. So, if you want to simulate this,
+     *                    you must call them something like entry1, entry2, entry_last and
+     *                    then use this function like this: getSectionEntryNamesThatStartWith("init", "entry");
+     */
+    std::list<std::string> getSectionEntryNamesThatStartWith(const std::string &section_name,
+                                                             const std::string &starting_with) const;
+
+    /** \brief  Generates a map from a sections' entries to it's values.
+     *  \param  section_name  The name of the section whose map will be returned.
+     *  \return The mapping of entry names to values for the "section_name" section.
+     */
+    SectionContents getSection(const std::string &section_name) const;
+
+    bool sectionIsDefined(const std::string &section_name) const;
+    bool variableIsDefined(const std::string &section_name, const std::string &variable_name) const;
+
+    /** \brief  Generate an ini file name based upon the program name, i.e, programname.conf */
+    static std::string DefaultIniFileName();
 private:
-        unsigned &getCurrentLineNo() {
-            assert(not include_file_infos_.empty());
-            return include_file_infos_.top().current_lineno_;
-        }
+    unsigned &getCurrentLineNo() {
+        assert(not include_file_infos_.empty());
+        return include_file_infos_.top().current_lineno_;
+    }
 
-        const std::string &getCurrentFile() const {
-            assert(!include_file_infos_.empty());
-            return include_file_infos_.top().filename_;
-        }
+    const std::string &getCurrentFile() const {
+        assert(!include_file_infos_.empty());
+        return include_file_infos_.top().filename_;
+    }
 
-        void processSectionHeader(const std::string &line);
-        void processInclude(const std::string &line);
-        void processSectionEntry(const std::string &line);
-        void processFile(const std::string &filename);
+    void processSectionHeader(const std::string &line);
+    void processInclude(const std::string &line);
+    void processSectionEntry(const std::string &line);
+    void processFile(const std::string &filename);
 };
 
 

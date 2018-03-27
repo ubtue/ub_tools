@@ -75,6 +75,9 @@ public:
 
     //* \note Aborts if ""level_candidate" is not one of "ERROR", "WARNING", "INFO" or "DEBUG".
     static LogLevel StringToLogLevel(const std::string &level_candidate);
+
+    // \brief Returns a string representation of "log_level".
+    static std::string LogLevelToString(const LogLevel log_level);
 private:
     void writeString(std::string msg);
 };
