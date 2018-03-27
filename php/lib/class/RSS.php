@@ -42,15 +42,13 @@ class MetadataHarvester {
 
         // generate local copy of zts_client_maps
         $mapDir = \Zotero\MetadataHarvester::DIR_ZTS_CLIENT_MAPS;
-        $mapDirLocal = DIR_TMP . 'ZtsMap/';
-        if (!is_dir($mapDirLocal)) {
-            copy_recursive($mapDir, $mapDirLocal);
+        $mapDirLocal = DIR_TMP . 'ZtsMap_'. $uniqid . '/';
+        copy_recursive($mapDir, $mapDirLocal);
 
-            // reset previously_downloaded.hashes
-            $filePrevDownloaded = $mapDirLocal . 'previously_downloaded.hashes';
-            unlink($filePrevDownloaded);
-            symlink('/dev/null', $filePrevDownloaded);
-        }
+        // reset previously_downloaded.hashes
+        $filePrevDownloaded = $mapDirLocal . 'previously_downloaded.hashes';
+        unlink($filePrevDownloaded);
+        symlink('/dev/null', $filePrevDownloaded);
 
         $fileExtension = self::OUTPUT_FORMATS[$format];
         $outPath = DIR_TMP . $uniqid . '.' . $fileExtension;
