@@ -23,9 +23,9 @@ class MetadataHarvester {
      */
     const OUTPUT_FORMATS = [
         // custom formats
-        'json'              => 'json',
-        'marc21'            => 'mrc',
         'marcxml'           => 'xml',
+        'marc21'            => 'mrc',
+        'json'              => 'json',
 
         // native zotero formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
         'bibtex'            => 'bibtex',
