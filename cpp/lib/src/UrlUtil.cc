@@ -168,13 +168,11 @@ Blacklister::ReferenceCountedPerlCompatRegExp::~ReferenceCountedPerlCompatRegExp
 
 
 Blacklister::Blacklister(const std::string &config_filename, const bool indirect) {
-    if (indirect) { // We're dealing with an IniFile referening one or more Privoxy pattern files.
+    if (indirect) { // We're dealing with an IniFile referencing one or more Privoxy pattern files.
         IniFile ini_file(config_filename);
-        std::list<std::string> section_entry_names = ini_file.getSectionEntryNames("");
-        for (std::list<std::string>::const_iterator section_entry_name(section_entry_names.begin());
-             section_entry_name != section_entry_names.end(); ++section_entry_name)
-        {
-            std::string filename = ini_file.getString("", *section_entry_name);
+        const auto section_entry_names(ini_file.getSectionEntryNames(""));
+        for (auto &section_entry_name : section_entry_names) {
+            std::string filename = ini_file.getString("", section_entry_name);
             if (filename[0] != '/')
                 filename = std::string(ETC_DIR) + "/" + filename;
             processPrivoxyActionFile(filename);

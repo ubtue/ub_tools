@@ -605,10 +605,9 @@ const PerlCompatRegExps &Downloader::GetBannedUrlRegExps() {
     if (not initialised) {
         initialised = true;
         const IniFile ini_file(ETC_DIR "/BannedUrlRegExps.conf");
-        const std::list<std::string> entry_names(ini_file.getSectionEntryNames(""));
-        for (std::list<std::string>::const_iterator entry_name(entry_names.begin()); entry_name != entry_names.end();
-             ++entry_name)
-            ini_file_reg_exps.addPattern(ini_file.getString("", *entry_name));
+        const auto entry_names(ini_file.getSectionEntryNames(""));
+        for (const auto &entry_name : entry_names)
+            ini_file_reg_exps.addPattern(ini_file.getString("", entry_name));
     }
 
     return ini_file_reg_exps;
