@@ -72,7 +72,7 @@ bool Subfields::replaceFirstSubfield(const char subfield_code, const std::string
     return true;
 }
 
-    
+
 std::vector<std::string> Subfields::extractSubfieldsAndNumericSubfields(const std::string &subfield_spec) const {
     std::set<std::string> numeric_subfield_specs;
     std::string subfield_codes;
@@ -1237,11 +1237,13 @@ static std::unordered_map<Tag, bool> tag_to_repeatable_map{
     { Tag("110"), false },
     { Tag("111"), false },
     { Tag("130"), false },
+    { Tag("186"), true  }, // non-standard field only used locally
     { Tag("210"), true  },
     { Tag("222"), true  },
     { Tag("240"), false },
     { Tag("242"), true  },
     { Tag("243"), false },
+    { Tag("245"), false },
     { Tag("246"), true  },
     { Tag("247"), true  },
     { Tag("250"), true  },
@@ -1339,6 +1341,7 @@ static std::unordered_map<Tag, bool> tag_to_repeatable_map{
     { Tag("586"), true  },
     { Tag("588"), true  },
     { Tag("600"), true  },
+    { Tag("601"), true  }, // non-standard field only used locally
     { Tag("610"), true  },
     { Tag("611"), true  },
     { Tag("630"), true  },
@@ -1346,6 +1349,7 @@ static std::unordered_map<Tag, bool> tag_to_repeatable_map{
     { Tag("648"), true  },
     { Tag("650"), true  },
     { Tag("651"), true  },
+    { Tag("652"), false }, // non-standard field only used locally
     { Tag("653"), true  },
     { Tag("654"), true  },
     { Tag("655"), true  },
