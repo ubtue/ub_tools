@@ -57,18 +57,17 @@ void CollectMappings(MARC::Reader * const marc_reader,
     off_t last_offset(marc_reader->tell());
     while (const MARC::Record record = marc_reader->read()) {
         all_ppns.emplace(record.getControlNumber());
+        if (not record.isSerial())
+            continue;
+
         for (const auto &field : record.getTagRange("776")) {
             const MARC::Subfields _776_subfields(field.getSubfields());
             if (_776_subfields.getFirstSubfieldWithCode('i') == "Erscheint auch als") {
                 for (const auto &w_subfield : _776_subfields.extractSubfields('w')) {
                     if (StringUtil::StartsWith(w_subfield, "(DE-576)")) {
                         const std::string other_ppn(w_subfield.substr(__builtin_strlen("(DE-576)")));
-                        if (unlikely(record.getBibliographicLevel() != 's'))
-                            WARNING("record with PPN " + record.getControlNumber() + " is not a serial!");
-                        else {
-                            (*control_number_to_offset_map)[other_ppn] = last_offset;
-                            (*ppn_to_ppn_map)[other_ppn] = record.getControlNumber();
-                        }
+                        (*control_number_to_offset_map)[other_ppn] = last_offset;
+                        (*ppn_to_ppn_map)[other_ppn] = record.getControlNumber();
                     }
                 }
             }
