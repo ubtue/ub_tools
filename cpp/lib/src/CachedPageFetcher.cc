@@ -171,12 +171,11 @@ void CachedPageFetcher::ReadIniFile() {
     default_user_agent_package_ = ini_file.getString("User Agent", "default_package");
     default_user_agent_url_     = ini_file.getString("User Agent", "default_url");
 
-    const std::list<std::string> entrys(ini_file.getSectionEntryNames("TimeoutOverrides"));
-    for (std::list<std::string>::const_iterator entry(entrys.begin()); entry != entrys.end(); ++entry) {
-        if (std::strncmp("error_msg_pattern", entry->c_str(), 17) == 0) {
-            const unsigned timeout(static_cast<unsigned>(ini_file.getDouble("TimeoutOverrides", "timeout"
-                                                                            + entry->substr(17))));
-            timeout_overrides_.push_back(ini_file.getString("TimeoutOverrides", *entry), timeout);
+    const auto entries(ini_file.getSectionEntryNames("TimeoutOverrides"));
+    for (auto &entry : entries) {
+        if (std::strncmp("error_msg_pattern", entry.c_str(), 17) == 0) {
+            const unsigned timeout(static_cast<unsigned>(ini_file.getDouble("TimeoutOverrides", "timeout" + entry.substr(17))));
+            timeout_overrides_.push_back(ini_file.getString("TimeoutOverrides", entry), timeout);
         }
     }
 

@@ -7,6 +7,7 @@
 /*
  *  Copyright 2005-2008 Project iVia.
  *  Copyright 2005-2008 The Regents of The University of California.
+ *  Copyright 2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -135,9 +136,9 @@ Resolver::Resolver(const std::list<std::string> &dns_servers, const unsigned ver
         // Read DNS servers:
         if (not dns_servers_processed and ini_file.sectionIsDefined("DNS Servers")) {
             // Add each entry in the [DNS Servers] section of Resolver.conf:
-            const std::list<std::string> names(ini_file.getSectionEntryNames("DNS Servers"));
-            for (std::list<std::string>::const_iterator name(names.begin()); name != names.end(); ++name) {
-                const std::string ip_address_str(ini_file.getString("DNS Servers", *name));
+            const auto names(ini_file.getSectionEntryNames("DNS Servers"));
+            for (auto &name : names) {
+                const std::string ip_address_str(ini_file.getString("DNS Servers", name));
                 in_addr_t ip_address;
                 if (unlikely(not NetUtil::StringToNetworkAddress(ip_address_str, &ip_address)))
                     throw std::runtime_error("Resolver.conf: \"" + ip_address_str + "\""
@@ -850,9 +851,9 @@ SimpleResolver::SimpleResolver(const std::vector<std::string> &dns_servers) {
         // Read DNS servers:
         if (ini_file.sectionIsDefined("DNS Servers")) {
             // Add each entry in the [DNS Servers] section of Resolver.conf:
-            const std::list<std::string> names(ini_file.getSectionEntryNames("DNS Servers"));
-            for (std::list<std::string>::const_iterator name(names.begin()); name != names.end(); ++name) {
-                const std::string ip_address_str(ini_file.getString("DNS Servers", *name));
+            const auto names(ini_file.getSectionEntryNames("DNS Servers"));
+            for (const auto &name : names) {
+                const std::string ip_address_str(ini_file.getString("DNS Servers", name));
                 in_addr_t ip_address;
                 if (unlikely(not NetUtil::StringToNetworkAddress(ip_address_str, &ip_address)))
                     throw std::runtime_error("Resolver.conf: \"" + ip_address_str + "\""
