@@ -1,7 +1,8 @@
 /** \brief  A MARC-21 filter uliity that replace URNs in 856u-fields with URLs
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
+ *  \author Dr. Johannes Ruscheinski
  *
- *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,14 +21,12 @@
 #include <iostream>
 #include <string>
 #include <vector>
-
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
+#include "util.h"
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " [-v|--verbose] marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " [-v|--verbose] [--input-format=(marc-xml|marc-21)] marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -38,13 +37,9 @@ inline bool IsHttpOrHttpsURL(const std::string &url_candidate) {
 
 
 // Returns the number of extracted 856u subfields.
-size_t ExtractAllHttpOrHttps856uSubfields(const MarcRecord &record, std::vector<std::string> * const _856u_urls) {
-    std::vector<size_t> field_indices;
-    if (record.getFieldIndices("856", &field_indices) == 0)
-        return 0;
-
-    for (const auto field_index : field_indices) {
-        std::string _856u_subfield_value(record.extractFirstSubfield(field_index, 'u'));
+size_t ExtractAllHttpOrHttps856uSubfields(const MARC::Record &record, std::vector<std::string> * const _856u_urls) {
+    for (const auto &_856_field : record.getTagRange("856")) {
+        const std::string _856u_subfield_value(_856_field.getSubfields().getFirstSubfieldWithCode('u'));
         if (IsHttpOrHttpsURL(_856u_subfield_value))
             _856u_urls->emplace_back(_856u_subfield_value);
     }
@@ -81,9 +76,9 @@ bool IsSuffixOfAnyURL(const std::vector<std::string> &urls, const std::string &t
 }
 
 
-void NormaliseURLs(const bool verbose, MarcReader * const reader, MarcWriter * const writer) {
+void NormaliseURLs(const bool verbose, MARC::Reader * const reader, MARC::Writer * const writer) {
     unsigned count(0), modified_count(0), duplicate_skip_count(0);
-    while (MarcRecord record = reader->read()) {
+    while (MARC::Record record = reader->read()) {
         ++count;
 
         std::vector<std::string> _856u_urls;
@@ -92,21 +87,24 @@ void NormaliseURLs(const bool verbose, MarcReader * const reader, MarcWriter * c
         bool modified_record(false);
         std::unordered_set<std::string> already_seen_links;
 
-        std::vector<size_t> erase_field_indices;
-        for (size_t field_no(record.getFieldIndex("856")); record.getTag(field_no) == "856"; /* empty */) {
-            Subfields _856_subfields(record.getSubfields(field_no));
+        auto _856_field(record.findTag("856"));
+        while (_856_field != record.end() and _856_field->getTag() == "856") {
+            MARC::Subfields _856_subfields(_856_field->getSubfields());
             bool duplicate_link(false);
             if (_856_subfields.hasSubfield('u')) {
-                const std::string u_subfield(StringUtil::Trim(_856_subfields.getFirstSubfieldValue('u')));
+                const std::string u_subfield(StringUtil::Trim(_856_subfields.getFirstSubfieldWithCode('u')));
 
                 if (IsHttpOrHttpsURL(u_subfield)) {
                     if (already_seen_links.find(u_subfield) == already_seen_links.cend())
                         already_seen_links.insert(u_subfield);
                     else
                         duplicate_link = true;
-                } else if (IsSuffixOfAnyURL(_856u_urls, u_subfield) )
-                    erase_field_indices.emplace_back(field_no);
-                else {
+                } else if (IsSuffixOfAnyURL(_856u_urls, u_subfield)) {
+                    if (verbose)
+                        std::cout << "Dropped field w/ duplicate URL suffix. (" << u_subfield << ")";
+                    _856_field = record.erase(_856_field);
+                    continue;
+                } else {
                     std::string new_http_replacement_link;
                     if (StringUtil::StartsWith(u_subfield, "urn:"))
                         new_http_replacement_link = "https://nbn-resolving.org/" + u_subfield;
@@ -116,7 +114,7 @@ void NormaliseURLs(const bool verbose, MarcReader * const reader, MarcWriter * c
                     else
                         new_http_replacement_link = "http://" + u_subfield;
                     if (already_seen_links.find(new_http_replacement_link) == already_seen_links.cend()) {
-                        _856_subfields.replace('u', u_subfield, new_http_replacement_link);
+                        _856_subfields.replaceFirstSubfield('u', new_http_replacement_link);
                         if (verbose)
                             std::cout << "Replaced \"" << u_subfield << "\" with \"" << new_http_replacement_link
                                       << "\". (PPN: " << record.getControlNumber() << ")\n";
@@ -128,24 +126,14 @@ void NormaliseURLs(const bool verbose, MarcReader * const reader, MarcWriter * c
             }
 
             if (not duplicate_link)
-                ++field_no;
+                ++_856_field;
             else {
                 ++duplicate_skip_count;
                 if (verbose)
                     std::cout << "Skipping duplicate, control numbers is " << record.getControlNumber() << ".\n";
-                record.deleteField(field_no);
+                _856_field = record.erase(_856_field);
                 modified_record = true;
             }
-        }
-
-        if (not erase_field_indices.empty()) {
-            // We need to remove fields starting from the end of the record.
-            std::sort(erase_field_indices.begin(), erase_field_indices.end(), std::greater<size_t>());
-
-            for (const size_t field_index : erase_field_indices)
-                record.deleteField(field_index);
-
-            modified_record = true;
         }
 
         if (modified_record)
@@ -163,14 +151,33 @@ void NormaliseURLs(const bool verbose, MarcReader * const reader, MarcWriter * c
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 3 and argc != 4)
+    if (argc < 2)
         Usage();
 
-    bool verbose(std::strcmp("-v", argv[1]) == 0 or std::strcmp("--verbose", argv[1]) == 0);
+    const bool verbose(std::strcmp("-v", argv[1]) == 0 or std::strcmp("--verbose", argv[1]) == 0);
     if (verbose)
+        --argc, ++argv;
+
+    if (argc < 2)
+        Usage();
+
+    MARC::Reader::ReaderType reader_type(MARC::Reader::AUTO);
+    if (StringUtil::StartsWith(argv[1], "--input-format=")) {
+        if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
+            reader_type = MARC::Reader::BINARY;
+        else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
+            reader_type = MARC::Reader::XML;
+        else
+            ERROR("invalid reader type \"" + std::string(argv[1] + std::strlen("--input-format=")) + "\"!");
         ++argv;
-    std::unique_ptr <MarcReader> marc_reader(MarcReader::Factory(argv[1]));
-    std::unique_ptr <MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
+        --argc;
+    }
+
+    if (argc != 3)
+        Usage();
+
+    std::unique_ptr <MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1], reader_type));
+    std::unique_ptr <MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
     try {
         NormaliseURLs(verbose, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
