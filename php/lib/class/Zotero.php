@@ -23,9 +23,9 @@ class MetadataHarvester {
      */
     const OUTPUT_FORMATS = [
         // custom formats
-        'json'              => 'json',
-        'marc21'            => 'mrc',
         'marcxml'           => 'xml',
+        'marc21'            => 'mrc',
+        'json'              => 'json',
 
         // native zotero formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
         'bibtex'            => 'bibtex',
@@ -72,15 +72,13 @@ class MetadataHarvester {
 
         // generate local copy of zts_client_maps
         $dirMap = self::DIR_ZTS_CLIENT_MAPS;
-        $dirMapLocal = DIR_TMP . 'ZtsMap/';
-        if (!is_dir($dirMapLocal)) {
-            copy_recursive($dirMap, $dirMapLocal);
+        $dirMapLocal = DIR_TMP . 'ZtsMap_' . $uniqid . '/';
+        copy_recursive($dirMap, $dirMapLocal);
 
-            // reset previously_downloaded.hashes
-            $filePrevDownloaded = $dirMapLocal . 'previously_downloaded.hashes';
-            unlink($filePrevDownloaded);
-            symlink('/dev/null', $filePrevDownloaded);
-        }
+        // reset previously_downloaded.hashes
+        $filePrevDownloaded = $dirMapLocal . 'previously_downloaded.hashes';
+        unlink($filePrevDownloaded);
+        symlink('/dev/null', $filePrevDownloaded);
 
         $fileExtension = MetadataHarvester::OUTPUT_FORMATS[$format];
         $outPath = DIR_TMP . $uniqid . '.' . $fileExtension;

@@ -126,14 +126,14 @@ EndPhase || Abort) &
 
 
 StartPhase "Merge Print and Online Superior Records"
-(merge_print_and_online --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(merge_print_and_online --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-4))"-"${date}".mrc \
                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                         missing_ppn_partners.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
 StartPhase "Normalise URL's"
-(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-4))"-"${date}".mrc \
+(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
