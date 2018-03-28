@@ -64,32 +64,6 @@ bool IniFile::Section::lookup(const std::string &variable_name, std::string * co
 }
 
 
-unsigned IniFile::Section::getUnsigned(const std::string &variable_name) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
-        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
-
-    unsigned number;
-    if (not StringUtil::ToUnsigned(name_and_value->second, &number))
-        ERROR("invalid unsigned entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
-
-    return number;
-}
-
-
-uint64_t IniFile::Section::getUint64T(const std::string &variable_name) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
-        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
-
-    uint64_t number;
-    if (not StringUtil::ToUInt64T(name_and_value->second, &number))
-        ERROR("invalid uint64_t entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
-
-    return number;
-}
-
-
 long IniFile::Section::getInteger(const std::string &variable_name) const {
     const auto name_and_value(name_to_value_map_.find(variable_name));
     if (name_and_value == name_to_value_map_.end())
@@ -113,6 +87,143 @@ double IniFile::Section::getDouble(const std::string &variable_name) const {
         ERROR("invalid double entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
+}
+
+
+double IniFile::Section::getDouble(const std::string &variable_name, const double &default_value) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        return default_value;
+
+    double number;
+    if (not StringUtil::ToDouble(name_and_value->second, &number))
+        ERROR("invalid double entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    return number;
+}
+
+
+std::string IniFile::Section::getString(const std::string &variable_name) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    return name_and_value->second;
+}
+
+
+std::string IniFile::Section::getString(const std::string &variable_name, const std::string &default_value) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        return default_value;
+
+    return name_and_value->second;
+}
+
+
+char IniFile::Section::getChar(const std::string &variable_name) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    if (name_and_value->second.length() != 1)
+        throw std::runtime_error("invalid character variable value \"" + variable_name + "\" in section \""
+                                 + section_name_ + "\" (must be exactly one character in length)!");
+
+    return name_and_value->second[0];
+}
+
+
+char IniFile::Section::getChar(const std::string &variable_name, const char default_value) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        return default_value;
+
+    if (name_and_value->second.length() != 1)
+        throw std::runtime_error("invalid character variable value \"" + variable_name + "\" in section \""
+                                 + section_name_ + "\" (must be exactly one character in length)!");
+
+    return name_and_value->second[0];
+}
+
+
+unsigned IniFile::Section::getUnsigned(const std::string &variable_name) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    unsigned number;
+    if (not StringUtil::ToUnsigned(name_and_value->second, &number))
+        ERROR("invalid unsigned entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    return number;
+}
+
+
+unsigned IniFile::Section::getUnsigned(const std::string &variable_name, const unsigned &default_value) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        return default_value;
+
+    unsigned number;
+    if (not StringUtil::ToUnsigned(name_and_value->second, &number))
+        ERROR("invalid unsigned entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    return number;
+}
+
+
+uint64_t IniFile::Section::getUint64T(const std::string &variable_name) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    uint64_t number;
+    if (not StringUtil::ToUInt64T(name_and_value->second, &number))
+        ERROR("invalid uint64_t entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    return number;
+}
+
+
+uint64_t IniFile::Section::getUint64T(const std::string &variable_name, const uint64_t &default_value) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        return default_value;
+
+    uint64_t number;
+    if (not StringUtil::ToUInt64T(name_and_value->second, &number))
+        ERROR("invalid uint64_t entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    return number;
+}
+
+
+bool IniFile::Section::getBool(const std::string &variable_name) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    bool retval;
+    if (not StringUtil::ToBool(name_and_value->second, &retval))
+        ERROR("invalid boolean value in section \"" + section_name_ + "\", entry \"" + variable_name + "\" (bad value is \""
+              + name_and_value->second + "\")!");
+
+    return retval;
+}
+
+
+bool IniFile::Section::getBool(const std::string &variable_name, const bool default_value) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        return default_value;
+
+    bool retval;
+    if (not StringUtil::ToBool(name_and_value->second, &retval))
+        ERROR("invalid boolean value in section \"" + section_name_ + "\", entry \"" + variable_name + "\" (bad value is \""
+              + name_and_value->second + "\")!");
+
+    return retval;
 }
 
 
@@ -532,95 +643,67 @@ double IniFile::getDouble(const std::string &section_name, const std::string &va
 double IniFile::getDouble(const std::string &section_name, const std::string &variable_name,
                           const double &default_value) const
 {
-    std::string variable_value;
-    if (not lookup(section_name, variable_name, &variable_value))
+    const auto section(sections_.find(section_name));
+    if (section == sections_.end())
         return default_value;
 
-    errno = 0;
-    char *endp;
-    double number = std::strtod(variable_value.c_str(), &endp);
-    if (errno != 0 or *endp != '\0')
-        throw std::runtime_error("in IniFile::getDouble: invalid double-precision floating point number in \"" + variable_name
-                                 + "\" in section \"" + section_name + "\" in \"" + ini_file_name_ + "\"! (2)");
-
-    return number;
+    return section->second.getDouble(variable_name);
 }
 
 
 std::string IniFile::getString(const std::string &section_name, const std::string &variable_name) const {
-    std::string variable_value;
-    if (not lookup(section_name, variable_name, &variable_value))
-        throw std::runtime_error("in IniFile::getString: can't find \"" + variable_name + "\" in section \"" + section_name
-                                 + "\" in \"" + ini_file_name_ + "\"!");
+    const auto section(sections_.find(section_name));
+    if (section == sections_.end())
+        ERROR("no such section: \"" + section_name + "\"!");
 
-    return variable_value;
+    return section->second.getString(variable_name);
 }
 
 
 std::string IniFile::getString(const std::string &section_name, const std::string &variable_name,
                                const std::string &default_value) const
 {
-    std::string variable_value;
-    return lookup(section_name, variable_name, &variable_value) ? variable_value : default_value;
+    const auto section(sections_.find(section_name));
+    if (section == sections_.end())
+        return default_value;
+
+    return section->second.getString(variable_name, default_value);
 }
 
 
 char IniFile::getChar(const std::string &section_name, const std::string &variable_name) const {
-    std::string variable_value;
-    if (not lookup(section_name, variable_name, &variable_value))
-        throw std::runtime_error("can't find \"" + variable_name + "\" in section \"" + section_name
-                                 + "\" in \"" + ini_file_name_ + "\"!");
+    const auto section(sections_.find(section_name));
+    if (section == sections_.end())
+        ERROR("no such section: \"" + section_name + "\"!");
 
-    if (variable_value.length() != 1)
-        throw std::runtime_error("invalid character variable value \"" + variable_name + "\" in section \""
-                                 + section_name + "\"" " in \"" + ini_file_name_
-                                 + "\" (must be exactly one character in length)!");
-
-    return variable_value[0];
+    return section->second.getChar(variable_name);
 }
 
 
 char IniFile::getChar(const std::string &section_name, const std::string &variable_name, const char default_value) const {
-    std::string variable_value;
-    if (lookup(section_name, variable_name, &variable_value)) {
-        if (variable_value.length() != 1)
-            throw std::runtime_error("invalid character variable value \"" + variable_name + "\" in section \""
-                                     + section_name + "\"" " in \"" + ini_file_name_
-                                     + "\" (must be exactly one character in length)!");
-
-        return variable_value[0];
-    }
-    else
+    const auto section(sections_.find(section_name));
+    if (section == sections_.end())
         return default_value;
+
+    return section->second.getChar(variable_name);
 }
 
 
 bool IniFile::getBool(const std::string &section_name, const std::string &variable_name) const {
-    std::string variable_value;
-    if (not lookup(section_name, variable_name, &variable_value))
-        throw std::runtime_error("can't find \"" + variable_name + "\" in section \"" + section_name
-                                 + "\" in \"" + ini_file_name_ + "\"!");
+    const auto section(sections_.find(section_name));
+    if (section == sections_.end())
+        ERROR("no such section: \"" + section_name + "\"!");
 
-    bool retval;
-    if (not StringUtil::ToBool(variable_value, &retval))
-        throw std::runtime_error("in IniFile::getBool: invalid value in section \"" + section_name
-                                 + "\", entry \"" + variable_name + "\" (bad value is \"" + variable_value + "\")!");
-
-    return retval;
+    return section->second.getBool(variable_name);
 }
 
 
 bool IniFile::getBool(const std::string &section_name, const std::string &variable_name, const bool default_value) const {
-    std::string variable_value;
-    if (not lookup(section_name, variable_name, &variable_value))
-        return default_value;
+    const auto section(sections_.find(section_name));
+    if (section == sections_.end())
+         return default_value;
 
-    bool retval;
-    if (not StringUtil::ToBool(variable_value, &retval))
-        throw std::runtime_error("in IniFile::getBool: invalid value in section \"" + section_name
-                                 + "\", entry \"" + variable_name + "\" (bad value is \"" + variable_value + "\")!");
-
-    return retval;
+    return section->second.getBool(variable_name);
 }
 
 
