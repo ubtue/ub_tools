@@ -49,7 +49,7 @@ void Usage() {
 
 
 // Creates a map from the PPN "partners" to the offsets of the original records that had the links to the partners.
-void CollectMappings(MARC::Reader * const marc_reader,
+void CollectMappings(MARC::Reader * const marc_reader, File * const missing_partners,
                      std::unordered_map<std::string, off_t> * const control_number_to_offset_map,
                      std::unordered_map<std::string, std::string> * const ppn_to_ppn_map)
 {
@@ -79,11 +79,13 @@ void CollectMappings(MARC::Reader * const marc_reader,
     unsigned no_partner_count(0);
     auto control_number_and_offset(control_number_to_offset_map->begin());
     while (control_number_and_offset != control_number_to_offset_map->end()) {
-        if (all_ppns.find(control_number_and_offset->first) == all_ppns.end()) {
-            ++no_partner_count;
-            control_number_and_offset = control_number_to_offset_map->erase(control_number_and_offset);
-        } else
+        if (all_ppns.find(control_number_and_offset->first) != all_ppns.end())
             ++control_number_and_offset;
+        else {
+            ++no_partner_count;
+            missing_partners->write(control_number_and_offset->first + "\n");
+            control_number_and_offset = control_number_to_offset_map->erase(control_number_and_offset);
+        }
     }
 
     std::cout << "Found " << control_number_to_offset_map->size() << " superior record(s) that we may be able to merge.\n";
@@ -213,23 +215,34 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
 
 
 MARC::Record ReadRecordFromOffsetOrDie(MARC::Reader * const marc_reader, const off_t offset) {
+    const auto saved_offset(marc_reader->tell());
     if (unlikely(not marc_reader->seek(offset)))
         ERROR("can't seek to offset " + std::to_string(offset) + "!");
     MARC::Record record(marc_reader->read());
     if (unlikely(not record))
         ERROR("failed to read a record from offset " + std::to_string(offset) + "!");
 
+    if (unlikely(not marc_reader->seek(saved_offset)))
+        ERROR("failed to seek to previous position " + std::to_string(saved_offset) + "!");
+
     return record;
 }
 
 
-void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, File * const missing_partners,
+void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                     const std::unordered_map<std::string, off_t> &control_number_to_offset_map,
                     const std::unordered_map<std::string, std::string> &ppn_to_ppn_map)
 {
+    std::unordered_set<std::string> skip_ppns;
+    for (const auto &from_ppn_and_to_ppn : ppn_to_ppn_map)
+        skip_ppns.emplace(from_ppn_and_to_ppn.second);
+
     unsigned record_count(0), merged_count(0), augmented_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
+
+        if (skip_ppns.find(record.getControlNumber()) != skip_ppns.end())
+            continue;
 
         const auto control_number_and_offset(control_number_to_offset_map.find(record.getControlNumber()));
         if (control_number_and_offset != control_number_to_offset_map.end()) {
@@ -242,18 +255,9 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         marc_writer->write(record);
     }
 
-    // Process records for which we are missing the partner:
-    const unsigned missing_partner_count(control_number_to_offset_map.size());
-    for (const auto &control_number_and_offset : control_number_to_offset_map) {
-        missing_partners->write(control_number_and_offset.first + "\n");
-        const MARC::Record record(ReadRecordFromOffsetOrDie(marc_reader, control_number_and_offset.second));
-        marc_writer->write(record);
-    }
-
     std::cout << "Data set contained " << record_count << " MARC record(s).\n";
     std::cout << "Merged " << merged_count << " MARC record(s).\n";
     std::cout << "Augmented " << augmented_count << " MARC record(s).\n";
-    std::cout << "Wrote " << missing_partner_count << " missing partner PPN('s) to \"" << missing_partners->getPath() << "\".\n";
 }
 
 
@@ -353,10 +357,9 @@ int main(int argc, char *argv[]) {
     try {
         std::unordered_map<std::string, off_t> control_number_to_offset_map;
         std::unordered_map<std::string, std::string> ppn_to_ppn_map;
-        CollectMappings(marc_reader.get(), &control_number_to_offset_map, &ppn_to_ppn_map);
+        CollectMappings(marc_reader.get(), missing_partners.get(), &control_number_to_offset_map, &ppn_to_ppn_map);
         marc_reader->rewind();
-        ProcessRecords(marc_reader.get(), marc_writer.get(), missing_partners.get(), control_number_to_offset_map,
-                       ppn_to_ppn_map);
+        ProcessRecords(marc_reader.get(), marc_writer.get(), control_number_to_offset_map, ppn_to_ppn_map);
 
         std::string mysql_url;
         VuFind::GetMysqlURL(&mysql_url);
