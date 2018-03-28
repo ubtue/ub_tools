@@ -6,7 +6,7 @@
 /*
  *  Copyright 2005-2008 Project iVia.
  *  Copyright 2005-2008 The Regents of The University of California.
- *  Copyright 2015-2017 Library of the University of Tübingen
+ *  Copyright 2015-2018 Library of the University of Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -202,15 +202,7 @@ public:
     File &operator<<(File &(*f)(File &)) { return f(*this); } // Supports I/O manipulators taking 0 arguments.
 
     /** Resets the file pointer to the beginning of the file. */
-    inline void rewind() {
-        if (unlikely(file_ == nullptr))
-            throw std::runtime_error("in File::rewind: can't rewind a non-open file!");
-        std::rewind(file_);
-        if (open_mode_ != WRITING) {
-            read_count_ = 0;
-            buffer_ptr_ = buffer_;
-        }
-    }
+    void rewind();
 
     /** \brief  Flush all internal I/O buffers.
      *  \return True on success and false on failure.  Sets errno if there is a failure. */
