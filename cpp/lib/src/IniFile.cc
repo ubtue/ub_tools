@@ -41,6 +41,109 @@
 #include "util.h"
 
 
+void IniFile::Section::insert(const std::string &variable_name, const std::string &value,
+                              const DupeInsertionBehaviour dupe_insertion_behaviour)
+{
+    if (dupe_insertion_behaviour == ABORT_ON_DUPLICATE_NAME
+        and unlikely(name_to_value_map_.find(variable_name) != name_to_value_map_.end()))
+        ERROR("attemting to insert a duplicate variable name: \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    name_to_value_map_[variable_name] = value;
+}
+
+
+bool IniFile::Section::lookup(const std::string &variable_name, std::string * const s) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value != name_to_value_map_.end()) {
+        *s = name_and_value->second;
+        return true;
+    }
+
+    s->clear();
+    return false;
+}
+
+
+unsigned IniFile::Section::getUnsigned(const std::string &variable_name) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    unsigned number;
+    if (not StringUtil::ToUnsigned(name_and_value->second, &number))
+        ERROR("invalid unsigned entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    return number;
+}
+
+
+uint64_t IniFile::Section::getUint64T(const std::string &variable_name) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    uint64_t number;
+    if (not StringUtil::ToUInt64T(name_and_value->second, &number))
+        ERROR("invalid uint64_t entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    return number;
+}
+
+
+long IniFile::Section::getInteger(const std::string &variable_name) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    long number;
+    if (not StringUtil::ToNumber(name_and_value->second, &number))
+        ERROR("invalid long entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    return number;
+}
+
+
+double IniFile::Section::getDouble(const std::string &variable_name) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    double number;
+    if (not StringUtil::ToDouble(name_and_value->second, &number))
+        ERROR("invalid double entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    return number;
+}
+
+
+int IniFile::Section::getEnum(const std::string &variable_name, const std::map<std::string, int> &string_to_value_map) const {
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    const auto name_and_int_value(string_to_value_map.find(name_and_value->second));
+    if (name_and_int_value == string_to_value_map.end())
+        ERROR("in section \"" + section_name_ + "\": invalid enum value for entry \"" + variable_name + "\"!");
+
+    return name_and_int_value->second;
+}
+
+
+int IniFile::Section::getEnum(const std::string &variable_name,
+                              const std::map<std::string, int> &string_to_value_map, const int default_value) const
+{
+    const auto name_and_value(name_to_value_map_.find(variable_name));
+    if (name_and_value == name_to_value_map_.end())
+        return default_value;
+
+    const auto name_and_int_value(string_to_value_map.find(name_and_value->second));
+    if (name_and_int_value == string_to_value_map.end())
+        ERROR("in section \"" + section_name_ + "\": invalid enum value for entry \"" + variable_name + "\"!");
+
+    return name_and_int_value->second;
+}
+
+
 namespace {
 
 
@@ -158,19 +261,18 @@ void IniFile::processSectionHeader(const std::string &line) {
                                  + getCurrentFile() + "\"!");
 
     // if the current section
-    std::map<std::string, SectionContents>::const_iterator section =
-        sections_.find(current_section_name_);
+    const auto section(sections_.find(current_section_name_));
     if (section != sections_.end())
         throw std::runtime_error("in IniFile::processSectionHeader: duplicate section \""
                                  + current_section_name_  + "\" on line "
                                  + std::to_string(getCurrentLineNo()) + " in file \""
                                  + getCurrentFile() + "\"!");
-    sections_[current_section_name_] = SectionContents();
+    sections_[current_section_name_] = Section(current_section_name_);
 }
 
 
 void IniFile::processInclude(const std::string &line) {
-    const size_t equal_sign = line.find('=');
+    const size_t equal_sign(line.find('='));
     if (unlikely(equal_sign != std::string::npos))
         throw std::runtime_error("in IniFile::processInclude: unexpected '=' on line "
                                  + std::to_string(getCurrentLineNo()) + " in file \""
@@ -193,28 +295,27 @@ void IniFile::processInclude(const std::string &line) {
 namespace {
 
 
-    // IsValidVariableName -- only allow names that start with a letter followed by letters, digits,
-    // hyphens and underscores.
-    //
-    bool IsValidVariableName(const std::string &possible_variable_name) {
-        if (unlikely(possible_variable_name.empty()))
+// IsValidVariableName -- only allow names that start with a letter followed by letters, digits,
+// hyphens and underscores.
+//
+bool IsValidVariableName(const std::string &possible_variable_name) {
+    if (unlikely(possible_variable_name.empty()))
+        return false;
+
+    std::string::const_iterator ch(possible_variable_name.begin());
+
+    // Variable names must start with a letter...
+    if (not StringUtil::IsAsciiLetter(*ch))
+        return false;
+
+    // ...followed by letters, digits, hyphens, underscores, periods, slashes or colons:
+    for (++ch; ch != possible_variable_name.end(); ++ch) {
+        if (not StringUtil::IsAlphanumeric(*ch) and *ch != '-' and *ch != '_' and *ch != '.' and *ch != '/' and *ch != ':')
             return false;
-
-        std::string::const_iterator ch(possible_variable_name.begin());
-
-        // Variable names must start with a letter...
-        if (not StringUtil::IsAsciiLetter(*ch))
-            return false;
-
-        // ...followed by letters, digits, hyphens, underscores, periods, slashes or colons:
-        for (++ch; ch != possible_variable_name.end(); ++ch) {
-            if (not StringUtil::IsAlphanumeric(*ch) and *ch != '-' and *ch != '_' and *ch != '.' and *ch != '/'
-                and *ch != ':')
-                return false;
-        }
-
-        return true;
     }
+
+    return true;
+}
 
 
 } // unnamed namespace
@@ -231,8 +332,8 @@ void IniFile::processSectionEntry(const std::string &line) {
                                      + std::to_string(getCurrentLineNo()) + " in file \""
                                      + getCurrentFile() + "\"!");
 
-        SectionContents &section_contents = sections_[current_section_name_];
-        section_contents.push_back(std::make_pair(trimmed_line, "true"));
+        Section &section(sections_[current_section_name_]);
+        section.insert(trimmed_line, "true");
     } else {
         std::string variable_name(line.substr(0, equal_sign));
         StringUtil::Trim(" \t", &variable_name);
@@ -264,8 +365,8 @@ void IniFile::processSectionEntry(const std::string &line) {
             value = BackQuoteUnescape(value);
         }
 
-        SectionContents &section_contents = sections_[current_section_name_];
-        section_contents.push_back(std::make_pair(variable_name, value));
+        Section &section(sections_[current_section_name_]);
+        section.insert(variable_name, value);
     }
 }
 
@@ -328,46 +429,38 @@ void IniFile::assign(const IniFile &rhs, const bool clear) {
         sections_      = rhs.sections_;
         ini_file_name_ = rhs.ini_file_name_;
     } else {
-        for (std::map<std::string, SectionContents>::const_iterator pair(rhs.sections_.begin());
-             pair != rhs.sections_.end(); ++pair)
-        {
-            std::map<std::string, SectionContents>::iterator section_name_and_contents(sections_.find(pair->first));
+        for (auto &pair : rhs.sections_) {
+            const auto section_name_and_contents(sections_.find(pair.first));
             if (section_name_and_contents == sections_.end())
-                sections_.insert(*pair);
+                sections_.insert(pair);
             else { // The section already exists, therefore we have to be careful and override individual
                 // entries selectively!
 
                 // 1. Remember the section name so that we can later recreate it:
-                const std::string section_name(pair->first);
+                const std::string section_name(pair.first);
 
                 // 2. Create a map from names to values for the current entries of the section:
-                std::map<std::string, std::string> section_entries;
-                for (SectionContents::const_iterator name_and_value(
-                                                                    section_name_and_contents->second.begin());
-                     name_and_value != section_name_and_contents->second.end(); ++name_and_value)
-                    section_entries.insert(*name_and_value);
+                std::unordered_map<std::string, std::string> section_entries;
+                for (auto &name_and_value : section_name_and_contents->second)
+                    section_entries.insert(name_and_value);
 
                 // 3. Remove the section from the map of sections to entries:
                 sections_.erase(section_name_and_contents->first);
 
                 // 4. Override and add in name/value pairs from the rhs section:
-                for (SectionContents::const_iterator rhs_name_and_value(pair->second.begin());
-                     rhs_name_and_value != pair->second.end(); ++rhs_name_and_value)
-                {
+                for (auto &rhs_name_and_value : pair.second) {
                     // If the entry already exists, first erase it before inserting the new value:
-                    std::map<std::string, std::string>::iterator old_entry(
-                        section_entries.find(rhs_name_and_value->first));
+                    const auto old_entry(section_entries.find(rhs_name_and_value.first));
                     if (old_entry != section_entries.end())
                         section_entries.erase(old_entry);
-                    section_entries.insert(*rhs_name_and_value);
+                    section_entries.insert(rhs_name_and_value);
                 }
 
                 // 5. Restore the section, now with the overridden and new entries:
-                SectionContents new_section_contents;
-                for (std::map<std::string, std::string>::const_iterator entry(section_entries.begin());
-                     entry != section_entries.end(); ++entry)
-                    new_section_contents.push_back(*entry);
-                sections_.insert(std::make_pair(section_name, new_section_contents));
+                Section new_section(section_name);
+                for (auto &entry : section_entries)
+                    new_section.insert(entry.first, entry.second);
+                sections_[section_name] = new_section;
             }
         }
 
@@ -376,43 +469,21 @@ void IniFile::assign(const IniFile &rhs, const bool clear) {
 }
 
 
-bool IniFile::lookup(const std::string &section_name, const std::string &variable_name,
-                     std::string * const s) const
-{
-    s->clear();
-
-    std::map<std::string, SectionContents>::const_iterator section_contents
-        = sections_.find(section_name);
-    if (section_contents == sections_.end())
+bool IniFile::lookup(const std::string &section_name, const std::string &variable_name, std::string * const s) const {
+    const auto section(sections_.find(section_name));
+    if (section == sections_.end())
         return false;
 
-    for (SectionContents::const_iterator entry(section_contents->second.begin());
-         entry != section_contents->second.end(); ++entry)
-    {
-        if (entry->first == variable_name) {
-            *s = entry->second;
-            return true;
-        }
-    }
-
-    return false;
+    return section->second.lookup(variable_name, s);
 }
 
 
-unsigned IniFile::getUnsigned(const std::string &section_name, const std::string &variable_name) const
-{
-    std::string variable_value;
-    if (not lookup(section_name, variable_name, &variable_value))
-        throw std::runtime_error("can't find \"" + variable_name + "\" in section \"" + section_name
-                                 + "\" in \"" + ini_file_name_ + "\"!");
+unsigned IniFile::getUnsigned(const std::string &section_name, const std::string &variable_name) const {
+    const auto section(sections_.find(section_name));
+    if (section == sections_.end())
+        ERROR("no such section: \"" + section_name + "\"!");
 
-    errno = 0;
-    char *endp;
-    const unsigned number(static_cast<unsigned>(std::strtoul(variable_value.c_str(), &endp, 0)));
-    if (errno != 0 or *endp != '\0')
-        throw std::runtime_error("invalid unsigned number in \"" + variable_name + "\" in section \""
-                                 + section_name + "\" in \"" + ini_file_name_ + "\"!");
-    return number;
+    return section->second.getUnsigned(variable_name);
 }
 
 
@@ -423,20 +494,12 @@ unsigned IniFile::getUnsigned(const std::string &section_name, const std::string
 }
 
 
-uint64_t IniFile::getUint64T(const std::string &section_name, const std::string &variable_name) const
-{
-    std::string variable_value;
-    if (not lookup(section_name, variable_name, &variable_value))
-        throw std::runtime_error("can't find \"" + variable_name + "\" in section \""
-                                 + section_name + "\" in \"" + ini_file_name_ + "\"!");
+uint64_t IniFile::getUint64T(const std::string &section_name, const std::string &variable_name) const {
+    const auto section(sections_.find(section_name));
+    if (section == sections_.end())
+        ERROR("no such section: \"" + section_name + "\"!");
 
-    errno = 0;
-    char *endp;
-    const uint64_t number(std::strtoull(variable_value.c_str(), &endp, 0));
-    if (errno != 0 or *endp != '\0')
-        throw std::runtime_error("invalid uint64_t number in \"" + variable_name
-                                 + "\" in section \"" + section_name + "\" in \"" + ini_file_name_ + "\"!");
-    return number;
+    return section->second.getUint64T(variable_name);
 }
 
 
@@ -449,36 +512,20 @@ uint64_t IniFile::getUint64T(const std::string &section_name, const std::string 
 
 
 long IniFile::getInteger(const std::string &section_name, const std::string &variable_name) const {
-    std::string variable_value;
-    if (not lookup(section_name, variable_name, &variable_value))
-        throw std::runtime_error("can't find \"" + variable_name + "\" in section \""
-                                 + section_name + "\" in \"" + ini_file_name_ + "\"!");
+    const auto section(sections_.find(section_name));
+    if (section == sections_.end())
+        ERROR("no such section: \"" + section_name + "\"!");
 
-    errno = 0;
-    char *endp;
-    long number = std::strtol(variable_value.c_str(), &endp, 10);
-    if (errno != 0 or *endp != '\0')
-        throw std::runtime_error("in IniFile::getInteger: invalid integer in \"" + variable_name + "\" in section \""
-                                 + section_name + "\" in \"" + ini_file_name_ + "\"!");
-
-    return number;
+    return section->second.getInteger(variable_name);
 }
 
 
 double IniFile::getDouble(const std::string &section_name, const std::string &variable_name) const {
-    std::string variable_value;
-    if (not lookup(section_name, variable_name, &variable_value))
-        throw std::runtime_error("in IniFile::getDouble: can't find \"" + variable_name + "\" in section \"" + section_name
-                                 + "\" in \"" + ini_file_name_ + "\"!");
+    const auto section(sections_.find(section_name));
+    if (section == sections_.end())
+        ERROR("no such section: \"" + section_name + "\"!");
 
-    errno = 0;
-    char *endp;
-    double number = std::strtod(variable_value.c_str(), &endp);
-    if (errno != 0 or *endp != '\0')
-        throw std::runtime_error("in IniFile::getDouble: invalid double-precision floating point number in \"" + variable_name
-                                 + "\" in section \"" + section_name + "\" in \"" + ini_file_name_ + "\"! (1)");
-
-    return number;
+    return section->second.getDouble(variable_name);
 }
 
 
@@ -533,9 +580,7 @@ char IniFile::getChar(const std::string &section_name, const std::string &variab
 }
 
 
-char IniFile::getChar(const std::string &section_name, const std::string &variable_name,
-                      const char default_value) const
-{
+char IniFile::getChar(const std::string &section_name, const std::string &variable_name, const char default_value) const {
     std::string variable_value;
     if (lookup(section_name, variable_name, &variable_value)) {
         if (variable_value.length() != 1)
@@ -550,8 +595,7 @@ char IniFile::getChar(const std::string &section_name, const std::string &variab
 }
 
 
-bool IniFile::getBool(const std::string &section_name, const std::string &variable_name) const
-{
+bool IniFile::getBool(const std::string &section_name, const std::string &variable_name) const {
     std::string variable_value;
     if (not lookup(section_name, variable_name, &variable_value))
         throw std::runtime_error("can't find \"" + variable_name + "\" in section \"" + section_name
@@ -566,8 +610,7 @@ bool IniFile::getBool(const std::string &section_name, const std::string &variab
 }
 
 
-bool IniFile::getBool(const std::string &section_name, const std::string &variable_name, const bool default_value) const
-{
+bool IniFile::getBool(const std::string &section_name, const std::string &variable_name, const bool default_value) const {
     std::string variable_value;
     if (not lookup(section_name, variable_name, &variable_value))
         return default_value;
@@ -581,80 +624,47 @@ bool IniFile::getBool(const std::string &section_name, const std::string &variab
 }
 
 
-namespace {
-
-
-    class NameValuePairMatch { // Helper class for std::find() in IniFile::getEnum().
-        std::string name_;
-    public:
-        explicit NameValuePairMatch(const std::string &name)
-            : name_(name) { }
-        bool operator()(const std::pair<std::string, int> &name_and_value) { return name_and_value.first == name_; }
-    };
-
-
-} // unnamed namespace
-
-
 int IniFile::getEnum(const std::string &section_name, const std::string &variable_name,
-                     const std::list< std::pair<std::string, int> > &string_to_value_map) const
+                     const std::map<std::string, int> &string_to_value_map) const
 {
-    std::string variable_value;
-    if (not lookup(section_name, variable_name, &variable_value))
-        throw std::runtime_error("can't find \"" + variable_name + "\" in section \"" + section_name
-                                 + "\" in \"" + ini_file_name_ + "\"!");
+    const auto section(sections_.find(section_name));
+    if (section == sections_.end())
+        ERROR("no such section: \"" + section_name + "\"!");
 
-    const std::list< std::pair<std::string, int> >::const_iterator pair(
-        std::find_if(string_to_value_map.begin(), string_to_value_map.end(),
-                     NameValuePairMatch(variable_value)));
-    if (unlikely(pair == string_to_value_map.end()))
-        throw std::runtime_error("invalid value \"" + variable_value + "\" for \"" + variable_name
-                                 + "\" in section \"" + section_name + "\""" in \"" + ini_file_name_ + "\"!");
-
-    return pair->second;
+    return section->second.getEnum(variable_name, string_to_value_map);
 }
 
 
 int IniFile::getEnum(const std::string &section_name, const std::string &variable_name,
-                     const std::list< std::pair<std::string, int> > &string_to_value_map,
-                     const int default_value) const
+                     const std::map<std::string, int> &string_to_value_map, const int default_value) const
 {
-    std::string variable_value;
-    if (not lookup(section_name, variable_name, &variable_value))
+    const auto section(sections_.find(section_name));
+    if (section == sections_.end())
         return default_value;
 
-    const std::list< std::pair<std::string, int> >::const_iterator pair(
-        std::find_if(string_to_value_map.begin(), string_to_value_map.end(),
-                     NameValuePairMatch(variable_value)));
-    if (pair == string_to_value_map.end())
-        return default_value;
-
-    return pair->second;
+    return section->second.getEnum(variable_name, string_to_value_map, default_value);
 }
 
 
-std::list<std::string> IniFile::getSections() const {
-    std::list<std::string> result;
-    for (std::map<std::string, SectionContents>::const_iterator section(sections_.begin());
-         section != sections_.end(); ++section)
-        result.push_back(section->first);
+std::vector<std::string> IniFile::getSections() const {
+    std::vector<std::string> result;
+    for (const auto &section : sections_)
+        result.emplace_back(section.first);
 
     return result;
 }
 
 
-std::list<std::string> IniFile::getSectionEntryNames(const std::string &section_name) const {
-    std::map<std::string, SectionContents>::const_iterator section = sections_.find(section_name);
+std::vector<std::string> IniFile::getSectionEntryNames(const std::string &section_name) const {
+    const auto section(sections_.find(section_name));
     if (section != sections_.end()) {
-        std::list<std::string> entry_names;
-        for (SectionContents::const_iterator entry(section->second.begin()); entry != section->second.end();
-             ++entry)
-            entry_names.push_back(entry->first);
+        std::vector<std::string> entry_names;
+        for (const auto &entry : section->second)
+            entry_names.emplace_back(entry.first);
 
         return entry_names;
-    }
-    else
-        return std::list<std::string>(); // Empty list!
+    } else
+        return std::vector<std::string>(); // Empty vector!
 }
 
 
@@ -669,45 +679,45 @@ namespace {
 }
 
 
-std::list<std::string> IniFile::getSectionEntryNamesThatStartWith(const std::string &section_name,
-                                                                  const std::string &starting_with) const
+std::vector<std::string> IniFile::getSectionEntryNamesThatStartWith(const std::string &section_name,
+                                                                    const std::string &starting_with) const
 {
-    std::list<std::string> work_list(getSectionEntryNames(section_name));
+    std::vector<std::string> work_list(getSectionEntryNames(section_name));
     work_list.erase(std::remove_if(work_list.begin(), work_list.end(), StartsWith(starting_with)), work_list.end());
     return work_list;
 }
 
 
-std::list<std::string> IniFile::getSectionEntryValuesHavingNamesStartingWith(const std::string &section_name,
-                                                                             const std::string &starting_with) const
+std::vector<std::string> IniFile::getSectionEntryValuesHavingNamesStartingWith(const std::string &section_name,
+                                                                               const std::string &starting_with) const
 {
-    std::list<std::string> entry_values;
-
-    std::map<std::string, SectionContents>::const_iterator section = sections_.find(section_name);
+    std::vector<std::string> entry_values;
+    const auto section(sections_.find(section_name));
     if (section == sections_.end())
         return entry_values;
 
-    for (SectionContents::const_iterator entry(section->second.begin()); entry != section->second.end(); ++entry) {
-        if (entry->first.find(starting_with) == 0)
-            entry_values.push_back(entry->second);
+    for (const auto &entry : section->second) {
+        if (entry.first.find(starting_with) == 0)
+            entry_values.emplace_back(entry.second);
     }
 
     return entry_values;
 }
 
 
-IniFile::SectionContents IniFile::getSection(const std::string &section_name) const {
-    std::map<std::string, SectionContents>::const_iterator section = sections_.find(section_name);
+const IniFile::Section &IniFile::getSection(const std::string &section_name) const {
+    const auto section(sections_.find(section_name));
     if (section != sections_.end())
         return section->second;
-    else
-        return SectionContents();
+    else {
+        static Section empty_section("");
+        return empty_section;
+    }
 }
 
 
 bool IniFile::sectionIsDefined(const std::string &section_name) const {
-    std::map<std::string, SectionContents>::const_iterator section = sections_.find(section_name);
-    return section != sections_.end();
+    return sections_.find(section_name) != sections_.end();
 }
 
 
