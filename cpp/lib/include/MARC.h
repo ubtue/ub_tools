@@ -562,14 +562,14 @@ public:
     explicit BinaryReader(File * const input): Reader(input), last_record_(actualRead()), next_record_start_(0) { }
     virtual ~BinaryReader() = default;
 
-    virtual ReaderType getReaderType() final { return Reader::BINARY; }
-    virtual Record read() final;
-    virtual void rewind() final { input_->rewind(); }
+    virtual ReaderType getReaderType() override final { return Reader::BINARY; }
+    virtual Record read() override final;
+    virtual void rewind() override final { input_->rewind(); next_record_start_ = 0; last_record_ = Record(); }
 
     /** \return The file position of the start of the next record. */
-    virtual off_t tell() const override { return next_record_start_; }
+    virtual off_t tell() const override final { return next_record_start_; }
 
-    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) override;
+    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) override final;
 private:
     Record actualRead();
 };
@@ -592,12 +592,12 @@ public:
     }
     virtual ~XmlReader() = default;
 
-    virtual ReaderType getReaderType() final { return Reader::XML; }
-    virtual Record read() final;
-    virtual void rewind() final;
+    virtual ReaderType getReaderType() override final { return Reader::XML; }
+    virtual Record read() override final;
+    virtual void rewind() override final;
 
     /** \return The file position of the start of the next record. */
-    virtual inline off_t tell() const { return input_->tell(); }
+    virtual inline off_t tell() const override final { return input_->tell(); }
 private:
     void parseLeader(const std::string &input_filename, Record * const new_record);
     void parseControlfield(const std::string &input_filename, const std::string &tag, Record * const record);
@@ -639,15 +639,15 @@ public:
     BinaryWriter(File * const output): output_(output) { }
     virtual ~BinaryWriter() { delete output_; }
 
-    virtual void write(const Record &record) final;
+    virtual void write(const Record &record) override final;
 
     /** \return a reference to the underlying, associated file. */
-    virtual File &getFile() final { return *output_; }
+    virtual File &getFile() override final { return *output_; }
 
     /** \brief Flushes the buffers of the underlying File to the storage medium.
      *  \return True on success and false on failure.  Sets errno if there is a failure.
      */
-    virtual bool flush() { return output_->flush(); }
+    virtual bool flush() override final { return output_->flush(); }
 };
 
 
@@ -658,15 +658,15 @@ public:
                        const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion);
     virtual ~XmlWriter() final { delete xml_writer_; }
 
-    virtual void write(const Record &record) final;
+    virtual void write(const Record &record) override final;
 
     /** \return a reference to the underlying, assocaiated file. */
-    virtual File &getFile() final { return *xml_writer_->getAssociatedOutputFile(); }
+    virtual File &getFile() override final { return *xml_writer_->getAssociatedOutputFile(); }
 
     /** \brief Flushes the buffers of the underlying File to the storage medium.
      *  \return True on success and false on failure.  Sets errno if there is a failure.
      */
-    virtual bool flush() { return xml_writer_->flush(); }
+    virtual bool flush() override final { return xml_writer_->flush(); }
 };
 
 
