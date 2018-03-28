@@ -81,7 +81,6 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
-
 StartPhase "Drop Records Containing mtex in 935" \
            "\n\tFilter out Self-referential 856 Fields" \
            "\n\tRemove Sorting Chars From Title Subfields" \
@@ -125,12 +124,11 @@ EndPhase || Abort) &
 
 
 StartPhase "Merge Print and Online Superior Records"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (merge_print_and_online GesamtTiteldaten-post-phase"$((PHASE-4))"-"${date}".mrc \
                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                         missing_ppn_partners.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-
+wait
 
 StartPhase "Normalise URL's"
 (normalise_urls --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
