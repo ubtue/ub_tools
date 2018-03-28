@@ -479,6 +479,11 @@ public:
                             [&tag](const Field &field) -> bool { return field.getTag() == tag; });
     }
 
+    /** \brief Removes the element at pos
+     *  \return The iterator following pos.
+     */
+    inline iterator erase(const iterator pos) { return fields_.erase(pos); }
+
     /** \return True if field with tag "tag" exists. */
     inline bool hasTag(const Tag &tag) const { return findTag(tag) != fields_.cend(); }
 
