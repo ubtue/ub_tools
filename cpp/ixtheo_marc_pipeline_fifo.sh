@@ -125,6 +125,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Merge Print and Online Superior Records"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (merge_print_and_online GesamtTiteldaten-post-phase"$((PHASE-4))"-"${date}".mrc \
                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                         missing_ppn_partners.list >> "${log}" 2>&1 && \
