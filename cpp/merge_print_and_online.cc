@@ -55,10 +55,14 @@ void CollectMappings(MARC::Reader * const marc_reader, File * const missing_part
 {
     std::unordered_set<std::string> all_ppns;
     off_t last_offset(marc_reader->tell());
+    unsigned count(0);
     while (const MARC::Record record = marc_reader->read()) {
+        count++;
         all_ppns.emplace(record.getControlNumber());
-        if (not record.isSerial())
+        if (not record.isSerial()) {
+            last_offset = marc_reader->tell();
             continue;
+        }
 
         for (const auto &field : record.getTagRange("776")) {
             const MARC::Subfields _776_subfields(field.getSubfields());
@@ -88,8 +92,9 @@ void CollectMappings(MARC::Reader * const marc_reader, File * const missing_part
         }
     }
 
-    std::cout << "Found " << control_number_to_offset_map->size() << " superior record(s) that we may be able to merge.\n";
-    std::cout << "Found " <<  no_partner_count << " superior record(s) that have missing \"partners\".\n";
+    INFO("Found " + std::to_string(count) + " record(s).");
+    INFO("Found " + std::to_string(control_number_to_offset_map->size()) + " superior record(s) that we may be able to merge.");
+    INFO("Found " + std::to_string(no_partner_count) + " superior record(s) that have missing \"partners\".");
 }
 
 
@@ -175,7 +180,7 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
     auto record1_field(record1.begin());
 
     const auto record2_end_or_lok_start(record2.getFirstField("LOK"));
-    record2.sortFields(record1.begin(), record2_end_or_lok_start);
+    record2.sortFields(record2.begin(), record2_end_or_lok_start);
     auto record2_field(record2.begin());
 
     while (record1_field != record1_end_or_lok_start and record2_field != record2_end_or_lok_start) {
@@ -247,7 +252,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         const auto control_number_and_offset(control_number_to_offset_map.find(record.getControlNumber()));
         if (control_number_and_offset != control_number_to_offset_map.end()) {
             MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, control_number_and_offset->second));
-            record = MergeRecords(record, record2);
+            record2 = MergeRecords(record, record2);
             ++merged_count;
         } else if (PatchUplink(&record, ppn_to_ppn_map))
             ++augmented_count;
@@ -255,9 +260,9 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         marc_writer->write(record);
     }
 
-    std::cout << "Data set contained " << record_count << " MARC record(s).\n";
-    std::cout << "Merged " << merged_count << " MARC record(s).\n";
-    std::cout << "Augmented " << augmented_count << " MARC record(s).\n";
+    INFO("Data set contained " + std::to_string(record_count) + " MARC record(s).");
+    INFO("Merged " + std::to_string(merged_count) + " MARC record(s).");
+    INFO("Augmented " + std::to_string(augmented_count) + " MARC record(s).");
 }
 
 
