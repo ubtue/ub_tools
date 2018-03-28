@@ -78,11 +78,13 @@ void CollectMappings(MARC::Reader * const marc_reader,
     }
 
     unsigned no_partner_count(0);
-    for (auto &control_number_and_offset : *control_number_to_offset_map) {
-        if (all_ppns.find(control_number_and_offset.first) == all_ppns.end()) {
+    auto control_number_and_offset(control_number_to_offset_map->begin());
+    while (control_number_and_offset != control_number_to_offset_map->end()) {
+        if (all_ppns.find(control_number_and_offset->first) == all_ppns.end()) {
             ++no_partner_count;
-            control_number_to_offset_map->erase(control_number_and_offset.first);
-        }
+            control_number_and_offset = control_number_to_offset_map->erase(control_number_and_offset);
+        } else
+            ++control_number_and_offset;
     }
 
     std::cout << "Found " << control_number_to_offset_map->size() << " superior record(s) that we may be able to merge.\n";
