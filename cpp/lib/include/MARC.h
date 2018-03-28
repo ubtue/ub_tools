@@ -564,7 +564,7 @@ public:
 
     virtual ReaderType getReaderType() override final { return Reader::BINARY; }
     virtual Record read() override final;
-    virtual void rewind() override final { input_->rewind(); next_record_start_ = 0; last_record_ = Record(); }
+    virtual void rewind() override final { input_->rewind(); next_record_start_ = 0; last_record_ = actualRead(); }
 
     /** \return The file position of the start of the next record. */
     virtual off_t tell() const override final { return next_record_start_; }
