@@ -18,9 +18,6 @@ RUN /tmp/install_ubtools.sh ixtheo --omit-cronjobs --omit-systemctl
 # add local config
 ADD local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
 
-# TEMPORARY FIX for problem with PHP7.2, see vufind.org pull request #1156
-RUN rm -r /usr/local/vufind/vendor/zendframework/zend-mvc && cd /usr/local/vufind && composer update
-
 # build css
 RUN php /usr/local/vufind/util/cssBuilder.php
 
