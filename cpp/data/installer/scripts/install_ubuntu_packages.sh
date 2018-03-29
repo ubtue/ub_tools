@@ -42,7 +42,7 @@ if [[ $1 == "tuefind" ]]; then
         composer unzip openjdk-8-jdk \
         apache2 mysql-server \
         php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-xsl php-pear \
-        libapache2-mod-gnutls libapache2-mod-php
+        libapache2-mod-php
 
     # create /var/run/mysqld and change user (mysql installation right now has a bug not doing that itself)
     # (chown needs to be done after installation = after the user has been created)
