@@ -13,7 +13,7 @@ ENV JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
 RUN apt-get --yes update && apt-get --yes install curl
 RUN curl https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/scripts/install_ubtools.sh -o /tmp/install_ubtools.sh \
     && chmod 700 /tmp/install_ubtools.sh
-RUN /tmp/install_ubtools.sh krimdok --omit-cronjobs --omit-systemctl
+RUN /tmp/install_ubtools.sh ixtheo --omit-cronjobs --omit-systemctl
 
 # add local config
 ADD local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
@@ -35,7 +35,7 @@ RUN echo "mysqld_safe &" > /tmp/config \
     && echo "mysqladmin --silent --wait=30 ping || exit 1" >> /tmp/config \
     && echo "mysql -u root -e \"CREATE DATABASE vufind;\"" >> /tmp/config \
     && echo "mysql -u root vufind < /usr/local/vufind/module/VuFind/sql/mysql.sql" >> /tmp/config \
-    && echo "mysql -u root vufind < /usr/local/ub_tools/cpp/data/create_krimdok_full_text_cache_table.sql" >> /tmp/config \
+    && echo "mysql -u root vufind < /usr/local/vufind/module/IxTheo/sql/mysql.sql" >> /tmp/config \
     && echo "mysql -u root -e \"CREATE USER vufind@localhost IDENTIFIED BY 'vufind';\"" >> /tmp/config \
     && echo "mysql -u root -e \"GRANT ALL ON *.* TO vufind@localhost;\"" >> /tmp/config \
     && echo "mysql -u root -e \"FLUSH PRIVILEGES;\"" >> /tmp/config \
