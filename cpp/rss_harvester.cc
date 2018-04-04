@@ -44,6 +44,9 @@ namespace {
 enum Mode { VERBOSE, TEST, NORMAL };
 
 
+// Returns true if we can determine that the last_build_date column value stored in the rss_feeds table for the feed identified
+// by "feed_url" is no older than the "last_build_date" time_t passed into this function.  (This is somewhat complicated by the
+// fact that both, the column value as well as the time_t value may contain indeterminate values.)
 bool FeedContainsNoNewItems(const Mode mode, DbConnection * const db_connection, const std::string &feed_url,
                             const time_t last_build_date)
 {
@@ -102,10 +105,27 @@ void UpdateLastBuildDate(DbConnection * const db_connection, const std::string &
 }
 
 
+// Returns true if the item with item ID "item_id" and feed ID "feed_id" were found in the rss_items table, else
+// returns false.
+bool ItemAlreadyProcessed(DbConnection * const db_connection, const std::string &feed_id, const std::string &item_id) {
+    db_connection->queryOrDie("SELECT creation_datetime FROM rss_items WHERE feed_id='"
+                              + feed_id + "' AND item_id='" + db_connection->escapeString(item_id) + "'");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    if (result_set.empty())
+        return false;
+
+    if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG) {
+        const DbRow first_row(result_set.getNextRow());
+        DEBUG("Previously retrieved item w/ ID \"" + item_id + "\" at " + first_row["creation_datetime"] + ".");
+    }
+
+    return true;
+}
+
+
 unsigned ProcessSyndicationURL(const Mode mode, const std::string &feed_url,
                                const std::shared_ptr<Zotero::HarvestParams> harvest_params,
-                               const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps,
-                               DbConnection * const db_connection)
+                               const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps, DbConnection * const db_connection)
 {
     unsigned successfully_processed_count(0);
 
@@ -140,17 +160,8 @@ unsigned ProcessSyndicationURL(const Mode mode, const std::string &feed_url,
 
     const std::string feed_id(GetFeedID(mode, db_connection, feed_url));
     for (const auto &item : *syndication_format) {
-        if (mode != TEST) {
-            db_connection->queryOrDie("SELECT creation_datetime FROM rss_items WHERE feed_id='"
-                                      + feed_id + "' AND item_id='" + db_connection->escapeString(item.getId()) + "'");
-            DbResultSet result_set(db_connection->getLastResultSet());
-            if (not result_set.empty()) {
-                const DbRow first_row(result_set.getNextRow());
-                std::cout << "Previously retrieved item w/ ID \"" << item.getId() + "\" at " << first_row["creation_datetime"]
-                          << ".\n";
-                continue;
-            }
-        }
+        if (mode != TEST and ItemAlreadyProcessed(db_connection, feed_id, item.getId()))
+            continue;
 
         const std::string title(item.getTitle());
         if (not title.empty() and mode != NORMAL)
@@ -265,7 +276,7 @@ int main(int argc, char *argv[]) {
 
         harvest_params->format_handler_->finishProcessing();
 
-        logger->info("Extracted metadata from " + std::to_string(download_count) + " pages.");
+        INFO("Extracted metadata from " + std::to_string(download_count) + " page(s).");
     } catch (const std::exception &x) {
         ERROR("caught exception: " + std::string(x.what()));
     }
