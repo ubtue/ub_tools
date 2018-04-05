@@ -33,21 +33,20 @@ class DbResultSet {
     friend class DbConnection;
     MYSQL_RES *result_set_;
     sqlite3_stmt *stmt_handle_;
+    size_t no_of_rows_, column_count_;
     std::map<std::string, unsigned> field_name_to_index_map_;
 private:
     explicit DbResultSet(MYSQL_RES * const result_set);
-    explicit DbResultSet(sqlite3_stmt * const stmt_handle_);
+    explicit DbResultSet(sqlite3_stmt * const stmt_handle);
 public:
     DbResultSet(DbResultSet &&other);
     ~DbResultSet();
 
     /** \return The number of rows in the result set. */
-    inline size_t size() const
-        { return (result_set_ != nullptr) ? ::mysql_num_rows(result_set_) : ::sqlite3_data_count(stmt_handle_); }
+    inline size_t size() const { return no_of_rows_; }
 
     /** \return The number of columns in a row. */
-    inline unsigned getColumnCount() const
-        { return (result_set_ != nullptr) ? ::mysql_num_fields(result_set_) : ::sqlite3_column_count(stmt_handle_); }
+    inline size_t getColumnCount() const { return column_count_; }
 
     inline bool empty() const { return size() == 0; }
 
