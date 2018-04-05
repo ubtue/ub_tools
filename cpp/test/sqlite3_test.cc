@@ -1,0 +1,66 @@
+/** \brief Test program for interfacing to the Sqlite3 tables.
+ *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *
+ *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <cstdlib>
+#include "DbConnection.h"
+#include "util.h"
+
+
+void Usage() {
+    std::cerr << "usage: " << ::progname << '\n';
+    std::exit(EXIT_FAILURE);
+}
+
+
+int main(int argc, char *argv[]) {
+    ::progname = argv[0];
+
+    if (argc != 1)
+        Usage();
+
+    try {
+        DbConnection db_connection("/tmp/test.sq3", DbConnection::CREATE);
+        db_connection.queryOrDie(
+            "CREATE TABLE IF NOT EXISTS contacts ("
+            "    contact_id integer PRIMARY KEY,"
+            "    first_name TEXT NOT NULL,"
+            "    last_name TEXT NOT NULL,"
+            "    email TEXT NOT NULL UNIQUE,"
+            "    phone TEXT NOT NULL UNIQUE"
+            ");"
+        );
+
+        db_connection.queryOrDie("DELETE FROM contacts;");
+
+        db_connection.queryOrDie(
+            "INSERT INTO contacts"
+            "    (contact_id, first_name, last_name, email, phone)"
+            "VALUES"
+            "   (1, 'Fred', 'Flintstone', 'fred@example.com', '999-999-9999'),"
+            "   (2, 'Homer', 'Simpson', 'homer@example.com', '888-888-8888');"
+        );
+
+        db_connection.queryOrDie("SELECT contact_id, last_name FROM contacts;");
+        DbResultSet result_set(db_connection.getLastResultSet());
+    } catch (const std::exception &x) {
+        ERROR("caught exception: " + std::string(x.what()));
+    }
+}
