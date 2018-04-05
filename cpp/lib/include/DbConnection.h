@@ -75,8 +75,10 @@ public:
     inline unsigned getNoOfAffectedRows() const
         { return (type_ == T_MYSQL) ? ::mysql_affected_rows(&mysql_) : ::sqlite3_changes(db_handle_); }
 
-    /** Converts the binary contents of "unescaped_string" into a form that can used as a string (you still
-        need to add quotes around it) in SQL statements. */
+    /** \note Converts the binary contents of "unescaped_string" into a form that can used as a string (you still
+     *        need to add quotes around it which must be single quotes for Sqlite) in SQL statements.
+     *  \note This probably breaks for Sqlite if the string contains binary characters.
+     */
     std::string escapeString(const std::string &unescaped_string);
 private:
     void init(const std::string &database_name, const std::string &user, const std::string &passwd,

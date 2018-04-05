@@ -28,7 +28,7 @@
 #include "util.h"
 
 
-DbConnection::DbConnection(const std::string &mysql_url) {
+DbConnection::DbConnection(const std::string &mysql_url): db_handle_(nullptr), stmt_handle_(nullptr) {
     static RegexMatcher * const mysql_url_matcher(
         RegexMatcher::RegexMatcherFactory("mysql://([^:]+):([^@]+)@([^:/]+)(\\d+:)?/(.+)"));
     std::string err_msg;
@@ -51,7 +51,7 @@ DbConnection::DbConnection(const std::string &mysql_url) {
 }
 
 
-DbConnection::DbConnection(const std::string &database_path, const OpenMode open_mode): type_(T_SQLITE) {
+DbConnection::DbConnection(const std::string &database_path, const OpenMode open_mode): type_(T_SQLITE), stmt_handle_(nullptr) {
     int flags;
     switch (open_mode) {
     case READONLY:
@@ -77,8 +77,12 @@ DbConnection::~DbConnection() {
         if (type_ == T_MYSQL)
             ::mysql_close(&mysql_);
         else {
-            if (stmt_handle_ != nullptr and ::sqlite3_finalize(stmt_handle_) != SQLITE_OK)
-                ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ")");
+            if (stmt_handle_ != nullptr) {
+                const int result_code(::sqlite3_finalize(stmt_handle_));
+                if (result_code != SQLITE_OK)
+                    ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was "
+                          + std::to_string(result_code) + ")");
+            }
             if (::sqlite3_close(db_handle_) != SQLITE_OK)
                 ERROR("failed to cleanly close an Sqlite3 database!");
         }
@@ -94,13 +98,17 @@ bool DbConnection::query(const std::string &query_statement) {
     if (type_ == T_MYSQL)
         return ::mysql_query(&mysql_, query_statement.c_str()) == 0;
     else {
-        if (stmt_handle_ != nullptr and ::sqlite3_finalize(stmt_handle_) != SQLITE_OK)
-            ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ")");
+        if (stmt_handle_ != nullptr) {
+            const int result_code(::sqlite3_finalize(stmt_handle_));
+            if (result_code != SQLITE_OK)
+                ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was "
+                      + std::to_string(result_code) + ")");
+        }
         const char *rest;
         if (::sqlite3_prepare_v2(db_handle_, query_statement.c_str(), query_statement.length(), &stmt_handle_, &rest)
             != SQLITE_OK)
             return false;
-        if (rest != nullptr)
+        if (rest != nullptr and *rest != '\0')
             ERROR("junk after SQL statement (" + query_statement + "): \"" + std::string(rest) + "\"!");
         switch (::sqlite3_step(stmt_handle_)) {
         case SQLITE_DONE:
@@ -114,7 +122,7 @@ bool DbConnection::query(const std::string &query_statement) {
         default:
             return false;
         }
-        
+
         return true;
     }
 }
@@ -127,19 +135,38 @@ void DbConnection::queryOrDie(const std::string &query_statement) {
 
 
 DbResultSet DbConnection::getLastResultSet() {
-    MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
-    if (result_set == nullptr)
-        throw std::runtime_error("in DbConnection::getLastResultSet: mysql_store_result() failed! ("
-                                 + getLastErrorMessage() + ")");
+    if (db_handle_ == nullptr) {
+        MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
+        if (result_set == nullptr)
+            throw std::runtime_error("in DbConnection::getLastResultSet: mysql_store_result() failed! ("
+                                     + getLastErrorMessage() + ")");
 
-    return DbResultSet(result_set);
+        return DbResultSet(result_set);
+    } else {
+        const auto temp_handle(stmt_handle_);
+        stmt_handle_ = nullptr;
+        return DbResultSet(temp_handle);
+    }
 }
 
 
 std::string DbConnection::escapeString(const std::string &unescaped_string) {
     char * const buffer(reinterpret_cast<char * const>(std::malloc(unescaped_string.size() * 2 + 1)));
-    const size_t escaped_length(::mysql_real_escape_string(&mysql_, buffer, unescaped_string.data(),
-                                                           unescaped_string.size()));
+    size_t escaped_length;
+
+    if (db_handle_ == nullptr)
+        escaped_length = ::mysql_real_escape_string(&mysql_, buffer, unescaped_string.data(), unescaped_string.size());
+    else {
+        char *cp(buffer);
+        for (char ch : unescaped_string) {
+            if (ch == '\'')
+                *cp++ = '\'';
+            *cp++ = ch;
+        }
+
+        escaped_length = cp - buffer;
+    }
+
     const std::string escaped_string(buffer, escaped_length);
     std::free(buffer);
     return escaped_string;
