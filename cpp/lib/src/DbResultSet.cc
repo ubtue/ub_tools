@@ -22,21 +22,26 @@
 #include "util.h"
 
 
-DbResultSet::DbResultSet(MYSQL_RES * const result_set): result_set_(result_set), stmt_handle_(nullptr) {
+DbResultSet::DbResultSet(MYSQL_RES * const result_set)
+    : result_set_(result_set), stmt_handle_(nullptr), column_count_(::mysql_num_fields(result_set))
+{
     const MYSQL_FIELD * const fields(::mysql_fetch_fields(result_set_));
-    const int COLUMN_COUNT(::mysql_num_fields(result_set));
-    for (int col_no(0); col_no < COLUMN_COUNT; ++col_no)
+    for (unsigned col_no(0); col_no < column_count_; ++col_no)
         field_name_to_index_map_.insert(std::pair<std::string, unsigned>(fields[col_no].name, col_no));
+    no_of_rows_ = ::mysql_num_rows(result_set_);
 }
 
 
-DbResultSet::DbResultSet(sqlite3_stmt * const stmt_handle): result_set_(nullptr), stmt_handle_(stmt_handle) {
-    for (unsigned col_no(0); col_no < getColumnCount(); ++col_no) {
+DbResultSet::DbResultSet(sqlite3_stmt * const stmt_handle)
+    : result_set_(nullptr), stmt_handle_(stmt_handle), column_count_(::sqlite3_column_count(stmt_handle))
+{
+    for (unsigned col_no(0); col_no < column_count_; ++col_no) {
         const char * const column_name(::sqlite3_column_name(stmt_handle_, col_no));
         if (column_name == nullptr)
             ERROR("sqlite3_column_name() failed for index " + std::to_string(col_no) + "!");
         field_name_to_index_map_.insert(std::pair<std::string, unsigned>(column_name, col_no));
     }
+    no_of_rows_ = ::sqlite3_data_count(stmt_handle_);
     if (::sqlite3_reset(stmt_handle_) != SQLITE_OK)
         ERROR("sqlite3_reset failed!");
 }
@@ -75,7 +80,7 @@ DbRow DbResultSet::getNextRow() {
         default:
             ERROR("an unknown error occurred while calling sqlite3_step()!");
         }
-        
+
         return DbRow(stmt_handle_, field_name_to_index_map_);
     } else {
         const MYSQL_ROW row(::mysql_fetch_row(result_set_));

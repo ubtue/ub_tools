@@ -60,6 +60,13 @@ int main(int argc, char *argv[]) {
 
         db_connection.queryOrDie("SELECT contact_id, last_name FROM contacts;");
         DbResultSet result_set(db_connection.getLastResultSet());
+        if (result_set.empty())
+            std::cout << "Result set is empty!\n";
+        else {
+            std::cout << "Result set contains " << result_set.size() << " rows.\n";
+            while (DbRow row = result_set.getNextRow())
+                std::cout << "contact_id=" << row["contact_id"] << ", first_name=" << row["first_name"] << '\n';
+        }
     } catch (const std::exception &x) {
         ERROR("caught exception: " + std::string(x.what()));
     }
