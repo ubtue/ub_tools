@@ -51,9 +51,38 @@ DbConnection::DbConnection(const std::string &mysql_url) {
 }
 
 
+DbConnection::DbConnection(const std::string &database_path, const OpenMode open_mode): type_(T_SQLITE) {
+    int flags;
+    switch (open_mode) {
+    case READONLY:
+        flags = SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX;
+        break;
+    case READWRITE:
+        flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX;
+        break;
+    case CREATE:
+        flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX;
+        break;
+    }
+
+    if (::sqlite3_open_v2(database_path.c_str(), &db_handle_, flags, nullptr) != SQLITE_OK)
+        ERROR("failed to create or open an Sqlite3 database with path \"" + database_path + "\"!");
+    stmt_handle_ = nullptr;
+    initialised_ = true;
+}
+
+
 DbConnection::~DbConnection() {
-    if (initialised_)
-        ::mysql_close(&mysql_);
+    if (initialised_) {
+        if (type_ == T_MYSQL)
+            ::mysql_close(&mysql_);
+        else {
+            if (stmt_handle_ != nullptr and ::sqlite3_finalize(stmt_handle_) != SQLITE_OK)
+                ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ")");
+            if (::sqlite3_close(db_handle_) != SQLITE_OK)
+                ERROR("failed to cleanly close an Sqlite3 database!");
+        }
+    }
 }
 
 
@@ -62,13 +91,38 @@ bool DbConnection::query(const std::string &query_statement) {
         FileUtil::AppendString("/usr/local/var/log/tuefind/sql_debug.log",
                                std::string(::progname) + ": " +  query_statement);
 
-    return ::mysql_query(&mysql_, query_statement.c_str()) == 0;
+    if (type_ == T_MYSQL)
+        return ::mysql_query(&mysql_, query_statement.c_str()) == 0;
+    else {
+        if (stmt_handle_ != nullptr and ::sqlite3_finalize(stmt_handle_) != SQLITE_OK)
+            ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ")");
+        const char *rest;
+        if (::sqlite3_prepare_v2(db_handle_, query_statement.c_str(), query_statement.length(), &stmt_handle_, &rest)
+            != SQLITE_OK)
+            return false;
+        if (rest != nullptr)
+            ERROR("junk after SQL statement (" + query_statement + "): \"" + std::string(rest) + "\"!");
+        switch (::sqlite3_step(stmt_handle_)) {
+        case SQLITE_DONE:
+        case SQLITE_OK:
+            if (::sqlite3_finalize(stmt_handle_) != SQLITE_OK)
+                ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ")");
+            stmt_handle_ = nullptr;
+            break;
+        case SQLITE_ROW:
+            break;
+        default:
+            return false;
+        }
+        
+        return true;
+    }
 }
 
 
 void DbConnection::queryOrDie(const std::string &query_statement) {
     if (not query(query_statement))
-        logger->error("in DbConnection::queryOrDie: \"" + query_statement + "\" failed: " + getLastErrorMessage());
+        ERROR("in DbConnection::queryOrDie: \"" + query_statement + "\" failed: " + getLastErrorMessage());
 }
 
 
@@ -110,4 +164,3 @@ void DbConnection::init(const std::string &database_name, const std::string &use
 
     initialised_ = true;
 }
-

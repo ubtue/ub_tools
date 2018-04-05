@@ -23,22 +23,35 @@
 
 #include <string>
 #include <mysql/mysql.h>
+#include <sqlite3.h>
 #include "DbResultSet.h"
 #include "util.h"
 
 
 class DbConnection {
+public:
+    enum Type { T_MYSQL, T_SQLITE };
+private:
+    Type type_;
+    sqlite3 *db_handle_;
+    sqlite3_stmt *stmt_handle_;
     mutable MYSQL mysql_;
     bool initialised_;
 public:
+    enum OpenMode { READONLY, READWRITE, CREATE };
+public:
     DbConnection(const std::string &database_name, const std::string &user, const std::string &passwd = "",
                  const std::string &host = "localhost", const unsigned port = MYSQL_PORT)
-        { init(database_name, user, passwd, host, port); }
+        { type_ = T_MYSQL; init(database_name, user, passwd, host, port); }
+
+    DbConnection(const std::string &database_path, const OpenMode open_mode);
 
     /** \brief Attemps to parse something like "mysql://ruschein:xfgYu8z@localhost:3345/vufind" */
     DbConnection(const std::string &mysql_url);
 
     virtual ~DbConnection();
+
+    inline Type getType() const { return type_; }
 
     /** \note If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be
      *        logged to /usr/local/var/log/tuefind/sql_debug.log.
@@ -52,13 +65,15 @@ public:
     void queryOrDie(const std::string &query_statement);
 
     DbResultSet getLastResultSet();
-    std::string getLastErrorMessage() const { return ::mysql_error(&mysql_); }
+    inline std::string getLastErrorMessage() const
+        { return (type_ == T_MYSQL) ? ::mysql_error(&mysql_) : ::sqlite3_errmsg(db_handle_); }
 
     /** \return The the number of rows changed, deleted, or inserted by the last statement if it was an UPDATE,
      *          DELETE, or INSERT.
      *  \note   Must be called immediately after calling "query()".
      */
-    unsigned getNoOfAffectedRows() const { return ::mysql_affected_rows(&mysql_); }
+    inline unsigned getNoOfAffectedRows() const
+        { return (type_ == T_MYSQL) ? ::mysql_affected_rows(&mysql_) : ::sqlite3_changes(db_handle_); }
 
     /** Converts the binary contents of "unescaped_string" into a form that can used as a string (you still
         need to add quotes around it) in SQL statements. */
