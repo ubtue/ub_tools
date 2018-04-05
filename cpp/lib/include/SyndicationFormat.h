@@ -24,6 +24,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <ctime>
 
 
 // Forward declaration:
@@ -77,12 +78,17 @@ protected:
     StringDataSource *data_source_;
     SimpleXmlParser<StringDataSource> *xml_parser_;
     std::string title_, link_, description_, id_;
+    time_t last_build_date_;
 protected:
     SyndicationFormat(const std::string &xml_document);
 public:
     virtual ~SyndicationFormat();
 
     virtual std::string getFormatName() const = 0;
+
+    /** \return The last time the content of the channel changed or -1 if we do not have this information. */
+    inline time_t getLastBuildDate() const { return last_build_date_; }
+
     inline const std::string &getTitle() const { return title_; }
     inline const std::string &getLink() const { return link_; }
     inline const std::string &getDescription() const { return description_; }
@@ -92,7 +98,7 @@ public:
 
     // \return an instance of a subclass of SyndicationFormat on success or a nullptr upon failure.
     static std::unique_ptr<SyndicationFormat> Factory(const std::string &xml_document, std::string * const err_msg);
-protected:    
+protected:
     virtual std::unique_ptr<Item> getNextItem() = 0;
 };
 
@@ -103,7 +109,7 @@ public:
     virtual ~RSS20() final { }
 
     virtual std::string getFormatName() const override { return "RSS 2.0"; }
-protected:    
+protected:
     virtual std::unique_ptr<Item> getNextItem() override;
 };
 
@@ -114,7 +120,7 @@ public:
     virtual ~RSS091() final { }
 
     virtual std::string getFormatName() const override { return "RSS 0.91"; }
-protected:    
+protected:
     virtual std::unique_ptr<Item> getNextItem() override;
 };
 
@@ -136,7 +142,7 @@ public:
     virtual ~RDF() final { }
 
     virtual std::string getFormatName() const override { return "RDF"; }
-protected:    
+protected:
     virtual std::unique_ptr<Item> getNextItem() override;
 };
 
