@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
         else {
             std::cout << "Result set contains " << result_set.size() << " rows.\n";
             while (DbRow row = result_set.getNextRow())
-                std::cout << "contact_id=" << row["contact_id"] << ", first_name=" << row["first_name"] << '\n';
+                std::cout << "contact_id=" << row["contact_id"] << ", last_name=" << row["last_name"] << '\n';
         }
     } catch (const std::exception &x) {
         ERROR("caught exception: " + std::string(x.what()));
