@@ -1,0 +1,27 @@
+CREATE TABLE IF NOT EXISTS rss_feeds (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    feed_url VARCHAR(512) NOT NULL,
+    last_build_date DATETIME NOT NULL,
+    last_modified DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS rss_feeds_ids_index ON rss_feeds(id);
+CREATE INDEX IF NOT EXISTS rss_feeds_feed_url_index ON rss_feeds(feed_url);
+
+
+CREATE TRIGGER IF NOT EXISTS [UpdateLastModified]
+    AFTER UPDATE
+    ON rss_feeds
+    FOR EACH ROW
+    WHEN NEW.last_modified < OLD.last_modified --- this avoid infinite loop
+BEGIN
+    UPDATE rss_feeds SET last_modified=CURRENT_TIMESTAMP WHERE id=OLD.id
+END;
+
+
+CREATE TABLE IF NOT EXISTS contacts (
+    contact_id integer PRIMARY KEY,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    phone TEXT NOT NULL UNIQUE
+);
