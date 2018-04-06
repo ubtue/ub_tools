@@ -143,6 +143,8 @@ enum ParseState { NORMAL, IN_DOUBLE_DASH_COMMENT, IN_C_STYLE_COMMENT, IN_STRING_
 
 
 // A helper function for SplitSqliteStatements().
+// CREATE TRIGGER statements end with a semicolon followed by END.  As we usually treat semicolons as statement
+// separators we need special handling for this case.
 void AddStatement(const std::string &statement_candidate, std::vector<std::string> * const individual_statements) {
     static RegexMatcher *create_trigger_matcher(
         RegexMatcher::FactoryOrDie("^CREATE\\s+(TEMP|TEMPORARY)?\\s+TRIGGER",
