@@ -19,6 +19,7 @@
  */
 #include "DbConnection.h"
 #include <stdexcept>
+#include <vector>
 #include <cstdlib>
 #include "FileUtil.h"
 #include "MiscUtil.h"
@@ -104,6 +105,7 @@ bool DbConnection::query(const std::string &query_statement) {
                 ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was "
                       + std::to_string(result_code) + ")");
         }
+
         const char *rest;
         if (::sqlite3_prepare_v2(db_handle_, query_statement.c_str(), query_statement.length(), &stmt_handle_, &rest)
             != SQLITE_OK)
@@ -134,11 +136,104 @@ void DbConnection::queryOrDie(const std::string &query_statement) {
 }
 
 
+namespace {
+
+
+enum ParseState { NORMAL, IN_DOUBLE_DASH_COMMENT, IN_C_STYLE_COMMENT, IN_STRING_CONSTANT };
+
+
+// A helper function for SplitSqliteStatements().
+void AddStatement(const std::string &statement_candidate, std::vector<std::string> * const individual_statements) {
+    static RegexMatcher *create_trigger_matcher(
+        RegexMatcher::FactoryOrDie("^CREATE\\s+(TEMP|TEMPORARY)?\\s+TRIGGER",
+                                   RegexMatcher::ENABLE_UTF8 | RegexMatcher::CASE_INSENSITIVE));
+
+    if (individual_statements->empty())
+        individual_statements->emplace_back(statement_candidate);
+    else if (::strcasecmp(statement_candidate.c_str(), "END") == 0 or ::strcasecmp(statement_candidate.c_str(), "END;") == 0) {
+        if (individual_statements->empty() or not create_trigger_matcher->matched(individual_statements->back()))
+            individual_statements->emplace_back(statement_candidate);
+        else
+            individual_statements->back() += statement_candidate;
+    }
+}
+
+    
+// Splits a compound Sqlite SQL statement into individual statements and eliminates comments.
+void SplitSqliteStatements(const std::string &compound_statement, std::vector<std::string> * const individual_statements) {
+
+    ParseState parse_state(NORMAL);
+    std::string current_statement;
+    char last_ch('\0');
+    for (const char ch : compound_statement) {
+        if (parse_state == IN_DOUBLE_DASH_COMMENT) {
+            if (ch == '\n')
+                parse_state = NORMAL;
+        } else if (parse_state == IN_C_STYLE_COMMENT) {
+            if (ch == '/' and last_ch == '*')
+                parse_state = NORMAL;
+        } else if (parse_state == IN_STRING_CONSTANT) {
+            if (ch == '\'')
+                parse_state = NORMAL;
+            current_statement += ch;
+        } else { // state == NORMAL
+            if (ch == '-' and last_ch == '-') {
+                current_statement.resize(current_statement.size() - 1); // Remove the trailing dash.
+                parse_state = IN_DOUBLE_DASH_COMMENT;
+            } else if (ch == '*' and last_ch == '/') {
+                current_statement.resize(current_statement.size() - 1); // Remove the trailing slash.
+                parse_state = IN_C_STYLE_COMMENT;
+            } else if (ch == ';') {
+                StringUtil::TrimWhite(&current_statement);
+                if (not current_statement.empty()) {
+                    current_statement += ';';
+                    AddStatement(current_statement, individual_statements);
+                    current_statement.clear();
+                }
+            } else if (ch == '\'') {
+                parse_state = IN_STRING_CONSTANT;
+                current_statement += ch;
+            } else
+                current_statement += ch;
+        }
+
+        last_ch = ch;
+    }
+
+    if (parse_state == IN_C_STYLE_COMMENT)
+        ERROR("unterminated C-style comment in SQL statement sequence: \"" + compound_statement + "\"!");
+    else if (parse_state == IN_STRING_CONSTANT)
+        ERROR("unterminated string constant in SQL statement sequence: \"" + compound_statement + "\"!");
+    else if (parse_state == NORMAL) {
+        StringUtil::TrimWhite(&current_statement);
+        if (not current_statement.empty()) {
+            current_statement += ';';
+            AddStatement(current_statement, individual_statements);
+        }
+    }
+}
+
+
+} // unnamed namespace
+
+
 bool DbConnection::queryFile(const std::string &filename) {
     std::string statements;
     if (not FileUtil::ReadString(filename, &statements))
         ERROR("failed to read \"" + filename + "\"!");
-    return query(StringUtil::TrimWhite(&statements));
+
+    if (type_ == T_MYSQL)
+        return query(StringUtil::TrimWhite(&statements));
+    else {
+        std::vector<std::string> individual_statements;
+        SplitSqliteStatements(statements, &individual_statements);
+        for (const auto &statement : individual_statements) {
+            if (not query(statement))
+                return false;
+        }
+
+        return true;
+    }
 }
 
 
@@ -146,7 +241,15 @@ void DbConnection::queryFileOrDie(const std::string &filename) {
     std::string statements;
     if (not FileUtil::ReadString(filename, &statements))
         ERROR("failed to read \"" + filename + "\"!");
-    return queryOrDie(StringUtil::TrimWhite(&statements));
+
+    if (type_ == T_MYSQL)
+        return queryOrDie(StringUtil::TrimWhite(&statements));
+    else {
+        std::vector<std::string> individual_statements;
+        SplitSqliteStatements(statements, &individual_statements);
+        for (const auto &statement : individual_statements)
+            queryOrDie(statement);
+    }
 }
 
 
