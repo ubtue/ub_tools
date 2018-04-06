@@ -64,6 +64,20 @@ public:
      */
     void queryOrDie(const std::string &query_statement);
 
+    /** \brief Reads SQL statements from "filename" and executes them.
+     *  \note  Aborts if "filename" can't be read.
+     *  \note  If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be
+     *         logged to /usr/local/var/log/tuefind/sql_debug.log.
+     */
+    bool queryFile(const std::string &filename);
+
+    /** \brief Reads SQL statements from "filename" and executes them.
+     *  \note  Aborts printing an error message to stderr if an error occurred.
+     *  \note  If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be
+     *         logged to /usr/local/var/log/tuefind/sql_debug.log.
+     */
+    void queryFileOrDie(const std::string &filename);
+
     DbResultSet getLastResultSet();
     inline std::string getLastErrorMessage() const
         { return (type_ == T_MYSQL) ? ::mysql_error(&mysql_) : ::sqlite3_errmsg(db_handle_); }

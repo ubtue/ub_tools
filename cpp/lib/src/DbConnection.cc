@@ -134,6 +134,22 @@ void DbConnection::queryOrDie(const std::string &query_statement) {
 }
 
 
+bool DbConnection::queryFile(const std::string &filename) {
+    std::string statements;
+    if (not FileUtil::ReadString(filename, &statements))
+        ERROR("failed to read \"" + filename + "\"!");
+    return query(statements);
+}
+
+
+void DbConnection::queryFileOrDie(const std::string &filename) {
+    std::string statements;
+    if (not FileUtil::ReadString(filename, &statements))
+        ERROR("failed to read \"" + filename + "\"!");
+    return queryOrDie(statements);
+}
+
+
 DbResultSet DbConnection::getLastResultSet() {
     if (db_handle_ == nullptr) {
         MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
