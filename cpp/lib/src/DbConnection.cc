@@ -138,7 +138,7 @@ bool DbConnection::queryFile(const std::string &filename) {
     std::string statements;
     if (not FileUtil::ReadString(filename, &statements))
         ERROR("failed to read \"" + filename + "\"!");
-    return query(StringUtil::Trim(&statements));
+    return query(StringUtil::TrimWhite(&statements));
 }
 
 
@@ -146,7 +146,7 @@ void DbConnection::queryFileOrDie(const std::string &filename) {
     std::string statements;
     if (not FileUtil::ReadString(filename, &statements))
         ERROR("failed to read \"" + filename + "\"!");
-    return queryOrDie(StringUtil::Trim(&statements));
+    return queryOrDie(StringUtil::TrimWhite(&statements));
 }
 
 
