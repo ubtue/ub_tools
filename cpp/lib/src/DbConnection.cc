@@ -163,7 +163,6 @@ void AddStatement(const std::string &statement_candidate, std::vector<std::strin
     
 // Splits a compound Sqlite SQL statement into individual statements and eliminates comments.
 void SplitSqliteStatements(const std::string &compound_statement, std::vector<std::string> * const individual_statements) {
-
     ParseState parse_state(NORMAL);
     std::string current_statement;
     char last_ch('\0');
