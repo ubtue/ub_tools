@@ -28,7 +28,8 @@ apt-get --quiet --yes --allow-unauthenticated install \
     curl wget \
     ant cifs-utils clang cron gcc git locales-all make sudo \
     ca-certificates libarchive-dev libboost-all-dev libcurl4-gnutls-dev libkyotocabinet-dev liblept5 libleptonica-dev liblz4-tool libmagic-dev libmysqlclient-dev libpcre3-dev libpoppler73 libssl-dev libtesseract-dev libtokyocabinet-dev libwebp6 libxml2-dev libxml2-utils mawk poppler-utils uuid-dev \
-    tesseract-ocr tesseract-ocr-bul tesseract-ocr-ces tesseract-ocr-dan tesseract-ocr-deu tesseract-ocr-eng tesseract-ocr-fin tesseract-ocr-fra tesseract-ocr-heb tesseract-ocr-hun tesseract-ocr-ita tesseract-ocr-lat tesseract-ocr-nld tesseract-ocr-nor tesseract-ocr-pol tesseract-ocr-por tesseract-ocr-rus tesseract-ocr-script-grek tesseract-ocr-slv tesseract-ocr-spa tesseract-ocr-swe
+    tesseract-ocr tesseract-ocr-bul tesseract-ocr-ces tesseract-ocr-dan tesseract-ocr-deu tesseract-ocr-eng tesseract-ocr-fin tesseract-ocr-fra tesseract-ocr-heb tesseract-ocr-hun tesseract-ocr-ita tesseract-ocr-lat tesseract-ocr-nld tesseract-ocr-nor tesseract-ocr-pol tesseract-ocr-por tesseract-ocr-rus tesseract-ocr-script-grek tesseract-ocr-slv tesseract-ocr-spa tesseract-ocr-swe \
+    libsqlite3-dev
 
 #---------------------------------- TUEFIND ---------------------------------#
 if [[ $1 == "tuefind" ]]; then
