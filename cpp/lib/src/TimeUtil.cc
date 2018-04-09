@@ -571,6 +571,71 @@ bool ParseRFC1123DateTime(const std::string &date_time_candidate, time_t * const
 }
 
 
+// If time_offset refers to a valid RFC 3339 time offset, we adjust *date_time for it and return true.
+// O/w we set *date_time to BAD_TIME_T and return false.
+static bool AdjustForTimeOffset(time_t * const date_time, const char * const time_offset) {
+    if (std::strlen(time_offset) != 6 /* sign + mm:ss */ or time_offset[3] != ':' or not StringUtil::IsDigit(time_offset[1])
+        or not StringUtil::IsDigit(time_offset[2]) or not StringUtil::IsDigit(time_offset[4])
+        or not StringUtil::IsDigit(time_offset[5]))
+    {
+        *date_time = BAD_TIME_T;
+        return false;
+    }
+
+    int offset(0);
+    offset += (time_offset[1] - '0') * 36000; // tens of hours
+    offset += (time_offset[2] - '0') *  3600; // hours
+    offset += (time_offset[4] - '0') *   600; // tens of minutes
+    offset += (time_offset[5] - '0') *    60; // minutes
+
+    if (time_offset[0] == '+')
+        *date_time -= offset;
+    else
+        *date_time += offset;
+
+    return true;
+}
+
+
+bool ParseRFC3339DateTime(const std::string &date_time_candidate, time_t * const date_time) {
+    // Convert possible lowercase t and z to uppercase:
+    const std::string normalised_date_time_candidate(StringUtil::ToUpper(date_time_candidate));
+
+    struct tm tm;
+    std::memset(&tm, '\0', sizeof tm);
+    time_t rounded_second_offset;
+    const char *cp(::strptime(normalised_date_time_candidate.c_str(), "%Y-%m-%dT%H:%M:%S", &tm));
+    if (cp == nullptr) {
+        *date_time = BAD_TIME_T;
+        return false;
+    }
+    if (*cp != '.')
+        rounded_second_offset = 0;
+    else { // Handle optional single-digit fractional second.
+        ++cp;
+        if (not StringUtil::IsDigit(*cp)) {
+            *date_time = BAD_TIME_T;
+            return false;
+        }
+        rounded_second_offset = (*cp >= '5') ? 1 : 0;
+        while (StringUtil::IsDigit(*cp))
+            ++cp;
+    }
+
+    // If the input format is correct cp now either points to the final Z or the sign of the optional time offset.
+    if (*cp == 'Z') {
+        *date_time = TimeGm(tm) + rounded_second_offset;
+        return true;
+    } else if (*cp == '+' or *cp == '-') {
+        *date_time = TimeGm(tm) + rounded_second_offset;
+        return AdjustForTimeOffset(date_time, cp);
+    } else {
+        *date_time = BAD_TIME_T;
+        return false;
+    }
+}
+
+
 std::string StructTmToString(const struct tm &tm) {
     std::string tm_as_string;
     tm_as_string += "tm_sec: " + std::to_string(tm.tm_sec);

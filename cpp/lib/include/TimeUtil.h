@@ -245,6 +245,14 @@ std::string GetCurrentYear(const TimeZone time_zone = LOCAL);
 bool ParseRFC1123DateTime(const std::string &date_time_candidate, time_t * const date_time);
 
 
+/** \brief Parses a date/time in RFC3339/ISO8601 date and time format.
+ *  \note The returned time is UTC time.
+ *  \note If an error occurred we return false and set "*date_time" to BAD_TIME_T.
+ *  \note On success we set *date_time to the nearest second of the date/time.
+ */
+bool ParseRFC3339DateTime(const std::string &date_time_candidate, time_t * const date_time);
+
+
 // Debugging aid.
 std::string StructTmToString(const struct tm &tm);
 
