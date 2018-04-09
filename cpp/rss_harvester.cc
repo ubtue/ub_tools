@@ -155,10 +155,10 @@ unsigned ProcessSyndicationURL(const Mode mode, const std::string &feed_url,
         std::cout << "\tDescription: " << syndication_format->getDescription() << '\n'; 
    }
 
-    if (FeedContainsNoNewItems(mode, db_connection, feed_url, last_build_date))
+    if (mode != TEST and FeedContainsNoNewItems(mode, db_connection, feed_url, last_build_date))
         return successfully_processed_count;
 
-    const std::string feed_id(GetFeedID(mode, db_connection, feed_url));
+    const std::string feed_id(mode == TEST ? "" : GetFeedID(mode, db_connection, feed_url));
     for (const auto &item : *syndication_format) {
         if (mode != TEST and ItemAlreadyProcessed(db_connection, feed_id, item.getId()))
             continue;
@@ -257,12 +257,15 @@ int main(int argc, char *argv[]) {
         harvest_params->format_handler_ = Zotero::FormatHandler::Factory(GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE,
                                                                          harvest_maps, harvest_params);
 
-        const IniFile ini_file(CONF_FILE_PATH);
-        const std::string sql_database(ini_file.getString("Database", "sql_database"));
-        const std::string sql_username(ini_file.getString("Database", "sql_username"));
-        const std::string sql_password(ini_file.getString("Database", "sql_password"));
-        std::unique_ptr<DbConnection> db_connection(new DbConnection(sql_database, sql_username, sql_password));
-
+        std::unique_ptr<DbConnection> db_connection;
+        if (mode != TEST) {
+            const IniFile ini_file(CONF_FILE_PATH);
+            const std::string sql_database(ini_file.getString("Database", "sql_database"));
+            const std::string sql_username(ini_file.getString("Database", "sql_username"));
+            const std::string sql_password(ini_file.getString("Database", "sql_password"));
+            db_connection.reset(new DbConnection(sql_database, sql_username, sql_password));
+        }
+        
         harvest_params->format_handler_->prepareProcessing();
 
         Zotero::MarcFormatHandler * const marc_format_handler(reinterpret_cast<Zotero::MarcFormatHandler *>(
