@@ -152,8 +152,8 @@ unsigned ProcessSyndicationURL(const Mode mode, const std::string &feed_url,
         if (last_build_date != TimeUtil::BAD_TIME_T)
             std::cout << "\tLast build date: " << TimeUtil::TimeTToUtcString(last_build_date) << '\n';
         std::cout << "\tLink: " << syndication_format->getLink() << '\n';
-        std::cout << "\tDescription: " << syndication_format->getDescription() << '\n';
-    }
+        std::cout << "\tDescription: " << syndication_format->getDescription() << '\n'; 
+   }
 
     if (FeedContainsNoNewItems(mode, db_connection, feed_url, last_build_date))
         return successfully_processed_count;

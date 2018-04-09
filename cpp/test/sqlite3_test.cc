@@ -38,15 +38,7 @@ int main(int argc, char *argv[]) {
 
     try {
         DbConnection db_connection("/tmp/test.sq3", DbConnection::CREATE);
-        db_connection.queryOrDie(
-            "CREATE TABLE IF NOT EXISTS contacts ("
-            "    contact_id integer PRIMARY KEY,"
-            "    first_name TEXT NOT NULL,"
-            "    last_name TEXT NOT NULL,"
-            "    email TEXT NOT NULL UNIQUE,"
-            "    phone TEXT NOT NULL UNIQUE"
-            ");"
-        );
+        db_connection.queryFileOrDie("sqlite3_test.sq3");
 
         db_connection.queryOrDie("DELETE FROM contacts;");
 
