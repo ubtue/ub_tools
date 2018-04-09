@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS rss_feeds (
     last_build_date DATETIME NOT NULL,
     last_modified DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS rss_feeds_ids_index ON rss_feeds(id);
+CREATE UNIQUE INDEX IF NOT EXISTS rss_feeds_ids_index ON rss_feeds(id);
 CREATE INDEX IF NOT EXISTS rss_feeds_feed_url_index ON rss_feeds(feed_url);
 
 
