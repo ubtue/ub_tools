@@ -43,7 +43,8 @@ bool SyndicationFormat::const_iterator::operator==(const SyndicationFormat::cons
 
 
 SyndicationFormat::SyndicationFormat(const std::string &xml_document)
-    : data_source_(new StringDataSource(xml_document)), xml_parser_(new SimpleXmlParser<StringDataSource>(data_source_))
+    : data_source_(new StringDataSource(xml_document)), xml_parser_(new SimpleXmlParser<StringDataSource>(data_source_)),
+      last_build_date_(TimeUtil::BAD_TIME_T)
 {
 }
 
@@ -150,13 +151,17 @@ RSS20::RSS20(const std::string &xml_document): SyndicationFormat(xml_document) {
             if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "image")))
                 throw std::runtime_error("in RSS20::RSS20: closing image tag not found!");
         }
-
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "title")
             title_ = ExtractText(xml_parser_, "title", " (RSS20::RSS20)");
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link")
             link_ = ExtractText(xml_parser_, "link", " (RSS20::RSS20)");
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "description")
             description_ = ExtractText(xml_parser_, "description", " (RSS20::RSS20)");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "lastBuildDate") {
+            const std::string last_build_date(ExtractText(xml_parser_, "lastBuildDate", " (RSS20::RSS20)"));
+            if (not TimeUtil::ParseRFC1123DateTime(last_build_date, &last_build_date_))
+                ERROR("failed to parse \"" + last_build_date + "\" as an RFC1123 datetime!");
+        }
     }
     if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
         throw std::runtime_error("in RSS20::RSS20: found XML error: " + xml_parser_->getLastErrorMessage());
@@ -196,24 +201,28 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
 
 
 RSS091::RSS091(const std::string &xml_document): SyndicationFormat(xml_document) {
-    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "title")))
-        throw std::runtime_error("in RSS091::RSS091: opening \"title\" tag not found!");
-
     SimpleXmlParser<StringDataSource>::Type type;
     std::map<std::string, std::string> attrib_map;
-    if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &title_) or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
-        throw std::runtime_error("in RSS091::RSS091: title characters not found!");
-
-    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "link")))
-        throw std::runtime_error("in RSS091::RSS091: opening \"link\" tag not found!");
-    if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &link_) or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
-        throw std::runtime_error("in RSS091::RSS091: link characters not found!");
-
-    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "description")))
-        throw std::runtime_error("in RSS091::RSS091: opening \"description\" tag not found!");
-    if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &description_)
-                 or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
-        throw std::runtime_error("in RSS091::RSS091: description characters not found!");
+    std::string data;
+    while (xml_parser_->getNext(&type, &attrib_map, &data)) {
+        if (unlikely(type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT))
+            throw std::runtime_error("in RSS091::RSS091: unexpected end-of-document!");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "item")
+            return;
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "title")
+            title_ = ExtractText(xml_parser_, "title", " (RSS091::RSS091)");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link")
+            link_ = ExtractText(xml_parser_, "link", " (RSS091::RSS091)");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "description")
+            description_ = ExtractText(xml_parser_, "description", " (RSS091::RSS091)");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "lastBuildDate") {
+            const std::string last_build_date(ExtractText(xml_parser_, "lastBuildDate", " (RSS091::RSS091)"));
+            if (not TimeUtil::ParseRFC1123DateTime(last_build_date, &last_build_date_))
+                ERROR("failed to parse \"" + last_build_date + "\" as an RFC1123 datetime!");
+        }
+    }
+    if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
+        throw std::runtime_error("in RSS091::RSS091: found XML error: " + xml_parser_->getLastErrorMessage());
 }
 
 
@@ -243,24 +252,28 @@ std::unique_ptr<SyndicationFormat::Item> RSS091::getNextItem() {
 
 
 Atom::Atom(const std::string &xml_document): SyndicationFormat(xml_document) {
-    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "title")))
-        throw std::runtime_error("in Atom::Atom: opening \"title\" tag not found!");
-
     SimpleXmlParser<StringDataSource>::Type type;
     std::map<std::string, std::string> attrib_map;
-    if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &title_) or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
-        throw std::runtime_error("in Atom::Atom: title characters not found!");
-
-    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "link")))
-        throw std::runtime_error("in Atom::Atom: opening \"link\" tag not found!");
-    if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &link_) or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
-        throw std::runtime_error("in Atom::Atom: link characters not found!");
-
-    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "description")))
-        throw std::runtime_error("in Atom::Atom: opening \"description\" tag not found!");
-    if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &description_)
-                 or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
-        throw std::runtime_error("in Atom::Atom: description characters not found!");
+    std::string data;
+    while (xml_parser_->getNext(&type, &attrib_map, &data)) {
+        if (unlikely(type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT))
+            throw std::runtime_error("in Atom::Atom: unexpected end-of-document!");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "item")
+            return;
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "title")
+            title_ = ExtractText(xml_parser_, "title", " (Atom::Atom)");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link")
+            link_ = ExtractText(xml_parser_, "link", " (Atom::Atom)");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "description")
+            description_ = ExtractText(xml_parser_, "description", " (Atom::Atom)");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "updated") {
+            const std::string last_build_date(ExtractText(xml_parser_, "updated", " (Atom::Atom)"));
+            if (not TimeUtil::ParseRFC3339DateTime(last_build_date, &last_build_date_))
+                ERROR("failed to parse \"" + last_build_date + "\" as an RFC3339 datetime!");
+        }
+    }
+    if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
+        throw std::runtime_error("in Atom::Atom: found XML error: " + xml_parser_->getLastErrorMessage());
 }
 
 
@@ -282,7 +295,7 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link")
             link = ExtractText(xml_parser_, "link");
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "id")
-            id = ExtractText(xml_parser_, "id", " (RSS20::getNextItem)");
+            id = ExtractText(xml_parser_, "id", " (Atom::getNextItem)");
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "updated") {
             const std::string updated_string(ExtractText(xml_parser_, "updated"));
             updated = TimeUtil::Iso8601StringToTimeT(updated_string, TimeUtil::UTC);
@@ -340,7 +353,7 @@ RDF::RDF(const std::string &xml_document): SyndicationFormat(xml_document) {
             return;
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "image") {
             if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, rss_namespace_ + "image")))
-                throw std::runtime_error("in RSS20::RSS20: closing image tag not found!");
+                throw std::runtime_error("in RDF::RDF: closing image tag not found!");
         } else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "title")
             title_ = ExtractText(xml_parser_, rss_namespace_ + "title");
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "link")
@@ -349,7 +362,7 @@ RDF::RDF(const std::string &xml_document): SyndicationFormat(xml_document) {
             description_ = ExtractText(xml_parser_, rss_namespace_ + "description");
     }
     if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
-        throw std::runtime_error("in RSS20::RSS20: found XML error: " + xml_parser_->getLastErrorMessage());
+        throw std::runtime_error("in RDF::RDF: found XML error: " + xml_parser_->getLastErrorMessage());
 }
 
 
