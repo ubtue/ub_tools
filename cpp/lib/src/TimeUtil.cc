@@ -584,7 +584,7 @@ static bool AdjustForTimeOffset(time_t * const date_time, const char * const tim
 
     int offset(0);
     offset += (time_offset[1] - '0') * 36000; // tens of hours
-    offset += (time_offset[2] - '0') *  3600; // hourse
+    offset += (time_offset[2] - '0') *  3600; // hours
     offset += (time_offset[4] - '0') *   600; // tens of minutes
     offset += (time_offset[5] - '0') *    60; // minutes
 
