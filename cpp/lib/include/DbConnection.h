@@ -33,7 +33,7 @@ public:
     enum Type { T_MYSQL, T_SQLITE };
 private:
     Type type_;
-    sqlite3 *db_handle_;
+    sqlite3 *sqlite3_;
     sqlite3_stmt *stmt_handle_;
     mutable MYSQL mysql_;
     bool initialised_;
@@ -80,14 +80,14 @@ public:
 
     DbResultSet getLastResultSet();
     inline std::string getLastErrorMessage() const
-        { return (type_ == T_MYSQL) ? ::mysql_error(&mysql_) : ::sqlite3_errmsg(db_handle_); }
+        { return (type_ == T_MYSQL) ? ::mysql_error(&mysql_) : ::sqlite3_errmsg(sqlite3_); }
 
     /** \return The the number of rows changed, deleted, or inserted by the last statement if it was an UPDATE,
      *          DELETE, or INSERT.
      *  \note   Must be called immediately after calling "query()".
      */
     inline unsigned getNoOfAffectedRows() const
-        { return (type_ == T_MYSQL) ? ::mysql_affected_rows(&mysql_) : ::sqlite3_changes(db_handle_); }
+        { return (type_ == T_MYSQL) ? ::mysql_affected_rows(&mysql_) : ::sqlite3_changes(sqlite3_); }
 
     /** \note Converts the binary contents of "unescaped_string" into a form that can used as a string (you still
      *        need to add quotes around it which must be single quotes for Sqlite) in SQL statements.
