@@ -998,6 +998,23 @@ static std::string DecodeUnicodeEscapeSequence(std::string::const_iterator &ch, 
 
 
 // Helper function for CStyleUnescape().
+static char DecodeHexadecimalEscapeSequence(std::string::const_iterator &ch, const std::string::const_iterator &end) {
+    ++ch;
+    if (unlikely(ch == end))
+        ERROR("missing first hex nibble at end of string!");
+    std::string hex_string(1, *ch++);
+    if (unlikely(ch == end))
+        ERROR("missing second hex nibble at end of string!");
+    hex_string += *ch;
+    unsigned byte;
+    if (unlikely(not StringUtil::ToNumber(hex_string, &byte, 16)))
+        ERROR("bad hex escape \"\\x" + hex_string + "\"!");
+
+    return static_cast<char>(byte);
+}
+
+
+// Helper function for CStyleUnescape().
 static char DecodeOctalEscapeSequence(std::string::const_iterator &ch, const std::string::const_iterator &end) {
     unsigned code(0), count(0);
     while (count < 3 and ch != end and (*ch >= '0' and *ch <= '7')) {
@@ -1056,6 +1073,9 @@ std::string &CStyleUnescape(std::string * const s) {
             case '6':
             case '7':
                 unescaped_string += DecodeOctalEscapeSequence(ch, s->cend());
+                break;
+            case 'x':
+                unescaped_string += DecodeHexadecimalEscapeSequence(ch, s->cend());
                 break;
             case 'u':
                 unescaped_string += DecodeUnicodeEscapeSequence(ch, s->cend(), /* width = */ 4);
