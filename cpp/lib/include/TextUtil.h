@@ -342,8 +342,8 @@ inline std::string CollapseAndTrimWhitespace(const std::string &utf8_string) {
 bool FromHex(const char ch, unsigned * const u);
 
 
-/** \brief Converts \n, \t, \b, \r, \f, \v, \a, \\, \uNNNN and \UNNNNNNNN and octal escape sequences to the corresponding byte
- *         sequences.
+/** \brief Converts \n, \t, \b, \r, \f, \v, \a, \\, \xnn, \uNNNN and \UNNNNNNNN and octal escape sequences to the corresponding
+ *         byte sequences.
  *  \note Octal escape sequences consists of a backslash followed by one, two, or three octal digits, e,g. \1111 is the
  *        octal escape sequence \111 followed by the digit 1.
  *  \return The converted string.
