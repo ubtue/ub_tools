@@ -403,6 +403,16 @@ void RecordNewlyNotifiedIds(const std::unique_ptr<kyotocabinet::HashDB> &notifie
 }
 
 
+std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB(const std::string &user_type) {
+    const std::string DB_FILENAME("/usr/local/var/lib/tuelib/" + user_type + "_notified.db");
+    std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
+    if (not (db->open(DB_FILENAME,
+                      kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
+        ERROR("failed to open or create \"" + DB_FILENAME + "\"!");
+    return db;
+}
+
+
 // gets user subscriptions for superior works from mysql
 // uses kyotocabinet HashDB (file) to prevent entries from being sent multiple times to same user
 int main(int argc, char **argv) {
