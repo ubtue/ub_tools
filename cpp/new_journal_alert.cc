@@ -201,7 +201,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
 
         const std::string id(GetIssueId(doc_obj));
         if (notified_db->check(id) > 0)
-            continue; // We sent a notification for this issue.
+            continue; // We already sent a notification for this issue.
         new_notification_ids->insert(id);
 
         const std::string issue_title(GetIssueTitle(id, doc_obj));
@@ -400,16 +400,6 @@ void RecordNewlyNotifiedIds(const std::unique_ptr<kyotocabinet::HashDB> &notifie
             ERROR("Failed to add key/value pair to database \"" + notified_db->path() + "\" ("
                   + std::string(notified_db->error().message()) + ")!");
     }
-}
-
-
-std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB(const std::string &user_type) {
-    const std::string DB_FILENAME("/usr/local/var/lib/tuelib/" + user_type + "_notified.db");
-    std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
-    if (not (db->open(DB_FILENAME,
-                      kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
-        ERROR("failed to open or create \"" + DB_FILENAME + "\"!");
-    return db;
 }
 
 
