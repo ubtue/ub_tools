@@ -22,9 +22,9 @@ marc_augmentor krim_ssoar.xml $(augmented_file) \
 
 echo "Uploading to the BSZ File Server"
 path=/usr/local/var/lib/tuelib/cronjobs/fetch_marc_updates.conf
-host=$(inifile_lookup "${path}" FTP host)
-username=$(inifile_lookup"${path}" FTP username)
-password=$(inifile_lookup"${path}" FTP password)
+host=$(inifile_lookup --suppress-newline "${path}" FTP host)
+username=$(inifile_lookup --suppress-newline "${path}" FTP username)
+password=$(inifile_lookup --suppress-newline "${path}" FTP password)
 ftp -inv "${host}" <<EOF
 user ${username} ${password}
 cd UBTuebingen_Import_Test/krimdoc_Test
