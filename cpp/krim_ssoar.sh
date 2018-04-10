@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script for generating and uploading KrimDok-relavent SSOAR data to the BSZ FTP server.
+# Script for generating and uploading KrimDok-relevant SSOAR data to the BSZ FTP server.
 set -e
 
 echo "Download the data from SSOAR"
