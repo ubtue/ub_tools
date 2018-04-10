@@ -6,7 +6,7 @@ echo "Download the data from SSOAR"
 oai_pmh_harvester --skip-dups https://www.ssoar.info/OAIHandler/request marcxml col_collection_10207 KRIM_SSOAR krim_ssoar.xml 20
 
 
-if [[ $(marc_size krim_ssoar.xml) == 0 ]]; do
+if [[ $(marc_size krim_ssoar.xml) == 0 ]]; then
     echo "No new data found."
     exit 0
 fi
