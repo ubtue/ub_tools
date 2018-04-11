@@ -34,6 +34,7 @@
 #include <cstring>
 #include <cwctype>
 #include "Compiler.h"
+#include "FileUtil.h"
 #include "Locale.h"
 #include "HtmlParser.h"
 #include "RegexMatcher.h"
@@ -697,6 +698,55 @@ std::string CSVEscape(const std::string &value) {
     }
 
     return escaped_value;
+}
+
+
+void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::string>> * const lines) {
+    std::string file_contents;
+    if (not FileUtil::ReadString(path, &file_contents))
+        ERROR("failed to read \"" + path + "\"!");
+
+    bool in_string_constant(false);
+    unsigned line_no(1);
+    std::vector<std::string> logical_line;
+    std::string current_value;
+    for (auto ch(file_contents.cbegin()); ch != file_contents.cend(); ++ch) {
+        if (in_string_constant) {
+            if (*ch != '"') {
+                if (*ch == '\n')
+                    ++line_no;
+                current_value += *ch;
+            } else {
+                if ((ch + 1) != file_contents.cend() and *(ch + 1) == '"') { // We have an embedded double quote.
+                    current_value += '"';
+                    ++ch;
+                } else {
+                    if ((ch + 1) != file_contents.cend() and not (*ch == ',' or *ch == '\r' or *ch == '\n'))
+                        ERROR("garbage after double-quoted value in \"" + path + "\" on line " + std::to_string(line_no) + "!");
+                    logical_line.emplace_back(current_value);
+                    current_value.clear();
+                    in_string_constant = false;
+                }
+            }
+        } else if (*ch == '"')
+            in_string_constant = true;
+        else if (*ch == ',')
+            logical_line.emplace_back(current_value);
+        else if (*ch == '\r' and (ch + 1 == file_contents.cend() or *(ch + 1) != '\n'))
+            ERROR("unexpected carriage return in \"" + path + "\" on line " + std::to_string(line_no) + "!");
+        else if (*ch == '\n') {
+            ++line_no;
+            logical_line.emplace_back(current_value);
+            current_value.clear();
+            lines->emplace_back(logical_line);
+            logical_line.clear();
+        } else
+            current_value += *ch;
+    }
+    if (not current_value.empty())
+        logical_line.emplace_back(current_value);
+    if (not logical_line.empty())
+        lines->emplace_back(logical_line);
 }
 
 
