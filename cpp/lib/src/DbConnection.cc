@@ -310,5 +310,6 @@ void DbConnection::init(const std::string &database_name, const std::string &use
                                  + ")");
 
     sqlite3_ = nullptr;
+    type_ = T_MYSQL;
     initialised_ = true;
 }
