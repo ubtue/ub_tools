@@ -168,8 +168,24 @@ public class RelBib extends IxTheo {
         return getTemporaryReligiousStudiesSuperiorList().contains(record.getControlNumber()) ? TRUE : FALSE;
     }
 
+
+    public String excludeBecauseOfRWEX(final Record record) {
+        final List<VariableField> _935Fields = record.getVariableFields("935");
+        for (final VariableField _935Field : _935Fields) {
+            final DataField dataField = (DataField) _935Field;
+            final Subfield subfieldA = dataField.getSubfield('a');
+            if (subfieldA != null && subfieldA.getData().equals("rwex"))
+                return TRUE;
+        }
+        return FALSE;
+    }
+
+
     public String getIsReligiousStudies(final Record record) {
-        return getIsDefinitelyReligiousStudies(record).equals(TRUE) || getIsProbablyReligiousStudies(record).equals(TRUE) || getTemporaryIsReligiousStudiesSuperior(record).equals(TRUE) ? TRUE : FALSE;
+        return ((getIsDefinitelyReligiousStudies(record).equals(TRUE) ||
+                 getIsProbablyReligiousStudies(record).equals(TRUE) ||
+                 getTemporaryIsReligiousStudiesSuperior(record).equals(TRUE)) && 
+                !excludeBecauseOfRWEX(record).equals(TRUE)) ? TRUE : FALSE;
     }
 
 }
