@@ -704,53 +704,57 @@ std::string CSVEscape(const std::string &value) {
 void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::string>> * const lines, const char separator,
                        const char quote)
 {
-    std::string file_contents;
-    if (not FileUtil::ReadString(path, &file_contents))
-        ERROR("failed to read \"" + path + "\"!");
-
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(path));
+    
     bool in_string_constant(false);
     unsigned line_no(1);
     std::vector<std::string> logical_line;
     std::string current_value;
-    for (auto ch(file_contents.cbegin()); ch != file_contents.cend(); ++ch) {
+    for (;;) {
+        const int ch(input->get());
+        if (unlikely(ch == EOF))
+            break;
+        
         if (in_string_constant) {
-            if (*ch != quote) {
-                if (*ch == '\n')
+            if (ch != quote) {
+                if (ch == '\n')
                     ++line_no;
-                current_value += *ch;
+                current_value += ch;
             } else {
-                if ((ch + 1) != file_contents.cend() and *(ch + 1) == quote) { // We have an embedded quote.
+                if (input->peek() == quote) { // We have an embedded quote.
                     current_value += quote;
-                    ++ch;
+                    input->get();
                 } else {
-                    if ((ch + 1) != file_contents.cend()
-                        and not (*(ch + 1) == separator or *(ch + 1) == '\r' or *(ch + 1) == '\n'))
+                    if (input->peek() != EOF
+                        and not (input->peek() == separator or input->peek() == '\r' or input->peek() == '\n'))
                         ERROR("garbage after quoted value in \"" + path + "\" on line " + std::to_string(line_no) + "!");
                     logical_line.emplace_back(current_value);
                     current_value.clear();
                     in_string_constant = false;
                 }
             }
-        } else if (*ch == quote)
+        } else if (ch == quote)
             in_string_constant = true;
-        else if (*ch == separator) {
-            if ((ch + 1) != file_contents.cend() and not (*(ch + 1) != '\r' or *(ch + 1) != '\n'))
+        else if (ch == separator) {
+            if (input->peek() != EOF and not (input->peek() != '\r' or input->peek() != '\n'))
                 ERROR("garbage after separator in \"" + path + "\" on line " + std::to_string(line_no) + "!");
             logical_line.emplace_back(current_value);
-        } else if (*ch == '\r') {
-            if (ch + 1 == file_contents.cend() or *(ch + 1) != '\n')
+        } else if (ch == '\r') {
+            if (input->peek() == EOF or input->peek() != '\n')
                 ERROR("unexpected carriage return in \"" + path + "\" on line " + std::to_string(line_no) + "!");
-            ++ch; // Skip over the linefeed.
+            input->get(); // Skip over the linefeed.
             ++line_no;
-        } else if (*ch == '\n') {
+        } else if (ch == '\n') {
             ++line_no;
             logical_line.emplace_back(current_value);
             current_value.clear();
             lines->emplace_back(logical_line);
             logical_line.clear();
         } else
-            current_value += *ch;
+            current_value += static_cast<char>(ch);
     }
+    if (unlikely(in_string_constant))
+        ERROR("file \"" + path + "\" ends in an unterminated quoted value!");
     if (not current_value.empty())
         logical_line.emplace_back(current_value);
     if (not logical_line.empty())
