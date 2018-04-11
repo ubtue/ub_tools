@@ -719,13 +719,13 @@ void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::str
                     ++line_no;
                 current_value += *ch;
             } else {
-                if ((ch + 1) != file_contents.cend() and *(ch + 1) == quote) { // We have an embedded double quote.
+                if ((ch + 1) != file_contents.cend() and *(ch + 1) == quote) { // We have an embedded quote.
                     current_value += quote;
                     ++ch;
                 } else {
                     if ((ch + 1) != file_contents.cend()
                         and not (*(ch + 1) == separator or *(ch + 1) == '\r' or *(ch + 1) == '\n'))
-                        ERROR("garbage after double-quoted value in \"" + path + "\" on line " + std::to_string(line_no) + "!");
+                        ERROR("garbage after quoted value in \"" + path + "\" on line " + std::to_string(line_no) + "!");
                     logical_line.emplace_back(current_value);
                     current_value.clear();
                     in_string_constant = false;
@@ -733,11 +733,16 @@ void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::str
             }
         } else if (*ch == quote)
             in_string_constant = true;
-        else if (*ch == separator)
+        else if (*ch == separator) {
+            if ((ch + 1) != file_contents.cend() and not (*(ch + 1) != '\r' or *(ch + 1) != '\n'))
+                ERROR("garbage after separator in \"" + path + "\" on line " + std::to_string(line_no) + "!");
             logical_line.emplace_back(current_value);
-        else if (*ch == '\r' and (ch + 1 == file_contents.cend() or *(ch + 1) != '\n'))
-            ERROR("unexpected carriage return in \"" + path + "\" on line " + std::to_string(line_no) + "!");
-        else if (*ch == '\n') {
+        } else if (*ch == '\r') {
+            if (ch + 1 == file_contents.cend() or *(ch + 1) != '\n')
+                ERROR("unexpected carriage return in \"" + path + "\" on line " + std::to_string(line_no) + "!");
+            ++ch; // Skip over the linefeed.
+            ++line_no;
+        } else if (*ch == '\n') {
             ++line_no;
             logical_line.emplace_back(current_value);
             current_value.clear();
