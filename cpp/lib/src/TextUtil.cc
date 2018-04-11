@@ -701,7 +701,9 @@ std::string CSVEscape(const std::string &value) {
 }
 
 
-void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::string>> * const lines) {
+void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::string>> * const lines, const char separator,
+                       const char quote)
+{
     std::string file_contents;
     if (not FileUtil::ReadString(path, &file_contents))
         ERROR("failed to read \"" + path + "\"!");
@@ -712,25 +714,26 @@ void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::str
     std::string current_value;
     for (auto ch(file_contents.cbegin()); ch != file_contents.cend(); ++ch) {
         if (in_string_constant) {
-            if (*ch != '"') {
+            if (*ch != quote) {
                 if (*ch == '\n')
                     ++line_no;
                 current_value += *ch;
             } else {
-                if ((ch + 1) != file_contents.cend() and *(ch + 1) == '"') { // We have an embedded double quote.
-                    current_value += '"';
+                if ((ch + 1) != file_contents.cend() and *(ch + 1) == quote) { // We have an embedded double quote.
+                    current_value += quote;
                     ++ch;
                 } else {
-                    if ((ch + 1) != file_contents.cend() and not (*ch == ',' or *ch == '\r' or *ch == '\n'))
+                    if ((ch + 1) != file_contents.cend()
+                        and not (*(ch + 1) == separator or *(ch + 1) == '\r' or *(ch + 1) == '\n'))
                         ERROR("garbage after double-quoted value in \"" + path + "\" on line " + std::to_string(line_no) + "!");
                     logical_line.emplace_back(current_value);
                     current_value.clear();
                     in_string_constant = false;
                 }
             }
-        } else if (*ch == '"')
+        } else if (*ch == quote)
             in_string_constant = true;
-        else if (*ch == ',')
+        else if (*ch == separator)
             logical_line.emplace_back(current_value);
         else if (*ch == '\r' and (ch + 1 == file_contents.cend() or *(ch + 1) != '\n'))
             ERROR("unexpected carriage return in \"" + path + "\" on line " + std::to_string(line_no) + "!");
