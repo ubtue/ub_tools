@@ -34,6 +34,7 @@
 #include <cstring>
 #include <cwctype>
 #include "Compiler.h"
+#include "FileUtil.h"
 #include "Locale.h"
 #include "HtmlParser.h"
 #include "RegexMatcher.h"
@@ -697,6 +698,67 @@ std::string CSVEscape(const std::string &value) {
     }
 
     return escaped_value;
+}
+
+
+void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::string>> * const lines, const char separator,
+                       const char quote)
+{
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(path));
+    
+    bool in_string_constant(false);
+    unsigned line_no(1);
+    std::vector<std::string> logical_line;
+    std::string current_value;
+    for (;;) {
+        const int ch(input->get());
+        if (unlikely(ch == EOF))
+            break;
+        
+        if (in_string_constant) {
+            if (ch != quote) {
+                if (ch == '\n')
+                    ++line_no;
+                current_value += ch;
+            } else {
+                if (input->peek() == quote) { // We have an embedded quote.
+                    current_value += quote;
+                    input->get();
+                } else {
+                    if (input->peek() != EOF
+                        and not (input->peek() == separator or input->peek() == '\r' or input->peek() == '\n'))
+                        ERROR("garbage after quoted value in \"" + path + "\" on line " + std::to_string(line_no) + "!");
+                    logical_line.emplace_back(current_value);
+                    current_value.clear();
+                    in_string_constant = false;
+                }
+            }
+        } else if (ch == quote)
+            in_string_constant = true;
+        else if (ch == separator) {
+            if (input->peek() != EOF and not (input->peek() != '\r' or input->peek() != '\n'))
+                ERROR("garbage after separator in \"" + path + "\" on line " + std::to_string(line_no) + "!");
+            logical_line.emplace_back(current_value);
+        } else if (ch == '\r') {
+            if (input->peek() == EOF or input->peek() != '\n')
+                ERROR("unexpected carriage return in \"" + path + "\" on line " + std::to_string(line_no) + "!");
+            input->get(); // Skip over the linefeed.
+            ++line_no;
+        } else if (ch == '\n') {
+            ++line_no;
+            logical_line.emplace_back(current_value);
+            current_value.clear();
+            lines->emplace_back(logical_line);
+            logical_line.clear();
+        } else
+            current_value += static_cast<char>(ch);
+    }
+    if (unlikely(in_string_constant))
+        ERROR("file \"" + path + "\" ends in an unterminated quoted value!");
+    if (not current_value.empty())
+        logical_line.emplace_back(current_value);
+    if (not logical_line.empty())
+        lines->emplace_back(logical_line);
 }
 
 

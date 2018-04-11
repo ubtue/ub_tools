@@ -251,6 +251,13 @@ std::string EscapeString(const std::string &original_string, const bool also_esc
 std::string CSVEscape(const std::string &value);
 
 
+/** Parses a CSV file that follows the standard specified by RFC 4180 (when "separator," and "quote" have their default values)
+ *  with the exception that line breaks may be be either carriage-return/linefeed pair or just individual linefeed characters.
+ */
+void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::string>> * const lines, const char separator = ',',
+                       const char quote = '"');
+
+
 /** \brief Removes the final UTF-8 logical character from "*s".
  *  \return True if we succeeded and false if "*s" is empty or malformed UTF-8.
  */
