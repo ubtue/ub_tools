@@ -759,8 +759,8 @@ CSVTokenType CSVTokenizer::getToken() {
                 err_msg_ = "quoted value starting on line #" + std::to_string(start_line_no) + " was never terminated!";
                 return SYNTAX_ERROR;
             }
+            value_ += static_cast<char>(ch);
         }
-        value_ += static_cast<char>(ch);
     } else { // Unquoted value.
         value_ += static_cast<char>(ch);
         for (;;) {
