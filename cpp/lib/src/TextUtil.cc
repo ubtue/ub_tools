@@ -742,8 +742,6 @@ void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::str
         } else if (ch == '\r') {
             if (input->peek() == EOF or input->peek() != '\n')
                 ERROR("unexpected carriage return in \"" + path + "\" on line " + std::to_string(line_no) + "!");
-            input->get(); // Skip over the linefeed.
-            ++line_no;
         } else if (ch == '\n') {
             ++line_no;
             logical_line.emplace_back(current_value);
