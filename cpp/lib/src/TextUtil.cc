@@ -701,62 +701,124 @@ std::string CSVEscape(const std::string &value) {
 }
 
 
+namespace {
+
+
+enum CSVTokenType { VALUE, SEPARATOR, LINE_END, END_OF_INPUT, SYNTAX_ERROR };
+
+
+class CSVTokenizer {
+    File * const input_;
+    const char separator_;
+    const char quote_;
+    std::string value_;
+    unsigned line_no_;
+    std::string err_msg_;
+public:
+    CSVTokenizer(File * const input, const char separator, const char quote)
+        : input_(input), separator_(separator), quote_(quote), line_no_(1) { }
+    CSVTokenType getToken();
+    inline const std::string &getValue() const { return value_; }
+    inline unsigned getLineNo() const { return line_no_; }
+    inline const std::string &getErrMsg() const { return err_msg_; }
+};
+
+
+CSVTokenType CSVTokenizer::getToken() {
+    int ch(input_->get());
+    if (unlikely(ch == EOF))
+        return END_OF_INPUT;
+    if (ch == separator_)
+        return SEPARATOR;
+    if (ch == '\n') {
+        ++line_no_;
+        return LINE_END;
+    }
+    if (ch == '\r') {
+        ch = input_->get();
+        if (unlikely(ch != '\n')) {
+            err_msg_ = "unexpected carriage-return!";
+            return SYNTAX_ERROR;
+        }
+        ++line_no_;
+        return LINE_END;
+    }
+
+    value_.clear();
+    if (ch == SEPARATOR) {
+        const unsigned start_line_no(line_no_);
+        for (;;) {
+            ch = input_->get();
+            if (ch == separator_) {
+                if (likely(input_->peek() != quote_))
+                    break;
+                input_->get();
+                value_ += quote_;
+            }
+            if (unlikely(ch == EOF)) {
+                err_msg_ = "quoted value starting on line #" + std::to_string(start_line_no) + " was never terminated!";
+                return SYNTAX_ERROR;
+            }
+        }
+        value_ += static_cast<char>(ch);
+    } else { // Unquoted value.
+        value_ += static_cast<char>(ch);
+        for (;;) {
+            ch = input_->get();
+            if (ch == EOF or ch == '\r' or ch == '\n' or ch == separator_) {
+                if (likely(ch != EOF))
+                    input_->putback(ch);
+                break;
+            }
+            if (unlikely(ch == quote_)) {
+                err_msg_ = "unexpected quote in value!";
+                return SYNTAX_ERROR;
+            }
+            value_ += static_cast<char>(ch);
+        }
+    }
+    return VALUE;
+}
+
+    
+} // unnamed namespace
+
+
 void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::string>> * const lines, const char separator,
                        const char quote)
 {
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(path));
-    
-    bool in_string_constant(false);
-    unsigned line_no(1);
-    std::vector<std::string> logical_line;
-    std::string current_value;
+    CSVTokenizer scanner(input.get(), separator, quote);
+    std::vector<std::string> current_line;
+    CSVTokenType last_token(LINE_END); // Can be anything except for SEPARATOR;
     for (;;) {
-        const int ch(input->get());
-        if (unlikely(ch == EOF))
+        const CSVTokenType token(scanner.getToken());
+        if (unlikely(token == SYNTAX_ERROR))
+            ERROR("on line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath() + "\": "
+                  + scanner.getErrMsg());
+        else if (token == LINE_END) {
+            if (unlikely(last_token == SEPARATOR))
+                ERROR("line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath()
+                      + "\" ending in separator!");
+            lines->emplace_back(current_line);
+            current_line.clear();
+            last_token = SEPARATOR;
+            continue;
+        } else if (unlikely(token == END_OF_INPUT))
             break;
-        
-        if (in_string_constant) {
-            if (ch != quote) {
-                if (ch == '\n')
-                    ++line_no;
-                current_value += ch;
-            } else {
-                if (input->peek() == quote) { // We have an embedded quote.
-                    current_value += quote;
-                    input->get();
-                } else {
-                    if (input->peek() != EOF
-                        and not (input->peek() == separator or input->peek() == '\r' or input->peek() == '\n'))
-                        ERROR("garbage after quoted value in \"" + path + "\" on line " + std::to_string(line_no) + "!");
-                    logical_line.emplace_back(current_value);
-                    current_value.clear();
-                    in_string_constant = false;
-                }
-            }
-        } else if (ch == quote)
-            in_string_constant = true;
-        else if (ch == separator) {
-            if (input->peek() != EOF and not (input->peek() != '\r' or input->peek() != '\n'))
-                ERROR("garbage after separator in \"" + path + "\" on line " + std::to_string(line_no) + "!");
-            logical_line.emplace_back(current_value);
-        } else if (ch == '\r') {
-            if (input->peek() == EOF or input->peek() != '\n')
-                ERROR("unexpected carriage return in \"" + path + "\" on line " + std::to_string(line_no) + "!");
-        } else if (ch == '\n') {
-            ++line_no;
-            logical_line.emplace_back(current_value);
-            current_value.clear();
-            lines->emplace_back(logical_line);
-            logical_line.clear();
-        } else
-            current_value += static_cast<char>(ch);
+        else if (token == VALUE) {
+            current_line.emplace_back(scanner.getValue());
+        } else if (token == SEPARATOR) {
+            if (last_token == SEPARATOR)
+                current_line.emplace_back("");
+        }
+        last_token = token;
     }
-    if (unlikely(in_string_constant))
-        ERROR("file \"" + path + "\" ends in an unterminated quoted value!");
-    if (not current_value.empty())
-        logical_line.emplace_back(current_value);
-    if (not logical_line.empty())
-        lines->emplace_back(logical_line);
+
+    if (unlikely(last_token == SEPARATOR))
+        ERROR("line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath() + "\" ending in separator!");
+    if (not current_line.empty())
+        lines->emplace_back(current_line);
 }
 
 
