@@ -91,6 +91,12 @@ std::string GetCurrentDateAndTime(const std::string &format = DEFAULT_FORMAT, co
 inline std::string GetCurrentTime(const TimeZone time_zone = LOCAL) { return GetCurrentDateAndTime("%T", time_zone); }
 
 
+/** \brief   Get the current year as a string.
+ *  \return  A string representing the current year.
+ */
+inline std::string GetCurrentYear(const TimeZone time_zone = LOCAL) { return GetCurrentDateAndTime("%Y", time_zone); }
+
+
 /** \brief  Convert a time from a time_t to a string.
  *  \param  the_time   The time to convert.
  *  \param  format     The format of the result, in strftime(3) format.
@@ -233,9 +239,6 @@ uint64_t GetCurrentTimeInMicroseconds();
 /** Attempts to sleep at least "sleep_interval" milliseconds.  The function can return earlier if a signal has been
     delivered to the process.  In that case errno would be set to EINTR. */
 void Millisleep(const unsigned sleep_interval);
-
-
-std::string GetCurrentYear(const TimeZone time_zone = LOCAL);
 
 
 /** \brief Parses a date/time in RFC1123 date and time format.
