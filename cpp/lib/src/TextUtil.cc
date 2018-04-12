@@ -745,11 +745,11 @@ CSVTokenType CSVTokenizer::getToken() {
     }
 
     value_.clear();
-    if (ch == SEPARATOR) {
+    if (ch == quote_) {
         const unsigned start_line_no(line_no_);
         for (;;) {
             ch = input_->get();
-            if (ch == separator_) {
+            if (ch == quote_) {
                 if (likely(input_->peek() != quote_))
                     break;
                 input_->get();
