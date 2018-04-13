@@ -253,6 +253,7 @@ std::string CSVEscape(const std::string &value);
 
 /** \brief Like CSVEscape() but adds enclosing double quotes. */
 inline std::string CSVEscapeWithQuotes(const std::string &value) { return "\"" + CSVEscape(value) + "\""; }
+std::string CSVEscapeWithQuotes(const unsigned value);
 
 
 /** Parses a CSV file that follows the standard specified by RFC 4180 (when "separator," and "quote" have their default values)
