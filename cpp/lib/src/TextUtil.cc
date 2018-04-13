@@ -701,6 +701,11 @@ std::string CSVEscape(const std::string &value) {
 }
 
 
+std::string CSVEscapeWithQuotes(const unsigned value) {
+    return CSVEscapeWithQuotes(StringUtil::ToString(value));
+}
+
+
 namespace {
 
 
