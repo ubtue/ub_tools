@@ -37,7 +37,10 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " journal_list marc_data report\n";
+    std::cerr << "Usage: " << ::progname << " journal_list marc_data report\n"
+              << "       The journal_list file must be a CSV file with 3 columns and a header row.\n"
+              << "       The first column is an ID which we ignore, the 2nd column should contain an\n"
+              << "       optional print PPN and the 3rd column an optionl electronic PPN.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -49,21 +52,21 @@ class JournalDescriptor {
 public:
     enum Type { PRINT, ELECTRONIC };
 private:
-    std::string id_, ppn_;
+    std::string title_, ppn_;
     Type type_;
     unsigned most_recent_year_;
 public:
-    JournalDescriptor(const std::string &id, const std::string &ppn, const Type type)
-        : id_(id), ppn_(ppn), type_(type), most_recent_year_(INVALID_YEAR) { }
+    JournalDescriptor(const std::string &ppn, const Type type)
+        : ppn_(ppn), type_(type), most_recent_year_(INVALID_YEAR) { }
     JournalDescriptor() = default;
     JournalDescriptor(const JournalDescriptor &rhs) = default;
 
-    inline bool operator<(const JournalDescriptor &rhs) const { return id_ < rhs.id_; }
-    inline const std::string &getId() const { return id_; }
+    inline const std::string &getTitle() const { return title_; }
     inline const std::string &getPPN() const { return ppn_; }
     inline Type getType() const { return type_; }
     inline unsigned getMostRecentYear() const { return most_recent_year_; }
     void updateMostRecentYear(const unsigned year);
+    inline void setTitle(const std::string &new_title) { title_ = new_title; }
 };
 
 
@@ -99,9 +102,9 @@ void LoadJournalPPNs(const std::string &path,
         if (unlikely((*line)[1].empty() and (*line)[2].empty()))
             ERROR("logical line #" + std::to_string(line - lines.cbegin()) + " is missing a PPN!");
         if (not (*line)[1].empty())
-            ppn_to_journal_desc_map->emplace((*line)[1], JournalDescriptor((*line)[0], (*line)[1], JournalDescriptor::PRINT));
+            ppn_to_journal_desc_map->emplace((*line)[1], JournalDescriptor((*line)[1], JournalDescriptor::PRINT));
         if (not (*line)[2].empty())
-           ppn_to_journal_desc_map->emplace((*line)[2], JournalDescriptor((*line)[0], (*line)[2], JournalDescriptor::PRINT));
+           ppn_to_journal_desc_map->emplace((*line)[2], JournalDescriptor((*line)[2], JournalDescriptor::PRINT));
     }
 
     INFO("Found " + std::to_string(ppn_to_journal_desc_map->size()) + " journal PPN's.");
@@ -111,13 +114,17 @@ void LoadJournalPPNs(const std::string &path,
 static const std::set<std::string> UPLINK_TAGS{ "800", "810", "830", "773", "776" };
 
 
-std::string GetUplinkPPN(const MARC::Record &record) {
+std::string GetUplinkPPNAndJournalTitle(const MARC::Record &record, std::string * const journal_title) {
     for (const auto &tag : UPLINK_TAGS) {
         for (const auto &field : record.getTagRange(tag)) {
             const MARC::Subfields subfields(field.getSubfields());
             const std::string w_subfield(subfields.getFirstSubfieldWithCode('w'));
-            if (not w_subfield.empty() and StringUtil::StartsWith(w_subfield, "(DE-576)"))
+            if (not w_subfield.empty() and StringUtil::StartsWith(w_subfield, "(DE-576)")) {
+                *journal_title = subfields.getFirstSubfieldWithCode('t');
+                if (journal_title->empty())
+                    *journal_title = subfields.getFirstSubfieldWithCode('a');
                 return StringUtil::TrimWhite(w_subfield.substr(__builtin_strlen("(DE-576)")));
+            }
         }
     }
 
@@ -143,7 +150,8 @@ void ProcessRecords(MARC::Reader * const marc_reader,
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
 
-        const std::string parent_ppn(GetUplinkPPN(record));
+        std::string journal_title;
+        const std::string parent_ppn(GetUplinkPPNAndJournalTitle(record, &journal_title));
         if (parent_ppn.empty())
             continue;
 
@@ -168,9 +176,10 @@ void ProcessRecords(MARC::Reader * const marc_reader,
         }
 
         unsigned year;
-        if (StringUtil::ToUnsigned(year_as_string, &year))
+        if (StringUtil::ToUnsigned(year_as_string, &year)) {
             parent_ppn_and_journal_desc->second.updateMostRecentYear(year);
-        else
+            parent_ppn_and_journal_desc->second.setTitle(journal_title);
+        } else
             INFO("Bad year: \"" + year_as_string + "\". (2)");
     }
 
@@ -181,18 +190,18 @@ void ProcessRecords(MARC::Reader * const marc_reader,
 void GenerateReport(const std::string &report_filename,
                     const std::unordered_map<std::string, JournalDescriptor> &ppn_to_journal_desc_map)
 {
-    std::vector<JournalDescriptor> journal_descs;
-    journal_descs.reserve(ppn_to_journal_desc_map.size());
-
-    for (const auto &ppn_and_journal_desc : ppn_to_journal_desc_map) {
-        if (ppn_and_journal_desc.second.getMostRecentYear() != INVALID_YEAR)
-            journal_descs.push_back(ppn_and_journal_desc.second);
-    }
-    std::sort(journal_descs.begin(), journal_descs.end());
-
     std::unique_ptr<File> report(FileUtil::OpenOutputFileOrDie(report_filename));
-    for (const auto &journal_desc : journal_descs)
-        (*report) << journal_desc.getPPN() << ", " << journal_desc.getMostRecentYear() << "\n";
+    unsigned count(0);
+    for (const auto &ppn_and_journal_desc : ppn_to_journal_desc_map) {
+        if (ppn_and_journal_desc.second.getMostRecentYear() != INVALID_YEAR) {
+            ++count;
+            (*report) << TextUtil::CSVEscapeWithQuotes(ppn_and_journal_desc.second.getPPN()) << ','
+                      << TextUtil::CSVEscapeWithQuotes(ppn_and_journal_desc.second.getTitle()) << ','
+                      << TextUtil::CSVEscapeWithQuotes(ppn_and_journal_desc.second.getMostRecentYear()) << "\r\n";
+        }
+    }
+
+    INFO("Generated a report with " + std::to_string(count) + " entries.");
 }
 
 
