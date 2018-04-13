@@ -251,6 +251,10 @@ std::string EscapeString(const std::string &original_string, const bool also_esc
 std::string CSVEscape(const std::string &value);
 
 
+/** \brief Like CSVEscape() but adds enclosing double quotes. */
+inline std::string CSVEscapeWithQuotes(const std::string &value) { return "\"" + CSVEscape(value) + "\""; }
+
+
 /** Parses a CSV file that follows the standard specified by RFC 4180 (when "separator," and "quote" have their default values)
  *  with the exception that line breaks may be be either carriage-return/linefeed pair or just individual linefeed characters.
  */
