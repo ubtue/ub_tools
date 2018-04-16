@@ -2176,7 +2176,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 for (final Subfield aSubfield : _935Field.getSubfields('a')) {
                     final String subfieldContents = aSubfield.getData();
                     if (_935a_to_format_map.containsKey(subfieldContents)) {
-                        result.clear();
+                        result.remove("Article");
                         result.add(_935a_to_format_map.get(subfieldContents));
                     }
                 }
