@@ -405,13 +405,6 @@ void Millisleep(const unsigned sleep_interval) {
 }
 
 
-std::string GetCurrentYear(const TimeZone time_zone) {
-    time_t now;
-    std::time(&now);
-    return TimeTToString(now, "%Y", time_zone);
-}
-
-
 time_t _mkgmtime(const struct tm &tm) {
     // Month-to-day offset for non-leap-years.
     static const int month_day[12] =

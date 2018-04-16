@@ -268,8 +268,10 @@ bool RemoveDirectory(const std::string &dir_name);
  */
 class AutoTempDirectory {
     std::string path_;
+    bool cleanup_if_exception_is_active_;
 public:
-    explicit AutoTempDirectory(const std::string &path_prefix = "/tmp/ATD");
+    explicit AutoTempDirectory(const std::string &path_prefix = "/tmp/ATD", const bool cleanup_if_exception_is_active = true);
+    AutoTempDirectory(const AutoTempDirectory &rhs) = delete;
     ~AutoTempDirectory();
 
     const std::string &getDirectoryPath() const { return path_; }
