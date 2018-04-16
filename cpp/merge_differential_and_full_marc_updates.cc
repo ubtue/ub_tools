@@ -317,7 +317,7 @@ void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filena
                                const std::string &target_archive_name)
 {
     logger->info("merging and deduping archive files to create \"" + target_archive_name + "\".");
-    FileUtil::AutoTempDirectory working_dir(".");
+    FileUtil::AutoTempDirectory working_dir(".", /* cleanup_if_exception_is_active = */false);
     ChangeDirectoryOrDie(working_dir.getDirectoryPath());
 
     auto local_data_filename(local_data_filenames.cbegin());
@@ -396,7 +396,7 @@ std::string CombineMarcBiblioArchives(const std::string &filename_prefix, const 
     // If we made it this far, both source archives exist.
     //
 
-    FileUtil::AutoTempDirectory auto_temp_marc_local_data_dir(".");
+    FileUtil::AutoTempDirectory auto_temp_marc_local_data_dir(".", /* cleanup_if_exception_is_active = */false);
     std::vector<std::string> local_archive_member_filenames;
     ExtractMarcFilesFromArchive(local_data_archive_name, &local_archive_member_filenames,
                                 auto_temp_marc_local_data_dir.getDirectoryPath() + "/");
@@ -405,7 +405,7 @@ std::string CombineMarcBiblioArchives(const std::string &filename_prefix, const 
                       + "\" contains at least one entry that does not meet our naming expectations"
                       + " in " + StringUtil::Join(local_archive_member_filenames, ", ") + "! (1)");
 
-    FileUtil::AutoTempDirectory auto_temp_marc_no_local_data_dir(".");
+    FileUtil::AutoTempDirectory auto_temp_marc_no_local_data_dir(".", /* cleanup_if_exception_is_active = */false);
     std::vector<std::string> no_local_archive_member_filenames;
     ExtractMarcFilesFromArchive(no_local_data_archive_name, &no_local_archive_member_filenames,
                                 auto_temp_marc_no_local_data_dir.getDirectoryPath() + "/");
