@@ -168,7 +168,7 @@ public class RelBib extends IxTheo {
         return getTemporaryReligiousStudiesSuperiorList().contains(record.getControlNumber()) ? TRUE : FALSE;
     }
 
-
+    // "rwex" is used to prevent positive tagging of a record for inclusion to relbib
     public String excludeBecauseOfRWEX(final Record record) {
         final List<VariableField> _935Fields = record.getVariableFields("935");
         for (final VariableField _935Field : _935Fields) {
