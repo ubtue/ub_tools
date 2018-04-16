@@ -6,7 +6,7 @@
  */
 
 /*
-    Copyright (C) 2016-2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -26,100 +26,110 @@
 #include <iostream>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <cstdlib>
 #include <cstring>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
-#include "Subfields.h"
+#include "MARC.h"
 #include "util.h"
 
 
-static unsigned modified_count(0);
-static std::set<std::string> superior_ppns;
+namespace {
 
-
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input marc_output superior_ppns\n";
+    
+[[noreturn]] void Usage() {
+    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-bool SeriesHasNotBeenCompleted(const MarcRecord &record) {
-    const size_t _008_index(record.getFieldIndex("008"));
-    if (unlikely(_008_index == MarcRecord::FIELD_NOT_FOUND))
-        return false;
-
-    const std::string &_008_contents(record.getFieldData(_008_index));
-    return _008_contents.substr(11, 4) == "9999";
+void LoadSuperiorPPNs(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const superior_ppns) {
+    const std::vector<std::string> TAGS{ "800", "810", "830", "773", "776"};
+    while (const MARC::Record record = marc_reader->read()) {
+        for (const auto &tag : TAGS) {
+            for (const auto &field : record.getTagRange(tag)) {
+                const MARC::Subfields subfields(field.getSubfields());
+                const std::string subfield_w_contents(subfields.getFirstSubfieldWithCode('w'));
+                if (StringUtil::StartsWith(subfield_w_contents, "(DE-576)")) {
+                    if (tag != "776" or subfields.getFirstSubfieldWithCode('i') != "Erscheint auch als")
+                        superior_ppns->emplace(subfield_w_contents.substr(__builtin_strlen("(DE-576)")));
+                }
+            }
+        }
+    }
+    
+    INFO("Found " + std::to_string(superior_ppns->size()) + " superior PPNs.");
 }
 
 
-void ProcessRecord(MarcWriter * const marc_writer, MarcRecord * const record) {
+bool SeriesHasNotBeenCompleted(const MARC::Record &record) {
+    const auto _008_field(record.getFirstField("008"));
+    if (unlikely(_008_field == record.end()))
+        return false;
+
+    return _008_field->getContents().substr(11, 4) == "9999";
+}
+
+
+void ProcessRecord(MARC::Writer * const marc_writer, const std::unordered_set<std::string> &superior_ppns,
+                   MARC::Record * const record, unsigned * const modified_count)
+{
     // Don't add the flag twice:
-    if (record->getFieldIndex("SPR") != MarcRecord::FIELD_NOT_FOUND) {
+    if (record->getFirstField("SPR") != record->end()) {
         marc_writer->write(*record);
         return;
     }
 
-    Subfields superior_subfield(/* indicator1 = */' ', /* indicator2 = */' ');
+    MARC::Subfields superior_subfields;
 
     // Set the we are a "superior" record, if appropriate:
     const auto iter(superior_ppns.find(record->getControlNumber()));
     if (iter != superior_ppns.end())
-        superior_subfield.addSubfield('a', "1"); // Could be anything but we can't have an empty field.
+        superior_subfields.addSubfield('a', "1"); // Could be anything but we can't have an empty field.
 
     // Set the, you-can-subscribe-to-this flag, if appropriate:
-    if (record->getLeader().isSerial() and SeriesHasNotBeenCompleted(*record))
-        superior_subfield.addSubfield('b', "1");
+    if (record->isSerial() and SeriesHasNotBeenCompleted(*record))
+        superior_subfields.addSubfield('b', "1");
 
-    if (not superior_subfield.empty()) {
-        record->insertField("SPR", superior_subfield.toString());
-        ++modified_count;
+    if (not superior_subfields.empty()) {
+        record->insertField("SPR", superior_subfields.toString());
+        ++*modified_count;
     }
 
     marc_writer->write(*record);
 }
 
 
-void AddSuperiorFlag(MarcReader * const marc_reader, MarcWriter * const marc_writer) {
-    while (MarcRecord record = marc_reader->read())
-        ProcessRecord(marc_writer, &record);
+void AddSuperiorFlag(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                     const std::unordered_set<std::string> &superior_ppns)
+{
+    unsigned modified_count(0);
+    while (MARC::Record record = marc_reader->read())
+        ProcessRecord(marc_writer, superior_ppns, &record, &modified_count);
 
-    std::cerr << "Modified " << modified_count << " record(s).\n";
+    INFO("Modified " + std::to_string(modified_count) + " record(s).");
 }
 
 
-void LoadSuperiorPPNs(File * const input) {
-    unsigned line_no(0);
-    std::string line;
-    while (input->getline(&line)) {
-        ++line_no;
-        superior_ppns.emplace(line);
-    }
-
-    if (unlikely(superior_ppns.empty()))
-        logger->error("Found no data in \"" + input->getPath() + "\"!");
-    std::cerr << "Read " << line_no << " superior PPNs.\n";
-}
+} // unnamed namespace
 
 
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 4)
+    if (argc != 3)
         Usage();
 
-    const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
-    const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], MarcWriter::BINARY));
-    const std::unique_ptr<File> superior_ppn_input(FileUtil::OpenInputFileOrDie(argv[3]));
+    const std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
+    const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
 
     try {
-        LoadSuperiorPPNs(superior_ppn_input.get());
-        AddSuperiorFlag(marc_reader.get(), marc_writer.get());
+        std::unordered_set<std::string> superior_ppns;
+        LoadSuperiorPPNs(marc_reader.get(), &superior_ppns);
+        marc_reader->rewind();
+        AddSuperiorFlag(marc_reader.get(), marc_writer.get(), superior_ppns);
     } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+        ERROR("caught exception: " + std::string(x.what()));
     }
 }
