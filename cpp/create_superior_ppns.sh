@@ -12,14 +12,14 @@ rm --force cross_links superior_ppns_candidates superior_ppns
 
 marc_grep $1 '"776i"' \
     | grep 'Erscheint auch als' \
-    | cut -d: -f1 \
+    | cut --delimiter=: --fields=1 \
     | sort \
     | uniq \
     > cross_links
            
 marc_grep $1 '"800w:810w:830w:773w:776w"' \
     | grep '(DE-576)' \
-    | sed -r 's/^([^:]+)[^)]+[)](.+)$/\2/' \
+    | sed --regexp-extended 's/^([^:]+)[^)]+[)](.+)$/\2/' \
     | sort \
     | uniq \
     > superior_ppns_candidates
