@@ -505,7 +505,7 @@ static MediaType GetMediaType(const std::string &input_filename) {
     static RegexMatcher *marc21_matcher;
     if (marc21_matcher == nullptr) {
         std::string err_msg;
-        marc21_matcher = RegexMatcher::RegexMatcherFactory("(^[0-9]{5})([acdnp][^bhlnqsu-z]|[acdnosx][z]|[cdn][uvxy])", &err_msg);
+        marc21_matcher = RegexMatcher::RegexMatcherFactory("(^[0-9]{5})([acdnp][^bhlnqsu-z]|[acdnosx][z]|[cdn][uvxy]|[acdn][w]|[cdn][q])", &err_msg);
         if (marc21_matcher == nullptr)
             ERROR("failed to compile a regex! (" + err_msg + ")");
     }
