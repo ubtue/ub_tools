@@ -6,6 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
+ *  Copyright 2018 Universitätsbibliothek
  *
  *  This file is part of the libiViaCore package.
  *
@@ -31,8 +32,8 @@
 #include <fstream>
 #include <list>
 #include <string>
+#include <vector>
 #include <arpa/inet.h>
-#include "SList.h"
 
 
 namespace NetUtil {
@@ -107,7 +108,8 @@ template<typename Data> std::ostream &operator<<(std::ostream &output,
 }
 
 
-template<typename Data> class NetAddrBlocksAndData: public SList< NetAddrBlockAndData<Data> > {
+template<typename Data> class NetAddrBlocksAndData {
+    std::vector<NetAddrBlockAndData<Data>> net_addr_blocks_and_data_;
 public:
     Data getSelection(const in_addr_t address, const Data &default_data) const;
 };

@@ -2175,8 +2175,10 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (_935Field != null) {
                 for (final Subfield aSubfield : _935Field.getSubfields('a')) {
                     final String subfieldContents = aSubfield.getData();
-                    if (_935a_to_format_map.containsKey(subfieldContents))
+                    if (_935a_to_format_map.containsKey(subfieldContents)) {
+                        result.remove("Article");
                         result.add(_935a_to_format_map.get(subfieldContents));
+                    }
                 }
             }
         }
@@ -2288,13 +2290,14 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         // A review can also be indicated if 935$c set to "uwre"
         final List<VariableField> _935Fields = record.getVariableFields("935");
-        for (final VariableField _935Field : _935Fields) {
+outer:  for (final VariableField _935Field : _935Fields) {
             final DataField dataField = (DataField) _935Field;
-            final Subfield cSubfield = dataField.getSubfield('c');
-            if (cSubfield != null && cSubfield.getData().contains("uwre")) {
-                formats.remove("Article");
-                formats.add("Review");
-                break;
+            for (final Subfield subfield : dataField.getSubfields()) {
+                if (subfield.getCode() == 'c' && subfield.getData().contains("uwre")) {
+                    formats.remove("Article");
+                    formats.add("Review");
+                    break outer;
+                }
             }
         }
 

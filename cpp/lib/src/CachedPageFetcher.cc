@@ -9,7 +9,7 @@
 /*
  *  \copyright 2002-2009 Project iVia.
  *  \copyright 2002-2009 The Regents of The University of California.
- *  \copyright 2017 Universitätsbibliothek Tübingen.
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -125,10 +125,10 @@ std::string CachedPageFetcher::TimeoutOverrides::getTimeoutForError(const std::s
 {
     unsigned default_timeout(default_timeout_override != -1 ? static_cast<unsigned>(default_timeout_override)
                                                             : default_timeout_);
-    for (const_iterator timeout_override(begin()); timeout_override != end(); ++timeout_override) {
-        if (timeout_override->reg_exp_.match(error_message)) {
-            if (default_timeout == 0 or default_timeout > timeout_override->timeout_)
-                return SqlUtil::GetDatetime(timeout_override->timeout_);
+    for (const auto &timeout_override : overrides_) {
+        if (timeout_override.reg_exp_.match(error_message)) {
+            if (default_timeout == 0 or default_timeout > timeout_override.timeout_)
+                return SqlUtil::GetDatetime(timeout_override.timeout_);
             else
                 return SqlUtil::GetDatetime(default_timeout);
         }
@@ -171,12 +171,11 @@ void CachedPageFetcher::ReadIniFile() {
     default_user_agent_package_ = ini_file.getString("User Agent", "default_package");
     default_user_agent_url_     = ini_file.getString("User Agent", "default_url");
 
-    const std::list<std::string> entrys(ini_file.getSectionEntryNames("TimeoutOverrides"));
-    for (std::list<std::string>::const_iterator entry(entrys.begin()); entry != entrys.end(); ++entry) {
-        if (std::strncmp("error_msg_pattern", entry->c_str(), 17) == 0) {
-            const unsigned timeout(static_cast<unsigned>(ini_file.getDouble("TimeoutOverrides", "timeout"
-                                                                            + entry->substr(17))));
-            timeout_overrides_.push_back(TimeoutOverride(ini_file.getString("TimeoutOverrides", *entry), timeout));
+    const auto entries(ini_file.getSectionEntryNames("TimeoutOverrides"));
+    for (auto &entry : entries) {
+        if (std::strncmp("error_msg_pattern", entry.c_str(), 17) == 0) {
+            const unsigned timeout(static_cast<unsigned>(ini_file.getDouble("TimeoutOverrides", "timeout" + entry.substr(17))));
+            timeout_overrides_.push_back(ini_file.getString("TimeoutOverrides", entry), timeout);
         }
     }
 

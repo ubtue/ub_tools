@@ -352,7 +352,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                             MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                             GetNextControlNumber());
     bool is_journal_article(false);
-    std::string publication_title, parent_ppn, parent_issn, issn;
+    std::string publication_title, ppn, issn_raw, issn_normalized;
     for (const auto &key_and_node : *object_node) {
         if (ignore_fields->matched(key_and_node.first))
             continue;
@@ -402,8 +402,9 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
     if (custom_node != nullptr) {
         const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
-        parent_issn = custom_object->getOptionalStringValue("issnRaw");
-        issn = custom_object->getOptionalStringValue("issnNormalized");
+        issn_raw = custom_object->getOptionalStringValue("ISSN_raw");
+        issn_normalized = custom_object->getOptionalStringValue("ISSN_normalized");
+        ppn = custom_object->getOptionalStringValue("PPN");
 
         // physical form
         const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
@@ -444,17 +445,17 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     // keywords:
     const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
     if (tags_node != nullptr)
-        ExtractKeywords(tags_node, issn, harvest_maps_->ISSN_to_keyword_field_map_, &new_record);
+        ExtractKeywords(tags_node, issn_normalized, harvest_maps_->ISSN_to_keyword_field_map_, &new_record);
 
     // Populate 773:
     if (is_journal_article) {
         std::vector<MARC::Subfield> subfields;
         if (not publication_title.empty())
             subfields.emplace_back('a', publication_title);
-        if (not parent_issn.empty())
-            subfields.emplace_back('x', parent_issn);
-        if (not parent_ppn.empty())
-            subfields.emplace_back('w', "(DE-576))" + parent_ppn);
+        if (not issn_normalized.empty())
+            subfields.emplace_back('x', issn_normalized);
+        if (not ppn.empty())
+            subfields.emplace_back('w', "(DE-576)" + ppn);
         if (not subfields.empty())
             new_record.insertField("773", subfields);
     }
@@ -558,14 +559,13 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
             if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized)))
                 ERROR("\"" + issn_raw + "\" is not a valid ISSN!");
 
+            custom_fields.emplace(std::pair<std::string, std::string>("ISSN_raw", issn_raw));
+            custom_fields.emplace(std::pair<std::string, std::string>("ISSN_normalized", issn_normalized));
+
             const auto ISSN_and_parent_ppn(harvest_maps->ISSN_to_superior_ppn_map_.find(issn_normalized));
             if (ISSN_and_parent_ppn != harvest_maps->ISSN_to_superior_ppn_map_.cend()) {
-                issn_raw = ISSN_and_parent_ppn->second;
-                issn_normalized = ISSN_and_parent_ppn->second;
+                custom_fields.emplace(std::pair<std::string, std::string>("PPN", ISSN_and_parent_ppn->second));
             }
-
-            custom_fields.emplace(std::pair<std::string, std::string>("issnRaw", issn_raw));
-            custom_fields.emplace(std::pair<std::string, std::string>("issnNormalized", issn_normalized));
         }
     }
 

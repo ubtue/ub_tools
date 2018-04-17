@@ -91,6 +91,12 @@ std::string GetCurrentDateAndTime(const std::string &format = DEFAULT_FORMAT, co
 inline std::string GetCurrentTime(const TimeZone time_zone = LOCAL) { return GetCurrentDateAndTime("%T", time_zone); }
 
 
+/** \brief   Get the current year as a string.
+ *  \return  A string representing the current year.
+ */
+inline std::string GetCurrentYear(const TimeZone time_zone = LOCAL) { return GetCurrentDateAndTime("%Y", time_zone); }
+
+
 /** \brief  Convert a time from a time_t to a string.
  *  \param  the_time   The time to convert.
  *  \param  format     The format of the result, in strftime(3) format.
@@ -235,14 +241,19 @@ uint64_t GetCurrentTimeInMicroseconds();
 void Millisleep(const unsigned sleep_interval);
 
 
-std::string GetCurrentYear(const TimeZone time_zone = LOCAL);
-
-
 /** \brief Parses a date/time in RFC1123 date and time format.
  *  \note The returned time is UTC time.
  *  \note If an error occurred we return false and set "*date_time" to BAD_TIME_T.
  */
 bool ParseRFC1123DateTime(const std::string &date_time_candidate, time_t * const date_time);
+
+
+/** \brief Parses a date/time in RFC3339/ISO8601 date and time format.
+ *  \note The returned time is UTC time.
+ *  \note If an error occurred we return false and set "*date_time" to BAD_TIME_T.
+ *  \note On success we set *date_time to the nearest second of the date/time.
+ */
+bool ParseRFC3339DateTime(const std::string &date_time_candidate, time_t * const date_time);
 
 
 // Debugging aid.

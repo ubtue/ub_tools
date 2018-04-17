@@ -251,6 +251,18 @@ std::string EscapeString(const std::string &original_string, const bool also_esc
 std::string CSVEscape(const std::string &value);
 
 
+/** \brief Like CSVEscape() but adds enclosing double quotes. */
+inline std::string CSVEscapeWithQuotes(const std::string &value) { return "\"" + CSVEscape(value) + "\""; }
+std::string CSVEscapeWithQuotes(const unsigned value);
+
+
+/** Parses a CSV file that follows the standard specified by RFC 4180 (when "separator," and "quote" have their default values)
+ *  with the exception that line breaks may be be either carriage-return/linefeed pair or just individual linefeed characters.
+ */
+void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::string>> * const lines, const char separator = ',',
+                       const char quote = '"');
+
+
 /** \brief Removes the final UTF-8 logical character from "*s".
  *  \return True if we succeeded and false if "*s" is empty or malformed UTF-8.
  */
@@ -342,8 +354,8 @@ inline std::string CollapseAndTrimWhitespace(const std::string &utf8_string) {
 bool FromHex(const char ch, unsigned * const u);
 
 
-/** \brief Converts \n, \t, \b, \r, \f, \v, \a, \\, \uNNNN and \UNNNNNNNN and octal escape sequences to the corresponding byte
- *         sequences.
+/** \brief Converts \n, \t, \b, \r, \f, \v, \a, \\, \xnn, \uNNNN and \UNNNNNNNN and octal escape sequences to the corresponding
+ *         byte sequences.
  *  \note Octal escape sequences consists of a backslash followed by one, two, or three octal digits, e,g. \1111 is the
  *        octal escape sequence \111 followed by the digit 1.
  *  \return The converted string.

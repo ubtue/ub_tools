@@ -51,7 +51,6 @@ function CalculateTimeDifference {
 }
 
 
-
 function EndPhase {
     PHASE_DURATION=$(CalculateTimeDifference $START $(date +%s.%N))
     echo "Phase ${PHASE}: Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
@@ -82,11 +81,10 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
-
 StartPhase "Drop Records Containing mtex in 935" \
            "\n\tFilter out Self-referential 856 Fields" \
            "\n\tRemove Sorting Chars From Title Subfields" \
-           "\n\tRemove blmsh Subject Heading Term" \
+           "\n\tRemove blmsh Subject Heading Terms" \
            "\n\tFix Local Keyword Capitalisations"
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
@@ -125,18 +123,23 @@ StartPhase "Augment Normdata with Keyword Translations"
 EndPhase || Abort) &
 
 
+StartPhase "Merge Print and Online Superior Records"
+(merge_print_and_online GesamtTiteldaten-post-phase"$((PHASE-4))"-"${date}".mrc \
+                        GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                        missing_ppn_partners.list >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
 StartPhase "Normalise URL's"
-(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-4))"-"${date}".mrc \
+(normalise_urls --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
-(create_superior_ppns.sh GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc >> "${log}" 2>&1 && \
-add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                                 superior_ppns >> "${log}" 2>&1 && \
+(add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -230,7 +233,7 @@ EndPhase || Abort) &
 
 StartPhase "Extract Tags From MySql Tables and Insert Them Into MARC Records"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(convert_tags_to_keywords --input-format=marc_binary GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(convert_tags_to_keywords --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 

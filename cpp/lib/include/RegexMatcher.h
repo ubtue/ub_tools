@@ -2,7 +2,7 @@
  *  \brief  Interface for the RegexMatcher class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014,2015 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2014,2015,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -90,6 +90,13 @@ public:
      */
     static RegexMatcher *RegexMatcherFactory(const std::string &pattern, std::string * const err_msg = nullptr,
                                              const unsigned options = 0);
+
+    /** \brief Creates a RegexMatcher.
+     *  \param pattern      The pattern to be compiled.
+     *  \param options      Or'ed together values of type enum Option.
+     *  \note  Aborts on error and prints an error message to stderr. 
+     */
+    static RegexMatcher *FactoryOrDie(const std::string &regex, const unsigned options = 0);
 private:
     RegexMatcher(const std::string &pattern, const unsigned options, pcre * const pcre_arg,
                  pcre_extra * const pcre_extra_arg)

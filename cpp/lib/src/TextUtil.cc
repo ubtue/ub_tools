@@ -34,6 +34,7 @@
 #include <cstring>
 #include <cwctype>
 #include "Compiler.h"
+#include "FileUtil.h"
 #include "Locale.h"
 #include "HtmlParser.h"
 #include "RegexMatcher.h"
@@ -700,6 +701,133 @@ std::string CSVEscape(const std::string &value) {
 }
 
 
+std::string CSVEscapeWithQuotes(const unsigned value) {
+    return CSVEscapeWithQuotes(StringUtil::ToString(value));
+}
+
+
+namespace {
+
+
+enum CSVTokenType { VALUE, SEPARATOR, LINE_END, END_OF_INPUT, SYNTAX_ERROR };
+
+
+class CSVTokenizer {
+    File * const input_;
+    const char separator_;
+    const char quote_;
+    std::string value_;
+    unsigned line_no_;
+    std::string err_msg_;
+public:
+    CSVTokenizer(File * const input, const char separator, const char quote)
+        : input_(input), separator_(separator), quote_(quote), line_no_(1) { }
+    CSVTokenType getToken();
+    inline const std::string &getValue() const { return value_; }
+    inline unsigned getLineNo() const { return line_no_; }
+    inline const std::string &getErrMsg() const { return err_msg_; }
+};
+
+
+CSVTokenType CSVTokenizer::getToken() {
+    int ch(input_->get());
+    if (unlikely(ch == EOF))
+        return END_OF_INPUT;
+    if (ch == separator_)
+        return SEPARATOR;
+    if (ch == '\n') {
+        ++line_no_;
+        return LINE_END;
+    }
+    if (ch == '\r') {
+        ch = input_->get();
+        if (unlikely(ch != '\n')) {
+            err_msg_ = "unexpected carriage-return!";
+            return SYNTAX_ERROR;
+        }
+        ++line_no_;
+        return LINE_END;
+    }
+
+    value_.clear();
+    if (ch == quote_) {
+        const unsigned start_line_no(line_no_);
+        for (;;) {
+            ch = input_->get();
+            if (ch == quote_) {
+                if (likely(input_->peek() != quote_))
+                    break;
+                input_->get();
+                value_ += quote_;
+            }
+            if (unlikely(ch == EOF)) {
+                err_msg_ = "quoted value starting on line #" + std::to_string(start_line_no) + " was never terminated!";
+                return SYNTAX_ERROR;
+            }
+            value_ += static_cast<char>(ch);
+        }
+    } else { // Unquoted value.
+        value_ += static_cast<char>(ch);
+        for (;;) {
+            ch = input_->get();
+            if (ch == EOF or ch == '\r' or ch == '\n' or ch == separator_) {
+                if (likely(ch != EOF))
+                    input_->putback(ch);
+                break;
+            }
+            if (unlikely(ch == quote_)) {
+                err_msg_ = "unexpected quote in value!";
+                return SYNTAX_ERROR;
+            }
+            value_ += static_cast<char>(ch);
+        }
+    }
+    return VALUE;
+}
+
+    
+} // unnamed namespace
+
+
+void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::string>> * const lines, const char separator,
+                       const char quote)
+{
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(path));
+    CSVTokenizer scanner(input.get(), separator, quote);
+    std::vector<std::string> current_line;
+    CSVTokenType last_token(LINE_END); // Can be anything except for SEPARATOR;
+    for (;;) {
+        const CSVTokenType token(scanner.getToken());
+        if (unlikely(token == SYNTAX_ERROR))
+            ERROR("on line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath() + "\": "
+                  + scanner.getErrMsg());
+        else if (token == LINE_END) {
+            if (unlikely(last_token == SEPARATOR))
+                ERROR("line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath()
+                      + "\" ending in separator!");
+            lines->emplace_back(current_line);
+            current_line.clear();
+            last_token = SEPARATOR;
+            continue;
+        } else if (unlikely(token == END_OF_INPUT)) {
+            if (unlikely(last_token == SEPARATOR))
+                ERROR("line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath()
+                      + "\" ending in separator!");
+            if (not current_line.empty())
+                lines->emplace_back(current_line);
+            return;
+        } else if (token == VALUE) {
+            current_line.emplace_back(scanner.getValue());
+        } else if (token == SEPARATOR) {
+            if (last_token == SEPARATOR)
+                current_line.emplace_back("");
+        }
+        last_token = token;
+    }
+
+}
+
+
 // See https://en.wikipedia.org/wiki/UTF-8 in order to understand this implementation.
 bool TrimLastCharFromUTF8Sequence(std::string * const s) {
     if (unlikely(s->empty()))
@@ -998,6 +1126,23 @@ static std::string DecodeUnicodeEscapeSequence(std::string::const_iterator &ch, 
 
 
 // Helper function for CStyleUnescape().
+static char DecodeHexadecimalEscapeSequence(std::string::const_iterator &ch, const std::string::const_iterator &end) {
+    ++ch;
+    if (unlikely(ch == end))
+        ERROR("missing first hex nibble at end of string!");
+    std::string hex_string(1, *ch++);
+    if (unlikely(ch == end))
+        ERROR("missing second hex nibble at end of string!");
+    hex_string += *ch;
+    unsigned byte;
+    if (unlikely(not StringUtil::ToNumber(hex_string, &byte, 16)))
+        ERROR("bad hex escape \"\\x" + hex_string + "\"!");
+
+    return static_cast<char>(byte);
+}
+
+
+// Helper function for CStyleUnescape().
 static char DecodeOctalEscapeSequence(std::string::const_iterator &ch, const std::string::const_iterator &end) {
     unsigned code(0), count(0);
     while (count < 3 and ch != end and (*ch >= '0' and *ch <= '7')) {
@@ -1056,6 +1201,9 @@ std::string &CStyleUnescape(std::string * const s) {
             case '6':
             case '7':
                 unescaped_string += DecodeOctalEscapeSequence(ch, s->cend());
+                break;
+            case 'x':
+                unescaped_string += DecodeHexadecimalEscapeSequence(ch, s->cend());
                 break;
             case 'u':
                 unescaped_string += DecodeUnicodeEscapeSequence(ch, s->cend(), /* width = */ 4);

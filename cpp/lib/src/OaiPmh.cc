@@ -6,6 +6,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
+ *  Copyright 2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaOaiPmh package.
  *
@@ -75,15 +76,12 @@ MetadataFormat::MetadataFormat(const std::string &name, const IniFile &ini_file)
     container_ = ini_file.getString(name, "container", "");
 
     // Read the set of namespaces and schema locations:
-    IniFile::SectionContents section_contents = ini_file.getSection(name);
-    for (IniFile::SectionContents::const_iterator name_value_pair(section_contents.begin());
-         name_value_pair != section_contents.end();
-         ++name_value_pair)
-        if (std::strncmp("xmlns", name_value_pair->first.c_str(), 5) == 0
-            or std::strncmp("xsi", name_value_pair->first.c_str(), 3) == 0
-            or std::strcmp("schemaVersion", name_value_pair->first.c_str()) == 0)
-            namespaces_and_schema_locations_.push_back(name_value_pair->first + "=\"" + name_value_pair->second
-                                                       + "\"");
+    const IniFile::Section section(ini_file.getSection(name));
+    for (const auto &name_value_pair : section)
+        if (std::strncmp("xmlns", name_value_pair.first.c_str(), 5) == 0
+            or std::strncmp("xsi", name_value_pair.first.c_str(), 3) == 0
+            or std::strcmp("schemaVersion", name_value_pair.first.c_str()) == 0)
+            namespaces_and_schema_locations_.push_back(name_value_pair.first + "=\"" + name_value_pair.second + "\"");
 
     // Grab the list of fields from the configuration file:
     std::string fields = ini_file.getString(name, "fields");

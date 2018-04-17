@@ -2,7 +2,7 @@
  *  \brief  Interface for the DbRow class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,6 +24,7 @@
 #include <map>
 #include <string>
 #include <mysql/mysql.h>
+#include <sqlite3.h>
 
 
 /** \warning It is unsafe to access DbRow instances after the DbResultSet that it belongs to has been deleted
@@ -33,33 +34,44 @@ class DbRow {
     MYSQL_ROW row_;
     unsigned long *field_sizes_;
     unsigned field_count_;
+    sqlite3_stmt *stmt_handle_;
     const std::map<std::string, unsigned>  *field_name_to_index_map_;
 private:
-    explicit DbRow(MYSQL_ROW row, unsigned long * const field_sizes, const unsigned field_count,
-                   const std::map<std::string, unsigned> &field_name_to_index_map)
-        : row_(row), field_sizes_(field_sizes), field_count_(field_count), field_name_to_index_map_(&field_name_to_index_map) { }
+    DbRow(MYSQL_ROW row, unsigned long * const field_sizes, const unsigned field_count,
+          const std::map<std::string, unsigned> &field_name_to_index_map)
+        : row_(row), field_sizes_(field_sizes), field_count_(field_count), stmt_handle_(nullptr),
+          field_name_to_index_map_(&field_name_to_index_map) { }
+    DbRow(sqlite3_stmt *stmt_handle, const std::map<std::string, unsigned> &field_name_to_index_map)
+        : row_(nullptr), field_sizes_(nullptr), stmt_handle_(stmt_handle), field_name_to_index_map_(&field_name_to_index_map) { }
 public:
-    DbRow(): row_(nullptr), field_sizes_(nullptr), field_count_(0) { }
+    DbRow(): row_(nullptr), field_sizes_(nullptr), field_count_(0), stmt_handle_(nullptr) { }
     DbRow(DbRow &&other);
 
     DbRow &operator=(const DbRow &rhs) = default;
 
     /** \return The number of fields in the row. */
-    size_t size() const { return field_count_; }
+    inline size_t size() const { return field_name_to_index_map_->size(); }
 
     /** \return True if the row contains no columns, else false. */
-    bool empty() const { return field_count_ == 0; }
+    inline bool empty() const { return field_name_to_index_map_->empty(); }
 
-    /** \brief Tests a DbRow for being non-nullptr. */
-    explicit operator bool() const { return row_ != nullptr; }
+    /** \brief Tests a DbRow for being non-empty. */
+    explicit operator bool() const { return not empty(); }
 
-    /** \brief Retrieve the i-th field from the row.  (The index is 0-based.) */
+    /** \brief Retrieve the i-th field from the row.  (The index is 0-based.)
+     *  \throws std::out_of_range if the index "i" refers to an invalid column or the column's value is NULL.
+     */
     std::string operator[](const size_t i) const;
 
-    /** \brief Retrieves the field w/ column name "column_name" from the row. */
+    /** \brief Retrieves the field w/ column name "column_name" from the row.
+     *  \throws std::out_of_range if the "column_name" refers to a non-existent column name or the column's value is NULL.
+     */
     std::string operator[](const std::string &column_name) const;
 
+    /** \throws std::out_of_range if the index "i" refers to an invalid column. */
     bool isNull(const size_t i) const;
+    
+    /** \throws std::out_of_range if the "column_name" refers to a non-existent column name. */
     bool isNull(const std::string &column_name) const;
 };
 

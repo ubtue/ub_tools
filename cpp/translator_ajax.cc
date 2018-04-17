@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2017, Library of the University of Tübingen
+    Copyright (C) 2017,2018 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -30,6 +30,7 @@
 #include "WebUtil.h"
 #include "util.h"
 
+
 const std::string getTranslatorOrEmptryString() {
     return (std::getenv("REMOTE_USER") != nullptr) ? std::getenv("REMOTE_USER") : "";
 }
@@ -46,7 +47,7 @@ std::string GetCGIParameterOrDie(const std::multimap<std::string, std::string> &
 {
     const auto key_and_value(cgi_args.find(parameter_name));
     if (key_and_value == cgi_args.cend())
-        logger->error("expected a(n) \"" + parameter_name + "\" parameter!");
+        ERROR("expected a(n) \"" + parameter_name + "\" parameter!");
 
     return key_and_value->second;
 }
@@ -74,7 +75,6 @@ std::string GetEnvParameterOrEmptyString(const std::multimap<std::string, std::s
 }
 
 
-
 void Update(const std::multimap<std::string, std::string> &cgi_args, const std::multimap<std::string, std::string> &env_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
@@ -89,7 +89,7 @@ void Update(const std::multimap<std::string, std::string> &cgi_args, const std::
 
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(update_command, &output))
-        logger->error("failed to execute \"" + update_command + "\" or it returned a non-zero exit code!");
+        ERROR("failed to execute \"" + update_command + "\" or it returned a non-zero exit code!");
 }
 
 
@@ -110,8 +110,9 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args, const std::
 
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(insert_command, &output))
-        logger->error("failed to execute \"" + insert_command + "\" or it returned a non-zero exit code!");
+        ERROR("failed to execute \"" + insert_command + "\" or it returned a non-zero exit code!");
 }
+
 
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
@@ -129,22 +130,18 @@ int main(int argc, char *argv[]) {
             if (action == "insert") {
                 Insert(cgi_args, env_args);
                 status = "Status: 201 Created\r\n";
-            }
-            else if (action == "update") {
+            } else if (action == "update") {
                 Update(cgi_args, env_args);
                 status = "Status: 200 OK\r\n";
-            }
-            else
-                logger->error("Unknown action: " + action + "! Expecting 'insert' or 'update'.");
+            } else
+                ERROR("Unknown action: " + action + "! Expecting 'insert' or 'update'.");
 
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
             const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
             std::cout << status;
         } else
-            logger->error("we should be called w/ either or 5 or 6 CGI arguments!");
+            ERROR("we should be called w/ either or 5 or 6 CGI arguments!");
     } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+        ERROR("caught exception: " + std::string(x.what()));
     }
 }
-
-

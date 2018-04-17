@@ -6,6 +6,7 @@
 /*
  *  Copyright 2006-2009 Project iVia.
  *  Copyright 2006-2009 The Regents of The University of California.
+ *  Copyright 2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -25,6 +26,7 @@
  */
 
 #include "DnsServerAndPool.h"
+#include <algorithm>
 #include <functional>
 #include <set>
 #include <stdexcept>
