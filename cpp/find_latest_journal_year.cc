@@ -195,9 +195,9 @@ void GenerateReport(const std::string &report_filename,
     for (const auto &ppn_and_journal_desc : ppn_to_journal_desc_map) {
         if (ppn_and_journal_desc.second.getMostRecentYear() != INVALID_YEAR) {
             ++count;
-            (*report) << TextUtil::CSVEscapeWithQuotes(ppn_and_journal_desc.second.getPPN()) << ','
-                      << TextUtil::CSVEscapeWithQuotes(ppn_and_journal_desc.second.getTitle()) << ','
-                      << TextUtil::CSVEscapeWithQuotes(ppn_and_journal_desc.second.getMostRecentYear()) << "\r\n";
+            (*report) << TextUtil::CSVEscape(ppn_and_journal_desc.second.getPPN()) << ','
+                      << TextUtil::CSVEscape(ppn_and_journal_desc.second.getTitle()) << ','
+                      << TextUtil::CSVEscape(ppn_and_journal_desc.second.getMostRecentYear()) << "\r\n";
         }
     }
 

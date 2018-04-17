@@ -145,8 +145,8 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader, File *
         StringUtil::TrimWhite(&bib_ref_candidate);
         if (not bib_ref_candidate.empty()) {
             ++ppn_candidate_count;
-            ppn_candidate_list->write("\"" + PPN + "\",\"" + TextUtil::CSVEscape(bib_ref_candidate) + "\",\""
-                                      + TextUtil::CSVEscape("https://ixtheo.de/Record/" + PPN) + "\"\n");
+            ppn_candidate_list->write("\"" + PPN + "\"," + TextUtil::CSVEscape(bib_ref_candidate) + ','
+                                      + TextUtil::CSVEscape("https://ixtheo.de/Record/" + PPN) + "\r\n");
             if (verbose)
                 std::cout << bib_ref_candidate << '\n';
         }

@@ -229,12 +229,12 @@ void WriteSerialEntry(File * const output, const std::string &target_sigil, cons
     if (target_sigils_and_inventory_info.empty())
         return;
 
-    (*output) << '"' << ppn << "\",\"" << TextUtil::CSVEscape(main_title)
-              << "\",\"" << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
-              << "\",\"" << TextUtil::CSVEscape(area_or_zdb_number)
-              << "\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory)
-              << "\",\"" << TextUtil::CSVEscape(StringUtil::Join(target_sigils_and_inventory_info, ','))
-              << "\",\"" << TextUtil::CSVEscape(ddc_groups) << "\"\n";
+    (*output) << '"' << ppn << "\"," << TextUtil::CSVEscape(main_title)
+              << ',' << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
+              << ',' << TextUtil::CSVEscape(area_or_zdb_number)
+              << ',' << TextUtil::CSVEscape(ub_signatures_or_inventory)
+              << ',' << TextUtil::CSVEscape(StringUtil::Join(target_sigils_and_inventory_info, ','))
+              << ',' << TextUtil::CSVEscape(ddc_groups) << '\n';
 }
 
 
@@ -296,12 +296,12 @@ bool FindTueDups(const MarcRecord &record, File * const monos_csv, File * const 
     const std::string ddc_groups(ExtractDDCGroups(record));
 
     if (is_monograph) {
-        (*monos_csv) << '"' << record.getControlNumber() << "\",\"" << TextUtil::CSVEscape(main_title)
-                     << "\",\"" << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
-                     << "\",\"" << TextUtil::CSVEscape(publication_year)
-                     << "\",\"" << TextUtil::CSVEscape(area_or_zdb_number)
-                     << "\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory)
-                     << "\",\"" << TextUtil::CSVEscape(non_ub_sigils_and_inventory) << "\"\n";
+        (*monos_csv) << '"' << record.getControlNumber() << "\"," << TextUtil::CSVEscape(main_title)
+                     << ',' << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
+                     << ',' << TextUtil::CSVEscape(publication_year)
+                     << ',' << TextUtil::CSVEscape(area_or_zdb_number)
+                     << ',' << TextUtil::CSVEscape(ub_signatures_or_inventory)
+                     << ',' << TextUtil::CSVEscape(non_ub_sigils_and_inventory) << '\n';
     } else {
         WriteSerialEntry(juristisches_seminar_csv, "21-24", record.getControlNumber(), main_title, issns_and_isbns,
                          area_or_zdb_number, ub_signatures_or_inventory, non_ub_sigils_and_inventory, ddc_groups);
