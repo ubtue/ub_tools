@@ -385,27 +385,20 @@ public:
     char getBibliographicLevel() const { return leader_[7]; }
     void setBibliographicLevel(const char new_bibliographic_level) { leader_[7] = new_bibliographic_level; }
 
+    inline Field getField(const size_t field_index) { return fields_[field_index]; }
+    inline const Field &getField(const size_t field_index) const { return fields_[field_index]; }
+
     /** \return True if we added the new field and false if it is a non-repeatable field and we already have this tag.
      *  \note   "new_field_value" includes the two indicators and any subfield structure if "new_field_tag" references a
      *          variable field.
      */
     bool insertField(const Tag &new_field_tag, const std::string &new_field_value);
 
-    inline bool insertField(const Field &field) { return insertField(field.getTag(), field.getContents()); }
-
-    inline Field getField(const size_t field_index) { return fields_[field_index]; }
-    inline const Field &getField(const size_t field_index) const { return fields_[field_index]; }
-
     inline bool insertField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
                             const char indicator2 = ' ')
-    {
-        std::string new_field_value;
-        new_field_value += indicator1;
-        new_field_value += indicator2;
-        for (const auto &subfield : subfields)
-            new_field_value += subfield.toString();
-        return insertField(new_field_tag, new_field_value);
-    }
+        { return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString()); }
+
+    inline bool insertField(const Field &field) { return insertField(field.getTag(), field.getContents()); }
 
     inline bool insertField(const Tag &new_field_tag, std::vector<Subfield> subfields, const char indicator1 = ' ',
                             const char indicator2 = ' ')
