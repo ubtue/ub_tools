@@ -27,7 +27,7 @@ default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
 default_config_file_dir = "/usr/local/var/lib/tuelib/cronjobs/"
 
 
-# @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the highest priority.
+# @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the lowest priority.
 # @param attachment A path to the file that should be attached. Can be string or list of strings.
 def SendEmail(subject, msg, sender=None, recipient=None, cc=None, priority=None, attachments=None):
     subject = os.path.basename(sys.argv[0]) +  ": " + subject + " (from: " + socket.gethostname() + ")"

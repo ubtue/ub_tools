@@ -6,7 +6,7 @@
 /*
  *  Copyright 2005-2008 Project iVia.
  *  Copyright 2005-2008 The Regents of The University of California.
- *  Copyright 2015-2017 Library of the University of Tübingen
+ *  Copyright 2015-2018 Library of the University of Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -31,6 +31,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "FileUtil.h"
+#include "util.h"
 
 
 File::File(const std::string &filename, const std::string &mode, const ThrowOnOpenBehaviour throw_on_error_behaviour)
@@ -231,6 +232,22 @@ File &File::operator<<(const unsigned long long ull) {
 File &File::operator<<(const double d) {
     std::fprintf(file_, "%.*g", precision_, d);
     return *this;
+}
+
+
+void File::rewind() {
+    if (unlikely(file_ == nullptr))
+        ERROR("can't rewind a non-open file!");
+
+    errno = 0;
+    std::rewind(file_);
+    if (unlikely(errno != 0))
+        ERROR("rewind(3) failed!");
+
+    if (open_mode_ != WRITING) {
+        read_count_ = 0;
+        buffer_ptr_ = buffer_;
+    }
 }
 
 

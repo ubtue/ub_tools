@@ -25,26 +25,30 @@
 #include <map>
 #include <unordered_set>
 #include <mysql/mysql.h>
+#include <sqlite3.h>
 #include "DbRow.h"
 
 
 class DbResultSet {
     friend class DbConnection;
     MYSQL_RES *result_set_;
+    sqlite3_stmt *stmt_handle_;
+    size_t no_of_rows_, column_count_;
     std::map<std::string, unsigned> field_name_to_index_map_;
 private:
     explicit DbResultSet(MYSQL_RES * const result_set);
+    explicit DbResultSet(sqlite3_stmt * const stmt_handle);
 public:
     DbResultSet(DbResultSet &&other);
     ~DbResultSet();
 
     /** \return The number of rows in the result set. */
-    size_t size() const { return ::mysql_num_rows(result_set_); }
+    inline size_t size() const { return no_of_rows_; }
 
     /** \return The number of columns in a row. */
-    unsigned getColumnCount() const { return ::mysql_num_fields(result_set_); }
+    inline size_t getColumnCount() const { return column_count_; }
 
-    bool empty() const  { return ::mysql_num_rows(result_set_) == 0; }
+    inline bool empty() const { return size() == 0; }
 
     /** Typically you would call this in a loop like:
      *

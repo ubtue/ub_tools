@@ -136,6 +136,19 @@ Logger::LogLevel Logger::StringToLogLevel(const std::string &level_candidate) {
 }
 
 
+std::string Logger::LogLevelToString(const LogLevel log_level) {
+    if (log_level == Logger::LL_ERROR)
+        return "ERROR";
+    if (log_level == Logger::LL_WARNING)
+        return "WARNING";
+    if (log_level == Logger::LL_INFO)
+        return "INFO";
+    if (log_level == Logger::LL_DEBUG)
+        return "DEBUG";
+    ERROR("unsupported log level, we should *never* get here!");
+}
+
+
 void Logger::writeString(std::string msg) {
     if (log_process_pids_)
         msg += " (PID: " + std::to_string(::getpid()) + ")";

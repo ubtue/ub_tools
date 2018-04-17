@@ -201,7 +201,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
 
         const std::string id(GetIssueId(doc_obj));
         if (notified_db->check(id) > 0)
-            continue; // We sent a notification for this issue.
+            continue; // We already sent a notification for this issue.
         new_notification_ids->insert(id);
 
         const std::string issue_title(GetIssueTitle(id, doc_obj));
