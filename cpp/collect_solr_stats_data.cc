@@ -54,9 +54,9 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
     if (not parser.parse(&tree_root))
         ERROR("JSON parser failed: " + parser.getErrorMessage());
 
-    *output << '"' << TextUtil::CSVEscape(system_type) << "\",\"" << TextUtil::CSVEscape(category) << "\",\""
-            << TextUtil::CSVEscape(variable) << "\"," << JSON::LookupInteger("/response/numFound", tree_root) << ",\""
-            << TextUtil::CSVEscape(TimeUtil::GetCurrentDateAndTime()) << "\"\n";
+    *output << TextUtil::CSVEscape(system_type) << ',' << TextUtil::CSVEscape(category) << ','
+            << TextUtil::CSVEscape(variable) << ',' << JSON::LookupInteger("/response/numFound", tree_root) << ','
+            << TextUtil::CSVEscape(TimeUtil::GetCurrentDateAndTime()) << '\n';
 }
 
 
