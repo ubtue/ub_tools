@@ -687,9 +687,12 @@ std::string EscapeString(const std::string &original_string, const bool also_esc
 }
 
 
-std::string CSVEscape(const std::string &value) {
+std::string CSVEscape(const std::string &value, const bool add_quotes) {
     std::string escaped_value;
-    escaped_value.reserve(value.length());
+    escaped_value.reserve(value.length() + 2 /* for the quotes */);
+
+    if (add_quotes)
+        escaped_value += '"';
 
     for (const char ch : value) {
         if (unlikely(ch == '"'))
@@ -697,12 +700,10 @@ std::string CSVEscape(const std::string &value) {
         escaped_value += ch;
     }
 
+    if (add_quotes)
+        escaped_value += '"';
+
     return escaped_value;
-}
-
-
-std::string CSVEscapeWithQuotes(const unsigned value) {
-    return CSVEscapeWithQuotes(StringUtil::ToString(value));
 }
 
 
@@ -785,7 +786,7 @@ CSVTokenType CSVTokenizer::getToken() {
     return VALUE;
 }
 
-    
+
 } // unnamed namespace
 
 
