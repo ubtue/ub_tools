@@ -37,7 +37,7 @@ function StartPhase {
         ((++PHASE))
     fi
     START=$(date +%s.%N)
-    echo -e "*** Phase $PHASE: $1 - $START ***" | tee --append "${log}"
+    echo -e "*** Phase $PHASE: $1 - $(date) ***" | tee --append "${log}"
 }
 
 
