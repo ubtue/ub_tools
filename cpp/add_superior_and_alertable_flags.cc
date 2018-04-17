@@ -93,7 +93,7 @@ void ProcessRecord(MARC::Writer * const marc_writer, const std::unordered_set<st
         superior_subfields.addSubfield('b', "1");
 
     if (not superior_subfields.empty()) {
-        record->insertField("SPR", /* indicators = */"  " + superior_subfields.toString());
+        record->insertField("SPR", superior_subfields);
         ++*modified_count;
     }
 
