@@ -92,16 +92,15 @@ public class TueFindHighlighter extends UnifiedHighlighter {
                 // breaks the text on, so we don't lose the distinction between the different values of a field and we
                 // get back a snippet per value
                 CustomSeparatorBreakIterator breakIterator = new CustomSeparatorBreakIterator(MULTIVAL_SEP_CHAR);
-                highlighter = new CustomUnifiedHighlighter(searcher, analyzer, offsetSource, passageFormatter,
-                    field.fieldOptions().boundaryScannerLocale(), breakIterator, fieldValue, field.fieldOptions().noMatchSize(),
-                    maxAnalyzedOffset);
+                highlighter = new TueFindCustomHighlighter(searcher, analyzer, offsetSource, passageFormatter,
+                    field.fieldOptions().boundaryScannerLocale(), breakIterator, fieldValue, field.fieldOptions().noMatchSize());
                 numberOfFragments = fieldValues.size(); // we are highlighting the whole content, one snippet per value
             } else {
                 //using paragraph separator we make sure that each field value holds a discrete passage for highlighting
                 BreakIterator bi = getBreakIterator(field);
-                highlighter = new CustomUnifiedHighlighter(searcher, analyzer, offsetSource, passageFormatter,
+                highlighter = new TueFindCustomHighlighter(searcher, analyzer, offsetSource, passageFormatter,
                     field.fieldOptions().boundaryScannerLocale(), bi,
-                    fieldValue, field.fieldOptions().noMatchSize(), maxAnalyzedOffset);
+                    fieldValue, field.fieldOptions().noMatchSize());
                 numberOfFragments = field.fieldOptions().numberOfFragments();
             }
 
