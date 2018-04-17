@@ -38,7 +38,7 @@ void Usage() __attribute__((noreturn));
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input ppn_candidate_list\n";
+    std::cerr << "Usage: " << ::progname << " [--verbose] marc_input ppn_candidate_list\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -57,8 +57,8 @@ void LoadPericopes(std::unordered_map<std::string, std::string> * const pericope
         ++pericope_count;
         const auto last_equal_pos(line.rfind('='));
         if (unlikely(last_equal_pos == std::string::npos))
-            logger->error("in LoadPericopes: line # " + std::to_string(line_no) + " in \"" + PERIOCPES_FILE
-                          + "\" does not contain an equal sign!");
+            ERROR("in LoadPericopes: line # " + std::to_string(line_no) + " in \"" + PERIOCPES_FILE
+                  + "\" does not contain an equal sign!");
         (*pericopes_to_codes_map)[line.substr(0, last_equal_pos)] = line.substr(last_equal_pos + 1);
     }
 
@@ -113,7 +113,7 @@ std::string GetPossibleBibleReference(const std::string &normalised_title,
 }
 
 
-void ProcessRecords(MARC::Reader * const marc_reader, File * const ppn_candidate_list,
+void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader, File * const ppn_candidate_list,
                     const std::unordered_map<std::string, std::string> &pericopes_to_codes_map,
                     const BibleUtil::BibleBookCanoniser &bible_book_canoniser,
                     const BibleUtil::BibleBookToCodeMapper &bible_book_to_code_mapper)
@@ -128,12 +128,12 @@ void ProcessRecords(MARC::Reader * const marc_reader, File * const ppn_candidate
         const std::string PPN(record.getControlNumber());
         const auto title_field(record.getFirstField("245"));
         if (unlikely(title_field == record.end()))
-            logger->error("record w/ PPN " + PPN + " is missing a title field!");
+            ERROR("record w/ PPN " + PPN + " is missing a title field!");
 
         const MARC::Subfields _245_subfields(title_field->getSubfields());
         const std::string title(_245_subfields.getFirstSubfieldWithCode('a'));
         if (unlikely(title.empty())) {
-            logger->warning("record w/ PPN " + record.getControlNumber() + " is missing a title subfield!");
+            WARNING("record w/ PPN " + record.getControlNumber() + " is missing a title subfield!");
             continue;
         }
 
@@ -147,6 +147,8 @@ void ProcessRecords(MARC::Reader * const marc_reader, File * const ppn_candidate
             ++ppn_candidate_count;
             ppn_candidate_list->write("\"" + PPN + "\",\"" + TextUtil::CSVEscape(bib_ref_candidate) + "\",\""
                                       + TextUtil::CSVEscape("https://ixtheo.de/Record/" + PPN) + "\"\n");
+            if (verbose)
+                std::cout << bib_ref_candidate << '\n';
         }
     }
 
@@ -161,8 +163,16 @@ void ProcessRecords(MARC::Reader * const marc_reader, File * const ppn_candidate
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 3)
+    if (argc != 3 and argc != 4)
         Usage();
+
+    bool verbose(false);
+    if (argc == 4) {
+        if (std::strcmp(argv[1], "--verbose") != 0)
+            Usage();
+        verbose = true;
+        --argc, ++argv;
+    }
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
     std::unique_ptr<File> ppn_candidate_list(FileUtil::OpenOutputFileOrDie(argv[2]));
@@ -176,9 +186,9 @@ int main(int argc, char *argv[]) {
         std::unordered_map<std::string, std::string> pericopes_to_codes_map;
         LoadPericopes(&pericopes_to_codes_map);
 
-        ProcessRecords(marc_reader.get(), ppn_candidate_list.get(), pericopes_to_codes_map, bible_book_canoniser,
+        ProcessRecords(verbose, marc_reader.get(), ppn_candidate_list.get(), pericopes_to_codes_map, bible_book_canoniser,
                        bible_book_to_code_mapper);
     } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
+        ERROR("Caught exception: " + std::string(e.what()));
     }
 }
