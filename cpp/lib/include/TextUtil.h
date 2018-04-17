@@ -244,16 +244,15 @@ std::string EscapeString(const std::string &original_string, const bool also_esc
 
 
 /** \brief Escapes "value" as a comma-separated value.
- *  \param value The UTF-8 character sequence to be encoded.
+ *  \param value       The UTF-8 character sequence to be encoded.
+ *  \param add_quotes  If true, enclosing qotes are added about the escaped value.
  *  \return The converted (double quotes being replaced by two consecutive double quotes) value.
  *  \note Enclosing double are not included in the returned escaped value.
  */
-std::string CSVEscape(const std::string &value);
+std::string CSVEscape(const std::string &value, const bool add_quotes = true);
 
-
-/** \brief Like CSVEscape() but adds enclosing double quotes. */
-inline std::string CSVEscapeWithQuotes(const std::string &value) { return "\"" + CSVEscape(value) + "\""; }
-std::string CSVEscapeWithQuotes(const unsigned value);
+inline std::string CSVEscape(const unsigned value, const bool add_quotes = true)
+    { return CSVEscape(std::to_string(value), add_quotes); }
 
 
 /** Parses a CSV file that follows the standard specified by RFC 4180 (when "separator," and "quote" have their default values)

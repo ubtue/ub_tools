@@ -73,14 +73,6 @@ CleanUp
 OVERALL_START=$(date +%s.%N)
 
 
-StartPhase "Filter out Local Data of Other Institutions"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(delete_unused_local_data GesamtTiteldaten-"${date}".mrc \
-                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                         >> "${log}" 2>&1 &&
-EndPhase || Abort) &
-
-
 StartPhase "Drop Records Containing mtex in 935" \
            "\n\tFilter out Self-referential 856 Fields" \
            "\n\tRemove Sorting Chars From Title Subfields" \
