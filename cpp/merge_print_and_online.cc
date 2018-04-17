@@ -59,10 +59,6 @@ void CollectMappings(MARC::Reader * const marc_reader, File * const missing_part
     while (const MARC::Record record = marc_reader->read()) {
         count++;
         all_ppns.emplace(record.getControlNumber());
-        if (not record.isSerial()) {
-            last_offset = marc_reader->tell();
-            continue;
-        }
 
         for (const auto &field : record.getTagRange("776")) {
             const MARC::Subfields _776_subfields(field.getSubfields());
@@ -212,8 +208,9 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
             merged_record.appendField(*record2_field);
     }
 
-    // Mark the record as being both "print" as well as "electronic":
-    merged_record.insertField("ZWI", { { 'a', "1" } });
+    // Mark the record as being both "print" as well as "electronic" and store the PPN of the dropped record:
+    merged_record.insertField("ZWI", { { 'a', "1" }, { 'b', record2.getControlNumber() } });
+    INFO("Merged records with PPN's " + record1.getControlNumber() + " and " + record2.getControlNumber() + ".");
 
     return merged_record;
 }
