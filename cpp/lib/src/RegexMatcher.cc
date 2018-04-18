@@ -97,7 +97,7 @@ RegexMatcher *RegexMatcher::FactoryOrDie(const std::string &regex, const unsigne
     std::string error_message;
     RegexMatcher *regex_matcher(RegexMatcher::RegexMatcherFactory(regex, &error_message, options));
     if (not error_message.empty())
-        ERROR("failed to compile regex \"" + regex + "\": " + error_message);
+        LOG_ERROR("failed to compile regex \"" + regex + "\": " + error_message);
 
     return regex_matcher;
 }

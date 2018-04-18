@@ -219,7 +219,7 @@ void LoadExports(const std::string &path, const bool overwrite) {
         input->getline(&line);
         std::string key, value;
         if (not ExportsParseLine(line, &key, &value))
-            ERROR("failed to parse an export statement on line #" + std::to_string(line_no) + " in \"" + input->getPath()
+            LOG_ERROR("failed to parse an export statement on line #" + std::to_string(line_no) + " in \"" + input->getPath()
                   + "\"!");
         if (not key.empty())
             SetEnv(key, value, overwrite);
@@ -489,7 +489,7 @@ size_t LoadMapFile(const std::string &filename, std::unordered_map<std::string, 
         StringUtil::Trim(&line);
         std::string key, value;
         if (not ParseLine(line, &key, &value))
-            ERROR("invalid input on line \"" + std::to_string(line_no) + "\" in \"" + input->getPath() + "\"!");
+            LOG_ERROR("invalid input on line \"" + std::to_string(line_no) + "\" in \"" + input->getPath() + "\"!");
         from_to_map->emplace(key, value);
     }
 

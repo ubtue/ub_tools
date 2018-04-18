@@ -88,9 +88,9 @@ void CollectMappings(MARC::Reader * const marc_reader, File * const missing_part
         }
     }
 
-    INFO("Found " + std::to_string(count) + " record(s).");
-    INFO("Found " + std::to_string(control_number_to_offset_map->size()) + " superior record(s) that we may be able to merge.");
-    INFO("Found " + std::to_string(no_partner_count) + " superior record(s) that have missing \"partners\".");
+    LOG_INFO("Found " + std::to_string(count) + " record(s).");
+    LOG_INFO("Found " + std::to_string(control_number_to_offset_map->size()) + " superior record(s) that we may be able to merge.");
+    LOG_INFO("Found " + std::to_string(no_partner_count) + " superior record(s) that have missing \"partners\".");
 }
 
 
@@ -210,7 +210,7 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
 
     // Mark the record as being both "print" as well as "electronic" and store the PPN of the dropped record:
     merged_record.insertField("ZWI", { { 'a', "1" }, { 'b', record2.getControlNumber() } });
-    INFO("Merged records with PPN's " + record1.getControlNumber() + " and " + record2.getControlNumber() + ".");
+    LOG_INFO("Merged records with PPN's " + record1.getControlNumber() + " and " + record2.getControlNumber() + ".");
 
     return merged_record;
 }
@@ -219,13 +219,13 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
 MARC::Record ReadRecordFromOffsetOrDie(MARC::Reader * const marc_reader, const off_t offset) {
     const auto saved_offset(marc_reader->tell());
     if (unlikely(not marc_reader->seek(offset)))
-        ERROR("can't seek to offset " + std::to_string(offset) + "!");
+        LOG_ERROR("can't seek to offset " + std::to_string(offset) + "!");
     MARC::Record record(marc_reader->read());
     if (unlikely(not record))
-        ERROR("failed to read a record from offset " + std::to_string(offset) + "!");
+        LOG_ERROR("failed to read a record from offset " + std::to_string(offset) + "!");
 
     if (unlikely(not marc_reader->seek(saved_offset)))
-        ERROR("failed to seek to previous position " + std::to_string(saved_offset) + "!");
+        LOG_ERROR("failed to seek to previous position " + std::to_string(saved_offset) + "!");
 
     return record;
 }
@@ -257,9 +257,9 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         marc_writer->write(record);
     }
 
-    INFO("Data set contained " + std::to_string(record_count) + " MARC record(s).");
-    INFO("Merged " + std::to_string(merged_count) + " MARC record(s).");
-    INFO("Augmented " + std::to_string(augmented_count) + " MARC record(s).");
+    LOG_INFO("Data set contained " + std::to_string(record_count) + " MARC record(s).");
+    LOG_INFO("Merged " + std::to_string(merged_count) + " MARC record(s).");
+    LOG_INFO("Augmented " + std::to_string(augmented_count) + " MARC record(s).");
 }
 
 
@@ -344,7 +344,7 @@ int main(int argc, char *argv[]) {
         else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
             reader_type = MARC::Reader::XML;
         else
-            ERROR("invalid reader type \"" + std::string(argv[1] + std::strlen("--input-format=")) + "\"!");
+            LOG_ERROR("invalid reader type \"" + std::string(argv[1] + std::strlen("--input-format=")) + "\"!");
         ++argv;
         --argc;
     }
@@ -370,6 +370,6 @@ int main(int argc, char *argv[]) {
         PatchPDASubscriptions(&db_connection, ppn_to_ppn_map);
         PatchResourceTable(&db_connection, ppn_to_ppn_map);
     } catch (const std::exception &e) {
-        ERROR("Caught exception: " + std::string(e.what()));
+        LOG_ERROR("Caught exception: " + std::string(e.what()));
     }
 }

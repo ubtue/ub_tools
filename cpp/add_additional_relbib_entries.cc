@@ -56,7 +56,7 @@ void Usage() {
 void ProcessRecord(MarcRecord * const record, const std::unordered_set<std::string> &relbib_relevant_set) {
      if (relbib_relevant_set.find(record->getControlNumber()) != relbib_relevant_set.end()) {
          if (record->getFieldIndex(RELBIB_RELEVANT_TAG) != MarcRecord::FIELD_NOT_FOUND)
-             ERROR("Field " + RELBIB_RELEVANT_TAG + " already populated for PPN " + record->getControlNumber());
+             LOG_ERROR("Field " + RELBIB_RELEVANT_TAG + " already populated for PPN " + record->getControlNumber());
          record->insertSubfield(RELBIB_RELEVANT_TAG, RELBIB_SUBFIELD, "1");
          ++modified_count;
      }
@@ -85,7 +85,7 @@ void SetupRelBibRelevantSet(std::unordered_set<std::string> * const relbib_relev
     while ((retval = relbib_relevant->getline(&line, '\n'))) {
         if (not retval) {
             if (unlikely(relbib_relevant->anErrorOccurred()))
-                ERROR("Error on reading in relbib relevant file " + relbib_relevant->getPath());
+                LOG_ERROR("Error on reading in relbib relevant file " + relbib_relevant->getPath());
             if (unlikely(relbib_relevant->eof()))
                 return;                             
             continue;
@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
     if (unlikely(marc_input_filename == marc_output_filename))
-        ERROR("Title data input file name equals output file name!");
+        LOG_ERROR("Title data input file name equals output file name!");
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
@@ -117,6 +117,6 @@ int main(int argc, char **argv) {
         SetupRelBibRelevantSet(&relbib_relevant_set);
         TagRelevantRecords(marc_reader.get(), marc_writer.get(), relbib_relevant_set);
     } catch (const std::exception &x) {
-        ERROR("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }

@@ -79,7 +79,7 @@ bool DecodeEntities(std::string * const data) {
             if (ch == ';') {
                 std::string decoded_char;
                 if (not DecodeEntity(entity, &decoded_char)) {
-                    WARNING("can't decode \"" + entity + "\"!");
+                    LOG_WARNING("can't decode \"" + entity + "\"!");
                     return false;
                 }
                 for (const auto dch : decoded_char)

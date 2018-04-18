@@ -288,7 +288,7 @@ bool DecodeEntity(const char * const entity_string, std::string * const ch, cons
                 to_ansi_converter = TextUtil::EncodingConverter::Factory(TextUtil::EncodingConverter::CANONICAL_UTF8_NAME,
                                                                          "MS-ANSI", &err_msg);
                 if (not err_msg.empty())
-                    ERROR(err_msg);
+                    LOG_ERROR(err_msg);
             }
             if (to_ansi_converter->convert(utf8, ch))
                 return true;
@@ -397,7 +397,7 @@ HtmlParser::HtmlParser(const std::string &input_string, const std::string &http_
       chunk_mask_(chunk_mask), header_only_(header_only), is_xhtml_(false)
 {
     if ((chunk_mask_ & TEXT) and (chunk_mask_ & (WORD | PUNCTUATION | WHITESPACE)))
-        ERROR("TEXT cannot be set simultaneously with any of WORD, PUNCTUATION or WHITESPACE!");
+        LOG_ERROR("TEXT cannot be set simultaneously with any of WORD, PUNCTUATION or WHITESPACE!");
 
     cp_ = cp_start_ = input_string_;
     end_of_stream_ = *cp_ == '\0';
@@ -414,7 +414,7 @@ HtmlParser::HtmlParser(const std::string &input_string, const std::string &http_
                                                                    TextUtil::EncodingConverter::CANONICAL_UTF8_NAME,
                                                                    &error_message);
         if (encoding_converter_.get() == nullptr)
-            WARNING(error_message);
+            LOG_WARNING(error_message);
     }
     if (encoding_converter_.get() == nullptr)
         encoding_converter_ = TextUtil::IdentityConverter::Factory();
@@ -441,11 +441,11 @@ char *HtmlParser::handleBOM(const std::string &input_string) {
     std::string error_message;
     auto text_converter(TextUtil::EncodingConverter::Factory(BOM_type, "UTF-8", &error_message));
     if (not error_message.empty())
-        ERROR("failed to create a text converter for conversion from " + BOM_type +" to UTF-8!");
+        LOG_ERROR("failed to create a text converter for conversion from " + BOM_type +" to UTF-8!");
 
     std::string utf8_string;
     if (not text_converter->convert(input_string, &utf8_string))
-        ERROR("failed to convert from " + BOM_type +" to UTF-8!");
+        LOG_ERROR("failed to convert from " + BOM_type +" to UTF-8!");
     encoding_converter_ = TextUtil::IdentityConverter::Factory();
 
     return StringUtil::strnewdup(utf8_string.c_str());
@@ -697,9 +697,9 @@ void HtmlParser::processDoctype() {
         std::string error_message;
         encoding_converter_ = TextUtil::EncodingConverter::Factory("MS-ANSI", "UTF8", &error_message);
         if (unlikely(encoding_converter_.get() == nullptr))
-            ERROR("failed to create an encoding converter: " + error_message);
+            LOG_ERROR("failed to create an encoding converter: " + error_message);
     } else
-        WARNING("unknown doctype: " + doctype);
+        LOG_WARNING("unknown doctype: " + doctype);
 }
 
 
@@ -871,8 +871,8 @@ void HtmlParser::parseText() {
 
     std::string utf8_text;
     if (unlikely(not encoding_converter_->convert(text, &utf8_text)))
-        WARNING("invalid " + encoding_converter_->getFromEncoding()
-                + " encoded text; returned non-converted text as probably invalid \"UTF-8\"!");
+        LOG_WARNING("invalid " + encoding_converter_->getFromEncoding()
+                    + " encoded text; returned non-converted text as probably invalid \"UTF-8\"!");
     Chunk chunk(TEXT, utf8_text, lineno_);
     preNotify(&chunk);
 }
@@ -1136,7 +1136,7 @@ bool HtmlParser::parseTag() {
                 if (encoding_converter_.get() != nullptr)
                     document_local_charset_ = charset;
                 else {
-                    WARNING("failed to establish an encoding converter (using identity mapping)" + error_message);
+                    LOG_WARNING("failed to establish an encoding converter (using identity mapping)" + error_message);
                     encoding_converter_ = TextUtil::IdentityConverter::Factory();
                 }
             }

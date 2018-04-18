@@ -59,7 +59,7 @@ FileLocker::~FileLocker() {
 
     if (::fcntl(lock_fd_, F_SETLKW, &lock_struct) == -1) {                /* F_GETLK, F_SETLK, F_SETLKW */
         ::close(lock_fd_);
-        ERROR("in FileLocker::~FileLocker: fcntl(2) failed ! (" + std::to_string(errno) + ")!");
+        LOG_ERROR("in FileLocker::~FileLocker: fcntl(2) failed ! (" + std::to_string(errno) + ")!");
     }
 }
 
