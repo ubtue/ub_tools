@@ -164,6 +164,22 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
 
 
 /** \brief   Convert a time from (a subset of) ISO 8601 format to a time_t.
+ *  \param   iso_time        The time to convert in ISO 8601 format.
+ *  \param   converted_time  Upon success, we stored the converted time here.
+ *  \param   time_zone       Whether to use local time (the default) or UTC.
+ *  \return  True if we successfully parsed the input, else false.
+ *
+ *  The time is expected to be in the following formats:
+ *  "YYYY-MM-DD hh:mm:ss" or "YYYY-MM-DDThh:mm:ssZ" (Zulu time) or "YYYY-MM-DD".
+ *
+ *  \note  If "iso_time" is in Zulu format, then the time_zone
+ *         parameter must be set to UTC.
+ */
+bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_time, std::string * const err_msg,
+                          const TimeZone time_zone = LOCAL);
+
+
+/** \brief   Convert a time from (a subset of) ISO 8601 format to a time_t.
  *  \param   iso_time   The time to convert in ISO 8601 format.
  *  \param   time_zone  Whether to use local time (the default) or UTC.
  *  \return  The converted time.
