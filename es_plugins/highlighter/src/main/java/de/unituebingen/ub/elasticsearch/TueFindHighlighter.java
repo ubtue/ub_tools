@@ -47,6 +47,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import de.unituebingen.ub.elasticsearch.TueFindBreakIteratorScanner;
+
 import static org.apache.lucene.search.uhighlight.CustomUnifiedHighlighter.MULTIVAL_SEP_CHAR;
 
 public class TueFindHighlighter extends UnifiedHighlighter {
@@ -143,6 +145,7 @@ public class TueFindHighlighter extends UnifiedHighlighter {
 
 
     private BreakIterator getBreakIterator(SearchContextHighlight.Field field) {
+log.error("ENTERING getBreakIterator!!!");
         final SearchContextHighlight.FieldOptions fieldOptions = field.fieldOptions();
         final Locale locale =
             fieldOptions.boundaryScannerLocale() != null ? fieldOptions.boundaryScannerLocale() :
@@ -154,7 +157,7 @@ public class TueFindHighlighter extends UnifiedHighlighter {
         switch (type) {
             case SENTENCE:
                 if (maxLen > 0) {
-                    return BoundedBreakIteratorScanner.getSentence(locale, maxLen);
+                    return TueFindBreakIteratorScanner.getSentence(locale, maxLen);
                 }
                 return BreakIterator.getSentenceInstance(locale);
             case WORD:
