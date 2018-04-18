@@ -79,6 +79,17 @@ import org.apache.lucene.search.uhighlight.FieldOffsetStrategy;
  */
 public class TueFindCustomHighlighter extends CustomUnifiedHighlighter {
 
+    public static final char MULTIVAL_SEP_CHAR = (char) 0;
+    private static final Snippet[] EMPTY_SNIPPET = new Snippet[0];
+
+    private final OffsetSource offsetSource;
+    private final String fieldValue;
+    private final PassageFormatter passageFormatter;
+    private final BreakIterator breakIterator;
+    private final Locale breakIteratorLocale;
+    private final int noMatchSize;
+
+
     /**
      * Creates a new instance of {@link TueFindCustomHighlighter}
      *
@@ -103,6 +114,30 @@ public class TueFindCustomHighlighter extends CustomUnifiedHighlighter {
                                     String fieldValue,
                                     int noMatchSize) {
         super(searcher, analyzer, offsetSource, passageFormatter, breakIteratorLocale, 
-              breakIterator, fieldValue, noMatchSize);
+        breakIterator, fieldValue, noMatchSize);
+        this.offsetSource = offsetSource;
+        this.breakIterator = breakIterator;
+        this.breakIteratorLocale = breakIteratorLocale == null ? Locale.ROOT : breakIteratorLocale;
+        this.passageFormatter = passageFormatter;
+        this.fieldValue = fieldValue;
+        this.noMatchSize = noMatchSize;
+
     }
+
+    @Override
+    protected FieldHighlighter getFieldHighlighter(String field, Query query, Set<Term> allTerms, int maxPassages) {
+        BytesRef[] terms = filterExtractedTerms(getFieldMatcher(field), allTerms);
+        Set<HighlightFlag> highlightFlags = getFlags(field);
+        PhraseHelper phraseHelper = getPhraseHelper(field, query, highlightFlags);
+        CharacterRunAutomaton[] automata = getAutomata(field, query, highlightFlags);
+        OffsetSource offsetSource = getOptimizedOffsetSource(field, terms, phraseHelper, automata);
+        BreakIterator breakIterator = new TueFindSplittingBreakIterator(getBreakIterator(field),
+            UnifiedHighlighter.MULTIVAL_SEP_CHAR);
+        FieldOffsetStrategy strategy =
+            getOffsetStrategy(offsetSource, field, terms, phraseHelper, automata, highlightFlags);
+        return new TueFindCustomFieldHighlighter(field, strategy, breakIteratorLocale, breakIterator,
+            getScorer(field), maxPassages, (noMatchSize > 0 ? 1 : 0), getFormatter(field), noMatchSize, fieldValue);
+    }
+
+
 }
