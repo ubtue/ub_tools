@@ -38,7 +38,7 @@ bool ExtractText(const std::string &pdf_document, std::string * const extracted_
     const FileUtil::AutoTempFile auto_temp_file1;
     const std::string &input_filename(auto_temp_file1.getFilePath());
     if (not FileUtil::WriteString(input_filename, pdf_document)) {
-        WARNING("can't write document to \"" + input_filename + "\"!");
+        LOG_WARNING("can't write document to \"" + input_filename + "\"!");
         return false;
     }
 
@@ -48,12 +48,12 @@ bool ExtractText(const std::string &pdf_document, std::string * const extracted_
     const int retval(ExecUtil::Exec(pdftotext_path,
                                     { "-enc", "UTF-8", "-nopgbrk", input_filename, output_filename }));
     if (retval != 0) {
-        WARNING("failed to execute \"" + pdftotext_path + "\"!");
+        LOG_WARNING("failed to execute \"" + pdftotext_path + "\"!");
         return false;
     }
 
     if (not FileUtil::ReadString(output_filename, extracted_text)) {
-        WARNING("failed to read extracted text from \"" + output_filename + "\"!");
+        LOG_WARNING("failed to read extracted text from \"" + output_filename + "\"!");
         return false;
     }
 
@@ -94,7 +94,7 @@ bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_
 {
     tesseract::TessBaseAPI * const api(new tesseract::TessBaseAPI());
     if (api->Init(nullptr, tesseract_language_code.c_str())) {
-        WARNING("Could not initialize Tesseract API!");
+        LOG_WARNING("Could not initialize Tesseract API!");
         return false;
     }
 
@@ -125,25 +125,25 @@ bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tes
     const std::string &output_dirname(auto_temp_dir.getDirectoryPath());
     const std::string input_filename(output_dirname + "/in.pdf");
     if (not FileUtil::WriteString(input_filename, pdf_document)) {
-        WARNING("failed to write the PDF to a temp file!");
+        LOG_WARNING("failed to write the PDF to a temp file!");
         return false;
     }
 
     if (ExecUtil::Exec(pdf_images_script_path, { input_filename, output_dirname + "/out" }, "", "", "", timeout) != 0) {
-        WARNING("failed to extract images from PDF file!");
+        LOG_WARNING("failed to extract images from PDF file!");
         return false;
     }
 
     std::vector<std::string> pdf_image_filenames;
     if (FileUtil::GetFileNameList("out.*", &pdf_image_filenames, output_dirname) == 0) {
-        WARNING("PDF did not contain any images!");
+        LOG_WARNING("PDF did not contain any images!");
         return false;
     }
 
     for (const std::string &pdf_image_filename : pdf_image_filenames) {
         std::string image_text;
         if (not GetTextFromImage(output_dirname + "/" + pdf_image_filename, tesseract_language_code, &image_text)) {
-            WARNING("failed to extract text from image " + pdf_image_filename);
+            LOG_WARNING("failed to extract text from image " + pdf_image_filename);
             return false;
         }
          *extracted_text += " " + image_text;

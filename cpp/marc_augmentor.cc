@@ -112,14 +112,14 @@ bool CompiledPattern::matched(const MARC::Record &record) {
             if (matcher_.matched(field.getContents(), &err_msg))
                 return true;
             if (unlikely(not err_msg.empty()))
-                ERROR("Unexpected error while trying to match \"" + matcher_.getPattern() + "\" against a field: " + err_msg);
+                LOG_ERROR("Unexpected error while trying to match \"" + matcher_.getPattern() + "\" against a field: " + err_msg);
         } else { // Match a subfield.
             const MARC::Subfields subfields(field.getSubfields());
             for (const auto &subfield : subfields) {
                 if (subfield.code_ == subfield_code_ and matcher_.matched(subfield.value_, &err_msg))
                     return true;
                 if (unlikely(not err_msg.empty()))
-                    ERROR("Unexpected error while trying to match \"" + matcher_.getPattern() + "\" against a field: " + err_msg);
+                    LOG_ERROR("Unexpected error while trying to match \"" + matcher_.getPattern() + "\" against a field: " + err_msg);
             }
         }
     }
@@ -238,7 +238,7 @@ AugmentorDescriptor::AugmentorDescriptor(const AugmentorType augmentor_type, con
 {
 
     if (MiscUtil::LoadMapFile(map_filename, &map_) == 0)
-        ERROR("empty map file: \"" + map_filename + "\"!");
+        LOG_ERROR("empty map file: \"" + map_filename + "\"!");
 }
 
 
@@ -434,13 +434,13 @@ void Augment(std::vector<AugmentorDescriptor> &augmentors, MARC::Reader * const 
                                 &error_message))
                     modified_record = true;
                 else if (not error_message.empty())
-                    WARNING(error_message);
+                    LOG_WARNING(error_message);
             } else if (augmentor.getAugmentorType() == AugmentorType::INSERT_FIELD_IF) {
                 if (InsertField(&record, augmentor.getTag(), augmentor.getSubfieldCode(), augmentor.getInsertionText(),
                                 &error_message, augmentor.getCompiledPattern()))
                     modified_record = true;
                 else if (not error_message.empty())
-                    WARNING(error_message);
+                    LOG_WARNING(error_message);
             } else if (augmentor.getAugmentorType() == AugmentorType::REPLACE_FIELD) {
                 if (ReplaceField(&record, augmentor.getTag(), augmentor.getSubfieldCode(), augmentor.getInsertionText()))
                     modified_record = true;
@@ -464,9 +464,9 @@ void Augment(std::vector<AugmentorDescriptor> &augmentors, MARC::Reader * const 
                                        &error_message))
                     modified_record = true;
                 else if (not error_message.empty())
-                    WARNING(error_message);
+                    LOG_WARNING(error_message);
             } else
-                ERROR("unhandled Augmentor type!");
+                LOG_ERROR("unhandled Augmentor type!");
         }
 
         if (modified_record)
@@ -488,13 +488,13 @@ void ExtractCommandArgs(char ***argvp, MARC::Tag * const tag, char * const subfi
     const std::string tag_and_optional_subfield_code(**argvp);
     const auto first_colon_pos(tag_and_optional_subfield_code.find(':'));
     if (first_colon_pos != MARC::Record::TAG_LENGTH and first_colon_pos != MARC::Record::TAG_LENGTH + 1)
-        ERROR("invalid tag and optional subfield code after \"" + command + "\": \"" + tag_and_optional_subfield_code + "\"!");
+        LOG_ERROR("invalid tag and optional subfield code after \"" + command + "\": \"" + tag_and_optional_subfield_code + "\"!");
     *tag = MARC::Tag(tag_and_optional_subfield_code.substr(0, MARC::Record::TAG_LENGTH));
     *subfield_code = (first_colon_pos > MARC::Record::TAG_LENGTH)
                      ? tag_and_optional_subfield_code[MARC::Record::TAG_LENGTH] : CompiledPattern::NO_SUBFIELD_CODE;
     *field_or_subfield_contents = tag_and_optional_subfield_code.substr(first_colon_pos + 1);
     if (field_or_subfield_contents->empty())
-        ERROR("text after colon for \"" + command + "\" must not be empty!");
+        LOG_ERROR("text after colon for \"" + command + "\" must not be empty!");
     ++*argvp;
 }
 
@@ -508,20 +508,20 @@ void ExtractCommandArgs(char ***argvp, MARC::Tag * const tag, char * const subfi
     const std::string tag_and_optional_subfield_code(**argvp);
     auto first_colon_pos(tag_and_optional_subfield_code.find(':'));
     if (first_colon_pos != MARC::Record::TAG_LENGTH and first_colon_pos != MARC::Record::TAG_LENGTH + 1)
-        ERROR("invalid tag and optional subfield code after \"" + command + "\"!");
+        LOG_ERROR("invalid tag and optional subfield code after \"" + command + "\"!");
     *tag = MARC::Tag(tag_and_optional_subfield_code.substr(0, MARC::Record::TAG_LENGTH));
     *subfield_code = (tag_and_optional_subfield_code.length() > MARC::Record::TAG_LENGTH)
                      ? tag_and_optional_subfield_code[MARC::Record::TAG_LENGTH] : CompiledPattern::NO_SUBFIELD_CODE;
 
     *field_or_subfield_contents = tag_and_optional_subfield_code.substr(first_colon_pos + 1);
     if (field_or_subfield_contents->empty())
-        ERROR("text after colon for \"" + command + "\" must not be empty!");
+        LOG_ERROR("text after colon for \"" + command + "\" must not be empty!");
     ++*argvp;
 
     const std::string tag_optional_subfield_code_and_regex(**argvp);
     first_colon_pos = tag_optional_subfield_code_and_regex.find(':');
     if (first_colon_pos != MARC::Record::TAG_LENGTH and first_colon_pos != MARC::Record::TAG_LENGTH + 1)
-        ERROR("invalid tag and optional subfield code after \"" + command + "\"!");
+        LOG_ERROR("invalid tag and optional subfield code after \"" + command + "\"!");
     const std::string match_tag(tag_optional_subfield_code_and_regex.substr(0, MARC::Record::TAG_LENGTH));
     const char match_subfield_code(
         (first_colon_pos == MARC::Record::TAG_LENGTH) ? CompiledPattern::NO_SUBFIELD_CODE
@@ -530,7 +530,7 @@ void ExtractCommandArgs(char ***argvp, MARC::Tag * const tag, char * const subfi
     std::string err_msg;
     RegexMatcher * const new_matcher(RegexMatcher::RegexMatcherFactory(regex_string, &err_msg));
     if (new_matcher == nullptr)
-        ERROR("failed to compile regular expression: \"" + regex_string + "\" for \"" + command + "\"! (" + err_msg +")");
+        LOG_ERROR("failed to compile regular expression: \"" + regex_string + "\" for \"" + command + "\"! (" + err_msg +")");
     *compiled_pattern = new CompiledPattern(match_tag, match_subfield_code, std::move(*new_matcher));
     ++*argvp;
 }
@@ -545,13 +545,13 @@ void ExtractCommandArgs(char ***argvp, MARC::Tag * const tag1, char * const subf
     const std::string tags_and_optional_subfield_codes(**argvp);
     const auto first_colon_pos(tags_and_optional_subfield_codes.find(':'));
     if (first_colon_pos != MARC::Record::TAG_LENGTH and first_colon_pos != MARC::Record::TAG_LENGTH + 1)
-        ERROR("invalid tag and optional subfield code after \"" + command + "\": \"" + tags_and_optional_subfield_codes + "\"!");
+        LOG_ERROR("invalid tag and optional subfield code after \"" + command + "\": \"" + tags_and_optional_subfield_codes + "\"!");
     *tag1 = MARC::Tag(tags_and_optional_subfield_codes.substr(0, MARC::Record::TAG_LENGTH));
     *subfield_code1 = (first_colon_pos > MARC::Record::TAG_LENGTH)
                       ? tags_and_optional_subfield_codes[MARC::Record::TAG_LENGTH] : CompiledPattern::NO_SUBFIELD_CODE;
     if (tags_and_optional_subfield_codes.length() - first_colon_pos - 1 != MARC::Record::TAG_LENGTH
         and tags_and_optional_subfield_codes.length() - first_colon_pos - 1 != MARC::Record::TAG_LENGTH + 1)
-        ERROR("invalid 2nd tag and optional subfield code after \"" + command + "\": \"" + tags_and_optional_subfield_codes
+        LOG_ERROR("invalid 2nd tag and optional subfield code after \"" + command + "\": \"" + tags_and_optional_subfield_codes
               + "\"!");
     *tag2 = MARC::Tag(tags_and_optional_subfield_codes.substr(first_colon_pos + 1, MARC::Record::TAG_LENGTH));
     *subfield_code2 = (tags_and_optional_subfield_codes.length()  - first_colon_pos - 1 == MARC::Record::TAG_LENGTH + 1)
@@ -582,7 +582,7 @@ void ProcessAugmentorArgs(char **argv, std::vector<AugmentorDescriptor> * const 
         } else if (std::strcmp(*argv, "--add-subfield") == 0) {
             ExtractCommandArgs(&argv, &tag, &subfield_code, &field_or_subfield_contents);
             if (subfield_code == CompiledPattern::NO_SUBFIELD_CODE)
-                ERROR("missing subfield code for --add-subfield operation!");
+                LOG_ERROR("missing subfield code for --add-subfield operation!");
             augmentors->emplace_back(AugmentorDescriptor::MakeAddSubfieldAugmentor(tag, subfield_code,
                                                                                    field_or_subfield_contents));
         } else if (std::strcmp(*argv, "--insert-field-if") == 0) {
@@ -596,7 +596,7 @@ void ProcessAugmentorArgs(char **argv, std::vector<AugmentorDescriptor> * const 
         } else if (std::strcmp(*argv, "--add-subfield-if") == 0) {
             ExtractCommandArgs(&argv, &tag, &subfield_code, &compiled_pattern, &field_or_subfield_contents);
             if (subfield_code == CompiledPattern::NO_SUBFIELD_CODE)
-                ERROR("missing subfield code for --add-subfield-if operation!");
+                LOG_ERROR("missing subfield code for --add-subfield-if operation!");
             augmentors->emplace_back(AugmentorDescriptor::MakeAddSubfieldIfAugmentor(tag, subfield_code, compiled_pattern,
                                                                                      field_or_subfield_contents));
         } else if (std::strcmp(*argv, "--map-insert") == 0) {
@@ -612,7 +612,7 @@ void ProcessAugmentorArgs(char **argv, std::vector<AugmentorDescriptor> * const 
             augmentors->emplace_back(AugmentorDescriptor::MakeMapInsertOrReplaceAugmentor(tag, subfield_code, tag2,
                                                                                           subfield_code2, map_filename));
         } else
-            ERROR("unknown operation type \"" + std::string(*argv) + "\"!");
+            LOG_ERROR("unknown operation type \"" + std::string(*argv) + "\"!");
     }
 }
 
@@ -662,7 +662,7 @@ int main(int argc, char **argv) {
         reader_type = MARC::Reader::BINARY;
         ++argv;
     } else if (StringUtil::StartsWith(*argv, "--input-format="))
-        ERROR("unknown input format \"" + std::string(*argv + __builtin_strlen("--input-format="))
+        LOG_ERROR("unknown input format \"" + std::string(*argv + __builtin_strlen("--input-format="))
               + "\" use \"marc-xml\" or \"marc-21\"!");
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename, reader_type));
 
@@ -674,7 +674,7 @@ int main(int argc, char **argv) {
         writer_type = MARC::Writer::BINARY;
         ++argv;
     } else if (StringUtil::StartsWith(*argv, "--output-format="))
-        ERROR("unknown output format \"" + std::string(*argv + __builtin_strlen("--output-format="))
+        LOG_ERROR("unknown output format \"" + std::string(*argv + __builtin_strlen("--output-format="))
               + "\" use \"marc-xml\" or \"marc-21\"!");
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(output_filename, writer_type));
 
@@ -683,11 +683,11 @@ int main(int argc, char **argv) {
         if (*(argv + 1) != nullptr and std::strcmp(*(argv + 1), "--config-path") == 0) {
             argv += 2;
             if (*argv == nullptr)
-                ERROR("missing config filename after \"--config-path\"!");
+                LOG_ERROR("missing config filename after \"--config-path\"!");
             const std::string config_filename(*argv);
             ++argv;
             if (*argv != nullptr)
-                ERROR("unexpected argument after config filename \"" + std::string(*argv) + "\"!");
+                LOG_ERROR("unexpected argument after config filename \"" + std::string(*argv) + "\"!");
             char **file_argv;
             MakeArgumentListFromFile(config_filename, &file_argv);
             ProcessAugmentorArgs(file_argv, &augmentors);
@@ -696,6 +696,6 @@ int main(int argc, char **argv) {
 
         Augment(augmentors, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
-        ERROR("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }

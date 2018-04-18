@@ -87,27 +87,27 @@ void LoadJournalPPNs(const std::string &path,
 {
     std::vector<std::vector<std::string>> lines;
     TextUtil::ParseCSVFileOrDie(path, &lines);
-    INFO("Found " + std::to_string(lines.size() - 1) + " journal entries.");
+    LOG_INFO("Found " + std::to_string(lines.size() - 1) + " journal entries.");
 
     auto line(lines.cbegin());
     if (line == lines.cend())
-        ERROR("Empty input file: \"" + path + "\"!");
+        LOG_ERROR("Empty input file: \"" + path + "\"!");
 
     for (++line /* Skip over header. */; line != lines.cend(); ++line) {
         if (line->size() != 3)
-            ERROR("logical line #" + std::to_string(line - lines.cbegin()) + " does not contain 3 values! (Instead we have "
+            LOG_ERROR("logical line #" + std::to_string(line - lines.cbegin()) + " does not contain 3 values! (Instead we have "
                   + std::to_string(line->size()) + " values.)");
         if (unlikely((*line)[0].empty()))
-            ERROR("logical line #" + std::to_string(line - lines.cbegin()) + " is missing the ID!");
+            LOG_ERROR("logical line #" + std::to_string(line - lines.cbegin()) + " is missing the ID!");
         if (unlikely((*line)[1].empty() and (*line)[2].empty()))
-            ERROR("logical line #" + std::to_string(line - lines.cbegin()) + " is missing a PPN!");
+            LOG_ERROR("logical line #" + std::to_string(line - lines.cbegin()) + " is missing a PPN!");
         if (not (*line)[1].empty())
             ppn_to_journal_desc_map->emplace((*line)[1], JournalDescriptor((*line)[1], JournalDescriptor::PRINT));
         if (not (*line)[2].empty())
            ppn_to_journal_desc_map->emplace((*line)[2], JournalDescriptor((*line)[2], JournalDescriptor::PRINT));
     }
 
-    INFO("Found " + std::to_string(ppn_to_journal_desc_map->size()) + " journal PPN's.");
+    LOG_INFO("Found " + std::to_string(ppn_to_journal_desc_map->size()) + " journal PPN's.");
 }
 
 
@@ -171,7 +171,7 @@ void ProcessRecords(MARC::Reader * const marc_reader,
 
         year_as_string = GetSecondYearOfRange(year_as_string);
         if (year_as_string.length() != 4) {
-            INFO("Bad year: \"" + year_as_string + "\". (1)");
+            LOG_INFO("Bad year: \"" + year_as_string + "\". (1)");
             continue;
         }
 
@@ -180,10 +180,10 @@ void ProcessRecords(MARC::Reader * const marc_reader,
             parent_ppn_and_journal_desc->second.updateMostRecentYear(year);
             parent_ppn_and_journal_desc->second.setTitle(journal_title);
         } else
-            INFO("Bad year: \"" + year_as_string + "\". (2)");
+            LOG_INFO("Bad year: \"" + year_as_string + "\". (2)");
     }
 
-    INFO("Processed " + std::to_string(record_count) + " MARC record(s).");
+    LOG_INFO("Processed " + std::to_string(record_count) + " MARC record(s).");
 }
 
 
@@ -201,7 +201,7 @@ void GenerateReport(const std::string &report_filename,
         }
     }
 
-    INFO("Generated a report with " + std::to_string(count) + " entries.");
+    LOG_INFO("Generated a report with " + std::to_string(count) + " entries.");
 }
 
 
@@ -221,6 +221,6 @@ int main(int argc, char *argv[]) {
         ProcessRecords(marc_reader.get(), &ppn_to_journal_desc_map);
         GenerateReport(argv[3], ppn_to_journal_desc_map);
     } catch (const std::exception &e) {
-        ERROR("caught exception: " + std::string(e.what()));
+        LOG_ERROR("caught exception: " + std::string(e.what()));
     }
 }

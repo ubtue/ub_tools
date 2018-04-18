@@ -69,7 +69,7 @@ CrossrefDate::CrossrefDate(const JSON::ObjectNode &object, const std::string &fi
     auto date_component_iter(array_node2->begin());
     const auto &date_end(array_node2->end());
     if (unlikely(date_component_iter == date_end))
-        ERROR("year is missing for the \"" + field + "\" date field!");
+        LOG_ERROR("year is missing for the \"" + field + "\" date field!");
 
     std::shared_ptr<const JSON::IntegerNode> year_node(JSON::JSONNode::CastToIntegerNodeOrDie("date-parts[0]", *date_component_iter));
     if (year_node == nullptr or year_node->getValue() < 0) {

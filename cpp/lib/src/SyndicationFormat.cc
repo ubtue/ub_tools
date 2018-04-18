@@ -160,7 +160,7 @@ RSS20::RSS20(const std::string &xml_document): SyndicationFormat(xml_document) {
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "lastBuildDate") {
             const std::string last_build_date(ExtractText(xml_parser_, "lastBuildDate", " (RSS20::RSS20)"));
             if (not TimeUtil::ParseRFC1123DateTime(last_build_date, &last_build_date_))
-                ERROR("failed to parse \"" + last_build_date + "\" as an RFC1123 datetime!");
+                LOG_ERROR("failed to parse \"" + last_build_date + "\" as an RFC1123 datetime!");
         }
     }
     if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
@@ -190,7 +190,7 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "pubDate") {
             const std::string pub_date_string(ExtractText(xml_parser_, "pubDate"));
             if (unlikely(not TimeUtil::ParseRFC1123DateTime(pub_date_string, &pub_date)))
-                WARNING("couldn't parse \"" + pub_date_string + "\"!");
+                LOG_WARNING("couldn't parse \"" + pub_date_string + "\"!");
         }
     }
     if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
@@ -218,7 +218,7 @@ RSS091::RSS091(const std::string &xml_document): SyndicationFormat(xml_document)
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "lastBuildDate") {
             const std::string last_build_date(ExtractText(xml_parser_, "lastBuildDate", " (RSS091::RSS091)"));
             if (not TimeUtil::ParseRFC1123DateTime(last_build_date, &last_build_date_))
-                ERROR("failed to parse \"" + last_build_date + "\" as an RFC1123 datetime!");
+                LOG_ERROR("failed to parse \"" + last_build_date + "\" as an RFC1123 datetime!");
         }
     }
     if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
@@ -269,7 +269,7 @@ Atom::Atom(const std::string &xml_document): SyndicationFormat(xml_document) {
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "updated") {
             const std::string last_build_date(ExtractText(xml_parser_, "updated", " (Atom::Atom)"));
             if (not TimeUtil::ParseRFC3339DateTime(last_build_date, &last_build_date_))
-                ERROR("failed to parse \"" + last_build_date + "\" as an RFC3339 datetime!");
+                LOG_ERROR("failed to parse \"" + last_build_date + "\" as an RFC3339 datetime!");
         }
     }
     if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
@@ -398,9 +398,9 @@ void ExtractPrismData(SimpleXmlParser<StringDataSource> * const xml_parser, cons
             if (likely(key_and_value != attrib_map.end()))
                 (*dc_and_prism_data)["prism:" + tag_suffix] = key_and_value->second;
             else
-                WARNING("don't know what to do w/ \"" + tag + "\" tag attribute!");
+                LOG_WARNING("don't know what to do w/ \"" + tag + "\" tag attribute!");
         } else
-            WARNING("don't know what to do w/ PRISM \"" + tag + "\" tag!");
+            LOG_WARNING("don't know what to do w/ PRISM \"" + tag + "\" tag!");
         if (not xml_parser->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, tag))
             throw std::runtime_error("in RDF::getNextItem: missing closing \"" + tag + "\" tag!");
     }
@@ -433,7 +433,7 @@ std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
             else if (data == rss_namespace_ + "pubDate") {
                 const std::string pub_date_string(ExtractText(xml_parser_, rss_namespace_ + "pubDate"));
                 if (unlikely(not TimeUtil::ParseRFC1123DateTime(pub_date_string, &pub_date)))
-                    WARNING("couldn't parse \"" + pub_date_string + "\"!");
+                    LOG_WARNING("couldn't parse \"" + pub_date_string + "\"!");
             } else if (not dc_namespace_.empty() and StringUtil::StartsWith(data, dc_namespace_)) {
                 const std::string tag(data);
                 const std::string tag_suffix(tag.substr(dc_namespace_.length()));

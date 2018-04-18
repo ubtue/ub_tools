@@ -61,7 +61,7 @@ std::string ExtractResumptionToken(const std::string &xml_document, std::string 
     if (not xml_parser.getNext(&type, &attrib_map, &data) or type == SimpleXmlParser<StringDataSource>::CLOSING_TAG)
         return "";
     if (type != SimpleXmlParser<StringDataSource>::CHARACTERS)
-        ERROR("strange resumption token XML structure!");
+        LOG_ERROR("strange resumption token XML structure!");
 
     // Extract the "cursor" attribute:
     auto name_and_value(attrib_map.find("cursor"));
@@ -101,12 +101,12 @@ unsigned ExtractEncapsulatedRecordData(SimpleXmlParser<StringDataSource> * const
     while (xml_parser->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "record")) {
         ++record_count;
         if (not xml_parser->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "metadata"))
-            ERROR("no <metadata> tag found after a <record> tag!");
+            LOG_ERROR("no <metadata> tag found after a <record> tag!");
         xml_parser->skipWhiteSpace();
 
         if (not xml_parser->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "metadata",
                                    /* attrib_map = */ nullptr, extracted_records))
-            ERROR("no </metadata> tag found after a <metadata> tag!");
+            LOG_ERROR("no </metadata> tag found after a <metadata> tag!");
 
         StripOffTrailingGarbage(extracted_records);
         *extracted_records += '\n';
@@ -123,12 +123,12 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
     const TimeLimit time_limit(time_limit_in_seconds_per_request * 1000);
     Downloader downloader(url, Downloader::Params(), time_limit);
     if (downloader.anErrorOccurred())
-        ERROR("harvest failed: " + downloader.getLastErrorMessage());
+        LOG_ERROR("harvest failed: " + downloader.getLastErrorMessage());
 
     const HttpHeader http_header(downloader.getMessageHeader());
     const unsigned status_code(http_header.getStatusCode());
     if (status_code < 200 or status_code > 299)
-        ERROR("server returned a status code of " + std::to_string(status_code) + "!");
+        LOG_ERROR("server returned a status code of " + std::to_string(status_code) + "!");
 
     const std::string message_body(downloader.getMessageBody());
     std::string extracted_records;
@@ -148,11 +148,11 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
         std::string data;
         if (xml_parser.getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<StringDataSource>::CHARACTERS)
             error_msg += data;
-        ERROR("OAI-PMH server returned an error: " + error_msg + " (We sent \"" + url + "\")");
+        LOG_ERROR("OAI-PMH server returned an error: " + error_msg + " (We sent \"" + url + "\")");
     } else { // record_count > 0
         *total_record_count += record_count;
         if (not output->write(extracted_records))
-            ERROR("failed to write to \"" + output->getPath() + "\"! (Disc full?)");
+            LOG_ERROR("failed to write to \"" + output->getPath() + "\"! (Disc full?)");
     }
 
     *resumption_token = ExtractResumptionToken(message_body, cursor, complete_list_size);
@@ -170,7 +170,7 @@ std::string MakeRequestURL(const std::string &base_url, const std::string &metad
         request_url = base_url + "?verb=ListRecords&metadataPrefix=" + metadata_prefix;
     else
         request_url = base_url + "?verb=ListRecords&metadataPrefix=" + metadata_prefix + "&set=" + harvest_set;
-    INFO("Request URL = " + request_url);
+    LOG_INFO("Request URL = " + request_url);
 
     return request_url;
 }
@@ -183,7 +183,7 @@ std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB() {
     std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
     if (not (db->open(OAI_DUPS_DB_FILENAME,
                       kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
-        ERROR("failed to open or create \"" + OAI_DUPS_DB_FILENAME + "\"!");
+        LOG_ERROR("failed to open or create \"" + OAI_DUPS_DB_FILENAME + "\"!");
     return db;
 }
 
@@ -196,7 +196,7 @@ void GenerateValidatedOutput(kyotocabinet::HashDB * const dups_db, MARC::Reader 
         if (dups_db != nullptr) {
             const std::string checksum(MARC::CalcChecksum(record, /* exclude_001 = */true));
             if (dups_db->check(checksum) > 0) {
-                DEBUG("found a dupe w/ checksum \"" + checksum + "\".");
+                LOG_DEBUG("found a dupe w/ checksum \"" + checksum + "\".");
                 continue;
             }
             dups_db->add(checksum, TimeUtil::GetCurrentDateAndTime());
@@ -234,7 +234,7 @@ int main(int argc, char **argv) {
 
     unsigned time_limit_per_request_in_seconds;
     if (not StringUtil::ToUnsigned(time_limit_per_request_as_string, &time_limit_per_request_in_seconds))
-        ERROR("\"" + time_limit_per_request_as_string + "\" is not a valid time limit!");
+        LOG_ERROR("\"" + time_limit_per_request_as_string + "\" is not a valid time limit!");
 
     try {
         const std::string TEMP_FILENAME("/tmp/oai_pmh_harvester.temp.xml");
@@ -251,19 +251,19 @@ int main(int argc, char **argv) {
         while (ListRecords(MakeRequestURL(base_url, metadata_prefix, harvest_set, resumption_token),
                            time_limit_per_request_in_seconds, temp_output.get(), &resumption_token,
                            &cursor, &complete_list_size, &total_record_count))
-            INFO("Continuing download, resumption token was: \"" + resumption_token + "\" (cursor=" + cursor
+            LOG_INFO("Continuing download, resumption token was: \"" + resumption_token + "\" (cursor=" + cursor
                  + ", completeListSize=" + complete_list_size + ").");
 
         const std::string COLLECTION_CLOSE("</collection>");
         temp_output->write(COLLECTION_CLOSE + "\n");
         temp_output->close();
-        INFO("Downloaded " + std::to_string(total_record_count) + " record(s).");
+        LOG_INFO("Downloaded " + std::to_string(total_record_count) + " record(s).");
 
         std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(TEMP_FILENAME, MARC::Reader::XML));
         std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(output_filename));
         GenerateValidatedOutput(dups_db.get(), marc_reader.get(), control_number_prefix, marc_writer.get());
         ::unlink(TEMP_FILENAME.c_str());
     } catch (const std::exception &x) {
-        ERROR("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }

@@ -62,7 +62,7 @@ bool FeedContainsNoNewItems(const Mode mode, DbConnection * const db_connection,
             date_string = SqlUtil::TimeTToDatetime(last_build_date);
 
         if (mode == VERBOSE)
-            INFO("Creating new feed entry in rss_feeds table for \"" + feed_url + "\".");
+            LOG_INFO("Creating new feed entry in rss_feeds table for \"" + feed_url + "\".");
         if (mode != TEST)
             db_connection->queryOrDie("INSERT INTO rss_feeds SET feed_url='" + db_connection->escapeString(feed_url)
                                       + "',last_build_date='" + date_string + "'");
@@ -87,7 +87,7 @@ std::string GetFeedID(const Mode mode, DbConnection * const db_connection, const
     if (unlikely(result_set.empty())) {
         if (mode == TEST)
             return "-1"; // Must be an INT.
-        ERROR("unexpected missing feed for URL \"" + feed_url + "\".");
+        LOG_ERROR("unexpected missing feed for URL \"" + feed_url + "\".");
     }
     const DbRow first_row(result_set.getNextRow());
     return first_row["id"];
@@ -116,7 +116,7 @@ bool ItemAlreadyProcessed(DbConnection * const db_connection, const std::string 
 
     if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG) {
         const DbRow first_row(result_set.getNextRow());
-        DEBUG("Previously retrieved item w/ ID \"" + item_id + "\" at " + first_row["creation_datetime"] + ".");
+        LOG_DEBUG("Previously retrieved item w/ ID \"" + item_id + "\" at " + first_row["creation_datetime"] + ".");
     }
 
     return true;
@@ -134,14 +134,14 @@ unsigned ProcessSyndicationURL(const Mode mode, const std::string &feed_url,
 
     Downloader downloader(feed_url);
     if (downloader.anErrorOccurred()) {
-        WARNING("Download problem for \"" + feed_url + "\": " + downloader.getLastErrorMessage());
+        LOG_WARNING("Download problem for \"" + feed_url + "\": " + downloader.getLastErrorMessage());
         return successfully_processed_count;
     }
 
     std::string err_msg;
     std::unique_ptr<SyndicationFormat> syndication_format(SyndicationFormat::Factory(downloader.getMessageBody(), &err_msg));
     if (syndication_format == nullptr) {
-        WARNING("Problem parsing XML document for \"" + feed_url + "\": " + err_msg);
+        LOG_WARNING("Problem parsing XML document for \"" + feed_url + "\": " + err_msg);
         return successfully_processed_count;
     }
 
@@ -200,7 +200,7 @@ std::string GetMarcFormat(const std::string &output_filename) {
         return "marc21";
     if (StringUtil::EndsWith(output_filename, ".xml"))
         return "marcxml";
-    ERROR("can't determine output format from MARC output filename \"" + output_filename + "\"!");
+    LOG_ERROR("can't determine output format from MARC output filename \"" + output_filename + "\"!");
 }
 
 
@@ -271,7 +271,7 @@ int main(int argc, char *argv[]) {
         Zotero::MarcFormatHandler * const marc_format_handler(reinterpret_cast<Zotero::MarcFormatHandler *>(
             harvest_params->format_handler_.get()));
         if (unlikely(marc_format_handler == nullptr))
-            ERROR("expected a MarcFormatHandler!");
+            LOG_ERROR("expected a MarcFormatHandler!");
 
         unsigned download_count(0);
         for (const auto &server_url : server_urls)
@@ -279,8 +279,8 @@ int main(int argc, char *argv[]) {
 
         harvest_params->format_handler_->finishProcessing();
 
-        INFO("Extracted metadata from " + std::to_string(download_count) + " page(s).");
+        LOG_INFO("Extracted metadata from " + std::to_string(download_count) + " page(s).");
     } catch (const std::exception &x) {
-        ERROR("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }
