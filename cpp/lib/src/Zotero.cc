@@ -830,7 +830,7 @@ std::string TimeTToStringRep(const time_t t) {
 
 
 time_t StringRepToTimeT(const std::string &string_rep) {
-    if (unlikely(string_rep.size() != sizeof(time_t)))
+    if (unlikely(string_rep.size() != 2 * sizeof(time_t)))
         LOG_ERROR("Houston, we have a problem!"); // This should *never* happen!
 
     time_t retval;
