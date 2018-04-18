@@ -132,7 +132,7 @@ Logger::LogLevel Logger::StringToLogLevel(const std::string &level_candidate) {
         return Logger::LL_INFO;
     if (level_candidate == "DEBUG")
         return Logger::LL_DEBUG;
-    ERROR("not a valid minimum log level: \"" + level_candidate + "\"! (Use ERROR, WARNING, INFO or DEBUG)");
+    LOG_ERROR("not a valid minimum log level: \"" + level_candidate + "\"! (Use ERROR, WARNING, INFO or DEBUG)");
 }
 
 
@@ -145,7 +145,7 @@ std::string Logger::LogLevelToString(const LogLevel log_level) {
         return "INFO";
     if (log_level == Logger::LL_DEBUG)
         return "DEBUG";
-    ERROR("unsupported log level, we should *never* get here!");
+    LOG_ERROR("unsupported log level, we should *never* get here!");
 }
 
 

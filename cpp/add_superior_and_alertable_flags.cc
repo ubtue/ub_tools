@@ -59,7 +59,7 @@ void LoadSuperiorPPNs(MARC::Reader * const marc_reader, std::unordered_set<std::
         }
     }
     
-    INFO("Found " + std::to_string(superior_ppns->size()) + " superior PPNs.");
+    LOG_INFO("Found " + std::to_string(superior_ppns->size()) + " superior PPNs.");
 }
 
 
@@ -108,7 +108,7 @@ void AddSuperiorFlag(MARC::Reader * const marc_reader, MARC::Writer * const marc
     while (MARC::Record record = marc_reader->read())
         ProcessRecord(marc_writer, superior_ppns, &record, &modified_count);
 
-    INFO("Modified " + std::to_string(modified_count) + " record(s).");
+    LOG_INFO("Modified " + std::to_string(modified_count) + " record(s).");
 }
 
 
@@ -130,6 +130,6 @@ int main(int argc, char **argv) {
         marc_reader->rewind();
         AddSuperiorFlag(marc_reader.get(), marc_writer.get(), superior_ppns);
     } catch (const std::exception &x) {
-        ERROR("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }

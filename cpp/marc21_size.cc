@@ -41,15 +41,15 @@ namespace {
 void CountRecords(const std::string &filename) {
     const int fd(::open(filename.c_str(), O_RDONLY));
     if (fd == -1)
-        ERROR("Failed op open \"" + filename + "\" for reading!");
+        LOG_ERROR("Failed op open \"" + filename + "\" for reading!");
 
     struct stat stat_buf;
     if (::fstat(fd, &stat_buf) == -1)
-        ERROR("Failed to stat \"" + filename + "\"!");
+        LOG_ERROR("Failed to stat \"" + filename + "\"!");
 
     const char * const map(reinterpret_cast<char *>(::mmap(nullptr, stat_buf.st_size, PROT_READ, MAP_PRIVATE, fd, 0)));
     if (map == MAP_FAILED)
-        ERROR("Failed to mmap \"" + filename + "\"!");
+        LOG_ERROR("Failed to mmap \"" + filename + "\"!");
 
     size_t record_count(0);
     for (off_t i(0); i < stat_buf.st_size; ++i) {

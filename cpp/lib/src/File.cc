@@ -237,12 +237,12 @@ File &File::operator<<(const double d) {
 
 void File::rewind() {
     if (unlikely(file_ == nullptr))
-        ERROR("can't rewind a non-open file!");
+        LOG_ERROR("can't rewind a non-open file!");
 
     errno = 0;
     std::rewind(file_);
     if (unlikely(errno != 0))
-        ERROR("rewind(3) failed!");
+        LOG_ERROR("rewind(3) failed!");
 
     if (open_mode_ != WRITING) {
         read_count_ = 0;

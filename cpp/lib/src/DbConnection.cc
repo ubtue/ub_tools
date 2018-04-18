@@ -67,7 +67,7 @@ DbConnection::DbConnection(const std::string &database_path, const OpenMode open
     }
 
     if (::sqlite3_open_v2(database_path.c_str(), &sqlite3_, flags, nullptr) != SQLITE_OK)
-        ERROR("failed to create or open an Sqlite3 database with path \"" + database_path + "\"!");
+        LOG_ERROR("failed to create or open an Sqlite3 database with path \"" + database_path + "\"!");
     stmt_handle_ = nullptr;
     initialised_ = true;
 }
@@ -81,11 +81,11 @@ DbConnection::~DbConnection() {
             if (stmt_handle_ != nullptr) {
                 const int result_code(::sqlite3_finalize(stmt_handle_));
                 if (result_code != SQLITE_OK)
-                    ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was "
+                    LOG_ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was "
                           + std::to_string(result_code) + ")");
             }
             if (::sqlite3_close(sqlite3_) != SQLITE_OK)
-                ERROR("failed to cleanly close an Sqlite3 database!");
+                LOG_ERROR("failed to cleanly close an Sqlite3 database!");
         }
     }
 }
@@ -102,7 +102,7 @@ bool DbConnection::query(const std::string &query_statement) {
         if (stmt_handle_ != nullptr) {
             const int result_code(::sqlite3_finalize(stmt_handle_));
             if (result_code != SQLITE_OK)
-                ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was "
+                LOG_ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was "
                       + std::to_string(result_code) + ")");
         }
 
@@ -111,12 +111,12 @@ bool DbConnection::query(const std::string &query_statement) {
             != SQLITE_OK)
             return false;
         if (rest != nullptr and *rest != '\0')
-            ERROR("junk after SQL statement (" + query_statement + "): \"" + std::string(rest) + "\"!");
+            LOG_ERROR("junk after SQL statement (" + query_statement + "): \"" + std::string(rest) + "\"!");
         switch (::sqlite3_step(stmt_handle_)) {
         case SQLITE_DONE:
         case SQLITE_OK:
             if (::sqlite3_finalize(stmt_handle_) != SQLITE_OK)
-                ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ")");
+                LOG_ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ")");
             stmt_handle_ = nullptr;
             break;
         case SQLITE_ROW:
@@ -132,7 +132,7 @@ bool DbConnection::query(const std::string &query_statement) {
 
 void DbConnection::queryOrDie(const std::string &query_statement) {
     if (not query(query_statement))
-        ERROR("in DbConnection::queryOrDie: \"" + query_statement + "\" failed: " + getLastErrorMessage());
+        LOG_ERROR("in DbConnection::queryOrDie: \"" + query_statement + "\" failed: " + getLastErrorMessage());
 }
 
 
@@ -202,9 +202,9 @@ void SplitSqliteStatements(const std::string &compound_statement, std::vector<st
     }
 
     if (parse_state == IN_C_STYLE_COMMENT)
-        ERROR("unterminated C-style comment in SQL statement sequence: \"" + compound_statement + "\"!");
+        LOG_ERROR("unterminated C-style comment in SQL statement sequence: \"" + compound_statement + "\"!");
     else if (parse_state == IN_STRING_CONSTANT)
-        ERROR("unterminated string constant in SQL statement sequence: \"" + compound_statement + "\"!");
+        LOG_ERROR("unterminated string constant in SQL statement sequence: \"" + compound_statement + "\"!");
     else if (parse_state == NORMAL) {
         StringUtil::TrimWhite(&current_statement);
         if (not current_statement.empty()) {
@@ -221,7 +221,7 @@ void SplitSqliteStatements(const std::string &compound_statement, std::vector<st
 bool DbConnection::queryFile(const std::string &filename) {
     std::string statements;
     if (not FileUtil::ReadString(filename, &statements))
-        ERROR("failed to read \"" + filename + "\"!");
+        LOG_ERROR("failed to read \"" + filename + "\"!");
 
     if (type_ == T_MYSQL)
         return query(StringUtil::TrimWhite(&statements));
@@ -241,7 +241,7 @@ bool DbConnection::queryFile(const std::string &filename) {
 void DbConnection::queryFileOrDie(const std::string &filename) {
     std::string statements;
     if (not FileUtil::ReadString(filename, &statements))
-        ERROR("failed to read \"" + filename + "\"!");
+        LOG_ERROR("failed to read \"" + filename + "\"!");
 
     if (type_ == T_MYSQL)
         return queryOrDie(StringUtil::TrimWhite(&statements));

@@ -469,7 +469,7 @@ int main(int argc, char *argv[]) {
         else if (std::strcmp(argv[1] +  __builtin_strlen("--input-format="), "marc-21") == 0)
             reader_type = MARC::Reader::BINARY;
         else
-            ERROR("input format must be \"marc-xml\" or \"marc-21\"!");
+            LOG_ERROR("input format must be \"marc-xml\" or \"marc-21\"!");
         --argc, ++argv;
     }
 

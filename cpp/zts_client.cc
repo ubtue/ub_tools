@@ -75,7 +75,7 @@ void HarvestSites(const SimpleCrawler::Params &crawler_params, const std::shared
         while (crawler.getNextPage(&page_details)) {
             ++processed_url_count;
             if (not supported_urls_regex->matched(page_details.url_))
-                INFO("Skipping unsupported URL: " + page_details.url_);
+                LOG_INFO("Skipping unsupported URL: " + page_details.url_);
             else if (page_details.error_message_.empty()) {
                 const auto record_count_and_previously_downloaded_count(
                     Zotero::Harvest(page_details.url_, harvest_params, harvest_maps, page_details.body_)
@@ -87,7 +87,7 @@ void HarvestSites(const SimpleCrawler::Params &crawler_params, const std::shared
                     if (unlikely(not progress_file->write(
                             std::to_string(processed_url_count) + ";" + std::to_string(crawler.getRemainingCallDepth())
                             + ";" + page_details.url_)))
-                        ERROR("failed to write progress to \"" + progress_file->getPath());
+                        LOG_ERROR("failed to write progress to \"" + progress_file->getPath());
                 }
             }
         }
@@ -176,13 +176,13 @@ void Main(int argc, char *argv[]) {
                      harvest_params, harvest_maps, progress_file,
                      &total_record_count, &total_previously_downloaded_count);
 
-        INFO("Harvested a total of " + StringUtil::ToString(total_record_count) + " records of which "
+        LOG_INFO("Harvested a total of " + StringUtil::ToString(total_record_count) + " records of which "
              + StringUtil::ToString(total_previously_downloaded_count) + " were already previously downloaded.");
 
         std::unique_ptr<File> previously_downloaded_output(
             FileUtil::OpenOutputFileOrDie(map_directory_path + "previously_downloaded.hashes"));
     } catch (const std::exception &x) {
-        ERROR("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }
 

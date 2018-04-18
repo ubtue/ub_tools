@@ -61,12 +61,12 @@ Date StringToDate(const std::string &date_str) {
     if (unix_time != TimeUtil::BAD_TIME_T) {
         tm *tm(::gmtime(&unix_time));
         if (unlikely(tm == nullptr))
-            ERROR("gmtime(3) failed to convert a time_t! (" + date_str + ")");
+            LOG_ERROR("gmtime(3) failed to convert a time_t! (" + date_str + ")");
         date.day_   = tm->tm_mday;
         date.month_ = tm->tm_mon;
         date.year_  = tm->tm_year;
     } else
-        WARNING("don't know how to convert \"" + date_str + "\" to a Date instance!");
+        LOG_WARNING("don't know how to convert \"" + date_str + "\" to a Date instance!");
 
     return date;
 }
@@ -144,7 +144,7 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
                                    + "\"sessionid\":\"" + JSON::EscapeString(GetNextSessionId()) + "\"";
     if (not harvested_html.empty()) {
         //downloader_params.post_data_ += ",\"cachedHTML\":\"" + JSON::EscapeString(harvested_html) + "\"";
-        INFO("TODO: implement using cached html");
+        LOG_INFO("TODO: implement using cached html");
     }
     downloader_params.post_data_ += "}";
 
@@ -175,7 +175,7 @@ std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &output_
     else if (std::find(ExportFormats.begin(), ExportFormats.end(), output_format) != ExportFormats.end())
         return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(output_format, output_file, harvest_maps, harvest_params));
     else
-        ERROR("invalid output-format: " + output_format);
+        LOG_ERROR("invalid output-format: " + output_format);
 }
 
 void JsonFormatHandler::prepareProcessing() {
@@ -222,7 +222,7 @@ void ZoteroFormatHandler::finishProcessing() {
 
     if (not TranslationServer::Export(harvest_params_->zts_server_url_, DEFAULT_CONVERSION_TIMEOUT, downloader_params,
                                               output_format_, json_buffer_, &response_body, &error_message))
-        ERROR("converting to target format failed: " + error_message);
+        LOG_ERROR("converting to target format failed: " + error_message);
     else
         FileUtil::WriteString(output_file_, response_body);
 }
@@ -241,7 +241,7 @@ void MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSONNode> ta
         const auto issn_and_field_tag_and_subfield_code(ISSN_to_keyword_field_map.find(issn));
         if (issn_and_field_tag_and_subfield_code != ISSN_to_keyword_field_map.end()) {
             if (unlikely(issn_and_field_tag_and_subfield_code->second.length() != 3 + 1))
-                ERROR("\"" + issn_and_field_tag_and_subfield_code->second
+                LOG_ERROR("\"" + issn_and_field_tag_and_subfield_code->second
                       + "\" is not a valid MARC tag + subfield code! (Error in \"ISSN_to_keyword_field.map\"!)");
             marc_field    = issn_and_field_tag_and_subfield_code->second.substr(0, 3);
             marc_subfield =  issn_and_field_tag_and_subfield_code->second[3];
@@ -252,9 +252,9 @@ void MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSONNode> ta
         const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
         const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
         if (tag_node == nullptr)
-            WARNING("unexpected: tag object does not contain a \"tag\" entry!");
+            LOG_WARNING("unexpected: tag object does not contain a \"tag\" entry!");
         else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
-            ERROR("unexpected: tag object's \"tag\" entry is not a string node!");
+            LOG_ERROR("unexpected: tag object's \"tag\" entry is not a string node!");
         else
             CreateSubfieldFromStringNode("tag", tag_node, marc_field, marc_subfield, new_record);
     }
@@ -299,7 +299,7 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
 
         const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
         if (last_name_node == nullptr)
-            ERROR("creator is missing a last name!");
+            LOG_ERROR("creator is missing a last name!");
         const std::shared_ptr<const JSON::StringNode> last_name(JSON::JSONNode::CastToStringNodeOrDie("lastName", last_name_node));
         std::string name(last_name->getValue());
 
@@ -370,7 +370,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             CreateSubfieldFromStringNode(key_and_node, "362", 'a', &new_record, /* indicator1 = */ '0');
         else if (key_and_node.first == "DOI") {
             if (unlikely(key_and_node.second->getType() != JSON::JSONNode::STRING_NODE))
-                ERROR("expected DOI node to be a string node!");
+                LOG_ERROR("expected DOI node to be a string node!");
             new_record.insertField(
                 "856", { { 'u', "urn:doi:" + JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue()} });
         } else if (key_and_node.first == "shortTitle")
@@ -386,7 +386,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             } else if (item_type == "magazineArticle")
                 ExtractVolumeYearIssueAndPages(*object_node, &new_record);
             else
-                WARNING("unknown item type: \"" + item_type + "\"!");
+                LOG_WARNING("unknown item type: \"" + item_type + "\"!");
         } else if (key_and_node.first == "rights") {
             const std::string copyright(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             if (UrlUtil::IsValidWebUrl(copyright))
@@ -394,7 +394,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             else
                 new_record.insertField("542", { { 'f', copyright } });
         } else
-            WARNING("unknown key \"" + key_and_node.first + "\" with node type "
+            LOG_WARNING("unknown key \"" + key_and_node.first + "\" with node type "
                             + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
                             + key_and_node.second->toString() + ")");
     }
@@ -414,7 +414,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             else if (physical_form == "O")
                 new_record.insertField("007", "cr uuu---uuuuu");
             else
-                ERROR("unhandled value of physical form: \""
+                LOG_ERROR("unhandled value of physical form: \""
                       + physical_form + "\"!");
         }
 
@@ -501,7 +501,7 @@ std::string DownloadAuthorPPN(const std::string &author) {
                                  "[0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]?");
     Downloader downloader(lookup_url);
     if (downloader.anErrorOccurred())
-        WARNING(downloader.getLastErrorMessage());
+        LOG_WARNING(downloader.getLastErrorMessage());
     else if (matcher->matched(downloader.getMessageBody()))
         return (*matcher)[1];
     return "";
@@ -516,7 +516,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
 
         const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
         if (last_name_node == nullptr)
-            ERROR("creator is missing a last name!");
+            LOG_ERROR("creator is missing a last name!");
         std::string name(creator_object->getStringValue("lastName"));
 
         const std::shared_ptr<const JSON::JSONNode> first_name_node(creator_object->getNode("firstName"));
@@ -534,7 +534,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
 
 // Improve JSON result delivered by Zotero Translation Server
 void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std::shared_ptr<const HarvestMaps> harvest_maps) {
-    INFO("Augmenting JSON...");
+    LOG_INFO("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
     std::string issn_raw, issn_normalized;
@@ -557,7 +557,7 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
         else if (key_and_node.first == "ISSN") {
             issn_raw = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
             if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized)))
-                ERROR("\"" + issn_raw + "\" is not a valid ISSN!");
+                LOG_ERROR("\"" + issn_raw + "\" is not a valid ISSN!");
 
             custom_fields.emplace(std::pair<std::string, std::string>("ISSN_raw", issn_raw));
             custom_fields.emplace(std::pair<std::string, std::string>("ISSN_normalized", issn_normalized));
@@ -579,7 +579,7 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
             else if (ISSN_and_physical_form->second == "O")
                 custom_fields.emplace(std::pair<std::string, std::string>("physicalForm", "O"));
             else
-                ERROR("unhandled entry in physical form map: \""
+                LOG_ERROR("unhandled entry in physical form map: \""
                       + ISSN_and_physical_form->second + "\"!");
         }
 
@@ -617,7 +617,7 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
         const auto ISSN_and_license_code(harvest_maps->ISSN_to_licence_map_.find(issn_normalized));
         if (ISSN_and_license_code != harvest_maps->ISSN_to_licence_map_.end()) {
             if (ISSN_and_license_code->second != "l")
-                WARNING("ISSN_to_licence.map contains an ISSN that has not been mapped to an \"l\" but \""
+                LOG_WARNING("ISSN_to_licence.map contains an ISSN that has not been mapped to an \"l\" but \""
                         + ISSN_and_license_code->second
                         + "\" instead and we don't know what to do with it!");
             else
@@ -669,7 +669,7 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
     std::string err_msg;
     std::shared_ptr<RegexMatcher> supported_urls_regex(RegexMatcher::RegexMatcherFactory(combined_regex, &err_msg));
     if (supported_urls_regex == nullptr)
-        ERROR("compilation of the combined regex failed: " + err_msg);
+        LOG_ERROR("compilation of the combined regex failed: " + err_msg);
 
     return supported_urls_regex;
 }
@@ -733,7 +733,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
     std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
     JSON::Parser json_parser(response_body);
     if (not (json_parser.parse(&tree_root)))
-        ERROR("failed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
+        LOG_ERROR("failed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
 
     // 300 => multiple matches found, try to harvest children
     if (response_code == 300) {

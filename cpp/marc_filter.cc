@@ -107,7 +107,7 @@ bool CompiledPattern::fieldMatched(const std::string &field_contents) {
     std::string err_msg;
     const bool retval = matcher_.matched(field_contents, &err_msg);
     if (not retval and not err_msg.empty())
-        ERROR("Unexpected error while trying to match a field in CompiledPattern::fieldMatched(): " + err_msg);
+        LOG_ERROR("Unexpected error while trying to match a field in CompiledPattern::fieldMatched(): " + err_msg);
 
     return retval;
 }
@@ -117,7 +117,7 @@ bool CompiledPattern::subfieldMatched(const std::string &subfield_contents) {
     std::string err_msg;
     const bool retval = matcher_.matched(subfield_contents, &err_msg);
     if (not retval and not err_msg.empty())
-        ERROR("Unexpected error while trying to match a subfield in CompiledPattern::subfieldMatched(): " + err_msg);
+        LOG_ERROR("Unexpected error while trying to match a subfield in CompiledPattern::subfieldMatched(): " + err_msg);
 
     return retval;
 }
@@ -246,18 +246,18 @@ private:
 
 CharSetTranslateMap::CharSetTranslateMap(const std::string &set1, const std::string &set2) {
     if (unlikely(not TextUtil::UTF8ToWCharString(set1, &set1_)))
-        ERROR("set1 \"" + set1 + "\" is not a valid UTF-8 string!");
+        LOG_ERROR("set1 \"" + set1 + "\" is not a valid UTF-8 string!");
     if (unlikely(not TextUtil::UTF8ToWCharString(set2, &set2_)))
-        ERROR("set2 \"" + set2 + "\" is not a valid UTF-8 string!");
+        LOG_ERROR("set2 \"" + set2 + "\" is not a valid UTF-8 string!");
     if (set1_.size() != set2_.size())
-        ERROR("input sets must contain an equal number of Unicode characters!");
+        LOG_ERROR("input sets must contain an equal number of Unicode characters!");
 }
 
 
 bool CharSetTranslateMap::map(std::string * const s) const {
     std::wstring ws;
     if (unlikely(not TextUtil::UTF8ToWCharString(*s, &ws)))
-        ERROR("input \"" + *s + "\" is not a valid UTF-8 string!");
+        LOG_ERROR("input \"" + *s + "\" is not a valid UTF-8 string!");
 
     bool changed(false);
     for (auto wch(ws.begin()); wch != ws.end(); ++wch) {
@@ -269,7 +269,7 @@ bool CharSetTranslateMap::map(std::string * const s) const {
     }
 
     if (unlikely(not TextUtil::WCharToUTF8String(ws, s)))
-        ERROR("TextUtil::WCharToUTF8String() failed! (This should *never* happen!)");
+        LOG_ERROR("TextUtil::WCharToUTF8String() failed! (This should *never* happen!)");
 
     return changed;
 }
@@ -290,7 +290,7 @@ public:
 bool UpperLowerTranslateMap::map(std::string * const s) const {
     std::wstring ws;
     if (unlikely(not TextUtil::UTF8ToWCharString(*s, &ws)))
-        ERROR("input \"" + *s + "\" is not a valid UTF-8 string!");
+        LOG_ERROR("input \"" + *s + "\" is not a valid UTF-8 string!");
 
     bool changed(false);
     if (map_type_ == UPPER_TO_LOWER) {
@@ -310,7 +310,7 @@ bool UpperLowerTranslateMap::map(std::string * const s) const {
     }
 
     if (unlikely(not TextUtil::WCharToUTF8String(ws, s)))
-        ERROR("TextUtil::WCharToUTF8String() failed! (This should *never* happen!)");
+        LOG_ERROR("TextUtil::WCharToUTF8String() failed! (This should *never* happen!)");
 
     return changed;
 }
@@ -462,7 +462,7 @@ void ParseReplacementString(const std::string &replacement,
     if (not string_fragment.empty())
         string_fragments_and_back_references->emplace_back(string_fragment);
     if (backslash_seen)
-        ERROR("replacement string for --replace ends in a backslash!");
+        LOG_ERROR("replacement string for --replace ends in a backslash!");
 }
 
 
@@ -472,7 +472,7 @@ FilterDescriptor::FilterDescriptor(const std::vector<std::string> &subfield_spec
 {
     std::string err_msg;
     if ((regex_matcher_ = RegexMatcher::RegexMatcherFactory(regex, &err_msg)) == nullptr)
-        ERROR("failed to compile regex \"" + regex + "\"! (" + err_msg + ")");
+        LOG_ERROR("failed to compile regex \"" + regex + "\"! (" + err_msg + ")");
     ParseReplacementString(replacement, &string_fragments_and_back_references_);
 }
 
@@ -578,7 +578,7 @@ bool ReplaceSubfields(const std::vector<std::string> &subfield_specs, RegexMatch
                         replacement += string_fragment_or_back_reference.string_fragment_;
                     else { // We're dealing w/ a back-reference.
                         if (unlikely(string_fragment_or_back_reference.back_reference_ > no_of_match_groups))
-                            ERROR("can't satisfy back-reference \\"
+                            LOG_ERROR("can't satisfy back-reference \\"
                                   + std::to_string(string_fragment_or_back_reference.back_reference_) + "!");
                         replacement += matcher[string_fragment_or_back_reference.back_reference_];
                     }
@@ -691,12 +691,12 @@ std::vector<CompiledPattern *> CollectAndCompilePatterns(char ***argvp) {
     }
 
     if (specs_and_pattern.empty())
-        ERROR("expected at least one field or subfield specification after \"" + operation_type + "\"!");
+        LOG_ERROR("expected at least one field or subfield specification after \"" + operation_type + "\"!");
 
     std::vector<CompiledPattern *> compiled_patterns;
     std::string err_msg;
     if (not CompilePatterns(specs_and_pattern, &compiled_patterns, &err_msg))
-        ERROR("bad field specification and or regular expression (" + err_msg + ")!");
+        LOG_ERROR("bad field specification and or regular expression (" + err_msg + ")!");
 
     return compiled_patterns;
 }
@@ -719,12 +719,12 @@ bool ArePlausibleSubfieldSpecs(const std::vector<std::string> &subfield_specs) {
 std::string GetBiblioLevelArgument(char ***argvp) {
     ++*argvp;
     if (*argvp == nullptr)
-        ERROR("missing bibliographic level after --drop-biblio-level or --keep-biblio-level flag!");
+        LOG_ERROR("missing bibliographic level after --drop-biblio-level or --keep-biblio-level flag!");
     const std::string bibliographic_level_candidate(**argvp);
     ++*argvp;
 
     if (bibliographic_level_candidate.empty())
-        ERROR("bad empty bibliographic level!");
+        LOG_ERROR("bad empty bibliographic level!");
     return bibliographic_level_candidate;
 }
 
@@ -732,11 +732,11 @@ std::string GetBiblioLevelArgument(char ***argvp) {
 unsigned TestAndConvertCount(char ***argvp) {
     ++*argvp;
     if (*argvp == nullptr)
-        ERROR("missing count value after --max-count flag!");
+        LOG_ERROR("missing count value after --max-count flag!");
 
     unsigned max_count;
     if (not StringUtil::ToUnsigned(**argvp, &max_count))
-        ERROR("\"" + std::string(**argvp) + "\" is not a valid count argument for the --max-count flag!");
+        LOG_ERROR("\"" + std::string(**argvp) + "\" is not a valid count argument for the --max-count flag!");
     ++*argvp;
 
     return max_count;
@@ -747,7 +747,7 @@ void ExtractSubfieldSpecs(const std::string &command, char ***argvp, std::vector
     ++*argvp;
     StringUtil::Split(**argvp, ':', subfield_specs);
     if (not ArePlausibleSubfieldSpecs(*subfield_specs))
-        ERROR("bad subfield specifications \"" + std::string(**argvp) + "\" for " + command + "!");
+        LOG_ERROR("bad subfield specifications \"" + std::string(**argvp) + "\" for " + command + "!");
     ++*argvp;
 }
 
@@ -767,11 +767,11 @@ void LoadReplaceMapFile(const std::string &map_filename,
 
         const size_t arrow_start(line.find("->"));
         if (unlikely(arrow_start == std::string::npos))
-            ERROR("bad line #" + std::to_string(line_no) + ": missing \"->\"!");
+            LOG_ERROR("bad line #" + std::to_string(line_no) + ": missing \"->\"!");
         if (unlikely(arrow_start == 0))
-            ERROR("bad line #" + std::to_string(line_no) + ": missing regex before \"->\"!");
+            LOG_ERROR("bad line #" + std::to_string(line_no) + ": missing regex before \"->\"!");
         if (unlikely(arrow_start + 1 == line.length()))
-            ERROR("bad line #" + std::to_string(line_no) + ": missing replacement text after \"->\"!");
+            LOG_ERROR("bad line #" + std::to_string(line_no) + ": missing replacement text after \"->\"!");
         regexes_to_replacements_map->emplace(std::make_pair(line.substr(0, arrow_start), line.substr(arrow_start + 2)));
     }
 }
@@ -781,7 +781,7 @@ void ProcessReplaceCommand(char ***argvp, std::vector<FilterDescriptor> * const 
     std::vector<std::string> subfield_specs;
     ExtractSubfieldSpecs("--replace", argvp, &subfield_specs);
     if (**argvp == nullptr or StringUtil::StartsWith(**argvp, "--"))
-        ERROR("missing regex or map-filename arg after --replace!");
+        LOG_ERROR("missing regex or map-filename arg after --replace!");
     const std::string regex_or_map_filename(**argvp);
     ++*argvp;
     if (**argvp == nullptr or StringUtil::StartsWith(**argvp, "--")) {
@@ -819,18 +819,18 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
             std::vector<std::string> subfield_specs;
             ExtractSubfieldSpecs("--translate", &argv, &subfield_specs);
             if (argv == nullptr or StringUtil::StartsWith(*argv, "--"))
-                ERROR("missing or bad \"set1\" argument to \"--translate\"!");
+                LOG_ERROR("missing or bad \"set1\" argument to \"--translate\"!");
             if (argv + 1 == nullptr or StringUtil::StartsWith(*(argv + 1), "--"))
-                ERROR("missing or bad \"set2\" argument to \"--translate\"!");
+                LOG_ERROR("missing or bad \"set2\" argument to \"--translate\"!");
             TranslateMap *translate_map;
             if (std::strcmp(*argv, "[:upper:]") == 0 or std::strcmp(*argv, "[:lower:]") == 0) {
                 if (std::strcmp(*argv, "[:upper:]") == 0) {
                     if (std::strcmp(*(argv + 1), "[:lower:]") != 0)
-                        ERROR("if \"[:upper:]\" was specified as set1 for --translate, \"[:lower:]\" must be specified as set2!");
+                        LOG_ERROR("if \"[:upper:]\" was specified as set1 for --translate, \"[:lower:]\" must be specified as set2!");
                     translate_map = new UpperLowerTranslateMap(UpperLowerTranslateMap::UPPER_TO_LOWER);
                 } else {
                    if (std::strcmp(*(argv + 1), "[:upper:]") != 0)
-                        ERROR("if \"[:lower:]\" was specified as set1 for --translate, \"[:upper:]\" must be specified as set2!");
+                        LOG_ERROR("if \"[:lower:]\" was specified as set1 for --translate, \"[:upper:]\" must be specified as set2!");
                     translate_map = new UpperLowerTranslateMap(UpperLowerTranslateMap::LOWER_TO_UPPER);
                  }
             } else
@@ -841,12 +841,12 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
             std::vector<std::string> subfield_specs;
             ExtractSubfieldSpecs("--filter-chars", &argv, &subfield_specs);
             if (argv == nullptr or StringUtil::StartsWith(*argv, "--"))
-                ERROR("missing or bad \"characters_to_delete\" argument to \"--filter-chars\"!");
+                LOG_ERROR("missing or bad \"characters_to_delete\" argument to \"--filter-chars\"!");
             filters->emplace_back(FilterDescriptor::MakeFilterCharsFilter(subfield_specs, TextUtil::CStyleUnescape(*argv++)));
         } else if (std::strcmp(*argv, "--replace") == 0)
             ProcessReplaceCommand(&argv, filters);
         else
-            ERROR("unknown operation type \"" + std::string(*argv) + "\"!");
+            LOG_ERROR("unknown operation type \"" + std::string(*argv) + "\"!");
     }
 }
 
@@ -872,7 +872,7 @@ int main(int argc, char **argv) {
         reader_type = MARC::Reader::BINARY;
         ++argv;
     } else if (StringUtil::StartsWith(*argv, "--input-format="))
-        ERROR("unknown input format \"" + std::string(*argv + __builtin_strlen("--input-format="))
+        LOG_ERROR("unknown input format \"" + std::string(*argv + __builtin_strlen("--input-format="))
               + "\" use \"marc-xml\" or \"marc-21\"!");
     else
         reader_type = MARC::Reader::AUTO;
@@ -886,7 +886,7 @@ int main(int argc, char **argv) {
         writer_type = MARC::Writer::BINARY;
         ++argv;
     } else if (StringUtil::StartsWith(*argv, "--output-format="))
-        ERROR("unknown output format \"" + std::string(*argv + __builtin_strlen("--output-format="))
+        LOG_ERROR("unknown output format \"" + std::string(*argv + __builtin_strlen("--output-format="))
               + "\" use \"marc-xml\" or \"marc-21\"!");
     else
         writer_type = MARC::Writer::AUTO;
@@ -898,6 +898,6 @@ int main(int argc, char **argv) {
 
         Filter(filters, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
-        ERROR("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }

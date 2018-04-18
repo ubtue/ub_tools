@@ -327,17 +327,17 @@ void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filena
         if (local_data_filename == local_data_filenames.cend()
             or GetArchiveEntrySuffix(*no_local_data_filename) < GetArchiveEntrySuffix(*local_data_filename))
         {
-            INFO("copying no-local-data file \"" + *no_local_data_filename + "\"");
+            LOG_INFO("copying no-local-data file \"" + *no_local_data_filename + "\"");
             CopyFileOrDie("../" + *no_local_data_filename, GetArchiveEntrySuffix(*no_local_data_filename));
             ++no_local_data_filename;
         } else if (no_local_data_filename == no_local_data_filenames.cend()
                    or GetArchiveEntrySuffix(*local_data_filename) < GetArchiveEntrySuffix(*no_local_data_filename))
         {
-            INFO("copying local-data file \"" + *local_data_filename + "\"");
+            LOG_INFO("copying local-data file \"" + *local_data_filename + "\"");
             CopyFileOrDie("../" + *local_data_filename, GetArchiveEntrySuffix(*local_data_filename));
             ++local_data_filename;
         } else { // If we end up here, local_data_filename and no_local_data_filename have the same suffix.
-            INFO("merging both, the local-data file \"" + *local_data_filename
+            LOG_INFO("merging both, the local-data file \"" + *local_data_filename
                  + "\" and the no-local-data file \"" + *no_local_data_filename + "\"");
             const std::string common_prefix(local_data_filename->substr(0, local_data_filename->length() - 3 /* extension */));
 
@@ -349,7 +349,7 @@ void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filena
             const unsigned dropped_count(MARC::RemoveDuplicateControlNumberRecords(temp_filename));
             const std::string archive_member_filename(GetArchiveEntrySuffix(*local_data_filename));
             FileUtil::RenameFileOrDie(temp_filename, archive_member_filename, true /* remove_target */);
-            INFO("dropped " + std::to_string(dropped_count) + " records with duplicate PPN's and generated \""
+            LOG_INFO("dropped " + std::to_string(dropped_count) + " records with duplicate PPN's and generated \""
                  + archive_member_filename + "\".");
 
             ++local_data_filename;
