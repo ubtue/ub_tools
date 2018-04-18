@@ -20,6 +20,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "Zotero.h"
+#include <kchashdb.h>
 #include <uuid/uuid.h>
 #include "MiscUtil.h"
 #include "StringUtil.h"
@@ -66,7 +67,7 @@ Date StringToDate(const std::string &date_str) {
         date.month_ = tm->tm_mon;
         date.year_  = tm->tm_year;
     } else
-        LOG_WARNING("don't know how to convert \"" + date_str + "\" to a Date instance!");
+        LOG_ERROR("don't know how to convert \"" + date_str + "\" to a Date instance!");
 
     return date;
 }
@@ -252,7 +253,7 @@ void MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSONNode> ta
         const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
         const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
         if (tag_node == nullptr)
-            LOG_WARNING("unexpected: tag object does not contain a \"tag\" entry!");
+            LOG_ERROR("unexpected: tag object does not contain a \"tag\" entry!");
         else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
             LOG_ERROR("unexpected: tag object's \"tag\" entry is not a string node!");
         else
@@ -386,7 +387,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             } else if (item_type == "magazineArticle")
                 ExtractVolumeYearIssueAndPages(*object_node, &new_record);
             else
-                LOG_WARNING("unknown item type: \"" + item_type + "\"!");
+                LOG_ERROR("unknown item type: \"" + item_type + "\"!");
         } else if (key_and_node.first == "rights") {
             const std::string copyright(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             if (UrlUtil::IsValidWebUrl(copyright))
@@ -394,7 +395,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             else
                 new_record.insertField("542", { { 'f', copyright } });
         } else
-            LOG_WARNING("unknown key \"" + key_and_node.first + "\" with node type "
+            LOG_ERROR("unknown key \"" + key_and_node.first + "\" with node type "
                             + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
                             + key_and_node.second->toString() + ")");
     }
@@ -501,7 +502,7 @@ std::string DownloadAuthorPPN(const std::string &author) {
                                  "[0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]?");
     Downloader downloader(lookup_url);
     if (downloader.anErrorOccurred())
-        LOG_WARNING(downloader.getLastErrorMessage());
+        LOG_ERROR(downloader.getLastErrorMessage());
     else if (matcher->matched(downloader.getMessageBody()))
         return (*matcher)[1];
     return "";
@@ -617,9 +618,9 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
         const auto ISSN_and_license_code(harvest_maps->ISSN_to_licence_map_.find(issn_normalized));
         if (ISSN_and_license_code != harvest_maps->ISSN_to_licence_map_.end()) {
             if (ISSN_and_license_code->second != "l")
-                LOG_WARNING("ISSN_to_licence.map contains an ISSN that has not been mapped to an \"l\" but \""
-                        + ISSN_and_license_code->second
-                        + "\" instead and we don't know what to do with it!");
+                LOG_ERROR("ISSN_to_licence.map contains an ISSN that has not been mapped to an \"l\" but \""
+                          + ISSN_and_license_code->second
+                          + "\" instead and we don't know what to do with it!");
             else
                 custom_fields.emplace(std::pair<std::string, std::string>("licenseCode", ISSN_and_license_code->second));
         }
@@ -689,11 +690,9 @@ std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_di
 }
 
 
-std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
-                                              const std::shared_ptr<HarvestParams> harvest_params,
-                                              const std::shared_ptr<const HarvestMaps> harvest_maps,
-                                              const std::string &harvested_html,
-                                              bool log)
+std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
+                                      const std::shared_ptr<const HarvestMaps> harvest_maps, const std::string &harvested_html,
+                                      bool log)
 {
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
     static std::unordered_set<std::string> already_harvested_urls;
@@ -709,11 +708,12 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
     unsigned response_code;
     harvest_params->min_url_processing_time_.sleepUntilExpired();
     Downloader::Params downloader_params;
-    const bool download_result(TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT, downloader_params,
-                                                              Url(harvest_url), &response_body, &response_code, &error_message, harvested_html));
+    const bool download_succeeded(TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT,
+                                                         downloader_params, Url(harvest_url), &response_body, &response_code,
+                                                         &error_message, harvested_html));
 
     harvest_params->min_url_processing_time_.restart();
-    if (not download_result) {
+    if (not download_succeeded) {
         logger->warning("Zotero conversion failed: " + error_message);
         return std::make_pair(0, 0);
     }
@@ -739,10 +739,11 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
     if (response_code == 300) {
         logger->info("multiple articles found => trying to harvest children");
         if (tree_root->getType() == JSON::ArrayNode::OBJECT_NODE) {
-            const std::shared_ptr<const JSON::ObjectNode>object_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root));
+            const std::shared_ptr<const JSON::ObjectNode>object_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root",
+                                                                                                           tree_root));
             for (const auto &key_and_node : *object_node) {
                 std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
-                    Harvest(key_and_node.first, harvest_params, harvest_maps, "", false /* log */);
+                    Harvest(key_and_node.first, harvest_params, harvest_maps, /* harvested_html = */"", /* log = */false);
 
                 record_count_and_previously_downloaded_count.first += record_count_and_previously_downloaded_count2.first;
                 record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
@@ -760,10 +761,10 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
 
     if (log) {
         logger->info("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
-                  + harvest_url + '\n' + "of which "
-                  + StringUtil::ToString(record_count_and_previously_downloaded_count.first
-                      - record_count_and_previously_downloaded_count.second)
-                  + " records were new records.");
+                     + harvest_url + '\n' + "of which "
+                     + StringUtil::ToString(record_count_and_previously_downloaded_count.first
+                                            - record_count_and_previously_downloaded_count.second)
+                     + " records were new records.");
     }
     return record_count_and_previously_downloaded_count;
 }
@@ -795,6 +796,132 @@ PreviouslyDownloadedHashesManager::~PreviouslyDownloadedHashesManager() {
         output->write(TextUtil::Base64Encode(hash) + '\n');
 
     logger->info("Stored " + StringUtil::ToString(previously_downloaded_.size()) + " hashes of previously generated records.");
+}
+
+
+DownloadTracker::DownloadTracker() {
+    const std::string DB_FILENAME("/usr/local/var/lib/tuelib/zotero_download_tracker.db");
+    db_ = new kyotocabinet::HashDB;
+    if (not (reinterpret_cast<kyotocabinet::HashDB *>(db_)->open(DB_FILENAME,
+                       kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
+        LOG_ERROR("failed to open or create \"" + DB_FILENAME + "\"!");
+}
+
+
+DownloadTracker::~DownloadTracker() {
+    delete reinterpret_cast<kyotocabinet::HashDB *>(db_);
+}
+
+
+namespace {
+
+
+// Returns a string representation that can be converted back to the original time_t with StringRepToTimeT.
+std::string TimeTToStringRep(const time_t t) {
+    std::string retval;
+    const unsigned char *bytes(reinterpret_cast<const unsigned char *>(&t));
+    for (unsigned i(0); i < sizeof(time_t); ++i) {
+        retval += StringUtil::ToHex(bytes[i] >> 4u);  // Higher nybble.
+        retval += StringUtil::ToHex(bytes[i] & 0xFu); // Lower nybble.
+    }
+
+    return retval;
+}
+
+
+time_t StringRepToTimeT(const std::string &string_rep) {
+    if (unlikely(string_rep.size() != sizeof(time_t)))
+        LOG_ERROR("Houston, we have a problem!"); // This should *never* happen!
+
+    time_t retval;
+    unsigned char *bytes(reinterpret_cast<unsigned char *>(&retval));
+
+    for (auto nybble(string_rep.cbegin()); nybble != string_rep.cend(); nybble += 2, ++bytes)
+        *bytes = (StringUtil::FromHex(*nybble) << 4u) | StringUtil::FromHex(*(nybble + 1));
+
+    return retval;
+}
+
+
+} // unnamed namespace
+
+
+DownloadTracker::const_iterator::~const_iterator() {
+    delete reinterpret_cast<kyotocabinet::DB::Cursor *>(cursor_);
+}
+
+
+void DownloadTracker::const_iterator::operator++() {
+    if (reinterpret_cast<kyotocabinet::DB::Cursor *>(cursor_)->step())
+        readEntry();
+    else
+        current_entry_ = Entry();
+}
+
+
+void DownloadTracker::const_iterator::readEntry() {
+    std::string url, value;
+    if (not reinterpret_cast<kyotocabinet::DB::Cursor *>(cursor_)->get(&url, &value))
+        current_entry_ = Entry();
+    else {
+        if (unlikely(value.length() < 2 * sizeof(time_t)))
+            LOG_ERROR("Too small for encoded timestamp!"); // This should *never* happen!
+
+        std::string optional_message;
+        if (value.length() > 2 * sizeof(time_t))
+            optional_message = value.substr(2 * sizeof(time_t) + 1 /* skip the colon */);
+
+        current_entry_ = Entry(url, StringRepToTimeT(value.substr(0,  2 * sizeof(time_t))), optional_message);
+    }
+}
+
+
+bool DownloadTracker::alreadyDownloaded(const std::string &url, time_t * const download_time) const {
+    std::string value;
+    if (not reinterpret_cast<kyotocabinet::HashDB *>(db_)->get(url, &value))
+        return false;
+
+    *download_time = StringRepToTimeT(value.substr(0, sizeof(time_t) * 2 /* nybble count */));
+    return true;
+}
+
+
+void DownloadTracker::recordDownload(const std::string &url, const std::string &optional_message) {
+    const time_t now(std::time(nullptr));
+    const std::string timestamp(TimeTToStringRep(now));
+    if (unlikely(not reinterpret_cast<kyotocabinet::HashDB *>(
+        db_)->set(url, optional_message.empty() ? timestamp : timestamp + ":" + optional_message)))
+        LOG_ERROR(std::string("kyotocabinet::BasicDB::add failed: ")
+                  + reinterpret_cast<kyotocabinet::HashDB *>(db_)->error().message());
+}
+
+
+bool DownloadTracker::clearEntry(const std::string &url) {
+    return reinterpret_cast<kyotocabinet::HashDB *>(db_)->remove(url);
+}
+
+
+size_t DownloadTracker::clear(const time_t cutoff) {
+    kyotocabinet::DB::Cursor *cursor(reinterpret_cast<kyotocabinet::HashDB *>(db_)->cursor());
+    cursor->jump();
+
+    size_t deletion_count(0);
+
+    std::string value;
+    while (likely(cursor->get_value(&value))) {
+        if (unlikely(value.length() < 2 * sizeof(time_t)))
+            LOG_ERROR("Too small for encoded timestamp!"); // This should *never* happen!
+        if (StringRepToTimeT(value.substr(0,  2 * sizeof(time_t))) <= cutoff) {
+            cursor->remove();
+            ++deletion_count;
+        }
+        if (unlikely(not cursor->step()))
+            break;
+    }
+
+    delete cursor;
+
+    return deletion_count;
 }
 
 

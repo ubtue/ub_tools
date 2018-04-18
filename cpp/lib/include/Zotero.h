@@ -23,12 +23,13 @@
 
 
 #include <memory>
+#include <ctime>
 #include "Downloader.h"
-#include "FileUtil.h"
 #include "JSON.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
 #include "TimeLimit.h"
+#include "TimeUtil.h"
 #include "Url.h"
 
 
@@ -197,23 +198,23 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
 
 std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_directory_path);
 
+
 /** \brief  Harvest a single URL.
  *  \param  harvest_url     The URL to harvest.
  *  \param  harvest_params  The parameters for downloading.
  *  \param  harvest_maps    The map files to use after harvesting.
- *  \param  harvested_html  If not empty, the html will be used for harvesting
+ *  \param  harvested_html  If not empty, the HTML will be used for harvesting
  *                          instead of downloading the URL again.
  *                          However, if the page contains a list of multiple
  *                          items (e.g. HTML page with a search result),
  *                          all results will be downloaded.
  *  \param  log             If true, additional statistics will be logged.
- *  \return count of all records / previously downloaded records
+ *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
+ *          difference (first - second).
  */
-std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
-                                      const std::shared_ptr<HarvestParams> harvest_params,
+std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
                                       const std::shared_ptr<const HarvestMaps> harvest_maps,
-                                      const std::string &harvested_html = "",
-                                      const bool log = true);
+                                      const std::string &harvested_html = "", const bool log = true);
 
 
 // \brief Loads and stores the hashes of previously downloaded metadata records.
@@ -224,6 +225,76 @@ public:
     PreviouslyDownloadedHashesManager(const std::string &hashes_path,
                                       std::unordered_set<std::string> * const previously_downloaded);
     ~PreviouslyDownloadedHashesManager();
+};
+    
+
+/** \class DownloadTracker
+ *  \brief Keeps track of already downloaded/processed URL's.
+ */
+class DownloadTracker {
+public:
+    class Entry {
+        std::string url_;
+        time_t recording_time_;
+        std::string optional_message_;
+    public:
+        Entry(const std::string &url, const time_t recording_time, const std::string &optional_message)
+            : url_(url), recording_time_(recording_time), optional_message_(optional_message) { }
+        Entry() = default;
+        Entry(const Entry &rhs) = default;
+
+        inline const std::string &getURL() const { return url_; }
+        inline time_t getRecodingTime() const { return recording_time_; }
+        inline const std::string &getOptionalMessage() const { return optional_message_; }
+        inline bool operator!=(const Entry &rhs) const { return url_ != rhs.url_; }
+    };
+
+    class const_iterator {
+        friend class DownloadTracker;
+        Entry current_entry_;
+        void *cursor_;
+    private:
+        inline explicit const_iterator(void *cursor): cursor_(cursor) { readEntry(); }
+    public:
+        ~const_iterator();
+        inline const Entry *operator->() const { return &current_entry_; }
+        void operator++();
+        inline bool operator!=(const const_iterator &rhs) const { return current_entry_ != rhs.current_entry_; }
+    private:
+        void readEntry();
+    };
+private:
+    void *db_;
+public:
+    DownloadTracker();
+    ~DownloadTracker();
+
+    /** \brief Used to determine if we already downloaded a URL in the past or not.
+     *  \param url            The URL to check.
+     *  \param download_time  If we already downloaded the URL, this will be set to the time of when we recorded it.
+     */
+    bool alreadyDownloaded(const std::string &url, time_t * const download_time) const;
+
+    /** \brief Records that we downloaded a URL.
+     *  \param url               The relevant URL.
+     *  \param optional_message  Auxillary information like, for example, a downlod error message.
+     *  \note Uses the current time as the recording time.
+     */
+    void recordDownload(const std::string &url, const std::string &optional_message = "");
+
+    /** \brief Delete the entry for a given URL.
+     *  \param url  The URL whose entry we want to erase.
+     *  \return True if we succeded in removing the entry and false if the entry didn't exist.
+     */
+    bool clearEntry(const std::string &url);
+
+    /** \brief Deletes all entries older than "cutoff".
+     *  \return The number of deleted entries.
+     */
+    size_t clear(const time_t cutoff = TimeUtil::MAX_TIME_T);
+
+    const_iterator begin() const;
+    const_iterator end() const;
 };
 
 
