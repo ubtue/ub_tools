@@ -138,11 +138,11 @@ void EmitDifferenceReport(const bool verbose, const std::unordered_map<std::stri
             continue; // Control number is only in collection 1.
 
         if (unlikely(not reader1->seek(control_number_and_offset1.second)))
-            ERROR("seek in collection 1 failed!");
+            LOG_ERROR("seek in collection 1 failed!");
         const MARC::Record record1(reader1->read());
 
         if (unlikely(not reader2->seek(control_number_and_offset2->second)))
-            ERROR("seek in collection 2 failed!");
+            LOG_ERROR("seek in collection 2 failed!");
         const MARC::Record record2(reader2->read());
 
         std::string difference;
@@ -251,6 +251,6 @@ int main(int argc, char *argv[]) {
         EmitStandardReport(verbose, collection1_name, collection2_name, collection1_size, collection2_size,
                            control_number_to_offset_map1, control_number_to_offset_map2);
     } catch (const std::exception &e) {
-        ERROR("Caught exception: " + std::string(e.what()));
+        LOG_ERROR("Caught exception: " + std::string(e.what()));
     }
 }

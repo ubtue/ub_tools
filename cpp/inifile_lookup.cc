@@ -58,10 +58,10 @@ int main(int argc, char *argv[]) {
         else if (argc == 5)
             std::cout << argv[4];
         else
-            ERROR("entry \"" + entry + "\" in section \"" + section + "\" not found!");
+            LOG_ERROR("entry \"" + entry + "\" in section \"" + section + "\" not found!");
         if (not suppress_newline)
             std::cout << '\n';
     } catch (const std::exception &e) {
-        ERROR("Caught exception: " + std::string(e.what()));
+        LOG_ERROR("Caught exception: " + std::string(e.what()));
     }
 }

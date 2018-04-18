@@ -57,7 +57,7 @@ void LoadPericopes(std::unordered_map<std::string, std::string> * const pericope
         ++pericope_count;
         const auto last_equal_pos(line.rfind('='));
         if (unlikely(last_equal_pos == std::string::npos))
-            ERROR("in LoadPericopes: line # " + std::to_string(line_no) + " in \"" + PERIOCPES_FILE
+            LOG_ERROR("in LoadPericopes: line # " + std::to_string(line_no) + " in \"" + PERIOCPES_FILE
                   + "\" does not contain an equal sign!");
         (*pericopes_to_codes_map)[line.substr(0, last_equal_pos)] = line.substr(last_equal_pos + 1);
     }
@@ -128,12 +128,12 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader, File *
         const std::string PPN(record.getControlNumber());
         const auto title_field(record.getFirstField("245"));
         if (unlikely(title_field == record.end()))
-            ERROR("record w/ PPN " + PPN + " is missing a title field!");
+            LOG_ERROR("record w/ PPN " + PPN + " is missing a title field!");
 
         const MARC::Subfields _245_subfields(title_field->getSubfields());
         const std::string title(_245_subfields.getFirstSubfieldWithCode('a'));
         if (unlikely(title.empty())) {
-            WARNING("record w/ PPN " + record.getControlNumber() + " is missing a title subfield!");
+            LOG_WARNING("record w/ PPN " + record.getControlNumber() + " is missing a title subfield!");
             continue;
         }
 
@@ -189,6 +189,6 @@ int main(int argc, char *argv[]) {
         ProcessRecords(verbose, marc_reader.get(), ppn_candidate_list.get(), pericopes_to_codes_map, bible_book_canoniser,
                        bible_book_to_code_mapper);
     } catch (const std::exception &e) {
-        ERROR("Caught exception: " + std::string(e.what()));
+        LOG_ERROR("Caught exception: " + std::string(e.what()));
     }
 }

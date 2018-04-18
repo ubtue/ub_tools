@@ -290,11 +290,11 @@ unsigned Downloader::getResponseCode() {
     const std::string regex_pattern("HTTP(/\\d\\.\\d)?\\s*(\\d{3})\\s*");
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
     if (matcher == nullptr)
-        ERROR("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
+        LOG_ERROR("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
 
     const std::string header(getMessageHeader());
     if (not matcher->matched(header))
-        ERROR("Failed to get HTTP response code from header: " + header);
+        LOG_ERROR("Failed to get HTTP response code from header: " + header);
 
     return StringUtil::ToUnsigned((*matcher)[2]);
 }
@@ -517,19 +517,19 @@ size_t Downloader::HeaderFunction(void *data, size_t size, size_t nmemb, void *t
 void Downloader::debugFunction(CURL */* handle */, curl_infotype infotype, char *data, size_t size) {
     switch (infotype) {
     case CURLINFO_TEXT:
-        INFO("informational text: " + std::string(data, size));
+        LOG_INFO("informational text: " + std::string(data, size));
         break;
     case CURLINFO_HEADER_IN:
-        INFO("received header:\n" + std::string(data, size));
+        LOG_INFO("received header:\n" + std::string(data, size));
         break;
     case CURLINFO_HEADER_OUT:
-        INFO("sent header:\n" + std::string(data, size));
+        LOG_INFO("sent header:\n" + std::string(data, size));
         break;
     case CURLINFO_DATA_IN:
-        INFO("received data:\n" + std::string(data, size));
+        LOG_INFO("received data:\n" + std::string(data, size));
         break;
     case CURLINFO_DATA_OUT:
-        INFO("sent data:\n" + std::string(data, size));
+        LOG_INFO("sent data:\n" + std::string(data, size));
         break;
     default:
         break;

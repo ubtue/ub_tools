@@ -58,7 +58,7 @@ void SetupPublicationYearMap(File * const sort_year_list, SortList * const sort_
        std::string line(sort_year_list->getline());
        std::vector<std::string> ppns_and_sort_year;
        if (unlikely(StringUtil::SplitThenTrim(line, ":", " ",  &ppns_and_sort_year) != 2)) {
-           WARNING("Invalid line: " + line);
+           LOG_WARNING("Invalid line: " + line);
            continue;
        }
        const std::string ppn(ppns_and_sort_year[0]);
@@ -93,7 +93,7 @@ void ProcessRecord(MarcRecord * const record, const SortList &sort_year_map) {
     for (auto &_190Index : _190Indices) {
         Subfields _190Subfields = record->getSubfields("190");
         if (_190Subfields.hasSubfield('j'))
-            ERROR("We already have a 190j subfield for PPN " + record->getControlNumber());
+            LOG_ERROR("We already have a 190j subfield for PPN " + record->getControlNumber());
 
         // If there is no 190j subfield yet, we insert at the last field occurence
         if (_190Index == _190Indices.back()) {
@@ -133,10 +133,10 @@ int main(int argc, char **argv) {
     const std::string marc_output_filename(argv[3]);
 
     if (unlikely(marc_input_filename == marc_output_filename))
-        ERROR("Marc input filename equals marc output filename");
+        LOG_ERROR("Marc input filename equals marc output filename");
 
     if (unlikely(marc_input_filename == sort_year_list_filename || marc_output_filename == sort_year_list_filename))
-        ERROR("Either marc input filename or marc output filename equals the sort list filename");
+        LOG_ERROR("Either marc input filename or marc output filename equals the sort list filename");
 
     try {
         std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
@@ -146,6 +146,6 @@ int main(int argc, char **argv) {
         SetupPublicationYearMap(sort_year_list.get(), &sort_year_map);
         AddPublicationYearField(marc_reader.get(), marc_writer.get(), sort_year_map);
     } catch (const std::exception &x) {
-        ERROR("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }

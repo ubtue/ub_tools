@@ -112,7 +112,7 @@ TemplateScanner::TokenType TemplateScanner::getToken(const bool emit_output) {
     if (unlikely(input_.eof()))
         return END_OF_INPUT;
     if (unlikely(not last_error_message_.empty()))
-        ERROR("attempting to continue scanning after an error occurred!");
+        LOG_ERROR("attempting to continue scanning after an error occurred!");
 
     for (;;) {
         int ch(input_.get());
@@ -195,7 +195,7 @@ std::string TemplateScanner::extractKeywordCandidate() {
 void TemplateScanner::seek(const std::istream::streampos stream_position, const unsigned line_no) {
     input_.seekg(stream_position);
     if (unlikely(not input_))
-        ERROR("this should never happen!");
+        LOG_ERROR("this should never happen!");
     line_no_ = line_no;
 }
 
@@ -247,7 +247,7 @@ std::string TemplateScanner::TokenTypeToString(const TemplateScanner::TokenType 
         return "ERROR";
     }
 
-    ERROR("we should *never* get here!");
+    LOG_ERROR("we should *never* get here!");
 }
 
 
@@ -350,7 +350,7 @@ private:
 
 bool Scope::isLoopVariable(const std::string &variable_name) const {
     if (unlikely(type_ != LOOP))
-        ERROR("this should never happen! (type is " + TypeToString(type_) + ", variable is \"" + variable_name + "\")");
+        LOG_ERROR("this should never happen! (type is " + TypeToString(type_) + ", variable is \"" + variable_name + "\")");
 
     return loop_vars_.find(variable_name) != loop_vars_.cend();
 }
@@ -358,7 +358,7 @@ bool Scope::isLoopVariable(const std::string &variable_name) const {
 
 unsigned Scope::getCurrentIterationCount() const {
     if (unlikely(type_ != LOOP))
-        ERROR("this should never happen! (type is " + TypeToString(type_) + ")");
+        LOG_ERROR("this should never happen! (type is " + TypeToString(type_) + ")");
 
     return iteration_count_;
 }
@@ -366,7 +366,7 @@ unsigned Scope::getCurrentIterationCount() const {
 
 unsigned Scope::getLoopCount() const {
     if (unlikely(type_ != LOOP))
-        ERROR("this should never happen!");
+        LOG_ERROR("this should never happen!");
 
     return loop_count_;
 }
@@ -374,7 +374,7 @@ unsigned Scope::getLoopCount() const {
 
 void Scope::incIterationCount() {
     if (unlikely(type_ != LOOP))
-        ERROR("this should never happen!");
+        LOG_ERROR("this should never happen!");
 
     ++iteration_count_;
 }
@@ -382,7 +382,7 @@ void Scope::incIterationCount() {
 
 std::istream::streampos Scope::getStartStreamPos() const {
     if (unlikely(type_ != LOOP))
-        ERROR("this should never happen!");
+        LOG_ERROR("this should never happen!");
 
     return start_stream_pos_;
 }
@@ -398,7 +398,7 @@ std::string Scope::TypeToString(const Type type) {
         return "LOOP";
     }
 
-    ERROR("we should *never* get here!");
+    LOG_ERROR("we should *never* get here!");
 }
 
 

@@ -44,7 +44,7 @@ std::string DbRow::operator[](const size_t i) const {
     else {
         const char * const text(reinterpret_cast<const char *>(::sqlite3_column_text(stmt_handle_, i)));
         if (text == nullptr)
-            ERROR("trying to access a NULL value as a string!");
+            LOG_ERROR("trying to access a NULL value as a string!");
         return text;
     }
 }

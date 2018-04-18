@@ -706,7 +706,7 @@ bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_
 void MailMyTranslations(DbConnection &db_connection, const IniFile &ini_file, const std::string translator) {
     Template::Map names_to_values_map;
     if (unlikely(not AssembleMyTranslationsData(db_connection, ini_file, &names_to_values_map, translator)))
-        ERROR("Could not send mail");
+        LOG_ERROR("Could not send mail");
 
     //Expand Template
     std::stringstream mail_content;
@@ -721,7 +721,7 @@ void MailMyTranslations(DbConnection &db_connection, const IniFile &ini_file, co
 
     if (unlikely(not SendEmail("no-reply-ixtheo@uni-tuebingen.de", recipient, "Your IxTheo Translations",
                                mail_content.str(), EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
-        ERROR("Could not send mail");
+        LOG_ERROR("Could not send mail");
 }
 
 
@@ -809,6 +809,6 @@ int main(int argc, char *argv[]) {
         ShowFrontPage(db_connection, lookfor, offset, translation_target, translator, translator_languages,
                       additional_view_languages, filter_untranslated);
     } catch (const std::exception &x) {
-        ERROR("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }
