@@ -31,6 +31,7 @@
 #define TIME_UTIL_H
 
 
+#include <limits>
 #include <string>
 #include <cstdint>
 #ifndef _BSD_SOURCE
@@ -46,7 +47,8 @@
 namespace TimeUtil {
 
 
-const time_t BAD_TIME_T = static_cast<time_t>(-1);
+constexpr time_t BAD_TIME_T = static_cast<time_t>(-1);
+constexpr time_t MAX_TIME_T = std::numeric_limits<time_t>::max();
 
 
 const std::string ISO_8601_FORMAT("%Y-%m-%d %T");
