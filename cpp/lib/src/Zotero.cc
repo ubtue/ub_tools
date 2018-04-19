@@ -846,16 +846,30 @@ time_t StringRepToTimeT(const std::string &string_rep) {
 } // unnamed namespace
 
 
+DownloadTracker::const_iterator::const_iterator(void *cursor): cursor_(cursor) {
+    if (cursor == nullptr)
+        current_entry_ = Entry();
+    else
+        readEntry();
+}
+
+
 DownloadTracker::const_iterator::~const_iterator() {
     delete reinterpret_cast<kyotocabinet::DB::Cursor *>(cursor_);
 }
 
 
 void DownloadTracker::const_iterator::operator++() {
+    if (cursor_ == nullptr)
+        LOG_ERROR("can't advance beyond the end!");
+
     if (reinterpret_cast<kyotocabinet::DB::Cursor *>(cursor_)->step())
         readEntry();
-    else
+    else {
+        delete reinterpret_cast<kyotocabinet::DB::Cursor *>(cursor_);
+        cursor_ = nullptr;
         current_entry_ = Entry();
+    }
 }
 
 
@@ -877,12 +891,8 @@ void DownloadTracker::const_iterator::readEntry() {
 
 
 bool DownloadTracker::alreadyDownloaded(const std::string &url, time_t * const download_time) const {
-    std::string value;
-    if (not reinterpret_cast<kyotocabinet::HashDB *>(db_)->get(url, &value))
-        return false;
-
-    *download_time = StringRepToTimeT(value.substr(0, sizeof(time_t) * 2 /* nybble count */));
-    return true;
+    std::string optional_message;
+    return lookup(url, download_time, &optional_message);
 }
 
 
@@ -898,6 +908,18 @@ void DownloadTracker::recordDownload(const std::string &url, const std::string &
 
 bool DownloadTracker::clearEntry(const std::string &url) {
     return reinterpret_cast<kyotocabinet::HashDB *>(db_)->remove(url);
+}
+
+
+bool DownloadTracker::lookup(const std::string &url, time_t * const timestamp, std::string * const optional_message) const {
+    std::string value;
+    if (not reinterpret_cast<kyotocabinet::HashDB *>(db_)->get(url, &value))
+        return false;
+
+    *timestamp = StringRepToTimeT(value.substr(0, sizeof(time_t) * 2 /* nybble count */));
+    *optional_message = value.substr(sizeof(time_t) * 2 + 1 /* Skipping the colon. */);
+
+    return true;
 }
 
 
@@ -922,6 +944,18 @@ size_t DownloadTracker::clear(const time_t cutoff) {
     delete cursor;
 
     return deletion_count;
+}
+
+
+DownloadTracker::const_iterator DownloadTracker::begin() const {
+    kyotocabinet::DB::Cursor *cursor(reinterpret_cast<kyotocabinet::HashDB *>(db_)->cursor());
+    cursor->jump();
+    return const_iterator(cursor);
+}
+
+
+DownloadTracker::const_iterator DownloadTracker::end() const {
+    return const_iterator(nullptr);
 }
 
 
