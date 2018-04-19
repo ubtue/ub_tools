@@ -62,7 +62,7 @@ void Clear(Zotero::DownloadTracker * const download_tracker, const std::string &
 
 void Insert(Zotero::DownloadTracker * const download_tracker, const std::string &url, const std::string &optional_message) {
     download_tracker->recordDownload(url, optional_message);
-    std::cout << "Create an entry for the URL \"" << url << "\".\n";
+    std::cout << "Created an entry for the URL \"" << url << "\".\n";
 }
 
 
