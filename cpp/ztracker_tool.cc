@@ -1,5 +1,5 @@
 /** \file    ztracker_tool.cc
-    \brief   A utility to inspeect and manipulate our Zotero tracker database.
+    \brief   A utility to inspect and manipulate our Zotero tracker database.
     \author  Dr. Johannes Ruscheinski
 
     \copyright 2018 Universitätsbibliothek Tübingen
