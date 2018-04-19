@@ -109,19 +109,19 @@ int main(int argc, char *argv[]) {
     try {
         Zotero::DownloadTracker download_tracker;
 
-        if (std::strcmp(argv[1], "clear")) {
+        if (std::strcmp(argv[1], "clear") == 0) {
             if (argc > 3)
                 LOG_ERROR("clear takes 0 or 1 arguments!");
             Clear(&download_tracker, argc == 2 ? "" : argv[2]);
-        } else if (std::strcmp(argv[1], "insert")) {
+        } else if (std::strcmp(argv[1], "insert") == 0) {
             if (argc < 3 or argc > 4)
                 LOG_ERROR("insert takes 1 or 2 arguments!");
             Insert(&download_tracker, argv[2], argc == 3 ? "" : argv[3]);
-        } else if (std::strcmp(argv[1], "lookup")) {
+        } else if (std::strcmp(argv[1], "lookup") == 0) {
             if (argc != 3)
                 LOG_ERROR("lookup takes 1 argument!");
             Lookup(&download_tracker, argv[2]);
-        } else if (std::strcmp(argv[1], "list")) {
+        } else if (std::strcmp(argv[1], "list") == 0) {
             if (argc > 3)
                 LOG_ERROR("list takes 0 or 1 arguments!");
             List(&download_tracker, argc == 2 ? ".*" : argv[2]);
