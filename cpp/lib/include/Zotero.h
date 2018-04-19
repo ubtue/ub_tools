@@ -226,7 +226,7 @@ public:
                                       std::unordered_set<std::string> * const previously_downloaded);
     ~PreviouslyDownloadedHashesManager();
 };
-    
+
 
 /** \class DownloadTracker
  *  \brief Keeps track of already downloaded/processed URL's.
@@ -254,10 +254,11 @@ public:
         Entry current_entry_;
         void *cursor_;
     private:
-        inline explicit const_iterator(void *cursor): cursor_(cursor) { readEntry(); }
+        const_iterator(void *cursor);
     public:
         ~const_iterator();
         inline const Entry *operator->() const { return &current_entry_; }
+        inline const Entry &operator*() const { return current_entry_; }
         void operator++();
         inline bool operator!=(const const_iterator &rhs) const { return current_entry_ != rhs.current_entry_; }
     private:
@@ -287,6 +288,9 @@ public:
      *  \return True if we succeded in removing the entry and false if the entry didn't exist.
      */
     bool clearEntry(const std::string &url);
+
+    /** \return True if an entry w/ key "url" was found, o/w false. */
+    bool lookup(const std::string &url, time_t * const timestamp, std::string * const optional_message) const;
 
     /** \brief Deletes all entries older than "cutoff".
      *  \return The number of deleted entries.
