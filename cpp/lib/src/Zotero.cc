@@ -916,8 +916,14 @@ bool DownloadTracker::lookup(const std::string &url, time_t * const timestamp, s
     if (not reinterpret_cast<kyotocabinet::HashDB *>(db_)->get(url, &value))
         return false;
 
+    if (unlikely(value.length() < sizeof(time_t) * 2))
+        LOG_ERROR("value is too small (" + std::to_string(value.length()) + ")!");
+
     *timestamp = StringRepToTimeT(value.substr(0, sizeof(time_t) * 2 /* nybble count */));
-    *optional_message = value.substr(sizeof(time_t) * 2 + 1 /* Skipping the colon. */);
+    if (value.length() > sizeof(time_t) * 2)
+        *optional_message = value.substr(sizeof(time_t) * 2 + 1 /* Skipping the colon. */);
+    else
+        optional_message->clear();
 
     return true;
 }
@@ -937,8 +943,6 @@ size_t DownloadTracker::clear(const time_t cutoff) {
             cursor->remove();
             ++deletion_count;
         }
-        if (unlikely(not cursor->step()))
-            break;
     }
 
     delete cursor;
