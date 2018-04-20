@@ -474,6 +474,14 @@ public class TuelibMixin extends SolrIndexerMixin {
                 final Matcher matcher = PPN_EXTRACTION_PATTERN.matcher(idSubfield.getData());
                 if (!matcher.matches())
                     continue;
+
+                // Don't confuse cross-references w/ up-references:
+                if (tag.equals("776")) {
+                    final Subfield subfield_i = field.getSubfield('i');
+                    if (subfield_i != null && subfield_i.getData().equals("Erscheint auch als"))
+                        continue; // Was not a reference to a container/superior record.
+                }
+
                 final String parentId = matcher.group(1);
 
                 containerIdsTitlesAndOptionalVolumes
