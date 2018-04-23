@@ -249,14 +249,27 @@ void Record::merge(const Record &other) {
 }
 
 
+static const std::set<std::string> ELECTRONIC_CARRIER_TYPES{ "cb", "cd", "ce", "ca", "cf", "ch", "cr", "ck", "cz" };
+  
+
 bool Record::isElectronicResource() const {
-    if (std::toupper(leader_[6]) == 'M')
+    if (leader_[6] == 'm')
         return true;
 
     if (isMonograph()) {
         for (const auto &_007_field : getTagRange("007")) {
             const std::string &_007_field_contents(_007_field.getContents());
-            if (not _007_field_contents.empty() and std::toupper(_007_field_contents[0]) == 'C')
+            if (not _007_field_contents.empty() and _007_field_contents[0] == 'c')
+                return true;
+        }
+    }
+    
+    for (const auto &_935_field : getTagRange("935")) {
+        const Subfields subfields(_935_field.getSubfields());
+        for (const auto &subfield : subfields) {
+            if (subfield.code_ != 'c')
+                continue;
+            if (subfield.value_ == "sodr")
                 return true;
         }
     }
@@ -268,6 +281,26 @@ bool Record::isElectronicResource() const {
                 continue;
             if (::strcasestr(subfield.value_.c_str(), "[Elektronische Ressource]") != nullptr
                 or ::strcasestr(subfield.value_.c_str(), "[electronic resource]") != nullptr)
+                return true;
+        }
+    }
+
+    for (const auto &_300_field : getTagRange("300")) {
+        const Subfields subfields(_300_field.getSubfields());
+        for (const auto &subfield : subfields) {
+            if (subfield.code_ != 'a')
+                continue;
+            if (::strcasestr(subfield.value_.c_str(), "Online-Ressource") != nullptr)
+                return true;
+        }
+    }
+
+    for (const auto &_338_field : getTagRange("338")) {
+        const Subfields subfields(_338_field.getSubfields());
+        for (const auto &subfield : subfields) {
+            if (subfield.code_ != 'b')
+                continue;
+            if (ELECTRONIC_CARRIER_TYPES.find(subfield.value_) != ELECTRONIC_CARRIER_TYPES.end())
                 return true;
         }
     }

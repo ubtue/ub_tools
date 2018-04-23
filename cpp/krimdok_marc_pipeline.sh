@@ -63,7 +63,7 @@ normalise_urls GesamtTiteldaten-"${date}".mrc \
 EndPhase
 
 
-StartPhase "Add Author Synonyms from Norm Data"
+StartPhase "Add Author Synonyms from Authority Data"
 add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 EndPhase
@@ -73,6 +73,13 @@ StartPhase "Add PDA Fields to Some Records"
 krimdok_flag_pda_records 3 \
                          GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
+EndPhase
+
+
+StartPhase "Flag Electronic Records"
+flag_electronic_records --input-format=marc_binary \
+                        GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                        GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 EndPhase
 
 
