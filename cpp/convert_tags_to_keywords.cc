@@ -37,7 +37,7 @@ namespace {
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--input-format=(marc_binary|marc_xml)] marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " [--input-format=(marc-21|marc-xml)] marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -171,6 +171,6 @@ int main(int argc, char *argv[]) {
 
         AddTagsToRecords(reader.get(), writer.get(), record_id_to_tags_map);
     } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }
