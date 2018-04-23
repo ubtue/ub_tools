@@ -105,10 +105,8 @@ EndPhase
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
-create_superior_ppns.sh GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc >> "${log}" 2>&1 && \
 add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                 GesamtTiteldaten-post-pipeline-"${date}".mrc \
-                                 superior_ppns >> "${log}" 2>&1
+                                 GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1
 EndPhase
 
 
