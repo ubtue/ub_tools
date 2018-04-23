@@ -140,8 +140,8 @@ void Logger::writeString(const std::string &level, std::string msg) {
               + msg;
         if (log_process_pids_)
             msg += " (PID: " + std::to_string(::getpid()) + ")";
-        msg += '\n';
     }
+    msg += '\n';
     
     FileLocker write_locker(fd_, FileLocker::WRITE_ONLY);
     if (unlikely(::write(fd_, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
