@@ -40,7 +40,10 @@
 char *progname; // Must be set in main() with "progname = argv[0];";
 
 
-Logger::Logger(): fd_(STDERR_FILENO), log_process_pids_(false), log_no_decorations_(false), min_log_level_(LL_INFO) {
+Logger::Logger()
+    : fd_(STDERR_FILENO), log_process_pids_(false), log_no_decorations_(false), log_strip_call_site_(false),
+      min_log_level_(LL_INFO)
+{
     const char * const min_log_level(::getenv("MIN_LOG_LEVEL"));
     if (min_log_level != nullptr)
         min_log_level_ = Logger::StringToLogLevel(min_log_level);
@@ -50,6 +53,8 @@ Logger::Logger(): fd_(STDERR_FILENO), log_process_pids_(false), log_no_decoratio
             log_process_pids_ = true;
         else if (std::strstr(logger_format, "no_decorations") != 0)
             log_no_decorations_ = true;
+        else if (std::strstr(logger_format, "strip_call_site") != 0)
+            log_strip_call_site_ = true;
     }
 }
 
@@ -141,8 +146,15 @@ void Logger::writeString(const std::string &level, std::string msg) {
         if (log_process_pids_)
             msg += " (PID: " + std::to_string(::getpid()) + ")";
     }
+
+    if (log_strip_call_site_) {
+        const auto END_OF_CALL_SITE_PREFIX(msg.find("): "));
+        if (END_OF_CALL_SITE_PREFIX != std::string::npos)
+            msg = msg.substr(END_OF_CALL_SITE_PREFIX + 1);
+    }
+
     msg += '\n';
-    
+
     FileLocker write_locker(fd_, FileLocker::WRITE_ONLY);
     if (unlikely(::write(fd_, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
         const std::string error_message("in Logger::writeString(util.cc): write to file descriptor " + std::to_string(fd_)
