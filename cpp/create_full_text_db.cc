@@ -108,7 +108,7 @@ void ProcessNoDownloadRecords(const bool only_open_access, MARC::Reader * const 
     }
 
     if (unlikely(not marc_writer->flush()))
-        ERROR("flush to \"" + marc_writer->getFile().getPath() + "\" failed!");
+        LOG_ERROR("flush to \"" + marc_writer->getFile().getPath() + "\" failed!");
 
     std::cerr << "Read " << total_record_count << " records.\n";
     std::cerr << "Wrote " << (total_record_count - download_record_offsets_and_urls->size())
@@ -131,7 +131,7 @@ void CleanUpZombies(const unsigned no_of_zombies_to_collect,
 
         const auto process_id_and_hostname(process_id_to_hostname_map->find(zombie_pid));
         if (unlikely(process_id_and_hostname == process_id_to_hostname_map->end()))
-            ERROR("This should *never* happen!");
+            LOG_ERROR("This should *never* happen!");
 
         if (--(*hostname_to_outstanding_request_count_map)[process_id_and_hostname->second] == 0)
             hostname_to_outstanding_request_count_map->erase(process_id_and_hostname->second);
@@ -177,7 +177,7 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
 
     const int child_pid(ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH, args));
     if (unlikely(child_pid == -1))
-        ERROR("ExecUtil::Spawn failed! (no more resources?)");
+        LOG_ERROR("ExecUtil::Spawn failed! (no more resources?)");
 
     (*process_id_to_hostname_map)[child_pid] = server_hostname;
     ++*active_child_count;
@@ -201,11 +201,11 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
         if (not url.empty() and not UrlUtil::ParseUrl(url, &scheme, &username_password, &authority, &port, &path, &params,
                                                       &query, &fragment, &relative_url))
         {
-            WARNING("failed to parse URL: " + url);
+            LOG_WARNING("failed to parse URL: " + url);
 
             // Safely append the MARC data to the MARC output file:
             if (unlikely(not marc_reader->seek(offset_and_url.first)))
-                ERROR("seek failed!");
+                LOG_ERROR("seek failed!");
             const MARC::Record record = marc_reader->read();
             MARC::FileLockedComposeAndWriteRecord(marc_writer, record);
 
@@ -243,10 +243,10 @@ void ExtractLowAndHighWatermarks(const std::string &arg, unsigned * const proces
     if (colon_pos == std::string::npos or not StringUtil::ToNumber(arg.substr(0, colon_pos), process_count_low_watermark)
         or not StringUtil::ToNumber(arg.substr(colon_pos + 1), process_count_high_watermark) or *process_count_low_watermark == 0
         or *process_count_high_watermark == 0)
-        ERROR("bad low or high watermarks!");
+        LOG_ERROR("bad low or high watermarks!");
 
     if (not (*process_count_low_watermark < *process_count_high_watermark))
-        ERROR("the low water mark must be less than the high water mark!");
+        LOG_ERROR("the low water mark must be less than the high water mark!");
 }
 
 
@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
     if (argc > 1 and StringUtil::StartsWith(argv[1], "--pdf-extraction-timeout=")) {
         if (not StringUtil::ToNumber(argv[1] + __builtin_strlen("--pdf-extraction-timeout="), &pdf_extraction_timeout)
             or pdf_extraction_timeout == 0)
-                ERROR("bad value for --pdf-extraction-timeout!");
+                LOG_ERROR("bad value for --pdf-extraction-timeout!");
         ++argv, --argc;
     }
 
@@ -295,7 +295,7 @@ int main(int argc, char **argv) {
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
     if (marc_input_filename == marc_output_filename)
-        ERROR("input filename must not equal output filename!");
+        LOG_ERROR("input filename must not equal output filename!");
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::Reader::BINARY));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::Writer::BINARY));
@@ -310,6 +310,6 @@ int main(int argc, char **argv) {
         ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), pdf_extraction_timeout, use_elasticsearch,
                                download_record_offsets_and_urls, process_count_low_watermark, process_count_high_watermark);
     } catch (const std::exception &e) {
-        ERROR("Caught exception: " + std::string(e.what()));
+        LOG_ERROR("Caught exception: " + std::string(e.what()));
     }
 }

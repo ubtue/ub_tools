@@ -474,6 +474,14 @@ public class TuelibMixin extends SolrIndexerMixin {
                 final Matcher matcher = PPN_EXTRACTION_PATTERN.matcher(idSubfield.getData());
                 if (!matcher.matches())
                     continue;
+
+                // Don't confuse cross-references w/ up-references:
+                if (tag.equals("776")) {
+                    final Subfield subfield_i = field.getSubfield('i');
+                    if (subfield_i != null && subfield_i.getData().equals("Erscheint auch als"))
+                        continue; // Was not a reference to a container/superior record.
+                }
+
                 final String parentId = matcher.group(1);
 
                 containerIdsTitlesAndOptionalVolumes
@@ -1862,23 +1870,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         _935a_to_format_map = Collections.unmodifiableMap(tempMap);
     }
 
-    // Set used by getPhysicalType().
-    private static final Set<String> electronicResourceCarrierTypes;
-
-    static {
-        Set<String> tempSet = new HashSet<>();
-        tempSet.add("cb");
-        tempSet.add("cd");
-        tempSet.add("ce");
-        tempSet.add("ca");
-        tempSet.add("cf");
-        tempSet.add("ch");
-        tempSet.add("cr");
-        tempSet.add("ck");
-        tempSet.add("cz");
-        electronicResourceCarrierTypes = Collections.unmodifiableSet(tempSet);
-    };
-
     /**
      * Determine Record Formats
      *
@@ -1901,23 +1892,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         char formatCode2 = ' ';
         char formatCode4 = ' ';
 
-        // check if there's an h in the 245
-        if (title != null) {
-            if (title.getSubfield('h') != null) {
-                if (title.getSubfield('h').getData().toLowerCase().contains("[electronic resource]")) {
-                    result.add("Electronic");
-                }
-            }
-        }
-
-        // Evaluate the carrier-type field as to the object being an electronic resource or not:
-        List<VariableField> _338_fields = record.getVariableFields("338");
-        for (final VariableField _338_field : _338_fields) {
-            final DataField dataField = (DataField) _338_field;
-            if (dataField.getSubfield('b') != null
-                && TuelibMixin.electronicResourceCarrierTypes.contains(dataField.getSubfield('b').getData()))
-                result.add("Electronic");
-        }
+        final VariableField electronicField = record.getVariableField("ELC");
+        if (electronicField != null)
+            result.add("Electronic");
 
         // check the 007 - this is a repeating field
         List<VariableField> fields = record.getVariableFields("007");
@@ -2118,9 +2095,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         case 'K':
             result.add("Photo");
             break;
-        case 'M':
-            result.add("Electronic");
-            break;
         case 'O':
         case 'P':
             result.add("Kit");
@@ -2191,10 +2165,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                     for (final Subfield cSubfield : _935Field.getSubfields('c')) {
                         if (cSubfield.getData().equals("sodr")) {
                             result.remove("Book");
-                            if (result.contains("eBook")) {
-                                result.remove("eBook");
-                                result.add("Electronic");
-                            }
+                            result.remove("eBook");
                             result.add("Article");
                             break;
                         }
@@ -2235,12 +2206,10 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (title != null) {
             if (title.getSubfield('h') != null) {
                 if (title.getSubfield('h').getData().toLowerCase().contains("[elektronische ressource]")) {
-                    rawFormats.add("Electronic");
                     rawFormats.addAll(getMultipleFormats(record));
                     return rawFormats;
-                } else {
+                } else
                     return getMultipleFormats(record);
-                }
             }
         }
 
@@ -2262,12 +2231,15 @@ public class TuelibMixin extends SolrIndexerMixin {
         Set<String> rawFormats = getFormatsWithGermanHandling(record);
 
         for (final String rawFormat : rawFormats) {
-            if (rawFormat.equals("BookComponentPart") || rawFormat.equals("SerialComponentPart")) {
+            if (rawFormat.equals("BookComponentPart") || rawFormat.equals("SerialComponentPart"))
                 formats.add("Article");
-            } else {
+            else
                 formats.add(rawFormat);
-            }
         }
+
+        final VariableField electronicField = record.getVariableField("ELC");
+        if (electronicField != null)
+            formats.add("Electronic");
 
         // Determine whether an article is in fact a review
         final List<VariableField> _655Fields = record.getVariableFields("655");
@@ -2275,7 +2247,8 @@ public class TuelibMixin extends SolrIndexerMixin {
             final DataField dataField = (DataField) _655Field;
             final Subfield aSubfield = dataField.getSubfield('a');
             if (aSubfield != null) {
-                if (aSubfield.getData().startsWith("Rezension") && dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7') {
+                if (aSubfield.getData().startsWith("Rezension") && dataField.getIndicator1() == ' '
+                    && dataField.getIndicator2() == '7') {
                     formats.remove("Article");
                     formats.add("Review");
                     break;
@@ -2346,7 +2319,6 @@ outer:  for (final VariableField _935Field : _935Fields) {
         // Rewrite all E-Books as electronic Books
         if (formats.contains("eBook")) {
             formats.remove("eBook");
-            formats.add("Electronic");
             formats.add("Book");
         }
 

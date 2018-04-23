@@ -29,7 +29,7 @@ void ExtractNamesAndValues(const int argc, char *argv[], Template::Map * const n
         std::string arg(argv[arg_no]);
         const auto first_colon_pos(arg.find(':'));
         if (first_colon_pos == std::string::npos)
-            ERROR("missing variable name: \"" + arg + "\"!");
+            LOG_ERROR("missing variable name: \"" + arg + "\"!");
         const std::string name(arg.substr(0, first_colon_pos));
         arg = arg.substr(first_colon_pos + 1);
         std::vector<std::string> values;
@@ -41,7 +41,7 @@ void ExtractNamesAndValues(const int argc, char *argv[], Template::Map * const n
             for (unsigned i(0); i < arrays.size(); ++i) {
                 StringUtil::Split(arrays[i], ':', &values);
                 if (values.empty())
-                    ERROR("subarray " + std::to_string(i) + " of \"" + name + "\" is missing at least one value!");
+                    LOG_ERROR("subarray " + std::to_string(i) + " of \"" + name + "\" is missing at least one value!");
                 std::shared_ptr<Template::ArrayValue> subarray(new Template::ArrayValue(name + "[" + std::to_string(i) + "]"));
                 for (const auto &value : values)
                     subarray->appendValue(value);
@@ -51,7 +51,7 @@ void ExtractNamesAndValues(const int argc, char *argv[], Template::Map * const n
         } else {
             StringUtil::Split(arg, ':', &values);
             if (values.empty())
-                ERROR(name + " is missing at least one value!");
+                LOG_ERROR(name + " is missing at least one value!");
             if (values.size() == 1)
                 names_to_values_map->insertScalar(name, values.front());
             else
@@ -76,6 +76,6 @@ int main(int argc, char *argv[]) {
         std::istringstream input(template_string);
         Template::ExpandTemplate(input, std::cout, names_to_values_map);
     } catch (const std::exception &x) {
-        ERROR("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }

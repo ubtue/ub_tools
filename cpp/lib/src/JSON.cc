@@ -434,7 +434,7 @@ std::shared_ptr<JSONNode> ObjectNode::getNode(const std::string &label) {
 bool ObjectNode::isNullNode(const std::string &label) const {
     const auto entry(entries_.find(label));
     if (unlikely(entry == entries_.cend()))
-        ERROR("label \"" + label + "\" not found!");
+        LOG_ERROR("label \"" + label + "\" not found!");
     return entry->second->getType() == NULL_NODE;
 }
 
@@ -466,7 +466,7 @@ std::string ArrayNode::toString() const {
 
 bool ArrayNode::isNullNode(const size_t index) const {
     if (unlikely(index >= values_.size()))
-        ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
+        LOG_ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
     return values_[index]->getType() == NULL_NODE;
 }
 

@@ -27,7 +27,7 @@
 std::shared_ptr<Elasticsearch::Configuration> Elasticsearch::Configuration::FactoryByConfigFile() {
     const std::string ini_path("/usr/local/var/lib/tuelib/Elasticsearch.conf");
     if (not FileUtil::Exists(ini_path))
-        ERROR("config file missing: " + ini_path);
+        LOG_ERROR("config file missing: " + ini_path);
 
     const IniFile ini_file(ini_path);
 
@@ -69,7 +69,7 @@ std::shared_ptr<JSON::ObjectNode> Elasticsearch::Query(const Url &host, const st
         params.additional_headers_.push_back("Content-Type: application/json");
 
         // debug request data
-        DEBUG(data->toString());
+        LOG_DEBUG(data->toString());
     }
     std::shared_ptr<JSON::JSONNode> result(REST::QueryJSON(url, query_type, data, params));
 
@@ -78,7 +78,7 @@ std::shared_ptr<JSON::ObjectNode> Elasticsearch::Query(const Url &host, const st
         throw std::runtime_error("in Elasticsearch::Query: " + result_object->getNode("error")->toString());
 
     // debug response data
-    DEBUG(result_object->toString());
+    LOG_DEBUG(result_object->toString());
 
     return result_object;
 }

@@ -137,7 +137,7 @@ bool EncodingConverter::convert(const std::string &input, std::string * const ou
     const ssize_t converted_count(
         static_cast<ssize_t>(::iconv(iconv_handle_, &in_bytes, &inbytes_left, &out_bytes, &outbytes_left)));
     if (unlikely(converted_count == -1)) {
-        WARNING("iconv(3) failed! (Trying to convert \"" + from_encoding_ + "\" to \"" + to_encoding_ + "\"!");
+        LOG_WARNING("iconv(3) failed! (Trying to convert \"" + from_encoding_ + "\" to \"" + to_encoding_ + "\"!");
         delete [] in_bytes_start;
         delete [] out_bytes_start;
         *output = input;
@@ -154,7 +154,7 @@ bool EncodingConverter::convert(const std::string &input, std::string * const ou
 
 EncodingConverter::~EncodingConverter() {
     if (iconv_handle_ != (iconv_t)-1 and unlikely(::iconv_close(iconv_handle_) == -1))
-        ERROR("iconv_close(3) failed!");
+        LOG_ERROR("iconv_close(3) failed!");
 }
 
 
@@ -267,7 +267,7 @@ bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_stri
     if (unlikely(iconv_handle == (iconv_t)-1)) {
         iconv_handle = ::iconv_open("UTF-8", "WCHAR_T");
         if (unlikely(iconv_handle == (iconv_t)-1))
-            ERROR("iconv_open(3) failed!");
+            LOG_ERROR("iconv_open(3) failed!");
     }
 
     const size_t INBYTE_COUNT(wchar_string.length() * sizeof(wchar_t));
@@ -285,7 +285,7 @@ bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_stri
 
     delete [] in_bytes_start;
     if (unlikely(converted_count == -1)) {
-        WARNING("iconv(3) failed!");
+        LOG_WARNING("iconv(3) failed!");
         delete [] out_bytes_start;
         return false;
     }
@@ -800,11 +800,11 @@ void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::str
     for (;;) {
         const CSVTokenType token(scanner.getToken());
         if (unlikely(token == SYNTAX_ERROR))
-            ERROR("on line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath() + "\": "
+            LOG_ERROR("on line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath() + "\": "
                   + scanner.getErrMsg());
         else if (token == LINE_END) {
             if (unlikely(last_token == SEPARATOR))
-                ERROR("line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath()
+                LOG_ERROR("line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath()
                       + "\" ending in separator!");
             lines->emplace_back(current_line);
             current_line.clear();
@@ -812,7 +812,7 @@ void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::str
             continue;
         } else if (unlikely(token == END_OF_INPUT)) {
             if (unlikely(last_token == SEPARATOR))
-                ERROR("line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath()
+                LOG_ERROR("line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath()
                       + "\" ending in separator!");
             if (not current_line.empty())
                 lines->emplace_back(current_line);
@@ -1028,7 +1028,7 @@ static std::string &CollapseWhitespaceHelper(std::string * const utf8_string,
                 } else {
                     std::string utf8;
                     if (unlikely(not WCharToUTF8String(utf32_char, &utf8))) {
-                        WARNING("WCharToUTF8String failed! (Character was " + std::to_string(utf32_char) + ")");
+                        LOG_WARNING("WCharToUTF8String failed! (Character was " + std::to_string(utf32_char) + ")");
                         return *utf8_string;
                     }
                     collapsed_string += utf8;
@@ -1039,7 +1039,7 @@ static std::string &CollapseWhitespaceHelper(std::string * const utf8_string,
     }
 
     if (unlikely(utf8_to_utf32_decoder.getState() == UTF8ToUTF32Decoder::CHARACTER_INCOMPLETE)) {
-        WARNING("UTF8 input sequence contains an incomplete character!");
+        LOG_WARNING("UTF8 input sequence contains an incomplete character!");
         return *utf8_string;
     }
 
@@ -1130,14 +1130,14 @@ static std::string DecodeUnicodeEscapeSequence(std::string::const_iterator &ch, 
 static char DecodeHexadecimalEscapeSequence(std::string::const_iterator &ch, const std::string::const_iterator &end) {
     ++ch;
     if (unlikely(ch == end))
-        ERROR("missing first hex nibble at end of string!");
+        LOG_ERROR("missing first hex nibble at end of string!");
     std::string hex_string(1, *ch++);
     if (unlikely(ch == end))
-        ERROR("missing second hex nibble at end of string!");
+        LOG_ERROR("missing second hex nibble at end of string!");
     hex_string += *ch;
     unsigned byte;
     if (unlikely(not StringUtil::ToNumber(hex_string, &byte, 16)))
-        ERROR("bad hex escape \"\\x" + hex_string + "\"!");
+        LOG_ERROR("bad hex escape \"\\x" + hex_string + "\"!");
 
     return static_cast<char>(byte);
 }
@@ -1304,7 +1304,7 @@ std::string InitialCaps(const std::string &text) {
 
     std::wstring wchar_string;
     if (unlikely(not UTF8ToWCharString(text, &wchar_string)))
-        ERROR("can't convert a supposed UTF-8 string to a wide string!");
+        LOG_ERROR("can't convert a supposed UTF-8 string to a wide string!");
 
     auto wide_ch(wchar_string.begin());
     if (std::iswlower(*wide_ch))
@@ -1316,7 +1316,7 @@ std::string InitialCaps(const std::string &text) {
 
     std::string utf8_string;
     if (unlikely(not WCharToUTF8String(wchar_string, &utf8_string)))
-        ERROR("can't convert a supposed wide string to a UTF-8 string!");
+        LOG_ERROR("can't convert a supposed wide string to a UTF-8 string!");
 
     return utf8_string;
 }

@@ -232,7 +232,7 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &args,
 {
     int exit_code;
     if ((exit_code = Exec(command, args, new_stdin, new_stdout, new_stderr, timeout_in_seconds, tardy_child_signal)) != 0)
-        ERROR("Failed to execute \"" + command + "\"! (exit code was " + std::to_string(exit_code) + ")");
+        LOG_ERROR("Failed to execute \"" + command + "\"! (exit code was " + std::to_string(exit_code) + ")");
 }
 
 
@@ -339,7 +339,7 @@ bool ShouldScheduleNewProcess() {
     static const long NO_OF_CORES(::sysconf(_SC_NPROCESSORS_ONLN));
     double loadavg;
     if (unlikely(::getloadavg(&loadavg, 1) == -1))
-        ERROR("getloadavg(3) failed!");
+        LOG_ERROR("getloadavg(3) failed!");
     return loadavg < NO_OF_CORES - 0.5;
 }
 

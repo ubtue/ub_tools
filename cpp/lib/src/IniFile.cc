@@ -46,7 +46,7 @@ void IniFile::Section::insert(const std::string &variable_name, const std::strin
 {
     if (dupe_insertion_behaviour == ABORT_ON_DUPLICATE_NAME
         and unlikely(name_to_value_map_.find(variable_name) != name_to_value_map_.end()))
-        ERROR("attemting to insert a duplicate variable name: \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("attemting to insert a duplicate variable name: \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     name_to_value_map_[variable_name] = value;
 }
@@ -67,11 +67,11 @@ bool IniFile::Section::lookup(const std::string &variable_name, std::string * co
 long IniFile::Section::getInteger(const std::string &variable_name) const {
     const auto name_and_value(name_to_value_map_.find(variable_name));
     if (name_and_value == name_to_value_map_.end())
-        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     long number;
     if (not StringUtil::ToNumber(name_and_value->second, &number))
-        ERROR("invalid long entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("invalid long entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
 }
@@ -80,11 +80,11 @@ long IniFile::Section::getInteger(const std::string &variable_name) const {
 double IniFile::Section::getDouble(const std::string &variable_name) const {
     const auto name_and_value(name_to_value_map_.find(variable_name));
     if (name_and_value == name_to_value_map_.end())
-        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     double number;
     if (not StringUtil::ToDouble(name_and_value->second, &number))
-        ERROR("invalid double entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("invalid double entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
 }
@@ -97,7 +97,7 @@ double IniFile::Section::getDouble(const std::string &variable_name, const doubl
 
     double number;
     if (not StringUtil::ToDouble(name_and_value->second, &number))
-        ERROR("invalid double entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("invalid double entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
 }
@@ -106,7 +106,7 @@ double IniFile::Section::getDouble(const std::string &variable_name, const doubl
 std::string IniFile::Section::getString(const std::string &variable_name) const {
     const auto name_and_value(name_to_value_map_.find(variable_name));
     if (name_and_value == name_to_value_map_.end())
-        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return name_and_value->second;
 }
@@ -124,7 +124,7 @@ std::string IniFile::Section::getString(const std::string &variable_name, const 
 char IniFile::Section::getChar(const std::string &variable_name) const {
     const auto name_and_value(name_to_value_map_.find(variable_name));
     if (name_and_value == name_to_value_map_.end())
-        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     if (name_and_value->second.length() != 1)
         throw std::runtime_error("invalid character variable value \"" + variable_name + "\" in section \""
@@ -150,11 +150,11 @@ char IniFile::Section::getChar(const std::string &variable_name, const char defa
 unsigned IniFile::Section::getUnsigned(const std::string &variable_name) const {
     const auto name_and_value(name_to_value_map_.find(variable_name));
     if (name_and_value == name_to_value_map_.end())
-        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     unsigned number;
     if (not StringUtil::ToUnsigned(name_and_value->second, &number))
-        ERROR("invalid unsigned entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("invalid unsigned entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
 }
@@ -167,7 +167,7 @@ unsigned IniFile::Section::getUnsigned(const std::string &variable_name, const u
 
     unsigned number;
     if (not StringUtil::ToUnsigned(name_and_value->second, &number))
-        ERROR("invalid unsigned entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("invalid unsigned entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
 }
@@ -176,11 +176,11 @@ unsigned IniFile::Section::getUnsigned(const std::string &variable_name, const u
 uint64_t IniFile::Section::getUint64T(const std::string &variable_name) const {
     const auto name_and_value(name_to_value_map_.find(variable_name));
     if (name_and_value == name_to_value_map_.end())
-        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     uint64_t number;
     if (not StringUtil::ToUInt64T(name_and_value->second, &number))
-        ERROR("invalid uint64_t entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("invalid uint64_t entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
 }
@@ -193,7 +193,7 @@ uint64_t IniFile::Section::getUint64T(const std::string &variable_name, const ui
 
     uint64_t number;
     if (not StringUtil::ToUInt64T(name_and_value->second, &number))
-        ERROR("invalid uint64_t entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("invalid uint64_t entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
 }
@@ -202,11 +202,11 @@ uint64_t IniFile::Section::getUint64T(const std::string &variable_name, const ui
 bool IniFile::Section::getBool(const std::string &variable_name) const {
     const auto name_and_value(name_to_value_map_.find(variable_name));
     if (name_and_value == name_to_value_map_.end())
-        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     bool retval;
     if (not StringUtil::ToBool(name_and_value->second, &retval))
-        ERROR("invalid boolean value in section \"" + section_name_ + "\", entry \"" + variable_name + "\" (bad value is \""
+        LOG_ERROR("invalid boolean value in section \"" + section_name_ + "\", entry \"" + variable_name + "\" (bad value is \""
               + name_and_value->second + "\")!");
 
     return retval;
@@ -220,7 +220,7 @@ bool IniFile::Section::getBool(const std::string &variable_name, const bool defa
 
     bool retval;
     if (not StringUtil::ToBool(name_and_value->second, &retval))
-        ERROR("invalid boolean value in section \"" + section_name_ + "\", entry \"" + variable_name + "\" (bad value is \""
+        LOG_ERROR("invalid boolean value in section \"" + section_name_ + "\", entry \"" + variable_name + "\" (bad value is \""
               + name_and_value->second + "\")!");
 
     return retval;
@@ -230,11 +230,11 @@ bool IniFile::Section::getBool(const std::string &variable_name, const bool defa
 int IniFile::Section::getEnum(const std::string &variable_name, const std::map<std::string, int> &string_to_value_map) const {
     const auto name_and_value(name_to_value_map_.find(variable_name));
     if (name_and_value == name_to_value_map_.end())
-        ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     const auto name_and_int_value(string_to_value_map.find(name_and_value->second));
     if (name_and_int_value == string_to_value_map.end())
-        ERROR("in section \"" + section_name_ + "\": invalid enum value for entry \"" + variable_name + "\"!");
+        LOG_ERROR("in section \"" + section_name_ + "\": invalid enum value for entry \"" + variable_name + "\"!");
 
     return name_and_int_value->second;
 }
@@ -249,7 +249,7 @@ int IniFile::Section::getEnum(const std::string &variable_name,
 
     const auto name_and_int_value(string_to_value_map.find(name_and_value->second));
     if (name_and_int_value == string_to_value_map.end())
-        ERROR("in section \"" + section_name_ + "\": invalid enum value for entry \"" + variable_name + "\"!");
+        LOG_ERROR("in section \"" + section_name_ + "\": invalid enum value for entry \"" + variable_name + "\"!");
 
     return name_and_int_value->second;
 }
@@ -592,7 +592,7 @@ bool IniFile::lookup(const std::string &section_name, const std::string &variabl
 unsigned IniFile::getUnsigned(const std::string &section_name, const std::string &variable_name) const {
     const auto section(sections_.find(section_name));
     if (section == sections_.end())
-        ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"!");
 
     return section->second.getUnsigned(variable_name);
 }
@@ -608,7 +608,7 @@ unsigned IniFile::getUnsigned(const std::string &section_name, const std::string
 uint64_t IniFile::getUint64T(const std::string &section_name, const std::string &variable_name) const {
     const auto section(sections_.find(section_name));
     if (section == sections_.end())
-        ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"!");
 
     return section->second.getUint64T(variable_name);
 }
@@ -625,7 +625,7 @@ uint64_t IniFile::getUint64T(const std::string &section_name, const std::string 
 long IniFile::getInteger(const std::string &section_name, const std::string &variable_name) const {
     const auto section(sections_.find(section_name));
     if (section == sections_.end())
-        ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"!");
 
     return section->second.getInteger(variable_name);
 }
@@ -634,7 +634,7 @@ long IniFile::getInteger(const std::string &section_name, const std::string &var
 double IniFile::getDouble(const std::string &section_name, const std::string &variable_name) const {
     const auto section(sections_.find(section_name));
     if (section == sections_.end())
-        ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"!");
 
     return section->second.getDouble(variable_name);
 }
@@ -654,7 +654,7 @@ double IniFile::getDouble(const std::string &section_name, const std::string &va
 std::string IniFile::getString(const std::string &section_name, const std::string &variable_name) const {
     const auto section(sections_.find(section_name));
     if (section == sections_.end())
-        ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"!");
 
     return section->second.getString(variable_name);
 }
@@ -674,7 +674,7 @@ std::string IniFile::getString(const std::string &section_name, const std::strin
 char IniFile::getChar(const std::string &section_name, const std::string &variable_name) const {
     const auto section(sections_.find(section_name));
     if (section == sections_.end())
-        ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"!");
 
     return section->second.getChar(variable_name);
 }
@@ -692,7 +692,7 @@ char IniFile::getChar(const std::string &section_name, const std::string &variab
 bool IniFile::getBool(const std::string &section_name, const std::string &variable_name) const {
     const auto section(sections_.find(section_name));
     if (section == sections_.end())
-        ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"!");
 
     return section->second.getBool(variable_name);
 }
@@ -712,7 +712,7 @@ int IniFile::getEnum(const std::string &section_name, const std::string &variabl
 {
     const auto section(sections_.find(section_name));
     if (section == sections_.end())
-        ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"!");
 
     return section->second.getEnum(variable_name, string_to_value_map);
 }

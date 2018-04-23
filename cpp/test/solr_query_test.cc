@@ -57,12 +57,12 @@ int main(int argc, char *argv[]) {
     else if (result_format_candidate == "JSON")
         result_format = Solr::QueryResultFormat::JSON;
     else
-        ERROR("unknown query result format \"" + result_format_candidate + "\"!");
+        LOG_ERROR("unknown query result format \"" + result_format_candidate + "\"!");
 
     unsigned max_no_of_rows(Solr::JAVA_INT_MAX);
     if (argc == 7) {
         if (not StringUtil::ToUnsigned(argv[6], &max_no_of_rows))
-            ERROR("can't convert \"" + std::string(argv[6]) + "\" to an unsigned integer!");
+            LOG_ERROR("can't convert \"" + std::string(argv[6]) + "\" to an unsigned integer!");
     }
 
     try {
@@ -70,11 +70,11 @@ int main(int argc, char *argv[]) {
         if (not Solr::Query(query, fields, &xml_or_json_result, &err_msg, host_and_port, timeout, result_format, max_no_of_rows))
         {
             std::cerr << xml_or_json_result << '\n';
-            ERROR("Query failed! (" + err_msg + ")");
+            LOG_ERROR("Query failed! (" + err_msg + ")");
         }
 
         std::cout << xml_or_json_result;
     } catch (const std::exception &x) {
-        ERROR("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }

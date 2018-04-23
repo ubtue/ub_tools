@@ -96,13 +96,13 @@ public:
 private:
     template<typename NodeType> static std::shared_ptr<const NodeType> CastToConstNodeOrDie(const std::string &node_name, const Type node_type, const std::shared_ptr<const JSONNode> &node) {
         if (unlikely(node->getType() != node_type))
-            ERROR("expected \"" + node_name + "\" to be " + JSONNode::TypeToString(node_type) + "!");
+            LOG_ERROR("expected \"" + node_name + "\" to be " + JSONNode::TypeToString(node_type) + "!");
         return std::static_pointer_cast<const NodeType>(node);
     }
 
     template<typename NodeType> static std::shared_ptr<NodeType> CastToNodeOrDie(const std::string &node_name, const Type node_type, const std::shared_ptr<JSONNode> &node) {
         if (unlikely(node->getType() != node_type))
-            ERROR("expected \"" + node_name + "\" to be " + JSONNode::TypeToString(node_type) + "!");
+            LOG_ERROR("expected \"" + node_name + "\" to be " + JSONNode::TypeToString(node_type) + "!");
         return std::static_pointer_cast<NodeType>(node);
     }
 public:
@@ -190,9 +190,9 @@ public:
     template<typename ReturnType> std::shared_ptr<ReturnType> getNode(const std::string &label, const Type node_type) const {
         const auto entry(entries_.find(label));
         if (unlikely(entry == entries_.cend()))
-            ERROR("label \"" + label + "\" not found!");
+            LOG_ERROR("label \"" + label + "\" not found!");
         if (unlikely(entry->second->getType() != node_type))
-            ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
+            LOG_ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
         return std::static_pointer_cast<ReturnType>(entry->second);
     }
     template<typename ReturnType> std::shared_ptr<ReturnType> getOptionalNode(const std::string &label, const Type node_type) const {
@@ -200,7 +200,7 @@ public:
         if (unlikely(entry == entries_.cend()))
             return nullptr;
         if (unlikely(entry->second->getType() != node_type))
-            ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
+            LOG_ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
         return std::static_pointer_cast<ReturnType>(entry->second);
     }
     template<typename ReturnType, typename NodeType> ReturnType getValue(const std::string &label, const Type node_type) const {
@@ -214,7 +214,7 @@ public:
         if (entry == entries_.cend())
             return default_value;
         if (unlikely(entry->second->getType() != node_type))
-            ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
+            LOG_ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
         return std::static_pointer_cast<NodeType>(entry->second)->getValue();
     }
 public:
@@ -286,16 +286,16 @@ class ArrayNode final : public JSONNode {
     std::vector<std::shared_ptr<JSONNode>> values_;
     template<typename NodeType> std::shared_ptr<NodeType> getNode(const size_t index, const JSONNode::Type node_type) const {
         if (unlikely(index >= values_.size()))
-            ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
+            LOG_ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
         if (unlikely(values_[index]->getType() != node_type))
-            ERROR("entry with index \"" + std::to_string(index) + "\" is not a " + JSONNode::TypeToString(node_type) + " node!");
+            LOG_ERROR("entry with index \"" + std::to_string(index) + "\" is not a " + JSONNode::TypeToString(node_type) + " node!");
         return (std::static_pointer_cast<NodeType>(values_[index]));
     }
     template<typename NodeType> std::shared_ptr<NodeType> getOptionalNode(const size_t index, const JSONNode::Type node_type) const {
         if (unlikely(index >= values_.size()))
             return nullptr;
         if (unlikely(values_[index]->getType() != node_type))
-            ERROR("entry with index \"" + std::to_string(index) + "\" is not a " + JSONNode::TypeToString(node_type) + " node!");
+            LOG_ERROR("entry with index \"" + std::to_string(index) + "\" is not a " + JSONNode::TypeToString(node_type) + " node!");
         return (std::static_pointer_cast<NodeType>(values_[index]));
     }
 public:
@@ -348,7 +348,7 @@ public:
     //
     // std::shared_ptr<JSONNode> tree_root;
     // if (not (parser.parse(&tree_root)))
-    //     ERROR(...);
+    //     LOG_ERROR(...);
     //  ...
     bool parse(std::shared_ptr<JSONNode> * const tree_root);
 

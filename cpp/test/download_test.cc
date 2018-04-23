@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
     unsigned timeout(DEFAULT_TIMEOUT);
     if (std::strcmp(argv[1], "--timeout") == 0) {
         if (not StringUtil::ToUnsigned(argv[2], &timeout))
-            ERROR("bad timeout \"" + std::string(argv[2]) + "\"!");
+            LOG_ERROR("bad timeout \"" + std::string(argv[2]) + "\"!");
         argc -= 2;
         argv += 2;
     }
@@ -93,6 +93,6 @@ int main(int argc, char *argv[]) {
             std::exit(EXIT_FAILURE);
         }
     } catch (const std::exception &e) {
-        ERROR("Caught exception: " + std::string(e.what()));
+        LOG_ERROR("Caught exception: " + std::string(e.what()));
     }
 }
