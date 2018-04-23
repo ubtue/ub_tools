@@ -173,7 +173,7 @@ wait
 
 StartPhase "Flag Electronic Records"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(flag_electronic_records --input-format=marc_binary \
+(flag_electronic_records --input-format=marc-21 \
                          GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
