@@ -108,7 +108,7 @@ generate_vufind_translation_files "$VUFIND_HOME"/local/tuefind/languages/ >> "${
 EndPhase || Abort) &
 
 
-StartPhase "Augment Normdata with Keyword Translations"
+StartPhase "Augment Authority Data with Keyword Translations"
 (augment_authority_data_with_translations GefilterteNormdaten-"${date}".mrc \
                                           Normdaten-augmented-"${date}".mrc \
                                           >> "${log}" 2>&1 &&
@@ -166,9 +166,17 @@ wait
 StartPhase "Extracting Keywords from Titles"
 (enrich_keywords_with_title_words --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                                 ../cpp/data/stopwords.??? && \
-EndPhase) &
+                                 ../cpp/data/stopwords.???  >> "${log}" 2>&1 && \
+EndPhase || Abort) &
 wait
+
+
+StartPhase "Flag Electronic Records"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(flag_electronic_records --input-format=marc_binary \
+                         GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
 
 
 StartPhase "Augment Bible References"
