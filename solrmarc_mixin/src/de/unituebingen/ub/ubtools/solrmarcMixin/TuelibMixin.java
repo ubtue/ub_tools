@@ -1870,23 +1870,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         _935a_to_format_map = Collections.unmodifiableMap(tempMap);
     }
 
-    // Set used by getPhysicalType().
-    private static final Set<String> electronicResourceCarrierTypes;
-
-    static {
-        Set<String> tempSet = new HashSet<>();
-        tempSet.add("cb");
-        tempSet.add("cd");
-        tempSet.add("ce");
-        tempSet.add("ca");
-        tempSet.add("cf");
-        tempSet.add("ch");
-        tempSet.add("cr");
-        tempSet.add("ck");
-        tempSet.add("cz");
-        electronicResourceCarrierTypes = Collections.unmodifiableSet(tempSet);
-    };
-
     /**
      * Determine Record Formats
      *
