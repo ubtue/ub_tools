@@ -38,13 +38,15 @@
 #define ReallyStringize(S) #S
 
 
-// A thread-safe logger class.
-// \note Set the environment variable LOGGER_FORMAT to control the output format of our logger.
+/** A thread-safe logger class.
+ * \note Set the environment variable LOGGER_FORMAT to control the output format of our logger.  So far we support
+ *       "process_pids" and "no_decorations".
+ */ 
 class Logger {
     friend Logger *LoggerInstantiator();
     std::mutex mutex_;
     int fd_;
-    bool log_process_pids_;
+    bool log_process_pids_, log_no_decorations_;
 public:
     enum LogLevel { LL_ERROR = 1, LL_WARNING = 2, LL_INFO = 3, LL_DEBUG = 4 };
 private:
@@ -79,7 +81,7 @@ public:
     // \brief Returns a string representation of "log_level".
     static std::string LogLevelToString(const LogLevel log_level);
 private:
-    void writeString(std::string msg);
+    void writeString(const std::string &level, std::string msg);
 };
 extern Logger *logger;
 
