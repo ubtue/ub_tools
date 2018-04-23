@@ -54,12 +54,14 @@ public class TueFindBreakIteratorScanner extends BreakIterator {
     private final BreakIterator mainBreak;
     private final BreakIterator innerBreak;
     private final int maxLen;
+    private final int maxSentenceCount = 3;
 
     private int lastPrecedingOffset = -1;
     private int windowStart = -1;
     private int windowEnd = -1;
     private int innerStart = -1;
     private int innerEnd = 0;
+    private int sentenceCount;
 
 //XX
     private static final Logger log = ESLoggerFactory.getLogger(TueFindBreakIteratorScanner.class);
@@ -120,16 +122,25 @@ log.info("PRECEDING offset innerStart innerEnd windowStart windowEnd :" + offset
             windowStart = innerStart = mainBreak.preceding(offset);
             windowEnd = innerEnd = mainBreak.following(offset - 1);
             // expand to next break until we reach maxLen
+            int sentenceCount = 0;
             while (innerEnd - innerStart < maxLen) {
                 int newEnd = mainBreak.following(innerEnd);
-                if (newEnd == DONE || (newEnd - innerStart) > maxLen) {
+                ++sentenceCount;
+                if (newEnd == DONE || (newEnd - innerStart) > maxLen || sentenceCount >= maxSentenceCount) {
                     break;
                 }
                 windowEnd = innerEnd = newEnd;
+
+                int newStart = mainBreak.preceding(windowStart);
+                ++sentenceCount;
+                if (newStart == DONE ||  sentenceCount >= maxSentenceCount) {
+                    break;
+                }
+                windowStart = innerStart = newStart;
             }
         }
 
-        if (innerEnd - innerStart > maxLen) {
+        if (innerEnd - innerStart > maxLen && sentenceCount < maxSentenceCount) {
             // the current split is too big,
             // so starting from the current term we try to find boundaries on the left first
             if (offset - maxLen > innerStart) {

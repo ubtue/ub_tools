@@ -79,9 +79,6 @@ import org.apache.lucene.search.uhighlight.FieldOffsetStrategy;
  */
 public class TueFindCustomHighlighter extends CustomUnifiedHighlighter {
 
-    public static final char MULTIVAL_SEP_CHAR = (char) 0;
-    private static final Snippet[] EMPTY_SNIPPET = new Snippet[0];
-
     private final OffsetSource offsetSource;
     private final String fieldValue;
     private final PassageFormatter passageFormatter;
