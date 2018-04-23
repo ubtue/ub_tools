@@ -208,12 +208,11 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
 }
 
 
-// Iso8601StringToTimeT -- Convert a time from (a special case of) ISO 8601 format to a time_t.
-//
-time_t Iso8601StringToTimeT(const std::string &iso_time, const TimeZone time_zone) {
+bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_time, std::string * const err_msg,
+                          const TimeZone time_zone)
+{
     tm tm_struct;
     std::memset(&tm_struct, '\0', sizeof tm_struct);
-    time_t the_time;
 
     unsigned year, month, day, hour, minute, second;
     bool is_definitely_zulu_time;
@@ -222,8 +221,10 @@ time_t Iso8601StringToTimeT(const std::string &iso_time, const TimeZone time_zon
 
     // First check for Zulu time format (must be UTC)
     if (match_count == 6 and is_definitely_zulu_time) {
-        if (time_zone == LOCAL)
-            throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: local time requested in Zulu time format!");
+        if (time_zone == LOCAL) {
+            *err_msg = "local time requested in Zulu time format!";
+            return false;
+        }
 
         tm_struct.tm_year  = year - 1900;
         tm_struct.tm_mon   = month - 1;
@@ -231,10 +232,11 @@ time_t Iso8601StringToTimeT(const std::string &iso_time, const TimeZone time_zon
         tm_struct.tm_hour  = hour;
         tm_struct.tm_min   = minute;
         tm_struct.tm_sec   = second;
-        the_time = ::timegm(&tm_struct);
-        if (the_time == static_cast<time_t>(-1))
-            throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time
-                                     + "' to a time_t!");
+        *converted_time = ::timegm(&tm_struct);
+        if (*converted_time == static_cast<time_t>(-1)) {
+            *err_msg = "cannot convert '" + iso_time + "' to a time_t!";
+            return false;
+        }
     }
 
     // Check for a simple time and date (can be local or UTC):
@@ -248,13 +250,14 @@ time_t Iso8601StringToTimeT(const std::string &iso_time, const TimeZone time_zon
         if (time_zone == LOCAL) {
             ::tzset();
             tm_struct.tm_isdst = -1;
-            the_time = std::mktime(&tm_struct);
+            *converted_time = std::mktime(&tm_struct);
         }
         else
-            the_time = TimeGm(tm_struct);
-        if (the_time == static_cast<time_t>(-1))
-            throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time
-                                     + "' to a time_t!");
+            *converted_time = TimeGm(tm_struct);
+        if (*converted_time == static_cast<time_t>(-1)) {
+            *err_msg = "cannot convert '" + iso_time + "' to a time_t!";
+            return false;
+        }
     }
 
     // Next check a simple date
@@ -265,17 +268,32 @@ time_t Iso8601StringToTimeT(const std::string &iso_time, const TimeZone time_zon
         if (time_zone == LOCAL) {
             ::tzset();
             tm_struct.tm_isdst = -1;
-            the_time = std::mktime(&tm_struct);
+            *converted_time = std::mktime(&tm_struct);
         }
         else
-            the_time = ::timegm(&tm_struct);
-        if (the_time == static_cast<time_t>(-1))
-            throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time
-                                     + "' to a time_t!");
-    } else
-        throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time + "' to a time_t!");
+            *converted_time = ::timegm(&tm_struct);
+        if (*converted_time == static_cast<time_t>(-1)) {
+            *err_msg = "cannot convert '" + iso_time + "' to a time_t!";
+            return false;
+        }
+    } else {
+        *err_msg = "cannot convert '" + iso_time + "' to a time_t!";
+        return false;
+    }
 
-    return the_time;
+    return true;
+}
+
+
+// Iso8601StringToTimeT -- Convert a time from (a special case of) ISO 8601 format to a time_t.
+//
+time_t Iso8601StringToTimeT(const std::string &iso_time, const TimeZone time_zone) {
+    time_t converted_time;
+    std::string err_msg;
+    if (Iso8601StringToTimeT(iso_time, &converted_time, &err_msg, time_zone))
+        return converted_time;
+
+    throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: " + err_msg);
 }
 
 

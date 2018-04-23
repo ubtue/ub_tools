@@ -60,6 +60,6 @@ int main(int argc, char *argv[]) {
                 std::cout << "contact_id=" << row["contact_id"] << ", last_name=" << row["last_name"] << '\n';
         }
     } catch (const std::exception &x) {
-        ERROR("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }

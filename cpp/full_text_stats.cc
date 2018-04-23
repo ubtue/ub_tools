@@ -135,7 +135,7 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
         }
     }
 
-    EmailSender::SendEmail("no_return@ub.uni-tuebingen.de", email_address, "Full Text Stats", report_text,
+    EmailSender::SendEmail("no-reply@ub.uni-tuebingen.de", email_address, "Full Text Stats", report_text,
                            found_one_or_more_problems ? EmailSender::VERY_HIGH : EmailSender::VERY_LOW);
 }
 

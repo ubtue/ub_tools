@@ -155,7 +155,7 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
 
     if (StringUtil::StartsWith(media_type, "text/")) {
         if (not (media_type == "text/plain"))
-            WARNING("treating " + media_type + " as text/plain");
+            LOG_WARNING("treating " + media_type + " as text/plain");
 
         if (IsUTF8(http_header_charset))
             return document;
@@ -164,13 +164,13 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
         std::unique_ptr<TextUtil::EncodingConverter> encoding_converter(TextUtil::EncodingConverter::Factory(http_header_charset,
                                                                                                              "utf8", &error_msg));
         if (encoding_converter.get() == nullptr) {
-            WARNING("can't convert from \"" + http_header_charset + "\" to UTF-8! (" + error_msg + ")");
+            LOG_WARNING("can't convert from \"" + http_header_charset + "\" to UTF-8! (" + error_msg + ")");
             return document;
         }
 
         std::string utf8_document;
         if (unlikely(not encoding_converter->convert(document, &utf8_document)))
-            WARNING("conversion error while converting text from \"" + http_header_charset + "\" to UTF-8!");
+            LOG_WARNING("conversion error while converting text from \"" + http_header_charset + "\" to UTF-8!");
         return TextUtil::CollapseWhitespace(&utf8_document);
     }
     
@@ -178,7 +178,7 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
         if (PdfUtil::PdfDocContainsNoText(document)) {
             if (not PdfUtil::GetTextFromImagePDF(document, tesseract_language_code, &extracted_text, pdf_extraction_timeout)) {
                 *error_message = "Failed to extract text from an image PDF!";
-                WARNING(*error_message);
+                LOG_WARNING(*error_message);
                 return "";
             }
             return TextUtil::CollapseWhitespace(&extracted_text);
@@ -190,14 +190,14 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
     if (media_type == "image/jpeg" or media_type == "image/png") {
         if (OCR(document, &extracted_text, tesseract_language_code) != 0) {
             *error_message = "Failed to extract text by using OCR on " + media_type;
-            WARNING(*error_message);
+            LOG_WARNING(*error_message);
             return "";
         }
         return TextUtil::CollapseWhitespace(&extracted_text);
     }
 
     *error_message = "Don't know how to handle media type: " + media_type;
-    WARNING(*error_message);
+    LOG_WARNING(*error_message);
     return "";
 }
 
@@ -247,14 +247,14 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             std::string document, media_type, http_header_charset, error_message;
             if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &http_header_charset,
                                              &error_message))) {
-                WARNING("URL " + url + ": could not get document and media type! (" + error_message + ")");
+                LOG_WARNING("URL " + url + ": could not get document and media type! (" + error_message + ")");
                 entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
             } else {
                 std::string extracted_text(ConvertToPlainText(media_type, http_header_charset, GetTesseractLanguageCode(*record),
                                                               document, pdf_extraction_timeout, &error_message));
 
                 if (unlikely(extracted_text.empty())) {
-                    WARNING("URL " + url + ": failed to extract text from the downloaded document! (" + error_message + ")");
+                    LOG_WARNING("URL " + url + ": failed to extract text from the downloaded document! (" + error_message + ")");
                     entry_url.error_message_ = "failed to extract text from the downloaded document! (" + error_message + ")";
                 } else {
                     if (combined_text.empty())
@@ -289,7 +289,7 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
     try {
         success = ProcessRecordUrls(record, pdf_extraction_timeout, use_elasticsearch);
     } catch (const std::exception &x) {
-        WARNING("caught exception: " + std::string(x.what()));
+        LOG_WARNING("caught exception: " + std::string(x.what()));
     }
 
     // Safely append the modified MARC data to the MARC output file:
@@ -306,7 +306,7 @@ bool ProcessRecord(MARC::Reader * const marc_reader, const std::string &marc_out
                    const unsigned pdf_extraction_timeout, const bool use_elasticsearch) {
     MARC::Record record(marc_reader->read());
     try {
-        INFO("processing record " + record.getControlNumber());
+        LOG_INFO("processing record " + record.getControlNumber());
         return ProcessRecord(&record, marc_output_filename, pdf_extraction_timeout, use_elasticsearch);
     } catch (const std::exception &x) {
         throw std::runtime_error(x.what() + std::string(" (PPN: ") + record.getControlNumber() + ")");
@@ -324,7 +324,7 @@ int main(int argc, char *argv[]) {
     if (argc > 1 and StringUtil::StartsWith(argv[1], "--pdf-extraction-timeout=")) {
         if (not StringUtil::ToNumber(argv[1] + __builtin_strlen("--pdf-extraction-timeout="), &pdf_extraction_timeout)
             or pdf_extraction_timeout == 0)
-                ERROR("bad value for --pdf-extraction-timeout!");
+                LOG_ERROR("bad value for --pdf-extraction-timeout!");
         ++argv, --argc;
     }
 
@@ -339,16 +339,16 @@ int main(int argc, char *argv[]) {
 
     long offset;
     if (not StringUtil::ToNumber(argv[1], &offset))
-        ERROR("file offset must be a number!");
+        LOG_ERROR("file offset must be a number!");
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2], MARC::Reader::BINARY));
     if (not marc_reader->seek(offset, SEEK_SET))
-        ERROR("failed to position " + marc_reader->getPath() + " at offset " + std::to_string(offset) + "!");
+        LOG_ERROR("failed to position " + marc_reader->getPath() + " at offset " + std::to_string(offset) + "!");
 
     try {
         return ProcessRecord(marc_reader.get(), argv[3], pdf_extraction_timeout, use_elasticsearch) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
-        ERROR("While reading \"" + marc_reader->getPath() + "\" starting at offset \""
+        LOG_ERROR("While reading \"" + marc_reader->getPath() + "\" starting at offset \""
               + std::string(argv[1]) + "\", caught exception: " + std::string(e.what()));
     }
 }

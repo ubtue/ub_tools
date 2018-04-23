@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
         else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
             reader_type = MARC::Reader::XML;
         else
-            ERROR("invalid reader type \"" + std::string(argv[1] + std::strlen("--input-format=")) + "\"!");
+            LOG_ERROR("invalid reader type \"" + std::string(argv[1] + std::strlen("--input-format=")) + "\"!");
         ++argv;
         --argc;
     }

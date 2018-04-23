@@ -85,7 +85,7 @@ public:
 // Makes "date" look like an ISO-8601 date ("2017-01-01 00:00:00" => "2017-01-01T00:00:00Z")
 std::string ConvertDateToZuluDate(std::string date) {
     if (unlikely(date.length() != 19 or date[10] != ' '))
-        ERROR("unexpected datetime in " + std::string(__FUNCTION__) + ": \"" + date + "\"!");
+        LOG_ERROR("unexpected datetime in " + std::string(__FUNCTION__) + ": \"" + date + "\"!");
     date[10] = 'T';
     return date + 'Z';
 }
@@ -94,7 +94,7 @@ std::string ConvertDateToZuluDate(std::string date) {
 // Converts ISO-8601 date back to mysql-like date format ("2017-01-01T00:00:00Z" => "2017-01-01 00:00:00")
 std::string ConvertDateFromZuluDate(std::string date) {
     if (unlikely(date.length() != 20 or date[10] != 'T' or date[19] != 'Z'))
-        ERROR("unexpected datetime in " + std::string(__FUNCTION__) + ": \"" + date + "\"!");
+        LOG_ERROR("unexpected datetime in " + std::string(__FUNCTION__) + ": \"" + date + "\"!");
     date[10] = ' ';
     return date.substr(0, 19);
 }
@@ -103,7 +103,7 @@ std::string ConvertDateFromZuluDate(std::string date) {
 std::string GetIssueId(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
     const std::string id(JSON::LookupString("/id", doc_obj, /* default_value = */ ""));
     if (unlikely(id.empty()))
-        ERROR("Did not find 'id' node in JSON tree!");
+        LOG_ERROR("Did not find 'id' node in JSON tree!");
 
     return id;
 }
@@ -113,7 +113,7 @@ std::string GetIssueTitle(const std::string &id, const std::shared_ptr<const JSO
     const std::string NO_AVAILABLE_TITLE("*No available title*");
     const auto issue_title(JSON::LookupString("/title", doc_obj, /* default_value = */ NO_AVAILABLE_TITLE));
     if (unlikely(issue_title == NO_AVAILABLE_TITLE))
-        WARNING("No title found for ID " + id + "!");
+        LOG_WARNING("No title found for ID " + id + "!");
 
     return issue_title;
 }
@@ -122,7 +122,7 @@ std::string GetIssueTitle(const std::string &id, const std::shared_ptr<const JSO
 std::string GetLastModificationTime(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
     const std::string last_modification_time(JSON::LookupString("/last_modification_time", doc_obj, /* default_value = */ ""));
     if (unlikely(last_modification_time.empty()))
-        ERROR("Did not find 'last_modification_time' node in JSON tree!");
+        LOG_ERROR("Did not find 'last_modification_time' node in JSON tree!");
 
     return last_modification_time;
 }
@@ -132,14 +132,14 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
     const std::string NO_SERIES_TITLE("*No Series Title*");
     const std::shared_ptr<const JSON::JSONNode> container_ids_and_titles(doc_obj->getNode("container_ids_and_titles"));
     if (container_ids_and_titles == nullptr) {
-        WARNING("\"container_ids_and_titles\" is null");
+        LOG_WARNING("\"container_ids_and_titles\" is null");
         return NO_SERIES_TITLE;
     }
 
     const std::shared_ptr<const JSON::ArrayNode> container_ids_and_titles_array(
         JSON::JSONNode::CastToArrayNodeOrDie("container_ids_and_titles", container_ids_and_titles));
     if (container_ids_and_titles_array->empty()) {
-        WARNING("\"container_ids_and_titles\" is empty");
+        LOG_WARNING("\"container_ids_and_titles\" is empty");
         return NO_SERIES_TITLE;
     }
 
@@ -148,7 +148,7 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
     std::vector<std::string> parts;
     StringUtil::Split(first_id_and_title_string_value, '\x1F', &parts);
     if (unlikely(parts.size() < 2))
-        ERROR("strange id and title value \"" + first_id_and_title_string_value + "\"!");
+        LOG_ERROR("strange id and title value \"" + first_id_and_title_string_value + "\"!");
 
     return parts[1];
 }
@@ -157,14 +157,14 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
 std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
     const std::shared_ptr<const JSON::JSONNode> author(doc_obj->getNode("author"));
     if (author == nullptr) {
-        WARNING("\"author\" is null");
+        LOG_WARNING("\"author\" is null");
         return std::vector<std::string>();
     }
 
     const std::shared_ptr<const JSON::ArrayNode> author_array(
         JSON::JSONNode::CastToArrayNodeOrDie("author", author));
     if (author_array->empty()) {
-        WARNING("\"author\" is empty");
+        LOG_WARNING("\"author\" is empty");
         return std::vector<std::string>();
     }
 
@@ -190,7 +190,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
     JSON::Parser parser(json_document);
     std::shared_ptr<JSON::JSONNode> tree;
     if (not parser.parse(&tree))
-        ERROR("JSON parser failed: " + parser.getErrorMessage());
+        LOG_ERROR("JSON parser failed: " + parser.getErrorMessage());
 
     const std::shared_ptr<const JSON::ObjectNode> tree_obj(JSON::JSONNode::CastToObjectNodeOrDie("top level JSON entity", tree));
     const std::shared_ptr<const JSON::ObjectNode> response(tree_obj->getObjectNode("response"));
@@ -226,7 +226,7 @@ std::string GetEmailTemplate(const std::string user_type) {
     const std::string EMAIL_TEMPLATE_PATH("/usr/local/var/lib/tuelib/subscriptions_email." + user_type + ".template");
 
     if (unlikely(not FileUtil::ReadString(EMAIL_TEMPLATE_PATH, &result)))
-        ERROR("can't load email template \"" + EMAIL_TEMPLATE_PATH + "\"!");
+        LOG_ERROR("can't load email template \"" + EMAIL_TEMPLATE_PATH + "\"!");
 
     return result;
 }
@@ -247,7 +247,7 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
     std::string json_result, err_msg;
     if (unlikely(not Solr::Query(QUERY, "id,title,author,last_modification_time,container_ids_and_titles", &json_result, &err_msg,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
-        ERROR("Solr query failed or timed-out: \"" + QUERY + "\". (" + err_msg + ")");
+        LOG_ERROR("Solr query failed or timed-out: \"" + QUERY + "\". (" + err_msg + ")");
 
     return ExtractNewIssueInfos(notified_db, new_notification_ids, json_result, new_issue_infos,
                                 max_last_modification_time);
@@ -290,7 +290,7 @@ void SendNotificationEmail(const bool debug, const std::string &firstname, const
                   << '\n';
     else if (unlikely(not EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents.str(),
                                                  EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
-        ERROR("failed to send a notification email to \"" + recipient_email + "\"!");
+        LOG_ERROR("failed to send a notification email to \"" + recipient_email + "\"!");
 }
 
 
@@ -307,14 +307,14 @@ void ProcessSingleUser(const bool debug, DbConnection * const db_connection,
     DbResultSet result_set(db_connection->getLastResultSet());
 
     if (result_set.empty())
-        ERROR("found no user attributes in table \"user\" for ID \"" + user_id + "\"!");
+        LOG_ERROR("found no user attributes in table \"user\" for ID \"" + user_id + "\"!");
     if (result_set.size() > 1)
-        ERROR("found multiple user attribute sets in table \"user\" for ID \"" + user_id + "\"!");
+        LOG_ERROR("found multiple user attribute sets in table \"user\" for ID \"" + user_id + "\"!");
 
     const DbRow row(result_set.getNextRow());
     const std::string username(row["username"]);
 
-    INFO("Found " + std::to_string(control_numbers_and_last_modification_times.size()) + " subscriptions for \""
+    LOG_INFO("Found " + std::to_string(control_numbers_and_last_modification_times.size()) + " subscriptions for \""
          + username + "\".");
 
     const std::string firstname(row["firstname"]);
@@ -333,7 +333,7 @@ void ProcessSingleUser(const bool debug, DbConnection * const db_connection,
             control_number_and_last_modification_time.setMaxLastModificationTime(max_last_modification_time);
     }
 
-    INFO("Found " + std::to_string(new_issue_infos.size()) + " new issues for " + "\"" + username + "\".");
+    LOG_INFO("Found " + std::to_string(new_issue_infos.size()) + " new issues for " + "\"" + username + "\".");
 
     if (not new_issue_infos.empty())
         SendNotificationEmail(debug, firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos,
@@ -387,7 +387,7 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection,
                           hostname, sender_email, email_subject, control_numbers_and_last_modification_times);
     }
 
-    INFO("Processed " + std::to_string(user_count) + " users and " + std::to_string(subscription_count) + " subscriptions.\n");
+    LOG_INFO("Processed " + std::to_string(user_count) + " users and " + std::to_string(subscription_count) + " subscriptions.\n");
 }
 
 
@@ -397,7 +397,7 @@ void RecordNewlyNotifiedIds(const std::unique_ptr<kyotocabinet::HashDB> &notifie
     const std::string now(TimeUtil::GetCurrentDateAndTime());
     for (const auto &id : new_notification_ids) {
         if (not notified_db->add(id, now))
-            ERROR("Failed to add key/value pair to database \"" + notified_db->path() + "\" ("
+            LOG_ERROR("Failed to add key/value pair to database \"" + notified_db->path() + "\" ("
                   + std::string(notified_db->error().message()) + ")!");
     }
 }
@@ -408,7 +408,7 @@ std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB(const std::string &
     std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
     if (not (db->open(DB_FILENAME,
                       kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
-        ERROR("failed to open or create \"" + DB_FILENAME + "\"!");
+        LOG_ERROR("failed to open or create \"" + DB_FILENAME + "\"!");
     return db;
 }
 
@@ -440,7 +440,7 @@ int main(int argc, char **argv) {
 
     const std::string user_type(argv[1]);
     if (user_type != "ixtheo" and user_type != "relbib")
-        ERROR("user_type parameter must be either \"ixtheo\" or \"relbib\"!");
+        LOG_ERROR("user_type parameter must be either \"ixtheo\" or \"relbib\"!");
 
     const std::string hostname(argv[2]);
     const std::string sender_email(argv[3]);
@@ -459,6 +459,6 @@ int main(int argc, char **argv) {
         if (not debug)
             RecordNewlyNotifiedIds(notified_db, new_notification_ids);
     } catch (const std::exception &x) {
-        ERROR("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }

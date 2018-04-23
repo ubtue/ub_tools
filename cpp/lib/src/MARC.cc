@@ -80,7 +80,7 @@ std::vector<std::string> Subfields::extractSubfieldsAndNumericSubfields(const st
     for (auto code(subfield_spec.cbegin()); code != subfield_spec.cend(); ++code) {
         if (StringUtil::IsDigit(*code)) {
             if (unlikely((code + 1) == subfield_spec.cend()))
-                ERROR("numeric subfield code is missing a following character!");
+                LOG_ERROR("numeric subfield code is missing a following character!");
             numeric_subfield_specs.insert(std::string(1, *code) + std::string(1, *(code + 1)));
             subfield_codes += *code;
             ++code;
@@ -146,7 +146,7 @@ void Record::Field::deleteAllSubfieldsWithCode(const char subfield_code) {
 
 Record::Record(const std::string &leader): leader_(leader) {
     if (unlikely(leader_.length() != LEADER_LENGTH))
-        ERROR("supposed leader has invalid length!");
+        LOG_ERROR("supposed leader has invalid length!");
 }
 
 
@@ -159,7 +159,7 @@ Record::Record(const size_t record_size, char * const record_start)
     const char *directory_entry(record_start + LEADER_LENGTH);
     while (directory_entry != base_address_of_data - 1) {
         if (unlikely(directory_entry > base_address_of_data))
-            ERROR("directory_entry > base_address_of_data!");
+            LOG_ERROR("directory_entry > base_address_of_data!");
         std::string tag;
         tag += directory_entry[0];
         tag += directory_entry[1];
@@ -204,7 +204,7 @@ static std::string TypeOfRecordToSTring(const Record::TypeOfRecord type_of_recor
     case Record::MANUSCRIPT_LANGUAGE_MATERIAL:
         return std::string(1, 't');
     default:
-        ERROR("unknown type-of-record: " + std::to_string(type_of_record) + "!");
+        LOG_ERROR("unknown type-of-record: " + std::to_string(type_of_record) + "!");
     }
 }
 
@@ -226,7 +226,7 @@ static std::string BibliographicLevelToString(const Record::BibliographicLevel b
     case Record::SERIAL:
         return std::string(1, 's');
     default:
-        ERROR("unknown bibliographic level: " + std::to_string(bibliographic_level) + "!");
+        LOG_ERROR("unknown bibliographic level: " + std::to_string(bibliographic_level) + "!");
     }
 }
 
@@ -249,14 +249,27 @@ void Record::merge(const Record &other) {
 }
 
 
+static const std::set<std::string> ELECTRONIC_CARRIER_TYPES{ "cb", "cd", "ce", "ca", "cf", "ch", "cr", "ck", "cz" };
+  
+
 bool Record::isElectronicResource() const {
-    if (std::toupper(leader_[6]) == 'M')
+    if (leader_[6] == 'm')
         return true;
 
     if (isMonograph()) {
         for (const auto &_007_field : getTagRange("007")) {
             const std::string &_007_field_contents(_007_field.getContents());
-            if (not _007_field_contents.empty() and std::toupper(_007_field_contents[0]) == 'C')
+            if (not _007_field_contents.empty() and _007_field_contents[0] == 'c')
+                return true;
+        }
+    }
+    
+    for (const auto &_935_field : getTagRange("935")) {
+        const Subfields subfields(_935_field.getSubfields());
+        for (const auto &subfield : subfields) {
+            if (subfield.code_ != 'c')
+                continue;
+            if (subfield.value_ == "sodr")
                 return true;
         }
     }
@@ -268,6 +281,26 @@ bool Record::isElectronicResource() const {
                 continue;
             if (::strcasestr(subfield.value_.c_str(), "[Elektronische Ressource]") != nullptr
                 or ::strcasestr(subfield.value_.c_str(), "[electronic resource]") != nullptr)
+                return true;
+        }
+    }
+
+    for (const auto &_300_field : getTagRange("300")) {
+        const Subfields subfields(_300_field.getSubfields());
+        for (const auto &subfield : subfields) {
+            if (subfield.code_ != 'a')
+                continue;
+            if (::strcasestr(subfield.value_.c_str(), "Online-Ressource") != nullptr)
+                return true;
+        }
+    }
+
+    for (const auto &_338_field : getTagRange("338")) {
+        const Subfields subfields(_338_field.getSubfields());
+        for (const auto &subfield : subfields) {
+            if (subfield.code_ != 'b')
+                continue;
+            if (ELECTRONIC_CARRIER_TYPES.find(subfield.value_) != ELECTRONIC_CARRIER_TYPES.end())
                 return true;
         }
     }
@@ -385,7 +418,7 @@ size_t Record::findFieldsInLocalBlock(const Tag &field_tag, const std::string &i
 {
     fields->clear();
     if (unlikely(indicators.length() != 2))
-        ERROR("indicators must be precisely 2 characters long!");
+        LOG_ERROR("indicators must be precisely 2 characters long!");
 
     const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag.to_string());
     for (auto field(block_start_and_end.first); field < block_start_and_end.second; ++field) {
@@ -464,7 +497,7 @@ bool Record::isValid(std::string * const error_message) const {
                 }
                 ++ch; // Skip over the subfield code.
                 if (unlikely(ch == field.contents_.end() or *ch == '\x1F'))
-                    WARNING("subfield '" + std::string(1, *(ch - 1)) + "' is empty! (tag: " + field.getTag().to_string() + ")");
+                    LOG_WARNING("subfield '" + std::string(1, *(ch - 1)) + "' is empty! (tag: " + field.getTag().to_string() + ")");
 
                 // Skip over the subfield contents:
                 while (ch != field.contents_.end() and *ch != '\x1F')
@@ -489,7 +522,7 @@ static MediaType GetMediaType(const std::string &input_filename) {
     const size_t read_count(input.read(magic, sizeof(magic) - 1));
     if (read_count != sizeof(magic) - 1) {
         if (read_count == 0) {
-            WARNING("empty input file \"" + input_filename + "\"!");
+            LOG_WARNING("empty input file \"" + input_filename + "\"!");
             const std::string extension(FileUtil::GetExtension(input_filename));
             if (::strcasecmp(extension.c_str(), "mrc") == 0 or ::strcasecmp(extension.c_str(), "marc") == 0
                 or ::strcasecmp(extension.c_str(), "raw") == 0)
@@ -507,7 +540,7 @@ static MediaType GetMediaType(const std::string &input_filename) {
         std::string err_msg;
         marc21_matcher = RegexMatcher::RegexMatcherFactory("(^[0-9]{5})([acdnp][^bhlnqsu-z]|[acdnosx][z]|[cdn][uvxy]|[acdn][w]|[cdn][q])", &err_msg);
         if (marc21_matcher == nullptr)
-            ERROR("failed to compile a regex! (" + err_msg + ")");
+            LOG_ERROR("failed to compile a regex! (" + err_msg + ")");
     }
 
     return marc21_matcher->matched(magic) ? MediaType::MARC21 : MediaType::XML;
@@ -518,7 +551,7 @@ std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, Reade
     if (reader_type == AUTO) {
         const MediaType media_type(GetMediaType(input_filename));
         if (media_type == MediaType::OTHER)
-            ERROR("can't determine media type of \"" + input_filename + "\"!");
+            LOG_ERROR("can't determine media type of \"" + input_filename + "\"!");
         reader_type = (media_type == MediaType::XML) ? Reader::XML : Reader::BINARY;
     }
 
@@ -552,12 +585,12 @@ Record BinaryReader::actualRead() {
         return Record();
 
     if (unlikely(bytes_read != Record::RECORD_LENGTH_FIELD_LENGTH))
-        ERROR("failed to read record length!");
+        LOG_ERROR("failed to read record length!");
     const unsigned record_length(ToUnsigned(buf, Record::RECORD_LENGTH_FIELD_LENGTH));
 
     bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH, record_length - Record::RECORD_LENGTH_FIELD_LENGTH);
     if (unlikely(bytes_read != record_length - Record::RECORD_LENGTH_FIELD_LENGTH))
-        ERROR("failed to read a record from \"" + input_->getPath() + "\"!");
+        LOG_ERROR("failed to read a record from \"" + input_->getPath() + "\"!");
 
     return Record(record_length, buf);
 }
@@ -655,7 +688,7 @@ void XmlReader::rewind() {
     // We can't handle FIFO's here:
     struct stat stat_buf;
     if (unlikely(fstat(input_->getFileDescriptor(), &stat_buf) and S_ISFIFO(stat_buf.st_mode)))
-        ERROR("can't rewind a FIFO!");
+        LOG_ERROR("can't rewind a FIFO!");
 
     input_->rewind();
 
@@ -702,15 +735,15 @@ bool ParseLeader(const std::string &leader_string, std::string * const leader, s
 
     // Check indicator count:
     if (leader_string[10] != '2')
-        WARNING("invalid indicator count '" + leader_string.substr(10, 1) + "'!");
+        LOG_WARNING("invalid indicator count '" + leader_string.substr(10, 1) + "'!");
 
     // Check subfield code length:
     if (leader_string[11] != '2')
-        WARNING("invalid subfield code length! (Leader bytes are " + StringUtil:: CStyleEscape(leader_string) + ")");
+        LOG_WARNING("invalid subfield code length! (Leader bytes are " + StringUtil:: CStyleEscape(leader_string) + ")");
 
     // Check entry map:
     if (leader_string.substr(20, 3) != "450")
-        WARNING("invalid entry map!");
+        LOG_WARNING("invalid entry map!");
 
     *leader = leader_string;
 
@@ -738,7 +771,7 @@ void XmlReader::parseLeader(const std::string &input_filename, Record * const ne
                                  + xml_parser_->getLastErrorMessage() + " on line "
                                  + std::to_string(xml_parser_->getLineNo()) + ".");
     if (unlikely(type != SimpleXmlParser<File>::CHARACTERS or data.length() != Record::LEADER_LENGTH)) {
-        WARNING("leader data expected while parsing \"" + input_filename + "\" on line "
+        LOG_WARNING("leader data expected while parsing \"" + input_filename + "\" on line "
                 + std::to_string(xml_parser_->getLineNo()) + ".");
         if (unlikely(not getNext(&type, &attrib_map, &data)))
             throw std::runtime_error("in MARC::XmlReader::ParseLeader: error while skipping to </"
@@ -791,7 +824,7 @@ void XmlReader::parseControlfield(const std::string &input_filename, const std::
 
         // Do we have an empty control field?
     if (unlikely(type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "controlfield")) {
-        WARNING("empty \"" + tag + "\" control field on line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
+        LOG_WARNING("empty \"" + tag + "\" control field on line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
                 + input_filename + "\"!");
         return;
     }
@@ -868,7 +901,7 @@ void XmlReader::parseDatafield(const std::string &input_filename,
         // 2. Subfield data.
         if (unlikely(not getNext(&type, &attrib_map, &data) or type != SimpleXmlParser<File>::CHARACTERS)) {
             if (type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "subfield") {
-                WARNING("found an empty subfield on line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
+                LOG_WARNING("found an empty subfield on line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
                         + input_filename + "\"!");
                 field_data.resize(field_data.length() - 2); // Remove subfield delimiter and code.
                 continue;
@@ -967,7 +1000,7 @@ std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, Writ
 void BinaryWriter::write(const Record &record) {
     std::string error_message;
     if (not record.isValid(&error_message))
-        ERROR("trying to write an invalid record: " + error_message + " (Control number: " + record.getControlNumber() + ")");
+        LOG_ERROR("trying to write an invalid record: " + error_message + " (Control number: " + record.getControlNumber() + ")");
 
     Record::const_iterator start(record.begin());
     do {
@@ -1067,10 +1100,10 @@ void XmlWriter::write(const Record &record) {
 void FileLockedComposeAndWriteRecord(Writer * const marc_writer, const Record &record) {
     FileLocker file_locker(marc_writer->getFile().getFileDescriptor(), FileLocker::WRITE_ONLY);
     if (unlikely(not (marc_writer->getFile().seek(0, SEEK_END))))
-        ERROR("failed to seek to the end of \"" + marc_writer->getFile().getPath() + "\"!");
+        LOG_ERROR("failed to seek to the end of \"" + marc_writer->getFile().getPath() + "\"!");
     marc_writer->write(record);
     if (unlikely(not marc_writer->flush()))
-        ERROR("failed to flush to \"" +  marc_writer->getFile().getPath() + "\"!");
+        LOG_ERROR("failed to flush to \"" +  marc_writer->getFile().getPath() + "\"!");
 }
 
 
@@ -1424,7 +1457,7 @@ bool IsRepeatableField(const Tag &tag) {
     // 2. Handle all other fields.
     const auto tag_and_repeatable(tag_to_repeatable_map.find(tag));
     if (unlikely(tag_and_repeatable == tag_to_repeatable_map.end()))
-        ERROR(tag.to_string() + " is not in our map!");
+        LOG_ERROR(tag.to_string() + " is not in our map!");
     return tag_and_repeatable->second;
 }
 

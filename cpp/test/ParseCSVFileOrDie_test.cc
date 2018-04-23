@@ -53,6 +53,6 @@ int main(int argc, char *argv[]) {
             std::cout << '\n';
         }
     } catch (const std::exception &x) {
-        ERROR("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }

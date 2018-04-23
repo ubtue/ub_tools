@@ -31,6 +31,7 @@
 #define TIME_UTIL_H
 
 
+#include <limits>
 #include <string>
 #include <cstdint>
 #ifndef _BSD_SOURCE
@@ -46,7 +47,8 @@
 namespace TimeUtil {
 
 
-const time_t BAD_TIME_T = static_cast<time_t>(-1);
+constexpr time_t BAD_TIME_T = static_cast<time_t>(-1);
+constexpr time_t MAX_TIME_T = std::numeric_limits<time_t>::max();
 
 
 const std::string ISO_8601_FORMAT("%Y-%m-%d %T");
@@ -159,6 +161,22 @@ inline std::string TimeTToZuluString(const time_t &the_time)
 unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * const year, unsigned * const month,
                                 unsigned * const day, unsigned * const hour, unsigned * const minute,
                                 unsigned * const second, bool * const is_definitely_zulu_time);
+
+
+/** \brief   Convert a time from (a subset of) ISO 8601 format to a time_t.
+ *  \param   iso_time        The time to convert in ISO 8601 format.
+ *  \param   converted_time  Upon success, we stored the converted time here.
+ *  \param   time_zone       Whether to use local time (the default) or UTC.
+ *  \return  True if we successfully parsed the input, else false.
+ *
+ *  The time is expected to be in the following formats:
+ *  "YYYY-MM-DD hh:mm:ss" or "YYYY-MM-DDThh:mm:ssZ" (Zulu time) or "YYYY-MM-DD".
+ *
+ *  \note  If "iso_time" is in Zulu format, then the time_zone
+ *         parameter must be set to UTC.
+ */
+bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_time, std::string * const err_msg,
+                          const TimeZone time_zone = LOCAL);
 
 
 /** \brief   Convert a time from (a subset of) ISO 8601 format to a time_t.

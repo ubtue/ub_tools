@@ -45,13 +45,13 @@ int main(int argc, char *argv[]) {
         const std::string input_filename(argv[1]);
         std::string html_document;
         if (not FileUtil::ReadString(input_filename, &html_document))
-            ERROR("failed to read an HTML document from \"" + input_filename + "\"!");
+            LOG_ERROR("failed to read an HTML document from \"" + input_filename + "\"!");
 
         Parser parser(html_document, http_header_charset);
         parser.parse();
         std::cout << "Used HTTP header charset \"" << parser.getHttpHeaderCharset() << "\".\n";
         std::cout << "Used document local charset \"" << parser.getDocumentLocalCharset() << "\".\n";
     } catch (const std::exception &x) {
-        ERROR(x.what());
+        LOG_ERROR(x.what());
     }
 }

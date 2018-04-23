@@ -66,18 +66,18 @@ void SimpleCrawler::ParseConfigFile(const std::string &config_path, std::vector<
 
         std::vector<std::string> line_parts;
         if (StringUtil::SplitThenTrimWhite(line, ' ', &line_parts) != 3)
-            ERROR("bad input line #" + std::to_string(line_no) + " in \""
+            LOG_ERROR("bad input line #" + std::to_string(line_no) + " in \""
                    + input->getPath() + "\"!");
 
         unsigned max_crawl_depth;
         if (not StringUtil::ToUnsigned(line_parts[1], &max_crawl_depth))
-            ERROR("bad input line #" + std::to_string(line_no) + " in \""
+            LOG_ERROR("bad input line #" + std::to_string(line_no) + " in \""
                    + input->getPath() + "\"! (Invalid max. crawl depth: \"" + line_parts[1] + "\")");
 
         std::string err_msg;
         RegexMatcher * const url_regex_matcher(RegexMatcher::RegexMatcherFactory(line_parts[2], &err_msg));
         if (url_regex_matcher == nullptr)
-            ERROR("bad input line #" + std::to_string(line_no) + " in \""
+            LOG_ERROR("bad input line #" + std::to_string(line_no) + " in \""
                    + input->getPath() + "\", regex is faulty! (" + err_msg + ")");
         site_descs->emplace_back(line_parts[0], max_crawl_depth, url_regex_matcher);
     }
@@ -97,7 +97,7 @@ SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params)
     std::string err_msg;
     url_ignore_regex_matcher_.reset(RegexMatcher::RegexMatcherFactory(params.url_ignore_pattern_, &err_msg, RegexMatcher::Option::CASE_INSENSITIVE));
     if (url_ignore_regex_matcher_ == nullptr)
-        ERROR("could not initialize URL ignore regex matcher: " + err_msg);
+        LOG_ERROR("could not initialize URL ignore regex matcher: " + err_msg);
 
     downloader_.params_.user_agent_            = params.user_agent_;
     downloader_.params_.acceptable_languages_  = params.acceptable_languages_;

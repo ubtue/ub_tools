@@ -68,26 +68,26 @@ int main(int argc, char *argv[]) {
         std::string put_data("{\n");
 
         if (std::strncmp(argv[1], "--title=", __builtin_strlen("--title=")) != 0)
-            ERROR("missing title field!");
+            LOG_ERROR("missing title field!");
         put_data += "\t\"title\": \"" + std::string(argv[1] + __builtin_strlen("--title=")) + "\",\n";
 
         if (std::strncmp(argv[2], "--text=", __builtin_strlen("--text=")) != 0
             and std::strncmp(argv[2], "--text-from-file=", __builtin_strlen("--text-from-file=")) != 0)
-            ERROR("missing text or text-from-file field!");
+            LOG_ERROR("missing text or text-from-file field!");
         if (std::strncmp(argv[2], "--text=", __builtin_strlen("--text=")) == 0)
             put_data += "\t\"text\": \"" + std::string(argv[2] + __builtin_strlen("--text=")) + "\"";
         else { // text-from-file
             const std::string load_path(argv[2] + __builtin_strlen("--text-from-file="));
             std::string text;
             if (not FileUtil::ReadString(load_path, &text))
-                ERROR("failed to read text from \"" + load_path + "\"!");
+                LOG_ERROR("failed to read text from \"" + load_path + "\"!");
             put_data += "\t\"text\": \"" + JSON::EscapeString(text) + "\"";
         }
 
         for (int arg_no(3); arg_no < argc; ++arg_no) {
             const char * const first_equal_sign(std::strchr(argv[arg_no], '='));
             if (std::strncmp(argv[arg_no], "--", 2) != 0 or first_equal_sign == nullptr)
-                ERROR("arguments must start with a double dash and contain an equal sign!");
+                LOG_ERROR("arguments must start with a double dash and contain an equal sign!");
             put_data += ",\n\t\"";
             put_data += std::string(argv[arg_no] + 2, first_equal_sign - argv[arg_no] - 2) + "\": \"";
             put_data += first_equal_sign + 1;
@@ -100,9 +100,9 @@ int main(int argc, char *argv[]) {
         else {
             Downloader downloader;
             if (not downloader.putData(server_url, put_data))
-                ERROR(downloader.getLastErrorMessage());
+                LOG_ERROR(downloader.getLastErrorMessage());
         }
     } catch (const std::exception &e) {
-        ERROR("caught exception: " + std::string(e.what()));
+        LOG_ERROR("caught exception: " + std::string(e.what()));
     }
 }

@@ -34,7 +34,7 @@ EmailSender::Priority StringToPriority(const std::string &priority_candidate) {
         return EmailSender::HIGH;
     if (priority_candidate == "very_high")
         return EmailSender::VERY_HIGH;
-    ERROR("\"" + priority_candidate + "\" is an unknown priority!");
+    LOG_ERROR("\"" + priority_candidate + "\" is an unknown priority!");
 }
 
 
@@ -43,7 +43,7 @@ EmailSender::Format StringToFormat(const std::string &format_candidate) {
         return EmailSender::PLAIN_TEXT;
     else if (format_candidate == "html")
         return EmailSender::HTML;
-    ERROR("\"" + format_candidate + "\" is an unknown format!");
+    LOG_ERROR("\"" + format_candidate + "\" is an unknown format!");
 }
 
 
@@ -51,7 +51,7 @@ bool ExtractArg(const char * const argument, const std::string &arg_name, std::s
     if (StringUtil::StartsWith(argument, "--" + arg_name + "=")) {
         *arg_value = argument + arg_name.length() + 3 /* two dashes and one equal sign */;
         if (arg_value->empty())
-            ERROR(arg_name + " is missing!");
+            LOG_ERROR(arg_name + " is missing!");
 
         return true;
     }
@@ -77,17 +77,17 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
             or ExtractArg(*argv, "format", format))
             ++argv;
         else
-            ERROR("unknown argument: " + std::string(*argv));
+            LOG_ERROR("unknown argument: " + std::string(*argv));
     }
 
     if (sender->empty() and reply_to->empty())
-        ERROR("you must specify --sender and/or --reply-to!");
+        LOG_ERROR("you must specify --sender and/or --reply-to!");
     if (recipients->empty() and cc_recipients->empty() and bcc_recipients->empty())
-        ERROR("you must specify a recipient!");
+        LOG_ERROR("you must specify a recipient!");
     if (subject->empty())
-        ERROR("you must specify a subject!");
+        LOG_ERROR("you must specify a subject!");
     if (message_body->empty())
-        ERROR("you must specify a message-body!");
+        LOG_ERROR("you must specify a message-body!");
 }
 
 
@@ -102,7 +102,7 @@ std::vector<std::string> SplitRecipients(const std::string &recipients) {
 std::string ExpandNewlineEscapes(const std::string &text) {
     std::wstring escaped_string;
     if (unlikely(not TextUtil::UTF8ToWCharString(text, &escaped_string)))
-        ERROR("can't convert a supposed UTF-8 string to a wide string!");
+        LOG_ERROR("can't convert a supposed UTF-8 string to a wide string!");
 
     std::wstring unescaped_string;
     bool backslash_seen(false);
@@ -115,7 +115,7 @@ std::string ExpandNewlineEscapes(const std::string &text) {
             else {
                 std::string utf8_string;
                 TextUtil::WCharToUTF8String(ch, &utf8_string);
-                ERROR("unknown escape: \\" + utf8_string + "!");
+                LOG_ERROR("unknown escape: \\" + utf8_string + "!");
             }
             backslash_seen = false;
         } else if (ch == '\\')
@@ -126,7 +126,7 @@ std::string ExpandNewlineEscapes(const std::string &text) {
 
     std::string utf8_string;
     if (unlikely(not TextUtil::WCharToUTF8String(unescaped_string, &utf8_string)))
-        ERROR("can't convert a supposed wide string to a UTF-8 string!");
+        LOG_ERROR("can't convert a supposed wide string to a UTF-8 string!");
 
     return utf8_string;
 }
@@ -159,8 +159,8 @@ int main(int argc, char *argv[]) {
             message_body = ExpandNewlineEscapes(message_body);
         if (not EmailSender::SendEmail(sender, SplitRecipients(recipients), SplitRecipients(cc_recipients),
                                        SplitRecipients(bcc_recipients), subject, message_body, priority, format, reply_to))
-            ERROR("failed to send your email!");
+            LOG_ERROR("failed to send your email!");
     } catch (const std::exception &e) {
-        ERROR("Caught exception: " + std::string(e.what()));
+        LOG_ERROR("Caught exception: " + std::string(e.what()));
     }
 }
