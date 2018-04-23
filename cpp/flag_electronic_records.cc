@@ -79,6 +79,6 @@ int main(int argc, char *argv[]) {
 
         ProcessRecords(marc_reader.get(), marc_writer.get());
     } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
+        ERROR("Caught exception: " + std::string(e.what()));
     }
 }
