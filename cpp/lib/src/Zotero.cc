@@ -230,8 +230,8 @@ void ZoteroFormatHandler::finishProcessing() {
 
 
 void MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSONNode> tags_node, const std::string &issn,
-                                                const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
-                                                MARC::Record * const new_record)
+                                        const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
+                                        MARC::Record * const new_record)
 {
     const std::shared_ptr<const JSON::ArrayNode> tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
 
@@ -243,7 +243,7 @@ void MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSONNode> ta
         if (issn_and_field_tag_and_subfield_code != ISSN_to_keyword_field_map.end()) {
             if (unlikely(issn_and_field_tag_and_subfield_code->second.length() != 3 + 1))
                 LOG_ERROR("\"" + issn_and_field_tag_and_subfield_code->second
-                      + "\" is not a valid MARC tag + subfield code! (Error in \"ISSN_to_keyword_field.map\"!)");
+                          + "\" is not a valid MARC tag + subfield code! (Error in \"ISSN_to_keyword_field.map\"!)");
             marc_field    = issn_and_field_tag_and_subfield_code->second.substr(0, 3);
             marc_subfield =  issn_and_field_tag_and_subfield_code->second[3];
         }
@@ -296,24 +296,28 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
 {
     const std::shared_ptr<const JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", creators_node));
     for (auto creator_node : *creators_array) {
-        const std::shared_ptr<const JSON::ObjectNode> creator_object(JSON::JSONNode::CastToObjectNodeOrDie("creator", creator_node));
+        const std::shared_ptr<const JSON::ObjectNode> creator_object(JSON::JSONNode::CastToObjectNodeOrDie("creator",
+                                                                                                           creator_node));
 
         const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
         if (last_name_node == nullptr)
             LOG_ERROR("creator is missing a last name!");
-        const std::shared_ptr<const JSON::StringNode> last_name(JSON::JSONNode::CastToStringNodeOrDie("lastName", last_name_node));
+        const std::shared_ptr<const JSON::StringNode> last_name(JSON::JSONNode::CastToStringNodeOrDie("lastName",
+                                                                                                      last_name_node));
         std::string name(last_name->getValue());
 
         const std::shared_ptr<const JSON::JSONNode> first_name_node(creator_object->getNode("firstName"));
         if (first_name_node != nullptr) {
-            const std::shared_ptr<const JSON::StringNode> first_name(JSON::JSONNode::CastToStringNodeOrDie("firstName", first_name_node));
+            const std::shared_ptr<const JSON::StringNode> first_name(JSON::JSONNode::CastToStringNodeOrDie("firstName",
+                                                                                                           first_name_node));
             name += ", " + first_name->getValue();
         }
 
         std::string PPN;
         const std::shared_ptr<const JSON::JSONNode> ppn_node(creator_object->getNode("ppn"));
         if (ppn_node != nullptr) {
-            const std::shared_ptr<const JSON::StringNode> ppn_string_node(JSON::JSONNode::CastToStringNodeOrDie("ppn", first_name_node));
+            const std::shared_ptr<const JSON::StringNode> ppn_string_node(JSON::JSONNode::CastToStringNodeOrDie("ppn",
+                                                                                                                first_name_node));
             PPN = ppn_string_node->getValue();
             name = "!" + PPN + "!";
         }
@@ -321,7 +325,8 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
         const std::shared_ptr<const JSON::JSONNode> creator_type(creator_object->getNode("creatorType"));
         std::string creator_role;
         if (creator_type != nullptr) {
-            const std::shared_ptr<const JSON::StringNode> creator_role_node(JSON::JSONNode::CastToStringNodeOrDie("creatorType", creator_type));
+            const std::shared_ptr<const JSON::StringNode> creator_role_node(JSON::JSONNode::CastToStringNodeOrDie("creatorType",
+                                                                                                                  creator_type));
             creator_role = creator_role_node->getValue();
         }
 
@@ -373,13 +378,15 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             if (unlikely(key_and_node.second->getType() != JSON::JSONNode::STRING_NODE))
                 LOG_ERROR("expected DOI node to be a string node!");
             new_record.insertField(
-                "856", { { 'u', "urn:doi:" + JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue()} });
+                "856", { { 'u', "urn:doi:"
+                            + JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue()} });
         } else if (key_and_node.first == "shortTitle")
             CreateSubfieldFromStringNode(key_and_node, "246", 'a', &new_record);
         else if (key_and_node.first == "creators")
             CreateCreatorFields(key_and_node.second, &new_record);
         else if (key_and_node.first == "itemType") {
-            const std::string item_type(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
+            const std::string item_type(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
+                                                                              key_and_node.second)->getValue());
             if (item_type == "journalArticle") {
                 is_journal_article = true;
                 publication_title = object_node->getOptionalStringValue("publicationTitle");
@@ -389,7 +396,8 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             else
                 LOG_ERROR("unknown item type: \"" + item_type + "\"!");
         } else if (key_and_node.first == "rights") {
-            const std::string copyright(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
+            const std::string copyright(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
+                                                                              key_and_node.second)->getValue());
             if (UrlUtil::IsValidWebUrl(copyright))
                 new_record.insertField("542", { { 'u', copyright } });
             else
@@ -550,12 +558,11 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
                 language_node->setValue(language_mapped);
                 comments.emplace_back("changed \"language\" from \"" + language_json + "\" to \"" + language_mapped + "\"");
             }
-        }
-        else if (key_and_node.first == "creators") {
-            std::shared_ptr<JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", key_and_node.second));
+        } else if (key_and_node.first == "creators") {
+            std::shared_ptr<JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators",
+                                                                                                 key_and_node.second));
             AugmentJsonCreators(creators_array, &comments);
-        }
-        else if (key_and_node.first == "ISSN") {
+        } else if (key_and_node.first == "ISSN") {
             issn_raw = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
             if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized)))
                 LOG_ERROR("\"" + issn_raw + "\" is not a valid ISSN!");
@@ -564,9 +571,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
             custom_fields.emplace(std::pair<std::string, std::string>("ISSN_normalized", issn_normalized));
 
             const auto ISSN_and_parent_ppn(harvest_maps->ISSN_to_superior_ppn_map_.find(issn_normalized));
-            if (ISSN_and_parent_ppn != harvest_maps->ISSN_to_superior_ppn_map_.cend()) {
+            if (ISSN_and_parent_ppn != harvest_maps->ISSN_to_superior_ppn_map_.cend())
                 custom_fields.emplace(std::pair<std::string, std::string>("PPN", ISSN_and_parent_ppn->second));
-            }
         }
     }
 
@@ -580,8 +586,7 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
             else if (ISSN_and_physical_form->second == "O")
                 custom_fields.emplace(std::pair<std::string, std::string>("physicalForm", "O"));
             else
-                LOG_ERROR("unhandled entry in physical form map: \""
-                      + ISSN_and_physical_form->second + "\"!");
+                LOG_ERROR("unhandled entry in physical form map: \"" + ISSN_and_physical_form->second + "\"!");
         }
 
         // language
