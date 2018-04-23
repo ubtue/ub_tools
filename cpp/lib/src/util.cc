@@ -20,7 +20,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "util.h"
-#include <iostream>
 #include <iterator>
 #include <stdexcept>
 #include <cctype>
@@ -49,11 +48,11 @@ Logger::Logger()
         min_log_level_ = Logger::StringToLogLevel(min_log_level);
     const char * const logger_format(::getenv("LOGGER_FORMAT"));
     if (logger_format != nullptr) {
-        if (std::strstr(logger_format, "process_pids") != 0)
+        if (std::strstr(logger_format, "process_pids") != nullptr)
             log_process_pids_ = true;
-        else if (std::strstr(logger_format, "no_decorations") != 0)
+        if (std::strstr(logger_format, "no_decorations") != nullptr)
             log_no_decorations_ = true;
-        else if (std::strstr(logger_format, "strip_call_site") != 0)
+        if (std::strstr(logger_format, "strip_call_site") != nullptr)
             log_strip_call_site_ = true;
     }
 }
@@ -150,7 +149,7 @@ void Logger::writeString(const std::string &level, std::string msg) {
     if (log_strip_call_site_) {
         const auto END_OF_CALL_SITE_PREFIX(msg.find("): "));
         if (END_OF_CALL_SITE_PREFIX != std::string::npos)
-            msg = msg.substr(END_OF_CALL_SITE_PREFIX + 1);
+            msg = msg.substr(END_OF_CALL_SITE_PREFIX + 3);
     }
 
     msg += '\n';
