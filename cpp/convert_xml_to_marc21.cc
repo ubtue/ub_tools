@@ -1,7 +1,7 @@
 /** \brief Parses XML and generates MARC-21 data.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -33,7 +33,7 @@
 
 __attribute__((noreturn)) void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--verbose] --output-format=(marc_binary|marc_xml) config_file oai_pmh_dc_input marc_output\n";
+              << " [--verbose] --output-format=(marc-21|marc-xml) config_file oai_pmh_dc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -528,9 +528,9 @@ int main(int argc, char *argv[]) {
     }
 
     OutputFormat output_format;
-    if (std::strcmp(argv[1], "--output-format=marc_binary") == 0)
+    if (std::strcmp(argv[1], "--output-format=marc-21") == 0)
         output_format = MARC_BINARY;
-    else if (std::strcmp(argv[1], "--output-format=marc_xml") == 0)
+    else if (std::strcmp(argv[1], "--output-format=marc-xml") == 0)
         output_format = MARC_XML;
     else
         Usage();

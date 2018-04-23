@@ -68,6 +68,7 @@ extract_referenceterms
 extract_text_from_image_only_pdfs
 extract_vufind_translations_for_translation
 find_tue_dups
+flag_electronic_records
 flag_records_as_available_in_tuebingen
 test_chop_into_words
 find_latest_journal_year
