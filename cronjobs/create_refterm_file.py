@@ -116,7 +116,7 @@ def Main():
     conf = util.LoadConfigFile()
     title_data_link_name = conf.get("Misc", "link_name")
     ref_data_pattern = conf.get("Hinweisabzug", "filename_pattern")
-    if ref_data_pattern == None :
+    if ref_data_pattern != "" :
         ref_data_archive = util.getMostRecentFileMatchingGlob(ref_data_pattern)
         if ref_data_archive is None:
             util.SendEmail("Create Refterm File (No Reference Data File Found)",
