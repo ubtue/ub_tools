@@ -120,7 +120,7 @@ def Main():
         ref_data_archive = util.getMostRecentFileMatchingGlob(ref_data_pattern)
         if ref_data_archive is None:
             util.SendEmail("Create Refterm File (No Reference Data File Found)",
-                        "No File matching pattern \"" + ref_data_pattern + "\" found\n", priority=1)
+                           "No File matching pattern \"" + ref_data_pattern + "\" found\n", priority=1)
     else:
         ref_data_archive = None
 
