@@ -18,7 +18,7 @@ def ExecOrCleanShutdownAndDie(cmd_name, args, log_file_name=None):
         log_file_name = "/proc/self/fd/2" # stderr
     if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,
                              new_stderr=log_file_name, append_stdout=True, append_stderr=True) == 0:
-        CleanUp()
+        CleanUp(None, log_file_name)
         util.SendEmail("util.ExecOrDie", "Failed to execute \"" + cmd_name + "\".\nSee logfile \"" + log_file_name
                   + "\" for the reason.", priority=1)
         sys.exit(-1)
@@ -70,7 +70,11 @@ def SetupTemporarySolrInstance(title_data_file, conf, log_file_name):
 
 
 def CreateRefTermFile(ref_data_archive, date_string, conf, log_file_name):
-    # Assemble Filenames 
+    # Skip if unneeded
+    if ref_data_archive is None:
+        return
+
+    # Assemble Filenames
     ref_data_base_filename = "Hinweissätze-" + date_string
     ref_data_marc_file = ref_data_base_filename + ".mrc"
     # Convert tar.gz to mrc
@@ -96,7 +100,8 @@ def CleanUp(title_data_file, log_file_name):
     # Terminate the temporary solr instance
     util.ExecOrDie("/usr/local/bin/shutdown_refterm_solr.sh", [] , log_file_name)
     # Clean up temporary title data
-    util.Remove(title_data_file)
+    if title_data_file is not None:
+        util.Remove(title_data_file)
 
 
 def Main():
@@ -111,11 +116,14 @@ def Main():
     conf = util.LoadConfigFile()
     title_data_link_name = conf.get("Misc", "link_name")
     ref_data_pattern = conf.get("Hinweisabzug", "filename_pattern")
-    ref_data_archive = util.getMostRecentFileMatchingGlob(ref_data_pattern)
-    if ref_data_archive is None:
-         util.SendEmail("Create Refterm File (No Reference Data File Found)",
-                        "No File matching pattern \"" + ref_data_pattern + "\" found\n", priority=1)
-   
+    if ref_data_pattern != "" :
+        ref_data_archive = util.getMostRecentFileMatchingGlob(ref_data_pattern)
+        if ref_data_archive is None:
+            util.SendEmail("Create Refterm File (No Reference Data File Found)",
+                           "No File matching pattern \"" + ref_data_pattern + "\" found\n", priority=1)
+    else:
+        ref_data_archive = None
+
     if FoundNewBSZDataFile(title_data_link_name):
         log_file_name = CreateLogFile()
         title_data_file_orig = ExtractTitleDataMarcFile(title_data_link_name)
@@ -123,7 +131,7 @@ def Main():
         title_data_file = RenameTitleDataFile(title_data_file_orig, date_string)
         SetupTemporarySolrInstance(title_data_file, conf, log_file_name)
         CreateRefTermFile(ref_data_archive, date_string, conf, log_file_name)
-        CreateSerialSortDate(title_data_file, date_string, log_file_name) 
+        CreateSerialSortDate(title_data_file, date_string, log_file_name)
         CleanUp(title_data_file, log_file_name)
         util.SendEmail("Create Refterm File", "Refterm file successfully created.", priority=5)
     else:
@@ -136,9 +144,3 @@ except Exception as e:
     error_msg =  "An unexpected error occurred: " + str(e) + "\n\n" + traceback.format_exc(20)
     util.SendEmail("Create Refterm File", error_msg, priority=1)
     sys.stderr.write(error_msg)
-
-
-
-                         
-         
-
