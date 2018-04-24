@@ -57,8 +57,8 @@ void ProcessRecords(const bool quiet, MARC::Reader * const marc_reader, MARC::Wr
     }
 
     if (not quiet) {
-        LOG_INFO("Processed " + std::to_string(record_count) + " MARC record(s).");
-        LOG_INFO("Extracted or converted " + std::to_string(extracted_count) + " record(s).");
+        logger->info("Processed " + std::to_string(record_count) + " MARC record(s).");
+        logger->info("Extracted or converted " + std::to_string(extracted_count) + " record(s).");
     }
 }
 
