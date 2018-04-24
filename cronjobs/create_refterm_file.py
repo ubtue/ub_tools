@@ -100,7 +100,7 @@ def CleanUp(title_data_file, log_file_name):
     # Terminate the temporary solr instance
     util.ExecOrDie("/usr/local/bin/shutdown_refterm_solr.sh", [] , log_file_name)
     # Clean up temporary title data
-    if title_data_file != None:
+    if title_data_file is not None:
         util.Remove(title_data_file)
 
 
