@@ -584,7 +584,7 @@ public:
         if (skip_over_start_of_document)
             skipOverStartOfDocument();
     }
-    virtual ~XmlReader() = default;
+    virtual ~XmlReader() { delete xml_parser_; }
 
     virtual ReaderType getReaderType() override final { return Reader::XML; }
     virtual Record read() override final;
