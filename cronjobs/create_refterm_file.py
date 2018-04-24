@@ -71,7 +71,7 @@ def SetupTemporarySolrInstance(title_data_file, conf, log_file_name):
 
 def CreateRefTermFile(ref_data_archive, date_string, conf, log_file_name):
     # Skip if unneeded
-    if ref_data_archive == None:
+    if ref_data_archive is None:
         return
 
     # Assemble Filenames
