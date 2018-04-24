@@ -68,7 +68,7 @@ void CollectMappings(const bool debug, MARC::Reader * const marc_reader, File * 
                         if (debug)
                             LOG_INFO("Partner of " + other_ppn + " is " + record.getControlNumber() + ".");
 
-                        // Consistently use the online version as the key in our map:
+                        // Consistently use the alphanumerically smaller PPN as the key in our map:
                         if (other_ppn < record.getControlNumber())
                             (*ppn_to_ppn_map)[other_ppn] = record.getControlNumber();
                         else
