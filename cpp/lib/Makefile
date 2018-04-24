@@ -7,7 +7,7 @@ OBJS       = $(TEMP:.cc=.o)
 CCC        ?= clang++
 CCCFLAGS   = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -O3 -ftrapv \
              -Ilibstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
-             -DETC_DIR='"/usr/local/var/lib/tuelib"'
+             -DETC_DIR='"/usr/local/var/lib/tuelib"' -fsanitize=address
 ifeq ($(CCC),clang++)
   ifeq ("$(wildcard /etc/centos-release)","") # Not on CentOS!
     CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions -Wno-c++1z-extensions
