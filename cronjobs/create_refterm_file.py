@@ -144,9 +144,3 @@ except Exception as e:
     error_msg =  "An unexpected error occurred: " + str(e) + "\n\n" + traceback.format_exc(20)
     util.SendEmail("Create Refterm File", error_msg, priority=1)
     sys.stderr.write(error_msg)
-
-
-
-
-
-
