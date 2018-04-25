@@ -113,21 +113,19 @@ protected:
     std::string output_file_;
     std::shared_ptr<HarvestMaps> harvest_maps_;
     std::shared_ptr<HarvestParams> harvest_params_;
-public:
+
     FormatHandler(const std::string &output_format, const std::string &output_file, std::shared_ptr<HarvestMaps> harvest_maps,
                   std::shared_ptr<HarvestParams> harvest_params)
-        : output_format_(output_format), output_file_(output_file), harvest_maps_(harvest_maps), harvest_params_(harvest_params) {}
+        : output_format_(output_format), output_file_(output_file), harvest_maps_(harvest_maps), harvest_params_(harvest_params)
+        { }
+public:
     virtual ~FormatHandler() {}
-
-    /** \brief Init output file + write header */
-    virtual void prepareProcessing() = 0;
 
     /** \brief Convert & write single record to output file */
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) = 0;
 
-    /** \brief Write footer to output file, finish writing */
-    virtual void finishProcessing() = 0;
-
+    // The output format must be one of "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
+    // "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei", "json", "marc21", or "marcxml".
     static std::unique_ptr<FormatHandler> Factory(const std::string &output_format, const std::string &output_file,
                                                   std::shared_ptr<HarvestMaps> harvest_maps,
                                                   std::shared_ptr<HarvestParams> harvest_params);
@@ -135,34 +133,34 @@ public:
 
 
 class JsonFormatHandler final : public FormatHandler {
-    unsigned record_count_ = 0;
-    File *output_file_object_ = nullptr;
+    unsigned record_count_;
+    File *output_file_object_;
 public:
-    using FormatHandler::FormatHandler;
-    virtual void prepareProcessing() override;
+    JsonFormatHandler(const std::string &output_format, const std::string &output_file, std::shared_ptr<HarvestMaps> harvest_maps,
+                      std::shared_ptr<HarvestParams> harvest_params);
+    virtual ~JsonFormatHandler();
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
-    virtual void finishProcessing() override;
 };
 
 
 class ZoteroFormatHandler final : public FormatHandler {
-    unsigned record_count_ = 0;
+    unsigned record_count_;
     std::string json_buffer_;
 public:
-    using FormatHandler::FormatHandler;
-    virtual void prepareProcessing() override;
+    ZoteroFormatHandler(const std::string &output_format, const std::string &output_file,
+                        std::shared_ptr<HarvestMaps> harvest_maps, std::shared_ptr<HarvestParams> harvest_params);
+    virtual ~ZoteroFormatHandler();
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
-    virtual void finishProcessing() override;
 };
 
 
 class MarcFormatHandler final : public FormatHandler {
     std::unique_ptr<MARC::Writer> marc_writer_;
 public:
-    using FormatHandler::FormatHandler;
-    virtual void prepareProcessing() override;
+    MarcFormatHandler(const std::string &output_format, const std::string &output_file, std::shared_ptr<HarvestMaps> harvest_maps,
+                      std::shared_ptr<HarvestParams> harvest_params);
+    virtual ~MarcFormatHandler() = default;
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
-    virtual void finishProcessing() override;
     MARC::Writer *getWriter() { return marc_writer_.get(); }
 private:
     inline std::string CreateSubfieldFromStringNode(const std::string &key, const std::shared_ptr<const JSON::JSONNode> node,
