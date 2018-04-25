@@ -3,7 +3,7 @@ LIB_SRCS       = lib/src
 CCC            ?= clang++
 CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -O3 -ftrapv \
                  -Ilib/libstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
-                 -DETC_DIR='"/usr/local/var/lib/tuelib"'
+                 -DETC_DIR='"/usr/local/var/lib/tuelib"' -fsanitize=address
 ifeq ($(CCC),clang++)
   CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions
 else
@@ -34,7 +34,7 @@ all: .deps $(PROGS)
 
 $(PROGS): % : %.o lib/libubtue.a Makefile
 	@echo "Linking $@..."
-	@$(CCC) -rdynamic $< -o $@ $(LIBS)
+	@$(CCC) -rdynamic -fsanitize=address $< -o $@ $(LIBS)
 
 -include .deps
 .deps: *.cc $(INC)/*.h
