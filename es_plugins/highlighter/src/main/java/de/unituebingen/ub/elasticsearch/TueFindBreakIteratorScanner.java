@@ -25,11 +25,6 @@ import java.text.BreakIterator;
 import java.text.CharacterIterator;
 import java.util.Locale;
 
-//XX
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.logging.ESLoggerFactory;
-
-
 
 /**
  * A custom break iterator that is used to find break-delimited passages bounded by
@@ -63,13 +58,9 @@ public class TueFindBreakIteratorScanner extends BreakIterator {
     private int innerEnd = 0;
     private int sentenceCount;
 
-//XX
-    private static final Logger log = ESLoggerFactory.getLogger(TueFindBreakIteratorScanner.class);
-
     private TueFindBreakIteratorScanner(BreakIterator mainBreak,
                                         BreakIterator innerBreak,
                                         int maxLen) {
-log.info("ENTERING TUEFINDBREAKITERATOR CONSTRUCTOR maxLen:" + maxLen);
         this.mainBreak = mainBreak;
         this.innerBreak = innerBreak;
         this.maxLen = maxLen;
@@ -82,7 +73,6 @@ log.info("ENTERING TUEFINDBREAKITERATOR CONSTRUCTOR maxLen:" + maxLen);
 
     @Override
     public void setText(CharacterIterator newText) {
-log.info("TEXT [characterIterator]:" + newText);
         reset();
         mainBreak.setText(newText);
         innerBreak.setText(newText);
@@ -90,7 +80,6 @@ log.info("TEXT [characterIterator]:" + newText);
 
     @Override
     public void setText(String newText) {
-log.info("TEXT: " + newText);
         reset();
         mainBreak.setText(newText);
         innerBreak.setText(newText);
@@ -109,8 +98,6 @@ log.info("TEXT: " + newText);
      */
     @Override
     public int preceding(int offset) {
-log.info("PRECEDING offset innerStart innerEnd windowStart windowEnd :" + offset + ", " + innerStart + ", "  +
-           innerEnd + ", " + windowStart + ", " + windowEnd);
         if (offset < lastPrecedingOffset) {
             throw new IllegalArgumentException("offset < lastPrecedingOffset: " +
                 "usage doesn't look like UnifiedHighlighter");
