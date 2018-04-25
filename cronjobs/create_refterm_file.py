@@ -30,7 +30,7 @@ def FoundNewBSZDataFile(link_filename):
         file_creation_time = statinfo.st_ctime
     except OSError as e:
         util.Error("in FoundNewBSZDataFile: Symlink \"" + link_filename + "\" is missing or dangling!")
-    old_timestamp = util.ReadTimestamp()
+    old_timestamp = util.ReadTimestamp("initiate_marc_pipeline")
     return old_timestamp < file_creation_time
 
 
