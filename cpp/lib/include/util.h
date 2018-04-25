@@ -60,8 +60,8 @@ public:
     LogLevel getMinimumLogLevel() const { return min_log_level_; }
 
     //* Emits "msg" and then calls exit(3), also generates a call stack trace if the environment variable BACKTRACE has been set.
-    void error(const std::string &msg) __attribute__((noreturn));
-    inline void error(const std::string &function_name, const std::string &msg) __attribute__((noreturn))
+    [[noreturn]] void error(const std::string &msg) __attribute__((noreturn));
+    [[noreturn]] inline void error(const std::string &function_name, const std::string &msg) __attribute__((noreturn))
         { error("in " + function_name + ": " + msg); }
 
     void warning(const std::string &msg);
