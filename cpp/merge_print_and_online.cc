@@ -132,24 +132,23 @@ bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::stri
 
 
 // The strategy we emply here is that we just pick "contents1" unless we have an identical subfield structure.
-std::string MergeFieldContents(const bool is_control_field, const std::string &contents1, const bool record1_is_electronic,
-                               const std::string &contents2, const bool record2_is_electronic)
+MARC::Subfields MergeFieldContents(const bool is_control_field, const MARC::Subfields &subfields1,
+                                   const bool record1_is_electronic, const MARC::Subfields &subfields2,
+                                   const bool record2_is_electronic)
 {
     if (is_control_field) // We don't really know what to do here!
-        return contents1;
+        return subfields1;
 
-    const MARC::Subfields subfields1(contents1);
     std::string subfield_codes1;
     for (const auto &subfield : subfields1)
         subfield_codes1 += subfield.code_;
 
-    const MARC::Subfields subfields2(contents2);
     std::string subfield_codes2;
     for (const auto &subfield : subfields2)
         subfield_codes2 += subfield.code_;
 
     if (subfield_codes1 != subfield_codes2) // We are up the creek!
-        return contents1;
+        return subfields1;
 
     MARC::Subfields merged_subfields;
     for (auto subfield1(subfields1.begin()), subfield2(subfields2.begin()); subfield1 != subfields1.end();
@@ -170,7 +169,7 @@ std::string MergeFieldContents(const bool is_control_field, const std::string &c
         }
     }
 
-    return merged_subfields.toString();
+    return merged_subfields;
 }
 
 
@@ -189,8 +188,8 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
         if (record1_field->getTag() == record2_field->getTag() and not MARC::IsRepeatableField(record1_field->getTag())) {
             merged_record.appendField(record1_field->getTag(),
                                       MergeFieldContents(record1_field->getTag().isTagOfControlField(),
-                                                         record1_field->getContents(), record1.isElectronicResource(),
-                                                         record2_field->getContents(), record2.isElectronicResource()),
+                                                         record1_field->getSubfields(), record1.isElectronicResource(),
+                                                         record2_field->getSubfields(), record2.isElectronicResource()),
                                       record1_field->getIndicator1(), record1_field->getIndicator2());
             ++record1_field, ++record2_field;
         } else if (*record1_field < *record2_field) {
