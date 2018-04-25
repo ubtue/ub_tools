@@ -52,8 +52,7 @@ int main(int argc, char *argv[]) {
     logger->setMinimumLogLevel(log_level);
 
     try {
-        Main(argc, argv);
-return 0;
+        return Main(argc, argv);
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }
