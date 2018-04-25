@@ -32,7 +32,7 @@
 namespace Zotero {
 
 
-const std::vector<std::string> ExportFormats{
+const std::vector<std::string> EXPORT_FORMATS{
     "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
     "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei",
     "json", "marc21", "marcxml"
@@ -165,23 +165,33 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 
 
 std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &output_format,
-                                                                      const std::string &output_file,
-                                                                      std::shared_ptr<HarvestMaps> harvest_maps,
-                                                                      std::shared_ptr<HarvestParams> harvest_params)
+                                                      const std::string &output_file,
+                                                      std::shared_ptr<HarvestMaps> harvest_maps,
+                                                      std::shared_ptr<HarvestParams> harvest_params)
 {
     if (output_format == "marcxml" or output_format == "marc21")
         return std::unique_ptr<FormatHandler>(new MarcFormatHandler(output_format, output_file, harvest_maps, harvest_params));
     else if (output_format == "json")
         return std::unique_ptr<FormatHandler>(new JsonFormatHandler(output_format, output_file, harvest_maps, harvest_params));
-    else if (std::find(ExportFormats.begin(), ExportFormats.end(), output_format) != ExportFormats.end())
+    else if (std::find(EXPORT_FORMATS.begin(), EXPORT_FORMATS.end(), output_format) != EXPORT_FORMATS.end())
         return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(output_format, output_file, harvest_maps, harvest_params));
     else
         LOG_ERROR("invalid output-format: " + output_format);
 }
 
-void JsonFormatHandler::prepareProcessing() {
-    output_file_object_ = new File(output_file_, "w");
+
+JsonFormatHandler::JsonFormatHandler(const std::string &output_format, const std::string &output_file,
+                                     std::shared_ptr<HarvestMaps> harvest_maps, std::shared_ptr<HarvestParams> harvest_params)
+    : FormatHandler(output_format, output_file, harvest_maps, harvest_params), record_count_(0),
+      output_file_object_(new File(output_file_, "w"))
+{
     output_file_object_->write("[");
+}
+
+
+JsonFormatHandler::~JsonFormatHandler() {
+    output_file_object_->write("]");
+    output_file_object_->close();
 }
 
 
@@ -194,14 +204,24 @@ std::pair<unsigned, unsigned> JsonFormatHandler::processRecord(const std::shared
 }
 
 
-void JsonFormatHandler::finishProcessing() {
-    output_file_object_->write("]");
-    output_file_object_->close();
+ZoteroFormatHandler::ZoteroFormatHandler(const std::string &output_format, const std::string &output_file,
+                                         std::shared_ptr<HarvestMaps> harvest_maps, std::shared_ptr<HarvestParams> harvest_params)
+    : FormatHandler(output_format, output_file, harvest_maps, harvest_params), record_count_(0), json_buffer_("[")
+{
 }
 
 
-void ZoteroFormatHandler::prepareProcessing() {
-    json_buffer_ = "[";
+ZoteroFormatHandler::~ZoteroFormatHandler() {
+    json_buffer_ += "]";
+
+    Downloader::Params downloader_params;
+    std::string response_body;
+    std::string error_message;
+    if (not TranslationServer::Export(harvest_params_->zts_server_url_, DEFAULT_CONVERSION_TIMEOUT, downloader_params,
+                                      output_format_, json_buffer_, &response_body, &error_message))
+        LOG_ERROR("converting to target format failed: " + error_message);
+    else
+        FileUtil::WriteString(output_file_, response_body);
 }
 
 
@@ -214,18 +234,10 @@ std::pair<unsigned, unsigned> ZoteroFormatHandler::processRecord(const std::shar
 }
 
 
-void ZoteroFormatHandler::finishProcessing() {
-    json_buffer_ += "]";
-
-    Downloader::Params downloader_params;
-    std::string response_body;
-    std::string error_message;
-
-    if (not TranslationServer::Export(harvest_params_->zts_server_url_, DEFAULT_CONVERSION_TIMEOUT, downloader_params,
-                                              output_format_, json_buffer_, &response_body, &error_message))
-        LOG_ERROR("converting to target format failed: " + error_message);
-    else
-        FileUtil::WriteString(output_file_, response_body);
+MarcFormatHandler::MarcFormatHandler(const std::string &output_format, const std::string &output_file,
+                                     std::shared_ptr<HarvestMaps> harvest_maps, std::shared_ptr<HarvestParams> harvest_params)
+    : FormatHandler(output_format, output_file, harvest_maps, harvest_params), marc_writer_(MARC::Writer::Factory(output_file_))
+{
 }
 
 
@@ -249,7 +261,7 @@ void MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSONNode> ta
         }
     }
 
-    for (auto tag : *tags) {
+    for (const auto &tag : *tags) {
         const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
         const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
         if (tag_node == nullptr)
@@ -262,9 +274,7 @@ void MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSONNode> ta
 }
 
 
-void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node,
-                                                               MARC::Record * const new_record)
-{
+void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MARC::Record * const new_record) {
     std::vector<MARC::Subfield> subfields;
 
     const std::string date_str(object_node.getOptionalStringValue("date"));
@@ -292,7 +302,7 @@ void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &o
 
 
 void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node,
-                                                    MARC::Record * const marc_record)
+                                            MARC::Record * const marc_record)
 {
     const std::shared_ptr<const JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", creators_node));
     for (auto creator_node : *creators_array) {
@@ -342,11 +352,6 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
                 marc_record->insertField("700", { { 'a', name }, { 'e', creator_role } });
         }
     }
-}
-
-
-void MarcFormatHandler::prepareProcessing() {
-    marc_writer_ = MARC::Writer::Factory(output_file_);
 }
 
 
@@ -483,11 +488,6 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     ++record_count;
 
     return std::make_pair(record_count, previously_downloaded_count);
-}
-
-
-void MarcFormatHandler::finishProcessing() {
-    marc_writer_.reset();
 }
 
 
