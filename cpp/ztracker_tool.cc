@@ -38,7 +38,8 @@ void Usage() {
               << "       lookup url                    => displays the timestamp and, if found, the optional message\n"
               << "                                        for this URL.\n"
               << "       list [pcre]                   => list either all entries in the database or, if the PCRE has\n"
-              << "                                        been provided, ony the ones with matching URL\'s.\n\n";
+              << "                                        been provided, ony the ones with matching URL\'s.\n"
+              << "       is_present url                => prints either \"true\" or \"false\".\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -97,6 +98,12 @@ void List(Zotero::DownloadTracker * const download_tracker, const std::string &p
 }
 
 
+void IsPresent(Zotero::DownloadTracker * const download_tracker, const std::string &url) {
+    time_t download_time;
+    std::cout << (download_tracker->alreadyDownloaded(url, &download_time) ? "true\n" : "false\n");
+}
+
+
 } // unnamed namespace
 
 
@@ -125,6 +132,10 @@ int main(int argc, char *argv[]) {
             if (argc > 3)
                 LOG_ERROR("list takes 0 or 1 arguments!");
             List(&download_tracker, argc == 2 ? ".*" : argv[2]);
+        } else if (std::strcmp(argv[1], "is_present") == 0) {
+            if (argc != 3)
+                LOG_ERROR("is_present takes 1 argument!");
+            IsPresent(&download_tracker, argv[2]);
         } else
             LOG_ERROR("unknown command: \"" + std::string(argv[1]) + "\"!");
     } catch (const std::exception &x) {

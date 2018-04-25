@@ -65,8 +65,6 @@ void HarvestSites(const SimpleCrawler::Params &crawler_params, const std::shared
                   const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps, std::unique_ptr<File> &progress_file,
                   unsigned * const total_record_count, unsigned * const total_previously_downloaded_count)
 {
-    harvest_params->format_handler_->prepareProcessing();
-
     unsigned processed_url_count(0);
     for (const auto &site_desc : site_descs) {
         logger->info("Start crawling for base URL: " +  site_desc.start_url_);
@@ -93,7 +91,6 @@ void HarvestSites(const SimpleCrawler::Params &crawler_params, const std::shared
         }
     }
 
-    harvest_params->format_handler_->finishProcessing();
     logger->info("Processed " + std::to_string(processed_url_count) + " URL's.");
 }
 
