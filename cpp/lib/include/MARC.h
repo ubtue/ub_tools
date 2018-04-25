@@ -417,6 +417,12 @@ public:
         fields_.emplace_back(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + field_contents);
     }
 
+    inline void appendField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
+                            const char indicator2 = ' ')
+    {
+        fields_.emplace_back(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString());
+    }
+
     inline void appendField(const Field &field) {
         fields_.emplace_back(field);
     }
