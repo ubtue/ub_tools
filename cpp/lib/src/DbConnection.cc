@@ -53,7 +53,7 @@ DbConnection::DbConnection(const std::string &mysql_url): sqlite3_(nullptr), stm
 
 
 DbConnection::DbConnection(const std::string &database_path, const OpenMode open_mode): type_(T_SQLITE), stmt_handle_(nullptr) {
-    int flags;
+    int flags(0);
     switch (open_mode) {
     case READONLY:
         flags = SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX;
