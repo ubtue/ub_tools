@@ -132,13 +132,9 @@ bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::stri
 
 
 // The strategy we emply here is that we just pick "contents1" unless we have an identical subfield structure.
-MARC::Subfields MergeFieldContents(const bool is_control_field, const MARC::Subfields &subfields1,
-                                   const bool record1_is_electronic, const MARC::Subfields &subfields2,
-                                   const bool record2_is_electronic)
+MARC::Subfields MergeFieldContents(const MARC::Subfields &subfields1, const bool record1_is_electronic,
+                                   const MARC::Subfields &subfields2, const bool record2_is_electronic)
 {
-    if (is_control_field) // We don't really know what to do here!
-        return subfields1;
-
     std::string subfield_codes1;
     for (const auto &subfield : subfields1)
         subfield_codes1 += subfield.code_;
@@ -186,11 +182,13 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
 
     while (record1_field != record1_end_or_lok_start and record2_field != record2_end_or_lok_start) {
         if (record1_field->getTag() == record2_field->getTag() and not MARC::IsRepeatableField(record1_field->getTag())) {
-            merged_record.appendField(record1_field->getTag(),
-                                      MergeFieldContents(record1_field->getTag().isTagOfControlField(),
-                                                         record1_field->getSubfields(), record1.isElectronicResource(),
-                                                         record2_field->getSubfields(), record2.isElectronicResource()),
-                                      record1_field->getIndicator1(), record1_field->getIndicator2());
+            if (record1_field->isControlField())
+                merged_record.appendField(*record1_field);
+            else
+                merged_record.appendField(record1_field->getTag(),
+                                          MergeFieldContents(record1_field->getSubfields(), record1.isElectronicResource(),
+                                                             record2_field->getSubfields(), record2.isElectronicResource()),
+                                          record1_field->getIndicator1(), record1_field->getIndicator2());
             ++record1_field, ++record2_field;
         } else if (*record1_field < *record2_field) {
             merged_record.appendField(*record1_field);
