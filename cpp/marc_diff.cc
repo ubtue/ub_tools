@@ -75,7 +75,7 @@ bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std
 
     while (field1 != record1.end() and field2 != record2.end()) {
         if (unlikely(field1->getTag() != field2->getTag())) {
-            *difference = field1->getTag().to_string() + ", " + field2->getTag().to_string();
+            *difference = field1->getTag().toString() + ", " + field2->getTag().toString();
             return true;
         }
 
@@ -85,7 +85,7 @@ bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std
             or (field2 + 1)->getTag() != common_tag)
         {
             if (field1->getContents() != field2->getContents()) {
-                *difference = common_tag.to_string() + ", " + common_tag.to_string();
+                *difference = common_tag.toString() + ", " + common_tag.toString();
                 return true;
             }
             ++field1, ++field2;
@@ -93,7 +93,7 @@ bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std
             std::vector<std::string> contents1(ExtractRepeatedContents(field1, record1.end()));
             std::vector<std::string> contents2(ExtractRepeatedContents(field2, record2.end()));
             if (contents1.size() != contents2.size()) {
-                *difference = common_tag.to_string() + ", " + common_tag.to_string();
+                *difference = common_tag.toString() + ", " + common_tag.toString();
                 return true;
             }
 
@@ -104,7 +104,7 @@ bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std
             auto content2(contents2.cbegin());
             while (content1 != contents1.cend()) {
                 if (*content1 != *content2) {
-                    *difference = common_tag.to_string() + ", " + common_tag.to_string();
+                    *difference = common_tag.toString() + ", " + common_tag.toString();
                     return true;
                 }
                 ++content1, ++content2;
@@ -113,10 +113,10 @@ bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std
     }
 
     if (field1 != record1.end()) {
-        *difference = field1->getTag().to_string() + ", END";
+        *difference = field1->getTag().toString() + ", END";
         return true;
     } else if (field2 != record2.end()) {
-        *difference = "END, " + field2->getTag().to_string();
+        *difference = "END, " + field2->getTag().toString();
         return true;
     }
 
