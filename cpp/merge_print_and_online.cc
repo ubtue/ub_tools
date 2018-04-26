@@ -106,7 +106,7 @@ bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::stri
 
     bool patched(false);
     for (auto field : *record) {
-        if (UPLINK_TAGS.find(field.getTag().to_string()) != UPLINK_TAGS.cend()) {
+        if (UPLINK_TAGS.find(field.getTag().toString()) != UPLINK_TAGS.cend()) {
             MARC::Subfields subfields(field.getSubfields());
             auto subfield_w(std::find_if(subfields.begin(), subfields.end(),
                                          [](const MARC::Subfield &subfield) -> bool { return subfield.code_ == 'w'; }));
