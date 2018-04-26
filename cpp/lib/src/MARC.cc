@@ -420,7 +420,7 @@ size_t Record::findFieldsInLocalBlock(const Tag &field_tag, const std::string &i
     if (unlikely(indicators.length() != 2))
         LOG_ERROR("indicators must be precisely 2 characters long!");
 
-    const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag.to_string());
+    const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag.toString());
     for (auto field(block_start_and_end.first); field < block_start_and_end.second; ++field) {
         const std::string &field_contents(field->getContents());
         if (StringUtil::StartsWith(field_contents, FIELD_PREFIX)
@@ -480,24 +480,24 @@ bool Record::isValid(std::string * const error_message) const {
         if (field.isDataField()) {
             // Check subfield structure:
             if (unlikely(field.contents_.length() < 5)) {
-                *error_message = "field contents are too small (< 5 bytes)! (tag: " + field.getTag().to_string() + ")";
+                *error_message = "field contents are too small (< 5 bytes)! (tag: " + field.getTag().toString() + ")";
                 return false;
             }
 
             auto ch(field.contents_.begin() + 2 /* indicators */);
             while (ch != field.contents_.end()) {
                 if (unlikely(*ch != '\x1F')) {
-                    *error_message = "subfield does not start with 0x1F! (tag: " + field.getTag().to_string() + ")";
+                    *error_message = "subfield does not start with 0x1F! (tag: " + field.getTag().toString() + ")";
                     return false;
                 }
                 ++ch; // Skip over 0x1F.
                 if (unlikely(ch == field.contents_.end())) {
-                    *error_message = "subfield is missing a subfield code! (tag: " + field.getTag().to_string() + ")";
+                    *error_message = "subfield is missing a subfield code! (tag: " + field.getTag().toString() + ")";
                     return false;
                 }
                 ++ch; // Skip over the subfield code.
                 if (unlikely(ch == field.contents_.end() or *ch == '\x1F'))
-                    LOG_WARNING("subfield '" + std::string(1, *(ch - 1)) + "' is empty! (tag: " + field.getTag().to_string() + ")");
+                    LOG_WARNING("subfield '" + std::string(1, *(ch - 1)) + "' is empty! (tag: " + field.getTag().toString() + ")");
 
                 // Skip over the subfield contents:
                 while (ch != field.contents_.end() and *ch != '\x1F')
@@ -1035,7 +1035,7 @@ void BinaryWriter::write(const Record &record) {
             field_start_offset += record.fields_.front().getContents().length() + 1 /* field terminator */;
         }
         for (Record::const_iterator entry(start); entry != end; ++entry) {
-            raw_record += entry->getTag().to_string()
+            raw_record += entry->getTag().toString()
                           + ToStringWithLeadingZeros(entry->getContents().length() + 1 /* field terminator */, 4)
                           + ToStringWithLeadingZeros(field_start_offset, /* width = */ 5);
             field_start_offset += entry->getContents().length() + 1 /* field terminator */;
@@ -1074,12 +1074,12 @@ void XmlWriter::write(const Record &record) {
 
     for (const auto &field : record) {
         if (field.isControlField())
-            xml_writer_->writeTagsWithData("controlfield", { std::make_pair("tag", field.getTag().to_string()) },
+            xml_writer_->writeTagsWithData("controlfield", { std::make_pair("tag", field.getTag().toString()) },
                                            field.getContents(),
                     /* suppress_newline = */ true);
         else { // We have a data field.
             xml_writer_->openTag("datafield",
-                                 { std::make_pair("tag", field.getTag().to_string()),
+                                 { std::make_pair("tag", field.getTag().toString()),
                                    std::make_pair("ind1", std::string(1, field.getIndicator1())),
                                    std::make_pair("ind2", std::string(1, field.getIndicator2()))
                                  });
@@ -1193,7 +1193,7 @@ std::string CalcChecksum(const Record &record, const bool exclude_001) {
     // sorted order.  This allows us to generate checksums that are identical for non-equal but equivalent records.
 
     for (const auto &field : record.fields_) {
-        if (not exclude_001 or likely(field.getTag().to_string() != "001"))
+        if (not exclude_001 or likely(field.getTag().toString() != "001"))
             field_refs.emplace_back(&field);
     }
 
@@ -1204,7 +1204,7 @@ std::string CalcChecksum(const Record &record, const bool exclude_001) {
     blob += record.leader_;
 
     for (const auto &field_ref : field_refs)
-        blob += field_ref->getTag().to_string() + field_ref->getContents();
+        blob += field_ref->getTag().toString() + field_ref->getContents();
 
     return StringUtil::Sha1(blob);
 }
@@ -1451,13 +1451,13 @@ static std::unordered_map<Tag, bool> tag_to_repeatable_map{
 
 bool IsRepeatableField(const Tag &tag) {
     // 1. Handle all local fields.
-    if (tag.to_string().find('9') != std::string::npos or StringUtil::IsAsciiLetter(tag.to_string()[0]))
+    if (tag.toString().find('9') != std::string::npos or StringUtil::IsAsciiLetter(tag.toString()[0]))
         return true;
 
     // 2. Handle all other fields.
     const auto tag_and_repeatable(tag_to_repeatable_map.find(tag));
     if (unlikely(tag_and_repeatable == tag_to_repeatable_map.end()))
-        LOG_ERROR(tag.to_string() + " is not in our map!");
+        LOG_ERROR(tag.toString() + " is not in our map!");
     return tag_and_repeatable->second;
 }
 
