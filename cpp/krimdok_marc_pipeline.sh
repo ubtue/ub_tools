@@ -111,6 +111,14 @@ augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
 EndPhase
 
 
+StartPhase "Integrate Reasonable Sort Year for Serials"
+add_publication_year_to_serials \
+    Schriftenreihen-Sortierung-"${date}".txt \
+    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
+EndPhase
+
+
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
 add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1

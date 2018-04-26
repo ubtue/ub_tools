@@ -164,20 +164,19 @@ wait
 
 
 StartPhase "Extracting Keywords from Titles"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (enrich_keywords_with_title_words --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  ../cpp/data/stopwords.???  >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-wait
 
 
 StartPhase "Flag Electronic Records"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (flag_electronic_records --input-format=marc-21 \
                          GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-
+wait
 
 StartPhase "Augment Bible References"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
