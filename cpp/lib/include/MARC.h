@@ -246,6 +246,8 @@ public:
         Field(const Field &other) = default;
         Field(const std::string &tag, const std::string &contents): tag_(tag), contents_(contents) { }
         Field(const Tag &tag, const std::string &contents): tag_(tag), contents_(contents) { }
+        inline bool operator==(const Field &rhs) const { return tag_ == rhs.tag_ and contents_ == rhs.contents_; }
+        inline bool operator!=(const Field &rhs) const { return not operator==(rhs); }
         bool operator<(const Field &rhs) const;
         inline const Tag &getTag() const { return tag_; }
         inline const std::string &getContents() const { return contents_; }
@@ -331,6 +333,8 @@ public:
 
     // Copy-assignment operator.
     Record &operator=(const Record &rhs) = default;
+
+    inline bool empty() const { return fields_.empty(); }
 
     inline void swap(Record &other) {
         std::swap(record_size_, other.record_size_);
