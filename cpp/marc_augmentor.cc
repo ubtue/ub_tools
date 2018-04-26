@@ -254,13 +254,12 @@ bool InsertField(MARC::Record * const record, const MARC::Tag &tag, const char s
 
     if (subfield_code == CompiledPattern::NO_SUBFIELD_CODE) {
         if (not record->insertField(tag, insertion_text)) {
-            *error_message = "failed to insert " + tag.to_string()
-                             + " field! (Probably due to a duplicate non-repeatable field.)";
+            *error_message = "failed to insert " + tag.toString() + " field! (Probably due to a duplicate non-repeatable field.)";
             return false;
         }
     } else {
         if (not record->insertField(tag, { { subfield_code, insertion_text } })) {
-            *error_message = "failed to insert " + tag.to_string() + std::string(1, subfield_code)
+            *error_message = "failed to insert " + tag.toString() + std::string(1, subfield_code)
                              + " subfield! (Probably due to a duplicate non-repeatable field.)";
             return false;
         }
@@ -333,13 +332,13 @@ bool InsertOrReplace(MARC::Record * const record, const MARC::Tag &tag, const ch
 insert:
         if (subfield_code == CompiledPattern::NO_SUBFIELD_CODE) {
             if (not record->insertField(tag, value)) {
-                *error_message = "map field insertion into field " + tag.to_string()
+                *error_message = "map field insertion into field " + tag.toString()
                                  + " failed probably due to a non-repeatable field!";
                 return false;
             }
         } else {
             if (not record->insertField(tag, { { subfield_code, value } })) {
-                *error_message = "map field insertion into subfield " + tag.to_string() + std::string(1, subfield_code)
+                *error_message = "map field insertion into subfield " + tag.toString() + std::string(1, subfield_code)
                                  + " failed probably due to a non-repeatable field!";
                 return false;
             }
@@ -408,7 +407,7 @@ bool MapInsertOrReplace(MARC::Record * const record, const MARC::Tag &tag1, cons
             and (augmentor_type == AugmentorType::MAP_INSERT or augmentor_type == AugmentorType::MAP_INSERT_OR_REPLACE))
         {
             if (not record->insertField(tag2, { { subfield_code2, value } })) {
-                *error_message = "failed to insert mapped value into a " + tag2.to_string()
+                *error_message = "failed to insert mapped value into a " + tag2.toString()
                                  + " field! (Probably due to a duplicate non-repeatable field.)";
                 return false;
             } else {

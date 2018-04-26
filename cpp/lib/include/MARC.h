@@ -77,11 +77,11 @@ public:
     bool operator==(const std::string &rhs) const { return ::strcmp(c_str(), rhs.c_str()) == 0; }
     bool operator==(const char rhs[4]) const { return ::strcmp(c_str(), rhs) == 0; }
 
-    std::ostream& operator<<(std::ostream& os) const { return os << to_string(); }
-    friend std::ostream &operator<<(std::ostream &output,  const Tag &tag) { return output << tag.to_string(); }
+    std::ostream& operator<<(std::ostream& os) const { return os << toString(); }
+    friend std::ostream &operator<<(std::ostream &output,  const Tag &tag) { return output << tag.toString(); }
 
     inline const char *c_str() const { return tag_.as_cstring_; }
-    inline const std::string to_string() const { return std::string(c_str(), 3); }
+    inline const std::string toString() const { return std::string(c_str(), 3); }
     inline uint32_t to_int() const { return htonl(tag_.as_int_); }
 
     inline bool isTagOfControlField() const { return tag_.as_cstring_[0] == '0' and tag_.as_cstring_[1] == '0'; }
@@ -263,6 +263,8 @@ public:
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
+
+        std::string toString() const { return tag_.toString() + contents_; }
 
         /** \note Do *not* call this on control fields! */
         void deleteAllSubfieldsWithCode(const char subfield_code);
