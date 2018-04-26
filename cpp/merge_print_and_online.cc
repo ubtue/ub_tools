@@ -197,10 +197,10 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
     while (record1_field != record1_end_or_lok_start and record2_field != record2_end_or_lok_start) {
         // Avoid duplicate fields:
         if (not merged_record.empty()) {
-            if (*merged_record.end() == *record1_field) {
+            if (merged_record.back() == *record1_field) {
                 ++record1_field;
                 continue;
-            } else if (*merged_record.end() == *record2_field) {
+            } else if (merged_record.back() == *record2_field) {
                 ++record2_field;
                 continue;
             }
