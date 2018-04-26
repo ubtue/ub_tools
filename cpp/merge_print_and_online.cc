@@ -195,6 +195,17 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
     auto record2_field(record2.begin());
 
     while (record1_field != record1_end_or_lok_start and record2_field != record2_end_or_lok_start) {
+        // Avoid duplicate fields:
+        if (not merged_record.empty()) {
+            if (*merged_record.end() == *record1_field) {
+                ++record1_field;
+                continue;
+            } else if (*merged_record.end() == *record2_field) {
+                ++record2_field;
+                continue;
+            }
+        }
+        
         if (record1_field->getTag() == record2_field->getTag() and not MARC::IsRepeatableField(record1_field->getTag())) {
             if (record1_field->isControlField())
                 merged_record.appendField(MergeControlFields(record1_field->getTag(), record1_field->getContents(),
