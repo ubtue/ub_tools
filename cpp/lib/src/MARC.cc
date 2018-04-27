@@ -66,7 +66,7 @@ bool Subfields::replaceFirstSubfield(const char subfield_code, const std::string
     auto replacement_location(subfields_.begin());
     while (replacement_location != subfields_.end() and replacement_location->code_ < subfield_code)
         ++replacement_location;
-    if (replacement_location == subfields_.end())
+    if (replacement_location == subfields_.end() or replacement_location->code_ != subfield_code)
         return false;
     replacement_location->value_ = new_subfield_value;
     return true;
