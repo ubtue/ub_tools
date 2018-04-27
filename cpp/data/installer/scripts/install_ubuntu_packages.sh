@@ -44,6 +44,13 @@ if [[ $1 == "tuefind" ]]; then
         php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-xsl php-pear \
         libapache2-mod-php
 
+    # From 18.04 on, Java 8 needs to be enabled as well for Solr + mixins (18.04 ships with 10)
+    # (unfortunately, >= string comparison is impossible in Bash, so we compare > 17.10)
+    . /etc/lsb-release
+    if [[ $DISTRIB_RELEASE > "17.10" ]]; then
+        update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java
+    fi
+
     # create /var/run/mysqld and change user (mysql installation right now has a bug not doing that itself)
     # (chown needs to be done after installation = after the user has been created)
 
