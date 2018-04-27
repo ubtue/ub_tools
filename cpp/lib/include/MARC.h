@@ -264,6 +264,8 @@ public:
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
 
+        void insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents);
+
         std::string toString() const { return tag_.toString() + contents_; }
 
         /** \note Do *not* call this on control fields! */

@@ -116,6 +116,14 @@ bool Record::Field::operator<(const Record::Field &rhs) const {
 }
 
 
+void Record::Field::insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents) {
+    Subfields subfields(contents_);
+    if (not subfields.replaceFirstSubfield(subfield_code, subfield_contents))
+        subfields.addSubfield(subfield_code, subfield_contents);
+    contents_ = contents_.substr(0, 2) /* keep our original indicators */ + subfields.toString();
+}
+
+
 void Record::Field::deleteAllSubfieldsWithCode(const char subfield_code) {
     if (contents_.size() < 5)
         return;
