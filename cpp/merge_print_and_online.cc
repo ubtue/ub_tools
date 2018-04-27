@@ -196,10 +196,8 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
     const std::unordered_set<std::string> record1_tags(record1.getTagSet());
     const std::unordered_set<std::string> record2_tags(record2.getTagSet());
     for (const auto &old_and_new_tag : OLD_TO_NEW_FIELD_TAG_MAP) {
-        if ((record1_tags.find(old_and_new_tag.first) != record1_tags.end()
-             and record2_tags.find(old_and_new_tag.second) != record2_tags.end())
-            or ((record1_tags.find(old_and_new_tag.second) != record1_tags.end()
-                 and record2_tags.find(old_and_new_tag.first) != record2_tags.end())))
+        if (record1_tags.find(old_and_new_tag.second) != record1_tags.end()
+            or record2_tags.find(old_and_new_tag.second) != record2_tags.end())
             tags_to_skip.emplace(old_and_new_tag.first);
     }
     
