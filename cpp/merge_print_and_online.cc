@@ -131,7 +131,7 @@ bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::stri
 }
 
 
-// The strategy we emply here is that we just pick "contents1" unless we have an identical subfield structure.
+// The strategy we employ here is that we just pick "contents1" unless we have an identical subfield structure.
 MARC::Subfields MergeFieldContents(const MARC::Subfields &subfields1, const bool record1_is_electronic,
                                    const MARC::Subfields &subfields2, const bool record2_is_electronic)
 {
