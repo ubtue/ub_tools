@@ -25,6 +25,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include <arpa/inet.h>
 #include "Compiler.h"
@@ -535,6 +536,9 @@ public:
                                   const std::pair<const_iterator, const_iterator> &block_start_and_end,
                                   std::vector<const_iterator> * const fields) const;
 
+    /** \return The set of all tags in the record. */
+    std::unordered_set<std::string> getTagSet() const;
+    
     void deleteFields(std::vector<size_t> field_indices);
     bool isValid(std::string * const error_message) const;
 };

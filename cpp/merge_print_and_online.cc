@@ -130,7 +130,7 @@ bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::stri
     return patched;
 }
 
-
+    
 // The strategy we emply here is that we just pick "contents1" unless we have an identical subfield structure.
 MARC::Subfields MergeFieldContents(const MARC::Subfields &subfields1, const bool record1_is_electronic,
                                    const MARC::Subfields &subfields2, const bool record2_is_electronic)
@@ -183,9 +183,24 @@ MARC::Record::Field MergeControlFields(const MARC::Tag &tag, const std::string &
 }
 
 
+// List field tags and their replacements.  If both are found, just use the replacement.
+const std::vector<std::pair<std::string, std::string>> OLD_TO_NEW_FIELD_TAG_MAP{
+    { "260", "264" },
+};
+
+
 MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
     MARC::Record merged_record(record1.getLeader());
 
+    std::set<std::string> tags_to_skip;
+    const std::unordered_set<std::string> record1_tags(record1.getTagSet());
+    const std::unordered_set<std::string> record2_tags(record2.getTagSet());
+    for (const auto &old_and_new_tag : OLD_TO_NEW_FIELD_TAG_MAP) {
+        if (record1_tags.find(old_and_new_tag.first) != record1_tags.end()
+            and record2_tags.find(old_and_new_tag.second) != record2_tags.end())
+            tags_to_skip.emplace(old_and_new_tag.first);
+    }
+    
     const auto record1_end_or_lok_start(record1.getFirstField("LOK"));
     record1.sortFields(record1.begin(), record1_end_or_lok_start);
     auto record1_field(record1.begin());
@@ -195,6 +210,15 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
     auto record2_field(record2.begin());
 
     while (record1_field != record1_end_or_lok_start and record2_field != record2_end_or_lok_start) {
+        if (tags_to_skip.find(record1_field->getTag().toString()) != tags_to_skip.end()) {
+            ++record1_field;
+            continue;
+        }
+        if (tags_to_skip.find(record2_field->getTag().toString()) != tags_to_skip.end()) {
+            ++record2_field;
+            continue;
+        }
+        
         // Avoid duplicate fields:
         if (not merged_record.empty()) {
             if (merged_record.back() == *record1_field) {

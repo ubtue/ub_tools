@@ -471,6 +471,14 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
 }
 
 
+std::unordered_set<std::string> Record::getTagSet() const {
+    std::unordered_set<std::string> tags;
+    for (const auto &field : fields_)
+        tags.emplace(field.getTag().toString());
+    return tags;
+}
+
+
 void Record::deleteFields(std::vector<size_t> field_indices) {
     std::sort(field_indices.begin(), field_indices.end(), std::greater<size_t>());
     for (const auto field_index : field_indices)
