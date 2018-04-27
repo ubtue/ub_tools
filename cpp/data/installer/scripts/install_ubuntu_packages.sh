@@ -44,8 +44,8 @@ if [[ $1 == "tuefind" ]]; then
         php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-xsl php-pear \
         libapache2-mod-php
 
-    # from 18.04 on, java 8 needs to be enabled as well for solr + mixins (18.04 ships with 10)
-    # (unfortunately, >= string comparison is impossible in bash, so we compare > 17.10)
+    # From 18.04 on, Java 8 needs to be enabled as well for Solr + mixins (18.04 ships with 10)
+    # (unfortunately, >= string comparison is impossible in Bash, so we compare > 17.10)
     . /etc/lsb-release
     if [[ $DISTRIB_RELEASE > "17.10" ]]; then
         update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java
