@@ -229,7 +229,7 @@ def CurrentIncrementalAuthorityDumpPresent(config, cutoff_date):
     if (most_recent_incremental_authority_dump == None):
         return False
     most_recent_file_incremental_authority_date = ExtractDateFromFilename(most_recent_incremental_authority_dump)
-    return most_recent_incremental_authority_dump > cutoff_date
+    return most_recent_file_incremental_authority_date > cutoff_date
 
 
 # Delete all files that are older than a given date     
