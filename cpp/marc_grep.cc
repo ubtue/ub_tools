@@ -420,7 +420,7 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
 
         std::unordered_multimap<std::string, const std::string> field_to_content_map;
         for (const auto &field : record)
-            field_to_content_map.insert(std::make_pair(field.getTag().to_string(), field.getContents()));
+            field_to_content_map.insert(std::make_pair(field.getTag().toString(), field.getContents()));
 
         bool matched(false);
         std::priority_queue<TagAndContents> tags_and_contents;

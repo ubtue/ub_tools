@@ -45,8 +45,10 @@ class Tag {
         char as_cstring_[4];
     } tag_;
 public:
-    inline Tag() = default;
+    inline Tag() { tag_.as_int_ = 0; }
     inline Tag(const char raw_tag[4]) {
+        if (unlikely(std::strlen(raw_tag) != 3))
+            throw std::runtime_error("in Tag: \"raw_tag\" must have a length of 3: \"" + std::string(raw_tag) + "\"! (1)");
         tag_.as_int_ = 0;
         tag_.as_cstring_[0] = raw_tag[0];
         tag_.as_cstring_[1] = raw_tag[1];
@@ -55,7 +57,7 @@ public:
 
     inline Tag(const std::string &raw_tag) {
         if (unlikely(raw_tag.length() != 3))
-            throw std::runtime_error("in Tag: \"raw_tag\" must have a length of 3: " + raw_tag);
+            throw std::runtime_error("in Tag: \"raw_tag\" must have a length of 3: \"" + raw_tag + "\"! (2)");
         tag_.as_int_ = 0;
         tag_.as_cstring_[0] = raw_tag[0];
         tag_.as_cstring_[1] = raw_tag[1];
@@ -75,11 +77,11 @@ public:
     bool operator==(const std::string &rhs) const { return ::strcmp(c_str(), rhs.c_str()) == 0; }
     bool operator==(const char rhs[4]) const { return ::strcmp(c_str(), rhs) == 0; }
 
-    std::ostream& operator<<(std::ostream& os) const { return os << to_string(); }
-    friend std::ostream &operator<<(std::ostream &output,  const Tag &tag) { return output << tag.to_string(); }
+    std::ostream& operator<<(std::ostream& os) const { return os << toString(); }
+    friend std::ostream &operator<<(std::ostream &output,  const Tag &tag) { return output << tag.toString(); }
 
     inline const char *c_str() const { return tag_.as_cstring_; }
-    inline const std::string to_string() const { return std::string(c_str(), 3); }
+    inline const std::string toString() const { return std::string(c_str(), 3); }
     inline uint32_t to_int() const { return htonl(tag_.as_int_); }
 
     inline bool isTagOfControlField() const { return tag_.as_cstring_[0] == '0' and tag_.as_cstring_[1] == '0'; }
@@ -262,6 +264,8 @@ public:
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
 
+        std::string toString() const { return tag_.toString() + contents_; }
+
         /** \note Do *not* call this on control fields! */
         void deleteAllSubfieldsWithCode(const char subfield_code);
     };
@@ -440,6 +444,10 @@ public:
     inline iterator end() { return fields_.end(); }
     inline const_iterator begin() const { return fields_.cbegin(); }
     inline const_iterator end() const { return fields_.cend(); }
+
+    // Warning: you can only call back() on a non-empty record!!
+    inline Field &back() { return fields_.back(); }
+    inline const Field &back() const { return fields_.back(); }
 
     // Alphanumerically sorts the fields in the range [begin_field, end_field).
     void sortFields(const iterator &begin_field, const iterator &end_field) { std::sort(begin_field, end_field); }

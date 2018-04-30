@@ -106,7 +106,7 @@ bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::stri
 
     bool patched(false);
     for (auto field : *record) {
-        if (UPLINK_TAGS.find(field.getTag().to_string()) != UPLINK_TAGS.cend()) {
+        if (UPLINK_TAGS.find(field.getTag().toString()) != UPLINK_TAGS.cend()) {
             MARC::Subfields subfields(field.getSubfields());
             auto subfield_w(std::find_if(subfields.begin(), subfields.end(),
                                          [](const MARC::Subfield &subfield) -> bool { return subfield.code_ == 'w'; }));
@@ -131,7 +131,7 @@ bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::stri
 }
 
 
-// The strategy we emply here is that we just pick "contents1" unless we have an identical subfield structure.
+// The strategy we employ here is that we just pick "contents1" unless we have an identical subfield structure.
 MARC::Subfields MergeFieldContents(const MARC::Subfields &subfields1, const bool record1_is_electronic,
                                    const MARC::Subfields &subfields2, const bool record2_is_electronic)
 {
@@ -197,10 +197,10 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
     while (record1_field != record1_end_or_lok_start and record2_field != record2_end_or_lok_start) {
         // Avoid duplicate fields:
         if (not merged_record.empty()) {
-            if (*merged_record.end() == *record1_field) {
+            if (merged_record.back() == *record1_field) {
                 ++record1_field;
                 continue;
-            } else if (*merged_record.end() == *record2_field) {
+            } else if (merged_record.back() == *record2_field) {
                 ++record2_field;
                 continue;
             }

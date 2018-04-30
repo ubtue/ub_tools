@@ -1,18 +1,19 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
+import java.text.Collator;
+import java.util.*;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexerMixin;
 import de.unituebingen.ub.ubtools.solrmarcMixin.*;
-import java.util.*;
 
 public class IxTheoKeywordChains extends SolrIndexerMixin {
 
     private final static String KEYWORD_DELIMITER = "/";
-    private final static String SUBFIELD_CODES = "abctnp";
-    private final static IxTheo ixTheoObject = new IxTheo();
+    private final static String SUBFIELD_CODES = "abctnpzf";
+    private final static TuelibMixin tuelibMixin = new TuelibMixin();
 
     public Set<String> getKeyWordChain(final Record record, final String fieldSpec, final String lang) {
         final List<VariableField> variableFields = record.getVariableFields(fieldSpec);
@@ -57,7 +58,8 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
             // Sort keyword chain
             final char chainID = dataField.getIndicator1();
             final List<String> keyWordChain = getKeyWordChain(keyWordChains, chainID);
-            Collections.sort(keyWordChain);
+            Collator collator = Collator.getInstance(Locale.forLanguageTag(lang));
+            Collections.sort(keyWordChain, collator);
         }
         return concatenateKeyWordsToChains(keyWordChains);
     }
@@ -72,33 +74,58 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
 
         boolean gnd_seen = false;
         StringBuilder keyword = new StringBuilder();
+        // Collect elements within one chain in case there is a translation for a whole string
+        List<String> complexElements = new ArrayList<String>();
         for (final Subfield subfield : dataField.getSubfields()) {
             if (gnd_seen) {
                 if (SUBFIELD_CODES.indexOf(subfield.getCode()) != -1) {
                     if (keyword.length() > 0) {
-                        if (subfield.getCode() == 'n' || subfield.getCode() == 'b') {
+                        if (subfield.getCode() == 'z') {
+                            keyword.append(" (" + tuelibMixin.translateTopic(subfield.getData(), lang) + ")");
+                            continue;
+                        }
+                        else if (subfield.getCode() == 'f') {
+                            keyword.append(" (" + subfield.getData() + ")");
+                            continue;
+                        }
+                        else if (subfield.getCode() == 'n')
                             keyword.append(" ");
-                        } 
-                        else if (subfield.getCode() == 'p') {
+                        else if (subfield.getCode() == 'p')
                             keyword.append(". ");
-                        }
-                        else {
+                        else
                             keyword.append(", ");
-                        }
                     }
-                    // keyword.append(subfield.getData());
-                    keyword.append(ixTheoObject.translateTopic(subfield.getData(), lang));
+                    final String term = subfield.getData().trim();
+                    keyword.append(tuelibMixin.translateTopic(term, lang));
+                    complexElements.add(term);
                 } else if (subfield.getCode() == '9' && keyword.length() > 0 && subfield.getData().startsWith("g:")) {
-                    keyword.append(" (");
-                    keyword.append(ixTheoObject.translateTopic(subfield.getData().substring(2), lang));
-                    keyword.append(')');
+                    // For Ixtheo-translations the specification in the g:-Subfield is appended in angle
+                    // brackets, so this is a special case where we have to begin from scratch
+                    final String specification = subfield.getData().substring(2);
+                    final Subfield germanASubfield = dataField.getSubfield('a');
+                    if (germanASubfield != null) {
+                        final String translationCandidate = germanASubfield.getData() + " <" + specification + ">";
+                        final String translation = tuelibMixin.translateTopic(translationCandidate, lang);
+                        keyword.setLength(0);
+                        keyword.append(translation.replaceAll("<", "(").replaceAll(">", ")"));
+                    }
+                    else {
+                        keyword.append(" (");
+                        keyword.append(tuelibMixin.translateTopic(specification, lang));
+                        keyword.append(')');
+                    }
                 }
+
             } else if (subfield.getCode() == '2' && subfield.getData().equals("gnd"))
                 gnd_seen = true;
         }
 
         if (keyword.length() > 0) {
-            String keywordString = keyword.toString();
+            // Check whether there exists a translation for the whole chain
+            final String complexTranslation = (complexElements.size() > 1) ?
+                                              tuelibMixin.getTranslationOrNull(String.join(" / ", complexElements), lang) : null;
+            String keywordString = (complexTranslation != null) ? complexTranslation : keyword.toString();
+            keywordString = keywordString.replace("/", "\\/");
             keyWordChain.add(keywordString);
         }
     }
