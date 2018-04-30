@@ -265,9 +265,7 @@ int main(int argc, char *argv[]) {
             const std::string sql_password(ini_file.getString("Database", "sql_password"));
             db_connection.reset(new DbConnection(sql_database, sql_username, sql_password));
         }
-        
-        harvest_params->format_handler_->prepareProcessing();
-
+ 
         Zotero::MarcFormatHandler * const marc_format_handler(reinterpret_cast<Zotero::MarcFormatHandler *>(
             harvest_params->format_handler_.get()));
         if (unlikely(marc_format_handler == nullptr))
@@ -276,8 +274,6 @@ int main(int argc, char *argv[]) {
         unsigned download_count(0);
         for (const auto &server_url : server_urls)
             download_count += ProcessSyndicationURL(mode, server_url, harvest_params, harvest_maps, db_connection.get());
-
-        harvest_params->format_handler_->finishProcessing();
 
         LOG_INFO("Extracted metadata from " + std::to_string(download_count) + " page(s).");
     } catch (const std::exception &x) {
