@@ -25,6 +25,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include <arpa/inet.h>
 #include "Compiler.h"
@@ -263,6 +264,8 @@ public:
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
+
+        void insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents);
 
         std::string toString() const { return tag_.toString() + contents_; }
 
@@ -533,6 +536,9 @@ public:
                                   const std::pair<const_iterator, const_iterator> &block_start_and_end,
                                   std::vector<const_iterator> * const fields) const;
 
+    /** \return The set of all tags in the record. */
+    std::unordered_set<std::string> getTagSet() const;
+    
     void deleteFields(std::vector<size_t> field_indices);
     bool isValid(std::string * const error_message) const;
 };
