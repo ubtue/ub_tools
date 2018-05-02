@@ -173,7 +173,7 @@ public:
      */
     bool replaceFirstSubfield(const char subfield_code, const std::string &new_subfield_value);
 
-    /** \brief Replaces the contents of the all subfield w/ the specified subfield code and given content.
+    /** \brief Replaces the contents of all subfields w/ the specified subfield code and given content.
      *  \return True if we replaced the contents of at least one subfield.
      */
     bool replaceAllSubfields(const char subfield_code, const std::string &old_subfield_value,
