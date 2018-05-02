@@ -368,6 +368,18 @@ MARC::Record ReadRecordFromOffsetOrDie(MARC::Reader * const marc_reader, const o
 }
 
 
+// Replaces 246$i "Nebentitel:" w/ "Abweichender Titel" (RDA).
+MARC::Record &Patch246i(MARC::Record * const record) {
+    for (auto &_246_field : record->getTagRange("246")) {
+        MARC::Subfields _246_subfields(_246_field.getSubfields());
+        if (_246_subfields.replaceAllSubfields('i', "Nebentitel:", "Abweichender Titel"))
+            _246_field.setContents(_246_subfields, _246_field.getIndicator1(), _246_field.getIndicator2());
+    }
+
+    return *record;
+}
+
+
 void ProcessRecords(const bool /*debug*/, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                     const std::unordered_map<std::string, off_t> &control_number_to_offset_map,
                     const std::unordered_map<std::string, std::string> &ppn_to_ppn_map)
@@ -376,7 +388,7 @@ void ProcessRecords(const bool /*debug*/, MARC::Reader * const marc_reader, MARC
     for (const auto &from_ppn_and_to_ppn : ppn_to_ppn_map)
         skip_ppns.emplace(from_ppn_and_to_ppn.second);
 
-    unsigned record_count(0), merged_count(0), augmented_count(0);
+    unsigned record_count(0), merged_count(0), patched_uplink_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
 
@@ -386,17 +398,17 @@ void ProcessRecords(const bool /*debug*/, MARC::Reader * const marc_reader, MARC
         const auto control_number_and_offset(control_number_to_offset_map.find(record.getControlNumber()));
         if (control_number_and_offset != control_number_to_offset_map.end()) {
             MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, control_number_and_offset->second));
-            record = MergeRecords(record, record2);
+            record = MergeRecords(Patch246i(&record), Patch246i(&record2));
             ++merged_count;
         } else if (PatchUplink(&record, ppn_to_ppn_map))
-            ++augmented_count;
+            ++patched_uplink_count;
 
         marc_writer->write(record);
     }
 
     LOG_INFO("Data set contained " + std::to_string(record_count) + " MARC record(s).");
     LOG_INFO("Merged " + std::to_string(merged_count) + " MARC record(s).");
-    LOG_INFO("Augmented " + std::to_string(augmented_count) + " MARC record(s).");
+    LOG_INFO("Patched uplinks of " + std::to_string(patched_uplink_count) + " MARC record(s).");
 }
 
 
