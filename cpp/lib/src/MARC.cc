@@ -73,6 +73,28 @@ bool Subfields::replaceFirstSubfield(const char subfield_code, const std::string
 }
 
 
+bool Subfields::replaceAllSubfields(const char subfield_code, const std::string &old_subfield_value,
+                                    const std::string &new_subfield_value)
+{
+    auto replacement_location(subfields_.begin());
+    while (replacement_location != subfields_.end() and replacement_location->code_ < subfield_code)
+        ++replacement_location;
+    if (replacement_location == subfields_.end() or replacement_location->code_ != subfield_code)
+        return false;
+
+    bool replaced_at_least_one_subfield(false);
+    while (replacement_location->code_ == subfield_code) {
+        if (replacement_location->value_ == old_subfield_value) {
+            replacement_location->value_ = new_subfield_value;
+            replaced_at_least_one_subfield = true;
+        }
+        ++replacement_location;
+    }
+
+    return replaced_at_least_one_subfield;
+}
+
+
 std::vector<std::string> Subfields::extractSubfieldsAndNumericSubfields(const std::string &subfield_spec) const {
     std::set<std::string> numeric_subfield_specs;
     std::string subfield_codes;
@@ -258,7 +280,7 @@ void Record::merge(const Record &other) {
 
 
 static const std::set<std::string> ELECTRONIC_CARRIER_TYPES{ "cb", "cd", "ce", "ca", "cf", "ch", "cr", "ck", "cz" };
-  
+
 
 bool Record::isElectronicResource() const {
     if (leader_[6] == 'm')
@@ -271,7 +293,7 @@ bool Record::isElectronicResource() const {
                 return true;
         }
     }
-    
+
     for (const auto &_935_field : getTagRange("935")) {
         const Subfields subfields(_935_field.getSubfields());
         for (const auto &subfield : subfields) {
