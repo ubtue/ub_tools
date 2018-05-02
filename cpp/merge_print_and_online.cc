@@ -339,11 +339,11 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
                 merged_c_subfield = subfield_c1;
             else {
                 if (not subfield_c1.empty())
-                    merged_c_subfield = subfield_c1 + "(" + (record1.isElectronicResource() ? "electronic" : "print") + ")";
+                    merged_c_subfield = subfield_c1 + " (" + (record1.isElectronicResource() ? "electronic" : "print") + ")";
                 if (not subfield_c2.empty()) {
                     if (not merged_c_subfield.empty())
                         merged_c_subfield += "; ";
-                    merged_c_subfield = subfield_c2 + "(" + (record2.isElectronicResource() ? "electronic" : "print") + ")";
+                    merged_c_subfield = subfield_c2 + " (" + (record2.isElectronicResource() ? "electronic" : "print") + ")";
                 }
             }
             
