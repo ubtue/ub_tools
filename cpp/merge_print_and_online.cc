@@ -250,7 +250,7 @@ MARC::Record::Field MergeControlFields(const MARC::Tag &tag, const std::string &
 
 
 // Returns true if the contents of the leading subfields with subfield codes "subfield_codes" in field1 and field2 are
-// identical, else returns false.
+// identical, else returns false. Please note that the code specified in "subfield_codes" must exist.
 bool SubfieldPrefixIsIdentical(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
                                const std::vector<char> &subfield_codes)
 {
