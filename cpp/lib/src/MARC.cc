@@ -66,7 +66,7 @@ bool Subfields::replaceFirstSubfield(const char subfield_code, const std::string
     auto replacement_location(subfields_.begin());
     while (replacement_location != subfields_.end() and replacement_location->code_ < subfield_code)
         ++replacement_location;
-    if (replacement_location == subfields_.end())
+    if (replacement_location == subfields_.end() or replacement_location->code_ != subfield_code)
         return false;
     replacement_location->value_ = new_subfield_value;
     return true;
@@ -113,6 +113,14 @@ bool Record::Field::operator<(const Record::Field &rhs) const {
     if (tag_ > rhs.tag_)
         return false;
     return contents_ < rhs.contents_;
+}
+
+
+void Record::Field::insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents) {
+    Subfields subfields(contents_);
+    if (not subfields.replaceFirstSubfield(subfield_code, subfield_contents))
+        subfields.addSubfield(subfield_code, subfield_contents);
+    contents_ = contents_.substr(0, 2) /* keep our original indicators */ + subfields.toString();
 }
 
 
@@ -460,6 +468,14 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
     field->contents_ = new_field_value;
 
     return true;
+}
+
+
+std::unordered_set<std::string> Record::getTagSet() const {
+    std::unordered_set<std::string> tags;
+    for (const auto &field : fields_)
+        tags.emplace(field.getTag().toString());
+    return tags;
 }
 
 
