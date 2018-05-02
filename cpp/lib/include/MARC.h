@@ -259,6 +259,7 @@ public:
         inline bool operator!=(const Field &rhs) const { return not operator==(rhs); }
         bool operator<(const Field &rhs) const;
         inline const Tag &getTag() const { return tag_; }
+        inline void setTag(const Tag &new_tag) { tag_ = new_tag; }
         inline const std::string &getContents() const { return contents_; }
         inline std::string getContents() { return contents_; }
         inline void setContents(const std::string &new_field_contents) { contents_ = new_field_contents; }
@@ -500,6 +501,11 @@ public:
                             [&tag](const Field &field) -> bool { return field.getTag() == tag; });
     }
 
+    /** \brief  Changes all from-tags to to-tags.
+     *  \return The number of fields whose tags were changed.
+     */
+    size_t reTag(const Tag &from_tag, const Tag &to_tag);
+
     /** \brief Removes the element at pos
      *  \return The iterator following pos.
      */
@@ -544,7 +550,7 @@ public:
 
     /** \return The set of all tags in the record. */
     std::unordered_set<std::string> getTagSet() const;
-    
+
     void deleteFields(std::vector<size_t> field_indices);
     bool isValid(std::string * const error_message) const;
 };

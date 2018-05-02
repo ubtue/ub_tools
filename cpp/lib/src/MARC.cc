@@ -367,6 +367,20 @@ Record::Range Record::getTagRange(const Tag &tag) {
 }
 
 
+size_t Record::reTag(const Tag &from_tag, const Tag &to_tag) {
+    size_t changed_count(0);
+    for (auto &field : getTagRange(from_tag)) {
+        field.setTag(to_tag);
+        ++changed_count;
+    }
+
+    if (changed_count > 0)
+        std::stable_sort(fields_.begin(), fields_.end(), [](const Field &lhs, const Field &rhs){ return lhs.tag_ < rhs.tag_; });
+
+    return changed_count;
+}
+
+
 bool Record::hasTagWithIndicators(const Tag &tag, const char indicator1, const char indicator2) const {
     for (const auto &field : getTagRange(tag)) {
         if (field.getIndicator1() == indicator1 and field.getIndicator2() == indicator2)
