@@ -249,23 +249,35 @@ MARC::Record::Field MergeControlFields(const MARC::Tag &tag, const std::string &
 }
 
 
-// List field tags and their replacements.  If both are found, just use the replacement.
-const std::vector<std::pair<std::string, std::string>> OLD_TO_NEW_FIELD_TAG_MAP{
-    { "260", "264" },
-};
+// Returns true if the contents of the leading subfields with subfield codes "subfield_codes" in field1 and field2 are
+// identical, else returns false.
+bool SubfieldPrefixIsIdentical(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
+                               const std::vector<char> &subfield_codes)
+{
+    const MARC::Subfields subfields1(field1.getSubfields());
+    const auto subfield1(subfields1.begin());
+
+    const MARC::Subfields subfields2(field2.getSubfields());
+    const auto subfield2(subfields2.begin());
+
+    for (const char subfield_code : subfield_codes) {
+        if (subfield1 == subfields1.end() or subfield2 == subfields2.end())
+            return false;
+        if (subfield1->code_ != subfield_code or subfield2->code_ != subfield_code)
+            return false;
+        if (subfield1->value_ != subfield2->value_)
+            return false;
+    }
+
+    return true;
+}
 
 
 MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
+    record1.reTag("260", "264");
+    record2.reTag("260", "264");
+    
     MARC::Record merged_record(record1.getLeader());
-
-    std::set<std::string> tags_to_skip;
-    const std::unordered_set<std::string> record1_tags(record1.getTagSet());
-    const std::unordered_set<std::string> record2_tags(record2.getTagSet());
-    for (const auto &old_and_new_tag : OLD_TO_NEW_FIELD_TAG_MAP) {
-        if (record1_tags.find(old_and_new_tag.second) != record1_tags.end()
-            or record2_tags.find(old_and_new_tag.second) != record2_tags.end())
-            tags_to_skip.emplace(old_and_new_tag.first);
-    }
 
     const auto record1_end_or_lok_start(record1.getFirstField("LOK"));
     record1.sortFields(record1.begin(), record1_end_or_lok_start);
@@ -276,15 +288,6 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
     auto record2_field(record2.begin());
 
     while (record1_field != record1_end_or_lok_start and record2_field != record2_end_or_lok_start) {
-        if (tags_to_skip.find(record1_field->getTag().toString()) != tags_to_skip.end()) {
-            ++record1_field;
-            continue;
-        }
-        if (tags_to_skip.find(record2_field->getTag().toString()) != tags_to_skip.end()) {
-            ++record2_field;
-            continue;
-        }
-
         // Avoid duplicate fields:
         if (not merged_record.empty()) {
             if (merged_record.back() == *record1_field) {
@@ -323,6 +326,34 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
                 record2_022_field.insertOrReplaceSubfield('2', "print");
             merged_record.appendField(record2_022_field);
 
+            ++record1_field, ++record2_field;
+        } else if (record1_field->getTag() == record2_field->getTag() and record1_field->getTag() == "264"
+                   and SubfieldPrefixIsIdentical(*record1_field, *record2_field, {'a', 'b'}))
+        {
+            std::string merged_c_subfield;
+            const MARC::Subfields subfields1(record1_field->getSubfields());
+            const std::string subfield_c1(subfields1.getFirstSubfieldWithCode('c'));
+            const MARC::Subfields subfields2(record2_field->getSubfields());
+            const std::string subfield_c2(subfields2.getFirstSubfieldWithCode('c'));
+            if (subfield_c1 == subfield_c2)
+                merged_c_subfield = subfield_c1;
+            else {
+                if (not subfield_c1.empty())
+                    merged_c_subfield = subfield_c1 + "(" + (record1.isElectronicResource() ? "electronic" : "print") + ")";
+                if (not subfield_c2.empty()) {
+                    if (not merged_c_subfield.empty())
+                        merged_c_subfield += "; ";
+                    merged_c_subfield = subfield_c2 + "(" + (record2.isElectronicResource() ? "electronic" : "print") + ")";
+                }
+            }
+            
+            if (merged_c_subfield.empty())
+                merged_record.appendField(*record1_field);
+            else {
+                MARC::Record::Field merged_field(*record1_field);
+                merged_field.insertOrReplaceSubfield('c', merged_c_subfield);
+                merged_record.appendField(merged_field);
+            }
             ++record1_field, ++record2_field;
         } else if (*record1_field < *record2_field) {
             merged_record.appendField(*record1_field);
