@@ -66,10 +66,32 @@ bool Subfields::replaceFirstSubfield(const char subfield_code, const std::string
     auto replacement_location(subfields_.begin());
     while (replacement_location != subfields_.end() and replacement_location->code_ < subfield_code)
         ++replacement_location;
-    if (replacement_location == subfields_.end())
+    if (replacement_location == subfields_.end() or replacement_location->code_ != subfield_code)
         return false;
     replacement_location->value_ = new_subfield_value;
     return true;
+}
+
+
+bool Subfields::replaceAllSubfields(const char subfield_code, const std::string &old_subfield_value,
+                                    const std::string &new_subfield_value)
+{
+    auto replacement_location(subfields_.begin());
+    while (replacement_location != subfields_.end() and replacement_location->code_ < subfield_code)
+        ++replacement_location;
+    if (replacement_location == subfields_.end() or replacement_location->code_ != subfield_code)
+        return false;
+
+    bool replaced_at_least_one_subfield(false);
+    while (replacement_location->code_ == subfield_code) {
+        if (replacement_location->value_ == old_subfield_value) {
+            replacement_location->value_ = new_subfield_value;
+            replaced_at_least_one_subfield = true;
+        }
+        ++replacement_location;
+    }
+
+    return replaced_at_least_one_subfield;
 }
 
 
@@ -113,6 +135,14 @@ bool Record::Field::operator<(const Record::Field &rhs) const {
     if (tag_ > rhs.tag_)
         return false;
     return contents_ < rhs.contents_;
+}
+
+
+void Record::Field::insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents) {
+    Subfields subfields(contents_);
+    if (not subfields.replaceFirstSubfield(subfield_code, subfield_contents))
+        subfields.addSubfield(subfield_code, subfield_contents);
+    contents_ = contents_.substr(0, 2) /* keep our original indicators */ + subfields.toString();
 }
 
 
@@ -250,7 +280,7 @@ void Record::merge(const Record &other) {
 
 
 static const std::set<std::string> ELECTRONIC_CARRIER_TYPES{ "cb", "cd", "ce", "ca", "cf", "ch", "cr", "ck", "cz" };
-  
+
 
 bool Record::isElectronicResource() const {
     if (leader_[6] == 'm')
@@ -263,7 +293,7 @@ bool Record::isElectronicResource() const {
                 return true;
         }
     }
-    
+
     for (const auto &_935_field : getTagRange("935")) {
         const Subfields subfields(_935_field.getSubfields());
         for (const auto &subfield : subfields) {
@@ -334,6 +364,20 @@ Record::Range Record::getTagRange(const Tag &tag) {
         ++end;
 
     return Range(begin, end);
+}
+
+
+size_t Record::reTag(const Tag &from_tag, const Tag &to_tag) {
+    size_t changed_count(0);
+    for (auto &field : getTagRange(from_tag)) {
+        field.setTag(to_tag);
+        ++changed_count;
+    }
+
+    if (changed_count > 0)
+        std::stable_sort(fields_.begin(), fields_.end(), [](const Field &lhs, const Field &rhs){ return lhs.tag_ < rhs.tag_; });
+
+    return changed_count;
 }
 
 
@@ -460,6 +504,14 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
     field->contents_ = new_field_value;
 
     return true;
+}
+
+
+std::unordered_set<std::string> Record::getTagSet() const {
+    std::unordered_set<std::string> tags;
+    for (const auto &field : fields_)
+        tags.emplace(field.getTag().toString());
+    return tags;
 }
 
 

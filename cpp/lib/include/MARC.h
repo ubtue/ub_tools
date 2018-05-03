@@ -25,6 +25,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include <arpa/inet.h>
 #include "Compiler.h"
@@ -172,6 +173,12 @@ public:
      */
     bool replaceFirstSubfield(const char subfield_code, const std::string &new_subfield_value);
 
+    /** \brief Replaces the contents of all subfields w/ the specified subfield code and given content.
+     *  \return True if we replaced the contents of at least one subfield.
+     */
+    bool replaceAllSubfields(const char subfield_code, const std::string &old_subfield_value,
+                             const std::string &new_subfield_value);
+
     /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes".
      *  \return The values of the subfields with matching codes.
      */
@@ -252,6 +259,7 @@ public:
         inline bool operator!=(const Field &rhs) const { return not operator==(rhs); }
         bool operator<(const Field &rhs) const;
         inline const Tag &getTag() const { return tag_; }
+        inline void setTag(const Tag &new_tag) { tag_ = new_tag; }
         inline const std::string &getContents() const { return contents_; }
         inline std::string getContents() { return contents_; }
         inline void setContents(const std::string &new_field_contents) { contents_ = new_field_contents; }
@@ -263,6 +271,8 @@ public:
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
+
+        void insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents);
 
         std::string toString() const { return tag_.toString() + contents_; }
 
@@ -491,6 +501,11 @@ public:
                             [&tag](const Field &field) -> bool { return field.getTag() == tag; });
     }
 
+    /** \brief  Changes all from-tags to to-tags.
+     *  \return The number of fields whose tags were changed.
+     */
+    size_t reTag(const Tag &from_tag, const Tag &to_tag);
+
     /** \brief Removes the element at pos
      *  \return The iterator following pos.
      */
@@ -532,6 +547,9 @@ public:
     size_t findFieldsInLocalBlock(const Tag &field_tag, const std::string &indicators,
                                   const std::pair<const_iterator, const_iterator> &block_start_and_end,
                                   std::vector<const_iterator> * const fields) const;
+
+    /** \return The set of all tags in the record. */
+    std::unordered_set<std::string> getTagSet() const;
 
     void deleteFields(std::vector<size_t> field_indices);
     bool isValid(std::string * const error_message) const;
