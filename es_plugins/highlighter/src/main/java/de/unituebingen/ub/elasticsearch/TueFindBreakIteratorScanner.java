@@ -49,7 +49,7 @@ public class TueFindBreakIteratorScanner extends BreakIterator {
     private final BreakIterator mainBreak;
     private final BreakIterator innerBreak;
     private final int maxLen;
-    private final int maxSentenceCount = 3;
+    private final int maxSentenceCount;
 
     private int lastPrecedingOffset = -1;
     private int windowStart = -1;
@@ -60,10 +60,12 @@ public class TueFindBreakIteratorScanner extends BreakIterator {
 
     private TueFindBreakIteratorScanner(BreakIterator mainBreak,
                                         BreakIterator innerBreak,
-                                        int maxLen) {
+                                        int maxLen,
+                                        int maxSentenceCount) {
         this.mainBreak = mainBreak;
         this.innerBreak = innerBreak;
         this.maxLen = maxLen;
+        this.maxSentenceCount = maxSentenceCount;
     }
 
     @Override
@@ -162,10 +164,10 @@ public class TueFindBreakIteratorScanner extends BreakIterator {
      * Returns a {@link BreakIterator#getSentenceInstance(Locale)} bounded to maxLen.
      * Secondary boundaries are found using a {@link BreakIterator#getWordInstance(Locale)}.
      */
-    public static BreakIterator getSentence(Locale locale, int maxLen) {
+    public static BreakIterator getSentence(Locale locale, int maxLen, int maxSentenceCount) {
         final BreakIterator sBreak = BreakIterator.getSentenceInstance(locale);
         final BreakIterator wBreak = BreakIterator.getWordInstance(locale);
-        return new TueFindBreakIteratorScanner(sBreak, wBreak, maxLen);
+        return new TueFindBreakIteratorScanner(sBreak, wBreak, maxLen, maxSentenceCount);
     }
 
 

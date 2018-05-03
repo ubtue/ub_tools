@@ -154,10 +154,11 @@ log.error("ENTERING getBreakIterator!!!");
             fieldOptions.boundaryScannerType()  != null ? fieldOptions.boundaryScannerType() :
                 HighlightBuilder.BoundaryScannerType.SENTENCE;
         int maxLen = fieldOptions.fragmentCharSize();
+        int maxSentenceCount = fieldOptions.phraseLimit();
         switch (type) {
             case SENTENCE:
                 if (maxLen > 0) {
-                    return TueFindBreakIteratorScanner.getSentence(locale, maxLen);
+                    return TueFindBreakIteratorScanner.getSentence(locale, maxLen, maxSentenceCount);
                 }
                 return BreakIterator.getSentenceInstance(locale);
             case WORD:
