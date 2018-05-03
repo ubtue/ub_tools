@@ -52,35 +52,35 @@ static unsigned success_count, failure_count;
 
 #define CHECK_TRUE(a) do { if ((a)) ++success_count;                                         \
         else { ++failure_count; std::cerr << "\tTest failed: " << #a << " is not true!\n"; } \
-    } while (0);
+    } while (0)
 
 #define CHECK_FALSE(a) do { if (not (a)) ++success_count;                                     \
         else { ++failure_count; std::cerr << "\tTest failed: " << #a << " is not false!\n"; } \
-    } while (0);
+    } while (0)
 
 #define CHECK_LT(a, b) do { if ((a) < (b)) ++success_count;                                 \
         else { ++failure_count; std::cerr << "\tTest failed: " << #a " < " << #b << '\n'; } \
-    } while (0);
+    } while (0)
 
 #define CHECK_GT(a, b) do { if ((a) > (b)) ++success_count;                                 \
         else { ++failure_count; std::cerr << "\tTest failed: " << #a " > " << #b << '\n'; } \
-    } while (0);
+    } while (0)
 
 #define CHECK_LE(a, b) do { if ((a) <= (b)) ++success_count;                                 \
         else { ++failure_count; std::cerr << "\tTest failed: " << #a " <= " << #b << '\n'; } \
-    } while (0);
+    } while (0)
 
 #define CHECK_GE(a, b) do { if ((a) >= (b)) ++success_count;                                 \
         else { ++failure_count; std::cerr << "\tTest failed: " << #a " >= " << #b << '\n'; } \
-    } while (0);
+    } while (0)
 
 #define CHECK_EQ(a, b) do { if ((a) == (b)) ++success_count;                                 \
         else { ++failure_count; std::cerr << "\tTest failed: " << #a " == " << #b << '\n'; } \
-    } while (0);
+    } while (0)
 
 #define CHECK_NE(a, b) do { if ((a) != (b)) ++success_count;                                 \
         else { ++failure_count; std::cerr << "\tTest failed: " << #a " != " << #b << '\n'; } \
-    } while (0);
+    } while (0)
 
 
 #endif // UNIT_TEST_H
