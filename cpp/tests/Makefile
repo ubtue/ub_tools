@@ -3,13 +3,13 @@ LIB_SRCS       = ../lib/src
 CCCFLAGS       = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -I$(INC) \
                  -ftrapv -I../lib/libstemmer/include \
                  -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native \
-                 -I/usr/include/libxml2  -DTEST=BOOST_AUTO_TEST_CASE # -fprofile-arcs -ftest-coverage
+                 -I/usr/include/libxml2
 CCC            = clang++
 OBJ            = .
 MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep
 LIBS           = -L../lib -lubtue -L../lib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
-                 -larchive -lboost_graph -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt \
-                 -lssl -lcrypto -lpthread -lboost_unit_test_framework -ldl # -lgcov --coverage
+                 -larchive -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt \
+                 -lssl -lcrypto -lpthread
 ifneq ("$(wildcard /usr/include/selinux)","")
   LIBS += -lselinux
 endif
