@@ -1,7 +1,8 @@
 /** \brief Test cases for delete_unused_local_data
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
+ *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -16,36 +17,36 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-
-#define BOOST_TEST_MODULE MarcRecord
-#define BOOST_TEST_DYN_LINK
-
-#include <boost/test/unit_test.hpp>
 #include <vector>
 #include "ExecUtil.h"
+#include "UnitTest.h"
 
 
 TEST(DeleteUnusedBlocks) {
     int exit_code(ExecUtil::Exec("/usr/local/bin/delete_unused_local_data", {"/usr/local/ub_tools/cpp/tests/data/LOK_withoutUsedBlock.mrc", "/tmp/output.mrc"}));
-    BOOST_CHECK_EQUAL(exit_code, 0);
+    CHECK_EQ(exit_code, 0);
 
     exit_code = ExecUtil::Exec("/usr/bin/diff", {"/usr/local/ub_tools/cpp/tests/data/default.mrc", "/tmp/output.mrc"});
-    BOOST_CHECK_EQUAL(exit_code, 0);
+    CHECK_EQ(exit_code, 0);
 }
+
 
 TEST(DeleteUnusedBlockAndLeaveOneBlock) {
     int exit_code(ExecUtil::Exec("/usr/local/bin/delete_unused_local_data", {"/usr/local/ub_tools/cpp/tests/data/LOK_withUsedBlock.mrc", "/tmp/output.mrc"}));
-    BOOST_CHECK_EQUAL(exit_code, 0);
+    CHECK_EQ(exit_code, 0);
 
     exit_code = ExecUtil::Exec("/usr/bin/diff", {"/usr/local/ub_tools/cpp/tests/data/LOK_withUsedBlock.expected.mrc", "/tmp/output.mrc"});
-    BOOST_CHECK_EQUAL(exit_code, 0);
+    CHECK_EQ(exit_code, 0);
 }
+
 
 TEST(DeleteNoBlock) {
     int exit_code(ExecUtil::Exec("/usr/local/bin/delete_unused_local_data", {"/usr/local/ub_tools/cpp/tests/data/default.mrc", "/tmp/output.mrc"}));
-    BOOST_CHECK_EQUAL(exit_code, 0);
+    CHECK_EQ(exit_code, 0);
 
     exit_code = ExecUtil::Exec("/usr/bin/diff", {"/usr/local/ub_tools/cpp/tests/data/default.mrc", "/tmp/output.mrc"});
-    BOOST_CHECK_EQUAL(exit_code, 0);
+    CHECK_EQ(exit_code, 0);
 }
+
+
+TEST_MAIN(MarcRecord)
