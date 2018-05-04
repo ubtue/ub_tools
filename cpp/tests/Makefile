@@ -1,15 +1,19 @@
 INC            = ../lib/include
 LIB_SRCS       = ../lib/src
-CCCFLAGS       = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -I$(INC) \
-                 -ftrapv -I../lib/libstemmer/include \
-                 -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native \
-                 -I/usr/include/libxml2
+CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -O3 -ftrapv \
+                 -Ilib/libstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
+                 -DETC_DIR='"/usr/local/var/lib/tuelib"'
+ifeq ($(CCC),clang++)
+  CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions
+else
+  CCCFLAGS += -std=gnu++14
+endif
 CCC            = clang++
 OBJ            = .
 MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep
 LIBS           = -L../lib -lubtue -L../lib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
-                 -larchive -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt \
-                 -lssl -lcrypto -lpthread
+                 -larchive -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt -lssl -lcrypto -lpthread -ldl \
+                 -luuid -llept -ltesseract -lsqlite3
 ifneq ("$(wildcard /usr/include/selinux)","")
   LIBS += -lselinux
 endif
@@ -21,7 +25,7 @@ INSTALL_PROGS  = $(filter-out %_test,$(PROGS)) *.sh
 
 all: .deps $(PROGS)
 
-%.o: %.cc
+%.o: %.cc Makefile
 	@echo "Compiling $<..."
 	@$(CCC) $(CCCFLAGS) $< -c
 
@@ -35,8 +39,6 @@ $(PROGS): % : %.o ../lib/libubtue.a
 
 ../lib/libubtue.a: $(wildcard ../lib/src/*.cc) $(wildcard ../lib/include/*.h)
 	$(MAKE) -C ../lib
-
-install: regular_install cgi_install
 
 test: all
 	@$(foreach prog,$(PROGS), echo "Running" $(prog) ; ./$(prog); echo "------------------"; )
