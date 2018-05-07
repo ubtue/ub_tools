@@ -166,6 +166,12 @@ public:
                                 { return subfield.code_ == subfield_code; }) != subfields_.cend();
     }
 
+    inline bool hasSubfieldWithValue(const char subfield_code, const std::string &value) const {
+        return std::find_if(subfields_.cbegin(), subfields_.cend(),
+                            [subfield_code, value](const Subfield subfield) -> bool
+                                { return subfield.code_ == subfield_code and subfield.value_ == value; }) != subfields_.cend();
+    }
+
     void addSubfield(const char subfield_code, const std::string &subfield_value);
 
     /** \brief Replaces the contents of the first subfield w/ the specified subfield code.
@@ -301,6 +307,7 @@ public:
         const_iterator end_;
     public:
         inline ConstantRange(const_iterator begin, const_iterator end): begin_(begin), end_(end) { }
+        inline size_t size() const { return end_ - begin_; }
         inline const_iterator begin() const { return begin_; }
         inline const_iterator end() const { return end_; }
         inline bool empty() const { return begin_ == end_; }
@@ -314,6 +321,7 @@ public:
         iterator end_;
     public:
         inline Range(iterator begin, iterator end): begin_(begin), end_(end) { }
+        inline size_t size() const { return end_ - begin_; }
         inline iterator begin() const { return begin_; }
         inline iterator end() const { return end_; }
         inline bool empty() const { return begin_ == end_; }
@@ -580,8 +588,7 @@ public:
     virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) { return input_->seek(offset, whence); }
 
     /** \return a BinaryMarcReader or an XmlMarcReader. */
-    static std::unique_ptr<Reader> Factory(const std::string &input_filename,
-                                               ReaderType reader_type = AUTO);
+    static std::unique_ptr<Reader> Factory(const std::string &input_filename, ReaderType reader_type = AUTO);
 };
 
 
