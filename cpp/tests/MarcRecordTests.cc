@@ -1,5 +1,6 @@
-/** \brief Test cases for MarcRecord
+/** \brief Test cases for MARC::Record
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
+ *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
@@ -16,189 +17,161 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#define BOOST_TEST_MODULE MarcRecord
-#define BOOST_TEST_DYN_LINK
-
-
-#include <boost/test/unit_test.hpp>
-#include <typeinfo>
 #include <vector>
 #include "File.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include <iterator>
+#include "MARC.h"
+#include "UnitTest.h"
 
 
 TEST(empty) {
-    MarcRecord emptyRecord;
-    BOOST_CHECK_EQUAL(emptyRecord, false);
+    MARC::Record emptyRecord(MARC::Record::LANGUAGE_MATERIAL, MARC::Record::MONOGRAPHIC_COMPONENT_PART);
+    CHECK_EQ(emptyRecord, false);
 
-    File input("data/marc_record_test.mrc", "r");
-    BinaryMarcReader reader(&input);
-    MarcRecord record(reader.read());
-    BOOST_CHECK_EQUAL(record, true);
+    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
+    MARC::Record record(reader->read());
+    CHECK_EQ(record, true);
 }
 
 
 TEST(getNumberOfFields) {
-    MarcRecord emptyRecord;
-    BOOST_CHECK_EQUAL(emptyRecord.getNumberOfFields(), 0);
+    MARC::Record emptyRecord(MARC::Record::LANGUAGE_MATERIAL, MARC::Record::MONOGRAPHIC_COMPONENT_PART);
+    CHECK_EQ(emptyRecord.getNumberOfFields(), 0);
 
-    File input("data/marc_record_test.mrc", "r");
-    BinaryMarcReader reader(&input);
-    MarcRecord record(reader.read());
-    BOOST_CHECK_EQUAL(record.getNumberOfFields(), 13);
+    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
+    MARC::Record record(reader->read());
+    CHECK_EQ(record.getNumberOfFields(), 13);
 
-    size_t index(record.insertSubfield("TST", 'a', "TEST"));
-    BOOST_CHECK_EQUAL(record.getNumberOfFields(), 14);
+    size_t index(record.insertField("TST", { { 'a', "TEST" } }));
+    CHECK_EQ(record.getNumberOfFields(), 14);
 
-    record.deleteField(index);
-    BOOST_CHECK_EQUAL(record.getNumberOfFields(), 13);
+    record.deleteFields({ index });
+    CHECK_EQ(record.getNumberOfFields(), 13);
 }
 
 
-TEST(getFieldIndex) {
-    MarcRecord emptyRecord;
-    BOOST_CHECK_EQUAL(emptyRecord.getFieldIndex("001"), MarcRecord::FIELD_NOT_FOUND);
+TEST(getFirstField) {
+    MARC::Record emptyRecord(MARC::Record::LANGUAGE_MATERIAL, MARC::Record::MONOGRAPHIC_COMPONENT_PART);
+    CHECK_EQ(emptyRecord.getFirstField("001"), emptyRecord.end());
 
-    File input("data/marc_record_test.mrc", "r");
-    BinaryMarcReader reader(&input);
-    MarcRecord record(reader.read());
+    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
+    MARC::Record record(reader->read());
 
-    BOOST_CHECK_NE(record.getFieldIndex("001"), MarcRecord::FIELD_NOT_FOUND);
+    CHECK_NE(record.getFirstField("001"), emptyRecord.end());
 
-    BOOST_CHECK_EQUAL(record.getTag(record.getFieldIndex("001")), "001");
-    BOOST_CHECK_EQUAL(record.getTag(record.getFieldIndex("100")), "100");
-    BOOST_CHECK_EQUAL(record.getTag(record.getFieldIndex("LOK")), "LOK");
+    CHECK_EQ(record.getFirstField("001")->getTag().toString(), "001");
+    CHECK_EQ(record.getFirstField("100")->getTag().toString(), "100");
+    CHECK_EQ(record.getFirstField("LOK")->getTag().toString(), "LOK");
 }
 
 
-TEST(getFieldIndices) {
-    MarcRecord emptyRecord;
-    BOOST_CHECK_EQUAL(emptyRecord.getFieldIndex("001"), MarcRecord::FIELD_NOT_FOUND);
+TEST(getTagRange) {
+    MARC::Record emptyRecord(MARC::Record::LANGUAGE_MATERIAL, MARC::Record::MONOGRAPHIC_COMPONENT_PART);
+    CHECK_EQ(emptyRecord.getFirstField("001"), emptyRecord.end());
 
-    size_t count;
-    std::vector<size_t> indices;
-    count = emptyRecord.getFieldIndices("001", &indices);
-    BOOST_CHECK_EQUAL(count, 0);
+    size_t count(emptyRecord.getTagRange("001").size());
+    CHECK_EQ(count, 0);
 
-    File input("data/marc_record_test.mrc", "r");
-    BinaryMarcReader reader(&input);
-    MarcRecord record(reader.read());
-    count = record.getFieldIndices("001", &indices);
-    BOOST_CHECK_EQUAL(count, 1);
-    BOOST_CHECK_EQUAL(indices[0], 0);
+    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
+    MARC::Record record(reader->read());
+    count = record.getTagRange("001").size();
+    CHECK_EQ(count, 1);
 
-    count = record.getFieldIndices("935", &indices);
-    BOOST_CHECK_EQUAL(count, 2);
-    BOOST_CHECK_EQUAL(indices.size(), count);
+    count = record.getTagRange("935").size();
+    CHECK_EQ(count, 2);
 
-    count = record.getFieldIndices("LOK", &indices);
-    BOOST_CHECK_EQUAL(count, 5);
-    BOOST_CHECK_EQUAL(indices.size(), count);
+    count = record.getTagRange("LOK").size();
+    CHECK_EQ(count, 5);
 }
 
 
-TEST(getTag) {
-    MarcRecord emptyRecord;
-    BOOST_CHECK_EQUAL(emptyRecord.getTag(0), "");
+TEST(hasTag) {
+    MARC::Record emptyRecord(MARC::Record::LANGUAGE_MATERIAL, MARC::Record::MONOGRAPHIC_COMPONENT_PART);
+    CHECK_FALSE(emptyRecord.hasTag("001"));
 
-    File input("data/marc_record_test.mrc", "r");
-    BinaryMarcReader reader(&input);
-    MarcRecord record(reader.read());
+    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
+    MARC::Record record(reader->read());
 
-    BOOST_CHECK_EQUAL(record.getTag(0), "001");
+    CHECK_TRUE(record.hasTag("001"));
 }
 
 
 TEST(deleteFields) {
-    File input("data/marc_record_test.mrc", "r");
-    BinaryMarcReader reader(&input);
-    MarcRecord record(reader.read());
+    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
+    MARC::Record record(reader->read());
 
-    std::vector<std::pair<size_t, size_t>> indices;
-    indices.emplace_back(1, 3);
-    indices.emplace_back(5, 10);
+    CHECK_EQ(record.getNumberOfFields(), 13);
 
-    BOOST_CHECK_EQUAL(record.getNumberOfFields(), 13);
-
+    const std::vector<size_t> indices{3, 5, 6};
     record.deleteFields(indices);
 
-    BOOST_CHECK_EQUAL(record.getNumberOfFields(), 6);
+    CHECK_EQ(record.getNumberOfFields(), 10);
 
 }
 
 
 TEST(findAllLocalDataBlocks) {
-    File input("data/marc_record_test.mrc", "r");
-    BinaryMarcReader reader(&input);
-    MarcRecord record(reader.read());
+    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
+    MARC::Record record(reader->read());
 
-    std::vector<std::pair<size_t, size_t>> local_blocks;
+    std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> local_blocks;
     size_t count(record.findAllLocalDataBlocks(&local_blocks));
 
-    BOOST_CHECK_EQUAL(count, 2);
-    BOOST_CHECK_EQUAL(local_blocks.size(), count);
+    CHECK_EQ(count, 2);
+    CHECK_EQ(local_blocks.size(), count);
 
     const auto first_block_length(local_blocks[0].second - local_blocks[0].first);
-    BOOST_CHECK_EQUAL(first_block_length, 2);
+    CHECK_EQ(first_block_length, 2);
 
     const auto second_block_length(local_blocks[1].second - local_blocks[1].first);
-    BOOST_CHECK_EQUAL(second_block_length, 3);
+    CHECK_EQ(second_block_length, 3);
 
 }
 
 
-TEST(extractSubfield) {
-    File input("data/marc_record_test.mrc", "r");
-    BinaryMarcReader reader(&input);
-    MarcRecord record(reader.read());
+TEST(hasSubfield) {
+    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
+    MARC::Record record(reader->read());
 
-    std::vector<std::string> values;
-    record.extractSubfield("591", 'a', &values);
-    BOOST_CHECK_EQUAL(values.size(), 1);
+    unsigned _591_a_count(0);
+    for (const auto &_591_field : record.getTagRange("591")) {
+        if (_591_field.getSubfields().hasSubfield('a'))
+            ++_591_a_count;
+    }
+    CHECK_EQ(_591_a_count, 1);
 
-    record.extractSubfield("LOK", '0', &values);
-    BOOST_CHECK_EQUAL(values.size(), 5);
+    unsigned LOK_0_count(0);
+    for (const auto &LOK_field : record.getTagRange("LOK")) {
+        if (LOK_field.getSubfields().hasSubfield('a'))
+            ++LOK_0_count;
+    }
+    CHECK_EQ(LOK_0_count, 1);
 }
 
 
 TEST(filterTags) {
-    File input("data/marc_record_test.mrc", "r");
-    BinaryMarcReader reader(&input);
-    MarcRecord record(reader.read());
+    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
+    MARC::Record record(reader->read());
 
-    std::unordered_set<MarcTag> tags;
-    tags.emplace("LOK");
+    auto field_iter(record.findTag("LOK"));
+    while (field_iter != record.end())
+        field_iter = record.erase(field_iter);
 
-    record.filterTags(tags);
-
-    std::vector<std::pair<size_t, size_t>> local_blocks;
-    size_t count(record.findAllLocalDataBlocks(&local_blocks));
-    BOOST_CHECK_EQUAL(count, 0);
-}
-
-
-TEST(getLanguage) {
-    MarcRecord emptyRecord;
-    BOOST_CHECK_EQUAL(emptyRecord.getLanguage("not found"), "not found");
-    BOOST_CHECK_EQUAL(emptyRecord.getLanguage(), "ger");
-
-    File input("data/marc_record_test.mrc", "r");
-    BinaryMarcReader reader(&input);
-    MarcRecord record(reader.read());
-    BOOST_CHECK_EQUAL(record.getLanguage("not found"), "ger");
-    BOOST_CHECK_EQUAL(record.getLanguage(), "ger");
+    std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> local_blocks;
+    const size_t count(record.findAllLocalDataBlocks(&local_blocks));
+    CHECK_EQ(count, 0);
 }
 
 
 TEST(getLanguageCode) {
-    MarcRecord emptyRecord;
-    BOOST_CHECK_EQUAL(emptyRecord.getLanguageCode(), "");
+    MARC::Record emptyRecord(MARC::Record::LANGUAGE_MATERIAL, MARC::Record::MONOGRAPHIC_COMPONENT_PART);
+    CHECK_NE(MARC::GetLanguageCode(emptyRecord), "not found");
+    CHECK_EQ(MARC::GetLanguageCode(emptyRecord), "");
 
-    File input("data/marc_record_test.mrc", "r");
-    BinaryMarcReader reader(&input);
-    MarcRecord record(reader.read());
-    BOOST_CHECK_EQUAL(record.getLanguageCode(), "ger");
+    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
+    MARC::Record record(reader->read());
+    CHECK_NE(MARC::GetLanguageCode(record), "not found");
+    CHECK_EQ(MARC::GetLanguageCode(record), "ger");
 }
+
+
+TEST_MAIN(MARC::Record)
