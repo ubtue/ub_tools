@@ -34,7 +34,7 @@ static unsigned success_count, failure_count;
 
 
 #define TEST_MAIN(name)                                                        \
-    int main() {                                                               \
+    int main(int /*argc*/, char *argv[]) {                                     \
         ::progname = argv[0];                                                  \
         std::cerr << "*** " << #name << " ***\n";                              \
         for (const auto &func_and_name : tests) {                              \
