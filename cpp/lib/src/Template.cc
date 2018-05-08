@@ -31,6 +31,7 @@
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
+#include "UrlUtil.h"
 #include "util.h"
 
 
@@ -605,10 +606,70 @@ void SkipToToken(TemplateScanner * const scanner, TemplateScanner::TokenType tar
 }
 
 
+class LengthFunc : public Function {
+    const Map &names_to_values_map_;
+public:
+    explicit LengthFunc(const Map &names_to_values_map)
+        : Function("Length", { Function::ArgDesc("vector-valued variable name") }), names_to_values_map_(names_to_values_map) { }
+    virtual std::string call(const std::vector<std::string> &arguments) final;
+};
+
+
+std::string LengthFunc::call(const std::vector<std::string> &arguments) {
+    if (arguments.size() != 1)
+        throw std::invalid_argument(name_ + " must be called w/ precisely one argument!");
+
+    for (const auto &name_and_values : names_to_values_map_) {
+        if (name_and_values.first == arguments[0])
+            return std::to_string(name_and_values.second->size());
+    }
+
+    throw std::invalid_argument("argument to " + name_ + " must be a known variable name!");
+}
+
+
+class UrlEncodeFunc : public Function {
+    const Map &names_to_values_map_;
+public:
+    explicit UrlEncodeFunc(const Map &names_to_values_map)
+        : Function("UrlEncode", { Function::ArgDesc("scalar-valued variable name") }), names_to_values_map_(names_to_values_map) { }
+    virtual std::string call(const std::vector<std::string> &arguments) final;
+};
+
+
+std::string UrlEncodeFunc::call(const std::vector<std::string> &arguments) {
+    if (arguments.size() != 1)
+        throw std::invalid_argument(name_ + " must be called w/ precisely one argument!");
+
+    for (const auto &name_and_values : names_to_values_map_) {
+        if (name_and_values.first == arguments[0]) {
+            const ScalarValue * const scalar_value(dynamic_cast<const ScalarValue * const>(name_and_values.second.get()));
+            if (scalar_value == nullptr)
+                throw std::invalid_argument("argument to " + name_ + " must be a scalar!");
+            return UrlUtil::UrlEncode(scalar_value->getValue());
+        }
+    }
+
+    throw std::invalid_argument("argument to " + name_ + " must be a known variable name!");
+}
+
+
+/*
+bool IsFunctionName(const std::string &name, const std::vector<Function *> &functions) {
+    for (auto func : functions) {
+        if (func->getName() == name)
+            return true;
+    }
+
+    return false;
+}
+*/
+
+
 } // unnamed namespace
 
 
-void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_to_values_map) {
+void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_to_values_map, const std::vector<Function *> &/*functions*/) {
     TemplateScanner scanner(input, output);
     std::vector<Scope> scopes;
     scopes.push_back(Scope::MakeTopLevelScope());
@@ -696,10 +757,10 @@ void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_
 }
 
 
-std::string ExpandTemplate(const std::string &template_string, const Map &names_to_values_map) {
+std::string ExpandTemplate(const std::string &template_string, const Map &names_to_values_map, const std::vector<Function *> &functions) {
     std::istringstream input(template_string);
     std::ostringstream expanded_template;
-    ExpandTemplate(input, expanded_template, names_to_values_map);
+    ExpandTemplate(input, expanded_template, names_to_values_map, functions);
     return expanded_template.str();
 }
 
