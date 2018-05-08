@@ -26,6 +26,7 @@
 #include <utility>
 #include <vector>
 #include <cstdlib>
+#include "util.h"
 
 
 static std::vector<std::pair<void (*)(), std::string>> tests;
@@ -34,8 +35,9 @@ static unsigned success_count, failure_count;
 
 #define TEST_MAIN(name)                                                        \
     int main() {                                                               \
+        ::progname = argv[0];                                                  \
         std::cerr << "*** " << #name << " ***\n";                              \
-        for (const auto &func_and_name : tests) {                                     \
+        for (const auto &func_and_name : tests) {                              \
             std::cerr << "Calling test \"" << func_and_name.second << "\".\n"; \
             func_and_name.first();                                             \
         }                                                                      \
