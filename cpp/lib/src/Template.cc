@@ -60,6 +60,16 @@ const Value *ArrayValue::getValueAt(const size_t index) const {
 namespace {
 
 
+bool IsFunctionName(const std::string &name, const std::vector<Function *> &functions) {
+    for (auto func : functions) {
+        if (func->getName() == name)
+            return true;
+    }
+
+    return false;
+}
+
+
 class TemplateScanner {
     std::string last_variable_name_, last_string_constant_, last_error_message_;
     unsigned line_no_;
@@ -68,12 +78,14 @@ class TemplateScanner {
     std::string::const_iterator ch_;
     const std::string::const_iterator end_;
     bool in_syntax_;
+    const std::vector<Function *> &functions_;
+
 public:
-    enum TokenType { END_OF_INPUT, IF, ELSE, ENDIF, DEFINED, LOOP, ENDLOOP, VARIABLE_NAME, OPEN_PAREN, CLOSE_PAREN,
+    enum TokenType { END_OF_INPUT, IF, ELSE, ENDIF, DEFINED, LOOP, ENDLOOP, VARIABLE_NAME, FUNCTION_NAME, OPEN_PAREN, CLOSE_PAREN,
                      COMMA, EQUALS, NOT_EQUALS, STRING_CONSTANT, AND, OR, END_OF_SYNTAX, ERROR };
 public:
-    TemplateScanner(std::istream &input, std::ostream &output)
-        : line_no_(1), input_(input), output_(output), in_syntax_(false) { }
+    TemplateScanner(std::istream &input, std::ostream &output, const std::vector<Function *> &functions)
+        : line_no_(1), input_(input), output_(output), in_syntax_(false), functions_(functions) { }
 
     /** If "emit_output" non-syntax elements of the input will be copied to the output. */
     TokenType getToken(const bool emit_output);
@@ -100,7 +112,7 @@ public:
     /** \return A string representation of "token". */
     static std::string TokenTypeToString(const TokenType token);
 private:
-    std::string extractKeywordCandidate();
+    std::string extractKeywordOrFunctionNameCandidate();
     std::string extractVariableName();
     void extractStringConstant();
 
@@ -156,11 +168,17 @@ TemplateScanner::TokenType TemplateScanner::getToken(const bool emit_output) {
 
             if (ch >= 'A' and ch <= 'Z') {
                 input_.unget();
-                const std::string keyword_candidate(extractKeywordCandidate());
-                const TokenType token(MapStringToKeywordToken(keyword_candidate));
-                if (unlikely(token == ERROR))
-                    last_error_message_ = "unknown keyword " + keyword_candidate + " on line "
+                const std::string keyword_or_function_name_candidate(extractKeywordOrFunctionNameCandidate());
+                const TokenType token(MapStringToKeywordToken(keyword_or_function_name_candidate));
+                if (unlikely(token == ERROR)) {
+                    if (IsFunctionName(keyword_or_function_name_candidate, functions_)) {
+                        last_variable_name_ = keyword_or_function_name_candidate;
+                        return FUNCTION_NAME;
+                    }
+
+                    last_error_message_ = "unknown keyword/function name " + keyword_or_function_name_candidate + " on line "
                                           + std::to_string(line_no_);
+                }
                 return token;
             } else if (ch >= 'a' and ch <= 'z') {
                 input_.unget();
@@ -182,14 +200,14 @@ TemplateScanner::TokenType TemplateScanner::getToken(const bool emit_output) {
 }
 
 
-std::string TemplateScanner::extractKeywordCandidate() {
-    std::string keyword_candidate;
+std::string TemplateScanner::extractKeywordOrFunctionNameCandidate() {
+    std::string keyword_or_function_name_candidate;
     int ch;
-    while (ch = input_.get(), ch >= 'A' and ch <= 'Z')
-        keyword_candidate += static_cast<char>(ch);
+    while (ch = input_.get(), (ch >= 'A' and ch <= 'Z') or (ch >= 'a' and ch <= 'z'))
+        keyword_or_function_name_candidate += static_cast<char>(ch);
     input_.unget();
 
-    return keyword_candidate;
+    return keyword_or_function_name_candidate;
 }
 
 
@@ -226,6 +244,8 @@ std::string TemplateScanner::TokenTypeToString(const TemplateScanner::TokenType 
         return "ENDLOOP";
     case VARIABLE_NAME:
         return "VARIABLE_NAME";
+    case FUNCTION_NAME:
+        return "FUNCTION_NAME";
     case OPEN_PAREN:
         return "OPEN_PAREN";
     case CLOSE_PAREN:
@@ -416,7 +436,7 @@ const Value *GetArrayValue(const std::vector<Scope> &active_scopes, const std::s
     return value;
 }
 
-    
+
 // Returns true, if "variable_name" exists and can be accessed as a scalar based on the current scope.
 bool GetScalarValue(const std::string &variable_name, const Map &names_to_values_map,
                     const std::vector<Scope> &active_scopes, std::string * const value)
@@ -654,23 +674,15 @@ std::string UrlEncodeFunc::call(const std::vector<std::string> &arguments) {
 }
 
 
-/*
-bool IsFunctionName(const std::string &name, const std::vector<Function *> &functions) {
-    for (auto func : functions) {
-        if (func->getName() == name)
-            return true;
-    }
-
-    return false;
-}
-*/
-
-
 } // unnamed namespace
 
 
-void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_to_values_map, const std::vector<Function *> &/*functions*/) {
-    TemplateScanner scanner(input, output);
+void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_to_values_map, const std::vector<Function *> &functions) {
+    std::vector<Function *> all_functions(functions);
+    all_functions.emplace_back(new LengthFunc(names_to_values_map));
+    all_functions.emplace_back(new UrlEncodeFunc(names_to_values_map));
+
+    TemplateScanner scanner(input, output, all_functions);
     std::vector<Scope> scopes;
     scopes.push_back(Scope::MakeTopLevelScope());
 
