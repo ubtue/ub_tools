@@ -2,7 +2,7 @@
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -17,79 +17,58 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#define BOOST_TEST_MODULE MarcRecord
-#define BOOST_TEST_DYN_LINK
-
-
 #include <iostream>
 #include <string>
 #include <vector>
 #include <cstdlib>
-#include <boost/test/unit_test.hpp>
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
+#include "UnitTest.h"
 
 
 TEST(binary_read_write_compare) {
-    File input("data/default.mrc", "rb");
-    File output("/tmp/default.out.mrc", "wb");
-    BinaryMarcReader reader(&input);
-    MarcRecord record(reader.read());
-    BinaryMarcWriter writer(&output);
-    writer.write(record);
-    std::cout << ("marc_compare " + input.getPath() + " " + output.getPath()) << "\n";
-    output.close();
+    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/default.mrc"));
+    MARC::Record record(reader->read());
+    std::unique_ptr<MARC::Writer> writer(MARC::Writer::Factory("/tmp/default.out.mrc"));
+    writer->write(record);
 
-    int return_value(std::system(("marc_compare " + input.getPath() + " " + output.getPath()).c_str()));
-    BOOST_CHECK_EQUAL(return_value, 0);
+    std::cout << ("marc_compare " + reader->getPath() + " " + writer->getFile().getPath()) << "\n";
+    writer->flush();
+
+    const int return_value(std::system(("marc_compare " + reader->getPath() + " " + writer->getFile().getPath()).c_str()));
+    CHECK_EQ(return_value, 0);
 }
-
-
-/*
-TEST(xml_read_write_compare) {
-    File input("data/default.xml", "r");
-    File output("/tmp/default.out.xml", "w");
-    XmlMarcReader reader(&input);
-    MarcRecord record(reader.read());
-    XmlMarcWriter writer(&output);
-    writer.write(record);
-    std::cout << ("marc_compare " + input.getPath() + " " + output.getPath()) << "\n";
-    output.close();
-
-    int return_value(std::system(("marc_compare " + input.getPath() + " " + output.getPath()).c_str()));
-    BOOST_CHECK_EQUAL(return_value, 0);
-}
-*/
 
 
 TEST(binary_large_record) {
-    File input("data/default.mrc", "rb");
-    File output("/tmp/default.out.mrc", "wb");
-    BinaryMarcReader reader(&input);
-    MarcRecord record(reader.read());
+    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/default.mrc"));
+    MARC::Record record(reader->read());
 
-    Subfields subfields(' ', ' ');
+    MARC::Subfields subfields;
     subfields.addSubfield('a', "This is a test string.");
     subfields.addSubfield('b', "This is a test string.");
     subfields.addSubfield('c', "This is a test string.");
     subfields.addSubfield('d', "This is a test string.");
 
     const size_t NUMBER_OF_FIELDS_TO_ADD(3000);
-    for (size_t i = 0; i < NUMBER_OF_FIELDS_TO_ADD; ++i)
-        record.insertField("TST", subfields.toString());
+    for (size_t i(0); i < NUMBER_OF_FIELDS_TO_ADD; ++i)
+        record.insertField("TST", subfields);
 
-    BinaryMarcWriter writer(&output);
-    writer.write(record);
-    output.close();
+    std::unique_ptr<MARC::Writer> writer(MARC::Writer::Factory("/tmp/default.out.mrc"));
+    writer->write(record);
+    writer.reset();
 
-    File new_input("/tmp/default.out.mrc", "r");
-    BinaryMarcReader new_reader(&input);
-    MarcRecord new_record(new_reader.read());
+    std::unique_ptr<MARC::Reader> new_reader(MARC::Reader::Factory("/tmp/default.out.mrc"));
+    MARC::Record new_record(new_reader->read());
 
-    std::vector<std::string> values;
-    new_record.extractSubfield("TST", 'a', &values);
+    unsigned subfield_a_count(0);
+    for (const auto &tst_field : new_record.getTagRange("TST")) {
+        if (tst_field.getSubfields().hasSubfieldWithValue('a', "This is a test string."))
+            ++subfield_a_count;
+    }
+
     std::cout << "-> " << new_record.getNumberOfFields() << "\n";
-    BOOST_CHECK_EQUAL(values.size(), NUMBER_OF_FIELDS_TO_ADD);
+    CHECK_EQ(subfield_a_count, NUMBER_OF_FIELDS_TO_ADD);
 }
+
+
+TEST_MAIN(MarcReaderAndWriter)
