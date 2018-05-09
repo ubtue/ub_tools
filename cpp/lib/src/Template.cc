@@ -445,28 +445,38 @@ const Value *GetArrayValue(const std::vector<Scope> &active_scopes, const std::s
 }
 
 
+// Returns NULL if "variable_name" does not exists or the value as seen within the active scope.
+const Value *GetScopedValue(const std::string &variable_name, const Map &names_to_values_map,
+                            const std::vector<Scope> &active_scopes)
+{
+    const auto &name_and_values(names_to_values_map.find(variable_name));
+    if (name_and_values == names_to_values_map.end())
+        return nullptr;
+
+    // If we have a scalar we have no problem:
+    if (ScalarValue *scalar = dynamic_cast<ScalarValue *>(name_and_values->second.get()))
+        return scalar;
+
+    // Now deal w/ multivalued variables:
+    return GetArrayValue(active_scopes, variable_name, name_and_values->second.get());
+}
+
+
 // Returns true, if "variable_name" exists and can be accessed as a scalar based on the current scope.
 bool GetScalarValue(const std::string &variable_name, const Map &names_to_values_map,
                     const std::vector<Scope> &active_scopes, std::string * const value)
 {
-    const auto &name_and_values(names_to_values_map.find(variable_name));
-    if (name_and_values == names_to_values_map.end())
+    const Value *scoped_value(GetScopedValue(variable_name, names_to_values_map, active_scopes));
+    if (scoped_value == nullptr)
         return false;
 
     // If we have a scalar we have no problem:
-    if (ScalarValue *scalar = dynamic_cast<ScalarValue *>(name_and_values->second.get())) {
+    if (const ScalarValue *scalar = dynamic_cast<const ScalarValue *>(scoped_value)) {
         *value = scalar->getValue();
         return true;
     }
 
-    // Now deal w/ multivalued variables:
-    const Value * const array_entry(GetArrayValue(active_scopes, variable_name, name_and_values->second.get()));
-    const ScalarValue * const array_entry_as_scalar(dynamic_cast<const ScalarValue * const>(array_entry));
-    if (unlikely(array_entry_as_scalar == nullptr))
-        return false;
-    *value = array_entry_as_scalar->getValue();
-    return true;
-
+    // If we get here, "value" is array-valued.
     return false;
 }
 
@@ -622,7 +632,7 @@ void ParseFunctionCall(TemplateScanner * const scanner, const Map &names_to_valu
                            + ": expected opening parenthesis after function name!");
 
     // Collect the function arguments:
-    std::vector<std::string> args;
+    std::vector<const Value *> args;
     for (;;) {
         token = scanner->getToken(emit_output);
         if (token == TemplateScanner::CLOSE_PAREN) {
@@ -632,12 +642,12 @@ void ParseFunctionCall(TemplateScanner * const scanner, const Map &names_to_valu
                                      + ": unexpected closing parenthesis in function call!");
         } else if (token == TemplateScanner::VARIABLE_NAME) {
             const std::string &variable_name(scanner->getLastVariableName());
-            std::string variable_value;
-            if (not GetScalarValue(variable_name, names_to_values_map, active_scopes, &variable_value))
+            const Value *value(GetScopedValue(variable_name, names_to_values_map, active_scopes));
+            if (value == nullptr)
                 throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
                                          + ": function argument variable \"" + variable_name
-                                         + " is either not a scalar or not in a scalar context!");
-            args.emplace_back(variable_value);
+                                         + " is not a known variable!");
+            args.emplace_back(value);
         } else
             throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
                                      + ": unexpected junk in function call! (1)");
@@ -678,50 +688,38 @@ void SkipToToken(TemplateScanner * const scanner, TemplateScanner::TokenType tar
 
 
 class LengthFunc : public Function {
-    const Map &names_to_values_map_;
 public:
-    explicit LengthFunc(const Map &names_to_values_map)
-        : Function("Length", { Function::ArgDesc("vector-valued variable name") }), names_to_values_map_(names_to_values_map) { }
-    virtual std::string call(const std::vector<std::string> &arguments) const final;
+    explicit LengthFunc()
+        : Function("Length", { Function::ArgDesc("vector-valued variable name") }) { }
+    virtual std::string call(const std::vector<const Value *> &arguments) const final;
 };
 
 
-std::string LengthFunc::call(const std::vector<std::string> &arguments) const {
+std::string LengthFunc::call(const std::vector<const Value *> &arguments) const {
     if (arguments.size() != 1)
         throw std::invalid_argument(name_ + " must be called w/ precisely one argument!");
 
-    for (const auto &name_and_values : names_to_values_map_) {
-        if (name_and_values.first == arguments[0])
-            return std::to_string(name_and_values.second->size());
-    }
-
-    throw std::invalid_argument("argument to " + name_ + " must be a known variable name!");
+    return std::to_string(arguments[0]->size());
 }
 
 
 class UrlEncodeFunc : public Function {
-    const Map &names_to_values_map_;
 public:
-    explicit UrlEncodeFunc(const Map &names_to_values_map)
-        : Function("UrlEncode", { Function::ArgDesc("scalar-valued variable name") }), names_to_values_map_(names_to_values_map) { }
-    virtual std::string call(const std::vector<std::string> &arguments) const final;
+    explicit UrlEncodeFunc()
+        : Function("UrlEncode", { Function::ArgDesc("scalar-valued variable name") }) { }
+    virtual std::string call(const std::vector<const Value *> &arguments) const final;
 };
 
 
-std::string UrlEncodeFunc::call(const std::vector<std::string> &arguments) const {
+std::string UrlEncodeFunc::call(const std::vector<const Value *> &arguments) const {
     if (arguments.size() != 1)
         throw std::invalid_argument(name_ + " must be called w/ precisely one argument!");
 
-    for (const auto &name_and_values : names_to_values_map_) {
-        if (name_and_values.first == arguments[0]) {
-            const ScalarValue * const scalar_value(dynamic_cast<const ScalarValue * const>(name_and_values.second.get()));
-            if (scalar_value == nullptr)
-                throw std::invalid_argument("argument to " + name_ + " must be a scalar!");
-            return UrlUtil::UrlEncode(scalar_value->getValue());
-        }
-    }
+    const ScalarValue *scalar_value(dynamic_cast<const ScalarValue *>(arguments[0]));
+    if (scalar_value == nullptr)
+        throw std::invalid_argument("argument to " + name_ + " must be a scalar!");
 
-    throw std::invalid_argument("argument to " + name_ + " must be a known variable name!");
+    return UrlUtil::UrlEncode(scalar_value->getValue());
 }
 
 
@@ -730,8 +728,8 @@ std::string UrlEncodeFunc::call(const std::vector<std::string> &arguments) const
 
 void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_to_values_map, const std::vector<Function *> &functions) {
     std::vector<Function *> all_functions(functions);
-    all_functions.emplace_back(new LengthFunc(names_to_values_map));
-    all_functions.emplace_back(new UrlEncodeFunc(names_to_values_map));
+    all_functions.emplace_back(new LengthFunc());
+    all_functions.emplace_back(new UrlEncodeFunc());
 
     TemplateScanner scanner(input, output, all_functions);
     std::vector<Scope> scopes;
