@@ -33,16 +33,24 @@ namespace BSZUtil {
 // c.f. https://wiki.bsz-bw.de/doku.php?id=v-team:daten:datendienste:sekkor (20160426)
 const char FULL_RECORD_DELETE_INDICATORS[] = { 'A', 'B', 'C', 'D', 'E' };
 const char LOCAL_DATA_DELETE_INDICATORS[] = { '3', '4', '5', '9' };
-const size_t MIN_LINE_LENGTH = 21;
 
+/*
+ * The PPN length was increased from 9 to 10 in 2018.
+ * The 10th character can optionally be a whitespace
+ */
+const size_t MAX_LINE_LENGTH_OLD_WITH_ILN = 25;
+const size_t MAX_LINE_LENGTH_OLD_NO_ILN = 21;
+const size_t MAX_LINE_LENGTH_NEW_WITH_ILN = 26;
+const size_t MAX_LINE_LENGTH_NEW_NO_ILN = 22;
+
+const size_t PPN_LENGTH_OLD = 9;
+const size_t PPN_LENGTH_NEW = 10;
+const size_t PPN_START_INDEX = 12;
+const size_t SEPARATOR_INDEX = PPN_START_INDEX - 1;
 
 void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const delete_full_record_ids,
                         std::unordered_set <std::string> * const local_deletion_ids)
 {
-    const size_t PPN_LENGTH(9);
-    const size_t PPN_START_INDEX(12);
-    const size_t SEPARATOR_INDEX(PPN_START_INDEX - 1);
-
     unsigned line_no(0);
 top_loop:
     while (not deletion_list->eof()) {
@@ -50,26 +58,46 @@ top_loop:
         ++line_no;
         if (unlikely(line.empty())) // Ignore empty lines.
             continue;
-        if (line.length() < PPN_START_INDEX)
-            logger->error("short line " + std::to_string(line_no) + " in deletion list file \""
-                          + deletion_list->getPath() + "\": \"" + line + "\"!");
+
+        const size_t line_len = line.length();
+        size_t ppn_len = 0;
+
+        if (line_len == MAX_LINE_LENGTH_OLD_WITH_ILN or line_len == MAX_LINE_LENGTH_OLD_NO_ILN)
+            ppn_len = PPN_LENGTH_OLD;
+        else if (line_len == MAX_LINE_LENGTH_NEW_WITH_ILN or line_len == MAX_LINE_LENGTH_NEW_NO_ILN)
+            ppn_len = PPN_LENGTH_NEW;
+        else {
+            LOG_WARNING("unexpected line length " + std::to_string(line_len)
+                                  + " for entry on line " + std::to_string(line_no)
+                                  + " in deletion list file \"" + deletion_list->getPath() + "\"!");
+            ppn_len = PPN_LENGTH_OLD;       // fallback to the more conservation of the two lengths
+        }
+        
         for (const char indicator : FULL_RECORD_DELETE_INDICATORS) {
             if (line[SEPARATOR_INDEX] == indicator) {
-                delete_full_record_ids->insert(line.substr(PPN_START_INDEX)); // extract PPN
+                if (line_len != MAX_LINE_LENGTH_OLD_NO_ILN and line_len != MAX_LINE_LENGTH_NEW_NO_ILN) {
+                    LOG_ERROR("unexpected line length " + std::to_string(line_len)
+                                  + " for non-local entry on line " + std::to_string(line_no)
+                                  + " in deletion list file \"" + deletion_list->getPath() + "\"!");
+                }
+                
+                delete_full_record_ids->insert(StringUtil::Trim(line.substr(PPN_START_INDEX, ppn_len)));
                 goto top_loop;
             }
         }
         for (const char indicator : LOCAL_DATA_DELETE_INDICATORS) {
             if (line[SEPARATOR_INDEX] == indicator) {
-                if (line.length() < MIN_LINE_LENGTH)
-                    logger->error("unexpected line length " + std::to_string(line.length())
+                if (line_len != MAX_LINE_LENGTH_OLD_WITH_ILN and line_len != MAX_LINE_LENGTH_NEW_WITH_ILN) {
+                    LOG_ERROR("unexpected line length " + std::to_string(line_len)
                                   + " for local entry on line " + std::to_string(line_no)
                                   + " in deletion list file \"" + deletion_list->getPath() + "\"!");
-                local_deletion_ids->insert(line.substr(PPN_START_INDEX, PPN_LENGTH)); // extract ELN
+                }
+
+                local_deletion_ids->insert(StringUtil::Trim(line.substr(PPN_START_INDEX, ppn_len)));
                 goto top_loop;
             }
         }
-        logger->warning("in \"" + deletion_list->getPath() + " \" on line #" + std::to_string(line_no)
+        LOG_WARNING("in \"" + deletion_list->getPath() + " \" on line #" + std::to_string(line_no)
                         + " unknown indicator: '" + line.substr(SEPARATOR_INDEX, 1) + "'!");
     }
 }
@@ -82,12 +110,12 @@ std::string ExtractDateFromFilenameOrDie(const std::string &filename) {
         std::string err_msg;
         matcher = RegexMatcher::RegexMatcherFactory(DATE_EXTRACTION_REGEX, &err_msg);
         if (unlikely(not err_msg.empty()))
-            logger->error("in ExtractDateFromFilenameOrDie: failed to compile regex: \"" + DATE_EXTRACTION_REGEX
+            LOG_ERROR("in ExtractDateFromFilenameOrDie: failed to compile regex: \"" + DATE_EXTRACTION_REGEX
                           + "\".");
     }
 
     if (unlikely(not matcher->matched(filename)))
-        logger->error("in ExtractDateFromFilenameOrDie: \"" + filename + "\" failed to match the regex \""
+        LOG_ERROR("in ExtractDateFromFilenameOrDie: \"" + filename + "\" failed to match the regex \""
                       + DATE_EXTRACTION_REGEX + "\"!");
 
     return (*matcher)[1];
