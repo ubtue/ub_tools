@@ -69,10 +69,12 @@ const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTE
     { "tei", "tei" },
     { "wikipedia", "wikipedia" }
 };
-std::multimap<std::string, std::string> cgi_args;
 
 
-std::string GetCGIParameterOrDefault(const std::string &parameter_name, const std::string &default_value = "") {
+std::string GetCGIParameterOrDefault(std::multimap<std::string, std::string> &cgi_args,
+                                     const std::string &parameter_name,
+                                     const std::string &default_value = "")
+{
     const auto key_and_value(cgi_args.find(parameter_name));
     if (key_and_value == cgi_args.cend())
         return default_value;
@@ -90,7 +92,7 @@ std::string GetMinElementOrDefault(const std::vector<std::string> &elements, con
 }
 
 
-void ParseConfigFile(Template::Map * const names_to_values_map) {
+void ParseConfigFile(std::multimap<std::string, std::string> &cgi_args, Template::Map * const names_to_values_map) {
     IniFile ini(ZTS_HARVESTER_CONF_FILE);
 
     std::vector<std::string> all_journal_titles;
@@ -163,9 +165,9 @@ void ParseConfigFile(Template::Map * const names_to_values_map) {
     names_to_values_map->insertArray("crawling_depths", crawling_depths);
 
     const std::string first_crawling_journal_title(GetMinElementOrDefault(crawling_journal_titles));
-    names_to_values_map->insertScalar("selected_crawling_journal_title", GetCGIParameterOrDefault("crawling_journal_title", first_crawling_journal_title));
+    names_to_values_map->insertScalar("selected_crawling_journal_title", GetCGIParameterOrDefault(cgi_args, "crawling_journal_title", first_crawling_journal_title));
     const std::string first_rss_journal_title(GetMinElementOrDefault(rss_journal_titles));
-    names_to_values_map->insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault("rss_journal_title", first_rss_journal_title));
+    names_to_values_map->insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault(cgi_args, "rss_journal_title", first_rss_journal_title));
 }
 
 
@@ -225,10 +227,10 @@ void UpdateRuntime(unsigned seconds) {
 class CrawlingTask {
 public:
     /** \brief struct representing contents of zts_client progress file.
-     *  \note  if the process has not written the file yet, exists_ will be false.
+     *  \note  if the process has not written the file yet, file_exists_ will be false.
      */
     struct Progress {
-        bool exists_ = false;
+        bool file_exists_ = false;
         unsigned processed_url_count_;
         unsigned remaining_depth_;
         std::string current_url_;
@@ -243,21 +245,24 @@ private:
     pid_t pid_;
 public:
     CrawlingTask(const std::string &url_base, const std::string &url_regex, const unsigned depth, const std::string &output_format);
+
     /** \brief get shell command including args (for debug output) */
     inline const std::string &getCommand() const { return command_; }
+
     /** \brief get path to out file with harvested records */
     inline const std::string &getOutPath() const { return out_path_; }
+
     /** \brief get path log file with stdout/stderr output */
     inline const std::string &getLogPath() const { return log_path_; }
     inline pid_t getPid() const { return pid_; }
+
     /** \brief parse progress file */
     Progress getProgress() const;
 private:
     /** \brief write config file for zts_client */
     void writeConfigFile(const std::string &file_cfg, const std::string &url_base, const std::string &url_regex, const unsigned depth);
-    /** \brief spawn zts_client instance */
-    void executeCommand(const std::string &cfg_path, const std::string &dir_maps,
-                        const std::string &output_format);
+    void executeTask(const std::string &cfg_path, const std::string &dir_maps,
+                     const std::string &output_format);
 };
 
 
@@ -271,7 +276,7 @@ CrawlingTask::Progress CrawlingTask::getProgress() const {
 
         // check size, file might be empty the first few attempts
         if (progress_values.size() == 3) {
-            progress.exists_ = true;
+            progress.file_exists_ = true;
             progress.processed_url_count_ = StringUtil::ToUnsigned(progress_values[0]);
             progress.remaining_depth_ = StringUtil::ToUnsigned(progress_values[1]);
             progress.current_url_ = progress_values[2];
@@ -289,8 +294,8 @@ void CrawlingTask::writeConfigFile(const std::string &file_cfg, const std::strin
 }
 
 
-void CrawlingTask::executeCommand(const std::string &cfg_path, const std::string &dir_maps,
-                                  const std::string &output_format)
+void CrawlingTask::executeTask(const std::string &cfg_path, const std::string &dir_maps,
+                               const std::string &output_format)
 {
     progress_path_ = dir_maps + "/progress";
     std::vector<std::string> args;
@@ -320,7 +325,7 @@ CrawlingTask::CrawlingTask(const std::string &url_base, const std::string &url_r
     const std::string file_cfg(auto_temp_dir_.getDirectoryPath() + "/config.cfg");
 
     writeConfigFile(file_cfg, url_base, url_regex, depth);
-    executeCommand(file_cfg, local_maps_directory, output_format);
+    executeTask(file_cfg, local_maps_directory, output_format);
 }
 
 
@@ -334,20 +339,22 @@ class RssTask {
     std::string output_;
 public:
     RssTask(const std::string &url_rss, const std::string &output_format_id);
+
     /** \brief get shell command including args (for debug output) */
     inline const std::string &getCommand() const { return command_; }
     int getExitCode() const { return exit_code_; }
+
     /** \brief get path to out file with harvested records */
     inline const std::string &getOutPath() const { return out_path_; }
+
     /** \brief get stdout/stderr output */
     inline const std::string &getOutput() const { return output_; }
 private:
-    /** \brief execute rss_harvester */
-    void executeCommand(const std::string &rss_url_file, const std::string &map_dir);
+    void executeTask(const std::string &rss_url_file, const std::string &map_dir);
 };
 
 
-void RssTask::executeCommand(const std::string &rss_url_file, const std::string &map_dir) {
+void RssTask::executeTask(const std::string &rss_url_file, const std::string &map_dir) {
     std::vector<std::string> args;
     args.emplace_back("--test");
     args.emplace_back(rss_url_file);
@@ -371,12 +378,12 @@ RssTask::RssTask(const std::string &url_rss, const std::string &output_format_id
         out_path_ = auto_temp_dir_.getDirectoryPath() + "/output." + file_extension;
         const std::string file_cfg(auto_temp_dir_.getDirectoryPath() + "/config.cfg");
         FileUtil::WriteString(file_cfg, url_rss);
-        executeCommand(file_cfg, local_maps_directory);
+        executeTask(file_cfg, local_maps_directory);
     }
 
 
-void ProcessDownloadAction() {
-    const std::string path(GetCGIParameterOrDefault("id"));
+void ProcessDownloadAction(std::multimap<std::string, std::string> &cgi_args) {
+    const std::string path(GetCGIParameterOrDefault(cgi_args, "id"));
 
     if (StringUtil::EndsWith(path, ".xml", /*ignore_case*/ true))
         std::cout << "Content-Type: application/xml; charset=utf-8\r\n\r\n";
@@ -387,11 +394,11 @@ void ProcessDownloadAction() {
 }
 
 
-void ProcessRssAction() {
+void ProcessRssAction(std::multimap<std::string, std::string> &cgi_args) {
     std::cout << "<h2>RSS Result</h2>\r\n";
     std::cout << "<table>\r\n";
 
-    const RssTask rss_task(GetCGIParameterOrDefault("rss_feed_url"), GetCGIParameterOrDefault("rss_output_format"));
+    const RssTask rss_task(GetCGIParameterOrDefault(cgi_args, "rss_feed_url"), GetCGIParameterOrDefault(cgi_args, "rss_output_format"));
 
     std::cout << "<tr><td>Command</td><td>" + rss_task.getCommand() + "</td></tr>\r\n";
 
@@ -408,12 +415,12 @@ void ProcessRssAction() {
 }
 
 
-void ProcessCrawlingAction() {
+void ProcessCrawlingAction(std::multimap<std::string, std::string> &cgi_args) {
     std::cout << "<h2>Crawling Result</h2>\r\n";
     std::cout << "<table>\r\n";
 
-    const CrawlingTask crawling_task(GetCGIParameterOrDefault("crawling_base_url"), GetCGIParameterOrDefault("crawling_extraction_regex"),
-                                     StringUtil::ToUnsigned(GetCGIParameterOrDefault("crawling_depth")), GetCGIParameterOrDefault("crawling_output_format"));
+    const CrawlingTask crawling_task(GetCGIParameterOrDefault(cgi_args, "crawling_base_url"), GetCGIParameterOrDefault(cgi_args, "crawling_extraction_regex"),
+                                     StringUtil::ToUnsigned(GetCGIParameterOrDefault(cgi_args, "crawling_depth")), GetCGIParameterOrDefault(cgi_args, "crawling_output_format"));
 
     std::cout << "<tr><td>Command</td><td>" + crawling_task.getCommand() + "</td></tr>\r\n";
     std::cout << "<tr><td>Runtime</td><td id=\"runtime\"></td></tr>\r\n";
@@ -432,9 +439,9 @@ void ProcessCrawlingAction() {
         UpdateRuntime(static_cast<unsigned>(timer.getTime()));
         timer.start();
         progress = crawling_task.getProgress();
-        if (progress.exists_ and progress.current_url_ != progress_old.current_url_) {
+        if (progress.file_exists_ and progress.current_url_ != progress_old.current_url_) {
             std::string progress_string("Current URL: <a target=\"_blank\" href=\"" + progress.current_url_ + "\">" + progress.current_url_ + "</a><br/>\r\n");
-            progress_string += "Current Depth: " + std::to_string(StringUtil::ToUnsigned(GetCGIParameterOrDefault("crawling_depth")) - progress.remaining_depth_) + "<br/>\r\n";
+            progress_string += "Current Depth: " + std::to_string(StringUtil::ToUnsigned(GetCGIParameterOrDefault(cgi_args, "crawling_depth")) - progress.remaining_depth_) + "<br/>\r\n";
             progress_string += "Processed URL count: " + std::to_string(progress.processed_url_count_) + "<br/>\r\n";
             UpdateProgress(progress_string);
             progress_old = progress;
@@ -471,12 +478,13 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     try {
+        std::multimap<std::string, std::string> cgi_args;
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
         const std::string default_action("list");
-        const std::string action(GetCGIParameterOrDefault("action", default_action));
+        const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));
 
         if (action == "download")
-            ProcessDownloadAction();
+            ProcessDownloadAction(cgi_args);
         else {
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
 
@@ -491,22 +499,22 @@ int main(int argc, char *argv[]) {
             FileUtil::ReadString(TEMPLATE_DIRECTORY + "scripts.js", &scripts_js);
             names_to_values_map.insertScalar("scripts_js", scripts_js);
 
-            const std::string depth(GetCGIParameterOrDefault("depth", "1"));
+            const std::string depth(GetCGIParameterOrDefault(cgi_args, "depth", "1"));
             names_to_values_map.insertScalar("depth", depth);
 
-            const std::string output_format_id(GetCGIParameterOrDefault("output_format_id"));
-            names_to_values_map.insertScalar("output_format_id", output_format_id);
+            const std::string selected_output_format_id(GetCGIParameterOrDefault(cgi_args, "output_format_id"));
+            names_to_values_map.insertScalar("selected_output_format_id", selected_output_format_id);
             names_to_values_map.insertArray("output_format_ids", GetOutputFormatIds());
 
             names_to_values_map.insertScalar("zotero_translation_server_url", zts_url);
-            std::ifstream template_html(TEMPLATE_DIRECTORY + "index.html", std::ios::binary);
-            ParseConfigFile(&names_to_values_map);
+            std::ifstream template_html(TEMPLATE_DIRECTORY + "index.html");
+            ParseConfigFile(cgi_args, &names_to_values_map);
             Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
 
             if (action == "rss")
-                ProcessRssAction();
+                ProcessRssAction(cgi_args);
             else if (action == "crawling")
-                ProcessCrawlingAction();
+                ProcessCrawlingAction(cgi_args);
             else if (action != default_action)
                 LOG_ERROR("invalid action: \"" + action + '"');
 
