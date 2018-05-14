@@ -73,8 +73,8 @@
                         <td>{all_journal_issns}</td>
                         <td>{all_journal_methods}</td>
                         <td>
-                            {IF all_journal_methods == "RSS"}<a href="#rss" onclick="tryRss('{all_journal_titles}')">try rss</a>{ENDIF}
-                            {IF all_journal_methods == "CRAWL"}<a href="#crawling" onclick="tryCrawling('{all_journal_titles}')">try crawl</a>{ENDIF}
+                            {IF all_journal_methods == "RSS"}<a href="#rss" onclick="TryRss('{all_journal_titles}')">try rss</a>{ENDIF}
+                            {IF all_journal_methods == "CRAWL"}<a href="#crawling" onclick="TryCrawling('{all_journal_titles}')">try crawl</a>{ENDIF}
                         </td>
                     </tr>
                 {ENDLOOP}
@@ -87,7 +87,7 @@
                 <tr>
                     <td>Journal</td>
                     <td>
-                        <select id="rss_journal_title" name="rss_journal_title" onchange="onChangeRssJournal()">
+                        <select id="rss_journal_title" name="rss_journal_title" onchange="OnChangeRssJournal()">
                             {LOOP rss_journal_titles}
                                 <option{IF rss_journal_titles == selected_rss_journal_title} selected{ENDIF}>{rss_journal_titles}</option>
                             {ENDLOOP}
@@ -128,7 +128,7 @@
             <table>
                 <tr><td>Journal</td>
                     <td>
-                        <select id="crawling_journal_title" name="crawling_journal_title" onchange="onChangeCrawlingJournal()">
+                        <select id="crawling_journal_title" name="crawling_journal_title" onchange="OnChangeCrawlingJournal()">
                             {LOOP crawling_journal_titles}
                                 <option{IF crawling_journal_titles == selected_crawling_journal_title} selected{ENDIF}>{crawling_journal_titles}</option>
                             {ENDLOOP}
@@ -178,7 +178,7 @@
     </div>
 </div>
 
-<script type="text/javascript">updateSelectionDetails();</script>
+<script type="text/javascript">UpdateSelectionDetails();</script>
 
 <!--
 end of body and html document will be written in cgi,
