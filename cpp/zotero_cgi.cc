@@ -42,10 +42,9 @@ namespace {
 
 std::string zts_client_maps_directory;
 std::string zts_url;
-//const std::string zts_url("http://localhost:1969");
-const std::string template_directory("/usr/local/var/lib/tuelib/zotero_cgi/");
-const std::string crawler_example_file("/usr/local/ub_tools/cpp/data/zotero_crawler.conf");
-const std::string zts_harvester_conf_file("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
+const std::string TEMPLATE_DIRECTORY("/usr/local/var/lib/tuelib/zotero_cgi/");
+const std::string CRAWLER_EXAMPLE_FILE("/usr/local/ub_tools/cpp/data/zotero_crawler.conf");
+const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
 std::multimap<std::string, std::string> cgi_args;
 const std::vector<std::pair<std::string,std::string>> output_format_ids_and_extensions = {
     // custom formats
@@ -70,8 +69,8 @@ const std::vector<std::pair<std::string,std::string>> output_format_ids_and_exte
 };
 
 
-void ParseConfigFile(Template::Map &names_to_values_map) {
-    IniFile ini(zts_harvester_conf_file);
+void ParseConfigFile(Template::Map * names_to_values_map) {
+    IniFile ini(ZTS_HARVESTER_CONF_FILE);
 
     std::vector<std::string> all_journal_titles;
     std::vector<std::string> all_journal_issns;
@@ -126,28 +125,28 @@ void ParseConfigFile(Template::Map &names_to_values_map) {
     if (zts_client_maps_directory.empty())
         LOG_ERROR("Zotero Mapping Directory not defined in config file!");
 
-    names_to_values_map.insertArray("all_journal_titles", all_journal_titles);
-    names_to_values_map.insertArray("all_journal_issns", all_journal_issns);
-    names_to_values_map.insertArray("all_journal_methods", all_journal_methods);
-    names_to_values_map.insertArray("all_urls", all_urls);
+    names_to_values_map->insertArray("all_journal_titles", all_journal_titles);
+    names_to_values_map->insertArray("all_journal_issns", all_journal_issns);
+    names_to_values_map->insertArray("all_journal_methods", all_journal_methods);
+    names_to_values_map->insertArray("all_urls", all_urls);
 
-    names_to_values_map.insertArray("rss_journal_titles", rss_journal_titles);
-    names_to_values_map.insertArray("rss_journal_issns", rss_journal_issns);
-    names_to_values_map.insertArray("rss_feed_urls", rss_feed_urls);
+    names_to_values_map->insertArray("rss_journal_titles", rss_journal_titles);
+    names_to_values_map->insertArray("rss_journal_issns", rss_journal_issns);
+    names_to_values_map->insertArray("rss_feed_urls", rss_feed_urls);
 
-    names_to_values_map.insertArray("crawling_journal_titles", crawling_journal_titles);
-    names_to_values_map.insertArray("crawling_journal_issns", crawling_journal_issns);
-    names_to_values_map.insertArray("crawling_base_urls", crawling_base_urls);
-    names_to_values_map.insertArray("crawling_extraction_regexes", crawling_extraction_regexes);
-    names_to_values_map.insertArray("crawling_depths", crawling_depths);
+    names_to_values_map->insertArray("crawling_journal_titles", crawling_journal_titles);
+    names_to_values_map->insertArray("crawling_journal_issns", crawling_journal_issns);
+    names_to_values_map->insertArray("crawling_base_urls", crawling_base_urls);
+    names_to_values_map->insertArray("crawling_extraction_regexes", crawling_extraction_regexes);
+    names_to_values_map->insertArray("crawling_depths", crawling_depths);
 }
 
 
 std::vector<std::string> GetOutputFormatIds() {
     std::vector<std::string> output_formats;
 
-    for (auto it = output_format_ids_and_extensions.begin(); it != output_format_ids_and_extensions.end(); it++)
-        output_formats.push_back(it->first);
+    for (auto output_format_ids_and_extension = output_format_ids_and_extensions.begin(); output_format_ids_and_extension != output_format_ids_and_extensions.end(); output_format_ids_and_extension++)
+        output_formats.push_back(output_format_ids_and_extension->first);
 
     return output_formats;
 }
@@ -436,11 +435,11 @@ int main(int argc, char *argv[]) {
             names_to_values_map.insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault("rss_journal_title"));
 
             std::string style_css;
-            FileUtil::ReadString(template_directory + "style.css", &style_css);
+            FileUtil::ReadString(TEMPLATE_DIRECTORY + "style.css", &style_css);
             names_to_values_map.insertScalar("style_css", style_css);
 
             std::string scripts_js;
-            FileUtil::ReadString(template_directory + "scripts.js", &scripts_js);
+            FileUtil::ReadString(TEMPLATE_DIRECTORY + "scripts.js", &scripts_js);
             names_to_values_map.insertScalar("scripts_js", scripts_js);
 
             const std::string depth(GetCGIParameterOrDefault("depth", "1"));
@@ -451,8 +450,8 @@ int main(int argc, char *argv[]) {
             names_to_values_map.insertArray("output_format_ids", GetOutputFormatIds());
 
             names_to_values_map.insertScalar("zotero_translation_server_url", zts_url);
-            std::ifstream template_html(template_directory + "index.html", std::ios::binary);
-            ParseConfigFile(names_to_values_map);
+            std::ifstream template_html(TEMPLATE_DIRECTORY + "index.html", std::ios::binary);
+            ParseConfigFile(&names_to_values_map);
             Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
 
             if (action == "rss")
