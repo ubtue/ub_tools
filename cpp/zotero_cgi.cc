@@ -42,11 +42,13 @@ namespace {
 
 std::string zts_client_maps_directory;
 std::string zts_url;
+enum HarvestType { RSS, CRAWLING };
+const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP = { { "RSS", static_cast<int>(RSS) },
+                                                                { "CRAWL", static_cast<HarvestType>(CRAWLING) } };
 const std::string TEMPLATE_DIRECTORY("/usr/local/var/lib/tuelib/zotero_cgi/");
 const std::string CRAWLER_EXAMPLE_FILE("/usr/local/ub_tools/cpp/data/zotero_crawler.conf");
 const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
-std::multimap<std::string, std::string> cgi_args;
-const std::vector<std::pair<std::string,std::string>> output_format_ids_and_extensions = {
+const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS = {
     // custom formats
     { "marcxml", "xml" },
     { "marc21", "mrc" },
@@ -67,6 +69,25 @@ const std::vector<std::pair<std::string,std::string>> output_format_ids_and_exte
     { "tei", "tei" },
     { "wikipedia", "wikipedia" }
 };
+std::multimap<std::string, std::string> cgi_args;
+
+
+std::string GetCGIParameterOrDefault(const std::string &parameter_name, const std::string &default_value = "") {
+    const auto key_and_value(cgi_args.find(parameter_name));
+    if (key_and_value == cgi_args.cend())
+        return default_value;
+
+    return key_and_value->second;
+}
+
+
+std::string GetMinElementOrDefault(const std::vector<std::string> &elements, const std::string &default_value = "") {
+    const auto min_element(std::min_element(elements.begin(), elements.end(), [](const std::string &a, const std::string &b){ return a < b; }));
+    if (unlikely(min_element == elements.end()))
+        return default_value;
+
+    return *min_element;
+}
 
 
 void ParseConfigFile(Template::Map * const names_to_values_map) {
@@ -95,20 +116,21 @@ void ParseConfigFile(Template::Map * const names_to_values_map) {
             zts_url = section.getString("zts_server_url");
             zts_client_maps_directory = section.getString("map_directory_path");
         } else {
-            const std::string type(section.getString("type"));
+            const HarvestType harvest_type(static_cast<HarvestType>(section.getEnum("type", STRING_TO_HARVEST_TYPE_MAP)));
+            const std::string harvest_type_raw(section.getString("type"));
             const std::string issn(section.getString("issn"));
 
             all_journal_titles.emplace_back(title);
             all_journal_issns.emplace_back(issn);
-            all_journal_methods.emplace_back(type);
+            all_journal_methods.emplace_back(harvest_type_raw);
 
-            if (type == "RSS") {
+            if (harvest_type == RSS) {
                 all_urls.emplace_back(section.getString("feed"));
 
                 rss_journal_titles.emplace_back(title);
                 rss_journal_issns.emplace_back(issn);
                 rss_feed_urls.emplace_back(section.getString("feed"));
-            } else if (type == "CRAWL") {
+            } else if (harvest_type == CRAWLING) {
                 all_urls.emplace_back(section.getString("base_url"));
 
                 crawling_journal_titles.emplace_back(title);
@@ -139,13 +161,18 @@ void ParseConfigFile(Template::Map * const names_to_values_map) {
     names_to_values_map->insertArray("crawling_base_urls", crawling_base_urls);
     names_to_values_map->insertArray("crawling_extraction_regexes", crawling_extraction_regexes);
     names_to_values_map->insertArray("crawling_depths", crawling_depths);
+
+    const std::string first_crawling_journal_title(GetMinElementOrDefault(crawling_journal_titles));
+    names_to_values_map->insertScalar("selected_crawling_journal_title", GetCGIParameterOrDefault("crawling_journal_title", first_crawling_journal_title));
+    const std::string first_rss_journal_title(GetMinElementOrDefault(rss_journal_titles));
+    names_to_values_map->insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault("rss_journal_title", first_rss_journal_title));
 }
 
 
 std::vector<std::string> GetOutputFormatIds() {
     std::vector<std::string> output_formats;
 
-    for (const auto &output_format_id_and_extension : output_format_ids_and_extensions)
+    for (const auto &output_format_id_and_extension : OUTPUT_FORMAT_IDS_AND_EXTENSIONS)
         output_formats.push_back(output_format_id_and_extension.first);
 
     return output_formats;
@@ -153,7 +180,7 @@ std::vector<std::string> GetOutputFormatIds() {
 
 
 std::string GetOutputFormatExtension(const std::string &output_format_id) {
-    for (const auto &output_format_id_and_extension : output_format_ids_and_extensions) {
+    for (const auto &output_format_id_and_extension : OUTPUT_FORMAT_IDS_AND_EXTENSIONS) {
         if (output_format_id_and_extension.first == output_format_id)
             return output_format_id_and_extension.second;
     }
@@ -161,16 +188,7 @@ std::string GetOutputFormatExtension(const std::string &output_format_id) {
 }
 
 
-std::string GetCGIParameterOrDefault(const std::string &parameter_name, const std::string &default_value = "") {
-    const auto key_and_value(cgi_args.find(parameter_name));
-    if (key_and_value == cgi_args.cend())
-        return default_value;
-
-    return key_and_value->second;
-}
-
-
-std::string BuildCommandString(const std::string &command, const std::vector<std::string> args) {
+std::string BuildCommandString(const std::string &command, const std::vector<std::string> &args) {
     std::string command_string(command);
 
     for (const std::string &arg : args)
@@ -181,7 +199,7 @@ std::string BuildCommandString(const std::string &command, const std::vector<std
 
 
 std::string PrepareMapsDirectory(const std::string &orig_directory, const std::string &tmp_directory) {
-    ExecUtil::ExecOrDie(ExecUtil::Which("cp"), {"-r", orig_directory, tmp_directory});
+    ExecUtil::ExecOrDie(ExecUtil::Which("cp"), { "-r", orig_directory, tmp_directory });
     const std::string local_maps_directory(tmp_directory + "/zts_client_maps");
     const std::string file_prev_downloaded(local_maps_directory + "/previously_downloaded.hashes");
     FileUtil::DeleteFile(file_prev_downloaded);
@@ -191,13 +209,13 @@ std::string PrepareMapsDirectory(const std::string &orig_directory, const std::s
 
 
 void UpdateProgress(std::string progress) {
-    std::cout << "<script type=\"text/javascript\">updateProgress(atob('" + TextUtil::Base64Encode(progress) + "'));</script>" << '\n';
+    std::cout << "<script type=\"text/javascript\">UpdateProgress(atob('" + TextUtil::Base64Encode(progress) + "'));</script>\r\n";
     std::cout << std::flush;
 }
 
 
 void UpdateRuntime(unsigned seconds) {
-    std::cout << "<script type=\"text/javascript\">updateRuntime(" + std::to_string(seconds) + ");</script>" << '\n';
+    std::cout << "<script type=\"text/javascript\">UpdateRuntime(" + std::to_string(seconds) + ");</script>\r\n";
     std::cout << std::flush;
 
     fflush(stdout);
@@ -208,12 +226,17 @@ class CrawlingTask {
     FileUtil::AutoTempDirectory auto_temp_dir_;
     std::string executable_;
     std::string progress_path_;
-public:
     std::string command_;
     std::string out_path_;
     std::string log_path_;
     pid_t pid_;
+
+public:
     std::string output_;
+    std::string GetCommand() { return command_; }
+    std::string GetOutPath() { return out_path_; }
+    std::string GetLogPath() { return log_path_; }
+    pid_t GetPid() { return pid_; }
 
     struct Progress {
         bool exists_ = false;
@@ -249,15 +272,13 @@ private:
     }
 
     void executeCommand(const std::string &cfg_path, const std::string &dir_maps,
-                        const std::string &output_format) {
-
+                        const std::string &output_format)
+    {
         progress_path_ = dir_maps + "/progress";
         std::vector<std::string> args;
 
-        // TODO: proxy?
         args.emplace_back("--simple-crawler-config-file=" + cfg_path);
         args.emplace_back("--progress-file=" + progress_path_);
-
         args.emplace_back("--output-format=" + output_format);
         args.emplace_back(zts_url);
         args.emplace_back(dir_maps);
@@ -269,10 +290,10 @@ private:
                                log_path_,
                                log_path_);
     }
-
 public:
     CrawlingTask(const std::string &url_base, const std::string &url_regex, const unsigned depth, const std::string &output_format)
-        : auto_temp_dir_("/tmp/ZtsMap_", false, false), executable_(ExecUtil::Which("zts_client"))
+        : auto_temp_dir_("/tmp/ZtsMap_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
+          executable_(ExecUtil::Which("zts_client"))
     {
         const std::string local_maps_directory(PrepareMapsDirectory(zts_client_maps_directory, auto_temp_dir_.getDirectoryPath()));
         const std::string file_extension(GetOutputFormatExtension(output_format));
@@ -282,18 +303,21 @@ public:
         writeConfigFile(file_cfg, url_base, url_regex, depth);
         executeCommand(file_cfg, local_maps_directory, output_format);
     }
-
 };
 
 
 class RssTask {
     FileUtil::AutoTempDirectory auto_temp_dir_;
     std::string executable_;
-public:
     std::string command_;
     int exit_code_;
     std::string out_path_;
     std::string output_;
+public:
+    std::string GetCommand() { return command_; }
+    int GetExitCode() { return exit_code_; }
+    std::string GetOutPath() { return out_path_; }
+    std::string GetOutput() { return output_; }
 private:
     void executeCommand(const std::string &rss_url_file, const std::string &map_dir) {
         std::vector<std::string> args;
@@ -308,10 +332,10 @@ private:
         exit_code_ = ExecUtil::Exec(executable_, args, "", log_path, log_path);
         FileUtil::ReadString(log_path, &output_);
     }
-
 public:
     RssTask(const std::string &url_rss, const std::string &output_format_id)
-        : auto_temp_dir_("/tmp/ZtsMaps_", false, false), executable_(ExecUtil::Which("rss_harvester"))
+        : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
+          executable_(ExecUtil::Which("rss_harvester"))
     {
         const std::string local_maps_directory(PrepareMapsDirectory(zts_client_maps_directory, auto_temp_dir_.getDirectoryPath()));
         const std::string file_extension(GetOutputFormatExtension(output_format_id));
@@ -326,7 +350,7 @@ public:
 void ProcessDownloadAction() {
     const std::string path(GetCGIParameterOrDefault("id"));
 
-    if (StringUtil::EndsWith(path, ".xml", true))
+    if (StringUtil::EndsWith(path, ".xml", /*ignore_case*/ true))
         std::cout << "Content-Type: application/xml; charset=utf-8\r\n\r\n";
     else
         std::cout << "Content-Type: text/plain; charset=utf-8\r\n\r\n";
@@ -336,81 +360,79 @@ void ProcessDownloadAction() {
 
 
 void ProcessRssAction() {
-    std::cout << "<h2>RSS Result</h2>";
-    std::cout << "<table>";
+    std::cout << "<h2>RSS Result</h2>\r\n";
+    std::cout << "<table>\r\n";
 
     RssTask rss_task(GetCGIParameterOrDefault("rss_feed_url"), GetCGIParameterOrDefault("rss_output_format"));
 
-    std::cout << "<tr><td>Command</td><td>" + rss_task.command_ + "</td></tr>";
+    std::cout << "<tr><td>Command</td><td>" + rss_task.GetCommand() + "</td></tr>\r\n";
 
     // todo: getresult.php ersetzen
-    if (rss_task.exit_code_ == 0)
-        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + rss_task.out_path_ + "\">Result file</a></td></tr>";
+    if (rss_task.GetExitCode() == 0)
+        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + rss_task.GetOutPath() + "\">Result file</a></td></tr>\r\n";
     else
-        std::cout << "<tr><td>ERROR</td><td>Exitcode: " + std::to_string(rss_task.exit_code_) + "</td></tr>";
+        std::cout << "<tr><td>ERROR</td><td>Exitcode: " + std::to_string(rss_task.GetExitCode()) + "</td></tr>\r\n";
 
     // use <pre> instead of nl2br + htmlspecialchars
-    std::cout << "<tr><td>CLI output:</td><td><pre>" + rss_task.output_ + "</pre></td></tr>";
+    std::cout << "<tr><td>CLI output:</td><td><pre>" + rss_task.GetOutput() + "</pre></td></tr>\r\n";
 
-    std::cout << "</table>";
+    std::cout << "</table>\r\n";
 }
 
 
 /** \brief mod_deflate needs to be disabled for this program for flush to work correctly */
 void ProcessCrawlingAction() {
-    std::cout << "<h2>Crawling Result</h2>";
-    std::cout << "<table>";
+    std::cout << "<h2>Crawling Result</h2>\r\n";
+    std::cout << "<table>\r\n";
 
     CrawlingTask crawling_task(GetCGIParameterOrDefault("crawling_base_url"), GetCGIParameterOrDefault("crawling_extraction_regex"),
-                               std::stoi(GetCGIParameterOrDefault("crawling_depth")), GetCGIParameterOrDefault("crawling_output_format"));
+                               StringUtil::ToUnsigned(GetCGIParameterOrDefault("crawling_depth")), GetCGIParameterOrDefault("crawling_output_format"));
 
-    std::cout << "<tr><td>Command</td><td>" + crawling_task.command_ + "</td></tr>";
-    std::cout << "<tr><td>Runtime</td><td id=\"runtime\"></td></tr>";
-    std::cout << "<tr><td>Progress</td><td><div id=\"progress\">Harvesting...</div></td></tr>";
+    std::cout << "<tr><td>Command</td><td>" + crawling_task.GetCommand() + "</td></tr>\r\n";
+    std::cout << "<tr><td>Runtime</td><td id=\"runtime\"></td></tr>\r\n";
+    std::cout << "<tr><td>Progress</td><td><div id=\"progress\">Harvesting...</div></td></tr>\r\n";
     std::cout << std::flush;
 
     // start status monitoring
     CrawlingTask::Progress progress;
     CrawlingTask::Progress progress_old;
-    WallClockTimer timer;
-    timer.start();
-    int i=0;
+    WallClockTimer timer(WallClockTimer::CUMULATIVE_WITH_AUTO_START);
     int status;
 
     do {
         TimeUtil::Millisleep(1000);
-        //UpdateRuntime(static_cast<unsigned>(timer.getTime())); // crashed => disabled
-        UpdateRuntime(i);
+        timer.stop();
+        UpdateRuntime(static_cast<unsigned>(timer.getTime()));
+        timer.start();
         progress = crawling_task.GetProgress();
         if (progress.exists_ and progress.current_url_ != progress_old.current_url_) {
-            std::string progress_string("Current URL: <a target=\"_blank\" href=\"" + progress.current_url_ + "\">" + progress.current_url_ + "</a><br/>");
-            progress_string += "Current Depth: " + std::to_string(StringUtil::ToUnsigned(GetCGIParameterOrDefault("crawling_depth")) - progress.remaining_depth_) + "<br/>";
-            progress_string += "Processed URL count: " + std::to_string(progress.processed_url_count_) + "<br/>";
+            std::string progress_string("Current URL: <a target=\"_blank\" href=\"" + progress.current_url_ + "\">" + progress.current_url_ + "</a><br/>\r\n");
+            progress_string += "Current Depth: " + std::to_string(StringUtil::ToUnsigned(GetCGIParameterOrDefault("crawling_depth")) - progress.remaining_depth_) + "<br/>\r\n";
+            progress_string += "Processed URL count: " + std::to_string(progress.processed_url_count_) + "<br/>\r\n";
             UpdateProgress(progress_string);
             progress_old = progress;
 
         }
-        ++i;
-    } while (::waitpid(crawling_task.pid_, &status, WNOHANG) >= 0);
+    } while (::waitpid(crawling_task.GetPid(), &status, WNOHANG) >= 0);
     timer.stop();
 
     int exit_code(-2);
     if WIFEXITED(status)
         exit_code = WEXITSTATUS(status);
 
-    FileUtil::ReadString(crawling_task.log_path_, &crawling_task.output_);
+    FileUtil::ReadString(crawling_task.GetLogPath(), &crawling_task.output_);
 
     if (exit_code == 0) {
         UpdateProgress("Finished");
-        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + crawling_task.out_path_ + "\">Result file</a></td></tr>";
+        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + crawling_task.GetOutPath() + "\">Result file</a></td></tr>\r\n";
     } else {
         UpdateProgress("Failed");
-        std::cout << "<tr><td>ERROR</td><td>Exitcode: " + std::to_string(exit_code) + "</td></tr>";
+        std::cout << "<tr><td>ERROR</td><td>Exitcode: " + std::to_string(exit_code) + "</td></tr>\r\n";
     }
 
     // use <pre> instead of nl2br + htmlspecialchars
-    std::cout << "<tr><td>CLI output:</td><td><pre>" + crawling_task.output_ + "</td></tr>";
-    std::cout << "</table>";
+    std::cout << "<tr><td>CLI output:</td><td><pre>" + crawling_task.output_ + "</td></tr>\r\n";
+    std::cout << "</table>\r\n";
 }
 
 
@@ -431,8 +453,6 @@ int main(int argc, char *argv[]) {
 
             Template::Map names_to_values_map;
             names_to_values_map.insertScalar("action", action);
-            names_to_values_map.insertScalar("selected_crawling_journal_title", GetCGIParameterOrDefault("crawling_journal_title"));
-            names_to_values_map.insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault("rss_journal_title"));
 
             std::string style_css;
             FileUtil::ReadString(TEMPLATE_DIRECTORY + "style.css", &style_css);

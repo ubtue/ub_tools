@@ -1,3 +1,10 @@
+function SortSelectOptions(selector) {
+    var selected_value = $(selector).val();
+    $(selector).html($("option", selector).sort(function (a, b) {
+        return a.text == b.text ? 0 : a.text < b.text ? -1 : 1;
+    })).val(selected_value);
+}
+
 function UpdateProgress(progress) {
     var div_progress = document.getElementById('progress');
     div_progress.innerHTML = progress;
