@@ -191,7 +191,7 @@ JsonFormatHandler::JsonFormatHandler(const std::string &output_format, const std
 
 JsonFormatHandler::~JsonFormatHandler() {
     output_file_object_->write("]");
-    output_file_object_->close();
+    delete output_file_object_;
 }
 
 
