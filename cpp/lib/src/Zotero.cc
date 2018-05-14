@@ -412,8 +412,8 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                                                                                          key_and_node.second)->getValue() } });
         } else
             LOG_ERROR("unknown key \"" + key_and_node.first + "\" with node type "
-                            + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
-                            + key_and_node.second->toString() + "), whole record: " + object_node->toString());
+                      + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
+                      + key_and_node.second->toString() + "), whole record: " + object_node->toString());
     }
 
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
@@ -432,7 +432,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                 new_record.insertField("007", "cr uuu---uuuuu");
             else
                 LOG_ERROR("unhandled value of physical form: \""
-                      + physical_form + "\"!");
+                          + physical_form + "\"!");
         }
 
         // volume
