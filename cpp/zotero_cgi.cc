@@ -43,12 +43,12 @@ namespace {
 std::string zts_client_maps_directory;
 std::string zts_url;
 enum HarvestType { RSS, CRAWLING };
-const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP = { { "RSS", static_cast<int>(RSS) },
-                                                                { "CRAWL", static_cast<int>(CRAWLING) } };
+const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP { { "RSS", static_cast<int>(RSS) },
+                                                              { "CRAWL", static_cast<int>(CRAWLING) } };
 const std::string TEMPLATE_DIRECTORY("/usr/local/var/lib/tuelib/zotero_cgi/");
 const std::string CRAWLER_EXAMPLE_FILE("/usr/local/ub_tools/cpp/data/zotero_crawler.conf");
 const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
-const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS = {
+const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS {
     // custom formats
     { "marcxml", "xml" },
     { "marc21", "mrc" },
@@ -110,7 +110,7 @@ void ParseConfigFile(Template::Map * const names_to_values_map) {
 
     for (const auto &name_and_section : ini) {
         auto section(name_and_section.second);
-        std::string title(section.getSectionName());
+        const std::string title(section.getSectionName());
 
         if (title.empty()) {
             zts_url = section.getString("zts_server_url");
