@@ -39,7 +39,7 @@ namespace MARC {
 
 class Tag {
     /* We have to double this up, so we have one little endian integer for comparison, and one big endian integer
-     * containing a char[4] for printig.
+     * containing a char[4] for printing.
      */
     union {
         uint32_t as_int_;
