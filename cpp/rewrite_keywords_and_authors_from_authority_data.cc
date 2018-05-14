@@ -33,7 +33,7 @@
 #include "util.h"
 
 
-const char STANDARDIZED_KEYWORD_TYPE_FIELD('d');
+const char STANDARDIZED_KEYWORD_TYPE_FIELD('D');
 static unsigned int record_count;
 
 namespace {
@@ -56,24 +56,47 @@ void CreateAuthorityOffsets(MARC::Reader * const authority_reader, std::map<std:
 }
 
 std::string GetAuthorityTagForType(const std::string &type){
-     if (type == "u")
+     if (type == "p") //Personenschlagwort
+         return "100";
+     if (type == "g") //Geographikum
+         return "151"; 
+     if (type == "s") //Sachschlagwort
+         return "150";
+     if (type == "b") //Körperschaft
          return "110";
-     //FIXME MORE VALUES
-     return "0";
+     if (type == "f") //Konferenzen
+         return "111";
+     if (type == "u") //Werktitel
+         return "130";
+     throw std::runtime_error("Invalid keyword type: " + type);
 }
 
+// Return the first matching primary field from authority data
+MARC::Record::const_iterator GetFirstPrimaryField(const MARC::Record& authority_record) {
+     std::vector<std::string> tags_to_check({"100", "151", "150", "110", "111", "130"});
+     for (auto tag_to_check : tags_to_check) {
+         MARC::Record::const_iterator primary_field(authority_record.findTag(tag_to_check));
+         if (primary_field != authority_record.end()) {
+//XXXX
+std::cout << "FOUND FIELD: "  << primary_field->toString() << '\n';
+             return primary_field;
+         }
+ 
+     }
+     return authority_record.end();
+}
 
 
 void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * const authority_reader, MARC::Writer * const marc_writer, 
                                const std::map<std::string, off_t>& authority_offsets) {
     std::string err_msg;
     RegexMatcher * const standardized_keywords_matcher(
-        RegexMatcher::RegexMatcherFactory("(\x1F""0\\(DE-576)([^\x1F]+\\).*\x1F""2gnd", &err_msg));
+        RegexMatcher::RegexMatcherFactory("\x1F""0\\(DE-576\\)([^\x1F]+).*\x1F""2gnd", &err_msg));
 
     if (standardized_keywords_matcher == nullptr)
-        logger->error("Failed to compile standardized keywords regex matcher" + err_msg);
+        logger->error("Failed to compile standardized keywords regex matcher: " + err_msg);
 
-    while (const MARC::Record record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
        ++record_count;
        // FIXME: Add author handling
 
@@ -92,16 +115,36 @@ void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * 
                                           " instead of " + bsz_authority_ppn);
 
                         std::vector<std::string> type_subfields(field.getSubfields().extractSubfields(STANDARDIZED_KEYWORD_TYPE_FIELD));
-                        if (type_subfields.size() != 1)
-                            logger->error("More than one type subfield for subfield code " + std::string(1,STANDARDIZED_KEYWORD_TYPE_FIELD));
+                        if (type_subfields.size() != 1) {
+                            logger->error("Invalid number of subfields for subfield code " + std::string(1,STANDARDIZED_KEYWORD_TYPE_FIELD) + "[" + 
+                             field.toString() + "] --- SIZE: " + std::to_string(type_subfields.size()));
+                        }
                         // Get the data
                         std::string authority_tag(GetAuthorityTagForType(type_subfields[0]));
+//XXX
+std::cout << "Authority tag: " << authority_tag << '\n';
                         auto authority_primary_field(authority_record.findTag(authority_tag));
-                        if ( authority_primary_field == authority_record.end())
-                            logger->error("Could not find Tag " + authority_tag + " in authority record " + bsz_authority_ppn);
+                        if ( authority_primary_field == authority_record.end()) {
+                            logger->warning("Could not find Tag " + authority_tag + " in authority record " + bsz_authority_ppn);
+                            // Potentially the mapping given in STANDARDIZED_KEYWORD_TYPE_FIELD is inappropriate, so we 
+                            // we take the first primary form (Vorlageform) we encounter
+                            authority_primary_field = GetFirstPrimaryField(authority_record);
+                            if (authority_primary_field == authority_record.end())
+                                logger->error("Could not find appropriate Tag for authority PPN " + bsz_authority_ppn);
+                        }
                         // Make sure we replace all the relevant subfields
-                        for (auto &authority_subfield : authority_primary_field->getSubfields())
-                            field.getSubfields().replaceFirstSubfield(authority_subfield.code_, authority_subfield.value_);
+                        MARC::Subfields subfields(field.getSubfields());
+                        for (auto &authority_subfield : authority_primary_field->getSubfields()) {
+//XXX
+std::cout << "Replacing subfield " << authority_subfield.code_  << " with value " << authority_subfield.value_ << '\n';
+                            if (subfields.hasSubfield(authority_subfield.code_))
+                                subfields.replaceFirstSubfield(authority_subfield.code_, authority_subfield.value_);
+                            else
+                                subfields.addSubfield(authority_subfield.code_, authority_subfield.value_);
+                        }
+                        field.setContents(subfields, field.getIndicator1(), field.getIndicator2());
+//XXX
+std::cout << "NEW CONTENT: " << field.toString() << '\n';
                     } else {
                         logger->error("Unable to seek to record for authority PPN " + bsz_authority_ppn);
                     }
