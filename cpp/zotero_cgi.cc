@@ -82,7 +82,7 @@ std::string GetCGIParameterOrDefault(const std::string &parameter_name, const st
 
 
 std::string GetMinElementOrDefault(const std::vector<std::string> &elements, const std::string &default_value = "") {
-    const auto min_element(std::min_element(elements.begin(), elements.end(), [](const std::string &a, const std::string &b){ return a < b; }));
+    const auto min_element(std::min_element(elements.begin(), elements.end()));
     if (unlikely(min_element == elements.end()))
         return default_value;
 
@@ -198,6 +198,7 @@ std::string BuildCommandString(const std::string &command, const std::vector<std
 }
 
 
+/** \brief create local copy of template map directory and delete previously downloaded cache for clean test results */
 std::string PrepareMapsDirectory(const std::string &orig_directory, const std::string &tmp_directory) {
     ExecUtil::ExecOrDie(ExecUtil::Which("cp"), { "-r", orig_directory, tmp_directory });
     const std::string local_maps_directory(tmp_directory + "/zts_client_maps");
@@ -220,7 +221,19 @@ void UpdateRuntime(unsigned seconds) {
 }
 
 
+/** \brief class for spawning and monitoring zts_client */
 class CrawlingTask {
+public:
+    /** \brief struct representing contents of zts_client progress file.
+     *  \note  if the process has not written the file yet, exists_ will be false.
+     */
+    struct Progress {
+        bool exists_ = false;
+        unsigned processed_url_count_;
+        unsigned remaining_depth_;
+        std::string current_url_;
+    };
+private:
     FileUtil::AutoTempDirectory auto_temp_dir_;
     std::string executable_;
     std::string progress_path_;
@@ -229,30 +242,26 @@ class CrawlingTask {
     std::string log_path_;
     pid_t pid_;
 public:
-    std::string output_;
-    std::string GetCommand() { return command_; }
-    std::string GetOutPath() { return out_path_; }
-    std::string GetLogPath() { return log_path_; }
-    pid_t GetPid() { return pid_; }
-
-    struct Progress {
-        bool exists_ = false;
-        unsigned processed_url_count_;
-        unsigned remaining_depth_;
-        std::string current_url_;
-    };
-
-    Progress GetProgress();
+    CrawlingTask(const std::string &url_base, const std::string &url_regex, const unsigned depth, const std::string &output_format);
+    /** \brief get shell command including args (for debug output) */
+    inline const std::string &getCommand() const { return command_; }
+    /** \brief get path to out file with harvested records */
+    inline const std::string &getOutPath() const { return out_path_; }
+    /** \brief get path log file with stdout/stderr output */
+    inline const std::string &getLogPath() const { return log_path_; }
+    inline pid_t getPid() const { return pid_; }
+    /** \brief parse progress file */
+    Progress getProgress() const;
 private:
+    /** \brief write config file for zts_client */
     void writeConfigFile(const std::string &file_cfg, const std::string &url_base, const std::string &url_regex, const unsigned depth);
+    /** \brief spawn zts_client instance */
     void executeCommand(const std::string &cfg_path, const std::string &dir_maps,
                         const std::string &output_format);
-public:
-    CrawlingTask(const std::string &url_base, const std::string &url_regex, const unsigned depth, const std::string &output_format);
 };
 
 
-CrawlingTask::Progress CrawlingTask::GetProgress() {
+CrawlingTask::Progress CrawlingTask::getProgress() const {
     Progress progress;
     if (FileUtil::Exists(progress_path_)) {
         std::string progress_string;
@@ -281,7 +290,7 @@ void CrawlingTask::writeConfigFile(const std::string &file_cfg, const std::strin
 
 
 void CrawlingTask::executeCommand(const std::string &cfg_path, const std::string &dir_maps,
-                        const std::string &output_format)
+                                  const std::string &output_format)
 {
     progress_path_ = dir_maps + "/progress";
     std::vector<std::string> args;
@@ -302,8 +311,8 @@ void CrawlingTask::executeCommand(const std::string &cfg_path, const std::string
 
 
 CrawlingTask::CrawlingTask(const std::string &url_base, const std::string &url_regex, const unsigned depth, const std::string &output_format)
-                           : auto_temp_dir_("/tmp/ZtsMap_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
-                             executable_(ExecUtil::Which("zts_client"))
+    : auto_temp_dir_("/tmp/ZtsMap_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
+      executable_(ExecUtil::Which("zts_client"))
 {
     const std::string local_maps_directory(PrepareMapsDirectory(zts_client_maps_directory, auto_temp_dir_.getDirectoryPath()));
     const std::string file_extension(GetOutputFormatExtension(output_format));
@@ -315,6 +324,7 @@ CrawlingTask::CrawlingTask(const std::string &url_base, const std::string &url_r
 }
 
 
+/** \brief class for executing rss_harvester & access its results */
 class RssTask {
     FileUtil::AutoTempDirectory auto_temp_dir_;
     std::string executable_;
@@ -323,14 +333,17 @@ class RssTask {
     std::string out_path_;
     std::string output_;
 public:
-    std::string GetCommand() { return command_; }
-    int GetExitCode() { return exit_code_; }
-    std::string GetOutPath() { return out_path_; }
-    std::string GetOutput() { return output_; }
-private:
-    void executeCommand(const std::string &rss_url_file, const std::string &map_dir);
-public:
     RssTask(const std::string &url_rss, const std::string &output_format_id);
+    /** \brief get shell command including args (for debug output) */
+    inline const std::string &getCommand() const { return command_; }
+    int getExitCode() const { return exit_code_; }
+    /** \brief get path to out file with harvested records */
+    inline const std::string &getOutPath() const { return out_path_; }
+    /** \brief get stdout/stderr output */
+    inline const std::string &getOutput() const { return output_; }
+private:
+    /** \brief execute rss_harvester */
+    void executeCommand(const std::string &rss_url_file, const std::string &map_dir);
 };
 
 
@@ -350,8 +363,8 @@ void RssTask::executeCommand(const std::string &rss_url_file, const std::string 
 
 
 RssTask::RssTask(const std::string &url_rss, const std::string &output_format_id)
-                 : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
-                   executable_(ExecUtil::Which("rss_harvester"))
+    : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
+      executable_(ExecUtil::Which("rss_harvester"))
     {
         const std::string local_maps_directory(PrepareMapsDirectory(zts_client_maps_directory, auto_temp_dir_.getDirectoryPath()));
         const std::string file_extension(GetOutputFormatExtension(output_format_id));
@@ -378,32 +391,31 @@ void ProcessRssAction() {
     std::cout << "<h2>RSS Result</h2>\r\n";
     std::cout << "<table>\r\n";
 
-    RssTask rss_task(GetCGIParameterOrDefault("rss_feed_url"), GetCGIParameterOrDefault("rss_output_format"));
+    const RssTask rss_task(GetCGIParameterOrDefault("rss_feed_url"), GetCGIParameterOrDefault("rss_output_format"));
 
-    std::cout << "<tr><td>Command</td><td>" + rss_task.GetCommand() + "</td></tr>\r\n";
+    std::cout << "<tr><td>Command</td><td>" + rss_task.getCommand() + "</td></tr>\r\n";
 
     // todo: getresult.php ersetzen
-    if (rss_task.GetExitCode() == 0)
-        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + rss_task.GetOutPath() + "\">Result file</a></td></tr>\r\n";
+    if (rss_task.getExitCode() == 0)
+        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + rss_task.getOutPath() + "\">Result file</a></td></tr>\r\n";
     else
-        std::cout << "<tr><td>ERROR</td><td>Exitcode: " + std::to_string(rss_task.GetExitCode()) + "</td></tr>\r\n";
+        std::cout << "<tr><td>ERROR</td><td>Exitcode: " + std::to_string(rss_task.getExitCode()) + "</td></tr>\r\n";
 
     // use <pre> instead of nl2br + htmlspecialchars
-    std::cout << "<tr><td>CLI output:</td><td><pre>" + rss_task.GetOutput() + "</pre></td></tr>\r\n";
+    std::cout << "<tr><td>CLI output:</td><td><pre>" + rss_task.getOutput() + "</pre></td></tr>\r\n";
 
     std::cout << "</table>\r\n";
 }
 
 
-/** \brief mod_deflate needs to be disabled for this program for flush to work correctly */
 void ProcessCrawlingAction() {
     std::cout << "<h2>Crawling Result</h2>\r\n";
     std::cout << "<table>\r\n";
 
-    CrawlingTask crawling_task(GetCGIParameterOrDefault("crawling_base_url"), GetCGIParameterOrDefault("crawling_extraction_regex"),
-                               StringUtil::ToUnsigned(GetCGIParameterOrDefault("crawling_depth")), GetCGIParameterOrDefault("crawling_output_format"));
+    const CrawlingTask crawling_task(GetCGIParameterOrDefault("crawling_base_url"), GetCGIParameterOrDefault("crawling_extraction_regex"),
+                                     StringUtil::ToUnsigned(GetCGIParameterOrDefault("crawling_depth")), GetCGIParameterOrDefault("crawling_output_format"));
 
-    std::cout << "<tr><td>Command</td><td>" + crawling_task.GetCommand() + "</td></tr>\r\n";
+    std::cout << "<tr><td>Command</td><td>" + crawling_task.getCommand() + "</td></tr>\r\n";
     std::cout << "<tr><td>Runtime</td><td id=\"runtime\"></td></tr>\r\n";
     std::cout << "<tr><td>Progress</td><td><div id=\"progress\">Harvesting...</div></td></tr>\r\n";
     std::cout << std::flush;
@@ -419,7 +431,7 @@ void ProcessCrawlingAction() {
         timer.stop();
         UpdateRuntime(static_cast<unsigned>(timer.getTime()));
         timer.start();
-        progress = crawling_task.GetProgress();
+        progress = crawling_task.getProgress();
         if (progress.exists_ and progress.current_url_ != progress_old.current_url_) {
             std::string progress_string("Current URL: <a target=\"_blank\" href=\"" + progress.current_url_ + "\">" + progress.current_url_ + "</a><br/>\r\n");
             progress_string += "Current Depth: " + std::to_string(StringUtil::ToUnsigned(GetCGIParameterOrDefault("crawling_depth")) - progress.remaining_depth_) + "<br/>\r\n";
@@ -428,25 +440,26 @@ void ProcessCrawlingAction() {
             progress_old = progress;
 
         }
-    } while (::waitpid(crawling_task.GetPid(), &status, WNOHANG) >= 0);
+    } while (::waitpid(crawling_task.getPid(), &status, WNOHANG) >= 0);
     timer.stop();
 
     int exit_code(-2);
     if WIFEXITED(status)
         exit_code = WEXITSTATUS(status);
 
-    FileUtil::ReadString(crawling_task.GetLogPath(), &crawling_task.output_);
+    std::string output;
+    FileUtil::ReadString(crawling_task.getLogPath(), &output);
 
     if (exit_code == 0) {
         UpdateProgress("Finished");
-        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + crawling_task.GetOutPath() + "\">Result file</a></td></tr>\r\n";
+        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + crawling_task.getOutPath() + "\">Result file</a></td></tr>\r\n";
     } else {
         UpdateProgress("Failed");
         std::cout << "<tr><td>ERROR</td><td>Exitcode: " + std::to_string(exit_code) + "</td></tr>\r\n";
     }
 
     // use <pre> instead of nl2br + htmlspecialchars
-    std::cout << "<tr><td>CLI output:</td><td><pre>" + crawling_task.output_ + "</td></tr>\r\n";
+    std::cout << "<tr><td>CLI output:</td><td><pre>" + output + "</td></tr>\r\n";
     std::cout << "</table>\r\n";
 }
 
@@ -459,7 +472,8 @@ int main(int argc, char *argv[]) {
 
     try {
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
-        const std::string action(GetCGIParameterOrDefault("action", "list"));
+        const std::string default_action("list");
+        const std::string action(GetCGIParameterOrDefault("action", default_action));
 
         if (action == "download")
             ProcessDownloadAction();
@@ -493,6 +507,8 @@ int main(int argc, char *argv[]) {
                 ProcessRssAction();
             else if (action == "crawling")
                 ProcessCrawlingAction();
+            else if (action != default_action)
+                LOG_ERROR("invalid action: \"" + action + '"');
 
             std::cout << "</body></html>";
         }
