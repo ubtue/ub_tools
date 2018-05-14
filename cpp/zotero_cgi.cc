@@ -217,8 +217,6 @@ void UpdateProgress(std::string progress) {
 void UpdateRuntime(unsigned seconds) {
     std::cout << "<script type=\"text/javascript\">UpdateRuntime(" + std::to_string(seconds) + ");</script>\r\n";
     std::cout << std::flush;
-
-    fflush(stdout);
 }
 
 
