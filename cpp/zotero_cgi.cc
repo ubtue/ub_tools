@@ -69,7 +69,7 @@ const std::vector<std::pair<std::string,std::string>> output_format_ids_and_exte
 };
 
 
-void ParseConfigFile(Template::Map * names_to_values_map) {
+void ParseConfigFile(Template::Map * const names_to_values_map) {
     IniFile ini(ZTS_HARVESTER_CONF_FILE);
 
     std::vector<std::string> all_journal_titles;
@@ -87,8 +87,8 @@ void ParseConfigFile(Template::Map * names_to_values_map) {
     std::vector<std::string> crawling_extraction_regexes;
     std::vector<std::string> crawling_depths;
 
-    for (auto it(ini.begin()); it != ini.end(); it++) {
-        auto section = it->second;
+    for (const auto &name_and_section : ini) {
+        auto section(name_and_section.second);
         std::string title(section.getSectionName());
 
         if (title.empty()) {
@@ -145,17 +145,17 @@ void ParseConfigFile(Template::Map * names_to_values_map) {
 std::vector<std::string> GetOutputFormatIds() {
     std::vector<std::string> output_formats;
 
-    for (auto output_format_ids_and_extension = output_format_ids_and_extensions.begin(); output_format_ids_and_extension != output_format_ids_and_extensions.end(); output_format_ids_and_extension++)
-        output_formats.push_back(output_format_ids_and_extension->first);
+    for (const auto &output_format_id_and_extension : output_format_ids_and_extensions)
+        output_formats.push_back(output_format_id_and_extension.first);
 
     return output_formats;
 }
 
 
 std::string GetOutputFormatExtension(const std::string &output_format_id) {
-    for (auto it = output_format_ids_and_extensions.begin(); it != output_format_ids_and_extensions.end(); it++) {
-        if (it->first == output_format_id)
-            return it->second;
+    for (const auto &output_format_id_and_extension : output_format_ids_and_extensions) {
+        if (output_format_id_and_extension.first == output_format_id)
+            return output_format_id_and_extension.second;
     }
     LOG_ERROR("no extension defined for output format " + output_format_id);
 }
@@ -173,8 +173,8 @@ std::string GetCGIParameterOrDefault(const std::string &parameter_name, const st
 std::string BuildCommandString(const std::string &command, const std::vector<std::string> args) {
     std::string command_string(command);
 
-    for (auto it(args.begin()); it < args.end(); it++)
-        command_string += " \"" + *it + "\"";
+    for (const std::string &arg : args)
+        command_string += " \"" + arg + "\"";
 
     return command_string;
 }
