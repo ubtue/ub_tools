@@ -20,6 +20,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "Zotero.h"
+#include <ctime>
 #include <kchashdb.h>
 #include <uuid/uuid.h>
 #include "MiscUtil.h"
@@ -55,10 +56,21 @@ public:
 };
 
 
-Date StringToDate(const std::string &date_str) {
+Date StringToDate(const std::string &date_str, const std::string &optional_strptime_format) {
     Date date;
 
-    time_t unix_time(WebUtil::ParseWebDateAndTime(date_str));
+    time_t unix_time;
+    if (optional_strptime_format.empty())
+        unix_time = WebUtil::ParseWebDateAndTime(date_str);
+    else {
+        struct tm tm;
+        const char * const last_char(::strptime(date_str.c_str(), optional_strptime_format.c_str(), &tm));
+        if (last_char == nullptr or *last_char != '\0')
+            unix_time = TimeUtil::BAD_TIME_T;
+        else
+            unix_time = TimeUtil::TimeGm(tm);
+    }
+
     if (unix_time != TimeUtil::BAD_TIME_T) {
         tm *tm(::gmtime(&unix_time));
         if (unlikely(tm == nullptr))
@@ -279,7 +291,7 @@ void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &o
 
     const std::string date_str(object_node.getOptionalStringValue("date"));
     if (not date_str.empty()) {
-        const Date date(StringToDate(date_str));
+        const Date date(StringToDate(date_str, ""));
         if (date.year_ != Date::INVALID)
             subfields.emplace_back('j', std::to_string(date.year_));
     }
