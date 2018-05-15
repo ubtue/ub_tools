@@ -75,7 +75,7 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &args 
  *  \param  new_stderr          An optional replacement file path for stderr.
  *  \return The PID of the child.
  */
-int Spawn(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
+pid_t Spawn(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
           const std::string &new_stdout = "", const std::string &new_stderr = "");
 
 

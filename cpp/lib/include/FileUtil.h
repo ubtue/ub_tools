@@ -83,6 +83,7 @@ class Directory {
     const std::string path_;
     const std::string regex_;
 public:
+    const std::string &getDirectoryPath() const { return path_; }
     class const_iterator; // Forward declaration.
     class Entry {
         friend class Directory::const_iterator;
@@ -268,8 +269,11 @@ bool RemoveDirectory(const std::string &dir_name);
 class AutoTempDirectory {
     std::string path_;
     bool cleanup_if_exception_is_active_;
+    bool remove_when_out_of_scope_;
 public:
-    explicit AutoTempDirectory(const std::string &path_prefix = "/tmp/ATD", const bool cleanup_if_exception_is_active = true);
+    explicit AutoTempDirectory(const std::string &path_prefix = "/tmp/ATD",
+                               const bool cleanup_if_exception_is_active = true,
+                               const bool remove_when_out_of_scope = true);
     AutoTempDirectory(const AutoTempDirectory &rhs) = delete;
     ~AutoTempDirectory();
 

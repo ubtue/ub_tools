@@ -51,7 +51,7 @@ std::multimap<std::string, std::string> cgi_args;
 
 
 void ExpandTemplate(const std::string &template_name, std::string * const body, const Template::Map &template_variables = {}) {
-    std::ifstream template_html(template_directory + template_name + ".html", std::ios::binary);
+    std::ifstream template_html(template_directory + template_name + ".html");
     std::ostringstream template_out;
     Template::ExpandTemplate(template_html, template_out, template_variables);
     *body += template_out.str();
@@ -217,7 +217,7 @@ int main(int argc, char *argv[]) {
         FileUtil::ReadString(template_directory + "style.css", &css);
         names_to_values_map.insertScalar("css", css);
 
-        std::ifstream template_html(template_directory + "index.html", std::ios::binary);
+        std::ifstream template_html(template_directory + "index.html");
         names_to_values_map.insertScalar("body", body);
 
         Template::ExpandTemplate(template_html, std::cout, names_to_values_map);

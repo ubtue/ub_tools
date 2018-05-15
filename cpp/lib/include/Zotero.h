@@ -118,7 +118,7 @@ protected:
         : output_format_(output_format), output_file_(output_file), harvest_maps_(harvest_maps), harvest_params_(harvest_params)
         { }
 public:
-    virtual ~FormatHandler() {}
+    virtual ~FormatHandler() = default;
 
     /** \brief Convert & write single record to output file */
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) = 0;
