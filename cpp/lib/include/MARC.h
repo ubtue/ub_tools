@@ -170,7 +170,13 @@ public:
                                 { return subfield.code_ == subfield_code and subfield.value_ == value; }) != subfields_.cend();
     }
 
+    // Inserts the new subfield after all leading subfields that have a code that preceeds "subfield_code" when using an
+    // alphanumeric comparison.
     void addSubfield(const char subfield_code, const std::string &subfield_value);
+
+    // Appends the new subfield at the end of any existing subfields.
+    inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
+        { subfields_.emplace_back(subfield_code, subfield_value); }
 
     /** \brief Replaces the contents of the first subfield w/ the specified subfield code.
      *  \return True if we replaced the subfield contents and false if a subfield w/ the given code was not found.
@@ -275,6 +281,9 @@ public:
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
+
+        inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
+            { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
 
         void insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents);
 
