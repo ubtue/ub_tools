@@ -1,0 +1,4 @@
+{IF x == "Bob"}Bob{ELSE}ELSE BRANCH{ENDIF}
+{IF x == "Alice"}Alice{ELSE}ELSE BRANCH{ENDIF}
+{IF x == "Joe"}Joe{ELSE}ELSE BRANCH{ENDIF}
+{x}
