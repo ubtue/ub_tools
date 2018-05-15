@@ -111,6 +111,28 @@ static std::string ExtractText(SimpleXmlParser<StringDataSource> * const parser,
 }
 
 
+// Handles RFC1123 datetimes as well as YYYY-MM-DD and YYYY.
+bool ParseRFC1123DateTimeAndPrefixes(const std::string &datetime_candidate, time_t * const converted_time) {
+    if (TimeUtil::ParseRFC1123DateTime(datetime_candidate, converted_time))
+        return true;
+
+    struct tm tm;
+    const char *last_char(::strptime(datetime_candidate.c_str(), "%Y-%m-%d", &tm));
+    if (last_char != nullptr and *last_char == '\0')  {
+        *converted_time = TimeUtil::TimeGm(tm);
+        return *converted_time != TimeUtil::BAD_TIME_T;
+    }
+
+    last_char = ::strptime(datetime_candidate.c_str(), "%Y", &tm);
+    if (last_char != nullptr and *last_char == '\0')  {
+        *converted_time = TimeUtil::TimeGm(tm);
+        return *converted_time != TimeUtil::BAD_TIME_T;
+    }
+
+    return false;
+}
+
+
 } // unnamed namespace
 
 
@@ -159,7 +181,7 @@ RSS20::RSS20(const std::string &xml_document): SyndicationFormat(xml_document) {
             description_ = ExtractText(xml_parser_, "description", " (RSS20::RSS20)");
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "lastBuildDate") {
             const std::string last_build_date(ExtractText(xml_parser_, "lastBuildDate", " (RSS20::RSS20)"));
-            if (not TimeUtil::ParseRFC1123DateTime(last_build_date, &last_build_date_))
+            if (not ParseRFC1123DateTimeAndPrefixes(last_build_date, &last_build_date_))
                 LOG_ERROR("failed to parse \"" + last_build_date + "\" as an RFC1123 datetime!");
         }
     }
@@ -189,7 +211,7 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
             id = ExtractText(xml_parser_, "guid", " (RSS20::getNextItem)");
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "pubDate") {
             const std::string pub_date_string(ExtractText(xml_parser_, "pubDate"));
-            if (unlikely(not TimeUtil::ParseRFC1123DateTime(pub_date_string, &pub_date)))
+            if (unlikely(not ParseRFC1123DateTimeAndPrefixes(pub_date_string, &pub_date)))
                 LOG_WARNING("couldn't parse \"" + pub_date_string + "\"!");
         }
     }
@@ -217,7 +239,7 @@ RSS091::RSS091(const std::string &xml_document): SyndicationFormat(xml_document)
             description_ = ExtractText(xml_parser_, "description", " (RSS091::RSS091)");
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "lastBuildDate") {
             const std::string last_build_date(ExtractText(xml_parser_, "lastBuildDate", " (RSS091::RSS091)"));
-            if (not TimeUtil::ParseRFC1123DateTime(last_build_date, &last_build_date_))
+            if (not ParseRFC1123DateTimeAndPrefixes(last_build_date, &last_build_date_))
                 LOG_ERROR("failed to parse \"" + last_build_date + "\" as an RFC1123 datetime!");
         }
     }
@@ -432,7 +454,7 @@ std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
                 link = ExtractText(xml_parser_, rss_namespace_ + "link");
             else if (data == rss_namespace_ + "pubDate") {
                 const std::string pub_date_string(ExtractText(xml_parser_, rss_namespace_ + "pubDate"));
-                if (unlikely(not TimeUtil::ParseRFC1123DateTime(pub_date_string, &pub_date)))
+                if (unlikely(not ParseRFC1123DateTimeAndPrefixes(pub_date_string, &pub_date)))
                     LOG_WARNING("couldn't parse \"" + pub_date_string + "\"!");
             } else if (not dc_namespace_.empty() and StringUtil::StartsWith(data, dc_namespace_)) {
                 const std::string tag(data);
