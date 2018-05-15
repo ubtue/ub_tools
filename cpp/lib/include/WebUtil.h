@@ -26,9 +26,7 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef WEB_UTIL_H
-#define WEB_UTIL_H
+#pragma once
 
 
 #include <map>
@@ -333,6 +331,3 @@ void ExtractURLs(const std::string &document_source, std::string default_base_ur
 
 
 } // namespace WebUtil
-
-
-#endif // define WEB_UTIL_H

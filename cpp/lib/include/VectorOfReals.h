@@ -23,10 +23,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-
-#ifndef VECTOR_OF_REALS_H
-#define VECTOR_OF_REALS_H
+#pragma once
 
 
 #include <Real.h>
@@ -101,6 +98,3 @@ public:
 
 /** \brief  Returns a new vector, equal to the product s * v. */
 VectorOfReals operator*(const real s, const VectorOfReals &v);
-
-
-#endif // ifndef VECTOR_OF_REALS_H

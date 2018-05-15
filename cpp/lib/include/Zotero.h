@@ -18,8 +18,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef ZOTERO_H
-#define ZOTERO_H
+#pragma once
 
 
 #include <memory>
@@ -301,6 +300,3 @@ public:
 
 
 } // namespace Zotero
-
-
-#endif // ifndef ZOTERO_H

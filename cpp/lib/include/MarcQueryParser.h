@@ -1,5 +1,4 @@
-#ifndef MARC_QUERY_PARSER_H
-#define MARC_QUERY_PARSER_H
+#pragma once
 
 
 #include <memory>
@@ -92,6 +91,3 @@ public:
 
 
 bool ParseQuery(const std::string &input, QueryDescriptor * const query_desc, std::string * const err_msg);
-
-
-#endif // ifndef MARC_QUERY_PARSER_H

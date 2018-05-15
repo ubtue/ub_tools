@@ -23,9 +23,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef RESOLVER_H
-#define RESOLVER_H
+#pragma once
 
 
 #include <list>
@@ -256,6 +254,3 @@ private:
     bool processServerReply(const unsigned char * const reply_packet, const size_t reply_packet_size, const uint16_t expected_reply_id,
                             std::set<in_addr_t> * const ip_addresses);
 };
-
-
-#endif // ifndef RESOLVER_H

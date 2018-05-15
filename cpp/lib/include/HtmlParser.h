@@ -22,9 +22,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef HTML_PARSER_H
-#define HTML_PARSER_H
+#pragma once
 
 
 #include <list>
@@ -284,6 +282,3 @@ public:
     /** Act upon a notification that a chunk of HTML has been parsed. */
     void notify(const Chunk &chunk);
 };
-
-
-#endif // ifndef HTML_PARSER_H

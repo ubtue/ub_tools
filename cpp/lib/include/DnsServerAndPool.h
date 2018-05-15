@@ -23,9 +23,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef DNS_SERVER_AND_POOL_H
-#define DNS_SERVER_AND_POOL_H
+#pragma once
 
 
 #include <string>
@@ -225,6 +223,3 @@ private:
     /** Returns the average queue length averaged over all DNS servers.  Used internally. */
     double getAverageQueueLength() const;
 };
-
-
-#endif // ifndef DNS_SERVER_AND_POOL_H

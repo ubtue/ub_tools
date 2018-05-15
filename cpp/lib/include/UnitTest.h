@@ -16,9 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-#ifndef UNIT_TEST_H
-#define UNIT_TEST_H
+#pragma once
 
 
 #include <iostream>
@@ -83,6 +81,3 @@ static unsigned success_count, failure_count;
 #define CHECK_NE(a, b) do { if ((a) != (b)) ++success_count;                                 \
         else { ++failure_count; std::cerr << "\tTest failed: " << #a " != " << #b << '\n'; } \
     } while (0)
-
-
-#endif // UNIT_TEST_H

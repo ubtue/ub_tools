@@ -22,8 +22,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ifndef STRING_DATA_SOURCE_H
-#define STRING_DATA_SOURCE_H
+#pragma once
 
 
 #include <string>
@@ -62,6 +61,3 @@ public:
 
     inline void rewind() { ch_ = s_.cbegin(); pushed_back_ = false; }
 };
-
-
-#endif // ifndef STRING_DATA_SOURCE_H

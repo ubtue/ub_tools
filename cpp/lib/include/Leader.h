@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef LEADER_H
-#define LEADER_H
+#pragma once
 
 
 #include <memory>
@@ -91,6 +90,3 @@ public:
     bool isMultiPartRecord() const { return raw_leader_[23] == 'Y'; }
     void setMultiPartRecord(bool is_multi_part) { raw_leader_[23] = is_multi_part ? 'Y' : '0'; }
 };
-
-
-#endif // ifndef LEADER_H

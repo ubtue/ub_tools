@@ -26,9 +26,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef RANDOM_H
-#define RANDOM_H
+#pragma once
 
 
 #include <algorithm>
@@ -254,6 +252,3 @@ template <typename RandomAccessContainer> typename RandomAccessContainer::iterat
 
 
 } // namespace Random
-
-
-#endif // define RANDOM_H

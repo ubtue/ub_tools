@@ -24,9 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef MISC_UTIL_H
-#define MISC_UTIL_H
+#pragma once
 
 
 #include <map>
@@ -150,6 +148,3 @@ size_t LoadMapFile(const std::string &filename, std::unordered_map<std::string, 
 
 
 } // namespace MiscUtil
-
-
-#endif // ifndef MISC_UTIL_H

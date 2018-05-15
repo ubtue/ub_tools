@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef REGEX_MATCHER_H
-#define REGEX_MATCHER_H
+#pragma once
 
 
 #include <string>
@@ -103,6 +102,3 @@ private:
         : pattern_(pattern), options_(options), pcre_(pcre_arg), pcre_extra_(pcre_extra_arg),
           substr_vector_((1 + MAX_SUBSTRING_MATCHES) * 3), last_match_count_(0) {}
 };
-
-
-#endif // ifndef REGEX_MATCHER_H

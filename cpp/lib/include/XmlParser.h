@@ -23,9 +23,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef XML_PARSER_H
-#define XML_PARSER_H
+#pragma once
 
 
 #include <map>
@@ -133,8 +131,3 @@ private:
     static void errorHandler(void * user_data, const char *msg, ...);
     static void fatalErrorHandler(void * user_data, const char *msg, ...);
 };
-
-
-#endif // ifndef XML_PARSER_H
-
-

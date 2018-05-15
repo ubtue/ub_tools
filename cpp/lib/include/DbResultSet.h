@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DB_RESULT_SET_H
-#define DB_RESULT_SET_H
+#pragma once
 
 
 #include <algorithm>
@@ -64,6 +63,3 @@ public:
     /** \return The set of all values in column "column" contained in this result set. */
     std::unordered_set<std::string> getColumnSet(const std::string &column);
 };
-
-
-#endif // ifndef DB_RESULT_SET_H

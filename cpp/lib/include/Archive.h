@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ARCHIVE_H
-#define ARCHIVE_H
+#pragma once
 
 
 #include <archive.h>
@@ -75,6 +74,3 @@ public:
 
     void add(const std::string &filename, const std::string &archive_name = "");
 };
-
-
-#endif // ifndef ARCHIVE_H

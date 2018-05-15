@@ -26,8 +26,7 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ifndef FILE_UTIL_H
-#define FILE_UTIL_H
+#pragma once
 
 
 #include <memory>
@@ -463,6 +462,3 @@ std::string StripLastPathComponent(const std::string &path);
 
 
 } // namespace FileUtil
-
-
-#endif // ifndef FILE_UTIL_H
