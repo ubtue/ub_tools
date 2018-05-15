@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SMART_DOWNLOADER_H
-#define SMART_DOWNLOADER_H
+#pragma once
 
 
 #include <memory>
@@ -188,6 +187,3 @@ protected:
 bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                    std::string * const http_header_charset, std::string * const error_message,
                    const bool trace = false);
-
-
-#endif // ifndef SMART_DOWNLOADER_H

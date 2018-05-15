@@ -24,9 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef FILE_DESCRIPTOR_H
-#define FILE_DESCRIPTOR_H
+#pragma once
 
 
 /** \brief   Class that avoids file descriptor leaks due to forgotten calls to close(2) and/or unexpected exceptions
@@ -60,6 +58,3 @@ public:
      */
     int release();
 };
-
-
-#endif // ifndef FILE_DESCRIPTOR_H

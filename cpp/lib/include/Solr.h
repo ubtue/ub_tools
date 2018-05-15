@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SOLR_H
-#define SOLR_H
+#pragma once
 
 
 #include <string>
@@ -50,6 +49,3 @@ bool Query(const std::string &query, const std::string &fields, std::string * co
 
 
 } // namespace Solr
-
-
-#endif // ifndef SOLR_H

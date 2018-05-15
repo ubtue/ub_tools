@@ -26,9 +26,7 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef INI_FILE_H
-#define INI_FILE_H
+#pragma once
 
 
 #include <map>
@@ -492,6 +490,3 @@ private:
     void processSectionEntry(const std::string &line);
     void processFile(const std::string &filename);
 };
-
-
-#endif // ifndef INI_FILE_H

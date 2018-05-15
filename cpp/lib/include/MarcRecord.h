@@ -17,9 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef MARC_RECORD_H
-#define MARC_RECORD_H
+#pragma once
 
 
 #include <limits>
@@ -260,6 +258,3 @@ private:
 
     static MarcRecord ReadSingleRecord(File * const input);
 };
-
-
-#endif /* MARC_RECORD_H */

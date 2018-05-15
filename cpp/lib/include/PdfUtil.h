@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef PDF_UTIL_H
-#define PDF_UTIL_H
+#pragma once
 
 
 #include <string>
@@ -56,6 +55,3 @@ bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tes
 
 
 } // namespace PdfUtil
-
-
-#endif // ifndef PDF_UTIL_H

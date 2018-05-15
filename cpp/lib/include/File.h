@@ -24,8 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ifndef FILE_H
-#define FILE_H
+#pragma once
 
 
 #include <stdexcept>
@@ -229,6 +228,3 @@ private:
     void fillBuffer();
     static File &SetPrecision(File &f, int new_precision) { f.precision_ = new_precision; return f; }
 };
-
-
-#endif // ifndef FILE_H

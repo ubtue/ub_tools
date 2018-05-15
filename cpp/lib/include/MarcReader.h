@@ -16,9 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef MARC_READER_H
-#define MARC_READER_H
+#pragma once
 
 
 #include <memory>
@@ -106,6 +104,3 @@ private:
     bool getNext(SimpleXmlParser<File>::Type * const type, std::map<std::string, std::string> * const attrib_map,
                  std::string * const data);
 };
-
-
-#endif // MARC_READER_H

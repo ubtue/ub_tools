@@ -25,9 +25,7 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef VARIABLE_STATS_H
-#define VARIABLE_STATS_H
+#pragma once
 
 
 #include <stdexcept>
@@ -187,6 +185,3 @@ template<typename NumericType> std::string VariableStats<NumericType>::toString(
         result += " +/- " + StringUtil::ToString(standardDeviation(), no_decimal_digits);
     return result;
 }
-
-
-#endif // ifndef VARIABLE_STATS_H

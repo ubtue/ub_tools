@@ -23,9 +23,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef REAL_H
-#define REAL_H
+#pragma once
 
 
 #include <cmath>
@@ -158,6 +156,3 @@
         #define FDIM(x,y)		std::fdim(x,y)		/* Return positive difference between x and y. */
 
 #endif
-
-
-#endif // ifndef REAL_H

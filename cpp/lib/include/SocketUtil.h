@@ -24,6 +24,8 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#pragma once
+
 
 #include <stdexcept>
 #include <string>
@@ -201,6 +203,3 @@ bool SendUdpRequest(const int socket_fd, const in_addr_t server_ip_address, cons
 
 
 } // namespace SocketUtil
-
-
-

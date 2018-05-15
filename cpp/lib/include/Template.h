@@ -22,9 +22,7 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef TEMPLATE_H
-#define TEMPLATE_H
+#pragma once
 
 
 #include <istream>
@@ -146,6 +144,3 @@ std::string ExpandTemplate(const std::string &template_string, const Map &names_
 
 
 } // namespace MiscUtil
-
-
-#endif // ifndef TEMPLATE_H

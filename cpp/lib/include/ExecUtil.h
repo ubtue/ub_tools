@@ -25,9 +25,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef EXEC_UTIL_H
-#define EXEC_UTIL_H
+#pragma once
 
 
 #include <string>
@@ -118,6 +116,3 @@ bool ShouldScheduleNewProcess();
 
 
 } // namespace ExecUtil
-
-
-#endif // ifndef EXEC_UTIL_H
