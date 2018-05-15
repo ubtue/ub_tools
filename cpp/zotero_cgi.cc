@@ -148,6 +148,7 @@ void ParseConfigFile(std::multimap<std::string, std::string> &cgi_args, Template
         LOG_ERROR("Zotero Translation Server Url not defined in config file!");
     if (zts_client_maps_directory.empty())
         LOG_ERROR("Zotero Mapping Directory not defined in config file!");
+    names_to_values_map->insertScalar("zotero_translation_server_url", zts_url);
 
     names_to_values_map->insertArray("all_journal_titles", all_journal_titles);
     names_to_values_map->insertArray("all_journal_issns", all_journal_issns);
@@ -399,10 +400,8 @@ void ProcessRssAction(std::multimap<std::string, std::string> &cgi_args) {
     std::cout << "<table>\r\n";
 
     const RssTask rss_task(GetCGIParameterOrDefault(cgi_args, "rss_feed_url"), GetCGIParameterOrDefault(cgi_args, "rss_output_format"));
-
     std::cout << "<tr><td>Command</td><td>" + rss_task.getCommand() + "</td></tr>\r\n";
 
-    // todo: getresult.php ersetzen
     if (rss_task.getExitCode() == 0)
         std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + rss_task.getOutPath() + "\">Result file</a></td></tr>\r\n";
     else
@@ -506,10 +505,10 @@ int main(int argc, char *argv[]) {
             names_to_values_map.insertScalar("selected_output_format_id", selected_output_format_id);
             names_to_values_map.insertArray("output_format_ids", GetOutputFormatIds());
 
-            names_to_values_map.insertScalar("zotero_translation_server_url", zts_url);
             std::ifstream template_html(TEMPLATE_DIRECTORY + "index.html");
             ParseConfigFile(cgi_args, &names_to_values_map);
             Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
+            std::cout << std::flush;
 
             if (action == "rss")
                 ProcessRssAction(cgi_args);
