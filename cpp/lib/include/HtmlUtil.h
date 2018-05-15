@@ -26,9 +26,7 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef HTML_UTIL_H
-#define HTML_UTIL_H
+#pragma once
 
 
 #include <string>
@@ -91,6 +89,3 @@ size_t ExtractAllLinks(const std::string &html_document, std::vector<std::string
 
 
 } // namespace HtmlUtil
-
-
-#endif // define HTML_UTIL_H

@@ -24,9 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef SSL_CONNECTION_H
-#define SSL_CONNECTION_H
+#pragma once
 
 
 #include <list>
@@ -83,6 +81,3 @@ private:
     static SSL_CTX *InitServer(const Method method);
     static SSL_CTX *InitClientAndServer(const Method method);
 };
-
-
-#endif // ifndef SSL_CONNECTION_H

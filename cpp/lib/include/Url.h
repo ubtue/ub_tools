@@ -24,9 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef URL_H
-#define URL_H
+#pragma once
 
 
 #include <fstream>
@@ -638,6 +636,3 @@ inline std::ostream &operator<<(std::ostream &stream, const Url &url) {
     stream << url.toString();
     return stream;
 }
-
-
-#endif // ifndef URL_H

@@ -18,9 +18,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef BSZ_UTIL_H
-#define BSZ_UTIL_H
+#pragma once
 
 
 #include <string>
@@ -41,6 +39,3 @@ std::string ExtractDateFromFilenameOrDie(const std::string &filename);
 
 
 } // namespace BSZUtil
-
-
-#endif // define BSZ_UTIL_H

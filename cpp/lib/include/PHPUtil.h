@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DB_PHP_UTIL_H
-#define DB_PHP_UTIL_H
+#pragma once
 
 
 #include <memory>
@@ -125,6 +124,3 @@ std::shared_ptr<DataType> DeserialisePHPObject(const std::string &serialised_obj
 
 
 } // namespace PHPUtil
-
-
-#endif // ifndef DB_PHP_UTIL_H

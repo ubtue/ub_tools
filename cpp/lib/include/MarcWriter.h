@@ -16,9 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef MARC_WRITER_H
-#define MARC_WRITER_H
+#pragma once
 
 
 #include <memory>
@@ -72,6 +70,3 @@ public:
     /** \return a reference to the underlying, assocaiated file. */
     virtual File &getFile() final { return *xml_writer_->getAssociatedOutputFile(); }
 };
-
-
-#endif // MARC_WRITER_H

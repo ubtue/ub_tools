@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef FullTextCache_H
-#define FullTextCache_H
+#pragma once
 
 
 #include <string>
@@ -99,6 +98,3 @@ public:
     void insertEntry(const std::string &id, const std::string &full_text,
                      const std::vector<EntryUrl> &entry_urls);
 };
-
-
-#endif // ifndef FullTextCache_H

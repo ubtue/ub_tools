@@ -24,9 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef XML_WRITER_H
-#define XML_WRITER_H
+#pragma once
 
 
 #include <list>
@@ -187,6 +185,3 @@ private:
     XmlWriter(const XmlWriter &rhs);            // intentionally unimplemented
     XmlWriter &operator=(const XmlWriter &rhs); // intentionally unimplemented
 };
-
-
-#endif // ifndef XML_WRITER_H

@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef BIBLE_UTIL_H
-#define BIBLE_UTIL_H
+#pragma once
 
 
 #include <set>
@@ -85,6 +84,3 @@ public:
 
 
 } // namespace BibleUtil
-
-
-#endif // ifndef BIBLE_UTIL_H
