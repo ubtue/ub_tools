@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DB_ROW_H
-#define DB_ROW_H
+#pragma once
 
 
 #include <map>
@@ -74,6 +73,3 @@ public:
     /** \throws std::out_of_range if the "column_name" refers to a non-existent column name. */
     bool isNull(const std::string &column_name) const;
 };
-
-
-#endif // ifndef DB_ROW_H

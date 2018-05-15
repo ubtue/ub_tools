@@ -16,9 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-#ifndef SYNDICATION_FORMAT_H
-#define SYNDICATION_FORMAT_H
+#pragma once
 
 
 #include <memory>
@@ -145,6 +143,3 @@ public:
 protected:
     virtual std::unique_ptr<Item> getNextItem() override;
 };
-
-
-#endif // ifndef SYNDICATION_FORMAT_H

@@ -29,9 +29,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef STRING_UTIL_H
-#define STRING_UTIL_H
+#pragma once
 
 
 #include <algorithm>
@@ -2464,6 +2462,3 @@ std::string ISO8859_15ToUTF8(const char &latin9_char);
 
 
 } // Namespace StringUtil
-
-
-#endif // ifndef STRING_UTIL_H

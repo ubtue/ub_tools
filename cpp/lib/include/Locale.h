@@ -23,9 +23,7 @@
  *  along with ; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef LOCALE_H
-#define LOCALE_H
+#pragma once
 
 
 #include <string>
@@ -59,6 +57,3 @@ public:
          */
         static std::string GetLocaleName(const int category = LC_CTYPE);
 };
-
-
-#endif // LOCALE_H

@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DIRECTORY_ENTRY_H
-#define DIRECTORY_ENTRY_H
+#pragma once
 
 
 #include <string>
@@ -138,6 +137,3 @@ public:
     static bool ParseDirEntries(const std::string &entries_string, std::vector<DirectoryEntry> * const entries,
                                 std::string * const err_msg = nullptr);
 };
-
-
-#endif // ifndef DIRECTORY_ENTRY_H

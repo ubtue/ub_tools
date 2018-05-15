@@ -25,9 +25,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef EXEC_UTIL_H
-#define EXEC_UTIL_H
+#pragma once
 
 
 #include <string>
@@ -77,7 +75,7 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &args 
  *  \param  new_stderr          An optional replacement file path for stderr.
  *  \return The PID of the child.
  */
-int Spawn(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
+pid_t Spawn(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
           const std::string &new_stdout = "", const std::string &new_stderr = "");
 
 
@@ -118,6 +116,3 @@ bool ShouldScheduleNewProcess();
 
 
 } // namespace ExecUtil
-
-
-#endif // ifndef EXEC_UTIL_H

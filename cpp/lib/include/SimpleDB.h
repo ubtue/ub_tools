@@ -23,9 +23,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef SIMPLE_DB_H
-#define SIMPLE_DB_H
+#pragma once
 
 
 #include <string>
@@ -208,6 +206,3 @@ private:
         const SimpleDB &operator=(const SimpleDB &rhs); // Intentionally unimplemented!
         void init(const OpenMode open_mode, int mode);
 };
-
-
-#endif // ifndef SIMPLE_DB_H

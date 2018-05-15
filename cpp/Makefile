@@ -19,7 +19,7 @@ ifneq ("$(wildcard /usr/include/selinux)","")
   LIBS += -lselinux
 endif
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
-CGI_PROGS      = full_text_cache_monitor full_text_lookup translate_chainer translator_ajax translator display_translate_stats
+CGI_PROGS      = full_text_cache_monitor full_text_lookup translate_chainer translator_ajax translator display_translate_stats zotero_cgi
 INSTALL_PROGS  = $(PROGS) *.sh
 
 .PHONY: all .deps tests test install regular_install cgi_install local_clean clean
@@ -67,6 +67,7 @@ data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.tem
 	cp data/done_translating.html data/translate.html data/translation_front_page.html \
            data/mytranslations_template.msg /usr/local/var/lib/tuelib/translate_chainer/
 	cp -r data/full_text_cache_monitor /usr/local/var/lib/tuelib/
+	cp -r data/zotero_cgi /usr/local/var/lib/tuelib/
 	cp data/subscriptions_email.ixtheo.template /usr/local/var/lib/tuelib/
 	cp data/subscriptions_email.relbib.template /usr/local/var/lib/tuelib/
 	cp data/zotero_crawler.conf /usr/local/var/lib/tuelib/

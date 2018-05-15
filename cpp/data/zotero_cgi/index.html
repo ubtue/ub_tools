@@ -1,0 +1,192 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <link rel="stylesheet" href="https://getbootstrap.com/docs/4.0/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css"/>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script type="text/javascript" src="https://code.jquery.com/ui/1.12.0/jquery-ui.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.16/datatables.js"></script>
+
+    <!-- popper is required by bootstrap for tabs -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
+    <script type="text/javascript" src="https://getbootstrap.com/docs/4.0/dist/js/bootstrap.min.js"></script>
+
+    <style>
+        {style_css}
+    </style>
+
+    <script type="text/javascript">
+        {scripts_js}
+
+        var rss_options_map = {{
+            {LOOP rss_journal_titles, rss_journal_issns, rss_feed_urls}
+                "{rss_journal_titles}": {{
+                    "issn": "{rss_journal_issns}",
+                    "feed_url": "{rss_feed_urls}",
+                },
+            {ENDLOOP}
+        };
+
+        var crawling_options_map = {{
+            {LOOP crawling_journal_titles, crawling_journal_issns, crawling_base_urls, crawling_extraction_regexes, crawling_depths}
+                "{crawling_journal_titles}": {{
+                    "issn": "{crawling_journal_issns}",
+                    "base_url": "{crawling_base_urls}",
+                    "regex": "{crawling_extraction_regexes}",
+                    "depth": "{crawling_depths}",
+                },
+            {ENDLOOP}
+        };
+    </script>
+</head>
+<body>
+<h1>Zotero Crawling</h1>
+<p><i>Zotero Translation Server: {zotero_translation_server_url}</i></p>
+
+<p>
+    Zeder: <a target="_blank" href="http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo">ixtheo</a> | <a target="_blank" href="http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=krim">krim</a>
+</p>
+
+<!-- tab navigation -->
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-item"><a class="nav-link {IF action == "list"}active{ENDIF}" id="home-list" data-toggle="tab" href="#list" role="tab" aria-controls="list" aria-selected="false">List Journals</a></li>
+    <li class="nav-item"><a class="nav-link {IF action == "rss"}active{ENDIF}" id="home-rss" data-toggle="tab" href="#rss" role="tab" aria-controls="crawling" aria-selected="false">Try RSS</a></li>
+    <li class="nav-item"><a class="nav-link {IF action == "crawling"}active{ENDIF}" id="home-crawling" data-toggle="tab" href="#crawling" role="tab" aria-controls="crawling" aria-selected="false">Try Crawling</a></li>
+</ul>
+
+<!-- tab content -->
+<div class="tab-content">
+    <div class="tab-pane {IF action == "list"}active{ENDIF}" id="list" role="tabpanel" aria-labelledby="list-tab">
+        <table id="all_journals">
+            <thead>
+                <tr>
+                    <th>title</th>
+                    <th>issn</th>
+                    <th>method</th>
+                    <th>actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {LOOP all_journal_titles, all_journal_issns, all_journal_methods, all_urls}
+                    <tr>
+                        <td><a target="_blank" href="{all_urls}">{all_journal_titles}</a></td>
+                        <td>{all_journal_issns}</td>
+                        <td>{all_journal_methods}</td>
+                        <td>
+                            {IF all_journal_methods == "RSS"}<a href="#rss" onclick="TryRss('{all_journal_titles}')">try rss</a>{ENDIF}
+                            {IF all_journal_methods == "CRAWL"}<a href="#crawling" onclick="TryCrawling('{all_journal_titles}')">try crawl</a>{ENDIF}
+                        </td>
+                    </tr>
+                {ENDLOOP}
+            </tbody>
+        </table>
+    </div>
+    <div class="tab-pane {IF action == "rss"}active{ENDIF}" id="rss" role="tabpanel" aria-labelledby="rss-tab">
+        <form method="post">
+            <table>
+                <tr>
+                    <td>Journal</td>
+                    <td>
+                        <select id="rss_journal_title" name="rss_journal_title" onchange="OnChangeRssJournal()">
+                            {LOOP rss_journal_titles}
+                                <option{IF rss_journal_titles == selected_rss_journal_title} selected{ENDIF}>{rss_journal_titles}</option>
+                            {ENDLOOP}
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td>ISSN</td>
+                    <td>
+                        <input id="rss_journal_issn" name="rss_journal_issn" readonly/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>RSS Feed Url</td>
+                    <td>
+                        <input id="rss_feed_url" name="rss_feed_url" readonly/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Format</td>
+                    <td>
+                        <select id="rss_output_format" name="rss_output_format">
+                            {LOOP output_format_ids}
+                                <option{IF selected_output_format_id == output_format_ids} selected="selected"{ENDIF}>{output_format_ids}</option>
+                            {ENDLOOP}
+                        </select>
+                        Only MARC21 and MARCXML
+                    </td>
+                </tr>
+                <tr><td colspan="3">Please note: This process can run for multiple minutes!</td></tr>
+                <tr><td colspan="3"><input type="submit"></input></td></tr>
+            </table>
+            <input type="hidden" name="action" value="rss" />
+        </form>
+    </div>
+    <div class="tab-pane {IF action == "crawling"}active{ENDIF}" id="crawling" role="tabpanel" aria-labelledby="crawling-tab">
+        <form method="post">
+            <table>
+                <tr><td>Journal</td>
+                    <td>
+                        <select id="crawling_journal_title" name="crawling_journal_title" onchange="OnChangeCrawlingJournal()">
+                            {LOOP crawling_journal_titles}
+                                <option{IF crawling_journal_titles == selected_crawling_journal_title} selected{ENDIF}>{crawling_journal_titles}</option>
+                            {ENDLOOP}
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td>ISSN</td>
+                    <td>
+                        <input id="crawling_journal_issn" name="crawling_journal_issn" readonly/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Base Url</td>
+                    <td>
+                        <input id="crawling_base_url" name="crawling_base_url" readonly/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Regex</td>
+                    <td>
+                        <input id="crawling_extraction_regex" name="crawling_extraction_regex" readonly/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Depth</td>
+                    <td>
+                        <input id="crawling_depth" name="crawling_depth" readonly/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Format</td>
+                    <td>
+                        <select name="crawling_output_format">
+                            {LOOP output_format_ids}
+                                <option{IF selected_output_format_id == output_format_ids} selected="selected"{ENDIF}>{output_format_ids}</option>
+                            {ENDLOOP}
+                        </select>
+                        MARC21 and MARCXML are custom. All others are generated by Zotero (JSON = native Zotero API format).
+                    </td>
+                </tr>
+                <tr><td colspan="3">Please note: This process can run for multiple minutes!</td></tr>
+                <tr><td colspan="3"><input type="submit"></input></td></tr>
+            </table>
+            <input type="hidden" name="action" value="crawling" />
+        </form>
+    </div>
+</div>
+
+<script type="text/javascript">
+    UpdateSelectionDetails();
+    SortSelectOptions('#rss_journal_title');
+    SortSelectOptions('#crawling_journal_title');
+</script>
+
+<!--
+end of body and html document will be written in cgi,
+because we need to output status during async monitoring
+</body>
+</html>
+-->

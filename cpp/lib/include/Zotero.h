@@ -18,8 +18,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef ZOTERO_H
-#define ZOTERO_H
+#pragma once
 
 
 #include <memory>
@@ -119,7 +118,7 @@ protected:
         : output_format_(output_format), output_file_(output_file), harvest_maps_(harvest_maps), harvest_params_(harvest_params)
         { }
 public:
-    virtual ~FormatHandler() {}
+    virtual ~FormatHandler() = default;
 
     /** \brief Convert & write single record to output file */
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) = 0;
@@ -301,6 +300,3 @@ public:
 
 
 } // namespace Zotero
-
-
-#endif // ifndef ZOTERO_H

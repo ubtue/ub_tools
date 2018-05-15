@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef MARC_GREP_TOKENIZER_H
-#define MARC_GREP_TOKENIZER_H
+#pragma once
 
 
 #include <string>
@@ -50,6 +49,3 @@ public:
     static std::string EscapeString(const std::string &s);
     static std::string TokenTypeToString(const TokenType token);
 };
-
-
-#endif // ifndef MARC_GREP_TOKENIZER_H

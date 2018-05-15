@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SIMPLE_XML_PARSER_H
-#define SIMPLE_XML_PARSER_H
+#pragma once
 
 
 #include <algorithm>
@@ -639,6 +638,3 @@ template<typename DataSource> std::string SimpleXmlParser<DataSource>::TypeToStr
 
     __builtin_unreachable();
 }
-
-
-#endif // ifndef SIMPLE_XML_PARSER_H

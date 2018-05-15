@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef VUFIND_H
-#define VUFIND_H
+#pragma once
 
 
 #include <string>
@@ -35,6 +34,3 @@ void GetMysqlURL(std::string * const mysql_url, const std::string &vufind_config
 
 
 } // namespace VuFind
-
-
-#endif // ifndef VUFIND_H

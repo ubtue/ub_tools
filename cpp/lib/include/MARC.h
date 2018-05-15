@@ -16,9 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-#ifndef MARC_H
-#define MARC_H
+#pragma once
 
 
 #include <algorithm>
@@ -39,7 +37,7 @@ namespace MARC {
 
 class Tag {
     /* We have to double this up, so we have one little endian integer for comparison, and one big endian integer
-     * containing a char[4] for printig.
+     * containing a char[4] for printing.
      */
     union {
         uint32_t as_int_;
@@ -755,6 +753,3 @@ bool IsOpenAccess(const Record &marc_record);
 
 
 } // namespace MARC
-
-
-#endif // ifndef MARC_H

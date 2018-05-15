@@ -1,5 +1,4 @@
-#ifndef IDB_PAGER_H
-#define IDB_PAGER_H
+#pragma once
 
 
 #include <string>
@@ -36,6 +35,3 @@ public:
         : number_generator_(number_generator), base_url_("http://idb.ub.uni-tuebingen.de/diglit/" +id + "/") { }
     bool getNextPage(const TimeLimit &time_limit, std::string * const ocr_text);
 };
-
-
-#endif // ifndef IDB_PAGER_H
