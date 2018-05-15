@@ -102,7 +102,7 @@ public:
     Function(const std::string &name, const std::vector<ArgDesc> &argument_descriptors)
         : name_(name), argument_descriptors_(argument_descriptors) { }
     inline const std::string &getName() const { return name_; }
-    virtual std::string call(const std::vector<std::string> &arguments) = 0;
+    virtual std::string call(const std::vector<const Value *> &arguments) const = 0;
 };
 
     
