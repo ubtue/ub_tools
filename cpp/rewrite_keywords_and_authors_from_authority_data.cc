@@ -58,7 +58,7 @@ void CreateAuthorityOffsets(MARC::Reader * const authority_reader, std::map<std:
 // Return the first matching primary field from authority data
 // This implicitly assumes that the correct tag can be uniquely identified from the PPN
 MARC::Record::const_iterator GetFirstPrimaryField(const MARC::Record& authority_record) {
-     std::vector<std::string> tags_to_check({"100", "151", "150", "110", "111", "130"});
+     std::vector<std::string> tags_to_check({"100", "151", "150", "110", "111", "130", "153"});
      for (auto tag_to_check : tags_to_check) {
          MARC::Record::const_iterator primary_field(authority_record.findTag(tag_to_check));
          if (primary_field != authority_record.end())
@@ -69,7 +69,8 @@ MARC::Record::const_iterator GetFirstPrimaryField(const MARC::Record& authority_
 
 
 bool GetAuthorityRecordFromPPN(std::string bsz_authority_ppn, MARC::Record * const authority_record, MARC::Reader * const authority_reader,
-                                       const std::map<std::string, off_t> &authority_offsets) {
+                               const std::map<std::string, off_t> &authority_offsets)
+{
     auto authority_offset(authority_offsets.find(bsz_authority_ppn));
     if (authority_offset != authority_offsets.end()) {
         off_t authority_record_offset(authority_offset->second);
@@ -100,20 +101,21 @@ void UpdateTitleField(MARC::Record::Field * const field, const MARC::Record auth
          if (subfields.hasSubfield(authority_subfield.code_))
              subfields.replaceFirstSubfield(authority_subfield.code_, authority_subfield.value_);
          else
-             subfields.addSubfield(authority_subfield.code_, authority_subfield.value_);
+             subfields.appendSubfield(authority_subfield.code_, authority_subfield.value_);
       }
       field->setContents(subfields, field->getIndicator1(), field->getIndicator2());
 }
 
 
 void AugmentAuthors(MARC::Record * const record, MARC::Reader * const authority_reader, const std::map<std::string, off_t> &authority_offsets,
-                    RegexMatcher * const matcher) {
+                    RegexMatcher * const matcher)
+{
     std::vector<std::string> tags_to_check({"100", "110", "111", "700", "710", "711"});
     for (auto tag_to_check : tags_to_check) {
         for (auto &field : record->getTagRange(tag_to_check)) {
             std::string _author_content(field.getContents());
             if (matcher->matched(_author_content)) {
-                MARC::Record authority_record(""/*empty leader*/);
+                MARC::Record authority_record(std::string(MARC::Record::LEADER_LENGTH, ' '));
                 if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets))
                     UpdateTitleField(&field, authority_record);
             }
@@ -123,11 +125,12 @@ void AugmentAuthors(MARC::Record * const record, MARC::Reader * const authority_
 
 
 void AugmentKeywords(MARC::Record * const record, MARC::Reader * const authority_reader, const std::map<std::string, off_t> &authority_offsets,
-                    RegexMatcher * const matcher) {
+                    RegexMatcher * const matcher)
+{
     for (auto &field : record->getTagRange("689")) {
         std::string _689_content(field.getContents());
         if (matcher->matched(_689_content)) {
-             MARC::Record authority_record(""/*empty leader*/);
+             MARC::Record authority_record(std::string(MARC::Record::LEADER_LENGTH, ' '));
              if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets))
                  UpdateTitleField(&field, authority_record);
         }
