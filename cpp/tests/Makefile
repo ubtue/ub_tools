@@ -6,7 +6,7 @@ CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=nat
 ifeq ($(CCC),clang++)
   CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions
 else
-  CCCFLAGS += -std=gnu++14
+  CCCFLAGS += -std=gnu++11
 endif
 CCC            = clang++
 OBJ            = .
