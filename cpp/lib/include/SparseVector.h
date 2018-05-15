@@ -24,9 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef SPARSE_VECTOR_H
-#define SPARSE_VECTOR_H
+#pragma once
 
 
 #include <unordered_map>
@@ -153,6 +151,3 @@ private:
 
 /** \brief  Returns a new vector, equal to the product s * v. */
 SparseVector operator*(const real s, const SparseVector &v);
-
-
-#endif // ifndef SPARSE_VECTOR_H

@@ -1,5 +1,4 @@
-#ifndef AUTO_CONVERT
-#define AUTO_CONVERT
+#pragma once
 
 
 #include <string>
@@ -158,6 +157,3 @@ public:
         return std::pair<Second, First>(item.second, item.first);
     }
 };
-
-
-#endif // AUTO_CONVERT

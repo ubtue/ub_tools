@@ -581,8 +581,11 @@ bool RemoveDirectory(const std::string &dir_name) {
 }
 
 
-AutoTempDirectory::AutoTempDirectory(const std::string &path_prefix, const bool cleanup_if_exception_is_active)
-    : cleanup_if_exception_is_active_(cleanup_if_exception_is_active)
+AutoTempDirectory::AutoTempDirectory(const std::string &path_prefix,
+                                     const bool cleanup_if_exception_is_active,
+                                     const bool remove_when_out_of_scope)
+    : cleanup_if_exception_is_active_(cleanup_if_exception_is_active),
+      remove_when_out_of_scope_(remove_when_out_of_scope)
 {
     std::string path_template(path_prefix + "XXXXXX");
     const char * const path(::mkdtemp(const_cast<char *>(path_template.c_str())));
@@ -599,7 +602,7 @@ AutoTempDirectory::~AutoTempDirectory() {
     if (not IsDirectory(path_))
         LOG_ERROR("\"" + path_ + "\" doesn't exist anymore!");
 
-    if ((not std::uncaught_exception() or cleanup_if_exception_is_active_) and not RemoveDirectory(path_))
+    if (remove_when_out_of_scope_ and ((not std::uncaught_exception() or cleanup_if_exception_is_active_) and not RemoveDirectory(path_)))
         LOG_ERROR("can't remove \"" + path_ + "\"!");
 }
 

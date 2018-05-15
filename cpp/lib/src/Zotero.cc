@@ -191,7 +191,7 @@ JsonFormatHandler::JsonFormatHandler(const std::string &output_format, const std
 
 JsonFormatHandler::~JsonFormatHandler() {
     output_file_object_->write("]");
-    output_file_object_->close();
+    delete output_file_object_;
 }
 
 
@@ -357,7 +357,7 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
 
 std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
-        "^issue|pages|publicationTitle|volume|date|tags|libraryCatalog|itemVersion|accessDate$"));
+        "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|ubtue$"));
     unsigned record_count(0), previously_downloaded_count(0);
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
                             MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
@@ -407,10 +407,13 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                 new_record.insertField("542", { { 'u', copyright } });
             else
                 new_record.insertField("542", { { 'f', copyright } });
+        } else if (key_and_node.first == "journalAbbreviation") {
+            new_record.insertField("773", { { 'p', JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
+                                                                                         key_and_node.second)->getValue() } });
         } else
             LOG_ERROR("unknown key \"" + key_and_node.first + "\" with node type "
-                            + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
-                            + key_and_node.second->toString() + ")");
+                      + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
+                      + key_and_node.second->toString() + "), whole record: " + object_node->toString());
     }
 
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
@@ -429,7 +432,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                 new_record.insertField("007", "cr uuu---uuuuu");
             else
                 LOG_ERROR("unhandled value of physical form: \""
-                      + physical_form + "\"!");
+                          + physical_form + "\"!");
         }
 
         // volume
@@ -524,18 +527,18 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
         const std::shared_ptr<JSON::ObjectNode> creator_object(creators_array->getObjectNode(i));
 
         const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
-        if (last_name_node == nullptr)
-            LOG_ERROR("creator is missing a last name!");
-        std::string name(creator_object->getStringValue("lastName"));
+        if (last_name_node != nullptr) {
+            std::string name(creator_object->getStringValue("lastName"));
 
-        const std::shared_ptr<const JSON::JSONNode> first_name_node(creator_object->getNode("firstName"));
-        if (first_name_node != nullptr)
-            name += ", " + creator_object->getStringValue("firstName");
+            const std::shared_ptr<const JSON::JSONNode> first_name_node(creator_object->getNode("firstName"));
+            if (first_name_node != nullptr)
+                name += ", " + creator_object->getStringValue("firstName");
 
-        const std::string PPN(DownloadAuthorPPN(name));
-        if (not PPN.empty()) {
-            comments->emplace_back("Added author PPN " + PPN + " for author " + name);
-            creator_object->insert("ppn", std::make_shared<JSON::StringNode>(PPN));
+            const std::string PPN(DownloadAuthorPPN(name));
+            if (not PPN.empty()) {
+                comments->emplace_back("Added author PPN " + PPN + " for author " + name);
+                creator_object->insert("ppn", std::make_shared<JSON::StringNode>(PPN));
+            }
         }
     }
 }

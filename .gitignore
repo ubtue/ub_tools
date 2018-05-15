@@ -58,6 +58,7 @@ display_translate_stats
 dsv_reader
 enrich_ddcs
 enrich_keywords_with_title_words
+es_store_document
 extract_authority_data_translations
 extract_bible_references
 extract_keywords_for_translation
@@ -100,6 +101,7 @@ map_ddc_and_rvk_to_ixtheo_notations
 marc_augmentor
 marc_char_filter
 marc_compare
+marc_convert
 marc_diff
 marc_filter
 marc_grep
@@ -145,6 +147,8 @@ update_authority_data
 update_full_text_db
 update_ixtheo_notations
 urlencode
+zotero_cgi
+ztracker_tool
 zts_client
 zts_harvester
 

@@ -18,8 +18,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SIMPLE_CRAWLER_H
-#define SIMPLE_CRAWLER_H
+#pragma once
 
 
 #include <iostream>
@@ -122,6 +121,3 @@ private:
 
     void extractLocationUrls(const std::string &header_blob, std::list<std::string> * const location_urls);
 };
-
-
-#endif // ifndef SIMPLE_CRAWLER_H

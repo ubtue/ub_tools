@@ -24,8 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ifndef URL_UTIL_H
-#define URL_UTIL_H
+#pragma once
 
 
 #include <string>
@@ -275,6 +274,3 @@ inline bool IsValidWebUrl(const std::string &url) { return Url(url).isValidWebUr
 
 
 } // namespace UrlUtil
-
-
-#endif // ifndef URL_UTIL_H

@@ -18,9 +18,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef MARC_UTIL_H
-#define MARC_UTIL_H
+#pragma once
 
 
 #include <unordered_map>
@@ -70,6 +68,3 @@ void FileLockedComposeAndWriteRecord(MarcWriter * const marc_writer, MarcRecord 
 
 
 } // namespace MarcUtil
-
-
-#endif //MARC_UTIL_H

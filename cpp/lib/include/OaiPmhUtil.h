@@ -23,9 +23,7 @@
  *  along with libiViaOaiPmh; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef OAI_PMH_UTIL_H
-#define OAI_PMH_UTIL_H
+#pragma once
 
 
 #ifndef STRING
@@ -81,6 +79,3 @@ bool UtcDateTimeToLocalSqlDateTime(const std::string &utc_date_time, std::string
 
 } // namespace Util
 } // namespace OaiPmh
-
-
-#endif // ifndef OAI_PMH_UTIL_H

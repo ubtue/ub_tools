@@ -16,9 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef MARC21_OAI_PMH_CLIENT_H
-#define MARC21_OAI_PMH_CLIENT_H
+#pragma once
 
 
 #include "OaiPmhClient.h"
@@ -35,6 +33,3 @@ public:
     virtual bool processRecord(const OaiPmh::Record &record, const unsigned verbosity, Logger * const logger);
     unsigned getRecordCount() const {return record_count_; }
 };
-
-
-#endif // ifndef MARC21_OAI_PMH_CLIENT_H

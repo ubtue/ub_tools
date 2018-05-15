@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SUBFIELDS_H
-#define SUBFIELDS_H
+#pragma once
 
 
 #include <algorithm>
@@ -181,6 +180,3 @@ public:
     /** Returns a MARC-21 binary blob for all subfields. (No field terminator will be appended!) */
     std::string toString() const;
 };
-
-
-#endif // ifndef SUBFIELDS_H

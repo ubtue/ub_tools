@@ -23,9 +23,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef THREAD_UTIL_H
-#define THREAD_UTIL_H
+#pragma once
 
 
 #include <mutex>
@@ -199,6 +197,3 @@ pid_t GetThreadId();
 
 
 } // namespace ThreadUtil
-
-
-#endif // ifndef THREAD_UTIL_H

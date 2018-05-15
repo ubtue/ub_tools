@@ -22,9 +22,7 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef TEMPLATE_H
-#define TEMPLATE_H
+#pragma once
 
 
 #include <istream>
@@ -102,7 +100,7 @@ public:
     Function(const std::string &name, const std::vector<ArgDesc> &argument_descriptors)
         : name_(name), argument_descriptors_(argument_descriptors) { }
     inline const std::string &getName() const { return name_; }
-    virtual std::string call(const std::vector<std::string> &arguments) = 0;
+    virtual std::string call(const std::vector<const Value *> &arguments) const = 0;
 };
 
     
@@ -146,6 +144,3 @@ std::string ExpandTemplate(const std::string &template_string, const Map &names_
 
 
 } // namespace MiscUtil
-
-
-#endif // ifndef TEMPLATE_H

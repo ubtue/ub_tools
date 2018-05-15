@@ -23,9 +23,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef TIMER_UTIL_H
-#define TIMER_UTIL_H
+#pragma once
 
 
 #include <string>
@@ -232,6 +230,3 @@ uint64_t MillisecondsSinceEpoch();
 
 
 } // namespace TimerUtil
-
-
-#endif // ifndef TIMER_UTIL_H

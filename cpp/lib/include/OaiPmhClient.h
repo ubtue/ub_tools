@@ -28,9 +28,7 @@
  *  Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  *  02111-1307 USA
  */
-
-#ifndef OAI_PMH_CLIENT_H
-#define OAI_PMH_CLIENT_H
+#pragma once
 
 
 #ifndef LIST
@@ -186,6 +184,3 @@ private:
 
 
 } // namespace OaiPmh
-
-
-#endif // ifndelf OAI_PMH_CLIENT_H

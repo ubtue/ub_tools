@@ -24,9 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef NETUTIL_H
-#define NETUTIL_H
+#pragma once
 
 
 #include <fstream>
@@ -159,6 +157,3 @@ bool GetPeerIpAddressFromSocket(const int socket_fd, in_addr_t * const ip_addres
 
 
 } // namespace NetUtil
-
-
-#endif

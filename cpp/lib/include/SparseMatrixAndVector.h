@@ -25,9 +25,7 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef SPARSE_MATRIX_AND_VECTOR_H
-#define SPARSE_MATRIX_AND_VECTOR_H
+#pragma once
 
 
 #include <algorithm>
@@ -135,6 +133,3 @@ public:
     void print(std::ostream &output, const int precision) const;
     void log(const std::string &log_message, const int precision = 3) const;
 };
-
-
-#endif // ifndef SPARSE_MATRIX_AND_VECTOR_H

@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef REGESSION_TEST_H
-#define REGESSION_TEST_H
+#pragma once
 
 
 #include <string>
@@ -56,6 +55,3 @@ bool CompareFiles(const std::string &test_name, const std::string &actual_file, 
 
 
 } // namespace RegressionTest
-
-
-#endif // ifndef REGESSION_TEST_H

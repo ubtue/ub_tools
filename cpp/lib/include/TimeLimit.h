@@ -25,9 +25,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef TIME_LIMIT_H
-#define TIME_LIMIT_H
+#pragma once
 
 
 #include <sys/time.h>
@@ -84,6 +82,3 @@ public:
 private:
     void initialize(const unsigned time_limit);
 };
-
-
-#endif // ifndef TIME_LIMIT_H
