@@ -68,24 +68,25 @@ MARC::Record::const_iterator GetFirstPrimaryField(const MARC::Record& authority_
 }
 
 
-MARC::Record GetAuthorityRecordFromPPN(std::string bsz_authority_ppn, MARC::Reader * const authority_reader,
+bool GetAuthorityRecordFromPPN(std::string bsz_authority_ppn, MARC::Record * const authority_record, MARC::Reader * const authority_reader,
                                        const std::map<std::string, off_t> &authority_offsets) {
     auto authority_offset(authority_offsets.find(bsz_authority_ppn));
     if (authority_offset != authority_offsets.end()) {
         off_t authority_record_offset(authority_offset->second);
         if (authority_reader->seek(authority_record_offset)) {
-            const MARC::Record authority_record(authority_reader->read());
-            if (authority_record.getControlNumber() != bsz_authority_ppn)
-                logger->error("We got a wrong PPN " + authority_record.getControlNumber() +
+            *authority_record = authority_reader->read();
+            if (authority_record->getControlNumber() != bsz_authority_ppn)
+                logger->error("We got a wrong PPN " + authority_record->getControlNumber() +
                               " instead of " + bsz_authority_ppn);
             else
-                return authority_record;
+                return true;
 
         } else
             logger->error("Unable to seek to record for authority PPN " + bsz_authority_ppn);
-    } else
-        logger->error("Unable to find offset for authority PPN " + bsz_authority_ppn);
-
+    } else {
+        logger->warning("Unable to find offset for authority PPN " + bsz_authority_ppn);
+        return false;
+    }
     std::runtime_error("Logical flaw in GetAuthorityRecordFromPPN");
 }
 
@@ -112,8 +113,9 @@ void AugmentAuthors(MARC::Record * const record, MARC::Reader * const authority_
         for (auto &field : record->getTagRange(tag_to_check)) {
             std::string _author_content(field.getContents());
             if (matcher->matched(_author_content)) {
-                const MARC::Record authority_record(GetAuthorityRecordFromPPN((*matcher)[1], authority_reader, authority_offsets));
-                UpdateTitleField(&field, authority_record);
+                MARC::Record authority_record(""/*empty leader*/);
+                if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets))
+                    UpdateTitleField(&field, authority_record);
             }
         }
     }
@@ -125,8 +127,9 @@ void AugmentKeywords(MARC::Record * const record, MARC::Reader * const authority
     for (auto &field : record->getTagRange("689")) {
         std::string _689_content(field.getContents());
         if (matcher->matched(_689_content)) {
-             const MARC::Record authority_record(GetAuthorityRecordFromPPN((*matcher)[1], authority_reader, authority_offsets));
-             UpdateTitleField(&field, authority_record);
+             MARC::Record authority_record(""/*empty leader*/);
+             if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets))
+                 UpdateTitleField(&field, authority_record);
         }
     }
 }
