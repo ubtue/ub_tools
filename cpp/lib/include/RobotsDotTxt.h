@@ -24,9 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef ROBOTS_DOT_TXT_H
-#define ROBOTS_DOT_TXT_H
+#pragma once
 
 
 #include <mutex>
@@ -185,6 +183,3 @@ private:
 
     void nonThreadSafeClear();
 };
-
-
-#endif // ifndef ROBOTS_DOT_TXT_H

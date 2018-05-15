@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DB_CONNECTION_H
-#define DB_CONNECTION_H
+#pragma once
 
 
 #include <string>
@@ -98,6 +97,3 @@ private:
     void init(const std::string &database_name, const std::string &user, const std::string &passwd,
               const std::string &host, const unsigned port);
 };
-
-
-#endif // ifndef DB_CONNECTION_H

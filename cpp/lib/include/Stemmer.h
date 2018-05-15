@@ -1,5 +1,4 @@
-#ifndef STEMMER_H
-#define STEMMER_H
+#pragma once
 
 
 #include <string>
@@ -33,6 +32,3 @@ public:
      */
     static const Stemmer *StemmerFactory(const std::string &language_name_or_code);
 };
-
-
-#endif // ifndef STEMMER_H

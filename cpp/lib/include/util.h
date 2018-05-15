@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef UTIL_H
-#define UTIL_H
+#pragma once
 
 
 #include <mutex>
@@ -129,6 +128,3 @@ public:
     ~DSVReader();
     bool readLine(std::vector<std::string> * const values);
 };
-
-
-#endif // ifndef UTIL_H

@@ -18,8 +18,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ELASTICSEARCH_H
-#define ELASTICSEARCH_H
+#pragma once
 
 
 #include <string>
@@ -152,6 +151,3 @@ public:
         void updateOrInsertDocument(const Document &document) { UpdateOrInsertDocument(host_, index_, document); }
     };
 }; // class Elasticsearch
-
-
-#endif // ifndef ELASTICSEARCH_H

@@ -16,9 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-#ifndef MARC_H
-#define MARC_H
+#pragma once
 
 
 #include <algorithm>
@@ -755,6 +753,3 @@ bool IsOpenAccess(const Record &marc_record);
 
 
 } // namespace MARC
-
-
-#endif // ifndef MARC_H
