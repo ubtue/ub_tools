@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2016-2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -71,7 +71,7 @@ bool FilterPasses(const MARC::Record &record, const std::map<std::string, std::p
       // We have field_spec in key and rule to match in value
       std::string subfield_codes(GetSubfieldCodes(rule.first));
       if (subfield_codes.length() != 1)
-         logger->error("in FilterPasses: Invalid subfield specification "  + subfield_codes + " for filter!");
+          LOG_ERROR("in FilterPasses: Invalid subfield specification "  + subfield_codes + " for filter!");
 
       std::string subfield_value;
       const auto field(record.getFirstField(GetTag(rule.first)));
@@ -137,7 +137,7 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
     unsigned int i(0);
 
     if (primary_tags_and_subfield_codes.size() != output_tags_and_subfield_codes.size())
-        logger->error("Number of primary and output tags do not match");
+        LOG_ERROR("Number of primary and output tags do not match");
 
     for (primary = primary_tags_and_subfield_codes.begin(), output = output_tags_and_subfield_codes.begin();
         primary != primary_tags_and_subfield_codes.end();
@@ -165,12 +165,11 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
         // Abort if field is already populated
         std::string tag(GetTag(*output));
         if (unlikely(record->hasTag(tag)))
-            logger->error("in ProcessRecord: Field with tag " + tag + " is not empty for PPN "
-                          + record->getControlNumber() + '!');
+            LOG_ERROR("in ProcessRecord: Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '!');
         std::string subfield_spec(GetSubfieldCodes(*output));
         if (unlikely(subfield_spec.size() != 1))
-            logger->error("in ProcessRecord: We currently only support a single subfield and thus "
-                          "specifying " + subfield_spec + " as output subfield is not valid!");
+            LOG_ERROR("in ProcessRecord: We currently only support a single subfield and thus specifying " + subfield_spec
+                      + " as output subfield is not valid!");
 
         std::string synonyms;
         unsigned current_length(0);
@@ -180,9 +179,9 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
              /*Intentionally empty*/)
         {
             if (indicator2 > 9)
-                logger->error("Currently cannot handle synonyms with total length greater than "
-                              + std::to_string(9 * (MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - FIELD_MIN_NON_DATA_SIZE))
-                              + '\n');
+                LOG_ERROR("Currently cannot handle synonyms with total length greater than "
+                          + std::to_string(9 * (MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - FIELD_MIN_NON_DATA_SIZE))
+                          + '\n');
 
             if (current_length + synonym_it->length()
                 < MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - (FIELD_MIN_NON_DATA_SIZE + 3 /* consider " , " */))
@@ -193,8 +192,8 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
                  ++synonym_it;
             } else {
                 if (record->hasTagWithIndicators(tag, '0', indicator2 + '0'))
-                    logger->error("in ProcessRecord: Could not insert field " + tag + " with indicators \'0\' and \'" +
-                                  std::to_string(indicator2) + "\' for PPN "  + record->getControlNumber() + '!');
+                    LOG_ERROR("in ProcessRecord: Could not insert field " + tag + " with indicators \'0\' and \'" +
+                              std::to_string(indicator2) + "\' for PPN "  + record->getControlNumber() + '!');
                 record->insertField(tag, { MARC::Subfield(subfield_spec[0], synonyms) }, '0', indicator2 + '0');
                 synonyms.clear();
                 current_length = 0;
@@ -218,8 +217,9 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
 // Write all occuring synonyms to the specific fields with one per language
 void ProcessRecordTranslatedSynonyms(MARC::Record * const record, const std::vector<std::string> &primary_tags_and_subfield_codes,
                                      const std::vector<std::string> &translation_tags_and_subfield_codes,
-                                     const std::vector<std::map<std::string, std::vector<std::string>>> &translation_maps, bool * modified_record) {
-
+                                     const std::vector<std::map<std::string, std::vector<std::string>>> &translation_maps,
+                                     bool * modified_record)
+{
     std::vector<std::string>::const_iterator primary;
     std::vector<std::string>::const_iterator output(translation_tags_and_subfield_codes.begin());
     unsigned int i(0);
@@ -252,17 +252,16 @@ void ProcessRecordTranslatedSynonyms(MARC::Record * const record, const std::vec
         // Abort if field is already populated
         std::string tag(GetTag(*output));
         if (record->hasTag(tag))
-            logger->error("in ProcessRecord: Field with tag " + tag + " is not empty for PPN "
-                          + record->getControlNumber() + '!');
+            LOG_ERROR("in ProcessRecord: Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '!');
         std::string subfield_spec(GetSubfieldCodes(*output));
         if (unlikely(subfield_spec.size() != 1))
-            logger->error("in ProcessRecord: We currently only support a single subfield and thus "
-                          "specifying " + subfield_spec + " as output subfield is not valid!");
+            LOG_ERROR("in ProcessRecord: We currently only support a single subfield and thus specifying " + subfield_spec
+                      + " as output subfield is not valid!");
 
         std::string synonyms(StringUtil::Join(synonym_values, ','));
         if (synonyms.size() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - 2)
-            logger->error("Translated synonyms exceeded maximum length for PPN " + record->getControlNumber() +
-                          ": \"" + synonyms + "\" has size " + std::to_string(synonyms.size()) + '\n');
+            LOG_ERROR("Translated synonyms exceeded maximum length for PPN " + record->getControlNumber() + ": \"" + synonyms
+                      + "\" has size " + std::to_string(synonyms.size()) + '\n');
 
         if (not synonyms.empty()) {
             if (record->hasTagWithIndicators(tag, '0', '0'))
@@ -284,8 +283,10 @@ void InsertSynonyms(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 {
     while (MARC::Record record = marc_reader->read()) {
         bool modified_record(false);
-        ProcessRecordGermanSynonyms(&record, synonym_maps, primary_tags_and_subfield_codes, output_tags_and_subfield_codes, &modified_record);
-        ProcessRecordTranslatedSynonyms(&record, primary_tags_and_subfield_codes, translated_tags_and_subfield_codes, translation_maps, &modified_record);
+        ProcessRecordGermanSynonyms(&record, synonym_maps, primary_tags_and_subfield_codes, output_tags_and_subfield_codes,
+                                    &modified_record);
+        ProcessRecordTranslatedSynonyms(&record, primary_tags_and_subfield_codes, translated_tags_and_subfield_codes, translation_maps,
+                                        &modified_record);
         marc_writer->write(record);
         if (modified_record)
             ++modified_count;
@@ -304,27 +305,29 @@ void ExtractTranslatedSynonyms(std::vector<std::map<std::string, std::vector<std
         const std::string lang_extension(languages_to_translate[lang]);
         const std::string translation_file_name(TRANSLATION_FILES_BASE + "_" + lang_extension + "." + TRANSLATION_FILES_EXTENSION);
         std::ifstream translation_file(translation_file_name);
-        if (!translation_file.is_open())
-            logger->error("Unable to open " + translation_file_name);
+        if (not translation_file.is_open())
+            LOG_ERROR("Unable to open " + translation_file_name);
         std::string line;
         while(std::getline(translation_file, line)) {
             std::vector<std::string> german_and_translations;
             StringUtil::Split(line, "|", &german_and_translations);
             if (german_and_translations.size() < 2)
-                logger->error("Invalid line \"" + line + "\" in " + translation_file_name);
+                LOG_ERROR("invalid line \"" + line + "\" in \"" + translation_file_name + "\"!");
             std::string german_term = german_and_translations[0];
             (*translation_maps)[lang][german_term] =
-                                   std::vector<std::string>(german_and_translations.cbegin() + 1, german_and_translations.cend());
+                std::vector<std::string>(german_and_translations.cbegin() + 1, german_and_translations.cend());
         }
     }
 }
 
 
-bool ParseSpec(std::string spec_str, std::vector<std::string> * const field_specs, std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr) {
+bool ParseSpec(std::string spec_str, std::vector<std::string> * const field_specs,
+               std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr)
+{
     std::vector<std::string> raw_field_specs;
 
     if (unlikely(StringUtil::Split(spec_str, ':', &raw_field_specs) == 0)) {
-        logger->error("in ParseSpec: Need at least one field!");
+        LOG_ERROR("need at least one field!");
         return false;
     }
 
@@ -360,13 +363,11 @@ int main(int argc, char **argv) {
     if (unlikely(marc_input_filename == marc_output_filename))
         logger->error("Title data input file name equals output file name!");
     if (unlikely(authority_data_marc_input_filename == marc_output_filename))
-        logger->error("Authority data input file name equals output file name!");
+        LOG_ERROR("Authority data input file name equals output file name!");
 
-
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::Reader::BINARY));
-    std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_data_marc_input_filename,
-                                                                     MARC::Reader::BINARY));
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::Writer::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::FileType::BINARY));
+    std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_data_marc_input_filename, MARC::FileType::BINARY));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY));
 
     try {
         // Determine possible mappings

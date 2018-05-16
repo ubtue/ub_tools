@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
     std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_data_marc_input_filename,
-                                                                     MARC::Reader::BINARY));
+                                                                         MARC::FileType::BINARY));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
     std::map<std::string, off_t> authority_offsets;
 
