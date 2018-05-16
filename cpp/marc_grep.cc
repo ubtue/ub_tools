@@ -391,7 +391,7 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
     if (output_format == MARC_BINARY or output_format == MARC_XML)
         marc_writer = MARC::Writer::Factory(
                           "/proc/self/fd/1",
-                          (output_format == MARC_XML) ? MARC::Writer::XML : MARC::Writer::BINARY);
+                          (output_format == MARC_XML) ? MARC::FileType::XML : MARC::FileType::BINARY);
 
     std::string err_msg;
     unsigned count(0), matched_count(0), rate_counter(0);
@@ -462,12 +462,12 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    MARC::Reader::ReaderType reader_type(MARC::Reader::AUTO);
+    MARC::FileType reader_type(MARC::FileType::AUTO);
     if (argc > 1 and std::strncmp(argv[1], "--input-format=", __builtin_strlen("--input-format=")) == 0) {
         if (std::strcmp(argv[1] +  __builtin_strlen("--input-format="), "marc-xml") == 0)
-            reader_type = MARC::Reader::XML;
+            reader_type = MARC::FileType::XML;
         else if (std::strcmp(argv[1] +  __builtin_strlen("--input-format="), "marc-21") == 0)
-            reader_type = MARC::Reader::BINARY;
+            reader_type = MARC::FileType::BINARY;
         else
             LOG_ERROR("input format must be \"marc-xml\" or \"marc-21\"!");
         --argc, ++argv;
