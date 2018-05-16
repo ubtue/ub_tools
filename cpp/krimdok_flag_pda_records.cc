@@ -157,8 +157,8 @@ int main(int argc, char *argv[]) {
             Usage();
 
         const unsigned no_of_years(StringUtil::ToUnsigned(argv[1]));
-        const std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2], MARC::Reader::AUTO));
-        const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3], MARC::Writer::AUTO));
+        const std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
+        const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
         AddPDAFieldToRecords(GetCutoffYear(no_of_years), marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
