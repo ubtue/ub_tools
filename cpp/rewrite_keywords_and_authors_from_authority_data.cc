@@ -33,9 +33,10 @@
 #include "util.h"
 
 
-static unsigned int record_count;
 
 namespace {
+
+unsigned int record_count;
 
 void Usage() __attribute__((noreturn));
 
@@ -55,11 +56,11 @@ void CreateAuthorityOffsets(MARC::Reader * const authority_reader, std::map<std:
 }
 
 
-// Return the first matching primary field from authority data
+// Return the first matching primary field (Vorzugsbenennung) from authority data
 // This implicitly assumes that the correct tag can be uniquely identified from the PPN
 MARC::Record::const_iterator GetFirstPrimaryField(const MARC::Record& authority_record) {
-     std::vector<std::string> tags_to_check({"100", "151", "150", "110", "111", "130", "153"});
-     for (auto tag_to_check : tags_to_check) {
+     const std::vector<std::string> tags_to_check {"100", "151", "150", "110", "111", "130", "153"} ;
+     for (const auto &tag_to_check : tags_to_check) {
          MARC::Record::const_iterator primary_field(authority_record.findTag(tag_to_check));
          if (primary_field != authority_record.end())
              return primary_field;
@@ -68,7 +69,7 @@ MARC::Record::const_iterator GetFirstPrimaryField(const MARC::Record& authority_
 }
 
 
-bool GetAuthorityRecordFromPPN(std::string bsz_authority_ppn, MARC::Record * const authority_record, MARC::Reader * const authority_reader,
+bool GetAuthorityRecordFromPPN(const std::string &bsz_authority_ppn, MARC::Record * const authority_record, MARC::Reader * const authority_reader,
                                const std::map<std::string, off_t> &authority_offsets)
 {
     auto authority_offset(authority_offsets.find(bsz_authority_ppn));
@@ -77,15 +78,15 @@ bool GetAuthorityRecordFromPPN(std::string bsz_authority_ppn, MARC::Record * con
         if (authority_reader->seek(authority_record_offset)) {
             *authority_record = authority_reader->read();
             if (authority_record->getControlNumber() != bsz_authority_ppn)
-                logger->error("We got a wrong PPN " + authority_record->getControlNumber() +
+                LOG_ERROR("We got a wrong PPN " + authority_record->getControlNumber() +
                               " instead of " + bsz_authority_ppn);
             else
                 return true;
 
         } else
-            logger->error("Unable to seek to record for authority PPN " + bsz_authority_ppn);
+            LOG_ERROR("Unable to seek to record for authority PPN " + bsz_authority_ppn);
     } else {
-        logger->warning("Unable to find offset for authority PPN " + bsz_authority_ppn);
+        LOG_WARNING("Unable to find offset for authority PPN " + bsz_authority_ppn);
         return false;
     }
     std::runtime_error("Logical flaw in GetAuthorityRecordFromPPN");
@@ -95,7 +96,7 @@ bool GetAuthorityRecordFromPPN(std::string bsz_authority_ppn, MARC::Record * con
 void UpdateTitleField(MARC::Record::Field * const field, const MARC::Record authority_record) {
      auto authority_primary_field(GetFirstPrimaryField(authority_record));
      if (authority_primary_field == authority_record.end())
-         logger->error("Could not find appropriate Tag for authority PPN " + authority_record.getControlNumber());
+         LOG_ERROR("Could not find appropriate Tag for authority PPN " + authority_record.getControlNumber());
      MARC::Subfields subfields(field->getSubfields());
      for (auto &authority_subfield : authority_primary_field->getSubfields()) {
          if (subfields.hasSubfield(authority_subfield.code_))
@@ -144,7 +145,7 @@ void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * 
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\x1F""0\\(DE-576\\)([^\x1F]+).*\x1F?", &err_msg));
 
     if (matcher == nullptr)
-        logger->error("Failed to compile standardized keywords regex matcher: " + err_msg);
+        LOG_ERROR("Failed to compile standardized keywords regex matcher: " + err_msg);
 
     while (MARC::Record record = marc_reader->read()) {
        ++record_count;
@@ -167,9 +168,9 @@ int main(int argc, char **argv) {
     const std::string authority_data_marc_input_filename(argv[2]);
     const std::string marc_output_filename(argv[3]);
     if (unlikely(marc_input_filename == marc_output_filename))
-        logger->error("Title data input file name equals output file name!");
+        LOG_ERROR("Title data input file name equals output file name!");
     if (unlikely(authority_data_marc_input_filename == marc_output_filename))
-        logger->error("Authority data input file name equals output file name!");
+        LOG_ERROR("Authority data input file name equals output file name!");
 
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::Reader::BINARY));
@@ -182,7 +183,7 @@ int main(int argc, char **argv) {
         CreateAuthorityOffsets(authority_reader.get(), &authority_offsets);
         AugmentKeywordsAndAuthors(marc_reader.get(), authority_reader.get(), marc_writer.get(), authority_offsets);
     } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
     return 0;
 }
