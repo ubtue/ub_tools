@@ -38,7 +38,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " master_marc_input authority_data_marc_input.mrc marc_output\n"
-                           << "The Authority data must be in the MARC-21 format\n";
+                           << "The Authority data must be in the MARC-21 format.\n";
     std::exit(EXIT_FAILURE);
 }
 
