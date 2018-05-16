@@ -970,7 +970,7 @@ bool AnythingToUTF32Decoder::addByte(const char ch) {
 }
 
 
-inline ToUTF32Decoder::State AnythingToUTF32Decoder::getState() const {
+ToUTF32Decoder::State AnythingToUTF32Decoder::getState() const {
     return current_state_;
 }
 

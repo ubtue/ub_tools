@@ -312,16 +312,16 @@ public:
      *                     If true, we return Unicode replacement characters.
      */
     AnythingToUTF32Decoder(const std::string &input_encoding, const bool permissive = true);
-    virtual ~AnythingToUTF32Decoder() override;
+    virtual ~AnythingToUTF32Decoder() override final;
 
-    virtual bool addByte(const char ch) override;
-    virtual State getState() const override;
+    virtual bool addByte(const char ch) override final;
+    virtual State getState() const override final;
 
     /** Returns the UTF-32 character converted from the input sequence.
      *
      * \throw std::runtime_error if the character is yet to be fully decoded
      */
-    virtual uint32_t getUTF32Char() override;
+    virtual uint32_t getUTF32Char() override final;
 private:
     uint32_t consumeAndReset();
 };
@@ -338,12 +338,12 @@ public:
     UTF8ToUTF32Decoder(const bool permissive = true): required_count_(-1), permissive_(permissive) { }
     virtual ~UTF8ToUTF32Decoder() = default;
 
-    virtual bool addByte(const char ch) override;
-    virtual State getState() const override {
+    virtual bool addByte(const char ch) override final;
+    virtual State getState() const override final {
         return (required_count_ == -1) ? NO_CHARACTER_PENDING
                                        : ((required_count_  > 0) ? CHARACTER_INCOMPLETE : CHARACTER_PENDING);
     }
-    virtual uint32_t getUTF32Char() override { required_count_ = -1; return utf32_char_; }
+    virtual uint32_t getUTF32Char() override final { required_count_ = -1; return utf32_char_; }
 };
 
 
