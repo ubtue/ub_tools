@@ -128,7 +128,7 @@ std::unique_ptr<EncodingConverter> EncodingConverter::Factory(const std::string 
 bool EncodingConverter::convert(const std::string &input, std::string * const output) {
     char *in_bytes(new char[input.length()]);
     const char *in_bytes_start(in_bytes);
-    ::memcpy(reinterpret_cast<void *>(in_bytes), input.data(), input.length());
+    std::memcpy(reinterpret_cast<void *>(in_bytes), input.data(), input.length());
     static const size_t UTF8_SEQUENCE_MAXLEN(6);
     const size_t OUTBYTE_COUNT(UTF8_SEQUENCE_MAXLEN * input.length());
     char *out_bytes(new char[OUTBYTE_COUNT]);
@@ -891,13 +891,13 @@ const uint32_t ToUTF32Decoder::NULL_CHARACTER(0);
 const size_t MAX_UTF32_CODEPOINT_LENGTH(4);
 
 
-AnythingToUTF32Decoder::AnythingToUTF32Decoder(const std::string &input_encoding, const bool permissive):
-    converter_handle_(nullptr), input_encoding_(input_encoding), utf32_char_(0), accum_buffer_(), current_state_(NO_CHARACTER_PENDING), permissive_(permissive)
+AnythingToUTF32Decoder::AnythingToUTF32Decoder(const std::string &input_encoding, const bool permissive)
+    : converter_handle_(nullptr), input_encoding_(input_encoding), utf32_char_(0), accum_buffer_(), current_state_(NO_CHARACTER_PENDING), permissive_(permissive)
 {
-    converter_handle_ = iconv_open(CANONICAL_UTF32_NAME.c_str(), input_encoding_.c_str());
-    if (converter_handle_ == (iconv_t)-1) {
+    converter_handle_ = ::iconv_open(CANONICAL_UTF32_NAME.c_str(), input_encoding_.c_str());
+    if (converter_handle_ == reinterpret_cast<iconv_t>(-1)) {
         LOG_ERROR("Couldn't init iconv for the following conversion: " +
-                 input_encoding_ + " -> " + CANONICAL_UTF32_NAME + ". Errno: " + std::to_string(errno));
+                  input_encoding_ + " -> " + CANONICAL_UTF32_NAME + ". Errno: " + std::to_string(errno));
     }
 
     accum_buffer_.reserve(50);
@@ -905,22 +905,24 @@ AnythingToUTF32Decoder::AnythingToUTF32Decoder(const std::string &input_encoding
 
 
 AnythingToUTF32Decoder::~AnythingToUTF32Decoder() {
-    if (converter_handle_ != (iconv_t)-1) {
-        if (iconv_close(converter_handle_) == -1) {
+    if (converter_handle_ != reinterpret_cast<iconv_t>(-1)) {
+        if (::iconv_close(converter_handle_) == -1) {
             LOG_ERROR("Couldn't deinit iconv for the following conversion: " +
-                     input_encoding_ + " -> " + CANONICAL_UTF32_NAME + ". Errno: " + std::to_string(errno));
+                      input_encoding_ + " -> " + CANONICAL_UTF32_NAME + ". Errno: " + std::to_string(errno));
         }
     }
 }
 
 
 bool AnythingToUTF32Decoder::addByte(const char ch) {
-    if (converter_handle_ == (iconv_t)-1)
+    if (converter_handle_ == reinterpret_cast<iconv_t>(-1))
         throw std::runtime_error("Converter was not initialized correctly.");
 
     if (current_state_ == CHARACTER_PENDING) {
-        if (not permissive_)
-            throw std::runtime_error("Pending character " + std::to_string(utf32_char_) + " hast not been consumed.");
+        if (not permissive_) {
+            throw std::runtime_error("AnythingToUTF32Decoder::addByte: Pending character " 
+                                     + std::to_string(utf32_char_) + " hast not been consumed.");
+        }
         else
             consumeAndReset();
     }
@@ -930,23 +932,23 @@ bool AnythingToUTF32Decoder::addByte(const char ch) {
     accum_buffer_.emplace_back(ch);
     size_t in_len(accum_buffer_.size()), out_len(MAX_UTF32_CODEPOINT_LENGTH * (in_len + 1));    // extra codepoint for the BOM
     std::unique_ptr<char[]> in_buf(new char[in_len]), out_buf(new char[out_len]);
-    ::memcpy(in_buf.get(), accum_buffer_.data(), accum_buffer_.size());
+    std::memcpy(in_buf.get(), accum_buffer_.data(), accum_buffer_.size());
     auto in_buf_start(in_buf.get()), out_buf_start(out_buf.get());
 
     size_t converted_count(::iconv(converter_handle_, &in_buf_start, &in_len, &out_buf_start, &out_len));
-    if (converted_count == (size_t)-1) {
+    if (converted_count == static_cast<size_t>(-1)) {
         switch (errno) {
         case E2BIG:
             // shouldn't happen
             LOG_ERROR("Couldn't perform for the following encoding conversion: " +
-                     input_encoding_ + " -> " + CANONICAL_UTF32_NAME + " as the output buffer was too small");
+                      input_encoding_ + " -> " + CANONICAL_UTF32_NAME + " as the output buffer was too small");
             break;
         case EILSEQ:
             // invalid multi-byte sequence
             if (not permissive_) {
-                throw std::runtime_error("Invalid multi-byte sequence. Current byte: " 
-                                        + std::to_string(static_cast<unsigned>(ch)) + ", consumed bytes: "
-                                        + std::to_string(accum_buffer_.size()));
+                throw std::runtime_error("AnythingToUTF32Decoder::addByte: Invalid multi-byte sequence. Current byte: " 
+                                         + std::to_string(static_cast<unsigned>(ch)) + ", consumed bytes: "
+                                         + std::to_string(accum_buffer_.size()));
             } else {
                 // return the replacement character
                 utf32_char_ = REPLACEMENT_CHARACTER;
@@ -958,11 +960,11 @@ bool AnythingToUTF32Decoder::addByte(const char ch) {
             current_state_ = CHARACTER_INCOMPLETE;
             break;
         default:
-            LOG_ERROR("Unknown iconv error. Errno: " + std::to_string(errno));
+            LOG_ERROR("Unknown iconv error.");
         }
     } else {
         // sequence decoded, convert the bytes
-        utf32_char_ = *reinterpret_cast<uint32_t*>(out_buf.get());
+        utf32_char_ = *reinterpret_cast<uint32_t *>(out_buf.get());
         current_state_ = CHARACTER_PENDING;
     }        
 
@@ -978,7 +980,7 @@ ToUTF32Decoder::State AnythingToUTF32Decoder::getState() const {
 uint32_t AnythingToUTF32Decoder::getUTF32Char() {
     auto out(consumeAndReset());
     if (out == NULL_CHARACTER and not permissive_)
-        throw std::runtime_error("Attempting to consume a non-existent codepoint");
+        throw std::runtime_error("AnythingToUTF32Decoder::addByte: Attempting to consume a non-existent codepoint");
     
     return out;
 }
