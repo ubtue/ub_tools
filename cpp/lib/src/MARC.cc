@@ -590,7 +590,8 @@ static MediaType GetMediaType(const std::string &input_filename) {
     static RegexMatcher *marc21_matcher;
     if (marc21_matcher == nullptr) {
         std::string err_msg;
-        marc21_matcher = RegexMatcher::RegexMatcherFactory("(^[0-9]{5})([acdnp][^bhlnqsu-z]|[acdnosx][z]|[cdn][uvxy]|[acdn][w]|[cdn][q])", &err_msg);
+        marc21_matcher = RegexMatcher::RegexMatcherFactory("(^[0-9]{5})([acdnp][^bhlnqsu-z]|[acdnosx][z]|[cdn][uvxy]|[acdn][w]|[cdn][q])",
+                                                           &err_msg);
         if (marc21_matcher == nullptr)
             LOG_ERROR("failed to compile a regex! (" + err_msg + ")");
     }
@@ -599,17 +600,36 @@ static MediaType GetMediaType(const std::string &input_filename) {
 }
 
 
-std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, ReaderType reader_type) {
-    if (reader_type == AUTO) {
-        const MediaType media_type(GetMediaType(input_filename));
-        if (media_type == MediaType::OTHER)
-            LOG_ERROR("can't determine media type of \"" + input_filename + "\"!");
-        reader_type = (media_type == MediaType::XML) ? Reader::XML : Reader::BINARY;
+FileType GuessFileType(const std::string &filename) {
+    if (FileUtil::Exists(filename)) {
+        switch (GetMediaType(filename)) {
+        case MediaType::XML:
+            return FileType::XML;
+        case MediaType::MARC21:
+            return FileType::BINARY;
+        default:
+            LOG_ERROR("\"" + filename + "\" contains neither MARC-21 nor MARC-XML data!");
+        }
     }
 
+    if (StringUtil::EndsWith(filename, ".mrc", /* ignore_case = */true)
+        or StringUtil::EndsWith(filename, ".marc", /* ignore_case = */true)
+        or StringUtil::EndsWith(filename, ".raw", /* ignore_case = */true))
+        return FileType::BINARY;
+    if (StringUtil::EndsWith(filename, ".xml", /* ignore_case = */true))
+        return FileType::BINARY;
+
+    LOG_ERROR("can't guess the file type of \"" + filename + "\"!");
+}
+
+
+std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, FileType reader_type) {
+    if (reader_type == FileType::AUTO)
+        reader_type = GuessFileType(input_filename);
+
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
-    return (reader_type == XML) ? std::unique_ptr<Reader>(new XmlReader(input.release()))
-                                : std::unique_ptr<Reader>(new BinaryReader(input.release()));
+    return (reader_type == FileType::XML) ? std::unique_ptr<Reader>(new XmlReader(input.release()))
+                                          : std::unique_ptr<Reader>(new BinaryReader(input.release()));
 }
 
 
@@ -1029,23 +1049,16 @@ bool XmlReader::getNext(SimpleXmlParser<File>::Type * const type,
 }
 
 
-std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, WriterType writer_type,
+std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, FileType writer_type,
                                         const WriterMode writer_mode)
 {
     std::unique_ptr<File> output(writer_mode == WriterMode::OVERWRITE
                                  ? FileUtil::OpenOutputFileOrDie(output_filename)
                                  : FileUtil::OpenForAppendingOrDie(output_filename));
-    if (writer_type == AUTO) {
-        if (StringUtil::EndsWith(output_filename, ".mrc") or StringUtil::EndsWith(output_filename, ".marc"))
-            writer_type = BINARY;
-        else if (StringUtil::EndsWith(output_filename, ".xml"))
-            writer_type = XML;
-        else
-            throw std::runtime_error("in MARC::Writer::Factory: WriterType is AUTO but filename \""
-                                     + output_filename + "\" does not end in \".mrc\" or \".xml\"!");
-    }
-    return (writer_type == XML) ? std::unique_ptr<Writer>(new XmlWriter(output.release()))
-                                : std::unique_ptr<Writer>(new BinaryWriter(output.release()));
+    if (writer_type == FileType::AUTO)
+        writer_type = GuessFileType(output_filename);
+    return (writer_type == FileType::XML) ? std::unique_ptr<Writer>(new XmlWriter(output.release()))
+                                          : std::unique_ptr<Writer>(new BinaryWriter(output.release()));
 }
 
 
@@ -1166,7 +1179,7 @@ unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename) {
     {
         std::unique_ptr<Reader> marc_reader(Reader::Factory(marc_filename));
         temp_filename = "/tmp/" + std::string(::basename(::progname)) + std::to_string(::getpid())
-                        + (marc_reader->getReaderType() == Reader::XML ? ".xml" : ".mrc");
+                        + (marc_reader->getReaderType() == FileType::XML ? ".xml" : ".mrc");
         std::unique_ptr<Writer> marc_writer(Writer::Factory(temp_filename));
         std::unordered_set<std::string> already_seen_control_numbers;
         while (const Record record = marc_reader->read()) {
@@ -1183,15 +1196,12 @@ unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename) {
 }
 
 
-bool IsValidMarcFile(const std::string &filename, std::string * const err_msg,
-                     const Reader::ReaderType reader_type)
-{
+bool IsValidMarcFile(const std::string &filename, std::string * const err_msg, const FileType file_type) {
     try {
-      std::unique_ptr<Reader> reader(Reader::Factory(filename, reader_type));
+      std::unique_ptr<Reader> reader(Reader::Factory(filename, file_type));
       while (const Record record = reader->read()) {
-          if (not record.isValid(err_msg)) {
+          if (not record.isValid(err_msg))
               return false;
-          }
       }
       return true;
     } catch (const std::exception &x) {

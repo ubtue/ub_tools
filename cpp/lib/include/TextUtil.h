@@ -270,36 +270,78 @@ bool UTF32CharIsAsciiLetter(const uint32_t ch);
 bool UTF32CharIsAsciiDigit(const uint32_t ch);
 
 
-class UTF8ToUTF32Decoder {
-    int required_count_;
-    uint32_t utf32_char_;
-    bool permissive_;
-public:
+class ToUTF32Decoder {
+protected:
+    static const std::string CANONICAL_UTF32_NAME;
+    static const uint32_t NULL_CHARACTER;
+public:   
     enum State {
         NO_CHARACTER_PENDING, //< getUTF32Char() should not be called.
         CHARACTER_PENDING,    //< getUTF32Char() should be called to get the next character.
         CHARACTER_INCOMPLETE  //< addByte() must be called at least one more time to complete a character.
     };
-public:
-    /** \param permissive  If false, we throw a std::runtime_error on encoding errors, if true we return Unicode replacement
-     *                     characters.
-     */
-    UTF8ToUTF32Decoder(const bool permissive = true): required_count_(-1), permissive_(permissive) { }
+
+    virtual ~ToUTF32Decoder() = default;
 
     /** Feed bytes into this until it returns false.  Then call getCodePoint() to get the translated UTF32 code
      *  point.  Then you can call this function again.
      *
      * \return True if we need more bytes to complete a UTF-8 single-code-point sequence, false if a sequence has
      *         been decoded, signalling that getUTF32Char() should be called now.
-     * \throw std::runtime_error if we're being fed an invalid UTF-8 sequence of characters.
+     * \throw std::runtime_error if we're being fed an invalid UTF-8 sequence of characters
      */
-    bool addByte(const char ch);
+    virtual bool addByte(const char ch) = 0;
+    /** Returns the UTF-32 character converted from the input sequence. Can only be called after
+     *  addByte() returns false.
+     *
+     * \throw std::runtime_error if the character is yet to be fully decoded
+     */    
+    virtual State getState() const = 0;
+    virtual uint32_t getUTF32Char() = 0;
+};
 
-    inline State getState() const {
+
+class AnythingToUTF32Decoder : public ToUTF32Decoder {
+    iconv_t converter_handle_;
+    const std::string input_encoding_;
+    uint32_t utf32_char_;
+    std::vector<char> accum_buffer_;
+    State current_state_;
+    bool permissive_;
+public:
+    /** \param permissive  If false, we throw a std::runtime_error on encoding errors,
+     *                     when attempting to accumulate before consuming a pending codepoint and
+     *                     when attempting to consume a as-of-yet non-existing codepoint.
+     *                     If true, we return Unicode replacement characters.
+     */
+    AnythingToUTF32Decoder(const std::string &input_encoding, const bool permissive = true);
+    virtual ~AnythingToUTF32Decoder() override final;
+
+    virtual bool addByte(const char ch) override final;
+    virtual State getState() const override final;
+    virtual uint32_t getUTF32Char() override final;
+private:
+    uint32_t consumeAndReset();
+};
+
+
+class UTF8ToUTF32Decoder : public ToUTF32Decoder {
+    int required_count_;
+    uint32_t utf32_char_;
+    bool permissive_;
+public:
+    /** \param permissive  If false, we throw a std::runtime_error on encoding errors, if true we return Unicode replacement
+     *                     characters.
+     */
+    UTF8ToUTF32Decoder(const bool permissive = true): required_count_(-1), permissive_(permissive) { }
+    virtual ~UTF8ToUTF32Decoder() = default;
+
+    virtual bool addByte(const char ch) override final;    
+    virtual State getState() const override final {
         return (required_count_ == -1) ? NO_CHARACTER_PENDING
                                        : ((required_count_  > 0) ? CHARACTER_INCOMPLETE : CHARACTER_PENDING);
-    }
-    uint32_t getUTF32Char() { required_count_ = -1; return utf32_char_; }
+    }  
+    virtual uint32_t getUTF32Char() override final { required_count_ = -1; return utf32_char_; }
 };
 
 

@@ -170,7 +170,13 @@ public:
                                 { return subfield.code_ == subfield_code and subfield.value_ == value; }) != subfields_.cend();
     }
 
+    // Inserts the new subfield after all leading subfields that have a code that preceeds "subfield_code" when using an
+    // alphanumeric comparison.
     void addSubfield(const char subfield_code, const std::string &subfield_value);
+
+    // Appends the new subfield at the end of any existing subfields.
+    inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
+        { subfields_.emplace_back(subfield_code, subfield_value); }
 
     /** \brief Replaces the contents of the first subfield w/ the specified subfield code.
      *  \return True if we replaced the subfield contents and false if a subfield w/ the given code was not found.
@@ -275,6 +281,9 @@ public:
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
+
+        inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
+            { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
 
         void insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents);
 
@@ -562,16 +571,24 @@ public:
 };
 
 
+enum class FileType { AUTO, BINARY, XML };
+
+
+/** \brief Determines the file type of "filename".
+ *  \return FileType::BINARY or FileType::XML.
+ *  \note   Aborts if we can't determine the file type or if it is not FileType::BINARY nor FileType::XML.
+ */
+FileType GuessFileType(const std::string &filename);
+
+
 class Reader {
-public:
-    enum ReaderType { AUTO, BINARY, XML };
 protected:
     File *input_;
     Reader(File * const input): input_(input) { }
 public:
     virtual ~Reader() { delete input_; }
 
-    virtual ReaderType getReaderType() = 0;
+    virtual FileType getReaderType() = 0;
     virtual Record read() = 0;
 
     /** \brief Rewind the underlying file. */
@@ -586,7 +603,7 @@ public:
     virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) { return input_->seek(offset, whence); }
 
     /** \return a BinaryMarcReader or an XmlMarcReader. */
-    static std::unique_ptr<Reader> Factory(const std::string &input_filename, ReaderType reader_type = AUTO);
+    static std::unique_ptr<Reader> Factory(const std::string &input_filename, FileType reader_type = FileType::AUTO);
 };
 
 
@@ -597,7 +614,7 @@ public:
     explicit BinaryReader(File * const input): Reader(input), last_record_(actualRead()), next_record_start_(0) { }
     virtual ~BinaryReader() = default;
 
-    virtual ReaderType getReaderType() override final { return Reader::BINARY; }
+    virtual FileType getReaderType() override final { return FileType::BINARY; }
     virtual Record read() override final;
     virtual void rewind() override final { input_->rewind(); next_record_start_ = 0; last_record_ = actualRead(); }
 
@@ -627,7 +644,7 @@ public:
     }
     virtual ~XmlReader() { delete xml_parser_; }
 
-    virtual ReaderType getReaderType() override final { return Reader::XML; }
+    virtual FileType getReaderType() override final { return FileType::XML; }
     virtual Record read() override final;
     virtual void rewind() override final;
 
@@ -648,7 +665,6 @@ private:
 class Writer {
 public:
     enum WriterMode { OVERWRITE, APPEND };
-    enum WriterType { XML, BINARY, AUTO };
 public:
     virtual ~Writer() { }
 
@@ -663,7 +679,7 @@ public:
     virtual bool flush() = 0;
 
     /** \note If you pass in AUTO for "writer_type", "output_filename" must end in ".mrc" or ".xml"! */
-    static std::unique_ptr<Writer> Factory(const std::string &output_filename, WriterType writer_type = AUTO,
+    static std::unique_ptr<Writer> Factory(const std::string &output_filename, FileType writer_type = FileType::AUTO,
                                            const WriterMode writer_mode = WriterMode::OVERWRITE);
 };
 
@@ -718,8 +734,7 @@ unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename);
 /** \brief Checks the validity of an entire file.
  *  \return true if the file was a valid MARC file, else false
  */
-bool IsValidMarcFile(const std::string &filename, std::string * const err_msg,
-                     const Reader::ReaderType reader_type = Reader::AUTO);
+bool IsValidMarcFile(const std::string &filename, std::string * const err_msg, const FileType file_type = FileType::AUTO);
 
 
 /** \brief Extracts the optional language code from field 008.

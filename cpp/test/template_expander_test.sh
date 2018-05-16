@@ -84,4 +84,9 @@ echo "Test 12c"
 diff --brief /tmp/test.out test_input/test12c.template.out
 rm -f /tmp/test.out
 
+echo "Test 13"
+./expand_template_test test_input/test13.template url:"https:://ixtheo.de" > /tmp/test.out
+diff --brief /tmp/test.out test_input/test13.template.out
+rm -f /tmp/test.out
+
 echo "*** Passed all tests ***"
