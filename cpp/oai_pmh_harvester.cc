@@ -259,7 +259,7 @@ int main(int argc, char **argv) {
         temp_output->close();
         LOG_INFO("Downloaded " + std::to_string(total_record_count) + " record(s).");
 
-        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(TEMP_FILENAME, MARC::Reader::XML));
+        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(TEMP_FILENAME, MARC::FileType::XML));
         std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(output_filename));
         GenerateValidatedOutput(dups_db.get(), marc_reader.get(), control_number_prefix, marc_writer.get());
         ::unlink(TEMP_FILENAME.c_str());

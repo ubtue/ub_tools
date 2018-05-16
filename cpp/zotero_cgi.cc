@@ -70,8 +70,7 @@ const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTE
 };
 
 
-std::string GetCGIParameterOrDefault(std::multimap<std::string, std::string> &cgi_args,
-                                     const std::string &parameter_name,
+std::string GetCGIParameterOrDefault(std::multimap<std::string, std::string> &cgi_args, const std::string &parameter_name,
                                      const std::string &default_value = "")
 {
     const auto key_and_value(cgi_args.find(parameter_name));
@@ -110,7 +109,7 @@ void ParseConfigFile(std::multimap<std::string, std::string> &cgi_args, Template
     std::vector<std::string> crawling_depths;
 
     for (const auto &name_and_section : ini) {
-        auto section(name_and_section.second);
+        const auto &section(name_and_section.second);
         const std::string title(section.getSectionName());
 
         if (title.empty()) {
@@ -119,7 +118,7 @@ void ParseConfigFile(std::multimap<std::string, std::string> &cgi_args, Template
         } else {
             const HarvestType harvest_type(static_cast<HarvestType>(section.getEnum("type", STRING_TO_HARVEST_TYPE_MAP)));
             const std::string harvest_type_raw(section.getString("type"));
-            const std::string issn(section.getString("issn"));
+            const std::string issn(section.getString("issn", ""));
 
             all_journal_titles.emplace_back(title);
             all_journal_issns.emplace_back(issn);
@@ -165,9 +164,11 @@ void ParseConfigFile(std::multimap<std::string, std::string> &cgi_args, Template
     names_to_values_map->insertArray("crawling_depths", crawling_depths);
 
     const std::string first_crawling_journal_title(GetMinElementOrDefault(crawling_journal_titles));
-    names_to_values_map->insertScalar("selected_crawling_journal_title", GetCGIParameterOrDefault(cgi_args, "crawling_journal_title", first_crawling_journal_title));
+    names_to_values_map->insertScalar("selected_crawling_journal_title", GetCGIParameterOrDefault(cgi_args, "crawling_journal_title",
+                                                                                                  first_crawling_journal_title));
     const std::string first_rss_journal_title(GetMinElementOrDefault(rss_journal_titles));
-    names_to_values_map->insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault(cgi_args, "rss_journal_title", first_rss_journal_title));
+    names_to_values_map->insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault(cgi_args, "rss_journal_title",
+                                                                                             first_rss_journal_title));
 }
 
 
@@ -287,7 +288,9 @@ CrawlingTask::Progress CrawlingTask::getProgress() const {
 }
 
 
-void CrawlingTask::writeConfigFile(const std::string &file_cfg, const std::string &url_base, const std::string &url_regex, const unsigned depth) {
+void CrawlingTask::writeConfigFile(const std::string &file_cfg, const std::string &url_base, const std::string &url_regex,
+                                   const unsigned depth)
+{
     std::string cfg_content = "# start_URL max_crawl_depth URL_regex\n";
     cfg_content += url_base + " " + std::to_string(depth) + " " + url_regex;
     FileUtil::WriteStringOrDie(file_cfg, cfg_content);
@@ -309,9 +312,7 @@ void CrawlingTask::executeTask(const std::string &cfg_path, const std::string &d
 
     command_ = BuildCommandString(executable_, args);
     log_path_ = dir_maps + "/log";
-    pid_ = ExecUtil::Spawn(executable_, args, "",
-                           log_path_,
-                           log_path_);
+    pid_ = ExecUtil::Spawn(executable_, args, "", log_path_, log_path_);
 }
 
 
@@ -372,14 +373,14 @@ void RssTask::executeTask(const std::string &rss_url_file, const std::string &ma
 RssTask::RssTask(const std::string &url_rss, const std::string &output_format_id)
     : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
       executable_(ExecUtil::Which("rss_harvester"))
-    {
-        const std::string local_maps_directory(PrepareMapsDirectory(zts_client_maps_directory, auto_temp_dir_.getDirectoryPath()));
-        const std::string file_extension(GetOutputFormatExtension(output_format_id));
-        out_path_ = auto_temp_dir_.getDirectoryPath() + "/output." + file_extension;
-        const std::string file_cfg(auto_temp_dir_.getDirectoryPath() + "/config.cfg");
-        FileUtil::WriteString(file_cfg, url_rss);
-        executeTask(file_cfg, local_maps_directory);
-    }
+{
+    const std::string local_maps_directory(PrepareMapsDirectory(zts_client_maps_directory, auto_temp_dir_.getDirectoryPath()));
+    const std::string file_extension(GetOutputFormatExtension(output_format_id));
+    out_path_ = auto_temp_dir_.getDirectoryPath() + "/output." + file_extension;
+    const std::string file_cfg(auto_temp_dir_.getDirectoryPath() + "/config.cfg");
+    FileUtil::WriteString(file_cfg, url_rss);
+    executeTask(file_cfg, local_maps_directory);
+}
 
 
 void ProcessDownloadAction(std::multimap<std::string, std::string> &cgi_args) {

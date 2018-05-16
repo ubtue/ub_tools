@@ -161,7 +161,8 @@ void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * 
     }
 }
 
-}
+
+} // unnamed namespace
 
 
 int main(int argc, char **argv) {
@@ -170,12 +171,12 @@ int main(int argc, char **argv) {
     if (argc != 4 and argc != 5)
         Usage();
 
-    MARC::Reader::ReaderType reader_type(MARC::Reader::AUTO);
+    MARC::FileType reader_type(MARC::FileType::AUTO);
     if (argc == 5) {
         if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
-            reader_type = MARC::Reader::BINARY;
+            reader_type = MARC::FileType::BINARY;
         else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
-            reader_type = MARC::Reader::XML;
+            reader_type = MARC::FileType::XML;
         else
             Usage();
         ++argv, --argc;
@@ -192,7 +193,7 @@ int main(int argc, char **argv) {
     try {
         std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, reader_type));
         std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_data_marc_input_filename,
-                                                                         MARC::Reader::BINARY));
+                                                                             MARC::FileType::BINARY));
         std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
         std::map<std::string, off_t> authority_offsets;
 
