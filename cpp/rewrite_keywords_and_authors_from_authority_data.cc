@@ -36,11 +36,7 @@
 
 namespace {
 
-unsigned int record_count;
-
-void Usage() __attribute__((noreturn));
-
-void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " master_marc_input authority_data_marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
@@ -148,7 +144,6 @@ void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * 
         LOG_ERROR("Failed to compile standardized keywords regex matcher: " + err_msg);
 
     while (MARC::Record record = marc_reader->read()) {
-       ++record_count;
        AugmentAuthors(&record, authority_reader, authority_offsets, matcher);
        AugmentKeywords(&record, authority_reader, authority_offsets, matcher);
        marc_writer->write(record);
