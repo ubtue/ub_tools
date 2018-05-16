@@ -33,7 +33,6 @@
 #include "util.h"
 
 
-
 namespace {
 
 [[noreturn]] void Usage() {
