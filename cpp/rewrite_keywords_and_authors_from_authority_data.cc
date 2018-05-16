@@ -37,7 +37,8 @@
 namespace {
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " master_marc_input authority_data_marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " master_marc_input authority_data_marc_input.mrc marc_output\n"
+                           << "The Authority data must be in marc binary\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -75,10 +76,9 @@ bool GetAuthorityRecordFromPPN(const std::string &bsz_authority_ppn, MARC::Recor
             *authority_record = authority_reader->read();
             if (authority_record->getControlNumber() != bsz_authority_ppn)
                 LOG_ERROR("We got a wrong PPN " + authority_record->getControlNumber() +
-                              " instead of " + bsz_authority_ppn);
+                          " instead of " + bsz_authority_ppn);
             else
                 return true;
-
         } else
             LOG_ERROR("Unable to seek to record for authority PPN " + bsz_authority_ppn);
     } else {
@@ -168,10 +168,10 @@ int main(int argc, char **argv) {
         LOG_ERROR("Authority data input file name equals output file name!");
 
 
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::Reader::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
     std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_data_marc_input_filename,
                                                                      MARC::Reader::BINARY));
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::Writer::BINARY));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
     std::map<std::string, off_t> authority_offsets;
 
     try {
