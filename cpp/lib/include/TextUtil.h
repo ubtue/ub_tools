@@ -276,7 +276,7 @@ class ToUTF32Decoder {
 protected:
     static const std::string CANONICAL_UTF32_NAME;
     static const uint32_t NULL_CHARACTER;
-public:
+public:   
     enum State {
         NO_CHARACTER_PENDING, //< getUTF32Char() should not be called.
         CHARACTER_PENDING,    //< getUTF32Char() should be called to get the next character.
@@ -293,6 +293,11 @@ public:
      * \throw std::runtime_error if we're being fed an invalid UTF-8 sequence of characters
      */
     virtual bool addByte(const char ch) = 0;
+    /** Returns the UTF-32 character converted from the input sequence. Can only be called after
+     *  addByte() returns false.
+     *
+     * \throw std::runtime_error if the character is yet to be fully decoded
+     */    
     virtual State getState() const = 0;
     virtual uint32_t getUTF32Char() = 0;
 };
@@ -316,11 +321,6 @@ public:
 
     virtual bool addByte(const char ch) override final;
     virtual State getState() const override final;
-
-    /** Returns the UTF-32 character converted from the input sequence.
-     *
-     * \throw std::runtime_error if the character is yet to be fully decoded
-     */
     virtual uint32_t getUTF32Char() override final;
 private:
     uint32_t consumeAndReset();
@@ -338,11 +338,11 @@ public:
     UTF8ToUTF32Decoder(const bool permissive = true): required_count_(-1), permissive_(permissive) { }
     virtual ~UTF8ToUTF32Decoder() = default;
 
-    virtual bool addByte(const char ch) override final;
+    virtual bool addByte(const char ch) override final;    
     virtual State getState() const override final {
         return (required_count_ == -1) ? NO_CHARACTER_PENDING
                                        : ((required_count_  > 0) ? CHARACTER_INCOMPLETE : CHARACTER_PENDING);
-    }
+    }  
     virtual uint32_t getUTF32Char() override final { required_count_ = -1; return utf32_char_; }
 };
 
