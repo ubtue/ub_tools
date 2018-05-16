@@ -182,7 +182,7 @@ std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &output_
                                                       std::shared_ptr<HarvestParams> harvest_params)
 {
     if (output_format == "marcxml" or output_format == "marc21")
-        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(output_format, output_file, harvest_maps, harvest_params));
+        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(output_file, harvest_maps, harvest_params));
     else if (output_format == "json")
         return std::unique_ptr<FormatHandler>(new JsonFormatHandler(output_format, output_file, harvest_maps, harvest_params));
     else if (std::find(EXPORT_FORMATS.begin(), EXPORT_FORMATS.end(), output_format) != EXPORT_FORMATS.end())
@@ -246,9 +246,22 @@ std::pair<unsigned, unsigned> ZoteroFormatHandler::processRecord(const std::shar
 }
 
 
-MarcFormatHandler::MarcFormatHandler(const std::string &output_format, const std::string &output_file,
+std::string GuessOutputFormat(const std::string &output_file) {
+    switch (MARC::GuessFileType(output_file)) {
+    case MARC::FileType::BINARY:
+        return "marc21";
+    case MARC::FileType::XML:
+        return "marcxml";
+    default:
+        LOG_ERROR("we should *never* get here!");
+    }
+}
+
+
+MarcFormatHandler::MarcFormatHandler(const std::string &output_file,
                                      std::shared_ptr<HarvestMaps> harvest_maps, std::shared_ptr<HarvestParams> harvest_params)
-    : FormatHandler(output_format, output_file, harvest_maps, harvest_params), marc_writer_(MARC::Writer::Factory(output_file_))
+    : FormatHandler(GuessOutputFormat(output_file), output_file, harvest_maps, harvest_params),
+      marc_writer_(MARC::Writer::Factory(output_file_))
 {
 }
 
@@ -286,12 +299,14 @@ void MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSONNode> ta
 }
 
 
-void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MARC::Record * const new_record) {
+void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, const std::string &optional_strptime_format,
+                                                       MARC::Record * const new_record)
+{
     std::vector<MARC::Subfield> subfields;
 
     const std::string date_str(object_node.getOptionalStringValue("date"));
     if (not date_str.empty()) {
-        const Date date(StringToDate(date_str, ""));
+        const Date date(StringToDate(date_str, optional_strptime_format));
         if (date.year_ != Date::INVALID)
             subfields.emplace_back('j', std::to_string(date.year_));
     }
@@ -407,9 +422,9 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             if (item_type == "journalArticle") {
                 is_journal_article = true;
                 publication_title = object_node->getOptionalStringValue("publicationTitle");
-                ExtractVolumeYearIssueAndPages(*object_node, &new_record);
+                ExtractVolumeYearIssueAndPages(*object_node, harvest_params_->optional_strptime_format_, &new_record);
             } else if (item_type == "magazineArticle")
-                ExtractVolumeYearIssueAndPages(*object_node, &new_record);
+                ExtractVolumeYearIssueAndPages(*object_node, harvest_params_->optional_strptime_format_, &new_record);
             else
                 LOG_ERROR("unknown item type: \"" + item_type + "\"!");
         } else if (key_and_node.first == "rights") {

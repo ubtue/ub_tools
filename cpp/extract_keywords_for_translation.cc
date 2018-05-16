@@ -49,6 +49,7 @@ static DbConnection *shared_connection;
 enum Status { RELIABLE, UNRELIABLE, RELIABLE_SYNONYM, UNRELIABLE_SYNONYM };
 const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
 
+
 std::string StatusToString(const Status status) {
     switch (status) {
     case RELIABLE:
@@ -61,7 +62,7 @@ std::string StatusToString(const Status status) {
         return "unreliable_synonym";
     }
 
-    logger->error("in StatusToString: we should *never* get here!");
+    LOG_ERROR("in StatusToString: we should *never* get here!");
 }
 
 
@@ -257,7 +258,8 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
         const std::string &origin(std::get<3>(text_language_code_status_and_origin));
         const bool updated_german(std::get<4>(text_language_code_status_and_origin));
         insert_statement += "('" + ppn + "', '" + gnd_code + "', '" + language_code + "', '" + translation
-                            + "', '" + status + "', '" + origin + "', '" + gnd_system  + "', " + (updated_german ? "true" : "false") +  "), ";
+                            + "', '" + status + "', '" + origin + "', '" + gnd_system  + "', " + (updated_german ? "true" : "false")
+                            +  "), ";
         if (++row_counter > MAX_ROW_COUNT) {
             FlushToDatabase(insert_statement);
             insert_statement = INSERT_STATEMENT_START;
@@ -273,7 +275,7 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
 void ExtractTranslationsForAllRecords(MARC::Reader * const authority_reader) {
     while (const MARC::Record record = authority_reader->read()) {
         if (not ExtractTranslationsForASingleRecord(&record))
-            logger->error("error while extracting translations from \"" + authority_reader->getPath() + "\"");
+            LOG_ERROR("error while extracting translations from \"" + authority_reader->getPath() + "\"");
     }
     std::cerr << "Added " << keyword_count << " keywords to the translation database.\n";
     std::cerr << "Found " << german_term_count << " german terms.\n";
@@ -292,7 +294,7 @@ int main(int argc, char **argv) {
     if (argc != 2)
         Usage();
 
-    std::unique_ptr<MARC::Reader> authority_marc_reader(MARC::Reader::Factory(argv[1], MARC::Reader::BINARY));
+    std::unique_ptr<MARC::Reader> authority_marc_reader(MARC::Reader::Factory(argv[1], MARC::FileType::BINARY));
     try {
         const IniFile ini_file(CONF_FILE_PATH);
         const std::string sql_database(ini_file.getString("Database", "sql_database"));
@@ -303,6 +305,6 @@ int main(int argc, char **argv) {
 
         ExtractTranslationsForAllRecords(authority_marc_reader.get());
     } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }
