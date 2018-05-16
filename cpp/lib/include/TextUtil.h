@@ -283,7 +283,7 @@ public:
         CHARACTER_INCOMPLETE  //< addByte() must be called at least one more time to complete a character.
     };
 
-    inline virtual ~ToUTF32Decoder() = default;
+    virtual ~ToUTF32Decoder() = default;
 
     /** Feed bytes into this until it returns false.  Then call getCodePoint() to get the translated UTF32 code
      *  point.  Then you can call this function again.
@@ -293,9 +293,10 @@ public:
      * \throw std::runtime_error if we're being fed an invalid UTF-8 sequence of characters
      */
     virtual bool addByte(const char ch) = 0;
-    virtual inline State getState() const = 0;
+    virtual State getState() const = 0;
     virtual uint32_t getUTF32Char() = 0;
 };
+
 
 class AnythingToUTF32Decoder : public ToUTF32Decoder {
     iconv_t converter_handle_;
@@ -311,10 +312,10 @@ public:
      *                     If true, we return Unicode replacement characters.
      */
     AnythingToUTF32Decoder(const std::string &input_encoding, const bool permissive = true);
-    virtual ~AnythingToUTF32Decoder();
+    virtual ~AnythingToUTF32Decoder() override;
 
     virtual bool addByte(const char ch) override;
-    virtual inline State getState() const override;
+    virtual State getState() const override;
 
     /** Returns the UTF-32 character converted from the input sequence.
      *
@@ -335,10 +336,10 @@ public:
      *                     characters.
      */
     UTF8ToUTF32Decoder(const bool permissive = true): required_count_(-1), permissive_(permissive) { }
-    inline virtual ~UTF8ToUTF32Decoder() = default;
+    virtual ~UTF8ToUTF32Decoder() = default;
 
     virtual bool addByte(const char ch) override;
-    virtual inline State getState() const override {
+    virtual State getState() const override {
         return (required_count_ == -1) ? NO_CHARACTER_PENDING
                                        : ((required_count_  > 0) ? CHARACTER_INCOMPLETE : CHARACTER_PENDING);
     }
