@@ -92,7 +92,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
-StartPhase "Rewrite Author and Standardized Keywords from Authority Data"
+StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
 (rewrite_keywords_and_authors_from_authority_data --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                                   Normdaten-"${date}".mrc \
                                                   GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
