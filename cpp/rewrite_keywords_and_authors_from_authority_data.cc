@@ -35,11 +35,13 @@
 
 namespace {
 
+
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " master_marc_input authority_data_marc_input.mrc marc_output\n"
                            << "The Authority data must be in marc binary\n";
     std::exit(EXIT_FAILURE);
 }
+
 
 // Create a list of PPNs and File Offsets
 void CreateAuthorityOffsets(MARC::Reader * const authority_reader, std::map<std::string, off_t> * const authority_offsets) {
