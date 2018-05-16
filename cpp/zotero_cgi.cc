@@ -31,7 +31,6 @@
 #include "StringUtil.h"
 #include "Template.h"
 #include "TextUtil.h"
-#include "TimeUtil.h"
 #include "WallClockTimer.h"
 #include "WebUtil.h"
 #include "util.h"
@@ -434,7 +433,7 @@ void ProcessCrawlingAction(std::multimap<std::string, std::string> &cgi_args) {
     int status;
 
     do {
-        TimeUtil::Millisleep(1000);
+        ::sleep(1);
         timer.stop();
         UpdateRuntime(static_cast<unsigned>(timer.getTime()));
         timer.start();
@@ -455,7 +454,8 @@ void ProcessCrawlingAction(std::multimap<std::string, std::string> &cgi_args) {
         exit_code = WEXITSTATUS(status);
 
     std::string output;
-    FileUtil::ReadString(crawling_task.getLogPath(), &output);
+    if (not FileUtil::ReadString(crawling_task.getLogPath(), &output))
+        output = "could not read log file!";
 
     if (exit_code == 0) {
         UpdateProgress("Finished");
