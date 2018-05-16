@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <memory>
+#include <unordered_map>
 #include <cstdlib>
 #include "IniFile.h"
 #include "RegexMatcher.h"
@@ -31,8 +32,9 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbosity=log_level] config_file_path marc_output\n"
-              << "       Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n";
+    std::cerr << "Usage: " << ::progname << " [--verbosity=log_level] config_file_path [section1 section2 .. sectionN]\n"
+              << "       Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
+              << "       If any section names have been provided, only those will be processed o/w all sections will be processed.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -42,12 +44,19 @@ void ProcessRSS(const IniFile::Section &section) {
     LOG_DEBUG("feed_url: " + feed_url);
 }
 
-
-void ProcessCrawl(const IniFile::Section &section) {
+    
+void ProcessCrawl(const IniFile::Section &section, const std::string &marc_output_file,
+                      std::shared_ptr<Zotero::HarvestMaps> harvest_maps)
+{
     const std::string base_url(section.getString("base_url"));
     std::shared_ptr<RegexMatcher> extraction_regex(RegexMatcher::FactoryOrDie(section.getString("extraction_regex")));
-    const unsigned max_crawl_depth(section.getUnsigned("max_crawl_depth"));
-    (void)max_crawl_depth;
+//    const unsigned max_crawl_depth(section.getUnsigned("max_crawl_depth"));
+    const std::string issn(section.getString("issn", ""));
+    const std::string optional_strptime_format(section.getString("strptime_format", ""));
+
+    std::shared_ptr<Zotero::HarvestParams> harvest_params;
+    harvest_params->optional_strptime_format_ = optional_strptime_format;
+    harvest_params->format_handler_.reset(new Zotero::MarcFormatHandler(marc_output_file, harvest_maps, harvest_params));
 }
 
 
@@ -64,7 +73,7 @@ std::string GetMarcFormat(const std::string &output_filename) {
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
+    if (argc < 2)
         Usage();
 
     IniFile ini_file(argv[1]);
@@ -86,15 +95,34 @@ int Main(int argc, char *argv[]) {
     harvest_params->format_handler_ = Zotero::FormatHandler::Factory(GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE,
                                                                      harvest_maps, harvest_params);
 
+    std::unordered_map<std::string, bool> section_name_to_found_flag_map;
+    for (int arg_no(2); arg_no < argc; ++arg_no)
+        section_name_to_found_flag_map.emplace(argv[arg_no], false);
+    
     enum Type { RSS, CRAWL };
     const std::map<std::string, int> string_to_value_map{ {"RSS", RSS }, { "CRAWL", CRAWL } };
+    unsigned processed_section_count(0);
     for (const auto &section : ini_file) {
+        if (not section_name_to_found_flag_map.empty()) {
+            const auto section_name_and_found_flag(section_name_to_found_flag_map.find(section.first));
+            if (section_name_and_found_flag == section_name_to_found_flag_map.end())
+                continue;
+            section_name_and_found_flag->second = true;
+        }
+        ++processed_section_count;
+        
         LOG_INFO("Processing section \"" + section.first + "\".");
         const Type type(static_cast<Type>(section.second.getEnum("type", string_to_value_map)));
         if (type == RSS)
             ProcessRSS(section.second);
         else
-            ProcessCrawl(section.second);
+            ProcessCrawl(section.second, MARC_OUTPUT_FILE, harvest_maps);
+    }
+
+    if (section_name_to_found_flag_map.size() > processed_section_count) {
+        std::cerr << "The following sections were specified but not processed:\n";
+        for (const auto &section_name_and_found_flag : section_name_to_found_flag_map)
+            std::cerr << '\t' << section_name_and_found_flag.first << '\n';
     }
 
     return EXIT_SUCCESS;

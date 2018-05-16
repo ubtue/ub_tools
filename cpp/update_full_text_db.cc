@@ -293,7 +293,7 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
     }
 
     // Safely append the modified MARC data to the MARC output file:
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::Writer::BINARY,
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY,
                                                                     MARC::Writer::APPEND));
     MARC::FileLockedComposeAndWriteRecord(marc_writer.get(), *record);
 
@@ -341,7 +341,7 @@ int main(int argc, char *argv[]) {
     if (not StringUtil::ToNumber(argv[1], &offset))
         LOG_ERROR("file offset must be a number!");
 
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2], MARC::Reader::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2], MARC::FileType::BINARY));
     if (not marc_reader->seek(offset, SEEK_SET))
         LOG_ERROR("failed to position " + marc_reader->getPath() + " at offset " + std::to_string(offset) + "!");
 

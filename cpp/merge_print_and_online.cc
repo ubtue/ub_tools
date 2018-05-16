@@ -528,7 +528,7 @@ int main(int argc, char *argv[]) {
     if (argc != 4)
         Usage();
 
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1], MARC::Reader::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1], MARC::FileType::BINARY));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
     std::unique_ptr<File> missing_partners(FileUtil::OpenOutputFileOrDie(argv[3]));
 

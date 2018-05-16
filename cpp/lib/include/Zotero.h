@@ -102,6 +102,7 @@ struct HarvestParams {
     Url zts_server_url_;
     TimeLimit min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
     unsigned harvested_url_count_ = 0;
+    std::string optional_strptime_format_;
     std::unique_ptr<FormatHandler> format_handler_;
 };
 
@@ -156,7 +157,7 @@ public:
 class MarcFormatHandler final : public FormatHandler {
     std::unique_ptr<MARC::Writer> marc_writer_;
 public:
-    MarcFormatHandler(const std::string &output_format, const std::string &output_file, std::shared_ptr<HarvestMaps> harvest_maps,
+    MarcFormatHandler(const std::string &output_file, std::shared_ptr<HarvestMaps> harvest_maps,
                       std::shared_ptr<HarvestParams> harvest_params);
     virtual ~MarcFormatHandler() = default;
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
@@ -186,7 +187,8 @@ private:
                          const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
                          MARC::Record * const new_record);
 
-    void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MARC::Record * const new_record);
+    void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, const std::string &optional_strptime_format,
+                                        MARC::Record * const new_record);
     void CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record);
 };
 
