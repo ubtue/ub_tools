@@ -63,22 +63,6 @@ void ProcessRecords(const bool quiet, MARC::Reader * const marc_reader, MARC::Wr
 }
 
 
-enum MarcType { MARC21, MARC_XML, UNKNOWN };
-
-
-MarcType GetMarcType(const std::string &filename) {
-    if (StringUtil::EndsWith(filename, ".xml"))
-        return MARC_XML;
-    if (StringUtil::EndsWith(filename, ".mrc"))
-        return MARC21;
-    if (StringUtil::EndsWith(filename, ".marc"))
-        return MARC21;
-    if (StringUtil::EndsWith(filename, ".raw"))
-        return MARC21;
-    return UNKNOWN;
-}
-
-
 } // unnamed namespace
 
 
@@ -98,20 +82,11 @@ int main(int argc, char *argv[]) {
         Usage();
 
     const std::string input_filename(argv[1]);
-    const MarcType input_type(GetMarcType(input_filename));
-    if (input_type == UNKNOWN)
-        logger->error("can't determine the MARC file type for \"" + input_filename + "\" based on its extension!");
-    const MARC::Reader::ReaderType reader_type((input_type == MARC21) ? MARC::Reader::BINARY : MARC::Reader::XML);
-
     const std::string output_filename(argv[2]);
-    const MarcType output_type(GetMarcType(output_filename));
-    if (output_type == UNKNOWN)
-        logger->error("can't determine the MARC file type for \"" + output_filename + "\" based on its extension!");
-    const MARC::Writer::WriterType writer_type((output_type == MARC21) ? MARC::Writer::BINARY : MARC::Writer::XML);
 
     try {
-        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename, reader_type));
-        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(output_filename, writer_type));
+        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename));
+        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(output_filename));
 
         std::set<std::string> control_numbers;
         for (int arg_no(3); arg_no < argc; ++arg_no)
