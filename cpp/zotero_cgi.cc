@@ -70,7 +70,7 @@ const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTE
 };
 
 
-std::string GetCGIParameterOrDefault(std::multimap<std::string, std::string> &cgi_args,
+std::string GetCGIParameterOrDefault(const std::multimap<std::string, std::string> &cgi_args,
                                      const std::string &parameter_name,
                                      const std::string &default_value = "")
 {
@@ -91,7 +91,7 @@ std::string GetMinElementOrDefault(const std::vector<std::string> &elements, con
 }
 
 
-void ParseConfigFile(std::multimap<std::string, std::string> &cgi_args, Template::Map * const names_to_values_map) {
+void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Template::Map * const names_to_values_map) {
     IniFile ini(ZTS_HARVESTER_CONF_FILE);
 
     std::vector<std::string> all_journal_titles;
@@ -382,7 +382,7 @@ RssTask::RssTask(const std::string &url_rss, const std::string &output_format_id
     }
 
 
-void ProcessDownloadAction(std::multimap<std::string, std::string> &cgi_args) {
+void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string path(GetCGIParameterOrDefault(cgi_args, "id"));
 
     if (StringUtil::EndsWith(path, ".xml", /*ignore_case*/ true))
@@ -394,7 +394,7 @@ void ProcessDownloadAction(std::multimap<std::string, std::string> &cgi_args) {
 }
 
 
-void ProcessRssAction(std::multimap<std::string, std::string> &cgi_args) {
+void ProcessRssAction(const std::multimap<std::string, std::string> &cgi_args) {
     std::cout << "<h2>RSS Result</h2>\r\n";
     std::cout << "<table>\r\n";
 
@@ -413,7 +413,7 @@ void ProcessRssAction(std::multimap<std::string, std::string> &cgi_args) {
 }
 
 
-void ProcessCrawlingAction(std::multimap<std::string, std::string> &cgi_args) {
+void ProcessCrawlingAction(const std::multimap<std::string, std::string> &cgi_args) {
     std::cout << "<h2>Crawling Result</h2>\r\n";
     std::cout << "<table>\r\n";
 
