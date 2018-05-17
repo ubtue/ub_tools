@@ -474,53 +474,51 @@ void ProcessCrawlingAction(const std::multimap<std::string, std::string> &cgi_ar
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
+int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    try {
-        std::multimap<std::string, std::string> cgi_args;
-        WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
-        const std::string default_action("list");
-        const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));
+    std::multimap<std::string, std::string> cgi_args;
+    WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
+    const std::string default_action("list");
+    const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));
 
-        if (action == "download")
-            ProcessDownloadAction(cgi_args);
-        else {
-            std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+    if (action == "download")
+        ProcessDownloadAction(cgi_args);
+    else {
+        std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
 
-            Template::Map names_to_values_map;
-            names_to_values_map.insertScalar("action", action);
+        Template::Map names_to_values_map;
+        names_to_values_map.insertScalar("action", action);
 
-            std::string style_css;
-            FileUtil::ReadString(TEMPLATE_DIRECTORY + "style.css", &style_css);
-            names_to_values_map.insertScalar("style_css", style_css);
+        std::string style_css;
+        FileUtil::ReadString(TEMPLATE_DIRECTORY + "style.css", &style_css);
+        names_to_values_map.insertScalar("style_css", style_css);
 
-            std::string scripts_js;
-            FileUtil::ReadString(TEMPLATE_DIRECTORY + "scripts.js", &scripts_js);
-            names_to_values_map.insertScalar("scripts_js", scripts_js);
+        std::string scripts_js;
+        FileUtil::ReadString(TEMPLATE_DIRECTORY + "scripts.js", &scripts_js);
+        names_to_values_map.insertScalar("scripts_js", scripts_js);
 
-            const std::string depth(GetCGIParameterOrDefault(cgi_args, "depth", "1"));
-            names_to_values_map.insertScalar("depth", depth);
+        const std::string depth(GetCGIParameterOrDefault(cgi_args, "depth", "1"));
+        names_to_values_map.insertScalar("depth", depth);
 
-            const std::string selected_output_format_id(GetCGIParameterOrDefault(cgi_args, "output_format_id"));
-            names_to_values_map.insertScalar("selected_output_format_id", selected_output_format_id);
-            names_to_values_map.insertArray("output_format_ids", GetOutputFormatIds());
+        const std::string selected_output_format_id(GetCGIParameterOrDefault(cgi_args, "output_format_id"));
+        names_to_values_map.insertScalar("selected_output_format_id", selected_output_format_id);
+        names_to_values_map.insertArray("output_format_ids", GetOutputFormatIds());
 
-            std::ifstream template_html(TEMPLATE_DIRECTORY + "index.html");
-            ParseConfigFile(cgi_args, &names_to_values_map);
-            Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
-            std::cout << std::flush;
+        std::ifstream template_html(TEMPLATE_DIRECTORY + "index.html");
+        ParseConfigFile(cgi_args, &names_to_values_map);
+        Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
+        std::cout << std::flush;
 
-            if (action == "rss")
-                ProcessRssAction(cgi_args);
-            else if (action == "crawling")
-                ProcessCrawlingAction(cgi_args);
-            else if (action != default_action)
-                LOG_ERROR("invalid action: \"" + action + '"');
+        if (action == "rss")
+            ProcessRssAction(cgi_args);
+        else if (action == "crawling")
+            ProcessCrawlingAction(cgi_args);
+        else if (action != default_action)
+            LOG_ERROR("invalid action: \"" + action + '"');
 
-            std::cout << "</body></html>";
-        }
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
+        std::cout << "</body></html>";
     }
+
+    return EXIT_SUCCESS;
 }
