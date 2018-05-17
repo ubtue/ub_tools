@@ -44,9 +44,9 @@ void ProcessRSS(const IniFile::Section &section) {
     LOG_DEBUG("feed_url: " + feed_url);
 }
 
-    
+
 void ProcessCrawl(const IniFile::Section &section, const std::string &marc_output_file,
-                      std::shared_ptr<Zotero::HarvestMaps> harvest_maps)
+                  std::shared_ptr<Zotero::HarvestMaps> harvest_maps)
 {
     const std::string base_url(section.getString("base_url"));
     std::shared_ptr<RegexMatcher> extraction_regex(RegexMatcher::FactoryOrDie(section.getString("extraction_regex")));
@@ -55,7 +55,6 @@ void ProcessCrawl(const IniFile::Section &section, const std::string &marc_outpu
     const std::string optional_strptime_format(section.getString("strptime_format", ""));
 
     std::shared_ptr<Zotero::HarvestParams> harvest_params;
-    harvest_params->optional_strptime_format_ = optional_strptime_format;
     harvest_params->format_handler_.reset(new Zotero::MarcFormatHandler(marc_output_file, harvest_maps, harvest_params));
 }
 
@@ -98,7 +97,7 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, bool> section_name_to_found_flag_map;
     for (int arg_no(2); arg_no < argc; ++arg_no)
         section_name_to_found_flag_map.emplace(argv[arg_no], false);
-    
+
     enum Type { RSS, CRAWL };
     const std::map<std::string, int> string_to_value_map{ {"RSS", RSS }, { "CRAWL", CRAWL } };
     unsigned processed_section_count(0);
@@ -110,7 +109,7 @@ int Main(int argc, char *argv[]) {
             section_name_and_found_flag->second = true;
         }
         ++processed_section_count;
-        
+
         LOG_INFO("Processing section \"" + section.first + "\".");
         const Type type(static_cast<Type>(section.second.getEnum("type", string_to_value_map)));
         if (type == RSS)
