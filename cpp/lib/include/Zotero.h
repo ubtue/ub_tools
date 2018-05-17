@@ -37,6 +37,9 @@
 namespace Zotero {
 
 
+extern const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH;
+
+
 // native supported formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
 // also allowed: json, marc21 and marcxml
 extern const std::vector<std::string> ExportFormats;

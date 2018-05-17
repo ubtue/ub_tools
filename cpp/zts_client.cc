@@ -37,15 +37,14 @@ namespace zts_client {
 
 
 const std::string USER_AGENT("ub_tools (https://ixtheo.de/docs/user_agents)");
-const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
 
 
 void Usage() {
     std::cerr << "Usage: " << ::progname << " [options] zts_server_url map_directory output_file\n"
-              << "\t[ --ignore-robots-dot-txt)                                Nomen est omen.\n"
-              << "\t[ --proxy=<proxy_host_and_port>)                          Proxy host and port, default none.\n"
+              << "\t[ --ignore-robots-dot-txt ]                               Nomen est omen.\n"
+              << "\t[ --proxy=<proxy_host_and_port> ]                         Proxy host and port, default none.\n"
               << "\t[ --simple-crawler-config-file=<path> ]                   Nomen est omen, default: "
-              << DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH << "\n"
+              << Zotero::DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH << "\n"
               << "\t[ --progress-file=<path> ]                                Nomen est omen.\n"
               << "\t[ --output-format=<format> ]                              marcxml (default), marc21 or json.\n"
               << "\n"
@@ -105,7 +104,7 @@ void Main(int argc, char *argv[]) {
         simple_crawler_config_path = argv[1] + CONFIG_FLAG_PREFIX.length();
         --argc, ++argv;
     } else
-        simple_crawler_config_path = DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH;
+        simple_crawler_config_path = Zotero::DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH;
 
     std::string progress_filename;
     const std::string PROGRESS_FILE_FLAG_PREFIX("--progress-file=");
