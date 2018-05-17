@@ -391,7 +391,7 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
 
 std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
-        "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|ubtue$"));
+        "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|ISSN|ubtue$"));
     unsigned record_count(0), previously_downloaded_count(0);
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
                             MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
@@ -739,12 +739,12 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
     static std::unordered_set<std::string> already_harvested_urls;
     if (already_harvested_urls.find(harvest_url) != already_harvested_urls.end()) {
-        logger->info("Skipping URL (already harvested): " + harvest_url);
+        LOG_INFO("Skipping URL (already harvested): " + harvest_url);
         return record_count_and_previously_downloaded_count;
     }
     already_harvested_urls.emplace(harvest_url);
 
-    logger->info("Harvesting URL: " + harvest_url);
+    LOG_INFO("Harvesting URL: " + harvest_url);
 
     std::string response_body, error_message;
     unsigned response_code;
@@ -756,19 +756,19 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
     harvest_params->min_url_processing_time_.restart();
     if (not download_succeeded) {
-        logger->warning("Zotero conversion failed: " + error_message);
+        LOG_WARNING("Zotero conversion failed: " + error_message);
         return std::make_pair(0, 0);
     }
 
     // 500 => internal server error (e.g. error in translator))
     if (response_code == 500) {
-        logger->warning("Error: " + response_body);
+        LOG_WARNING("Error: " + response_body);
         return std::make_pair(0, 0);
     }
 
     // 501 => not implemented (e.g. no translator available)
     if (response_code == 501) {
-        logger->debug("Skipped (" + response_body + ")");
+        LOG_DEBUG("Skipped (" + response_body + ")");
         return std::make_pair(0, 0);
     }
 
@@ -779,7 +779,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
     // 300 => multiple matches found, try to harvest children
     if (response_code == 300) {
-        logger->info("multiple articles found => trying to harvest children");
+        LOG_INFO("multiple articles found => trying to harvest children");
         if (tree_root->getType() == JSON::ArrayNode::OBJECT_NODE) {
             const std::shared_ptr<const JSON::ObjectNode>object_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root",
                                                                                                            tree_root));
@@ -802,7 +802,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     ++harvest_params->harvested_url_count_;
 
     if (log) {
-        logger->info("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
+        LOG_INFO("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
                      + harvest_url + '\n' + "of which "
                      + StringUtil::ToString(record_count_and_previously_downloaded_count.first
                                             - record_count_and_previously_downloaded_count.second)
@@ -827,7 +827,7 @@ PreviouslyDownloadedHashesManager::PreviouslyDownloadedHashesManager(
             previously_downloaded->emplace(TextUtil::Base64Decode(line));
     }
 
-    logger->info("Loaded " + StringUtil::ToString(previously_downloaded->size()) + " hashes of previously generated records.");
+    LOG_INFO("Loaded " + StringUtil::ToString(previously_downloaded->size()) + " hashes of previously generated records.");
 }
 
 
@@ -837,7 +837,7 @@ PreviouslyDownloadedHashesManager::~PreviouslyDownloadedHashesManager() {
     for (const auto &hash : previously_downloaded_)
         output->write(TextUtil::Base64Encode(hash) + '\n');
 
-    logger->info("Stored " + StringUtil::ToString(previously_downloaded_.size()) + " hashes of previously generated records.");
+    LOG_INFO("Stored " + StringUtil::ToString(previously_downloaded_.size()) + " hashes of previously generated records.");
 }
 
 
@@ -1016,7 +1016,7 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
                          File * const progress_file)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
-    logger->info("Starting crawl at base URL: " +  site_desc.start_url_);
+    LOG_INFO("Starting crawl at base URL: " +  site_desc.start_url_);
     SimpleCrawler crawler(site_desc, crawler_params);
     SimpleCrawler::PageDetails page_details;
     unsigned processed_url_count(0);
