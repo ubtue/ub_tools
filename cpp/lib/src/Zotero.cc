@@ -188,7 +188,6 @@ std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &output_
                                                       std::shared_ptr<HarvestMaps> harvest_maps,
                                                       std::shared_ptr<HarvestParams> harvest_params)
 {
-    LOG_INFO("output file exists? " + std::to_string(FileUtil::Exists(output_file)) + " " + output_format);
     if (output_format == "marcxml" or output_format == "marc21")
         return std::unique_ptr<FormatHandler>(new MarcFormatHandler(output_file, harvest_maps, harvest_params));
     else if (output_format == "json")
@@ -392,7 +391,7 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
 
 std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
-        "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|ubtue$"));
+        "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|ISSN|ubtue$"));
     unsigned record_count(0), previously_downloaded_count(0);
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
                             MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
