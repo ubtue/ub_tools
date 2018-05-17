@@ -27,12 +27,17 @@
 #include "JSON.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
+#include "SimpleCrawler.h"
 #include "TimeLimit.h"
 #include "TimeUtil.h"
+#include "UnsignedPair.h"
 #include "Url.h"
 
 
 namespace Zotero {
+
+
+extern const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH;
 
 
 // native supported formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
@@ -299,6 +304,17 @@ public:
     const_iterator begin() const;
     const_iterator end() const;
 };
+
+
+/** \brief Harvest metadate from a single site.
+ *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
+ *          difference (first - second).
+ */
+UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
+                         const std::shared_ptr<RegexMatcher> supported_urls_regex,
+                         const std::shared_ptr<Zotero::HarvestParams> harvest_params,
+                         const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps,
+                         File * const progress_file = nullptr);
 
 
 } // namespace Zotero
