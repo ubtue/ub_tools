@@ -152,7 +152,7 @@ unsigned ProcessSyndicationURL(const Mode mode, const std::string &feed_url,
         if (last_build_date != TimeUtil::BAD_TIME_T)
             std::cout << "\tLast build date: " << TimeUtil::TimeTToUtcString(last_build_date) << '\n';
         std::cout << "\tLink: " << syndication_format->getLink() << '\n';
-        std::cout << "\tDescription: " << syndication_format->getDescription() << '\n'; 
+        std::cout << "\tDescription: " << syndication_format->getDescription() << '\n';
    }
 
     if (mode != TEST and FeedContainsNoNewItems(mode, db_connection, feed_url, last_build_date))
@@ -167,8 +167,9 @@ unsigned ProcessSyndicationURL(const Mode mode, const std::string &feed_url,
         if (not title.empty() and mode != NORMAL)
             std::cout << "\t\tTitle: " << title << '\n';
 
+        const Zotero::AugmentParams augment_params;
         const auto record_count_and_previously_downloaded_count(
-            Zotero::Harvest(item.getLink(), harvest_params, harvest_maps, "", /* verbose = */ mode != NORMAL));
+            Zotero::Harvest(item.getLink(), harvest_params, harvest_maps, augment_params, "", /* verbose = */ mode != NORMAL));
         successfully_processed_count += record_count_and_previously_downloaded_count.first;
 
         if (mode != TEST)
@@ -265,7 +266,7 @@ int main(int argc, char *argv[]) {
             const std::string sql_password(ini_file.getString("Database", "sql_password"));
             db_connection.reset(new DbConnection(sql_database, sql_username, sql_password));
         }
- 
+
         Zotero::MarcFormatHandler * const marc_format_handler(reinterpret_cast<Zotero::MarcFormatHandler *>(
             harvest_params->format_handler_.get()));
         if (unlikely(marc_format_handler == nullptr))

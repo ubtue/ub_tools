@@ -74,8 +74,12 @@ Date StringToDate(const std::string &date_str, const std::string &optional_strpt
         const char * const last_char(::strptime(date_str.c_str(), optional_strptime_format.c_str(), &tm));
         if (last_char == nullptr or *last_char != '\0')
             unix_time = TimeUtil::BAD_TIME_T;
-        else
-            unix_time = TimeUtil::TimeGm(tm);
+        else {
+            date.year_ = tm.tm_year + 1900;
+            date.month_ = tm.tm_mon + 1;
+            date.day_ = tm.tm_mday;
+            return date;
+        }
     }
 
     if (unix_time != TimeUtil::BAD_TIME_T) {
@@ -185,8 +189,8 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 
 std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &output_format,
                                                       const std::string &output_file,
-                                                      std::shared_ptr<HarvestMaps> harvest_maps,
-                                                      std::shared_ptr<HarvestParams> harvest_params)
+                                                      const std::shared_ptr<HarvestMaps> &harvest_maps,
+                                                      const std::shared_ptr<HarvestParams> &harvest_params)
 {
     if (output_format == "marcxml" or output_format == "marc21")
         return std::unique_ptr<FormatHandler>(new MarcFormatHandler(output_file, harvest_maps, harvest_params));
@@ -200,7 +204,7 @@ std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &output_
 
 
 JsonFormatHandler::JsonFormatHandler(const std::string &output_format, const std::string &output_file,
-                                     std::shared_ptr<HarvestMaps> harvest_maps, std::shared_ptr<HarvestParams> harvest_params)
+                                     const std::shared_ptr<HarvestMaps> &harvest_maps, const std::shared_ptr<HarvestParams> &harvest_params)
     : FormatHandler(output_format, output_file, harvest_maps, harvest_params), record_count_(0),
       output_file_object_(new File(output_file_, "w"))
 {
@@ -224,7 +228,7 @@ std::pair<unsigned, unsigned> JsonFormatHandler::processRecord(const std::shared
 
 
 ZoteroFormatHandler::ZoteroFormatHandler(const std::string &output_format, const std::string &output_file,
-                                         std::shared_ptr<HarvestMaps> harvest_maps, std::shared_ptr<HarvestParams> harvest_params)
+                                         const std::shared_ptr<HarvestMaps> &harvest_maps, const std::shared_ptr<HarvestParams> &harvest_params)
     : FormatHandler(output_format, output_file, harvest_maps, harvest_params), record_count_(0), json_buffer_("[")
 {
 }
@@ -266,7 +270,7 @@ std::string GuessOutputFormat(const std::string &output_file) {
 
 
 MarcFormatHandler::MarcFormatHandler(const std::string &output_file,
-                                     std::shared_ptr<HarvestMaps> harvest_maps, std::shared_ptr<HarvestParams> harvest_params)
+                                     const std::shared_ptr<HarvestMaps> &harvest_maps, const std::shared_ptr<HarvestParams> &harvest_params)
     : FormatHandler(GuessOutputFormat(output_file), output_file, harvest_maps, harvest_params),
       marc_writer_(MARC::Writer::Factory(output_file_))
 {
@@ -306,14 +310,22 @@ void MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSONNode> ta
 }
 
 
-void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, const std::string &optional_strptime_format,
+void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node,
                                                        MARC::Record * const new_record)
 {
     std::vector<MARC::Subfield> subfields;
 
-    const std::string date_str(object_node.getOptionalStringValue("date"));
-    if (not date_str.empty()) {
-        const Date date(StringToDate(date_str, optional_strptime_format));
+    std::shared_ptr<const JSON::JSONNode> custom_node(object_node.getNode("ubtue"));
+    if (custom_node != nullptr) {
+        const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
+        std::string date_str(custom_object->getOptionalStringValue("date_normalized"));
+        std::string strptime_format;
+        if (date_str.empty())
+            date_str = custom_object->getOptionalStringValue("date_raw");
+        else
+            strptime_format = "%Y-%m-%d";
+
+        const Date date(StringToDate(date_str, strptime_format));
         if (date.year_ != Date::INVALID)
             subfields.emplace_back('j', std::to_string(date.year_));
     }
@@ -429,9 +441,9 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             if (item_type == "journalArticle") {
                 is_journal_article = true;
                 publication_title = object_node->getOptionalStringValue("publicationTitle");
-                ExtractVolumeYearIssueAndPages(*object_node, harvest_params_->optional_strptime_format_, &new_record);
+                ExtractVolumeYearIssueAndPages(*object_node, &new_record);
             } else if (item_type == "magazineArticle")
-                ExtractVolumeYearIssueAndPages(*object_node, harvest_params_->optional_strptime_format_, &new_record);
+                ExtractVolumeYearIssueAndPages(*object_node, &new_record);
             else
                 LOG_ERROR("unknown item type: \"" + item_type + "\"!");
         } else if (key_and_node.first == "rights") {
@@ -579,7 +591,10 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
 
 
 // Improve JSON result delivered by Zotero Translation Server
-void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std::shared_ptr<const HarvestMaps> harvest_maps) {
+void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node,
+                 const AugmentParams &augment_params,
+                 const std::shared_ptr<const HarvestMaps> harvest_maps)
+{
     LOG_INFO("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
@@ -610,6 +625,13 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
             const auto ISSN_and_parent_ppn(harvest_maps->ISSN_to_superior_ppn_map_.find(issn_normalized));
             if (ISSN_and_parent_ppn != harvest_maps->ISSN_to_superior_ppn_map_.cend())
                 custom_fields.emplace(std::pair<std::string, std::string>("PPN", ISSN_and_parent_ppn->second));
+        } else if (key_and_node.first == "date") {
+            const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
+            custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
+            Date date(StringToDate(date_raw, augment_params.strptime_format_));
+            std::string date_normalized(std::to_string(date.year_) + "-" + std::to_string(date.month_) + "-" + std::to_string(date.day_));
+            custom_fields.emplace(std::pair<std::string, std::string>("date_normalized", date_normalized));
+            comments.emplace_back("normalized date to: " + date_normalized);
         }
     }
 
@@ -733,8 +755,8 @@ std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_di
 
 
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
-                                      const std::shared_ptr<const HarvestMaps> harvest_maps, const std::string &harvested_html,
-                                      bool log)
+                                      const std::shared_ptr<const HarvestMaps> harvest_maps, const AugmentParams &augment_params,
+                                      const std::string &harvested_html, bool log)
 {
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
     static std::unordered_set<std::string> already_harvested_urls;
@@ -785,7 +807,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
                                                                                                            tree_root));
             for (const auto &key_and_node : *object_node) {
                 std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
-                    Harvest(key_and_node.first, harvest_params, harvest_maps, /* harvested_html = */"", /* log = */false);
+                    Harvest(key_and_node.first, harvest_params, harvest_maps, augment_params, /* harvested_html = */"", /* log = */false);
 
                 record_count_and_previously_downloaded_count.first += record_count_and_previously_downloaded_count2.first;
                 record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
@@ -795,7 +817,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         const std::shared_ptr<const JSON::ArrayNode>json_array(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
         for (const auto entry : *json_array) {
             const std::shared_ptr<JSON::ObjectNode> json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
-            AugmentJson(json_object, harvest_maps);
+            AugmentJson(json_object, augment_params, harvest_maps);
             record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
         }
     }
@@ -1010,9 +1032,9 @@ DownloadTracker::const_iterator DownloadTracker::end() const {
  *          difference (first - second).
  */
 UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
-                         const std::shared_ptr<RegexMatcher> supported_urls_regex,
-                         const std::shared_ptr<Zotero::HarvestParams> harvest_params,
-                         const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps,
+                         const std::shared_ptr<RegexMatcher> &supported_urls_regex,
+                         const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
+                         const std::shared_ptr<const Zotero::HarvestMaps> &harvest_maps,
                          File * const progress_file)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
@@ -1024,8 +1046,10 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
         if (not supported_urls_regex->matched(page_details.url_))
             LOG_INFO("Skipping unsupported URL: " + page_details.url_);
         else if (page_details.error_message_.empty()) {
+            Zotero::AugmentParams augment_params;
+            augment_params.strptime_format_ = site_desc.strptime_format_;
             const auto record_count_and_previously_downloaded_count(
-                Zotero::Harvest(page_details.url_, harvest_params, harvest_maps, page_details.body_));
+                Zotero::Harvest(page_details.url_, harvest_params, harvest_maps, augment_params, page_details.body_));
             total_record_count_and_previously_downloaded_record_count.first  += record_count_and_previously_downloaded_count.first;
             total_record_count_and_previously_downloaded_record_count.second += record_count_and_previously_downloaded_count.second;
             if (progress_file != nullptr) {
