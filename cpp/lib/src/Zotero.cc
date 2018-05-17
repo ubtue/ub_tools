@@ -30,6 +30,10 @@
 #include "util.h"
 
 
+// Forward declaration:
+class File;
+
+
 namespace Zotero {
 
 
@@ -995,6 +999,42 @@ DownloadTracker::const_iterator DownloadTracker::begin() const {
 
 DownloadTracker::const_iterator DownloadTracker::end() const {
     return const_iterator(nullptr);
+}
+
+
+/**
+ *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
+ *          difference (first - second).
+ */
+UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
+                         const std::shared_ptr<RegexMatcher> supported_urls_regex,
+                         const std::shared_ptr<Zotero::HarvestParams> harvest_params,
+                         const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps,
+                         File * const progress_file)
+{
+    UnsignedPair total_record_count_and_previously_downloaded_record_count;
+    logger->info("Starting crawl at base URL: " +  site_desc.start_url_);
+    SimpleCrawler crawler(site_desc, crawler_params);
+    SimpleCrawler::PageDetails page_details;
+    unsigned processed_url_count(0);
+    while (crawler.getNextPage(&page_details)) {
+        if (not supported_urls_regex->matched(page_details.url_))
+            LOG_INFO("Skipping unsupported URL: " + page_details.url_);
+        else if (page_details.error_message_.empty()) {
+            const auto record_count_and_previously_downloaded_count(
+                Zotero::Harvest(page_details.url_, harvest_params, harvest_maps, page_details.body_));
+            total_record_count_and_previously_downloaded_record_count.first  += record_count_and_previously_downloaded_count.first;
+            total_record_count_and_previously_downloaded_record_count.second += record_count_and_previously_downloaded_count.second;
+            if (progress_file != nullptr) {
+                progress_file->rewind();
+                if (unlikely(not progress_file->write(
+                    std::to_string(processed_url_count) + ";" + std::to_string(crawler.getRemainingCallDepth()) + ";" + page_details.url_)))
+                    LOG_ERROR("failed to write progress to \"" + progress_file->getPath());
+            }
+        }
+    }
+
+    return total_record_count_and_previously_downloaded_record_count;
 }
 
 
