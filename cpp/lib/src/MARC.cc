@@ -1052,11 +1052,13 @@ bool XmlReader::getNext(SimpleXmlParser<File>::Type * const type,
 std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, FileType writer_type,
                                         const WriterMode writer_mode)
 {
+    if (writer_type == FileType::AUTO)
+        writer_type = GuessFileType(output_filename);
+
     std::unique_ptr<File> output(writer_mode == WriterMode::OVERWRITE
                                  ? FileUtil::OpenOutputFileOrDie(output_filename)
                                  : FileUtil::OpenForAppendingOrDie(output_filename));
-    if (writer_type == FileType::AUTO)
-        writer_type = GuessFileType(output_filename);
+
     return (writer_type == FileType::XML) ? std::unique_ptr<Writer>(new XmlWriter(output.release()))
                                           : std::unique_ptr<Writer>(new BinaryWriter(output.release()));
 }
