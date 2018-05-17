@@ -617,7 +617,7 @@ FileType GuessFileType(const std::string &filename) {
         or StringUtil::EndsWith(filename, ".raw", /* ignore_case = */true))
         return FileType::BINARY;
     if (StringUtil::EndsWith(filename, ".xml", /* ignore_case = */true))
-        return FileType::BINARY;
+        return FileType::XML;
 
     LOG_ERROR("can't guess the file type of \"" + filename + "\"!");
 }
