@@ -45,7 +45,6 @@ enum HarvestType { RSS, CRAWLING };
 const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP { { "RSS", static_cast<int>(RSS) },
                                                               { "CRAWL", static_cast<int>(CRAWLING) } };
 const std::string TEMPLATE_DIRECTORY("/usr/local/var/lib/tuelib/zotero_cgi/");
-const std::string CRAWLER_EXAMPLE_FILE("/usr/local/ub_tools/cpp/data/zotero_crawler.conf");
 const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
 const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS {
     // custom formats
@@ -522,6 +521,6 @@ int main(int argc, char *argv[]) {
             std::cout << "</body></html>";
         }
     } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }
