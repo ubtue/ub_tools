@@ -61,7 +61,7 @@ void Usage() {
 void HarvestSites(const SimpleCrawler::Params &crawler_params, const std::shared_ptr<RegexMatcher> supported_urls_regex,
                   const std::vector<SimpleCrawler::SiteDesc> &site_descs,
                   const std::shared_ptr<Zotero::HarvestParams> harvest_params,
-                  Zotero::AugmentParams &augment_params, std::unique_ptr<File> &progress_file,
+                  Zotero::AugmentParams * const augment_params, std::unique_ptr<File> &progress_file,
                   unsigned * const total_record_count, unsigned * const total_previously_downloaded_count)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
@@ -139,7 +139,7 @@ void Main(int argc, char *argv[]) {
                                                                                        &augment_params.maps_.previously_downloaded_);
 
         const std::string output_file(argv[3]);
-        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(output_format, output_file, augment_params, harvest_params);
+        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(output_format, output_file, &augment_params, harvest_params);
         unsigned total_record_count(0), total_previously_downloaded_count(0);
 
         std::unique_ptr<File> progress_file;
@@ -156,7 +156,7 @@ void Main(int argc, char *argv[]) {
         SimpleCrawler::ParseConfigFile(simple_crawler_config_path, &site_descs);
 
         HarvestSites(crawler_params, supported_urls_regex, site_descs,
-                     harvest_params, augment_params, progress_file,
+                     harvest_params, &augment_params, progress_file,
                      &total_record_count, &total_previously_downloaded_count);
 
         LOG_INFO("Harvested a total of " + StringUtil::ToString(total_record_count) + " records of which "

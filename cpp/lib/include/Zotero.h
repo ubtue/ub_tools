@@ -107,7 +107,7 @@ public:
  *  \param  harvest_maps    The map files to apply.
  */
 void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
-                 AugmentParams &augment_params);
+                 AugmentParams * const augment_params);
 
 
 // forward declaration
@@ -126,11 +126,11 @@ class FormatHandler {
 protected:
     std::string output_format_;
     std::string output_file_;
-    AugmentParams &augment_params_;
+    AugmentParams * const augment_params_;
     const std::shared_ptr<const HarvestParams> &harvest_params_;
 
     FormatHandler(const std::string &output_format, const std::string &output_file,
-                  AugmentParams &augment_params, const std::shared_ptr<const HarvestParams> &harvest_params)
+                  AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params)
         : output_format_(output_format), output_file_(output_file), augment_params_(augment_params), harvest_params_(harvest_params)
         { }
 public:
@@ -142,7 +142,7 @@ public:
     // The output format must be one of "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
     // "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei", "json", "marc21", or "marcxml".
     static std::unique_ptr<FormatHandler> Factory(const std::string &output_format, const std::string &output_file,
-                                                  AugmentParams &augment_params,
+                                                  AugmentParams * const augment_params,
                                                   const std::shared_ptr<const HarvestParams> &harvest_params);
 };
 
@@ -152,7 +152,7 @@ class JsonFormatHandler final : public FormatHandler {
     File *output_file_object_;
 public:
     JsonFormatHandler(const std::string &output_format, const std::string &output_file,
-                      AugmentParams &augment_params, const std::shared_ptr<const HarvestParams> &harvest_params);
+                      AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~JsonFormatHandler();
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
 };
@@ -163,7 +163,7 @@ class ZoteroFormatHandler final : public FormatHandler {
     std::string json_buffer_;
 public:
     ZoteroFormatHandler(const std::string &output_format, const std::string &output_file,
-                        AugmentParams &augment_params, const std::shared_ptr<const HarvestParams> &harvest_params);
+                        AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~ZoteroFormatHandler();
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
 };
@@ -172,7 +172,7 @@ public:
 class MarcFormatHandler final : public FormatHandler {
     std::unique_ptr<MARC::Writer> marc_writer_;
 public:
-    MarcFormatHandler(const std::string &output_file, AugmentParams &augment_params,
+    MarcFormatHandler(const std::string &output_file, AugmentParams * const augment_params,
                       const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~MarcFormatHandler() = default;
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
@@ -227,7 +227,7 @@ AugmentMaps LoadMapFilesFromDirectory(const std::string &map_directory_path);
  *          difference (first - second).
  */
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
-                                      AugmentParams &augment_params,
+                                      AugmentParams * const augment_params,
                                       const std::string &harvested_html = "", const bool log = true);
 
 
@@ -323,7 +323,7 @@ public:
 UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
                          const std::shared_ptr<RegexMatcher> &supported_urls_regex,
                          const std::shared_ptr<HarvestParams> &harvest_params,
-                         AugmentParams &augment_params,
+                         AugmentParams * const augment_params,
                          File * const progress_file = nullptr);
 
 
