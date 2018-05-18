@@ -46,7 +46,7 @@ void ProcessRSS(const IniFile::Section &section) {
 
 
 void ProcessCrawl(const IniFile::Section &section, const std::string &marc_output_file,
-                  Zotero::AugmentParams &augment_params)
+                  Zotero::AugmentParams * const augment_params)
 {
     const std::string base_url(section.getString("base_url"));
     std::shared_ptr<RegexMatcher> extraction_regex(RegexMatcher::FactoryOrDie(section.getString("extraction_regex")));
@@ -93,7 +93,7 @@ int Main(int argc, char *argv[]) {
                                                                                    &augment_params.maps_.previously_downloaded_);
     const std::string MARC_OUTPUT_FILE(ini_file.getString("", "marc_output_file"));
     harvest_params->format_handler_ = Zotero::FormatHandler::Factory(GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE,
-                                                                     augment_params, harvest_params);
+                                                                     &augment_params, harvest_params);
 
     std::unordered_map<std::string, bool> section_name_to_found_flag_map;
     for (int arg_no(2); arg_no < argc; ++arg_no)
@@ -116,7 +116,7 @@ int Main(int argc, char *argv[]) {
         if (type == RSS)
             ProcessRSS(section.second);
         else
-            ProcessCrawl(section.second, MARC_OUTPUT_FILE, augment_params);
+            ProcessCrawl(section.second, MARC_OUTPUT_FILE, &augment_params);
     }
 
     if (section_name_to_found_flag_map.size() > processed_section_count) {

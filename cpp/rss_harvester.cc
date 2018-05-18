@@ -125,7 +125,7 @@ bool ItemAlreadyProcessed(DbConnection * const db_connection, const std::string 
 
 unsigned ProcessSyndicationURL(const Mode mode, const std::string &feed_url,
                                const std::shared_ptr<Zotero::HarvestParams> harvest_params,
-                               Zotero::AugmentParams &augment_params, DbConnection * const db_connection)
+                               Zotero::AugmentParams * const augment_params, DbConnection * const db_connection)
 {
     unsigned successfully_processed_count(0);
 
@@ -256,7 +256,7 @@ int main(int argc, char *argv[]) {
                                                                                        &augment_params.maps_.previously_downloaded_);
         const std::string MARC_OUTPUT_FILE(argv[4]);
         harvest_params->format_handler_ = Zotero::FormatHandler::Factory(GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE,
-                                                                         augment_params, harvest_params);
+                                                                         &augment_params, harvest_params);
 
         std::unique_ptr<DbConnection> db_connection;
         if (mode != TEST) {
@@ -274,7 +274,7 @@ int main(int argc, char *argv[]) {
 
         unsigned download_count(0);
         for (const auto &server_url : server_urls)
-            download_count += ProcessSyndicationURL(mode, server_url, harvest_params, augment_params, db_connection.get());
+            download_count += ProcessSyndicationURL(mode, server_url, harvest_params, &augment_params, db_connection.get());
 
         LOG_INFO("Extracted metadata from " + std::to_string(download_count) + " page(s).");
     } catch (const std::exception &x) {
