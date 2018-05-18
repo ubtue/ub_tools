@@ -67,20 +67,14 @@ top_loop:
         else if (line_len == MAX_LINE_LENGTH_NEW_WITH_ILN or line_len == MAX_LINE_LENGTH_NEW_NO_ILN)
             ppn_len = PPN_LENGTH_NEW;
         else {
-            LOG_WARNING("unexpected line length " + std::to_string(line_len)
+            LOG_ERROR("unexpected line length " + std::to_string(line_len)
                        + " for entry on line " + std::to_string(line_no)
                        + " in deletion list file \"" + deletion_list->getPath() + "\"!");
             ppn_len = PPN_LENGTH_OLD;       // fallback to the more conservative of the two lengths
         }
         
         for (const char indicator : FULL_RECORD_DELETE_INDICATORS) {
-            if (line[SEPARATOR_INDEX] == indicator) {
-                if (line_len != MAX_LINE_LENGTH_OLD_NO_ILN and line_len != MAX_LINE_LENGTH_NEW_NO_ILN) {
-                    LOG_ERROR("unexpected line length " + std::to_string(line_len)
-                             + " for non-local entry on line " + std::to_string(line_no)
-                             + " in deletion list file \"" + deletion_list->getPath() + "\"!");
-                }
-                
+            if (line[SEPARATOR_INDEX] == indicator) {                            
                 delete_full_record_ids->insert(StringUtil::Trim(line.substr(PPN_START_INDEX, ppn_len)));
                 goto top_loop;
             }
