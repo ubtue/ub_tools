@@ -27,6 +27,7 @@ function OnChangeRssJournal() {
     var journal_options = rss_options_map[journal_title];
     $("#rss_journal_issn").val(journal_options.issn);
     $("#rss_feed_url").val(journal_options.feed_url);
+    $("#rss_strptime_format").val(journal_options.strptime_format);
 }
 
 function OnChangeCrawlingJournal() {
@@ -36,6 +37,7 @@ function OnChangeCrawlingJournal() {
     $("#crawling_base_url").val(journal_options.base_url);
     $("#crawling_extraction_regex").val(journal_options.regex);
     $("#crawling_depth").val(journal_options.depth);
+    $("#crawling_strptime_format").val(journal_options.strptime_format);
 }
 
 function TryRss(rss_journal_title) {
