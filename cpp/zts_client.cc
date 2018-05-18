@@ -130,13 +130,9 @@ void Main(int argc, char *argv[]) {
 
     try {
         harvest_params->zts_server_url_ = Url(argv[1]);
-        Zotero::AugmentParams augment_params;
-        augment_params.maps_ = Zotero::LoadMapFilesFromDirectory(map_directory_path);
+        Zotero::AugmentMaps augment_maps(map_directory_path);
+        Zotero::AugmentParams augment_params(&augment_maps);
         const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
-
-        const std::string PREVIOUSLY_DOWNLOADED_HASHES_PATH(map_directory_path + "previously_downloaded.hashes");
-        Zotero::PreviouslyDownloadedHashesManager previously_downloaded_hashes_manager(PREVIOUSLY_DOWNLOADED_HASHES_PATH,
-                                                                                       &augment_params.maps_.previously_downloaded_);
 
         const std::string output_file(argv[3]);
         harvest_params->format_handler_ = Zotero::FormatHandler::Factory(output_format, output_file, &augment_params, harvest_params);

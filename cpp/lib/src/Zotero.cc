@@ -508,7 +508,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     // keywords:
     const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
     if (tags_node != nullptr)
-        ExtractKeywords(tags_node, issn_normalized, augment_params_->maps_.ISSN_to_keyword_field_map_, &new_record);
+        ExtractKeywords(tags_node, issn_normalized, augment_params_->maps_->ISSN_to_keyword_field_map_, &new_record);
 
     // Populate 773:
     if (is_journal_article) {
@@ -529,14 +529,29 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 
     // previously downloaded?
     const std::string checksum(MARC::CalcChecksum(new_record, /* exclude_001 = */ true));
-    if (augment_params_->maps_.previously_downloaded_.find(checksum) == augment_params_->maps_.previously_downloaded_.cend()) {
-        augment_params_->maps_.previously_downloaded_.emplace(checksum);
+    if (augment_params_->maps_->previously_downloaded_.find(checksum) == augment_params_->maps_->previously_downloaded_.cend()) {
+        augment_params_->maps_->previously_downloaded_.emplace(checksum);
         marc_writer_->write(new_record);
     } else
         ++previously_downloaded_count;
     ++record_count;
 
     return std::make_pair(record_count, previously_downloaded_count);
+}
+
+
+AugmentMaps::AugmentMaps(const std::string &map_directory_path) {
+    MiscUtil::LoadMapFile(map_directory_path + "language_to_language_code.map", &language_to_language_code_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &ISSN_to_language_code_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_licence.map", &ISSN_to_licence_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_keyword_field.map", &ISSN_to_keyword_field_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &ISSN_to_physical_form_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &ISSN_to_superior_ppn_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_volume.map", &ISSN_to_volume_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &ISSN_to_SSG_map_);
+
+    PreviouslyDownloadedHashesManager previously_downloaded_hashes_manager(map_directory_path + "previously_downloaded.hashes",
+                                                                           &previously_downloaded_);
 }
 
 
@@ -604,7 +619,7 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
             language_node = JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second);
             const std::string language_json(language_node->getValue());
             const std::string language_mapped(OptionalMap(language_json,
-                            augment_params->maps_.language_to_language_code_map_));
+                            augment_params->maps_->language_to_language_code_map_));
             if (language_json != language_mapped) {
                 language_node->setValue(language_mapped);
                 comments.emplace_back("changed \"language\" from \"" + language_json + "\" to \"" + language_mapped + "\"");
@@ -621,8 +636,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
             custom_fields.emplace(std::pair<std::string, std::string>("ISSN_raw", issn_raw));
             custom_fields.emplace(std::pair<std::string, std::string>("ISSN_normalized", issn_normalized));
 
-            const auto ISSN_and_parent_ppn(augment_params->maps_.ISSN_to_superior_ppn_map_.find(issn_normalized));
-            if (ISSN_and_parent_ppn != augment_params->maps_.ISSN_to_superior_ppn_map_.cend())
+            const auto ISSN_and_parent_ppn(augment_params->maps_->ISSN_to_superior_ppn_map_.find(issn_normalized));
+            if (ISSN_and_parent_ppn != augment_params->maps_->ISSN_to_superior_ppn_map_.cend())
                 custom_fields.emplace(std::pair<std::string, std::string>("PPN", ISSN_and_parent_ppn->second));
         } else if (key_and_node.first == "date") {
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
@@ -637,8 +652,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
     // ISSN specific overrides
     if (not issn_normalized.empty()) {
         // physical form
-        const auto ISSN_and_physical_form(augment_params->maps_.ISSN_to_physical_form_map_.find(issn_normalized));
-        if (ISSN_and_physical_form != augment_params->maps_.ISSN_to_physical_form_map_.cend()) {
+        const auto ISSN_and_physical_form(augment_params->maps_->ISSN_to_physical_form_map_.find(issn_normalized));
+        if (ISSN_and_physical_form != augment_params->maps_->ISSN_to_physical_form_map_.cend()) {
             if (ISSN_and_physical_form->second == "A")
                 custom_fields.emplace(std::pair<std::string, std::string>("physicalForm", "A"));
             else if (ISSN_and_physical_form->second == "O")
@@ -648,8 +663,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
         }
 
         // language
-        const auto ISSN_and_language(augment_params->maps_.ISSN_to_language_code_map_.find(issn_normalized));
-        if (ISSN_and_language != augment_params->maps_.ISSN_to_language_code_map_.cend()) {
+        const auto ISSN_and_language(augment_params->maps_->ISSN_to_language_code_map_.find(issn_normalized));
+        if (ISSN_and_language != augment_params->maps_->ISSN_to_language_code_map_.cend()) {
             if (language_node != nullptr) {
                 const std::string language_old(language_node->getValue());
                 language_node->setValue(ISSN_and_language->second);
@@ -665,8 +680,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
         // volume
         const std::string volume(object_node->getOptionalStringValue("volume"));
         if (volume.empty()) {
-            const auto ISSN_and_volume(augment_params->maps_.ISSN_to_volume_map_.find(issn_normalized));
-            if (ISSN_and_volume != augment_params->maps_.ISSN_to_volume_map_.cend()) {
+            const auto ISSN_and_volume(augment_params->maps_->ISSN_to_volume_map_.find(issn_normalized));
+            if (ISSN_and_volume != augment_params->maps_->ISSN_to_volume_map_.cend()) {
                 if (volume.empty()) {
                     const std::shared_ptr<JSON::JSONNode> volume_node(object_node->getNode("volume"));
                     JSON::JSONNode::CastToStringNodeOrDie("volume", volume_node)->setValue(ISSN_and_volume->second);
@@ -678,8 +693,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
         }
 
         // license code
-        const auto ISSN_and_license_code(augment_params->maps_.ISSN_to_licence_map_.find(issn_normalized));
-        if (ISSN_and_license_code != augment_params->maps_.ISSN_to_licence_map_.end()) {
+        const auto ISSN_and_license_code(augment_params->maps_->ISSN_to_licence_map_.find(issn_normalized));
+        if (ISSN_and_license_code != augment_params->maps_->ISSN_to_licence_map_.end()) {
             if (ISSN_and_license_code->second != "l")
                 LOG_ERROR("ISSN_to_licence.map contains an ISSN that has not been mapped to an \"l\" but \""
                           + ISSN_and_license_code->second
@@ -689,8 +704,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
         }
 
         // SSG numbers:
-        const auto ISSN_and_SSGN_numbers(augment_params->maps_.ISSN_to_SSG_map_.find(issn_normalized));
-        if (ISSN_and_SSGN_numbers != augment_params->maps_.ISSN_to_SSG_map_.end())
+        const auto ISSN_and_SSGN_numbers(augment_params->maps_->ISSN_to_SSG_map_.find(issn_normalized));
+        if (ISSN_and_SSGN_numbers != augment_params->maps_->ISSN_to_SSG_map_.end())
             custom_fields.emplace(std::pair<std::string, std::string>("ssgNumbers", ISSN_and_SSGN_numbers->second));
     }
 
@@ -736,20 +751,6 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
         LOG_ERROR("compilation of the combined regex failed: " + err_msg);
 
     return supported_urls_regex;
-}
-
-
-AugmentMaps LoadMapFilesFromDirectory(const std::string &map_directory_path) {
-    AugmentMaps maps;
-    MiscUtil::LoadMapFile(map_directory_path + "language_to_language_code.map", &maps.language_to_language_code_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &maps.ISSN_to_language_code_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_licence.map", &maps.ISSN_to_licence_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_keyword_field.map", &maps.ISSN_to_keyword_field_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &maps.ISSN_to_physical_form_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &maps.ISSN_to_superior_ppn_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_volume.map", &maps.ISSN_to_volume_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &maps.ISSN_to_SSG_map_);
-    return maps;
 }
 
 
