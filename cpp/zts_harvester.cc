@@ -46,7 +46,7 @@ void ProcessRSS(const IniFile::Section &section) {
 
 
 void ProcessCrawl(const IniFile::Section &section, const std::string &marc_output_file,
-                  std::shared_ptr<Zotero::HarvestMaps> harvest_maps)
+                  Zotero::AugmentParams &augment_params)
 {
     const std::string base_url(section.getString("base_url"));
     std::shared_ptr<RegexMatcher> extraction_regex(RegexMatcher::FactoryOrDie(section.getString("extraction_regex")));
@@ -55,7 +55,7 @@ void ProcessCrawl(const IniFile::Section &section, const std::string &marc_outpu
     const std::string optional_strptime_format(section.getString("strptime_format", ""));
 
     std::shared_ptr<Zotero::HarvestParams> harvest_params;
-    harvest_params->format_handler_.reset(new Zotero::MarcFormatHandler(marc_output_file, harvest_maps, harvest_params));
+    harvest_params->format_handler_.reset(new Zotero::MarcFormatHandler(marc_output_file, augment_params, harvest_params));
 }
 
 
@@ -84,15 +84,16 @@ int Main(int argc, char *argv[]) {
     if (not StringUtil::EndsWith(map_directory_path, '/'))
         map_directory_path += '/';
 
-    std::shared_ptr<Zotero::HarvestMaps> harvest_maps(Zotero::LoadMapFilesFromDirectory(map_directory_path));
+    Zotero::AugmentParams augment_params;
+    augment_params.maps_ = Zotero::LoadMapFilesFromDirectory(map_directory_path);
     const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
     const std::string PREVIOUSLY_DOWNLOADED_HASHES_PATH(map_directory_path + "previously_downloaded.hashes");
     Zotero::PreviouslyDownloadedHashesManager previously_downloaded_hashes_manager(PREVIOUSLY_DOWNLOADED_HASHES_PATH,
-                                                                                   &harvest_maps->previously_downloaded_);
+                                                                                   &augment_params.maps_.previously_downloaded_);
     const std::string MARC_OUTPUT_FILE(ini_file.getString("", "marc_output_file"));
     harvest_params->format_handler_ = Zotero::FormatHandler::Factory(GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE,
-                                                                     harvest_maps, harvest_params);
+                                                                     augment_params, harvest_params);
 
     std::unordered_map<std::string, bool> section_name_to_found_flag_map;
     for (int arg_no(2); arg_no < argc; ++arg_no)
@@ -115,7 +116,7 @@ int Main(int argc, char *argv[]) {
         if (type == RSS)
             ProcessRSS(section.second);
         else
-            ProcessCrawl(section.second, MARC_OUTPUT_FILE, harvest_maps);
+            ProcessCrawl(section.second, MARC_OUTPUT_FILE, augment_params);
     }
 
     if (section_name_to_found_flag_map.size() > processed_section_count) {

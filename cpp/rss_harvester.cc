@@ -125,7 +125,7 @@ bool ItemAlreadyProcessed(DbConnection * const db_connection, const std::string 
 
 unsigned ProcessSyndicationURL(const Mode mode, const std::string &feed_url,
                                const std::shared_ptr<Zotero::HarvestParams> harvest_params,
-                               const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps, DbConnection * const db_connection)
+                               Zotero::AugmentParams &augment_params, DbConnection * const db_connection)
 {
     unsigned successfully_processed_count(0);
 
@@ -167,9 +167,8 @@ unsigned ProcessSyndicationURL(const Mode mode, const std::string &feed_url,
         if (not title.empty() and mode != NORMAL)
             std::cout << "\t\tTitle: " << title << '\n';
 
-        const Zotero::AugmentParams augment_params;
         const auto record_count_and_previously_downloaded_count(
-            Zotero::Harvest(item.getLink(), harvest_params, harvest_maps, augment_params, "", /* verbose = */ mode != NORMAL));
+            Zotero::Harvest(item.getLink(), harvest_params, augment_params, "", /* verbose = */ mode != NORMAL));
         successfully_processed_count += record_count_and_previously_downloaded_count.first;
 
         if (mode != TEST)
@@ -248,15 +247,16 @@ int main(int argc, char *argv[]) {
         if (not StringUtil::EndsWith(map_directory_path, '/'))
             map_directory_path += '/';
 
-        std::shared_ptr<Zotero::HarvestMaps> harvest_maps(Zotero::LoadMapFilesFromDirectory(map_directory_path));
+        Zotero::AugmentParams augment_params;
+        augment_params.maps_ = Zotero::LoadMapFilesFromDirectory(map_directory_path);
         const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
         const std::string PREVIOUSLY_DOWNLOADED_HASHES_PATH(map_directory_path + "previously_downloaded.hashes");
         Zotero::PreviouslyDownloadedHashesManager previously_downloaded_hashes_manager(PREVIOUSLY_DOWNLOADED_HASHES_PATH,
-                                                                                       &harvest_maps->previously_downloaded_);
+                                                                                       &augment_params.maps_.previously_downloaded_);
         const std::string MARC_OUTPUT_FILE(argv[4]);
         harvest_params->format_handler_ = Zotero::FormatHandler::Factory(GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE,
-                                                                         harvest_maps, harvest_params);
+                                                                         augment_params, harvest_params);
 
         std::unique_ptr<DbConnection> db_connection;
         if (mode != TEST) {
@@ -274,7 +274,7 @@ int main(int argc, char *argv[]) {
 
         unsigned download_count(0);
         for (const auto &server_url : server_urls)
-            download_count += ProcessSyndicationURL(mode, server_url, harvest_params, harvest_maps, db_connection.get());
+            download_count += ProcessSyndicationURL(mode, server_url, harvest_params, augment_params, db_connection.get());
 
         LOG_INFO("Extracted metadata from " + std::to_string(download_count) + " page(s).");
     } catch (const std::exception &x) {
