@@ -79,7 +79,7 @@ constexpr unsigned DEFAULT_TIMEOUT = 10000;
 constexpr unsigned DEFAULT_MIN_URL_PROCESSING_TIME = 200;
 
 
-struct HarvestMaps {
+struct AugmentMaps {
     std::unordered_map<std::string, std::string> ISSN_to_SSG_map_;
     std::unordered_map<std::string, std::string> ISSN_to_keyword_field_map_;
     std::unordered_map<std::string, std::string> ISSN_to_language_code_map_;
@@ -92,19 +92,22 @@ struct HarvestMaps {
 };
 
 
-struct AugmentParams {
+class AugmentParams {
+public:
     std::string override_ISSN_;
     std::string strptime_format_;
+    AugmentMaps maps_;
+public:
+    ~AugmentParams() = default;
 };
 
 
-/** \brief  This function can be used to augment  Zotero JSON structure with information from HarvestMaps.
+/** \brief  This function can be used to augment  Zotero JSON structure with information from AugmentParams.
  *  \param  object_node     The JSON ObjectNode with Zotero JSON structure of a single dataset
  *  \param  harvest_maps    The map files to apply.
  */
-void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node,
-                 const AugmentParams &augment_params,
-                 const std::shared_ptr<const HarvestMaps> harvest_maps);
+void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
+                 AugmentParams &augment_params);
 
 
 // forward declaration
@@ -123,12 +126,12 @@ class FormatHandler {
 protected:
     std::string output_format_;
     std::string output_file_;
-    const std::shared_ptr<HarvestMaps> &harvest_maps_;
-    const std::shared_ptr<HarvestParams> &harvest_params_;
+    AugmentParams &augment_params_;
+    const std::shared_ptr<const HarvestParams> &harvest_params_;
 
     FormatHandler(const std::string &output_format, const std::string &output_file,
-                  const std::shared_ptr<HarvestMaps> &harvest_maps, const std::shared_ptr<HarvestParams> &harvest_params)
-        : output_format_(output_format), output_file_(output_file), harvest_maps_(harvest_maps), harvest_params_(harvest_params)
+                  AugmentParams &augment_params, const std::shared_ptr<const HarvestParams> &harvest_params)
+        : output_format_(output_format), output_file_(output_file), augment_params_(augment_params), harvest_params_(harvest_params)
         { }
 public:
     virtual ~FormatHandler() = default;
@@ -139,8 +142,8 @@ public:
     // The output format must be one of "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
     // "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei", "json", "marc21", or "marcxml".
     static std::unique_ptr<FormatHandler> Factory(const std::string &output_format, const std::string &output_file,
-                                                  const std::shared_ptr<HarvestMaps> &harvest_maps,
-                                                  const std::shared_ptr<HarvestParams> &harvest_params);
+                                                  AugmentParams &augment_params,
+                                                  const std::shared_ptr<const HarvestParams> &harvest_params);
 };
 
 
@@ -149,7 +152,7 @@ class JsonFormatHandler final : public FormatHandler {
     File *output_file_object_;
 public:
     JsonFormatHandler(const std::string &output_format, const std::string &output_file,
-                      const std::shared_ptr<HarvestMaps> &harvest_maps, const std::shared_ptr<HarvestParams> &harvest_params);
+                      AugmentParams &augment_params, const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~JsonFormatHandler();
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
 };
@@ -160,7 +163,7 @@ class ZoteroFormatHandler final : public FormatHandler {
     std::string json_buffer_;
 public:
     ZoteroFormatHandler(const std::string &output_format, const std::string &output_file,
-                        const std::shared_ptr<HarvestMaps> &harvest_maps, const std::shared_ptr<HarvestParams> &harvest_params);
+                        AugmentParams &augment_params, const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~ZoteroFormatHandler();
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
 };
@@ -169,8 +172,8 @@ public:
 class MarcFormatHandler final : public FormatHandler {
     std::unique_ptr<MARC::Writer> marc_writer_;
 public:
-    MarcFormatHandler(const std::string &output_file, const std::shared_ptr<HarvestMaps> &harvest_maps,
-                      const std::shared_ptr<HarvestParams> &harvest_params);
+    MarcFormatHandler(const std::string &output_file, AugmentParams &augment_params,
+                      const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~MarcFormatHandler() = default;
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
     MARC::Writer *getWriter() { return marc_writer_.get(); }
@@ -207,14 +210,13 @@ private:
 
 const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &map_directory_path);
 
-std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_directory_path);
+AugmentMaps LoadMapFilesFromDirectory(const std::string &map_directory_path);
 
 
 /** \brief  Harvest a single URL.
  *  \param  harvest_url     The URL to harvest.
  *  \param  harvest_params  The parameters for downloading.
- *  \param  harvest_maps    The map files to use after harvesting.
- *  \param  augment_params  Parameter for augmenting the Zotero JSON result (for the current site).
+ *  \param  augment_params  Parameter for augmenting the Zotero JSON result.
  *  \param  harvested_html  If not empty, the HTML will be used for harvesting
  *                          instead of downloading the URL again.
  *                          However, if the page contains a list of multiple
@@ -225,8 +227,7 @@ std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_di
  *          difference (first - second).
  */
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
-                                      const std::shared_ptr<const HarvestMaps> harvest_maps,
-                                      const AugmentParams &augment_params,
+                                      AugmentParams &augment_params,
                                       const std::string &harvested_html = "", const bool log = true);
 
 
@@ -321,8 +322,8 @@ public:
  */
 UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
                          const std::shared_ptr<RegexMatcher> &supported_urls_regex,
-                         const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                         const std::shared_ptr<const Zotero::HarvestMaps> &harvest_maps,
+                         const std::shared_ptr<HarvestParams> &harvest_params,
+                         AugmentParams &augment_params,
                          File * const progress_file = nullptr);
 
 
