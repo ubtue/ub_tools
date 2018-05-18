@@ -89,16 +89,17 @@ struct AugmentMaps {
     std::unordered_map<std::string, std::string> ISSN_to_volume_map_;
     std::unordered_map<std::string, std::string> language_to_language_code_map_;
     std::unordered_set<std::string> previously_downloaded_;
+
+    AugmentMaps(const std::string &map_directory_path);
 };
 
 
-class AugmentParams {
-public:
+struct AugmentParams {
     std::string override_ISSN_;
     std::string strptime_format_;
-    AugmentMaps maps_;
-public:
-    ~AugmentParams() = default;
+    AugmentMaps * const maps_;
+
+    AugmentParams(AugmentMaps * const maps): maps_(maps) { }
 };
 
 
@@ -209,8 +210,6 @@ private:
 
 
 const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &map_directory_path);
-
-AugmentMaps LoadMapFilesFromDirectory(const std::string &map_directory_path);
 
 
 /** \brief  Harvest a single URL.
