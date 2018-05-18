@@ -87,12 +87,6 @@ top_loop:
         }
         for (const char indicator : LOCAL_DATA_DELETE_INDICATORS) {
             if (line[SEPARATOR_INDEX] == indicator) {
-                if (line_len != MAX_LINE_LENGTH_OLD_WITH_ILN and line_len != MAX_LINE_LENGTH_NEW_WITH_ILN) {
-                    LOG_ERROR("unexpected line length " + std::to_string(line_len)
-                             + " for local entry on line " + std::to_string(line_no)
-                             + " in deletion list file \"" + deletion_list->getPath() + "\"!");
-                }
-
                 local_deletion_ids->insert(StringUtil::Trim(line.substr(PPN_START_INDEX, ppn_len)));
                 goto top_loop;
             }
