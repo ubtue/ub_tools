@@ -81,6 +81,7 @@ public:
         unsigned max_crawl_depth_;
         std::shared_ptr<RegexMatcher> url_regex_matcher_; // all non-matching URL's of subpages will be ignored
     public:
+        SiteDesc() = default;
         SiteDesc(const std::string &start_url, const unsigned max_crawl_depth, RegexMatcher * const url_regex_matcher)
             : start_url_(start_url), max_crawl_depth_(max_crawl_depth), url_regex_matcher_(url_regex_matcher) { }
         ~SiteDesc() = default;
