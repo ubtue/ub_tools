@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef OCR_H
-#define OCR_H
+#pragma once
 
 
 #include <string>
@@ -53,6 +52,3 @@ int OCR(const std::string &input_document_path, const std::string &language_code
  *  \return Exit code of the child process.  0 upon success.
  */
 int OCR(const std::string &input_document, std::string * const output, const std::string &language_codes = "");
-
-
-#endif // ifndef OCR_H

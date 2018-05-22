@@ -24,9 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef WALL_CLOCK_TIMER_H
-#define WALL_CLOCK_TIMER_H
+#pragma once
 
 
 #include <string>
@@ -120,6 +118,3 @@ private:
 
 // For convenience:
 typedef TimerStartStopper<WallClockTimer> WallClockTimerStartStopper;
-
-
-#endif // ifndef WALL_CLOCK_TIMER_H

@@ -18,8 +18,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SIMPLE_CRAWLER_H
-#define SIMPLE_CRAWLER_H
+#pragma once
 
 
 #include <iostream>
@@ -80,10 +79,14 @@ public:
     struct SiteDesc {
         std::string start_url_;
         unsigned max_crawl_depth_;
+        std::string strptime_format_; // an optional format as understood by strptime(3)
         std::shared_ptr<RegexMatcher> url_regex_matcher_; // all non-matching URL's of subpages will be ignored
     public:
-        SiteDesc(const std::string &start_url, const unsigned max_crawl_depth, RegexMatcher * const url_regex_matcher)
-            : start_url_(start_url), max_crawl_depth_(max_crawl_depth), url_regex_matcher_(url_regex_matcher) { }
+        SiteDesc() = default;
+        SiteDesc(const std::string &start_url, const unsigned max_crawl_depth, const std::string &strptime_format,
+                 RegexMatcher * const url_regex_matcher)
+            : start_url_(start_url), max_crawl_depth_(max_crawl_depth), strptime_format_(strptime_format),
+              url_regex_matcher_(url_regex_matcher) { }
         ~SiteDesc() = default;
     };
 
@@ -122,6 +125,3 @@ private:
 
     void extractLocationUrls(const std::string &header_blob, std::list<std::string> * const location_urls);
 };
-
-
-#endif // ifndef SIMPLE_CRAWLER_H

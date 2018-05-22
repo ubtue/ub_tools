@@ -16,9 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-#ifndef UNIT_TEST_H
-#define UNIT_TEST_H
+#pragma once
 
 
 #include <iostream>
@@ -26,6 +24,7 @@
 #include <utility>
 #include <vector>
 #include <cstdlib>
+#include "util.h"
 
 
 static std::vector<std::pair<void (*)(), std::string>> tests;
@@ -33,9 +32,10 @@ static unsigned success_count, failure_count;
 
 
 #define TEST_MAIN(name)                                                        \
-    int main() {                                                               \
+    int main(int /*argc*/, char *argv[]) {                                     \
+        ::progname = argv[0];                                                  \
         std::cerr << "*** " << #name << " ***\n";                              \
-        for (const auto &func_and_name : tests) {                                     \
+        for (const auto &func_and_name : tests) {                              \
             std::cerr << "Calling test \"" << func_and_name.second << "\".\n"; \
             func_and_name.first();                                             \
         }                                                                      \
@@ -81,6 +81,3 @@ static unsigned success_count, failure_count;
 #define CHECK_NE(a, b) do { if ((a) != (b)) ++success_count;                                 \
         else { ++failure_count; std::cerr << "\tTest failed: " << #a " != " << #b << '\n'; } \
     } while (0)
-
-
-#endif // UNIT_TEST_H

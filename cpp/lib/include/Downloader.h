@@ -19,8 +19,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DOWNLOADER_H
-#define DOWNLOADER_H
+#pragma once
 
 
 #include <mutex>
@@ -222,6 +221,3 @@ bool Download(const std::string &url, const std::string &output_filename, const 
  *  \param output      Where to store the downloaded document.
  */
 bool Download(const std::string &url, const TimeLimit &time_limit, std::string * const output);
-
-
-#endif // ifndef DOWNLOADER_H

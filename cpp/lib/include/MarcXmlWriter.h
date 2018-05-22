@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef MARC_XML_WRITER_H
-#define MARC_XML_WRITER_H
+#pragma once
 
 
 #include "XmlWriter.h"
@@ -45,6 +44,3 @@ public:
     /** Destroyes an MarcXmlWriter object, closing any still open tags. */
     virtual ~MarcXmlWriter() override;
 };
-
-
-#endif // ifndef MARC_XML_WRITER_H

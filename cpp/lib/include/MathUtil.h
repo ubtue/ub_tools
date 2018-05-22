@@ -26,9 +26,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef MATH_UTIL_H
-#define MATH_UTIL_H
+#pragma once
 
 
 #include <algorithm>
@@ -1440,6 +1438,3 @@ inline bool IsInteger(const double d) { return d == static_cast<long>(d); }
 
 
 } // namespace MathUtil
-
-
-#endif // ifndef MATH_UTIL_H

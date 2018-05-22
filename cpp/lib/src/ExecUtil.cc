@@ -236,7 +236,7 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &args,
 }
 
 
-int Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
+pid_t Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
           const std::string &new_stdout , const std::string &new_stderr)
 {
     return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::DETACH, 0,

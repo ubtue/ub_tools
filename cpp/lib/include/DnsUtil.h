@@ -24,9 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef DNS_UTIL_H
-#define DNS_UTIL_H
+#pragma once
 
 
 #include <string>
@@ -106,6 +104,3 @@ std::string GetIPAddressStr(const std::string &url, unsigned dns_timeout = 2000)
 
 
 } // namespace DnsUtil
-
-
-#endif // ifndef DNS_UTIL_H

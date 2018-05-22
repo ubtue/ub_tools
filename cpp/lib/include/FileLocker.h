@@ -23,9 +23,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef FILE_LOCKER_H
-#define FILE_LOCKER_H
+#pragma once
 
 
 #ifndef STRING
@@ -52,6 +50,3 @@ public:
     /** Unlocks our file. */
     ~FileLocker();
 };
-
-
-#endif // ifndef FILE_LOCKER_H

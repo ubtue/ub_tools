@@ -22,9 +22,7 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef TEMPLATE_H
-#define TEMPLATE_H
+#pragma once
 
 
 #include <istream>
@@ -42,8 +40,9 @@ class Value {
     std::string name_;
 public:
     explicit Value(const std::string &name): name_(name) { }
-    inline const std::string &getName() const { return name_; }
     virtual ~Value() { }
+    inline const std::string &getName() const { return name_; }
+    virtual size_t size() const = 0;
 };
 
 
@@ -52,6 +51,7 @@ class ScalarValue final : public Value {
 public:
     ScalarValue(const std::string &name, const std::string &value): Value(name), value_(value) { }
     virtual ~ScalarValue() { }
+    virtual size_t size() const final { return 1; }
     inline const std::string &getValue() const { return value_; }
     static std::shared_ptr<Value> Factory(const std::string &name, const std::string &value)
         { return std::shared_ptr<Value>(new ScalarValue(name, value)); }
@@ -66,7 +66,7 @@ public:
     explicit ArrayValue(const std::string &name): Value(name) { }
     ArrayValue(const std::string &name, const std::vector<std::string> &values);
     virtual ~ArrayValue() { }
-    inline size_t size() const { return values_.size(); }
+    virtual inline size_t size() const final { return values_.size(); }
     void appendValue(const std::shared_ptr<Value> &new_value) { values_.emplace_back(new_value); }
     void appendValue(const std::string &new_value) {
         values_.emplace_back(std::shared_ptr<Value>(new ScalarValue(getName() + "[" + std::to_string(values_.size()) + "]",
@@ -84,6 +84,26 @@ public:
 };
 
 
+class Function {
+public:
+    class ArgDesc {
+    private:
+        std::string description_;
+    public:
+        ArgDesc(const std::string &description): description_(description) { }
+        inline const std::string &getDescription() const { return description_; }
+    };
+protected:
+    std::string name_;
+    std::vector<ArgDesc> argument_descriptors_;
+public:
+    Function(const std::string &name, const std::vector<ArgDesc> &argument_descriptors)
+        : name_(name), argument_descriptors_(argument_descriptors) { }
+    inline const std::string &getName() const { return name_; }
+    virtual std::string call(const std::vector<const Value *> &arguments) const = 0;
+};
+
+    
 class Map {
     std::unordered_map<std::string, std::shared_ptr<Value>> map_;
 public:
@@ -117,11 +137,10 @@ public:
  *
  *  \throws std::runtime_error if anything goes wrong, i.e. if a syntax error has been detected.
  */
-void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_to_values_map);
-std::string ExpandTemplate(const std::string &template_string, const Map &names_to_values_map);
+void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_to_values_map,
+                    const std::vector<Function *> &functions = {});
+std::string ExpandTemplate(const std::string &template_string, const Map &names_to_values_map,
+                           const std::vector<Function *> &functions = {});
 
 
 } // namespace MiscUtil
-
-
-#endif // ifndef TEMPLATE_H

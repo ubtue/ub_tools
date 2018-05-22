@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef REST_H
-#define REST_H
+#pragma once
 
 
 #include <string>
@@ -52,6 +51,3 @@ std::shared_ptr<JSON::JSONNode> QueryJSON(const Url &url, const QueryType query_
 
 
 } // namespace REST
-
-
-#endif // ifndef REST_H

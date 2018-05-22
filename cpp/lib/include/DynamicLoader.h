@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DYNAMIC_LOADER_H
-#define DYNAMIC_LOADER_H
+#pragma once
 
 
 #include <dlfcn.h>
@@ -36,6 +35,3 @@ public:
     /** \return NULL if the symbol was not found, o/w the address of the symbol. */
     void *loadSymbol(const std::string &symbol_name);
 };
-
-
-#endif // ifndef DYNAMIC_LOADER_H

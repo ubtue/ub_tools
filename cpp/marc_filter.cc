@@ -864,32 +864,32 @@ int main(int argc, char **argv) {
     const std::string input_filename(*argv++);
     const std::string output_filename(*argv++);
 
-    MARC::Reader::ReaderType reader_type;
+    MARC::FileType reader_type;
     if (std::strcmp("--input-format=marc-xml", *argv) == 0) {
-        reader_type = MARC::Reader::XML;
+        reader_type = MARC::FileType::XML;
         ++argv;
     } else if (std::strcmp("--input-format=marc-21", *argv) == 0) {
-        reader_type = MARC::Reader::BINARY;
+        reader_type = MARC::FileType::BINARY;
         ++argv;
     } else if (StringUtil::StartsWith(*argv, "--input-format="))
         LOG_ERROR("unknown input format \"" + std::string(*argv + __builtin_strlen("--input-format="))
-              + "\" use \"marc-xml\" or \"marc-21\"!");
+                  + "\" use \"marc-xml\" or \"marc-21\"!");
     else
-        reader_type = MARC::Reader::AUTO;
+        reader_type = MARC::FileType::AUTO;
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename, reader_type));
 
-    MARC::Writer::WriterType writer_type;
+    MARC::FileType writer_type;
     if (std::strcmp("--output-format=marc-xml", *argv) == 0) {
-        writer_type = MARC::Writer::XML;
+        writer_type = MARC::FileType::XML;
         ++argv;
     } else if (std::strcmp("--output-format=marc-21", *argv) == 0) {
-        writer_type = MARC::Writer::BINARY;
+        writer_type = MARC::FileType::BINARY;
         ++argv;
     } else if (StringUtil::StartsWith(*argv, "--output-format="))
         LOG_ERROR("unknown output format \"" + std::string(*argv + __builtin_strlen("--output-format="))
-              + "\" use \"marc-xml\" or \"marc-21\"!");
+                  + "\" use \"marc-xml\" or \"marc-21\"!");
     else
-        writer_type = MARC::Writer::AUTO;
+        writer_type = MARC::FileType::AUTO;
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(output_filename, writer_type));
 
     try {

@@ -297,8 +297,8 @@ int main(int argc, char **argv) {
     if (marc_input_filename == marc_output_filename)
         LOG_ERROR("input filename must not equal output filename!");
 
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::Reader::BINARY));
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::Writer::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::FileType::BINARY));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY));
 
     try {
         std::vector<std::pair<off_t, std::string>> download_record_offsets_and_urls;

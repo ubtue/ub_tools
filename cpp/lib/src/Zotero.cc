@@ -20,16 +20,27 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "Zotero.h"
+#include <ctime>
 #include <kchashdb.h>
 #include <uuid/uuid.h>
+#include "DbConnection.h"
 #include "MiscUtil.h"
+#include "SqlUtil.h"
 #include "StringUtil.h"
+#include "SyndicationFormat.h"
 #include "UrlUtil.h"
 #include "WebUtil.h"
 #include "util.h"
 
 
+// Forward declaration:
+class File;
+
+
 namespace Zotero {
+
+
+const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
 
 
 const std::vector<std::string> EXPORT_FORMATS{
@@ -55,10 +66,25 @@ public:
 };
 
 
-Date StringToDate(const std::string &date_str) {
+Date StringToDate(const std::string &date_str, const std::string &optional_strptime_format) {
     Date date;
 
-    time_t unix_time(WebUtil::ParseWebDateAndTime(date_str));
+    time_t unix_time;
+    if (optional_strptime_format.empty())
+        unix_time = WebUtil::ParseWebDateAndTime(date_str);
+    else {
+        struct tm tm;
+        const char * const last_char(::strptime(date_str.c_str(), optional_strptime_format.c_str(), &tm));
+        if (last_char == nullptr or *last_char != '\0')
+            unix_time = TimeUtil::BAD_TIME_T;
+        else {
+            date.year_ = tm.tm_year + 1900;
+            date.month_ = tm.tm_mon + 1;
+            date.day_ = tm.tm_mday;
+            return date;
+        }
+    }
+
     if (unix_time != TimeUtil::BAD_TIME_T) {
         tm *tm(::gmtime(&unix_time));
         if (unlikely(tm == nullptr))
@@ -166,23 +192,23 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 
 std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &output_format,
                                                       const std::string &output_file,
-                                                      std::shared_ptr<HarvestMaps> harvest_maps,
-                                                      std::shared_ptr<HarvestParams> harvest_params)
+                                                      AugmentParams * const augment_params,
+                                                      const std::shared_ptr<const HarvestParams> &harvest_params)
 {
     if (output_format == "marcxml" or output_format == "marc21")
-        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(output_format, output_file, harvest_maps, harvest_params));
+        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(output_file, augment_params, harvest_params));
     else if (output_format == "json")
-        return std::unique_ptr<FormatHandler>(new JsonFormatHandler(output_format, output_file, harvest_maps, harvest_params));
+        return std::unique_ptr<FormatHandler>(new JsonFormatHandler(output_format, output_file, augment_params, harvest_params));
     else if (std::find(EXPORT_FORMATS.begin(), EXPORT_FORMATS.end(), output_format) != EXPORT_FORMATS.end())
-        return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(output_format, output_file, harvest_maps, harvest_params));
+        return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(output_format, output_file, augment_params, harvest_params));
     else
         LOG_ERROR("invalid output-format: " + output_format);
 }
 
 
 JsonFormatHandler::JsonFormatHandler(const std::string &output_format, const std::string &output_file,
-                                     std::shared_ptr<HarvestMaps> harvest_maps, std::shared_ptr<HarvestParams> harvest_params)
-    : FormatHandler(output_format, output_file, harvest_maps, harvest_params), record_count_(0),
+                                     AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params)
+    : FormatHandler(output_format, output_file, augment_params, harvest_params), record_count_(0),
       output_file_object_(new File(output_file_, "w"))
 {
     output_file_object_->write("[");
@@ -191,7 +217,7 @@ JsonFormatHandler::JsonFormatHandler(const std::string &output_format, const std
 
 JsonFormatHandler::~JsonFormatHandler() {
     output_file_object_->write("]");
-    output_file_object_->close();
+    delete output_file_object_;
 }
 
 
@@ -205,8 +231,8 @@ std::pair<unsigned, unsigned> JsonFormatHandler::processRecord(const std::shared
 
 
 ZoteroFormatHandler::ZoteroFormatHandler(const std::string &output_format, const std::string &output_file,
-                                         std::shared_ptr<HarvestMaps> harvest_maps, std::shared_ptr<HarvestParams> harvest_params)
-    : FormatHandler(output_format, output_file, harvest_maps, harvest_params), record_count_(0), json_buffer_("[")
+                                         AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params)
+    : FormatHandler(output_format, output_file, augment_params, harvest_params), record_count_(0), json_buffer_("[")
 {
 }
 
@@ -234,9 +260,22 @@ std::pair<unsigned, unsigned> ZoteroFormatHandler::processRecord(const std::shar
 }
 
 
-MarcFormatHandler::MarcFormatHandler(const std::string &output_format, const std::string &output_file,
-                                     std::shared_ptr<HarvestMaps> harvest_maps, std::shared_ptr<HarvestParams> harvest_params)
-    : FormatHandler(output_format, output_file, harvest_maps, harvest_params), marc_writer_(MARC::Writer::Factory(output_file_))
+std::string GuessOutputFormat(const std::string &output_file) {
+    switch (MARC::GuessFileType(output_file)) {
+    case MARC::FileType::BINARY:
+        return "marc21";
+    case MARC::FileType::XML:
+        return "marcxml";
+    default:
+        LOG_ERROR("we should *never* get here!");
+    }
+}
+
+
+MarcFormatHandler::MarcFormatHandler(const std::string &output_file,
+                                     AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params)
+    : FormatHandler(GuessOutputFormat(output_file), output_file, augment_params, harvest_params),
+      marc_writer_(MARC::Writer::Factory(output_file_))
 {
 }
 
@@ -274,12 +313,22 @@ void MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSONNode> ta
 }
 
 
-void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MARC::Record * const new_record) {
+void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node,
+                                                       MARC::Record * const new_record)
+{
     std::vector<MARC::Subfield> subfields;
 
-    const std::string date_str(object_node.getOptionalStringValue("date"));
-    if (not date_str.empty()) {
-        const Date date(StringToDate(date_str));
+    std::shared_ptr<const JSON::JSONNode> custom_node(object_node.getNode("ubtue"));
+    if (custom_node != nullptr) {
+        const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
+        std::string date_str(custom_object->getOptionalStringValue("date_normalized"));
+        std::string strptime_format;
+        if (date_str.empty())
+            date_str = custom_object->getOptionalStringValue("date_raw");
+        else
+            strptime_format = "%Y-%m-%d";
+
+        const Date date(StringToDate(date_str, strptime_format));
         if (date.year_ != Date::INVALID)
             subfields.emplace_back('j', std::to_string(date.year_));
     }
@@ -357,7 +406,7 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
 
 std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
-        "^issue|pages|publicationTitle|volume|date|tags|libraryCatalog|itemVersion|accessDate$"));
+        "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|ISSN|ubtue$"));
     unsigned record_count(0), previously_downloaded_count(0);
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
                             MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
@@ -407,10 +456,13 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                 new_record.insertField("542", { { 'u', copyright } });
             else
                 new_record.insertField("542", { { 'f', copyright } });
+        } else if (key_and_node.first == "journalAbbreviation") {
+            new_record.insertField("773", { { 'p', JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
+                                                                                         key_and_node.second)->getValue() } });
         } else
             LOG_ERROR("unknown key \"" + key_and_node.first + "\" with node type "
-                            + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
-                            + key_and_node.second->toString() + ")");
+                      + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
+                      + key_and_node.second->toString() + "), whole record: " + object_node->toString());
     }
 
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
@@ -429,7 +481,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                 new_record.insertField("007", "cr uuu---uuuuu");
             else
                 LOG_ERROR("unhandled value of physical form: \""
-                      + physical_form + "\"!");
+                          + physical_form + "\"!");
         }
 
         // volume
@@ -459,7 +511,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     // keywords:
     const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
     if (tags_node != nullptr)
-        ExtractKeywords(tags_node, issn_normalized, harvest_maps_->ISSN_to_keyword_field_map_, &new_record);
+        ExtractKeywords(tags_node, issn_normalized, augment_params_->maps_->ISSN_to_keyword_field_map_, &new_record);
 
     // Populate 773:
     if (is_journal_article) {
@@ -480,14 +532,29 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 
     // previously downloaded?
     const std::string checksum(MARC::CalcChecksum(new_record, /* exclude_001 = */ true));
-    if (harvest_maps_->previously_downloaded_.find(checksum) == harvest_maps_->previously_downloaded_.cend()) {
-        harvest_maps_->previously_downloaded_.emplace(checksum);
+    if (augment_params_->maps_->previously_downloaded_.find(checksum) == augment_params_->maps_->previously_downloaded_.cend()) {
+        augment_params_->maps_->previously_downloaded_.emplace(checksum);
         marc_writer_->write(new_record);
     } else
         ++previously_downloaded_count;
     ++record_count;
 
     return std::make_pair(record_count, previously_downloaded_count);
+}
+
+
+AugmentMaps::AugmentMaps(const std::string &map_directory_path) {
+    MiscUtil::LoadMapFile(map_directory_path + "language_to_language_code.map", &language_to_language_code_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &ISSN_to_language_code_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_licence.map", &ISSN_to_licence_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_keyword_field.map", &ISSN_to_keyword_field_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &ISSN_to_physical_form_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &ISSN_to_superior_ppn_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_volume.map", &ISSN_to_volume_map_);
+    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &ISSN_to_SSG_map_);
+
+    PreviouslyDownloadedHashesManager previously_downloaded_hashes_manager(map_directory_path + "previously_downloaded.hashes",
+                                                                           &previously_downloaded_);
 }
 
 
@@ -524,25 +591,27 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
         const std::shared_ptr<JSON::ObjectNode> creator_object(creators_array->getObjectNode(i));
 
         const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
-        if (last_name_node == nullptr)
-            LOG_ERROR("creator is missing a last name!");
-        std::string name(creator_object->getStringValue("lastName"));
+        if (last_name_node != nullptr) {
+            std::string name(creator_object->getStringValue("lastName"));
 
-        const std::shared_ptr<const JSON::JSONNode> first_name_node(creator_object->getNode("firstName"));
-        if (first_name_node != nullptr)
-            name += ", " + creator_object->getStringValue("firstName");
+            const std::shared_ptr<const JSON::JSONNode> first_name_node(creator_object->getNode("firstName"));
+            if (first_name_node != nullptr)
+                name += ", " + creator_object->getStringValue("firstName");
 
-        const std::string PPN(DownloadAuthorPPN(name));
-        if (not PPN.empty()) {
-            comments->emplace_back("Added author PPN " + PPN + " for author " + name);
-            creator_object->insert("ppn", std::make_shared<JSON::StringNode>(PPN));
+            const std::string PPN(DownloadAuthorPPN(name));
+            if (not PPN.empty()) {
+                comments->emplace_back("Added author PPN " + PPN + " for author " + name);
+                creator_object->insert("ppn", std::make_shared<JSON::StringNode>(PPN));
+            }
         }
     }
 }
 
 
 // Improve JSON result delivered by Zotero Translation Server
-void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std::shared_ptr<const HarvestMaps> harvest_maps) {
+void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
+                 AugmentParams * const augment_params)
+{
     LOG_INFO("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
@@ -553,7 +622,7 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
             language_node = JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second);
             const std::string language_json(language_node->getValue());
             const std::string language_mapped(OptionalMap(language_json,
-                            harvest_maps->language_to_language_code_map_));
+                            augment_params->maps_->language_to_language_code_map_));
             if (language_json != language_mapped) {
                 language_node->setValue(language_mapped);
                 comments.emplace_back("changed \"language\" from \"" + language_json + "\" to \"" + language_mapped + "\"");
@@ -570,17 +639,24 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
             custom_fields.emplace(std::pair<std::string, std::string>("ISSN_raw", issn_raw));
             custom_fields.emplace(std::pair<std::string, std::string>("ISSN_normalized", issn_normalized));
 
-            const auto ISSN_and_parent_ppn(harvest_maps->ISSN_to_superior_ppn_map_.find(issn_normalized));
-            if (ISSN_and_parent_ppn != harvest_maps->ISSN_to_superior_ppn_map_.cend())
+            const auto ISSN_and_parent_ppn(augment_params->maps_->ISSN_to_superior_ppn_map_.find(issn_normalized));
+            if (ISSN_and_parent_ppn != augment_params->maps_->ISSN_to_superior_ppn_map_.cend())
                 custom_fields.emplace(std::pair<std::string, std::string>("PPN", ISSN_and_parent_ppn->second));
+        } else if (key_and_node.first == "date") {
+            const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
+            custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
+            Date date(StringToDate(date_raw, augment_params->strptime_format_));
+            std::string date_normalized(std::to_string(date.year_) + "-" + std::to_string(date.month_) + "-" + std::to_string(date.day_));
+            custom_fields.emplace(std::pair<std::string, std::string>("date_normalized", date_normalized));
+            comments.emplace_back("normalized date to: " + date_normalized);
         }
     }
 
     // ISSN specific overrides
     if (not issn_normalized.empty()) {
         // physical form
-        const auto ISSN_and_physical_form(harvest_maps->ISSN_to_physical_form_map_.find(issn_normalized));
-        if (ISSN_and_physical_form != harvest_maps->ISSN_to_physical_form_map_.cend()) {
+        const auto ISSN_and_physical_form(augment_params->maps_->ISSN_to_physical_form_map_.find(issn_normalized));
+        if (ISSN_and_physical_form != augment_params->maps_->ISSN_to_physical_form_map_.cend()) {
             if (ISSN_and_physical_form->second == "A")
                 custom_fields.emplace(std::pair<std::string, std::string>("physicalForm", "A"));
             else if (ISSN_and_physical_form->second == "O")
@@ -590,8 +666,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
         }
 
         // language
-        const auto ISSN_and_language(harvest_maps->ISSN_to_language_code_map_.find(issn_normalized));
-        if (ISSN_and_language != harvest_maps->ISSN_to_language_code_map_.cend()) {
+        const auto ISSN_and_language(augment_params->maps_->ISSN_to_language_code_map_.find(issn_normalized));
+        if (ISSN_and_language != augment_params->maps_->ISSN_to_language_code_map_.cend()) {
             if (language_node != nullptr) {
                 const std::string language_old(language_node->getValue());
                 language_node->setValue(ISSN_and_language->second);
@@ -607,8 +683,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
         // volume
         const std::string volume(object_node->getOptionalStringValue("volume"));
         if (volume.empty()) {
-            const auto ISSN_and_volume(harvest_maps->ISSN_to_volume_map_.find(issn_normalized));
-            if (ISSN_and_volume != harvest_maps->ISSN_to_volume_map_.cend()) {
+            const auto ISSN_and_volume(augment_params->maps_->ISSN_to_volume_map_.find(issn_normalized));
+            if (ISSN_and_volume != augment_params->maps_->ISSN_to_volume_map_.cend()) {
                 if (volume.empty()) {
                     const std::shared_ptr<JSON::JSONNode> volume_node(object_node->getNode("volume"));
                     JSON::JSONNode::CastToStringNodeOrDie("volume", volume_node)->setValue(ISSN_and_volume->second);
@@ -620,8 +696,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
         }
 
         // license code
-        const auto ISSN_and_license_code(harvest_maps->ISSN_to_licence_map_.find(issn_normalized));
-        if (ISSN_and_license_code != harvest_maps->ISSN_to_licence_map_.end()) {
+        const auto ISSN_and_license_code(augment_params->maps_->ISSN_to_licence_map_.find(issn_normalized));
+        if (ISSN_and_license_code != augment_params->maps_->ISSN_to_licence_map_.end()) {
             if (ISSN_and_license_code->second != "l")
                 LOG_ERROR("ISSN_to_licence.map contains an ISSN that has not been mapped to an \"l\" but \""
                           + ISSN_and_license_code->second
@@ -631,8 +707,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> object_node, const std:
         }
 
         // SSG numbers:
-        const auto ISSN_and_SSGN_numbers(harvest_maps->ISSN_to_SSG_map_.find(issn_normalized));
-        if (ISSN_and_SSGN_numbers != harvest_maps->ISSN_to_SSG_map_.end())
+        const auto ISSN_and_SSGN_numbers(augment_params->maps_->ISSN_to_SSG_map_.find(issn_normalized));
+        if (ISSN_and_SSGN_numbers != augment_params->maps_->ISSN_to_SSG_map_.end())
             custom_fields.emplace(std::pair<std::string, std::string>("ssgNumbers", ISSN_and_SSGN_numbers->second));
     }
 
@@ -681,33 +757,19 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
 }
 
 
-std::shared_ptr<HarvestMaps> LoadMapFilesFromDirectory(const std::string &map_directory_path) {
-    std::shared_ptr<HarvestMaps> maps(new HarvestMaps);
-    MiscUtil::LoadMapFile(map_directory_path + "language_to_language_code.map", &maps->language_to_language_code_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &maps->ISSN_to_language_code_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_licence.map", &maps->ISSN_to_licence_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_keyword_field.map", &maps->ISSN_to_keyword_field_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &maps->ISSN_to_physical_form_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &maps->ISSN_to_superior_ppn_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_volume.map", &maps->ISSN_to_volume_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &maps->ISSN_to_SSG_map_);
-    return maps;
-}
-
-
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
-                                      const std::shared_ptr<const HarvestMaps> harvest_maps, const std::string &harvested_html,
-                                      bool log)
+                                      AugmentParams * const augment_params,
+                                      const std::string &harvested_html, bool log)
 {
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
     static std::unordered_set<std::string> already_harvested_urls;
     if (already_harvested_urls.find(harvest_url) != already_harvested_urls.end()) {
-        logger->info("Skipping URL (already harvested): " + harvest_url);
+        LOG_INFO("Skipping URL (already harvested): " + harvest_url);
         return record_count_and_previously_downloaded_count;
     }
     already_harvested_urls.emplace(harvest_url);
 
-    logger->info("Harvesting URL: " + harvest_url);
+    LOG_INFO("Harvesting URL: " + harvest_url);
 
     std::string response_body, error_message;
     unsigned response_code;
@@ -719,19 +781,19 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
     harvest_params->min_url_processing_time_.restart();
     if (not download_succeeded) {
-        logger->warning("Zotero conversion failed: " + error_message);
+        LOG_WARNING("Zotero conversion failed: " + error_message);
         return std::make_pair(0, 0);
     }
 
     // 500 => internal server error (e.g. error in translator))
     if (response_code == 500) {
-        logger->warning("Error: " + response_body);
+        LOG_WARNING("Error: " + response_body);
         return std::make_pair(0, 0);
     }
 
     // 501 => not implemented (e.g. no translator available)
     if (response_code == 501) {
-        logger->debug("Skipped (" + response_body + ")");
+        LOG_DEBUG("Skipped (" + response_body + ")");
         return std::make_pair(0, 0);
     }
 
@@ -742,13 +804,13 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
     // 300 => multiple matches found, try to harvest children
     if (response_code == 300) {
-        logger->info("multiple articles found => trying to harvest children");
+        LOG_INFO("multiple articles found => trying to harvest children");
         if (tree_root->getType() == JSON::ArrayNode::OBJECT_NODE) {
             const std::shared_ptr<const JSON::ObjectNode>object_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root",
                                                                                                            tree_root));
             for (const auto &key_and_node : *object_node) {
                 std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
-                    Harvest(key_and_node.first, harvest_params, harvest_maps, /* harvested_html = */"", /* log = */false);
+                    Harvest(key_and_node.first, harvest_params, augment_params, /* harvested_html = */"", /* log = */false);
 
                 record_count_and_previously_downloaded_count.first += record_count_and_previously_downloaded_count2.first;
                 record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
@@ -758,14 +820,14 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         const std::shared_ptr<const JSON::ArrayNode>json_array(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
         for (const auto entry : *json_array) {
             const std::shared_ptr<JSON::ObjectNode> json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
-            AugmentJson(json_object, harvest_maps);
+            AugmentJson(json_object, augment_params);
             record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
         }
     }
     ++harvest_params->harvested_url_count_;
 
     if (log) {
-        logger->info("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
+        LOG_INFO("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
                      + harvest_url + '\n' + "of which "
                      + StringUtil::ToString(record_count_and_previously_downloaded_count.first
                                             - record_count_and_previously_downloaded_count.second)
@@ -790,7 +852,7 @@ PreviouslyDownloadedHashesManager::PreviouslyDownloadedHashesManager(
             previously_downloaded->emplace(TextUtil::Base64Decode(line));
     }
 
-    logger->info("Loaded " + StringUtil::ToString(previously_downloaded->size()) + " hashes of previously generated records.");
+    LOG_INFO("Loaded " + StringUtil::ToString(previously_downloaded->size()) + " hashes of previously generated records.");
 }
 
 
@@ -800,7 +862,7 @@ PreviouslyDownloadedHashesManager::~PreviouslyDownloadedHashesManager() {
     for (const auto &hash : previously_downloaded_)
         output->write(TextUtil::Base64Encode(hash) + '\n');
 
-    logger->info("Stored " + StringUtil::ToString(previously_downloaded_.size()) + " hashes of previously generated records.");
+    LOG_INFO("Stored " + StringUtil::ToString(previously_downloaded_.size()) + " hashes of previously generated records.");
 }
 
 
@@ -965,6 +1027,184 @@ DownloadTracker::const_iterator DownloadTracker::begin() const {
 
 DownloadTracker::const_iterator DownloadTracker::end() const {
     return const_iterator(nullptr);
+}
+
+
+UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
+                         const std::shared_ptr<RegexMatcher> &supported_urls_regex,
+                         const std::shared_ptr<HarvestParams> &harvest_params,
+                         AugmentParams * const augment_params,
+                         File * const progress_file)
+{
+    UnsignedPair total_record_count_and_previously_downloaded_record_count;
+    LOG_INFO("Starting crawl at base URL: " +  site_desc.start_url_);
+    SimpleCrawler crawler(site_desc, crawler_params);
+    SimpleCrawler::PageDetails page_details;
+    unsigned processed_url_count(0);
+    while (crawler.getNextPage(&page_details)) {
+        if (not supported_urls_regex->matched(page_details.url_))
+            LOG_INFO("Skipping unsupported URL: " + page_details.url_);
+        else if (page_details.error_message_.empty()) {
+            augment_params->strptime_format_ = site_desc.strptime_format_;
+            const auto record_count_and_previously_downloaded_count(
+                Zotero::Harvest(page_details.url_, harvest_params, augment_params, page_details.body_));
+            total_record_count_and_previously_downloaded_record_count.first  += record_count_and_previously_downloaded_count.first;
+            total_record_count_and_previously_downloaded_record_count.second += record_count_and_previously_downloaded_count.second;
+            if (progress_file != nullptr) {
+                progress_file->rewind();
+                if (unlikely(not progress_file->write(
+                    std::to_string(processed_url_count) + ";" + std::to_string(crawler.getRemainingCallDepth()) + ";" + page_details.url_)))
+                    LOG_ERROR("failed to write progress to \"" + progress_file->getPath());
+            }
+        }
+    }
+
+    return total_record_count_and_previously_downloaded_record_count;
+}
+
+
+namespace {
+
+
+// Returns true if we can determine that the last_build_date column value stored in the rss_feeds table for the feed identified
+// by "feed_url" is no older than the "last_build_date" time_t passed into this function.  (This is somewhat complicated by the
+// fact that both, the column value as well as the time_t value may contain indeterminate values.)
+bool FeedContainsNoNewItems(const RSSHarvestMode mode, DbConnection * const db_connection, const std::string &feed_url,
+                            const time_t last_build_date)
+{
+    db_connection->queryOrDie("SELECT last_build_date FROM rss_feeds WHERE feed_url='" + db_connection->escapeString(feed_url)
+                              + "'");
+    DbResultSet result_set(db_connection->getLastResultSet());
+
+    std::string date_string;
+    if (result_set.empty()) {
+        if (last_build_date == TimeUtil::BAD_TIME_T)
+            date_string = "0000-00-00 00:00:00";
+        else
+            date_string = SqlUtil::TimeTToDatetime(last_build_date);
+
+        if (mode == RSSHarvestMode::VERBOSE)
+            LOG_INFO("Creating new feed entry in rss_feeds table for \"" + feed_url + "\".");
+        if (mode != RSSHarvestMode::TEST)
+            db_connection->queryOrDie("INSERT INTO rss_feeds SET feed_url='" + db_connection->escapeString(feed_url)
+                                      + "',last_build_date='" + date_string + "'");
+        return false;
+    }
+
+    const DbRow first_row(result_set.getNextRow());
+    date_string = first_row["last_build_date"];
+    if (date_string != "0000-00-00 00:00:00" and last_build_date != TimeUtil::BAD_TIME_T
+        and SqlUtil::DatetimeToTimeT(date_string) >= last_build_date)
+        return true;
+
+    return false;
+}
+
+
+// Returns the feed ID for the URL "feed_url".
+std::string GetFeedID(const RSSHarvestMode mode, DbConnection * const db_connection, const std::string &feed_url) {
+    db_connection->queryOrDie("SELECT id FROM rss_feeds WHERE feed_url='" + db_connection->escapeString(feed_url)
+                              + "'");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    if (unlikely(result_set.empty())) {
+        if (mode == RSSHarvestMode::TEST)
+            return "-1"; // Must be an INT.
+        LOG_ERROR("unexpected missing feed for URL \"" + feed_url + "\".");
+    }
+    const DbRow first_row(result_set.getNextRow());
+    return first_row["id"];
+}
+
+
+// Returns true if the item with item ID "item_id" and feed ID "feed_id" were found in the rss_items table, else
+// returns false.
+bool ItemAlreadyProcessed(DbConnection * const db_connection, const std::string &feed_id, const std::string &item_id) {
+    db_connection->queryOrDie("SELECT creation_datetime FROM rss_items WHERE feed_id='"
+                              + feed_id + "' AND item_id='" + db_connection->escapeString(item_id) + "'");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    if (result_set.empty())
+        return false;
+
+    if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG) {
+        const DbRow first_row(result_set.getNextRow());
+        LOG_DEBUG("Previously retrieved item w/ ID \"" + item_id + "\" at " + first_row["creation_datetime"] + ".");
+    }
+
+    return true;
+}
+
+
+void UpdateLastBuildDate(DbConnection * const db_connection, const std::string &feed_url, const time_t last_build_date) {
+    std::string last_build_date_string;
+    if (last_build_date == TimeUtil::BAD_TIME_T)
+        last_build_date_string = "0000-00-00 00:00:00";
+    else
+        last_build_date_string = SqlUtil::TimeTToDatetime(last_build_date);
+    db_connection->queryOrDie("UPDATE rss_feeds SET last_build_date='" + last_build_date_string + "' WHERE feed_url='"
+                              + db_connection->escapeString(feed_url) + "'");
+}
+
+    
+} // unnamed namespace
+
+
+UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string &feed_url,
+                                   const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
+                                   Zotero::AugmentParams * const augment_params, DbConnection * const db_connection)
+{
+    UnsignedPair total_record_count_and_previously_downloaded_record_count;
+
+    if (mode != RSSHarvestMode::NORMAL)
+        LOG_INFO("Processing URL: " + feed_url);
+
+    Downloader downloader(feed_url);
+    if (downloader.anErrorOccurred()) {
+        LOG_WARNING("Download problem for \"" + feed_url + "\": " + downloader.getLastErrorMessage());
+        return total_record_count_and_previously_downloaded_record_count;
+    }
+
+    std::string err_msg;
+    std::unique_ptr<SyndicationFormat> syndication_format(SyndicationFormat::Factory(downloader.getMessageBody(), &err_msg));
+    if (syndication_format == nullptr) {
+        LOG_WARNING("Problem parsing XML document for \"" + feed_url + "\": " + err_msg);
+        return total_record_count_and_previously_downloaded_record_count;
+    }
+
+    const time_t last_build_date(syndication_format->getLastBuildDate());
+    if (mode != RSSHarvestMode::NORMAL) {
+        std::cout << feed_url << " (" << syndication_format->getFormatName() << "):\n";
+        std::cout << "\tTitle: " << syndication_format->getTitle() << '\n';
+        if (last_build_date != TimeUtil::BAD_TIME_T)
+            std::cout << "\tLast build date: " << TimeUtil::TimeTToUtcString(last_build_date) << '\n';
+        std::cout << "\tLink: " << syndication_format->getLink() << '\n';
+        std::cout << "\tDescription: " << syndication_format->getDescription() << '\n';
+   }
+
+    if (mode != RSSHarvestMode::TEST and FeedContainsNoNewItems(mode, db_connection, feed_url, last_build_date))
+        return total_record_count_and_previously_downloaded_record_count;
+
+    const std::string feed_id(mode == RSSHarvestMode::TEST ? "" : GetFeedID(mode, db_connection, feed_url));
+    for (const auto &item : *syndication_format) {
+        if (mode != RSSHarvestMode::TEST and ItemAlreadyProcessed(db_connection, feed_id, item.getId()))
+            continue;
+
+        const std::string title(item.getTitle());
+        if (not title.empty() and mode != RSSHarvestMode::NORMAL)
+            LOG_INFO("\t\tTitle: " + title);
+
+        const auto record_count_and_previously_downloaded_count(
+            Zotero::Harvest(item.getLink(), harvest_params, augment_params, "", /* verbose = */ mode != RSSHarvestMode::NORMAL));
+        total_record_count_and_previously_downloaded_record_count += record_count_and_previously_downloaded_count;
+
+        if (mode != RSSHarvestMode::TEST)
+            db_connection->queryOrDie("INSERT INTO rss_items SET feed_id='" + feed_id + "',item_id='"
+                                      + db_connection->escapeString(item.getId()) + "'");
+
+    }
+    if (mode != RSSHarvestMode::TEST)
+        UpdateLastBuildDate(db_connection, feed_url, last_build_date);
+
+    return total_record_count_and_previously_downloaded_record_count;
 }
 
 

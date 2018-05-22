@@ -25,9 +25,7 @@
  *  along with libiViaOaiPmh; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef OAI_PMH_H
-#define OAI_PMH_H
+#pragma once
 
 
 #ifndef LIST
@@ -261,6 +259,3 @@ private:
 
 
 } // namespace OaiPmh
-
-
-#endif // ifndef OAI_PMH_H

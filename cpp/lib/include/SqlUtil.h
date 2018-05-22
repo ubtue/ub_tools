@@ -26,9 +26,7 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef SQL_UTIL_H
-#define SQL_UTIL_H
+#pragma once
 
 
 #include <map>
@@ -127,6 +125,3 @@ unsigned GetTableSize(DbConnection * const connection, const std::string &table_
 
 
 } // namespace SqlUtil
-
-
-#endif // ifndef SQL_UTIL_H

@@ -37,15 +37,14 @@ namespace zts_client {
 
 
 const std::string USER_AGENT("ub_tools (https://ixtheo.de/docs/user_agents)");
-const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
 
 
 void Usage() {
     std::cerr << "Usage: " << ::progname << " [options] zts_server_url map_directory output_file\n"
-              << "\t[ --ignore-robots-dot-txt)                                Nomen est omen.\n"
-              << "\t[ --proxy=<proxy_host_and_port>)                          Proxy host and port, default none.\n"
+              << "\t[ --ignore-robots-dot-txt ]                               Nomen est omen.\n"
+              << "\t[ --proxy=<proxy_host_and_port> ]                         Proxy host and port, default none.\n"
               << "\t[ --simple-crawler-config-file=<path> ]                   Nomen est omen, default: "
-              << DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH << "\n"
+              << Zotero::DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH << "\n"
               << "\t[ --progress-file=<path> ]                                Nomen est omen.\n"
               << "\t[ --output-format=<format> ]                              marcxml (default), marc21 or json.\n"
               << "\n"
@@ -62,36 +61,22 @@ void Usage() {
 void HarvestSites(const SimpleCrawler::Params &crawler_params, const std::shared_ptr<RegexMatcher> supported_urls_regex,
                   const std::vector<SimpleCrawler::SiteDesc> &site_descs,
                   const std::shared_ptr<Zotero::HarvestParams> harvest_params,
-                  const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps, std::unique_ptr<File> &progress_file,
+                  Zotero::AugmentParams * const augment_params, std::unique_ptr<File> &progress_file,
                   unsigned * const total_record_count, unsigned * const total_previously_downloaded_count)
 {
-    unsigned processed_url_count(0);
-    for (const auto &site_desc : site_descs) {
-        logger->info("Start crawling for base URL: " +  site_desc.start_url_);
-        SimpleCrawler crawler(site_desc, crawler_params);
-        SimpleCrawler::PageDetails page_details;
-        while (crawler.getNextPage(&page_details)) {
-            ++processed_url_count;
-            if (not supported_urls_regex->matched(page_details.url_))
-                LOG_INFO("Skipping unsupported URL: " + page_details.url_);
-            else if (page_details.error_message_.empty()) {
-                const auto record_count_and_previously_downloaded_count(
-                    Zotero::Harvest(page_details.url_, harvest_params, harvest_maps, page_details.body_)
-                );
-                *total_record_count                += record_count_and_previously_downloaded_count.first;
-                *total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
-                if (progress_file != nullptr) {
-                    progress_file->rewind();
-                    if (unlikely(not progress_file->write(
-                            std::to_string(processed_url_count) + ";" + std::to_string(crawler.getRemainingCallDepth())
-                            + ";" + page_details.url_)))
-                        LOG_ERROR("failed to write progress to \"" + progress_file->getPath());
-                }
-            }
-        }
-    }
+    UnsignedPair total_record_count_and_previously_downloaded_record_count;
+    for (const auto &site_desc : site_descs)
+        total_record_count_and_previously_downloaded_record_count
+            += Zotero::HarvestSite(site_desc, crawler_params, supported_urls_regex, harvest_params, augment_params, progress_file.get());
 
-    logger->info("Processed " + std::to_string(processed_url_count) + " URL's.");
+    logger->info("Processed " + std::to_string(total_record_count_and_previously_downloaded_record_count.first)
+                 + " (new: "
+                 + std::to_string(total_record_count_and_previously_downloaded_record_count.first
+                                  - total_record_count_and_previously_downloaded_record_count.second)
+                 + ")" + " URL's.");
+
+    *total_record_count = total_record_count_and_previously_downloaded_record_count.first;
+    *total_previously_downloaded_count = total_record_count_and_previously_downloaded_record_count.second;
 }
 
 
@@ -119,7 +104,7 @@ void Main(int argc, char *argv[]) {
         simple_crawler_config_path = argv[1] + CONFIG_FLAG_PREFIX.length();
         --argc, ++argv;
     } else
-        simple_crawler_config_path = DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH;
+        simple_crawler_config_path = Zotero::DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH;
 
     std::string progress_filename;
     const std::string PROGRESS_FILE_FLAG_PREFIX("--progress-file=");
@@ -145,15 +130,12 @@ void Main(int argc, char *argv[]) {
 
     try {
         harvest_params->zts_server_url_ = Url(argv[1]);
-        std::shared_ptr<Zotero::HarvestMaps> harvest_maps(Zotero::LoadMapFilesFromDirectory(map_directory_path));
+        Zotero::AugmentMaps augment_maps(map_directory_path);
+        Zotero::AugmentParams augment_params(&augment_maps);
         const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
-        const std::string PREVIOUSLY_DOWNLOADED_HASHES_PATH(map_directory_path + "previously_downloaded.hashes");
-        Zotero::PreviouslyDownloadedHashesManager previously_downloaded_hashes_manager(PREVIOUSLY_DOWNLOADED_HASHES_PATH,
-                                                                                       &harvest_maps->previously_downloaded_);
-
         const std::string output_file(argv[3]);
-        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(output_format, output_file, harvest_maps, harvest_params);
+        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(output_format, output_file, &augment_params, harvest_params);
         unsigned total_record_count(0), total_previously_downloaded_count(0);
 
         std::unique_ptr<File> progress_file;
@@ -170,7 +152,7 @@ void Main(int argc, char *argv[]) {
         SimpleCrawler::ParseConfigFile(simple_crawler_config_path, &site_descs);
 
         HarvestSites(crawler_params, supported_urls_regex, site_descs,
-                     harvest_params, harvest_maps, progress_file,
+                     harvest_params, &augment_params, progress_file,
                      &total_record_count, &total_previously_downloaded_count);
 
         LOG_INFO("Harvested a total of " + StringUtil::ToString(total_record_count) + " records of which "

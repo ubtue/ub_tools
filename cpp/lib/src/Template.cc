@@ -31,6 +31,7 @@
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
+#include "UrlUtil.h"
 #include "util.h"
 
 
@@ -59,34 +60,56 @@ const Value *ArrayValue::getValueAt(const size_t index) const {
 namespace {
 
 
+typedef const Function *PtrToConstFunction;
+
+
+bool IsFunctionName(const std::string &name, const std::vector<Function *> &functions, PtrToConstFunction *function) {
+    for (auto func : functions) {
+        if (func->getName() == name) {
+            *function = func;
+            return true;
+        }
+    }
+
+    *function = nullptr;
+    return false;
+}
+
+
 class TemplateScanner {
     std::string last_variable_name_, last_string_constant_, last_error_message_;
+    const Function *last_function_;
     unsigned line_no_;
     std::istream &input_;
     std::ostream &output_;
     std::string::const_iterator ch_;
     const std::string::const_iterator end_;
     bool in_syntax_;
+    const std::vector<Function *> &functions_;
+
 public:
-    enum TokenType { END_OF_INPUT, IF, ELSE, ENDIF, DEFINED, LOOP, ENDLOOP, VARIABLE_NAME, OPEN_PAREN, CLOSE_PAREN,
+    enum TokenType { END_OF_INPUT, IF, ELSE, ENDIF, DEFINED, LOOP, ENDLOOP, VARIABLE_NAME, FUNCTION_NAME, OPEN_PAREN, CLOSE_PAREN,
                      COMMA, EQUALS, NOT_EQUALS, STRING_CONSTANT, AND, OR, END_OF_SYNTAX, ERROR };
 public:
-    TemplateScanner(std::istream &input, std::ostream &output)
-        : line_no_(1), input_(input), output_(output), in_syntax_(false) { }
+    TemplateScanner(std::istream &input, std::ostream &output, const std::vector<Function *> &functions)
+        : last_function_(nullptr), line_no_(1), input_(input), output_(output), in_syntax_(false), functions_(functions) { }
 
     /** If "emit_output" non-syntax elements of the input will be copied to the output. */
     TokenType getToken(const bool emit_output);
 
     /** Only call this immediately after getToken() has returned VARIABLE_NAME. */
-    const std::string &getLastVariableName() const { return last_variable_name_; }
+    inline const std::string &getLastVariableName() const { return last_variable_name_; }
+
+    /** Only call this immediately after getToken() has returned FUNCTION_NAME. */
+    inline const Function *getLastFunction() const { return last_function_; }
 
     /** Only call this immediately after getToken() has returned STRING_CONSTANT. */
-    const std::string &getLastStringConstant() const { return last_string_constant_; }
+    inline const std::string &getLastStringConstant() const { return last_string_constant_; }
 
     /** Only call this immediately after getToken() has returned ERROR. */
-    const std::string &getLastErrorMessage() const { return last_error_message_; }
+    inline const std::string &getLastErrorMessage() const { return last_error_message_; }
 
-    unsigned getLineNo() const { return line_no_; }
+    inline unsigned getLineNo() const { return line_no_; }
 
     /** \brief Repositions the input stream and sets the appropriate line number for that position. */
     void seek(const std::istream::streampos stream_position, const unsigned line_no);
@@ -94,12 +117,12 @@ public:
     /** Skips over blank characters in the input stream w/o emitting anything to the output stream. */
     void skipWhitespace();
 
-    std::istream::streampos getInputStreamPos() const { return input_.tellg(); }
+    inline std::istream::streampos getInputStreamPos() const { return input_.tellg(); }
 
     /** \return A string representation of "token". */
     static std::string TokenTypeToString(const TokenType token);
 private:
-    std::string extractKeywordCandidate();
+    std::string extractKeywordOrFunctionNameCandidate();
     std::string extractVariableName();
     void extractStringConstant();
 
@@ -155,11 +178,15 @@ TemplateScanner::TokenType TemplateScanner::getToken(const bool emit_output) {
 
             if (ch >= 'A' and ch <= 'Z') {
                 input_.unget();
-                const std::string keyword_candidate(extractKeywordCandidate());
-                const TokenType token(MapStringToKeywordToken(keyword_candidate));
-                if (unlikely(token == ERROR))
-                    last_error_message_ = "unknown keyword " + keyword_candidate + " on line "
+                const std::string keyword_or_function_name_candidate(extractKeywordOrFunctionNameCandidate());
+                const TokenType token(MapStringToKeywordToken(keyword_or_function_name_candidate));
+                if (unlikely(token == ERROR)) {
+                    if (IsFunctionName(keyword_or_function_name_candidate, functions_, &last_function_))
+                        return FUNCTION_NAME;
+
+                    last_error_message_ = "unknown keyword/function name " + keyword_or_function_name_candidate + " on line "
                                           + std::to_string(line_no_);
+                }
                 return token;
             } else if (ch >= 'a' and ch <= 'z') {
                 input_.unget();
@@ -181,14 +208,14 @@ TemplateScanner::TokenType TemplateScanner::getToken(const bool emit_output) {
 }
 
 
-std::string TemplateScanner::extractKeywordCandidate() {
-    std::string keyword_candidate;
+std::string TemplateScanner::extractKeywordOrFunctionNameCandidate() {
+    std::string keyword_or_function_name_candidate;
     int ch;
-    while (ch = input_.get(), ch >= 'A' and ch <= 'Z')
-        keyword_candidate += static_cast<char>(ch);
+    while (ch = input_.get(), (ch >= 'A' and ch <= 'Z') or (ch >= 'a' and ch <= 'z'))
+        keyword_or_function_name_candidate += static_cast<char>(ch);
     input_.unget();
 
-    return keyword_candidate;
+    return keyword_or_function_name_candidate;
 }
 
 
@@ -225,6 +252,8 @@ std::string TemplateScanner::TokenTypeToString(const TemplateScanner::TokenType 
         return "ENDLOOP";
     case VARIABLE_NAME:
         return "VARIABLE_NAME";
+    case FUNCTION_NAME:
+        return "FUNCTION_NAME";
     case OPEN_PAREN:
         return "OPEN_PAREN";
     case CLOSE_PAREN:
@@ -415,29 +444,39 @@ const Value *GetArrayValue(const std::vector<Scope> &active_scopes, const std::s
     return value;
 }
 
-    
+
+// Returns NULL if "variable_name" does not exists or the value as seen within the active scope.
+const Value *GetScopedValue(const std::string &variable_name, const Map &names_to_values_map,
+                            const std::vector<Scope> &active_scopes)
+{
+    const auto &name_and_values(names_to_values_map.find(variable_name));
+    if (name_and_values == names_to_values_map.end())
+        return nullptr;
+
+    // If we have a scalar we have no problem:
+    if (ScalarValue *scalar = dynamic_cast<ScalarValue *>(name_and_values->second.get()))
+        return scalar;
+
+    // Now deal w/ multivalued variables:
+    return GetArrayValue(active_scopes, variable_name, name_and_values->second.get());
+}
+
+
 // Returns true, if "variable_name" exists and can be accessed as a scalar based on the current scope.
 bool GetScalarValue(const std::string &variable_name, const Map &names_to_values_map,
                     const std::vector<Scope> &active_scopes, std::string * const value)
 {
-    const auto &name_and_values(names_to_values_map.find(variable_name));
-    if (name_and_values == names_to_values_map.end())
+    const Value *scoped_value(GetScopedValue(variable_name, names_to_values_map, active_scopes));
+    if (scoped_value == nullptr)
         return false;
 
     // If we have a scalar we have no problem:
-    if (ScalarValue *scalar = dynamic_cast<ScalarValue *>(name_and_values->second.get())) {
+    if (const ScalarValue *scalar = dynamic_cast<const ScalarValue *>(scoped_value)) {
         *value = scalar->getValue();
         return true;
     }
 
-    // Now deal w/ multivalued variables:
-    const Value * const array_entry(GetArrayValue(active_scopes, variable_name, name_and_values->second.get()));
-    const ScalarValue * const array_entry_as_scalar(dynamic_cast<const ScalarValue * const>(array_entry));
-    if (unlikely(array_entry_as_scalar == nullptr))
-        return false;
-    *value = array_entry_as_scalar->getValue();
-    return true;
-
+    // If we get here, "value" is array-valued.
     return false;
 }
 
@@ -583,6 +622,49 @@ void ParseLoop(TemplateScanner * const scanner, std::set<std::string> * const lo
 }
 
 
+void ParseFunctionCall(TemplateScanner * const scanner, const Map &names_to_values_map, const std::vector<Scope> &active_scopes,
+                       const Function * const function, std::ostream &output, const bool emit_output)
+{
+    scanner->skipWhitespace();
+    TemplateScanner::TokenType token(scanner->getToken(emit_output));
+    if (token == TemplateScanner::OPEN_PAREN)
+        std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
+                           + ": expected opening parenthesis after function name!");
+
+    // Collect the function arguments:
+    std::vector<const Value *> args;
+    for (;;) {
+        token = scanner->getToken(emit_output);
+        if (token == TemplateScanner::CLOSE_PAREN) {
+            if (args.empty())
+                break;
+            throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
+                                     + ": unexpected closing parenthesis in function call!");
+        } else if (token == TemplateScanner::VARIABLE_NAME) {
+            const std::string &variable_name(scanner->getLastVariableName());
+            const Value *value(GetScopedValue(variable_name, names_to_values_map, active_scopes));
+            if (value == nullptr)
+                throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
+                                         + ": function argument variable \"" + variable_name
+                                         + " is not a known variable!");
+            args.emplace_back(value);
+        } else
+            throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
+                                     + ": unexpected junk in function call! (1)");
+
+        token = scanner->getToken(emit_output);
+        if (token == TemplateScanner::CLOSE_PAREN)
+            break; // End of argument list.
+        if (token != TemplateScanner::COMMA)
+            throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
+                                     + ": unexpected junk in function call! (2)");
+    }
+
+    if (emit_output)
+        output << function->call(args);
+}
+
+
 void ProcessEndOfSyntax(const std::string &name_of_syntactic_construct, TemplateScanner * const scanner) {
     const TemplateScanner::TokenType token(scanner->getToken(/* emit_output = */false));
     if (unlikely(token != TemplateScanner::END_OF_SYNTAX))
@@ -605,11 +687,51 @@ void SkipToToken(TemplateScanner * const scanner, TemplateScanner::TokenType tar
 }
 
 
+class LengthFunc : public Function {
+public:
+    explicit LengthFunc()
+        : Function("Length", { Function::ArgDesc("vector-valued variable name") }) { }
+    virtual std::string call(const std::vector<const Value *> &arguments) const final;
+};
+
+
+std::string LengthFunc::call(const std::vector<const Value *> &arguments) const {
+    if (arguments.size() != 1)
+        throw std::invalid_argument(name_ + " must be called w/ precisely one argument!");
+
+    return std::to_string(arguments[0]->size());
+}
+
+
+class UrlEncodeFunc : public Function {
+public:
+    explicit UrlEncodeFunc()
+        : Function("UrlEncode", { Function::ArgDesc("scalar-valued variable name") }) { }
+    virtual std::string call(const std::vector<const Value *> &arguments) const final;
+};
+
+
+std::string UrlEncodeFunc::call(const std::vector<const Value *> &arguments) const {
+    if (arguments.size() != 1)
+        throw std::invalid_argument(name_ + " must be called w/ precisely one argument!");
+
+    const ScalarValue *scalar_value(dynamic_cast<const ScalarValue *>(arguments[0]));
+    if (scalar_value == nullptr)
+        throw std::invalid_argument("argument to " + name_ + " must be a scalar!");
+
+    return UrlUtil::UrlEncode(scalar_value->getValue());
+}
+
+
 } // unnamed namespace
 
 
-void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_to_values_map) {
-    TemplateScanner scanner(input, output);
+void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_to_values_map, const std::vector<Function *> &functions) {
+    std::vector<Function *> all_functions(functions);
+    all_functions.emplace_back(new LengthFunc());
+    all_functions.emplace_back(new UrlEncodeFunc());
+
+    TemplateScanner scanner(input, output, all_functions);
     std::vector<Scope> scopes;
     scopes.push_back(Scope::MakeTopLevelScope());
 
@@ -677,6 +799,10 @@ void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_
                 output << variable_value;
             }
             ProcessEndOfSyntax("variable expansion", &scanner);
+        } else if (token == TemplateScanner::FUNCTION_NAME) {
+            ParseFunctionCall(&scanner, names_to_values_map, scopes, scanner.getLastFunction(), output,
+                              /* emit_output = */ skipping.empty() or not skipping.top());
+            ProcessEndOfSyntax("function call", &scanner);
         }
     }
 
@@ -696,10 +822,10 @@ void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_
 }
 
 
-std::string ExpandTemplate(const std::string &template_string, const Map &names_to_values_map) {
+std::string ExpandTemplate(const std::string &template_string, const Map &names_to_values_map, const std::vector<Function *> &functions) {
     std::istringstream input(template_string);
     std::ostringstream expanded_template;
-    ExpandTemplate(input, expanded_template, names_to_values_map);
+    ExpandTemplate(input, expanded_template, names_to_values_map, functions);
     return expanded_template.str();
 }
 

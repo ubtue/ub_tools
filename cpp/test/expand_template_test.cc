@@ -16,9 +16,18 @@
 void Usage() {
     std::cerr << "Usage: " << ::progname
               << " template_filename var1_and_values [var2_and_values ... varN_and_values]\n"
-              << "       Variable names and values have to be separated by colons, arrays of array have to have their arrays\n"
-              << "       arrays separated by semicolons.\n\n";
+              << "       Variable names and values have to be separated by colons, arrays of array have to have their subarray\n"
+              << "       values separated by semicolons. In order to include colons or semicolons in the values you need to backslash-\n"
+              << "       escape them.  Literal backslashes can included by doubling them.\n\n";
     std::exit(EXIT_FAILURE);
+}
+
+
+void ProcessSingleArgument(const char * const arg, Template::Map * const names_to_values_map) {
+    const 
+    std::string variable_name;
+
+    
 }
 
 

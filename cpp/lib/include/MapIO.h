@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef MAP_IO_H
-#define MAP_IO_H
+#pragma once
 
 
 #include <fstream>
@@ -47,6 +46,3 @@ void DeserialiseMap(const std::string &input_filename,
 
 
 } // namespace MapIO
-
-
-#endif // ifndef MAP_IO_H
