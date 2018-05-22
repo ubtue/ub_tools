@@ -166,3 +166,8 @@ solrmarc_mixin/src/build.xml
 cronjobs/README
 
 *nbproject*
+.vscode
+mads-test*
+cpp/es_store_document
+cpp/marc_convert
+cpp/ztracker_tool
