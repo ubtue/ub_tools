@@ -199,7 +199,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
             break;
         else {
             has_BOM = false;
-            if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_NO_BOM, 4) == 0) {
+            if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_NO_BOM[i], 4) == 0) {
                 break;
             }
         }
