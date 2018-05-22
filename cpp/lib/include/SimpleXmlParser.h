@@ -39,7 +39,7 @@
 
 
 /**
- * Note on encoding: XML files can optionally specify their encoding in the prologue/header. Also,
+ * Note on encoding: XML files can optinonally specify their encoding in the prologue/header. Also,
  *                   datasources can optionally be supplied with their corresponding encoding.
  *                   We attempt to resolve the encoding in the following manner:
  *                      1. Parse the optional header/prologue and use the encoding specified therein.
@@ -62,8 +62,8 @@ private:
     bool last_element_was_empty_;
     std::string last_tag_name_;
     std::string *data_collector_;
-    std::string intern_encoding_;
-    std::string extern_encoding_;
+    std::string internal_encoding_;
+    std::string external_encoding_;
     std::unique_ptr<TextUtil::ToUTF32Decoder> to_utf32_decoder_;
 
     static const std::deque<int> CDATA_START_DEQUE;
@@ -73,7 +73,7 @@ private:
     static const uint8_t FIRST_FOUR_BYTES_NO_BOM[5][4];
     static const std::string CANONICAL_ENCODING_NAMES[5];
 public:
-    SimpleXmlParser(DataSource * const input, const std::string * const extern_encoding = nullptr);
+    SimpleXmlParser(DataSource * const input, const std::string &external_encoding = "");
 
     bool getNext(Type * const type, std::map<std::string, std::string> * const attrib_map, std::string * const data);
 
@@ -147,11 +147,11 @@ template<typename DataSource> const std::string SimpleXmlParser<DataSource>::CAN
 };
 
 
-template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataSource * const input, const std::string * const extern_encoding)
+template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataSource * const input, const std::string &external_encoding)
     : input_(input), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false), data_collector_(nullptr)
 {
-    if (extern_encoding)
-        extern_encoding_ = *extern_encoding;
+    if (not external_encoding.empty())
+        external_encoding_ = external_encoding;
 
     detectEncoding();
 }
@@ -169,9 +169,9 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
             first_four_bytes[i] = byte;
     }
 
-    uint8_t init_encoding(UTF32_BE);
+    uint8_t inital_encoding(UTF32_BE);
     bool has_BOM(true), unknown_encoding(false);
-    for (uint8_t i(init_encoding); init_encoding < Encoding::OTHER; ++init_encoding, ++i) {
+    for (uint8_t i(inital_encoding); inital_encoding < Encoding::OTHER; ++inital_encoding, ++i) {
         bool found(false);
         has_BOM = true;
 
@@ -206,23 +206,23 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
     }
 
     // fallback to UTF-8
-    if (init_encoding == Encoding::OTHER) {
-        init_encoding = Encoding::UTF8;
+    if (inital_encoding == Encoding::OTHER) {
+        inital_encoding = Encoding::UTF8;
         unknown_encoding = true;
     }
 
     // attempt to parse the prologue to determine the specified encoding, if any
-    switch (init_encoding) {
+    switch (inital_encoding) {
         case UTF8:
             to_utf32_decoder_.reset(new TextUtil::UTF8ToUTF32Decoder());
             break;
         default:
-            to_utf32_decoder_.reset(new TextUtil::AnythingToUTF32Decoder(TextUtil::CanonizeCharset(CANONICAL_ENCODING_NAMES[init_encoding])));
+            to_utf32_decoder_.reset(new TextUtil::AnythingToUTF32Decoder(TextUtil::CanonizeCharset(CANONICAL_ENCODING_NAMES[inital_encoding])));
     }
 
     // reset the file pointer while skipping the BOM, if any
     if (has_BOM) {
-        if (init_encoding == Encoding::UTF8) {
+        if (inital_encoding == Encoding::UTF8) {
             // only put back the last character
             input_->putback(first_four_bytes[3]);
         }
@@ -230,20 +230,20 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
         input_->seek(0);
 
     parseOptionalPrologue();
-    if (not intern_encoding_.empty()) {
+    if (not internal_encoding_.empty()) {
         if (not unknown_encoding) {
-            if (::strcasecmp(intern_encoding_.c_str(), to_utf32_decoder_->getInputEncoding().c_str()) != 0) {
+            if (::strcasecmp(internal_encoding_.c_str(), to_utf32_decoder_->getInputEncoding().c_str()) != 0) {
                 LOG_WARNING("Mismatching XML file encoding. Detected: "
-                            + to_utf32_decoder_->getInputEncoding() + ", provided (internal): " + intern_encoding_);
-            } else if (not extern_encoding_.empty() and ::strcasecmp(extern_encoding_.c_str(), intern_encoding_.c_str()) != 0) {
+                            + to_utf32_decoder_->getInputEncoding() + ", provided (internal): " + internal_encoding_);
+            } else if (not external_encoding_.empty() and ::strcasecmp(external_encoding_.c_str(), internal_encoding_.c_str()) != 0) {
                 LOG_WARNING("Mismatching XML file encoding. Detected (internal): "
-                            + intern_encoding_ + ", provided (external): " + extern_encoding_);
+                            + internal_encoding_ + ", provided (external): " + external_encoding_);
             }
         }        
 
-        to_utf32_decoder_.reset(new TextUtil::AnythingToUTF32Decoder(intern_encoding_));
-    } else if (not extern_encoding_.empty())
-        to_utf32_decoder_.reset(new TextUtil::AnythingToUTF32Decoder(extern_encoding_));
+        to_utf32_decoder_.reset(new TextUtil::AnythingToUTF32Decoder(internal_encoding_));
+    } else if (not external_encoding_.empty())
+        to_utf32_decoder_.reset(new TextUtil::AnythingToUTF32Decoder(external_encoding_));
     else {
         LOG_WARNING("Couldn't detect XML encoding. Falling back to UTF-8.");
         to_utf32_decoder_.reset(new TextUtil::UTF8ToUTF32Decoder());
@@ -427,7 +427,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPro
         throw std::runtime_error("in SimpleXmlParser::parseOptionalPrologue: " + error_message);
 
     if (attrib_name == "encoding") {
-        intern_encoding_ = TextUtil::CanonizeCharset(attrib_value);
+        internal_encoding_ = TextUtil::CanonizeCharset(attrib_value);
     }
 
     while (ch != EOF and ch != '>') {
