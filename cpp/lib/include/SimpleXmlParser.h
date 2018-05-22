@@ -164,7 +164,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
     for (int i(0); i < 4; ++i) {
         const char byte(input_->get());
         if (byte == EOF)
-            LOG_ERROR("Invalid XML file. Reached EOF unexpectedly.");
+            LOG_ERROR("Invalid XML file \"" + input_->getPath() + "\". Reached EOF unexpectedly.");
         else
             first_four_bytes[i] = byte;
     }
@@ -231,10 +231,10 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
     if (not internal_encoding_.empty()) {
         if (not unknown_encoding) {
             if (::strcasecmp(internal_encoding_.c_str(), to_utf32_decoder_->getInputEncoding().c_str()) != 0) {
-                LOG_WARNING("Mismatching XML file encoding. Detected: "
+                LOG_WARNING("Mismatching XML file encoding for \"" + input_->getPath() + "\". Detected: "
                             + to_utf32_decoder_->getInputEncoding() + ", provided (internal): " + internal_encoding_);
             } else if (not external_encoding_.empty() and ::strcasecmp(external_encoding_.c_str(), internal_encoding_.c_str()) != 0) {
-                LOG_WARNING("Mismatching XML file encoding. Detected (internal): "
+                LOG_WARNING("Mismatching XML file encoding for \"" + input_->getPath() + "\". Detected (internal): "
                             + internal_encoding_ + ", provided (external): " + external_encoding_);
             }
         }        
@@ -243,7 +243,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
     } else if (not external_encoding_.empty())
         to_utf32_decoder_.reset(new TextUtil::AnythingToUTF32Decoder(external_encoding_));
     else {
-        LOG_WARNING("Couldn't detect XML encoding. Falling back to UTF-8.");
+        LOG_WARNING("Couldn't detect XML file encoding for \"" + input_->getPath() + "\". Falling back to UTF-8.");
         to_utf32_decoder_.reset(new TextUtil::UTF8ToUTF32Decoder());
     }
 }
@@ -423,9 +423,8 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPro
     if (not error_message.empty())
         throw std::runtime_error("in SimpleXmlParser::parseOptionalPrologue: " + error_message);
 
-    if (attrib_name == "encoding") {
+    if (attrib_name == "encoding")
         internal_encoding_ = TextUtil::CanonizeCharset(attrib_value);
-    }
 
     while (ch != EOF and ch != '>') {
         if (unlikely(ch == '\n'))
