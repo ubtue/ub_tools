@@ -24,23 +24,36 @@
 #include <algorithm>
 #include <deque>
 #include <map>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include "Compiler.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "XmlUtil.h"
+#include "util.h"
 
 
 #ifndef ARRAY_SIZE
 #    define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 #endif // ifndef ARRAY_SIZE
 
-
+/**
+ * Note on encoding: XML files can optinally specify their encoding in the prologue/header. Also,
+ *                   datasources can optionally be supplied with their corresponding encoding.
+ *                   We attempt to resolve the encoding in the following manner:
+ *                      1. Parse the optional header/prologue and use the encoding specified therein.
+ *                      2. If the header is missing, then we use the supplied encoding.
+ *                      3. If neither of the above are available, we fallback to UTF-8 as the default
+ *                         and fail miserabl..er, elegantly.
+ */
 template<typename DataSource> class SimpleXmlParser {
 public:
     enum Type { UNINITIALISED, START_OF_DOCUMENT, END_OF_DOCUMENT, ERROR, OPENING_TAG, CLOSING_TAG, CHARACTERS };
 private:
+    // Order-dependent: See below (cf. FIRST_FOUR_BYTES_...) 
+    enum Encoding : uint8_t { UTF32_BE, UTF32_LE, UTF16_BE, UTF16_LE, UTF8, OTHER };
+
     DataSource * const input_;
     std::deque<int> pushed_back_chars_;
     unsigned line_no_;
@@ -49,10 +62,18 @@ private:
     bool last_element_was_empty_;
     std::string last_tag_name_;
     std::string *data_collector_;
-    TextUtil::UTF8ToUTF32Decoder utf8_to_utf32_decoder_;
+    std::string intern_encoding_;
+    std::string extern_encoding_;
+    std::unique_ptr<TextUtil::ToUTF32Decoder> to_utf32_decoder_;
+
     static const std::deque<int> CDATA_START_DEQUE;
+
+    // arrays corresponding to the different encodings
+    static const uint8_t FIRST_FOUR_BYTES_WITH_BOM[5][4];
+    static const uint8_t FIRST_FOUR_BYTES_NO_BOM[5][4];
+    static const std::string CANONICAL_ENCODING_NAMES[5];
 public:
-    SimpleXmlParser(DataSource * const input);
+    SimpleXmlParser(DataSource * const input, const std::string * const extern_encoding = nullptr);
 
     bool getNext(Type * const type, std::map<std::string, std::string> * const attrib_map, std::string * const data);
 
@@ -89,6 +110,7 @@ public:
 
     static std::string TypeToString(const Type type);
 private:
+    void detectEncoding();
     int getUnicodeCodePoint();
     bool skipOptionalComment();
     int get(const bool skip_comment = true, bool * const cdata_start = nullptr);
@@ -109,11 +131,123 @@ private:
 template<typename DataSource> const std::deque<int> SimpleXmlParser<DataSource>::CDATA_START_DEQUE{
     '<', '!', '[', 'C', 'D', 'A', 'T', 'A', '[' };
 
+// '##' characters denote any byte value except that two consecutive ##s cannot be both 00
+// in the case of UTF-8, the 4th byte is ignored
+template<typename DataSource> const uint8_t SimpleXmlParser<DataSource>::FIRST_FOUR_BYTES_WITH_BOM[5][4]{
+    { 0, 0, 0xFE, 0xFF }, { 0xFF, 0xFE, 0, 0 }, { 0xFE, 0xFF, /*##*/0xCD, /*##*/0xCD }, { 0xFF, 0xFE, /*##*/0xCD, /*##*/0xCD }, { 0xEF, 0xBB, 0xBF, /*##*/0xCD }
+};
 
-template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataSource * const input)
+// Encodings of the first four characters in the XML file (<?xm)
+template<typename DataSource> const uint8_t SimpleXmlParser<DataSource>::FIRST_FOUR_BYTES_NO_BOM[5][4]{
+    { 0, 0, 0, 0x3C }, { 0x3C, 0, 0, 0 }, { 0, 0x3C, 0, 0x3F }, { 0x3C, 0, 0x3F, 0 }, { 0x3C, 0x3F, 0x78, 0x6D }
+};
+
+template<typename DataSource> const std::string SimpleXmlParser<DataSource>::CANONICAL_ENCODING_NAMES[5]{
+    "UTF32BE", "UTF32LE", "UTF16BE", "UTF16LE", "UTF8"
+};
+
+
+template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataSource * const input, const std::string * const extern_encoding)
     : input_(input), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false), data_collector_(nullptr)
 {
+    if (extern_encoding)
+        extern_encoding_ = *extern_encoding;
+
+    detectEncoding();
+}
+
+
+template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding() {
+    // compare the first 4 bytes with the expected bytes to determine the initial encoding
+    char first_four_bytes[4]{0};
+    const char null_two_bytes[2]{0};
+    for (int i(0); i < 4; ++i) {
+        const char byte(input_->get());
+        if (byte == EOF)
+            LOG_ERROR("Invalid XML file. Reached EOF unexpectedly.");
+        else
+            first_four_bytes[i] = byte;
+    }
+
+    uint8_t init_encoding(UTF32_BE);
+    bool has_BOM(true), unknown_encoding(false);
+    for (uint8_t i(init_encoding); init_encoding < Encoding::OTHER; ++init_encoding, ++i) {
+        bool found(false);
+        has_BOM = true;
+
+        switch (i) {
+            case UTF16_BE:
+            case UTF16_LE:
+                if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_WITH_BOM[i], 2) == 0) {
+                    if (std::memcmp(first_four_bytes + 2, null_two_bytes, 2) != 0) {
+                       found = true;
+                    }
+                }
+                break;
+            case UTF8:
+                if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_WITH_BOM[i], 3) == 0) {                    
+                    found = true;
+                }
+                break;
+            default:
+                if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_WITH_BOM[i], 4) == 0) {
+                    found = true;
+                }
+        }
+
+        if (found)
+            break;
+        else {
+            has_BOM = false;
+            if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_NO_BOM, 4) == 0) {
+                break;
+            }
+        }
+    }
+
+    // fallback to UTF-8
+    if (init_encoding == Encoding::OTHER) {
+        init_encoding = Encoding::UTF8;
+        unknown_encoding = true;
+    }
+
+    // attempt to parse the prologue to determine the specified encoding, if any
+    switch (init_encoding) {
+        case UTF8:
+            to_utf32_decoder_.reset(new TextUtil::UTF8ToUTF32Decoder());
+            break;
+        default:
+            to_utf32_decoder_.reset(new TextUtil::AnythingToUTF32Decoder(TextUtil::CanonizeCharset(CANONICAL_ENCODING_NAMES[init_encoding])));
+    }
+
+    // reset the file pointer while skipping the BOM, if any
+    if (has_BOM) {
+        if (init_encoding == Encoding::UTF8) {
+            // only put back the last character
+            input_->putback(first_four_bytes[3]);
+        }
+    } else 
+        input_->seek(0);
+
     parseOptionalPrologue();
+    if (not intern_encoding_.empty()) {
+        if (not unknown_encoding) {
+            if (::strcasecmp(intern_encoding_.c_str(), to_utf32_decoder_->getInputEncoding().c_str()) != 0) {
+                LOG_WARNING("Mismatching XML file encoding. Detected: "
+                            + to_utf32_decoder_->getInputEncoding() + ", provided (internal): " + intern_encoding_);
+            } else if (not extern_encoding_.empty() and ::strcasecmp(extern_encoding_.c_str(), intern_encoding_.c_str()) != 0) {
+                LOG_WARNING("Mismatching XML file encoding. Detected (internal): "
+                            + intern_encoding_ + ", provided (external): " + extern_encoding_);
+            }
+        }        
+
+        to_utf32_decoder_.reset(new TextUtil::AnythingToUTF32Decoder(intern_encoding_));
+    } else if (not extern_encoding_.empty())
+        to_utf32_decoder_.reset(new TextUtil::AnythingToUTF32Decoder(extern_encoding_));
+    else {
+        LOG_WARNING("Couldn't detect XML encoding. Falling back to UTF-8.");
+        to_utf32_decoder_.reset(new TextUtil::UTF8ToUTF32Decoder());
+    }
 }
 
 
@@ -122,12 +256,14 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoi
     if (unlikely(ch == EOF))
         return ch;
     for (;;) {
-        if (not utf8_to_utf32_decoder_.addByte(static_cast<char>(ch)))
-            return static_cast<int>(utf8_to_utf32_decoder_.getUTF32Char());
+        if (not to_utf32_decoder_->addByte(static_cast<char>(ch))) {
+            const auto decoded(to_utf32_decoder_->getUTF32Char());
+            return static_cast<int>(decoded);
+        }            
         ch = input_->get();
         if (unlikely(ch == EOF))
             throw std::runtime_error("in SimpleXmlParser::getUnicodeCodePoint: unexpected EOF while decoding "
-                                     "a UTF-8 sequence!");
+                                     "a byte sequence!");
     }
 }
 
@@ -292,10 +428,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPro
         throw std::runtime_error("in SimpleXmlParser::parseOptionalPrologue: " + error_message);
 
     if (attrib_name == "encoding") {
-        if (::strcasecmp(attrib_value.c_str(), "utf-8") != 0
-            and ::strcasecmp(attrib_value.c_str(), "utf8") != 0)
-            throw std::runtime_error("in SimpleXmlParser::parseOptionalPrologue: Error in prolog: We only support "
-                                     "the UTF-8 encoding!");
+        intern_encoding_ = TextUtil::CanonizeCharset(attrib_value);
     }
 
     while (ch != EOF and ch != '>') {
