@@ -225,7 +225,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
             input_->putback(first_four_bytes[3]);
         }
     } else 
-        input_->seek(0);
+        input_->rewind();
 
     parseOptionalPrologue();
     if (not internal_encoding_.empty()) {
