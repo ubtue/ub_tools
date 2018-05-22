@@ -34,6 +34,8 @@ class StringDataSource {
     std::string::const_iterator ch_;
     bool pushed_back_;
     char pushed_back_char_;
+
+    static const std::string DEFAULT_PATH;
 public:
     explicit StringDataSource(const std::string &s): s_(s), ch_(s_.cbegin()), pushed_back_(false) { }
 
@@ -60,4 +62,6 @@ public:
     bool seek(const off_t offset, const int whence = SEEK_SET);
 
     inline void rewind() { ch_ = s_.cbegin(); pushed_back_ = false; }
+
+    inline const std::string &getPath() const { return DEFAULT_PATH; }
 };
