@@ -39,13 +39,13 @@
 
 
 /**
- * Note on encoding: XML files can optinally specify their encoding in the prologue/header. Also,
+ * Note on encoding: XML files can optionally specify their encoding in the prologue/header. Also,
  *                   datasources can optionally be supplied with their corresponding encoding.
  *                   We attempt to resolve the encoding in the following manner:
  *                      1. Parse the optional header/prologue and use the encoding specified therein.
  *                      2. If the header is missing, then we use the supplied encoding.
  *                      3. If neither of the above are available, we fallback to UTF-8 as the default
- *                         and fail miserabl..er, elegantly.
+ *                         and fail elegantly.
  */
 template<typename DataSource> class SimpleXmlParser {
 public:
