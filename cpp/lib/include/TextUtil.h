@@ -292,14 +292,15 @@ public:
      *         been decoded, signalling that getUTF32Char() should be called now.
      * \throw std::runtime_error if we're being fed an invalid UTF-8 sequence of characters
      */
-    virtual bool addByte(const char ch) = 0;
-    /** Returns the UTF-32 character converted from the input sequence. Can only be called after
+    virtual bool addByte(const char ch) = 0;       
+    virtual State getState() const = 0;
+     /** Returns the UTF-32 character converted from the input sequence. Can only be called after
      *  addByte() returns false.
      *
      * \throw std::runtime_error if the character is yet to be fully decoded
-     */    
-    virtual State getState() const = 0;
+     */
     virtual uint32_t getUTF32Char() = 0;
+    virtual const std::string& getInputEncoding() const = 0;
 };
 
 
@@ -322,6 +323,7 @@ public:
     virtual bool addByte(const char ch) override final;
     virtual State getState() const override final;
     virtual uint32_t getUTF32Char() override final;
+    virtual const std::string& getInputEncoding() const override final;
 private:
     uint32_t consumeAndReset();
 };
@@ -344,6 +346,7 @@ public:
                                        : ((required_count_  > 0) ? CHARACTER_INCOMPLETE : CHARACTER_PENDING);
     }  
     virtual uint32_t getUTF32Char() override final { required_count_ = -1; return utf32_char_; }
+    virtual const std::string& getInputEncoding() const override final { return EncodingConverter::CANONICAL_UTF8_NAME; }
 };
 
 
@@ -421,6 +424,11 @@ inline std::string CStyleEscape(std::string s) {
  *  \note  We treat "text" as UTF-8.
  */
 std::string InitialCaps(const std::string &text);
+
+
+/** \brief Returns the canonical form of a charset string.
+ */
+std::string CanonizeCharset(std::string charset);
 
 
 } // namespace TextUtil
