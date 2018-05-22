@@ -24,9 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef COOKIE_JAR_H
-#define COOKIE_JAR_H
+#pragma once
 
 
 #include <string>
@@ -116,6 +114,3 @@ inline std::ostream &operator<<(std::ostream &output, const CookieJar::Cookie &c
     output << cookie.toString();
     return output;
 }
-
-
-#endif // ifndef COOKIE_JAR_H

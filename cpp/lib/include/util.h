@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef UTIL_H
-#define UTIL_H
+#pragma once
 
 
 #include <mutex>
@@ -138,6 +137,3 @@ template <typename T> std::string ArrayToString(T* array, size_t count) {
     buffer.append("]");
     return buffer;
 }
-
-
-#endif // ifndef UTIL_H

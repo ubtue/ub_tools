@@ -17,9 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef SELINUX_UTIL_H
-#define SELINUX_UTIL_H
+#pragma once
 
 
 #include <cctype>
@@ -142,7 +140,3 @@ bool HasPortType(const std::string &type, const std::string &protocol, const uin
 
 
 } // namespace SELinuxUtil
-
-
-#endif /* SELINUX_UTIL_H */
-

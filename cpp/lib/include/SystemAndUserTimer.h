@@ -23,9 +23,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef SYSTEM_AND_USER_TIMER_H
-#define SYSTEM_AND_USER_TIMER_H
+#pragma once
 
 
 #ifndef STRING
@@ -126,6 +124,3 @@ private:
 
 // For convenience:
 typedef TimerStartStopper<SystemAndUserTimer> SystemAndUserTimerStartStopper;
-
-
-#endif // ifndef SYSTEM_AND_USER_TIMER_H

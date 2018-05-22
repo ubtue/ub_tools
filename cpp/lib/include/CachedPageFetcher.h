@@ -25,9 +25,7 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef CACHED_PAGE_FETCHER_H
-#define CACHED_PAGE_FETCHER_H
+#pragma once
 
 
 #include <memory>
@@ -527,6 +525,3 @@ private:
     static bool IsCached(const std::string &url, const RobotsDotTxtOption robots_dot_txt_option,
                          std::string * const error_message, DbConnection * const db_connection);
 };
-
-
-#endif // ifndef CACHED_PAGE_FETCHER_H

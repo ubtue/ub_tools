@@ -25,9 +25,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef MEDIA_TYPE_UTIL_H
-#define MEDIA_TYPE_UTIL_H
+#pragma once
 
 
 #include <string>
@@ -135,6 +133,3 @@ bool SimplifyMediaType(std::string * const media_type);
 
 
 } // namespace MediaTypeUtil
-
-
-#endif // ifndef MEDIA_TYPE_UTIL_H

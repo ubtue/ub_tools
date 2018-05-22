@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef THREAD_MANAGER
-#define THREAD_MANAGER
+#pragma once
 
 
 #include <vector>
@@ -38,6 +37,3 @@ public:
     ThreadManager(const unsigned no_of_threads, void *ThreadFunc(void *), void *thread_data = nullptr);
     ~ThreadManager();
 };
-
-
-#endif // ifndef THREAD_MANAGER

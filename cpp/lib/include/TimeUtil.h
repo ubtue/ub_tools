@@ -26,9 +26,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef TIME_UTIL_H
-#define TIME_UTIL_H
+#pragma once
 
 
 #include <limits>
@@ -279,6 +277,3 @@ std::string StructTmToString(const struct tm &tm);
 
 
 } // namespace TimeUtil
-
-
-#endif // ifndef TIME_UTIL_H

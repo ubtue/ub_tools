@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef EMAIL_SENDER_H
-#define EMAIL_SENDER_H
+#pragma once
 
 
 #include <string>
@@ -54,6 +53,3 @@ inline bool SendEmail(const std::string &sender, const std::string &recipient, c
 
 
 } // namespace EmailSender
-
-
-#endif // ifndef EMAIL_SENDER_H

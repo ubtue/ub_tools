@@ -24,9 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef GZ_STREAM_H
-#define GZ_STREAM_H
+#pragma once
 
 
 #include <stdexcept>
@@ -122,6 +120,3 @@ private:
     GzStream(const GzStream &rhs);            // Intentionally unimplemented!
     GzStream &operator=(const GzStream &rhs); // Intentionally unimplemented!
 };
-
-
-#endif // ifndef GZ_STREAM_H

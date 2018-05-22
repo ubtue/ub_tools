@@ -25,9 +25,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef TEXT_UTIL_H
-#define TEXT_UTIL_H
+#pragma once
 
 
 #include <memory>
@@ -432,6 +430,3 @@ std::string CanonizeCharset(std::string charset);
 
 
 } // namespace TextUtil
-
-
-#endif // ifndef TEXT_UTIL_H

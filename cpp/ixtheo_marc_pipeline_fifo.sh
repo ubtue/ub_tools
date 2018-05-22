@@ -78,6 +78,7 @@ StartPhase "Drop Records Containing mtex in 935" \
            "\n\tRemove Sorting Chars From Title Subfields" \
            "\n\tRemove blmsh Subject Heading Terms" \
            "\n\tFix Local Keyword Capitalisations"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (marc_filter \
      GesamtTiteldaten-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --input-format=marc-21 \
@@ -89,15 +90,13 @@ StartPhase "Drop Records Containing mtex in 935" \
     --replace 600a:610a:630a:648a:650a:651a:655a /usr/local/var/lib/tuelib/keyword_normalistion.map \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-wait
 
 
-StartPhase "Remove Unreferenced Authority Records"
-(remove_unused_authority_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                 Normdaten-"${date}".mrc \
-                                 GefilterteNormdaten-"${date}".mrc  >> "${log}" 2>&1 && \
+StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
+(rewrite_keywords_and_authors_from_authority_data --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                                  Normdaten-"${date}".mrc \
+                                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-wait
 
 
 StartPhase "Extract Translations and Generate Interface Translation Files"
@@ -109,18 +108,19 @@ EndPhase || Abort) &
 
 
 StartPhase "Augment Authority Data with Keyword Translations"
-(augment_authority_data_with_translations GefilterteNormdaten-"${date}".mrc \
+(augment_authority_data_with_translations Normdaten-"${date}".mrc \
                                           Normdaten-augmented-"${date}".mrc \
                                           >> "${log}" 2>&1 &&
 EndPhase || Abort) &
-
+wait
 
 StartPhase "Merge Print and Online Superior Records"
-(merge_print_and_online GesamtTiteldaten-post-phase"$((PHASE-4))"-"${date}".mrc \
+(merge_print_and_online GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                         missing_ppn_partners.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
+
 
 StartPhase "Normalise URL's"
 (normalise_urls --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
@@ -143,7 +143,7 @@ wait
 
 
 StartPhase "Add Author Synonyms from Authority Data"
-(add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc GefilterteNormdaten-"${date}".mrc \
+(add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc Normdaten-"${date}".mrc \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -181,7 +181,7 @@ wait
 StartPhase "Augment Bible References"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (augment_bible_references --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                         GefilterteNormdaten-"${date}".mrc \
+                         Normdaten-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 cp pericopes_to_codes.map /usr/local/var/lib/tuelib/bibleRef/ && \
 EndPhase || Abort) &

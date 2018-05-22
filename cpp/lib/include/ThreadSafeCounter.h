@@ -16,8 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef THREAD_SAFE_COUNTER_H
-#define THREAD_SAFE_COUNTER_H
+#pragma once
 
 
 #include <mutex>
@@ -45,6 +44,3 @@ public:
         return counter_;
     }
 };
-
-
-#endif // ifndef THREAD_SAFE_COUNTER_H
