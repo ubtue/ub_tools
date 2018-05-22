@@ -34,6 +34,10 @@
 #include "Url.h"
 
 
+// Forward declaration:
+class DbConnection;
+
+
 namespace Zotero {
 
 
@@ -324,6 +328,21 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
                          const std::shared_ptr<HarvestParams> &harvest_params,
                          AugmentParams * const augment_params,
                          File * const progress_file = nullptr);
+    
+
+enum class RSSHarvestMode { VERBOSE, TEST, NORMAL };
+
+
+/** \brief Harvest metadata from URL's referenced in an RSS or Atom feed.
+ *  \param feed_url       Where to download the RSS feed.
+ *  \param db_connection  A connection to a database w/ the structure as specified by .../cpp/data/rss.sql. Not used when "mode"
+ *                        is set to TEST.
+ *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
+ *          difference (first - second).
+ */
+UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string &feed_url,
+                                   const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
+                                   Zotero::AugmentParams * const augment_params, DbConnection * const db_connection);
 
 
 } // namespace Zotero

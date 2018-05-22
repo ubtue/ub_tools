@@ -23,8 +23,11 @@
 #include <ctime>
 #include <kchashdb.h>
 #include <uuid/uuid.h>
+#include "DbConnection.h"
 #include "MiscUtil.h"
+#include "SqlUtil.h"
 #include "StringUtil.h"
+#include "SyndicationFormat.h"
 #include "UrlUtil.h"
 #include "WebUtil.h"
 #include "util.h"
@@ -1027,10 +1030,6 @@ DownloadTracker::const_iterator DownloadTracker::end() const {
 }
 
 
-/**
- *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
- *          difference (first - second).
- */
 UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
                          const std::shared_ptr<RegexMatcher> &supported_urls_regex,
                          const std::shared_ptr<HarvestParams> &harvest_params,
@@ -1059,6 +1058,151 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
             }
         }
     }
+
+    return total_record_count_and_previously_downloaded_record_count;
+}
+
+
+namespace {
+
+
+// Returns true if we can determine that the last_build_date column value stored in the rss_feeds table for the feed identified
+// by "feed_url" is no older than the "last_build_date" time_t passed into this function.  (This is somewhat complicated by the
+// fact that both, the column value as well as the time_t value may contain indeterminate values.)
+bool FeedContainsNoNewItems(const RSSHarvestMode mode, DbConnection * const db_connection, const std::string &feed_url,
+                            const time_t last_build_date)
+{
+    db_connection->queryOrDie("SELECT last_build_date FROM rss_feeds WHERE feed_url='" + db_connection->escapeString(feed_url)
+                              + "'");
+    DbResultSet result_set(db_connection->getLastResultSet());
+
+    std::string date_string;
+    if (result_set.empty()) {
+        if (last_build_date == TimeUtil::BAD_TIME_T)
+            date_string = "0000-00-00 00:00:00";
+        else
+            date_string = SqlUtil::TimeTToDatetime(last_build_date);
+
+        if (mode == RSSHarvestMode::VERBOSE)
+            LOG_INFO("Creating new feed entry in rss_feeds table for \"" + feed_url + "\".");
+        if (mode != RSSHarvestMode::TEST)
+            db_connection->queryOrDie("INSERT INTO rss_feeds SET feed_url='" + db_connection->escapeString(feed_url)
+                                      + "',last_build_date='" + date_string + "'");
+        return false;
+    }
+
+    const DbRow first_row(result_set.getNextRow());
+    date_string = first_row["last_build_date"];
+    if (date_string != "0000-00-00 00:00:00" and last_build_date != TimeUtil::BAD_TIME_T
+        and SqlUtil::DatetimeToTimeT(date_string) >= last_build_date)
+        return true;
+
+    return false;
+}
+
+
+// Returns the feed ID for the URL "feed_url".
+std::string GetFeedID(const RSSHarvestMode mode, DbConnection * const db_connection, const std::string &feed_url) {
+    db_connection->queryOrDie("SELECT id FROM rss_feeds WHERE feed_url='" + db_connection->escapeString(feed_url)
+                              + "'");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    if (unlikely(result_set.empty())) {
+        if (mode == RSSHarvestMode::TEST)
+            return "-1"; // Must be an INT.
+        LOG_ERROR("unexpected missing feed for URL \"" + feed_url + "\".");
+    }
+    const DbRow first_row(result_set.getNextRow());
+    return first_row["id"];
+}
+
+
+// Returns true if the item with item ID "item_id" and feed ID "feed_id" were found in the rss_items table, else
+// returns false.
+bool ItemAlreadyProcessed(DbConnection * const db_connection, const std::string &feed_id, const std::string &item_id) {
+    db_connection->queryOrDie("SELECT creation_datetime FROM rss_items WHERE feed_id='"
+                              + feed_id + "' AND item_id='" + db_connection->escapeString(item_id) + "'");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    if (result_set.empty())
+        return false;
+
+    if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG) {
+        const DbRow first_row(result_set.getNextRow());
+        LOG_DEBUG("Previously retrieved item w/ ID \"" + item_id + "\" at " + first_row["creation_datetime"] + ".");
+    }
+
+    return true;
+}
+
+
+void UpdateLastBuildDate(DbConnection * const db_connection, const std::string &feed_url, const time_t last_build_date) {
+    std::string last_build_date_string;
+    if (last_build_date == TimeUtil::BAD_TIME_T)
+        last_build_date_string = "0000-00-00 00:00:00";
+    else
+        last_build_date_string = SqlUtil::TimeTToDatetime(last_build_date);
+    db_connection->queryOrDie("UPDATE rss_feeds SET last_build_date='" + last_build_date_string + "' WHERE feed_url='"
+                              + db_connection->escapeString(feed_url) + "'");
+}
+
+    
+} // unnamed namespace
+
+
+UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string &feed_url,
+                                   const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
+                                   Zotero::AugmentParams * const augment_params, DbConnection * const db_connection)
+{
+    UnsignedPair total_record_count_and_previously_downloaded_record_count;
+
+    if (mode != RSSHarvestMode::NORMAL)
+        LOG_INFO("Processing URL: " + feed_url);
+
+    Downloader downloader(feed_url);
+    if (downloader.anErrorOccurred()) {
+        LOG_WARNING("Download problem for \"" + feed_url + "\": " + downloader.getLastErrorMessage());
+        return total_record_count_and_previously_downloaded_record_count;
+    }
+
+    std::string err_msg;
+    std::unique_ptr<SyndicationFormat> syndication_format(SyndicationFormat::Factory(downloader.getMessageBody(), &err_msg));
+    if (syndication_format == nullptr) {
+        LOG_WARNING("Problem parsing XML document for \"" + feed_url + "\": " + err_msg);
+        return total_record_count_and_previously_downloaded_record_count;
+    }
+
+    const time_t last_build_date(syndication_format->getLastBuildDate());
+    if (mode != RSSHarvestMode::NORMAL) {
+        std::cout << feed_url << " (" << syndication_format->getFormatName() << "):\n";
+        std::cout << "\tTitle: " << syndication_format->getTitle() << '\n';
+        if (last_build_date != TimeUtil::BAD_TIME_T)
+            std::cout << "\tLast build date: " << TimeUtil::TimeTToUtcString(last_build_date) << '\n';
+        std::cout << "\tLink: " << syndication_format->getLink() << '\n';
+        std::cout << "\tDescription: " << syndication_format->getDescription() << '\n';
+   }
+
+    if (mode != RSSHarvestMode::TEST and FeedContainsNoNewItems(mode, db_connection, feed_url, last_build_date))
+        return total_record_count_and_previously_downloaded_record_count;
+
+    const std::string feed_id(mode == RSSHarvestMode::TEST ? "" : GetFeedID(mode, db_connection, feed_url));
+    for (const auto &item : *syndication_format) {
+        if (mode != RSSHarvestMode::TEST and ItemAlreadyProcessed(db_connection, feed_id, item.getId()))
+            continue;
+
+        const std::string title(item.getTitle());
+        if (not title.empty() and mode != RSSHarvestMode::NORMAL)
+            LOG_INFO("\t\tTitle: " + title);
+
+        const auto record_count_and_previously_downloaded_count(
+            Zotero::Harvest(item.getLink(), harvest_params, augment_params, "", /* verbose = */ mode != RSSHarvestMode::NORMAL));
+        total_record_count_and_previously_downloaded_record_count += record_count_and_previously_downloaded_count;
+
+        if (mode != RSSHarvestMode::TEST)
+            db_connection->queryOrDie("INSERT INTO rss_items SET feed_id='" + feed_id + "',item_id='"
+                                      + db_connection->escapeString(item.getId()) + "'");
+
+    }
+    if (mode != RSSHarvestMode::TEST)
+        UpdateLastBuildDate(db_connection, feed_url, last_build_date);
 
     return total_record_count_and_previously_downloaded_record_count;
 }
