@@ -175,7 +175,7 @@ public:
         return line;
     }
 
-    const std::string &getPath() const { return filename_; }
+    inline const std::string &getPath() const { return filename_; }
 
     /** Returns a File's size in bytes. */
     off_t size() const;

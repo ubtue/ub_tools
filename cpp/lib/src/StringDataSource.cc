@@ -29,6 +29,9 @@
 #include "util.h"
 
 
+const std::string StringDataSource::DEFAULT_PATH = "<StringDataSource>";
+
+
 int StringDataSource::get() {
     if (pushed_back_) {
         pushed_back_ = false;
