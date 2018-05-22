@@ -39,7 +39,7 @@
 
 
 /**
- * Note on encoding: XML files can optinally specify their encoding in the prologue/header. Also,
+ * Note on encoding: XML files can optinonally specify their encoding in the prologue/header. Also,
  *                   datasources can optionally be supplied with their corresponding encoding.
  *                   We attempt to resolve the encoding in the following manner:
  *                      1. Parse the optional header/prologue and use the encoding specified therein.
