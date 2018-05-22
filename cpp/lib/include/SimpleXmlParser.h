@@ -37,6 +37,7 @@
 #    define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 #endif // ifndef ARRAY_SIZE
 
+
 /**
  * Note on encoding: XML files can optinally specify their encoding in the prologue/header. Also,
  *                   datasources can optionally be supplied with their corresponding encoding.
@@ -256,8 +257,7 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoi
         return ch;
     for (;;) {
         if (not to_utf32_decoder_->addByte(static_cast<char>(ch))) {
-            const auto decoded(to_utf32_decoder_->getUTF32Char());
-            return static_cast<int>(decoded);
+            return static_cast<int>(to_utf32_decoder_->getUTF32Char());
         }            
         ch = input_->get();
         if (unlikely(ch == EOF))
