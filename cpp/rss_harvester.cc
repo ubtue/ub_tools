@@ -125,7 +125,7 @@ bool ItemAlreadyProcessed(DbConnection * const db_connection, const std::string 
 
 unsigned ProcessSyndicationURL(const Mode mode, const std::string &feed_url,
                                const std::shared_ptr<Zotero::HarvestParams> harvest_params,
-                               const std::shared_ptr<const Zotero::HarvestMaps> harvest_maps, DbConnection * const db_connection)
+                               Zotero::AugmentParams * const augment_params, DbConnection * const db_connection)
 {
     unsigned successfully_processed_count(0);
 
@@ -152,7 +152,7 @@ unsigned ProcessSyndicationURL(const Mode mode, const std::string &feed_url,
         if (last_build_date != TimeUtil::BAD_TIME_T)
             std::cout << "\tLast build date: " << TimeUtil::TimeTToUtcString(last_build_date) << '\n';
         std::cout << "\tLink: " << syndication_format->getLink() << '\n';
-        std::cout << "\tDescription: " << syndication_format->getDescription() << '\n'; 
+        std::cout << "\tDescription: " << syndication_format->getDescription() << '\n';
    }
 
     if (mode != TEST and FeedContainsNoNewItems(mode, db_connection, feed_url, last_build_date))
@@ -168,7 +168,7 @@ unsigned ProcessSyndicationURL(const Mode mode, const std::string &feed_url,
             std::cout << "\t\tTitle: " << title << '\n';
 
         const auto record_count_and_previously_downloaded_count(
-            Zotero::Harvest(item.getLink(), harvest_params, harvest_maps, "", /* verbose = */ mode != NORMAL));
+            Zotero::Harvest(item.getLink(), harvest_params, augment_params, "", /* verbose = */ mode != NORMAL));
         successfully_processed_count += record_count_and_previously_downloaded_count.first;
 
         if (mode != TEST)
@@ -247,15 +247,12 @@ int main(int argc, char *argv[]) {
         if (not StringUtil::EndsWith(map_directory_path, '/'))
             map_directory_path += '/';
 
-        std::shared_ptr<Zotero::HarvestMaps> harvest_maps(Zotero::LoadMapFilesFromDirectory(map_directory_path));
+        Zotero::AugmentMaps augment_maps(map_directory_path);
+        Zotero::AugmentParams augment_params(&augment_maps);
         const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
-
-        const std::string PREVIOUSLY_DOWNLOADED_HASHES_PATH(map_directory_path + "previously_downloaded.hashes");
-        Zotero::PreviouslyDownloadedHashesManager previously_downloaded_hashes_manager(PREVIOUSLY_DOWNLOADED_HASHES_PATH,
-                                                                                       &harvest_maps->previously_downloaded_);
         const std::string MARC_OUTPUT_FILE(argv[4]);
         harvest_params->format_handler_ = Zotero::FormatHandler::Factory(GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE,
-                                                                         harvest_maps, harvest_params);
+                                                                         &augment_params, harvest_params);
 
         std::unique_ptr<DbConnection> db_connection;
         if (mode != TEST) {
@@ -265,7 +262,7 @@ int main(int argc, char *argv[]) {
             const std::string sql_password(ini_file.getString("Database", "sql_password"));
             db_connection.reset(new DbConnection(sql_database, sql_username, sql_password));
         }
- 
+
         Zotero::MarcFormatHandler * const marc_format_handler(reinterpret_cast<Zotero::MarcFormatHandler *>(
             harvest_params->format_handler_.get()));
         if (unlikely(marc_format_handler == nullptr))
@@ -273,7 +270,7 @@ int main(int argc, char *argv[]) {
 
         unsigned download_count(0);
         for (const auto &server_url : server_urls)
-            download_count += ProcessSyndicationURL(mode, server_url, harvest_params, harvest_maps, db_connection.get());
+            download_count += ProcessSyndicationURL(mode, server_url, harvest_params, &augment_params, db_connection.get());
 
         LOG_INFO("Extracted metadata from " + std::to_string(download_count) + " page(s).");
     } catch (const std::exception &x) {
