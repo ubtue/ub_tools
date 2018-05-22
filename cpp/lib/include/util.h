@@ -128,3 +128,12 @@ public:
     ~DSVReader();
     bool readLine(std::vector<std::string> * const values);
 };
+
+
+template <typename T> std::string ArrayToString(T* array, size_t count) {
+    std::string buffer("[");
+    for (size_t i(0); i < count; ++i)
+        buffer.append(std::to_string(array[i])).append(",");
+    buffer.append("]");
+    return buffer;
+}
