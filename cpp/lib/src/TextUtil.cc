@@ -91,13 +91,6 @@ void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
 }
 
 
-std::string CanonizeCharset(std::string charset) {
-    StringUtil::ToLower(&charset);
-    StringUtil::RemoveChars("- ", &charset);
-    return charset;
-}
-
-
 } // unnamed namespace
 
 
@@ -986,6 +979,11 @@ uint32_t AnythingToUTF32Decoder::getUTF32Char() {
 }
 
 
+const std::string& AnythingToUTF32Decoder::getInputEncoding() const {
+    return input_encoding_;
+}
+
+
 uint32_t AnythingToUTF32Decoder::consumeAndReset() {
     auto temp(utf32_char_);
     utf32_char_ = NULL_CHARACTER;
@@ -1433,6 +1431,13 @@ std::string InitialCaps(const std::string &text) {
         LOG_ERROR("can't convert a supposed wide string to a UTF-8 string!");
 
     return utf8_string;
+}
+
+
+std::string CanonizeCharset(std::string charset) {
+    StringUtil::ToLower(&charset);
+    StringUtil::RemoveChars("- ", &charset);
+    return charset;
 }
 
 
