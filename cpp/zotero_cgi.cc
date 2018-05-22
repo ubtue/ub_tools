@@ -45,7 +45,6 @@ enum HarvestType { RSS, CRAWLING };
 const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP { { "RSS", static_cast<int>(RSS) },
                                                               { "CRAWL", static_cast<int>(CRAWLING) } };
 const std::string TEMPLATE_DIRECTORY("/usr/local/var/lib/tuelib/zotero_cgi/");
-const std::string CRAWLER_EXAMPLE_FILE("/usr/local/ub_tools/cpp/data/zotero_crawler.conf");
 const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
 const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS {
     // custom formats
@@ -102,12 +101,14 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> rss_journal_titles;
     std::vector<std::string> rss_journal_issns;
     std::vector<std::string> rss_feed_urls;
+    std::vector<std::string> rss_strptime_formats;
 
     std::vector<std::string> crawling_journal_titles;
     std::vector<std::string> crawling_journal_issns;
     std::vector<std::string> crawling_base_urls;
     std::vector<std::string> crawling_extraction_regexes;
     std::vector<std::string> crawling_depths;
+    std::vector<std::string> crawling_strptime_formats;
 
     for (const auto &name_and_section : ini) {
         const auto &section(name_and_section.second);
@@ -131,6 +132,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
                 rss_journal_titles.emplace_back(title);
                 rss_journal_issns.emplace_back(issn);
                 rss_feed_urls.emplace_back(section.getString("feed"));
+                rss_strptime_formats.emplace_back(section.getString("strptime_format", ""));
             } else if (harvest_type == CRAWLING) {
                 all_urls.emplace_back(section.getString("base_url"));
 
@@ -139,6 +141,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
                 crawling_base_urls.emplace_back(section.getString("base_url"));
                 crawling_extraction_regexes.emplace_back(section.getString("extraction_regex"));
                 crawling_depths.emplace_back(section.getString("max_crawl_depth"));
+                crawling_strptime_formats.emplace_back(section.getString("strptime_format", ""));
             }
         }
     }
@@ -157,12 +160,14 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("rss_journal_titles", rss_journal_titles);
     names_to_values_map->insertArray("rss_journal_issns", rss_journal_issns);
     names_to_values_map->insertArray("rss_feed_urls", rss_feed_urls);
+    names_to_values_map->insertArray("rss_strptime_formats", rss_strptime_formats);
 
     names_to_values_map->insertArray("crawling_journal_titles", crawling_journal_titles);
     names_to_values_map->insertArray("crawling_journal_issns", crawling_journal_issns);
     names_to_values_map->insertArray("crawling_base_urls", crawling_base_urls);
     names_to_values_map->insertArray("crawling_extraction_regexes", crawling_extraction_regexes);
     names_to_values_map->insertArray("crawling_depths", crawling_depths);
+    names_to_values_map->insertArray("crawling_strptime_formats", crawling_strptime_formats);
 
     const std::string first_crawling_journal_title(GetMinElementOrDefault(crawling_journal_titles));
     names_to_values_map->insertScalar("selected_crawling_journal_title", GetCGIParameterOrDefault(cgi_args, "crawling_journal_title",
@@ -246,7 +251,8 @@ private:
     std::string log_path_;
     pid_t pid_;
 public:
-    CrawlingTask(const std::string &url_base, const std::string &url_regex, const unsigned depth, const std::string &output_format);
+    CrawlingTask(const std::string &url_base, const std::string &url_regex, const unsigned depth,
+                 const std::string &strptime_format, const std::string &output_format);
 
     /** \brief get shell command including args (for debug output) */
     inline const std::string &getCommand() const { return command_; }
@@ -262,7 +268,9 @@ public:
     Progress getProgress() const;
 private:
     /** \brief write config file for zts_client */
-    void writeConfigFile(const std::string &file_cfg, const std::string &url_base, const std::string &url_regex, const unsigned depth);
+    void writeConfigFile(const std::string &file_cfg, const std::string &url_base,
+                         const std::string &url_regex, const unsigned depth,
+                         const std::string &strptime_format = "");
     void executeTask(const std::string &cfg_path, const std::string &dir_maps,
                      const std::string &output_format);
 };
@@ -290,10 +298,10 @@ CrawlingTask::Progress CrawlingTask::getProgress() const {
 
 
 void CrawlingTask::writeConfigFile(const std::string &file_cfg, const std::string &url_base, const std::string &url_regex,
-                                   const unsigned depth)
+                                   const unsigned depth, const std::string &strptime_format)
 {
-    std::string cfg_content = "# start_URL max_crawl_depth URL_regex\n";
-    cfg_content += url_base + " " + std::to_string(depth) + " " + url_regex;
+    std::string cfg_content = "# start_URL max_crawl_depth URL_regex [strptime_format]\n";
+    cfg_content += url_base + " " + std::to_string(depth) + " " + url_regex + " " + strptime_format;
     FileUtil::WriteStringOrDie(file_cfg, cfg_content);
 }
 
@@ -317,7 +325,8 @@ void CrawlingTask::executeTask(const std::string &cfg_path, const std::string &d
 }
 
 
-CrawlingTask::CrawlingTask(const std::string &url_base, const std::string &url_regex, const unsigned depth, const std::string &output_format)
+CrawlingTask::CrawlingTask(const std::string &url_base, const std::string &url_regex, const unsigned depth,
+                           const std::string &strptime_format, const std::string &output_format)
     : auto_temp_dir_("/tmp/ZtsMap_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
       executable_(ExecUtil::Which("zts_client"))
 {
@@ -326,7 +335,7 @@ CrawlingTask::CrawlingTask(const std::string &url_base, const std::string &url_r
     out_path_ = auto_temp_dir_.getDirectoryPath() + "/output." + file_extension;
     const std::string file_cfg(auto_temp_dir_.getDirectoryPath() + "/config.cfg");
 
-    writeConfigFile(file_cfg, url_base, url_regex, depth);
+    writeConfigFile(file_cfg, url_base, url_regex, depth, strptime_format);
     executeTask(file_cfg, local_maps_directory, output_format);
 }
 
@@ -420,7 +429,8 @@ void ProcessCrawlingAction(const std::multimap<std::string, std::string> &cgi_ar
     std::cout << "<table>\r\n";
 
     const CrawlingTask crawling_task(GetCGIParameterOrDefault(cgi_args, "crawling_base_url"), GetCGIParameterOrDefault(cgi_args, "crawling_extraction_regex"),
-                                     StringUtil::ToUnsigned(GetCGIParameterOrDefault(cgi_args, "crawling_depth")), GetCGIParameterOrDefault(cgi_args, "crawling_output_format"));
+                                     StringUtil::ToUnsigned(GetCGIParameterOrDefault(cgi_args, "crawling_depth")), GetCGIParameterOrDefault(cgi_args, "crawling_strptime_format"),
+                                     GetCGIParameterOrDefault(cgi_args, "crawling_output_format"));
 
     std::cout << "<tr><td>Command</td><td>" + crawling_task.getCommand() + "</td></tr>\r\n";
     std::cout << "<tr><td>Runtime</td><td id=\"runtime\"></td></tr>\r\n";
@@ -475,53 +485,51 @@ void ProcessCrawlingAction(const std::multimap<std::string, std::string> &cgi_ar
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
+int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    try {
-        std::multimap<std::string, std::string> cgi_args;
-        WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
-        const std::string default_action("list");
-        const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));
+    std::multimap<std::string, std::string> cgi_args;
+    WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
+    const std::string default_action("list");
+    const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));
 
-        if (action == "download")
-            ProcessDownloadAction(cgi_args);
-        else {
-            std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+    if (action == "download")
+        ProcessDownloadAction(cgi_args);
+    else {
+        std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
 
-            Template::Map names_to_values_map;
-            names_to_values_map.insertScalar("action", action);
+        Template::Map names_to_values_map;
+        names_to_values_map.insertScalar("action", action);
 
-            std::string style_css;
-            FileUtil::ReadString(TEMPLATE_DIRECTORY + "style.css", &style_css);
-            names_to_values_map.insertScalar("style_css", style_css);
+        std::string style_css;
+        FileUtil::ReadString(TEMPLATE_DIRECTORY + "style.css", &style_css);
+        names_to_values_map.insertScalar("style_css", style_css);
 
-            std::string scripts_js;
-            FileUtil::ReadString(TEMPLATE_DIRECTORY + "scripts.js", &scripts_js);
-            names_to_values_map.insertScalar("scripts_js", scripts_js);
+        std::string scripts_js;
+        FileUtil::ReadString(TEMPLATE_DIRECTORY + "scripts.js", &scripts_js);
+        names_to_values_map.insertScalar("scripts_js", scripts_js);
 
-            const std::string depth(GetCGIParameterOrDefault(cgi_args, "depth", "1"));
-            names_to_values_map.insertScalar("depth", depth);
+        const std::string depth(GetCGIParameterOrDefault(cgi_args, "depth", "1"));
+        names_to_values_map.insertScalar("depth", depth);
 
-            const std::string selected_output_format_id(GetCGIParameterOrDefault(cgi_args, "output_format_id"));
-            names_to_values_map.insertScalar("selected_output_format_id", selected_output_format_id);
-            names_to_values_map.insertArray("output_format_ids", GetOutputFormatIds());
+        const std::string selected_output_format_id(GetCGIParameterOrDefault(cgi_args, "output_format_id"));
+        names_to_values_map.insertScalar("selected_output_format_id", selected_output_format_id);
+        names_to_values_map.insertArray("output_format_ids", GetOutputFormatIds());
 
-            std::ifstream template_html(TEMPLATE_DIRECTORY + "index.html");
-            ParseConfigFile(cgi_args, &names_to_values_map);
-            Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
-            std::cout << std::flush;
+        std::ifstream template_html(TEMPLATE_DIRECTORY + "index.html");
+        ParseConfigFile(cgi_args, &names_to_values_map);
+        Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
+        std::cout << std::flush;
 
-            if (action == "rss")
-                ProcessRssAction(cgi_args);
-            else if (action == "crawling")
-                ProcessCrawlingAction(cgi_args);
-            else if (action != default_action)
-                LOG_ERROR("invalid action: \"" + action + '"');
+        if (action == "rss")
+            ProcessRssAction(cgi_args);
+        else if (action == "crawling")
+            ProcessCrawlingAction(cgi_args);
+        else if (action != default_action)
+            LOG_ERROR("invalid action: \"" + action + '"');
 
-            std::cout << "</body></html>";
-        }
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+        std::cout << "</body></html>";
     }
+
+    return EXIT_SUCCESS;
 }

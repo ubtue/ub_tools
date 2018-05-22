@@ -19,21 +19,23 @@
         {scripts_js}
 
         var rss_options_map = {{
-            {LOOP rss_journal_titles, rss_journal_issns, rss_feed_urls}
+            {LOOP rss_journal_titles, rss_journal_issns, rss_feed_urls, rss_strptime_formats}
                 "{rss_journal_titles}": {{
                     "issn": "{rss_journal_issns}",
                     "feed_url": "{rss_feed_urls}",
+                    "strptime_format": "{rss_strptime_formats}",
                 },
             {ENDLOOP}
         };
 
         var crawling_options_map = {{
-            {LOOP crawling_journal_titles, crawling_journal_issns, crawling_base_urls, crawling_extraction_regexes, crawling_depths}
+            {LOOP crawling_journal_titles, crawling_journal_issns, crawling_base_urls, crawling_extraction_regexes, crawling_depths, crawling_strptime_formats}
                 "{crawling_journal_titles}": {{
                     "issn": "{crawling_journal_issns}",
                     "base_url": "{crawling_base_urls}",
                     "regex": "{crawling_extraction_regexes}",
                     "depth": "{crawling_depths}",
+                    "strptime_format": "{crawling_strptime_formats}",
                 },
             {ENDLOOP}
         };
@@ -120,6 +122,7 @@
                 <tr><td colspan="3">Please note: This process can run for multiple minutes!</td></tr>
                 <tr><td colspan="3"><input type="submit"></input></td></tr>
             </table>
+            <input type="hidden" id="rss_strptime_format" name="rss_strptime_format" value="" />
             <input type="hidden" name="action" value="rss" />
         </form>
     </div>
@@ -173,6 +176,7 @@
                 <tr><td colspan="3">Please note: This process can run for multiple minutes!</td></tr>
                 <tr><td colspan="3"><input type="submit"></input></td></tr>
             </table>
+            <input type="hidden" id="crawling_strptime_format" name="crawling_strptime_format" value="" />
             <input type="hidden" name="action" value="crawling" />
         </form>
     </div>
