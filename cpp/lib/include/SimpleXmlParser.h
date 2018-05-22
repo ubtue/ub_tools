@@ -134,7 +134,7 @@ template<typename DataSource> const std::deque<int> SimpleXmlParser<DataSource>:
 // '##' characters denote any byte value except that two consecutive ##s cannot be both 00
 // in the case of UTF-8, the 4th byte is ignored
 template<typename DataSource> const uint8_t SimpleXmlParser<DataSource>::FIRST_FOUR_BYTES_WITH_BOM[5][4]{
-    { 0, 0, 0xFE, 0xFF }, { 0xFF, 0xFE, 0, 0 }, { 0xFE, 0xFF, /*##*/0xCD, /*##*/0xCD }, { 0xFF, 0xFE, /*##*/0xCD, /*##*/0xCD }, { 0xEF, 0xBB, 0xBF, /*##*/0xCD }
+    { 0, 0, 0xFE, 0xFF }, { 0xFF, 0xFE, 0, 0 }, { 0xFE, 0xFF, /*##*/0x0, /*##*/0x0 }, { 0xFF, 0xFE, /*##*/0x0, /*##*/0x0 }, { 0xEF, 0xBB, 0xBF, /*##*/0x0 }
 };
 
 // Encodings of the first four characters in the XML file (<?xm)
