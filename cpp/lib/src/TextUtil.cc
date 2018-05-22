@@ -979,7 +979,7 @@ uint32_t AnythingToUTF32Decoder::getUTF32Char() {
 }
 
 
-const std::string& AnythingToUTF32Decoder::getInputEncoding() const {
+const std::string &AnythingToUTF32Decoder::getInputEncoding() const {
     return input_encoding_;
 }
 
