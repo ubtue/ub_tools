@@ -171,38 +171,36 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
 
     uint8_t inital_encoding(UTF32_BE);
     bool has_BOM(true), unknown_encoding(false);
-    for (uint8_t i(inital_encoding); inital_encoding < Encoding::OTHER; ++inital_encoding, ++i) {
+    for (/* intentionally empty */; inital_encoding < Encoding::OTHER; ++inital_encoding) {
         bool found(false);
         has_BOM = true;
 
-        switch (i) {
-            case UTF16_BE:
-            case UTF16_LE:
-                if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_WITH_BOM[i], 2) == 0) {
-                    if (std::memcmp(first_four_bytes + 2, null_two_bytes, 2) != 0) {
-                       found = true;
-                    }
-                }
-                break;
-            case UTF8:
-                if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_WITH_BOM[i], 3) == 0) {                    
+        switch (inital_encoding) {
+        case UTF16_BE:
+        case UTF16_LE:
+            if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_WITH_BOM[inital_encoding], 2) == 0) {
+                if (std::memcmp(first_four_bytes + 2, null_two_bytes, 2) != 0) {
                     found = true;
                 }
-                break;
-            default:
-                if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_WITH_BOM[i], 4) == 0) {
-                    found = true;
-                }
+            }
+            break;
+        case UTF8:
+            if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_WITH_BOM[inital_encoding], 3) == 0) { 
+                found = true;
+            }
+            break;
+        default:
+            if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_WITH_BOM[inital_encoding], 4) == 0) {
+                found = true;
+            }
         }
 
         if (found)
             break;
-        else {
-            has_BOM = false;
-            if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_NO_BOM[i], 4) == 0) {
-                break;
-            }
-        }
+       
+        has_BOM = false;
+        if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_NO_BOM[inital_encoding], 4) == 0)
+            break;
     }
 
     // fallback to UTF-8
@@ -213,11 +211,11 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
 
     // attempt to parse the prologue to determine the specified encoding, if any
     switch (inital_encoding) {
-        case UTF8:
-            to_utf32_decoder_.reset(new TextUtil::UTF8ToUTF32Decoder());
-            break;
-        default:
-            to_utf32_decoder_.reset(new TextUtil::AnythingToUTF32Decoder(TextUtil::CanonizeCharset(CANONICAL_ENCODING_NAMES[inital_encoding])));
+    case UTF8:
+        to_utf32_decoder_.reset(new TextUtil::UTF8ToUTF32Decoder());
+        break;
+    default:
+        to_utf32_decoder_.reset(new TextUtil::AnythingToUTF32Decoder(TextUtil::CanonizeCharset(CANONICAL_ENCODING_NAMES[inital_encoding])));
     }
 
     // reset the file pointer while skipping the BOM, if any
@@ -256,9 +254,8 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoi
     if (unlikely(ch == EOF))
         return ch;
     for (;;) {
-        if (not to_utf32_decoder_->addByte(static_cast<char>(ch))) {
-            return static_cast<int>(to_utf32_decoder_->getUTF32Char());
-        }            
+        if (not to_utf32_decoder_->addByte(static_cast<char>(ch)))
+            return static_cast<int>(to_utf32_decoder_->getUTF32Char());         
         ch = input_->get();
         if (unlikely(ch == EOF))
             throw std::runtime_error("in SimpleXmlParser::getUnicodeCodePoint: unexpected EOF while decoding "
