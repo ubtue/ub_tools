@@ -21,7 +21,9 @@
 #include <memory>
 #include <unordered_map>
 #include <cstdlib>
+#include "DbConnection.h"
 #include "IniFile.h"
+#include "MARC.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -39,9 +41,15 @@ namespace {
 }
 
 
-void ProcessRSS(const IniFile::Section &section) {
+UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
+                            Zotero::AugmentParams * const augment_params, DbConnection * const db_connection)
+{
+    augment_params->override_ISSN_ = section.getString("issn", "");
+    augment_params->strptime_format_ = section.getString("strptime_format", "");
+
     const std::string feed_url(section.getString("feed"));
     LOG_DEBUG("feed_url: " + feed_url);
+    return Zotero::HarvestSyndicationURL(Zotero::RSSHarvestMode::NORMAL, feed_url, harvest_params, augment_params, db_connection);
 }
 
 
@@ -52,28 +60,32 @@ void InitSiteDescFromIniFileSection(const IniFile::Section &section, SimpleCrawl
 }
     
     
-void ProcessCrawl(const IniFile::Section &section, const std::string &marc_output_file, Zotero::AugmentParams * const augment_params,
-                  const SimpleCrawler::Params &crawler_params, const std::shared_ptr<RegexMatcher> &supported_urls_regex)
+UnsignedPair ProcessCrawl(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
+                          Zotero::AugmentParams * const augment_params, const SimpleCrawler::Params &crawler_params,
+                          const std::shared_ptr<RegexMatcher> &supported_urls_regex)
 {
     augment_params->override_ISSN_ = section.getString("issn", "");
     augment_params->strptime_format_ = section.getString("strptime_format", "");
 
-    std::shared_ptr<Zotero::HarvestParams> harvest_params;
-    harvest_params->format_handler_.reset(new Zotero::MarcFormatHandler(marc_output_file, augment_params, harvest_params));
-
     SimpleCrawler::SiteDesc site_desc;
     InitSiteDescFromIniFileSection(section, &site_desc);
-    Zotero::HarvestSite(site_desc, crawler_params, supported_urls_regex, harvest_params, augment_params);
+    return Zotero::HarvestSite(site_desc, crawler_params, supported_urls_regex, harvest_params, augment_params);
 }
 
 
 std::string GetMarcFormat(const std::string &output_filename) {
-    if (StringUtil::EndsWith(output_filename, ".mrc") or StringUtil::EndsWith(output_filename, ".marc"))
+    switch (MARC::GuessFileType(output_filename)) {
+    case MARC::FileType::BINARY:
         return "marc21";
-    if (StringUtil::EndsWith(output_filename, ".xml"))
+    case MARC::FileType::XML:
         return "marcxml";
-    LOG_ERROR("can't determine output format from MARC output filename \"" + output_filename + "\"!");
+    default:
+        LOG_ERROR("can't determine output format from MARC output filename \"" + output_filename + "\"!");
+    }
 }
+
+
+const std::string RSS_HARVESTER_CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_harvester.conf");
 
 
 } // unnamed namespace
@@ -104,6 +116,13 @@ int Main(int argc, char *argv[]) {
     Zotero::AugmentParams augment_params(&augment_maps);
     const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
+    std::unique_ptr<DbConnection> db_connection;
+    const IniFile rss_ini_file(RSS_HARVESTER_CONF_FILE_PATH);
+    const std::string sql_database(rss_ini_file.getString("Database", "sql_database"));
+    const std::string sql_username(rss_ini_file.getString("Database", "sql_username"));
+    const std::string sql_password(rss_ini_file.getString("Database", "sql_password"));
+    db_connection.reset(new DbConnection(sql_database, sql_username, sql_password));
+
     const std::string MARC_OUTPUT_FILE(ini_file.getString("", "marc_output_file"));
     harvest_params->format_handler_ = Zotero::FormatHandler::Factory(GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE,
                                                                      &augment_params, harvest_params);
@@ -119,7 +138,9 @@ int Main(int argc, char *argv[]) {
 
     enum Type { RSS, CRAWL };
     const std::map<std::string, int> string_to_value_map{ {"RSS", RSS }, { "CRAWL", CRAWL } };
+
     unsigned processed_section_count(0);
+    UnsignedPair total_record_count_and_previously_downloaded_record_count;
     for (const auto &section : ini_file) {
         if (not section_name_to_found_flag_map.empty()) {
             const auto section_name_and_found_flag(section_name_to_found_flag_map.find(section.first));
@@ -132,10 +153,16 @@ int Main(int argc, char *argv[]) {
         LOG_INFO("Processing section \"" + section.first + "\".");
         const Type type(static_cast<Type>(section.second.getEnum("type", string_to_value_map)));
         if (type == RSS)
-            ProcessRSS(section.second);
+            total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section.second, harvest_params, &augment_params,
+                                                                                        db_connection.get());
         else
-            ProcessCrawl(section.second, MARC_OUTPUT_FILE, &augment_params, crawler_params, supported_urls_regex);
+            total_record_count_and_previously_downloaded_record_count +=
+                ProcessCrawl(section.second, harvest_params, &augment_params, crawler_params, supported_urls_regex);
     }
+
+    LOG_INFO("Extracted metadata from "
+             + std::to_string(total_record_count_and_previously_downloaded_record_count.first
+                              - total_record_count_and_previously_downloaded_record_count.second) + " page(s).");
 
     if (section_name_to_found_flag_map.size() > processed_section_count) {
         std::cerr << "The following sections were specified but not processed:\n";
