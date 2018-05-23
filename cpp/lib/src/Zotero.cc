@@ -73,7 +73,8 @@ Date StringToDate(const std::string &date_str, const std::string &optional_strpt
     if (optional_strptime_format.empty())
         unix_time = WebUtil::ParseWebDateAndTime(date_str);
     else {
-        struct tm tm{ 0 };
+        struct tm tm;
+        std::memset(&tm, 0, sizeof(tm));
         const char * const last_char(::strptime(date_str.c_str(), optional_strptime_format.c_str(), &tm));
         if (last_char == nullptr or *last_char != '\0')
             unix_time = TimeUtil::BAD_TIME_T;
