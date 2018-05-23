@@ -93,7 +93,8 @@ Date StringToDate(const std::string &date_str, const std::string &optional_strpt
         date.month_ = tm->tm_mon;
         date.year_  = tm->tm_year;
     } else
-        LOG_ERROR("don't know how to convert \"" + date_str + "\" to a Date instance!");
+        LOG_ERROR("don't know how to convert \"" + date_str + "\" to a Date instance! (optional_strptime_format = \""
+                  + optional_strptime_format + "\")");
 
     return date;
 }
