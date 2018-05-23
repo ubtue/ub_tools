@@ -73,7 +73,7 @@ Date StringToDate(const std::string &date_str, const std::string &optional_strpt
     if (optional_strptime_format.empty())
         unix_time = WebUtil::ParseWebDateAndTime(date_str);
     else {
-        struct tm tm;
+        struct tm tm{ 0 };
         const char * const last_char(::strptime(date_str.c_str(), optional_strptime_format.c_str(), &tm));
         if (last_char == nullptr or *last_char != '\0')
             unix_time = TimeUtil::BAD_TIME_T;
@@ -81,6 +81,8 @@ Date StringToDate(const std::string &date_str, const std::string &optional_strpt
             date.year_ = tm.tm_year + 1900;
             date.month_ = tm.tm_mon + 1;
             date.day_ = tm.tm_mday;
+            if (date.day_ == 0)
+                date.day_ = 1;
             return date;
         }
     }
@@ -90,8 +92,8 @@ Date StringToDate(const std::string &date_str, const std::string &optional_strpt
         if (unlikely(tm == nullptr))
             LOG_ERROR("gmtime(3) failed to convert a time_t! (" + date_str + ")");
         date.day_   = tm->tm_mday;
-        date.month_ = tm->tm_mon;
-        date.year_  = tm->tm_year;
+        date.month_ = tm->tm_mon + 1;
+        date.year_  = tm->tm_year + 1900;
     } else
         LOG_ERROR("don't know how to convert \"" + date_str + "\" to a Date instance!");
 
@@ -646,7 +648,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
             Date date(StringToDate(date_raw, augment_params->strptime_format_));
-            std::string date_normalized(std::to_string(date.year_) + "-" + std::to_string(date.month_) + "-" + std::to_string(date.day_));
+            std::string date_normalized(std::to_string(date.year_) + "-" + StringUtil::ToString(date.month_, 10, 2) + "-" 
+                                        + StringUtil::ToString(date.day_, 10, 2));
             custom_fields.emplace(std::pair<std::string, std::string>("date_normalized", date_normalized));
             comments.emplace_back("normalized date to: " + date_normalized);
         }
