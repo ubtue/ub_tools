@@ -49,7 +49,7 @@ public:
     DbRow &operator=(const DbRow &rhs) = default;
 
     /** \return The number of fields in the row. */
-    inline size_t size() const { return field_name_to_index_map_->size(); }
+    inline size_t size() const { return field_count_; }
 
     /** \return True if the row contains no columns, else false. */
     inline bool empty() const { return field_name_to_index_map_->empty(); }
