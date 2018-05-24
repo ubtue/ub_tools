@@ -24,49 +24,71 @@ void Usage() {
 
 
 void ProcessSingleArgument(const char * const arg, Template::Map * const names_to_values_map) {
-    const 
+    const char *ch(arg);
     std::string variable_name;
+    while (*ch != ':') {
+        if (unlikely(*ch == '\0'))
+            LOG_ERROR("failed to find the colon separating the variable name from one or more values!");
+        variable_name += *ch++;
+    }
+    ++ch; // Skip over colon.
 
-    
+    std::vector<std::vector<std::string>> columns;
+    std::vector<std::string> column;
+    bool escaped(false);
+    std::string current_value;
+    while (*ch != '\0') {
+        if (escaped) {
+            current_value += *ch;
+            escaped = false;
+        } else if (*ch == '\\')
+            escaped = true;
+        else {
+            if (*ch == ':') {
+                column.emplace_back(current_value);
+                current_value.clear();
+            } else if (*ch == ';') {
+                if (columns.empty() or columns[0].size() == column.size())
+                    columns.emplace_back(column);
+                else
+                    LOG_ERROR("a column of \"" + variable_name + "\" has " + std::to_string(column.size())
+                              + " entries while the 1st column has " + std::to_string(columns[0].size()) + " entries!");
+                column.clear();
+            } else
+                current_value += *ch;
+        }
+
+        ++ch;
+    }
+    column.emplace_back(current_value);
+
+    if (unlikely(columns.empty() and column.empty()))
+        LOG_ERROR("missing values for \"" + variable_name + "\"!");
+
+    if (columns.empty()) {
+        if (column.size() == 1)
+            names_to_values_map->insertScalar(variable_name, column[0]);
+        else
+            names_to_values_map->insertArray(variable_name, column);
+    } else {
+        if (column.size() != columns[0].size())
+            LOG_ERROR("last column of \"" + variable_name + "\" has " + std::to_string(column.size()) + " entries while the 1st column has "
+                      + std::to_string(columns[0].size()) + " entries!");
+        columns.emplace_back(column);
+
+        std::vector<std::shared_ptr<Template::Value>> array_of_arrays;
+        for (const auto &single_column : columns)
+            array_of_arrays.emplace_back(new Template::ArrayValue(variable_name, single_column));
+        names_to_values_map->insertArray(variable_name, array_of_arrays);
+    }
 }
 
 
 void ExtractNamesAndValues(const int argc, char *argv[], Template::Map * const names_to_values_map) {
     names_to_values_map->clear();
 
-    for (int arg_no(2); arg_no < argc; ++arg_no) {
-        std::string arg(argv[arg_no]);
-        const auto first_colon_pos(arg.find(':'));
-        if (first_colon_pos == std::string::npos)
-            LOG_ERROR("missing variable name: \"" + arg + "\"!");
-        const std::string name(arg.substr(0, first_colon_pos));
-        arg = arg.substr(first_colon_pos + 1);
-        std::vector<std::string> values;
-        const auto first_semicolon_pos(arg.find(';'));
-        if (first_semicolon_pos != std::string::npos) { // We have an array of arrays.
-            std::vector<std::string> arrays;
-            StringUtil::Split(arg, ';', &arrays);
-            std::vector<std::shared_ptr<Template::Value>> array_of_arrays;
-            for (unsigned i(0); i < arrays.size(); ++i) {
-                StringUtil::Split(arrays[i], ':', &values);
-                if (values.empty())
-                    LOG_ERROR("subarray " + std::to_string(i) + " of \"" + name + "\" is missing at least one value!");
-                std::shared_ptr<Template::ArrayValue> subarray(new Template::ArrayValue(name + "[" + std::to_string(i) + "]"));
-                for (const auto &value : values)
-                    subarray->appendValue(value);
-                array_of_arrays.emplace_back(subarray);
-            }
-            names_to_values_map->insertArray(name, array_of_arrays);
-        } else {
-            StringUtil::Split(arg, ':', &values);
-            if (values.empty())
-                LOG_ERROR(name + " is missing at least one value!");
-            if (values.size() == 1)
-                names_to_values_map->insertScalar(name, values.front());
-            else
-                names_to_values_map->insertArray(name, values);
-        }
-    }
+    for (int arg_no(2); arg_no < argc; ++arg_no)
+        ProcessSingleArgument(argv[arg_no], names_to_values_map);
 }
 
 
