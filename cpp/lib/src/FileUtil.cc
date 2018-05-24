@@ -296,7 +296,8 @@ static bool Stat(struct stat * const stat_buf, const std::string &path, std::str
     errno = 0;
 
     if (::stat(path.c_str(), stat_buf) != 0) {
-        *error_message = "can't stat(2) \"" + path + "\": " + std::string(::strerror(errno));
+        if (error_message != nullptr)
+            *error_message = "can't stat(2) \"" + path + "\": " + std::string(::strerror(errno));
         errno = 0;
         return false;
     }
