@@ -171,6 +171,13 @@ bool AppendString(const std::string &path, const std::string &data);
 bool Exists(const std::string &path, std::string * const error_message = nullptr);
 
 
+/** \brief  Does the named file or directory exist and is it readable?.
+ *  \param  path           The path of the file.
+ *  \param  error_message  Where to store an error message if an error occurred.
+ */
+bool IsReadable(const std::string &path, std::string * const error_message = nullptr);
+
+
 std::string GetCurrentWorkingDirectory();
 
 
