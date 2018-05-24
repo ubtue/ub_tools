@@ -727,6 +727,10 @@ std::string UrlEncodeFunc::call(const std::vector<const Value *> &arguments) con
 
 
 void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_to_values_map, const std::vector<Function *> &functions) {
+    if (unlikely(not input))
+        LOG_ERROR("input is bad!");
+    if (unlikely(not output))
+        LOG_ERROR("input is bad!");
     std::vector<Function *> all_functions(functions);
     all_functions.emplace_back(new LengthFunc());
     all_functions.emplace_back(new UrlEncodeFunc());

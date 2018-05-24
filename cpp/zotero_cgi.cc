@@ -44,7 +44,6 @@ std::string zts_url;
 enum HarvestType { RSS, CRAWLING };
 const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP { { "RSS", static_cast<int>(RSS) },
                                                               { "CRAWL", static_cast<int>(CRAWLING) } };
-const std::string TEMPLATE_DIRECTORY("/usr/local/var/lib/tuelib/zotero_cgi/");
 const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
 const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS {
     // custom formats
@@ -482,6 +481,9 @@ void ProcessCrawlingAction(const std::multimap<std::string, std::string> &cgi_ar
 }
 
 
+const std::string TEMPLATE_DIRECTORY("/usr/local/var/lib/tuelib/zotero_cgi/");
+
+
 } // unnamed namespace
 
 
@@ -516,7 +518,12 @@ int Main(int argc, char *argv[]) {
         names_to_values_map.insertScalar("selected_output_format_id", selected_output_format_id);
         names_to_values_map.insertArray("output_format_ids", GetOutputFormatIds());
 
-        std::ifstream template_html(TEMPLATE_DIRECTORY + "index.html");
+        const std::string TEMPLATE_FILENAME(TEMPLATE_DIRECTORY + "index.html");
+        std::string error_message;
+        if (not FileUtil::IsReadable(TEMPLATE_FILENAME, &error_message))
+            LOG_ERROR(error_message);
+
+        std::ifstream template_html(TEMPLATE_FILENAME);
         ParseConfigFile(cgi_args, &names_to_values_map);
         Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
         std::cout << std::flush;
