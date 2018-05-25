@@ -831,10 +831,10 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
     if (log) {
         LOG_INFO("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
-                     + harvest_url + '\n' + "of which "
-                     + StringUtil::ToString(record_count_and_previously_downloaded_count.first
-                                            - record_count_and_previously_downloaded_count.second)
-                     + " records were new records.");
+                 + harvest_url + '\n' + "of which "
+                 + StringUtil::ToString(record_count_and_previously_downloaded_count.first
+                                        - record_count_and_previously_downloaded_count.second)
+                 + " records were new records.");
     }
     return record_count_and_previously_downloaded_count;
 }
@@ -847,7 +847,7 @@ PreviouslyDownloadedHashesManager::PreviouslyDownloadedHashesManager(
     if (not FileUtil::Exists(hashes_path))
         return;
 
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie((hashes_path_)));
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(hashes_path_));
     while (not input->eof()) {
         std::string line(input->getline());
         StringUtil::Trim(&line);
@@ -1050,7 +1050,7 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
         else if (page_details.error_message_.empty()) {
             augment_params->strptime_format_ = site_desc.strptime_format_;
             const auto record_count_and_previously_downloaded_count(
-                Zotero::Harvest(page_details.url_, harvest_params, augment_params, page_details.body_));
+                Harvest(page_details.url_, harvest_params, augment_params, page_details.body_));
             total_record_count_and_previously_downloaded_record_count.first  += record_count_and_previously_downloaded_count.first;
             total_record_count_and_previously_downloaded_record_count.second += record_count_and_previously_downloaded_count.second;
             if (progress_file != nullptr) {
@@ -1152,8 +1152,8 @@ void UpdateLastBuildDate(DbConnection * const db_connection, const std::string &
 
 
 UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string &feed_url,
-                                   const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                                   Zotero::AugmentParams * const augment_params, DbConnection * const db_connection)
+                                   const std::shared_ptr<HarvestParams> &harvest_params,
+                                   AugmentParams * const augment_params, DbConnection * const db_connection)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
 
@@ -1196,7 +1196,7 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
             LOG_INFO("\t\tTitle: " + title);
 
         const auto record_count_and_previously_downloaded_count(
-            Zotero::Harvest(item.getLink(), harvest_params, augment_params, "", /* verbose = */ mode != RSSHarvestMode::NORMAL));
+            Harvest(item.getLink(), harvest_params, augment_params, "", /* verbose = */ mode != RSSHarvestMode::NORMAL));
         total_record_count_and_previously_downloaded_record_count += record_count_and_previously_downloaded_count;
 
         if (mode != RSSHarvestMode::TEST)
