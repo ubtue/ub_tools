@@ -326,13 +326,11 @@ void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &o
     if (custom_node != nullptr) {
         const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
         std::string date_str(custom_object->getOptionalStringValue("date_normalized"));
-        std::string strptime_format;
         if (date_str.empty())
             date_str = custom_object->getOptionalStringValue("date_raw");
-        else
-            strptime_format = "%Y-%m-%d";
 
-        const Date date(StringToDate(date_str, strptime_format));
+        const std::string STRPTIME_FORMAT(augment_params_->strptime_format_.empty() ? "%Y-%m-%d" : augment_params_->strptime_format_);
+        const Date date(StringToDate(date_str, STRPTIME_FORMAT));
         if (date.year_ != Date::INVALID)
             subfields.emplace_back('j', std::to_string(date.year_));
     }
