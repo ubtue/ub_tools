@@ -27,6 +27,10 @@
 #include "util.h"
 
 
+// Forward declaration:
+class IniFile;
+
+
 class DbConnection {
 public:
     enum Type { T_MYSQL, T_SQLITE };
@@ -42,6 +46,11 @@ public:
     DbConnection(const std::string &database_name, const std::string &user, const std::string &passwd = "",
                  const std::string &host = "localhost", const unsigned port = MYSQL_PORT)
         { type_ = T_MYSQL; init(database_name, user, passwd, host, port); }
+
+    // Expects to find entries named "sql_database", "sql_username" and "sql_password".  Optionally there may also
+    // be an entry named "sql_host".  If this entry is missing a default value of "localhost" will be assumed.
+    // Another optional entry is "sql_port".  If that entry is missing the default value MYSQL_PORT will be used.
+    explicit DbConnection(const IniFile &ini_file, const std::string &ini_file_section = "Database");
 
     DbConnection(const std::string &database_path, const OpenMode open_mode);
 
