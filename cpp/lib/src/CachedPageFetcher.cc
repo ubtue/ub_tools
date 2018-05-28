@@ -246,7 +246,7 @@ std::string CachedPageFetcher::RobotsDotTxtOptionToString(const RobotsDotTxtOpti
         return "IGNORE_ROBOTS_DOT_TXT";
     default:
         throw std::runtime_error("in CachedPageFetcher::RobotsDotTxtOptionToString: unknown option: "
-                                 + StringUtil::ToString(robots_dot_txt_option) + "!");
+                                 + StringUtil::ToString(static_cast<unsigned int>(robots_dot_txt_option)) + "!");
     }
 }
 
@@ -259,7 +259,7 @@ std::string CachedPageFetcher::RobotsDotTxtOptionToBool(const RobotsDotTxtOption
         return "FALSE";
     default:
         throw std::runtime_error("in CachedPageFetcher::RobotsDotTxtOptionToBool: unknown option: "
-                                 + StringUtil::ToString(robots_dot_txt_option) + "!");
+                                 + StringUtil::ToString(static_cast<unsigned int>(robots_dot_txt_option)) + "!");
     }
 }
 

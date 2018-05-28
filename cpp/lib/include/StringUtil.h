@@ -37,6 +37,8 @@
 #include <string>
 #include <list>
 #include <stdexcept>
+#include <type_traits>
+#include <cassert>
 #include <cctype>
 #include <cerrno>
 #include <cstdarg>
@@ -295,7 +297,7 @@ inline std::string TrimWhite(const char * const s)
 }
 
 
-/** \brief  Convert a (signed) long long to a string.
+/** \brief  Convert a number to a string.
  *  \param  n              The number to convert.
  *  \param  radix          The base to use for the resulting string representation.
  *  \param  width          If this is < 0 then pad resulting string up to width on the left, if this is > 0 then pad resulting string up to width on the right.
@@ -308,109 +310,50 @@ inline std::string TrimWhite(const char * const s)
  *                         are separated by "grouping_char's."
  *  \return A string representation for "n."
  */
-std::string ToString(long long n, const unsigned radix = 10, const int width = 0, const char padding_char = ' ', const char grouping_char = '\0', const unsigned grouping_size = 3);
+template <typename T> std::string ToString(T n, const unsigned radix = 10, const int width = 0,
+                                           const char padding_char = ' ', const char grouping_char = '\0', const unsigned grouping_size = 3) {
+        assert(radix >= 2 and radix <= 36);
 
+        static const char DIGITS[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        char buf[129+1]; // enough room for a base-2 negative 128 bit number
+        char *cp = buf + sizeof(buf) - 1;
+        *cp = '\0';
+        std::string result;
 
-/** \brief  Convert a (signed) long to a string */
-std::string ToString(long n, const unsigned radix = 10, const int width = 0);
+        bool negate(false);
+        if (std::is_signed<T>::value) {
+                negate = n < 0;
+                if (n < 0)
+                        n = -n;
+        }
 
+        unsigned count(0);
+        do {
+                *--cp = DIGITS[n % radix];
+                n /= radix;
+                ++count;
+                if (grouping_char != '\0' and count % grouping_size == 0)
+                *--cp = grouping_char;
+        } while (n != 0);
 
-/** \brief  Convert an int to a string */
-inline std::string ToString(int n, const unsigned radix = 10, const int width = 0)
-{
-        return ToString(static_cast<long>(n), radix, width);
-}
+        // Remove a leading "grouping_char" if necessary and update "count":
+        if (grouping_char != '\0') {
+                if (count % grouping_size == 0)
+                ++cp;
+                count += (count - 1) / grouping_size;
+        }
 
+        if (negate)
+                *--cp = '-';
 
-/** \brief  Convert a short int to a string */
-inline std::string ToString(short n, const unsigned radix = 10, const int width = 0)
-{
-        return ToString(static_cast<long>(n), radix, width);
-}
-
-
-/** \brief  Convert an unsigned long long to a string.
- *  \param  n              Number to be converted.
- *  \param  radix          Base for conversion.  (Typically 10, 16 or 8.)
- *  \param  width          Min. width of converted string.
- *  \param  grouping_char  If non-NUL, this character will be inserted after each group of "grouping_size" characters
- *                         starting at the end of the string.  Should this rule result in a leading character position
- *                         it will be suppressed at that position.
- *  \param  grouping_size  Used if grouping_char is non-NUL.  Indicates the size of a group of output characters that are separated by "grouping_char's."
- *  \return A string representation for "n."
- */
-std::string ToString(unsigned long long n, const unsigned radix = 10, const int width = 0,
-                     const char grouping_char = '\0', const unsigned grouping_size = 3);
-
-
-/** \brief  Convert a pointer to a string.
- *  \param  n              The pointer to convert.
- *  \param  radix          The base to use for the resulting string representation.
- *  \param  width          If this is < 0 then pad resulting string up to width on the left, if this is > 0 then pad resulting string up to width on the
- *                         right.  Default is 0 (do not pad).
- *  \param  grouping_char  If non-NUL, this character will be inserted after each group of "grouping_size" characters
- *                         starting at the end of the string.  Should this rule result in a leading character position
- *                         it will be suppressed at that position.
- *  \param  grouping_size  Used if grouping_char is non-NUL.  Indicates the size of a group of output characters that are separated by "grouping_char's."
- *  \return A string representation for "n."
- */
-template<typename Type> inline std::string ToString(const Type * const ptr, const unsigned radix = 16, const int width = 0,
-                                                    const char grouping_char = '\0', const unsigned grouping_size = 2)
-{
-        return ToString((unsigned long long)(ptr), radix, width, grouping_char, grouping_size);
-}
-
-
-/** \brief  Convert an unsigned long to a string.
- *  \param  n      The unsigned long to convert to a string.
- *  \param  radix  The number base of the number to be converted.
- *  \param  width  Pad up to this width with spaces.  If width is positive the number will be right-justified, else it
- *                 will be left-justified.
- *  \param  grouping_char  If non-NUL, this character will be inserted after each group of "grouping_size" characters
- *                         starting at the end of the string.  Should this rule result in a leading character position
- *                         it will be suppressed at that position.
- *  \param  grouping_size  Used if grouping_char is non-NUL.  Indicates the size of a group of output characters that
- *                         are separated by "grouping_char's."
- *  \return A string representation for "n."
- */
-inline std::string ToString(unsigned long n, const unsigned radix = 10, const int width = 0,
-                            const char grouping_char = '\0', const unsigned grouping_size = 3)
-        { return ToString(static_cast<unsigned long long>(n), radix, width, grouping_char, grouping_size); }
-
-
-/** \brief  Convert an unsigned int to a string.
- *  \param  n      The unsigned long to convert to a string.
- *  \param  radix  The number base of the number to be converted.
- *  \param  width  Pad up to this width with spaces.  If width is positive the number will be right-justified, else it
- *                 will be left-justified.
- *  \param  grouping_char  If non-NUL, this character will be inserted after each group of "grouping_size" characters
- *                         starting at the end of the string.  Should this rule result in a leading character position
- *                         it will be suppressed at that position.
- *  \param  grouping_size  Used if grouping_char is non-NUL.  Indicates the size of a group of output characters that
- *                         are separated by "grouping_char's."
- *  \return A string representation for "n."
- */
-inline std::string ToString(unsigned n, const unsigned radix = 10, const int width = 0,
-                            const char grouping_char = '\0', const unsigned grouping_size = 3)
-        { return ToString(static_cast<unsigned long long>(n), radix, width, grouping_char, grouping_size); }
-
-
-/** \brief  Convert an unsigned short int to a string.
- *  \param  n              The unsigned long to convert to a string.
- *  \param  radix          The number base of the number to be converted.
- *  \param  width          Pad up to this width with spaces.  If width is positive the number will be right-justified,
- *                         else it will be left-justified.
- *  \param  grouping_char  If non-NUL, this character will be inserted after each group of "grouping_size" characters
- *                         starting at the end of the string.  Should this rule result in a leading character position
- *                         it will be suppressed at that position.
- *  \param  grouping_size  Used if grouping_char is non-NUL.  Indicates the size of a group of output characters that
- *                         are separated by "grouping_char's."
- *  \return A string representation for "n."
- */
-inline std::string ToString(unsigned short n, const unsigned radix = 10, const int width = 0,
-                            const char grouping_char = '\0', const unsigned grouping_size = 3)
-{
-        return ToString(static_cast<unsigned long long>(n), radix, width, grouping_char, grouping_size);
+        const unsigned abs_width(abs(width));
+        if (count < abs_width) {
+                if (width < 0)
+                return cp + std::string(abs_width - count, padding_char);
+                else
+                return std::string(abs_width - count, padding_char) + cp;
+        } else
+                return cp;                                           
 }
 
 
