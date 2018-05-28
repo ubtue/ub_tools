@@ -127,12 +127,12 @@ struct HarvestParams {
 };
 
 
-/** \class PreviousDownloadManager
+/** \class DownloadTracker
  *  \brief Loads manages and stores the timestamps, hashes of previously downloaded metadata records.
  *  \note  Each entry in the database has the following structure: a time_t timestamp, followed by a NUL-terminated error message
  *         followed by an optional hash.  Either the hash is missing or the error message is the empty string.
  */
-class PreviousDownloadManager {
+class DownloadTracker {
     mutable kyotocabinet::HashDB db_;
     std::unordered_set<std::string> previously_downloaded_;
 public:
@@ -148,8 +148,8 @@ public:
 public:
     static const std::string DEFAULT_ZOTERO_DOWNLOADS_DB_PATH;
 public:
-    explicit PreviousDownloadManager(const std::string &previous_downloads_db_path = DEFAULT_ZOTERO_DOWNLOADS_DB_PATH);
-    ~PreviousDownloadManager() = default;
+    explicit DownloadTracker(const std::string &previous_downloads_db_path = DEFAULT_ZOTERO_DOWNLOADS_DB_PATH);
+    ~DownloadTracker() = default;
 
     /** \brief Checks if "url" or ("url", "hash") have already been downloaded.
      *  \return True if we have find an entry for "url" or ("url", "hash"), else false.
@@ -181,7 +181,7 @@ public:
 
 class FormatHandler {
 protected:
-    PreviousDownloadManager previous_download_manager_;
+    DownloadTracker download_tracker_;
     std::string output_format_;
     std::string output_file_;
     AugmentParams * const augment_params_;
@@ -189,13 +189,13 @@ protected:
 protected:
     FormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format, const std::string &output_file,
                   AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params)
-        : previous_download_manager_(previous_downloads_db_path), output_format_(output_format), output_file_(output_file),
+        : download_tracker_(previous_downloads_db_path), output_format_(output_format), output_file_(output_file),
           augment_params_(augment_params), harvest_params_(harvest_params)
         { }
 public:
     virtual ~FormatHandler() = default;
 
-    inline PreviousDownloadManager &getPreviousDownloadManager() { return previous_download_manager_; }
+    inline DownloadTracker &getDownloadTracker() { return download_tracker_; }
 
     /** \brief Convert & write single record to output file */
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) = 0;
