@@ -69,23 +69,30 @@ public:
 Date StringToDate(const std::string &date_str, const std::string &optional_strptime_format) {
     Date date;
 
-    time_t unix_time;
+    time_t unix_time(TimeUtil::BAD_TIME_T);
     if (optional_strptime_format.empty())
         unix_time = WebUtil::ParseWebDateAndTime(date_str);
     else {
         struct tm tm;
-        std::memset(&tm, 0, sizeof(tm));
-        const char * const last_char(::strptime(date_str.c_str(), optional_strptime_format.c_str(), &tm));
-        if (last_char == nullptr or *last_char != '\0')
-            unix_time = TimeUtil::BAD_TIME_T;
-        else {
-            date.year_ = tm.tm_year + 1900;
-            date.month_ = tm.tm_mon + 1;
-            date.day_ = tm.tm_mday;
-            if (date.day_ == 0)
-                date.day_ = 1;
-            return date;
-        }
+        std::vector<std::string> format_string_splits;
+
+        // try available format strings until a matching one is found
+        if (StringUtil::SplitThenTrimWhite(optional_strptime_format, '|', &format_string_splits)) {
+            for (const auto &format_string : format_string_splits) {
+                std::memset(&tm, 0, sizeof(tm));
+                const char * const last_char(::strptime(date_str.c_str(), format_string.c_str(), &tm));
+                if (last_char == nullptr or *last_char != '\0')
+                    unix_time = TimeUtil::BAD_TIME_T;
+                else {
+                    date.year_ = tm.tm_year + 1900;
+                    date.month_ = tm.tm_mon + 1;
+                    date.day_ = tm.tm_mday;
+                    if (date.day_ == 0)
+                        date.day_ = 1;
+                    return date;
+                }
+            }
+        }      
     }
 
     if (unix_time != TimeUtil::BAD_TIME_T) {
@@ -449,8 +456,12 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                 ExtractVolumeYearIssueAndPages(*object_node, &new_record);
             } else if (item_type == "magazineArticle")
                 ExtractVolumeYearIssueAndPages(*object_node, &new_record);
-            else
-                LOG_ERROR("unknown item type: \"" + item_type + "\"!");
+            else if (item_type == "webpage") {
+                // just add the encoding marker
+                LOG_WARNING("TODO: add proper support for webpages");
+                new_record.insertField("935", { { 'c', "website" } });
+            } else
+                LOG_ERROR("unknown item type: \"" + item_type + "\"! JSON node dump: " + object_node->toString());
         } else if (key_and_node.first == "rights") {
             const std::string copyright(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
                                                                               key_and_node.second)->getValue());
@@ -648,8 +659,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
             Date date(StringToDate(date_raw, augment_params->strptime_format_));
-            std::string date_normalized(std::to_string(date.year_) + "-" + StringUtil::ToString(date.month_, 10, 2) + "-" 
-                                        + StringUtil::ToString(date.day_, 10, 2));
+            std::string date_normalized(std::to_string(date.year_) + "-" + StringUtil::ToString(date.month_, 10, 2, '0') + "-" 
+                                        + StringUtil::ToString(date.day_, 10, 2, '0'));
             custom_fields.emplace(std::pair<std::string, std::string>("date_normalized", date_normalized));
             comments.emplace_back("normalized date to: " + date_normalized);
         }
