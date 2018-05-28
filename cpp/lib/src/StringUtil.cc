@@ -11,7 +11,7 @@
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
  *  Copyright 2002-2005 Dr. Johannes Ruscheinski.
- *  Copyright 2017,2018 Universit�tsbibliothek T�bingen
+ *  Copyright 2017,2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
