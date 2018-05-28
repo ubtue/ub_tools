@@ -23,6 +23,7 @@
 
 #include <memory>
 #include <ctime>
+#include <kchashdb.h>
 #include "Downloader.h"
 #include "JSON.h"
 #include "MARC.h"
@@ -92,9 +93,8 @@ struct AugmentMaps {
     std::unordered_map<std::string, std::string> ISSN_to_superior_ppn_map_;
     std::unordered_map<std::string, std::string> ISSN_to_volume_map_;
     std::unordered_map<std::string, std::string> language_to_language_code_map_;
-    std::unordered_set<std::string> previously_downloaded_;
-
-    AugmentMaps(const std::string &map_directory_path);
+public:
+    explicit AugmentMaps(const std::string &map_directory_path);
 };
 
 
@@ -127,27 +127,83 @@ struct HarvestParams {
 };
 
 
+/** \class DownloadTracker
+ *  \brief Loads manages and stores the timestamps, hashes of previously downloaded metadata records.
+ *  \note  Each entry in the database has the following structure: a time_t timestamp, followed by a NUL-terminated error message
+ *         followed by an optional hash.  Either the hash is missing or the error message is the empty string.
+ */
+class DownloadTracker {
+    mutable kyotocabinet::HashDB db_;
+    std::unordered_set<std::string> previously_downloaded_;
+public:
+    struct Entry {
+        std::string url_;
+        time_t creation_time_;
+        std::string error_message_;
+        std::string hash_;
+    public:
+        Entry(const std::string &url, const time_t &creation_time, const std::string &error_message, const std::string &hash) 
+            : url_(url), creation_time_(creation_time), error_message_(error_message), hash_(hash) { }
+    };
+public:
+    static const std::string DEFAULT_ZOTERO_DOWNLOADS_DB_PATH;
+public:
+    explicit DownloadTracker(const std::string &previous_downloads_db_path = DEFAULT_ZOTERO_DOWNLOADS_DB_PATH);
+    ~DownloadTracker() = default;
+
+    /** \brief Checks if "url" or ("url", "hash") have already been downloaded.
+     *  \return True if we have find an entry for "url" or ("url", "hash"), else false.
+     */
+    bool hasAlreadyBeenDownloaded(const std::string &url, time_t * const creation_time, std::string * const error_message,
+                                  const std::string &hash = "") const;
+
+    void addOrReplace(const std::string &url, const std::string &hash, const std::string &error_message);
+    size_t listMatches(const std::string &url_regex, std::vector<Entry> * const entries) const;
+    size_t deleteMatches(const std::string &url_regex);
+
+    /** \return 0 if no matching entry was found, o/w 1. */
+    size_t deleteSingleEntry(const std::string &url);
+
+    /** \deletes all entries that have timestamps <= "cutoff_timestamp".
+     *  \return  The number of deleted entries.
+     */
+    size_t deleteOldEntries(const time_t cutoff_timestamp);
+
+    /** \brief Deletes all entries in the database.
+     *  \return The number of deleted entries.
+     */
+    inline size_t clear() { return deleteOldEntries(0); }
+    
+    size_t size() const;
+    inline std::string getPath() const { return db_.path(); }
+};
+
+
 class FormatHandler {
 protected:
+    DownloadTracker download_tracker_;
     std::string output_format_;
     std::string output_file_;
     AugmentParams * const augment_params_;
     const std::shared_ptr<const HarvestParams> &harvest_params_;
-
-    FormatHandler(const std::string &output_format, const std::string &output_file,
+protected:
+    FormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format, const std::string &output_file,
                   AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params)
-        : output_format_(output_format), output_file_(output_file), augment_params_(augment_params), harvest_params_(harvest_params)
+        : download_tracker_(previous_downloads_db_path), output_format_(output_format), output_file_(output_file),
+          augment_params_(augment_params), harvest_params_(harvest_params)
         { }
 public:
     virtual ~FormatHandler() = default;
+
+    inline DownloadTracker &getDownloadTracker() { return download_tracker_; }
 
     /** \brief Convert & write single record to output file */
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) = 0;
 
     // The output format must be one of "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
     // "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei", "json", "marc21", or "marcxml".
-    static std::unique_ptr<FormatHandler> Factory(const std::string &output_format, const std::string &output_file,
-                                                  AugmentParams * const augment_params,
+    static std::unique_ptr<FormatHandler> Factory(const std::string &previous_downloads_db_path, const std::string &output_format,
+                                                  const std::string &output_file, AugmentParams * const augment_params,
                                                   const std::shared_ptr<const HarvestParams> &harvest_params);
 };
 
@@ -156,7 +212,7 @@ class JsonFormatHandler final : public FormatHandler {
     unsigned record_count_;
     File *output_file_object_;
 public:
-    JsonFormatHandler(const std::string &output_format, const std::string &output_file,
+    JsonFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format, const std::string &output_file,
                       AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~JsonFormatHandler();
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
@@ -167,7 +223,7 @@ class ZoteroFormatHandler final : public FormatHandler {
     unsigned record_count_;
     std::string json_buffer_;
 public:
-    ZoteroFormatHandler(const std::string &output_format, const std::string &output_file,
+    ZoteroFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format, const std::string &output_file,
                         AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~ZoteroFormatHandler();
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
@@ -177,7 +233,7 @@ public:
 class MarcFormatHandler final : public FormatHandler {
     std::unique_ptr<MARC::Writer> marc_writer_;
 public:
-    MarcFormatHandler(const std::string &output_file, AugmentParams * const augment_params,
+    MarcFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_file, AugmentParams * const augment_params,
                       const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~MarcFormatHandler() = default;
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
@@ -234,91 +290,6 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
                                       const std::string &harvested_html = "", const bool log = true);
 
 
-// \brief Loads and stores the hashes of previously downloaded metadata records.
-class PreviouslyDownloadedHashesManager {
-    std::string hashes_path_;
-    std::unordered_set<std::string> &previously_downloaded_;
-public:
-    PreviouslyDownloadedHashesManager(const std::string &hashes_path,
-                                      std::unordered_set<std::string> * const previously_downloaded);
-    ~PreviouslyDownloadedHashesManager();
-};
-
-
-/** \class DownloadTracker
- *  \brief Keeps track of already downloaded/processed URL's.
- */
-class DownloadTracker {
-public:
-    class Entry {
-        std::string url_;
-        time_t recording_time_;
-        std::string optional_message_;
-    public:
-        Entry(const std::string &url, const time_t recording_time, const std::string &optional_message)
-            : url_(url), recording_time_(recording_time), optional_message_(optional_message) { }
-        Entry() = default;
-        Entry(const Entry &rhs) = default;
-
-        inline const std::string &getURL() const { return url_; }
-        inline time_t getRecodingTime() const { return recording_time_; }
-        inline const std::string &getOptionalMessage() const { return optional_message_; }
-        inline bool operator!=(const Entry &rhs) const { return url_ != rhs.url_; }
-    };
-
-    class const_iterator {
-        friend class DownloadTracker;
-        Entry current_entry_;
-        void *cursor_;
-    private:
-        const_iterator(void *cursor);
-    public:
-        ~const_iterator();
-        inline const Entry *operator->() const { return &current_entry_; }
-        inline const Entry &operator*() const { return current_entry_; }
-        void operator++();
-        inline bool operator!=(const const_iterator &rhs) const { return current_entry_ != rhs.current_entry_; }
-    private:
-        void readEntry();
-    };
-private:
-    void *db_;
-public:
-    DownloadTracker();
-    ~DownloadTracker();
-
-    /** \brief Used to determine if we already downloaded a URL in the past or not.
-     *  \param url            The URL to check.
-     *  \param download_time  If we already downloaded the URL, this will be set to the time of when we recorded it.
-     */
-    bool alreadyDownloaded(const std::string &url, time_t * const download_time) const;
-
-    /** \brief Records that we downloaded a URL.
-     *  \param url               The relevant URL.
-     *  \param optional_message  Auxillary information like, for example, a downlod error message.
-     *  \note Uses the current time as the recording time.
-     */
-    void recordDownload(const std::string &url, const std::string &optional_message = "");
-
-    /** \brief Delete the entry for a given URL.
-     *  \param url  The URL whose entry we want to erase.
-     *  \return True if we succeded in removing the entry and false if the entry didn't exist.
-     */
-    bool clearEntry(const std::string &url);
-
-    /** \return True if an entry w/ key "url" was found, o/w false. */
-    bool lookup(const std::string &url, time_t * const timestamp, std::string * const optional_message) const;
-
-    /** \brief Deletes all entries older than "cutoff".
-     *  \return The number of deleted entries.
-     */
-    size_t clear(const time_t cutoff = TimeUtil::MAX_TIME_T);
-
-    const_iterator begin() const;
-    const_iterator end() const;
-};
-
-
 /** \brief Harvest metadate from a single site.
  *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
  *          difference (first - second).
@@ -328,7 +299,7 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
                          const std::shared_ptr<HarvestParams> &harvest_params,
                          AugmentParams * const augment_params,
                          File * const progress_file = nullptr);
-    
+
 
 enum class RSSHarvestMode { VERBOSE, TEST, NORMAL };
 
