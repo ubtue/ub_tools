@@ -30,6 +30,8 @@ test:
 	$(MAKE) -C cpp/tests test;
 
 install_configs:
+	@echo "Installing shared configs..."
+	$(MAKE) -C /mnt/ZE020150/FID-Entwicklung/ install
 ifeq "$(TUEFIND_FLAVOUR)" "ixtheo"
 	@echo "Installing $(TUEFIND_FLAVOUR)..."
 	$(MAKE) -C /mnt/ZE020150/FID-Entwicklung/IxTheo/ install
