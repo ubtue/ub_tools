@@ -135,7 +135,8 @@ void Main(int argc, char *argv[]) {
         const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
         const std::string output_file(argv[3]);
-        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(output_format, output_file, &augment_params, harvest_params);
+        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(map_directory_path, output_format, output_file, &augment_params,
+                                                                         harvest_params);
         unsigned total_record_count(0), total_previously_downloaded_count(0);
 
         std::unique_ptr<File> progress_file;

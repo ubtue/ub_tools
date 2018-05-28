@@ -27,11 +27,7 @@ def Main():
     util.ExecOrDie("/usr/local/bin/collect_solr_stats_data", [ system_type, output_file ],
                    "/usr/local/var/log/tuefind/collect_solr_stats_data.log")
 
-    # Mail CSV file to Ingo for further processing:
-    util.SendEmail(system_type + " Solr Stats", "CSV-Datei im Anhang.\n", recipient="ingo.rohlfs@uni-tuebingen.de",
-                   attachments=output_file)
-
-    util.SendEmail("Solr Stats Collector", "Successfully generated and emailed Solr statistics.", priority=5)
+    util.SendEmail("Solr Stats Collector", "Successfully generated Solr statistics and updated Ingo's MySQL database.", priority=5)
 
 
 try:

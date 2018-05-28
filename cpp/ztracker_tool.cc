@@ -20,7 +20,6 @@
 #include <iostream>
 #include "TimeUtil.h"
 #include "util.h"
-#include "RegexMatcher.h"
 #include "Zotero.h"
 
 
@@ -34,7 +33,7 @@ void Usage() {
               << "                                        if a URL has been provided, just the entry with key \"url\"\n"
               << "                                        will be erased, and if a Zulu (ISO 8601) timestamp has been\n"
               << "                                        provided, all entries that are not newer are erased.\n"
-              << "       insert url [optional_message] => inserts or replaces the entry for \"url\".\n"
+              << "       insert url [error_message]    => inserts or replaces the entry for \"url\".\n"
               << "       lookup url                    => displays the timestamp and, if found, the optional message\n"
               << "                                        for this URL.\n"
               << "       list [pcre]                   => list either all entries in the database or, if the PCRE has\n"
@@ -44,16 +43,16 @@ void Usage() {
 }
 
 
-void Clear(Zotero::DownloadTracker * const download_tracker, const std::string &url_or_zulu_timestamp) {
+void Clear(Zotero::PreviousDownloadManager * const previous_download_manager, const std::string &url_or_zulu_timestamp) {
     time_t timestamp;
     std::string err_msg;
 
     if (url_or_zulu_timestamp.empty()) {
-        std::cout << "Deleted " << download_tracker->clear() << " entries from the tracker database.\n";
+        std::cout << "Deleted " << previous_download_manager->clear() << " entries from the tracker database.\n";
     } else if (TimeUtil::Iso8601StringToTimeT(url_or_zulu_timestamp, &timestamp, &err_msg))
-        std::cout << "Deleted " << download_tracker->clear(timestamp) << " entries from the tracker database.\n";
+        std::cout << "Deleted " << previous_download_manager->deleteOldEntries(timestamp) << " entries from the tracker database.\n";
     else { // Assume url_or_zulu_timestamp contains a URL.
-        if (download_tracker->clearEntry(url_or_zulu_timestamp))
+        if (previous_download_manager->deleteSingleEntry(url_or_zulu_timestamp))
             std::cout << "Deleted one entry from the tracker database.\n";
         else
             std::cerr << "Entry for URL \"" << url_or_zulu_timestamp << "\" could not be deleted!\n";
@@ -61,46 +60,44 @@ void Clear(Zotero::DownloadTracker * const download_tracker, const std::string &
 }
 
 
-void Insert(Zotero::DownloadTracker * const download_tracker, const std::string &url, const std::string &optional_message) {
-    download_tracker->recordDownload(url, optional_message);
+void Insert(Zotero::PreviousDownloadManager * const previous_download_manager, const std::string &url, const std::string &optional_message) {
+    previous_download_manager->addOrReplace(url, optional_message, (optional_message.empty() ? "*bogus hash*" : ""));
     std::cout << "Created an entry for the URL \"" << url << "\".\n";
 }
 
 
-void Lookup(Zotero::DownloadTracker * const download_tracker, const std::string &url) {
+void Lookup(Zotero::PreviousDownloadManager * const previous_download_manager, const std::string &url) {
     time_t timestamp;
-    std::string optional_message;
+    std::string error_message;
 
-    if (not download_tracker->lookup(url, &timestamp, &optional_message))
+    if (not previous_download_manager->hasAlreadyBeenDownloaded(url, &timestamp, &error_message))
         std::cerr << "Entry for URL \"" << url << "\" could not be found!\n";
     else {
-        if (optional_message.empty())
+        if (error_message.empty())
             std::cout << url << ": " << TimeUtil::TimeTToLocalTimeString(timestamp) << '\n';
         else
-            std::cout << url << ": " << TimeUtil::TimeTToLocalTimeString(timestamp) << " (" << optional_message << ")\n";
+            std::cout << url << ": " << TimeUtil::TimeTToLocalTimeString(timestamp) << " (" << error_message << ")\n";
     }
 }
 
 
-void List(Zotero::DownloadTracker * const download_tracker, const std::string &pcre) {
-    RegexMatcher *matcher(RegexMatcher::FactoryOrDie(pcre));
-    for (const auto &entry : *download_tracker) {
-        const std::string &url(entry.getURL());
-        if (not matcher->matched(url))
-            continue;
-
-        std::cout << url << ": " << TimeUtil::TimeTToLocalTimeString(entry.getRecodingTime());
-        const std::string &optional_message(entry.getOptionalMessage());
-        if (not optional_message.empty())
-            std::cout << ", " << optional_message;
+void List(Zotero::PreviousDownloadManager * const previous_download_manager, const std::string &pcre) {
+    std::vector<Zotero::PreviousDownloadManager::Entry> entries;
+    previous_download_manager->listMatches(pcre, &entries);
+    
+    for (const auto &entry : entries) {
+        std::cout << entry.url_ << ": " << TimeUtil::TimeTToLocalTimeString(entry.creation_time_);
+        if (not entry.error_message_.empty())
+            std::cout << ", " << entry.error_message_;
         std::cout << '\n';
     }
 }
 
 
-void IsPresent(Zotero::DownloadTracker * const download_tracker, const std::string &url) {
-    time_t download_time;
-    std::cout << (download_tracker->alreadyDownloaded(url, &download_time) ? "true\n" : "false\n");
+void IsPresent(Zotero::PreviousDownloadManager * const previous_download_manager, const std::string &url) {
+    time_t creation_time;
+    std::string error_message;
+    std::cout << (previous_download_manager->hasAlreadyBeenDownloaded(url, &creation_time, &error_message) ? "true\n" : "false\n");
 }
 
 
@@ -114,28 +111,28 @@ int main(int argc, char *argv[]) {
         Usage();
 
     try {
-        Zotero::DownloadTracker download_tracker;
+        Zotero::PreviousDownloadManager previous_download_manager;
 
         if (std::strcmp(argv[1], "clear") == 0) {
             if (argc > 3)
                 LOG_ERROR("clear takes 0 or 1 arguments!");
-            Clear(&download_tracker, argc == 2 ? "" : argv[2]);
+            Clear(&previous_download_manager, argc == 2 ? "" : argv[2]);
         } else if (std::strcmp(argv[1], "insert") == 0) {
             if (argc < 3 or argc > 4)
                 LOG_ERROR("insert takes 1 or 2 arguments!");
-            Insert(&download_tracker, argv[2], argc == 3 ? "" : argv[3]);
+            Insert(&previous_download_manager, argv[2], argc == 3 ? "" : argv[3]);
         } else if (std::strcmp(argv[1], "lookup") == 0) {
             if (argc != 3)
                 LOG_ERROR("lookup takes 1 argument!");
-            Lookup(&download_tracker, argv[2]);
+            Lookup(&previous_download_manager, argv[2]);
         } else if (std::strcmp(argv[1], "list") == 0) {
             if (argc > 3)
                 LOG_ERROR("list takes 0 or 1 arguments!");
-            List(&download_tracker, argc == 2 ? ".*" : argv[2]);
+            List(&previous_download_manager, argc == 2 ? ".*" : argv[2]);
         } else if (std::strcmp(argv[1], "is_present") == 0) {
             if (argc != 3)
                 LOG_ERROR("is_present takes 1 argument!");
-            IsPresent(&download_tracker, argv[2]);
+            IsPresent(&previous_download_manager, argv[2]);
         } else
             LOG_ERROR("unknown command: \"" + std::string(argv[1]) + "\"!");
     } catch (const std::exception &x) {
