@@ -1082,7 +1082,7 @@ bool FeedContainsNoNewItems(const RSSHarvestMode mode, DbConnection * const db_c
     std::string date_string;
     if (result_set.empty()) {
         if (last_build_date == TimeUtil::BAD_TIME_T)
-            date_string = "0000-00-00 00:00:00";
+            date_string = SqlUtil::DATETIME_RANGE_MIN;
         else
             date_string = SqlUtil::TimeTToDatetime(last_build_date);
 
@@ -1096,7 +1096,7 @@ bool FeedContainsNoNewItems(const RSSHarvestMode mode, DbConnection * const db_c
 
     const DbRow first_row(result_set.getNextRow());
     date_string = first_row["last_build_date"];
-    if (date_string != "0000-00-00 00:00:00" and last_build_date != TimeUtil::BAD_TIME_T
+    if (date_string != SqlUtil::DATETIME_RANGE_MIN and last_build_date != TimeUtil::BAD_TIME_T
         and SqlUtil::DatetimeToTimeT(date_string) >= last_build_date)
         return true;
 
@@ -1140,7 +1140,7 @@ bool ItemAlreadyProcessed(DbConnection * const db_connection, const std::string 
 void UpdateLastBuildDate(DbConnection * const db_connection, const std::string &feed_url, const time_t last_build_date) {
     std::string last_build_date_string;
     if (last_build_date == TimeUtil::BAD_TIME_T)
-        last_build_date_string = "0000-00-00 00:00:00";
+        last_build_date_string = SqlUtil::DATETIME_RANGE_MIN;
     else
         last_build_date_string = SqlUtil::TimeTToDatetime(last_build_date);
     db_connection->queryOrDie("UPDATE rss_feeds SET last_build_date='" + last_build_date_string + "' WHERE feed_url='"
