@@ -1015,7 +1015,7 @@ std::string &Collapse(std::string * const s, char scan_ch) {
 //          "[0123456789]" where the order of the digits doesn't matter.  In order to match any
 //          single character with the exception of a single decimal digit specify "[^0123456789]".
 //
-//          (c� 1988,1990,2001 Johannes Ruscheinski. All Rights Reserved.  I grant the exception
+//          (c© 1988,1990,2001 Johannes Ruscheinski. All Rights Reserved.  I grant the exception
 //          that this function may be contained and used with the rest of the iVia library
 //          under the the same copyright rules as the iVia library if it is any version of
 //          the GPL (GNU Lesser General Public License).  Johannes Ruscheinski Jul-27, 2001.
