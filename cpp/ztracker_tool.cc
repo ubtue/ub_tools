@@ -20,7 +20,6 @@
 #include <iostream>
 #include "TimeUtil.h"
 #include "util.h"
-#include "RegexMatcher.h"
 #include "Zotero.h"
 
 
@@ -34,7 +33,7 @@ void Usage() {
               << "                                        if a URL has been provided, just the entry with key \"url\"\n"
               << "                                        will be erased, and if a Zulu (ISO 8601) timestamp has been\n"
               << "                                        provided, all entries that are not newer are erased.\n"
-              << "       insert url [optional_message] => inserts or replaces the entry for \"url\".\n"
+              << "       insert url [error_message]    => inserts or replaces the entry for \"url\".\n"
               << "       lookup url                    => displays the timestamp and, if found, the optional message\n"
               << "                                        for this URL.\n"
               << "       list [pcre]                   => list either all entries in the database or, if the PCRE has\n"
@@ -51,9 +50,9 @@ void Clear(Zotero::DownloadTracker * const download_tracker, const std::string &
     if (url_or_zulu_timestamp.empty()) {
         std::cout << "Deleted " << download_tracker->clear() << " entries from the tracker database.\n";
     } else if (TimeUtil::Iso8601StringToTimeT(url_or_zulu_timestamp, &timestamp, &err_msg))
-        std::cout << "Deleted " << download_tracker->clear(timestamp) << " entries from the tracker database.\n";
+        std::cout << "Deleted " << download_tracker->deleteOldEntries(timestamp) << " entries from the tracker database.\n";
     else { // Assume url_or_zulu_timestamp contains a URL.
-        if (download_tracker->clearEntry(url_or_zulu_timestamp))
+        if (download_tracker->deleteSingleEntry(url_or_zulu_timestamp))
             std::cout << "Deleted one entry from the tracker database.\n";
         else
             std::cerr << "Entry for URL \"" << url_or_zulu_timestamp << "\" could not be deleted!\n";
@@ -62,45 +61,43 @@ void Clear(Zotero::DownloadTracker * const download_tracker, const std::string &
 
 
 void Insert(Zotero::DownloadTracker * const download_tracker, const std::string &url, const std::string &optional_message) {
-    download_tracker->recordDownload(url, optional_message);
+    download_tracker->addOrReplace(url, optional_message, (optional_message.empty() ? "*bogus hash*" : ""));
     std::cout << "Created an entry for the URL \"" << url << "\".\n";
 }
 
 
 void Lookup(Zotero::DownloadTracker * const download_tracker, const std::string &url) {
     time_t timestamp;
-    std::string optional_message;
+    std::string error_message;
 
-    if (not download_tracker->lookup(url, &timestamp, &optional_message))
+    if (not download_tracker->hasAlreadyBeenDownloaded(url, &timestamp, &error_message))
         std::cerr << "Entry for URL \"" << url << "\" could not be found!\n";
     else {
-        if (optional_message.empty())
+        if (error_message.empty())
             std::cout << url << ": " << TimeUtil::TimeTToLocalTimeString(timestamp) << '\n';
         else
-            std::cout << url << ": " << TimeUtil::TimeTToLocalTimeString(timestamp) << " (" << optional_message << ")\n";
+            std::cout << url << ": " << TimeUtil::TimeTToLocalTimeString(timestamp) << " (" << error_message << ")\n";
     }
 }
 
 
 void List(Zotero::DownloadTracker * const download_tracker, const std::string &pcre) {
-    RegexMatcher *matcher(RegexMatcher::FactoryOrDie(pcre));
-    for (const auto &entry : *download_tracker) {
-        const std::string &url(entry.getURL());
-        if (not matcher->matched(url))
-            continue;
-
-        std::cout << url << ": " << TimeUtil::TimeTToLocalTimeString(entry.getRecodingTime());
-        const std::string &optional_message(entry.getOptionalMessage());
-        if (not optional_message.empty())
-            std::cout << ", " << optional_message;
+    std::vector<Zotero::DownloadTracker::Entry> entries;
+    download_tracker->listMatches(pcre, &entries);
+    
+    for (const auto &entry : entries) {
+        std::cout << entry.url_ << ": " << TimeUtil::TimeTToLocalTimeString(entry.creation_time_);
+        if (not entry.error_message_.empty())
+            std::cout << ", " << entry.error_message_;
         std::cout << '\n';
     }
 }
 
 
 void IsPresent(Zotero::DownloadTracker * const download_tracker, const std::string &url) {
-    time_t download_time;
-    std::cout << (download_tracker->alreadyDownloaded(url, &download_time) ? "true\n" : "false\n");
+    time_t creation_time;
+    std::string error_message;
+    std::cout << (download_tracker->hasAlreadyBeenDownloaded(url, &creation_time, &error_message) ? "true\n" : "false\n");
 }
 
 
