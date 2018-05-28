@@ -42,6 +42,11 @@ class DbConnection;
 namespace SqlUtil {
 
 
+// As supported by MySQL
+extern const std::string DATETIME_RANGE_MIN;
+extern const std::string DATETIME_RANGE_MAX;
+
+
 /** \class TransactionGuard
  *  \brief Creates a BEGIN/COMMIT guard between the time the first instance of this class is created and the same
  *         instance is destroyed.
