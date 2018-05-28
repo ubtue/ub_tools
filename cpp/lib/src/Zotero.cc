@@ -542,11 +542,11 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         LOG_ERROR("\"url\" has not been set!");
     time_t creation_time;
     std::string error_message;
-    if (not previous_download_manager_.hasAlreadyBeenDownloaded(url, &creation_time, &error_message, checksum)
+    if (not download_tracker_.hasAlreadyBeenDownloaded(url, &creation_time, &error_message, checksum)
         or not error_message.empty())
     {
         marc_writer_->write(new_record);
-        previous_download_manager_.addOrReplace(url, checksum, /* error_message = */"");
+        download_tracker_.addOrReplace(url, checksum, /* error_message = */"");
     } else
         ++previously_downloaded_count;
     ++record_count;
@@ -847,10 +847,10 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 }
 
 
-const std::string PreviousDownloadManager::DEFAULT_ZOTERO_DOWNLOADS_DB_PATH("/usr/local/var/lib/tuelib/zotero_downloads.db");
+const std::string DownloadTracker::DEFAULT_ZOTERO_DOWNLOADS_DB_PATH("/usr/local/var/lib/tuelib/zotero_downloads.db");
 
 
-PreviousDownloadManager::PreviousDownloadManager(const std::string &previous_downloads_db_path) {
+DownloadTracker::DownloadTracker(const std::string &previous_downloads_db_path) {
     if (not db_.open(previous_downloads_db_path.c_str(),
                      kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE
                      | kyotocabinet::HashDB::OAUTOTRAN | kyotocabinet::HashDB::OAUTOSYNC))
@@ -870,7 +870,7 @@ inline static void SplitTimestampErrorMessageAndHash(const std::string &raw_valu
 }
 
 
-bool PreviousDownloadManager::hasAlreadyBeenDownloaded(const std::string &url, time_t * const creation_time,
+bool DownloadTracker::hasAlreadyBeenDownloaded(const std::string &url, time_t * const creation_time,
                                                        std::string * const error_message, const std::string &hash) const
 {
     std::string value;
@@ -886,7 +886,7 @@ bool PreviousDownloadManager::hasAlreadyBeenDownloaded(const std::string &url, t
 }
 
 
-void PreviousDownloadManager::addOrReplace(const std::string &url, const std::string &hash, const std::string &error_message) {
+void DownloadTracker::addOrReplace(const std::string &url, const std::string &hash, const std::string &error_message) {
     if (unlikely((hash.empty() and error_message.empty()) or (not hash.empty() and not error_message.empty())))
         LOG_ERROR("exactly one of \"hash\" and \"error_message\" must be non-empty!");
     
@@ -897,7 +897,7 @@ void PreviousDownloadManager::addOrReplace(const std::string &url, const std::st
 }
 
 
-size_t PreviousDownloadManager::listMatches(const std::string &url_regex, std::vector<Entry> * const entries) const {
+size_t DownloadTracker::listMatches(const std::string &url_regex, std::vector<Entry> * const entries) const {
     std::unique_ptr<RegexMatcher> matcher(RegexMatcher::FactoryOrDie(url_regex));
 
     entries->clear();
@@ -922,7 +922,7 @@ size_t PreviousDownloadManager::listMatches(const std::string &url_regex, std::v
 }
 
 
-// Helper function for PreviousDownloadManager::deleteMatches and PreviousDownloadManager::deleteOldEntries.
+// Helper function for DownloadTracker::deleteMatches and DownloadTracker::deleteOldEntries.
 template<typename Predicate> static size_t DeleteEntries(kyotocabinet::HashDB * const db, const std::string &db_path,
                                                          const Predicate &deletion_predicate)
 {
@@ -949,7 +949,7 @@ template<typename Predicate> static size_t DeleteEntries(kyotocabinet::HashDB * 
 }
 
 
-size_t PreviousDownloadManager::deleteMatches(const std::string &url_regex) {
+size_t DownloadTracker::deleteMatches(const std::string &url_regex) {
     std::shared_ptr<RegexMatcher> matcher(RegexMatcher::FactoryOrDie(url_regex));
 
     return DeleteEntries(&db_, getPath(),
@@ -957,19 +957,19 @@ size_t PreviousDownloadManager::deleteMatches(const std::string &url_regex) {
 }
 
 
-size_t PreviousDownloadManager::deleteSingleEntry(const std::string &url) {
+size_t DownloadTracker::deleteSingleEntry(const std::string &url) {
     return db_.remove(url) ? 1 : 0;
 }
 
 
-size_t PreviousDownloadManager::deleteOldEntries(const time_t cutoff_timestamp) {
+size_t DownloadTracker::deleteOldEntries(const time_t cutoff_timestamp) {
     return DeleteEntries(&db_, getPath(),
                          [cutoff_timestamp](const std::string &/*url*/, const time_t creation_timestamp)
                              { return creation_timestamp <= cutoff_timestamp; });
 }
 
 
-size_t PreviousDownloadManager::size() const {
+size_t DownloadTracker::size() const {
     const int64_t no_of_db_entries(db_.count());
     if (unlikely(no_of_db_entries == -1))
         LOG_ERROR("unable to determine the number of entries in the database \"" + getPath() + "\"!");
