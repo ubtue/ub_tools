@@ -11,7 +11,7 @@
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
  *  Copyright 2002-2005 Dr. Johannes Ruscheinski.
- *  Copyright 2017,2018 Universitätsbibliothek Tübingen
+ *  Copyright 2017,2018 Universitï¿½tsbibliothek Tï¿½bingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -457,8 +457,8 @@ std::string ToString(long n, const unsigned radix, const int width) {
 }
 
 
-std::string ToString(unsigned long long n, const unsigned radix, const int width, const char grouping_char,
-                     const unsigned grouping_size)
+std::string ToString(unsigned long long n, const unsigned radix, const int width, const char padding_char, 
+                     const char grouping_char, const unsigned grouping_size)
 {
     assert(radix >= 2 and radix <= 36);
 
@@ -487,9 +487,9 @@ std::string ToString(unsigned long long n, const unsigned radix, const int width
     const unsigned abs_width(abs(width));
     if (count < abs_width) {
         if (width < 0)
-            return cp + std::string(abs_width - count, ' ');
+            return cp + std::string(abs_width - count, padding_char);
         else
-            return std::string(abs_width - count, ' ') + cp;
+            return std::string(abs_width - count, padding_char) + cp;
     }
 
     return cp;
@@ -1134,7 +1134,7 @@ std::string &Collapse(std::string * const s, char scan_ch) {
 //          "[0123456789]" where the order of the digits doesn't matter.  In order to match any
 //          single character with the exception of a single decimal digit specify "[^0123456789]".
 //
-//          (c© 1988,1990,2001 Johannes Ruscheinski. All Rights Reserved.  I grant the exception
+//          (cï¿½ 1988,1990,2001 Johannes Ruscheinski. All Rights Reserved.  I grant the exception
 //          that this function may be contained and used with the rest of the iVia library
 //          under the the same copyright rules as the iVia library if it is any version of
 //          the GPL (GNU Lesser General Public License).  Johannes Ruscheinski Jul-27, 2001.

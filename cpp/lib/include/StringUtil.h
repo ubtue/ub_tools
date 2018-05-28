@@ -300,6 +300,7 @@ inline std::string TrimWhite(const char * const s)
  *  \param  radix          The base to use for the resulting string representation.
  *  \param  width          If this is < 0 then pad resulting string up to width on the left, if this is > 0 then pad resulting string up to width on the right.
  *                         Default is 0 (do not pad).
+ *  \param  padding_char   Used to pad the resulting string
  *  \param  grouping_char  If non-NUL, this character will be inserted after each group of "grouping_size" characters
  *                         starting at the end of the string.  Should this rule result in a leading character position
  *                         it will be suppressed at that position.
@@ -307,7 +308,7 @@ inline std::string TrimWhite(const char * const s)
  *                         are separated by "grouping_char's."
  *  \return A string representation for "n."
  */
-std::string ToString(long long n, const unsigned radix = 10, const int width = 0, const char grouping_char = '\0', const unsigned grouping_size = 3);
+std::string ToString(long long n, const unsigned radix = 10, const int width = 0, const char padding_char = ' ', const char grouping_char = '\0', const unsigned grouping_size = 3);
 
 
 /** \brief  Convert a (signed) long to a string */
