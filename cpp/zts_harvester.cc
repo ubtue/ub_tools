@@ -67,6 +67,7 @@ UnsignedPair ProcessCrawl(const IniFile::Section &section, const std::shared_ptr
 {
     augment_params->override_ISSN_ = section.getString("issn", "");
     augment_params->strptime_format_ = section.getString("strptime_format", "");
+    LOG_DEBUG("strptime_format found was \"" + augment_params->strptime_format_ +"\".");
 
     SimpleCrawler::SiteDesc site_desc;
     InitSiteDescFromIniFileSection(section, &site_desc);
@@ -125,7 +126,7 @@ int Main(int argc, char *argv[]) {
     db_connection.reset(new DbConnection(sql_database, sql_username, sql_password));
 
     const std::string MARC_OUTPUT_FILE(ini_file.getString("", "marc_output_file"));
-    harvest_params->format_handler_ = Zotero::FormatHandler::Factory(GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE,
+    harvest_params->format_handler_ = Zotero::FormatHandler::Factory(map_directory_path, GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE,
                                                                      &augment_params, harvest_params);
 
     SimpleCrawler::Params crawler_params;
