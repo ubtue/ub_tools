@@ -33,6 +33,7 @@
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "RegexMatcher.h"
+#include "SqlUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -91,7 +92,7 @@ void SummarizeLog(File * const log_file, File * const summary_file) {
         logger->error("in SummarizeLog: failed to compile datetime regex: " + err_msg);
 
     std::unordered_map<std::string, unsigned> lines_and_frequencies;
-    std::string max_datetime("0000-00-00 00:00:00"), min_datetime("9999-99-99 99:99:99");
+    std::string max_datetime(SqlUtil::DATETIME_RANGE_MIN), min_datetime(SqlUtil::DATETIME_RANGE_MAX);   // intentionally swapped
     while (not log_file->eof()) {
         std::string line;
         if (unlikely(log_file->getline(&line) == 0))

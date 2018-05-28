@@ -56,7 +56,7 @@ std::string SparseVector::toString() const {
         if (index_value_pair->second >= 0)
             result += " ";
 
-        result += StringUtil::ToString(index_value_pair->second) + ")";
+        result += StringUtil::ToString(static_cast<double>(index_value_pair->second)) + ")";
     }
     result += " ]";
 

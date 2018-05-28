@@ -42,6 +42,11 @@
 
 namespace SqlUtil {
 
+
+const std::string DATETIME_RANGE_MIN("1000-01-01 00:00:00");
+const std::string DATETIME_RANGE_MAX("9999-12-31 23:59:59");
+
+
 // reference count of open transactions
 std::map<DbConnection *, TransactionGuard::Status> TransactionGuard::connection_status_;
 
