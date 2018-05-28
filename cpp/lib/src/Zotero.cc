@@ -194,25 +194,28 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 } // namespace TranslationServer
 
 
-std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &output_format,
-                                                      const std::string &output_file,
-                                                      AugmentParams * const augment_params,
+std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &previous_downloads_db_path, const std::string &output_format,
+                                                      const std::string &output_file, AugmentParams * const augment_params,
                                                       const std::shared_ptr<const HarvestParams> &harvest_params)
 {
     if (output_format == "marcxml" or output_format == "marc21")
-        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(output_file, augment_params, harvest_params));
+        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(previous_downloads_db_path, output_file, augment_params,
+                                                                    harvest_params));
     else if (output_format == "json")
-        return std::unique_ptr<FormatHandler>(new JsonFormatHandler(output_format, output_file, augment_params, harvest_params));
+        return std::unique_ptr<FormatHandler>(new JsonFormatHandler(previous_downloads_db_path, output_format, output_file, augment_params,
+                                                                    harvest_params));
     else if (std::find(EXPORT_FORMATS.begin(), EXPORT_FORMATS.end(), output_format) != EXPORT_FORMATS.end())
-        return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(output_format, output_file, augment_params, harvest_params));
+        return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(previous_downloads_db_path, output_format, output_file,
+                                                                      augment_params, harvest_params));
     else
         LOG_ERROR("invalid output-format: " + output_format);
 }
 
 
-JsonFormatHandler::JsonFormatHandler(const std::string &output_format, const std::string &output_file,
-                                     AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params)
-    : FormatHandler(output_format, output_file, augment_params, harvest_params), record_count_(0),
+JsonFormatHandler::JsonFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format,
+                                     const std::string &output_file, AugmentParams * const augment_params,
+                                     const std::shared_ptr<const HarvestParams> &harvest_params)
+    : FormatHandler(previous_downloads_db_path, output_format, output_file, augment_params, harvest_params), record_count_(0),
       output_file_object_(new File(output_file_, "w"))
 {
     output_file_object_->write("[");
@@ -234,9 +237,11 @@ std::pair<unsigned, unsigned> JsonFormatHandler::processRecord(const std::shared
 }
 
 
-ZoteroFormatHandler::ZoteroFormatHandler(const std::string &output_format, const std::string &output_file,
-                                         AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params)
-    : FormatHandler(output_format, output_file, augment_params, harvest_params), record_count_(0), json_buffer_("[")
+ZoteroFormatHandler::ZoteroFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format,
+                                         const std::string &output_file, AugmentParams * const augment_params,
+                                         const std::shared_ptr<const HarvestParams> &harvest_params)
+    : FormatHandler(previous_downloads_db_path, output_format, output_file, augment_params, harvest_params), record_count_(0),
+      json_buffer_("[")
 {
 }
 
@@ -276,9 +281,9 @@ std::string GuessOutputFormat(const std::string &output_file) {
 }
 
 
-MarcFormatHandler::MarcFormatHandler(const std::string &output_file,
+MarcFormatHandler::MarcFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_file,
                                      AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params)
-    : FormatHandler(GuessOutputFormat(output_file), output_file, augment_params, harvest_params),
+    : FormatHandler(previous_downloads_db_path, GuessOutputFormat(output_file), output_file, augment_params, harvest_params),
       marc_writer_(MARC::Writer::Factory(output_file_))
 {
 }
@@ -317,9 +322,7 @@ void MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSONNode> ta
 }
 
 
-void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node,
-                                                       MARC::Record * const new_record)
-{
+void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MARC::Record * const new_record) {
     std::vector<MARC::Subfield> subfields;
 
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node.getNode("ubtue"));
@@ -414,7 +417,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                             MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                             GetNextControlNumber());
     bool is_journal_article(false);
-    std::string publication_title, ppn, issn_raw, issn_normalized;
+    std::string publication_title, ppn, issn_raw, issn_normalized, url;
     for (const auto &key_and_node : *object_node) {
         if (ignore_fields->matched(key_and_node.first))
             continue;
@@ -422,9 +425,10 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         if (key_and_node.first == "language")
             new_record.insertField("041", { { 'a',
                 JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue() } });
-        else if (key_and_node.first == "url")
+        else if (key_and_node.first == "url") {
             CreateSubfieldFromStringNode(key_and_node, "856", 'u', &new_record);
-        else if (key_and_node.first == "title")
+            url = reinterpret_cast<const JSON::StringNode * const>(key_and_node.second.get())->getValue();
+        } else if (key_and_node.first == "title")
             CreateSubfieldFromStringNode(key_and_node, "245", 'a', &new_record);
         else if (key_and_node.first == "abstractNote")
             CreateSubfieldFromStringNode(key_and_node, "520", 'a', &new_record, /* indicator1 = */ '3');
@@ -534,9 +538,15 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 
     // previously downloaded?
     const std::string checksum(MARC::CalcChecksum(new_record, /* exclude_001 = */ true));
-    if (augment_params_->maps_->previously_downloaded_.find(checksum) == augment_params_->maps_->previously_downloaded_.cend()) {
-        augment_params_->maps_->previously_downloaded_.emplace(checksum);
+    if (unlikely(url.empty()))
+        LOG_ERROR("\"url\" has not been set!");
+    time_t creation_time;
+    std::string error_message;
+    if (not previous_download_manager_.hasAlreadyBeenDownloaded(url, &creation_time, &error_message, checksum)
+        or not error_message.empty())
+    {
         marc_writer_->write(new_record);
+        previous_download_manager_.addOrReplace(url, checksum, /* error_message = */"");
     } else
         ++previously_downloaded_count;
     ++record_count;
@@ -554,9 +564,6 @@ AugmentMaps::AugmentMaps(const std::string &map_directory_path) {
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &ISSN_to_superior_ppn_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_volume.map", &ISSN_to_volume_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &ISSN_to_SSG_map_);
-
-    PreviouslyDownloadedHashesManager previously_downloaded_hashes_manager(map_directory_path + "previously_downloaded.hashes",
-                                                                           &previously_downloaded_);
 }
 
 
@@ -648,7 +655,7 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
             Date date(StringToDate(date_raw, augment_params->strptime_format_));
-            std::string date_normalized(std::to_string(date.year_) + "-" + StringUtil::ToString(date.month_, 10, 2) + "-" 
+            std::string date_normalized(std::to_string(date.year_) + "-" + StringUtil::ToString(date.month_, 10, 2) + "-"
                                         + StringUtil::ToString(date.day_, 10, 2));
             custom_fields.emplace(std::pair<std::string, std::string>("date_normalized", date_normalized));
             comments.emplace_back("normalized date to: " + date_normalized);
@@ -840,196 +847,134 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 }
 
 
-PreviouslyDownloadedHashesManager::PreviouslyDownloadedHashesManager(
-    const std::string &hashes_path,std::unordered_set<std::string> * const previously_downloaded)
-    : hashes_path_(hashes_path), previously_downloaded_(*previously_downloaded)
+const std::string PreviousDownloadManager::DEFAULT_ZOTERO_DOWNLOADS_DB_PATH("/usr/local/var/lib/tuelib/zotero_downloads.db");
+
+
+PreviousDownloadManager::PreviousDownloadManager(const std::string &previous_downloads_db_path) {
+    if (not db_.open(previous_downloads_db_path.c_str(),
+                     kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE
+                     | kyotocabinet::HashDB::OAUTOTRAN | kyotocabinet::HashDB::OAUTOSYNC))
+        LOG_ERROR("Failed to open or create the KyotoCabinet database \"" + previous_downloads_db_path + "\" ("
+                  + std::string(db_.error().message()) + ")!");
+}
+
+
+inline static void SplitTimestampErrorMessageAndHash(const std::string &raw_value, time_t * const creation_time,
+                                                     std::string * const error_message, std::string * const hash)
 {
-    if (not FileUtil::Exists(hashes_path))
-        return;
-
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(hashes_path_));
-    while (not input->eof()) {
-        std::string line(input->getline());
-        StringUtil::Trim(&line);
-        if (likely(not line.empty()))
-            previously_downloaded->emplace(TextUtil::Base64Decode(line));
-    }
-
-    LOG_INFO("Loaded " + StringUtil::ToString(previously_downloaded->size()) + " hashes of previously generated records.");
+    if (unlikely(raw_value.size() <= sizeof(time_t)))
+        LOG_ERROR("raw value is too small!");
+    *creation_time = *reinterpret_cast<const time_t * const>(&raw_value);
+    *error_message = raw_value.substr(sizeof(time_t)).c_str();
+    *hash = raw_value.substr(sizeof(time_t) + error_message->length() + 1 /* for the terminating NUL */);
 }
 
 
-PreviouslyDownloadedHashesManager::~PreviouslyDownloadedHashesManager() {
-    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(hashes_path_));
-
-    for (const auto &hash : previously_downloaded_)
-        output->write(TextUtil::Base64Encode(hash) + '\n');
-
-    LOG_INFO("Stored " + StringUtil::ToString(previously_downloaded_.size()) + " hashes of previously generated records.");
-}
-
-
-DownloadTracker::DownloadTracker() {
-    const std::string DB_FILENAME("/usr/local/var/lib/tuelib/zotero_download_tracker.db");
-    db_ = new kyotocabinet::HashDB;
-    if (not (reinterpret_cast<kyotocabinet::HashDB *>(db_)->open(DB_FILENAME,
-                       kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
-        LOG_ERROR("failed to open or create \"" + DB_FILENAME + "\"!");
-}
-
-
-DownloadTracker::~DownloadTracker() {
-    delete reinterpret_cast<kyotocabinet::HashDB *>(db_);
-}
-
-
-namespace {
-
-
-// Returns a string representation that can be converted back to the original time_t with StringRepToTimeT.
-std::string TimeTToStringRep(const time_t t) {
-    std::string retval;
-    const unsigned char *bytes(reinterpret_cast<const unsigned char *>(&t));
-    for (unsigned i(0); i < sizeof(time_t); ++i) {
-        retval += StringUtil::ToHex(bytes[i] >> 4u);  // Higher nybble.
-        retval += StringUtil::ToHex(bytes[i] & 0xFu); // Lower nybble.
-    }
-
-    return retval;
-}
-
-
-time_t StringRepToTimeT(const std::string &string_rep) {
-    if (unlikely(string_rep.size() != 2 * sizeof(time_t)))
-        LOG_ERROR("Houston, we have a problem!"); // This should *never* happen!
-
-    time_t retval;
-    unsigned char *bytes(reinterpret_cast<unsigned char *>(&retval));
-
-    for (auto nybble(string_rep.cbegin()); nybble != string_rep.cend(); nybble += 2, ++bytes)
-        *bytes = (StringUtil::FromHex(*nybble) << 4u) | StringUtil::FromHex(*(nybble + 1));
-
-    return retval;
-}
-
-
-} // unnamed namespace
-
-
-DownloadTracker::const_iterator::const_iterator(void *cursor): cursor_(cursor) {
-    if (cursor == nullptr)
-        current_entry_ = Entry();
-    else
-        readEntry();
-}
-
-
-DownloadTracker::const_iterator::~const_iterator() {
-    delete reinterpret_cast<kyotocabinet::DB::Cursor *>(cursor_);
-}
-
-
-void DownloadTracker::const_iterator::operator++() {
-    if (cursor_ == nullptr)
-        LOG_ERROR("can't advance beyond the end!");
-
-    if (reinterpret_cast<kyotocabinet::DB::Cursor *>(cursor_)->step())
-        readEntry();
-    else {
-        delete reinterpret_cast<kyotocabinet::DB::Cursor *>(cursor_);
-        cursor_ = nullptr;
-        current_entry_ = Entry();
-    }
-}
-
-
-void DownloadTracker::const_iterator::readEntry() {
-    std::string url, value;
-    if (not reinterpret_cast<kyotocabinet::DB::Cursor *>(cursor_)->get(&url, &value))
-        current_entry_ = Entry();
-    else {
-        if (unlikely(value.length() < 2 * sizeof(time_t)))
-            LOG_ERROR("Too small for encoded timestamp!"); // This should *never* happen!
-
-        std::string optional_message;
-        if (value.length() > 2 * sizeof(time_t))
-            optional_message = value.substr(2 * sizeof(time_t) + 1 /* skip the colon */);
-
-        current_entry_ = Entry(url, StringRepToTimeT(value.substr(0,  2 * sizeof(time_t))), optional_message);
-    }
-}
-
-
-bool DownloadTracker::alreadyDownloaded(const std::string &url, time_t * const download_time) const {
-    std::string optional_message;
-    return lookup(url, download_time, &optional_message);
-}
-
-
-void DownloadTracker::recordDownload(const std::string &url, const std::string &optional_message) {
-    const time_t now(std::time(nullptr));
-    const std::string timestamp(TimeTToStringRep(now));
-    if (unlikely(not reinterpret_cast<kyotocabinet::HashDB *>(
-        db_)->set(url, optional_message.empty() ? timestamp : timestamp + ":" + optional_message)))
-        LOG_ERROR(std::string("kyotocabinet::BasicDB::add failed: ")
-                  + reinterpret_cast<kyotocabinet::HashDB *>(db_)->error().message());
-}
-
-
-bool DownloadTracker::clearEntry(const std::string &url) {
-    return reinterpret_cast<kyotocabinet::HashDB *>(db_)->remove(url);
-}
-
-
-bool DownloadTracker::lookup(const std::string &url, time_t * const timestamp, std::string * const optional_message) const {
+bool PreviousDownloadManager::hasAlreadyBeenDownloaded(const std::string &url, time_t * const creation_time,
+                                                       std::string * const error_message, const std::string &hash) const
+{
     std::string value;
-    if (not reinterpret_cast<kyotocabinet::HashDB *>(db_)->get(url, &value))
+    if (not db_.get(url, &value))
         return false;
 
-    if (unlikely(value.length() < sizeof(time_t) * 2))
-        LOG_ERROR("value is too small (" + std::to_string(value.length()) + ")!");
+    if (hash.empty())
+        return true;
 
-    *timestamp = StringRepToTimeT(value.substr(0, sizeof(time_t) * 2 /* nybble count */));
-    if (value.length() > sizeof(time_t) * 2)
-        *optional_message = value.substr(sizeof(time_t) * 2 + 1 /* Skipping the colon. */);
-    else
-        optional_message->clear();
-
-    return true;
+    std::string stored_hash;
+    SplitTimestampErrorMessageAndHash(value, creation_time, error_message, &stored_hash);
+    return hash == stored_hash;
 }
 
 
-size_t DownloadTracker::clear(const time_t cutoff) {
-    kyotocabinet::DB::Cursor *cursor(reinterpret_cast<kyotocabinet::HashDB *>(db_)->cursor());
-    cursor->jump();
+void PreviousDownloadManager::addOrReplace(const std::string &url, const std::string &hash, const std::string &error_message) {
+    if (unlikely((hash.empty() and error_message.empty()) or (not hash.empty() and not error_message.empty())))
+        LOG_ERROR("exactly one of \"hash\" and \"error_message\" must be non-empty!");
+    
+    const time_t now(std::time(nullptr));
+    const std::string timestamp(reinterpret_cast<const char * const>(&now), sizeof(now));
+    if (unlikely(not db_.set(url, timestamp + hash)))
+        LOG_ERROR("failed to insert a value into \"" + getPath() + "\":" + std::string(db_.error().message()));
+}
 
-    size_t deletion_count(0);
 
-    std::string value;
-    while (likely(cursor->get_value(&value))) {
-        if (unlikely(value.length() < 2 * sizeof(time_t)))
-            LOG_ERROR("Too small for encoded timestamp!"); // This should *never* happen!
-        if (StringRepToTimeT(value.substr(0,  2 * sizeof(time_t))) <= cutoff) {
-            cursor->remove();
-            ++deletion_count;
+size_t PreviousDownloadManager::listMatches(const std::string &url_regex, std::vector<Entry> * const entries) const {
+    std::unique_ptr<RegexMatcher> matcher(RegexMatcher::FactoryOrDie(url_regex));
+
+    entries->clear();
+
+    std::unique_ptr<kyotocabinet::DB::Cursor> cursor(db_.cursor());
+    if (unlikely(cursor == nullptr))
+        LOG_ERROR("failed to create a cursor for \"" + getPath() + "\":" + std::string(db_.error().message()));
+    if (not cursor->jump())
+        LOG_ERROR("failed to position a cursor at the first record for \"" + getPath() + "\":" + std::string(db_.error().message()));
+
+    std::string url, value;
+    while (cursor->get(&url, &value, true /* = move the cursor to the next record */)) {
+        if (matcher->matched(url)) {
+            time_t creation_time;
+            std::string error_message, hash;
+            SplitTimestampErrorMessageAndHash(value, &creation_time, &error_message, &hash);
+            entries->emplace_back(url, creation_time, error_message, hash);
         }
     }
 
-    delete cursor;
-
-    return deletion_count;
+    return entries->size();
 }
 
 
-DownloadTracker::const_iterator DownloadTracker::begin() const {
-    kyotocabinet::DB::Cursor *cursor(reinterpret_cast<kyotocabinet::HashDB *>(db_)->cursor());
-    cursor->jump();
-    return const_iterator(cursor);
+// Helper function for PreviousDownloadManager::deleteMatches and PreviousDownloadManager::deleteOldEntries.
+template<typename Predicate> static size_t DeleteEntries(kyotocabinet::HashDB * const db, const std::string &db_path,
+                                                         const Predicate &deletion_predicate)
+{
+    std::unique_ptr<kyotocabinet::DB::Cursor> cursor(db->cursor());
+    if (unlikely(cursor == nullptr))
+        LOG_ERROR("failed to create a cursor for \"" + db_path + "\":" + std::string(db->error().message()));
+    if (not cursor->jump())
+        LOG_ERROR("failed to position a cursor at the first record for \"" + db_path + "\":" + std::string(db->error().message()));
+
+    size_t deleted_count(0);
+    std::string url, value;
+    while (cursor->get(&url, &value, true /* = move the cursor to the next record */)) {
+        time_t creation_time;
+        std::string hash, error_message;
+        SplitTimestampErrorMessageAndHash(value, &creation_time, &error_message, &hash);
+        if (deletion_predicate(url, creation_time)) {
+            if (unlikely(not db->remove(url)))
+                LOG_ERROR("can't remove entry with key \"" + url + "\" from \"" + db_path + "\"! (This should *never* happen!");
+            ++deleted_count;
+        }
+    }
+
+    return deleted_count;
 }
 
 
-DownloadTracker::const_iterator DownloadTracker::end() const {
-    return const_iterator(nullptr);
+size_t PreviousDownloadManager::deleteMatches(const std::string &url_regex) {
+    std::shared_ptr<RegexMatcher> matcher(RegexMatcher::FactoryOrDie(url_regex));
+
+    return DeleteEntries(&db_, getPath(),
+                         [matcher](const std::string &url, const time_t /*creation_timestamp*/){ return matcher->matched(url); });
+}
+
+
+size_t PreviousDownloadManager::deleteSingleEntry(const std::string &url) {
+    return db_.remove(url) ? 1 : 0;
+}
+
+
+size_t PreviousDownloadManager::deleteOldEntries(const time_t cutoff_timestamp) {
+    return DeleteEntries(&db_, getPath(),
+                         [cutoff_timestamp](const std::string &/*url*/, const time_t creation_timestamp)
+                             { return creation_timestamp <= cutoff_timestamp; });
+}
+
+
+size_t PreviousDownloadManager::size() const {
+    const int64_t no_of_db_entries(db_.count());
+    if (unlikely(no_of_db_entries == -1))
+        LOG_ERROR("unable to determine the number of entries in the database \"" + getPath() + "\"!");
+
+    return static_cast<size_t>(no_of_db_entries);
 }
 
 
@@ -1147,7 +1092,7 @@ void UpdateLastBuildDate(DbConnection * const db_connection, const std::string &
                               + db_connection->escapeString(feed_url) + "'");
 }
 
-    
+
 } // unnamed namespace
 
 
