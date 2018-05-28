@@ -577,8 +577,10 @@ static MediaType GetMediaType(const std::string &input_filename) {
             LOG_WARNING("empty input file \"" + input_filename + "\"!");
             const std::string extension(FileUtil::GetExtension(input_filename));
             if (::strcasecmp(extension.c_str(), "mrc") == 0 or ::strcasecmp(extension.c_str(), "marc") == 0
-                or ::strcasecmp(extension.c_str(), "raw") == 0)
+                or ::strcasecmp(extension.c_str(), "raw") == 0) {
                 return MediaType::MARC21;
+            } else if (::strcasecmp(extension.c_str(), "xml") == 0)
+                return MediaType::XML;
         }
         return MediaType::OTHER;
     }
