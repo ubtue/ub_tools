@@ -121,7 +121,7 @@ void RobotsDotTxt::UserAgentDescriptor::addRule(const RuleType rule_type, const 
             return;
         default:
             throw std::runtime_error("in RobotsDotTxt::UserAgentDescriptor::addRule: don't know how to handle rule type ("
-                            + StringUtil::ToString(rule_type) + ")!");
+                            + StringUtil::ToString(static_cast<unsigned int>(rule_type)) + ")!");
         }
     }
 

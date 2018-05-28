@@ -160,17 +160,17 @@ void LineMin_ComputeNextStep(const real &fv, const real &dg, const real &mu_min,
 
     if (on_error) {
         throw std::runtime_error("in MathUtil::LineMin_ComputeNextStep: " + error_msg +
-                                 "   mux = " + StringUtil::ToString(mux)      +
-                                 "\n    fx = " + StringUtil::ToString(fx)     +
-                                 "\n   dgx = " + StringUtil::ToString(dgx)    +
-                                 "\n   muy = " + StringUtil::ToString(muy)    +
-                                 "\n    fy = " + StringUtil::ToString(fy)     +
-                                 "\n   dgy = " + StringUtil::ToString(dgy)    +
-                                 "\n    mu = " + StringUtil::ToString(mu)     +
-                                 "\n    fv = " + StringUtil::ToString(fv)     +
-                                 "\n    dg = " + StringUtil::ToString(dg)     +
-                                 "\nmu_min = " + StringUtil::ToString(mu_min) +
-                                 "\nmu_max = " + StringUtil::ToString(mu_max) +
+                                 "   mux = " + StringUtil::ToString(static_cast<double>(mux))      +
+                                 "\n    fx = " + StringUtil::ToString(static_cast<double>(fx))     +
+                                 "\n   dgx = " + StringUtil::ToString(static_cast<double>(dgx))    +
+                                 "\n   muy = " + StringUtil::ToString(static_cast<double>(muy))    +
+                                 "\n    fy = " + StringUtil::ToString(static_cast<double>(fy))     +
+                                 "\n   dgy = " + StringUtil::ToString(static_cast<double>(dgy))    +
+                                 "\n    mu = " + StringUtil::ToString(static_cast<double>(mu))     +
+                                 "\n    fv = " + StringUtil::ToString(static_cast<double>(fv))     +
+                                 "\n    dg = " + StringUtil::ToString(static_cast<double>(dg))     +
+                                 "\nmu_min = " + StringUtil::ToString(static_cast<double>(mu_min)) +
+                                 "\nmu_max = " + StringUtil::ToString(static_cast<double>(mu_max)) +
                                  "\nsolution_is_bracketed = " + StringUtil::ToString(solution_is_bracketed) + '\n');
     }
 

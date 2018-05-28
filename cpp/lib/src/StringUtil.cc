@@ -33,7 +33,6 @@
 #include "StringUtil.h"
 #include <algorithm>
 #include <set>
-#include <cassert>
 #include <cctype>
 #include <cerrno>
 #include <climits>
@@ -375,124 +374,6 @@ std::string Trim(const std::string &trim_set, std::string * const s) {
 std::string Trim(const std::string &s, const std::string &trim_set) {
         std::string temp_s(s);
         return Trim(trim_set, &temp_s);
-}
-
-
-std::string ToString(long long n, const unsigned radix, const int width, const char grouping_char,
-                     const unsigned grouping_size)
-{
-    assert(radix >= 2 and radix <= 36);
-
-    static const char DIGITS[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    char buf[129+1]; // enough room for a base-2 negative 128 bit number
-    char *cp = buf + sizeof(buf) - 1;
-    *cp = '\0';
-    std::string result;
-
-    bool negate = n < 0;
-    if (n < 0)
-        n = -n;
-
-    unsigned count(0);
-    do {
-        *--cp = DIGITS[n % radix];
-        n /= radix;
-        ++count;
-        if (grouping_char != '\0' and count % grouping_size == 0)
-            *--cp = grouping_char;
-    } while (n != 0);
-
-    // Remove a leading "grouping_char" if necessary and update "count":
-    if (grouping_char != '\0') {
-        if (count % grouping_size == 0)
-            ++cp;
-        count += (count - 1) / grouping_size;
-    }
-
-    if (negate)
-        *--cp = '-';
-
-    const unsigned abs_width(abs(width));
-    if (count < abs_width) {
-        if (width < 0)
-            return cp + std::string(abs_width - count, ' ');
-        else
-            return std::string(abs_width - count, ' ') + cp;
-    } else
-        return cp;
-}
-
-
-std::string ToString(long n, const unsigned radix, const int width) {
-    assert(radix >= 2 and radix <= 36);
-
-    static const char DIGITS[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    char buf[129 + 1]; // enough room for a base-2 negative 128 bit number
-    char *cp = buf + sizeof(buf) - 1;
-    *cp = '\0';
-    std::string result;
-
-    bool negate = n < 0;
-    if (n < 0)
-        n = -n;
-
-    unsigned count(0);
-    do {
-        *--cp = DIGITS[n % radix];
-        n /= radix;
-        ++count;
-    } while (n != 0);
-
-    if (negate)
-        *--cp = '-';
-
-    const unsigned abs_width(abs(width));
-    if (count < abs_width) {
-        if (width < 0)
-            return cp + std::string(abs_width - count, ' ');
-        else
-            return std::string(abs_width - count, ' ') + cp;
-    } else
-        return cp;
-}
-
-
-std::string ToString(unsigned long long n, const unsigned radix, const int width, const char padding_char, 
-                     const char grouping_char, const unsigned grouping_size)
-{
-    assert(radix >= 2 and radix <= 36);
-
-    static const char DIGITS[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    char buf[256];
-    char *cp = buf + sizeof(buf) - 1;
-    *cp = '\0';
-    std::string result;
-
-    unsigned count(0);
-    do {
-        *--cp = DIGITS[n % radix];
-        n /= radix;
-        ++count;
-        if (grouping_char != '\0' and count % grouping_size == 0)
-            *--cp = grouping_char;
-    } while (n != 0);
-
-    // Remove a leading "grouping_char" if necessary and update "count":
-    if (grouping_char != '\0') {
-        if (count % grouping_size == 0)
-            ++cp;
-        count += (count - 1) / grouping_size;
-    }
-
-    const unsigned abs_width(abs(width));
-    if (count < abs_width) {
-        if (width < 0)
-            return cp + std::string(abs_width - count, padding_char);
-        else
-            return std::string(abs_width - count, padding_char) + cp;
-    }
-
-    return cp;
 }
 
 
