@@ -27,7 +27,7 @@ namespace {
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " command\n"
+    std::cerr << "Usage: " << ::progname << " [--tracker-db-path path] command\n"
               << "       Possible commands are:\n"
               << "       clear [url|zulu_timestamp]    => if no arguments are provided, this empties the entire database\n"
               << "                                        if a URL has been provided, just the entry with key \"url\"\n"
@@ -84,7 +84,7 @@ void Lookup(Zotero::DownloadTracker * const download_tracker, const std::string 
 void List(Zotero::DownloadTracker * const download_tracker, const std::string &pcre) {
     std::vector<Zotero::DownloadTracker::Entry> entries;
     download_tracker->listMatches(pcre, &entries);
-    
+
     for (const auto &entry : entries) {
         std::cout << entry.url_ << ": " << TimeUtil::TimeTToLocalTimeString(entry.creation_time_);
         if (not entry.error_message_.empty())
@@ -107,11 +107,22 @@ void IsPresent(Zotero::DownloadTracker * const download_tracker, const std::stri
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc < 2 or argc > 4)
+    if (argc < 2)
         Usage();
 
     try {
-        Zotero::DownloadTracker download_tracker;
+        std::string tracker_db_path(Zotero::DownloadTracker::DEFAULT_ZOTERO_DOWNLOADS_DB_PATH);
+        if (std::strcmp(argv[1], "--tracker-db-path") == 0) {
+            if (argc < 3)
+                Usage();
+            tracker_db_path = argv[2];
+            argc -= 2;
+            argv += 2;
+        }
+        Zotero::DownloadTracker download_tracker(tracker_db_path);
+
+        if (argc < 2 or argc > 4)
+            Usage();
 
         if (std::strcmp(argv[1], "clear") == 0) {
             if (argc > 3)
