@@ -291,15 +291,37 @@ std::string AccessErrnoToString(int errno_to_convert, const std::string &pathnam
 }
 
 
-// Exists -- test whether a file exists
-//
+// Returns true if stat(2) succeeded and false otherwise.
+static bool Stat(struct stat * const stat_buf, const std::string &path, std::string * const error_message) {
+    errno = 0;
+
+    if (::stat(path.c_str(), stat_buf) != 0) {
+        if (error_message != nullptr)
+            *error_message = "can't stat(2) \"" + path + "\": " + std::string(::strerror(errno));
+        errno = 0;
+        return false;
+    }
+
+    return true;
+}
+
+
 bool Exists(const std::string &path, std::string * const error_message) {
-    errno = 0;
-    int access_status = ::access(path.c_str(), F_OK);
-    if (error_message != nullptr)
-        *error_message = AccessErrnoToString(errno, path, "F_OK");
-    errno = 0;
-    return (access_status == 0);
+    struct stat stat_buf;
+    return Stat(&stat_buf, path, error_message);
+}
+
+
+bool IsReadable(const std::string &path, std::string * const error_message) {
+    struct stat stat_buf;
+    if (not Stat(&stat_buf, path, error_message))
+        return false;
+
+    if ((S_IRUSR & stat_buf.st_mode) == S_IRUSR)
+        return true;
+
+    *error_message = "\"" + path + "\" exists but is not readable!";
+    return false;
 }
 
 
