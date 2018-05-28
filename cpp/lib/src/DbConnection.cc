@@ -22,6 +22,7 @@
 #include <vector>
 #include <cstdlib>
 #include "FileUtil.h"
+#include "IniFile.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -49,6 +50,18 @@ DbConnection::DbConnection(const std::string &mysql_url): sqlite3_(nullptr), stm
         port = StringUtil::ToUnsigned(port_plus_colon.substr(0, port_plus_colon.length() - 1));
 
     init(db_name, user, passwd, host, port);
+}
+
+
+DbConnection::DbConnection(const IniFile &ini_file, const std::string &ini_file_section) {
+    const IniFile::Section &db_section(ini_file.getSection(ini_file_section));
+    const std::string host(db_section.getString("sql_host", "localhost"));
+    const std::string database(db_section.getString("sql_database"));
+    const std::string user(db_section.getString("sql_user"));
+    const std::string password(db_section.getString("sql_password"));
+    const unsigned port(db_section.getUnsigned("sql_port", MYSQL_PORT));
+
+    init(database, user, password, host, port);
 }
 
 
