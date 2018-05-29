@@ -241,9 +241,9 @@ public:
     }
 
     inline void deleteAllSubfieldsWithCode(const char subfield_code) {
-        std::remove_if(subfields_.begin(), subfields_.end(),
+        subfields_.erase(std::remove_if(subfields_.begin(), subfields_.end(),
                        [subfield_code](const Subfield subfield) -> bool
-                       { return subfield.code_ == subfield_code; });
+                       { return subfield.code_ == subfield_code; }), subfields_.end());
     }
 
     inline std::string toString() const {
