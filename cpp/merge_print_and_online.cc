@@ -279,7 +279,7 @@ std::string NormaliseWhitespaceAndLowercase(const std::string &s) {
 
     std::vector<uint32_t> clean_utf32_chars;
 
-    // Remove leading whitespace and replace multiple occurrences of whitespace characters to a single space:
+    // Remove leading whitespace and replace multiple occurrences of whitespace characters with a single space:
     bool whitespace_seen(true);
     for (const uint32_t ch : utf32_chars) {
         if (TextUtil::IsWhitespace(ch)) {
