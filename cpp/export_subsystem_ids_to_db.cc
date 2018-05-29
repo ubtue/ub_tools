@@ -45,6 +45,7 @@ const std::string VUFIND_SQL_DATA_PATTERN("mysql://([^:]+):([^@]+)@[^/]+/(.+)");
 const unsigned EXPECTED_NUMMER_OF_GROUPS(3);
 static DbConnection *shared_connection;
 typedef enum Subsystem { RELBIB, BIBSTUDIES } Subsystem;
+const std::vector<Subsystem> SUBSYSTEMS( { RELBIB, BIBSTUDIES } );
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--input-format=(marc-21|marc-xml)] marc_input\n";
@@ -70,6 +71,7 @@ std::string GetSubsystemTag(Subsystem subsystem) {
     LOG_ERROR("Invalid Subsystem " + std::to_string(subsystem));
 }
 
+
 std::string GetSubsystemName(Subsystem subsystem) {
     switch (subsystem) {
     case  RELBIB:
@@ -82,6 +84,9 @@ std::string GetSubsystemName(Subsystem subsystem) {
 
 
 void InsertIntoSql(Subsystem subsystem, const std::set<std::string> &subsystem_record_ids) {
+    if (subsystem_record_ids.empty())
+        return;
+
     const std::string subsystem_id_table(GetSubsystemName(subsystem) + "_ids");
     shared_connection->queryOrDie("TRUNCATE " + subsystem_id_table);
 
@@ -89,6 +94,7 @@ void InsertIntoSql(Subsystem subsystem, const std::set<std::string> &subsystem_r
     std::string insert_statement(INSERT_STATEMENT_START);
     size_t row_counter(0);
     const size_t MAX_ROW_COUNT(10000);
+
 
     for (const auto &record_id : subsystem_record_ids) {
         insert_statement += "('" + record_id + "'), ";
@@ -107,7 +113,7 @@ void ParseVuFindConfEntry(const std::string vufind_sql_conf_entry,
                           std::string * const sql_database, std::string * const sql_username, std::string * const sql_password) {
     static RegexMatcher * vufind_sql_data_matcher(RegexMatcher::RegexMatcherFactory(VUFIND_SQL_DATA_PATTERN));
     if (not vufind_sql_data_matcher->matched(vufind_sql_conf_entry))
-        LOG_ERROR("Encountered invalid configuration string in " 
+        LOG_ERROR("Encountered invalid configuration string in "
                     + VUFIND_DB_CONF_FILE_PATH + '\n');
     if (vufind_sql_data_matcher->getNoOfGroups() != EXPECTED_NUMMER_OF_GROUPS)
         LOG_ERROR("Invalid number of matched groups: " + std::to_string(vufind_sql_data_matcher->getNoOfGroups()));
@@ -117,10 +123,20 @@ void ParseVuFindConfEntry(const std::string vufind_sql_conf_entry,
 }
 
 
-void ExtractIDsForSubsystem(Subsystem subsystem, MARC::Reader * const marc_reader, std::set<std::string> * const subsystem_ids) {
+void ExtractIDsForSubsystems(MARC::Reader * const marc_reader, std::vector<std::set<std::string>> * const subsystem_ids) {
     while (const MARC::Record &record = marc_reader->read()) {
-        if (not record.getTagRange(GetSubsystemTag(subsystem)).empty())
-            subsystem_ids->emplace(record.getControlNumber());  
+        for (Subsystem subsystem : SUBSYSTEMS) {
+            if (not record.getTagRange(GetSubsystemTag(subsystem)).empty())
+                ((*subsystem_ids)[subsystem]).emplace(record.getControlNumber());
+        }
+    }
+}
+
+
+void InitSubsystemsIDsVector(std::vector<std::set<std::string>> * const subsystems_ids) {
+    for (unsigned i = 0; i < SUBSYSTEMS.size(); ++i) {
+        std::set<std::string> init_set;
+        subsystems_ids->push_back(init_set);
     }
 }
 
@@ -157,14 +173,19 @@ int main(int argc, char **argv) {
         shared_connection = &db_connection;
 
         std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, reader_type));
-        std::set<std::string> subsystem_ids;
-        ExtractIDsForSubsystem(RELBIB, marc_reader.get(), &subsystem_ids);
-        InsertIntoSql(RELBIB, subsystem_ids);
-        
+        std::vector<std::set<std::string>> subsystems_ids;
+        InitSubsystemsIDsVector(&subsystems_ids);
+        ExtractIDsForSubsystems(marc_reader.get(), &subsystems_ids);
+        for (const auto subsystem : SUBSYSTEMS) {
+            InsertIntoSql(subsystem, subsystems_ids[subsystem]);
+            imported_count += subsystems_ids[subsystem].size();
+        }
+
+
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }
-    std::cerr << "Exported " << imported_count << " records\n";
+    std::cerr << "Exported " << imported_count << " IDs to Database\n";
 }
 
 
