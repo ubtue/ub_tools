@@ -133,10 +133,10 @@ string_info
 subfield_code_replacer
 suggest_bib_refs
 summarize_logs
+test_auto_temp_file
 test_chop_into_words
 test_find_substring
-test_auto_temp_file
-tests/generate_large_marc_record
+test_utf32_to_lowercase_conversion
 translate_chainer
 translation_db_tool
 translation_exporter

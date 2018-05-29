@@ -29,8 +29,8 @@
 #include "TextUtil.h"
 #include <algorithm>
 #include <exception>
+#include <locale>
 #include <memory>
-#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <cwctype>
@@ -297,6 +297,9 @@ bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string) {
 }
 
 
+static std::locale DEFAULT_LOCALE("");
+
+
 bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_utf8_string) {
     std::wstring wchar_string;
     if (not UTF8ToWCharString(utf8_string, &wchar_string))
@@ -306,7 +309,7 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
     std::wstring lowercase_wide_string;
     for (const auto wide_ch : wchar_string) {
         if (std::iswupper(wide_ch))
-            lowercase_wide_string += std::towlower(wide_ch);
+            lowercase_wide_string += std::tolower(wide_ch, DEFAULT_LOCALE);
         else
             lowercase_wide_string += wide_ch;
     }
@@ -428,6 +431,17 @@ bool UTF8ToUTF32(const std::string &utf8_string, std::vector<uint32_t> * utf32_c
         return false;
     }
 }
+
+
+uint32_t UTF32ToLower(const uint32_t code_point) {
+    return static_cast<uint32_t>(std::tolower(static_cast<wchar_t>(code_point), DEFAULT_LOCALE));
+}
+
+
+uint32_t UTF32ToUpper(const uint32_t code_point) {
+    return static_cast<uint32_t>(std::tolower(static_cast<wchar_t>(code_point), DEFAULT_LOCALE));
+}
+
 
 
 namespace {
@@ -913,13 +927,13 @@ bool AnythingToUTF32Decoder::addByte(const char ch) {
 
     if (current_state_ == CHARACTER_PENDING) {
         if (not permissive_) {
-            throw std::runtime_error("AnythingToUTF32Decoder::addByte: Pending character " 
+            throw std::runtime_error("AnythingToUTF32Decoder::addByte: Pending character "
                                      + std::to_string(utf32_char_) + " hast not been consumed.");
         }
         else
             consumeAndReset();
     }
-    
+
     // accumulate input and convert until we have a valid codepoint
     // kinda hacky, thanks to the brain-dead iconv API
     accum_buffer_.emplace_back(ch);
@@ -939,7 +953,7 @@ bool AnythingToUTF32Decoder::addByte(const char ch) {
         case EILSEQ:
             // invalid multi-byte sequence
             if (not permissive_) {
-                throw std::runtime_error("AnythingToUTF32Decoder::addByte: Invalid multi-byte sequence. Current byte: " 
+                throw std::runtime_error("AnythingToUTF32Decoder::addByte: Invalid multi-byte sequence. Current byte: "
                                          + std::to_string(static_cast<unsigned>(ch)) + ", consumed bytes: "
                                          + std::to_string(accum_buffer_.size()));
             } else {
@@ -959,9 +973,9 @@ bool AnythingToUTF32Decoder::addByte(const char ch) {
         // sequence decoded, convert the bytes
         utf32_char_ = *reinterpret_cast<uint32_t *>(out_buf.get());
         current_state_ = CHARACTER_PENDING;
-    }        
+    }
 
-    return current_state_ != CHARACTER_PENDING; 
+    return current_state_ != CHARACTER_PENDING;
 }
 
 
@@ -974,7 +988,7 @@ uint32_t AnythingToUTF32Decoder::getUTF32Char() {
     auto out(consumeAndReset());
     if (out == NULL_CHARACTER and not permissive_)
         throw std::runtime_error("AnythingToUTF32Decoder::addByte: Attempting to consume a non-existent codepoint");
-    
+
     return out;
 }
 
