@@ -64,7 +64,7 @@ std::string ExtractUplinkPPN(const MARC::Record::Field &field) {
 
 void CollectSuperiorPPNs(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const superior_ppns) {
     while (const MARC::Record record = marc_reader->read()) {
-        for (auto field : record) {
+        for (const auto &field : record) {
             if (UPLINK_TAGS.find(field.getTag().toString()) != UPLINK_TAGS.cend()) {
                 const std::string uplink_ppn(ExtractUplinkPPN(field));
                 if (not uplink_ppn.empty())
