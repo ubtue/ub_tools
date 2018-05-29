@@ -122,7 +122,7 @@ bool IsProbablyRelBib(const MARC::Record& record) {
 std::set<std::string> GetTemporarySuperiorRelBibList() {
     const std::string relbib_superior_temporary_file("/usr/local/ub_tools/cpp/data/relbib_superior_temporary.txt");
     std::set<std::string> superior_temporary_list;
-    File::File superior_temporary(relbib_superior_temporary_file, "r");
+    File superior_temporary(relbib_superior_temporary_file, "r");
     std::string line;
     while (superior_temporary.getline(&line) and not superior_temporary.eof())
         superior_temporary_list.emplace(line); 
