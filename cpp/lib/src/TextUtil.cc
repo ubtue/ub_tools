@@ -439,7 +439,7 @@ uint32_t UTF32ToLower(const uint32_t code_point) {
 
 
 uint32_t UTF32ToUpper(const uint32_t code_point) {
-    return static_cast<uint32_t>(std::tolower(static_cast<wchar_t>(code_point), DEFAULT_LOCALE));
+    return static_cast<uint32_t>(std::toupper(static_cast<wchar_t>(code_point), DEFAULT_LOCALE));
 }
 
 
