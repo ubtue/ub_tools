@@ -90,7 +90,7 @@ std::string ExtractCrossReferencePPN(const MARC::Record &record) {
     return "";
 }
 
-    
+
 // Creates a map from the PPN "partners" to the offsets of the original records that had the links to the partners.
 void CollectMappings(const bool debug, MARC::Reader * const marc_reader, File * const missing_partners,
                      const std::unordered_set<std::string> &superior_ppns,
@@ -102,24 +102,26 @@ void CollectMappings(const bool debug, MARC::Reader * const marc_reader, File * 
     while (const MARC::Record record = marc_reader->read()) {
         ++count;
 
-        const std::string PARTNER_PPN(ExtractCrossReferencePPN(record));
-        if (not PARTNER_PPN.empty()) {
-            if (superior_ppns.find(PARTNER_PPN) == superior_ppns.end()) {
-                ++no_partner_count;
-                missing_partners->write(record.getControlNumber() + "\n");
-            } else {
-                if (debug)
-                    LOG_INFO("Partner of " + PARTNER_PPN + " is " + record.getControlNumber() + ".");
-                (*ppn_to_offset_map)[PARTNER_PPN] = last_offset;
-            
-                // Consistently use the alphanumerically smaller PPN as the key in our map:
-                if (PARTNER_PPN < record.getControlNumber())
-                    (*ppn_to_ppn_map)[PARTNER_PPN] = record.getControlNumber();
-                else
-                    (*ppn_to_ppn_map)[record.getControlNumber()] = PARTNER_PPN;
+        if (superior_ppns.find(record.getControlNumber()) != superior_ppns.end()) {
+            const std::string PARTNER_PPN(ExtractCrossReferencePPN(record));
+            if (not PARTNER_PPN.empty()) {
+                if (superior_ppns.find(PARTNER_PPN) == superior_ppns.end()) {
+                    ++no_partner_count;
+                    missing_partners->write(record.getControlNumber() + "\n");
+                } else {
+                    if (debug)
+                        LOG_INFO("Partner of " + PARTNER_PPN + " is " + record.getControlNumber() + ".");
+                    (*ppn_to_offset_map)[PARTNER_PPN] = last_offset;
+
+                    // Consistently use the alphanumerically smaller PPN as the key in our map:
+                    if (PARTNER_PPN < record.getControlNumber())
+                        (*ppn_to_ppn_map)[PARTNER_PPN] = record.getControlNumber();
+                    else
+                        (*ppn_to_ppn_map)[record.getControlNumber()] = PARTNER_PPN;
+                }
             }
         }
-        
+
         last_offset = marc_reader->tell();
     }
 
