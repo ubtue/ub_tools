@@ -909,7 +909,7 @@ void DownloadTracker::addOrReplace(const std::string &url, const std::string &ha
 
 
 size_t DownloadTracker::listMatches(const std::string &url_regex, std::vector<Entry> * const entries) const {
-    std::unique_ptr<RegexMatcher> matcher(RegexMatcher::FactoryOrDie(url_regex));
+    std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(url_regex));
 
     entries->clear();
 
@@ -961,7 +961,7 @@ template<typename Predicate> static size_t DeleteEntries(kyotocabinet::HashDB * 
 
 
 size_t DownloadTracker::deleteMatches(const std::string &url_regex) {
-    std::shared_ptr<RegexMatcher> matcher(RegexMatcher::FactoryOrDie(url_regex));
+    std::shared_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(url_regex));
 
     return DeleteEntries(&db_, getPath(),
                          [matcher](const std::string &url, const time_t /*creation_timestamp*/){ return matcher->matched(url); });

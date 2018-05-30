@@ -160,7 +160,7 @@ enum ParseState { NORMAL, IN_DOUBLE_DASH_COMMENT, IN_C_STYLE_COMMENT, IN_STRING_
 // separators we need special handling for this case.
 void AddStatement(const std::string &statement_candidate, std::vector<std::string> * const individual_statements) {
     static RegexMatcher *create_trigger_matcher(
-        RegexMatcher::FactoryOrDie("^CREATE\\s+(TEMP|TEMPORARY)?\\s+TRIGGER",
+        RegexMatcher::RegexMatcherFactoryOrDie("^CREATE\\s+(TEMP|TEMPORARY)?\\s+TRIGGER",
                                    RegexMatcher::ENABLE_UTF8 | RegexMatcher::CASE_INSENSITIVE));
 
     if (individual_statements->empty())

@@ -93,7 +93,7 @@ RegexMatcher *RegexMatcher::RegexMatcherFactory(const std::string &pattern, std:
 }
 
 
-RegexMatcher *RegexMatcher::FactoryOrDie(const std::string &regex, const unsigned options) {
+RegexMatcher *RegexMatcher::RegexMatcherFactoryOrDie(const std::string &regex, const unsigned options) {
     std::string error_message;
     RegexMatcher *regex_matcher(RegexMatcher::RegexMatcherFactory(regex, &error_message, options));
     if (not error_message.empty())
