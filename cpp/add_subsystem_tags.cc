@@ -87,7 +87,7 @@ bool HasRelBibExcludeDDC(const MARC::Record &record) {
     static const std::string RELBIB_EXCLUDE_DDC_CATEGORIES_PATTERN("^[48][0-9][0-9]$");
     static RegexMatcher * const relbib_exclude_ddc_categories_matcher(RegexMatcher::RegexMatcherFactoryOrDie(RELBIB_EXCLUDE_DDC_CATEGORIES_PATTERN));
     for (const auto &field : record.getTagRange("082")) {
-        for (const auto &subfieldA : field.getSubfields().extractSubfields("a")) {
+        for (const auto &subfieldA : field.getSubfields().extractSubfields('a')) {
             if (not relbib_exclude_ddc_categories_matcher->matched(subfieldA))
                 return false;
         }
