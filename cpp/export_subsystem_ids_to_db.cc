@@ -29,24 +29,17 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "File.h"
-#include "IniFile.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "VuFind.h"
 #include "util.h"
 
 
 namespace {
 
 
-unsigned int imported_count;
-const std::string RELBIB_TAG("REL");
-const std::string BIBSTUDIES_TAG("BIB");
-const std::string VUFIND_DB_CONF_FILE_PATH("/usr/local/vufind/local/tuefind/local_overrides/database.conf");
-const std::string VUFIND_SQL_DATA_PATTERN("mysql://([^:]+):([^@]+)@[^/]+/(.+)");
-const unsigned EXPECTED_NUMMER_OF_GROUPS(3);
-static DbConnection *shared_connection;
-typedef enum Subsystem { RELBIB, BIBSTUDIES } Subsystem;
+enum Subsystem { RELBIB, BIBSTUDIES };
 const std::vector<Subsystem> SUBSYSTEMS( { RELBIB, BIBSTUDIES } );
 
 
@@ -56,15 +49,17 @@ const std::vector<Subsystem> SUBSYSTEMS( { RELBIB, BIBSTUDIES } );
 }
 
 
-void InsertToDatabase(std::string &insert_statement) {
+void InsertToDatabase(DbConnection * const db_connection, std::string * const insert_statement) {
     // Remove trailing comma and space:
-    insert_statement.resize(insert_statement.size() - 2);
-    insert_statement += ';';
-    shared_connection->queryOrDie(insert_statement);
+    insert_statement->resize(insert_statement->size() - 2);
+    *insert_statement += ';';
+    db_connection->queryOrDie(*insert_statement);
 }
 
 
-std::string GetSubsystemTag(Subsystem subsystem) {
+std::string GetSubsystemTag(const Subsystem subsystem) {
+    const std::string RELBIB_TAG("REL");
+    const std::string BIBSTUDIES_TAG("BIB");
     switch (subsystem) {
     case  RELBIB:
       return RELBIB_TAG;
@@ -75,7 +70,7 @@ std::string GetSubsystemTag(Subsystem subsystem) {
 }
 
 
-std::string GetSubsystemName(Subsystem subsystem) {
+std::string GetSubsystemName(const Subsystem subsystem) {
     switch (subsystem) {
     case  RELBIB:
       return "relbib";
@@ -86,12 +81,12 @@ std::string GetSubsystemName(Subsystem subsystem) {
 }
 
 
-void InsertIntoSql(Subsystem subsystem, const std::set<std::string> &subsystem_record_ids) {
+void InsertIntoSql(DbConnection * const db_connection, const Subsystem subsystem, const std::set<std::string> &subsystem_record_ids) {
     if (subsystem_record_ids.empty())
         return;
 
     const std::string subsystem_id_table(GetSubsystemName(subsystem) + "_ids");
-    shared_connection->queryOrDie("TRUNCATE " + subsystem_id_table);
+    db_connection->queryOrDie("TRUNCATE " + subsystem_id_table);
 
     const std::string INSERT_STATEMENT_START("INSERT INTO " + subsystem_id_table + "(record_id) VALUES");
     std::string insert_statement(INSERT_STATEMENT_START);
@@ -102,27 +97,13 @@ void InsertIntoSql(Subsystem subsystem, const std::set<std::string> &subsystem_r
     for (const auto &record_id : subsystem_record_ids) {
         insert_statement += "('" + record_id + "'), ";
         if (++row_counter > MAX_ROW_COUNT) {
-            InsertToDatabase(insert_statement);
+            InsertToDatabase(db_connection, &insert_statement);
             insert_statement = INSERT_STATEMENT_START;
             row_counter = 0;
         }
 
     }
-    InsertToDatabase(insert_statement);
-}
-
-
-void ParseVuFindConfEntry(const std::string vufind_sql_conf_entry,
-                          std::string * const sql_database, std::string * const sql_username, std::string * const sql_password) {
-    static RegexMatcher * vufind_sql_data_matcher(RegexMatcher::RegexMatcherFactory(VUFIND_SQL_DATA_PATTERN));
-    if (not vufind_sql_data_matcher->matched(vufind_sql_conf_entry))
-        LOG_ERROR("Encountered invalid configuration string in "
-                    + VUFIND_DB_CONF_FILE_PATH + '\n');
-    if (vufind_sql_data_matcher->getNoOfGroups() != EXPECTED_NUMMER_OF_GROUPS)
-        LOG_ERROR("Invalid number of matched groups: " + std::to_string(vufind_sql_data_matcher->getNoOfGroups()));
-    *sql_username = (*vufind_sql_data_matcher)[1];
-    *sql_password = (*vufind_sql_data_matcher)[2];
-    *sql_database = (*vufind_sql_data_matcher)[3];
+    InsertToDatabase(db_connection, &insert_statement);
 }
 
 
@@ -165,23 +146,19 @@ int main(int argc, char **argv) {
     }
 
     const std::string marc_input_filename(argv[1]);
+    unsigned int imported_count(0);
 
-        try {
-        const IniFile ini_file(VUFIND_DB_CONF_FILE_PATH);
-        const std::string vufind_db_conf_entry(ini_file.getString("" /* No sections in this conf file*/, "database"));
-        std::string sql_database;
-        std::string sql_username;
-        std::string sql_password;
-        ParseVuFindConfEntry(vufind_db_conf_entry, &sql_database, &sql_username, &sql_password);
-        DbConnection db_connection(sql_database, sql_username, sql_password);
-        shared_connection = &db_connection;
+    try {
+        std::string mysql_url;
+        VuFind::GetMysqlURL(&mysql_url);
+        DbConnection db_connection(mysql_url);
 
         std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, reader_type));
         std::vector<std::set<std::string>> subsystems_ids;
         InitSubsystemsIDsVector(&subsystems_ids);
         ExtractIDsForSubsystems(marc_reader.get(), &subsystems_ids);
         for (const auto subsystem : SUBSYSTEMS) {
-            InsertIntoSql(subsystem, subsystems_ids[subsystem]);
+            InsertIntoSql(&db_connection, subsystem, subsystems_ids[subsystem]);
             imported_count += subsystems_ids[subsystem].size();
         }
 
