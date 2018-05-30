@@ -16,7 +16,7 @@ GRANT DROP ON vufind.bibstudies_ids TO 'vufind'@'localhost';
 
 CREATE VIEW resource_tags_bibstudies AS (
   SELECT * FROM resource_tags WHERE resource_id IN 
-  (SELECT resource.id FROM resource JOIN relbib_ids 
+  (SELECT resource.id FROM resource JOIN bibstudies_ids
    ON resource.record_id = bibstudies_ids.record_id)
 );
 
