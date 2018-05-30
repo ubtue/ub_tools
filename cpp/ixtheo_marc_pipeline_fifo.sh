@@ -261,8 +261,15 @@ wait
 
 
 StartPhase "Tag Records that are Available in Tübingen with an ITA Field"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (flag_records_as_available_in_tuebingen --verbose \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
+StartPhase "Add Tags for subsystems"
+(add_subsystem_tags --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -274,6 +281,12 @@ StartPhase "Tag PDA candidates"
     $(ls -t gvi_ppn_list-??????.txt | head -1) \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
+StartPhase "Export Subsystem Tags to VuFind Database"
+(export_subsystem_ids_to_db --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
