@@ -146,7 +146,7 @@ int main(int argc, char **argv) {
     }
 
     const std::string marc_input_filename(argv[1]);
-    unsigned int imported_count(0);
+    unsigned imported_count(0);
 
     try {
         std::string mysql_url;
