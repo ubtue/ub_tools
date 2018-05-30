@@ -41,8 +41,6 @@ const std::string RELBIB_TAG("REL");
 const std::string BIBSTUDIES_TAG("BIB");
 
 
-
-
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--input-format=(marc-21|marc-xml)] marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
@@ -157,10 +155,21 @@ bool IsRelBibRecord(const MARC::Record& record) {
 }
 
 
-bool IsBibStudiesRecord(const MARC::Record& record) {
-    // FIXME ...
-    record.getControlNumber();
+bool HasBibStudiesIxTheoNotation(const MARC::Record& record) {
+    static const std::string BIBSTUDIES_IXTHEO_PATTERN("^[H][A-Z].*|.*:[H][A-Z].*");
+    static RegexMatcher * const relbib_ixtheo_notations_matcher(RegexMatcher::RegexMatcherFactory(BIBSTUDIES_IXTHEO_PATTERN));
+    for (const auto& field : record.getTagRange("652")) {
+        for (const auto& subfieldA : field.getSubfields().extractSubfields("a")) {
+            if (relbib_ixtheo_notations_matcher->matched(subfieldA))
+                return true;
+        }
+    }
     return false;
+}
+
+
+bool IsBibStudiesRecord(const MARC::Record& record) {
+    return HasBibStudiesIxTheoNotation(record);
 }
 
 
@@ -195,6 +204,7 @@ void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const mar
 
 } //unnamed namespace
 
+
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
@@ -202,7 +212,7 @@ int main(int argc, char **argv) {
         Usage();
 
     MARC::FileType reader_type(MARC::FileType::AUTO);
-    if (argc == 5) {
+    if (argc == 4) {
         if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
             reader_type = MARC::FileType::BINARY;
         else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
