@@ -35,7 +35,9 @@
 #include "StringUtil.h"
 #include "util.h"
 
+
 namespace {
+
 
 unsigned int imported_count;
 const std::string RELBIB_TAG("REL");
@@ -46,6 +48,7 @@ const unsigned EXPECTED_NUMMER_OF_GROUPS(3);
 static DbConnection *shared_connection;
 typedef enum Subsystem { RELBIB, BIBSTUDIES } Subsystem;
 const std::vector<Subsystem> SUBSYSTEMS( { RELBIB, BIBSTUDIES } );
+
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--input-format=(marc-21|marc-xml)] marc_input\n";
