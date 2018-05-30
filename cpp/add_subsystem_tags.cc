@@ -137,8 +137,8 @@ bool IsTemporaryRelBibSuperior(const MARC::Record &record) {
 
 
 bool ExcludeBecauseOfRWEX(const MARC::Record &record) {
-    for (const auto& field : record.getTagRange("935")) {
-        for (const auto& subfield : field.getSubfields().extractSubfields("a")) {
+    for (const auto &field : record.getTagRange("935")) {
+        for (const auto &subfield : field.getSubfields().extractSubfields("a")) {
             if (subfield == "rwex")
                 return true;
         }
