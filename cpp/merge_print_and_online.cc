@@ -77,10 +77,10 @@ void CollectSuperiorPPNs(MARC::Reader * const marc_reader, std::unordered_set<st
 
 // Returns a partner PPN or the empty string if none was found.
 std::string ExtractCrossReferencePPN(const MARC::Record &record) {
-    for (const auto &field : record.getTagRange("776")) {
-        const MARC::Subfields _776_subfields(field.getSubfields());
-        if (_776_subfields.getFirstSubfieldWithCode('i') == "Erscheint auch als") {
-            for (const auto &w_subfield : _776_subfields.extractSubfields('w')) {
+    for (const auto &field : record.getTagRange("773")) {
+        const MARC::Subfields _773_subfields(field.getSubfields());
+        if (_773_subfields.getFirstSubfieldWithCode('i') == "Erscheint auch als") {
+            for (const auto &w_subfield : _773_subfields.extractSubfields('w')) {
                 if (StringUtil::StartsWith(w_subfield, "(DE-576)"))
                     return w_subfield.substr(__builtin_strlen("(DE-576)"));
             }
