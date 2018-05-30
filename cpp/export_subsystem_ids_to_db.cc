@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
         Usage();
 
     MARC::FileType reader_type(MARC::FileType::AUTO);
-    if (argc == 5) {
+    if (argc == 3) {
         if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
             reader_type = MARC::FileType::BINARY;
         else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
