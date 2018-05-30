@@ -110,9 +110,11 @@ int Main(int argc, char *argv[]) {
     std::shared_ptr<Zotero::HarvestParams> harvest_params(new Zotero::HarvestParams);
     harvest_params->zts_server_url_ = Url(ini_file.getString("", "zts_server_url"));
 
-    std::string map_directory_path(ini_file.getString("", "map_directory_path"));
+    std::string map_directory_path(ini_file.getString("", "map_directory_path")),
+                previous_dowloads_db_path(ini_file.getString("", "previous_downloads_db_path"));
+    // ZoteroFormatHandler expects a directory path without a trailing /
     if (not StringUtil::EndsWith(map_directory_path, '/'))
-        map_directory_path += '/';
+        map_directory_path += "/";
 
     Zotero::AugmentMaps augment_maps(map_directory_path);
     Zotero::AugmentParams augment_params(&augment_maps);
@@ -126,7 +128,8 @@ int Main(int argc, char *argv[]) {
     db_connection.reset(new DbConnection(sql_database, sql_username, sql_password));
 
     const std::string MARC_OUTPUT_FILE(ini_file.getString("", "marc_output_file"));
-    harvest_params->format_handler_ = Zotero::FormatHandler::Factory(map_directory_path, GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE,
+    harvest_params->format_handler_ = Zotero::FormatHandler::Factory(previous_dowloads_db_path,
+                                                                     GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE,
                                                                      &augment_params, harvest_params);
 
     SimpleCrawler::Params crawler_params;
