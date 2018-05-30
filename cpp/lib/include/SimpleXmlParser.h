@@ -65,6 +65,7 @@ private:
     std::string internal_encoding_;
     std::string external_encoding_;
     std::unique_ptr<TextUtil::ToUTF32Decoder> to_utf32_decoder_;
+    off_t datasource_content_start_pos_;    // offset in the datasource that denotes the start of the content (excluding BOMs)
 
     static const std::deque<int> CDATA_START_DEQUE;
 
@@ -148,7 +149,7 @@ template<typename DataSource> const std::string SimpleXmlParser<DataSource>::CAN
 
 
 template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataSource * const input, const std::string &external_encoding)
-    : input_(input), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false), data_collector_(nullptr)
+    : input_(input), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false), data_collector_(nullptr), datasource_content_start_pos_(0)
 {
     if (not external_encoding.empty())
         external_encoding_ = external_encoding;
@@ -220,12 +221,17 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
 
     // reset the file pointer while skipping the BOM, if any
     if (has_BOM) {
+        datasource_content_start_pos_ = input_->tell();
         if (inital_encoding == Encoding::UTF8) {
             // only put back the last character
             input_->putback(first_four_bytes[3]);
+            --datasource_content_start_pos_;
         }
-    } else 
+    } else {
+        // content starts with the first byte
+        datasource_content_start_pos_ = 0;
         input_->rewind();
+    }
 
     parseOptionalPrologue();
     if (not internal_encoding_.empty()) {
@@ -701,6 +707,8 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
 
 template<typename DataSource> void SimpleXmlParser<DataSource>::rewind() {
     input_->rewind();
+    if (datasource_content_start_pos_ != 0)
+        input_->seek(datasource_content_start_pos_);
 
     line_no_                = 1;
     last_type_              = UNINITIALISED;
