@@ -20,7 +20,6 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -32,15 +31,15 @@
 #include "MARC.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
-#include "VuFind.h"
 #include "util.h"
+#include "VuFind.h"
 
 
 namespace {
 
 
 enum Subsystem { RELBIB, BIBSTUDIES };
-const std::vector<Subsystem> SUBSYSTEMS( { RELBIB, BIBSTUDIES } );
+const std::vector<Subsystem> SUBSYSTEMS{ RELBIB, BIBSTUDIES };
 
 
 [[noreturn]] void Usage() {
