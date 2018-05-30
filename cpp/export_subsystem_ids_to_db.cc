@@ -1,5 +1,5 @@
 /** \file    export_subsystem_ids_to_db.cc
- *  \brief   Export PPNs from titel data ith specific subsystem tags to the VuFind Mysql database
+ *  \brief   Export PPNs of records tagged as specific subsystems to the VuFind MySQL database
  *           to allow filtering
  *  \author  Johannes Riedl
  */
