@@ -76,7 +76,7 @@ bool HasRelBibExcludeDDC(const MARC::Record &record) {
         return true;
     // Exclude DDC 220-289, i.e. do not include if a DDC code of this range occurs anywhere in the DDC code
     static const std::string RELBIB_EXCLUDE_DDC_RANGE_PATTERN("^2[2-8][0-9][/.]?[^.]*$");
-    static RegexMatcher * const relbib_exclude_ddc_range_matcher(RegexMatcher::RegexMatcherFactory(RELBIB_EXCLUDE_DDC_RANGE_PATTERN));
+    static RegexMatcher * const relbib_exclude_ddc_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie(RELBIB_EXCLUDE_DDC_RANGE_PATTERN));
     for (const auto &field : record.getTagRange("082")) {
         for (const auto &subfieldA : field.getSubfields().extractSubfields("a")) {
             if (relbib_exclude_ddc_range_matcher->matched(subfieldA))
@@ -85,7 +85,7 @@ bool HasRelBibExcludeDDC(const MARC::Record &record) {
     }
     // Exclude item if it has only DDC a 400 or 800 DDC notation
     static const std::string RELBIB_EXCLUDE_DDC_CATEGORIES_PATTERN("^[48][0-9][0-9]$");
-    static RegexMatcher * const relbib_exclude_ddc_categories_matcher(RegexMatcher::RegexMatcherFactory(RELBIB_EXCLUDE_DDC_CATEGORIES_PATTERN));
+    static RegexMatcher * const relbib_exclude_ddc_categories_matcher(RegexMatcher::RegexMatcherFactoryOrDie(RELBIB_EXCLUDE_DDC_CATEGORIES_PATTERN));
     for (const auto &field : record.getTagRange("082")) {
         for (const auto &subfieldA : field.getSubfields().extractSubfields("a")) {
             if (not relbib_exclude_ddc_categories_matcher->matched(subfieldA))
