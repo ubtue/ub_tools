@@ -109,7 +109,7 @@ void InsertIntoSql(DbConnection * const db_connection, const Subsystem subsystem
 
 void ExtractIDsForSubsystems(MARC::Reader * const marc_reader, std::vector<std::set<std::string>> * const subsystem_ids) {
     while (const MARC::Record &record = marc_reader->read()) {
-        for (Subsystem subsystem : SUBSYSTEMS) {
+        for (const Subsystem subsystem : SUBSYSTEMS) {
             if (not record.getTagRange(GetSubsystemTag(subsystem)).empty())
                 ((*subsystem_ids)[subsystem]).emplace(record.getControlNumber());
         }
