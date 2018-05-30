@@ -75,122 +75,56 @@ void CollectSuperiorPPNs(MARC::Reader * const marc_reader, std::unordered_set<st
 }
 
 
-std::string NormaliseISSN(const std::string &issn) {
-    if (issn.length() == 8)
-        return issn;
-    if (issn.length() == 9 and issn[4] == '-')
-        return issn.substr(0, 4) + issn.substr(5);
-    LOG_WARNING("Strange ISSN \"" + issn + "\"!");
-    return issn;
-}
-
-
-const std::vector<std::string> ISSN_SUBFIELDS{ "022a", "029a", "440x", "490x", "730x", "773x", "776x", "780x", "785x" };
-
-
-void PopulateISSNtoControlNumberMap(MARC::Reader * const marc_reader,
-                                    std::unordered_map<std::string, std::string> * const issn_to_control_number_map)
-{
-    unsigned count(0);
-    while (const MARC::Record record = marc_reader->read()) {
-        if (not record.isSerial())
-            continue;
-
-        bool found_at_least_one_issn(false);
-        for (const std::string &issn_subfield : ISSN_SUBFIELDS) {
-            for (const auto &field : record.getTagRange(issn_subfield.substr(0, MARC::Record::TAG_LENGTH))) {
-                const MARC::Subfields subfields(field.getSubfields());
-                for (const auto &subfield_value : subfields.extractSubfields(issn_subfield[MARC::Record::TAG_LENGTH])) {
-                    issn_to_control_number_map->emplace(NormaliseISSN(subfield_value), record.getControlNumber());
-                    found_at_least_one_issn = true;
-                }
+// Returns a partner PPN or the empty string if none was found.
+std::string ExtractCrossReferencePPN(const MARC::Record &record) {
+    for (const auto &field : record.getTagRange("776")) {
+        const MARC::Subfields _776_subfields(field.getSubfields());
+        if (_776_subfields.getFirstSubfieldWithCode('i') == "Erscheint auch als") {
+            for (const auto &w_subfield : _776_subfields.extractSubfields('w')) {
+                if (StringUtil::StartsWith(w_subfield, "(DE-576)"))
+                    return w_subfield.substr(__builtin_strlen("(DE-576)"));
             }
         }
-
-        if (found_at_least_one_issn)
-            ++count;
     }
 
-    LOG_INFO("Found " + std::to_string(issn_to_control_number_map->size()) + " ISSN's associated with " + std::to_string(count)
-             + " record(s).");
+    return "";
 }
 
-
+    
 // Creates a map from the PPN "partners" to the offsets of the original records that had the links to the partners.
 void CollectMappings(const bool debug, MARC::Reader * const marc_reader, File * const missing_partners,
-                     const std::unordered_map<std::string, std::string> &issn_to_control_number_map,
-                     std::unordered_map<std::string, off_t> * const control_number_to_offset_map,
+                     const std::unordered_set<std::string> &superior_ppns,
+                     std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
                      std::unordered_map<std::string, std::string> * const ppn_to_ppn_map)
 {
-    std::unordered_set<std::string> all_ppns;
     off_t last_offset(marc_reader->tell());
-    unsigned count(0);
+    unsigned count(0), no_partner_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         ++count;
-        all_ppns.emplace(record.getControlNumber());
 
-        bool found_a_partner(false);
-        for (const auto &field : record.getTagRange("776")) {
-            const MARC::Subfields _776_subfields(field.getSubfields());
-            if (_776_subfields.getFirstSubfieldWithCode('i') == "Erscheint auch als") {
-                for (const auto &w_subfield : _776_subfields.extractSubfields('w')) {
-                    if (StringUtil::StartsWith(w_subfield, "(DE-576)")) {
-                        const std::string other_ppn(w_subfield.substr(__builtin_strlen("(DE-576)")));
-                        (*control_number_to_offset_map)[other_ppn] = last_offset;
-                        if (debug)
-                            LOG_INFO("Partner of " + other_ppn + " is " + record.getControlNumber() + ".");
-
-                        // Consistently use the alphanumerically smaller PPN as the key in our map:
-                        if (other_ppn < record.getControlNumber())
-                            (*ppn_to_ppn_map)[other_ppn] = record.getControlNumber();
-                        else
-                            (*ppn_to_ppn_map)[record.getControlNumber()] = other_ppn;
-
-                        found_a_partner = true;
-                    }
-                }
-            }
-        }
-
-        if (not found_a_partner) {
-            for (const auto &_029_field : record.getTagRange("029")) {
-                if (_029_field.getIndicator1() != 'x'
-                    or (_029_field.getIndicator2() != 'c' and _029_field.getIndicator2() != 'd'))
-                    continue;
-
-                const MARC::Subfields subfields(_029_field.getSubfields());
-                if (not subfields.hasSubfield('a'))
-                    continue;
-
-                const auto issn_and_ppn(issn_to_control_number_map.find(NormaliseISSN(subfields.getFirstSubfieldWithCode('a'))));
-                if (issn_and_ppn == issn_to_control_number_map.end())
-                    continue;
-
-                if (issn_and_ppn->second < record.getControlNumber())
-                    (*ppn_to_ppn_map)[issn_and_ppn->second] = record.getControlNumber();
+        const std::string PARTNER_PPN(ExtractCrossReferencePPN(record));
+        if (not PARTNER_PPN.empty()) {
+            if (superior_ppns.find(PARTNER_PPN) == superior_ppns.end()) {
+                ++no_partner_count;
+                missing_partners->write(record.getControlNumber() + "\n");
+            } else {
+                if (debug)
+                    LOG_INFO("Partner of " + PARTNER_PPN + " is " + record.getControlNumber() + ".");
+                (*ppn_to_offset_map)[PARTNER_PPN] = last_offset;
+            
+                // Consistently use the alphanumerically smaller PPN as the key in our map:
+                if (PARTNER_PPN < record.getControlNumber())
+                    (*ppn_to_ppn_map)[PARTNER_PPN] = record.getControlNumber();
                 else
-                    (*ppn_to_ppn_map)[record.getControlNumber()] = issn_and_ppn->second;
+                    (*ppn_to_ppn_map)[record.getControlNumber()] = PARTNER_PPN;
             }
         }
-
+        
         last_offset = marc_reader->tell();
     }
 
-    unsigned no_partner_count(0);
-    auto control_number_and_offset(control_number_to_offset_map->begin());
-    while (control_number_and_offset != control_number_to_offset_map->end()) {
-        if (all_ppns.find(control_number_and_offset->first) != all_ppns.end())
-            ++control_number_and_offset;
-        else {
-            ++no_partner_count;
-            missing_partners->write(control_number_and_offset->first + "\n");
-            control_number_and_offset = control_number_to_offset_map->erase(control_number_and_offset);
-        }
-    }
-
     LOG_INFO("Found " + std::to_string(count) + " record(s).");
-    LOG_INFO("Found " + std::to_string(control_number_to_offset_map->size())
-             + " superior record(s) that we may be able to merge.");
+    LOG_INFO("Found " + std::to_string(ppn_to_offset_map->size()) + " superior record(s) that we may be able to merge.");
     LOG_INFO("Found " + std::to_string(no_partner_count) + " superior record(s) that have missing \"partners\".");
 }
 
@@ -474,7 +408,7 @@ MARC::Record &Patch246i(MARC::Record * const record) {
 
 
 void ProcessRecords(const bool /*debug*/, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    const std::unordered_map<std::string, off_t> &control_number_to_offset_map,
+                    const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
                     const std::unordered_map<std::string, std::string> &ppn_to_ppn_map)
 {
     std::unordered_set<std::string> skip_ppns;
@@ -490,8 +424,8 @@ void ProcessRecords(const bool /*debug*/, MARC::Reader * const marc_reader, MARC
             continue;
         }
 
-        const auto control_number_and_offset(control_number_to_offset_map.find(record.getControlNumber()));
-        if (control_number_and_offset != control_number_to_offset_map.end()) {
+        const auto control_number_and_offset(ppn_to_offset_map.find(record.getControlNumber()));
+        if (control_number_and_offset != ppn_to_offset_map.end()) {
             MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, control_number_and_offset->second));
             record = MergeRecords(Patch246i(&record), Patch246i(&record2));
             ++merged_count;
@@ -610,16 +544,11 @@ int Main(int argc, char *argv[]) {
     CollectSuperiorPPNs(marc_reader.get(), &superior_ppns);
     marc_reader->rewind();
 
-    std::unordered_map<std::string, std::string> issn_to_control_number_map;
-    PopulateISSNtoControlNumberMap(marc_reader.get(), &issn_to_control_number_map);
-    marc_reader->rewind();
-
-    std::unordered_map<std::string, off_t> control_number_to_offset_map;
+    std::unordered_map<std::string, off_t> ppn_to_offset_map;
     std::unordered_map<std::string, std::string> ppn_to_ppn_map;
-    CollectMappings(debug, marc_reader.get(), missing_partners.get(), issn_to_control_number_map,
-                    &control_number_to_offset_map, &ppn_to_ppn_map);
+    CollectMappings(debug, marc_reader.get(), missing_partners.get(), superior_ppns, &ppn_to_offset_map, &ppn_to_ppn_map);
     marc_reader->rewind();
-    ProcessRecords(debug, marc_reader.get(), marc_writer.get(), control_number_to_offset_map, ppn_to_ppn_map);
+    ProcessRecords(debug, marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_ppn_map);
 
     if (not debug) {
         std::string mysql_url;
