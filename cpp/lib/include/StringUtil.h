@@ -300,19 +300,20 @@ inline std::string TrimWhite(const char * const s) { return TrimWhite(std::strin
  *                         are separated by "grouping_char's."
  *  \return A string representation for "n."
  */
-template <typename T> std::string ToString(T n, const unsigned radix = 10, const int width = 0,
-                                           const char padding_char = ' ', const char grouping_char = '\0', const unsigned grouping_size = 3) 
+template <typename IntegerType> std::string ToString(IntegerType n, const unsigned radix = 10, const int width = 0,
+                                                     const char padding_char = ' ', const char grouping_char = '\0',
+                                                     const unsigned grouping_size = 3) 
 {
     assert(radix >= 2 and radix <= 36);
 
     static const char DIGITS[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    char buf[129+1]; // enough room for a base-2 negative 128 bit number
+    char buf[129 + 1]; // enough room for a base-2 negative 128 bit number
     char *cp = buf + sizeof(buf) - 1;
     *cp = '\0';
     std::string result;
 
     bool negate(false);
-    if (std::is_signed<T>::value) {
+    if (std::is_signed<IntegerType>::value) {
         negate = n < 0;
         if (n < 0)
             n = -n;

@@ -98,13 +98,13 @@ void UpdateTitleField(MARC::Record::Field * const field, const MARC::Record auth
      if (authority_primary_field == authority_record.end())
          LOG_ERROR("Could not find appropriate Tag for authority PPN " + authority_record.getControlNumber());
      MARC::Subfields subfields(field->getSubfields());
-     for (auto &authority_subfield : authority_primary_field->getSubfields()) {
-         if (subfields.hasSubfield(authority_subfield.code_))
-             subfields.replaceFirstSubfield(authority_subfield.code_, authority_subfield.value_);
-         else
-             subfields.appendSubfield(authority_subfield.code_, authority_subfield.value_);
-      }
-      field->setContents(subfields, field->getIndicator1(), field->getIndicator2());
+     // We have to make sure that the order of the subfields is inherited from the authority data
+     // so delete the subfields to be replaced first
+     for (auto &authority_subfield : authority_primary_field->getSubfields())
+	  subfields.deleteAllSubfieldsWithCode(authority_subfield.code_);
+     for (auto &authority_subfield : authority_primary_field->getSubfields())
+          subfields.appendSubfield(authority_subfield.code_, authority_subfield.value_);
+     field->setContents(subfields, field->getIndicator1(), field->getIndicator2());
 }
 
 

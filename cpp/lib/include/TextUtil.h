@@ -159,6 +159,19 @@ std::string UTF32ToUTF8(const uint32_t code_point);
 bool UTF8ToUTF32(const std::string &utf8_string, std::vector<uint32_t> * utf32_chars);
 
 
+/** \brief Converts a UTF8 string to lowercase.
+ *  \return The converted string.
+ *  \note Throws an exception if an error occurred.
+ */
+uint32_t UTF32ToLower(const uint32_t code_point);
+
+
+/** \brief Converts a UTF8 string to uppercase.
+ *  \return True if no character set conversion error occurred, o/w false.
+ */
+uint32_t UTF32ToUpper(const uint32_t code_point);
+
+
 /** Converts single UTF-16 characters and surrogate pairs to UTF-32 a.k.a. UCS-4. */
 inline uint32_t UTF16ToUTF32(const uint16_t u1, const uint16_t u2 = 0) {
     if (u2 == 0)
