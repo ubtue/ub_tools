@@ -92,7 +92,7 @@ Date StringToDate(const std::string &date_str, const std::string &optional_strpt
                     return date;
                 }
             }
-        }      
+        }
     }
 
     if (unix_time != TimeUtil::BAD_TIME_T) {
@@ -628,7 +628,11 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
 }
 
 
-// Improve JSON result delivered by Zotero Translation Server
+/* Improve JSON result delivered by Zotero Translation Server
+ * Note on ISSNs: Some pages might contain multiple ISSNs (for each publication medium and/or a linking ISSN).
+ *                In such cases, the Zotero translator must return tags to distinguish between them.
+ *                The 'ISSN_normalized' custom field will then store the online ISSN.
+ */
 void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
                  AugmentParams * const augment_params)
 {
@@ -653,15 +657,23 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
             AugmentJsonCreators(creators_array, &comments);
         } else if (key_and_node.first == "ISSN") {
             issn_raw = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
+            if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized))) {
+                // the raw ISSN string probably contains multiple ISSNs that can't be distinguished
+                LOG_WARNING("\"" + issn_raw + "\" has multiple ISSNs! Expecting to find tagged variants");
+            } else {
+                custom_fields.emplace(std::pair<std::string, std::string>("ISSN_raw", issn_raw));
+                custom_fields.emplace(std::pair<std::string, std::string>("ISSN_normalized", issn_normalized));
+            }            
+        } else if (key_and_node.first == "taggedISSN") {
+            // overrides any previously-parsed ISSN
+            // TODO do we need to store the other variants as well?
+            auto tagged_issns = JSON::JSONNode::CastToObjectNodeOrDie(key_and_node.first, key_and_node.second);
+            issn_raw = tagged_issns->getStringValue("online");
             if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized)))
-                LOG_ERROR("\"" + issn_raw + "\" is not a valid ISSN!");
+                LOG_ERROR("\"" + issn_raw + "\" is not a valid (online) ISSN!");            
 
             custom_fields.emplace(std::pair<std::string, std::string>("ISSN_raw", issn_raw));
             custom_fields.emplace(std::pair<std::string, std::string>("ISSN_normalized", issn_normalized));
-
-            const auto ISSN_and_parent_ppn(augment_params->maps_->ISSN_to_superior_ppn_map_.find(issn_normalized));
-            if (ISSN_and_parent_ppn != augment_params->maps_->ISSN_to_superior_ppn_map_.cend())
-                custom_fields.emplace(std::pair<std::string, std::string>("PPN", ISSN_and_parent_ppn->second));
         } else if (key_and_node.first == "date") {
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
@@ -673,8 +685,19 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
         }
     }
 
+    // use ISSN specified in the config file if the translator didn't return any
+    if (issn_normalized.empty()) {
+        issn_normalized = augment_params->override_ISSN_online_;
+        if (not issn_normalized.empty())
+            LOG_INFO("Using default online ISSN \"" + issn_normalized + "\"");
+    }
+
     // ISSN specific overrides
     if (not issn_normalized.empty()) {
+        const auto ISSN_and_parent_ppn(augment_params->maps_->ISSN_to_superior_ppn_map_.find(issn_normalized));
+        if (ISSN_and_parent_ppn != augment_params->maps_->ISSN_to_superior_ppn_map_.cend())
+            custom_fields.emplace(std::pair<std::string, std::string>("PPN", ISSN_and_parent_ppn->second));
+
         // physical form
         const auto ISSN_and_physical_form(augment_params->maps_->ISSN_to_physical_form_map_.find(issn_normalized));
         if (ISSN_and_physical_form != augment_params->maps_->ISSN_to_physical_form_map_.cend()) {
@@ -731,7 +754,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
         const auto ISSN_and_SSGN_numbers(augment_params->maps_->ISSN_to_SSG_map_.find(issn_normalized));
         if (ISSN_and_SSGN_numbers != augment_params->maps_->ISSN_to_SSG_map_.end())
             custom_fields.emplace(std::pair<std::string, std::string>("ssgNumbers", ISSN_and_SSGN_numbers->second));
-    }
+    } else
+        LOG_WARNING("No suitable ISSN was found!");
 
     // Insert custom node with fields and comments
     if (comments.size() > 0 or custom_fields.size() > 0) {
