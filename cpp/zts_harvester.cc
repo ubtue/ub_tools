@@ -64,7 +64,7 @@ UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const std::shared_p
 void InitSiteDescFromIniFileSection(const IniFile::Section &section, SimpleCrawler::SiteDesc * const site_desc) {
     site_desc->start_url_ = section.getString("base_url");
     site_desc->max_crawl_depth_ = section.getUnsigned("max_crawl_depth");
-    site_desc->url_regex_matcher_.reset(RegexMatcher::FactoryOrDie(section.getString("extraction_regex")));
+    site_desc->url_regex_matcher_.reset(RegexMatcher::RegexMatcherFactoryOrDie(section.getString("extraction_regex")));
     site_desc->strptime_format_ = section.getString("strptime_format", "");
 }
     
