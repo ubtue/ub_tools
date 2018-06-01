@@ -41,15 +41,13 @@ const std::string RELBIB_TAG("REL");
 const std::string BIBSTUDIES_TAG("BIB");
 
 
-
-
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--input-format=(marc-21|marc-xml)] marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-bool HasRelBibSSGN(const MARC::Record& record) {
+bool HasRelBibSSGN(const MARC::Record &record) {
     for (const auto& field : record.getTagRange("084")) {
         const MARC::Subfields subfields(field.getSubfields());
         if (subfields.hasSubfieldWithValue('2', "ssgn") and subfields.hasSubfieldWithValue('a', "0"))
@@ -59,7 +57,7 @@ bool HasRelBibSSGN(const MARC::Record& record) {
 }
 
 
-bool HasRelBibIxTheoNotation(const MARC::Record& record) {
+bool HasRelBibIxTheoNotation(const MARC::Record &record) {
     // Integrate IxTheo Notations A*.B*,T*,V*,X*,Z*
     static const std::string RELBIB_IXTHEO_NOTATION_PATTERN("^[ABTVXZ][A-Z].*|.*:[ABTVXZ][A-Z].*");
     static RegexMatcher * const relbib_ixtheo_notations_matcher(RegexMatcher::RegexMatcherFactory(RELBIB_IXTHEO_NOTATION_PATTERN));
@@ -73,23 +71,23 @@ bool HasRelBibIxTheoNotation(const MARC::Record& record) {
 }
 
 
-bool HasRelBibExcludeDDC(const MARC::Record& record) {
+bool HasRelBibExcludeDDC(const MARC::Record &record) {
     if (not record.hasTag("082"))
         return true;
     // Exclude DDC 220-289, i.e. do not include if a DDC code of this range occurs anywhere in the DDC code
     static const std::string RELBIB_EXCLUDE_DDC_RANGE_PATTERN("^2[2-8][0-9][/.]?[^.]*$");
-    static RegexMatcher * const relbib_exclude_ddc_range_matcher(RegexMatcher::RegexMatcherFactory(RELBIB_EXCLUDE_DDC_RANGE_PATTERN));
-    for (const auto& field : record.getTagRange("082")) {
-        for (const auto& subfieldA : field.getSubfields().extractSubfields("a")) {
+    static RegexMatcher * const relbib_exclude_ddc_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie(RELBIB_EXCLUDE_DDC_RANGE_PATTERN));
+    for (const auto &field : record.getTagRange("082")) {
+        for (const auto &subfieldA : field.getSubfields().extractSubfields("a")) {
             if (relbib_exclude_ddc_range_matcher->matched(subfieldA))
                 return true;
         }
     }
     // Exclude item if it has only DDC a 400 or 800 DDC notation
     static const std::string RELBIB_EXCLUDE_DDC_CATEGORIES_PATTERN("^[48][0-9][0-9]$");
-    static RegexMatcher * const relbib_exclude_ddc_categories_matcher(RegexMatcher::RegexMatcherFactory(RELBIB_EXCLUDE_DDC_CATEGORIES_PATTERN));
-    for (const auto& field : record.getTagRange("082")) {
-        for (const auto& subfieldA : field.getSubfields().extractSubfields("a")) {
+    static RegexMatcher * const relbib_exclude_ddc_categories_matcher(RegexMatcher::RegexMatcherFactoryOrDie(RELBIB_EXCLUDE_DDC_CATEGORIES_PATTERN));
+    for (const auto &field : record.getTagRange("082")) {
+        for (const auto &subfieldA : field.getSubfields().extractSubfields('a')) {
             if (not relbib_exclude_ddc_categories_matcher->matched(subfieldA))
                 return false;
         }
@@ -98,17 +96,17 @@ bool HasRelBibExcludeDDC(const MARC::Record& record) {
 }
 
 
-bool MatchesRelBibDDC(const MARC::Record& record) {
+bool MatchesRelBibDDC(const MARC::Record &record) {
     return not HasRelBibExcludeDDC(record);
 }
 
 
-bool IsDefinitelyRelBib(const MARC::Record& record) {
+bool IsDefinitelyRelBib(const MARC::Record &record) {
    return HasRelBibSSGN(record) or HasRelBibIxTheoNotation(record) or MatchesRelBibDDC(record);
 } 
 
 
-bool IsProbablyRelBib(const MARC::Record& record) {
+bool IsProbablyRelBib(const MARC::Record &record) {
     for (const auto& field : record.getTagRange("191")) {
         for (const auto& subfield : field.getSubfields().extractSubfields("a")) {
             if (subfield == "1")
@@ -130,7 +128,7 @@ std::set<std::string> GetTemporarySuperiorRelBibList() {
 }
 
 
-bool IsTemporaryRelBibSuperior(const MARC::Record& record) {
+bool IsTemporaryRelBibSuperior(const MARC::Record &record) {
     static std::set<std::string> superior_temporary_list(GetTemporarySuperiorRelBibList());
     if (superior_temporary_list.find(record.getControlNumber()) != superior_temporary_list.end())
         return true;
@@ -138,9 +136,9 @@ bool IsTemporaryRelBibSuperior(const MARC::Record& record) {
 }
 
 
-bool ExcludeBecauseOfRWEX(const MARC::Record& record) {
-    for (const auto& field : record.getTagRange("935")) {
-        for (const auto& subfield : field.getSubfields().extractSubfields("a")) {
+bool ExcludeBecauseOfRWEX(const MARC::Record &record) {
+    for (const auto &field : record.getTagRange("935")) {
+        for (const auto &subfield : field.getSubfields().extractSubfields("a")) {
             if (subfield == "rwex")
                 return true;
         }
@@ -149,7 +147,7 @@ bool ExcludeBecauseOfRWEX(const MARC::Record& record) {
 }
 
 
-bool IsRelBibRecord(const MARC::Record& record) {
+bool IsRelBibRecord(const MARC::Record &record) {
     return ((IsDefinitelyRelBib(record) or
              IsProbablyRelBib(record) or
              IsTemporaryRelBibSuperior(record)) 
@@ -157,14 +155,25 @@ bool IsRelBibRecord(const MARC::Record& record) {
 }
 
 
-bool IsBibStudiesRecord(const MARC::Record& record) {
-    // FIXME ...
-    record.getControlNumber();
+bool HasBibStudiesIxTheoNotation(const MARC::Record &record) {
+    static const std::string BIBSTUDIES_IXTHEO_PATTERN("^[H][A-Z].*|.*:[H][A-Z].*");
+    static RegexMatcher * const relbib_ixtheo_notations_matcher(RegexMatcher::RegexMatcherFactory(BIBSTUDIES_IXTHEO_PATTERN));
+    for (const auto &field : record.getTagRange("652")) {
+        for (const auto &subfieldA : field.getSubfields().extractSubfields("a")) {
+            if (relbib_ixtheo_notations_matcher->matched(subfieldA))
+                return true;
+        }
+    }
     return false;
 }
 
 
-void AddSubsystemTag(MARC::Record * const record, const std::string& tag) {
+bool IsBibStudiesRecord(const MARC::Record &record) {
+    return HasBibStudiesIxTheoNotation(record);
+}
+
+
+void AddSubsystemTag(MARC::Record * const record, const std::string &tag) {
     // Don't insert twice
     if (record->getFirstField(tag) != record->end())
         return;
@@ -195,6 +204,7 @@ void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const mar
 
 } //unnamed namespace
 
+
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
@@ -202,7 +212,7 @@ int main(int argc, char **argv) {
         Usage();
 
     MARC::FileType reader_type(MARC::FileType::AUTO);
-    if (argc == 5) {
+    if (argc == 4) {
         if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
             reader_type = MARC::FileType::BINARY;
         else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
