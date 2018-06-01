@@ -175,3 +175,6 @@ cpp/es_store_document
 cpp/marc_convert
 cpp/ztracker_tool
 *.tmp
+cpp/add_subsystem_tags
+cpp/rewrite_keywords_and_authors_from_authority_data
+cpp/tests/TextUtil_CollapseAndTrimWhitespaceTest
