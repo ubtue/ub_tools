@@ -99,7 +99,8 @@ public:
 
 
 struct AugmentParams {
-    std::string override_ISSN_;
+    std::string override_ISSN_print_;
+    std::string override_ISSN_online_;
     std::string strptime_format_;
     AugmentMaps * const maps_;
 

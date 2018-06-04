@@ -41,11 +41,17 @@ namespace {
 }
 
 
+void ReadAugmentParamsFromIni(const IniFile::Section &section, Zotero::AugmentParams * const augment_params) {
+    augment_params->override_ISSN_print_ = section.getString("issn_print", "");
+    augment_params->override_ISSN_online_ = section.getString("issn_online", "");
+    augment_params->strptime_format_ = section.getString("strptime_format", "");
+}
+
+
 UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
                             Zotero::AugmentParams * const augment_params, DbConnection * const db_connection)
 {
-    augment_params->override_ISSN_ = section.getString("issn", "");
-    augment_params->strptime_format_ = section.getString("strptime_format", "");
+    ReadAugmentParamsFromIni(section, augment_params);
 
     const std::string feed_url(section.getString("feed"));
     LOG_DEBUG("feed_url: " + feed_url);
@@ -59,15 +65,13 @@ void InitSiteDescFromIniFileSection(const IniFile::Section &section, SimpleCrawl
     site_desc->url_regex_matcher_.reset(RegexMatcher::RegexMatcherFactoryOrDie(section.getString("extraction_regex")));
     site_desc->strptime_format_ = section.getString("strptime_format", "");
 }
-    
-    
+
+
 UnsignedPair ProcessCrawl(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
                           Zotero::AugmentParams * const augment_params, const SimpleCrawler::Params &crawler_params,
                           const std::shared_ptr<RegexMatcher> &supported_urls_regex)
 {
-    augment_params->override_ISSN_ = section.getString("issn", "");
-    augment_params->strptime_format_ = section.getString("strptime_format", "");
-    LOG_DEBUG("strptime_format found was \"" + augment_params->strptime_format_ +"\".");
+    ReadAugmentParamsFromIni(section, augment_params);
 
     SimpleCrawler::SiteDesc site_desc;
     InitSiteDescFromIniFileSection(section, &site_desc);
@@ -104,7 +108,7 @@ int Main(int argc, char *argv[]) {
         if (argc < 2)
             Usage();
     }
-    
+
     IniFile ini_file(argv[1]);
 
     std::shared_ptr<Zotero::HarvestParams> harvest_params(new Zotero::HarvestParams);
@@ -146,7 +150,11 @@ int Main(int argc, char *argv[]) {
 
     unsigned processed_section_count(0);
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
+
     for (const auto &section : ini_file) {
+        if (section.first.empty())
+            continue;       // don't parse the global parameters section
+
         if (not section_name_to_found_flag_map.empty()) {
             const auto section_name_and_found_flag(section_name_to_found_flag_map.find(section.first));
             if (section_name_and_found_flag == section_name_to_found_flag_map.end())
