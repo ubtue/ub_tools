@@ -107,13 +107,13 @@ void UpdateTitleField(MARC::Record::Field * const field, const MARC::Record auth
     // so delete the subfields to be replaced first
     // Moreover there is a special case with "Werktitel". These are in $a
     // in the authority data but must be mapped to $t in the title data
-    for (auto &authority_subfield : authority_primary_field->getSubfields()) {
+    for (const auto &authority_subfield : authority_primary_field->getSubfields()) {
         if (IsWorkTitleField(subfields) and authority_subfield.code_ == 'a')
             subfields.deleteAllSubfieldsWithCode('t');
         else
             subfields.deleteAllSubfieldsWithCode(authority_subfield.code_);
     }
-    for (auto &authority_subfield : authority_primary_field->getSubfields()){
+    for (const auto &authority_subfield : authority_primary_field->getSubfields()){
         if (IsWorkTitleField(subfields) and authority_subfield.code_ == 'a')
             subfields.appendSubfield('t', authority_subfield.value_);
         else
