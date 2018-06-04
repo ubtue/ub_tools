@@ -93,18 +93,33 @@ bool GetAuthorityRecordFromPPN(const std::string &bsz_authority_ppn, MARC::Recor
 }
 
 
+bool IsWorkTitleField(MARC::Subfields &subfields) {
+    return subfields.hasSubfieldWithValue('D', "u");
+}
+
+
 void UpdateTitleField(MARC::Record::Field * const field, const MARC::Record authority_record) {
-     auto authority_primary_field(GetFirstPrimaryField(authority_record));
-     if (authority_primary_field == authority_record.end())
-         LOG_ERROR("Could not find appropriate Tag for authority PPN " + authority_record.getControlNumber());
-     MARC::Subfields subfields(field->getSubfields());
-     // We have to make sure that the order of the subfields is inherited from the authority data
-     // so delete the subfields to be replaced first
-     for (auto &authority_subfield : authority_primary_field->getSubfields())
-	  subfields.deleteAllSubfieldsWithCode(authority_subfield.code_);
-     for (auto &authority_subfield : authority_primary_field->getSubfields())
-          subfields.appendSubfield(authority_subfield.code_, authority_subfield.value_);
-     field->setContents(subfields, field->getIndicator1(), field->getIndicator2());
+    auto authority_primary_field(GetFirstPrimaryField(authority_record));
+    if (authority_primary_field == authority_record.end())
+        LOG_ERROR("Could not find appropriate Tag for authority PPN " + authority_record.getControlNumber());
+    MARC::Subfields subfields(field->getSubfields());
+    // We have to make sure that the order of the subfields is inherited from the authority data
+    // so delete the subfields to be replaced first
+    // Moreover there is a special case with "Werktitel". These are in $a
+    // in the authority data but must be mapped to $t in the title data
+    for (auto &authority_subfield : authority_primary_field->getSubfields()) {
+        if (IsWorkTitleField(subfields) and authority_subfield.code_ == 'a')
+            subfields.deleteAllSubfieldsWithCode('t');
+        else
+            subfields.deleteAllSubfieldsWithCode(authority_subfield.code_);
+    }
+    for (auto &authority_subfield : authority_primary_field->getSubfields()){
+        if (IsWorkTitleField(subfields) and authority_subfield.code_ == 'a')
+            subfields.appendSubfield('t', authority_subfield.value_);
+        else
+            subfields.appendSubfield(authority_subfield.code_, authority_subfield.value_);
+    }
+    field->setContents(subfields, field->getIndicator1(), field->getIndicator2());
 }
 
 
