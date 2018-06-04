@@ -871,7 +871,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
             try {
                 AugmentJson(json_object, augment_params);
                 record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
-            } catch (const std::runtime_error &x) {
+            } catch (const std::exception &x) {
                 LOG_WARNING("Couldn't process record! Error: " + std::string(x.what()));
                 return record_count_and_previously_downloaded_count;
             }
@@ -907,7 +907,7 @@ inline static void SplitTimestampErrorMessageAndHash(const std::string &raw_valu
 {
     if (unlikely(raw_value.size() <= sizeof(time_t)))
         LOG_ERROR("raw value is too small!");
-    *creation_time = *reinterpret_cast<const time_t * const>(&raw_value);
+    *creation_time = *reinterpret_cast<const time_t * const>(raw_value.data());
     *error_message = raw_value.substr(sizeof(time_t)).c_str();
     *hash = raw_value.substr(sizeof(time_t) + error_message->length() + 1 /* for the terminating NUL */);
 }
@@ -935,7 +935,7 @@ void DownloadTracker::addOrReplace(const std::string &url, const std::string &ha
 
     const time_t now(std::time(nullptr));
     const std::string timestamp(reinterpret_cast<const char * const>(&now), sizeof(now));
-    if (unlikely(not db_.set(url, timestamp + hash)))
+    if (unlikely(not db_.set(url, timestamp + std::string(1, '\0') + hash)))
         LOG_ERROR("failed to insert a value into \"" + getPath() + "\":" + std::string(db_.error().message()));
 }
 
