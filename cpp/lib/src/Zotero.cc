@@ -424,7 +424,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                             MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                             GetNextControlNumber());
     bool is_journal_article(false);
-    std::string publication_title, ppn, issn_raw, issn_normalized, url;
+    std::string publication_title, ppn, issn_normalized, url;
     for (const auto &key_and_node : *object_node) {
         if (ignore_fields->matched(key_and_node.first))
             continue;
@@ -485,8 +485,15 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
     if (custom_node != nullptr) {
         const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
-        issn_raw = custom_object->getOptionalStringValue("ISSN_raw");
-        issn_normalized = custom_object->getOptionalStringValue("ISSN_normalized");
+        if (custom_object->getOptionalStringNode("ISSN_untagged"))
+            issn_normalized = custom_object->getOptionalStringValue("ISSN_untagged");
+        else if (custom_object->getOptionalStringNode("ISSN_online"))
+            issn_normalized = custom_object->getOptionalStringValue("ISSN_online");
+        else if (custom_object->getOptionalStringNode("ISSN_print"))
+            issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
+        else
+            LOG_WARNING("No ISSN found for article.");
+
         ppn = custom_object->getOptionalStringValue("PPN");
 
         // physical form
@@ -656,22 +663,21 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
                                                                                                  key_and_node.second));
             AugmentJsonCreators(creators_array, &comments);
         } else if (key_and_node.first == "ISSN") {
-            if (not augment_params->override_ISSN_online_.empty())                
+            if (not augment_params->override_ISSN_online_.empty() or
+                not augment_params->override_ISSN_print_.empty()) {
                 continue;   // we'll just use the override
-
+            }
             issn_raw = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
             if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized))) {
                 // the raw ISSN string probably contains multiple ISSNs that can't be distinguished
-                LOG_ERROR("\"" + issn_raw + "\" has multiple ISSN's!");
-            } else {
-                custom_fields.emplace(std::pair<std::string, std::string>("ISSN_raw", issn_raw));
-                custom_fields.emplace(std::pair<std::string, std::string>("ISSN_normalized", issn_normalized));
-            }            
+                throw std::runtime_error("\"" + issn_raw + "\" is invalid (multiple ISSN's?)!");
+            } else
+                custom_fields.emplace(std::pair<std::string, std::string>("ISSN_untagged", issn_normalized));
         } else if (key_and_node.first == "date") {
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
             Date date(StringToDate(date_raw, augment_params->strptime_format_));
-            std::string date_normalized(std::to_string(date.year_) + "-" + StringUtil::ToString(date.month_, 10, 2, '0') + "-" 
+            std::string date_normalized(std::to_string(date.year_) + "-" + StringUtil::ToString(date.month_, 10, 2, '0') + "-"
                                         + StringUtil::ToString(date.day_, 10, 2, '0'));
             custom_fields.emplace(std::pair<std::string, std::string>("date_normalized", date_normalized));
             comments.emplace_back("normalized date to: " + date_normalized);
@@ -681,9 +687,14 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
     // use ISSN specified in the config file if any
     if (not augment_params->override_ISSN_online_.empty()) {
         issn_normalized = augment_params->override_ISSN_online_;
-        LOG_INFO("Using default online ISSN \"" + issn_normalized + "\"");
+        custom_fields.emplace(std::pair<std::string, std::string>("ISSN_online", issn_normalized));
+        LOG_DEBUG("Using default online ISSN \"" + issn_normalized + "\"");
+    } else if (not augment_params->override_ISSN_print_.empty()) {
+        issn_normalized = augment_params->override_ISSN_print_;
+        custom_fields.emplace(std::pair<std::string, std::string>("ISSN_print", issn_normalized));
+        LOG_DEBUG("Using default print ISSN \"" + issn_normalized + "\"");
     }
-    
+
     // ISSN specific overrides
     if (not issn_normalized.empty()) {
         const auto ISSN_and_parent_ppn(augment_params->maps_->ISSN_to_superior_ppn_map_.find(issn_normalized));
@@ -857,7 +868,11 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         const std::shared_ptr<const JSON::ArrayNode>json_array(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
         for (const auto entry : *json_array) {
             const std::shared_ptr<JSON::ObjectNode> json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
-            AugmentJson(json_object, augment_params);
+            try {
+                AugmentJson(json_object, augment_params);
+            } catch (const std::runtime_error &x) {
+                LOG_WARNING("Couldn't augment JSON! Error: " + std::string(x.what()));
+            }
             record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
         }
     }
@@ -916,7 +931,7 @@ bool DownloadTracker::hasAlreadyBeenDownloaded(const std::string &url, time_t * 
 void DownloadTracker::addOrReplace(const std::string &url, const std::string &hash, const std::string &error_message) {
     if (unlikely((hash.empty() and error_message.empty()) or (not hash.empty() and not error_message.empty())))
         LOG_ERROR("exactly one of \"hash\" and \"error_message\" must be non-empty!");
-    
+
     const time_t now(std::time(nullptr));
     const std::string timestamp(reinterpret_cast<const char * const>(&now), sizeof(now));
     if (unlikely(not db_.set(url, timestamp + hash)))
