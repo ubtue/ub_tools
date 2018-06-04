@@ -656,24 +656,17 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
                                                                                                  key_and_node.second));
             AugmentJsonCreators(creators_array, &comments);
         } else if (key_and_node.first == "ISSN") {
+            if (not augment_params->override_ISSN_online_.empty())                
+                continue;   // we'll just use the override
+
             issn_raw = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
             if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized))) {
                 // the raw ISSN string probably contains multiple ISSNs that can't be distinguished
-                LOG_WARNING("\"" + issn_raw + "\" has multiple ISSN's! Expecting to find tagged variants");
+                LOG_ERROR("\"" + issn_raw + "\" has multiple ISSN's!");
             } else {
                 custom_fields.emplace(std::pair<std::string, std::string>("ISSN_raw", issn_raw));
                 custom_fields.emplace(std::pair<std::string, std::string>("ISSN_normalized", issn_normalized));
             }            
-        } else if (key_and_node.first == "taggedISSN") {
-            // overrides any previously-parsed ISSN
-            // TODO do we need to store the other variants as well?
-            auto tagged_issns = JSON::JSONNode::CastToObjectNodeOrDie(key_and_node.first, key_and_node.second);
-            issn_raw = tagged_issns->getStringValue("online");
-            if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized)))
-                LOG_ERROR("\"" + issn_raw + "\" is not a valid (online) ISSN!");            
-
-            custom_fields.emplace(std::pair<std::string, std::string>("ISSN_raw", issn_raw));
-            custom_fields.emplace(std::pair<std::string, std::string>("ISSN_normalized", issn_normalized));
         } else if (key_and_node.first == "date") {
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
