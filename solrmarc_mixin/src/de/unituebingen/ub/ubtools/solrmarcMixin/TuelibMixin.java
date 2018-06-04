@@ -1122,15 +1122,15 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final VariableField variableField : record.getVariableFields("700")) {
             final DataField dataField = (DataField) variableField;
 
-            String author2 = null;
+            final StringBuilder author2 = new StringBuilder();
             for (char subfieldCode : author2SubfieldCodes) {
                 final Subfield subfieldField = dataField.getSubfield(subfieldCode);
-                if (subfieldField != null) {
-                    author2 = subfieldField.getData();
-                    break;
-                }
+                if (subfieldField != null)
+                    author2.append(author2.toString().isEmpty() ?
+                                   subfieldField.getData() : " " + subfieldField.getData());
             }
-            if (author2 == null)
+
+            if (author2.toString().isEmpty())
                 continue;
 
             final List<Subfield> _4Subfields = dataField.getSubfields('4');
@@ -1138,7 +1138,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 continue;
 
             final StringBuilder author2AndRoles = new StringBuilder();
-            author2AndRoles.append(author2.replace("$", ""));
+            author2AndRoles.append(author2.toString().replace("$", ""));
             for (final Subfield _4Subfield : _4Subfields) {
                 author2AndRoles.append('$');
                 author2AndRoles.append(cleanRole(_4Subfield.getData()));
