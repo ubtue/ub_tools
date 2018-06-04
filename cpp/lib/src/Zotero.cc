@@ -871,7 +871,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
             try {
                 AugmentJson(json_object, augment_params);
                 record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
-            } catch (const std::runtime_error &x) {
+            } catch (const std::exception &x) {
                 LOG_WARNING("Couldn't process record! Error: " + std::string(x.what()));
                 return record_count_and_previously_downloaded_count;
             }
