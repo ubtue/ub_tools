@@ -21,6 +21,7 @@ endif
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
 CGI_PROGS      = full_text_cache_monitor full_text_lookup translate_chainer translator_ajax translator display_translate_stats zotero_cgi
 INSTALL_PROGS  = $(PROGS) *.sh
+DEPT_MOUNT_CONF= $(wildcard /mnt/ZE020150/FID-Entwicklung/*.conf)
 
 .PHONY: all .deps tests test install regular_install cgi_install local_clean clean
 
@@ -46,7 +47,7 @@ lib/libubtue.a: $(wildcard lib/src/*.cc) $(wildcard lib/include/*.h)
 tests:
 	$(MAKE) -C test
 
-install: regular_install cgi_install data_install
+install: regular_install cgi_install data_install department_mount_install
 
 regular_install: $(INSTALL_PROGS) Makefile
 	@echo "Installing programs..."
@@ -75,6 +76,9 @@ data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.tem
 	mkdir --parents /usr/local/var/lib/tuelib/crossref_downloader/
 	cp data/crossref_journal_list /usr/local/var/lib/tuelib/crossref_downloader/
 	cp data/rss_harvester.conf /usr/local/var/lib/tuelib/rss_harvester.conf
+
+department_mount_install: $(DEPT_MOUNT_CONF)
+	cp $(DEPT_MOUNT_CONF) /usr/local/var/lib/tuelib/
 
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
