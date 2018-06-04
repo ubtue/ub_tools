@@ -669,7 +669,7 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
             }
             issn_raw = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
             if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized))) {
-                // the raw ISSN string probably contains multiple ISSNs that can't be distinguished
+                // the raw ISSN string probably contains multiple ISSN's that can't be distinguished
                 throw std::runtime_error("\"" + issn_raw + "\" is invalid (multiple ISSN's?)!");
             } else
                 custom_fields.emplace(std::pair<std::string, std::string>("ISSN_untagged", issn_normalized));
