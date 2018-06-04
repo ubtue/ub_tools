@@ -35,6 +35,7 @@
 
 namespace {
 
+
 unsigned int record_count;
 unsigned int modified_count;
 
@@ -93,11 +94,11 @@ bool GetAuthorityRecordFromPPN(const std::string &bsz_authority_ppn, MARC::Recor
 }
 
 
-bool IsWorkTitleField(MARC::Subfields &subfields) {
+bool IsWorkTitleField(const MARC::Subfields &subfields) {
     return subfields.hasSubfieldWithValue('D', "u");
 }
 
-
+// Update fields in the title data
 void UpdateTitleField(MARC::Record::Field * const field, const MARC::Record authority_record) {
     auto authority_primary_field(GetFirstPrimaryField(authority_record));
     if (authority_primary_field == authority_record.end())
