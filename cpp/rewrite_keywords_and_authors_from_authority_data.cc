@@ -98,8 +98,8 @@ bool IsWorkTitleField(const MARC::Subfields &subfields) {
     return subfields.hasSubfieldWithValue('D', "u");
 }
 
-// Update fields in the title data
-void UpdateTitleField(MARC::Record::Field * const field, const MARC::Record authority_record) {
+
+void UpdateTitleDataField(MARC::Record::Field * const field, const MARC::Record authority_record) {
     auto authority_primary_field(GetFirstPrimaryField(authority_record));
     if (authority_primary_field == authority_record.end())
         LOG_ERROR("Could not find appropriate Tag for authority PPN " + authority_record.getControlNumber());
@@ -134,7 +134,7 @@ void AugmentAuthors(MARC::Record * const record, MARC::Reader * const authority_
             if (matcher->matched(_author_content)) {
                 MARC::Record authority_record(std::string(MARC::Record::LEADER_LENGTH, ' '));
                 if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets)) {
-                    UpdateTitleField(&field, authority_record);
+                    UpdateTitleDataField(&field, authority_record);
                     *modified_record = true;
                 }
             }
@@ -151,7 +151,7 @@ void AugmentKeywords(MARC::Record * const record, MARC::Reader * const authority
         if (matcher->matched(_689_content)) {
              MARC::Record authority_record(std::string(MARC::Record::LEADER_LENGTH, ' '));
              if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets)) {
-                 UpdateTitleField(&field, authority_record);
+                 UpdateTitleDataField(&field, authority_record);
                  *modified_record = true;
              }
         }
