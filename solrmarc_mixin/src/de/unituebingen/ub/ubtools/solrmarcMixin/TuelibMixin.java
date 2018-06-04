@@ -1113,6 +1113,17 @@ public class TuelibMixin extends SolrIndexerMixin {
         return false;
     }
 
+
+    private boolean isInFactPrimaryAuthor(final List<Subfield> subfieldFields4) {
+        for (final Subfield subfield4 : subfieldFields4) {
+            if (subfield4.getData().equals("aut"))
+                return true;
+        }
+
+        return false;
+    }
+
+
     /**
      * @param record
      *            the record
@@ -1134,7 +1145,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 continue;
 
             final List<Subfield> _4Subfields = dataField.getSubfields('4');
-            if (_4Subfields == null || _4Subfields.isEmpty() || isHonoree(_4Subfields))
+            if (_4Subfields == null || _4Subfields.isEmpty() || isHonoree(_4Subfields) || isInFactPrimaryAuthor(_4Subfields))
                 continue;
 
             final StringBuilder author2AndRoles = new StringBuilder();
