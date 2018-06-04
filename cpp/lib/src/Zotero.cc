@@ -92,7 +92,7 @@ Date StringToDate(const std::string &date_str, const std::string &optional_strpt
                     return date;
                 }
             }
-        }      
+        }
     }
 
     if (unix_time != TimeUtil::BAD_TIME_T) {
@@ -566,15 +566,42 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 }
 
 
+void LoadISSNToPPNMap(std::unordered_map<std::string, std::string> * const ISSN_to_superior_ppn_map) {
+    const std::string MAP_FILENAME("/usr/local/var/lib/tuelib/issn_to_ppn.map");
+
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(MAP_FILENAME));
+    unsigned line_no(0);
+    while (not input->eof()) {
+        ++line_no;
+
+        std::string line;
+        if (input->getline(&line) < 18 /* ISSN + comma + PPN + comma */)
+            continue;
+
+        const size_t FIRST_COMMA_POS(line.find_first_of(','));
+        if (unlikely(FIRST_COMMA_POS == std::string::npos or FIRST_COMMA_POS == 0))
+            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + MAP_FILENAME + "\"! (1)");
+        const std::string ISSN(line.substr(0, FIRST_COMMA_POS));
+
+        const size_t SECOND_COMMA_POS(line.find_first_of(',', FIRST_COMMA_POS));
+        if (unlikely(SECOND_COMMA_POS == std::string::npos or SECOND_COMMA_POS == FIRST_COMMA_POS + 1))
+            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + MAP_FILENAME + "\"! (2)");
+        const std::string PPN(line.substr(FIRST_COMMA_POS + 1, SECOND_COMMA_POS - FIRST_COMMA_POS - 1));
+
+        ISSN_to_superior_ppn_map->emplace(ISSN, PPN);
+    }
+}
+
+
 AugmentMaps::AugmentMaps(const std::string &map_directory_path) {
     MiscUtil::LoadMapFile(map_directory_path + "language_to_language_code.map", &language_to_language_code_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &ISSN_to_language_code_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_licence.map", &ISSN_to_licence_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_keyword_field.map", &ISSN_to_keyword_field_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &ISSN_to_physical_form_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &ISSN_to_superior_ppn_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_volume.map", &ISSN_to_volume_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &ISSN_to_SSG_map_);
+    LoadISSNToPPNMap(&ISSN_to_superior_ppn_map_);
 }
 
 
@@ -666,7 +693,7 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
             Date date(StringToDate(date_raw, augment_params->strptime_format_));
-            std::string date_normalized(std::to_string(date.year_) + "-" + StringUtil::ToString(date.month_, 10, 2, '0') + "-" 
+            std::string date_normalized(std::to_string(date.year_) + "-" + StringUtil::ToString(date.month_, 10, 2, '0') + "-"
                                         + StringUtil::ToString(date.day_, 10, 2, '0'));
             custom_fields.emplace(std::pair<std::string, std::string>("date_normalized", date_normalized));
             comments.emplace_back("normalized date to: " + date_normalized);
@@ -900,7 +927,7 @@ bool DownloadTracker::hasAlreadyBeenDownloaded(const std::string &url, time_t * 
 void DownloadTracker::addOrReplace(const std::string &url, const std::string &hash, const std::string &error_message) {
     if (unlikely((hash.empty() and error_message.empty()) or (not hash.empty() and not error_message.empty())))
         LOG_ERROR("exactly one of \"hash\" and \"error_message\" must be non-empty!");
-    
+
     const time_t now(std::time(nullptr));
     const std::string timestamp(reinterpret_cast<const char * const>(&now), sizeof(now));
     if (unlikely(not db_.set(url, timestamp + hash)))
