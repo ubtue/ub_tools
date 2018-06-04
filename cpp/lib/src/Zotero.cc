@@ -629,7 +629,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
 
 
 /* Improve JSON result delivered by Zotero Translation Server
- * Note on ISSNs: Some pages might contain multiple ISSNs (for each publication medium and/or a linking ISSN).
+ * Note on ISSN's: Some pages might contain multiple ISSN's (for each publication medium and/or a linking ISSN).
  *                In such cases, the Zotero translator must return tags to distinguish between them.
  *                The 'ISSN_normalized' custom field will then store the online ISSN.
  */
@@ -659,7 +659,7 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
             issn_raw = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
             if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized))) {
                 // the raw ISSN string probably contains multiple ISSNs that can't be distinguished
-                LOG_WARNING("\"" + issn_raw + "\" has multiple ISSNs! Expecting to find tagged variants");
+                LOG_WARNING("\"" + issn_raw + "\" has multiple ISSN's! Expecting to find tagged variants");
             } else {
                 custom_fields.emplace(std::pair<std::string, std::string>("ISSN_raw", issn_raw));
                 custom_fields.emplace(std::pair<std::string, std::string>("ISSN_normalized", issn_normalized));
