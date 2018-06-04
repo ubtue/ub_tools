@@ -685,13 +685,12 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
         }
     }
 
-    // use ISSN specified in the config file if the translator didn't return any
-    if (issn_normalized.empty()) {
+    // use ISSN specified in the config file if any
+    if (not augment_params->override_ISSN_online_.empty()) {
         issn_normalized = augment_params->override_ISSN_online_;
-        if (not issn_normalized.empty())
-            LOG_INFO("Using default online ISSN \"" + issn_normalized + "\"");
+        LOG_INFO("Using default online ISSN \"" + issn_normalized + "\"");
     }
-
+    
     // ISSN specific overrides
     if (not issn_normalized.empty()) {
         const auto ISSN_and_parent_ppn(augment_params->maps_->ISSN_to_superior_ppn_map_.find(issn_normalized));
