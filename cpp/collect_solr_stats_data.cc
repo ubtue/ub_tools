@@ -62,9 +62,9 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
         LOG_ERROR("JSON parser failed: " + parser.getErrorMessage());
 
     const time_t NOW(std::time(nullptr));
-    db_connection->queryOrDie("INSERT INTO solr SET id_lauf=" + std::to_string(JOB_START_TIME) + ", timestamp="
-                              + std::to_string(NOW) + ", Quellrechner='" + HOSTNAME + "', Zielrechner='" + HOSTNAME + "', Systemtyp='"
-                              + system_type + "', Kategorie='" + category + "', Unterkategorie='" + variable + ", value="
+    db_connection->queryOrDie("INSERT INTO solr SET id_lauf=" + std::to_string(JOB_START_TIME) + ", timestamp='"
+                              + TimeUtil::TimeTToZuluString(NOW) + "', Quellrechner='" + HOSTNAME + "', Zielrechner='" + HOSTNAME
+                              + "', Systemtyp='" + system_type + "', Kategorie='" + category + "', Unterkategorie='" + variable + ", value="
                               + std::to_string(JSON::LookupInteger("/response/numFound", tree_root)));
 }
 
