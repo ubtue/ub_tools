@@ -870,10 +870,11 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
             const std::shared_ptr<JSON::ObjectNode> json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
             try {
                 AugmentJson(json_object, augment_params);
+                record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
             } catch (const std::runtime_error &x) {
-                LOG_WARNING("Couldn't augment JSON! Error: " + std::string(x.what()));
+                LOG_WARNING("Couldn't process record! Error: " + std::string(x.what()));
+                return record_count_and_previously_downloaded_count;
             }
-            record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
         }
     }
     ++harvest_params->harvested_url_count_;
