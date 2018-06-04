@@ -29,8 +29,12 @@
 namespace {
 
 
+const std::string DEFAULT_OUTPUT_FILENAME("/usr/local/var/lib/tuelib/issn_to_ppn.map");
+
+
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbosity=min_log_level] marc_input issn_to_ppn_map\n";
+    std::cerr << "Usage: " << ::progname << " [--verbosity=min_log_level] marc_input [issn_to_ppn_map]\n"
+              << "       If you omit the output filename, \"" << DEFAULT_OUTPUT_FILENAME << "\" will be used.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -84,11 +88,11 @@ void PopulateISSNtoControlNumberMapFile(MARC::Reader * const marc_reader, File *
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
+    if (argc != 2 and argc != 3)
         Usage();
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
-    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argv[2]));
+    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argc == 3 ? argv[2] : DEFAULT_OUTPUT_FILENAME));
     PopulateISSNtoControlNumberMapFile(marc_reader.get(), output.get());
 
     return EXIT_SUCCESS;
