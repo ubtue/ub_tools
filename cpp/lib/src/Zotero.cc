@@ -41,6 +41,7 @@ namespace Zotero {
 
 
 const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
+const std::string ISSN_TO_PPN_MAP_PATH("/usr/local/var/lib/tuelib/issn_to_ppn.map");
 
 
 const std::vector<std::string> EXPORT_FORMATS{
@@ -573,15 +574,40 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 }
 
 
+void LoadISSNToPPNMap(std::unordered_map<std::string, std::string> * const ISSN_to_superior_ppn_map) {
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(ISSN_TO_PPN_MAP_PATH));
+    unsigned line_no(0);
+    while (not input->eof()) {
+        ++line_no;
+
+        std::string line;
+        if (input->getline(&line) < 18 /* ISSN + comma + PPN + comma */)
+            continue;
+
+        const size_t FIRST_COMMA_POS(line.find_first_of(','));
+        if (unlikely(FIRST_COMMA_POS == std::string::npos or FIRST_COMMA_POS == 0))
+            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_PPN_MAP_PATH + "\"! (1)");
+        const std::string ISSN(line.substr(0, FIRST_COMMA_POS));
+
+        const size_t SECOND_COMMA_POS(line.find_first_of(',', FIRST_COMMA_POS));
+        if (unlikely(SECOND_COMMA_POS == std::string::npos or SECOND_COMMA_POS == FIRST_COMMA_POS + 1))
+            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_PPN_MAP_PATH + "\"! (2)");
+        const std::string PPN(line.substr(FIRST_COMMA_POS + 1, SECOND_COMMA_POS - FIRST_COMMA_POS - 1));
+
+        ISSN_to_superior_ppn_map->emplace(ISSN, PPN);
+    }
+}
+
+
 AugmentMaps::AugmentMaps(const std::string &map_directory_path) {
     MiscUtil::LoadMapFile(map_directory_path + "language_to_language_code.map", &language_to_language_code_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &ISSN_to_language_code_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_licence.map", &ISSN_to_licence_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_keyword_field.map", &ISSN_to_keyword_field_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &ISSN_to_physical_form_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &ISSN_to_superior_ppn_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_volume.map", &ISSN_to_volume_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &ISSN_to_SSG_map_);
+    LoadISSNToPPNMap(&ISSN_to_superior_ppn_map_);
 }
 
 
