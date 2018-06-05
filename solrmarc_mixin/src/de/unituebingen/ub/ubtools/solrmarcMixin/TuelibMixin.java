@@ -1137,11 +1137,11 @@ public class TuelibMixin extends SolrIndexerMixin {
             for (char subfieldCode : author2SubfieldCodes) {
                 final Subfield subfieldField = dataField.getSubfield(subfieldCode);
                 if (subfieldField != null)
-                    author2.append(author2.toString().isEmpty() ?
+                    author2.append(author2.length() == 0 ?
                                    subfieldField.getData() : " " + subfieldField.getData());
             }
 
-            if (author2.toString().isEmpty())
+            if (author2.length() == 0)
                 continue;
 
             final List<Subfield> _4Subfields = dataField.getSubfields('4');
