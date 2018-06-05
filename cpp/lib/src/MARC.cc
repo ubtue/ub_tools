@@ -424,6 +424,20 @@ std::vector<std::string> Record::getSubfieldAndNumericSubfieldValues(const Tag &
 }
 
 
+std::string Record::getMainTitle() const {
+    std::string title;
+    const auto title_field(getFirstField("245"));
+    if (unlikely(title_field == end()))
+        return "";
+
+    const Subfields subfields(title_field->getSubfields());
+    std::string main_title(StringUtil::RightTrim(" \t/", subfields.getFirstSubfieldWithCode('a')));
+    if (main_title.empty())
+        return StringUtil::RightTrim(" \t/", subfields.getFirstSubfieldWithCode('b'));
+    return main_title;
+}
+
+
 size_t Record::findAllLocalDataBlocks(
     std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const
 {
