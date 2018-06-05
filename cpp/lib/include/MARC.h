@@ -764,7 +764,9 @@ bool IsRepeatableField(const Tag &tag);
 bool UBTueIsElectronicResource(const Record &marc_record);
 
 
-// Takes local UB Tübingen criteria into account.
+/** \brief Takes local UB Tübingen criteria into account.
+ *  \return True if the referenced item has been ordered but is not yet available, else false.
+ */
 bool UBTueIsAquisitionRecord(const Record &marc_record);
 
 
