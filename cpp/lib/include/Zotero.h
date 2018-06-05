@@ -43,6 +43,7 @@ namespace Zotero {
 
 
 extern const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH;
+extern const std::string ISSN_TO_PPN_MAP_PATH;
 
 
 // native supported formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
@@ -143,7 +144,7 @@ public:
         std::string error_message_;
         std::string hash_;
     public:
-        Entry(const std::string &url, const time_t &creation_time, const std::string &error_message, const std::string &hash) 
+        Entry(const std::string &url, const time_t &creation_time, const std::string &error_message, const std::string &hash)
             : url_(url), creation_time_(creation_time), error_message_(error_message), hash_(hash) { }
     };
 public:
@@ -174,7 +175,7 @@ public:
      *  \return The number of deleted entries.
      */
     inline size_t clear() { return deleteOldEntries(0); }
-    
+
     size_t size() const;
     inline std::string getPath() const { return db_.path(); }
 };
