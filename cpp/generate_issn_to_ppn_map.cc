@@ -24,6 +24,7 @@
 #include "MARC.h"
 #include "MiscUtil.h"
 #include "util.h"
+#include "Zotero.h"
 
 
 namespace {
@@ -34,7 +35,7 @@ const std::string DEFAULT_OUTPUT_FILENAME("/usr/local/var/lib/tuelib/issn_to_ppn
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbosity=min_log_level] marc_input [issn_to_ppn_map]\n"
-              << "       If you omit the output filename, \"" << DEFAULT_OUTPUT_FILENAME << "\" will be used.\n\n";
+              << "       If you omit the output filename, \"" << Zotero::ISSN_TO_PPN_MAP_PATH << "\" will be used.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -92,7 +93,7 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
-    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argc == 3 ? argv[2] : DEFAULT_OUTPUT_FILENAME));
+    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argc == 3 ? argv[2] : Zotero::ISSN_TO_PPN_MAP_PATH));
     PopulateISSNtoControlNumberMapFile(marc_reader.get(), output.get());
 
     return EXIT_SUCCESS;
