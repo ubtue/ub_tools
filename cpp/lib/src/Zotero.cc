@@ -425,7 +425,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                             MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                             GetNextControlNumber());
     bool is_journal_article(false);
-    std::string publication_title, ppn, issn_normalized, url;
+    std::string publication_title, issn_normalized, url;
     for (const auto &key_and_node : *object_node) {
         if (ignore_fields->matched(key_and_node.first))
             continue;
@@ -495,8 +495,6 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         else
             LOG_WARNING("No ISSN found for article.");
 
-        ppn = custom_object->getOptionalStringValue("PPN");
-
         // physical form
         const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
         if (not physical_form.empty()) {
@@ -540,15 +538,21 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 
     // Populate 773:
     if (is_journal_article) {
-        std::vector<MARC::Subfield> subfields;
-        if (not publication_title.empty())
-            subfields.emplace_back('a', publication_title);
-        if (not issn_normalized.empty())
-            subfields.emplace_back('x', issn_normalized);
-        if (not ppn.empty())
-            subfields.emplace_back('w', "(DE-576)" + ppn);
-        if (not subfields.empty())
-            new_record.insertField("773", subfields);
+        const auto superior_ppn_and_title(augment_params_->maps_->ISSN_to_superior_ppn_and_title_map_.find(issn_normalized));
+        if (superior_ppn_and_title != augment_params_->maps_->ISSN_to_superior_ppn_and_title_map_.end()) {
+            std::vector<MARC::Subfield> subfields;
+            if (publication_title.empty())
+                publication_title = superior_ppn_and_title->second.getTitle();
+            if (not publication_title.empty())
+                subfields.emplace_back('a', publication_title);
+            if (not issn_normalized.empty())
+                subfields.emplace_back('x', issn_normalized);
+            const std::string journal_ppn(superior_ppn_and_title->second.getPPN());
+            if (not journal_ppn.empty())
+                subfields.emplace_back('w', "(DE-576)" + journal_ppn);
+            if (not subfields.empty())
+                new_record.insertField("773", subfields);
+        }
     }
 
     // language code fallback:
@@ -574,7 +578,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 }
 
 
-void LoadISSNToPPNMap(std::unordered_map<std::string, std::string> * const ISSN_to_superior_ppn_map) {
+void LoadISSNToPPNMap(std::unordered_map<std::string, PPNandTitle> * const ISSN_to_superior_ppn_map) {
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(ISSN_TO_PPN_MAP_PATH));
     unsigned line_no(0);
     while (not input->eof()) {
@@ -594,7 +598,8 @@ void LoadISSNToPPNMap(std::unordered_map<std::string, std::string> * const ISSN_
             LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_PPN_MAP_PATH + "\"! (2)");
         const std::string PPN(line.substr(FIRST_COMMA_POS + 1, SECOND_COMMA_POS - FIRST_COMMA_POS - 1));
 
-        ISSN_to_superior_ppn_map->emplace(ISSN, PPN);
+        const std::string title(StringUtil::RightTrim(" \t", line.substr(SECOND_COMMA_POS + 1)));
+        ISSN_to_superior_ppn_map->emplace(ISSN, PPNandTitle(PPN, title));
     }
 }
 
@@ -607,7 +612,7 @@ AugmentMaps::AugmentMaps(const std::string &map_directory_path) {
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &ISSN_to_physical_form_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_volume.map", &ISSN_to_volume_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &ISSN_to_SSG_map_);
-    LoadISSNToPPNMap(&ISSN_to_superior_ppn_map_);
+    LoadISSNToPPNMap(&ISSN_to_superior_ppn_and_title_map_);
 }
 
 
@@ -666,9 +671,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
  *                In such cases, the Zotero translator must return tags to distinguish between them.
  *                The 'ISSN_normalized' custom field will then store the online ISSN.
  */
-void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
-                 AugmentParams * const augment_params)
-{
+void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node, AugmentParams * const augment_params) {
     LOG_INFO("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
@@ -723,9 +726,9 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
 
     // ISSN specific overrides
     if (not issn_normalized.empty()) {
-        const auto ISSN_and_parent_ppn(augment_params->maps_->ISSN_to_superior_ppn_map_.find(issn_normalized));
-        if (ISSN_and_parent_ppn != augment_params->maps_->ISSN_to_superior_ppn_map_.cend())
-            custom_fields.emplace(std::pair<std::string, std::string>("PPN", ISSN_and_parent_ppn->second));
+        const auto ISSN_parent_ppn_and_title(augment_params->maps_->ISSN_to_superior_ppn_and_title_map_.find(issn_normalized));
+        if (ISSN_parent_ppn_and_title != augment_params->maps_->ISSN_to_superior_ppn_and_title_map_.cend())
+            custom_fields.emplace(std::pair<std::string, std::string>("PPN", ISSN_parent_ppn_and_title->second.getPPN()));
 
         // physical form
         const auto ISSN_and_physical_form(augment_params->maps_->ISSN_to_physical_form_map_.find(issn_normalized));
