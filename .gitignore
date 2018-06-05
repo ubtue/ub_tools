@@ -168,11 +168,16 @@ solr_plugins/PrefixSortFacetten/bin/
 solrmarc_mixin/bin/
 solrmarc_mixin/src/build.xml
 
-cronjobs/README
-
-*nbproject*
-.vscode
+cpp/add_subsystem_tags
 cpp/es_store_document
 cpp/marc_convert
+cpp/rewrite_keywords_and_authors_from_authority_data
 cpp/ztracker_tool
+cpp/tests/TextUtil_CollapseAndTrimWhitespaceTest
+
+cronjobs/README
+*nbproject*
+.vscode
 *.tmp
+
+
