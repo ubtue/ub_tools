@@ -43,18 +43,6 @@ const std::string DEFAULT_OUTPUT_FILENAME("/usr/local/var/lib/tuelib/issn_to_ppn
 const std::vector<std::string> ISSN_SUBFIELDS{ "022a", "029a", "440x", "490x", "730x", "773x", "776x", "780x", "785x" };
 
 
-// \return The main title (contents of 245$a)or the empty string in the very unlikely case that we can't find it.
-std::string GetMainTitle(const MARC::Record &record) {
-    std::string title;
-    const auto title_field(record.getFirstField("245"));
-    if (unlikely(title_field == record.end()))
-        return "";
-
-    const MARC::Subfields subfields(title_field->getSubfields());
-    return subfields.getFirstSubfieldWithCode('a');
-}
-
-
 void PopulateISSNtoControlNumberMapFile(MARC::Reader * const marc_reader, File * const output) {
     unsigned total_count(0), written_count(0), malformed_count(0);
     while (const MARC::Record record = marc_reader->read()) {
@@ -69,7 +57,7 @@ void PopulateISSNtoControlNumberMapFile(MARC::Reader * const marc_reader, File *
                 for (const auto &subfield_value : subfields.extractSubfields(issn_subfield[MARC::Record::TAG_LENGTH])) {
                     std::string normalised_issn;
                     if (MiscUtil::NormaliseISSN(subfield_value, &normalised_issn)) {
-                        (*output) << normalised_issn << ',' << record.getControlNumber() << ',' << GetMainTitle(record) << '\n';
+                        (*output) << normalised_issn << ',' << record.getControlNumber() << ',' << record.getMainTitle() << '\n';
                         ++written_count;
                     } else {
                         ++malformed_count;
