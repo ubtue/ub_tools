@@ -764,6 +764,10 @@ bool IsRepeatableField(const Tag &tag);
 bool UBTueIsElectronicResource(const Record &marc_record);
 
 
+// Takes local UB Tübingen criteria into account.
+bool UBTueIsAquisitionRecord(const Record &marc_record);
+
+
 bool IsOpenAccess(const Record &marc_record);
 
 
