@@ -1276,6 +1276,17 @@ std::string CalcChecksum(const Record &record, const bool exclude_001) {
 }
 
 
+bool UBTueIsAquisitionRecord(const Record &marc_record) {
+    for (const auto &field : marc_record.getTagRange("LOK")) {
+        const Subfields subfields(field.getSubfields());
+        if (StringUtil::StartsWith(subfields.getFirstSubfieldWithCode('0'), "852") and subfields.getFirstSubfieldWithCode('m') == "e")
+            return true;
+    }
+
+    return false;
+}
+
+
 // See https://www.loc.gov/marc/bibliographic/ for how to construct this map:
 static std::unordered_map<Tag, bool> tag_to_repeatable_map{
     { Tag("001"), false },
