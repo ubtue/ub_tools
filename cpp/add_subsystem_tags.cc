@@ -140,7 +140,7 @@ bool ExcludeBecauseOfRWEX(const MARC::Record &record) {
     for (const auto &field : record.getTagRange("LOK")) {
         const auto &subfields(field.getSubfields());
         for (const auto &subfield0: subfields.extractSubfields('0')) {
-            if (subfield0 != "935")
+            if (not StringUtil::StartsWith(subfield0, "935"))
                 continue;
             for (const auto &subfieldA : subfields.extractSubfields('a')) {
                 if (subfieldA == "rwex")
