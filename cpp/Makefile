@@ -22,6 +22,7 @@ PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
 CGI_PROGS      = full_text_cache_monitor full_text_lookup translate_chainer translator_ajax translator display_translate_stats zotero_cgi
 INSTALL_PROGS  = $(PROGS) *.sh
 
+
 .PHONY: all .deps tests test install regular_install cgi_install local_clean clean
 
 all: .deps $(PROGS)

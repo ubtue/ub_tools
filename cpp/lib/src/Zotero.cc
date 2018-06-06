@@ -41,6 +41,7 @@ namespace Zotero {
 
 
 const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
+const std::string ISSN_TO_PPN_MAP_PATH("/usr/local/var/lib/tuelib/issn_to_ppn.map");
 
 
 const std::vector<std::string> EXPORT_FORMATS{
@@ -92,7 +93,7 @@ Date StringToDate(const std::string &date_str, const std::string &optional_strpt
                     return date;
                 }
             }
-        }      
+        }
     }
 
     if (unix_time != TimeUtil::BAD_TIME_T) {
@@ -424,7 +425,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                             MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                             GetNextControlNumber());
     bool is_journal_article(false);
-    std::string publication_title, ppn, issn_raw, issn_normalized, url;
+    std::string publication_title, issn_normalized, url;
     for (const auto &key_and_node : *object_node) {
         if (ignore_fields->matched(key_and_node.first))
             continue;
@@ -485,9 +486,14 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
     if (custom_node != nullptr) {
         const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
-        issn_raw = custom_object->getOptionalStringValue("ISSN_raw");
-        issn_normalized = custom_object->getOptionalStringValue("ISSN_normalized");
-        ppn = custom_object->getOptionalStringValue("PPN");
+        if (custom_object->getOptionalStringNode("ISSN_untagged"))
+            issn_normalized = custom_object->getOptionalStringValue("ISSN_untagged");
+        else if (custom_object->getOptionalStringNode("ISSN_online"))
+            issn_normalized = custom_object->getOptionalStringValue("ISSN_online");
+        else if (custom_object->getOptionalStringNode("ISSN_print"))
+            issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
+        else
+            LOG_WARNING("No ISSN found for article.");
 
         // physical form
         const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
@@ -532,15 +538,21 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 
     // Populate 773:
     if (is_journal_article) {
-        std::vector<MARC::Subfield> subfields;
-        if (not publication_title.empty())
-            subfields.emplace_back('a', publication_title);
-        if (not issn_normalized.empty())
-            subfields.emplace_back('x', issn_normalized);
-        if (not ppn.empty())
-            subfields.emplace_back('w', "(DE-576)" + ppn);
-        if (not subfields.empty())
-            new_record.insertField("773", subfields);
+        const auto superior_ppn_and_title(augment_params_->maps_->ISSN_to_superior_ppn_and_title_map_.find(issn_normalized));
+        if (superior_ppn_and_title != augment_params_->maps_->ISSN_to_superior_ppn_and_title_map_.end()) {
+            std::vector<MARC::Subfield> subfields;
+            if (publication_title.empty())
+                publication_title = superior_ppn_and_title->second.getTitle();
+            if (not publication_title.empty())
+                subfields.emplace_back('a', publication_title);
+            if (not issn_normalized.empty())
+                subfields.emplace_back('x', issn_normalized);
+            const std::string journal_ppn(superior_ppn_and_title->second.getPPN());
+            if (not journal_ppn.empty())
+                subfields.emplace_back('w', "(DE-576)" + journal_ppn);
+            if (not subfields.empty())
+                new_record.insertField("773", subfields);
+        }
     }
 
     // language code fallback:
@@ -566,15 +578,41 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 }
 
 
+void LoadISSNToPPNMap(std::unordered_map<std::string, PPNandTitle> * const ISSN_to_superior_ppn_map) {
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(ISSN_TO_PPN_MAP_PATH));
+    unsigned line_no(0);
+    while (not input->eof()) {
+        ++line_no;
+
+        std::string line;
+        if (input->getline(&line) < 18 /* ISSN + comma + PPN + comma */)
+            continue;
+
+        const size_t FIRST_COMMA_POS(line.find_first_of(','));
+        if (unlikely(FIRST_COMMA_POS == std::string::npos or FIRST_COMMA_POS == 0))
+            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_PPN_MAP_PATH + "\"! (1)");
+        const std::string ISSN(line.substr(0, FIRST_COMMA_POS));
+
+        const size_t SECOND_COMMA_POS(line.find_first_of(',', FIRST_COMMA_POS));
+        if (unlikely(SECOND_COMMA_POS == std::string::npos or SECOND_COMMA_POS == FIRST_COMMA_POS + 1))
+            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_PPN_MAP_PATH + "\"! (2)");
+        const std::string PPN(line.substr(FIRST_COMMA_POS + 1, SECOND_COMMA_POS - FIRST_COMMA_POS - 1));
+
+        const std::string title(StringUtil::RightTrim(" \t", line.substr(SECOND_COMMA_POS + 1)));
+        ISSN_to_superior_ppn_map->emplace(ISSN, PPNandTitle(PPN, title));
+    }
+}
+
+
 AugmentMaps::AugmentMaps(const std::string &map_directory_path) {
     MiscUtil::LoadMapFile(map_directory_path + "language_to_language_code.map", &language_to_language_code_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &ISSN_to_language_code_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_licence.map", &ISSN_to_licence_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_keyword_field.map", &ISSN_to_keyword_field_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &ISSN_to_physical_form_map_);
-    MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &ISSN_to_superior_ppn_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_volume.map", &ISSN_to_volume_map_);
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &ISSN_to_SSG_map_);
+    LoadISSNToPPNMap(&ISSN_to_superior_ppn_and_title_map_);
 }
 
 
@@ -628,10 +666,12 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
 }
 
 
-// Improve JSON result delivered by Zotero Translation Server
-void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
-                 AugmentParams * const augment_params)
-{
+/* Improve JSON result delivered by Zotero Translation Server
+ * Note on ISSN's: Some pages might contain multiple ISSN's (for each publication medium and/or a linking ISSN).
+ *                In such cases, the Zotero translator must return tags to distinguish between them.
+ *                The 'ISSN_normalized' custom field will then store the online ISSN.
+ */
+void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node, AugmentParams * const augment_params) {
     LOG_INFO("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
@@ -652,29 +692,44 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
                                                                                                  key_and_node.second));
             AugmentJsonCreators(creators_array, &comments);
         } else if (key_and_node.first == "ISSN") {
+            if (not augment_params->override_ISSN_online_.empty() or
+                not augment_params->override_ISSN_print_.empty()) {
+                continue;   // we'll just use the override
+            }
             issn_raw = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
-            if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized)))
-                LOG_ERROR("\"" + issn_raw + "\" is not a valid ISSN!");
-
-            custom_fields.emplace(std::pair<std::string, std::string>("ISSN_raw", issn_raw));
-            custom_fields.emplace(std::pair<std::string, std::string>("ISSN_normalized", issn_normalized));
-
-            const auto ISSN_and_parent_ppn(augment_params->maps_->ISSN_to_superior_ppn_map_.find(issn_normalized));
-            if (ISSN_and_parent_ppn != augment_params->maps_->ISSN_to_superior_ppn_map_.cend())
-                custom_fields.emplace(std::pair<std::string, std::string>("PPN", ISSN_and_parent_ppn->second));
+            if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized))) {
+                // the raw ISSN string probably contains multiple ISSN's that can't be distinguished
+                throw std::runtime_error("\"" + issn_raw + "\" is invalid (multiple ISSN's?)!");
+            } else
+                custom_fields.emplace(std::pair<std::string, std::string>("ISSN_untagged", issn_normalized));
         } else if (key_and_node.first == "date") {
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
             Date date(StringToDate(date_raw, augment_params->strptime_format_));
-            std::string date_normalized(std::to_string(date.year_) + "-" + StringUtil::ToString(date.month_, 10, 2, '0') + "-" 
+            std::string date_normalized(std::to_string(date.year_) + "-" + StringUtil::ToString(date.month_, 10, 2, '0') + "-"
                                         + StringUtil::ToString(date.day_, 10, 2, '0'));
             custom_fields.emplace(std::pair<std::string, std::string>("date_normalized", date_normalized));
             comments.emplace_back("normalized date to: " + date_normalized);
         }
     }
 
+    // use ISSN specified in the config file if any
+    if (not augment_params->override_ISSN_online_.empty()) {
+        issn_normalized = augment_params->override_ISSN_online_;
+        custom_fields.emplace(std::pair<std::string, std::string>("ISSN_online", issn_normalized));
+        LOG_DEBUG("Using default online ISSN \"" + issn_normalized + "\"");
+    } else if (not augment_params->override_ISSN_print_.empty()) {
+        issn_normalized = augment_params->override_ISSN_print_;
+        custom_fields.emplace(std::pair<std::string, std::string>("ISSN_print", issn_normalized));
+        LOG_DEBUG("Using default print ISSN \"" + issn_normalized + "\"");
+    }
+
     // ISSN specific overrides
     if (not issn_normalized.empty()) {
+        const auto ISSN_parent_ppn_and_title(augment_params->maps_->ISSN_to_superior_ppn_and_title_map_.find(issn_normalized));
+        if (ISSN_parent_ppn_and_title != augment_params->maps_->ISSN_to_superior_ppn_and_title_map_.cend())
+            custom_fields.emplace(std::pair<std::string, std::string>("PPN", ISSN_parent_ppn_and_title->second.getPPN()));
+
         // physical form
         const auto ISSN_and_physical_form(augment_params->maps_->ISSN_to_physical_form_map_.find(issn_normalized));
         if (ISSN_and_physical_form != augment_params->maps_->ISSN_to_physical_form_map_.cend()) {
@@ -731,7 +786,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
         const auto ISSN_and_SSGN_numbers(augment_params->maps_->ISSN_to_SSG_map_.find(issn_normalized));
         if (ISSN_and_SSGN_numbers != augment_params->maps_->ISSN_to_SSG_map_.end())
             custom_fields.emplace(std::pair<std::string, std::string>("ssgNumbers", ISSN_and_SSGN_numbers->second));
-    }
+    } else
+        LOG_WARNING("No suitable ISSN was found!");
 
     // Insert custom node with fields and comments
     if (comments.size() > 0 or custom_fields.size() > 0) {
@@ -841,8 +897,13 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         const std::shared_ptr<const JSON::ArrayNode>json_array(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
         for (const auto entry : *json_array) {
             const std::shared_ptr<JSON::ObjectNode> json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
-            AugmentJson(json_object, augment_params);
-            record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
+            try {
+                AugmentJson(json_object, augment_params);
+                record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
+            } catch (const std::exception &x) {
+                LOG_WARNING("Couldn't process record! Error: " + std::string(x.what()));
+                return record_count_and_previously_downloaded_count;
+            }
         }
     }
     ++harvest_params->harvested_url_count_;
@@ -875,7 +936,7 @@ inline static void SplitTimestampErrorMessageAndHash(const std::string &raw_valu
 {
     if (unlikely(raw_value.size() <= sizeof(time_t)))
         LOG_ERROR("raw value is too small!");
-    *creation_time = *reinterpret_cast<const time_t * const>(&raw_value);
+    *creation_time = *reinterpret_cast<const time_t * const>(raw_value.data());
     *error_message = raw_value.substr(sizeof(time_t)).c_str();
     *hash = raw_value.substr(sizeof(time_t) + error_message->length() + 1 /* for the terminating NUL */);
 }
@@ -900,10 +961,10 @@ bool DownloadTracker::hasAlreadyBeenDownloaded(const std::string &url, time_t * 
 void DownloadTracker::addOrReplace(const std::string &url, const std::string &hash, const std::string &error_message) {
     if (unlikely((hash.empty() and error_message.empty()) or (not hash.empty() and not error_message.empty())))
         LOG_ERROR("exactly one of \"hash\" and \"error_message\" must be non-empty!");
-    
+
     const time_t now(std::time(nullptr));
     const std::string timestamp(reinterpret_cast<const char * const>(&now), sizeof(now));
-    if (unlikely(not db_.set(url, timestamp + hash)))
+    if (unlikely(not db_.set(url, timestamp + std::string(1, '\0') + hash)))
         LOG_ERROR("failed to insert a value into \"" + getPath() + "\":" + std::string(db_.error().message()));
 }
 
