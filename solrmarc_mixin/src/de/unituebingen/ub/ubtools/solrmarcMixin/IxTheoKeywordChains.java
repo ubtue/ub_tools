@@ -12,7 +12,7 @@ import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 public class IxTheoKeywordChains extends SolrIndexerMixin {
 
     private final static String KEYWORD_DELIMITER = "/";
-    private final static String SUBFIELD_CODES = "abctnpzf";
+    private final static String SUBFIELD_CODES = "abcdtnpzf";
     private final static TuelibMixin tuelibMixin = new TuelibMixin();
 
     public Set<String> getKeyWordChain(final Record record, final String fieldSpec, final String lang) {
@@ -84,6 +84,8 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                             keyword.append(" (" + tuelibMixin.translateTopic(subfield.getData(), lang) + ")");
                             continue;
                         }
+                        else if (subfield.getCode() == 'd')
+                            keyword.append(" ");
                         else if (subfield.getCode() == 'f') {
                             keyword.append(" (" + subfield.getData() + ")");
                             continue;
