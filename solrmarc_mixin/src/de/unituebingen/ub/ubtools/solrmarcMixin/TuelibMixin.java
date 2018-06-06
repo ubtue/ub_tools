@@ -37,7 +37,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
     private final static Pattern PPN_EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
-    private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?(-\\d+)?");
+    private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?([-–]\\d+)?");
     private final static Pattern VALID_FOUR_DIGIT_YEAR_PATTERN = Pattern.compile("\\d{4}");
     private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
@@ -1113,6 +1113,17 @@ public class TuelibMixin extends SolrIndexerMixin {
         return false;
     }
 
+
+    private boolean isInFactPrimaryAuthor(final List<Subfield> subfieldFields4) {
+        for (final Subfield subfield4 : subfieldFields4) {
+            if (subfield4.getData().equals("aut"))
+                return true;
+        }
+
+        return false;
+    }
+
+
     /**
      * @param record
      *            the record
@@ -1122,23 +1133,23 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final VariableField variableField : record.getVariableFields("700")) {
             final DataField dataField = (DataField) variableField;
 
-            String author2 = null;
+            final StringBuilder author2 = new StringBuilder();
             for (char subfieldCode : author2SubfieldCodes) {
                 final Subfield subfieldField = dataField.getSubfield(subfieldCode);
-                if (subfieldField != null) {
-                    author2 = subfieldField.getData();
-                    break;
-                }
+                if (subfieldField != null)
+                    author2.append(author2.length() == 0 ?
+                                   subfieldField.getData() : " " + subfieldField.getData());
             }
-            if (author2 == null)
+
+            if (author2.length() == 0)
                 continue;
 
             final List<Subfield> _4Subfields = dataField.getSubfields('4');
-            if (_4Subfields == null || _4Subfields.isEmpty() || isHonoree(_4Subfields))
+            if (_4Subfields == null || _4Subfields.isEmpty() || isHonoree(_4Subfields) || isInFactPrimaryAuthor(_4Subfields))
                 continue;
 
             final StringBuilder author2AndRoles = new StringBuilder();
-            author2AndRoles.append(author2.replace("$", ""));
+            author2AndRoles.append(author2.toString().replace("$", ""));
             for (final Subfield _4Subfield : _4Subfields) {
                 author2AndRoles.append('$');
                 author2AndRoles.append(cleanRole(_4Subfield.getData()));
