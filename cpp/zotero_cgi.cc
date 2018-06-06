@@ -212,7 +212,6 @@ std::string PrepareMapsDirectory(const std::string &orig_directory, const std::s
     const std::string local_maps_directory(tmp_directory + "/zts_client_maps");
     const std::string file_prev_downloaded(local_maps_directory + "/previously_downloaded.hashes");
     FileUtil::DeleteFile(file_prev_downloaded);
-    FileUtil::CreateSymlink("/dev/null", file_prev_downloaded);
     return local_maps_directory;
 }
 
