@@ -719,7 +719,7 @@ void MailMyTranslations(DbConnection &db_connection, const IniFile &ini_file, co
     if (recipient.empty())
         return;
 
-    if (unlikely(not SendEmail("no-reply-ixtheo@uni-tuebingen.de", recipient, "Your IxTheo Translations",
+    if (unlikely(not SendEmail("no-reply@ub.uni-tuebingen.de", recipient, "Your IxTheo Translations",
                                mail_content.str(), EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
         LOG_ERROR("Could not send mail");
 }

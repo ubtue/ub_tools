@@ -79,6 +79,7 @@ flag_article_collections
 full_text_cache_cleaner
 full_text_lookup
 full_text_stats
+generate_issn_to_ppn_map
 generate_large_marc_record
 generate_title_and_author_list
 generate_vufind_translation_files
@@ -167,11 +168,16 @@ solr_plugins/PrefixSortFacetten/bin/
 solrmarc_mixin/bin/
 solrmarc_mixin/src/build.xml
 
-cronjobs/README
-
-*nbproject*
-.vscode
+cpp/add_subsystem_tags
 cpp/es_store_document
 cpp/marc_convert
+cpp/rewrite_keywords_and_authors_from_authority_data
 cpp/ztracker_tool
+cpp/tests/TextUtil_CollapseAndTrimWhitespaceTest
+
+cronjobs/README
+*nbproject*
+.vscode
 *.tmp
+
+

@@ -62,9 +62,9 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
         LOG_ERROR("JSON parser failed: " + parser.getErrorMessage());
 
     const time_t NOW(std::time(nullptr));
-    db_connection->queryOrDie("INSERT INTO solr SET id_lauf=" + std::to_string(JOB_START_TIME) + ", timestamp="
-                              + std::to_string(NOW) + ", Quellrechner='" + HOSTNAME + "', Zielrechner='" + HOSTNAME + "', Systemtyp='"
-                              + system_type + "', Kategorie='" + category + "', Unterkategorie='" + variable + ", value="
+    db_connection->queryOrDie("INSERT INTO solr SET id_lauf=" + std::to_string(JOB_START_TIME) + ", timestamp='"
+                              + TimeUtil::TimeTToZuluString(NOW) + "', Quellrechner='" + HOSTNAME + "', Zielrechner='" + HOSTNAME
+                              + "', Systemtyp='" + system_type + "', Kategorie='" + category + "', Unterkategorie='" + variable + ", value="
                               + std::to_string(JSON::LookupInteger("/response/numFound", tree_root)));
 }
 
@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argv[2]));
 
     try {
-        const IniFile ini_file("/usr/local/var/lib/tuelib/collect_solr_stats_data.ini");
+        const IniFile ini_file("/usr/local/var/lib/tuelib/collect_solr_stats_data.conf");
         DbConnection db_connection(ini_file);
         
         CollectGeneralStats(system_type, &db_connection);
