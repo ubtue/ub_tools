@@ -347,7 +347,7 @@ class RssTask {
     std::string out_path_;
     std::string output_;
 public:
-    RssTask(const std::string &url_rss, const std::string &output_format_id);
+    RssTask(const std::string &url_rss, const std::string &output_format_id, const std::string &strptime_format);
 
     /** \brief get shell command including args (for debug output) */
     inline const std::string &getCommand() const { return command_; }
@@ -359,13 +359,14 @@ public:
     /** \brief get stdout/stderr output */
     inline const std::string &getOutput() const { return output_; }
 private:
-    void executeTask(const std::string &rss_url_file, const std::string &map_dir);
+    void executeTask(const std::string &rss_url_file, const std::string &map_dir, const std::string &strptime_format);
 };
 
 
-void RssTask::executeTask(const std::string &rss_url_file, const std::string &map_dir) {
+void RssTask::executeTask(const std::string &rss_url_file, const std::string &map_dir, const std::string &strptime_format) {
     std::vector<std::string> args;
     args.emplace_back("--test");
+    args.emplace_back("--strptime_format=" + strptime_format);
     args.emplace_back(rss_url_file);
     args.emplace_back(zts_url);
     args.emplace_back(map_dir);
@@ -378,7 +379,7 @@ void RssTask::executeTask(const std::string &rss_url_file, const std::string &ma
 }
 
 
-RssTask::RssTask(const std::string &url_rss, const std::string &output_format_id)
+RssTask::RssTask(const std::string &url_rss, const std::string &output_format_id, const std::string &strptime_format)
     : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
       executable_(ExecUtil::Which("rss_harvester"))
 {
@@ -387,7 +388,7 @@ RssTask::RssTask(const std::string &url_rss, const std::string &output_format_id
     out_path_ = auto_temp_dir_.getDirectoryPath() + "/output." + file_extension;
     const std::string file_cfg(auto_temp_dir_.getDirectoryPath() + "/config.cfg");
     FileUtil::WriteString(file_cfg, url_rss);
-    executeTask(file_cfg, local_maps_directory);
+    executeTask(file_cfg, local_maps_directory, strptime_format);
 }
 
 
@@ -407,7 +408,8 @@ void ProcessRssAction(const std::multimap<std::string, std::string> &cgi_args) {
     std::cout << "<h2>RSS Result</h2>\r\n";
     std::cout << "<table>\r\n";
 
-    const RssTask rss_task(GetCGIParameterOrDefault(cgi_args, "rss_feed_url"), GetCGIParameterOrDefault(cgi_args, "rss_output_format"));
+    const RssTask rss_task(GetCGIParameterOrDefault(cgi_args, "rss_feed_url"), GetCGIParameterOrDefault(cgi_args, "rss_output_format"),
+                           GetCGIParameterOrDefault(cgi_args, "rss_strptime_format"));
     std::cout << "<tr><td>Command</td><td>" + rss_task.getCommand() + "</td></tr>\r\n";
 
     if (rss_task.getExitCode() == 0)
