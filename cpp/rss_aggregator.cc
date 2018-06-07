@@ -116,7 +116,7 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
     if (now > 0) {
         const auto section_name_and_ticks(section_name_to_ticks_map.find(section_name));
         if (unlikely(section_name_and_ticks == section_name_to_ticks_map.end()))
-            LOG_ERROR("unexpected: did not find \"" + section_name + "\" in our map!");
+            LOG_ERROR("unexpected: did not find \"" + section_name + "\" in our map!");  FIXME!! (We can legitimately get here if we reload the config file!!! 
         if (section_name_and_ticks->second + poll_interval < now) {
             LOG_DEBUG(section_name + ": not yet time to do work, last work was done at " + std::to_string(section_name_and_ticks->second)
                       + ".");
