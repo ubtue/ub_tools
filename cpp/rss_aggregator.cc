@@ -61,14 +61,45 @@ void SigHupHandler(int /* signum */) {
 }
 
 
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_aggregator.conf");
+// \return true if the item was new, else false.
+bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &section_name, DbConnection * const db_connection) {
+    const std::string item_id(item.getId());
+    db_connection->queryOrDie("SELECT insertion_time FROM rss_aggregator WHERE item_id='"
+                              + db_connection->escapeString(item_id) + "'");
+    const DbResultSet result_set(db_connection->getLastResultSet());
+    if (not result_set.empty())
+        return false;
+
+    const std::string url(item.getLink());
+    if (url.empty()) {
+        LOG_WARNING("got an item w/o a URL, ID is \"" + item.getId());
+        return false;
+    }
+
+    std::string title_and_or_description(item.getTitle());
+    if (title_and_or_description.empty())
+        title_and_or_description = item.getDescription();
+    else {
+        const std::string description(item.getDescription());
+        if (not description.empty())
+            title_and_or_description += " (" + description + ")";
+    }
+
+    db_connection->queryOrDie("INSERT INTO rss_aggregator SET item_id='" + db_connection->escapeString(item_id) + "',"
+                              + "item_url='" + db_connection->escapeString(url) + "',title_and_or_description='"
+                              + db_connection->escapeString(title_and_or_description) + ", serial_name='"
+                              + db_connection->escapeString(section_name) + "'");
+    
+    return true;
+}
 
 
 std::unordered_map<std::string, uint64_t> section_name_to_ticks_map;
 
 
-void ProcessSection(const bool /*test*/, const IniFile::Section &section, Downloader * const downloader, DbConnection * const db_connection,
-                    const unsigned default_downloader_time_limit, const unsigned default_poll_interval, const uint64_t now)
+// \return the number of new items.
+unsigned ProcessSection(const IniFile::Section &section, Downloader * const downloader, DbConnection * const db_connection,
+                        const unsigned default_downloader_time_limit, const unsigned default_poll_interval, const uint64_t now)
 {
     const std::string feed_url(section.getString("feed_url"));
     const unsigned poll_interval(section.getUnsigned("poll_interval", default_poll_interval));
@@ -82,10 +113,11 @@ void ProcessSection(const bool /*test*/, const IniFile::Section &section, Downlo
         if (section_name_and_ticks->second + poll_interval < now) {
             LOG_DEBUG(section_name + ": not yet time to do work, last work was done at " + std::to_string(section_name_and_ticks->second)
                       + ".");
-            return;
+            return 0;
         }
     }
 
+    unsigned new_item_count(0);
     if (not downloader->newUrl(feed_url, downloader_time_limit))
         LOG_WARNING(section_name + ": failed to download the feed: " + downloader->getLastErrorMessage());
     else {
@@ -95,17 +127,32 @@ void ProcessSection(const bool /*test*/, const IniFile::Section &section, Downlo
             LOG_WARNING("failed to parse feed: " + error_message);
         else {
             for (const auto &item : *syndication_format) {
-                const std::string url(item.getLink());
-                if (url.empty())
-                    LOG_WARNING("got an item w/o a URL, ID is \"" + item.getId());
-                else
-                    db_connection->queryOrDie("REPLACE INTO rss_aggregator SET item_url='" + db_connection->escapeString(url) + "'");
+                if (ProcessRSSItem(item, section_name,  db_connection))
+                    ++new_item_count;
             }
         }
     }
 
     section_name_to_ticks_map[section_name] = now;
+    return new_item_count;
 }
+
+
+typedef void SignalHandler(int);
+
+
+void InstallSignalHandler(const int signal_no, SignalHandler handler) {
+    struct sigaction new_action;
+    new_action.sa_handler = handler;
+    sigemptyset(&new_action.sa_mask);
+    sigaddset(&new_action.sa_mask, signal_no);
+    new_action.sa_flags = 0;
+    if (::sigaction(signal_no, &new_action, nullptr) != 0)
+        LOG_ERROR("sigaction(2) failed!");
+}
+
+
+const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_aggregator.conf");
 
 
 } // unnamed namespace
@@ -134,20 +181,8 @@ int Main(int argc, char *argv[]) {
     const unsigned UPDATE_INTERVAL(ini_file.getUnsigned("", "update_interval"));
 
     if (not test) {
-        struct sigaction new_action;
-        new_action.sa_handler = SigTermHandler;
-        sigemptyset(&new_action.sa_mask);
-        sigaddset(&new_action.sa_mask, SIGTERM);
-        new_action.sa_flags = 0;
-        if (::sigaction(SIGTERM, &new_action, nullptr) != 0)
-            LOG_ERROR("sigaction(2) failed! (1)");
-
-        new_action.sa_handler = SigHupHandler;
-        sigemptyset(&new_action.sa_mask);
-        sigaddset(&new_action.sa_mask, SIGHUP);
-        new_action.sa_flags = 0;
-        if (::sigaction(SIGHUP, &new_action, nullptr) != 0)
-            LOG_ERROR("sigaction(2) failed! (1)");
+        InstallSignalHandler(SIGTERM, SigTermHandler);
+        InstallSignalHandler(SIGHUP, SigHupHandler);
 
         if (::daemon(0, 1 /* do not close file descriptors and redirect to /dev/null */) != 0)
             LOG_ERROR("we failed to deamonize our process!");
@@ -157,7 +192,7 @@ int Main(int argc, char *argv[]) {
     Downloader downloader;
     for (;;) {
         LOG_DEBUG("now we're at " + std::to_string(ticks) + ".");
-        
+
         if (sighup_seen) {
             LOG_INFO("caught SIGHUP, rereading config file...");
             ini_file.reload();
@@ -186,8 +221,9 @@ int Main(int argc, char *argv[]) {
                 already_seen_sections.emplace(section_name);
 
                 LOG_INFO("Processing section \"" + section_name + "\".");
-                ProcessSection(test, section.second, &downloader, &db_connection, DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL,
-                               ticks);
+                const unsigned new_item_count(ProcessSection(section.second, &downloader, &db_connection, DEFAULT_DOWNLOADER_TIME_LIMIT,
+                                                             DEFAULT_POLL_INTERVAL, ticks));
+                LOG_INFO("found " + std::to_string(new_item_count) + " new items.");
             }
 
             if (unlikely(::sigprocmask(SIG_UNBLOCK, &signal_set, nullptr) != 0))
