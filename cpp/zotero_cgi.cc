@@ -1,4 +1,4 @@
-/** \file    full_text_cache_monitor.cc
+/** \file    zotero_cgi.cc
  *  \brief   A CGI-tool to execute Zotero RSS & Crawling mechanisms
  *  \author  Mario Trojan
  */
