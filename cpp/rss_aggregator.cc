@@ -137,14 +137,14 @@ int Main(int argc, char *argv[]) {
         struct sigaction new_action;
         new_action.sa_handler = SigTermHandler;
         sigemptyset(&new_action.sa_mask);
-        sigaddset(&signal_set, SIGTERM);
+        sigaddset(&new_action.sa_mask, SIGTERM);
         new_action.sa_flags = 0;
         if (::sigaction(SIGTERM, &new_action, nullptr) != 0)
             LOG_ERROR("sigaction(2) failed! (1)");
 
         new_action.sa_handler = SigHupHandler;
         sigemptyset(&new_action.sa_mask);
-        sigaddset(&signal_set, SIGHUP);
+        sigaddset(&new_action.sa_mask, SIGHUP);
         new_action.sa_flags = 0;
         if (::sigaction(SIGHUP, &new_action, nullptr) != 0)
             LOG_ERROR("sigaction(2) failed! (1)");
@@ -157,6 +157,12 @@ int Main(int argc, char *argv[]) {
     Downloader downloader;
     for (;;) {
         LOG_DEBUG("now we're at " + std::to_string(ticks) + ".");
+        
+        if (sighup_seen) {
+            LOG_INFO("caught SIGHUP, rereading config file...");
+            ini_file.reload();
+            sighup_seen = false;
+        }
 
         const time_t before(std::time(nullptr));
 
@@ -165,12 +171,6 @@ int Main(int argc, char *argv[]) {
             if (sigterm_seen) {
                 LOG_INFO("caught SIGTERM, shutting down...");
                 return EXIT_SUCCESS;
-            }
-
-            if (sighup_seen) {
-                LOG_INFO("caught SIGHUB, rereading config file...");
-                ini_file.reload();
-                sighup_seen = false;
             }
 
             sigset_t signal_set;
