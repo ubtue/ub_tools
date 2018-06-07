@@ -271,6 +271,11 @@ public:
      */
     void assign(const IniFile &rhs, const bool clear = true);
 
+    inline void reload() {
+        IniFile new_ini_file(ini_file_name_);
+        assign(new_ini_file);
+    }
+
     const IniFile &operator=(const IniFile &rhs) { assign(rhs); return *this; }
 
     /** \brief   Get the name of the file used to construct the object.

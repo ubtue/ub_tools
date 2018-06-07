@@ -21,6 +21,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <cinttypes>
+#include <csignal>
 #include <cstring>
 #include <unistd.h>
 #include "Compiler.h"
@@ -34,6 +35,22 @@
 
 
 namespace {
+
+
+volatile sig_atomic_t sigterm_seen = false;
+
+
+void SigTermHandler(int /* signum */) {
+    sigterm_seen = true;
+}
+
+
+volatile sig_atomic_t sighup_seen = false;
+
+
+void SigHupHandler(int /* signum */) {
+    sighup_seen = true;
+}
 
 
 [[noreturn]] void Usage() {
@@ -50,7 +67,7 @@ const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_aggregator.conf"
 std::unordered_map<std::string, uint64_t> section_name_to_ticks_map;
 
 
-void ProcessSection(const bool /*test*/, const IniFile::Section &section, Downloader * const downloader,
+void ProcessSection(const bool /*test*/, const IniFile::Section &section, Downloader * const downloader, DbConnection * const /*db_connection*/,
                     const unsigned default_downloader_time_limit, const unsigned default_poll_interval, const uint64_t now)
 {
     const std::string feed_url(section.getString("feed_url"));
@@ -77,6 +94,9 @@ void ProcessSection(const bool /*test*/, const IniFile::Section &section, Downlo
         if (unlikely(syndication_format == nullptr))
             LOG_WARNING("failed to parse feed: " + error_message);
         else {
+            for (const auto &item : *syndication_format) {
+                (void)item;
+            }
         }
     }
 
@@ -103,14 +123,26 @@ int Main(int argc, char *argv[]) {
     }
 
     IniFile ini_file(CONF_FILE_PATH);
+    DbConnection db_connection(ini_file);
 
     const unsigned DEFAULT_POLL_INTERVAL(ini_file.getUnsigned("", "default_poll_interval"));
     const unsigned DEFAULT_DOWNLOADER_TIME_LIMIT(ini_file.getUnsigned("", "default_downloader_time_limit"));
     const unsigned UPDATE_INTERVAL(ini_file.getUnsigned("", "update_interval"));
-    const std::string GENERATED_FEED_FILENAME(argv[1]);
-    const std::string WORK_FILENAME(GENERATED_FEED_FILENAME + std::to_string(::getpid()));
 
     if (not test) {
+        struct sigaction new_action;
+        new_action.sa_handler = SigTermHandler;
+        sigemptyset(&new_action.sa_mask);
+        new_action.sa_flags = 0;
+        if (::sigaction(SIGTERM, &new_action, nullptr) != 0)
+            LOG_ERROR("sigaction(2) failed! (1)");
+
+        new_action.sa_handler = SigHupHandler;
+        sigemptyset(&new_action.sa_mask);
+        new_action.sa_flags = 0;
+        if (::sigaction(SIGHUP, &new_action, nullptr) != 0)
+            LOG_ERROR("sigaction(2) failed! (1)");
+
         if (::daemon(0, 1 /* do not close file descriptors and redirect to /dev/null */) != 0)
             LOG_ERROR("we failed to deamonize our process!");
     }
@@ -119,7 +151,17 @@ int Main(int argc, char *argv[]) {
     Downloader downloader;
     for (;;) {
         LOG_DEBUG("now we're at " + std::to_string(ticks) + ".");
-        ::unlink(WORK_FILENAME.c_str());
+
+        if (sigterm_seen) {
+            LOG_INFO("caught SIGTERM, shutting down...");
+            return EXIT_SUCCESS;
+        }
+
+        if (sighup_seen) {
+            LOG_INFO("caught SIGHUB, rereading config file...");
+            ini_file.reload();
+            sighup_seen = false;
+        }
 
         const time_t before(std::time(nullptr));
 
@@ -132,13 +174,12 @@ int Main(int argc, char *argv[]) {
                 already_seen_sections.emplace(section_name);
 
                 LOG_INFO("Processing section \"" + section_name + "\".");
-                ProcessSection(test, section.second, &downloader, DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL, ticks);
+                ProcessSection(test, section.second, &downloader, &db_connection, DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL,
+                               ticks);
             }
         }
 
-        FileUtil::RenameFileOrDie(WORK_FILENAME, GENERATED_FEED_FILENAME);
-
-        if (test)
+        if (test) // -> only run through our loop once
             return EXIT_SUCCESS;
 
         const time_t after(std::time(nullptr));
