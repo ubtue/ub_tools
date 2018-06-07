@@ -22,8 +22,6 @@
 /bib_ref_to_codes_tool
 /categorise_marc_xml
 /collect_solr_stats_data
-/full_text_cache_monitor
-/installer
 /control_number_filter
 /convert_bible_references
 /convert_oai_pmh_dc_to_marc21
@@ -60,6 +58,7 @@
 /fix_iso_8859_1_garbage
 /flag_article_collections
 /full_text_cache_cleaner
+/full_text_cache_monitor
 /full_text_lookup
 /full_text_stats
 /generate_issn_to_ppn_map
@@ -69,6 +68,7 @@
 /get_essay_collection_pdfs
 /inifile_lookup
 /insert_translation_gaps
+/installer
 /is_mount_point_test
 /json_grep
 /jop_grep
@@ -78,7 +78,7 @@
 /krimdok_flag_pda_records
 /lcsh_filter
 /lcsh_stats
-log_rotate
+/log_rotate
 /make_marc_xml
 /map_ddc_and_rvk_to_ixtheo_notations
 /marc_augmentor
