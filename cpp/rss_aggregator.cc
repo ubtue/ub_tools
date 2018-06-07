@@ -61,7 +61,7 @@ void SigHupHandler(int /* signum */) {
 }
 
 
-// These must be in sync with the sizes in
+// These must be in sync with the sizes in data/rss_aggregator.sql
 const size_t MAX_ITEM_ID_LENGTH(100);
 const size_t MAX_ITEM_URL_LENGTH(512);
 const size_t MAX_SERIAL_NAME_LENGTH(200);
