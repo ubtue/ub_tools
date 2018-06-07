@@ -111,7 +111,7 @@ int Main(int argc, char *argv[]) {
     const std::string WORK_FILENAME(GENERATED_FEED_FILENAME + std::to_string(::getpid()));
 
     if (not test) {
-        if (::daemon(0, 0) != 0)
+        if (::daemon(0, 1 /* do not close file descriptors and redirect to /dev/null */) != 0)
             LOG_ERROR("we failed to deamonize our process!");
     }
 
