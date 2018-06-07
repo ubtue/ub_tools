@@ -64,6 +64,23 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
         return concatenateKeyWordsToChains(keyWordChains);
     }
 
+
+    private boolean isFollowedBySubfield(final List<Subfield> subfields, char subfieldCode, char subsequentSubfieldCode) {
+        final Iterator<Subfield> subfields_iterator = subfields.iterator();
+            while(subfields_iterator.hasNext()) {
+                 if (subfields_iterator.next().getCode() == subfieldCode &&
+                     subfields_iterator.hasNext() && subfields_iterator.next().getCode() == subsequentSubfieldCode)
+                     return true;
+            }
+         return false;
+    }
+
+
+    private boolean isPrecededBySubfield(final List<Subfield> subfields, char subfieldCode, char precedingSubfieldCode) {
+        return isFollowedBySubfield(subfields, precedingSubfieldCode, subfieldCode);
+    }
+
+
     /**
      * Extracts the keyword from data field and inserts it into the right
      * keyword chain.
@@ -76,7 +93,8 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
         StringBuilder keyword = new StringBuilder();
         // Collect elements within one chain in case there is a translation for a whole string
         List<String> complexElements = new ArrayList<String>();
-        for (final Subfield subfield : dataField.getSubfields()) {
+        final List<Subfield> subfields = dataField.getSubfields();
+        for (final Subfield subfield : subfields) {
             if (gnd_seen) {
                 if (SUBFIELD_CODES.indexOf(subfield.getCode()) != -1) {
                     if (keyword.length() > 0) {
@@ -84,8 +102,22 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                             keyword.append(" (" + tuelibMixin.translateTopic(subfield.getData(), lang) + ")");
                             continue;
                         }
-                        else if (subfield.getCode() == 'd')
-                            keyword.append(" ");
+                        // We need quite a bunch of special logic here to group subsequent d and c fields
+                        else if (subfield.getCode() == 'c') {
+                            if (isPrecededBySubfield(subfields, 'c', 'd')) {
+                               keyword.append(" : " + subfield.getData() + ")");
+                               continue;
+                            }
+                            else
+                               keyword.append(", ");
+                        }
+                        else if (subfield.getCode() == 'd') {
+                            if (isFollowedBySubfield(subfields, 'd', 'c'))
+                                keyword.append(" (");
+                            else
+                                keyword.append(" ");
+
+                        }
                         else if (subfield.getCode() == 'f') {
                             keyword.append(" (" + subfield.getData() + ")");
                             continue;
