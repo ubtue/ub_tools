@@ -65,7 +65,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
     }
 
 
-    private boolean isFollowedBySubfield(final List<Subfield> subfields, char subfieldCode, char subsequentSubfieldCode) {
+    private boolean isSubfieldFollowedBySubfield(final List<Subfield> subfields, char subfieldCode, char subsequentSubfieldCode) {
         final Iterator<Subfield> subfields_iterator = subfields.iterator();
             while(subfields_iterator.hasNext()) {
                  if (subfields_iterator.next().getCode() == subfieldCode &&
@@ -76,8 +76,8 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
     }
 
 
-    private boolean isPrecededBySubfield(final List<Subfield> subfields, char subfieldCode, char precedingSubfieldCode) {
-        return isFollowedBySubfield(subfields, precedingSubfieldCode, subfieldCode);
+    private boolean isSubfieldPrecededBySubfield(final List<Subfield> subfields, char subfieldCode, char precedingSubfieldCode) {
+        return isSubfieldFollowedBySubfield(subfields, precedingSubfieldCode, subfieldCode);
     }
 
 
@@ -104,7 +104,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                         }
                         // We need quite a bunch of special logic here to group subsequent d and c fields
                         else if (subfield.getCode() == 'c') {
-                            if (isPrecededBySubfield(subfields, 'c', 'd')) {
+                            if (isSubfieldPrecededBySubfield(subfields, 'c', 'd')) {
                                keyword.append(" : " + subfield.getData() + ")");
                                continue;
                             }
@@ -112,7 +112,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                                keyword.append(", ");
                         }
                         else if (subfield.getCode() == 'd') {
-                            if (isFollowedBySubfield(subfields, 'd', 'c'))
+                            if (isSubfieldFollowedBySubfield(subfields, 'd', 'c'))
                                 keyword.append(" (");
                             else
                                 keyword.append(" ");
