@@ -34,9 +34,17 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbosity=log_level] [--ignore-robots-dot-txt] config_file_path [section1 section2 .. sectionN]\n"
-              << "       Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
-              << "       If any section names have been provided, only those will be processed o/w all sections will be processed.\n\n";
+    std::cerr << "Usage: " << ::progname << " [options] config_file_path [section1 section2 .. sectionN]\n"
+              << "\n"
+              << "\tOptions:\n"
+              << "\t[--verbosity=log_level]                                     Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
+              << "\t[--test]                                                    No download information will be stored\n"
+              << "\t[--ignore-robots-dot-txt]\n"
+              << "\t[--map-directory=map_directory]\n"
+              << "\t[--previous-downloads-db-file=previous_downloads_db_file]\n"
+              << "\t[--output-file=output_file]\n"
+              << "\n"
+              << "\tIf any section names have been provided, only those will be processed o/w all sections will be processed.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -49,13 +57,16 @@ void ReadAugmentParamsFromIni(const IniFile::Section &section, Zotero::AugmentPa
 
 
 UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                            Zotero::AugmentParams * const augment_params, DbConnection * const db_connection)
+                            Zotero::AugmentParams * const augment_params, DbConnection * const db_connection, const bool &test)
 {
     ReadAugmentParamsFromIni(section, augment_params);
 
     const std::string feed_url(section.getString("feed"));
     LOG_DEBUG("feed_url: " + feed_url);
-    return Zotero::HarvestSyndicationURL(Zotero::RSSHarvestMode::NORMAL, feed_url, harvest_params, augment_params, db_connection);
+    Zotero::RSSHarvestMode rss_harvest_mode(Zotero::RSSHarvestMode::NORMAL);
+    if (test)
+        rss_harvest_mode = Zotero::RSSHarvestMode::TEST;
+    return Zotero::HarvestSyndicationURL(rss_harvest_mode, feed_url, harvest_params, augment_params, db_connection);
 }
 
 
@@ -101,22 +112,53 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
+    bool test(false);
+    if (std::strcmp(argv[1], "--test") == 0) {
+        test = true;
+        --argc, ++argv;
+    }
+
     bool ignore_robots_dot_txt(false);
     if (std::strcmp(argv[1], "--ignore-robots-dot-txt") == 0) {
         ignore_robots_dot_txt = true;
-        ++argc, --argv;
-        if (argc < 2)
-            Usage();
+        --argc, ++argv;
     }
+
+    std::string map_directory_path;
+    const std::string MAP_DIRECTORY_FLAG_PREFIX("--map-directory=");
+    if (StringUtil::StartsWith(argv[1], MAP_DIRECTORY_FLAG_PREFIX)) {
+        map_directory_path = argv[1] + MAP_DIRECTORY_FLAG_PREFIX.length();
+        --argc, ++argv;
+    }
+
+    std::string previous_downloads_db_path;
+    const std::string PREVIOUS_DOWNLOADS_DB_FLAG_PREFIX("--previous-downloads-db-file=");
+    if (StringUtil::StartsWith(argv[1], PREVIOUS_DOWNLOADS_DB_FLAG_PREFIX)) {
+        previous_downloads_db_path = argv[1] + PREVIOUS_DOWNLOADS_DB_FLAG_PREFIX.length();
+        --argc, ++argv;
+    }
+
+    std::string output_file;
+    const std::string OUTPUT_FILE_FLAG_PREFIX("--output-file=");
+    if (StringUtil::StartsWith(argv[1], OUTPUT_FILE_FLAG_PREFIX)) {
+        output_file = argv[1] + OUTPUT_FILE_FLAG_PREFIX.length();
+        --argc, ++argv;
+    }
+
+    if (argc < 2)
+        Usage();
 
     IniFile ini_file(argv[1]);
 
     std::shared_ptr<Zotero::HarvestParams> harvest_params(new Zotero::HarvestParams);
     harvest_params->zts_server_url_ = Url(ini_file.getString("", "zts_server_url"));
 
-    std::string map_directory_path(ini_file.getString("", "map_directory_path")),
-                previous_dowloads_db_path(ini_file.getString("", "previous_downloads_db_path"));
-    // ZoteroFormatHandler expects a directory path without a trailing /
+    if (map_directory_path.empty())
+        map_directory_path = ini_file.getString("", "map_directory_path");
+    if (previous_downloads_db_path.empty())
+        previous_downloads_db_path = ini_file.getString("", "previous_downloads_db_path");
+
+    // ZoteroFormatHandler expects a directory path with a trailing /
     if (not StringUtil::EndsWith(map_directory_path, '/'))
         map_directory_path += "/";
 
@@ -131,9 +173,10 @@ int Main(int argc, char *argv[]) {
     const std::string sql_password(rss_ini_file.getString("Database", "sql_password"));
     db_connection.reset(new DbConnection(sql_database, sql_username, sql_password));
 
-    const std::string MARC_OUTPUT_FILE(ini_file.getString("", "marc_output_file"));
-    harvest_params->format_handler_ = Zotero::FormatHandler::Factory(previous_dowloads_db_path,
-                                                                     GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE,
+    if (output_file.empty())
+        output_file = ini_file.getString("", "marc_output_file");
+    harvest_params->format_handler_ = Zotero::FormatHandler::Factory(previous_downloads_db_path,
+                                                                     GetMarcFormat(output_file), output_file,
                                                                      &augment_params, harvest_params);
 
     SimpleCrawler::Params crawler_params;
@@ -167,7 +210,7 @@ int Main(int argc, char *argv[]) {
         const Type type(static_cast<Type>(section.second.getEnum("type", string_to_value_map)));
         if (type == RSS)
             total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section.second, harvest_params, &augment_params,
-                                                                                        db_connection.get());
+                                                                                        db_connection.get(), test);
         else
             total_record_count_and_previously_downloaded_record_count +=
                 ProcessCrawl(section.second, harvest_params, &augment_params, crawler_params, supported_urls_regex);

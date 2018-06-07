@@ -12,7 +12,7 @@ import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 public class IxTheoKeywordChains extends SolrIndexerMixin {
 
     private final static String KEYWORD_DELIMITER = "/";
-    private final static String SUBFIELD_CODES = "abctnpzf";
+    private final static String SUBFIELD_CODES = "abcdtnpzf";
     private final static TuelibMixin tuelibMixin = new TuelibMixin();
 
     public Set<String> getKeyWordChain(final Record record, final String fieldSpec, final String lang) {
@@ -64,6 +64,23 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
         return concatenateKeyWordsToChains(keyWordChains);
     }
 
+
+    private boolean isSubfieldFollowedBySubfield(final List<Subfield> subfields, char subfieldCode, char subsequentSubfieldCode) {
+        final Iterator<Subfield> subfields_iterator = subfields.iterator();
+            while(subfields_iterator.hasNext()) {
+                 if (subfields_iterator.next().getCode() == subfieldCode &&
+                     subfields_iterator.hasNext() && subfields_iterator.next().getCode() == subsequentSubfieldCode)
+                     return true;
+            }
+         return false;
+    }
+
+
+    private boolean isSubfieldPrecededBySubfield(final List<Subfield> subfields, char subfieldCode, char precedingSubfieldCode) {
+        return isSubfieldFollowedBySubfield(subfields, precedingSubfieldCode, subfieldCode);
+    }
+
+
     /**
      * Extracts the keyword from data field and inserts it into the right
      * keyword chain.
@@ -76,7 +93,8 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
         StringBuilder keyword = new StringBuilder();
         // Collect elements within one chain in case there is a translation for a whole string
         List<String> complexElements = new ArrayList<String>();
-        for (final Subfield subfield : dataField.getSubfields()) {
+        final List<Subfield> subfields = dataField.getSubfields();
+        for (final Subfield subfield : subfields) {
             if (gnd_seen) {
                 if (SUBFIELD_CODES.indexOf(subfield.getCode()) != -1) {
                     if (keyword.length() > 0) {
@@ -84,11 +102,24 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                             keyword.append(" (" + tuelibMixin.translateTopic(subfield.getData(), lang) + ")");
                             continue;
                         }
-                        else if (subfield.getCode() == 'f') {
+                        // We need quite a bunch of special logic here to group subsequent d and c fields
+                        else if (subfield.getCode() == 'c') {
+                            if (isSubfieldPrecededBySubfield(subfields, 'c', 'd')) {
+                               keyword.append(" : " + subfield.getData() + ")");
+                               continue;
+                            }
+                            else
+                               keyword.append(", ");
+                        } else if (subfield.getCode() == 'd') {
+                            if (isSubfieldFollowedBySubfield(subfields, 'd', 'c'))
+                                keyword.append(" (");
+                            else
+                                keyword.append(" ");
+
+                        } else if (subfield.getCode() == 'f') {
                             keyword.append(" (" + subfield.getData() + ")");
                             continue;
-                        }
-                        else if (subfield.getCode() == 'n')
+                        } else if (subfield.getCode() == 'n')
                             keyword.append(" ");
                         else if (subfield.getCode() == 'p')
                             keyword.append(". ");
