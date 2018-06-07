@@ -424,6 +424,20 @@ std::vector<std::string> Record::getSubfieldAndNumericSubfieldValues(const Tag &
 }
 
 
+std::string Record::getMainTitle() const {
+    std::string title;
+    const auto title_field(getFirstField("245"));
+    if (unlikely(title_field == end()))
+        return "";
+
+    const Subfields subfields(title_field->getSubfields());
+    std::string main_title(StringUtil::RightTrim(" \t/", subfields.getFirstSubfieldWithCode('a')));
+    if (main_title.empty())
+        return StringUtil::RightTrim(" \t/", subfields.getFirstSubfieldWithCode('b'));
+    return main_title;
+}
+
+
 size_t Record::findAllLocalDataBlocks(
     std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const
 {
@@ -1273,6 +1287,17 @@ std::string CalcChecksum(const Record &record, const bool exclude_001) {
         blob += field_ref->getTag().toString() + field_ref->getContents();
 
     return StringUtil::Sha1(blob);
+}
+
+
+bool UBTueIsAquisitionRecord(const Record &marc_record) {
+    for (const auto &field : marc_record.getTagRange("LOK")) {
+        const Subfields subfields(field.getSubfields());
+        if (StringUtil::StartsWith(subfields.getFirstSubfieldWithCode('0'), "852") and subfields.getFirstSubfieldWithCode('m') == "e")
+            return true;
+    }
+
+    return false;
 }
 
 
