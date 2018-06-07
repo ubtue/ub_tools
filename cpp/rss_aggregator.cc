@@ -137,12 +137,14 @@ int Main(int argc, char *argv[]) {
         struct sigaction new_action;
         new_action.sa_handler = SigTermHandler;
         sigemptyset(&new_action.sa_mask);
+        sigaddset(&signal_set, SIGTERM);
         new_action.sa_flags = 0;
         if (::sigaction(SIGTERM, &new_action, nullptr) != 0)
             LOG_ERROR("sigaction(2) failed! (1)");
 
         new_action.sa_handler = SigHupHandler;
         sigemptyset(&new_action.sa_mask);
+        sigaddset(&signal_set, SIGHUP);
         new_action.sa_flags = 0;
         if (::sigaction(SIGHUP, &new_action, nullptr) != 0)
             LOG_ERROR("sigaction(2) failed! (1)");
