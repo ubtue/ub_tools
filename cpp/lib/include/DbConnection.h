@@ -34,6 +34,7 @@ class IniFile;
 class DbConnection {
 public:
     enum Type { T_MYSQL, T_SQLITE };
+    static const std::string DEFAULT_CONFIG_FILE_PATH;
 private:
     Type type_;
     sqlite3 *sqlite3_;

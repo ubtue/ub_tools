@@ -102,9 +102,6 @@ std::string GetMarcFormat(const std::string &output_filename) {
 }
 
 
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/ub_tools.conf");
-
-
 } // unnamed namespace
 
 
@@ -167,11 +164,8 @@ int Main(int argc, char *argv[]) {
     const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
     std::unique_ptr<DbConnection> db_connection;
-    const IniFile rss_ini_file(CONF_FILE_PATH);
-    const std::string sql_database(rss_ini_file.getString("Database", "sql_database"));
-    const std::string sql_username(rss_ini_file.getString("Database", "sql_username"));
-    const std::string sql_password(rss_ini_file.getString("Database", "sql_password"));
-    db_connection.reset(new DbConnection(sql_database, sql_username, sql_password));
+    const IniFile rss_ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
+    db_connection.reset(new DbConnection(rss_ini_file));
 
     if (output_file.empty())
         output_file = ini_file.getString("", "marc_output_file");
