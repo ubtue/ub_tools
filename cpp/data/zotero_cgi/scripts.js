@@ -25,7 +25,8 @@ function UpdateSelectionDetails() {
 function OnChangeRssJournal() {
     var journal_title = $("#rss_journal_title option:selected").text();
     var journal_options = rss_options_map[journal_title];
-    $("#rss_journal_issn").val(journal_options.issn);
+    $("#rss_journal_print_issn").val(journal_options.issn_print);
+    $("#rss_journal_online_issn").val(journal_options.issn_online);
     $("#rss_feed_url").val(journal_options.feed_url);
     $("#rss_strptime_format").val(journal_options.strptime_format);
 }
@@ -33,7 +34,8 @@ function OnChangeRssJournal() {
 function OnChangeCrawlingJournal() {
     var journal_title = $("#crawling_journal_title option:selected").text();
     var journal_options = crawling_options_map[journal_title];
-    $("#crawling_journal_issn").val(journal_options.issn);
+    $("#crawling_journal_print_issn").val(journal_options.issn_print);
+    $("#crawling_journal_online_issn").val(journal_options.issn_online);
     $("#crawling_base_url").val(journal_options.base_url);
     $("#crawling_extraction_regex").val(journal_options.regex);
     $("#crawling_depth").val(journal_options.depth);
