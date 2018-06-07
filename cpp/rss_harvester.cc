@@ -62,7 +62,7 @@ std::string GetMarcFormat(const std::string &output_filename) {
 }
 
 
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_harvester.conf");
+const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/ub_tools.conf");
 
 
 } // unnamed namespace

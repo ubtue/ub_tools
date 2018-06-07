@@ -102,7 +102,7 @@ std::string GetMarcFormat(const std::string &output_filename) {
 }
 
 
-const std::string RSS_HARVESTER_CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_harvester.conf");
+const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/ub_tools.conf");
 
 
 } // unnamed namespace
@@ -167,7 +167,7 @@ int Main(int argc, char *argv[]) {
     const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
     std::unique_ptr<DbConnection> db_connection;
-    const IniFile rss_ini_file(RSS_HARVESTER_CONF_FILE_PATH);
+    const IniFile rss_ini_file(CONF_FILE_PATH);
     const std::string sql_database(rss_ini_file.getString("Database", "sql_database"));
     const std::string sql_username(rss_ini_file.getString("Database", "sql_username"));
     const std::string sql_password(rss_ini_file.getString("Database", "sql_password"));
