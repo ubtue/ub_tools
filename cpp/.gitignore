@@ -108,6 +108,7 @@
 /remove_unused_authority_records
 /replace_marc_records
 /rewrite_keywords_and_authors_from_authority_data
+/rss_aggregator
 /rss_harvester
 /send_email
 /set_tad_access_flag
