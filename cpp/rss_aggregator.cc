@@ -1,5 +1,5 @@
-/** \file rss_aggregator.cc
- *  \brief Downloads and evaluates RSS updates.
+/** \file   rss_aggregator.cc
+ *  \brief  Downloads and aggregates RSS feeds.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -38,7 +38,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--test] xml_output_path\n"
+              << " [--verbosity=min_verbosity] [--test] xml_output_path\n"
               << "       When --test has been specified no data will be stored.\n";
     std::exit(EXIT_FAILURE);
 }
@@ -55,7 +55,7 @@ void ProcessSection(const bool /*test*/, const IniFile::Section &section, Downlo
 {
     const std::string feed_url(section.getString("feed_url"));
     const unsigned poll_interval(section.getUnsigned("poll_interval", default_poll_interval));
-    const unsigned downloader_time_limit(section.getUnsigned("downloader_time_limit", default_downloader_time_limit));
+    const unsigned downloader_time_limit(section.getUnsigned("downloader_time_limit", default_downloader_time_limit) * 1000);
 
     const std::string &section_name(section.getSectionName());
     if (now > 0) {
