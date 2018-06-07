@@ -67,7 +67,7 @@ const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_aggregator.conf"
 std::unordered_map<std::string, uint64_t> section_name_to_ticks_map;
 
 
-void ProcessSection(const bool /*test*/, const IniFile::Section &section, Downloader * const downloader, DbConnection * const /*db_connection*/,
+void ProcessSection(const bool /*test*/, const IniFile::Section &section, Downloader * const downloader, DbConnection * const db_connection,
                     const unsigned default_downloader_time_limit, const unsigned default_poll_interval, const uint64_t now)
 {
     const std::string feed_url(section.getString("feed_url"));
@@ -95,7 +95,11 @@ void ProcessSection(const bool /*test*/, const IniFile::Section &section, Downlo
             LOG_WARNING("failed to parse feed: " + error_message);
         else {
             for (const auto &item : *syndication_format) {
-                (void)item;
+                const std::string url(item.getLink());
+                if (url.empty())
+                    LOG_WARNING("got an item w/o a URL, ID is \"" + item.getId());
+                else
+                    db_connection->queryOrDie("REPLACE INTO rss_aggregator SET item_url='" + db_connection->escapeString(url) + "'");
             }
         }
     }
