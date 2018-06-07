@@ -220,8 +220,6 @@ std::string BuildCommandString(const std::string &command, const std::vector<std
 std::string PrepareMapsDirectory(const std::string &orig_directory, const std::string &tmp_directory) {
     ExecUtil::ExecOrDie(ExecUtil::Which("cp"), { "-r", orig_directory, tmp_directory });
     const std::string local_maps_directory(tmp_directory + "/zts_client_maps");
-    const std::string file_prev_downloaded(local_maps_directory + "/previously_downloaded.hashes");
-    FileUtil::DeleteFile(file_prev_downloaded);
     return local_maps_directory;
 }
 
