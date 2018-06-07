@@ -34,7 +34,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbosity=log_level] [--ignore-robots-dot-txt] [--map-directory=map_directory] [--output-file=output_file] config_file_path [section1 section2 .. sectionN]\n"
+    std::cerr << "Usage: " << ::progname << " [--verbosity=log_level] [--ignore-robots-dot-txt] [--map-directory=map_directory] [--previous-downloads-db-file=previous_downloads_db_file] [--output-file=output_file] config_file_path [section1 section2 .. sectionN]\n"
               << "       Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
               << "       If any section names have been provided, only those will be processed o/w all sections will be processed.\n\n";
     std::exit(EXIT_FAILURE);
@@ -116,6 +116,13 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
+    std::string previous_dowloads_db_path;
+    const std::string PREVIOUS_DOWNLOADS_DB_FLAG_PREFIX("--previous-downloads-db-file=");
+    if (StringUtil::StartsWith(argv[1], PREVIOUS_DOWNLOADS_DB_FLAG_PREFIX)) {
+        previous_dowloads_db_path = argv[1] + PREVIOUS_DOWNLOADS_DB_FLAG_PREFIX.length();
+        --argc, ++argv;
+    }
+
     std::string output_file;
     const std::string OUTPUT_FILE_FLAG_PREFIX("--output-file=");
     if (StringUtil::StartsWith(argv[1], OUTPUT_FILE_FLAG_PREFIX)) {
@@ -130,7 +137,9 @@ int Main(int argc, char *argv[]) {
 
     if (map_directory_path.empty())
         map_directory_path = ini_file.getString("", "map_directory_path");
-    std::string previous_dowloads_db_path(ini_file.getString("", "previous_downloads_db_path"));
+    if (previous_dowloads_db_path.empty())
+        previous_dowloads_db_path = ini_file.getString("", "previous_downloads_db_path");
+
     // ZoteroFormatHandler expects a directory path with a trailing /
     if (not StringUtil::EndsWith(map_directory_path, '/'))
         map_directory_path += "/";
