@@ -388,12 +388,19 @@ public:
     inline bool isSerial() const { return leader_[7] == 's'; }
     inline bool isArticle() const { return leader_[7] == 'a' or leader_[7] == 'b'; }
     bool isElectronicResource() const;
+
     inline std::string getControlNumber() const {
         if (unlikely(fields_.empty() or fields_.front().getTag() != "001"))
             return "";
         else
             return fields_.front().getContents();
     }
+
+    
+    /** \return The main title (contents of 245$a or, if that does not exist, the contents of 245$b) or the empty string
+     *          in the very unlikely case that we can't find it.
+     */
+    std::string getMainTitle() const;
 
     /** \return An iterator pointing to the first field w/ tag "field_tag" or end() if no such field was found. */
     inline const_iterator getFirstField(const Tag &field_tag) const {
@@ -762,6 +769,12 @@ bool IsRepeatableField(const Tag &tag);
 
 // Takes local UB Tübingen criteria into account.
 bool UBTueIsElectronicResource(const Record &marc_record);
+
+
+/** \brief Takes local UB Tübingen criteria into account.
+ *  \return True if the referenced item has been ordered but is not yet available, else false.
+ */
+bool UBTueIsAquisitionRecord(const Record &marc_record);
 
 
 bool IsOpenAccess(const Record &marc_record);

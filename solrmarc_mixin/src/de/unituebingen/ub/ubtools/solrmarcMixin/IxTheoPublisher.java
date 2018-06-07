@@ -10,6 +10,7 @@ import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 
 public class IxTheoPublisher extends SolrIndexerMixin {
     private final static Map<String, String> replacements = new LinkedHashMap<>(128);
+    private final static Set<String> replacementBlackList = new HashSet<>();
 
     static {
 // delete commas at the end
@@ -104,6 +105,8 @@ public class IxTheoPublisher extends SolrIndexerMixin {
         replacements.put("RE$", " R. E.");
 
         replacements.put("Calif.", "California");
+
+        replacementBlackList.add("Lit"); // Suppress rewriting of publisher Lit
     }
 
     /**
@@ -119,6 +122,9 @@ public class IxTheoPublisher extends SolrIndexerMixin {
         for (String publisher : rawPublishers) {
             publisher = publisher.trim();
             for (final Map.Entry<String, String> replacement : replacements.entrySet()) {
+                // In some cases make sure that we abort after only some part of the rewriting has taken place
+                if (replacementBlackList.contains(publisher))
+                    break;
                 publisher = publisher.replaceAll(replacement.getKey(), replacement.getValue()).trim();
             }
 
