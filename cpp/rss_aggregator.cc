@@ -152,21 +152,27 @@ int Main(int argc, char *argv[]) {
     for (;;) {
         LOG_DEBUG("now we're at " + std::to_string(ticks) + ".");
 
-        if (sigterm_seen) {
-            LOG_INFO("caught SIGTERM, shutting down...");
-            return EXIT_SUCCESS;
-        }
-
-        if (sighup_seen) {
-            LOG_INFO("caught SIGHUB, rereading config file...");
-            ini_file.reload();
-            sighup_seen = false;
-        }
-
         const time_t before(std::time(nullptr));
 
         std::unordered_set<std::string> already_seen_sections;
         for (const auto &section : ini_file) {
+            if (sigterm_seen) {
+                LOG_INFO("caught SIGTERM, shutting down...");
+                return EXIT_SUCCESS;
+            }
+
+            if (sighup_seen) {
+                LOG_INFO("caught SIGHUB, rereading config file...");
+                ini_file.reload();
+                sighup_seen = false;
+            }
+
+            sigset_t signal_set;
+            sigaddset(&signal_set, SIGTERM);
+            sigaddset(&signal_set, SIGHUP);
+            if (unlikely(::sigprocmask(SIG_BLOCK, &signal_set, nullptr) != 0))
+                LOG_ERROR("failed to block SIGTERM and SIGHUP!");
+
             const std::string &section_name(section.first);
             if (not section_name.empty()) {
                 if (unlikely(already_seen_sections.find(section_name) != already_seen_sections.end()))
@@ -177,6 +183,9 @@ int Main(int argc, char *argv[]) {
                 ProcessSection(test, section.second, &downloader, &db_connection, DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL,
                                ticks);
             }
+
+            if (unlikely(::sigprocmask(SIG_UNBLOCK, &signal_set, nullptr) != 0))
+                LOG_ERROR("failed to unblock SIGTERM and SIGHUP!");
         }
 
         if (test) // -> only run through our loop once
