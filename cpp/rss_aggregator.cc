@@ -1,4 +1,4 @@
-/** \file rss_harvester.cc
+/** \file rss_aggregator.cc
  *  \brief Downloads and evaluates RSS updates.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
