@@ -30,6 +30,7 @@
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "IniFile.h"
+#include "StringUtil.h"
 #include "SyndicationFormat.h"
 #include "util.h"
 
@@ -61,6 +62,12 @@ void SigHupHandler(int /* signum */) {
 }
 
 
+// These must be in sync with the sizes in
+const size_t MAX_ITEM_ID_LENGTH(100);
+const size_t MAX_ITEM_URL_LENGTH(512);
+const size_t MAX_SERIAL_NAME_LENGTH(200);
+
+
 // \return true if the item was new, else false.
 bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &section_name, DbConnection * const db_connection) {
     const std::string item_id(item.getId());
@@ -70,8 +77,8 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
     if (not result_set.empty())
         return false;
 
-    const std::string url(item.getLink());
-    if (url.empty()) {
+    const std::string item_url(item.getLink());
+    if (item_url.empty()) {
         LOG_WARNING("got an item w/o a URL, ID is \"" + item.getId());
         return false;
     }
@@ -85,11 +92,12 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
             title_and_or_description += " (" + description + ")";
     }
 
-    db_connection->queryOrDie("INSERT INTO rss_aggregator SET item_id='" + db_connection->escapeString(item_id) + "',"
-                              + "item_url='" + db_connection->escapeString(url) + "',title_and_or_description='"
-                              + db_connection->escapeString(title_and_or_description) + ", serial_name='"
-                              + db_connection->escapeString(section_name) + "'");
-    
+    db_connection->queryOrDie("INSERT INTO rss_aggregator SET item_id='"
+                              + db_connection->escapeString(StringUtil::Truncate(MAX_ITEM_ID_LENGTH, item_id)) + "'," + "item_url='"
+                              + db_connection->escapeString(StringUtil::Truncate(MAX_ITEM_URL_LENGTH, item_url))
+                              + "',title_and_or_description='" + db_connection->escapeString(title_and_or_description) + ", serial_name='"
+                              + db_connection->escapeString(StringUtil::Truncate(MAX_SERIAL_NAME_LENGTH, section_name)) + "'");
+
     return true;
 }
 
