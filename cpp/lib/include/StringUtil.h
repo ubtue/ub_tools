@@ -2378,4 +2378,16 @@ std::string &ReplaceSection(std::string * const s, const size_t start_index, con
 std::string ISO8859_15ToUTF8(const char &latin9_char);
 
 
+inline std::string Truncate(const size_t max_length, std::string * const s) {
+    if (s->length() > max_length)
+        s->resize(max_length);
+    return *s;
+}
+
+
+inline std::string Truncate(const size_t max_length, std::string s) {
+    return Truncate(max_length, &s);
+}
+
+
 } // Namespace StringUtil
