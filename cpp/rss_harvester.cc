@@ -35,7 +35,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--verbose|--test] [--proxy=<proxy_host_and_port>] rss_url_list_filename zts_server_url map_directory marc_output\n"
+              << " [--verbose|--test] [--proxy=<proxy_host_and_port>] [--strptime_format=<strptime_format>] rss_url_list_filename zts_server_url map_directory marc_output\n"
               << "       When --test has been specified duplicate checks are disabled and verbose mode is enabled.\n";
     std::exit(EXIT_FAILURE);
 }
@@ -91,6 +91,13 @@ int main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
+    std::string strptime_format;
+    const std::string STRPTIME_FORMAT_FLAG_PREFIX("--strptime_format=");
+    if (StringUtil::StartsWith(argv[1], STRPTIME_FORMAT_FLAG_PREFIX)) {
+        strptime_format = argv[1] + STRPTIME_FORMAT_FLAG_PREFIX.length();
+        --argc, ++argv;
+    }
+
     if (argc != 5)
         Usage();
 
@@ -107,9 +114,10 @@ int main(int argc, char *argv[]) {
 
         Zotero::AugmentMaps augment_maps(map_directory_path);
         Zotero::AugmentParams augment_params(&augment_maps);
+        augment_params.strptime_format_ = strptime_format;
         const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
         const std::string MARC_OUTPUT_FILE(argv[4]);
-        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(map_directory_path, GetMarcFormat(MARC_OUTPUT_FILE),
+        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(map_directory_path + "previously_downloaded.hashes", GetMarcFormat(MARC_OUTPUT_FILE),
                                                                          MARC_OUTPUT_FILE, &augment_params, harvest_params);
 
         std::unique_ptr<DbConnection> db_connection;

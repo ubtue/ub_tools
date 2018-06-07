@@ -1,4 +1,4 @@
-/** \file    full_text_cache_monitor.cc
+/** \file    zotero_cgi.cc
  *  \brief   A CGI-tool to execute Zotero RSS & Crawling mechanisms
  *  \author  Mario Trojan
  */
@@ -93,17 +93,20 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     IniFile ini(ZTS_HARVESTER_CONF_FILE);
 
     std::vector<std::string> all_journal_titles;
-    std::vector<std::string> all_journal_issns;
+    std::vector<std::string> all_journal_print_issns;
+    std::vector<std::string> all_journal_online_issns;
     std::vector<std::string> all_journal_methods;
     std::vector<std::string> all_urls;
 
     std::vector<std::string> rss_journal_titles;
-    std::vector<std::string> rss_journal_issns;
+    std::vector<std::string> rss_journal_print_issns;
+    std::vector<std::string> rss_journal_online_issns;
     std::vector<std::string> rss_feed_urls;
     std::vector<std::string> rss_strptime_formats;
 
     std::vector<std::string> crawling_journal_titles;
-    std::vector<std::string> crawling_journal_issns;
+    std::vector<std::string> crawling_journal_print_issns;
+    std::vector<std::string> crawling_journal_online_issns;
     std::vector<std::string> crawling_base_urls;
     std::vector<std::string> crawling_extraction_regexes;
     std::vector<std::string> crawling_depths;
@@ -119,24 +122,28 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
         } else {
             const HarvestType harvest_type(static_cast<HarvestType>(section.getEnum("type", STRING_TO_HARVEST_TYPE_MAP)));
             const std::string harvest_type_raw(section.getString("type"));
-            const std::string issn(section.getString("issn", ""));
+            const std::string issn_print(section.getString("issn_print", ""));
+            const std::string issn_online(section.getString("issn_online", ""));
 
             all_journal_titles.emplace_back(title);
-            all_journal_issns.emplace_back(issn);
+            all_journal_print_issns.emplace_back(issn_print);
+            all_journal_online_issns.emplace_back(issn_online);
             all_journal_methods.emplace_back(harvest_type_raw);
 
             if (harvest_type == RSS) {
                 all_urls.emplace_back(section.getString("feed"));
 
                 rss_journal_titles.emplace_back(title);
-                rss_journal_issns.emplace_back(issn);
+                rss_journal_print_issns.emplace_back(issn_print);
+                rss_journal_online_issns.emplace_back(issn_online);
                 rss_feed_urls.emplace_back(section.getString("feed"));
                 rss_strptime_formats.emplace_back(section.getString("strptime_format", ""));
             } else if (harvest_type == CRAWLING) {
                 all_urls.emplace_back(section.getString("base_url"));
 
                 crawling_journal_titles.emplace_back(title);
-                crawling_journal_issns.emplace_back(issn);
+                crawling_journal_print_issns.emplace_back(issn_print);
+                crawling_journal_online_issns.emplace_back(issn_online);
                 crawling_base_urls.emplace_back(section.getString("base_url"));
                 crawling_extraction_regexes.emplace_back(section.getString("extraction_regex"));
                 crawling_depths.emplace_back(section.getString("max_crawl_depth"));
@@ -152,17 +159,20 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertScalar("zotero_translation_server_url", zts_url);
 
     names_to_values_map->insertArray("all_journal_titles", all_journal_titles);
-    names_to_values_map->insertArray("all_journal_issns", all_journal_issns);
+    names_to_values_map->insertArray("all_journal_print_issns", all_journal_print_issns);
+    names_to_values_map->insertArray("all_journal_online_issns", all_journal_online_issns);
     names_to_values_map->insertArray("all_journal_methods", all_journal_methods);
     names_to_values_map->insertArray("all_urls", all_urls);
 
     names_to_values_map->insertArray("rss_journal_titles", rss_journal_titles);
-    names_to_values_map->insertArray("rss_journal_issns", rss_journal_issns);
+    names_to_values_map->insertArray("rss_journal_print_issns", rss_journal_print_issns);
+    names_to_values_map->insertArray("rss_journal_online_issns", rss_journal_online_issns);
     names_to_values_map->insertArray("rss_feed_urls", rss_feed_urls);
     names_to_values_map->insertArray("rss_strptime_formats", rss_strptime_formats);
 
     names_to_values_map->insertArray("crawling_journal_titles", crawling_journal_titles);
-    names_to_values_map->insertArray("crawling_journal_issns", crawling_journal_issns);
+    names_to_values_map->insertArray("crawling_journal_print_issns", crawling_journal_print_issns);
+    names_to_values_map->insertArray("crawling_journal_online_issns", crawling_journal_online_issns);
     names_to_values_map->insertArray("crawling_base_urls", crawling_base_urls);
     names_to_values_map->insertArray("crawling_extraction_regexes", crawling_extraction_regexes);
     names_to_values_map->insertArray("crawling_depths", crawling_depths);
@@ -212,7 +222,6 @@ std::string PrepareMapsDirectory(const std::string &orig_directory, const std::s
     const std::string local_maps_directory(tmp_directory + "/zts_client_maps");
     const std::string file_prev_downloaded(local_maps_directory + "/previously_downloaded.hashes");
     FileUtil::DeleteFile(file_prev_downloaded);
-    FileUtil::CreateSymlink("/dev/null", file_prev_downloaded);
     return local_maps_directory;
 }
 
@@ -348,7 +357,7 @@ class RssTask {
     std::string out_path_;
     std::string output_;
 public:
-    RssTask(const std::string &url_rss, const std::string &output_format_id);
+    RssTask(const std::string &url_rss, const std::string &output_format_id, const std::string &strptime_format);
 
     /** \brief get shell command including args (for debug output) */
     inline const std::string &getCommand() const { return command_; }
@@ -360,13 +369,14 @@ public:
     /** \brief get stdout/stderr output */
     inline const std::string &getOutput() const { return output_; }
 private:
-    void executeTask(const std::string &rss_url_file, const std::string &map_dir);
+    void executeTask(const std::string &rss_url_file, const std::string &map_dir, const std::string &strptime_format);
 };
 
 
-void RssTask::executeTask(const std::string &rss_url_file, const std::string &map_dir) {
+void RssTask::executeTask(const std::string &rss_url_file, const std::string &map_dir, const std::string &strptime_format) {
     std::vector<std::string> args;
     args.emplace_back("--test");
+    args.emplace_back("--strptime_format=" + strptime_format);
     args.emplace_back(rss_url_file);
     args.emplace_back(zts_url);
     args.emplace_back(map_dir);
@@ -379,7 +389,7 @@ void RssTask::executeTask(const std::string &rss_url_file, const std::string &ma
 }
 
 
-RssTask::RssTask(const std::string &url_rss, const std::string &output_format_id)
+RssTask::RssTask(const std::string &url_rss, const std::string &output_format_id, const std::string &strptime_format)
     : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
       executable_(ExecUtil::Which("rss_harvester"))
 {
@@ -388,7 +398,7 @@ RssTask::RssTask(const std::string &url_rss, const std::string &output_format_id
     out_path_ = auto_temp_dir_.getDirectoryPath() + "/output." + file_extension;
     const std::string file_cfg(auto_temp_dir_.getDirectoryPath() + "/config.cfg");
     FileUtil::WriteString(file_cfg, url_rss);
-    executeTask(file_cfg, local_maps_directory);
+    executeTask(file_cfg, local_maps_directory, strptime_format);
 }
 
 
@@ -408,7 +418,8 @@ void ProcessRssAction(const std::multimap<std::string, std::string> &cgi_args) {
     std::cout << "<h2>RSS Result</h2>\r\n";
     std::cout << "<table>\r\n";
 
-    const RssTask rss_task(GetCGIParameterOrDefault(cgi_args, "rss_feed_url"), GetCGIParameterOrDefault(cgi_args, "rss_output_format"));
+    const RssTask rss_task(GetCGIParameterOrDefault(cgi_args, "rss_feed_url"), GetCGIParameterOrDefault(cgi_args, "rss_output_format"),
+                           GetCGIParameterOrDefault(cgi_args, "rss_strptime_format"));
     std::cout << "<tr><td>Command</td><td>" + rss_task.getCommand() + "</td></tr>\r\n";
 
     if (rss_task.getExitCode() == 0)
