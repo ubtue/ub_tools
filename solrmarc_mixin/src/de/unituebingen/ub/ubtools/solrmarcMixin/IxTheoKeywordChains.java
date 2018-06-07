@@ -110,19 +110,16 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                             }
                             else
                                keyword.append(", ");
-                        }
-                        else if (subfield.getCode() == 'd') {
+                        } else if (subfield.getCode() == 'd') {
                             if (isSubfieldFollowedBySubfield(subfields, 'd', 'c'))
                                 keyword.append(" (");
                             else
                                 keyword.append(" ");
 
-                        }
-                        else if (subfield.getCode() == 'f') {
+                        } else if (subfield.getCode() == 'f') {
                             keyword.append(" (" + subfield.getData() + ")");
                             continue;
-                        }
-                        else if (subfield.getCode() == 'n')
+                        } else if (subfield.getCode() == 'n')
                             keyword.append(" ");
                         else if (subfield.getCode() == 'p')
                             keyword.append(". ");
