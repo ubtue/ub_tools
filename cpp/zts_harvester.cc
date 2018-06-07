@@ -38,7 +38,7 @@ namespace {
               << "\n"
               << "\tOptions:\n"
               << "\t[--verbosity=log_level]                                     Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
-              << "\t[--test]                                                    No download information will be stored\n"
+              << "\t[--test]                                                    No download information will be stored for further downloads.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
               << "\t[--previous-downloads-db-file=previous_downloads_db_file]\n"
