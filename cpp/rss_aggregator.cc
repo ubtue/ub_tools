@@ -28,7 +28,6 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "Downloader.h"
-#include "FileUtil.h"
 #include "IniFile.h"
 #include "StringUtil.h"
 #include "SyndicationFormat.h"
@@ -223,7 +222,7 @@ int Main(int argc, char *argv[]) {
                 LOG_ERROR("failed to block SIGTERM and SIGHUP!");
 
             const std::string &section_name(section.first);
-            if (not section_name.empty()) {
+            if (not section_name.empty() and section_name != "CGI Params") {
                 if (unlikely(already_seen_sections.find(section_name) != already_seen_sections.end()))
                     LOG_ERROR("duplicate section: \"" + section_name + "\"!");
                 already_seen_sections.emplace(section_name);
