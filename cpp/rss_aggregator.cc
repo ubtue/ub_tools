@@ -162,6 +162,21 @@ void InstallSignalHandler(const int signal_no, SignalHandler handler) {
 const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_aggregator.conf");
 
 
+class SignalBlocker {
+    int signal_no_;
+    bool unblocked_;
+public:
+    explicit SignalBlocker(const int signal_no);
+    ~SignalBlocker();
+    void unblock();
+};
+
+
+SignalBlocker(const int signal_no): signal_no_(signal_no), unblocked_(false) {
+    
+}
+
+    
 } // unnamed namespace
 
 
