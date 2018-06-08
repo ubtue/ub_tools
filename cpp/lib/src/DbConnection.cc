@@ -402,3 +402,16 @@ bool DbConnection::MySQLDatabaseExists(const std::string &database_name, const s
     std::vector<std::string> databases(DbConnection::MySQLGetDatabaseList(admin_user, admin_passwd, host, port));
     return (std::find(databases.begin(), databases.end(), database_name) != databases.end());
 }
+
+
+void DbConnection::MySQLImportFile(const std::string &sql_file, const std::string &database_name,
+                                   const std::string &user, const std::string &passwd,
+                                   const std::string &host, const unsigned port)
+{
+    std::string sql_data;
+    FileUtil::ReadStringOrDie(sql_file, &sql_data);
+
+    DbConnection db_connection(database_name, user, passwd, host, port);
+    ::mysql_set_server_option(&db_connection.mysql_, MYSQL_OPTION_MULTI_STATEMENTS_ON);
+    db_connection.queryOrDie(sql_data);
+}
