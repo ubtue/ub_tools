@@ -103,7 +103,7 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
 
 void CheckForSigTermAndExitIfSeen() {
     if (sigterm_seen) {
-        LOG_WARNING("caught SIGTERM, existing...");
+        LOG_WARNING("caught SIGTERM, exiting...");
         std::exit(EXIT_SUCCESS);
     }
 }
@@ -111,7 +111,7 @@ void CheckForSigTermAndExitIfSeen() {
 
 void CheckForSigHupAndReloadIniFileIfSeen(IniFile * const ini_file) {
     if (sighup_seen) {
-        LOG_WARNING("caught SIGHUP, reloading config file...");
+        LOG_INFO("caught SIGHUP, reloading config file...");
         ini_file->reload();
         sighup_seen = false;
     }
