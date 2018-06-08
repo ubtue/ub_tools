@@ -88,7 +88,7 @@ int Main(int argc, char *argv[]) {
     (*output) << "<channel>" << LINE_END;
     (*output) << "  <title>" << ini_file.getString("CGI Params", "feed_title") << "</title>" << LINE_END;
     (*output) << "  <link>" << ini_file.getString("CGI Params", "feed_link") << "</link>" << LINE_END;
-    (*output) << "  <description>" << ini_file.getString("CGI Params", "feed_secription") << "</description>" << LINE_END;
+    (*output) << "  <description>" << ini_file.getString("CGI Params", "feed_description") << "</description>" << LINE_END;
 
     while (const DbRow db_row = result_set.getNextRow()) {
         (*output) << "  <item>" << LINE_END;

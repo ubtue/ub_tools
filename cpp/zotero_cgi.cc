@@ -220,8 +220,6 @@ std::string BuildCommandString(const std::string &command, const std::vector<std
 std::string PrepareMapsDirectory(const std::string &orig_directory, const std::string &tmp_directory) {
     ExecUtil::ExecOrDie(ExecUtil::Which("cp"), { "-r", orig_directory, tmp_directory });
     const std::string local_maps_directory(tmp_directory + "/zts_client_maps");
-    const std::string file_prev_downloaded(local_maps_directory + "/previously_downloaded.hashes");
-    FileUtil::DeleteFile(file_prev_downloaded);
     return local_maps_directory;
 }
 
@@ -348,8 +346,8 @@ CrawlingTask::CrawlingTask(const std::string &url_base, const std::string &url_r
 }
 
 
-/** \brief class for executing rss_harvester & access its results */
-class RssTask {
+/** \brief class for executing zts_harvester & access its results */
+class HarvestTask {
     FileUtil::AutoTempDirectory auto_temp_dir_;
     std::string executable_;
     std::string command_;
@@ -357,7 +355,7 @@ class RssTask {
     std::string out_path_;
     std::string output_;
 public:
-    RssTask(const std::string &url_rss, const std::string &output_format_id, const std::string &strptime_format);
+    HarvestTask(const std::string &section, const std::string &output_format_id);
 
     /** \brief get shell command including args (for debug output) */
     inline const std::string &getCommand() const { return command_; }
@@ -368,37 +366,30 @@ public:
 
     /** \brief get stdout/stderr output */
     inline const std::string &getOutput() const { return output_; }
-private:
-    void executeTask(const std::string &rss_url_file, const std::string &map_dir, const std::string &strptime_format);
 };
 
 
-void RssTask::executeTask(const std::string &rss_url_file, const std::string &map_dir, const std::string &strptime_format) {
-    std::vector<std::string> args;
-    args.emplace_back("--test");
-    args.emplace_back("--strptime_format=" + strptime_format);
-    args.emplace_back(rss_url_file);
-    args.emplace_back(zts_url);
-    args.emplace_back(map_dir);
-    args.emplace_back(out_path_);
-
-    command_ = BuildCommandString(executable_, args);
-    const std::string log_path(map_dir + "/log");
-    exit_code_ = ExecUtil::Exec(executable_, args, "", log_path, log_path);
-    FileUtil::ReadString(log_path, &output_);
-}
-
-
-RssTask::RssTask(const std::string &url_rss, const std::string &output_format_id, const std::string &strptime_format)
+HarvestTask::HarvestTask(const std::string &section, const std::string &output_format_id)
     : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
-      executable_(ExecUtil::Which("rss_harvester"))
+      executable_(ExecUtil::Which("zts_harvester"))
 {
     const std::string local_maps_directory(PrepareMapsDirectory(zts_client_maps_directory, auto_temp_dir_.getDirectoryPath()));
     const std::string file_extension(GetOutputFormatExtension(output_format_id));
     out_path_ = auto_temp_dir_.getDirectoryPath() + "/output." + file_extension;
-    const std::string file_cfg(auto_temp_dir_.getDirectoryPath() + "/config.cfg");
-    FileUtil::WriteString(file_cfg, url_rss);
-    executeTask(file_cfg, local_maps_directory, strptime_format);
+
+    std::vector<std::string> args;
+    args.emplace_back("--verbosity=DEBUG");
+    args.emplace_back("--test");
+    args.emplace_back("--map-directory=" + local_maps_directory);
+    args.emplace_back("--previous-downloads-db-file=" + local_maps_directory + "/zotero_download_tracker.db");
+    args.emplace_back("--output-file=" + out_path_);
+    args.emplace_back(ZTS_HARVESTER_CONF_FILE);
+    args.emplace_back(section);
+
+    command_ = BuildCommandString(executable_, args);
+    const std::string log_path(auto_temp_dir_.getDirectoryPath() + "/log");
+    exit_code_ = ExecUtil::Exec(executable_, args, "", log_path, log_path);
+    FileUtil::ReadString(log_path, &output_);
 }
 
 
@@ -418,17 +409,15 @@ void ProcessRssAction(const std::multimap<std::string, std::string> &cgi_args) {
     std::cout << "<h2>RSS Result</h2>\r\n";
     std::cout << "<table>\r\n";
 
-    const RssTask rss_task(GetCGIParameterOrDefault(cgi_args, "rss_feed_url"), GetCGIParameterOrDefault(cgi_args, "rss_output_format"),
-                           GetCGIParameterOrDefault(cgi_args, "rss_strptime_format"));
-    std::cout << "<tr><td>Command</td><td>" + rss_task.getCommand() + "</td></tr>\r\n";
+    const HarvestTask harvest_task(GetCGIParameterOrDefault(cgi_args, "rss_journal_title"), GetCGIParameterOrDefault(cgi_args, "rss_output_format"));
 
-    if (rss_task.getExitCode() == 0)
-        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + rss_task.getOutPath() + "\">Result file</a></td></tr>\r\n";
+    if (harvest_task.getExitCode() == 0)
+        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + harvest_task.getOutPath() + "\">Result file</a></td></tr>\r\n";
     else
-        std::cout << "<tr><td>ERROR</td><td>Exitcode: " + std::to_string(rss_task.getExitCode()) + "</td></tr>\r\n";
+        std::cout << "<tr><td>ERROR</td><td>Exitcode: " + std::to_string(harvest_task.getExitCode()) + "</td></tr>\r\n";
 
     // use <pre> instead of nl2br + htmlspecialchars
-    std::cout << "<tr><td>CLI output:</td><td><pre>" + rss_task.getOutput() + "</pre></td></tr>\r\n";
+    std::cout << "<tr><td>CLI output:</td><td><pre>" + harvest_task.getOutput() + "</pre></td></tr>\r\n";
 
     std::cout << "</table>\r\n";
 }
