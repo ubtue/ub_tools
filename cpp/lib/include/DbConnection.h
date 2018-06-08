@@ -117,20 +117,20 @@ private:
     void init(const std::string &user, const std::string &passwd,
               const std::string &host, const unsigned port);
 public:
-    static void MySQLCreateDatabase(const std::string &database_name, const std::string &user, const std::string &passwd,
+    static void MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
                                     const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
 
     static void MySQLCreateUser(const std::string &new_user, const std::string &new_passwd,
-                                const std::string &root_user, const std::string &root_passwd,
+                                const std::string &admin_user, const std::string &admin_passwd,
                                 const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
-
-    static void MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user,
-                                        const std::string &root_user, const std::string &root_passwd,
-                                        const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
-
-    static std::vector<std::string> MySQLShowDatabases(const std::string &user, const std::string &passwd,
-                                                       const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
 
     static bool MySQLDatabaseExists(const std::string &database_name, const std::string &user, const std::string &passwd,
                                     const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
+
+    static std::vector<std::string> MySQLGetDatabaseList(const std::string &user, const std::string &passwd,
+                                                         const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
+
+    static void MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user,
+                                        const std::string &admin_user, const std::string &admin_passwd,
+                                        const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
 };
