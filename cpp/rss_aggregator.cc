@@ -124,11 +124,11 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
     }
 
     unsigned new_item_count(0);
-    SignalUtil::SignalBlocker sighup_blocker(SIGHUP);
+    SignalUtil::SignalBlocker sigterm_blocker(SIGTERM);
     if (not downloader->newUrl(feed_url, downloader_time_limit))
         LOG_WARNING(section_name + ": failed to download the feed: " + downloader->getLastErrorMessage());
     else {
-        sighup_blocker.unblock();
+        sigterm_blocker.unblock();
 
         std::string error_message;
         std::unique_ptr<SyndicationFormat> syndication_format(SyndicationFormat::Factory(downloader->getMessageBody(), &error_message));
@@ -136,7 +136,9 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
             LOG_WARNING("failed to parse feed: " + error_message);
         else {
             for (const auto &item : *syndication_format) {
-                SignalUtil::SignalBlocker sighup_blocker2(SIGHUP);
+                if (sigterm_seen)
+                    std::exit(EXIT_SUCCESS);
+                SignalUtil::SignalBlocker sigterm_blocker2(SIGTERM);
 
                 if (ProcessRSSItem(item, section_name,  db_connection))
                     ++new_item_count;
@@ -205,7 +207,7 @@ int Main(int argc, char *argv[]) {
                 return EXIT_SUCCESS;
             }
 
-            SignalUtil::SignalBlocker sigterm_blocker(SIGTERM);
+            SignalUtil::SignalBlocker sighup_blocker(SIGHUP);
 
             const std::string &section_name(section.first);
             if (not section_name.empty() and section_name != "CGI Params") {
