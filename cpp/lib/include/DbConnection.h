@@ -127,4 +127,10 @@ public:
     static void MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user,
                                         const std::string &root_user, const std::string &root_passwd,
                                         const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
+
+    static std::vector<std::string> MySQLShowDatabases(const std::string &user, const std::string &passwd,
+                                                       const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
+
+    static bool MySQLDatabaseExists(const std::string &database_name, const std::string &user, const std::string &passwd,
+                                    const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
 };
