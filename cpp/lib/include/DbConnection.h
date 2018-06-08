@@ -127,6 +127,10 @@ public:
     static bool MySQLDatabaseExists(const std::string &database_name, const std::string &user, const std::string &passwd,
                                     const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
 
+    static void MySQLImportFile(const std::string &sql_file, const std::string &database_name,
+                                const std::string &user, const std::string &passwd,
+                                const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
+
     static std::vector<std::string> MySQLGetDatabaseList(const std::string &user, const std::string &passwd,
                                                          const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
 
