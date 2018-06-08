@@ -91,7 +91,6 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
             title_and_or_description += " (" + description + ")";
     }
 
-    // FIXME(ruschein):  We probably have to use an InnoDB table to guarantee atomicity here!!!
     db_connection->queryOrDie("INSERT INTO rss_aggregator SET item_id='"
                               + db_connection->escapeString(StringUtil::Truncate(MAX_ITEM_ID_LENGTH, item_id)) + "'," + "item_url='"
                               + db_connection->escapeString(StringUtil::Truncate(MAX_ITEM_URL_LENGTH, item_url))
