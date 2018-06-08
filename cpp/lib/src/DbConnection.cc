@@ -361,6 +361,7 @@ void DbConnection::MySQLCreateDatabase(const std::string &database_name, const s
     db_connection.queryOrDie("CREATE DATABASE " + database_name + ";");
 }
 
+
 void DbConnection::MySQLCreateUser(const std::string &new_user, const std::string &new_passwd,
                                    const std::string &root_user, const std::string &root_passwd,
                                    const std::string &host, const unsigned port)
@@ -369,10 +370,35 @@ void DbConnection::MySQLCreateUser(const std::string &new_user, const std::strin
     db_connection.queryOrDie("CREATE USER " + new_user + " IDENTIFIED BY '" + new_passwd + "';");
 }
 
+
 void DbConnection::MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user,
                                            const std::string &root_user, const std::string &root_passwd,
                                            const std::string &host, const unsigned port)
 {
     DbConnection db_connection(root_user, root_passwd, host, port);
     db_connection.queryOrDie("GRANT ALL PRIVILEGES ON " + database_name + ".* TO '" + database_user + "';");
+}
+
+
+std::vector<std::string> DbConnection::MySQLShowDatabases(const std::string &user, const std::string &passwd,
+                                                          const std::string &host, const unsigned port)
+{
+    DbConnection db_connection(user, passwd, host, port);
+    db_connection.queryOrDie("SHOW DATABASES;");
+
+    std::vector<std::string> databases;
+    DbResultSet result_set(db_connection.getLastResultSet());
+    while (const DbRow result_row = result_set.getNextRow()) {
+        databases.emplace_back(result_row["Database"]);
+    }
+
+    return databases;
+}
+
+
+bool DbConnection::MySQLDatabaseExists(const std::string &database_name, const std::string &user, const std::string &passwd,
+                                       const std::string &host, const unsigned port)
+{
+    std::vector<std::string> databases(DbConnection::MySQLShowDatabases(user, passwd, host, port));
+    return (std::find(databases.begin(), databases.end(), database_name) != databases.end());
 }
