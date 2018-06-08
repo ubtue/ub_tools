@@ -419,7 +419,7 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
 
 std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
-        "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|ISSN|ubtue$"));
+        "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|websiteType|ISSN|ubtue$"));
     unsigned record_count(0), previously_downloaded_count(0);
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
                             MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
@@ -477,6 +477,16 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         } else if (key_and_node.first == "journalAbbreviation") {
             new_record.insertField("773", { { 'p', JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
                                                                                          key_and_node.second)->getValue() } });
+        } else if (key_and_node.first == "extra") {
+            // comment field, can contain anything, even DOI's (e.g. for a webpage which has no DOI field)
+            const std::string extra(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
+                                                                          key_and_node.second)->getValue());
+            static RegexMatcher * const doi_matcher(RegexMatcher::RegexMatcherFactory("^DOI:\\s*([0-9a-zA-Z./]+)$"));
+            if (doi_matcher->matched(extra)) {
+                CreateSubfieldFromStringNode(key_and_node, "856", 'u', &new_record);
+                new_record.insertField("856", { { 'u', "urn:doi:" + (*doi_matcher)[1] } }, '#', '#');
+            }
+
         } else
             LOG_ERROR("unknown key \"" + key_and_node.first + "\" with node type "
                       + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
