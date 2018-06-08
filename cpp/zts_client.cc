@@ -135,7 +135,7 @@ void Main(int argc, char *argv[]) {
         const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
         const std::string output_file(argv[3]);
-        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(map_directory_path, output_format, output_file, &augment_params,
+        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(map_directory_path + "zotero_download_tracker.db", output_format, output_file, &augment_params,
                                                                          harvest_params);
         unsigned total_record_count(0), total_previously_downloaded_count(0);
 
@@ -158,9 +158,6 @@ void Main(int argc, char *argv[]) {
 
         LOG_INFO("Harvested a total of " + StringUtil::ToString(total_record_count) + " records of which "
              + StringUtil::ToString(total_previously_downloaded_count) + " were already previously downloaded.");
-
-        std::unique_ptr<File> previously_downloaded_output(
-            FileUtil::OpenOutputFileOrDie(map_directory_path + "previously_downloaded.hashes"));
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }

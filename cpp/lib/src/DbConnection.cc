@@ -104,6 +104,9 @@ DbConnection::~DbConnection() {
 }
 
 
+const std::string DbConnection::DEFAULT_CONFIG_FILE_PATH("/usr/local/var/lib/tuelib/ub_tools.conf");
+
+
 bool DbConnection::query(const std::string &query_statement) {
     if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") == "true")
         FileUtil::AppendString("/usr/local/var/log/tuefind/sql_debug.log",
@@ -173,7 +176,7 @@ void AddStatement(const std::string &statement_candidate, std::vector<std::strin
     }
 }
 
-    
+
 // Splits a compound Sqlite SQL statement into individual statements and eliminates comments.
 void SplitSqliteStatements(const std::string &compound_statement, std::vector<std::string> * const individual_statements) {
     ParseState parse_state(NORMAL);
@@ -325,4 +328,77 @@ void DbConnection::init(const std::string &database_name, const std::string &use
     sqlite3_ = nullptr;
     type_ = T_MYSQL;
     initialised_ = true;
+}
+
+
+void DbConnection::init(const std::string &user, const std::string &passwd,
+                        const std::string &host, const unsigned port)
+{
+    initialised_ = false;
+
+    if (::mysql_init(&mysql_) == nullptr)
+        throw std::runtime_error("in DbConnection::init: mysql_init() failed!");
+
+    if (::mysql_real_connect(&mysql_, host.c_str(), user.c_str(), passwd.c_str(), nullptr, port,
+                             /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
+        throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage()
+                                 + ")");
+    if (::mysql_set_character_set(&mysql_, "utf8mb4") != 0)
+        throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage()
+                                 + ")");
+
+    sqlite3_ = nullptr;
+    type_ = T_MYSQL;
+    initialised_ = true;
+}
+
+
+void DbConnection::MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user,
+                                       const std::string &admin_passwd, const std::string &host,
+                                       const unsigned port)
+{
+    DbConnection db_connection(admin_user, admin_passwd, host, port);
+    db_connection.queryOrDie("CREATE DATABASE " + database_name + ";");
+}
+
+
+void DbConnection::MySQLCreateUser(const std::string &new_user, const std::string &new_passwd,
+                                   const std::string &admin_user, const std::string &admin_passwd,
+                                   const std::string &host, const unsigned port)
+{
+    DbConnection db_connection(admin_user, admin_passwd, host, port);
+    db_connection.queryOrDie("CREATE USER " + new_user + " IDENTIFIED BY '" + new_passwd + "';");
+}
+
+
+void DbConnection::MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user,
+                                           const std::string &admin_user, const std::string &admin_passwd,
+                                           const std::string &host, const unsigned port)
+{
+    DbConnection db_connection(admin_user, admin_passwd, host, port);
+    db_connection.queryOrDie("GRANT ALL PRIVILEGES ON " + database_name + ".* TO '" + database_user + "';");
+}
+
+
+std::vector<std::string> DbConnection::MySQLGetDatabaseList(const std::string &admin_user, const std::string &admin_passwd,
+                                                            const std::string &host, const unsigned port)
+{
+    DbConnection db_connection(admin_user, admin_passwd, host, port);
+    db_connection.queryOrDie("SHOW DATABASES;");
+
+    std::vector<std::string> databases;
+    DbResultSet result_set(db_connection.getLastResultSet());
+    while (const DbRow result_row = result_set.getNextRow()) {
+        databases.emplace_back(result_row["Database"]);
+    }
+
+    return databases;
+}
+
+
+bool DbConnection::MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
+                                       const std::string &host, const unsigned port)
+{
+    std::vector<std::string> databases(DbConnection::MySQLGetDatabaseList(admin_user, admin_passwd, host, port));
+    return (std::find(databases.begin(), databases.end(), database_name) != databases.end());
 }
