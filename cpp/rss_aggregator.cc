@@ -61,7 +61,7 @@ void SigHupHandler(int /* signum */) {
 }
 
 
-// These must be in sync with the sizes in
+// These must be in sync with the sizes in data/rss_aggregator.sql
 const size_t MAX_ITEM_ID_LENGTH(100);
 const size_t MAX_ITEM_URL_LENGTH(512);
 const size_t MAX_SERIAL_NAME_LENGTH(200);
@@ -91,6 +91,7 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
             title_and_or_description += " (" + description + ")";
     }
 
+    FIXME:  We probably have to use an InnoDB table to guarantee atomicity here!!!
     db_connection->queryOrDie("INSERT INTO rss_aggregator SET item_id='"
                               + db_connection->escapeString(StringUtil::Truncate(MAX_ITEM_ID_LENGTH, item_id)) + "'," + "item_url='"
                               + db_connection->escapeString(StringUtil::Truncate(MAX_ITEM_URL_LENGTH, item_url))
@@ -116,7 +117,7 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
     if (now > 0) {
         const auto section_name_and_ticks(section_name_to_ticks_map.find(section_name));
         if (unlikely(section_name_and_ticks == section_name_to_ticks_map.end()))
-            LOG_ERROR("unexpected: did not find \"" + section_name + "\" in our map!");
+            LOG_ERROR("unexpected: did not find \"" + section_name + "\" in our map!");  FIXME!! (We can legitimately get here if we reload the config file!!! 
         if (section_name_and_ticks->second + poll_interval < now) {
             LOG_DEBUG(section_name + ": not yet time to do work, last work was done at " + std::to_string(section_name_and_ticks->second)
                       + ".");
