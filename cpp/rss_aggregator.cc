@@ -101,6 +101,23 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
 }
 
 
+void CheckForSigTermAndExitIfSeen() {
+    if (sigterm_seen) {
+        LOG_WARNING("caught SIGTERM, existing...");
+        std::exit(EXIT_SUCCESS);
+    }
+}
+
+
+void CheckForSigHupAndReloadIniFileIfSeen(IniFile * const ini_file) {
+    if (sighup_seen) {
+        LOG_WARNING("caught SIGHUP, reloading config file...");
+        ini_file->reload();
+        sighup_seen = false;
+    }
+}
+
+
 std::unordered_map<std::string, uint64_t> section_name_to_ticks_map;
 
 
@@ -128,6 +145,7 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
         LOG_WARNING(section_name + ": failed to download the feed: " + downloader->getLastErrorMessage());
     else {
         sigterm_blocker.unblock();
+        CheckForSigTermAndExitIfSeen();
 
         std::string error_message;
         std::unique_ptr<SyndicationFormat> syndication_format(SyndicationFormat::Factory(downloader->getMessageBody(), &error_message));
@@ -135,8 +153,7 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
             LOG_WARNING("failed to parse feed: " + error_message);
         else {
             for (const auto &item : *syndication_format) {
-                if (sigterm_seen)
-                    std::exit(EXIT_SUCCESS);
+                CheckForSigTermAndExitIfSeen();
                 SignalUtil::SignalBlocker sigterm_blocker2(SIGTERM);
 
                 if (ProcessRSSItem(item, section_name,  db_connection))
@@ -191,11 +208,7 @@ int Main(int argc, char *argv[]) {
     for (;;) {
         LOG_DEBUG("now we're at " + std::to_string(ticks) + ".");
 
-        if (sighup_seen) {
-            LOG_INFO("caught SIGHUP, rereading config file...");
-            ini_file.reload();
-            sighup_seen = false;
-        }
+        CheckForSigHupAndReloadIniFileIfSeen(&ini_file);
 
         const time_t before(std::time(nullptr));
 
@@ -232,7 +245,14 @@ int Main(int argc, char *argv[]) {
         else
             sleep_interval = (UPDATE_INTERVAL * 60 - (after - before));
 
-        ::sleep(static_cast<unsigned>(sleep_interval));
+        unsigned total_time_slept(0);
+        do {
+            const unsigned actual_time_slept(::sleep(static_cast<unsigned>(sleep_interval - total_time_slept)));
+            CheckForSigTermAndExitIfSeen();
+            CheckForSigHupAndReloadIniFileIfSeen(&ini_file);
+
+            total_time_slept += actual_time_slept;
+        } while (total_time_slept < sleep_interval);
         ticks += UPDATE_INTERVAL;
     }
 }
