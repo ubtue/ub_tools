@@ -29,6 +29,7 @@
 #include "DbResultSet.h"
 #include "Downloader.h"
 #include "IniFile.h"
+#include "SignalUtil.h"
 #include "StringUtil.h"
 #include "SyndicationFormat.h"
 #include "util.h"
@@ -70,8 +71,7 @@ const size_t MAX_SERIAL_NAME_LENGTH(200);
 // \return true if the item was new, else false.
 bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &section_name, DbConnection * const db_connection) {
     const std::string item_id(item.getId());
-    db_connection->queryOrDie("SELECT insertion_time FROM rss_aggregator WHERE item_id='"
-                              + db_connection->escapeString(item_id) + "'");
+    db_connection->queryOrDie("SELECT insertion_time FROM rss_aggregator WHERE item_id='" + db_connection->escapeString(item_id) + "'");
     const DbResultSet result_set(db_connection->getLastResultSet());
     if (not result_set.empty())
         return false;
@@ -91,7 +91,7 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
             title_and_or_description += " (" + description + ")";
     }
 
-    FIXME:  We probably have to use an InnoDB table to guarantee atomicity here!!!
+    // FIXME(ruschein):  We probably have to use an InnoDB table to guarantee atomicity here!!!
     db_connection->queryOrDie("INSERT INTO rss_aggregator SET item_id='"
                               + db_connection->escapeString(StringUtil::Truncate(MAX_ITEM_ID_LENGTH, item_id)) + "'," + "item_url='"
                               + db_connection->escapeString(StringUtil::Truncate(MAX_ITEM_URL_LENGTH, item_url))
@@ -114,10 +114,8 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
     const unsigned downloader_time_limit(section.getUnsigned("downloader_time_limit", default_downloader_time_limit) * 1000);
 
     const std::string &section_name(section.getSectionName());
-    if (now > 0) {
-        const auto section_name_and_ticks(section_name_to_ticks_map.find(section_name));
-        if (unlikely(section_name_and_ticks == section_name_to_ticks_map.end()))
-            LOG_ERROR("unexpected: did not find \"" + section_name + "\" in our map!");  FIXME!! (We can legitimately get here if we reload the config file!!! 
+    const auto section_name_and_ticks(section_name_to_ticks_map.find(section_name));
+    if (section_name_and_ticks != section_name_to_ticks_map.end()) {
         if (section_name_and_ticks->second + poll_interval < now) {
             LOG_DEBUG(section_name + ": not yet time to do work, last work was done at " + std::to_string(section_name_and_ticks->second)
                       + ".");
@@ -126,15 +124,20 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
     }
 
     unsigned new_item_count(0);
+    SignalUtil::SignalBlocker sighup_blocker(SIGHUP);
     if (not downloader->newUrl(feed_url, downloader_time_limit))
         LOG_WARNING(section_name + ": failed to download the feed: " + downloader->getLastErrorMessage());
     else {
+        sighup_blocker.unblock();
+
         std::string error_message;
         std::unique_ptr<SyndicationFormat> syndication_format(SyndicationFormat::Factory(downloader->getMessageBody(), &error_message));
         if (unlikely(syndication_format == nullptr))
             LOG_WARNING("failed to parse feed: " + error_message);
         else {
             for (const auto &item : *syndication_format) {
+                SignalUtil::SignalBlocker sighup_blocker2(SIGHUP);
+
                 if (ProcessRSSItem(item, section_name,  db_connection))
                     ++new_item_count;
             }
@@ -146,38 +149,9 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
 }
 
 
-typedef void SignalHandler(int);
-
-
-void InstallSignalHandler(const int signal_no, SignalHandler handler) {
-    struct sigaction new_action;
-    new_action.sa_handler = handler;
-    sigemptyset(&new_action.sa_mask);
-    sigaddset(&new_action.sa_mask, signal_no);
-    new_action.sa_flags = 0;
-    if (::sigaction(signal_no, &new_action, nullptr) != 0)
-        LOG_ERROR("sigaction(2) failed!");
-}
-
-
 const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_aggregator.conf");
 
 
-class SignalBlocker {
-    int signal_no_;
-    bool unblocked_;
-public:
-    explicit SignalBlocker(const int signal_no);
-    ~SignalBlocker();
-    void unblock();
-};
-
-
-SignalBlocker(const int signal_no): signal_no_(signal_no), unblocked_(false) {
-    
-}
-
-    
 } // unnamed namespace
 
 
@@ -204,8 +178,8 @@ int Main(int argc, char *argv[]) {
     const unsigned UPDATE_INTERVAL(ini_file.getUnsigned("", "update_interval"));
 
     if (not test) {
-        InstallSignalHandler(SIGTERM, SigTermHandler);
-        InstallSignalHandler(SIGHUP, SigHupHandler);
+        SignalUtil::InstallHandler(SIGTERM, SigTermHandler);
+        SignalUtil::InstallHandler(SIGHUP, SigHupHandler);
 
         if (::daemon(0, 1 /* do not close file descriptors and redirect to /dev/null */) != 0)
             LOG_ERROR("we failed to deamonize our process!");
@@ -231,11 +205,7 @@ int Main(int argc, char *argv[]) {
                 return EXIT_SUCCESS;
             }
 
-            sigset_t signal_set;
-            sigaddset(&signal_set, SIGTERM);
-            sigaddset(&signal_set, SIGHUP);
-            if (unlikely(::sigprocmask(SIG_BLOCK, &signal_set, nullptr) != 0))
-                LOG_ERROR("failed to block SIGTERM and SIGHUP!");
+            SignalUtil::SignalBlocker sigterm_blocker(SIGTERM);
 
             const std::string &section_name(section.first);
             if (not section_name.empty() and section_name != "CGI Params") {
@@ -248,9 +218,6 @@ int Main(int argc, char *argv[]) {
                                                              DEFAULT_POLL_INTERVAL, ticks));
                 LOG_INFO("found " + std::to_string(new_item_count) + " new items.");
             }
-
-            if (unlikely(::sigprocmask(SIG_UNBLOCK, &signal_set, nullptr) != 0))
-                LOG_ERROR("failed to unblock SIGTERM and SIGHUP!");
         }
 
         if (test) // -> only run through our loop once
