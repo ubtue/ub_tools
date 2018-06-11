@@ -595,7 +595,7 @@ collect_next_character:
             return false;
         }
 
-        // HACK! skipping CDATA/everthing in-between a closing tag and an opening tag
+        // HACK! skipping CDATA/everything in-between a closing tag and an opening tag
         do {
             skipWhiteSpace();
             ch = get();
