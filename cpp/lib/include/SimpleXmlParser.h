@@ -51,7 +51,7 @@ template<typename DataSource> class SimpleXmlParser {
 public:
     enum Type { UNINITIALISED, START_OF_DOCUMENT, END_OF_DOCUMENT, ERROR, OPENING_TAG, CLOSING_TAG, CHARACTERS };
 private:
-    // Order-dependent: See below (cf. FIRST_FOUR_BYTES_...) 
+    // Order-dependent: See below (cf. FIRST_FOUR_BYTES_...)
     enum Encoding : uint8_t { UTF32_BE, UTF32_LE, UTF16_BE, UTF16_LE, UTF8, OTHER };
 
     DataSource * const input_;
@@ -186,7 +186,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
             }
             break;
         case UTF8:
-            if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_WITH_BOM[inital_encoding], 3) == 0) { 
+            if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_WITH_BOM[inital_encoding], 3) == 0) {
                 found = true;
             }
             break;
@@ -198,7 +198,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
 
         if (found)
             break;
-       
+
         has_BOM = false;
         if (std::memcmp(first_four_bytes, FIRST_FOUR_BYTES_NO_BOM[inital_encoding], 4) == 0)
             break;
@@ -243,7 +243,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
                 LOG_WARNING("Mismatching XML file encoding for \"" + input_->getPath() + "\". Detected (internal): "
                             + internal_encoding_ + ", provided (external): " + external_encoding_);
             }
-        }        
+        }
 
         to_utf32_decoder_.reset(new TextUtil::AnythingToUTF32Decoder(internal_encoding_));
     } else if (not external_encoding_.empty())
@@ -261,7 +261,7 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoi
         return ch;
     for (;;) {
         if (not to_utf32_decoder_->addByte(static_cast<char>(ch)))
-            return static_cast<int>(to_utf32_decoder_->getUTF32Char());         
+            return static_cast<int>(to_utf32_decoder_->getUTF32Char());
         ch = input_->get();
         if (unlikely(ch == EOF))
             throw std::runtime_error("in SimpleXmlParser::getUnicodeCodePoint: unexpected EOF while decoding "
@@ -269,7 +269,7 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoi
     }
 }
 
-    
+
 template<typename DataSource> int SimpleXmlParser<DataSource>::get(const bool skip_comment, bool * const cdata_start) {
     if (skip_comment) {
         static constexpr char COMMENT_START[]{"<!--"};
