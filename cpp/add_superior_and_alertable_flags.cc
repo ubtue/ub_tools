@@ -32,6 +32,7 @@
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "MARC.h"
+#include "RegexMatcher.h"
 #include "util.h"
 
 
@@ -44,6 +45,20 @@ namespace {
 }
 
 
+bool HasNonSuperior776SubfieldI(const MARC::Record::Field &field) {
+     static const std::string non_superior_subfield_i_expression(
+         "\\s*Erscheint auch als.*|\\s*Elektronische Reproduktion.*|\\s*Äquivalent.*|\\s*Reproduktion von.*|\\s*Reproduziert als*");
+     static RegexMatcher * const non_superior_subfield_i_matcher(RegexMatcher::RegexMatcherFactory(non_superior_subfield_i_expression));
+     if (field.getTag() != "776")
+         return false;
+     for (const auto &subfield_i_content : field.getSubfields().extractSubfields("i")){
+         if (non_superior_subfield_i_matcher->matched(subfield_i_content))
+             return true;
+     }
+     return false;
+}
+
+
 void LoadSuperiorPPNs(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const superior_ppns) {
     const std::vector<std::string> TAGS{ "800", "810", "830", "773", "776"};
     while (const MARC::Record record = marc_reader->read()) {
@@ -52,7 +67,7 @@ void LoadSuperiorPPNs(MARC::Reader * const marc_reader, std::unordered_set<std::
                 const MARC::Subfields subfields(field.getSubfields());
                 const std::string subfield_w_contents(subfields.getFirstSubfieldWithCode('w'));
                 if (StringUtil::StartsWith(subfield_w_contents, "(DE-576)")) {
-                    if (tag != "776" or subfields.getFirstSubfieldWithCode('i') != "Erscheint auch als")
+                    if (not HasNonSuperior776SubfieldI(field))
                         superior_ppns->emplace(subfield_w_contents.substr(__builtin_strlen("(DE-576)")));
                 }
             }

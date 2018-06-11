@@ -171,7 +171,7 @@ void LineMin_ComputeNextStep(const real &fv, const real &dg, const real &mu_min,
                                  "\n    dg = " + StringUtil::ToString(static_cast<double>(dg))     +
                                  "\nmu_min = " + StringUtil::ToString(static_cast<double>(mu_min)) +
                                  "\nmu_max = " + StringUtil::ToString(static_cast<double>(mu_max)) +
-                                 "\nsolution_is_bracketed = " + StringUtil::ToString(solution_is_bracketed) + '\n');
+                                 "\nsolution_is_bracketed = " + std::to_string(solution_is_bracketed) + '\n');
     }
 
     real muf = 0.0;

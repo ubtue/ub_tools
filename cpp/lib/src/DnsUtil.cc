@@ -38,6 +38,7 @@
 #include <arpa/inet.h>
 #include "DnsServerAndPool.h"
 #include "NetUtil.h"
+#include "RegexMatcher.h"
 #include "Resolver.h"
 #include "StringUtil.h"
 #include "TimerUtil.h"
@@ -51,6 +52,13 @@ bool IsValidIPv4Address(const std::string &address) {
     return DnsUtil::IsDottedQuad(address);
 }
 
+
+bool IsValidIPv6Address(const std::string &address) {
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie("^(?:[A-F0-9]{1,4}:){7}(?:[A-F0-9]{1,4})$",
+                                                                               RegexMatcher::CASE_INSENSITIVE));
+    return matcher->matched(address);
+}
+    
 
 namespace {
 

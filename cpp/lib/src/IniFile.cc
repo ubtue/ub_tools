@@ -393,7 +393,7 @@ void IniFile::processInclude(const std::string &line) {
     StringUtil::Trim(" \t", &include_filename);
     if (include_filename[0] == '"') {
         if (include_filename.length() < 3 or include_filename[include_filename.length() - 1] != '"')
-            throw std::runtime_error("in IniFile::processSectionEntry: garbled include file name on line "
+            throw std::runtime_error("in IniFile::processInclude: garbled include file name on line "
                                      + std::to_string(getCurrentLineNo())
                                      + " in file \"" + getCurrentFile() + "\"!");
         include_filename = include_filename.substr(1, include_filename.length() - 2);
@@ -482,7 +482,20 @@ void IniFile::processSectionEntry(const std::string &line) {
 }
 
 
-void IniFile::processFile(const std::string &filename) {
+void IniFile::processFile(const std::string &external_filename) {
+    std::string dirname, basename;
+    FileUtil::DirnameAndBasename(external_filename, &dirname, &basename);
+
+    char hostname[HOST_NAME_MAX + 1];
+    if (::gethostname(hostname, sizeof hostname) != 0)
+        LOG_ERROR("gethostname(2) failed!");
+
+    std::string filename;
+    if (not dirname.empty() and FileUtil::Exists(dirname + "/" + std::string(hostname) + "/" + basename))
+        filename = dirname + "/" + std::string(hostname) + "/" + basename;
+    else
+        filename = external_filename;
+
     // Open the file:
     if (unlikely(not FileUtil::Exists(filename))) {
         if (not ignore_failed_includes_ or filename == getFilename())
