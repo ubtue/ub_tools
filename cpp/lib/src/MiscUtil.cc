@@ -85,6 +85,14 @@ char HexDigit(const unsigned value) {
 }
 
 
+static char HEX_DIGITS[] = "0123456789aAbBcCdDeEfF";
+
+
+bool IsHexDigit(const char ch) {
+    return std::strchr(HEX_DIGITS, ch) != nullptr;
+}
+
+
 char GeneratePPNChecksumDigit(const std::string &ppn_without_checksum_digit) {
     if (unlikely(ppn_without_checksum_digit.length() != 8 and ppn_without_checksum_digit.length() != 9))
         throw std::runtime_error("in MiscUtil::GeneratePPNChecksumDigit: argument's length is neither 8 nor 9!");
@@ -190,7 +198,7 @@ static std::string ExtractBourneString(std::string::const_iterator &ch, const st
 
 static bool ExportsParseLine(std::string line, std::string * const key, std::string * const value) {
     key->clear(), value->clear();
-    
+
     StringUtil::TrimWhite(&line);
     if (not StringUtil::StartsWith(line, "export"))
         return true;
@@ -214,7 +222,7 @@ void LoadExports(const std::string &path, const bool overwrite) {
     unsigned line_no(0);
     while (not input->eof()) {
         ++line_no;
-        
+
         std::string line;
         input->getline(&line);
         std::string key, value;
