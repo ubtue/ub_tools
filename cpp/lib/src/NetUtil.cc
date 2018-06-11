@@ -122,7 +122,7 @@ std::string SockAddrToString(const struct sockaddr * const sockaddr) {
     if (sockaddr->sa_family == AF_INET)
         return ::inet_ntop(AF_INET, &reinterpret_cast<const struct sockaddr_in *>(sockaddr)->sin_addr, buf, sizeof buf);
     else if (sockaddr->sa_family == AF_INET6)
-        return ::inet_ntop(AF_INET, &reinterpret_cast<const struct sockaddr_in6 *>(sockaddr)->sin6_addr, buf, sizeof buf);
+        return ::inet_ntop(AF_INET6, &reinterpret_cast<const struct sockaddr_in6 *>(sockaddr)->sin6_addr, buf, sizeof buf);
     else
         LOG_ERROR("unknown address family: " + std::to_string(sockaddr->sa_family));
 }
