@@ -554,19 +554,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
     }
 
     int ch;
-    bool parse_cdata_beyond_closing_tag(false);
-    if (last_type_ == CLOSING_TAG) {
-        // check for CDATA after the closing tag
-        // this is still valid in the spec (as long as there is an enclosing node/scope)
-        skipWhiteSpace();
-        ch = get();
-        if (unlikely(ch != EOF && ch != '<'))
-            parse_cdata_beyond_closing_tag = true;
-        unget(ch);
-    }
-
-    if (last_type_ == OPENING_TAG || parse_cdata_beyond_closing_tag) {
-        const auto last_type_buffer(last_type_);
+    if (last_type_ == OPENING_TAG) {
         last_type_ = *type = CHARACTERS;
 
 collect_next_character:
@@ -579,13 +567,8 @@ collect_next_character:
                 data->append(XmlUtil::XmlEscape(cdata));
             } else {
                 if (unlikely(ch == EOF)) {
-                    if (last_type_buffer == OPENING_TAG) {
-                        last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
-                        return false;
-                    } else {
-                        last_type_ = *type = END_OF_DOCUMENT;
-                        return true;
-                    }
+                    last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
+                    return false;
                 }
                 if (unlikely(ch == '\n'))
                     ++line_no_;
@@ -606,25 +589,21 @@ collect_next_character:
             last_error_message_ = "Invalid entity in character data ending on line " + std::to_string(line_no_) + "!";
             return false;
         }
-    } else { // end-of-document or opening or closing tag or more cdata
+    } else { // end-of-document or opening or closing tag or more CDATA
         if (not skipOptionalProcessingInstruction()) {
             *type = ERROR;
             return false;
         }
-        skipWhiteSpace();
 
-        ch = get();
-        if (unlikely(ch == EOF)) {
-            last_type_ = *type = END_OF_DOCUMENT;
-            return true;
-        }
-
-        if (ch != '<') {
-            last_type_ = *type = ERROR;
-            last_error_message_ = "Expected '<' on line " + std::to_string(line_no_) + ", found '"
-                                  + TextUtil::UTF32ToUTF8(ch) + "' (#" + std::to_string(ch) + ") instead!";
-            return false;
-        }
+        // HACK! skipping CDATA/everthing in-between a closing tag and an opening tag
+        do {
+            skipWhiteSpace();
+            ch = get();
+            if (unlikely(ch == EOF)) {
+                last_type_ = *type = END_OF_DOCUMENT;
+                return true;
+            }
+        } while (ch != '<');
 
         // If we're at the beginning, we may have an XML prolog:
         if (unlikely(last_type_ == UNINITIALISED) and peek() == '?') {
