@@ -45,6 +45,9 @@ namespace MiscUtil {
 char HexDigit(const unsigned value);
 
 
+bool IsHexDigit(const char ch);
+
+
 /** Given a Pica Production Number w/o the checksum digit, this function will return said digit. */
 char GeneratePPNChecksumDigit(const std::string &ppn_without_checksum_digit);
 

@@ -29,9 +29,14 @@
 #include <unordered_map>
 #include <cerrno>
 #include <cmath>
+#include <ifaddrs.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include "DnsUtil.h"
 #include "StringUtil.h"
+#include "util.h"
 
 
 #ifndef DIM
@@ -108,6 +113,18 @@ std::string NetworkAddressToString(const in_addr_t network_address) {
         throw std::runtime_error("in NetUtil::NetworkAddressToString: can't convert in_addr_t to an IPv4 address!");
 
     return network_address_as_string;
+}
+
+
+std::string SockAddrToString(const struct sockaddr * const sockaddr) {
+    char buf[INET6_ADDRSTRLEN]; // Note: this is long enough to include a terminating NUL.
+
+    if (sockaddr->sa_family == AF_INET)
+        return ::inet_ntop(AF_INET, &reinterpret_cast<const struct sockaddr_in *>(sockaddr)->sin_addr, buf, sizeof buf);
+    else if (sockaddr->sa_family == AF_INET6)
+        return ::inet_ntop(AF_INET6, &reinterpret_cast<const struct sockaddr_in6 *>(sockaddr)->sin6_addr, buf, sizeof buf);
+    else
+        LOG_ERROR("unknown address family: " + std::to_string(sockaddr->sa_family));
 }
 
 
