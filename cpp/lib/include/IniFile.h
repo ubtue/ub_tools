@@ -242,7 +242,8 @@ protected:
     bool ignore_failed_includes_;
 public:
     /** \brief  Construct an IniFile based on the named file.
-     *  \param  ini_file_name           The name of the .ini file.
+     *  \param  ini_file_name           The name of the .ini file. (We first look for the basename of this in a subdirectory whose
+     *                                  name is the hostname of the system we're on.)
      *  \param  ignore_failed_includes  If "true", don't throw an exception if an "include" directive can't be
      *                                  honoured.  The special name "empty" will create an ini_file object without
      *                                  attempting to open a file
