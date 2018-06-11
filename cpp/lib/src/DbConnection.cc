@@ -57,7 +57,7 @@ DbConnection::DbConnection(const IniFile &ini_file, const std::string &ini_file_
     const IniFile::Section &db_section(ini_file.getSection(ini_file_section));
     const std::string host(db_section.getString("sql_host", "localhost"));
     const std::string database(db_section.getString("sql_database"));
-    const std::string user(db_section.getString("sql_user"));
+    const std::string user(db_section.getString("sql_username"));
     const std::string password(db_section.getString("sql_password"));
     const unsigned port(db_section.getUnsigned("sql_port", MYSQL_PORT));
 
