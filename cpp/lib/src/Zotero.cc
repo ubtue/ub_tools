@@ -483,8 +483,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                                                                           key_and_node.second)->getValue());
             static RegexMatcher * const doi_matcher(RegexMatcher::RegexMatcherFactory("^DOI:\\s*([0-9a-zA-Z./]+)$"));
             if (doi_matcher->matched(extra)) {
-                CreateSubfieldFromStringNode(key_and_node, "856", 'u', &new_record);
-                new_record.insertField("856", { { 'u', "urn:doi:" + (*doi_matcher)[1] } }, '#', '#');
+                new_record.insertField("024", { { 'a', (*doi_matcher)[1] }, { '2', "doi" } });
             }
 
         } else
