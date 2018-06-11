@@ -417,6 +417,11 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
 }
 
 
+void InsertDOI(MARC::Record * const record, const std::string &doi) {
+    record->insertField("024", { { 'a', doi }, { '2', "doi" } });
+}
+
+
 std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
         "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|websiteType|ISSN|ubtue$"));
@@ -445,9 +450,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         else if (key_and_node.first == "DOI") {
             if (unlikely(key_and_node.second->getType() != JSON::JSONNode::STRING_NODE))
                 LOG_ERROR("expected DOI node to be a string node!");
-            new_record.insertField(
-                "856", { { 'u', "urn:doi:"
-                            + JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue()} });
+            InsertDOI(&new_record, JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
         } else if (key_and_node.first == "shortTitle")
             CreateSubfieldFromStringNode(key_and_node, "246", 'a', &new_record);
         else if (key_and_node.first == "creators")
@@ -482,11 +485,8 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             const std::string extra(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
                                                                           key_and_node.second)->getValue());
             static RegexMatcher * const doi_matcher(RegexMatcher::RegexMatcherFactory("^DOI:\\s*([0-9a-zA-Z./]+)$"));
-            if (doi_matcher->matched(extra)) {
-                CreateSubfieldFromStringNode(key_and_node, "856", 'u', &new_record);
-                new_record.insertField("856", { { 'u', "urn:doi:" + (*doi_matcher)[1] } }, '#', '#');
-            }
-
+            if (doi_matcher->matched(extra))
+                InsertDOI(&new_record, (*doi_matcher)[1]);
         } else
             LOG_ERROR("unknown key \"" + key_and_node.first + "\" with node type "
                       + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
