@@ -1,5 +1,5 @@
 -- under CentOS we still have MariaDB 5, which has a limitation of 767 bytes for keys.
--- this means e.g. for VARCHAR wit utf8mb4, we can use at most a VARCHAR(191)!
+-- this means e.g. for VARCHAR with utf8mb4, we can use at most a VARCHAR(191)!
 
 -- The sizes here must be in sync with the constants defined in rss_aggregator.cc!
 CREATE TABLE rss_aggregator (
