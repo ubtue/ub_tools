@@ -41,8 +41,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include "DbConnection.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
+#include "IniFile.h"
 #include "MiscUtil.h"
 #include "SELinuxUtil.h"
 #include "StringUtil.h"
@@ -203,6 +205,28 @@ const std::string GetTueFindFlavour() {
 }
 
 
+void CreateDatabases(const bool ub_tools) {
+    if (ub_tools) {
+        IniFile ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
+        IniFile::Section section(ini_file.getSection("Database"));
+        const std::string sql_database(section.getString("sql_database"));
+        const std::string sql_username(section.getString("sql_username"));
+        const std::string sql_password(section.getString("sql_password"));
+
+        const std::string root_username("root");
+        const std::string root_password("");
+
+        if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
+            std::cout << "creating ub_tools database\n";
+            DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
+            DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
+            DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
+            DbConnection::MySQLImportFile(sql_database, INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", root_username, root_password);
+        }
+    }
+}
+
+
 void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tools_only) {
     std::string script;
     if (os_system_type == UBUNTU)
@@ -228,6 +252,8 @@ void InstallUBTools(const bool make_install) {
         ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4", "install" });
     else
         ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4" });
+
+    CreateDatabases(make_install);
 
     Echo("Installed ub_tools.");
 }

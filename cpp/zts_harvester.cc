@@ -38,7 +38,7 @@ namespace {
               << "\n"
               << "\tOptions:\n"
               << "\t[--verbosity=log_level]                                     Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
-              << "\t[--test]                                                    No download information will be stored\n"
+              << "\t[--test]                                                    No download information will be stored for further downloads.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
               << "\t[--previous-downloads-db-file=previous_downloads_db_file]\n"
@@ -100,9 +100,6 @@ std::string GetMarcFormat(const std::string &output_filename) {
         LOG_ERROR("can't determine output format from MARC output filename \"" + output_filename + "\"!");
     }
 }
-
-
-const std::string RSS_HARVESTER_CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_harvester.conf");
 
 
 } // unnamed namespace
@@ -167,11 +164,8 @@ int Main(int argc, char *argv[]) {
     const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
     std::unique_ptr<DbConnection> db_connection;
-    const IniFile rss_ini_file(RSS_HARVESTER_CONF_FILE_PATH);
-    const std::string sql_database(rss_ini_file.getString("Database", "sql_database"));
-    const std::string sql_username(rss_ini_file.getString("Database", "sql_username"));
-    const std::string sql_password(rss_ini_file.getString("Database", "sql_password"));
-    db_connection.reset(new DbConnection(sql_database, sql_username, sql_password));
+    const IniFile rss_ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
+    db_connection.reset(new DbConnection(rss_ini_file));
 
     if (output_file.empty())
         output_file = ini_file.getString("", "marc_output_file");
