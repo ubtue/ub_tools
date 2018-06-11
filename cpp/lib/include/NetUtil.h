@@ -29,6 +29,7 @@
 
 #include <fstream>
 #include <list>
+#include <set>
 #include <string>
 #include <vector>
 #include <arpa/inet.h>
@@ -74,6 +75,13 @@ bool NetworkAddressToString(const in_addr_t network_address, std::string * const
  *  \return  The network address on success and throws an Exception on failure.
  */
 std::string NetworkAddressToString(const in_addr_t network_address);
+
+/** \brief   Converts a socket address to a string.
+ *  \param   sockaddr  The socket address to be converted.
+ *  \return  The string representation.
+ *  \note    Works for IPv4 and IPv6 addresses.
+ */
+std::string SockAddrToString(const struct sockaddr * const sockaddr);
 
 
 /** \brief   Converts an IP address and net mask to a string, e.g. "192.168.0.0/16"
