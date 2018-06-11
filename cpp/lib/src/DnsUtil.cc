@@ -54,7 +54,7 @@ bool IsValidIPv4Address(const std::string &address) {
 
 
 bool IsValidIPv6Address(const std::string &address) {
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie("^(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}$",
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie("^(?:[A-F0-9]{1,4}:){7}(?:[A-F0-9]{1,4})$",
                                                                                RegexMatcher::CASE_INSENSITIVE));
     return matcher->matched(address);
 }
