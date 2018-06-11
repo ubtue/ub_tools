@@ -43,6 +43,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
     private final static Pattern UNICODE_QUOTATION_MARKS_PATTERN = Pattern.compile("[«‹»›„‚ʺ“‟‘‛”’ʻ\"❛❜❟❝❞❮❯⹂〝〞〟＂¿¡…]");
+    private final static Pattern SUPERIOR_PPN_PATTERN = Pattern.compile("\\s*DE-576.(.*)");
+    private final static Pattern NON_SUPERIOR_SUBFIELD_I_CONTENT = Pattern.compile("\\s*Erscheint auch als.*|\\s*Elektronische Reproduktion.*|\\s*Äquivalent.*|\\s*Reproduktion von.*|\\s*Reproduziert als*");
 
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
@@ -476,11 +478,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                     continue;
 
                 // Don't confuse cross-references w/ up-references:
-                if (tag.equals("776")) {
-                    final Subfield subfield_i = field.getSubfield('i');
-                    if (subfield_i != null && subfield_i.getData().equals("Erscheint auch als"))
+                if (HasNonSuperior776IField(field))
                         continue; // Was not a reference to a container/superior record.
-                }
 
                 final String parentId = matcher.group(1);
 
@@ -2570,5 +2569,37 @@ outer:  for (final VariableField _935Field : _935Fields) {
             System.exit(1);
             return ""; // Keep the compiler happy!
         }
+    }
+
+
+    boolean HasNonSuperior776IField(DataField field) {
+        if (!field.getTag().equals("776"))
+            return false;
+        for (final Subfield subfield : field.getSubfields('i')) {
+            final Matcher matcher = NON_SUPERIOR_SUBFIELD_I_CONTENT.matcher(subfield.getData());
+            if (matcher.matches())
+                return true;
+        }
+        return false;
+
+    }
+
+    // Detect "real" superior_ppns
+    public String getSuperiorPPN(final Record record) {
+        Set<String> superiorDescriptors = new HashSet<String>(Arrays.asList("800w:810w:830w:773w:776w".split(":")));
+        for (String superiorDescriptor : superiorDescriptors) {
+            final List<VariableField> superiorFields = record.getVariableFields(superiorDescriptor.substring(0,3));
+            for (final VariableField superiorField : superiorFields) {
+                final DataField field = (DataField)superiorField;
+                final char subfieldCode = superiorDescriptor.charAt(3);
+                final Subfield subfield = field.getSubfield(subfieldCode);
+                if (subfield == null)
+                    continue;
+                final Matcher matcher = SUPERIOR_PPN_PATTERN.matcher(subfield.getData());
+                if (matcher.matches() && HasNonSuperior776IField(field))
+                     return matcher.group(1);
+            }
+        }
+        return "";
     }
 }
