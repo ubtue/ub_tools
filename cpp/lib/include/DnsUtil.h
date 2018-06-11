@@ -29,6 +29,7 @@
 
 #include <string>
 #include <list>
+#include <vector>
 #include <csetjmp>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -55,6 +56,13 @@ namespace DnsUtil {
  *  \return True if valid.
  */
 bool IsValidIPv4Address(const std::string &address);
+
+
+/** \brief  Checks if the address is a valid IPv6 address.
+ *  \param  address  an adress to check
+ *  \return True if valid.
+ */
+bool IsValidIPv6Address(const std::string &address);
 
 
 /** \brief   Is the host name technically correct?
