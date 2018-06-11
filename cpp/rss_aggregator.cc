@@ -29,6 +29,7 @@
 #include "DbResultSet.h"
 #include "Downloader.h"
 #include "IniFile.h"
+#include "SignalUtil.h"
 #include "StringUtil.h"
 #include "SyndicationFormat.h"
 #include "util.h"
@@ -61,7 +62,7 @@ void SigHupHandler(int /* signum */) {
 }
 
 
-// These must be in sync with the sizes in data/rss_aggregator.sql
+// These must be in sync with the sizes in data/ub_tools.sql (rss_aggregator table)
 const size_t MAX_ITEM_ID_LENGTH(100);
 const size_t MAX_ITEM_URL_LENGTH(512);
 const size_t MAX_SERIAL_NAME_LENGTH(200);
@@ -70,8 +71,7 @@ const size_t MAX_SERIAL_NAME_LENGTH(200);
 // \return true if the item was new, else false.
 bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &section_name, DbConnection * const db_connection) {
     const std::string item_id(item.getId());
-    db_connection->queryOrDie("SELECT insertion_time FROM rss_aggregator WHERE item_id='"
-                              + db_connection->escapeString(item_id) + "'");
+    db_connection->queryOrDie("SELECT insertion_time FROM rss_aggregator WHERE item_id='" + db_connection->escapeString(item_id) + "'");
     const DbResultSet result_set(db_connection->getLastResultSet());
     if (not result_set.empty())
         return false;
@@ -91,7 +91,6 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
             title_and_or_description += " (" + description + ")";
     }
 
-    FIXME:  We probably have to use an InnoDB table to guarantee atomicity here!!!
     db_connection->queryOrDie("INSERT INTO rss_aggregator SET item_id='"
                               + db_connection->escapeString(StringUtil::Truncate(MAX_ITEM_ID_LENGTH, item_id)) + "'," + "item_url='"
                               + db_connection->escapeString(StringUtil::Truncate(MAX_ITEM_URL_LENGTH, item_url))
@@ -99,6 +98,23 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
                               + db_connection->escapeString(StringUtil::Truncate(MAX_SERIAL_NAME_LENGTH, section_name)) + "'");
 
     return true;
+}
+
+
+void CheckForSigTermAndExitIfSeen() {
+    if (sigterm_seen) {
+        LOG_WARNING("caught SIGTERM, exiting...");
+        std::exit(EXIT_SUCCESS);
+    }
+}
+
+
+void CheckForSigHupAndReloadIniFileIfSeen(IniFile * const ini_file) {
+    if (sighup_seen) {
+        LOG_INFO("caught SIGHUP, reloading config file...");
+        ini_file->reload();
+        sighup_seen = false;
+    }
 }
 
 
@@ -114,10 +130,8 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
     const unsigned downloader_time_limit(section.getUnsigned("downloader_time_limit", default_downloader_time_limit) * 1000);
 
     const std::string &section_name(section.getSectionName());
-    if (now > 0) {
-        const auto section_name_and_ticks(section_name_to_ticks_map.find(section_name));
-        if (unlikely(section_name_and_ticks == section_name_to_ticks_map.end()))
-            LOG_ERROR("unexpected: did not find \"" + section_name + "\" in our map!");  FIXME!! (We can legitimately get here if we reload the config file!!! 
+    const auto section_name_and_ticks(section_name_to_ticks_map.find(section_name));
+    if (section_name_and_ticks != section_name_to_ticks_map.end()) {
         if (section_name_and_ticks->second + poll_interval < now) {
             LOG_DEBUG(section_name + ": not yet time to do work, last work was done at " + std::to_string(section_name_and_ticks->second)
                       + ".");
@@ -126,15 +140,22 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
     }
 
     unsigned new_item_count(0);
+    SignalUtil::SignalBlocker sigterm_blocker(SIGTERM);
     if (not downloader->newUrl(feed_url, downloader_time_limit))
         LOG_WARNING(section_name + ": failed to download the feed: " + downloader->getLastErrorMessage());
     else {
+        sigterm_blocker.unblock();
+        CheckForSigTermAndExitIfSeen();
+
         std::string error_message;
         std::unique_ptr<SyndicationFormat> syndication_format(SyndicationFormat::Factory(downloader->getMessageBody(), &error_message));
         if (unlikely(syndication_format == nullptr))
             LOG_WARNING("failed to parse feed: " + error_message);
         else {
             for (const auto &item : *syndication_format) {
+                CheckForSigTermAndExitIfSeen();
+                SignalUtil::SignalBlocker sigterm_blocker2(SIGTERM);
+
                 if (ProcessRSSItem(item, section_name,  db_connection))
                     ++new_item_count;
             }
@@ -143,20 +164,6 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
 
     section_name_to_ticks_map[section_name] = now;
     return new_item_count;
-}
-
-
-typedef void SignalHandler(int);
-
-
-void InstallSignalHandler(const int signal_no, SignalHandler handler) {
-    struct sigaction new_action;
-    new_action.sa_handler = handler;
-    sigemptyset(&new_action.sa_mask);
-    sigaddset(&new_action.sa_mask, signal_no);
-    new_action.sa_flags = 0;
-    if (::sigaction(signal_no, &new_action, nullptr) != 0)
-        LOG_ERROR("sigaction(2) failed!");
 }
 
 
@@ -189,8 +196,8 @@ int Main(int argc, char *argv[]) {
     const unsigned UPDATE_INTERVAL(ini_file.getUnsigned("", "update_interval"));
 
     if (not test) {
-        InstallSignalHandler(SIGTERM, SigTermHandler);
-        InstallSignalHandler(SIGHUP, SigHupHandler);
+        SignalUtil::InstallHandler(SIGTERM, SigTermHandler);
+        SignalUtil::InstallHandler(SIGHUP, SigHupHandler);
 
         if (::daemon(0, 1 /* do not close file descriptors and redirect to /dev/null */) != 0)
             LOG_ERROR("we failed to deamonize our process!");
@@ -201,11 +208,7 @@ int Main(int argc, char *argv[]) {
     for (;;) {
         LOG_DEBUG("now we're at " + std::to_string(ticks) + ".");
 
-        if (sighup_seen) {
-            LOG_INFO("caught SIGHUP, rereading config file...");
-            ini_file.reload();
-            sighup_seen = false;
-        }
+        CheckForSigHupAndReloadIniFileIfSeen(&ini_file);
 
         const time_t before(std::time(nullptr));
 
@@ -216,11 +219,7 @@ int Main(int argc, char *argv[]) {
                 return EXIT_SUCCESS;
             }
 
-            sigset_t signal_set;
-            sigaddset(&signal_set, SIGTERM);
-            sigaddset(&signal_set, SIGHUP);
-            if (unlikely(::sigprocmask(SIG_BLOCK, &signal_set, nullptr) != 0))
-                LOG_ERROR("failed to block SIGTERM and SIGHUP!");
+            SignalUtil::SignalBlocker sighup_blocker(SIGHUP);
 
             const std::string &section_name(section.first);
             if (not section_name.empty() and section_name != "CGI Params") {
@@ -233,9 +232,6 @@ int Main(int argc, char *argv[]) {
                                                              DEFAULT_POLL_INTERVAL, ticks));
                 LOG_INFO("found " + std::to_string(new_item_count) + " new items.");
             }
-
-            if (unlikely(::sigprocmask(SIG_UNBLOCK, &signal_set, nullptr) != 0))
-                LOG_ERROR("failed to unblock SIGTERM and SIGHUP!");
         }
 
         if (test) // -> only run through our loop once
@@ -249,7 +245,14 @@ int Main(int argc, char *argv[]) {
         else
             sleep_interval = (UPDATE_INTERVAL * 60 - (after - before));
 
-        ::sleep(static_cast<unsigned>(sleep_interval));
+        unsigned total_time_slept(0);
+        do {
+            const unsigned actual_time_slept(::sleep(static_cast<unsigned>(sleep_interval - total_time_slept)));
+            CheckForSigTermAndExitIfSeen();
+            CheckForSigHupAndReloadIniFileIfSeen(&ini_file);
+
+            total_time_slept += actual_time_slept;
+        } while (total_time_slept < sleep_interval);
         ticks += UPDATE_INTERVAL;
     }
 }
