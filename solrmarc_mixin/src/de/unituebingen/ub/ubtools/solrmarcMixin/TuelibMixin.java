@@ -43,7 +43,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
     private final static Pattern UNICODE_QUOTATION_MARKS_PATTERN = Pattern.compile("[«‹»›„‚ʺ“‟‘‛”’ʻ\"❛❜❟❝❞❮❯⹂〝〞〟＂¿¡…]");
-    private final static Pattern SUPERIOR_PPN_PATTERN = Pattern.compile("\\s*DE-576.(.*)");
+    private final static Pattern SUPERIOR_PPN_PATTERN = Pattern.compile("\\s*.DE-576.(.*)");
     private final static Pattern NON_SUPERIOR_SUBFIELD_I_CONTENT = Pattern.compile("\\s*Erscheint auch als.*|\\s*Elektronische Reproduktion.*|\\s*Äquivalent.*|\\s*Reproduktion von.*|\\s*Reproduziert als*");
 
     // TODO: This should be in a translation mapping file
@@ -2596,7 +2596,7 @@ outer:  for (final VariableField _935Field : _935Fields) {
                 if (subfield == null)
                     continue;
                 final Matcher matcher = SUPERIOR_PPN_PATTERN.matcher(subfield.getData());
-                if (matcher.matches() && HasNonSuperior776IField(field))
+                if (matcher.matches() && !HasNonSuperior776IField(field))
                      return matcher.group(1);
             }
         }
