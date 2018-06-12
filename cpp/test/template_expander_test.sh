@@ -89,4 +89,9 @@ echo "Test 13"
 diff --brief /tmp/test.out test_input/test13.template.out
 rm -f /tmp/test.out
 
+echo "Test 14"
+./expand_template_test test_input/test14.template --empty-array list > /tmp/test.out
+diff --brief /tmp/test.out test_input/test14.template.out
+rm -f /tmp/test.out
+
 echo "*** Passed all tests ***"
