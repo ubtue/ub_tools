@@ -41,8 +41,9 @@ namespace {
 
 std::string zts_client_maps_directory;
 std::string zts_url;
-enum HarvestType { RSS, CRAWLING };
+enum HarvestType { RSS, DIRECT, CRAWLING };
 const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP { { "RSS", static_cast<int>(RSS) },
+                                                              { "DIRECT", static_cast<int>(DIRECT) },
                                                               { "CRAWL", static_cast<int>(CRAWLING) } };
 const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
 const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS {
@@ -104,6 +105,12 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> rss_feed_urls;
     std::vector<std::string> rss_strptime_formats;
 
+    std::vector<std::string> direct_journal_titles;
+    std::vector<std::string> direct_journal_print_issns;
+    std::vector<std::string> direct_journal_online_issns;
+    std::vector<std::string> direct_base_urls;
+    std::vector<std::string> direct_strptime_formats;
+
     std::vector<std::string> crawling_journal_titles;
     std::vector<std::string> crawling_journal_print_issns;
     std::vector<std::string> crawling_journal_online_issns;
@@ -138,6 +145,14 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
                 rss_journal_online_issns.emplace_back(issn_online);
                 rss_feed_urls.emplace_back(section.getString("feed"));
                 rss_strptime_formats.emplace_back(section.getString("strptime_format", ""));
+            } else if (harvest_type == DIRECT) {
+                all_urls.emplace_back(section.getString("url"));
+
+                direct_journal_titles.emplace_back(title);
+                direct_journal_print_issns.emplace_back(issn_print);
+                direct_journal_online_issns.emplace_back(issn_online);
+                direct_base_urls.emplace_back(section.getString("url"));
+                direct_strptime_formats.emplace_back(section.getString("strptime_format", ""));
             } else if (harvest_type == CRAWLING) {
                 all_urls.emplace_back(section.getString("base_url"));
 
@@ -170,6 +185,12 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("rss_feed_urls", rss_feed_urls);
     names_to_values_map->insertArray("rss_strptime_formats", rss_strptime_formats);
 
+    names_to_values_map->insertArray("direct_journal_titles", direct_journal_titles);
+    names_to_values_map->insertArray("direct_journal_print_issns", direct_journal_print_issns);
+    names_to_values_map->insertArray("direct_journal_online_issns", direct_journal_online_issns);
+    names_to_values_map->insertArray("direct_base_urls", direct_base_urls);
+    names_to_values_map->insertArray("direct_strptime_formats", direct_strptime_formats);
+
     names_to_values_map->insertArray("crawling_journal_titles", crawling_journal_titles);
     names_to_values_map->insertArray("crawling_journal_print_issns", crawling_journal_print_issns);
     names_to_values_map->insertArray("crawling_journal_online_issns", crawling_journal_online_issns);
@@ -181,6 +202,11 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     const std::string first_crawling_journal_title(GetMinElementOrDefault(crawling_journal_titles));
     names_to_values_map->insertScalar("selected_crawling_journal_title", GetCGIParameterOrDefault(cgi_args, "crawling_journal_title",
                                                                                                   first_crawling_journal_title));
+
+    const std::string first_direct_journal_title(GetMinElementOrDefault(crawling_journal_titles));
+    names_to_values_map->insertScalar("selected_direct_journal_title", GetCGIParameterOrDefault(cgi_args, "direct_journal_title",
+                                                                                                first_direct_journal_title));
+
     const std::string first_rss_journal_title(GetMinElementOrDefault(rss_journal_titles));
     names_to_values_map->insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault(cgi_args, "rss_journal_title",
                                                                                              first_rss_journal_title));
@@ -380,6 +406,8 @@ int Main(int argc, char *argv[]) {
 
         if (action == "rss")
             ExecuteHarvestAction(GetCGIParameterOrDefault(cgi_args, "rss_journal_title"), GetCGIParameterOrDefault(cgi_args, "rss_output_format"));
+        else if (action == "direct")
+            ExecuteHarvestAction(GetCGIParameterOrDefault(cgi_args, "direct_journal_title"), GetCGIParameterOrDefault(cgi_args, "direct_output_format"));
         else if (action == "crawling")
             ExecuteHarvestAction(GetCGIParameterOrDefault(cgi_args, "crawling_journal_title"), GetCGIParameterOrDefault(cgi_args, "crawling_output_format"));
         else if (action != default_action)
