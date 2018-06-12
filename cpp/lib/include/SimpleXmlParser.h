@@ -589,13 +589,13 @@ collect_next_character:
             last_error_message_ = "Invalid entity in character data ending on line " + std::to_string(line_no_) + "!";
             return false;
         }
-    } else { // end-of-document or opening or closing tag or more CDATA
+    } else { // end-of-document or opening or closing tag or more Characters
         if (not skipOptionalProcessingInstruction()) {
             *type = ERROR;
             return false;
         }
 
-        // HACK! skipping CDATA/everything in-between a closing tag and an opening tag
+        // HACK! skipping Characters/everything in-between a closing tag and an opening tag
         do {
             skipWhiteSpace();
             ch = get();
