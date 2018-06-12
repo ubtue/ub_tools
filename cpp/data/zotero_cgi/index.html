@@ -55,7 +55,7 @@
 <ul class="nav nav-tabs" id="myTab" role="tablist">
     <li class="nav-item"><a class="nav-link {IF action == "list"}active{ENDIF}" id="home-list" data-toggle="tab" href="#list" role="tab" aria-controls="list" aria-selected="false">List Journals</a></li>
     <li class="nav-item"><a class="nav-link {IF action == "rss"}active{ENDIF}" id="home-rss" data-toggle="tab" href="#rss" role="tab" aria-controls="crawling" aria-selected="false">Try RSS</a></li>
-    <li class="nav-item"><a class="nav-link {IF action == "crawling"}active{ENDIF}" id="home-crawling" data-toggle="tab" href="#crawling" role="tab" aria-controls="crawling" aria-selected="false">Try Crawling</a></li>
+    <li class="nav-item"><a class="nav-link disabled {IF action == "crawling"}active{ENDIF}" id="home-crawling" data-toggle="tab" href="#crawling" role="tab" aria-controls="crawling" aria-selected="false" title="Crawling disabled as discussed in meeting 2018-06-12">Try Crawling</a></li>
 </ul>
 
 <!-- tab content -->
@@ -80,7 +80,7 @@
                         <td>{all_journal_methods}</td>
                         <td>
                             {IF all_journal_methods == "RSS"}<a href="#rss" onclick="TryRss('{all_journal_titles}')">try rss</a>{ENDIF}
-                            {IF all_journal_methods == "CRAWL"}<a href="#crawling" onclick="TryCrawling('{all_journal_titles}')">try crawl</a>{ENDIF}
+                            {IF all_journal_methods == "CRAWL"}<a href="#crawling" onclick="TryCrawling('{all_journal_titles}')" disabled class="disabled" title="Crawling disabled as discussed in meeting 2018-06-12">try crawl</a>{ENDIF}
                         </td>
                     </tr>
                 {ENDLOOP}

@@ -5,11 +5,6 @@ function SortSelectOptions(selector) {
     })).val(selected_value);
 }
 
-function UpdateProgress(progress) {
-    var div_progress = document.getElementById('progress');
-    div_progress.innerHTML = progress;
-}
-
 function UpdateRuntime(seconds) {
     var div_runtime = document.getElementById('runtime');
     div_runtime.innerHTML = seconds + 's';
