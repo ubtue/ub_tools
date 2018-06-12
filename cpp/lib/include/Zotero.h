@@ -316,6 +316,13 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
                          File * const progress_file = nullptr);
 
 
+/** \brief Harvest metadate from a single Web page.
+ *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
+ *          difference (first - second).
+ */
+UnsignedPair HarvestURL(const std::string &url, const std::shared_ptr<HarvestParams> &harvest_params, AugmentParams * const augment_params);
+
+
 enum class RSSHarvestMode { VERBOSE, TEST, NORMAL };
 
 
