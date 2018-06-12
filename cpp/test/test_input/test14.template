@@ -1,0 +1,7 @@
+var map = {{
+    {LOOP list}
+        "{list}": {{
+
+        },
+    {ENDLOOP}
+};
