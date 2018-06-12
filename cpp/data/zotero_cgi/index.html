@@ -30,11 +30,11 @@
         };
 
         var direct_options_map = {{
-            {LOOP direct_journal_titles, direct_journal_print_issns, direct_journal_online_issns, direct_base_urls, direct_strptime_formats}
+            {LOOP direct_journal_titles, direct_journal_print_issns, direct_journal_online_issns, direct_urls, direct_strptime_formats}
                 "{direct_journal_titles}": {{
                     "issn_print": "{direct_journal_print_issns}",
                     "issn_online": "{direct_journal_online_issns}",
-                    "base_url": "{direct_base_urls}",
+                    "base_url": "{direct_urls}",
                     "strptime_format": "{direct_strptime_formats}",
                 },
             {ENDLOOP}
@@ -87,8 +87,8 @@
                 {LOOP all_journal_titles, all_journal_print_issns, all_journal_online_issns, all_journal_methods, all_urls}
                     <tr>
                         <td><a target="_blank" href="{all_urls}">{all_journal_titles}</a></td>
-                        <td>{all_journal_print_issns}</td>
-                        <td>{all_journal_online_issns}</td>
+                        <td class="issn_generate_link">{all_journal_print_issns}</td>
+                        <td class="issn_generate_link">{all_journal_online_issns}</td>
                         <td>{all_journal_methods}</td>
                         <td>
                             {IF all_journal_methods == "RSS"}<a href="#rss" onclick="TryRss('{all_journal_titles}')">try rss</a>{ENDIF}
@@ -115,21 +115,15 @@
                 </tr>
                 <tr>
                     <td>ISSN (print)</td>
-                    <td>
-                        <input id="rss_journal_print_issn" name="rss_journal_print_issn" readonly/>
-                    </td>
+                    <td id="rss_journal_print_issn"></td>
                 </tr>
                 <tr>
                     <td>ISSN (online)</td>
-                    <td>
-                        <input id="rss_journal_online_issn" name="rss_journal_online_issn" readonly/>
-                    </td>
+                    <td id="rss_journal_online_issn"></td>
                 </tr>
                 <tr>
                     <td>RSS Feed Url</td>
-                    <td>
-                        <input id="rss_feed_url" name="rss_feed_url" readonly/>
-                    </td>
+                    <td id="rss_feed_url"></td>
                 </tr>
                 <tr>
                     <td>Format</td>
@@ -145,7 +139,6 @@
                 <tr><td colspan="3">Please note: This process can run for multiple minutes!</td></tr>
                 <tr><td colspan="3"><input id="rss_submit" type="submit"></input></td></tr>
             </table>
-            <input type="hidden" id="rss_strptime_format" name="rss_strptime_format" value="" />
             <input type="hidden" name="action" value="rss" />
         </form>
     </div>
@@ -163,21 +156,15 @@
                 </tr>
                 <tr>
                     <td>ISSN (print)</td>
-                    <td>
-                        <input id="direct_journal_print_issn" name="direct_journal_print_issn" readonly/>
-                    </td>
+                    <td id="direct_journal_print_issn"></td>
                 </tr>
                 <tr>
                     <td>ISSN (online)</td>
-                    <td>
-                        <input id="direct_journal_online_issn" name="direct_journal_online_issn" readonly/>
-                    </td>
+                    <td id="direct_journal_online_issn"></td>
                 </tr>
                 <tr>
-                    <td>Base Url</td>
-                    <td>
-                        <input id="direct_base_url" name="direct_base_url" readonly/>
-                    </td>
+                    <td>Url</td>
+                    <td id="direct_url"></td>
                 </tr>
                 <tr>
                     <td>Format</td>
@@ -193,7 +180,6 @@
                 <tr><td colspan="3">Please note: This process can run for multiple minutes!</td></tr>
                 <tr><td colspan="3"><input id="direct_submit" type="submit"></input></td></tr>
             </table>
-            <input type="hidden" id="direct_strptime_format" name="direct_strptime_format" value="" />
             <input type="hidden" name="action" value="direct" />
         </form>
     </div>
@@ -211,33 +197,23 @@
                 </tr>
                 <tr>
                     <td>ISSN (print)</td>
-                    <td>
-                        <input id="crawling_journal_print_issn" name="crawling_journal_print_issn" readonly/>
-                    </td>
+                    <td id="crawling_journal_print_issn"></td>
                 </tr>
                 <tr>
                     <td>ISSN (online)</td>
-                    <td>
-                        <input id="crawling_journal_online_issn" name="crawling_journal_online_issn" readonly/>
-                    </td>
+                    <td id="crawling_journal_online_issn"></td>
                 </tr>
                 <tr>
                     <td>Base Url</td>
-                    <td>
-                        <input id="crawling_base_url" name="crawling_base_url" readonly/>
-                    </td>
+                    <td id="crawling_base_url"></td>
                 </tr>
                 <tr>
                     <td>Regex</td>
-                    <td>
-                        <input id="crawling_extraction_regex" name="crawling_extraction_regex" readonly/>
-                    </td>
+                    <td id="crawling_extraction_regex"></td>
                 </tr>
                 <tr>
                     <td>Depth</td>
-                    <td>
-                        <input id="crawling_depth" name="crawling_depth" readonly/>
-                    </td>
+                    <td id="crawling_depth"></td>
                 </tr>
                 <tr>
                     <td>Format</td>
@@ -253,7 +229,6 @@
                 <tr><td colspan="3">Please note: This process can run for multiple minutes!</td></tr>
                 <tr><td colspan="3"><input id="crawling_submit" type="submit"></input></td></tr>
             </table>
-            <input type="hidden" id="crawling_strptime_format" name="crawling_strptime_format" value="" />
             <input type="hidden" name="action" value="crawling" />
         </form>
     </div>

@@ -108,7 +108,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> direct_journal_titles;
     std::vector<std::string> direct_journal_print_issns;
     std::vector<std::string> direct_journal_online_issns;
-    std::vector<std::string> direct_base_urls;
+    std::vector<std::string> direct_urls;
     std::vector<std::string> direct_strptime_formats;
 
     std::vector<std::string> crawling_journal_titles;
@@ -151,7 +151,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
                 direct_journal_titles.emplace_back(title);
                 direct_journal_print_issns.emplace_back(issn_print);
                 direct_journal_online_issns.emplace_back(issn_online);
-                direct_base_urls.emplace_back(section.getString("url"));
+                direct_urls.emplace_back(section.getString("url"));
                 direct_strptime_formats.emplace_back(section.getString("strptime_format", ""));
             } else if (harvest_type == CRAWLING) {
                 all_urls.emplace_back(section.getString("base_url"));
@@ -188,7 +188,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("direct_journal_titles", direct_journal_titles);
     names_to_values_map->insertArray("direct_journal_print_issns", direct_journal_print_issns);
     names_to_values_map->insertArray("direct_journal_online_issns", direct_journal_online_issns);
-    names_to_values_map->insertArray("direct_base_urls", direct_base_urls);
+    names_to_values_map->insertArray("direct_urls", direct_urls);
     names_to_values_map->insertArray("direct_strptime_formats", direct_strptime_formats);
 
     names_to_values_map->insertArray("crawling_journal_titles", crawling_journal_titles);
