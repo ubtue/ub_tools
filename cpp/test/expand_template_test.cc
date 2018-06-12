@@ -18,7 +18,9 @@ void Usage() {
               << " template_filename var1_and_values [var2_and_values ... varN_and_values]\n"
               << "       Variable names and values have to be separated by colons, arrays of array have to have their subarray\n"
               << "       values separated by semicolons. In order to include colons or semicolons in the values you need to backslash-\n"
-              << "       escape them.  Literal backslashes can included by doubling them.\n\n";
+              << "       escape them.  Literal backslashes can included by doubling them.\n"
+              << "       You can specify names for empty arrays by using \"--empty-array\" followed by an array name anywhere"
+              << "       in the argument list.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -87,8 +89,15 @@ void ProcessSingleArgument(const char * const arg, Template::Map * const names_t
 void ExtractNamesAndValues(const int argc, char *argv[], Template::Map * const names_to_values_map) {
     names_to_values_map->clear();
 
-    for (int arg_no(2); arg_no < argc; ++arg_no)
-        ProcessSingleArgument(argv[arg_no], names_to_values_map);
+    for (int arg_no(2); arg_no < argc; ++arg_no) {
+        if (std::strcmp(argv[arg_no], "--empty-array") == 0) {
+            ++arg_no;
+            if (arg_no == argc)
+                LOG_ERROR("missing empty array name at end of argument list");
+            names_to_values_map->insertArray(argv[arg_no], std::vector<std::string>());
+        } else
+            ProcessSingleArgument(argv[arg_no], names_to_values_map);
+    }
 }
 
 
