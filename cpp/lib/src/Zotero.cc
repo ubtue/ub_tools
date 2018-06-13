@@ -389,7 +389,7 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
         const std::shared_ptr<const JSON::JSONNode> ppn_node(creator_object->getNode("ppn"));
         if (ppn_node != nullptr) {
             const std::shared_ptr<const JSON::StringNode> ppn_string_node(JSON::JSONNode::CastToStringNodeOrDie("ppn",
-                                                                                                                first_name_node));
+                                                                                                                ppn_node));
             PPN = ppn_string_node->getValue();
             name = "!" + PPN + "!";
         }
