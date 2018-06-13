@@ -359,9 +359,7 @@ void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &o
 }
 
 
-void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node,
-                                            MARC::Record * const marc_record)
-{
+void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record) {
     const std::shared_ptr<const JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", creators_node));
     for (auto creator_node : *creators_array) {
         const std::shared_ptr<const JSON::ObjectNode> creator_object(JSON::JSONNode::CastToObjectNodeOrDie("creator",
@@ -422,8 +420,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
         "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|websiteType|ISSN|ubtue$"));
     unsigned record_count(0), previously_downloaded_count(0);
-    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
-                            MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
+    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                             GetNextControlNumber());
     bool is_journal_article(false);
     std::string publication_title, issn_normalized, url;
@@ -452,8 +449,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         else if (key_and_node.first == "creators")
             CreateCreatorFields(key_and_node.second, &new_record);
         else if (key_and_node.first == "itemType") {
-            const std::string item_type(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
-                                                                              key_and_node.second)->getValue());
+            const std::string item_type(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             if (item_type == "journalArticle") {
                 is_journal_article = true;
                 publication_title = object_node->getOptionalStringValue("publicationTitle");
@@ -565,12 +561,16 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     if (not new_record.hasTag("041"))
         new_record.insertField("041", { { 'a', DEFAULT_SUBFIELD_CODE } });
 
+    std::string error_message;
+    if (not new_record.edit(augment_params_->marc_edit_instructions_, &error_message))
+        LOG_ERROR("editing the new MARC record failed: " + error_message);
+
     // previously downloaded?
     const std::string checksum(MARC::CalcChecksum(new_record, /* exclude_001 = */ true));
     if (unlikely(url.empty()))
         LOG_ERROR("\"url\" has not been set!");
     time_t creation_time;
-    std::string error_message;
+
     if (not download_tracker_.hasAlreadyBeenDownloaded(url, &creation_time, &error_message, checksum)
         or not error_message.empty())
     {
