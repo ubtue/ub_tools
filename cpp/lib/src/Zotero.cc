@@ -99,13 +99,13 @@ Date StringToDate(const std::string &date_str, const std::string &optional_strpt
     if (unix_time != TimeUtil::BAD_TIME_T) {
         tm *tm(::gmtime(&unix_time));
         if (unlikely(tm == nullptr))
-            LOG_ERROR("gmtime(3) failed to convert a time_t! (" + date_str + ")");
+            throw std::runtime_error("StringToDate(Zotero.cc): gmtime(3) failed to convert a time_t! (" + date_str + ")");
         date.day_   = tm->tm_mday;
         date.month_ = tm->tm_mon + 1;
         date.year_  = tm->tm_year + 1900;
     } else
-        LOG_ERROR("don't know how to convert \"" + date_str + "\" to a Date instance! (optional_strptime_format = \""
-                  + optional_strptime_format + "\")");
+        throw std::runtime_error("StringToDate(Zotero.cc): don't know how to convert \"" + date_str
+                                 + "\" to a Date instance! (optional_strptime_format = \"" + optional_strptime_format + "\")");
 
     return date;
 }
@@ -373,7 +373,7 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
 
         const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
         if (last_name_node == nullptr)
-            LOG_ERROR("creator is missing a last name!");
+            throw std::runtime_error("MarcFormatHandler::CreateCreatorFields: screator is missing a last name!");
         const std::shared_ptr<const JSON::StringNode> last_name(JSON::JSONNode::CastToStringNodeOrDie("lastName",
                                                                                                       last_name_node));
         std::string name(last_name->getValue());
@@ -652,9 +652,7 @@ std::string DownloadAuthorPPN(const std::string &author) {
 }
 
 
-void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array,
-                                 std::vector<std::string> * const comments)
-{
+void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, std::vector<std::string> * const comments) {
     for (size_t i(0); i < creators_array->size(); ++i) {
         const std::shared_ptr<JSON::ObjectNode> creator_object(creators_array->getObjectNode(i));
 
@@ -698,8 +696,7 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node, AugmentPa
                 comments.emplace_back("changed \"language\" from \"" + language_json + "\" to \"" + language_mapped + "\"");
             }
         } else if (key_and_node.first == "creators") {
-            std::shared_ptr<JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators",
-                                                                                                 key_and_node.second));
+            std::shared_ptr<JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", key_and_node.second));
             AugmentJsonCreators(creators_array, &comments);
         } else if (key_and_node.first == "ISSN") {
             if (not augment_params->override_ISSN_online_.empty() or
