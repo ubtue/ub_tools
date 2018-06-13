@@ -677,7 +677,6 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
 /* Improve JSON result delivered by Zotero Translation Server
  * Note on ISSN's: Some pages might contain multiple ISSN's (for each publication medium and/or a linking ISSN).
  *                In such cases, the Zotero translator must return tags to distinguish between them.
- *                The 'ISSN_normalized' custom field will then store the online ISSN.
  */
 void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node, AugmentParams * const augment_params) {
     LOG_INFO("Augmenting JSON...");
