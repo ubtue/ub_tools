@@ -521,6 +521,41 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
 }
 
 
+bool Record::edit(const std::vector<EditInstruction> &edit_instructions, std::string * const error_message) {
+    bool failed_at_least_once(false);
+    for (const auto &edit_instruction : edit_instructions) {
+        switch (edit_instruction.type_) {
+        case INSERT_FIELD:
+            if (not insertField(edit_instruction.tag_, std::string(1, edit_instruction.indicator1_)
+                                + std::string(1, edit_instruction.indicator2_) + edit_instruction.field_or_subfield_contents_))
+            {
+                *error_message = "failed to insert a " + edit_instruction.tag_.toString() + " field!";
+                failed_at_least_once = true;
+            }
+            break;
+        case INSERT_SUBFIELD:
+            if (not insertField(edit_instruction.tag_, { { edit_instruction.subfield_code_, edit_instruction.field_or_subfield_contents_ } },
+                                edit_instruction.indicator1_, edit_instruction.indicator2_))
+            {
+                *error_message = "failed to insert a " + edit_instruction.tag_.toString() + std::string(1, edit_instruction.subfield_code_)
+                                 + " subfield!";
+                failed_at_least_once = true;
+            }
+            break;
+        case ADD_SUBFIELD:
+            if (not addSubfield(edit_instruction.tag_, edit_instruction.subfield_code_, edit_instruction.field_or_subfield_contents_)) {
+                *error_message = "failed to add a " + edit_instruction.tag_.toString() + std::string(1, edit_instruction.subfield_code_)
+                                 + " subfield!";
+                failed_at_least_once = true;
+            }
+            break;
+        }
+    }
+
+    return not failed_at_least_once;
+}
+
+
 std::unordered_set<std::string> Record::getTagSet() const {
     std::unordered_set<std::string> tags;
     for (const auto &field : fields_)
