@@ -1093,6 +1093,11 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
 }
 
 
+UnsignedPair HarvestURL(const std::string &url, const std::shared_ptr<HarvestParams> &harvest_params, AugmentParams * const augment_params) {
+    return Harvest(url, harvest_params, augment_params, "");
+}
+
+
 namespace {
 
 

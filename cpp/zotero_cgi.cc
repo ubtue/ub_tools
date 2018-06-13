@@ -41,8 +41,9 @@ namespace {
 
 std::string zts_client_maps_directory;
 std::string zts_url;
-enum HarvestType { RSS, CRAWLING };
+enum HarvestType { RSS, DIRECT, CRAWLING };
 const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP { { "RSS", static_cast<int>(RSS) },
+                                                              { "DIRECT", static_cast<int>(DIRECT) },
                                                               { "CRAWL", static_cast<int>(CRAWLING) } };
 const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
 const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS {
@@ -104,6 +105,12 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> rss_feed_urls;
     std::vector<std::string> rss_strptime_formats;
 
+    std::vector<std::string> direct_journal_titles;
+    std::vector<std::string> direct_journal_print_issns;
+    std::vector<std::string> direct_journal_online_issns;
+    std::vector<std::string> direct_urls;
+    std::vector<std::string> direct_strptime_formats;
+
     std::vector<std::string> crawling_journal_titles;
     std::vector<std::string> crawling_journal_print_issns;
     std::vector<std::string> crawling_journal_online_issns;
@@ -138,6 +145,14 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
                 rss_journal_online_issns.emplace_back(issn_online);
                 rss_feed_urls.emplace_back(section.getString("feed"));
                 rss_strptime_formats.emplace_back(section.getString("strptime_format", ""));
+            } else if (harvest_type == DIRECT) {
+                all_urls.emplace_back(section.getString("url"));
+
+                direct_journal_titles.emplace_back(title);
+                direct_journal_print_issns.emplace_back(issn_print);
+                direct_journal_online_issns.emplace_back(issn_online);
+                direct_urls.emplace_back(section.getString("url"));
+                direct_strptime_formats.emplace_back(section.getString("strptime_format", ""));
             } else if (harvest_type == CRAWLING) {
                 all_urls.emplace_back(section.getString("base_url"));
 
@@ -170,6 +185,12 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("rss_feed_urls", rss_feed_urls);
     names_to_values_map->insertArray("rss_strptime_formats", rss_strptime_formats);
 
+    names_to_values_map->insertArray("direct_journal_titles", direct_journal_titles);
+    names_to_values_map->insertArray("direct_journal_print_issns", direct_journal_print_issns);
+    names_to_values_map->insertArray("direct_journal_online_issns", direct_journal_online_issns);
+    names_to_values_map->insertArray("direct_urls", direct_urls);
+    names_to_values_map->insertArray("direct_strptime_formats", direct_strptime_formats);
+
     names_to_values_map->insertArray("crawling_journal_titles", crawling_journal_titles);
     names_to_values_map->insertArray("crawling_journal_print_issns", crawling_journal_print_issns);
     names_to_values_map->insertArray("crawling_journal_online_issns", crawling_journal_online_issns);
@@ -181,6 +202,11 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     const std::string first_crawling_journal_title(GetMinElementOrDefault(crawling_journal_titles));
     names_to_values_map->insertScalar("selected_crawling_journal_title", GetCGIParameterOrDefault(cgi_args, "crawling_journal_title",
                                                                                                   first_crawling_journal_title));
+
+    const std::string first_direct_journal_title(GetMinElementOrDefault(crawling_journal_titles));
+    names_to_values_map->insertScalar("selected_direct_journal_title", GetCGIParameterOrDefault(cgi_args, "direct_journal_title",
+                                                                                                first_direct_journal_title));
+
     const std::string first_rss_journal_title(GetMinElementOrDefault(rss_journal_titles));
     names_to_values_map->insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault(cgi_args, "rss_journal_title",
                                                                                              first_rss_journal_title));
@@ -224,125 +250,9 @@ std::string PrepareMapsDirectory(const std::string &orig_directory, const std::s
 }
 
 
-void UpdateProgress(std::string progress) {
-    std::cout << "<script type=\"text/javascript\">UpdateProgress(atob('" + TextUtil::Base64Encode(progress) + "'));</script>\r\n";
-    std::cout << std::flush;
-}
-
-
 void UpdateRuntime(unsigned seconds) {
     std::cout << "<script type=\"text/javascript\">UpdateRuntime(" + std::to_string(seconds) + ");</script>\r\n";
     std::cout << std::flush;
-}
-
-
-/** \brief class for spawning and monitoring zts_client */
-class CrawlingTask {
-public:
-    /** \brief struct representing contents of zts_client progress file.
-     *  \note  if the process has not written the file yet, file_exists_ will be false.
-     */
-    struct Progress {
-        bool file_exists_ = false;
-        unsigned processed_url_count_;
-        unsigned remaining_depth_;
-        std::string current_url_;
-    };
-private:
-    FileUtil::AutoTempDirectory auto_temp_dir_;
-    std::string executable_;
-    std::string progress_path_;
-    std::string command_;
-    std::string out_path_;
-    std::string log_path_;
-    pid_t pid_;
-public:
-    CrawlingTask(const std::string &url_base, const std::string &url_regex, const unsigned depth,
-                 const std::string &strptime_format, const std::string &output_format);
-
-    /** \brief get shell command including args (for debug output) */
-    inline const std::string &getCommand() const { return command_; }
-
-    /** \brief get path to out file with harvested records */
-    inline const std::string &getOutPath() const { return out_path_; }
-
-    /** \brief get path log file with stdout/stderr output */
-    inline const std::string &getLogPath() const { return log_path_; }
-    inline pid_t getPid() const { return pid_; }
-
-    /** \brief parse progress file */
-    Progress getProgress() const;
-private:
-    /** \brief write config file for zts_client */
-    void writeConfigFile(const std::string &file_cfg, const std::string &url_base,
-                         const std::string &url_regex, const unsigned depth,
-                         const std::string &strptime_format = "");
-    void executeTask(const std::string &cfg_path, const std::string &dir_maps,
-                     const std::string &output_format);
-};
-
-
-CrawlingTask::Progress CrawlingTask::getProgress() const {
-    Progress progress;
-    if (FileUtil::Exists(progress_path_)) {
-        std::string progress_string;
-        FileUtil::ReadString(progress_path_, &progress_string);
-        std::vector<std::string> progress_values;
-        StringUtil::SplitThenTrimWhite(progress_string, ';', &progress_values);
-
-        // check size, file might be empty the first few attempts
-        if (progress_values.size() == 3) {
-            progress.file_exists_ = true;
-            progress.processed_url_count_ = StringUtil::ToUnsigned(progress_values[0]);
-            progress.remaining_depth_ = StringUtil::ToUnsigned(progress_values[1]);
-            progress.current_url_ = progress_values[2];
-        }
-    }
-
-    return progress;
-}
-
-
-void CrawlingTask::writeConfigFile(const std::string &file_cfg, const std::string &url_base, const std::string &url_regex,
-                                   const unsigned depth, const std::string &strptime_format)
-{
-    std::string cfg_content = "# start_URL max_crawl_depth URL_regex [strptime_format]\n";
-    cfg_content += url_base + " " + std::to_string(depth) + " " + url_regex + " " + strptime_format;
-    FileUtil::WriteStringOrDie(file_cfg, cfg_content);
-}
-
-
-void CrawlingTask::executeTask(const std::string &cfg_path, const std::string &dir_maps,
-                               const std::string &output_format)
-{
-    progress_path_ = dir_maps + "/progress";
-    std::vector<std::string> args;
-
-    args.emplace_back("--simple-crawler-config-file=" + cfg_path);
-    args.emplace_back("--progress-file=" + progress_path_);
-    args.emplace_back("--output-format=" + output_format);
-    args.emplace_back(zts_url);
-    args.emplace_back(dir_maps);
-    args.emplace_back(out_path_);
-
-    command_ = BuildCommandString(executable_, args);
-    log_path_ = dir_maps + "/log";
-    pid_ = ExecUtil::Spawn(executable_, args, "", log_path_, log_path_);
-}
-
-
-CrawlingTask::CrawlingTask(const std::string &url_base, const std::string &url_regex, const unsigned depth,
-                           const std::string &strptime_format, const std::string &output_format)
-    : auto_temp_dir_("/tmp/ZtsMap_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
-      executable_(ExecUtil::Which("zts_client"))
-{
-    const std::string local_maps_directory(PrepareMapsDirectory(zts_client_maps_directory, auto_temp_dir_.getDirectoryPath()));
-    const std::string file_extension(GetOutputFormatExtension(output_format));
-    out_path_ = auto_temp_dir_.getDirectoryPath() + "/output." + file_extension;
-    const std::string file_cfg(auto_temp_dir_.getDirectoryPath() + "/config.cfg");
-
-    writeConfigFile(file_cfg, url_base, url_regex, depth, strptime_format);
-    executeTask(file_cfg, local_maps_directory, output_format);
 }
 
 
@@ -351,21 +261,21 @@ class HarvestTask {
     FileUtil::AutoTempDirectory auto_temp_dir_;
     std::string executable_;
     std::string command_;
+    int pid_;
     int exit_code_;
+    std::string log_path_;
     std::string out_path_;
-    std::string output_;
 public:
     HarvestTask(const std::string &section, const std::string &output_format_id);
 
     /** \brief get shell command including args (for debug output) */
     inline const std::string &getCommand() const { return command_; }
-    int getExitCode() const { return exit_code_; }
+    inline int getExitCode() const { return exit_code_; }
+    inline int getPid() const { return pid_; }
+    inline const std::string &getLogPath() const { return log_path_; }
 
     /** \brief get path to out file with harvested records */
     inline const std::string &getOutPath() const { return out_path_; }
-
-    /** \brief get stdout/stderr output */
-    inline const std::string &getOutput() const { return output_; }
 };
 
 
@@ -375,6 +285,7 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
 {
     const std::string local_maps_directory(PrepareMapsDirectory(zts_client_maps_directory, auto_temp_dir_.getDirectoryPath()));
     const std::string file_extension(GetOutputFormatExtension(output_format_id));
+    log_path_ = auto_temp_dir_.getDirectoryPath() + "/log";
     out_path_ = auto_temp_dir_.getDirectoryPath() + "/output." + file_extension;
 
     std::vector<std::string> args;
@@ -388,8 +299,49 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
 
     command_ = BuildCommandString(executable_, args);
     const std::string log_path(auto_temp_dir_.getDirectoryPath() + "/log");
-    exit_code_ = ExecUtil::Exec(executable_, args, "", log_path, log_path);
-    FileUtil::ReadString(log_path, &output_);
+    pid_ = ExecUtil::Spawn(executable_, args, "", log_path_, log_path_);
+}
+
+
+void ExecuteHarvestAction(const std::string &title, const std::string &output_format) {
+    std::cout << "<h2>Result</h2>\r\n";
+    std::cout << "<table>\r\n";
+
+    const HarvestTask task(title, output_format);
+
+    std::cout << "<tr><td>Command</td><td>" + task.getCommand() + "</td></tr>\r\n";
+    std::cout << "<tr><td>Runtime</td><td id=\"runtime\"></td></tr>\r\n";
+    //std::cout << "<tr><td>Progress</td><td><div id=\"progress\">Harvesting...</div></td></tr>\r\n";
+    std::cout << std::flush;
+
+    // start status monitoring
+    WallClockTimer timer(WallClockTimer::CUMULATIVE_WITH_AUTO_START);
+    int status;
+
+    do {
+        ::sleep(1);
+        timer.stop();
+        UpdateRuntime(static_cast<unsigned>(timer.getTime()));
+        timer.start();
+    } while (::waitpid(task.getPid(), &status, WNOHANG) >= 0);
+    timer.stop();
+
+    int exit_code(-2);
+    if WIFEXITED(status)
+        exit_code = WEXITSTATUS(status);
+
+    std::string output;
+    if (not FileUtil::ReadString(task.getLogPath(), &output))
+        output = "could not read log file!";
+
+    if (exit_code == 0)
+        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + task.getOutPath() + "\">Result file</a></td></tr>\r\n";
+    else
+        std::cout << "<tr><td>ERROR</td><td>Exitcode: " + std::to_string(exit_code) + "</td></tr>\r\n";
+
+    // use <pre> instead of nl2br + htmlspecialchars
+    std::cout << "<tr><td>CLI output:</td><td><pre>" + output + "</td></tr>\r\n";
+    std::cout << "</table>\r\n";
 }
 
 
@@ -402,82 +354,6 @@ void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_ar
         std::cout << "Content-Type: text/plain; charset=utf-8\r\n\r\n";
 
     std::cout << FileUtil::ReadStringOrDie(path);
-}
-
-
-void ProcessRssAction(const std::multimap<std::string, std::string> &cgi_args) {
-    std::cout << "<h2>RSS Result</h2>\r\n";
-    std::cout << "<table>\r\n";
-
-    const HarvestTask harvest_task(GetCGIParameterOrDefault(cgi_args, "rss_journal_title"), GetCGIParameterOrDefault(cgi_args, "rss_output_format"));
-
-    if (harvest_task.getExitCode() == 0)
-        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + harvest_task.getOutPath() + "\">Result file</a></td></tr>\r\n";
-    else
-        std::cout << "<tr><td>ERROR</td><td>Exitcode: " + std::to_string(harvest_task.getExitCode()) + "</td></tr>\r\n";
-
-    // use <pre> instead of nl2br + htmlspecialchars
-    std::cout << "<tr><td>CLI output:</td><td><pre>" + harvest_task.getOutput() + "</pre></td></tr>\r\n";
-
-    std::cout << "</table>\r\n";
-}
-
-
-void ProcessCrawlingAction(const std::multimap<std::string, std::string> &cgi_args) {
-    std::cout << "<h2>Crawling Result</h2>\r\n";
-    std::cout << "<table>\r\n";
-
-    const CrawlingTask crawling_task(GetCGIParameterOrDefault(cgi_args, "crawling_base_url"), GetCGIParameterOrDefault(cgi_args, "crawling_extraction_regex"),
-                                     StringUtil::ToUnsigned(GetCGIParameterOrDefault(cgi_args, "crawling_depth")), GetCGIParameterOrDefault(cgi_args, "crawling_strptime_format"),
-                                     GetCGIParameterOrDefault(cgi_args, "crawling_output_format"));
-
-    std::cout << "<tr><td>Command</td><td>" + crawling_task.getCommand() + "</td></tr>\r\n";
-    std::cout << "<tr><td>Runtime</td><td id=\"runtime\"></td></tr>\r\n";
-    std::cout << "<tr><td>Progress</td><td><div id=\"progress\">Harvesting...</div></td></tr>\r\n";
-    std::cout << std::flush;
-
-    // start status monitoring
-    CrawlingTask::Progress progress;
-    CrawlingTask::Progress progress_old;
-    WallClockTimer timer(WallClockTimer::CUMULATIVE_WITH_AUTO_START);
-    int status;
-
-    do {
-        ::sleep(1);
-        timer.stop();
-        UpdateRuntime(static_cast<unsigned>(timer.getTime()));
-        timer.start();
-        progress = crawling_task.getProgress();
-        if (progress.file_exists_ and progress.current_url_ != progress_old.current_url_) {
-            std::string progress_string("Current URL: <a target=\"_blank\" href=\"" + progress.current_url_ + "\">" + progress.current_url_ + "</a><br/>\r\n");
-            progress_string += "Current Depth: " + std::to_string(StringUtil::ToUnsigned(GetCGIParameterOrDefault(cgi_args, "crawling_depth")) - progress.remaining_depth_) + "<br/>\r\n";
-            progress_string += "Processed URL count: " + std::to_string(progress.processed_url_count_) + "<br/>\r\n";
-            UpdateProgress(progress_string);
-            progress_old = progress;
-
-        }
-    } while (::waitpid(crawling_task.getPid(), &status, WNOHANG) >= 0);
-    timer.stop();
-
-    int exit_code(-2);
-    if WIFEXITED(status)
-        exit_code = WEXITSTATUS(status);
-
-    std::string output;
-    if (not FileUtil::ReadString(crawling_task.getLogPath(), &output))
-        output = "could not read log file!";
-
-    if (exit_code == 0) {
-        UpdateProgress("Finished");
-        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + crawling_task.getOutPath() + "\">Result file</a></td></tr>\r\n";
-    } else {
-        UpdateProgress("Failed");
-        std::cout << "<tr><td>ERROR</td><td>Exitcode: " + std::to_string(exit_code) + "</td></tr>\r\n";
-    }
-
-    // use <pre> instead of nl2br + htmlspecialchars
-    std::cout << "<tr><td>CLI output:</td><td><pre>" + output + "</td></tr>\r\n";
-    std::cout << "</table>\r\n";
 }
 
 
@@ -529,9 +405,11 @@ int Main(int argc, char *argv[]) {
         std::cout << std::flush;
 
         if (action == "rss")
-            ProcessRssAction(cgi_args);
+            ExecuteHarvestAction(GetCGIParameterOrDefault(cgi_args, "rss_journal_title"), GetCGIParameterOrDefault(cgi_args, "rss_output_format"));
+        else if (action == "direct")
+            ExecuteHarvestAction(GetCGIParameterOrDefault(cgi_args, "direct_journal_title"), GetCGIParameterOrDefault(cgi_args, "direct_output_format"));
         else if (action == "crawling")
-            ProcessCrawlingAction(cgi_args);
+            ExecuteHarvestAction(GetCGIParameterOrDefault(cgi_args, "crawling_journal_title"), GetCGIParameterOrDefault(cgi_args, "crawling_output_format"));
         else if (action != default_action)
             LOG_ERROR("invalid action: \"" + action + '"');
 
