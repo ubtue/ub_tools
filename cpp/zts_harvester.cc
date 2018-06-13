@@ -168,7 +168,6 @@ int Main(int argc, char *argv[]) {
         map_directory_path += "/";
 
     Zotero::AugmentMaps augment_maps(map_directory_path);
-    Zotero::AugmentParams augment_params(&augment_maps);
     const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
     std::unique_ptr<DbConnection> db_connection;
@@ -177,9 +176,8 @@ int Main(int argc, char *argv[]) {
 
     if (output_file.empty())
         output_file = ini_file.getString("", "marc_output_file");
-    harvest_params->format_handler_ = Zotero::FormatHandler::Factory(previous_downloads_db_path,
-                                                                     GetMarcFormat(output_file), output_file,
-                                                                     &augment_params, harvest_params);
+    harvest_params->format_handler_ = Zotero::FormatHandler::Factory(previous_downloads_db_path, GetMarcFormat(output_file),
+                                                                     output_file, harvest_params);
 
     SimpleCrawler::Params crawler_params;
     crawler_params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
@@ -199,6 +197,9 @@ int Main(int argc, char *argv[]) {
     for (const auto &section : ini_file) {
         if (section.first.empty())
             continue;       // don't parse the global parameters section
+
+        Zotero::AugmentParams augment_params(&augment_maps);
+        harvest_params->format_handler_->setAugmentParams(&augment_params);
 
         if (not section_name_to_found_flag_map.empty()) {
             const auto section_name_and_found_flag(section_name_to_found_flag_map.find(section.first));
