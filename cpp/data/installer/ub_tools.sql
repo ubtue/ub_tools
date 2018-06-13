@@ -19,7 +19,6 @@ CREATE TABLE rss_feeds (
     id INT AUTO_INCREMENT PRIMARY KEY,
     feed_url VARCHAR(191) NOT NULL,
     last_build_date DATETIME NOT NULL,
-    last_modified DATETIME NOT NULL,
     UNIQUE (feed_url)
 ) CHARACTER SET utf8mb4;
 CREATE INDEX rss_feeds_ids_index ON rss_feeds(id);
