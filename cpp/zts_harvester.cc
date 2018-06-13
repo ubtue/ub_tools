@@ -49,6 +49,34 @@ namespace {
 }
 
 
+void LoadMARCEditInstructions(const IniFile::Section &section, std::vector<MARC::EditInstruction> * edit_instrunctions) {
+    edit_instrunctions->clear();
+
+    for (const auto &name_and_value : section) {
+        if (StringUtil::StartsWith(name_and_value.first, "insert_field_")) {
+            const std::string tag_candidate(name_and_value.first.substr(__builtin_strlen("insert_field_")));
+            if (tag_candidate.length() != MARC::Record::TAG_LENGTH)
+                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + name_and_value.first + "\"!");
+            edit_instrunctions->emplace_back(MARC::EditInstruction::CreateInsertFieldInstruction(tag_candidate, name_and_value.second));
+        } else if (StringUtil::StartsWith(name_and_value.first, "insert_subfield_")) {
+            const std::string tag_and_subfield_code_candidate(name_and_value.first.substr(__builtin_strlen("insert_subfield_")));
+            if (tag_and_subfield_code_candidate.length() != MARC::Record::TAG_LENGTH + 1)
+                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + name_and_value.first + "\"!");
+            edit_instrunctions->emplace_back(MARC::EditInstruction::CreateInsertSubfieldInstruction(
+                tag_and_subfield_code_candidate.substr(0, MARC::Record::TAG_LENGTH),
+                tag_and_subfield_code_candidate[MARC::Record::TAG_LENGTH], name_and_value.second));
+        } else if (StringUtil::StartsWith(name_and_value.first, "add_subfield_")) {
+            const std::string tag_and_subfield_code_candidate(name_and_value.first.substr(__builtin_strlen("add_subfield_")));
+            if (tag_and_subfield_code_candidate.length() != MARC::Record::TAG_LENGTH + 1)
+                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + name_and_value.first + "\"!");
+            edit_instrunctions->emplace_back(MARC::EditInstruction::CreateAddSubfieldInstruction(
+                tag_and_subfield_code_candidate.substr(0, MARC::Record::TAG_LENGTH),
+                tag_and_subfield_code_candidate[MARC::Record::TAG_LENGTH], name_and_value.second));
+        }
+    }
+}
+
+
 void ReadAugmentParamsFromIni(const IniFile::Section &section, Zotero::AugmentParams * const augment_params) {
     augment_params->override_ISSN_print_ = section.getString("issn_print", "");
     augment_params->override_ISSN_online_ = section.getString("issn_online", "");
@@ -198,7 +226,10 @@ int Main(int argc, char *argv[]) {
         if (section.first.empty())
             continue;       // don't parse the global parameters section
 
-        Zotero::AugmentParams augment_params(&augment_maps);
+        std::vector<MARC::EditInstruction> edit_instrunctions;
+        LoadMARCEditInstructions(section.second, &edit_instrunctions);
+
+        Zotero::AugmentParams augment_params(&augment_maps, edit_instrunctions);
         harvest_params->format_handler_->setAugmentParams(&augment_params);
 
         if (not section_name_to_found_flag_map.empty()) {

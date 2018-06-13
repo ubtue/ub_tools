@@ -35,7 +35,7 @@
 #include "Url.h"
 
 
-// Forward declaration:
+// Forward declarations:
 class DbConnection;
 
 
@@ -117,8 +117,10 @@ struct AugmentParams {
     std::string override_ISSN_online_;
     std::string strptime_format_;
     AugmentMaps * const maps_;
+    std::vector<MARC::EditInstruction> marc_edit_instructions_;
 
-    AugmentParams(AugmentMaps * const maps): maps_(maps) { }
+    AugmentParams(AugmentMaps * const maps, const std::vector<MARC::EditInstruction> &marc_edit_instructions)
+        : maps_(maps), marc_edit_instructions_(marc_edit_instructions) { }
 };
 
 
