@@ -90,6 +90,14 @@ UnsignedPair ProcessCrawl(const IniFile::Section &section, const std::shared_ptr
 }
 
 
+UnsignedPair ProcessDirectHarvest(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
+                                  Zotero::AugmentParams * const augment_params)
+{
+    ReadAugmentParamsFromIni(section, augment_params);
+    return Zotero::HarvestURL(section.getString("url"), harvest_params, augment_params);
+}
+
+
 std::string GetMarcFormat(const std::string &output_filename) {
     switch (MARC::GuessFileType(output_filename)) {
     case MARC::FileType::BINARY:
@@ -182,8 +190,8 @@ int Main(int argc, char *argv[]) {
     for (int arg_no(2); arg_no < argc; ++arg_no)
         section_name_to_found_flag_map.emplace(argv[arg_no], false);
 
-    enum Type { RSS, CRAWL };
-    const std::map<std::string, int> string_to_value_map{ {"RSS", RSS }, { "CRAWL", CRAWL } };
+    enum Type { RSS, CRAWL, DIRECT };
+    const std::map<std::string, int> string_to_value_map{ {"RSS", RSS }, { "CRAWL", CRAWL }, { "DIRECT", DIRECT } };
 
     unsigned processed_section_count(0);
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
@@ -205,9 +213,12 @@ int Main(int argc, char *argv[]) {
         if (type == RSS)
             total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section.second, harvest_params, &augment_params,
                                                                                         db_connection.get(), test);
-        else
+        else if (type == CRAWL)
             total_record_count_and_previously_downloaded_record_count +=
                 ProcessCrawl(section.second, harvest_params, &augment_params, crawler_params, supported_urls_regex);
+        else
+            total_record_count_and_previously_downloaded_record_count +=
+                ProcessDirectHarvest(section.second, harvest_params, &augment_params);
     }
 
     LOG_INFO("Extracted metadata from "
