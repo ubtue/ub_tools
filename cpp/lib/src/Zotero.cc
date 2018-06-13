@@ -203,27 +203,24 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 
 
 std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &previous_downloads_db_path, const std::string &output_format,
-                                                      const std::string &output_file, AugmentParams * const augment_params,
+                                                      const std::string &output_file,
                                                       const std::shared_ptr<const HarvestParams> &harvest_params)
 {
     if (output_format == "marcxml" or output_format == "marc21")
-        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(previous_downloads_db_path, output_file, augment_params,
-                                                                    harvest_params));
+        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(previous_downloads_db_path, output_file, harvest_params));
     else if (output_format == "json")
-        return std::unique_ptr<FormatHandler>(new JsonFormatHandler(previous_downloads_db_path, output_format, output_file, augment_params,
-                                                                    harvest_params));
+        return std::unique_ptr<FormatHandler>(new JsonFormatHandler(previous_downloads_db_path, output_format, output_file, harvest_params));
     else if (std::find(EXPORT_FORMATS.begin(), EXPORT_FORMATS.end(), output_format) != EXPORT_FORMATS.end())
         return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(previous_downloads_db_path, output_format, output_file,
-                                                                      augment_params, harvest_params));
+                                                                      harvest_params));
     else
         LOG_ERROR("invalid output-format: " + output_format);
 }
 
 
 JsonFormatHandler::JsonFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format,
-                                     const std::string &output_file, AugmentParams * const augment_params,
-                                     const std::shared_ptr<const HarvestParams> &harvest_params)
-    : FormatHandler(previous_downloads_db_path, output_format, output_file, augment_params, harvest_params), record_count_(0),
+                                     const std::string &output_file, const std::shared_ptr<const HarvestParams> &harvest_params)
+    : FormatHandler(previous_downloads_db_path, output_format, output_file, harvest_params), record_count_(0),
       output_file_object_(new File(output_file_, "w"))
 {
     output_file_object_->write("[");
@@ -246,9 +243,8 @@ std::pair<unsigned, unsigned> JsonFormatHandler::processRecord(const std::shared
 
 
 ZoteroFormatHandler::ZoteroFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format,
-                                         const std::string &output_file, AugmentParams * const augment_params,
-                                         const std::shared_ptr<const HarvestParams> &harvest_params)
-    : FormatHandler(previous_downloads_db_path, output_format, output_file, augment_params, harvest_params), record_count_(0),
+                                         const std::string &output_file, const std::shared_ptr<const HarvestParams> &harvest_params)
+    : FormatHandler(previous_downloads_db_path, output_format, output_file, harvest_params), record_count_(0),
       json_buffer_("[")
 {
 }
@@ -290,8 +286,8 @@ std::string GuessOutputFormat(const std::string &output_file) {
 
 
 MarcFormatHandler::MarcFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_file,
-                                     AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params)
-    : FormatHandler(previous_downloads_db_path, GuessOutputFormat(output_file), output_file, augment_params, harvest_params),
+                                     const std::shared_ptr<const HarvestParams> &harvest_params)
+    : FormatHandler(previous_downloads_db_path, GuessOutputFormat(output_file), output_file, harvest_params),
       marc_writer_(MARC::Writer::Factory(output_file_))
 {
 }
