@@ -255,6 +255,34 @@ public:
 };
 
 
+enum EditInstructionType { INSERT_FIELD, INSERT_SUBFIELD, ADD_SUBFIELD };
+
+
+struct EditInstruction {
+    EditInstructionType type_;
+    Tag tag_;
+    char subfield_code_;
+    std::string field_or_subfield_contents_;
+    char indicator1_, indicator2_;
+public:
+    inline static EditInstruction CreateInsertFieldInstruction(const Tag &tag, const std::string &field_contents,
+                                                               const char indicator1 = ' ', const char indicator2 = ' ')
+        { return EditInstruction(INSERT_FIELD, tag, '\0', field_contents, indicator1, indicator2); }
+    inline static EditInstruction CreateInsertSubfieldInstruction(const Tag &tag, const char subfield_code,
+                                                                  const std::string &subfield_contents, const char indicator1 = ' ',
+                                                                  const char indicator2 = ' ')
+        { return EditInstruction(INSERT_SUBFIELD, tag, subfield_code, subfield_contents, indicator1, indicator2); }
+    inline static EditInstruction CreateAddSubfieldInstruction(const Tag &tag, const char subfield_code,
+                                                               const std::string &subfield_contents)
+        { return EditInstruction(ADD_SUBFIELD, tag, subfield_code, subfield_contents, '\0', '\0'); }
+private:
+    EditInstruction(const EditInstructionType type, const Tag &tag, const char subfield_code, const std::string &field_or_subfield_contents,
+                    const char indicator1, const char indicator2)
+        : type_(type), tag_(tag), subfield_code_(subfield_code), field_or_subfield_contents_(field_or_subfield_contents),
+          indicator1_(indicator1), indicator2_(indicator2) { }
+};
+
+
 class Record {
 public:
     class Field {
@@ -396,7 +424,7 @@ public:
             return fields_.front().getContents();
     }
 
-    
+
     /** \return The main title (contents of 245$a or, if that does not exist, the contents of 245$b) or the empty string
      *          in the very unlikely case that we can't find it.
      */
@@ -471,6 +499,12 @@ public:
      *  \return True if a field with field tag "field_tag" existed and false if no such field was found.
      */
     bool addSubfield(const Tag &field_tag, const char subfield_code, const std::string &subfield_value);
+
+    /** \brief Performs edits on MARC rercord.
+     *  \param error_message  If errors occurred this will contain explanatory text for the last error only.
+     *  \return True if all edits succeeded and false if at least one edit failed.
+     */
+    bool edit(const std::vector<EditInstruction> &edit_instructions, std::string * const error_message);
 
     inline iterator begin() { return fields_.begin(); }
     inline iterator end() { return fields_.end(); }
