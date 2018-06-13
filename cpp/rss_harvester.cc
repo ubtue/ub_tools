@@ -114,8 +114,9 @@ int main(int argc, char *argv[]) {
         augment_params.strptime_format_ = strptime_format;
         const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
         const std::string MARC_OUTPUT_FILE(argv[4]);
-        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(map_directory_path + "previously_downloaded.hashes", GetMarcFormat(MARC_OUTPUT_FILE),
-                                                                         MARC_OUTPUT_FILE, &augment_params, harvest_params);
+        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(map_directory_path + "previously_downloaded.hashes",
+                                                                         GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE, harvest_params);
+        harvest_params->format_handler_->setAugmentParams(&augment_params);
 
         std::unique_ptr<DbConnection> db_connection;
         if (mode != Zotero::RSSHarvestMode::TEST) {
