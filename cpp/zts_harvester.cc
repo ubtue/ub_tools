@@ -37,8 +37,9 @@ namespace {
     std::cerr << "Usage: " << ::progname << " [options] config_file_path [section1 section2 .. sectionN]\n"
               << "\n"
               << "\tOptions:\n"
-              << "\t[--verbosity=log_level]                                     Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
-              << "\t[--test]                                                    No download information will be stored for further downloads.\n"
+              << "\t[--verbosity=log_level]        Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
+              << "\t[--test]                       No download information will be stored for further downloads.\n"
+              << "\t[--live-only]                  Only sections that have \"live=true\" set will be processed.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
               << "\t[--previous-downloads-db-file=previous_downloads_db_file]\n"
@@ -151,6 +152,12 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
+    bool live_only(false);
+    if (std::strcmp(argv[1], "--live-only") == 0) {
+        live_only = true;
+        --argc, ++argv;
+    }
+
     bool ignore_robots_dot_txt(false);
     if (std::strcmp(argv[1], "--ignore-robots-dot-txt") == 0) {
         ignore_robots_dot_txt = true;
@@ -225,6 +232,9 @@ int Main(int argc, char *argv[]) {
     for (const auto &section : ini_file) {
         if (section.first.empty())
             continue;       // don't parse the global parameters section
+
+        if (live_only and section.second.getBool("live", false) != true)
+            continue;
 
         std::vector<MARC::EditInstruction> edit_instructions;
         LoadMARCEditInstructions(section.second, &edit_instructions);
