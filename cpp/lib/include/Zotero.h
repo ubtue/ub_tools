@@ -35,7 +35,7 @@
 #include "Url.h"
 
 
-// Forward declaration:
+// Forward declarations:
 class DbConnection;
 
 
@@ -117,8 +117,10 @@ struct AugmentParams {
     std::string override_ISSN_online_;
     std::string strptime_format_;
     AugmentMaps * const maps_;
+    std::vector<MARC::EditInstruction> marc_edit_instructions_;
 
-    AugmentParams(AugmentMaps * const maps): maps_(maps) { }
+    AugmentParams(AugmentMaps * const maps, const std::vector<MARC::EditInstruction> &marc_edit_instructions)
+        : maps_(maps), marc_edit_instructions_(marc_edit_instructions) { }
 };
 
 
@@ -199,17 +201,18 @@ protected:
     DownloadTracker download_tracker_;
     std::string output_format_;
     std::string output_file_;
-    AugmentParams * const augment_params_;
+    AugmentParams *augment_params_;
     const std::shared_ptr<const HarvestParams> &harvest_params_;
 protected:
     FormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format, const std::string &output_file,
-                  AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params)
+                  const std::shared_ptr<const HarvestParams> &harvest_params)
         : download_tracker_(previous_downloads_db_path), output_format_(output_format), output_file_(output_file),
-          augment_params_(augment_params), harvest_params_(harvest_params)
+          augment_params_(nullptr), harvest_params_(harvest_params)
         { }
 public:
     virtual ~FormatHandler() = default;
 
+    inline void setAugmentParams(AugmentParams * const new_augment_params) { augment_params_ = new_augment_params; }
     inline DownloadTracker &getDownloadTracker() { return download_tracker_; }
 
     /** \brief Convert & write single record to output file */
@@ -218,7 +221,7 @@ public:
     // The output format must be one of "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
     // "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei", "json", "marc21", or "marcxml".
     static std::unique_ptr<FormatHandler> Factory(const std::string &previous_downloads_db_path, const std::string &output_format,
-                                                  const std::string &output_file, AugmentParams * const augment_params,
+                                                  const std::string &output_file,
                                                   const std::shared_ptr<const HarvestParams> &harvest_params);
 };
 
@@ -228,7 +231,7 @@ class JsonFormatHandler final : public FormatHandler {
     File *output_file_object_;
 public:
     JsonFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format, const std::string &output_file,
-                      AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params);
+                      const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~JsonFormatHandler();
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
 };
@@ -239,7 +242,7 @@ class ZoteroFormatHandler final : public FormatHandler {
     std::string json_buffer_;
 public:
     ZoteroFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format, const std::string &output_file,
-                        AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params);
+                        const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~ZoteroFormatHandler();
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
 };
@@ -248,7 +251,7 @@ public:
 class MarcFormatHandler final : public FormatHandler {
     std::unique_ptr<MARC::Writer> marc_writer_;
 public:
-    MarcFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_file, AugmentParams * const augment_params,
+    MarcFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_file,
                       const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~MarcFormatHandler() = default;
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
@@ -314,6 +317,13 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
                          const std::shared_ptr<HarvestParams> &harvest_params,
                          AugmentParams * const augment_params,
                          File * const progress_file = nullptr);
+
+
+/** \brief Harvest metadate from a single Web page.
+ *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
+ *          difference (first - second).
+ */
+UnsignedPair HarvestURL(const std::string &url, const std::shared_ptr<HarvestParams> &harvest_params, AugmentParams * const augment_params);
 
 
 enum class RSSHarvestMode { VERBOSE, TEST, NORMAL };

@@ -16,7 +16,6 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include <iostream>
 #include <memory>
 #include <unordered_map>
@@ -24,6 +23,7 @@
 #include "DbConnection.h"
 #include "IniFile.h"
 #include "MARC.h"
+#include "StlHelpers.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -37,8 +37,10 @@ namespace {
     std::cerr << "Usage: " << ::progname << " [options] config_file_path [section1 section2 .. sectionN]\n"
               << "\n"
               << "\tOptions:\n"
-              << "\t[--verbosity=log_level]                                     Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
-              << "\t[--test]                                                    No download information will be stored for further downloads.\n"
+              << "\t[--verbosity=log_level]        Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
+              << "\t[--test]                       No download information will be stored for further downloads.\n"
+              << "\t[--live-only]                  Only sections that have \"live=true\" set will be processed.\n"
+              << "\t[--groups=my_groups            Where groups are a comma-separated list of goups.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
               << "\t[--previous-downloads-db-file=previous_downloads_db_file]\n"
@@ -46,6 +48,34 @@ namespace {
               << "\n"
               << "\tIf any section names have been provided, only those will be processed o/w all sections will be processed.\n\n";
     std::exit(EXIT_FAILURE);
+}
+
+
+void LoadMARCEditInstructions(const IniFile::Section &section, std::vector<MARC::EditInstruction> * edit_instructions) {
+    edit_instructions->clear();
+
+    for (const auto &name_and_value : section) {
+        if (StringUtil::StartsWith(name_and_value.first, "insert_field_")) {
+            const std::string tag_candidate(name_and_value.first.substr(__builtin_strlen("insert_field_")));
+            if (tag_candidate.length() != MARC::Record::TAG_LENGTH)
+                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + name_and_value.first + "\"!");
+            edit_instructions->emplace_back(MARC::EditInstruction::CreateInsertFieldInstruction(tag_candidate, name_and_value.second));
+        } else if (StringUtil::StartsWith(name_and_value.first, "insert_subfield_")) {
+            const std::string tag_and_subfield_code_candidate(name_and_value.first.substr(__builtin_strlen("insert_subfield_")));
+            if (tag_and_subfield_code_candidate.length() != MARC::Record::TAG_LENGTH + 1)
+                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + name_and_value.first + "\"!");
+            edit_instructions->emplace_back(MARC::EditInstruction::CreateInsertSubfieldInstruction(
+                tag_and_subfield_code_candidate.substr(0, MARC::Record::TAG_LENGTH),
+                tag_and_subfield_code_candidate[MARC::Record::TAG_LENGTH], name_and_value.second));
+        } else if (StringUtil::StartsWith(name_and_value.first, "add_subfield_")) {
+            const std::string tag_and_subfield_code_candidate(name_and_value.first.substr(__builtin_strlen("add_subfield_")));
+            if (tag_and_subfield_code_candidate.length() != MARC::Record::TAG_LENGTH + 1)
+                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + name_and_value.first + "\"!");
+            edit_instructions->emplace_back(MARC::EditInstruction::CreateAddSubfieldInstruction(
+                tag_and_subfield_code_candidate.substr(0, MARC::Record::TAG_LENGTH),
+                tag_and_subfield_code_candidate[MARC::Record::TAG_LENGTH], name_and_value.second));
+        }
+    }
 }
 
 
@@ -90,6 +120,14 @@ UnsignedPair ProcessCrawl(const IniFile::Section &section, const std::shared_ptr
 }
 
 
+UnsignedPair ProcessDirectHarvest(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
+                                  Zotero::AugmentParams * const augment_params)
+{
+    ReadAugmentParamsFromIni(section, augment_params);
+    return Zotero::HarvestURL(section.getString("url"), harvest_params, augment_params);
+}
+
+
 std::string GetMarcFormat(const std::string &output_filename) {
     switch (MARC::GuessFileType(output_filename)) {
     case MARC::FileType::BINARY:
@@ -112,6 +150,18 @@ int Main(int argc, char *argv[]) {
     bool test(false);
     if (std::strcmp(argv[1], "--test") == 0) {
         test = true;
+        --argc, ++argv;
+    }
+
+    bool live_only(false);
+    if (std::strcmp(argv[1], "--live-only") == 0) {
+        live_only = true;
+        --argc, ++argv;
+    }
+
+    std::set<std::string> groups_filter;
+    if (StringUtil::StartsWith(argv[1], "--groups=")) {
+        StringUtil::SplitThenTrimWhite(argv[1] + __builtin_strlen("--groups="), ',', &groups_filter);
         --argc, ++argv;
     }
 
@@ -160,7 +210,6 @@ int Main(int argc, char *argv[]) {
         map_directory_path += "/";
 
     Zotero::AugmentMaps augment_maps(map_directory_path);
-    Zotero::AugmentParams augment_params(&augment_maps);
     const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
     std::unique_ptr<DbConnection> db_connection;
@@ -169,9 +218,8 @@ int Main(int argc, char *argv[]) {
 
     if (output_file.empty())
         output_file = ini_file.getString("", "marc_output_file");
-    harvest_params->format_handler_ = Zotero::FormatHandler::Factory(previous_downloads_db_path,
-                                                                     GetMarcFormat(output_file), output_file,
-                                                                     &augment_params, harvest_params);
+    harvest_params->format_handler_ = Zotero::FormatHandler::Factory(previous_downloads_db_path, GetMarcFormat(output_file),
+                                                                     output_file, harvest_params);
 
     SimpleCrawler::Params crawler_params;
     crawler_params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
@@ -182,8 +230,8 @@ int Main(int argc, char *argv[]) {
     for (int arg_no(2); arg_no < argc; ++arg_no)
         section_name_to_found_flag_map.emplace(argv[arg_no], false);
 
-    enum Type { RSS, CRAWL };
-    const std::map<std::string, int> string_to_value_map{ {"RSS", RSS }, { "CRAWL", CRAWL } };
+    enum Type { RSS, CRAWL, DIRECT };
+    const std::map<std::string, int> string_to_value_map{ {"RSS", RSS }, { "CRAWL", CRAWL }, { "DIRECT", DIRECT } };
 
     unsigned processed_section_count(0);
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
@@ -191,6 +239,25 @@ int Main(int argc, char *argv[]) {
     for (const auto &section : ini_file) {
         if (section.first.empty())
             continue;       // don't parse the global parameters section
+
+        if (live_only and section.second.getBool("live", false) != true)
+            continue;
+
+        const std::string groups_str(section.second.getString("groups"));
+        if (not groups_filter.empty()) {
+            std::set<std::string> section_groups;
+            StringUtil::SplitThenTrimWhite(argv[1] + __builtin_strlen("--groups="), ',', &section_groups);
+
+            const std::set<std::string> common_groups(StlHelpers::SetIntersection(groups_filter, section_groups));
+            if (common_groups.empty())
+                continue;
+        }
+        
+        std::vector<MARC::EditInstruction> edit_instructions;
+        LoadMARCEditInstructions(section.second, &edit_instructions);
+
+        Zotero::AugmentParams augment_params(&augment_maps, edit_instructions);
+        harvest_params->format_handler_->setAugmentParams(&augment_params);
 
         if (not section_name_to_found_flag_map.empty()) {
             const auto section_name_and_found_flag(section_name_to_found_flag_map.find(section.first));
@@ -205,9 +272,12 @@ int Main(int argc, char *argv[]) {
         if (type == RSS)
             total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section.second, harvest_params, &augment_params,
                                                                                         db_connection.get(), test);
-        else
+        else if (type == CRAWL)
             total_record_count_and_previously_downloaded_record_count +=
                 ProcessCrawl(section.second, harvest_params, &augment_params, crawler_params, supported_urls_regex);
+        else
+            total_record_count_and_previously_downloaded_record_count +=
+                ProcessDirectHarvest(section.second, harvest_params, &augment_params);
     }
 
     LOG_INFO("Extracted metadata from "
