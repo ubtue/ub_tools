@@ -1000,6 +1000,12 @@ void XmlReader::parseDatafield(const std::string &input_filename,
                                      + "\": " + xml_parser_->getLastErrorMessage());
 
         if (type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "datafield") {
+            // If the field contents consists of the indicators only, we drop it.
+            if (unlikely(field_data.length() == 1 /*indicator1*/ + 1/*indicator2*/)) {
+                LOG_WARNING("dropped empty \"" + tag + "\" field!");
+                return;
+            }
+
             record->fields_.emplace_back(tag, field_data);
             record->record_size_ += Record::DIRECTORY_ENTRY_LENGTH + field_data.length() + 1 /* end-of-field */;
             return;
