@@ -1,6 +1,5 @@
 /** \file    Clean up the tags database
  *  \brief   Remove unreferenced tags and tag references from the database
-             Keep the titles since they might be referenced in lists
  *  \author  Johannes Riedl
  */
 
