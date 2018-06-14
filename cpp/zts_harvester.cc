@@ -17,6 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <unordered_map>
@@ -40,6 +41,7 @@ namespace {
               << "\t[--verbosity=log_level]        Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
               << "\t[--test]                       No download information will be stored for further downloads.\n"
               << "\t[--live-only]                  Only sections that have \"live=true\" set will be processed.\n"
+              << "\t[--groups=my_groups            Where groups are a comma-separated list of goups.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
               << "\t[--previous-downloads-db-file=previous_downloads_db_file]\n"
@@ -158,6 +160,12 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
+    std::set<std::string> groups_filter;
+    if (StringUtil::StartsWith(argv[1], "--groups=")) {
+        StringUtil::SplitThenTrimWhite(argv[1] + __builtin_strlen("--groups="), ',', &groups_filter);
+        --argc, ++argv;
+    }
+
     bool ignore_robots_dot_txt(false);
     if (std::strcmp(argv[1], "--ignore-robots-dot-txt") == 0) {
         ignore_robots_dot_txt = true;
@@ -236,6 +244,18 @@ int Main(int argc, char *argv[]) {
         if (live_only and section.second.getBool("live", false) != true)
             continue;
 
+        const std::string groups_str(section.second.getString("groups"));
+        if (not groups_filter.empty()) {
+            std::set<std::string> groups;
+            StringUtil::SplitThenTrimWhite(argv[1] + __builtin_strlen("--groups="), ',', &groups);
+
+            std::set<std::string> common_groups;
+            std::set_intersection(groups_filter.cbegin(), groups_filter.cend(), groups.cbegin(), groups.cend(),
+                                  std::inserter(common_groups, common_groups.begin()));
+            if (common_groups.empty())
+                continue;
+        }
+        
         std::vector<MARC::EditInstruction> edit_instructions;
         LoadMARCEditInstructions(section.second, &edit_instructions);
 
