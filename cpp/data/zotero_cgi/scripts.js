@@ -80,7 +80,7 @@ function TryCrawling(crawling_journal_title) {
 
 $(document).ready(function() {
     $('#all_journals').DataTable({
-        "order": [[0, "asc"]],
+        "order": [[0, "asc"], [1, "asc"]],
         "iDisplayLength": 25
     });
 
