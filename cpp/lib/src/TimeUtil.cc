@@ -178,8 +178,12 @@ struct tm StringToStructTm(const std::string &date_and_time, const std::string &
 
 unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * const year, unsigned * const month,
                                 unsigned * const day, unsigned * const hour, unsigned * const minute,
-                                unsigned * const second, bool * const is_definitely_zulu_time)
+                                unsigned * const second, int * const hour_offset, int * const minute_offset,
+                                bool * const is_definitely_zulu_time)
 {
+    *hour_offset = *minute_offset = 0;
+    char plus_or_minus[1 + 1];
+
     // First check for a simple time and date (can be local or UTC):
     if (possible_date.length() == 19
         and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u %2u:%2u:%2u",
@@ -187,6 +191,19 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
     {
         *is_definitely_zulu_time = false;
         return 6;
+    }
+    // Check for ISO 8601 w/ offset:
+    else if (possible_date.length() == 20
+             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2uT%2u:%2u:%2u%[+-]%d:%d",
+                             year, month, day, hour, minute, second, plus_or_minus, hour_offset, minute_offset) == 9)
+    {
+        if (plus_or_minus[0] == '-') {
+            *hour_offset   = -*hour_offset;
+            *minute_offset = -*minute_offset;
+        }
+
+        *is_definitely_zulu_time = true;
+        return 9;
     }
     // Check for Zulu time format (must be UTC)
     else if (possible_date.length() == 20
@@ -215,12 +232,33 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
     std::memset(&tm_struct, '\0', sizeof tm_struct);
 
     unsigned year, month, day, hour, minute, second;
+    int hour_offset, minute_offset;
     bool is_definitely_zulu_time;
     const unsigned match_count = StringToBrokenDownTime(iso_time, &year, &month, &day, &hour, &minute, &second,
-                                                        &is_definitely_zulu_time);
+                                                        &hour_offset, &minute_offset, &is_definitely_zulu_time);
 
-    // First check for Zulu time format (must be UTC)
-    if (match_count == 6 and is_definitely_zulu_time) {
+    // First check for Zulu time format w/ an offset
+    if (match_count == 9) {
+        if (time_zone == LOCAL) {
+            *err_msg = "local time requested in Zulu time format!";
+            return false;
+        }
+
+        tm_struct.tm_year  = year - 1900;
+        tm_struct.tm_mon   = month - 1;
+        tm_struct.tm_mday  = day;
+        tm_struct.tm_hour  = hour - hour_offset;
+        tm_struct.tm_min   = minute - minute_offset;
+        tm_struct.tm_sec   = second;
+        *converted_time = ::timegm(&tm_struct);
+        if (*converted_time == static_cast<time_t>(-1)) {
+            *err_msg = "cannot convert '" + iso_time + "' to a time_t!";
+            return false;
+        }
+    }
+
+    // Now check for Zulu time format w/o an offset (must be UTC)
+    else if (match_count == 6 and is_definitely_zulu_time) {
         if (time_zone == LOCAL) {
             *err_msg = "local time requested in Zulu time format!";
             return false;
