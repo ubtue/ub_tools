@@ -193,7 +193,7 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
         return 6;
     }
     // Check for ISO 8601 w/ offset:
-    else if (possible_date.length() == 20
+    else if (possible_date.length() == 25
              and std::sscanf(possible_date.c_str(), "%4u-%2u-%2uT%2u:%2u:%2u%[+-]%d:%d",
                              year, month, day, hour, minute, second, plus_or_minus, hour_offset, minute_offset) == 9)
     {
