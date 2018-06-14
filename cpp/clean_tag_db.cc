@@ -23,15 +23,12 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
-#include <map>
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
-#include "File.h"
 #include "MARC.h"
-#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 #include "VuFind.h"
@@ -47,14 +44,12 @@ namespace {
 
 
 void ExtractAllRecordIDs(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const all_record_ids) {
-    while (const MARC::Record &record = marc_reader->read()) {
+    while (const MARC::Record &record = marc_reader->read())
         all_record_ids->emplace(record.getControlNumber());
-    }
 }
 
 void GetUnreferencedPPNsFromDB(DbConnection * const db_connection, const std::unordered_set<std::string> &all_record_ids,
-                  std::vector<std::string> * const unreferenced_ppns) {
-    
+                               std::vector<std::string> * const unreferenced_ppns) {
     // Get the ppn from the resources table
     db_connection->queryOrDie("SELECT DISTINCT record_id FROM resource");
     DbResultSet result_set(db_connection->getLastResultSet());
@@ -68,7 +63,7 @@ void GetUnreferencedPPNsFromDB(DbConnection * const db_connection, const std::un
     }
 }
 
-auto FormatSQLValue = [](std::string term) { return "('" + term + "')"; };
+auto FormatSQLValue = [](const std::string term) { return "('" + term + "')"; };
 
 
 void CreateTemporaryUnreferencedPPNTable(DbConnection * const db_connection, const std::vector<std::string> &unreferenced_ppns) {
