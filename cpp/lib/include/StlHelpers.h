@@ -917,16 +917,21 @@ namespace Functional {
 }
 
 
-    template<typename In, typename Out, typename Predicate> inline Out CopyIf(In first, In last, Out result,
-                                                                              Predicate predicate)
-    {
-	while (first != last) {
-            if (predicate(*first))
-                *result++ = *first;
-            ++first;
-	}
+template<typename In, typename Out, typename Predicate> inline Out CopyIf(In first, In last, Out result, Predicate predicate) {
+    while (first != last) {
+        if (predicate(*first))
+            *result++ = *first;
+        ++first;
+    }
 
-	return result;
+    return result;
+}
+
+
+template<typename T> std::set<T> SetIntersection(const std::set<T> &set1, const std::set<T> &set2) {
+    std::set<T> intersection;
+    std::set_intersection(set1.cbegin(), set1.cend(), set2.cbegin(), set2.cend(), std::inserter(intersection, intersection.begin()));
+    return intersection;
 }
 
 

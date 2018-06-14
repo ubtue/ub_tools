@@ -16,8 +16,6 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <unordered_map>
@@ -25,6 +23,7 @@
 #include "DbConnection.h"
 #include "IniFile.h"
 #include "MARC.h"
+#include "StlHelpers.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -246,12 +245,10 @@ int Main(int argc, char *argv[]) {
 
         const std::string groups_str(section.second.getString("groups"));
         if (not groups_filter.empty()) {
-            std::set<std::string> groups;
-            StringUtil::SplitThenTrimWhite(argv[1] + __builtin_strlen("--groups="), ',', &groups);
+            std::set<std::string> section_groups;
+            StringUtil::SplitThenTrimWhite(argv[1] + __builtin_strlen("--groups="), ',', &section_groups);
 
-            std::set<std::string> common_groups;
-            std::set_intersection(groups_filter.cbegin(), groups_filter.cend(), groups.cbegin(), groups.cend(),
-                                  std::inserter(common_groups, common_groups.begin()));
+            const std::set<std::string> common_groups(StlHelpers::SetIntersection(groups_filter, section_groups));
             if (common_groups.empty())
                 continue;
         }
