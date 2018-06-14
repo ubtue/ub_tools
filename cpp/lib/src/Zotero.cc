@@ -83,6 +83,7 @@ Date StringToDate(const std::string &date_str, std::string optional_strptime_for
                 LOG_ERROR("bad local specification \"" + optional_strptime_format + "\"!");
             const std::string locale_specification(optional_strptime_format.substr(1, closing_paren_pos - 1));
             locale.reset(new Locale(locale_specification, LC_TIME));
+            optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
         }
         
         struct tm tm;
