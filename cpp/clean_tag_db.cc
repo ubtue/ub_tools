@@ -25,7 +25,6 @@
 #include <iostream>
 #include <vector>
 #include <cstdlib>
-#include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "MARC.h"
@@ -143,9 +142,8 @@ int main(int argc, char **argv) {
         GetUnreferencedPPNsFromDB(&db_connection, all_record_ids, &unreferenced_ppns);
         CreateTemporaryUnreferencedPPNTable(&db_connection, unreferenced_ppns);
         RemoveUnreferencedEntries(&db_connection);
-        std::cerr << "Removed superfluous references for " << unreferenced_ppns.size() << " PPN(s)\n";
+        LOG_INFO("Removed superfluous references for " + std::to_string(unreferenced_ppns.size()) +  " PPN(s)");
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }
-    
 }
