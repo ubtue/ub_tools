@@ -24,6 +24,7 @@
 #include <kchashdb.h>
 #include <uuid/uuid.h>
 #include "DbConnection.h"
+#include "Locale.h"
 #include "MiscUtil.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
@@ -67,13 +68,24 @@ public:
 };
 
 
-Date StringToDate(const std::string &date_str, const std::string &optional_strptime_format) {
+Date StringToDate(const std::string &date_str, std::string optional_strptime_format) {
     Date date;
 
     time_t unix_time(TimeUtil::BAD_TIME_T);
     if (optional_strptime_format.empty())
         unix_time = WebUtil::ParseWebDateAndTime(date_str);
     else {
+        std::unique_ptr<Locale> locale;
+        // Optional locale specification?
+        if (optional_strptime_format[0] == '(') {
+            const size_t closing_paren_pos(optional_strptime_format.find(')', 1));
+            if (unlikely(closing_paren_pos == std::string::npos or closing_paren_pos == 1))
+                LOG_ERROR("bad local specification \"" + optional_strptime_format + "\"!");
+            const std::string locale_specification(optional_strptime_format.substr(1, closing_paren_pos - 1));
+            locale.reset(new Locale(locale_specification, LC_TIME));
+            optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
+        }
+        
         struct tm tm;
         std::vector<std::string> format_string_splits;
 
