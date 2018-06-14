@@ -183,7 +183,7 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
 {
     *hour_offset = *minute_offset = 0;
     char plus_or_minus[1 + 1];
-    
+
     // First check for a simple time and date (can be local or UTC):
     if (possible_date.length() == 19
         and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u %2u:%2u:%2u",
@@ -197,6 +197,11 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
              and std::sscanf(possible_date.c_str(), "%4u-%2u-%2uT%2u:%2u:%2u%[+-]%d:%d",
                              year, month, day, hour, minute, second, plus_or_minus, hour_offset, minute_offset) == 9)
     {
+        if (plus_or_minus[0] == '-') {
+            *hour_offset   = -*hour_offset;
+            *minute_offset = -*minute_offset;
+        }
+
         *is_definitely_zulu_time = true;
         return 9;
     }
