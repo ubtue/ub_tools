@@ -253,7 +253,7 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
     }
 
     // Now check for Zulu time format w/o an offset (must be UTC)
-    if (match_count == 6 and is_definitely_zulu_time) {
+    else if (match_count == 6 and is_definitely_zulu_time) {
         if (time_zone == LOCAL) {
             *err_msg = "local time requested in Zulu time format!";
             return false;
