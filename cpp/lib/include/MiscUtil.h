@@ -99,6 +99,9 @@ void LoadExports(const std::string &path, const bool overwrite = true);
 std::string GetUserName();
 
 
+bool IsDOI(const std::string &doi_candidate);
+
+
 bool IsPossibleISSN(std::string issn_candidate);
 
 
