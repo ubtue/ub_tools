@@ -199,7 +199,8 @@ TemplateScanner::TokenType TemplateScanner::getToken(const bool emit_output) {
         } else if (ch == '{') {
             if (input_.peek() == '{') {
                 input_.get();
-                output_.put('{');
+                if (emit_output)
+                    output_.put('{');
             } else
                 in_syntax_ = true;
         } else if (emit_output)
@@ -595,7 +596,7 @@ void ParseLoop(TemplateScanner * const scanner, std::set<std::string> * const lo
         token = scanner->getToken(/* emit_output = */false);
         if (unlikely(token != TemplateScanner::VARIABLE_NAME))
             throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
-                                     + ": variable name expected after comma, found " + TemplateScanner::TokenTypeToString(token)
+                                     + ": variable name expected after comma or LOOP, found " + TemplateScanner::TokenTypeToString(token)
                                      + " instead!");
         const std::string variable_name_candidate(scanner->getLastVariableName());
         const auto name_and_values(names_to_values_map.find(variable_name_candidate));
@@ -778,7 +779,6 @@ void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_
                                                       loop_count));
             else
                 SkipToToken(&scanner, TemplateScanner::ENDLOOP);
-
         } else if (token == TemplateScanner::ENDLOOP) {
             Scope &current_scope(scopes.back());
             if (unlikely(current_scope.getType() != Scope::LOOP))
