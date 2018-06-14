@@ -70,7 +70,7 @@ SyndicationFormatType GetFormatType(const std::string &xml_document) {
     if (rss091_regex_matcher->matched(xml_document))
         return TYPE_RSS091;
 
-    static RegexMatcher *atom_regex_matcher(RegexMatcher::RegexMatcherFactoryOrDie("<feed[^2>]+2005/Atom\"\""));
+    static RegexMatcher *atom_regex_matcher(RegexMatcher::RegexMatcherFactoryOrDie("<feed[^>]+2005/Atom\""));
     if (atom_regex_matcher->matched(xml_document))
         return TYPE_ATOM;
 
@@ -280,8 +280,11 @@ Atom::Atom(const std::string &xml_document): SyndicationFormat(xml_document) {
     while (xml_parser_->getNext(&type, &attrib_map, &data)) {
         if (unlikely(type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT))
             throw std::runtime_error("in Atom::Atom: unexpected end-of-document!");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "item")
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and (data == "item" or data == "entry")) {
+            item_tag_ = data;
             return;
+        }
+        
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "title")
             title_ = ExtractText(xml_parser_, "title", " (Atom::Atom)");
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link")
@@ -306,7 +309,7 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
     std::map<std::string, std::string> attrib_map;
     std::string data;
     while (xml_parser_->getNext(&type, &attrib_map, &data)) {
-        if (type == SimpleXmlParser<StringDataSource>::CLOSING_TAG and data == "item")
+        if (type == SimpleXmlParser<StringDataSource>::CLOSING_TAG and data == item_tag_)
             return std::unique_ptr<SyndicationFormat::Item>(new Item(title, summary, id, link, updated));
         else if (type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT)
             return nullptr;
