@@ -110,8 +110,9 @@ int main(int argc, char *argv[]) {
             map_directory_path += '/';
 
         Zotero::AugmentMaps augment_maps(map_directory_path);
-        std::vector<MARC::EditInstruction> marc_edit_instructions;
-            Zotero::AugmentParams augment_params(&augment_maps, marc_edit_instructions);
+        Zotero::GobalAugmentParams global_augment_params(&augment_maps);
+        Zotero::SiteAugmentParams augment_params;
+        augment_params.global_params_ = &global_augment_params;
         augment_params.strptime_format_ = strptime_format;
         const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
         const std::string MARC_OUTPUT_FILE(argv[4]);
@@ -133,7 +134,7 @@ int main(int argc, char *argv[]) {
         UnsignedPair total_record_count_and_previously_downloaded_record_count;
         for (const auto &server_url : server_urls)
             total_record_count_and_previously_downloaded_record_count +=
-                Zotero::HarvestSyndicationURL(mode, server_url, harvest_params, &augment_params, db_connection.get());
+                Zotero::HarvestSyndicationURL(mode, server_url, harvest_params, augment_params, db_connection.get());
 
         LOG_INFO("Extracted metadata from "
                  + std::to_string(total_record_count_and_previously_downloaded_record_count.first

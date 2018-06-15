@@ -96,8 +96,8 @@ public:
     inline const std::string &getPPN() const { return PPN_; }
     inline const std::string &getTitle() const { return title_; }
 };
-
-
+    
+    
 struct AugmentMaps {
     std::unordered_map<std::string, std::string> ISSN_to_SSG_map_;
     std::unordered_map<std::string, std::string> ISSN_to_keyword_field_map_;
@@ -112,15 +112,24 @@ public:
 };
 
 
-struct AugmentParams {
-    std::string override_ISSN_print_;
-    std::string override_ISSN_online_;
-    std::string strptime_format_;
+/** \brief Parameters that apply to all sites equally. */
+struct GobalAugmentParams {
     AugmentMaps * const maps_;
-    std::vector<MARC::EditInstruction> marc_edit_instructions_;
+public:
+    explicit GobalAugmentParams(AugmentMaps * const maps): maps_(maps) { }
+};
 
-    AugmentParams(AugmentMaps * const maps, const std::vector<MARC::EditInstruction> &marc_edit_instructions)
-        : maps_(maps), marc_edit_instructions_(marc_edit_instructions) { }
+    
+/** \brief Parameters that apply to single sites only. */
+struct SiteAugmentParams {
+    GobalAugmentParams *global_params_; // So that we don't have to pass through two arguments everywhere.
+
+    std::string parent_ISSN_print_;
+    std::string parent_ISSN_online_;
+    std::string parent_PPN_;
+    std::string strptime_format_;
+    std::vector<MARC::EditInstruction> marc_edit_instructions_;
+public:
 };
 
 
@@ -128,8 +137,7 @@ struct AugmentParams {
  *  \param  object_node     The JSON ObjectNode with Zotero JSON structure of a single dataset
  *  \param  harvest_maps    The map files to apply.
  */
-void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node,
-                 AugmentParams * const augment_params);
+void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node, const SiteAugmentParams &site_augment_params);
 
 
 // forward declaration
@@ -201,7 +209,7 @@ protected:
     DownloadTracker download_tracker_;
     std::string output_format_;
     std::string output_file_;
-    AugmentParams *augment_params_;
+    SiteAugmentParams *augment_params_;
     const std::shared_ptr<const HarvestParams> &harvest_params_;
 protected:
     FormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format, const std::string &output_file,
@@ -212,7 +220,7 @@ protected:
 public:
     virtual ~FormatHandler() = default;
 
-    inline void setAugmentParams(AugmentParams * const new_augment_params) { augment_params_ = new_augment_params; }
+    inline void setAugmentParams(SiteAugmentParams * const new_augment_params) { augment_params_ = new_augment_params; }
     inline DownloadTracker &getDownloadTracker() { return download_tracker_; }
 
     /** \brief Convert & write single record to output file */
@@ -304,8 +312,8 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
  *          difference (first - second).
  */
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
-                                      AugmentParams * const augment_params,
-                                      const std::string &harvested_html = "", const bool log = true);
+                                      const SiteAugmentParams &augment_params, const std::string &harvested_html = "",
+                                      const bool log = true);
 
 
 /** \brief Harvest metadate from a single site.
@@ -313,17 +321,16 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
  *          difference (first - second).
  */
 UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
-                         const std::shared_ptr<RegexMatcher> &supported_urls_regex,
-                         const std::shared_ptr<HarvestParams> &harvest_params,
-                         AugmentParams * const augment_params,
-                         File * const progress_file = nullptr);
+                         const std::shared_ptr<RegexMatcher> &supported_urls_regex, const std::shared_ptr<HarvestParams> &harvest_params,
+                         const SiteAugmentParams &augment_params, File * const progress_file = nullptr);
 
 
 /** \brief Harvest metadate from a single Web page.
  *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
  *          difference (first - second).
  */
-UnsignedPair HarvestURL(const std::string &url, const std::shared_ptr<HarvestParams> &harvest_params, AugmentParams * const augment_params);
+UnsignedPair HarvestURL(const std::string &url, const std::shared_ptr<HarvestParams> &harvest_params,
+                        const SiteAugmentParams &augment_params);
 
 
 enum class RSSHarvestMode { VERBOSE, TEST, NORMAL };
@@ -338,7 +345,7 @@ enum class RSSHarvestMode { VERBOSE, TEST, NORMAL };
  */
 UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string &feed_url,
                                    const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                                   Zotero::AugmentParams * const augment_params, DbConnection * const db_connection);
+                                   const SiteAugmentParams &augment_params, DbConnection * const db_connection);
 
 
 } // namespace Zotero
