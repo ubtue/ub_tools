@@ -124,6 +124,7 @@ protected:
 
 
 class Atom final : public SyndicationFormat {
+    std::string item_tag_; // Either "item" or "entry".
 public:
     explicit Atom(const std::string &xml_document);
     virtual ~Atom() final { }

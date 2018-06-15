@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include "Compiler.h"
 #include "FileUtil.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -247,6 +248,12 @@ std::string GetUserName() {
     if (unlikely(::getlogin_r(username, sizeof username) != 0))
         return "*unknown user* [" + std::string(::strerror(errno)) + "]";
     return username;
+}
+
+
+bool IsDOI(const std::string &doi_candidate) {
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\"&\\'<>])\\S)+)$"));
+    return matcher->matched(doi_candidate);
 }
 
 

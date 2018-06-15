@@ -24,6 +24,7 @@
 #include <kchashdb.h>
 #include <uuid/uuid.h>
 #include "DbConnection.h"
+#include "Locale.h"
 #include "MiscUtil.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
@@ -67,13 +68,24 @@ public:
 };
 
 
-Date StringToDate(const std::string &date_str, const std::string &optional_strptime_format) {
+Date StringToDate(const std::string &date_str, std::string optional_strptime_format) {
     Date date;
 
     time_t unix_time(TimeUtil::BAD_TIME_T);
     if (optional_strptime_format.empty())
         unix_time = WebUtil::ParseWebDateAndTime(date_str);
     else {
+        std::unique_ptr<Locale> locale;
+        // Optional locale specification?
+        if (optional_strptime_format[0] == '(') {
+            const size_t closing_paren_pos(optional_strptime_format.find(')', 1));
+            if (unlikely(closing_paren_pos == std::string::npos or closing_paren_pos == 1))
+                LOG_ERROR("bad local specification \"" + optional_strptime_format + "\"!");
+            const std::string locale_specification(optional_strptime_format.substr(1, closing_paren_pos - 1));
+            locale.reset(new Locale(locale_specification, LC_TIME));
+            optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
+        }
+        
         struct tm tm;
         std::vector<std::string> format_string_splits;
 
@@ -203,27 +215,24 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 
 
 std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &previous_downloads_db_path, const std::string &output_format,
-                                                      const std::string &output_file, AugmentParams * const augment_params,
+                                                      const std::string &output_file,
                                                       const std::shared_ptr<const HarvestParams> &harvest_params)
 {
     if (output_format == "marcxml" or output_format == "marc21")
-        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(previous_downloads_db_path, output_file, augment_params,
-                                                                    harvest_params));
+        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(previous_downloads_db_path, output_file, harvest_params));
     else if (output_format == "json")
-        return std::unique_ptr<FormatHandler>(new JsonFormatHandler(previous_downloads_db_path, output_format, output_file, augment_params,
-                                                                    harvest_params));
+        return std::unique_ptr<FormatHandler>(new JsonFormatHandler(previous_downloads_db_path, output_format, output_file, harvest_params));
     else if (std::find(EXPORT_FORMATS.begin(), EXPORT_FORMATS.end(), output_format) != EXPORT_FORMATS.end())
         return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(previous_downloads_db_path, output_format, output_file,
-                                                                      augment_params, harvest_params));
+                                                                      harvest_params));
     else
         LOG_ERROR("invalid output-format: " + output_format);
 }
 
 
 JsonFormatHandler::JsonFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format,
-                                     const std::string &output_file, AugmentParams * const augment_params,
-                                     const std::shared_ptr<const HarvestParams> &harvest_params)
-    : FormatHandler(previous_downloads_db_path, output_format, output_file, augment_params, harvest_params), record_count_(0),
+                                     const std::string &output_file, const std::shared_ptr<const HarvestParams> &harvest_params)
+    : FormatHandler(previous_downloads_db_path, output_format, output_file, harvest_params), record_count_(0),
       output_file_object_(new File(output_file_, "w"))
 {
     output_file_object_->write("[");
@@ -246,9 +255,8 @@ std::pair<unsigned, unsigned> JsonFormatHandler::processRecord(const std::shared
 
 
 ZoteroFormatHandler::ZoteroFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format,
-                                         const std::string &output_file, AugmentParams * const augment_params,
-                                         const std::shared_ptr<const HarvestParams> &harvest_params)
-    : FormatHandler(previous_downloads_db_path, output_format, output_file, augment_params, harvest_params), record_count_(0),
+                                         const std::string &output_file, const std::shared_ptr<const HarvestParams> &harvest_params)
+    : FormatHandler(previous_downloads_db_path, output_format, output_file, harvest_params), record_count_(0),
       json_buffer_("[")
 {
 }
@@ -290,8 +298,8 @@ std::string GuessOutputFormat(const std::string &output_file) {
 
 
 MarcFormatHandler::MarcFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_file,
-                                     AugmentParams * const augment_params, const std::shared_ptr<const HarvestParams> &harvest_params)
-    : FormatHandler(previous_downloads_db_path, GuessOutputFormat(output_file), output_file, augment_params, harvest_params),
+                                     const std::shared_ptr<const HarvestParams> &harvest_params)
+    : FormatHandler(previous_downloads_db_path, GuessOutputFormat(output_file), output_file, harvest_params),
       marc_writer_(MARC::Writer::Factory(output_file_))
 {
 }
@@ -363,9 +371,7 @@ void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &o
 }
 
 
-void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node,
-                                            MARC::Record * const marc_record)
-{
+void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record) {
     const std::shared_ptr<const JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", creators_node));
     for (auto creator_node : *creators_array) {
         const std::shared_ptr<const JSON::ObjectNode> creator_object(JSON::JSONNode::CastToObjectNodeOrDie("creator",
@@ -426,8 +432,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
         "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|websiteType|ISSN|ubtue$"));
     unsigned record_count(0), previously_downloaded_count(0);
-    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
-                            MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
+    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                             GetNextControlNumber());
     bool is_journal_article(false);
     std::string publication_title, issn_normalized, url;
@@ -456,8 +461,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         else if (key_and_node.first == "creators")
             CreateCreatorFields(key_and_node.second, &new_record);
         else if (key_and_node.first == "itemType") {
-            const std::string item_type(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
-                                                                              key_and_node.second)->getValue());
+            const std::string item_type(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             if (item_type == "journalArticle") {
                 is_journal_article = true;
                 publication_title = object_node->getOptionalStringValue("publicationTitle");
@@ -569,12 +573,16 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     if (not new_record.hasTag("041"))
         new_record.insertField("041", { { 'a', DEFAULT_SUBFIELD_CODE } });
 
+    std::string error_message;
+    if (not new_record.edit(augment_params_->marc_edit_instructions_, &error_message))
+        LOG_ERROR("editing the new MARC record failed: " + error_message);
+
     // previously downloaded?
     const std::string checksum(MARC::CalcChecksum(new_record, /* exclude_001 = */ true));
     if (unlikely(url.empty()))
         LOG_ERROR("\"url\" has not been set!");
     time_t creation_time;
-    std::string error_message;
+
     if (not download_tracker_.hasAlreadyBeenDownloaded(url, &creation_time, &error_message, checksum)
         or not error_message.empty())
     {

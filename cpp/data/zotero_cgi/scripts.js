@@ -63,6 +63,19 @@ function OnChangeCrawlingJournal() {
     $("#crawling_submit").prop("disabled", journal_title == "");
 }
 
+function RenderDataTable() {
+    $('#all_journals').DataTable({
+        "order": [[0, "asc"], [1, "asc"]],
+        "iDisplayLength": 25
+    });
+
+    $('.issn_generate_link').each(function(index){
+        var issn = $(this).text();
+        if (issn != "")
+            $(this).html(GenerateISSNSearchLink(issn));
+    });
+}
+
 function TryRss(rss_journal_title) {
     $('#home-rss').tab('show');
     $('#rss_journal_title').val(rss_journal_title).change();
@@ -77,16 +90,3 @@ function TryCrawling(crawling_journal_title) {
     $('#home-crawling').tab('show');
     $('#crawling_journal_title').val(crawling_journal_title).change();
 }
-
-$(document).ready(function() {
-    $('#all_journals').DataTable({
-        "order": [[0, "asc"]],
-        "iDisplayLength": 25
-    });
-
-    $('.issn_generate_link').each(function(index){
-        var issn = $(this).text();
-        if (issn != "")
-            $(this).html(GenerateISSNSearchLink(issn));
-    });
-});

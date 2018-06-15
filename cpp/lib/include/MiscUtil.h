@@ -99,6 +99,12 @@ void LoadExports(const std::string &path, const bool overwrite = true);
 std::string GetUserName();
 
 
+/** \brief Check if the string is a DOI, i.e. a Digital Object Identifier, e.g. 10.1109/5.771073
+ *  \see   https://en.wikipedia.org/wiki/Digital_Object_Identifier
+ */
+bool IsDOI(const std::string &doi_candidate);
+
+
 bool IsPossibleISSN(std::string issn_candidate);
 
 
