@@ -85,7 +85,7 @@ Date StringToDate(const std::string &date_str, std::string optional_strptime_for
             locale.reset(new Locale(locale_specification, LC_TIME));
             optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
         }
-        
+
         struct tm tm;
         std::vector<std::string> format_string_splits;
 
@@ -376,6 +376,11 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
     for (auto creator_node : *creators_array) {
         const std::shared_ptr<const JSON::ObjectNode> creator_object(JSON::JSONNode::CastToObjectNodeOrDie("creator",
                                                                                                            creator_node));
+        std::string tag("100");
+        if (creator_node != *(creators_array->begin()))
+            tag = "700";
+
+        MARC::Subfields subfields;
 
         const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
         if (last_name_node == nullptr)
@@ -383,21 +388,19 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
         const std::shared_ptr<const JSON::StringNode> last_name(JSON::JSONNode::CastToStringNodeOrDie("lastName",
                                                                                                       last_name_node));
         std::string name(last_name->getValue());
-
         const std::shared_ptr<const JSON::JSONNode> first_name_node(creator_object->getNode("firstName"));
         if (first_name_node != nullptr) {
             const std::shared_ptr<const JSON::StringNode> first_name(JSON::JSONNode::CastToStringNodeOrDie("firstName",
                                                                                                            first_name_node));
             name += ", " + first_name->getValue();
         }
+        subfields.addSubfield('a', name);
 
-        std::string PPN;
         const std::shared_ptr<const JSON::JSONNode> ppn_node(creator_object->getNode("ppn"));
         if (ppn_node != nullptr) {
             const std::shared_ptr<const JSON::StringNode> ppn_string_node(JSON::JSONNode::CastToStringNodeOrDie("ppn",
                                                                                                                 ppn_node));
-            PPN = ppn_string_node->getValue();
-            name = "!" + PPN + "!";
+            subfields.addSubfield('0', "(DE-576)" + ppn_string_node->getValue());
         }
 
         const std::shared_ptr<const JSON::JSONNode> creator_type(creator_object->getNode("creatorType"));
@@ -405,20 +408,10 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
         if (creator_type != nullptr) {
             const std::shared_ptr<const JSON::StringNode> creator_role_node(JSON::JSONNode::CastToStringNodeOrDie("creatorType",
                                                                                                                   creator_type));
-            creator_role = creator_role_node->getValue();
+            subfields.addSubfield('e', creator_role_node->getValue());
         }
 
-        if (creator_node == *(creators_array->begin())) {
-            if (creator_role.empty())
-                marc_record->insertField("100", { { 'a', name } });
-            else
-                marc_record->insertField("100", { { 'a', name }, { 'e', creator_role } });
-        } else { // Not the first creator!
-            if (creator_role.empty())
-                marc_record->insertField("700", { { 'a', name } });
-            else
-                marc_record->insertField("700", { { 'a', name }, { 'e', creator_role } });
-        }
+        marc_record->appendField(tag, subfields);
     }
 }
 
