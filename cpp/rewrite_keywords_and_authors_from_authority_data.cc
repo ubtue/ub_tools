@@ -160,7 +160,8 @@ void AugmentKeywords(MARC::Record * const record, MARC::Reader * const authority
 
 
 void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * const authority_reader, MARC::Writer * const marc_writer,
-                               const std::map<std::string, off_t>& authority_offsets) {
+                               const std::map<std::string, off_t>& authority_offsets)
+{
     std::string err_msg;
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\x1F""0\\(DE-576\\)([^\x1F]+).*\x1F?", &err_msg));
 
@@ -172,7 +173,8 @@ void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * 
        bool modified_record(false);
        AugmentAuthors(&record, authority_reader, authority_offsets, matcher, &modified_record);
        AugmentKeywords(&record, authority_reader, authority_offsets, matcher, &modified_record);
-       modified_count = modified_record ? ++modified_count : modified_count;
+       if (modified_record)
+           ++modified_count;
        marc_writer->write(record);
     }
 }
