@@ -1,6 +1,6 @@
 /** \file    add_subsystem_tags.cc
  *  \brief   Add additional tags for interfaces to identitify subset views of
-             IxTheo like RelBib and Bibstudies             
+             IxTheo like RelBib and Bibstudies
  *  \author  Johannes Riedl
  */
 
@@ -103,7 +103,7 @@ bool MatchesRelBibDDC(const MARC::Record &record) {
 
 bool IsDefinitelyRelBib(const MARC::Record &record) {
    return HasRelBibSSGN(record) or HasRelBibIxTheoNotation(record) or MatchesRelBibDDC(record);
-} 
+}
 
 
 bool IsProbablyRelBib(const MARC::Record &record) {
@@ -123,7 +123,7 @@ std::set<std::string> GetTemporarySuperiorRelBibList() {
     File superior_temporary(relbib_superior_temporary_file, "r");
     std::string line;
     while (superior_temporary.getline(&line) and not superior_temporary.eof())
-        superior_temporary_list.emplace(line); 
+        superior_temporary_list.emplace(line);
     return superior_temporary_list;
 }
 
@@ -155,7 +155,7 @@ bool ExcludeBecauseOfRWEX(const MARC::Record &record) {
 bool IsRelBibRecord(const MARC::Record &record) {
     return ((IsDefinitelyRelBib(record) or
              IsProbablyRelBib(record) or
-             IsTemporaryRelBibSuperior(record)) 
+             IsTemporaryRelBibSuperior(record))
              and not ExcludeBecauseOfRWEX(record));
 }
 
@@ -201,11 +201,13 @@ void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const mar
             modified_record = true;
         }
         marc_writer->write(record);
-        modified_count =  modified_record ? ++modified_count : modified_count;
+        if (modified_record)
+            ++modified_count;
     }
 
     std::cerr << "Modified " << modified_count << " of " << record_count << " records\n";
 }
+
 
 } //unnamed namespace
 
@@ -239,6 +241,4 @@ int main(int argc, char **argv) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }
     std::cerr << "Modified " << modified_count << " of " << record_count << " records\n";
-
-    return 0;
 }
