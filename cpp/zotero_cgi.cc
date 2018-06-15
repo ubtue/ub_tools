@@ -97,6 +97,8 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> all_journal_print_issns;
     std::vector<std::string> all_journal_online_issns;
     std::vector<std::string> all_journal_methods;
+    std::vector<std::string> all_journal_groups;
+    std::vector<std::string> all_journal_live;
     std::vector<std::string> all_urls;
 
     std::vector<std::string> rss_journal_titles;
@@ -131,11 +133,19 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             const std::string harvest_type_raw(section.getString("type"));
             const std::string issn_print(section.getString("issn_print", ""));
             const std::string issn_online(section.getString("issn_online", ""));
+            const std::string groups(section.getString("groups", ""));
+            const bool live(section.getBool("live", false));
 
             all_journal_titles.emplace_back(title);
             all_journal_print_issns.emplace_back(issn_print);
             all_journal_online_issns.emplace_back(issn_online);
+            all_journal_groups.emplace_back(groups);
             all_journal_methods.emplace_back(harvest_type_raw);
+
+            if (live)
+                all_journal_live.emplace_back("true");
+            else
+                all_journal_live.emplace_back("false");
 
             if (harvest_type == RSS) {
                 all_urls.emplace_back(section.getString("feed"));
@@ -177,6 +187,8 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("all_journal_print_issns", all_journal_print_issns);
     names_to_values_map->insertArray("all_journal_online_issns", all_journal_online_issns);
     names_to_values_map->insertArray("all_journal_methods", all_journal_methods);
+    names_to_values_map->insertArray("all_journal_groups", all_journal_groups);
+    names_to_values_map->insertArray("all_journal_live", all_journal_live);
     names_to_values_map->insertArray("all_urls", all_urls);
 
     names_to_values_map->insertArray("rss_journal_titles", rss_journal_titles);

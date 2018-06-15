@@ -521,6 +521,41 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
 }
 
 
+bool Record::edit(const std::vector<EditInstruction> &edit_instructions, std::string * const error_message) {
+    bool failed_at_least_once(false);
+    for (const auto &edit_instruction : edit_instructions) {
+        switch (edit_instruction.type_) {
+        case INSERT_FIELD:
+            if (not insertField(edit_instruction.tag_, std::string(1, edit_instruction.indicator1_)
+                                + std::string(1, edit_instruction.indicator2_) + edit_instruction.field_or_subfield_contents_))
+            {
+                *error_message = "failed to insert a " + edit_instruction.tag_.toString() + " field!";
+                failed_at_least_once = true;
+            }
+            break;
+        case INSERT_SUBFIELD:
+            if (not insertField(edit_instruction.tag_, { { edit_instruction.subfield_code_, edit_instruction.field_or_subfield_contents_ } },
+                                edit_instruction.indicator1_, edit_instruction.indicator2_))
+            {
+                *error_message = "failed to insert a " + edit_instruction.tag_.toString() + std::string(1, edit_instruction.subfield_code_)
+                                 + " subfield!";
+                failed_at_least_once = true;
+            }
+            break;
+        case ADD_SUBFIELD:
+            if (not addSubfield(edit_instruction.tag_, edit_instruction.subfield_code_, edit_instruction.field_or_subfield_contents_)) {
+                *error_message = "failed to add a " + edit_instruction.tag_.toString() + std::string(1, edit_instruction.subfield_code_)
+                                 + " subfield!";
+                failed_at_least_once = true;
+            }
+            break;
+        }
+    }
+
+    return not failed_at_least_once;
+}
+
+
 std::unordered_set<std::string> Record::getTagSet() const {
     std::unordered_set<std::string> tags;
     for (const auto &field : fields_)
@@ -965,6 +1000,12 @@ void XmlReader::parseDatafield(const std::string &input_filename,
                                      + "\": " + xml_parser_->getLastErrorMessage());
 
         if (type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "datafield") {
+            // If the field contents consists of the indicators only, we drop it.
+            if (unlikely(field_data.length() == 1 /*indicator1*/ + 1/*indicator2*/)) {
+                LOG_WARNING("dropped empty \"" + tag + "\" field!");
+                return;
+            }
+
             record->fields_.emplace_back(tag, field_data);
             record->record_size_ += Record::DIRECTORY_ENTRY_LENGTH + field_data.length() + 1 /* end-of-field */;
             return;

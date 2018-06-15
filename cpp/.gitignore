@@ -109,8 +109,8 @@
 /replace_marc_records
 /rewrite_keywords_and_authors_from_authority_data
 /rss_aggregator
-/rss_feed_generator
 /rss_harvester
+/rss_feed_generator
 /send_email
 /set_tad_access_flag
 /simple_crawler
@@ -130,7 +130,6 @@
 /urlencode
 /zotero_cgi
 /ztracker_tool
-/zts_client
 /zts_harvester
 
 # other excludes
