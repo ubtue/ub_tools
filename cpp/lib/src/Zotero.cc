@@ -376,11 +376,10 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
     for (auto creator_node : *creators_array) {
         const std::shared_ptr<const JSON::ObjectNode> creator_object(JSON::JSONNode::CastToObjectNodeOrDie("creator",
                                                                                                            creator_node));
+        MARC::Subfields subfields;
         std::string tag("100");
         if (creator_node != *(creators_array->begin()))
             tag = "700";
-
-        MARC::Subfields subfields;
 
         const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
         if (last_name_node == nullptr)
