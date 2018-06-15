@@ -81,11 +81,7 @@ void SimpleCrawler::ParseConfigFile(const std::string &config_path, std::vector<
             LOG_ERROR("bad input line #" + std::to_string(line_no) + " in \""
                    + input->getPath() + "\", regex is faulty! (" + err_msg + ")");
 
-        std::string strptime_format;
-        if (no_of_parts == 4)
-            strptime_format = line_parts[3];
-
-        site_descs->emplace_back(line_parts[0], max_crawl_depth, strptime_format, url_regex_matcher);
+        site_descs->emplace_back(line_parts[0], max_crawl_depth, url_regex_matcher);
     }
 }
 
