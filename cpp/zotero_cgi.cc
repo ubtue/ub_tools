@@ -96,6 +96,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> all_journal_titles;
     std::vector<std::string> all_journal_print_issns;
     std::vector<std::string> all_journal_online_issns;
+    std::vector<std::string> all_journal_parent_ppns;
     std::vector<std::string> all_journal_methods;
     std::vector<std::string> all_journal_groups;
     std::vector<std::string> all_journal_live;
@@ -104,18 +105,21 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> rss_journal_titles;
     std::vector<std::string> rss_journal_print_issns;
     std::vector<std::string> rss_journal_online_issns;
+    std::vector<std::string> rss_journal_parent_ppns;
     std::vector<std::string> rss_feed_urls;
     std::vector<std::string> rss_strptime_formats;
 
     std::vector<std::string> direct_journal_titles;
     std::vector<std::string> direct_journal_print_issns;
     std::vector<std::string> direct_journal_online_issns;
+    std::vector<std::string> direct_journal_parent_ppns;
     std::vector<std::string> direct_urls;
     std::vector<std::string> direct_strptime_formats;
 
     std::vector<std::string> crawling_journal_titles;
     std::vector<std::string> crawling_journal_print_issns;
     std::vector<std::string> crawling_journal_online_issns;
+    std::vector<std::string> crawling_journal_parent_ppns;
     std::vector<std::string> crawling_base_urls;
     std::vector<std::string> crawling_extraction_regexes;
     std::vector<std::string> crawling_depths;
@@ -133,12 +137,14 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             const std::string harvest_type_raw(section.getString("type"));
             const std::string issn_print(section.getString("issn_print", ""));
             const std::string issn_online(section.getString("issn_online", ""));
+            const std::string parent_ppn(section.getString("parent_ppn", ""));
             const std::string groups(section.getString("groups", ""));
             const bool live(section.getBool("live", false));
 
             all_journal_titles.emplace_back(title);
             all_journal_print_issns.emplace_back(issn_print);
             all_journal_online_issns.emplace_back(issn_online);
+            all_journal_parent_ppns.emplace_back(parent_ppn);
             all_journal_groups.emplace_back(groups);
             all_journal_methods.emplace_back(harvest_type_raw);
 
@@ -153,6 +159,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
                 rss_journal_titles.emplace_back(title);
                 rss_journal_print_issns.emplace_back(issn_print);
                 rss_journal_online_issns.emplace_back(issn_online);
+                rss_journal_parent_ppns.emplace_back(parent_ppn);
                 rss_feed_urls.emplace_back(section.getString("feed"));
                 rss_strptime_formats.emplace_back(section.getString("strptime_format", ""));
             } else if (harvest_type == DIRECT) {
@@ -161,6 +168,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
                 direct_journal_titles.emplace_back(title);
                 direct_journal_print_issns.emplace_back(issn_print);
                 direct_journal_online_issns.emplace_back(issn_online);
+                direct_journal_parent_ppns.emplace_back(parent_ppn);
                 direct_urls.emplace_back(section.getString("url"));
                 direct_strptime_formats.emplace_back(section.getString("strptime_format", ""));
             } else if (harvest_type == CRAWLING) {
@@ -169,6 +177,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
                 crawling_journal_titles.emplace_back(title);
                 crawling_journal_print_issns.emplace_back(issn_print);
                 crawling_journal_online_issns.emplace_back(issn_online);
+                crawling_journal_parent_ppns.emplace_back(parent_ppn);
                 crawling_base_urls.emplace_back(section.getString("base_url"));
                 crawling_extraction_regexes.emplace_back(section.getString("extraction_regex"));
                 crawling_depths.emplace_back(section.getString("max_crawl_depth"));
@@ -186,6 +195,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("all_journal_titles", all_journal_titles);
     names_to_values_map->insertArray("all_journal_print_issns", all_journal_print_issns);
     names_to_values_map->insertArray("all_journal_online_issns", all_journal_online_issns);
+    names_to_values_map->insertArray("all_journal_parent_ppns", all_journal_parent_ppns);
     names_to_values_map->insertArray("all_journal_methods", all_journal_methods);
     names_to_values_map->insertArray("all_journal_groups", all_journal_groups);
     names_to_values_map->insertArray("all_journal_live", all_journal_live);
@@ -194,18 +204,21 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("rss_journal_titles", rss_journal_titles);
     names_to_values_map->insertArray("rss_journal_print_issns", rss_journal_print_issns);
     names_to_values_map->insertArray("rss_journal_online_issns", rss_journal_online_issns);
+    names_to_values_map->insertArray("rss_journal_parent_ppns", rss_journal_parent_ppns);
     names_to_values_map->insertArray("rss_feed_urls", rss_feed_urls);
     names_to_values_map->insertArray("rss_strptime_formats", rss_strptime_formats);
 
     names_to_values_map->insertArray("direct_journal_titles", direct_journal_titles);
     names_to_values_map->insertArray("direct_journal_print_issns", direct_journal_print_issns);
     names_to_values_map->insertArray("direct_journal_online_issns", direct_journal_online_issns);
+    names_to_values_map->insertArray("direct_journal_parent_ppns", direct_journal_parent_ppns);
     names_to_values_map->insertArray("direct_urls", direct_urls);
     names_to_values_map->insertArray("direct_strptime_formats", direct_strptime_formats);
 
     names_to_values_map->insertArray("crawling_journal_titles", crawling_journal_titles);
     names_to_values_map->insertArray("crawling_journal_print_issns", crawling_journal_print_issns);
     names_to_values_map->insertArray("crawling_journal_online_issns", crawling_journal_online_issns);
+    names_to_values_map->insertArray("crawling_journal_parent_ppns", crawling_journal_parent_ppns);
     names_to_values_map->insertArray("crawling_base_urls", crawling_base_urls);
     names_to_values_map->insertArray("crawling_extraction_regexes", crawling_extraction_regexes);
     names_to_values_map->insertArray("crawling_depths", crawling_depths);

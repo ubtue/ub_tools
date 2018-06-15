@@ -19,10 +19,11 @@
         {scripts_js}
 
         var rss_options_map = {{
-            {LOOP rss_journal_titles, rss_journal_print_issns, rss_journal_online_issns, rss_feed_urls, rss_strptime_formats}
+            {LOOP rss_journal_titles, rss_journal_print_issns, rss_journal_online_issns, rss_journal_parent_ppns, rss_feed_urls, rss_strptime_formats}
                 "{rss_journal_titles}": {{
                     "issn_print": "{rss_journal_print_issns}",
                     "issn_online": "{rss_journal_online_issns}",
+                    "parent_ppn": "{rss_journal_parent_ppns}",
                     "feed_url": "{rss_feed_urls}",
                     "strptime_format": "{rss_strptime_formats}",
                 },
@@ -30,10 +31,11 @@
         };
 
         var direct_options_map = {{
-            {LOOP direct_journal_titles, direct_journal_print_issns, direct_journal_online_issns, direct_urls, direct_strptime_formats}
+            {LOOP direct_journal_titles, direct_journal_print_issns, direct_journal_online_issns, direct_journal_parent_ppns, direct_urls, direct_strptime_formats}
                 "{direct_journal_titles}": {{
                     "issn_print": "{direct_journal_print_issns}",
                     "issn_online": "{direct_journal_online_issns}",
+                    "parent_ppn": "{direct_journal_parent_ppns}",
                     "base_url": "{direct_urls}",
                     "strptime_format": "{direct_strptime_formats}",
                 },
@@ -41,10 +43,11 @@
         };
 
         var crawling_options_map = {{
-            {LOOP crawling_journal_titles, crawling_journal_print_issns, crawling_journal_online_issns, crawling_base_urls, crawling_extraction_regexes, crawling_depths, crawling_strptime_formats}
+            {LOOP crawling_journal_titles, crawling_journal_print_issns, crawling_journal_online_issns, crawling_journal_parent_ppns, crawling_base_urls, crawling_extraction_regexes, crawling_depths, crawling_strptime_formats}
                 "{crawling_journal_titles}": {{
                     "issn_print": "{crawling_journal_print_issns}",
                     "issn_online": "{crawling_journal_online_issns}",
+                    "parent_ppn": "{crawling_journal_parent_ppns}",
                     "base_url": "{crawling_base_urls}",
                     "regex": "{crawling_extraction_regexes}",
                     "depth": "{crawling_depths}",
@@ -80,18 +83,20 @@
                     <th>title</th>
                     <th>issn override (print)</th>
                     <th>issn override (online)</th>
+                    <th>parent ppn override</th>
                     <th>method</th>
                     <th>live</th>
                     <th>actions</th>
                 </tr>
             </thead>
             <tbody>
-                {LOOP all_journal_titles, all_journal_groups, all_journal_print_issns, all_journal_online_issns, all_journal_methods, all_journal_live, all_urls}
+                {LOOP all_journal_titles, all_journal_groups, all_journal_print_issns, all_journal_online_issns, all_journal_parent_ppns, all_journal_methods, all_journal_live, all_urls}
                     <tr>
                         <td>{all_journal_groups}</td>
                         <td><a target="_blank" href="{all_urls}">{all_journal_titles}</a></td>
                         <td class="issn_generate_link">{all_journal_print_issns}</td>
                         <td class="issn_generate_link">{all_journal_online_issns}</td>
+                        <td>{all_journal_parent_ppns}</td>
                         <td>{all_journal_methods}</td>
                         <td>{all_journal_live}</td>
                         <td>
@@ -124,6 +129,10 @@
                 <tr>
                     <td>ISSN override (online)</td>
                     <td id="rss_journal_online_issn"></td>
+                </tr>
+                <tr>
+                    <td>Parent PPN override</td>
+                    <td id="rss_journal_parent_ppn"></td>
                 </tr>
                 <tr>
                     <td>RSS Feed Url</td>
@@ -167,6 +176,10 @@
                     <td id="direct_journal_online_issn"></td>
                 </tr>
                 <tr>
+                    <td>Parent PPN override</td>
+                    <td id="direct_journal_parent_ppn"></td>
+                </tr>
+                <tr>
                     <td>Url</td>
                     <td id="direct_url"></td>
                 </tr>
@@ -206,6 +219,10 @@
                 <tr>
                     <td>ISSN override (online)</td>
                     <td id="crawling_journal_online_issn"></td>
+                </tr>
+                <tr>
+                    <td>Parent PPN override</td>
+                    <td id="crawling_journal_parent_ppn"></td>
                 </tr>
                 <tr>
                     <td>Base Url</td>
