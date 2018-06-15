@@ -79,18 +79,17 @@ void LoadMARCEditInstructions(const IniFile::Section &section, std::vector<MARC:
 }
 
 
-void ReadAugmentParamsFromIni(const IniFile::Section &section, Zotero::AugmentParams * const augment_params) {
-    augment_params->override_ISSN_print_ = section.getString("issn_print", "");
-    augment_params->override_ISSN_online_ = section.getString("issn_online", "");
+void ReadGenericSiteAugmentParams(const IniFile::Section &section, Zotero::SiteAugmentParams * const augment_params) {
+    augment_params->parent_ISSN_print_ = section.getString("parent_issn_print", "");
+    augment_params->parent_ISSN_online_ = section.getString("parent_issn_online", "");
     augment_params->strptime_format_ = section.getString("strptime_format", "");
+    augment_params->parent_PPN_ = section.getString("parent_PPN", "");
 }
 
 
 UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                            Zotero::AugmentParams * const augment_params, DbConnection * const db_connection, const bool &test)
+                            const Zotero::SiteAugmentParams &augment_params, DbConnection * const db_connection, const bool &test)
 {
-    ReadAugmentParamsFromIni(section, augment_params);
-
     const std::string feed_url(section.getString("feed"));
     LOG_DEBUG("feed_url: " + feed_url);
     Zotero::RSSHarvestMode rss_harvest_mode(Zotero::RSSHarvestMode::NORMAL);
@@ -100,30 +99,26 @@ UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const std::shared_p
 }
 
 
-void InitSiteDescFromIniFileSection(const IniFile::Section &section, SimpleCrawler::SiteDesc * const site_desc) {
+void ReadCrawlerSiteDesc(const IniFile::Section &section, SimpleCrawler::SiteDesc * const site_desc) {
     site_desc->start_url_ = section.getString("base_url");
     site_desc->max_crawl_depth_ = section.getUnsigned("max_crawl_depth");
     site_desc->url_regex_matcher_.reset(RegexMatcher::RegexMatcherFactoryOrDie(section.getString("extraction_regex")));
-    site_desc->strptime_format_ = section.getString("strptime_format", "");
 }
 
 
 UnsignedPair ProcessCrawl(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                          Zotero::AugmentParams * const augment_params, const SimpleCrawler::Params &crawler_params,
+                          const Zotero::SiteAugmentParams &augment_params, const SimpleCrawler::Params &crawler_params,
                           const std::shared_ptr<RegexMatcher> &supported_urls_regex)
 {
-    ReadAugmentParamsFromIni(section, augment_params);
-
     SimpleCrawler::SiteDesc site_desc;
-    InitSiteDescFromIniFileSection(section, &site_desc);
+    ReadCrawlerSiteDesc(section, &site_desc);
     return Zotero::HarvestSite(site_desc, crawler_params, supported_urls_regex, harvest_params, augment_params);
 }
 
 
 UnsignedPair ProcessDirectHarvest(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                                  Zotero::AugmentParams * const augment_params)
+                                  const Zotero::SiteAugmentParams &augment_params)
 {
-    ReadAugmentParamsFromIni(section, augment_params);
     return Zotero::HarvestURL(section.getString("url"), harvest_params, augment_params);
 }
 
@@ -252,12 +247,18 @@ int Main(int argc, char *argv[]) {
             if (common_groups.empty())
                 continue;
         }
-        
+
         std::vector<MARC::EditInstruction> edit_instructions;
         LoadMARCEditInstructions(section.second, &edit_instructions);
 
-        Zotero::AugmentParams augment_params(&augment_maps, edit_instructions);
-        harvest_params->format_handler_->setAugmentParams(&augment_params);
+        Zotero::GobalAugmentParams global_augment_params(&augment_maps);
+
+        Zotero::SiteAugmentParams site_augment_params;
+        site_augment_params.global_params_ = &global_augment_params;
+        site_augment_params.marc_edit_instructions_ = edit_instructions;
+        ReadGenericSiteAugmentParams(section.second, &site_augment_params);
+
+        harvest_params->format_handler_->setAugmentParams(&site_augment_params);
 
         if (not section_name_to_found_flag_map.empty()) {
             const auto section_name_and_found_flag(section_name_to_found_flag_map.find(section.first));
@@ -268,16 +269,17 @@ int Main(int argc, char *argv[]) {
         ++processed_section_count;
 
         LOG_INFO("Processing section \"" + section.first + "\".");
+
         const Type type(static_cast<Type>(section.second.getEnum("type", string_to_value_map)));
         if (type == RSS)
-            total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section.second, harvest_params, &augment_params,
+            total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section.second, harvest_params, site_augment_params,
                                                                                         db_connection.get(), test);
         else if (type == CRAWL)
             total_record_count_and_previously_downloaded_record_count +=
-                ProcessCrawl(section.second, harvest_params, &augment_params, crawler_params, supported_urls_regex);
+                ProcessCrawl(section.second, harvest_params, site_augment_params, crawler_params, supported_urls_regex);
         else
             total_record_count_and_previously_downloaded_record_count +=
-                ProcessDirectHarvest(section.second, harvest_params, &augment_params);
+                ProcessDirectHarvest(section.second, harvest_params, site_augment_params);
     }
 
     LOG_INFO("Extracted metadata from "
