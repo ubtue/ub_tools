@@ -410,7 +410,7 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
             subfields.addSubfield('e', creator_role_node->getValue());
         }
 
-        marc_record->appendField(tag, subfields);
+        marc_record->insertField(tag, subfields);
     }
 }
 
