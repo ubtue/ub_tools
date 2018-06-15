@@ -596,14 +596,24 @@ collect_next_character:
         }
 
         // HACK! skipping Characters/everything in-between a closing tag and an opening tag
-        do {
+       while (true) {
             skipWhiteSpace();
             ch = get();
+            if (ch == '<') {
+                if (peek() == '!') {
+                    // ensure that the comment gets skipped correctly
+                    unget(ch);
+                    ch = get();
+                    continue;
+                }
+                else
+                    break;
+            }
             if (unlikely(ch == EOF)) {
                 last_type_ = *type = END_OF_DOCUMENT;
                 return true;
             }
-        } while (ch != '<');
+        }
 
         // If we're at the beginning, we may have an XML prolog:
         if (unlikely(last_type_ == UNINITIALISED) and peek() == '?') {
