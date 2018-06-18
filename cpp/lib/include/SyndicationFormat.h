@@ -71,14 +71,19 @@ public:
         bool operator==(const const_iterator &rhs) const;
         inline bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
     };
+
+    struct AugmentParams {
+        std::string strptime_format_; // If empty we use the standard format based on the syndication format type.
+    };
 protected:
     friend class const_iterator;
     StringDataSource *data_source_;
     SimpleXmlParser<StringDataSource> *xml_parser_;
     std::string title_, link_, description_, id_;
     time_t last_build_date_;
+    AugmentParams augment_params_;
 protected:
-    SyndicationFormat(const std::string &xml_document);
+    SyndicationFormat(const std::string &xml_document, const AugmentParams &augment_params);
 public:
     virtual ~SyndicationFormat();
 
@@ -95,7 +100,8 @@ public:
     inline const_iterator end() { return const_iterator(); }
 
     // \return an instance of a subclass of SyndicationFormat on success or a nullptr upon failure.
-    static std::unique_ptr<SyndicationFormat> Factory(const std::string &xml_document, std::string * const err_msg);
+    static std::unique_ptr<SyndicationFormat> Factory(const std::string &xml_document, const AugmentParams &augment_params,
+                                                      std::string * const err_msg);
 protected:
     virtual std::unique_ptr<Item> getNextItem() = 0;
 };
@@ -103,7 +109,7 @@ protected:
 
 class RSS20 final : public SyndicationFormat {
 public:
-    explicit RSS20(const std::string &xml_document);
+    explicit RSS20(const std::string &xml_document, const AugmentParams &augment_params);
     virtual ~RSS20() final { }
 
     virtual std::string getFormatName() const override { return "RSS 2.0"; }
@@ -114,7 +120,7 @@ protected:
 
 class RSS091 final : public SyndicationFormat {
 public:
-    explicit RSS091(const std::string &xml_document);
+    explicit RSS091(const std::string &xml_document, const AugmentParams &augment_params);
     virtual ~RSS091() final { }
 
     virtual std::string getFormatName() const override { return "RSS 0.91"; }
@@ -126,7 +132,7 @@ protected:
 class Atom final : public SyndicationFormat {
     std::string item_tag_; // Either "item" or "entry".
 public:
-    explicit Atom(const std::string &xml_document);
+    explicit Atom(const std::string &xml_document, const AugmentParams &augment_params);
     virtual ~Atom() final { }
 
     virtual std::string getFormatName() const override { return "Atom"; }
@@ -137,7 +143,7 @@ public:
 class RDF final : public SyndicationFormat {
     std::string rss_namespace_, dc_namespace_, prism_namespace_;
 public:
-    explicit RDF(const std::string &xml_document);
+    explicit RDF(const std::string &xml_document, const AugmentParams &augment_params);
     virtual ~RDF() final { }
 
     virtual std::string getFormatName() const override { return "RDF"; }
