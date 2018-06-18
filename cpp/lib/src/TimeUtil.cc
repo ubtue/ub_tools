@@ -36,8 +36,10 @@
 #include <ctime>
 #include <sys/time.h>
 #include "Compiler.h"
+#include "Locale.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "WebUtil.h"
 
 
 namespace TimeUtil {
@@ -700,6 +702,61 @@ std::string StructTmToString(const struct tm &tm) {
     tm_as_string += ",tm_zone: ";
     tm_as_string += (tm.tm_zone == nullptr) ? "NULL" : tm.tm_zone;
     return tm_as_string;
+}
+
+
+Date StringToDate(const std::string &date_str, std::string optional_strptime_format) {
+    Date date;
+
+    time_t unix_time(TimeUtil::BAD_TIME_T);
+    if (optional_strptime_format.empty())
+        unix_time = WebUtil::ParseWebDateAndTime(date_str);
+    else {
+        std::unique_ptr<Locale> locale;
+        // Optional locale specification?
+        if (optional_strptime_format[0] == '(') {
+            const size_t closing_paren_pos(optional_strptime_format.find(')', 1));
+            if (unlikely(closing_paren_pos == std::string::npos or closing_paren_pos == 1))
+                throw std::runtime_error("TimeUtil::StringToDate: bad local specification \"" + optional_strptime_format + "\"!");
+            const std::string locale_specification(optional_strptime_format.substr(1, closing_paren_pos - 1));
+            locale.reset(new Locale(locale_specification, LC_TIME));
+            optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
+        }
+
+        struct tm tm;
+        std::vector<std::string> format_string_splits;
+
+        // try available format strings until a matching one is found
+        if (StringUtil::SplitThenTrimWhite(optional_strptime_format, '|', &format_string_splits)) {
+            for (const auto &format_string : format_string_splits) {
+                std::memset(&tm, 0, sizeof(tm));
+                const char * const last_char(::strptime(date_str.c_str(), format_string.c_str(), &tm));
+                if (last_char == nullptr or *last_char != '\0')
+                    unix_time = TimeUtil::BAD_TIME_T;
+                else {
+                    date.year_ = tm.tm_year + 1900;
+                    date.month_ = tm.tm_mon + 1;
+                    date.day_ = tm.tm_mday;
+                    if (date.day_ == 0)
+                        date.day_ = 1;
+                    return date;
+                }
+            }
+        }
+    }
+
+    if (unix_time != TimeUtil::BAD_TIME_T) {
+        tm *tm(::gmtime(&unix_time));
+        if (unlikely(tm == nullptr))
+            throw std::runtime_error("TimeUtil::StringToDate: gmtime(3) failed to convert a time_t! (" + date_str + ")");
+        date.day_   = tm->tm_mday;
+        date.month_ = tm->tm_mon + 1;
+        date.year_  = tm->tm_year + 1900;
+    } else
+        throw std::runtime_error("TimeUtil::StringToDate: don't know how to convert \"" + date_str
+                                 + "\" to a Date instance! (optional_strptime_format = \"" + optional_strptime_format + "\")");
+
+    return date;
 }
 
 
