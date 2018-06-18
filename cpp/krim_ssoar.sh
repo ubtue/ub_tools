@@ -14,7 +14,7 @@ fi
 
 echo "Add various selection identifiers"
 augmented_file=krim_ssoar-$(date +%Y%m%d).xml
-marc_augmentor krim_ssoar.xml $(augmented_file) \
+marc_augmentor krim_ssoar.xml "$augmented_file" \
     --insert-field '084:  \x1FaKRIM\x1FqDE-21\x1F2fid' \
     --insert-field '852a:DE-21' \
     --insert-field '935a:mkri'
@@ -25,9 +25,9 @@ path=/usr/local/var/lib/tuelib/cronjobs/fetch_marc_updates.conf
 host=$(inifile_lookup --suppress-newline "${path}" FTP host)
 username=$(inifile_lookup --suppress-newline "${path}" FTP username)
 password=$(inifile_lookup --suppress-newline "${path}" FTP password)
-ftp -inv "${host}" <<EOF
+ftp -invp "${host}" <<EOF
 user ${username} ${password}
-cd UBTuebingen_Import_Test/krimdoc_Test
+cd /pub/UBTuebingen_Import_Test/krimdok_Test
 bin
 put ${augmented_file}
 bye
