@@ -32,6 +32,7 @@ class IniFile;
 
 
 class DbConnection {
+    static const std::string DEFAULT_CHARACTER_SET;
 public:
     enum Type { T_MYSQL, T_SQLITE };
     static const std::string DEFAULT_CONFIG_FILE_PATH;
@@ -45,8 +46,8 @@ public:
     enum OpenMode { READONLY, READWRITE, CREATE };
 public:
     DbConnection(const std::string &database_name, const std::string &user, const std::string &passwd = "",
-                 const std::string &host = "localhost", const unsigned port = MYSQL_PORT)
-        { type_ = T_MYSQL; init(database_name, user, passwd, host, port); }
+                 const std::string &host = "localhost", const unsigned port = MYSQL_PORT, const std::string &character_set = DEFAULT_CHARACTER_SET)
+        { type_ = T_MYSQL; init(database_name, user, passwd, host, port, character_set); }
 
     // Expects to find entries named "sql_database", "sql_username" and "sql_password".  Optionally there may also
     // be an entry named "sql_host".  If this entry is missing a default value of "localhost" will be assumed.
@@ -108,14 +109,14 @@ private:
      *        It should only be used in static functions.
      */
     DbConnection(const std::string &user, const std::string &passwd,
-                 const std::string &host, const unsigned port)
-                 { type_ = T_MYSQL; init(user, passwd, host, port); }
+                 const std::string &host, const unsigned port, const std::string &character_set = DEFAULT_CHARACTER_SET)
+                 { type_ = T_MYSQL; init(user, passwd, host, port, character_set); }
 
     void init(const std::string &database_name, const std::string &user, const std::string &passwd,
-              const std::string &host, const unsigned port);
+              const std::string &host, const unsigned port, const std::string &character_set);
 
     void init(const std::string &user, const std::string &passwd,
-              const std::string &host, const unsigned port);
+              const std::string &host, const unsigned port, const std::string &character_set);
 public:
     static void MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
                                     const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
