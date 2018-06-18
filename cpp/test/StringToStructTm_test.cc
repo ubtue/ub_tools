@@ -1,4 +1,4 @@
-// Test harness for TimeUtil::StringToDate.
+// Test harness for TimeUtil::StringToStructTm.
 #include <iostream>
 #include <cstdlib>
 #include "TimeUtil.h"
@@ -18,8 +18,8 @@ int main(int argc, char *argv[]) {
         Usage();
 
     try {
-        const TimeUtil::Date date(TimeUtil::StringToDate(argv[1], argv[2]));
-        std::cout << date.toString() << '\n';
+        const struct tm tm(TimeUtil::StringToStructTm(argv[1], argv[2]));
+        std::cout << TimeUtil::TimeTToString(TimeUtil::TimeGm(tm)) << '\n';
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }
