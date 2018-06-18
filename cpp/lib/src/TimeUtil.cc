@@ -735,7 +735,7 @@ struct tm StringToStructTm(const std::string &date_str, std::string optional_str
         if (unlikely(tm_ptr == nullptr))
             throw std::runtime_error("TimeUtil::StringToStructTm: gmtime(3) failed to convert a time_t! (" + date_str + ")");
         return *tm_ptr;
-    } 
+    }
 
     throw std::runtime_error("TimeUtil::StringToStructTm: don't know how to convert \"" + date_str
                              + "\" to a Date instance! (optional_strptime_format = \"" + optional_strptime_format + "\")");
