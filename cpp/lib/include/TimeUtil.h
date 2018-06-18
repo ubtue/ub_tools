@@ -276,4 +276,23 @@ bool ParseRFC3339DateTime(const std::string &date_time_candidate, time_t * const
 std::string StructTmToString(const struct tm &tm);
 
 
+struct Date {
+    static const unsigned INVALID = 0;
+    unsigned day_;
+    unsigned month_;
+    unsigned year_;
+public:
+    Date(): day_(INVALID), month_(INVALID), year_(INVALID) { }
+};
+
+
+/** \brief Attempts to convert "date_str" to a Date instance.
+ *  \param optional_strptime_format  If empty, a few heuristics will be tried, o/w, you must
+ *         specify an optional locale (please only picj ones that are supported by all operating systems that we use) in parentheses
+           followed by a format as documented on the strptime(3) man page.
+ *  \throws std::runtime_error if the conversion failed.
+ */
+Date StringToDate(const std::string &date_str, std::string optional_strptime_format = "");
+
+
 } // namespace TimeUtil
