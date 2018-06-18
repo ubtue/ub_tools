@@ -114,9 +114,6 @@ std::string TimeTToString(const time_t &the_time, const std::string &format = DE
 time_t TimeGm(const struct tm &tm);
 
 
-struct tm StringToStructTm(const std::string &date_and_time, const std::string &format = DEFAULT_FORMAT);
-
-
 /** \brief   Convert a time from a time_t to a string, using local time.
  *  \param   the_time  The time to convert.
  *  \param   format    The format of the result, in strftime(3) format.
@@ -276,24 +273,13 @@ bool ParseRFC3339DateTime(const std::string &date_time_candidate, time_t * const
 std::string StructTmToString(const struct tm &tm);
 
 
-struct Date {
-    static const unsigned INVALID = 0;
-    unsigned day_;
-    unsigned month_;
-    unsigned year_;
-public:
-    Date(): day_(INVALID), month_(INVALID), year_(INVALID) { }
-    std::string toString() const;
-};
-
-
-/** \brief Attempts to convert "date_str" to a Date instance.
+/** \brief Attempts to convert "date_str" to a struct tm instance.
  *  \param optional_strptime_format  If empty, a few heuristics will be tried, o/w, you must
  *         specify an optional locale (please only pick ones that are supported by all operating systems that we use) in parentheses
            followed by a format as documented on the strptime(3) man page.
  *  \throws std::runtime_error if the conversion failed.
  */
-Date StringToDate(const std::string &date_str, std::string optional_strptime_format = "");
+struct tm StringToStructTm(const std::string &date_str, std::string optional_strptime_format = DEFAULT_FORMAT);
 
 
 } // namespace TimeUtil
