@@ -829,10 +829,8 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
             for (const auto &key_and_node : *object_node) {
                 std::string key_and_node_url(key_and_node.first);
-                if (MiscUtil::IsDOI(key_and_node_url)) {
+                if (MiscUtil::IsDOI(key_and_node_url))
                     key_and_node_url = "https://doi.org/" + key_and_node_url;
-                    LOG_INFO("DOI found, building special Zotero URL: " + key_and_node_url);
-                }
 
                 std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
                     Harvest(key_and_node_url, harvest_params, augment_params, /* harvested_html = */"", /* log = */false);
