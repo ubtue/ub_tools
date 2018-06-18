@@ -270,7 +270,7 @@ std::string BuildCommandString(const std::string &command, const std::vector<std
 /** \brief create local copy of template map directory and delete previously downloaded cache for clean test results */
 std::string PrepareMapsDirectory(const std::string &orig_directory, const std::string &tmp_directory) {
     ExecUtil::ExecOrDie(ExecUtil::Which("cp"), { "-r", orig_directory, tmp_directory });
-    const std::string local_maps_directory(tmp_directory + "/zts_client_maps");
+    const std::string local_maps_directory(tmp_directory + "/zotero-enhancement-maps");
     return local_maps_directory;
 }
 
