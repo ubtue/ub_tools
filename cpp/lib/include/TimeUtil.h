@@ -283,6 +283,7 @@ struct Date {
     unsigned year_;
 public:
     Date(): day_(INVALID), month_(INVALID), year_(INVALID) { }
+    std::string toString() const;
 };
 
 
