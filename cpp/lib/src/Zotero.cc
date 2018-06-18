@@ -284,9 +284,8 @@ void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &o
             date_str = custom_object->getOptionalStringValue("date_raw");
 
         const std::string STRPTIME_FORMAT(augment_params_->strptime_format_.empty() ? "%Y-%m-%d" : augment_params_->strptime_format_);
-        const TimeUtil::Date date(TimeUtil::StringToDate(date_str, STRPTIME_FORMAT));
-        if (date.year_ != TimeUtil::Date::INVALID)
-            subfields.emplace_back('j', std::to_string(date.year_));
+        const struct tm tm(TimeUtil::StringToStructTm(date_str, STRPTIME_FORMAT));
+        subfields.emplace_back('j', std::to_string(tm.tm_year + 1900));
     }
 
     const std::string issue(object_node.getOptionalStringValue("issue"));
@@ -646,9 +645,9 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node, const Sit
         } else if (key_and_node.first == "date") {
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
-            TimeUtil::Date date(TimeUtil::StringToDate(date_raw, augment_params.strptime_format_));
-            std::string date_normalized(std::to_string(date.year_) + "-" + StringUtil::ToString(date.month_, 10, 2, '0') + "-"
-                                        + StringUtil::ToString(date.day_, 10, 2, '0'));
+            struct tm tm(TimeUtil::StringToStructTm(date_raw, augment_params.strptime_format_));
+            std::string date_normalized(std::to_string(tm.tm_year + 1900) + "-" + StringUtil::ToString(tm.tm_mon + 1, 10, 2, '0') + "-"
+                                        + StringUtil::ToString(tm.tm_mday, 10, 2, '0'));
             custom_fields.emplace(std::pair<std::string, std::string>("date_normalized", date_normalized));
             comments.emplace_back("normalized date to: " + date_normalized);
         }
@@ -1129,8 +1128,11 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
         return total_record_count_and_previously_downloaded_record_count;
     }
 
+    SyndicationFormat::AugmentParams syndication_format_augment_params;
+    syndication_format_augment_params.strptime_format_ = augment_params.strptime_format_;
     std::string err_msg;
-    std::unique_ptr<SyndicationFormat> syndication_format(SyndicationFormat::Factory(downloader.getMessageBody(), &err_msg));
+    std::unique_ptr<SyndicationFormat> syndication_format(
+        SyndicationFormat::Factory(downloader.getMessageBody(), syndication_format_augment_params, &err_msg));
     if (syndication_format == nullptr) {
         LOG_WARNING("Problem parsing XML document for \"" + feed_url + "\": " + err_msg);
         return total_record_count_and_previously_downloaded_record_count;

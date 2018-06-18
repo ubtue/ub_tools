@@ -167,17 +167,6 @@ time_t TimeGm(const struct tm &tm) {
 }
 
 
-struct tm StringToStructTm(const std::string &date_and_time, const std::string &format) {
-    struct tm tm;
-    std::memset(&tm, 0, sizeof tm);
-    const char * const retval(::strptime(date_and_time.c_str(), format.c_str(), &tm));
-    if (unlikely(retval == nullptr or *retval != '\0'))
-        throw std::runtime_error("in TimeUtil::StringToStructTm: failed to convert \"" + date_and_time
-                                 + "\" to a struct tm using the format \"" + format + "\"!");
-    return tm;
-}
-
-
 unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * const year, unsigned * const month,
                                 unsigned * const day, unsigned * const hour, unsigned * const minute,
                                 unsigned * const second, int * const hour_offset, int * const minute_offset,
@@ -705,8 +694,8 @@ std::string StructTmToString(const struct tm &tm) {
 }
 
 
-Date StringToDate(const std::string &date_str, std::string optional_strptime_format) {
-    Date date;
+struct tm StringToStructTm(const std::string &date_str, std::string optional_strptime_format) {
+    struct tm tm;
 
     time_t unix_time(TimeUtil::BAD_TIME_T);
     if (optional_strptime_format.empty())
@@ -717,13 +706,12 @@ Date StringToDate(const std::string &date_str, std::string optional_strptime_for
         if (optional_strptime_format[0] == '(') {
             const size_t closing_paren_pos(optional_strptime_format.find(')', 1));
             if (unlikely(closing_paren_pos == std::string::npos or closing_paren_pos == 1))
-                throw std::runtime_error("TimeUtil::StringToDate: bad local specification \"" + optional_strptime_format + "\"!");
+                throw std::runtime_error("TimeUtil::StringToStructTm: bad local specification \"" + optional_strptime_format + "\"!");
             const std::string locale_specification(optional_strptime_format.substr(1, closing_paren_pos - 1));
             locale.reset(new Locale(locale_specification, LC_TIME));
             optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
         }
 
-        struct tm tm;
         std::vector<std::string> format_string_splits;
 
         // try available format strings until a matching one is found
@@ -734,29 +722,23 @@ Date StringToDate(const std::string &date_str, std::string optional_strptime_for
                 if (last_char == nullptr or *last_char != '\0')
                     unix_time = TimeUtil::BAD_TIME_T;
                 else {
-                    date.year_ = tm.tm_year + 1900;
-                    date.month_ = tm.tm_mon + 1;
-                    date.day_ = tm.tm_mday;
-                    if (date.day_ == 0)
-                        date.day_ = 1;
-                    return date;
+                    if (tm.tm_mday == 0)
+                        tm.tm_mday = 1;
+                    return tm;
                 }
             }
         }
     }
 
     if (unix_time != TimeUtil::BAD_TIME_T) {
-        tm *tm(::gmtime(&unix_time));
-        if (unlikely(tm == nullptr))
-            throw std::runtime_error("TimeUtil::StringToDate: gmtime(3) failed to convert a time_t! (" + date_str + ")");
-        date.day_   = tm->tm_mday;
-        date.month_ = tm->tm_mon + 1;
-        date.year_  = tm->tm_year + 1900;
-    } else
-        throw std::runtime_error("TimeUtil::StringToDate: don't know how to convert \"" + date_str
-                                 + "\" to a Date instance! (optional_strptime_format = \"" + optional_strptime_format + "\")");
+        struct tm *tm_ptr(::gmtime(&unix_time));
+        if (unlikely(tm_ptr == nullptr))
+            throw std::runtime_error("TimeUtil::StringToStructTm: gmtime(3) failed to convert a time_t! (" + date_str + ")");
+        return *tm_ptr;
+    } 
 
-    return date;
+    throw std::runtime_error("TimeUtil::StringToStructTm: don't know how to convert \"" + date_str
+                             + "\" to a Date instance! (optional_strptime_format = \"" + optional_strptime_format + "\")");
 }
 
 
