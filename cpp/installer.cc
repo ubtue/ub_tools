@@ -115,6 +115,7 @@ OSSystemType DetermineOSSystemType() {
 
 const std::string UB_TOOLS_DIRECTORY("/usr/local/ub_tools");
 const std::string VUFIND_DIRECTORY("/usr/local/vufind");
+const std::string TUELIB_CONFIG_DIRECTORY("/usr/local/var/lib/tuelib");
 const std::string INSTALLER_DATA_DIRECTORY(UB_TOOLS_DIRECTORY + "/cpp/data/installer");
 const std::string INSTALLER_SCRIPTS_DIRECTORY(INSTALLER_DATA_DIRECTORY + "/scripts");
 
@@ -520,7 +521,11 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     }
 
     Echo("creating directories");
-    ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", "/usr/local/var/lib/tuelib" });
+    ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", TUELIB_CONFIG_DIRECTORY });
+    Echo("Downloading zotero-enhancement-maps git repository");
+    const std::string git_url("https://github.com/ubtue/zotero-enhancement-maps.git");
+    ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, TUELIB_CONFIG_DIRECTORY + "/zotero-enhancement-maps" });
+
     ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", "/usr/local/var/log/tuefind" });
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing("/usr/local/var/log/tuefind",
