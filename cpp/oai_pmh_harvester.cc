@@ -193,6 +193,9 @@ void GenerateValidatedOutput(kyotocabinet::HashDB * const dups_db, MARC::Reader 
 {
     unsigned counter(0);
     while (MARC::Record record = marc_reader->read()) {
+        if (not record.hasValidLeader())
+            continue;
+
         if (dups_db != nullptr) {
             const std::string checksum(MARC::CalcChecksum(record, /* exclude_001 = */true));
             if (dups_db->check(checksum) > 0) {
