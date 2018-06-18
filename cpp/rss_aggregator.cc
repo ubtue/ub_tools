@@ -56,7 +56,7 @@ void SigHupHandler(int /* signum */) {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--verbosity=min_verbosity] [--test] xml_output_path\n"
+              << " [--verbosity=min_verbosity] [--test]  [--strptime-format=format] xml_output_path\n"
               << "       When --test has been specified no data will be stored.\n";
     std::exit(EXIT_FAILURE);
 }
@@ -122,8 +122,9 @@ std::unordered_map<std::string, uint64_t> section_name_to_ticks_map;
 
 
 // \return the number of new items.
-unsigned ProcessSection(const IniFile::Section &section, Downloader * const downloader, DbConnection * const db_connection,
-                        const unsigned default_downloader_time_limit, const unsigned default_poll_interval, const uint64_t now)
+unsigned ProcessSection(const IniFile::Section &section, const SyndicationFormat::AugmentParams &augment_params,
+                        Downloader * const downloader, DbConnection * const db_connection, const unsigned default_downloader_time_limit,
+                        const unsigned default_poll_interval, const uint64_t now)
 {
     const std::string feed_url(section.getString("feed_url"));
     const unsigned poll_interval(section.getUnsigned("poll_interval", default_poll_interval));
@@ -148,7 +149,8 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
         CheckForSigTermAndExitIfSeen();
 
         std::string error_message;
-        std::unique_ptr<SyndicationFormat> syndication_format(SyndicationFormat::Factory(downloader->getMessageBody(), &error_message));
+        std::unique_ptr<SyndicationFormat> syndication_format(
+            SyndicationFormat::Factory(downloader->getMessageBody(), augment_params, &error_message));
         if (unlikely(syndication_format == nullptr))
             LOG_WARNING("failed to parse feed: " + error_message);
         else {
@@ -176,17 +178,29 @@ const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_aggregator.conf"
 int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 2 and argc != 3)
+    if (argc < 2)
         Usage();
 
     bool test(false);
-    if (argc == 3) {
+    if (argc > 2) {
         if (std::strcmp(argv[1], "--test") == 0) {
             test = true;
             --argc, ++argv;
         } else
             Usage();
     }
+
+    SyndicationFormat::AugmentParams augment_params;
+    if (argc > 2) {
+        if (std::strcmp(argv[1], "--strptime-format") == 0) {
+            augment_params.strptime_format_ = argv[1] + __builtin_strlen("--strptime-format");
+            --argc, ++argv;
+        } else
+            Usage();
+    }
+    
+    if (argc != 2)
+        Usage();
 
     IniFile ini_file(CONF_FILE_PATH);
     DbConnection db_connection(ini_file);
@@ -228,8 +242,8 @@ int Main(int argc, char *argv[]) {
                 already_seen_sections.emplace(section_name);
 
                 LOG_INFO("Processing section \"" + section_name + "\".");
-                const unsigned new_item_count(ProcessSection(section.second, &downloader, &db_connection, DEFAULT_DOWNLOADER_TIME_LIMIT,
-                                                             DEFAULT_POLL_INTERVAL, ticks));
+                const unsigned new_item_count(ProcessSection(section.second, augment_params, &downloader, &db_connection,
+                                                             DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL, ticks));
                 LOG_INFO("found " + std::to_string(new_item_count) + " new items.");
             }
         }
