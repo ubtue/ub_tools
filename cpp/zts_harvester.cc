@@ -33,6 +33,19 @@
 namespace {
 
 
+const std::unordered_map<std::string, std::string> group_to_user_agent_map = {
+    // system-specific groups
+    {"IxTheo", "ub_tools/ixtheo (see https://ixtheo.de/crawler)"},
+    {"RelBib", "ub_tools/relbib (see https://relbib.de/crawler)"},
+    {"KrimDok", "ub_tools/krimdok (see https://krimdok.uni-tuebingen.de/crawler)"},
+    // user-specific groups
+    {"Braun", "ub_tools/test"},
+    {"Kellmeyer", "ub_tools/ixtheo (see https://ixtheo.de/crawler)"},
+    {"Kim", "ub_tools/ixtheo (see https://ixtheo.de/crawler)"},
+    {"Stelzel", "ub_tools/krimdok (see https://krimdok.uni-tuebingen.de/crawler)"},
+};
+
+
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [options] config_file_path [section1 section2 .. sectionN]\n"
               << "\n"
@@ -216,11 +229,6 @@ int Main(int argc, char *argv[]) {
     harvest_params->format_handler_ = Zotero::FormatHandler::Factory(previous_downloads_db_path, GetMarcFormat(output_file),
                                                                      output_file, harvest_params);
 
-    SimpleCrawler::Params crawler_params;
-    crawler_params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
-    crawler_params.min_url_processing_time_ = Zotero::DEFAULT_MIN_URL_PROCESSING_TIME;
-    crawler_params.timeout_ = Zotero::DEFAULT_TIMEOUT;
-
     std::unordered_map<std::string, bool> section_name_to_found_flag_map;
     for (int arg_no(2); arg_no < argc; ++arg_no)
         section_name_to_found_flag_map.emplace(argv[arg_no], false);
@@ -239,10 +247,9 @@ int Main(int argc, char *argv[]) {
             continue;
 
         const std::string groups_str(section.second.getString("groups"));
+        std::set<std::string> section_groups;
+        StringUtil::SplitThenTrimWhite(groups_str, ',', &section_groups);
         if (not groups_filter.empty()) {
-            std::set<std::string> section_groups;
-            StringUtil::SplitThenTrimWhite(argv[1] + __builtin_strlen("--groups="), ',', &section_groups);
-
             const std::set<std::string> common_groups(StlHelpers::SetIntersection(groups_filter, section_groups));
             if (common_groups.empty())
                 continue;
@@ -266,18 +273,38 @@ int Main(int argc, char *argv[]) {
                 continue;
             section_name_and_found_flag->second = true;
         }
-        ++processed_section_count;
+
+        harvest_params->user_agent_.clear();
+        for (const auto &section_group : section_groups) {
+            if (group_to_user_agent_map.find(section_group) != group_to_user_agent_map.end()) {
+                const std::string group_user_agent(group_to_user_agent_map.at(section_group));
+                if (harvest_params->user_agent_.empty() or group_user_agent != harvest_params->user_agent_)
+                    harvest_params->user_agent_ = group_user_agent;
+                else
+                    LOG_WARNING("groups with multiple user agents are not allowed for '" + section_group + "', skipping section '" + section.first + "'");
+            } else
+                LOG_WARNING("user agent for group '" + section_group + "' is not defined, skipping section '" + section.first + "'");
+        }
+        if (harvest_params->user_agent_.empty())
+            continue;
 
         LOG_INFO("Processing section \"" + section.first + "\".");
+        ++processed_section_count;
 
         const Type type(static_cast<Type>(section.second.getEnum("type", string_to_value_map)));
         if (type == RSS)
             total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section.second, harvest_params, site_augment_params,
                                                                                         db_connection.get(), test);
-        else if (type == CRAWL)
+        else if (type == CRAWL) {
+            SimpleCrawler::Params crawler_params;
+            crawler_params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
+            crawler_params.min_url_processing_time_ = Zotero::DEFAULT_MIN_URL_PROCESSING_TIME;
+            crawler_params.timeout_ = Zotero::DEFAULT_TIMEOUT;
+            crawler_params.user_agent_ = harvest_params->user_agent_;
+
             total_record_count_and_previously_downloaded_record_count +=
                 ProcessCrawl(section.second, harvest_params, site_augment_params, crawler_params, supported_urls_regex);
-        else
+        } else
             total_record_count_and_previously_downloaded_record_count +=
                 ProcessDirectHarvest(section.second, harvest_params, site_augment_params);
     }
