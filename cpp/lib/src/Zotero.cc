@@ -792,6 +792,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     unsigned response_code;
     harvest_params->min_url_processing_time_.sleepUntilExpired();
     Downloader::Params downloader_params;
+    downloader_params.user_agent_ = harvest_params->user_agent_;
     const bool download_succeeded(TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT,
                                                          downloader_params, Url(harvest_url), &response_body, &response_code,
                                                          &error_message, harvested_html));
@@ -1127,7 +1128,9 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
     if (mode != RSSHarvestMode::NORMAL)
         LOG_INFO("Processing URL: " + feed_url);
 
-    Downloader downloader(feed_url);
+    Downloader::Params downloader_params;
+    downloader_params.user_agent_ = harvest_params->user_agent_;
+    Downloader downloader(feed_url, downloader_params);
     if (downloader.anErrorOccurred()) {
         LOG_WARNING("Download problem for \"" + feed_url + "\": " + downloader.getLastErrorMessage());
         return total_record_count_and_previously_downloaded_record_count;
