@@ -247,6 +247,16 @@ void InstallUBTools(const bool make_install) {
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY + "/cpp/lib/mkdep");
     ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4", "install" });
 
+    // ...then create /usr/local/var/lib/tuelib
+    if (not FileUtil::Exists(TUELIB_CONFIG_DIRECTORY)) {
+        Echo("creating " + TUELIB_CONFIG_DIRECTORY);
+        ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", TUELIB_CONFIG_DIRECTORY });
+    }
+    if (not FileUtil::Exists(TUELIB_CONFIG_DIRECTORY + "/zotero-enhancement-maps")) {
+        const std::string git_url("https://github.com/ubtue/zotero-enhancement-maps.git");
+        ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, TUELIB_CONFIG_DIRECTORY + "/zotero-enhancement-maps" });
+    }
+
     // ...and then install the rest of ub_tools:
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
     if (make_install)
@@ -487,7 +497,7 @@ void SetEnvironmentVariables(const std::string &vufind_system_type_string) {
  * - solrmarc settings (including VUFIND_LOCAL_DIR)
  * - alphabetical browse
  * - cronjobs
- * - create directories /usr/local/var/log/tuefind and /usr/local/var/lib/tuelib
+ * - create directories /usr/local/var/log/tuefind
  *
  * Writes a file into vufind directory to save configured system type
  */
@@ -520,12 +530,7 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
         InstallCronjobs(vufind_system_type);
     }
 
-    Echo("creating directories");
-    ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", TUELIB_CONFIG_DIRECTORY });
-    Echo("Downloading zotero-enhancement-maps git repository");
-    const std::string git_url("https://github.com/ubtue/zotero-enhancement-maps.git");
-    ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, TUELIB_CONFIG_DIRECTORY + "/zotero-enhancement-maps" });
-
+    Echo("creating log directory");
     ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", "/usr/local/var/log/tuefind" });
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing("/usr/local/var/log/tuefind",
