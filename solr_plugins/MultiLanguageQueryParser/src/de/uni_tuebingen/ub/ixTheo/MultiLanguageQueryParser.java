@@ -19,12 +19,15 @@ import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.SynonymQuery;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
+import org.apache.lucene.search.WildcardQuery;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.query.SolrRangeQuery;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.schema.IndexSchema;
 import org.apache.solr.search.DisMaxQParser;
@@ -268,6 +271,9 @@ public class MultiLanguageQueryParser extends QParser {
         } else if (subquery instanceof MultiPhraseQuery) {
             subquery = processMultiPhraseQuery((MultiPhraseQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
+        } else if (subquery instanceof WildcardQuery) {
+            subquery = processWildcardQuery((WildcardQuery)subquery);
+            return new BoostQuery(subquery, queryCandidate.getBoost());
         } else
 	    throw new SolrException(ErrorCode.SERVER_ERROR, "Boost Query: Unable to handle " +  subquery.getClass().getName());
     }
@@ -277,6 +283,13 @@ public class MultiLanguageQueryParser extends QParser {
         final Term term = queryCandidate.getPrefix();
         final TermQuery newTermQuery = (TermQuery)processTermQuery(new TermQuery(term));
         return new PrefixQuery(new Term(newTermQuery.getTerm().field(), newTermQuery.getTerm().text()));
+    }
+
+
+    private Query processWildcardQuery(final WildcardQuery queryCandidate) {
+        final Term term = queryCandidate.getTerm();
+        final TermQuery newTermQuery = (TermQuery)processTermQuery(new TermQuery(term));
+        return new WildcardQuery(new Term(newTermQuery.getTerm().field(), newTermQuery.getTerm().text()));
     }
 
 
@@ -300,6 +313,8 @@ public class MultiLanguageQueryParser extends QParser {
                 subquery = processPhraseQuery((PhraseQuery)subquery);
             } else if (subquery instanceof MultiPhraseQuery) {
                 subquery = processMultiPhraseQuery((MultiPhraseQuery)subquery);
+            } else if (subquery instanceof SynonymQuery) {
+                subquery = processSynonymQuery((SynonymQuery)subquery);
             } else
                 logger.warn("No appropriate Query in BooleanClause for " + subquery.getClass().getName());
             queryBuilder.add(subquery, currentClause.getOccur());
@@ -309,16 +324,48 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     private Query processTermRangeQuery(final TermRangeQuery queryCandidate) {
-       String field = queryCandidate.getField();
-       String newFieldName = field + "_" + lang;
-       if (schema.getFieldOrNull(newFieldName) != null) {
-           return new TermRangeQuery(newFieldName,
-                                     queryCandidate.getLowerTerm(),
-                                     queryCandidate.getUpperTerm(),
-                                     queryCandidate.includesLower(),
-                                     queryCandidate.includesUpper());
-       }
-       return queryCandidate;
+        String field = queryCandidate.getField();
+        String newFieldName = field + "_" + lang;
+        if (schema.getFieldOrNull(newFieldName) != null) {
+            return new TermRangeQuery(newFieldName,
+                                      queryCandidate.getLowerTerm(),
+                                      queryCandidate.getUpperTerm(),
+                                      queryCandidate.includesLower(),
+                                      queryCandidate.includesUpper());
+        }
+        return queryCandidate;
+    }
+
+
+    private Query processSolrRangeQuery(final SolrRangeQuery queryCandidate) {
+        String field = queryCandidate.getField();
+        String newFieldName = field + "_" + lang;
+        // There does not seem to a proper way to get Upper and Lower Terms of a SolrRangeQuery
+        // without reparsing. Moreover the SolrRangeQuery API is experimental
+        // Range Queries only make sense in the context of numeric fields
+        // which are language independent, so in practice there should never the need to rewrite
+        // So throw an exception if we really encounter this esoteric case
+        if (schema.getFieldOrNull(newFieldName) != null) {
+            throw new SolrException(ErrorCode.SERVER_ERROR, "Language dependent SolrRangeQueries are currently not supported");
+        }
+        return queryCandidate;
+    }
+
+
+    private Query processSynonymQuery(final SynonymQuery queryCandidate) {
+        List<Term> synonymTerms = queryCandidate.getTerms();
+        List<Term> rewrittenSynonymTerms = new ArrayList<Term>();
+
+        for (Term synonymTerm : synonymTerms) {
+            final String field = synonymTerm.field();
+            final String newFieldName = field + "_" + lang;
+            if (schema.getFieldOrNull(newFieldName) != null)
+              rewrittenSynonymTerms.add(new Term(newFieldName, synonymTerm.text()));
+            else
+              rewrittenSynonymTerms.add(new Term(field, synonymTerm.text()));
+        }
+        Term[] rewrittenSynonymArray = new Term[rewrittenSynonymTerms.size()];
+        return new SynonymQuery(rewrittenSynonymTerms.toArray(rewrittenSynonymArray));
     }
 
 
@@ -348,6 +395,8 @@ public class MultiLanguageQueryParser extends QParser {
                 newQuery = processBoostQuery((BoostQuery)newQuery);
             else if (newQuery instanceof MatchAllDocsQuery)
                 newQuery = processMatchAllDocsQuery((MatchAllDocsQuery)newQuery);
+            else if (newQuery instanceof SolrRangeQuery)
+                newQuery = processSolrRangeQuery((SolrRangeQuery)newQuery);
             else
                 logger.warn("No rewrite rule did match for " + newQuery.getClass());
             this.searchString = newQuery.toString();
