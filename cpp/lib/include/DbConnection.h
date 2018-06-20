@@ -43,10 +43,11 @@ private:
     bool initialised_;
 public:
     enum OpenMode { READONLY, READWRITE, CREATE };
+    enum Charset { UTF8_MB3, UTF8_MB4 };
 public:
     DbConnection(const std::string &database_name, const std::string &user, const std::string &passwd = "",
-                 const std::string &host = "localhost", const unsigned port = MYSQL_PORT)
-        { type_ = T_MYSQL; init(database_name, user, passwd, host, port); }
+                 const std::string &host = "localhost", const unsigned port = MYSQL_PORT, const Charset charset = UTF8_MB4)
+    { type_ = T_MYSQL; init(database_name, user, passwd, host, port, charset); }
 
     // Expects to find entries named "sql_database", "sql_username" and "sql_password".  Optionally there may also
     // be an entry named "sql_host".  If this entry is missing a default value of "localhost" will be assumed.
@@ -56,7 +57,7 @@ public:
     DbConnection(const std::string &database_path, const OpenMode open_mode);
 
     /** \brief Attemps to parse something like "mysql://ruschein:xfgYu8z@localhost:3345/vufind" */
-    DbConnection(const std::string &mysql_url);
+    explicit DbConnection(const std::string &mysql_url, const Charset charset = UTF8_MB4);
 
     virtual ~DbConnection();
 
@@ -108,33 +109,35 @@ private:
      *        It should only be used in static functions.
      */
     DbConnection(const std::string &user, const std::string &passwd,
-                 const std::string &host, const unsigned port)
-                 { type_ = T_MYSQL; init(user, passwd, host, port); }
+                 const std::string &host, const unsigned port, const Charset charset)
+    { type_ = T_MYSQL; init(user, passwd, host, port, charset); }
 
     void init(const std::string &database_name, const std::string &user, const std::string &passwd,
-              const std::string &host, const unsigned port);
+              const std::string &host, const unsigned port, const Charset charset);
 
-    void init(const std::string &user, const std::string &passwd,
-              const std::string &host, const unsigned port);
+    void init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port, const Charset charset);
 public:
     static void MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
-                                    const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
+                                    const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                    const Charset charset = UTF8_MB4);
 
-    static void MySQLCreateUser(const std::string &new_user, const std::string &new_passwd,
-                                const std::string &admin_user, const std::string &admin_passwd,
-                                const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
+    static void MySQLCreateUser(const std::string &new_user, const std::string &new_passwd, const std::string &admin_user,
+                                const std::string &admin_passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                const Charset charset = UTF8_MB4);
 
     static bool MySQLDatabaseExists(const std::string &database_name, const std::string &user, const std::string &passwd,
-                                    const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
+                                    const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                    const Charset charset = UTF8_MB4);
 
-    static void MySQLImportFile(const std::string &sql_file, const std::string &database_name,
-                                const std::string &user, const std::string &passwd,
-                                const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
+    static void MySQLImportFile(const std::string &sql_file, const std::string &database_name, const std::string &user,
+                                const std::string &passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                const Charset charset = UTF8_MB4);
 
     static std::vector<std::string> MySQLGetDatabaseList(const std::string &user, const std::string &passwd,
-                                                         const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
+                                                         const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                                         const Charset charset = UTF8_MB4);
 
-    static void MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user,
-                                        const std::string &admin_user, const std::string &admin_passwd,
-                                        const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
+    static void MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user, const std::string &admin_user,
+                                        const std::string &admin_passwd, const std::string &host = "localhost",
+                                        const unsigned port = MYSQL_PORT, const Charset charset = UTF8_MB4);
 };
