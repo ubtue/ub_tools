@@ -84,6 +84,19 @@ std::string GetNextControlNumber() {
 namespace TranslationServer {
 
 
+bool ResponseCodeIndicatesSuccess(unsigned response_code, const std::string &response_body, std::string * const error_message) {
+    const std::string response_code_string(StringUtil::ToString(response_code));
+    const char response_code_category(response_code_string[0]);
+    if (response_code_category == '4' or response_code_category == '5' or response_code_category == '9') {
+        *error_message = "HTTP response " + response_code_string;
+        if (not response_body.empty())
+            *error_message += " (" + response_body + ")";
+        return false;
+    }
+    return true;
+}
+
+
 bool Export(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
             const std::string &format, const std::string &json,
             std::string * const response_body, std::string * const error_message)
@@ -98,7 +111,7 @@ bool Export(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::
         return false;
     } else {
         *response_body = downloader.getMessageBody();
-        return true;
+        return ResponseCodeIndicatesSuccess(downloader.getResponseCode(), *response_body, error_message);
     }
 }
 
@@ -115,7 +128,7 @@ bool Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::
         return false;
     } else {
         *output_json = downloader.getMessageBody();
-        return true;
+        return ResponseCodeIndicatesSuccess(downloader.getResponseCode(), *output_json, error_message);
     }
 }
 
@@ -141,7 +154,7 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
     } else {
         *response_code = downloader.getResponseCode();
         *response_body = downloader.getMessageBody();
-        return true;
+        return ResponseCodeIndicatesSuccess(*response_code, *response_body, error_message);
     }
 }
 
@@ -361,7 +374,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                             GetNextControlNumber());
     bool is_journal_article(false);
-    std::string publication_title, issn_normalized, url;
+    std::string publication_title, issn_normalized, url, website_title;
     for (const auto &key_and_node : *object_node) {
         if (ignore_fields->matched(key_and_node.first))
             continue;
@@ -407,17 +420,19 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                 new_record.insertField("542", { { 'u', copyright } });
             else
                 new_record.insertField("542", { { 'f', copyright } });
-        } else if (key_and_node.first == "journalAbbreviation") {
+        } else if (key_and_node.first == "journalAbbreviation")
             new_record.insertField("773", { { 'p', JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
                                                                                          key_and_node.second)->getValue() } });
-        } else if (key_and_node.first == "extra") {
+        else if (key_and_node.first == "extra") {
             // comment field, can contain anything, even DOI's (e.g. for a webpage which has no DOI field)
             const std::string extra(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
                                                                           key_and_node.second)->getValue());
             static RegexMatcher * const doi_matcher(RegexMatcher::RegexMatcherFactory("^DOI:\\s*([0-9a-zA-Z./]+)$"));
             if (doi_matcher->matched(extra))
                 InsertDOI(&new_record, (*doi_matcher)[1]);
-        } else
+        } else if (key_and_node.first == "websiteTitle")
+            website_title = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
+        else
             LOG_ERROR("unknown key \"" + key_and_node.first + "\" with node type "
                       + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
                       + key_and_node.second->toString() + "), whole record: " + object_node->toString());
@@ -470,6 +485,10 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         if (not ssg_numbers.empty())
             new_record.addSubfield("084", 'a', ssg_numbers);
     }
+
+    // title:
+    if (not website_title.empty() and not new_record.hasTag("245"))
+        new_record.insertField("245", { { 'a', website_title } });
 
     // keywords:
     const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
@@ -800,18 +819,6 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     harvest_params->min_url_processing_time_.restart();
     if (not download_succeeded) {
         LOG_WARNING("Zotero conversion failed: " + error_message);
-        return std::make_pair(0, 0);
-    }
-
-    // 500 => internal server error (e.g. error in translator))
-    if (response_code == 500) {
-        LOG_WARNING("Error: " + response_body);
-        return std::make_pair(0, 0);
-    }
-
-    // 501 => not implemented (e.g. no translator available)
-    if (response_code == 501) {
-        LOG_DEBUG("Skipped (" + response_body + ")");
         return std::make_pair(0, 0);
     }
 

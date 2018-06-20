@@ -706,7 +706,7 @@ struct tm StringToStructTm(const std::string &date_str, std::string optional_str
         if (optional_strptime_format[0] == '(') {
             const size_t closing_paren_pos(optional_strptime_format.find(')', 1));
             if (unlikely(closing_paren_pos == std::string::npos or closing_paren_pos == 1))
-                throw std::runtime_error("TimeUtil::StringToStructTm: bad local specification \"" + optional_strptime_format + "\"!");
+                throw std::runtime_error("TimeUtil::StringToStructTm: bad locale specification \"" + optional_strptime_format + "\"!");
             const std::string locale_specification(optional_strptime_format.substr(1, closing_paren_pos - 1));
             locale.reset(new Locale(locale_specification, LC_TIME));
             optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
