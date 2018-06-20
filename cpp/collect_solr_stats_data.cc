@@ -50,7 +50,7 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
 {
     static const time_t JOB_START_TIME(std::time(nullptr));
     static const std::string HOSTNAME(DnsUtil::GetHostname());
-    
+
     std::string json_result, err_msg;
     if (not Solr::Query(query, /* fields = */"", &json_result, &err_msg, "localhost:8080",
                         /* timeout in seconds = */Solr::DEFAULT_TIMEOUT, Solr::JSON, /* max_no_of_rows = */0))
@@ -64,7 +64,7 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
     const time_t NOW(std::time(nullptr));
     db_connection->queryOrDie("INSERT INTO solr SET id_lauf=" + std::to_string(JOB_START_TIME) + ", timestamp='"
                               + TimeUtil::TimeTToZuluString(NOW) + "', Quellrechner='" + HOSTNAME + "', Zielrechner='" + HOSTNAME
-                              + "', Systemtyp='" + system_type + "', Kategorie='" + category + "', Unterkategorie='" + variable + ", value="
+                              + "', Systemtyp='" + system_type + "', Kategorie='" + category + "', Unterkategorie='" + variable + "', value="
                               + std::to_string(JSON::LookupInteger("/response/numFound", tree_root)));
 }
 
@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
     try {
         const IniFile ini_file("/usr/local/var/lib/tuelib/collect_solr_stats_data.conf");
         DbConnection db_connection(ini_file);
-        
+
         CollectGeneralStats(system_type, &db_connection);
         if (system_type == "krimdok")
             CollectKrimDokSpecificStats(&db_connection);

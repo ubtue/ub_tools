@@ -327,7 +327,7 @@ void DbConnection::init(const std::string &database_name, const std::string &use
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage()
                                  + ")");
-    if (::mysql_set_character_set(&mysql_, (charset == UTF8_MB4) ? "utf8mb4" : "utf") != 0)
+    if (::mysql_set_character_set(&mysql_, (charset == UTF8_MB4) ? "utf8mb4" : "utf8") != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage()
                                  + ")");
 
@@ -349,7 +349,7 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage()
                                  + ")");
-    if (::mysql_set_character_set(&mysql_, (charset == UTF8_MB4) ? "utf8mb4" : "utf") != 0)
+    if (::mysql_set_character_set(&mysql_, (charset == UTF8_MB4) ? "utf8mb4" : "utf8") != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage()
                                  + ")");
 
