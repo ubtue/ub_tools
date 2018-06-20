@@ -40,6 +40,7 @@
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "WebUtil.h"
+#include "util.h"
 
 
 namespace TimeUtil {
@@ -710,6 +711,7 @@ struct tm StringToStructTm(const std::string &date_str, std::string optional_str
             const std::string locale_specification(optional_strptime_format.substr(1, closing_paren_pos - 1));
             locale.reset(new Locale(locale_specification, LC_TIME));
             optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
+            LOG_DEBUG("TimeUtil::StringToStructTm: set locale to '" + locale_specification + "'");
         }
 
         std::vector<std::string> format_string_splits;
@@ -717,6 +719,7 @@ struct tm StringToStructTm(const std::string &date_str, std::string optional_str
         // try available format strings until a matching one is found
         if (StringUtil::SplitThenTrimWhite(optional_strptime_format, '|', &format_string_splits)) {
             for (const auto &format_string : format_string_splits) {
+                LOG_DEBUG("TimeUtil::StringToStructTm: attempting to use format string '" + format_string + "'");
                 std::memset(&tm, 0, sizeof(tm));
                 const char * const last_char(::strptime(date_str.c_str(), format_string.c_str(), &tm));
                 if (last_char == nullptr or *last_char != '\0')
