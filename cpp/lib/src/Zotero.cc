@@ -374,7 +374,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                             GetNextControlNumber());
     bool is_journal_article(false);
-    std::string publication_title, issn_normalized, url;
+    std::string publication_title, issn_normalized, url, website_title;
     for (const auto &key_and_node : *object_node) {
         if (ignore_fields->matched(key_and_node.first))
             continue;
@@ -420,17 +420,19 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                 new_record.insertField("542", { { 'u', copyright } });
             else
                 new_record.insertField("542", { { 'f', copyright } });
-        } else if (key_and_node.first == "journalAbbreviation") {
+        } else if (key_and_node.first == "journalAbbreviation")
             new_record.insertField("773", { { 'p', JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
                                                                                          key_and_node.second)->getValue() } });
-        } else if (key_and_node.first == "extra") {
+        else if (key_and_node.first == "extra") {
             // comment field, can contain anything, even DOI's (e.g. for a webpage which has no DOI field)
             const std::string extra(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
                                                                           key_and_node.second)->getValue());
             static RegexMatcher * const doi_matcher(RegexMatcher::RegexMatcherFactory("^DOI:\\s*([0-9a-zA-Z./]+)$"));
             if (doi_matcher->matched(extra))
                 InsertDOI(&new_record, (*doi_matcher)[1]);
-        } else
+        } else if (key_and_node.first == "websiteTitle")
+            website_title = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
+        else
             LOG_ERROR("unknown key \"" + key_and_node.first + "\" with node type "
                       + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
                       + key_and_node.second->toString() + "), whole record: " + object_node->toString());
@@ -483,6 +485,10 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         if (not ssg_numbers.empty())
             new_record.addSubfield("084", 'a', ssg_numbers);
     }
+
+    // title:
+    if (not website_title.empty() and not new_record.hasTag("245"))
+        new_record.insertField("245", { { 'a', website_title } });
 
     // keywords:
     const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
