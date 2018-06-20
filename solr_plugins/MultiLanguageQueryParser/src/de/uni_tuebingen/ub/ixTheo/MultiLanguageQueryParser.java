@@ -19,6 +19,7 @@ import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.SynonymQuery;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.search.WildcardQuery;
@@ -312,6 +313,8 @@ public class MultiLanguageQueryParser extends QParser {
                 subquery = processPhraseQuery((PhraseQuery)subquery);
             } else if (subquery instanceof MultiPhraseQuery) {
                 subquery = processMultiPhraseQuery((MultiPhraseQuery)subquery);
+            } else if (subquery instanceof SynonymQuery) {
+                subquery = processSynonymQuery((SynonymQuery)subquery);
             } else
                 logger.warn("No appropriate Query in BooleanClause for " + subquery.getClass().getName());
             queryBuilder.add(subquery, currentClause.getOccur());
@@ -346,6 +349,23 @@ public class MultiLanguageQueryParser extends QParser {
             throw new SolrException(ErrorCode.SERVER_ERROR, "Language dependent SolrRangeQueries are currently not supported");
         }
         return queryCandidate;
+    }
+
+
+    private Query processSynonymQuery(final SynonymQuery queryCandidate) {
+        List<Term> synonymTerms = queryCandidate.getTerms();
+        List<Term> rewrittenSynonymTerms = new ArrayList<Term>();
+
+        for (Term synonymTerm : synonymTerms) {
+            final String field = synonymTerm.field();
+            final String newFieldName = field + "_" + lang;
+            if (schema.getFieldOrNull(newFieldName) != null)
+              rewrittenSynonymTerms.add(new Term(newFieldName, synonymTerm.text()));
+            else
+              rewrittenSynonymTerms.add(new Term(field, synonymTerm.text()));
+        }
+        Term[] rewrittenSynonymArray = new Term[rewrittenSynonymTerms.size()];
+        return new SynonymQuery(rewrittenSynonymTerms.toArray(rewrittenSynonymArray));
     }
 
 
