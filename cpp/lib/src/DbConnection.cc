@@ -65,7 +65,7 @@ DbConnection::DbConnection(const IniFile &ini_file, const std::string &ini_file_
         { "UTF8_MB3", UTF8_MB3 },
         { "UTF8_MB4", UTF8_MB4 },
     };
-    const Charset charset(static_cast<Charset>(db_section.getEnum("charset", string_to_value_map, UTF8_MB4)));
+    const Charset charset(static_cast<Charset>(db_section.getEnum("sql_charset", string_to_value_map, UTF8_MB4)));
 
     init(database, user, password, host, port, charset);
 }
