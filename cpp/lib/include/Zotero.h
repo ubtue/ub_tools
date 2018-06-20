@@ -266,14 +266,6 @@ public:
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
     MARC::Writer *getWriter() { return marc_writer_.get(); }
 private:
-    inline std::string CreateSubfield(const std::string &tag, const char subfield_code, const std::string &value,
-                                      MARC::Record * const marc_record, const char indicator1 = ' ',
-                                      const char indicator2 = ' ')
-    {
-        marc_record->insertField(tag, { { subfield_code, value } }, indicator1, indicator2);
-        return value;
-    }
-
     inline std::string CreateSubfieldFromStringNode(const std::string &key, const std::shared_ptr<const JSON::JSONNode> node,
                                                     const std::string &tag, const char subfield_code,
                                                     MARC::Record * const marc_record, const char indicator1 = ' ',
@@ -281,7 +273,8 @@ private:
     {
         const std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie(key, node));
         const std::string value(string_node->getValue());
-        return CreateSubfield(tag, subfield_code, value, marc_record, indicator1, indicator2);
+        marc_record->insertField(tag, { { subfield_code, value } }, indicator1, indicator2);
+        return value;
     }
 
     inline std::string CreateSubfieldFromStringNode(const std::pair<std::string, std::shared_ptr<JSON::JSONNode>> &key_and_node,
