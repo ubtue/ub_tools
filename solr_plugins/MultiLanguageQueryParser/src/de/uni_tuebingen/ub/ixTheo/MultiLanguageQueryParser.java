@@ -26,6 +26,7 @@ import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.query.SolrRangeQuery;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.schema.IndexSchema;
 import org.apache.solr.search.DisMaxQParser;
@@ -320,19 +321,32 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     private Query processTermRangeQuery(final TermRangeQuery queryCandidate) {
-       String field = queryCandidate.getField();
-       String newFieldName = field + "_" + lang;
-       if (schema.getFieldOrNull(newFieldName) != null) {
-           return new TermRangeQuery(newFieldName,
-                                     queryCandidate.getLowerTerm(),
-                                     queryCandidate.getUpperTerm(),
-                                     queryCandidate.includesLower(),
-                                     queryCandidate.includesUpper());
-       }
-       return queryCandidate;
+        String field = queryCandidate.getField();
+        String newFieldName = field + "_" + lang;
+        if (schema.getFieldOrNull(newFieldName) != null) {
+            return new TermRangeQuery(newFieldName,
+                                      queryCandidate.getLowerTerm(),
+                                      queryCandidate.getUpperTerm(),
+                                      queryCandidate.includesLower(),
+                                      queryCandidate.includesUpper());
+        }
+        return queryCandidate;
     }
 
 
+    private Query processSolrRangeQuery(final SolrRangeQuery queryCandidate) {
+        String field = queryCandidate.getField();
+        String newFieldName = field + "_" + lang;
+        // There does not seem to a proper way to get Upper and Lower Terms of a SolrRangeQuery
+        // without reparsing. Moreover the SolrRangeQuery API is experimental
+        // Range Queries only make sense in the context of numeric fields
+        // which are language independent, so in practice there should never the need to rewrite
+        // So throw an exception if we really encounter this esoteric case
+        if (schema.getFieldOrNull(newFieldName) != null) {
+            throw new SolrException(ErrorCode.SERVER_ERROR, "Language dependent SolrRangeQueries are currently not supported");
+        }
+        return queryCandidate;
+    }
 
 
     private Query processMatchAllDocsQuery(final MatchAllDocsQuery queryCandidate) {
@@ -361,6 +375,8 @@ public class MultiLanguageQueryParser extends QParser {
                 newQuery = processBoostQuery((BoostQuery)newQuery);
             else if (newQuery instanceof MatchAllDocsQuery)
                 newQuery = processMatchAllDocsQuery((MatchAllDocsQuery)newQuery);
+            else if (newQuery instanceof SolrRangeQuery)
+                newQuery = processSolrRangeQuery((SolrRangeQuery)newQuery);
             else
                 logger.warn("No rewrite rule did match for " + newQuery.getClass());
             this.searchString = newQuery.toString();
