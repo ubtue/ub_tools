@@ -84,6 +84,19 @@ std::string GetNextControlNumber() {
 namespace TranslationServer {
 
 
+bool CheckResponseCode(unsigned response_code, const std::string &response_body, std::string * const error_message) {
+    const std::string response_code_string(StringUtil::ToString(response_code));
+    const char response_code_category = response_code_string[0];
+    if (response_code_category == '4' or response_code_category == '5' or response_code_category == '9') {
+        *error_message = "HTTP response " + response_code_string;
+        if (not response_body.empty())
+            *error_message += " (" + response_body + ")";
+        return false;
+    }
+    return true;
+}
+
+
 bool Export(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
             const std::string &format, const std::string &json,
             std::string * const response_body, std::string * const error_message)
@@ -98,7 +111,7 @@ bool Export(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::
         return false;
     } else {
         *response_body = downloader.getMessageBody();
-        return true;
+        return CheckResponseCode(downloader.getResponseCode(), *response_body, error_message);
     }
 }
 
@@ -115,7 +128,7 @@ bool Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::
         return false;
     } else {
         *output_json = downloader.getMessageBody();
-        return true;
+        return CheckResponseCode(downloader.getResponseCode(), *output_json, error_message);
     }
 }
 
@@ -141,17 +154,7 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
     } else {
         *response_code = downloader.getResponseCode();
         *response_body = downloader.getMessageBody();
-
-        const std::string response_code_string(StringUtil::ToString(*response_code));
-        const char response_code_category = response_code_string[0];
-        if (response_code_category == '4' or response_code_category == '5' or response_code_category == '9') {
-            *error_message = "HTTP response " + response_code_string;
-            if (not response_body->empty())
-                *error_message += " (" + *response_body + ")";
-            return false;
-        }
-
-        return true;
+        return CheckResponseCode(*response_code, *response_body, error_message);
     }
 }
 
