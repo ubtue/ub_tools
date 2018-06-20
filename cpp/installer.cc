@@ -520,10 +520,6 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     Echo("alphabetical browse");
     UseCustomFileIfExists(VUFIND_DIRECTORY + "/index-alphabetic-browse_" + vufind_system_type_string + ".sh",
                           VUFIND_DIRECTORY + "/index-alphabetic-browse.sh");
-    UseCustomFileIfExists(VUFIND_DIRECTORY + "/import/browse-indexing_" + vufind_system_type_string + ".jar",
-                          VUFIND_DIRECTORY + "/import/browse-indexing.jar");
-    UseCustomFileIfExists(VUFIND_DIRECTORY + "/solr/vufind/jars/browse-handler_" + vufind_system_type_string + ".jar",
-                          VUFIND_DIRECTORY + "/solr/vufind/jars/browse-handler.jar");
 
     if (install_cronjobs) {
         Echo("cronjobs");
