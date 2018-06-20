@@ -21,6 +21,7 @@ import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
+import org.apache.lucene.search.WildcardQuery;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.SolrException;
@@ -268,6 +269,9 @@ public class MultiLanguageQueryParser extends QParser {
         } else if (subquery instanceof MultiPhraseQuery) {
             subquery = processMultiPhraseQuery((MultiPhraseQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
+        } else if (subquery instanceof WildcardQuery) {
+            subquery = processWildcardQuery((WildcardQuery)subquery);
+            return new BoostQuery(subquery, queryCandidate.getBoost());
         } else
 	    throw new SolrException(ErrorCode.SERVER_ERROR, "Boost Query: Unable to handle " +  subquery.getClass().getName());
     }
@@ -277,6 +281,13 @@ public class MultiLanguageQueryParser extends QParser {
         final Term term = queryCandidate.getPrefix();
         final TermQuery newTermQuery = (TermQuery)processTermQuery(new TermQuery(term));
         return new PrefixQuery(new Term(newTermQuery.getTerm().field(), newTermQuery.getTerm().text()));
+    }
+
+
+    private Query processWildcardQuery(final WildcardQuery queryCandidate) {
+        final Term term = queryCandidate.getTerm();
+        final TermQuery newTermQuery = (TermQuery)processTermQuery(new TermQuery(term));
+        return new WildcardQuery(new Term(newTermQuery.getTerm().field(), newTermQuery.getTerm().text()));
     }
 
 
@@ -320,6 +331,8 @@ public class MultiLanguageQueryParser extends QParser {
        }
        return queryCandidate;
     }
+
+
 
 
     private Query processMatchAllDocsQuery(final MatchAllDocsQuery queryCandidate) {
