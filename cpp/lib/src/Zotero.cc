@@ -141,6 +141,16 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
     } else {
         *response_code = downloader.getResponseCode();
         *response_body = downloader.getMessageBody();
+
+        const std::string response_code_string(StringUtil::ToString(*response_code));
+        const char response_code_category = response_code_string[0];
+        if (response_code_category == '4' or response_code_category == '5' or response_code_category == '9') {
+            *error_message = "HTTP response " + response_code_string;
+            if (not response_body->empty())
+                *error_message += " (" + *response_body + ")";
+            return false;
+        }
+
         return true;
     }
 }
