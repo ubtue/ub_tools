@@ -361,7 +361,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                             GetNextControlNumber());
     bool is_journal_article(false);
-    std::string publication_title, issn_normalized, url;
+    std::string publication_title, issn_normalized, url, title, website_title;
     for (const auto &key_and_node : *object_node) {
         if (ignore_fields->matched(key_and_node.first))
             continue;
@@ -373,7 +373,9 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             CreateSubfieldFromStringNode(key_and_node, "856", 'u', &new_record);
             url = reinterpret_cast<const JSON::StringNode * const>(key_and_node.second.get())->getValue();
         } else if (key_and_node.first == "title")
-            CreateSubfieldFromStringNode(key_and_node, "245", 'a', &new_record);
+            title = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
+        else if (key_and_node.first == "websiteTitle")
+            website_title = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
         else if (key_and_node.first == "abstractNote")
             CreateSubfieldFromStringNode(key_and_node, "520", 'a', &new_record, /* indicator1 = */ '3');
         else if (key_and_node.first == "date")
@@ -422,6 +424,11 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                       + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
                       + key_and_node.second->toString() + "), whole record: " + object_node->toString());
     }
+
+    if (not title.empty())
+        CreateSubfield("245", 'a', title, &new_record);
+    else if (not website_title.empty())
+        CreateSubfield("245", 'a', website_title, &new_record);
 
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
     if (custom_node != nullptr) {
