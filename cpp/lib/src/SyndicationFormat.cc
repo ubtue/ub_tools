@@ -295,7 +295,7 @@ Atom::Atom(const std::string &xml_document, const AugmentParams &augment_params)
             item_tag_ = data;
             return;
         }
-        
+
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "title")
             title_ = ExtractText(xml_parser_, "title", " (Atom::Atom)");
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link")
@@ -324,7 +324,7 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
     std::string data;
     while (xml_parser_->getNext(&type, &attrib_map, &data)) {
         if (type == SimpleXmlParser<StringDataSource>::CLOSING_TAG and data == item_tag_)
-            return std::unique_ptr<SyndicationFormat::Item>(new Item(title, summary, id, link, updated));
+            return std::unique_ptr<SyndicationFormat::Item>(new Item(title, summary, link, id, updated));
         else if (type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT)
             return nullptr;
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "title")
