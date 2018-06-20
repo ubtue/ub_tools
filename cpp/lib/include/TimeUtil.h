@@ -279,7 +279,7 @@ std::string StructTmToString(const struct tm &tm);
            followed by a format as documented on the strptime(3) man page.
  *  \throws std::runtime_error if the conversion failed.
  */
-struct tm StringToStructTm(const std::string &date_str, std::string optional_strptime_format = DEFAULT_FORMAT);
+struct tm StringToStructTm(std::string date_str, std::string optional_strptime_format = DEFAULT_FORMAT);
 
 
 } // namespace TimeUtil
