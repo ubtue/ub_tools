@@ -813,18 +813,6 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         return std::make_pair(0, 0);
     }
 
-    // 500 => internal server error (e.g. error in translator))
-    if (response_code == 500) {
-        LOG_WARNING("Error: " + response_body);
-        return std::make_pair(0, 0);
-    }
-
-    // 501 => not implemented (e.g. no translator available)
-    if (response_code == 501) {
-        LOG_DEBUG("Skipped (" + response_body + ")");
-        return std::make_pair(0, 0);
-    }
-
     std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
     JSON::Parser json_parser(response_body);
     if (not (json_parser.parse(&tree_root)))
