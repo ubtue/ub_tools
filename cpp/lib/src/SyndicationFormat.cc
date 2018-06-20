@@ -331,8 +331,12 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
             title = ExtractText(xml_parser_, "title");
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "summary")
             summary = ExtractText(xml_parser_, "summary");
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link")
+        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link") {
+            // TODO do we need to do this for the other feed types as well?
             link = ExtractText(xml_parser_, "link");
+            if (link.empty() and attrib_map.count("href"))
+                link = attrib_map["href"];
+        }
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "id")
             id = ExtractText(xml_parser_, "id", " (Atom::getNextItem)");
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "updated") {
