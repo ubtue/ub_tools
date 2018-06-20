@@ -30,7 +30,7 @@
 #include "util.h"
 
 
-DbConnection::DbConnection(const std::string &mysql_url): sqlite3_(nullptr), stmt_handle_(nullptr) {
+DbConnection::DbConnection(const std::string &mysql_url, const Charset charset): sqlite3_(nullptr), stmt_handle_(nullptr) {
     static RegexMatcher * const mysql_url_matcher(
         RegexMatcher::RegexMatcherFactory("mysql://([^:]+):([^@]+)@([^:/]+)(\\d+:)?/(.+)"));
     std::string err_msg;
@@ -49,8 +49,7 @@ DbConnection::DbConnection(const std::string &mysql_url): sqlite3_(nullptr), stm
     else
         port = StringUtil::ToUnsigned(port_plus_colon.substr(0, port_plus_colon.length() - 1));
 
-    // TODO add support for parameters (character encoding, in particular)
-    init(db_name, user, passwd, host, port, DEFAULT_CHARACTER_SET);
+    init(db_name, user, passwd, host, port, charset);
 }
 
 
@@ -61,9 +60,14 @@ DbConnection::DbConnection(const IniFile &ini_file, const std::string &ini_file_
     const std::string user(db_section.getString("sql_username"));
     const std::string password(db_section.getString("sql_password"));
     const unsigned port(db_section.getUnsigned("sql_port", MYSQL_PORT));
-    const std::string character_set(db_section.getString("sql_character_set", DEFAULT_CHARACTER_SET));
 
-    init(database, user, password, host, port, character_set);
+    const std::map<std::string, int> string_to_value_map{
+        { "UTF8_MB3", UTF8_MB3 },
+        { "UTF8_MB4", UTF8_MB4 },
+    };
+    const Charset charset(static_cast<Charset>(db_section.getEnum("charset", string_to_value_map, UTF8_MB4)));
+
+    init(database, user, password, host, port, charset);
 }
 
 
@@ -107,7 +111,6 @@ DbConnection::~DbConnection() {
 
 
 const std::string DbConnection::DEFAULT_CONFIG_FILE_PATH("/usr/local/var/lib/tuelib/ub_tools.conf");
-const std::string DbConnection::DEFAULT_CHARACTER_SET("utf8mb4");
 
 
 bool DbConnection::query(const std::string &query_statement) {
@@ -313,7 +316,7 @@ std::string DbConnection::escapeString(const std::string &unescaped_string) {
 
 
 void DbConnection::init(const std::string &database_name, const std::string &user, const std::string &passwd,
-                        const std::string &host, const unsigned port, const std::string &character_set)
+                        const std::string &host, const unsigned port, const Charset charset)
 {
     initialised_ = false;
 
@@ -324,9 +327,9 @@ void DbConnection::init(const std::string &database_name, const std::string &use
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage()
                                  + ")");
-    if (::mysql_set_character_set(&mysql_, character_set.c_str()) != 0)
+    if (::mysql_set_character_set(&mysql_, (charset == UTF8_MB4) ? "utf8mb4" : "utf") != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage()
-                                 + ") | character set: " + character_set);
+                                 + ")");
 
     sqlite3_ = nullptr;
     type_ = T_MYSQL;
@@ -334,8 +337,8 @@ void DbConnection::init(const std::string &database_name, const std::string &use
 }
 
 
-void DbConnection::init(const std::string &user, const std::string &passwd,
-                        const std::string &host, const unsigned port, const std::string &character_set)
+void DbConnection::init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port,
+                        const Charset charset)
 {
     initialised_ = false;
 
@@ -346,9 +349,9 @@ void DbConnection::init(const std::string &user, const std::string &passwd,
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage()
                                  + ")");
-    if (::mysql_set_character_set(&mysql_, character_set.c_str()) != 0)
+    if (::mysql_set_character_set(&mysql_, (charset == UTF8_MB4) ? "utf8mb4" : "utf") != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage()
-                                 + ") | character set: " + character_set);
+                                 + ")");
 
     sqlite3_ = nullptr;
     type_ = T_MYSQL;
@@ -358,35 +361,35 @@ void DbConnection::init(const std::string &user, const std::string &passwd,
 
 void DbConnection::MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user,
                                        const std::string &admin_passwd, const std::string &host,
-                                       const unsigned port)
+                                       const unsigned port, const Charset charset)
 {
-    DbConnection db_connection(admin_user, admin_passwd, host, port);
+    DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
     db_connection.queryOrDie("CREATE DATABASE " + database_name + ";");
 }
 
 
 void DbConnection::MySQLCreateUser(const std::string &new_user, const std::string &new_passwd,
                                    const std::string &admin_user, const std::string &admin_passwd,
-                                   const std::string &host, const unsigned port)
+                                   const std::string &host, const unsigned port, const Charset charset)
 {
-    DbConnection db_connection(admin_user, admin_passwd, host, port);
+    DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
     db_connection.queryOrDie("CREATE USER " + new_user + " IDENTIFIED BY '" + new_passwd + "';");
 }
 
 
 void DbConnection::MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user,
                                            const std::string &admin_user, const std::string &admin_passwd,
-                                           const std::string &host, const unsigned port)
+                                           const std::string &host, const unsigned port, const Charset charset)
 {
-    DbConnection db_connection(admin_user, admin_passwd, host, port);
+    DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
     db_connection.queryOrDie("GRANT ALL PRIVILEGES ON " + database_name + ".* TO '" + database_user + "';");
 }
 
 
 std::vector<std::string> DbConnection::MySQLGetDatabaseList(const std::string &admin_user, const std::string &admin_passwd,
-                                                            const std::string &host, const unsigned port)
+                                                            const std::string &host, const unsigned port, const Charset charset)
 {
-    DbConnection db_connection(admin_user, admin_passwd, host, port);
+    DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
     db_connection.queryOrDie("SHOW DATABASES;");
 
     std::vector<std::string> databases;
@@ -400,21 +403,20 @@ std::vector<std::string> DbConnection::MySQLGetDatabaseList(const std::string &a
 
 
 bool DbConnection::MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
-                                       const std::string &host, const unsigned port)
+                                       const std::string &host, const unsigned port, const Charset charset)
 {
-    std::vector<std::string> databases(DbConnection::MySQLGetDatabaseList(admin_user, admin_passwd, host, port));
+    std::vector<std::string> databases(DbConnection::MySQLGetDatabaseList(admin_user, admin_passwd, host, port, charset));
     return (std::find(databases.begin(), databases.end(), database_name) != databases.end());
 }
 
 
-void DbConnection::MySQLImportFile(const std::string &sql_file, const std::string &database_name,
-                                   const std::string &user, const std::string &passwd,
-                                   const std::string &host, const unsigned port)
+void DbConnection::MySQLImportFile(const std::string &sql_file, const std::string &database_name, const std::string &user,
+                                   const std::string &passwd, const std::string &host, const unsigned port, const Charset charset)
 {
     std::string sql_data;
     FileUtil::ReadStringOrDie(sql_file, &sql_data);
 
-    DbConnection db_connection(database_name, user, passwd, host, port);
+    DbConnection db_connection(database_name, user, passwd, host, port, charset);
     ::mysql_set_server_option(&db_connection.mysql_, MYSQL_OPTION_MULTI_STATEMENTS_ON);
     db_connection.queryOrDie(sql_data);
 }
