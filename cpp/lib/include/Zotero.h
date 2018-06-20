@@ -96,8 +96,8 @@ public:
     inline const std::string &getPPN() const { return PPN_; }
     inline const std::string &getTitle() const { return title_; }
 };
-    
-    
+
+
 struct AugmentMaps {
     std::unordered_map<std::string, std::string> ISSN_to_SSG_map_;
     std::unordered_map<std::string, std::string> ISSN_to_keyword_field_map_;
@@ -119,7 +119,7 @@ public:
     explicit GobalAugmentParams(AugmentMaps * const maps): maps_(maps) { }
 };
 
-    
+
 /** \brief Parameters that apply to single sites only. */
 struct SiteAugmentParams {
     GobalAugmentParams *global_params_; // So that we don't have to pass through two arguments everywhere.
@@ -148,6 +148,7 @@ struct HarvestParams {
     Url zts_server_url_;
     TimeLimit min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
     unsigned harvested_url_count_ = 0;
+    std::string user_agent_;
     std::unique_ptr<FormatHandler> format_handler_;
 };
 
