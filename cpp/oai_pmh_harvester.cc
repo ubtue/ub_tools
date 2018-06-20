@@ -33,7 +33,7 @@
 //https://memory.loc.gov/cgi-bin/oai2_0?verb=ListRecords&metadataPrefix=marc21&set=mussm
 void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--skip-dups] base_url metadata_prefix [harvest_set] control_number_prefix output_filename"
+              << " [--skip-dups] [--ignore-ssl-certificates] base_url metadata_prefix [harvest_set] control_number_prefix output_filename"
               << " time_limit_per_request\n"
               << "       If \"--skip-dups\" has been specified, records that we already encountered in the past won't\n"
               << "       included in the output file.\n"
@@ -116,12 +116,26 @@ unsigned ExtractEncapsulatedRecordData(SimpleXmlParser<StringDataSource> * const
 }
 
 
-bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_per_request, File * const output,
-                 std::string * const resumption_token, std::string * const cursor, std::string * const complete_list_size,
-                 unsigned * total_record_count)
+bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_per_request, const bool ignore_ssl_certificates,
+                 File * const output, std::string * const resumption_token, std::string * const cursor,
+                 std::string * const complete_list_size, unsigned * total_record_count)
 {
     const TimeLimit time_limit(time_limit_in_seconds_per_request * 1000);
-    Downloader downloader(url, Downloader::Params(), time_limit);
+    Downloader::Params params(Downloader::DEFAULT_USER_AGENT_STRING,
+                              Downloader::DEFAULT_ACCEPTABLE_LANGUAGES,
+                              Downloader::DEFAULT_MAX_REDIRECTS,
+                              Downloader::DEFAULT_DNS_CACHE_TIMEOUT,
+                              false, /*honour_robots_dot_txt*/
+                              Downloader::TRANSPARENT,
+                              PerlCompatRegExps(),
+                              false, /*debugging*/
+                              true,/*follow_redirects*/
+                              Downloader::DEFAULT_META_REDIRECT_THRESHOLD,
+                              ignore_ssl_certificates, /*ignore SSL certificates*/
+                              "", /*proxy_host_and_port*/
+                              {}, /*additional headers*/
+                              "" /*post_data*/);
+    Downloader downloader(url, params, time_limit);
     if (downloader.anErrorOccurred())
         LOG_ERROR("harvest failed: " + downloader.getLastErrorMessage());
 
@@ -219,10 +233,18 @@ void GenerateValidatedOutput(kyotocabinet::HashDB * const dups_db, MARC::Reader 
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
+
     std::unique_ptr<kyotocabinet::HashDB> dups_db;
     if (argc > 1 and std::strcmp(argv[1], "--skip-dups") == 0) {
         dups_db = CreateOrOpenKeyValueDB();
         --argc, ++argv;
+    }
+
+
+    bool ignore_ssl_certificates(false);
+    if (argc > 1 and std::strcmp(argv[1], "--ignore-ssl-certificates") == 0) {
+       ignore_ssl_certificates = true;
+       --argc, ++argv;
     }
 
     if (argc != 6 and argc != 7)
@@ -252,8 +274,8 @@ int main(int argc, char **argv) {
         std::string resumption_token, cursor, complete_list_size;
         unsigned total_record_count(0);
         while (ListRecords(MakeRequestURL(base_url, metadata_prefix, harvest_set, resumption_token),
-                           time_limit_per_request_in_seconds, temp_output.get(), &resumption_token,
-                           &cursor, &complete_list_size, &total_record_count))
+                           time_limit_per_request_in_seconds, ignore_ssl_certificates, temp_output.get(),
+                           &resumption_token, &cursor, &complete_list_size, &total_record_count))
             LOG_INFO("Continuing download, resumption token was: \"" + resumption_token + "\" (cursor=" + cursor
                  + ", completeListSize=" + complete_list_size + ").");
 
