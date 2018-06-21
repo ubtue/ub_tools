@@ -20,7 +20,10 @@
 #include "XMLParser.h"
 
 
-const XMLParser::Options XMLParser::DEFAULT_OPTIONS { true };
+const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
+    /* do_namespaces_ = */false,
+    /* do_schema_ = */false,
+};
 
 
 std::string XMLParser::ToString(const XMLCh * const xmlch) {
@@ -28,61 +31,62 @@ std::string XMLParser::ToString(const XMLCh * const xmlch) {
 }
 
 
-std::string XMLParser::XmlPart::TypeToString(const Type type) {
+std::string XMLParser::XMLPart::TypeToString(const Type type) {
     switch (type) {
-    case START_ELEMENT:
-        return "START_ELEMENT";
-    case END_ELEMENT:
-        return "END_ELEMENT";
-    case PROCESSING_INSTRUCTION:
-        return "PROCESSING_INSTRUCTION";
+    case UNINITIALISED:
+        return "UNINITIALISED";
+    case OPENING_TAG:
+        return "OPENING_TAG";
+    case CLOSING_TAG:
+        return "CLOSING_TAG";
     case CHARACTERS:
         return "CHARACTERS";
-        throw std::runtime_error("in XMLParser::XmlPart::TypeToString: we should never get here!");
+        throw std::runtime_error("in XMLParser::XMLPart::TypeToString: we should never get here!");
     };
 }
 
 
 void XMLParser::Handler::startElement(const XMLCh * const name, xercesc::AttributeList &attributes) {
-    StartElement start_element;
-    start_element.name_ = XMLParser::ToString(name);
+    XMLPart xml_part;
+    xml_part.type_ = XMLPart::OPENING_TAG;
+    xml_part.data_ = XMLParser::ToString(name);
     for (XMLSize_t i = 0; i < attributes.getLength(); i++)
-        start_element.attributes_.push_back(std::make_pair(XMLParser::ToString(attributes.getName(i)), XMLParser::ToString(attributes.getValue(i))));
-    parser_->addToBuffer(std::make_shared<StartElement>(start_element));
+        xml_part.attributes_[XMLParser::ToString(attributes.getName(i))] = XMLParser::ToString(attributes.getValue(i));
+    parser_->addToBuffer(xml_part);
 }
 
 
 void XMLParser::Handler::endElement(const XMLCh * const name) {
-    EndElement end_element;
-    end_element.name_ = XMLParser::ToString(name);
-    parser_->addToBuffer(std::make_shared<EndElement>(end_element));
-}
-
-
-void XMLParser::Handler::processingInstruction(const XMLCh * const target, const XMLCh * const data) {
-    ProcessingInstruction processing_instruction;
-    processing_instruction.target_ = XMLParser::ToString(target);
-    processing_instruction.data_ = XMLParser::ToString(data);
-    parser_->addToBuffer(std::make_shared<ProcessingInstruction>(processing_instruction));
+    XMLPart xml_part;
+    xml_part.type_ = XMLPart::CLOSING_TAG;
+    xml_part.data_ = XMLParser::ToString(name);
+    parser_->addToBuffer(xml_part);
 }
 
 
 void XMLParser::Handler::characters(const XMLCh * const chars, const XMLSize_t /*length*/) {
-    Characters characters;
-    characters.chars_ = XMLParser::ToString(chars);
-    parser_->addToBuffer(std::make_shared<Characters>(characters));
+    XMLPart xml_part;
+    xml_part.type_ = XMLPart::CHARACTERS;
+    xml_part.data_ = XMLParser::ToString(chars);
+    parser_->addToBuffer(xml_part);
 }
 
 
 void XMLParser::Handler::ignorableWhitespace(const XMLCh * const chars, const XMLSize_t length) {
-    return characters(chars, length);
+    characters(chars, length);
 }
 
 
 XMLParser::XMLParser(const std::string &xml_file, const Options &options) {
+    options_ = options;
+    xml_file_ = xml_file;
+    rewind();
+}
+
+
+void XMLParser::rewind() {
     xercesc::XMLPlatformUtils::Initialize();
     parser_  = new xercesc::SAXParser();
-    options_ = options;
 
     handler_ = new XMLParser::Handler();
     handler_->parser_ = this;
@@ -91,11 +95,13 @@ XMLParser::XMLParser(const std::string &xml_file, const Options &options) {
     error_handler_ = new XMLParser::ErrorHandler();
     parser_->setErrorHandler(error_handler_);
 
-    xml_file_ = xml_file;
+    parser_->setDoNamespaces(options_.do_namespaces_);
+    parser_->setDoSchema(options_.do_schema_);
+
 }
 
 
-bool XMLParser::getNext(std::shared_ptr<XmlPart> &next) {
+bool XMLParser::getNext(XMLPart * const next) {
     if (not prolog_parsing_done_) {
         body_has_more_contents_ = parser_->parseFirst(xml_file_.c_str(), token_);
         if (not body_has_more_contents_)
@@ -108,12 +114,38 @@ bool XMLParser::getNext(std::shared_ptr<XmlPart> &next) {
         body_has_more_contents_ = parser_->parseNext(token_);
 
     if (not buffer_.empty()) {
-        std::shared_ptr<XmlPart> current(next);
-        next = buffer_.front();
+        XMLPart current(*next);
+        *next = buffer_.front();
         buffer_.pop();
-        if (options_.ignore_processing_instructions_ && next->getType() == XmlPart::PROCESSING_INSTRUCTION)
-            return getNext(current);
     }
 
     return (not buffer_.empty() or body_has_more_contents_);
+}
+
+
+bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags,
+                       XMLPart * const part)
+{
+    while (getNext(part)) {
+        if (part->type_ == expected_type) {
+            if ((expected_type == XMLPart::OPENING_TAG or expected_type == XMLPart::CLOSING_TAG)) {
+                if (expected_tags.empty())
+                    return true;
+                else if (expected_tags.find(part->data_) != expected_tags.end())
+                    return true;
+            } else
+                return true;
+        }
+    }
+    return false;
+}
+
+
+bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::string &expected_tag,
+                       XMLPart * const part)
+{
+    std::set<std::string> expected_tags;
+    if (expected_tag != "")
+        expected_tags.emplace(expected_tag);
+    return skipTo(expected_type, expected_tags, part);
 }
