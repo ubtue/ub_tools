@@ -1,4 +1,4 @@
-/** \file   Xerces.h
+/** \file   XMLParser.h
  *  \brief  Wrapper class for Xerces XML parser
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
@@ -29,15 +29,22 @@
 #include <xercesc/util/XMLString.hpp>
 #include "util.h"
 
-class Xerces {
+
+class XMLParser {
     xercesc::SAXParser * parser_;
     xercesc::XMLPScanToken token_;
     std::string xml_file_;
     bool prolog_parsing_done_ = false;
     bool body_has_more_contents_;
 public:
+    struct Options {
+        bool ignore_processing_instructions_;
+    };
+
+    static const Options DEFAULT_OPTIONS;
+
     struct XmlPart {
-        enum Type { START_ELEMENT, END_ELEMENT, PROCESSING_INSTRUCTION, CHARACTERS, IGNORABLE_WHITESPACE };
+        enum Type { START_ELEMENT, END_ELEMENT, PROCESSING_INSTRUCTION, CHARACTERS };
         virtual Type getType() const = 0;
         virtual ~XmlPart() = default;
         static std::string TypeToString(const Type type);
@@ -65,11 +72,9 @@ public:
         inline virtual Type getType() const override { return CHARACTERS; }
     };
 
-    struct IgnorableWhitespace : Characters {
-        inline virtual Type getType() const override { return IGNORABLE_WHITESPACE; }
-    };
-
 private:
+    Options options_;
+
     template<typename XmlPartType> static const std::shared_ptr<const XmlPartType> CastToXmlPartOrDie(const std::shared_ptr<const XmlPart> part, const XmlPart::Type part_type) {
         if (unlikely(part->getType() != part_type))
             LOG_ERROR("Could not convert XmlPart to " + XmlPart::TypeToString(part_type));
@@ -80,25 +85,24 @@ public:
     static const std::shared_ptr<const EndElement> CastToEndElementOrDie(const std::shared_ptr<const XmlPart> part) { return CastToXmlPartOrDie<EndElement>(part, XmlPart::END_ELEMENT); }
     static const std::shared_ptr<const ProcessingInstruction> CastToProcessingInstructionOrDie(const std::shared_ptr<const XmlPart> part) { return CastToXmlPartOrDie<ProcessingInstruction>(part, XmlPart::PROCESSING_INSTRUCTION); }
     static const std::shared_ptr<const Characters> CastToCharactersOrDie(const std::shared_ptr<const XmlPart> part) { return CastToXmlPartOrDie<Characters>(part, XmlPart::CHARACTERS); }
-    static const std::shared_ptr<const IgnorableWhitespace> CastToIgnorableWhitespaceOrDie(const std::shared_ptr<const XmlPart> part) { return CastToXmlPartOrDie<IgnorableWhitespace>(part, XmlPart::IGNORABLE_WHITESPACE); }
 private:
     class Handler : public xercesc::HandlerBase {
-        friend class Xerces;
-        Xerces * xerces_;
+        friend class XMLParser;
+        XMLParser * parser_;
 
     public:
         void characters(const XMLCh * const chars, const XMLSize_t length);
         void endElement(const XMLCh * const name);
         void ignorableWhitespace(const XMLCh * const chars, const XMLSize_t length);
-        void processingInstruction(const XMLCh * const target, const XMLCh *const data);
+        void processingInstruction(const XMLCh * const target, const XMLCh * const data);
         void startElement(const XMLCh * const name, xercesc::AttributeList &attributes);
     };
 
     class ErrorHandler : public xercesc::ErrorHandler {
     public:
-        void warning(const xercesc::SAXParseException &exc) { LOG_WARNING(Xerces::ToString(exc.getMessage())); }
-        void error(const xercesc::SAXParseException &exc) { LOG_WARNING(Xerces::ToString(exc.getMessage())); }
-        void fatalError(const xercesc::SAXParseException &exc) { LOG_ERROR(Xerces::ToString(exc.getMessage())); }
+        void warning(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToString(exc.getMessage())); }
+        void error(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToString(exc.getMessage())); }
+        void fatalError(const xercesc::SAXParseException &exc) { LOG_ERROR(XMLParser::ToString(exc.getMessage())); }
         void resetErrors() {}
     };
 
@@ -108,8 +112,8 @@ private:
     void addToBuffer(std::shared_ptr<XmlPart> xml_part) { buffer_.push(xml_part); }
     friend class Handler;
 public:
-    Xerces(const std::string &xml_file);
-    ~Xerces() = default;
+    XMLParser(const std::string &xml_file, const Options &options = DEFAULT_OPTIONS);
+    ~XMLParser() = default;
 
     /** \brief  converts xerces' internal string type to std::string. */
     static std::string ToString(const XMLCh * const xmlch);

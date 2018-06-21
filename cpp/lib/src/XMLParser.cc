@@ -1,4 +1,4 @@
-/** \file   Xerces.cc
+/** \file   XMLParser.cc
  *  \brief  Wrapper class for Xerces XML parser
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
@@ -17,15 +17,18 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "Xerces.h"
+#include "XMLParser.h"
 
 
-std::string Xerces::ToString(const XMLCh * const xmlch) {
+const XMLParser::Options XMLParser::DEFAULT_OPTIONS { true };
+
+
+std::string XMLParser::ToString(const XMLCh * const xmlch) {
     return xercesc::XMLString::transcode(xmlch);
 }
 
 
-std::string Xerces::XmlPart::TypeToString(const Type type) {
+std::string XMLParser::XmlPart::TypeToString(const Type type) {
     switch (type) {
     case START_ELEMENT:
         return "START_ELEMENT";
@@ -35,67 +38,64 @@ std::string Xerces::XmlPart::TypeToString(const Type type) {
         return "PROCESSING_INSTRUCTION";
     case CHARACTERS:
         return "CHARACTERS";
-    case IGNORABLE_WHITESPACE:
-        return "IGNORABLE_WHITESPACE";
-        throw std::runtime_error("in Xerces::XmlPart::TypeToString: we should never get here!");
+        throw std::runtime_error("in XMLParser::XmlPart::TypeToString: we should never get here!");
     };
 }
 
 
-void Xerces::Handler::startElement(const XMLCh * const name, xercesc::AttributeList &attributes) {
+void XMLParser::Handler::startElement(const XMLCh * const name, xercesc::AttributeList &attributes) {
     StartElement start_element;
-    start_element.name_ = Xerces::ToString(name);
+    start_element.name_ = XMLParser::ToString(name);
     for (XMLSize_t i = 0; i < attributes.getLength(); i++)
-        start_element.attributes_.push_back(std::make_pair(Xerces::ToString(attributes.getName(i)), Xerces::ToString(attributes.getValue(i))));
-    xerces_->addToBuffer(std::make_shared<StartElement>(start_element));
+        start_element.attributes_.push_back(std::make_pair(XMLParser::ToString(attributes.getName(i)), XMLParser::ToString(attributes.getValue(i))));
+    parser_->addToBuffer(std::make_shared<StartElement>(start_element));
 }
 
 
-void Xerces::Handler::endElement(const XMLCh * const name) {
+void XMLParser::Handler::endElement(const XMLCh * const name) {
     EndElement end_element;
-    end_element.name_ = Xerces::ToString(name);
-    xerces_->addToBuffer(std::make_shared<EndElement>(end_element));
+    end_element.name_ = XMLParser::ToString(name);
+    parser_->addToBuffer(std::make_shared<EndElement>(end_element));
 }
 
 
-void Xerces::Handler::processingInstruction(const XMLCh * const target, const XMLCh * const data) {
+void XMLParser::Handler::processingInstruction(const XMLCh * const target, const XMLCh * const data) {
     ProcessingInstruction processing_instruction;
-    processing_instruction.target_ = Xerces::ToString(target);
-    processing_instruction.data_ = Xerces::ToString(data);
-    xerces_->addToBuffer(std::make_shared<ProcessingInstruction>(processing_instruction));
+    processing_instruction.target_ = XMLParser::ToString(target);
+    processing_instruction.data_ = XMLParser::ToString(data);
+    parser_->addToBuffer(std::make_shared<ProcessingInstruction>(processing_instruction));
 }
 
 
-void Xerces::Handler::characters(const XMLCh * const chars, const XMLSize_t /*length*/) {
+void XMLParser::Handler::characters(const XMLCh * const chars, const XMLSize_t /*length*/) {
     Characters characters;
-    characters.chars_ = Xerces::ToString(chars);
-    xerces_->addToBuffer(std::make_shared<Characters>(characters));
+    characters.chars_ = XMLParser::ToString(chars);
+    parser_->addToBuffer(std::make_shared<Characters>(characters));
 }
 
 
-void Xerces::Handler::ignorableWhitespace(const XMLCh * const chars, const XMLSize_t /*length*/) {
-    IgnorableWhitespace ignorable_whitespace;
-    ignorable_whitespace.chars_ = Xerces::ToString(chars);
-    xerces_->addToBuffer(std::make_shared<IgnorableWhitespace>(ignorable_whitespace));
+void XMLParser::Handler::ignorableWhitespace(const XMLCh * const chars, const XMLSize_t length) {
+    return characters(chars, length);
 }
 
 
-Xerces::Xerces(const std::string &xml_file) {
+XMLParser::XMLParser(const std::string &xml_file, const Options &options) {
     xercesc::XMLPlatformUtils::Initialize();
-    parser_ = new xercesc::SAXParser();
+    parser_  = new xercesc::SAXParser();
+    options_ = options;
 
-    handler_ = new Xerces::Handler();
-    handler_->xerces_ = this;
+    handler_ = new XMLParser::Handler();
+    handler_->parser_ = this;
     parser_->setDocumentHandler(handler_);
 
-    error_handler_ = new Xerces::ErrorHandler();
+    error_handler_ = new XMLParser::ErrorHandler();
     parser_->setErrorHandler(error_handler_);
 
     xml_file_ = xml_file;
 }
 
 
-bool Xerces::getNext(std::shared_ptr<XmlPart> &next) {
+bool XMLParser::getNext(std::shared_ptr<XmlPart> &next) {
     if (not prolog_parsing_done_) {
         body_has_more_contents_ = parser_->parseFirst(xml_file_.c_str(), token_);
         if (not body_has_more_contents_)
@@ -108,8 +108,11 @@ bool Xerces::getNext(std::shared_ptr<XmlPart> &next) {
         body_has_more_contents_ = parser_->parseNext(token_);
 
     if (not buffer_.empty()) {
+        std::shared_ptr<XmlPart> current(next);
         next = buffer_.front();
         buffer_.pop();
+        if (options_.ignore_processing_instructions_ && next->getType() == XmlPart::PROCESSING_INSTRUCTION)
+            return getNext(current);
     }
 
     return (not buffer_.empty() or body_has_more_contents_);
