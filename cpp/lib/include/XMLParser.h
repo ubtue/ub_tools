@@ -34,11 +34,13 @@
 class XMLParser {
     xercesc::SAXParser * parser_;
     xercesc::XMLPScanToken token_;
-    std::string xml_file_;
+    std::string xml_file_or_string_;
     bool prolog_parsing_done_ = false;
     bool body_has_more_contents_;
 public:
     typedef std::map<std::string, std::string> Attributes;
+
+    enum Type { FILE, STRING };
 
     struct Options {
         bool do_namespaces_;
@@ -55,6 +57,7 @@ public:
         Attributes attributes_;
     };
 private:
+    Type type_;
     Options options_;
     class Handler : public xercesc::HandlerBase {
         friend class XMLParser;
@@ -81,7 +84,7 @@ private:
     void addToBuffer(XMLPart &xml_part) { buffer_.push(xml_part); }
     friend class Handler;
 public:
-    XMLParser(const std::string &xml_file, const Options &options = DEFAULT_OPTIONS);
+    XMLParser(const std::string &xml_file_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
     ~XMLParser() = default;
     void rewind();
 

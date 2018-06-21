@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "XMLParser.h"
+#include <xercesc/framework/MemBufInputSource.hpp>
 
 
 const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
@@ -77,9 +78,10 @@ void XMLParser::Handler::ignorableWhitespace(const XMLCh * const chars, const XM
 }
 
 
-XMLParser::XMLParser(const std::string &xml_file, const Options &options) {
+XMLParser::XMLParser(const std::string &xml_file_or_string, const Type type, const Options &options) {
+    xml_file_or_string_ = xml_file_or_string;
+    type_ = type;
     options_ = options;
-    xml_file_ = xml_file;
     rewind();
 }
 
@@ -103,9 +105,19 @@ void XMLParser::rewind() {
 
 bool XMLParser::getNext(XMLPart * const next) {
     if (not prolog_parsing_done_) {
-        body_has_more_contents_ = parser_->parseFirst(xml_file_.c_str(), token_);
-        if (not body_has_more_contents_)
-            LOG_ERROR("error parsing document header: " + xml_file_);
+
+        if (type_ == FILE) {
+            body_has_more_contents_ = parser_->parseFirst(xml_file_or_string_.c_str(), token_);
+            if (not body_has_more_contents_)
+                LOG_ERROR("error parsing document header: " + xml_file_or_string_);
+        } else if (type_ == STRING) {
+            xercesc::MemBufInputSource input_buffer((const XMLByte*)xml_file_or_string_.c_str(), xml_file_or_string_.size(),
+                                     "xml_string (in memory)");
+            body_has_more_contents_ = parser_->parseFirst(input_buffer, token_);
+            if (not body_has_more_contents_)
+                LOG_ERROR("error parsing document header: " + xml_file_or_string_);
+        } else
+            LOG_ERROR("Undefined XMLParser::Type!");
 
         prolog_parsing_done_ = true;
     }
