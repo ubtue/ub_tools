@@ -39,9 +39,9 @@
 #include "Locale.h"
 #include "HtmlParser.h"
 #include "RegexMatcher.h"
-#include "SimpleXmlParser.h"
 #include "StringDataSource.h"
 #include "StringUtil.h"
+#include "XMLParser.h"
 #include "util.h"
 
 
@@ -163,27 +163,25 @@ std::string ExtractTextFromHtml(const std::string &html, const std::string &init
 std::string ExtractTextFromUBTei(const std::string &tei) {
     std::string extracted_text;
 
-    const std::unique_ptr<StringDataSource> source(new StringDataSource(tei));
-    SimpleXmlParser<StringDataSource> parser(source.get());
+    XMLParser parser(tei, XMLParser::STRING);
 
     const std::string WORD_WRAP("¬");
     bool concat_with_whitespace(true);
 
-    SimpleXmlParser<StringDataSource>::Type type;
     std::map<std::string, std::string> attrib_map;
-    std::string data;
-    while (parser.skipTo(SimpleXmlParser<StringDataSource>::Type::OPENING_TAG, "span")) {
-        if (parser.getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<StringDataSource>::Type::CHARACTERS) {
+    XMLParser::XMLPart part;
+    while (parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "span")) {
+        if (parser.getNext(&part) and part.type_ == XMLParser::XMLPart::CHARACTERS) {
             if (concat_with_whitespace)
                 extracted_text += ' ';
 
-            if (StringUtil::EndsWith(data, WORD_WRAP)) {
-                StringUtil::RightTrim(WORD_WRAP, &data);
+            if (StringUtil::EndsWith(part.data_, WORD_WRAP)) {
+                StringUtil::RightTrim(WORD_WRAP, &part.data_);
                 concat_with_whitespace = false;
             } else
                 concat_with_whitespace = true;
 
-            extracted_text += data;
+            extracted_text += part.data_;
         }
     }
 
