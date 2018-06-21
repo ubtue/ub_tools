@@ -19,10 +19,11 @@
  */
 #pragma once
 
+#include <map>
 #include <memory>
 #include <queue>
+#include <set>
 #include <string>
-#include <vector>
 #include <xercesc/framework/XMLPScanToken.hpp>
 #include <xercesc/parsers/SAXParser.hpp>
 #include <xercesc/sax/HandlerBase.hpp>
@@ -37,55 +38,24 @@ class XMLParser {
     bool prolog_parsing_done_ = false;
     bool body_has_more_contents_;
 public:
+    typedef std::map<std::string, std::string> Attributes;
+
     struct Options {
-        bool ignore_processing_instructions_;
+        bool do_namespaces_;
+        bool do_schema_;
     };
 
     static const Options DEFAULT_OPTIONS;
 
-    struct XmlPart {
-        enum Type { START_ELEMENT, END_ELEMENT, PROCESSING_INSTRUCTION, CHARACTERS };
-        virtual Type getType() const = 0;
-        virtual ~XmlPart() = default;
+    struct XMLPart {
+        enum Type { UNINITIALISED, OPENING_TAG, CLOSING_TAG, CHARACTERS };
         static std::string TypeToString(const Type type);
-    };
-
-    struct StartElement : XmlPart {
-        std::string name_;
-        std::vector<std::pair<std::string, std::string>> attributes_;
-        inline virtual Type getType() const override { return START_ELEMENT; }
-    };
-
-    struct EndElement : XmlPart {
-        std::string name_;
-        inline virtual Type getType() const override { return END_ELEMENT; }
-    };
-
-    struct ProcessingInstruction : XmlPart {
-        std::string target_;
+        Type type_ = UNINITIALISED;
         std::string data_;
-        inline virtual Type getType() const override { return PROCESSING_INSTRUCTION; }
+        Attributes attributes_;
     };
-
-    struct Characters : XmlPart {
-        std::string chars_;
-        inline virtual Type getType() const override { return CHARACTERS; }
-    };
-
 private:
     Options options_;
-
-    template<typename XmlPartType> static const std::shared_ptr<const XmlPartType> CastToXmlPartOrDie(const std::shared_ptr<const XmlPart> part, const XmlPart::Type part_type) {
-        if (unlikely(part->getType() != part_type))
-            LOG_ERROR("Could not convert XmlPart to " + XmlPart::TypeToString(part_type));
-        return std::static_pointer_cast<const XmlPartType>(part);
-    }
-public:
-    static const std::shared_ptr<const StartElement> CastToStartElementOrDie(const std::shared_ptr<const XmlPart> part) { return CastToXmlPartOrDie<StartElement>(part, XmlPart::START_ELEMENT); }
-    static const std::shared_ptr<const EndElement> CastToEndElementOrDie(const std::shared_ptr<const XmlPart> part) { return CastToXmlPartOrDie<EndElement>(part, XmlPart::END_ELEMENT); }
-    static const std::shared_ptr<const ProcessingInstruction> CastToProcessingInstructionOrDie(const std::shared_ptr<const XmlPart> part) { return CastToXmlPartOrDie<ProcessingInstruction>(part, XmlPart::PROCESSING_INSTRUCTION); }
-    static const std::shared_ptr<const Characters> CastToCharactersOrDie(const std::shared_ptr<const XmlPart> part) { return CastToXmlPartOrDie<Characters>(part, XmlPart::CHARACTERS); }
-private:
     class Handler : public xercesc::HandlerBase {
         friend class XMLParser;
         XMLParser * parser_;
@@ -94,7 +64,6 @@ private:
         void characters(const XMLCh * const chars, const XMLSize_t length);
         void endElement(const XMLCh * const name);
         void ignorableWhitespace(const XMLCh * const chars, const XMLSize_t length);
-        void processingInstruction(const XMLCh * const target, const XMLCh * const data);
         void startElement(const XMLCh * const name, xercesc::AttributeList &attributes);
     };
 
@@ -108,12 +77,13 @@ private:
 
     Handler* handler_;
     ErrorHandler* error_handler_;
-    std::queue<std::shared_ptr<XmlPart>> buffer_;
-    void addToBuffer(std::shared_ptr<XmlPart> xml_part) { buffer_.push(xml_part); }
+    std::queue<XMLPart> buffer_;
+    void addToBuffer(XMLPart &xml_part) { buffer_.push(xml_part); }
     friend class Handler;
 public:
     XMLParser(const std::string &xml_file, const Options &options = DEFAULT_OPTIONS);
     ~XMLParser() = default;
+    void rewind();
 
     /** \brief  converts xerces' internal string type to std::string. */
     static std::string ToString(const XMLCh * const xmlch);
@@ -123,5 +93,25 @@ public:
      *          still being parsed during consecutive getNext() calls.
      *  \throws xerces might throw exceptions, e.g. xercesc::RuntimeException.
      */
-    bool getNext(std::shared_ptr<XmlPart> &next);
+    bool getNext(XMLPart * const next);
+
+
+    /** \brief Skip forward until we encounter a certain element.
+     *  \param expected_type  The type of element we're looking for.
+     *  \param expected_tags  If "type" is OPENING_TAG or CLOSING_TAG, the name of the tags we're looking for.  We return when we
+     *                        have found the first matching one.
+     *  \param part           The found XMLPart will be returned here.
+     *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
+     */
+    bool skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags,
+                XMLPart * const part = nullptr);
+
+    /** \brief Skip forward until we encounter a certain element.
+     *  \param expected_type  The type of element we're looking for.
+     *  \param expected_tag   If "type" is OPENING_TAG or CLOSING_TAG, the name of the tag we're looking for.
+     *  \param part           The found XMLPart will be returned here.
+     *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
+     */
+    bool skipTo(const XMLPart::Type expected_type, const std::string &expected_tag = "",
+                XMLPart * const part = nullptr);
 };
