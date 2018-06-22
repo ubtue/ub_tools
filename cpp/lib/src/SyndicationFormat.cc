@@ -210,8 +210,11 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
             title = ExtractText(xml_parser_, "title", " (RSS20::getNextItem)");
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "description")
             description = ExtractText(xml_parser_, "description", " (RSS20::getNextItem)");
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link")
+        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link") {
             link = ExtractText(xml_parser_, "link", " (RSS20::getNextItem)");
+            if (link.empty() and attrib_map.find("href") != attrib_map.cend())
+                link = attrib_map["href"];
+        }
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "guid")
             id = ExtractText(xml_parser_, "guid", " (RSS20::getNextItem)");
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "pubDate") {
@@ -274,8 +277,11 @@ std::unique_ptr<SyndicationFormat::Item> RSS091::getNextItem() {
             title = ExtractText(xml_parser_, "title");
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "description")
             description = ExtractText(xml_parser_, "description");
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link")
+        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link") {
             link = ExtractText(xml_parser_, "link");
+            if (link.empty() and attrib_map.find("href") != attrib_map.cend())
+                link = attrib_map["href"];
+        }
     }
     if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
         throw std::runtime_error("in RSS091::getNextItem: found XML error: " + xml_parser_->getLastErrorMessage());
@@ -332,7 +338,6 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "summary")
             summary = ExtractText(xml_parser_, "summary");
         else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link") {
-            // TODO do we need to do this for the other feed types as well?
             link = ExtractText(xml_parser_, "link");
             if (link.empty() and attrib_map.find("href") != attrib_map.cend())
                 link = attrib_map["href"];
@@ -474,8 +479,11 @@ std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
                 title = ExtractText(xml_parser_, rss_namespace_ + "title");
             else if (data == rss_namespace_ + "description")
                 description = ExtractText(xml_parser_, rss_namespace_ + "description");
-            else if (data == rss_namespace_ + "link")
+            else if (data == rss_namespace_ + "link") {
                 link = ExtractText(xml_parser_, rss_namespace_ + "link");
+                if (link.empty() and attrib_map.find("href") != attrib_map.cend())
+                    link = attrib_map["href"];
+            }
             else if (data == rss_namespace_ + "pubDate") {
                 const std::string pub_date_string(ExtractText(xml_parser_, rss_namespace_ + "pubDate"));
                 if (augment_params_.strptime_format_.empty()) {
