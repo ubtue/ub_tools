@@ -53,6 +53,48 @@ std::string NormaliseSubfieldContents(std::string subfield_contents) {
 }
 
 
+void LoadTagAndSubfieldCodesGroupsFromGlobalSection(const IniFile &ini_file,
+                                                    std::map<std::string, std::vector<std::string>> * const subfields_name_to_subfields_map)
+{
+    const IniFile::Section &global_section(ini_file.getSection(""));
+
+    for (const auto &entry_and_value : global_section) {
+        if (unlikely(subfields_name_to_subfields_map->find(entry_and_value.first) != subfields_name_to_subfields_map->cend()))
+            LOG_ERROR("duplicate subfields name \"" + entry_and_value.first + "\"!");
+        if (unlikely(entry_and_value.second.empty()))
+            LOG_ERROR("missing subfields spec for \"" + entry_and_value.first + "\"!");
+
+        std::vector<std::string> tags_and_subfield_codes;
+        StringUtil::Split(entry_and_value.second, ':', &tags_and_subfield_codes);
+        for (const auto &tag_and_subfield_code : tags_and_subfield_codes) {
+            if (unlikely(tag_and_subfield_code.length() != MARC::Record::TAG_LENGTH + 1))
+                LOG_ERROR("bad subfields spec for \"" + entry_and_value.first + "\"!");
+        }
+
+        (*subfields_name_to_subfields_map)[entry_and_value.first] = tags_and_subfield_codes;
+    }
+}
+
+
+void InsertVariantsIntoMap(const std::vector<std::string> &subfield_specs, const std::unordered_set<std::string> &variants,
+                           const std::string &canonical_name, std::vector<std::pair<std::string, VariantsToCanonicalNameMap>> * const maps)
+{
+    for (const auto &subfield_spec : subfield_specs) {
+        auto subfield_spec_and_replacement_map(
+            std::find_if(maps->begin(), maps->end(),
+                         [&subfield_spec](std::pair<std::string, VariantsToCanonicalNameMap> &subfield_spec_and_replacement_map)
+                             { return subfield_spec == subfield_spec_and_replacement_map.first; }));
+        if (subfield_spec_and_replacement_map == maps->end()) {
+            maps->emplace_back(subfield_spec, VariantsToCanonicalNameMap{});
+            subfield_spec_and_replacement_map = maps->end() - 1;
+        }
+
+        for (const auto &variant : variants)
+            subfield_spec_and_replacement_map->second.insert(std::make_pair(canonical_name, variant));
+    }
+}
+
+
 // The structure of the config file is as follows:
 // In the gobal section at the top there must be one or more string entries which have values that consist of colon-separated
 // subfield references, e.g.
@@ -74,59 +116,33 @@ void LoadConfigFile(std::vector<std::pair<std::string, VariantsToCanonicalNameMa
     const IniFile ini_file("/usr/local/var/lib/tuelib/normalise_marc_contents.conf");
 
     std::map<std::string, std::vector<std::string>> subfields_name_to_subfields_map;
+    LoadTagAndSubfieldCodesGroupsFromGlobalSection(ini_file, &subfields_name_to_subfields_map);
+
     for (const auto &section : ini_file) {
-        if (section.first.empty()) {
-            for (const auto &entry_and_value : section.second) {
-                if (unlikely(subfields_name_to_subfields_map.find(entry_and_value.first) != subfields_name_to_subfields_map.cend()))
-                    LOG_ERROR("duplicate subfields name \"" + entry_and_value.first + "\"!");
-                if (unlikely(entry_and_value.second.empty()))
-                    LOG_ERROR("missing subfields spec for \"" + entry_and_value.first + "\"!");
+        if (section.first.empty())
+            continue;
 
-                std::vector<std::string> tags_and_subfield_codes;
-                StringUtil::Split(entry_and_value.second, ':', &tags_and_subfield_codes);
-                for (const auto &tag_and_subfield_code : tags_and_subfield_codes) {
-                    if (unlikely(tag_and_subfield_code.length() != MARC::Record::TAG_LENGTH + 1))
-                        LOG_ERROR("bad subfields spec for \"" + entry_and_value.first + "\"!");
-                }
-
-                subfields_name_to_subfields_map[entry_and_value.first] = tags_and_subfield_codes;
-            }
-        } else { // We found a named section.
-            const std::string canonical_name(section.first);
-            const std::vector<std::string> *subfield_specs(nullptr);
-            std::unordered_set<std::string> variants;
-            for (const auto &entry_and_value : section.second) {
-                if (entry_and_value.first == "subfields") {
-                    const auto subfields_name_and_specs(subfields_name_to_subfields_map.find(entry_and_value.first));
-                    if (unlikely(subfields_name_and_specs == subfields_name_to_subfields_map.cend()))
-                        LOG_ERROR("unknown \"subfields\": \"" + entry_and_value.first + "\"!");
-                    subfield_specs = &(subfields_name_and_specs->second);
-                } else {
-                    if (unlikely(not StringUtil::StartsWith(entry_and_value.first, "variant")))
-                        LOG_ERROR("unknown entry \"" + entry_and_value.first + "\" entry in section \"" + section.first + "\"!");
-                    variants.emplace(NormaliseSubfieldContents(entry_and_value.second));
-                }
-
-                if (unlikely(variants.empty()))
-                    LOG_ERROR("missing variants entries in the \"" + section.first + "\" section!");
-                if (unlikely(subfield_specs == nullptr))
-                    LOG_ERROR("missing \"subfields\" entry for the \"" + section.first + "\" section!");
-
-                for (const auto &subfield_spec : *subfield_specs) {
-                    auto subfield_spec_and_replacement_map(
-                        std::find_if(maps->begin(), maps->end(),
-                                     [&subfield_spec](std::pair<std::string, VariantsToCanonicalNameMap> &subfield_spec_and_replacement_map)
-                                         { return subfield_spec == subfield_spec_and_replacement_map.first; }));
-                    if (subfield_spec_and_replacement_map == maps->end()) {
-                        maps->emplace_back(subfield_spec, VariantsToCanonicalNameMap{});
-                        subfield_spec_and_replacement_map = maps->end() - 1;
-                    }
-
-                    for (const auto &variant : variants)
-                        subfield_spec_and_replacement_map->second.insert(std::make_pair(canonical_name, variant));
-                }
+        const std::string canonical_name(section.first);
+        const std::vector<std::string> *subfield_specs(nullptr);
+        std::unordered_set<std::string> variants;
+        for (const auto &entry_and_value : section.second) {
+            if (entry_and_value.first == "subfields") {
+                const auto subfields_name_and_specs(subfields_name_to_subfields_map.find(entry_and_value.second));
+                if (unlikely(subfields_name_and_specs == subfields_name_to_subfields_map.cend()))
+                    LOG_ERROR("unknown \"subfields\": \"" + entry_and_value.second + "\"!");
+                subfield_specs = &(subfields_name_and_specs->second);
+            } else {
+                if (unlikely(not StringUtil::StartsWith(entry_and_value.first, "variant")))
+                    LOG_ERROR("unknown entry \"" + entry_and_value.first + "\" entry in section \"" + section.first + "\"!");
+                variants.emplace(NormaliseSubfieldContents(entry_and_value.second));
             }
         }
+
+        if (unlikely(variants.empty()))
+            LOG_ERROR("missing variants entries in the \"" + section.first + "\" section!");
+        if (unlikely(subfield_specs == nullptr))
+            LOG_ERROR("missing \"subfields\" entry for the \"" + section.first + "\" section!");
+        InsertVariantsIntoMap(*subfield_specs, variants, canonical_name, maps);
     }
 
     // Sort into ascending order of subfield specs:
@@ -146,7 +162,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 
         auto subfield_spec_and_replacement_map(maps.cbegin());
         for (auto &field : record) {
-            while (subfield_spec_and_replacement_map->first < field.getTag().toString())
+            while (subfield_spec_and_replacement_map != maps.cend() and subfield_spec_and_replacement_map->first < field.getTag().toString())
                 ++subfield_spec_and_replacement_map;
             if (subfield_spec_and_replacement_map == maps.cend())
                 break;
