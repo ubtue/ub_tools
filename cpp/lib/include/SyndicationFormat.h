@@ -23,11 +23,7 @@
 #include <string>
 #include <unordered_map>
 #include <ctime>
-
-
-// Forward declaration:
-class StringDataSource;
-template<class DataSource> class SimpleXmlParser;
+#include "XMLParser.h"
 
 
 class SyndicationFormat {
@@ -77,15 +73,14 @@ public:
     };
 protected:
     friend class const_iterator;
-    StringDataSource *data_source_;
-    SimpleXmlParser<StringDataSource> *xml_parser_;
+    XMLParser xml_parser_;
     std::string title_, link_, description_, id_;
     time_t last_build_date_;
     AugmentParams augment_params_;
 protected:
     SyndicationFormat(const std::string &xml_document, const AugmentParams &augment_params);
 public:
-    virtual ~SyndicationFormat();
+    virtual ~SyndicationFormat() = default;
 
     virtual std::string getFormatName() const = 0;
 
