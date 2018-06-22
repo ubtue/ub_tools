@@ -21,7 +21,7 @@
 
 #include <map>
 #include <memory>
-#include <queue>
+#include <deque>
 #include <set>
 #include <string>
 #include <xercesc/framework/XMLPScanToken.hpp>
@@ -37,6 +37,7 @@ class XMLParser {
     std::string xml_file_or_string_;
     bool prolog_parsing_done_ = false;
     bool body_has_more_contents_;
+    unsigned open_elements_;
 public:
     typedef std::map<std::string, std::string> Attributes;
 
@@ -45,6 +46,7 @@ public:
     struct Options {
         bool do_namespaces_;
         bool do_schema_;
+        bool ignore_whitespaces;
     };
 
     static const Options DEFAULT_OPTIONS;
@@ -55,6 +57,7 @@ public:
         Type type_ = UNINITIALISED;
         std::string data_;
         Attributes attributes_;
+        std::string toString();
     };
 private:
     Type type_;
@@ -80,9 +83,11 @@ private:
 
     Handler* handler_;
     ErrorHandler* error_handler_;
-    std::queue<XMLPart> buffer_;
-    void addToBuffer(XMLPart &xml_part) { buffer_.push(xml_part); }
+    std::deque<XMLPart> buffer_;
+    void appendToBuffer(XMLPart &xml_part) { buffer_.emplace_back(xml_part); }
     friend class Handler;
+
+    bool reachedEndOfFile();
 public:
     XMLParser(const std::string &xml_file_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
     ~XMLParser() = default;
@@ -96,7 +101,7 @@ public:
      *          still being parsed during consecutive getNext() calls.
      *  \throws xerces might throw exceptions, e.g. xercesc::RuntimeException.
      */
-    bool getNext(XMLPart * const next);
+    bool getNext(XMLPart * const next, bool combine_consecutive_characters = true);
 
 
     /** \brief Skip forward until we encounter a certain element.
