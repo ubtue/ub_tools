@@ -163,7 +163,7 @@ std::string ExtractTextFromHtml(const std::string &html, const std::string &init
 std::string ExtractTextFromUBTei(const std::string &tei) {
     std::string extracted_text;
 
-    XMLParser parser(tei, XMLParser::STRING);
+    XMLParser parser(tei, XMLParser::XML_STRING);
 
     const std::string WORD_WRAP("¬");
     bool concat_with_whitespace(true);
