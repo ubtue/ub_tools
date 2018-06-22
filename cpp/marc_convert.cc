@@ -20,6 +20,7 @@
 #include <iostream>
 #include <set>
 #include <stdexcept>
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include "MARC.h"
@@ -31,7 +32,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--quiet] marc_input marc_output [CTLN_1 CTLN_2 .. CTLN_N]\n"
+    std::cerr << "Usage: " << ::progname << " [--quiet] [--limit max_no_of_records] marc_input marc_output [CTLN_1 CTLN_2 .. CTLN_N]\n"
               << "       Autoconverts the MARC format of \"marc_input\" to \"marc_output\".\n"
               << "       Supported extensions are \"xml\", \"mrc\", \"marc\" and \"raw\".\n"
               << "       All extensions except for \"xml\" are assumed to imply MARC-21.\n"
@@ -41,7 +42,7 @@ namespace {
 }
 
 
-void ProcessRecords(const bool quiet, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+void ProcessRecords(const bool quiet, const unsigned max_no_of_records, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                     const std::set<std::string> &control_numbers)
 {
     unsigned record_count(0), extracted_count(0);
@@ -54,6 +55,9 @@ void ProcessRecords(const bool quiet, MARC::Reader * const marc_reader, MARC::Wr
 
         ++extracted_count;
         marc_writer->write(record);
+
+        if (record_count == max_no_of_records)
+            break;
     }
 
     if (not quiet) {
@@ -81,6 +85,17 @@ int main(int argc, char *argv[]) {
     if (argc < 3)
         Usage();
 
+    unsigned max_no_of_records(UINT_MAX);
+    if (std::strcmp(argv[1], "--limit") == 0) {
+        if (not StringUtil::ToUnsigned(argv[2], &max_no_of_records) or max_no_of_records == 0)
+            Usage();
+        argc -= 2;
+        argv += 2;
+    }
+    
+    if (argc < 3)
+        Usage();
+
     const std::string input_filename(argv[1]);
     const std::string output_filename(argv[2]);
 
@@ -92,7 +107,7 @@ int main(int argc, char *argv[]) {
         for (int arg_no(3); arg_no < argc; ++arg_no)
             control_numbers.emplace(argv[arg_no]);
 
-        ProcessRecords(quiet, marc_reader.get(), marc_writer.get(), control_numbers);
+        ProcessRecords(quiet, max_no_of_records, marc_reader.get(), marc_writer.get(), control_numbers);
     } catch (const std::exception &e) {
         LOG_ERROR("Caught exception: " + std::string(e.what()));
     }
