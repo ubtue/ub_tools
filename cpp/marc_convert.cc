@@ -89,11 +89,11 @@ int main(int argc, char *argv[]) {
     if (std::strcmp(argv[1], "--limit") == 0) {
         if (not StringUtil::ToUnsigned(argv[2], &max_no_of_records) or max_no_of_records == 0)
             Usage();
-        argc += 2;
+        argc -= 2;
         argv += 2;
     }
     
-    if (argc != 3)
+    if (argc < 3)
         Usage();
 
     const std::string input_filename(argv[1]);
