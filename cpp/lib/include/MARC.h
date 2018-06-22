@@ -622,7 +622,7 @@ enum class FileType { AUTO, BINARY, XML };
  *  \return FileType::BINARY or FileType::XML.
  *  \note   Aborts if we can't determine the file type or if it is not FileType::BINARY nor FileType::XML.
  */
-FileType GuessFileType(const std::string &filename);
+FileType GuessFileType(const std::string &filename, const bool read_file);
 
 
 class Reader {
