@@ -651,8 +651,8 @@ static MediaType GetMediaType(const std::string &input_filename) {
 }
 
 
-FileType GuessFileType(const std::string &filename) {
-    if (FileUtil::Exists(filename)) {
+FileType GuessFileType(const std::string &filename, const bool read_file) {
+    if (read_file and FileUtil::Exists(filename)) {
         switch (GetMediaType(filename)) {
         case MediaType::XML:
             return FileType::XML;
@@ -676,7 +676,7 @@ FileType GuessFileType(const std::string &filename) {
 
 std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, FileType reader_type) {
     if (reader_type == FileType::AUTO)
-        reader_type = GuessFileType(input_filename);
+        reader_type = GuessFileType(input_filename, /* read_file = */ true);
 
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
     return (reader_type == FileType::XML) ? std::unique_ptr<Reader>(new XmlReader(input.release()))
@@ -1110,7 +1110,7 @@ std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, File
                                         const WriterMode writer_mode)
 {
     if (writer_type == FileType::AUTO)
-        writer_type = GuessFileType(output_filename);
+        writer_type = GuessFileType(output_filename, /* read_file = */ false);
 
     std::unique_ptr<File> output(writer_mode == WriterMode::OVERWRITE
                                  ? FileUtil::OpenOutputFileOrDie(output_filename)
