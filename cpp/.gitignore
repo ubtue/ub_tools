@@ -98,6 +98,7 @@
 /merge_print_and_online
 /mpi_stats
 /new_journal_alert
+/normalise_marc_contents
 /normalise_urls
 /notify_users
 /oai_pmh_harvester
