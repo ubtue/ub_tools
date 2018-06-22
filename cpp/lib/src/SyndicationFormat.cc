@@ -195,6 +195,8 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
             description = ExtractText(xml_parser_, "description", " (RSS20::getNextItem)");
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link")
             link = ExtractText(xml_parser_, "link", " (RSS20::getNextItem)");
+            if (link.empty() and part.attributes_.find("href") != part.attributes_.end())
+                link = part.attributes_["href"];
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "guid")
             id = ExtractText(xml_parser_, "guid", " (RSS20::getNextItem)");
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "pubDate") {
@@ -244,8 +246,11 @@ std::unique_ptr<SyndicationFormat::Item> RSS091::getNextItem() {
             title = ExtractText(xml_parser_, "title");
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
             description = ExtractText(xml_parser_, "description");
-        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link")
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link") {
             link = ExtractText(xml_parser_, "link");
+            if (link.empty() and part.attributes_.find("href") != part.attributes_.end())
+                link = part.attributes_["href"];
+        }
     }
 
     return nullptr;
@@ -284,14 +289,16 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
     XMLParser::XMLPart part;
     while (xml_parser_.getNext(&part)) {
         if (part.type_ == XMLParser::XMLPart::CLOSING_TAG and part.data_ == item_tag_)
-            return std::unique_ptr<SyndicationFormat::Item>(new Item(title, summary, id, link, updated));
+            return std::unique_ptr<SyndicationFormat::Item>(new Item(title, summary, link, id, updated));
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "title")
             title = ExtractText(xml_parser_, "title");
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "summary")
             summary = ExtractText(xml_parser_, "summary");
-        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link")
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link") {
             link = ExtractText(xml_parser_, "link");
-        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "id")
+            if (link.empty() and part.attributes_.find("href") != part.attributes_.end())
+                link = part.attributes_["href"];
+        } else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "id")
             id = ExtractText(xml_parser_, "id", " (Atom::getNextItem)");
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "updated") {
             const std::string updated_string(ExtractText(xml_parser_, "updated"));
@@ -416,9 +423,11 @@ std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
                 title = ExtractText(xml_parser_, rss_namespace_ + "title");
             else if (part.data_ == rss_namespace_ + "description")
                 description = ExtractText(xml_parser_, rss_namespace_ + "description");
-            else if (part.data_ == rss_namespace_ + "link")
+            else if (part.data_ == rss_namespace_ + "link") {
                 link = ExtractText(xml_parser_, rss_namespace_ + "link");
-            else if (part.data_ == rss_namespace_ + "pubDate") {
+                if (link.empty() and part.attributes_.find("href") != part.attributes_.cend())
+                    link = part.attributes_["href"];
+            } else if (part.data_ == rss_namespace_ + "pubDate") {
                 const std::string pub_date_string(ExtractText(xml_parser_, rss_namespace_ + "pubDate"));
                 if (augment_params_.strptime_format_.empty()) {
                     if (unlikely(not ParseRFC1123DateTimeAndPrefixes(pub_date_string, &pub_date)))
