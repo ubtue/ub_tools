@@ -90,7 +90,7 @@ void InsertVariantsIntoMap(const std::vector<std::string> &subfield_specs, const
         }
 
         for (const auto &variant : variants)
-            subfield_spec_and_replacement_map->second.insert(std::make_pair(canonical_name, variant));
+            subfield_spec_and_replacement_map->second.insert(std::make_pair(variant, canonical_name));
     }
 }
 
@@ -149,6 +149,8 @@ void LoadConfigFile(std::vector<std::pair<std::string, VariantsToCanonicalNameMa
     std::sort(maps->begin(), maps->end(),
               [](const std::pair<std::string, VariantsToCanonicalNameMap> &a, const std::pair<std::string, VariantsToCanonicalNameMap> &b)
                   { return a.first < b.first; });
+
+    LOG_INFO("loaded " + std::to_string(maps->size()) + " substitution maps.");
 }
 
 
@@ -177,7 +179,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
                         const std::string normalised_subfield_contents(NormaliseSubfieldContents(subfield.value_));
                         auto variant_and_canonical_value(subfield_spec_and_replacement_map->second.find(normalised_subfield_contents));
                         if (variant_and_canonical_value != subfield_spec_and_replacement_map->second.cend()) {
-                            subfield.value_ = variant_and_canonical_value->first;
+                            subfield.value_ = variant_and_canonical_value->second;
                             replaced_at_least_one_subfield = true;
                         }
                     }
