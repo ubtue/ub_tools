@@ -35,18 +35,21 @@
 class XMLParser {
     xercesc::SAXParser * parser_;
     xercesc::XMLPScanToken token_;
-    std::string xml_file_or_string_;
+    std::string xml_filename_or_string_;
     bool prolog_parsing_done_ = false;
     bool body_has_more_contents_;
     unsigned open_elements_;
 public:
     typedef std::map<std::string, std::string> Attributes;
 
-    enum Type { FILE, STRING };
+    enum Type { XML_FILE, XML_STRING };
 
     struct Options {
+        /** \brief Parser enforces all the constraints / rules specified by the NameSpace specification (default false).*/
         bool do_namespaces_;
+        /** \brief Found Schema information will only be processed if set to true (default false).*/
         bool do_schema_;
+        /** \brief Defines if CHARACTERS that only contain whitespaces will be skipped (default true). */
         bool ignore_whitespaces_;
     };
 
@@ -68,41 +71,46 @@ private:
         XMLParser * parser_;
 
     public:
-        void characters(const XMLCh * const chars, const XMLSize_t length);
-        void endElement(const XMLCh * const name);
-        void ignorableWhitespace(const XMLCh * const chars, const XMLSize_t length);
-        void startElement(const XMLCh * const name, xercesc::AttributeList &attributes);
+        void characters(const XMLCh *const chars, const XMLSize_t length);
+        void endElement(const XMLCh *const name);
+        void ignorableWhitespace(const XMLCh *const chars, const XMLSize_t length);
+        void startElement(const XMLCh *const name, xercesc::AttributeList &attributes);
     };
 
     class ErrorHandler : public xercesc::ErrorHandler {
+        std::string getExceptionMessage(const xercesc::SAXParseException &exc) {
+            std::string message;
+            message += "line " + std::to_string(exc.getLineNumber());
+            message += ", col " + std::to_string(exc.getColumnNumber());
+            message += ": " + XMLParser::ToString(exc.getMessage());
+            return message;
+        }
     public:
         void warning(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToString(exc.getMessage())); }
         void error(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToString(exc.getMessage())); }
-        void fatalError(const xercesc::SAXParseException &exc) { throw exc; }
+        void fatalError(const xercesc::SAXParseException &exc) { throw std::runtime_error(getExceptionMessage(exc)); }
         void resetErrors() {}
     };
 
-    Handler* handler_;
-    ErrorHandler* error_handler_;
+    Handler *handler_;
+    ErrorHandler *error_handler_;
     std::deque<XMLPart> buffer_;
-    void appendToBuffer(XMLPart &xml_part) { buffer_.emplace_back(xml_part); }
+    inline void appendToBuffer(XMLPart &xml_part) { buffer_.emplace_back(xml_part); }
     friend class Handler;
 
-    bool reachedEndOfFile();
+    /** \brief  converts xerces' internal string type to std::string. */
+    static std::string ToString(const XMLCh *const xmlch);
 public:
-    XMLParser(const std::string &xml_file_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
+    explicit XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
     ~XMLParser() = default;
     void rewind();
-
-    /** \brief  converts xerces' internal string type to std::string. */
-    static std::string ToString(const XMLCh * const xmlch);
 
     /** \return true if there are more elements to parse, o/w false.
      *  \note   parsing is done in progressive mode, meaning that the document is
      *          still being parsed during consecutive getNext() calls.
-     *  \throws xerces might throw exceptions, e.g. xercesc::SAXParseException.
+     *  \throws std::runtime_error, see ErrorHandler.
      */
-    bool getNext(XMLPart * const next, bool combine_consecutive_characters = true);
+    bool getNext(XMLPart *const next, bool combine_consecutive_characters = true);
 
 
     /** \brief Skip forward until we encounter a certain element.
@@ -113,7 +121,7 @@ public:
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
     bool skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags,
-                XMLPart * const part = nullptr);
+                XMLPart *const part = nullptr);
 
     /** \brief Skip forward until we encounter a certain element.
      *  \param expected_type  The type of element we're looking for.
@@ -122,5 +130,5 @@ public:
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
     bool skipTo(const XMLPart::Type expected_type, const std::string &expected_tag = "",
-                XMLPart * const part = nullptr);
+                XMLPart *const part = nullptr);
 };

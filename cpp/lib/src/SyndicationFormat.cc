@@ -43,7 +43,7 @@ bool SyndicationFormat::const_iterator::operator==(const SyndicationFormat::cons
 
 
 SyndicationFormat::SyndicationFormat(const std::string &xml_document, const AugmentParams &augment_params)
-    : xml_parser_(XMLParser(xml_document, XMLParser::STRING)),
+    : xml_parser_(XMLParser(xml_document, XMLParser::XML_STRING)),
       last_build_date_(TimeUtil::BAD_TIME_T), augment_params_(augment_params)
 {
 }
