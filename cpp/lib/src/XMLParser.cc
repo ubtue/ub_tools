@@ -19,16 +19,44 @@
  */
 #include "XMLParser.h"
 #include <xercesc/framework/MemBufInputSource.hpp>
+#include "StringUtil.h"
+#include "XmlUtil.h"
 
 
 const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
     /* do_namespaces_ = */false,
     /* do_schema_ = */false,
+    /* ignore_whitespaces = */true,
 };
 
 
 std::string XMLParser::ToString(const XMLCh * const xmlch) {
     return xercesc::XMLString::transcode(xmlch);
+}
+
+
+std::string XMLParser::XMLPart::toString() {
+    std::string xml_string;
+
+    switch (type_) {
+    case UNINITIALISED:
+        xml_string = "<<<UNINITIALISED>>>";
+        break;
+    case OPENING_TAG:
+        xml_string = "<" + data_;
+        for (const auto &attribute : attributes_)
+            xml_string += " " + attribute.first + "=\"" + XmlUtil::XmlEscape(attribute.second) + "\"";
+        xml_string += ">";
+        break;
+    case CLOSING_TAG:
+        xml_string = "</" + data_ + ">";
+        break;
+    case CHARACTERS:
+        xml_string = XmlUtil::XmlEscape(data_);
+        break;
+    }
+
+    return xml_string;
 }
 
 
@@ -42,7 +70,6 @@ std::string XMLParser::XMLPart::TypeToString(const Type type) {
         return "CLOSING_TAG";
     case CHARACTERS:
         return "CHARACTERS";
-        throw std::runtime_error("in XMLParser::XMLPart::TypeToString: we should never get here!");
     };
 }
 
@@ -53,7 +80,8 @@ void XMLParser::Handler::startElement(const XMLCh * const name, xercesc::Attribu
     xml_part.data_ = XMLParser::ToString(name);
     for (XMLSize_t i = 0; i < attributes.getLength(); i++)
         xml_part.attributes_[XMLParser::ToString(attributes.getName(i))] = XMLParser::ToString(attributes.getValue(i));
-    parser_->addToBuffer(xml_part);
+    parser_->appendToBuffer(xml_part);
+    ++parser_->open_elements_;
 }
 
 
@@ -61,7 +89,8 @@ void XMLParser::Handler::endElement(const XMLCh * const name) {
     XMLPart xml_part;
     xml_part.type_ = XMLPart::CLOSING_TAG;
     xml_part.data_ = XMLParser::ToString(name);
-    parser_->addToBuffer(xml_part);
+    parser_->appendToBuffer(xml_part);
+    --parser_->open_elements_;
 }
 
 
@@ -69,7 +98,7 @@ void XMLParser::Handler::characters(const XMLCh * const chars, const XMLSize_t /
     XMLPart xml_part;
     xml_part.type_ = XMLPart::CHARACTERS;
     xml_part.data_ = XMLParser::ToString(chars);
-    parser_->addToBuffer(xml_part);
+    parser_->appendToBuffer(xml_part);
 }
 
 
@@ -100,12 +129,17 @@ void XMLParser::rewind() {
     parser_->setDoNamespaces(options_.do_namespaces_);
     parser_->setDoSchema(options_.do_schema_);
 
+    open_elements_ = 0;
 }
 
 
-bool XMLParser::getNext(XMLPart * const next) {
-    if (not prolog_parsing_done_) {
+bool XMLParser::reachedEndOfFile() {
+    return (buffer_.empty() and not body_has_more_contents_);
+}
 
+
+bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_characters) {
+    if (not prolog_parsing_done_) {
         if (type_ == FILE) {
             body_has_more_contents_ = parser_->parseFirst(xml_file_or_string_.c_str(), token_);
             if (not body_has_more_contents_)
@@ -126,30 +160,57 @@ bool XMLParser::getNext(XMLPart * const next) {
         body_has_more_contents_ = parser_->parseNext(token_);
 
     if (not buffer_.empty()) {
-        XMLPart current(*next);
-        *next = buffer_.front();
-        buffer_.pop();
+        buffer_.front();
+        if (next != nullptr)
+            *next = buffer_.front();
+        buffer_.pop_front();
+        if (next != nullptr and next->type_ == XMLPart::CHARACTERS and combine_consecutive_characters) {
+            XMLPart peek;
+            while(getNext(&peek, /* combine_consecutive_characters = */false) and peek.type_ == XMLPart::CHARACTERS)
+                next->data_ += peek.data_;
+            if (peek.type_ != XMLPart::CHARACTERS) {
+                buffer_.emplace_front(peek);
+            }
+        }
+
+        if (options_.ignore_whitespaces and next != nullptr and next->type_ == XMLPart::CHARACTERS and StringUtil::IsWhitespace(next->data_))
+            return getNext(next);
+
     }
 
-    return (not buffer_.empty() or body_has_more_contents_);
+    return not(reachedEndOfFile());
 }
 
 
 bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags,
                        XMLPart * const part)
 {
-    while (getNext(part)) {
-        if (part->type_ == expected_type) {
-            if ((expected_type == XMLPart::OPENING_TAG or expected_type == XMLPart::CLOSING_TAG)) {
-                if (expected_tags.empty())
-                    return true;
-                else if (expected_tags.find(part->data_) != expected_tags.end())
-                    return true;
-            } else
-                return true;
+    XMLPart result;
+    bool return_value(false);
+    while (getNext(&result)) {
+        if (result.type_ == expected_type) {
+            if (expected_type == XMLPart::OPENING_TAG or expected_type == XMLPart::CLOSING_TAG) {
+                if (expected_tags.empty()) {
+                    return_value = true;
+                    break;
+                } else if (expected_tags.find(result.data_) != expected_tags.end()) {
+                    return_value = true;
+                    break;
+                }
+            } else {
+                return_value = true;
+                break;
+            }
         }
     }
-    return false;
+
+    if (part != nullptr) {
+        part->type_ = result.type_;
+        part->data_ = result.data_;
+        part->attributes_ = result.attributes_;
+    }
+
+    return return_value;
 }
 
 
@@ -157,7 +218,7 @@ bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::string &exp
                        XMLPart * const part)
 {
     std::set<std::string> expected_tags;
-    if (expected_tag != "")
+    if (not expected_tag.empty())
         expected_tags.emplace(expected_tag);
     return skipTo(expected_type, expected_tags, part);
 }
