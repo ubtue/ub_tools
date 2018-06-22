@@ -19,6 +19,7 @@
  */
 #pragma once
 
+#include <exception>
 #include <map>
 #include <memory>
 #include <deque>
@@ -46,7 +47,7 @@ public:
     struct Options {
         bool do_namespaces_;
         bool do_schema_;
-        bool ignore_whitespaces;
+        bool ignore_whitespaces_;
     };
 
     static const Options DEFAULT_OPTIONS;
@@ -77,7 +78,7 @@ private:
     public:
         void warning(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToString(exc.getMessage())); }
         void error(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToString(exc.getMessage())); }
-        void fatalError(const xercesc::SAXParseException &exc) { LOG_ERROR(XMLParser::ToString(exc.getMessage())); }
+        void fatalError(const xercesc::SAXParseException &exc) { throw exc; }
         void resetErrors() {}
     };
 
@@ -99,7 +100,7 @@ public:
     /** \return true if there are more elements to parse, o/w false.
      *  \note   parsing is done in progressive mode, meaning that the document is
      *          still being parsed during consecutive getNext() calls.
-     *  \throws xerces might throw exceptions, e.g. xercesc::RuntimeException.
+     *  \throws xerces might throw exceptions, e.g. xercesc::SAXParseException.
      */
     bool getNext(XMLPart * const next, bool combine_consecutive_characters = true);
 

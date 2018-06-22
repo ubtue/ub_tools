@@ -26,7 +26,7 @@
 const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
     /* do_namespaces_ = */false,
     /* do_schema_ = */false,
-    /* ignore_whitespaces = */true,
+    /* ignore_whitespaces_ = */true,
 };
 
 
@@ -146,7 +146,7 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
                 LOG_ERROR("error parsing document header: " + xml_file_or_string_);
         } else if (type_ == STRING) {
             xercesc::MemBufInputSource input_buffer((const XMLByte*)xml_file_or_string_.c_str(), xml_file_or_string_.size(),
-                                     "xml_string (in memory)");
+                                                    "xml_string (in memory)");
             body_has_more_contents_ = parser_->parseFirst(input_buffer, token_);
             if (not body_has_more_contents_)
                 LOG_ERROR("error parsing document header: " + xml_file_or_string_);
@@ -173,9 +173,8 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
             }
         }
 
-        if (options_.ignore_whitespaces and next != nullptr and next->type_ == XMLPart::CHARACTERS and StringUtil::IsWhitespace(next->data_))
+        if (options_.ignore_whitespaces_ and next != nullptr and next->type_ == XMLPart::CHARACTERS and StringUtil::IsWhitespace(next->data_))
             return getNext(next);
-
     }
 
     return not(reachedEndOfFile());
