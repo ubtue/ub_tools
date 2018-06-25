@@ -62,10 +62,10 @@ DbConnection::DbConnection(const IniFile &ini_file, const std::string &ini_file_
     const unsigned port(db_section.getUnsigned("sql_port", MYSQL_PORT));
 
     const std::map<std::string, int> string_to_value_map{
-        { "UTF8_MB3", UTF8_MB3 },
-        { "UTF8_MB4", UTF8_MB4 },
+        { "UTF8MB3", UTF8MB3 },
+        { "UTF8MB4", UTF8MB4 },
     };
-    const Charset charset(static_cast<Charset>(db_section.getEnum("sql_charset", string_to_value_map, UTF8_MB4)));
+    const Charset charset(static_cast<Charset>(db_section.getEnum("sql_charset", string_to_value_map, UTF8MB4)));
 
     init(database, user, password, host, port, charset);
 }
@@ -327,7 +327,7 @@ void DbConnection::init(const std::string &database_name, const std::string &use
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage()
                                  + ")");
-    if (::mysql_set_character_set(&mysql_, (charset == UTF8_MB4) ? "utf8mb4" : "utf8") != 0)
+    if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage()
                                  + ")");
 
@@ -349,7 +349,7 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage()
                                  + ")");
-    if (::mysql_set_character_set(&mysql_, (charset == UTF8_MB4) ? "utf8mb4" : "utf8") != 0)
+    if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage()
                                  + ")");
 
