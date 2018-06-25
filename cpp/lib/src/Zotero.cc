@@ -234,7 +234,7 @@ std::pair<unsigned, unsigned> ZoteroFormatHandler::processRecord(const std::shar
 
 
 std::string GuessOutputFormat(const std::string &output_file) {
-    switch (MARC::GuessFileType(output_file)) {
+    switch (MARC::GuessFileType(output_file, /* read_file = */ false)) {
     case MARC::FileType::BINARY:
         return "marc21";
     case MARC::FileType::XML:
@@ -797,6 +797,9 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
                                       const SiteAugmentParams &augment_params, const std::string &harvested_html, bool log)
 {
+    if (harvest_url.empty())
+        LOG_ERROR("empty URL passed to Zotero::Harvest");
+
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
     static std::unordered_set<std::string> already_harvested_urls;
     if (already_harvested_urls.find(harvest_url) != already_harvested_urls.end()) {
