@@ -82,8 +82,8 @@ void InsertVariantsIntoMap(const std::vector<std::string> &subfield_specs, const
     for (const auto &subfield_spec : subfield_specs) {
         auto subfield_spec_and_replacement_map(
             std::find_if(maps->begin(), maps->end(),
-                         [&subfield_spec](std::pair<std::string, VariantsToCanonicalNameMap> &subfield_spec_and_replacement_map)
-                             { return subfield_spec == subfield_spec_and_replacement_map.first; }));
+                         [&subfield_spec](std::pair<std::string, VariantsToCanonicalNameMap> &subfield_spec_and_replacement_map1)
+                             { return subfield_spec == subfield_spec_and_replacement_map1.first; }));
         if (subfield_spec_and_replacement_map == maps->end()) {
             maps->emplace_back(subfield_spec, VariantsToCanonicalNameMap{});
             subfield_spec_and_replacement_map = maps->end() - 1;
@@ -119,13 +119,13 @@ void LoadConfigFile(std::vector<std::pair<std::string, VariantsToCanonicalNameMa
     LoadTagAndSubfieldCodesGroupsFromGlobalSection(ini_file, &subfields_name_to_subfields_map);
 
     for (const auto &section : ini_file) {
-        if (section.first.empty())
+        if (section.getSectionName().empty())
             continue;
 
-        const std::string canonical_name(section.first);
+        const std::string canonical_name(section.getSectionName());
         const std::vector<std::string> *subfield_specs(nullptr);
         std::unordered_set<std::string> variants;
-        for (const auto &entry_and_value : section.second) {
+        for (const auto &entry_and_value : section) {
             if (entry_and_value.first == "subfields") {
                 const auto subfields_name_and_specs(subfields_name_to_subfields_map.find(entry_and_value.second));
                 if (unlikely(subfields_name_and_specs == subfields_name_to_subfields_map.cend()))
@@ -133,15 +133,15 @@ void LoadConfigFile(std::vector<std::pair<std::string, VariantsToCanonicalNameMa
                 subfield_specs = &(subfields_name_and_specs->second);
             } else {
                 if (unlikely(not StringUtil::StartsWith(entry_and_value.first, "variant")))
-                    LOG_ERROR("unknown entry \"" + entry_and_value.first + "\" entry in section \"" + section.first + "\"!");
+                    LOG_ERROR("unknown entry \"" + entry_and_value.first + "\" entry in section \"" + section.getSectionName() + "\"!");
                 variants.emplace(NormaliseSubfieldContents(entry_and_value.second));
             }
         }
 
         if (unlikely(variants.empty()))
-            LOG_ERROR("missing variants entries in the \"" + section.first + "\" section!");
+            LOG_ERROR("missing variants entries in the \"" + section.getSectionName() + "\" section!");
         if (unlikely(subfield_specs == nullptr))
-            LOG_ERROR("missing \"subfields\" entry for the \"" + section.first + "\" section!");
+            LOG_ERROR("missing \"subfields\" entry for the \"" + section.getSectionName() + "\" section!");
         InsertVariantsIntoMap(*subfield_specs, variants, canonical_name, maps);
     }
 

@@ -59,6 +59,8 @@ public:
         Section() = default;
         Section(const Section &other) = default;
 
+        inline bool operator==(const std::string &section_name) const { return section_name == section_name_; }
+
         inline const std::string &getSectionName() const { return section_name_; }
 
         inline const_iterator begin() const { return name_to_value_map_.begin(); }
@@ -225,9 +227,10 @@ public:
             { return name_to_value_map_.find(variable_name) != name_to_value_map_.end(); }
     };
 public:
-    typedef std::unordered_map<std::string, Section>::const_iterator const_iterator;
+    typedef std::vector<Section> Sections;
+    typedef Sections::const_iterator const_iterator;
 protected:
-    mutable std::unordered_map<std::string, Section> sections_;
+    Sections sections_;
     std::string ini_file_name_;
     std::string current_section_name_;
 
@@ -496,3 +499,7 @@ private:
     void processSectionEntry(const std::string &line);
     void processFile(const std::string &filename);
 };
+
+
+inline bool operator==(const std::string &section_name, const IniFile::Section &section)
+    { return section_name == section.getSectionName(); }

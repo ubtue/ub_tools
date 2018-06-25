@@ -235,14 +235,14 @@ int Main(int argc, char *argv[]) {
 
             SignalUtil::SignalBlocker sighup_blocker(SIGHUP);
 
-            const std::string &section_name(section.first);
+            const std::string &section_name(section.getSectionName());
             if (not section_name.empty() and section_name != "CGI Params") {
                 if (unlikely(already_seen_sections.find(section_name) != already_seen_sections.end()))
                     LOG_ERROR("duplicate section: \"" + section_name + "\"!");
                 already_seen_sections.emplace(section_name);
 
                 LOG_INFO("Processing section \"" + section_name + "\".");
-                const unsigned new_item_count(ProcessSection(section.second, augment_params, &downloader, &db_connection,
+                const unsigned new_item_count(ProcessSection(section, augment_params, &downloader, &db_connection,
                                                              DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL, ticks));
                 LOG_INFO("found " + std::to_string(new_item_count) + " new items.");
             }

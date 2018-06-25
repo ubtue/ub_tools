@@ -38,6 +38,7 @@
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "util.h"
 
 
@@ -258,62 +259,6 @@ int IniFile::Section::getEnum(const std::string &variable_name,
 namespace {
 
 
-std::string BackQuoteUnescape(const std::string &s) {
-    std::string result;
-    result.reserve(s.length());
-
-    for (std::string::const_iterator ch(s.begin()); ch != s.end(); ++ch) {
-        if (unlikely(*ch == '\\')) {
-            ++ch;
-            if (ch == s.end())
-                break;
-
-            switch (*ch) {
-            case 'a':
-                result += '\a';
-                break;
-            case 'b':
-                result += '\b';
-                break;
-            case 'f':
-                result += '\f';
-                break;
-            case 'n':
-                result += '\n';
-                break;
-            case 'r':
-                result += '\r';
-                break;
-            case 't':
-                result += '\t';
-                break;
-            case 'v':
-                result += '\v';
-                break;
-            case '\\':
-                result += '\\';
-                break;
-            case '\'':
-                result += '\'';
-                break;
-            case '"':
-                result += '"';
-                break;
-            case '?':
-                result += '?';
-                break;
-            default:
-                result += *ch;
-            }
-        }
-        else
-            result += *ch;
-    }
-
-    return result;
-}
-
-
 std::string StripComment(std::string * const s) {
     size_t hash_mark_pos(0);
     while ((hash_mark_pos = s->find('#', hash_mark_pos)) != std::string::npos) {
@@ -372,13 +317,13 @@ void IniFile::processSectionHeader(const std::string &line) {
                                  + getCurrentFile() + "\"!");
 
     // if the current section
-    const auto section(sections_.find(current_section_name_));
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), current_section_name_));
     if (section != sections_.end())
         throw std::runtime_error("in IniFile::processSectionHeader: duplicate section \""
                                  + current_section_name_  + "\" on line "
                                  + std::to_string(getCurrentLineNo()) + " in file \""
                                  + getCurrentFile() + "\"!");
-    sections_[current_section_name_] = Section(current_section_name_);
+    sections_.emplace_back(current_section_name_);
 }
 
 
@@ -443,8 +388,7 @@ void IniFile::processSectionEntry(const std::string &line) {
                                      + std::to_string(getCurrentLineNo()) + " in file \""
                                      + getCurrentFile() + "\"!");
 
-        Section &section(sections_[current_section_name_]);
-        section.insert(trimmed_line, "true");
+        sections_.back().insert(trimmed_line, "true");
     } else {
         std::string variable_name(line.substr(0, equal_sign));
         StringUtil::Trim(" \t", &variable_name);
@@ -473,11 +417,10 @@ void IniFile::processSectionEntry(const std::string &line) {
                                          + getCurrentFile() + "!");
 
             value = value.substr(1, value.length()-2);
-            value = BackQuoteUnescape(value);
+            TextUtil::CStyleUnescape(&value);
         }
 
-        Section &section(sections_[current_section_name_]);
-        section.insert(variable_name, value);
+        sections_.back().insert(variable_name, value);
     }
 }
 
@@ -553,26 +496,26 @@ void IniFile::assign(const IniFile &rhs, const bool clear) {
         sections_      = rhs.sections_;
         ini_file_name_ = rhs.ini_file_name_;
     } else {
-        for (auto &pair : rhs.sections_) {
-            const auto section_name_and_contents(sections_.find(pair.first));
+        for (auto &rhs_section : rhs.sections_) {
+            const auto section_name_and_contents(std::find(sections_.begin(), sections_.end(), rhs_section.getSectionName()));
             if (section_name_and_contents == sections_.end())
-                sections_.insert(pair);
+                sections_.emplace_back(rhs_section);
             else { // The section already exists, therefore we have to be careful and override individual
                 // entries selectively!
 
                 // 1. Remember the section name so that we can later recreate it:
-                const std::string section_name(pair.first);
+                const std::string &section_name(rhs_section.getSectionName());
 
                 // 2. Create a map from names to values for the current entries of the section:
                 std::unordered_map<std::string, std::string> section_entries;
-                for (auto &name_and_value : section_name_and_contents->second)
+                for (auto &name_and_value : *section_name_and_contents)
                     section_entries.insert(name_and_value);
 
                 // 3. Remove the section from the map of sections to entries:
-                sections_.erase(section_name_and_contents->first);
+                sections_.erase(section_name_and_contents);
 
-                // 4. Override and add in name/value pairs from the rhs section:
-                for (auto &rhs_name_and_value : pair.second) {
+                // 4. Override and add in name/value rhs_sections from the rhs section:
+                for (auto &rhs_name_and_value : rhs_section) {
                     // If the entry already exists, first erase it before inserting the new value:
                     const auto old_entry(section_entries.find(rhs_name_and_value.first));
                     if (old_entry != section_entries.end())
@@ -584,7 +527,7 @@ void IniFile::assign(const IniFile &rhs, const bool clear) {
                 Section new_section(section_name);
                 for (auto &entry : section_entries)
                     new_section.insert(entry.first, entry.second);
-                sections_[section_name] = new_section;
+                sections_.emplace_back(new_section);
             }
         }
 
@@ -594,20 +537,20 @@ void IniFile::assign(const IniFile &rhs, const bool clear) {
 
 
 bool IniFile::lookup(const std::string &section_name, const std::string &variable_name, std::string * const s) const {
-    const auto section(sections_.find(section_name));
-    if (section == sections_.end())
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
         return false;
 
-    return section->second.lookup(variable_name, s);
+    return section->lookup(variable_name, s);
 }
 
 
 unsigned IniFile::getUnsigned(const std::string &section_name, const std::string &variable_name) const {
-    const auto section(sections_.find(section_name));
-    if (section == sections_.end())
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
         LOG_ERROR("no such section: \"" + section_name + "\"!");
 
-    return section->second.getUnsigned(variable_name);
+    return section->getUnsigned(variable_name);
 }
 
 
@@ -619,143 +562,137 @@ unsigned IniFile::getUnsigned(const std::string &section_name, const std::string
 
 
 uint64_t IniFile::getUint64T(const std::string &section_name, const std::string &variable_name) const {
-    const auto section(sections_.find(section_name));
-    if (section == sections_.end())
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
         LOG_ERROR("no such section: \"" + section_name + "\"!");
 
-    return section->second.getUint64T(variable_name);
+    return section->getUint64T(variable_name);
 }
 
 
-uint64_t IniFile::getUint64T(const std::string &section_name, const std::string &variable_name,
-                             const uint64_t &default_value) const
-{
+uint64_t IniFile::getUint64T(const std::string &section_name, const std::string &variable_name, const uint64_t &default_value) const {
     return variableIsDefined(section_name, variable_name) ? getUnsigned(section_name, variable_name) : default_value;
 }
 
 
 
 long IniFile::getInteger(const std::string &section_name, const std::string &variable_name) const {
-    const auto section(sections_.find(section_name));
-    if (section == sections_.end())
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
         LOG_ERROR("no such section: \"" + section_name + "\"!");
 
-    return section->second.getInteger(variable_name);
+    return section->getInteger(variable_name);
 }
 
 
 double IniFile::getDouble(const std::string &section_name, const std::string &variable_name) const {
-    const auto section(sections_.find(section_name));
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.end())
         LOG_ERROR("no such section: \"" + section_name + "\"!");
 
-    return section->second.getDouble(variable_name);
+    return section->getDouble(variable_name);
 }
 
 
-double IniFile::getDouble(const std::string &section_name, const std::string &variable_name,
-                          const double &default_value) const
-{
-    const auto section(sections_.find(section_name));
-    if (section == sections_.end())
+double IniFile::getDouble(const std::string &section_name, const std::string &variable_name, const double &default_value) const {
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
         return default_value;
 
-    return section->second.getDouble(variable_name);
+    return section->getDouble(variable_name);
 }
 
 
 std::string IniFile::getString(const std::string &section_name, const std::string &variable_name) const {
-    const auto section(sections_.find(section_name));
-    if (section == sections_.end())
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
         LOG_ERROR("no such section: \"" + section_name + "\"!");
 
-    return section->second.getString(variable_name);
+    return section->getString(variable_name);
 }
 
 
-std::string IniFile::getString(const std::string &section_name, const std::string &variable_name,
-                               const std::string &default_value) const
-{
-    const auto section(sections_.find(section_name));
-    if (section == sections_.end())
+std::string IniFile::getString(const std::string &section_name, const std::string &variable_name, const std::string &default_value) const {
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
         return default_value;
 
-    return section->second.getString(variable_name, default_value);
+    return section->getString(variable_name, default_value);
 }
 
 
 char IniFile::getChar(const std::string &section_name, const std::string &variable_name) const {
-    const auto section(sections_.find(section_name));
-    if (section == sections_.end())
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
         LOG_ERROR("no such section: \"" + section_name + "\"!");
 
-    return section->second.getChar(variable_name);
+    return section->getChar(variable_name);
 }
 
 
 char IniFile::getChar(const std::string &section_name, const std::string &variable_name, const char default_value) const {
-    const auto section(sections_.find(section_name));
-    if (section == sections_.end())
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
         return default_value;
 
-    return section->second.getChar(variable_name);
+    return section->getChar(variable_name);
 }
 
 
 bool IniFile::getBool(const std::string &section_name, const std::string &variable_name) const {
-    const auto section(sections_.find(section_name));
-    if (section == sections_.end())
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
         LOG_ERROR("no such section: \"" + section_name + "\"!");
 
-    return section->second.getBool(variable_name);
+    return section->getBool(variable_name);
 }
 
 
 bool IniFile::getBool(const std::string &section_name, const std::string &variable_name, const bool default_value) const {
-    const auto section(sections_.find(section_name));
-    if (section == sections_.end())
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
          return default_value;
 
-    return section->second.getBool(variable_name);
+    return section->getBool(variable_name);
 }
 
 
 int IniFile::getEnum(const std::string &section_name, const std::string &variable_name,
                      const std::map<std::string, int> &string_to_value_map) const
 {
-    const auto section(sections_.find(section_name));
-    if (section == sections_.end())
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
         LOG_ERROR("no such section: \"" + section_name + "\"!");
 
-    return section->second.getEnum(variable_name, string_to_value_map);
+    return section->getEnum(variable_name, string_to_value_map);
 }
 
 
 int IniFile::getEnum(const std::string &section_name, const std::string &variable_name,
                      const std::map<std::string, int> &string_to_value_map, const int default_value) const
 {
-    const auto section(sections_.find(section_name));
-    if (section == sections_.end())
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
         return default_value;
 
-    return section->second.getEnum(variable_name, string_to_value_map, default_value);
+    return section->getEnum(variable_name, string_to_value_map, default_value);
 }
 
 
 std::vector<std::string> IniFile::getSections() const {
     std::vector<std::string> result;
     for (const auto &section : sections_)
-        result.emplace_back(section.first);
+        result.emplace_back(section.getSectionName());
 
     return result;
 }
 
 
 std::vector<std::string> IniFile::getSectionEntryNames(const std::string &section_name) const {
-    const auto section(sections_.find(section_name));
-    if (section != sections_.end()) {
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section != sections_.cend()) {
         std::vector<std::string> entry_names;
-        for (const auto &entry : section->second)
+        for (const auto &entry : *section)
             entry_names.emplace_back(entry.first);
 
         return entry_names;
@@ -788,11 +725,11 @@ std::vector<std::string> IniFile::getSectionEntryValuesHavingNamesStartingWith(c
                                                                                const std::string &starting_with) const
 {
     std::vector<std::string> entry_values;
-    const auto section(sections_.find(section_name));
-    if (section == sections_.end())
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
         return entry_values;
 
-    for (const auto &entry : section->second) {
+    for (const auto &entry : *section) {
         if (entry.first.find(starting_with) == 0)
             entry_values.emplace_back(entry.second);
     }
@@ -802,9 +739,9 @@ std::vector<std::string> IniFile::getSectionEntryValuesHavingNamesStartingWith(c
 
 
 const IniFile::Section &IniFile::getSection(const std::string &section_name) const {
-    const auto section(sections_.find(section_name));
-    if (section != sections_.end())
-        return section->second;
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section != sections_.cend())
+        return *section;
     else {
         static Section empty_section("");
         return empty_section;
@@ -813,7 +750,7 @@ const IniFile::Section &IniFile::getSection(const std::string &section_name) con
 
 
 bool IniFile::sectionIsDefined(const std::string &section_name) const {
-    return sections_.find(section_name) != sections_.end();
+    return std::find(sections_.cbegin(), sections_.cend(), section_name) != sections_.end();
 }
 
 
