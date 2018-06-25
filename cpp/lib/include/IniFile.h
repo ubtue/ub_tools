@@ -501,6 +501,5 @@ private:
 };
 
 
-
 inline bool operator==(const std::string &section_name, const IniFile::Section &section)
     { return section_name == section.getSectionName(); }
