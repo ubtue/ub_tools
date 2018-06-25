@@ -704,7 +704,7 @@ void CorrectForSymbolicTimeZone(struct tm * const /*tm*/, const std::string &tim
 }
 
 
-// If "format_string" ends with "%Z", we remove it and extract the corresponding time zone name into "*time_zone_name"
+// If "format_string" ends with "%Z", we remove it and extract the corresponding time zone name into "*time_zone_name".
 static void ExtractOptionalTimeZoneName(std::string * const date_str, std::string * const format_string, std::string * const time_zone_name) {
     if (StringUtil::EndsWith(*format_string, "%Z")) {
         *format_string = StringUtil::RightTrim(format_string->substr(0, format_string->length() - 2));
@@ -721,9 +721,22 @@ static void ExtractOptionalTimeZoneName(std::string * const date_str, std::strin
 }
 
 
-// strptime() supports "%Z" to denote time zone names, but it doesn't perfom the time conversion
-// also, the above format specifier is apparently broken on CentOS
-// so, we need to override the behaviour on our end
+// Strips out the colon in the date string to preserve compatibility with CentOS.
+static void NormalizeTimeZoneOffset(std::string * const date_str) {
+    static RegexMatcher * const matcher_iso8601(RegexMatcher::RegexMatcherFactory(
+        "[0-9]{4}-[0-9]{2}-[0-9]{2}([[:space:]]|T){1}[0-9]{2}:[0-9]{2}:[0-9]{2}(\\+|\\-|\\s){1}[0-9]{2}(:)[0-9]{2}"));
+
+    if (matcher_iso8601->matched(*date_str))
+        date_str->erase(date_str->length() - 3, 1);
+}
+
+
+// Strptime()/CentOS idiosyncrasies:
+//      - Strptime() supports "%Z" to denote time zone names, but it doesn't perfom the time conversion.
+//        Furthermore, the above format specifier is apparently broken on CentOS.
+//        So, we need to override the behaviour on our end.
+//      - "%z" does not support a colon in the time zone offset on CentOS.
+//        So, we need to strip it out before we pass it to the function.
 struct tm StringToStructTm(std::string date_str, std::string optional_strptime_format) {
     struct tm tm;
 
@@ -741,6 +754,8 @@ struct tm StringToStructTm(std::string date_str, std::string optional_strptime_f
             locale.reset(new Locale(locale_specification, LC_TIME));
             optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
         }
+
+        NormalizeTimeZoneOffset(&date_str);
 
         std::vector<std::string> format_string_splits;
         // try available format strings until a matching one is found
