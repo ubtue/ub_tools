@@ -1,5 +1,5 @@
 # Format: regex -> replacement
-# .^$*+?()[{\|  must be escaped by '\' outside character classes 
+# .^$*+?()[{\|  must be escaped by '\' outside character classes
 # ^-]\ must be escaped by '\' inside character classes
 ISLAM|islam->Islam
 reformation|REFORMATION->Reformation

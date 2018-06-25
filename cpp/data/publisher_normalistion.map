@@ -1,6 +1,6 @@
-# Format is regex -> replacement 
-# .^$*+?()[{\|  must be escaped by '\' outside character classes 
+# Format is regex -> replacement
+# .^$*+?()[{\|  must be escaped by '\' outside character classes
 # ^-]\ must be escaped by '\' inside character classes
-Oxford Univ[.]? Press->Oxford University Press 
+Oxford Univ[.]? Press->Oxford University Press
 LIT->Lit
 de Gruyter->De Gruyter
