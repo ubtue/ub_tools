@@ -704,7 +704,7 @@ void CorrectForSymbolicTimeZone(struct tm * const /*tm*/, const std::string &tim
 }
 
 
-// if "format_string" ends with "%Z", we remove it and extract the corresponding time zone name into "*time_zone_name"
+// If "format_string" ends with "%Z", we remove it and extract the corresponding time zone name into "*time_zone_name".
 static void ExtractOptionalTimeZoneName(std::string * const date_str, std::string * const format_string, std::string * const time_zone_name) {
     if (StringUtil::EndsWith(*format_string, "%Z")) {
         *format_string = StringUtil::RightTrim(format_string->substr(0, format_string->length() - 2));
@@ -721,9 +721,8 @@ static void ExtractOptionalTimeZoneName(std::string * const date_str, std::strin
 }
 
 
-// strips out the colon in the date string to preserve compatibility with CentOS
+// Strips out the colon in the date string to preserve compatibility with CentOS.
 static void NormalizeTimeZoneOffset(std::string * const date_str) {
-    // only handles the ISO8601 format at the moment
     static RegexMatcher * const matcher_iso8601(RegexMatcher::RegexMatcherFactory(
         "[0-9]{4}-[0-9]{2}-[0-9]{2}([[:space:]]|T){1}[0-9]{2}:[0-9]{2}:[0-9]{2}(\\+|\\-|\\s){1}[0-9]{2}(:)[0-9]{2}"));
 
@@ -732,12 +731,12 @@ static void NormalizeTimeZoneOffset(std::string * const date_str) {
 }
 
 
-// strptime()/CentOS idiosyncrasies:
-//      - supports "%Z" to denote time zone names, but it doesn't perfom the time conversion
-//        also, the above format specifier is apparently broken on CentOS
-//        so, we need to override the behaviour on our end
-//      - "%z" does not support a colon in the time zone offset on CentOS
-//        so, we need to strip it out before we pass it to the function
+// Strptime()/CentOS idiosyncrasies:
+//      - Strptime() supports "%Z" to denote time zone names, but it doesn't perfom the time conversion.
+//        Furthermore, the above format specifier is apparently broken on CentOS.
+//        So, we need to override the behaviour on our end.
+//      - "%z" does not support a colon in the time zone offset on CentOS.
+//        So, we need to strip it out before we pass it to the function.
 struct tm StringToStructTm(std::string date_str, std::string optional_strptime_format) {
     struct tm tm;
 
