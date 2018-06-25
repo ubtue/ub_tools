@@ -82,8 +82,8 @@ void InsertVariantsIntoMap(const std::vector<std::string> &subfield_specs, const
     for (const auto &subfield_spec : subfield_specs) {
         auto subfield_spec_and_replacement_map(
             std::find_if(maps->begin(), maps->end(),
-                         [&subfield_spec](std::pair<std::string, VariantsToCanonicalNameMap> &subfield_spec_and_replacement_map)
-                             { return subfield_spec == subfield_spec_and_replacement_map.first; }));
+                         [&subfield_spec](std::pair<std::string, VariantsToCanonicalNameMap> &subfield_spec_and_replacement_map1)
+                             { return subfield_spec == subfield_spec_and_replacement_map1.first; }));
         if (subfield_spec_and_replacement_map == maps->end()) {
             maps->emplace_back(subfield_spec, VariantsToCanonicalNameMap{});
             subfield_spec_and_replacement_map = maps->end() - 1;
