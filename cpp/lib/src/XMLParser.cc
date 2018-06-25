@@ -36,27 +36,21 @@ std::string XMLParser::ToString(const XMLCh *const xmlch) {
 
 
 std::string XMLParser::XMLPart::toString() {
-    std::string xml_string;
-
     switch (type_) {
     case UNINITIALISED:
-        xml_string = "<<<UNINITIALISED>>>";
-        break;
-    case OPENING_TAG:
-        xml_string = "<" + data_;
+        return "<<<UNINITIALISED>>>";
+    case OPENING_TAG: {
+        std::string xml_string("<" + data_);
         for (const auto &attribute : attributes_)
             xml_string += " " + attribute.first + "=\"" + XmlUtil::XmlEscape(attribute.second) + "\"";
         xml_string += ">";
-        break;
-    case CLOSING_TAG:
-        xml_string = "</" + data_ + ">";
-        break;
-    case CHARACTERS:
-        xml_string = XmlUtil::XmlEscape(data_);
-        break;
+        return xml_string;
     }
-
-    return xml_string;
+    case CLOSING_TAG:
+        return "</" + data_ + ">";
+    case CHARACTERS:
+        return XmlUtil::XmlEscape(data_);
+    }
 }
 
 
