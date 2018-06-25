@@ -53,8 +53,8 @@ void Usage() {
               << "               Any field with a matching tag will have a new subfield inserted.\n"
               << "           --insert-field-if field_or_subfield_spec field_or_subfield_spec_and_pcre_regex"
               << " new_field_or_subfield_data\n"
-              << "               Keep only records that have a bibliographic level matching any of the specified\n"
-              << "               characters.  (Comparsion against leader position 07.)\n"
+              << "               Like \"--insert-field\" but the insertion only happens if we find a field or subfield\n"
+              << "               with contents matching the PCRE.\n"
               << "           --replace-field-if field_or_subfield_spec field_or_subfield_spec_and_pcre_regex"
               << " new_field_or_subfield_data\n"
               << "               Any fields that matched or that have subfields that matched will be dropped.\n"
@@ -103,10 +103,7 @@ const char CompiledPattern::NO_SUBFIELD_CODE('\0');
 
 
 bool CompiledPattern::matched(const MARC::Record &record) {
-    for (const auto &field : record) {
-        if (field.getTag() != tag_)
-            continue;
-
+    for (const auto &field : record.getTagRange(tag_)) {
         std::string err_msg;
         if (subfield_code_ == NO_SUBFIELD_CODE) { // Match a field.
             if (matcher_.matched(field.getContents(), &err_msg))
@@ -587,7 +584,7 @@ void ProcessAugmentorArgs(char **argv, std::vector<AugmentorDescriptor> * const 
         } else if (std::strcmp(*argv, "--insert-field-if") == 0) {
             ExtractCommandArgs(&argv, &tag, &subfield_code, &compiled_pattern, &field_or_subfield_contents);
             augmentors->emplace_back(AugmentorDescriptor::MakeInsertFieldIfAugmentor(tag, subfield_code, compiled_pattern,
-                                                                                   field_or_subfield_contents));
+                                                                                     field_or_subfield_contents));
         } else if (std::strcmp(*argv, "--replace-field-if") == 0) {
             ExtractCommandArgs(&argv, &tag, &subfield_code, &compiled_pattern, &field_or_subfield_contents);
             augmentors->emplace_back(AugmentorDescriptor::MakeReplaceFieldIfAugmentor(tag, subfield_code, compiled_pattern,
