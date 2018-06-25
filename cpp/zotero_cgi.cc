@@ -125,8 +125,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> crawling_depths;
     std::vector<std::string> crawling_strptime_formats;
 
-    for (const auto &name_and_section : ini) {
-        const auto &section(name_and_section.second);
+    for (const auto &section : ini) {
         const std::string title(section.getSectionName());
 
         if (title.empty()) {
