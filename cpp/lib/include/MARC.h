@@ -618,11 +618,12 @@ public:
 enum class FileType { AUTO, BINARY, XML };
 
 
-/** \brief Determines the file type of "filename".
+/** \brief  Determines the file type of "filename".
+ *  \param  read_file if false, we only use the extension to determine the type.
  *  \return FileType::BINARY or FileType::XML.
  *  \note   Aborts if we can't determine the file type or if it is not FileType::BINARY nor FileType::XML.
  */
-FileType GuessFileType(const std::string &filename, const bool read_file);
+FileType GuessFileType(const std::string &filename, const bool read_file = true);
 
 
 class Reader {
