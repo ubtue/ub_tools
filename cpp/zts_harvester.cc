@@ -240,13 +240,13 @@ int Main(int argc, char *argv[]) {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
 
     for (const auto &section : ini_file) {
-        if (section.first.empty())
+        if (section.getSectionName().empty())
             continue;       // don't parse the global parameters section
 
-        if (live_only and section.second.getBool("live", false) != true)
+        if (live_only and section.getBool("live", false) != true)
             continue;
 
-        const std::string groups_str(section.second.getString("groups"));
+        const std::string groups_str(section.getString("groups"));
         std::set<std::string> section_groups;
         StringUtil::SplitThenTrimWhite(groups_str, ',', &section_groups);
         if (not groups_filter.empty()) {
@@ -256,19 +256,19 @@ int Main(int argc, char *argv[]) {
         }
 
         std::vector<MARC::EditInstruction> edit_instructions;
-        LoadMARCEditInstructions(section.second, &edit_instructions);
+        LoadMARCEditInstructions(section, &edit_instructions);
 
         Zotero::GobalAugmentParams global_augment_params(&augment_maps);
 
         Zotero::SiteAugmentParams site_augment_params;
         site_augment_params.global_params_ = &global_augment_params;
         site_augment_params.marc_edit_instructions_ = edit_instructions;
-        ReadGenericSiteAugmentParams(section.second, &site_augment_params);
+        ReadGenericSiteAugmentParams(section, &site_augment_params);
 
         harvest_params->format_handler_->setAugmentParams(&site_augment_params);
 
         if (not section_name_to_found_flag_map.empty()) {
-            const auto section_name_and_found_flag(section_name_to_found_flag_map.find(section.first));
+            const auto section_name_and_found_flag(section_name_to_found_flag_map.find(section.getSectionName()));
             if (section_name_and_found_flag == section_name_to_found_flag_map.end())
                 continue;
             section_name_and_found_flag->second = true;
@@ -281,19 +281,21 @@ int Main(int argc, char *argv[]) {
                 if (harvest_params->user_agent_.empty() or group_user_agent != harvest_params->user_agent_)
                     harvest_params->user_agent_ = group_user_agent;
                 else
-                    LOG_WARNING("groups with multiple user agents are not allowed for '" + section_group + "', skipping section '" + section.first + "'");
+                    LOG_WARNING("groups with multiple user agents are not allowed for '" + section_group + "', skipping section '"
+                                + section.getSectionName() + "'");
             } else
-                LOG_WARNING("user agent for group '" + section_group + "' is not defined, skipping section '" + section.first + "'");
+                LOG_WARNING("user agent for group '" + section_group + "' is not defined, skipping section '" + section.getSectionName()
+                            + "'");
         }
         if (harvest_params->user_agent_.empty())
             continue;
 
-        LOG_INFO("Processing section \"" + section.first + "\".");
+        LOG_INFO("Processing section \"" + section.getSectionName() + "\".");
         ++processed_section_count;
 
-        const Type type(static_cast<Type>(section.second.getEnum("type", string_to_value_map)));
+        const Type type(static_cast<Type>(section.getEnum("type", string_to_value_map)));
         if (type == RSS)
-            total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section.second, harvest_params, site_augment_params,
+            total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section, harvest_params, site_augment_params,
                                                                                         db_connection.get(), test);
         else if (type == CRAWL) {
             SimpleCrawler::Params crawler_params;
@@ -303,10 +305,10 @@ int Main(int argc, char *argv[]) {
             crawler_params.user_agent_ = harvest_params->user_agent_;
 
             total_record_count_and_previously_downloaded_record_count +=
-                ProcessCrawl(section.second, harvest_params, site_augment_params, crawler_params, supported_urls_regex);
+                ProcessCrawl(section, harvest_params, site_augment_params, crawler_params, supported_urls_regex);
         } else
             total_record_count_and_previously_downloaded_record_count +=
-                ProcessDirectHarvest(section.second, harvest_params, site_augment_params);
+                ProcessDirectHarvest(section, harvest_params, site_augment_params);
     }
 
     LOG_INFO("Extracted metadata from "
