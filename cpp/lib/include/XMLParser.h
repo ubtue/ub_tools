@@ -50,7 +50,7 @@ public:
         /** \brief Found Schema information will only be processed if set to true (default false).*/
         bool do_schema_;
         /** \brief Defines if CHARACTERS that only contain whitespaces will be skipped (default true). */
-        bool ignore_whitespaces_;
+        bool ignore_whitespace_;
     };
 
     static const Options DEFAULT_OPTIONS;

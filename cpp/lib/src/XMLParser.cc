@@ -26,7 +26,7 @@
 const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
     /* do_namespaces_ = */false,
     /* do_schema_ = */false,
-    /* ignore_whitespaces_ = */true,
+    /* ignore_whitespace_ = */true,
 };
 
 
@@ -168,7 +168,7 @@ bool XMLParser::getNext(XMLPart *const next, bool combine_consecutive_characters
             }
         }
 
-        if (options_.ignore_whitespaces_ and next != nullptr and next->type_ == XMLPart::CHARACTERS and StringUtil::IsWhitespace(next->data_))
+        if (options_.ignore_whitespace_ and next != nullptr and next->type_ == XMLPart::CHARACTERS and StringUtil::IsWhitespace(next->data_))
             return getNext(next);
     }
 
