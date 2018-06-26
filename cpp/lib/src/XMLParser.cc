@@ -202,8 +202,7 @@ bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::st
 }
 
 
-bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::string &expected_tag,
-                       XMLPart * const part)
+bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::string &expected_tag, XMLPart * const part)
 {
     std::set<std::string> expected_tags;
     if (not expected_tag.empty())
