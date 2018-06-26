@@ -20,10 +20,10 @@
 #include "SyndicationFormat.h"
 #include <set>
 #include <stdexcept>
+#include <unordered_set>
 #include "Compiler.h"
 #include "RegexMatcher.h"
-#include "SimpleXmlParser.h"
-#include "StringDataSource.h"
+#include "StringUtil.h"
 #include "TimeUtil.h"
 #include "util.h"
 
@@ -43,15 +43,9 @@ bool SyndicationFormat::const_iterator::operator==(const SyndicationFormat::cons
 
 
 SyndicationFormat::SyndicationFormat(const std::string &xml_document, const AugmentParams &augment_params)
-    : data_source_(new StringDataSource(xml_document)), xml_parser_(new SimpleXmlParser<StringDataSource>(data_source_)),
+    : xml_parser_(XMLParser(xml_document, XMLParser::XML_STRING)),
       last_build_date_(TimeUtil::BAD_TIME_T), augment_params_(augment_params)
 {
-}
-
-
-SyndicationFormat::~SyndicationFormat() {
-    delete xml_parser_;
-    delete data_source_;
 }
 
 
@@ -82,30 +76,28 @@ SyndicationFormatType GetFormatType(const std::string &xml_document) {
 }
 
 
-static std::string ExtractText(SimpleXmlParser<StringDataSource> * const parser, const std::string &closing_tag,
+static std::string ExtractText(XMLParser &parser, const std::string &closing_tag,
                                const std::string &extra = "")
 {
-    SimpleXmlParser<StringDataSource>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-    if (unlikely(not parser->getNext(&type, &attrib_map, &data)))
+    XMLParser::XMLPart part;
+    if (unlikely(not parser.getNext(&part)))
         throw std::runtime_error("in ExtractText(SyndicationFormat.cc): parse error while looking for characters for \""
                                  + closing_tag + "\" tag!" + extra);
     std::string extracted_text;
-    if (type == SimpleXmlParser<StringDataSource>::CHARACTERS)
-        extracted_text = data;
-    else if (type == SimpleXmlParser<StringDataSource>::CLOSING_TAG) {
-        if (unlikely(data != closing_tag))
-            throw std::runtime_error("in ExtractText(SyndicationFormat.cc): unexpected closing tag \"" + data
+    if (part.type_ == XMLParser::XMLPart::CHARACTERS)
+        extracted_text = part.data_;
+    else if (part.type_ == XMLParser::XMLPart::CLOSING_TAG) {
+        if (unlikely(part.data_ != closing_tag))
+            throw std::runtime_error("in ExtractText(SyndicationFormat.cc): unexpected closing tag \"" + part.data_
                                      + "\" while looking for the \"" + closing_tag + "\" closing tag!" + extra);
         return "";
     } else
         throw std::runtime_error("in ExtractText(SyndicationFormat.cc): unexpected "
-                                 + SimpleXmlParser<StringDataSource>::TypeToString(type) + " while looking for a closing \""
+                                 + XMLParser::XMLPart::TypeToString(part.type_) + " while looking for a closing \""
                                  + closing_tag + "\" tag!" + extra);
-    if (not parser->getNext(&type, &attrib_map, &data)
-        or type != SimpleXmlParser<StringDataSource>::CLOSING_TAG or data != closing_tag)
-        throw std::runtime_error("in ExtractText(SyndicationFormat.cc): " + closing_tag + " closing tag not found!" + extra);
+    if (not parser.getNext(&part)
+        or part.type_ != XMLParser::XMLPart::CLOSING_TAG or part.data_ != closing_tag)
+        throw std::runtime_error("in ExtractText(SyndicationFormat.cc): " + closing_tag + " closing tag not found!" + extra + " found instead: " + XMLParser::XMLPart::TypeToString(part.type_) + " '" + part.data_ + "'");
 
     return extracted_text;
 }
@@ -163,25 +155,21 @@ std::unique_ptr<SyndicationFormat> SyndicationFormat::Factory(const std::string 
 
 
 RSS20::RSS20(const std::string &xml_document, const AugmentParams &augment_params): SyndicationFormat(xml_document, augment_params) {
-    SimpleXmlParser<StringDataSource>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-    while (xml_parser_->getNext(&type, &attrib_map, &data)) {
-        if (unlikely(type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT))
-            throw std::runtime_error("in RSS20::RSS20: unexpected end-of-document!");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "item")
+    XMLParser::XMLPart part;
+    while (xml_parser_.getNext(&part)) {
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "item")
             return;
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "image") {
-            if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "image")))
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "image") {
+            if (unlikely(not xml_parser_.skipTo(XMLParser::XMLPart::CLOSING_TAG, "image")))
                 throw std::runtime_error("in RSS20::RSS20: closing image tag not found!");
         }
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "title")
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "title")
             title_ = ExtractText(xml_parser_, "title", " (RSS20::RSS20)");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link")
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link")
             link_ = ExtractText(xml_parser_, "link", " (RSS20::RSS20)");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "description")
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
             description_ = ExtractText(xml_parser_, "description", " (RSS20::RSS20)");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "lastBuildDate") {
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "lastBuildDate") {
             const std::string last_build_date(ExtractText(xml_parser_, "lastBuildDate", " (RSS20::RSS20)"));
             if (augment_params_.strptime_format_.empty()) {
                 if (not ParseRFC1123DateTimeAndPrefixes(last_build_date, &last_build_date_))
@@ -190,34 +178,28 @@ RSS20::RSS20(const std::string &xml_document, const AugmentParams &augment_param
                 last_build_date_ = TimeUtil::TimeGm(TimeUtil::StringToStructTm(last_build_date, augment_params_.strptime_format_));
         }
     }
-    if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
-        throw std::runtime_error("in RSS20::RSS20: found XML error: " + xml_parser_->getLastErrorMessage());
 }
 
 
 std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
     std::string title, description, link, id;
     time_t pub_date(TimeUtil::BAD_TIME_T);
-    SimpleXmlParser<StringDataSource>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-    while (xml_parser_->getNext(&type, &attrib_map, &data)) {
-        if (type == SimpleXmlParser<StringDataSource>::CLOSING_TAG and data == "item")
+    XMLParser::XMLPart part;
+    while (xml_parser_.getNext(&part)) {
+        if (part.type_ == XMLParser::XMLPart::CLOSING_TAG and part.data_ == "item") {
+            LOG_INFO("found new item: " + title + ", URL: " + link);
             return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, id, pub_date));
-        else if (type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT)
-            return nullptr;
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "title")
+        } else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "title")
             title = ExtractText(xml_parser_, "title", " (RSS20::getNextItem)");
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "description")
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
             description = ExtractText(xml_parser_, "description", " (RSS20::getNextItem)");
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link") {
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link")
             link = ExtractText(xml_parser_, "link", " (RSS20::getNextItem)");
-            if (link.empty() and attrib_map.find("href") != attrib_map.cend())
-                link = attrib_map["href"];
-        }
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "guid")
+            if (link.empty() and part.attributes_.find("href") != part.attributes_.end())
+                link = part.attributes_["href"];
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "guid")
             id = ExtractText(xml_parser_, "guid", " (RSS20::getNextItem)");
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "pubDate") {
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "pubDate") {
             const std::string pub_date_string(ExtractText(xml_parser_, "pubDate"));
             if (augment_params_.strptime_format_.empty()) {
                 if (unlikely(not ParseRFC1123DateTimeAndPrefixes(pub_date_string, &pub_date)))
@@ -226,29 +208,22 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
                 last_build_date_ = TimeUtil::TimeGm(TimeUtil::StringToStructTm(pub_date_string, augment_params_.strptime_format_));
         }
     }
-    if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
-        throw std::runtime_error("in RSS20::getNextItem: found XML error: " + xml_parser_->getLastErrorMessage());
-
-    return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, id, pub_date));
+    return nullptr;
 }
 
 
 RSS091::RSS091(const std::string &xml_document, const AugmentParams &augment_params): SyndicationFormat(xml_document, augment_params) {
-    SimpleXmlParser<StringDataSource>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-    while (xml_parser_->getNext(&type, &attrib_map, &data)) {
-        if (unlikely(type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT))
-            throw std::runtime_error("in RSS091::RSS091: unexpected end-of-document!");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "item")
+    XMLParser::XMLPart part;
+    while (xml_parser_.getNext(&part)) {
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "item")
             return;
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "title")
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "title")
             title_ = ExtractText(xml_parser_, "title", " (RSS091::RSS091)");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link")
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link")
             link_ = ExtractText(xml_parser_, "link", " (RSS091::RSS091)");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "description")
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
             description_ = ExtractText(xml_parser_, "description", " (RSS091::RSS091)");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "lastBuildDate") {
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "lastBuildDate") {
             const std::string last_build_date(ExtractText(xml_parser_, "lastBuildDate", " (RSS091::RSS091)"));
             if (augment_params_.strptime_format_.empty()) {
                 if (not ParseRFC1123DateTimeAndPrefixes(last_build_date, &last_build_date_))
@@ -257,58 +232,46 @@ RSS091::RSS091(const std::string &xml_document, const AugmentParams &augment_par
                 last_build_date_ = TimeUtil::TimeGm(TimeUtil::StringToStructTm(last_build_date, augment_params_.strptime_format_));
         }
     }
-    if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
-        throw std::runtime_error("in RSS091::RSS091: found XML error: " + xml_parser_->getLastErrorMessage());
 }
 
 
 std::unique_ptr<SyndicationFormat::Item> RSS091::getNextItem() {
     std::string title, description, link;
-    SimpleXmlParser<StringDataSource>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-    while (xml_parser_->getNext(&type, &attrib_map, &data)) {
-        if (type == SimpleXmlParser<StringDataSource>::CLOSING_TAG and data == "item")
+    XMLParser::XMLPart part;
+    while (xml_parser_.getNext(&part)) {
+        if (part.type_ == XMLParser::XMLPart::CLOSING_TAG and part.data_ == "item")
             return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, /* id = */"",
                                                                      TimeUtil::BAD_TIME_T));
-        else if (type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT)
-            return nullptr;
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "title")
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "title")
             title = ExtractText(xml_parser_, "title");
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "description")
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
             description = ExtractText(xml_parser_, "description");
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link") {
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link") {
             link = ExtractText(xml_parser_, "link");
-            if (link.empty() and attrib_map.find("href") != attrib_map.cend())
-                link = attrib_map["href"];
+            if (link.empty() and part.attributes_.find("href") != part.attributes_.end())
+                link = part.attributes_["href"];
         }
     }
-    if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
-        throw std::runtime_error("in RSS091::getNextItem: found XML error: " + xml_parser_->getLastErrorMessage());
 
-    return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, /* id= */"", TimeUtil::BAD_TIME_T));
+    return nullptr;
 }
 
 
 Atom::Atom(const std::string &xml_document, const AugmentParams &augment_params): SyndicationFormat(xml_document, augment_params) {
-    SimpleXmlParser<StringDataSource>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-    while (xml_parser_->getNext(&type, &attrib_map, &data)) {
-        if (unlikely(type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT))
-            throw std::runtime_error("in Atom::Atom: unexpected end-of-document!");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and (data == "item" or data == "entry")) {
-            item_tag_ = data;
+    XMLParser::XMLPart part;
+    while (xml_parser_.getNext(&part)) {
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and (part.data_ == "item" or part.data_ == "entry")) {
+            item_tag_ = part.data_;
             return;
         }
 
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "title")
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "title")
             title_ = ExtractText(xml_parser_, "title", " (Atom::Atom)");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link")
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link")
             link_ = ExtractText(xml_parser_, "link", " (Atom::Atom)");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "description")
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
             description_ = ExtractText(xml_parser_, "description", " (Atom::Atom)");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "updated") {
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "updated") {
             const std::string last_build_date(ExtractText(xml_parser_, "updated", " (Atom::Atom)"));
             if (augment_params_.strptime_format_.empty()) {
                 if (not TimeUtil::ParseRFC3339DateTime(last_build_date, &last_build_date_))
@@ -317,34 +280,27 @@ Atom::Atom(const std::string &xml_document, const AugmentParams &augment_params)
                 last_build_date_ = TimeUtil::TimeGm(TimeUtil::StringToStructTm(last_build_date, augment_params_.strptime_format_));
         }
     }
-    if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
-        throw std::runtime_error("in Atom::Atom: found XML error: " + xml_parser_->getLastErrorMessage());
 }
 
 
 std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
     std::string title, summary, link, id;
     time_t updated(TimeUtil::BAD_TIME_T);
-    SimpleXmlParser<StringDataSource>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-    while (xml_parser_->getNext(&type, &attrib_map, &data)) {
-        if (type == SimpleXmlParser<StringDataSource>::CLOSING_TAG and data == item_tag_)
+    XMLParser::XMLPart part;
+    while (xml_parser_.getNext(&part)) {
+        if (part.type_ == XMLParser::XMLPart::CLOSING_TAG and part.data_ == item_tag_)
             return std::unique_ptr<SyndicationFormat::Item>(new Item(title, summary, link, id, updated));
-        else if (type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT)
-            return nullptr;
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "title")
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "title")
             title = ExtractText(xml_parser_, "title");
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "summary")
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "summary")
             summary = ExtractText(xml_parser_, "summary");
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "link") {
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link") {
             link = ExtractText(xml_parser_, "link");
-            if (link.empty() and attrib_map.find("href") != attrib_map.cend())
-                link = attrib_map["href"];
-        }
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "id")
+            if (link.empty() and part.attributes_.find("href") != part.attributes_.end())
+                link = part.attributes_["href"];
+        } else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "id")
             id = ExtractText(xml_parser_, "id", " (Atom::getNextItem)");
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "updated") {
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "updated") {
             const std::string updated_string(ExtractText(xml_parser_, "updated"));
             if (augment_params_.strptime_format_.empty()) {
                 updated = TimeUtil::Iso8601StringToTimeT(updated_string, TimeUtil::UTC);
@@ -352,10 +308,8 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
                 updated = TimeUtil::TimeGm(TimeUtil::StringToStructTm(updated_string, augment_params_.strptime_format_));
         }
     }
-    if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
-        throw std::runtime_error("in Atom::getNextItem: found XML error: " + xml_parser_->getLastErrorMessage());
 
-    return std::unique_ptr<SyndicationFormat::Item>(new Item(title, summary, link, id, updated));
+    return nullptr;
 }
 
 
@@ -373,14 +327,14 @@ static std::string ExtractNamespacePrefix(const std::string &xmlns_string) {
 
 
 // Helper for RDF::RDF.
-static void ExtractNamespaces(SimpleXmlParser<StringDataSource> * const parser, std::string * const rss_namespace,
+static void ExtractNamespaces(XMLParser &parser, std::string * const rss_namespace,
                               std::string * const dc_namespace, std::string * const prism_namespace)
 {
-    std::map<std::string, std::string> attrib_map;
-    if (not parser->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "rdf:RDF", &attrib_map))
+    XMLParser::XMLPart part;
+    if (not parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "rdf:RDF", &part))
         throw std::runtime_error("in ExtractRSSNamespace(SyndicationFormat.cc): missing rdf:RDF opening tag!");
 
-    for (const auto &key_and_value : attrib_map) {
+    for (const auto &key_and_value : part.attributes_) {
         if (key_and_value.second == "http://purl.org/rss/1.0/")
             *rss_namespace = ExtractNamespacePrefix(key_and_value.first);
         else if (key_and_value.second == "http://purl.org/dc/elements/1.1/")
@@ -394,26 +348,20 @@ static void ExtractNamespaces(SimpleXmlParser<StringDataSource> * const parser, 
 RDF::RDF(const std::string &xml_document, const AugmentParams &augment_params): SyndicationFormat(xml_document, augment_params) {
     ExtractNamespaces(xml_parser_, &rss_namespace_, &dc_namespace_, &prism_namespace_);
 
-    SimpleXmlParser<StringDataSource>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-    while (xml_parser_->getNext(&type, &attrib_map, &data)) {
-        if (unlikely(type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT))
-            throw std::runtime_error("in RDF::RDF: unexpected end-of-document!");
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "item")
+    XMLParser::XMLPart part;
+    while (xml_parser_.getNext(&part)) {
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == rss_namespace_ + "item")
             return;
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "image") {
-            if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, rss_namespace_ + "image")))
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == rss_namespace_ + "image") {
+            if (unlikely(not xml_parser_.skipTo(XMLParser::XMLPart::CLOSING_TAG, rss_namespace_ + "image")))
                 throw std::runtime_error("in RDF::RDF: closing image tag not found!");
-        } else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "title")
+        } else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == rss_namespace_ + "title")
             title_ = ExtractText(xml_parser_, rss_namespace_ + "title");
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "link")
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == rss_namespace_ + "link")
             link_ = ExtractText(xml_parser_, rss_namespace_ + "link");
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "description")
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == rss_namespace_ + "description")
             description_ = ExtractText(xml_parser_, rss_namespace_ + "description");
     }
-    if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
-        throw std::runtime_error("in RDF::RDF: found XML error: " + xml_parser_->getLastErrorMessage());
 }
 
 
@@ -435,7 +383,7 @@ static const std::unordered_set<std::string> PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIB
 };
 
 
-void ExtractPrismData(SimpleXmlParser<StringDataSource> * const xml_parser, const std::string &tag,
+void ExtractPrismData(XMLParser &xml_parser, const std::string &tag,
                       const std::map<std::string, std::string> &attrib_map, const std::string &prism_namespace,
                       std::unordered_map<std::string, std::string> * const dc_and_prism_data)
 {
@@ -452,7 +400,7 @@ void ExtractPrismData(SimpleXmlParser<StringDataSource> * const xml_parser, cons
                 LOG_WARNING("don't know what to do w/ \"" + tag + "\" tag attribute!");
         } else
             LOG_WARNING("don't know what to do w/ PRISM \"" + tag + "\" tag!");
-        if (not xml_parser->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, tag))
+        if (not xml_parser.skipTo(XMLParser::XMLPart::CLOSING_TAG, tag))
             throw std::runtime_error("in RDF::getNextItem: missing closing \"" + tag + "\" tag!");
     }
 }
@@ -462,45 +410,38 @@ std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
     std::string title, description, link, id;
     time_t pub_date(TimeUtil::BAD_TIME_T);
     std::unordered_map<std::string, std::string> dc_and_prism_data;
-    SimpleXmlParser<StringDataSource>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-    while (xml_parser_->getNext(&type, &attrib_map, &data)) {
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "item") {
-            const auto rdf_about(attrib_map.find("rdf:about"));
-            if (rdf_about != attrib_map.cend())
+    XMLParser::XMLPart part;
+    while (xml_parser_.getNext(&part)) {
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == rss_namespace_ + "item") {
+            const auto rdf_about(part.attributes_.find("rdf:about"));
+            if (rdf_about != part.attributes_.cend())
                 id = rdf_about->second;
-        } else if (type == SimpleXmlParser<StringDataSource>::CLOSING_TAG and data == rss_namespace_ + "item")
+        } else if (part.type_ == XMLParser::XMLPart::CLOSING_TAG and part.data_ == rss_namespace_ + "item")
             return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, id, pub_date, dc_and_prism_data));
-        else if (type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT)
-            return nullptr;
-        else if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG) {
-            if (data == rss_namespace_ + "title")
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG) {
+            if (part.data_ == rss_namespace_ + "title")
                 title = ExtractText(xml_parser_, rss_namespace_ + "title");
-            else if (data == rss_namespace_ + "description")
+            else if (part.data_ == rss_namespace_ + "description")
                 description = ExtractText(xml_parser_, rss_namespace_ + "description");
-            else if (data == rss_namespace_ + "link") {
+            else if (part.data_ == rss_namespace_ + "link") {
                 link = ExtractText(xml_parser_, rss_namespace_ + "link");
-                if (link.empty() and attrib_map.find("href") != attrib_map.cend())
-                    link = attrib_map["href"];
-            }
-            else if (data == rss_namespace_ + "pubDate") {
+                if (link.empty() and part.attributes_.find("href") != part.attributes_.cend())
+                    link = part.attributes_["href"];
+            } else if (part.data_ == rss_namespace_ + "pubDate") {
                 const std::string pub_date_string(ExtractText(xml_parser_, rss_namespace_ + "pubDate"));
                 if (augment_params_.strptime_format_.empty()) {
                     if (unlikely(not ParseRFC1123DateTimeAndPrefixes(pub_date_string, &pub_date)))
                         LOG_WARNING("couldn't parse \"" + pub_date_string + "\"!");
                 } else
                     pub_date = TimeUtil::TimeGm(TimeUtil::StringToStructTm(pub_date_string, augment_params_.strptime_format_));
-            } else if (not dc_namespace_.empty() and StringUtil::StartsWith(data, dc_namespace_)) {
-                const std::string tag(data);
+            } else if (not dc_namespace_.empty() and StringUtil::StartsWith(part.data_, dc_namespace_)) {
+                const std::string tag(part.data_);
                 const std::string tag_suffix(tag.substr(dc_namespace_.length()));
                 dc_and_prism_data["dc:" + tag_suffix] = ExtractText(xml_parser_, tag);
-            } else if (not prism_namespace_.empty() and StringUtil::StartsWith(data, prism_namespace_))
-                ExtractPrismData(xml_parser_, data, attrib_map, prism_namespace_, &dc_and_prism_data);
+            } else if (not prism_namespace_.empty() and StringUtil::StartsWith(part.data_, prism_namespace_))
+                ExtractPrismData(xml_parser_, part.data_, part.attributes_, prism_namespace_, &dc_and_prism_data);
         }
     }
-    if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
-        throw std::runtime_error("in RDF::getNextItem: found XML error: " + xml_parser_->getLastErrorMessage());
 
-    return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, id, pub_date, dc_and_prism_data));
+    return nullptr;
 }
