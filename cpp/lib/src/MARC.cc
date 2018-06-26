@@ -697,6 +697,7 @@ Record BinaryReader::read() {
     } while (new_record.getControlNumber() == last_record_.getControlNumber());
 
     new_record.swap(last_record_);
+    new_record.sortFields(new_record.begin(), new_record.end());
     return new_record;
 }
 
@@ -738,12 +739,14 @@ Record XmlReader::read() {
     while (getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<File>::CHARACTERS)
         /* Intentionally empty! */;
 
-    if (unlikely(type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "collection"))
+    if (unlikely(type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "collection")) {
+        new_record.sortFields(new_record.begin(), new_record.end());
         return new_record;
+    }
 
-        //
-        // Now parse a <record>:
-        //
+    //
+    // Now parse a <record>:
+    //
 
     if (unlikely(type != SimpleXmlParser<File>::OPENING_TAG or data != namespace_prefix_ + "record")) {
         const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
