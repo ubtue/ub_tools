@@ -30,7 +30,7 @@ const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
 };
 
 
-std::string XMLParser::ToString(const XMLCh *const xmlch) {
+std::string XMLParser::ToString(const XMLCh * const xmlch) {
     return xercesc::XMLString::transcode(xmlch);
 }
 
@@ -68,7 +68,7 @@ std::string XMLParser::XMLPart::TypeToString(const Type type) {
 }
 
 
-void XMLParser::Handler::startElement(const XMLCh *const name, xercesc::AttributeList &attributes) {
+void XMLParser::Handler::startElement(const XMLCh * const name, xercesc::AttributeList &attributes) {
     XMLPart xml_part;
     xml_part.type_ = XMLPart::OPENING_TAG;
     xml_part.data_ = XMLParser::ToString(name);
@@ -79,7 +79,7 @@ void XMLParser::Handler::startElement(const XMLCh *const name, xercesc::Attribut
 }
 
 
-void XMLParser::Handler::endElement(const XMLCh *const name) {
+void XMLParser::Handler::endElement(const XMLCh * const name) {
     XMLPart xml_part;
     xml_part.type_ = XMLPart::CLOSING_TAG;
     xml_part.data_ = XMLParser::ToString(name);
@@ -88,7 +88,7 @@ void XMLParser::Handler::endElement(const XMLCh *const name) {
 }
 
 
-void XMLParser::Handler::characters(const XMLCh *const chars, const XMLSize_t /*length*/) {
+void XMLParser::Handler::characters(const XMLCh * const chars, const XMLSize_t /*length*/) {
     XMLPart xml_part;
     xml_part.type_ = XMLPart::CHARACTERS;
     xml_part.data_ = XMLParser::ToString(chars);
@@ -96,7 +96,7 @@ void XMLParser::Handler::characters(const XMLCh *const chars, const XMLSize_t /*
 }
 
 
-void XMLParser::Handler::ignorableWhitespace(const XMLCh *const chars, const XMLSize_t length) {
+void XMLParser::Handler::ignorableWhitespace(const XMLCh * const chars, const XMLSize_t length) {
     characters(chars, length);
 }
 
@@ -127,7 +127,7 @@ void XMLParser::rewind() {
 }
 
 
-bool XMLParser::getNext(XMLPart *const next, bool combine_consecutive_characters) {
+bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_characters) {
     if (not prolog_parsing_done_) {
         if (type_ == XML_FILE) {
             body_has_more_contents_ = parser_->parseFirst(xml_filename_or_string_.c_str(), token_);
@@ -171,7 +171,7 @@ bool XMLParser::getNext(XMLPart *const next, bool combine_consecutive_characters
 
 
 bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags,
-                       XMLPart *const part)
+                       XMLPart * const part)
 {
     XMLPart result;
     bool return_value(false);
@@ -203,7 +203,7 @@ bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::st
 
 
 bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::string &expected_tag,
-                       XMLPart *const part)
+                       XMLPart * const part)
 {
     std::set<std::string> expected_tags;
     if (not expected_tag.empty())
