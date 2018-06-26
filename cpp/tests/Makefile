@@ -13,7 +13,7 @@ OBJ            = .
 MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep
 LIBS           = -L../lib -lubtue -L../lib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
                  -larchive -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt -lssl -lcrypto -lpthread -ldl \
-                 -luuid -llept -ltesseract -lsqlite3
+                 -luuid -llept -ltesseract -lsqlite3 -lxerces-c
 ifneq ("$(wildcard /usr/include/selinux)","")
   LIBS += -lselinux
 endif
