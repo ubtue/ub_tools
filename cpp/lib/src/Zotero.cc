@@ -371,7 +371,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
         "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|websiteType|ISSN|ubtue$"));
     unsigned record_count(0), previously_downloaded_count(0);
-    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
+    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART,
                             GetNextControlNumber());
     bool is_journal_article(false);
     std::string publication_title, issn_normalized, url, website_title;
