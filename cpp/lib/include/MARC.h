@@ -519,7 +519,7 @@ public:
     inline const Field &back() const { return fields_.back(); }
 
     // Alphanumerically sorts the fields in the range [begin_field, end_field).
-    void sortFields(const iterator &begin_field, const iterator &end_field) { std::sort(begin_field, end_field); }
+    void sortFields(const iterator &begin_field, const iterator &end_field) { std::stable_sort(begin_field, end_field); }
 
     /** \return Iterators pointing to the half-open interval of the first range of fields corresponding to the tag "tag".
      *  \remark {
