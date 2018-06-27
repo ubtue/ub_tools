@@ -849,15 +849,15 @@ public class TuelibMixin extends SolrIndexerMixin {
      *
      * either get from cache or load from file, if cache empty
      *
-     * @param langShortcut
+     * @param langAbbrev
      *
      * @return Map<String, String>
      * @throws IllegalArgumentException
      */
-    static public Map<String, String> getTranslationMap(final String langShortcut) throws IllegalArgumentException {
+    static public Map<String, String> getTranslationMap(final String langAbbrev) throws IllegalArgumentException {
         Map<String, String> translation_map;
 
-        switch (langShortcut) {
+        switch (langAbbrev) {
         case "en":
             translation_map = translation_map_en;
             break;
@@ -886,13 +886,13 @@ public class TuelibMixin extends SolrIndexerMixin {
             translation_map = translation_map_el;
             break;
         default:
-            throw new IllegalArgumentException("Invalid language shortcut: " + langShortcut);
+            throw new IllegalArgumentException("Invalid language shortcut: " + langAbbrev);
         }
 
         final String dir = "/usr/local/ub_tools/bsz_daten/";
         final String ext = "txt";
         final String basename = "normdata_translations";
-        String translationsFilename = dir + basename + "_" + langShortcut + "." + ext;
+        String translationsFilename = dir + basename + "_" + langAbbrev + "." + ext;
 
         // Only read the data from file if necessary
         if (translation_map.isEmpty() && (new File(translationsFilename).length() != 0))  {
@@ -922,14 +922,14 @@ public class TuelibMixin extends SolrIndexerMixin {
      * try to translate a string
      *
      * @param string        string to translate
-     * @param langShortcut  language code
+     * @param langAbbrev  language code
      *
      * @return              translated string if available in a foreign language, null else
      */
-    static public String getTranslationOrNull(final String string, final String langShortcut) {
-       if (langShortcut.equals("de"))
+    static public String getTranslationOrNull(final String string, final String langAbbrev) {
+       if (langAbbrev.equals("de"))
            return null;
-       final Map<String, String> translationMap = getTranslationMap(langShortcut);
+       final Map<String, String> translationMap = getTranslationMap(langAbbrev);
        return translationMap.get(string);
     }
 
@@ -938,15 +938,15 @@ public class TuelibMixin extends SolrIndexerMixin {
      * translate a string if available
      *
      * @param string        string to translate
-     * @param langShortcut  language code
+     * @param langAbbrev  language code
      *
      * @return              translated string if available, else input string
      */
-    static public String getTranslation(final String string, final String langShortcut) {
-        if (langShortcut.equals("de")) {
+    static public String getTranslation(final String string, final String langAbbrev) {
+        if (langAbbrev.equals("de")) {
             return string;
         }
-        final Map<String, String> translationMap = getTranslationMap(langShortcut);
+        final Map<String, String> translationMap = getTranslationMap(langAbbrev);
         final String translatedString = translationMap.get(string);
         return (translatedString != null) ? translatedString : string;
     }
@@ -1176,8 +1176,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                             else if (subfield.getCode() == 'b' || subfield.getCode() == 'c') {
                                 honouree.append(", ");
                                 honouree.append(translateTopic(subfield.getData(), lang));
-                            }
-                            else if (subfield.getCode() == 'd') {
+                            } else if (subfield.getCode() == 'd') {
                                 honouree.append(" ");
                                 honouree.append(subfield.getData());
                             }
@@ -1276,11 +1275,11 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Translate a single term to given language if a translation is found
      */
-    public String translateTopic(String topic, String langShortcut) {
-        if (langShortcut.equals("de"))
+    public String translateTopic(String topic, String langAbbrev) {
+        if (langAbbrev.equals("de"))
             return topic;
 
-        Map<String, String> translation_map = TuelibMixin.getTranslationMap(langShortcut);
+        Map<String, String> translation_map = TuelibMixin.getTranslationMap(langAbbrev);
         Matcher numberEndMatcher = NUMBER_END_PATTERN.matcher(topic);
 
         // Some terms contain slash separated subterms, see whether we can
@@ -1300,7 +1299,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             String topicText = numberEndMatcher.group(1);
             String numberExtension = numberEndMatcher.group(2);
             if (topicText.equals("Geschichte")) {
-                switch (langShortcut) {
+                switch (langAbbrev) {
                 case "en":
                     topic = "History" + numberExtension;
                     break;
@@ -1375,8 +1374,8 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
-                                    Collection<String> collector, String langShortcut) {
-        getTopicsCollector(record, fieldSpec, separators, collector, langShortcut, null);
+                                    Collection<String> collector, String langAbbrev) {
+        getTopicsCollector(record, fieldSpec, separators, collector, langAbbrev, null);
     }
 
 
@@ -1404,7 +1403,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * Abstract out topic extract from LOK and ordinary field handling
      */
     private void extractTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<String> collector,
-                            final  String langShortcut, final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate) {
+                            final  String langAbbrev, final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate) {
         final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "[a-z]" : extractNormalizedSubfieldPatternHelper(subfldTags));
         for (final VariableField vf : marcFieldList) {
             final StringBuffer buffer = new StringBuffer("");
@@ -1422,7 +1421,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                         continue;
                     final String term = subfield.getData().trim();
                     if (term.length() > 0)
-                        collector.add(translateTopic(DataUtil.cleanData(term.replace("/", "\\/")), langShortcut));
+                        collector.add(translateTopic(DataUtil.cleanData(term.replace("/", "\\/")), langAbbrev));
                 }
             }
             // Case 2: Generate a complex string using the
@@ -1442,7 +1441,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                         if (separator != null) {
                             if (isBracketDirective(separator)) {
                                 final SymbolPair symbolPair = parseBracketDirective(separator);
-                                final String translatedTerm = translateTopic(term.replace("/", "\\/"), langShortcut);
+                                final String translatedTerm = translateTopic(term.replace("/", "\\/"), langAbbrev);
                                 buffer.append(" " + symbolPair.opening + translatedTerm + symbolPair.closing);
                                 continue;
                             } else if (buffer.length() > 0)
@@ -1450,14 +1449,14 @@ public class TuelibMixin extends SolrIndexerMixin {
                         }
 
                     }
-                    buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
+                    buffer.append(translateTopic(term.replace("/", "\\/"), langAbbrev));
                     complexElements.add(term);
                 }
             }
             if (buffer.length() > 0) {
                 // Try a translation once again in case a whole expression matches
                 final String complexTranslation = (complexElements.size() > 1) ?
-                                                  getTranslationOrNull(String.join(" / ", complexElements), langShortcut) : null;
+                                                  getTranslationOrNull(String.join(" / ", complexElements), langAbbrev) : null;
                 collector.add(complexTranslation != null ? complexTranslation : DataUtil.cleanData(buffer.toString()));
             }
         }
@@ -1489,7 +1488,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *   closing character       :== A single character to be appended on the right side
      */
     private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
-                                    Collection<String> collector, String langShortcut, Predicate<DataField> includeFieldPredicate)
+                                    Collection<String> collector, String langAbbrev, Predicate<DataField> includeFieldPredicate)
 
     {
         String[] fldTags = fieldSpec.split(":");
@@ -1523,20 +1522,20 @@ public class TuelibMixin extends SolrIndexerMixin {
                 // Get subfield 0 since the "subtag" is saved here
                 marcFieldList = record.getVariableFields("LOK");
                 if (!marcFieldList.isEmpty())
-                    extractTopicsHelper(marcFieldList, separators, collector, langShortcut, fldTag, subfldTags, includeFieldPredicate);
+                    extractTopicsHelper(marcFieldList, separators, collector, langAbbrev, fldTag, subfldTags, includeFieldPredicate);
             }
             // Case 2: We have an ordinary MARC field
             else {
                 marcFieldList = record.getVariableFields(fldTag);
                 if (!marcFieldList.isEmpty()) {
-                    extractTopicsHelper(marcFieldList, separators, collector, langShortcut, fldTag, subfldTags, includeFieldPredicate);
+                    extractTopicsHelper(marcFieldList, separators, collector, langAbbrev, fldTag, subfldTags, includeFieldPredicate);
                 }
             }
         }
         return;
     }
 
-    public Set<String> getTopics(final Record record, String fieldSpec, String separatorSpec, String langShortcut)
+    public Set<String> getTopics(final Record record, String fieldSpec, String separatorSpec, String langAbbrev)
         throws FileNotFoundException
     {
         final Set<String> topics = new HashSet<String>();
@@ -1544,8 +1543,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         // are converted to a '.'
         // $n is converted to a space if there is additional information
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
-        getTopicsCollector(record, fieldSpec, separators, topics, langShortcut);
-        return addHonourees(record, topics, langShortcut);
+        getTopicsCollector(record, fieldSpec, separators, topics, langAbbrev);
+        return addHonourees(record, topics, langAbbrev);
     }
 
 
@@ -1554,12 +1553,12 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public Set<String> getValuesOrUnassignedTranslated(final Record record, final String fieldSpecs,
-                                                       final String langShortcut)
+                                                       final String langAbbrev)
     {
         Set<String> valuesTranslated = new TreeSet<String>();
         Set<String> values = getValuesOrUnassigned(record, fieldSpecs);
         for (final String value : values) {
-            final String translatedValue = getTranslation(value, langShortcut);
+            final String translatedValue = getTranslation(value, langAbbrev);
             valuesTranslated.add(translatedValue);
         }
         return valuesTranslated;
