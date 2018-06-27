@@ -129,6 +129,7 @@ struct SiteAugmentParams {
     std::string parent_PPN_;
     std::string strptime_format_;
     std::vector<MARC::EditInstruction> marc_edit_instructions_;
+    std::string isil_;
 public:
 };
 

@@ -54,6 +54,16 @@ inline std::string ToStringWithLeadingZeros(const unsigned n, const unsigned wid
 namespace MARC {
 
 
+static inline bool IsNineOrNonDigit(const char ch) {
+    return not StringUtil::IsDigit(ch) or ch == '9';
+}
+
+
+bool Tag::isLocal() const {
+    return IsNineOrNonDigit(tag_.as_cstring_[0]) or IsNineOrNonDigit(tag_.as_cstring_[1]) or IsNineOrNonDigit(tag_.as_cstring_[2]);
+}
+
+
 void Subfields::addSubfield(const char subfield_code, const std::string &subfield_value) {
     auto insertion_location(subfields_.begin());
     while (insertion_location != subfields_.end() and insertion_location->code_ < subfield_code)
@@ -697,6 +707,7 @@ Record BinaryReader::read() {
     } while (new_record.getControlNumber() == last_record_.getControlNumber());
 
     new_record.swap(last_record_);
+    new_record.sortFields(new_record.begin(), new_record.end());
     return new_record;
 }
 
@@ -738,12 +749,14 @@ Record XmlReader::read() {
     while (getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<File>::CHARACTERS)
         /* Intentionally empty! */;
 
-    if (unlikely(type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "collection"))
+    if (unlikely(type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "collection")) {
+        new_record.sortFields(new_record.begin(), new_record.end());
         return new_record;
+    }
 
-        //
-        // Now parse a <record>:
-        //
+    //
+    // Now parse a <record>:
+    //
 
     if (unlikely(type != SimpleXmlParser<File>::OPENING_TAG or data != namespace_prefix_ + "record")) {
         const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
@@ -775,6 +788,7 @@ Record XmlReader::read() {
                 throw std::runtime_error("in MARC::MarcUtil::Record::XmlFactory: closing </record> tag expected "
                                          "while parsing \"" + input_->getPath() + "\" on line "
                                          + std::to_string(xml_parser_->getLineNo()) + "!");
+            new_record.sortFields(new_record.begin(), new_record.end());
             return new_record;
         }
 
@@ -1306,7 +1320,7 @@ static inline bool CompareField(const Record::Field * const field1, const Record
 }
 
 
-std::string CalcChecksum(const Record &record, const bool exclude_001) {
+std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fields, const bool suppress_local_fields) {
     std::vector<const Record::Field *> field_refs;
     field_refs.reserve(record.fields_.size());
 
@@ -1314,7 +1328,7 @@ std::string CalcChecksum(const Record &record, const bool exclude_001) {
     // sorted order.  This allows us to generate checksums that are identical for non-equal but equivalent records.
 
     for (const auto &field : record.fields_) {
-        if (not exclude_001 or likely(field.getTag().toString() != "001"))
+        if (excluded_fields.find(field.getTag()) == excluded_fields.cend() and (not suppress_local_fields or not field.getTag().isLocal()))
             field_refs.emplace_back(&field);
     }
 
