@@ -450,6 +450,8 @@ void IniFile::processFile(const std::string &external_filename) {
                                  + std::string(::strerror(errno)) + ")");
 
     include_file_infos_.push(IncludeFileInfo(filename));
+    // Add the default/global section:
+    sections_.emplace_back("");
 
     // Read the file:
     while (not ini_file.eof()) {
