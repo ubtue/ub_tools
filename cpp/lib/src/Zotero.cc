@@ -445,61 +445,67 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
 }
 
 
+// Populates the "ubtue" node.
+void MarcFormatHandler::populateCustomNode(std::shared_ptr<const JSON::JSONNode> custom_node, std::string * const issn_normalized,
+                                           MARC::Record * const new_record)
+{
+    const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
+    if (custom_object->getOptionalStringNode("ISSN_untagged"))
+        *issn_normalized = custom_object->getOptionalStringValue("ISSN_untagged");
+    else if (custom_object->getOptionalStringNode("ISSN_online"))
+        *issn_normalized = custom_object->getOptionalStringValue("ISSN_online");
+    else if (custom_object->getOptionalStringNode("ISSN_print"))
+        *issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
+    else
+        LOG_WARNING("No ISSN found for article.");
+
+    // physical form
+    const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
+    if (not physical_form.empty()) {
+        if (physical_form == "A")
+            new_record->insertField("007", "tu");
+        else if (physical_form == "O")
+            new_record->insertField("007", "cr uuu---uuuuu");
+        else
+            LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
+    }
+
+    // volume
+    const std::string volume(custom_object->getOptionalStringValue("volume"));
+    if (not volume.empty()) {
+        const auto field_it(new_record->findTag("936"));
+        if (field_it == new_record->end())
+            new_record->insertField("936", { { 'v', volume } });
+        else
+            field_it->getSubfields().addSubfield('v', volume);
+    }
+
+    // license code
+    const std::string license(custom_object->getOptionalStringValue("licenseCode"));
+    if (license == "l") {
+        const auto field_it(new_record->findTag("936"));
+        if (field_it != new_record->end())
+            field_it->getSubfields().addSubfield('z', "Kostenfrei");
+    }
+
+    // SSG numbers:
+    const std::string ssg_numbers(custom_object->getOptionalStringValue("ssgNumbers"));
+    if (not ssg_numbers.empty())
+        new_record->addSubfield("084", 'a', ssg_numbers);
+}
+
+
 std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
     bool is_journal_article;
     std::string publication_title, url, website_title;
     MARC::Record new_record(processJSON(object_node, &url, &is_journal_article, &publication_title, &website_title));
 
     std::string issn_normalized;
-    unsigned record_count(0), previously_downloaded_count(0);
+    unsigned previously_downloaded_count(0);
 
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
-    if (custom_node != nullptr) {
-        const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
-        if (custom_object->getOptionalStringNode("ISSN_untagged"))
-            issn_normalized = custom_object->getOptionalStringValue("ISSN_untagged");
-        else if (custom_object->getOptionalStringNode("ISSN_online"))
-            issn_normalized = custom_object->getOptionalStringValue("ISSN_online");
-        else if (custom_object->getOptionalStringNode("ISSN_print"))
-            issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
-        else
-            LOG_WARNING("No ISSN found for article.");
-
-        // physical form
-        const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
-        if (not physical_form.empty()) {
-            if (physical_form == "A")
-                new_record.insertField("007", "tu");
-            else if (physical_form == "O")
-                new_record.insertField("007", "cr uuu---uuuuu");
-            else
-                LOG_ERROR("unhandled value of physical form: \""
-                          + physical_form + "\"!");
-        }
-
-        // volume
-        const std::string volume(custom_object->getOptionalStringValue("volume"));
-        if (not volume.empty()) {
-            const auto field_it(new_record.findTag("936"));
-            if (field_it == new_record.end())
-                new_record.insertField("936", { { 'v', volume } });
-            else
-                field_it->getSubfields().addSubfield('v', volume);
-        }
-
-        // license code
-        const std::string license(custom_object->getOptionalStringValue("licenseCode"));
-        if (license == "l") {
-            const auto field_it(new_record.findTag("936"));
-            if (field_it != new_record.end())
-                field_it->getSubfields().addSubfield('z', "Kostenfrei");
-        }
-
-        // SSG numbers:
-        const std::string ssg_numbers(custom_object->getOptionalStringValue("ssgNumbers"));
-        if (not ssg_numbers.empty())
-            new_record.addSubfield("084", 'a', ssg_numbers);
-    }
+    if (custom_node != nullptr)
+        populateCustomNode(custom_node, &issn_normalized, &new_record);
 
     // title:
     if (not website_title.empty() and not new_record.hasTag("245"))
