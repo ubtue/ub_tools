@@ -778,6 +778,7 @@ Record XmlReader::read() {
                 throw std::runtime_error("in MARC::MarcUtil::Record::XmlFactory: closing </record> tag expected "
                                          "while parsing \"" + input_->getPath() + "\" on line "
                                          + std::to_string(xml_parser_->getLineNo()) + "!");
+            new_record.sortFields(new_record.begin(), new_record.end());
             return new_record;
         }
 
@@ -1309,7 +1310,7 @@ static inline bool CompareField(const Record::Field * const field1, const Record
 }
 
 
-std::string CalcChecksum(const Record &record, const bool exclude_001) {
+std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fields) {
     std::vector<const Record::Field *> field_refs;
     field_refs.reserve(record.fields_.size());
 
@@ -1317,7 +1318,7 @@ std::string CalcChecksum(const Record &record, const bool exclude_001) {
     // sorted order.  This allows us to generate checksums that are identical for non-equal but equivalent records.
 
     for (const auto &field : record.fields_) {
-        if (not exclude_001 or likely(field.getTag().toString() != "001"))
+        if (excluded_fields.find(field.getTag()) == excluded_fields.cend())
             field_refs.emplace_back(&field);
     }
 
