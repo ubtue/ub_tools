@@ -368,7 +368,7 @@ private:
     friend class XmlReader;
     friend class BinaryWriter;
     friend class XmlWriter;
-    friend std::string CalcChecksum(const Record &record, const bool exclude_001);
+    friend std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fields);
     size_t record_size_; // in bytes
     std::string leader_;
     std::vector<Field> fields_;
@@ -793,13 +793,12 @@ bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
 
 
 /** \brief Generates a reproducible SHA-1 hash over our internal data.
- *  \param exclude_001  If true, do not include the contents of the 001 control field in the generation of the
- *                      hash.
+ *  \param excluded_fields  The list of tags specified here will be excluded from the checksum calculation.
  *  \return the hash
  *  \note Equivalent records with different field order generate the same hash.  (This can only happen if at least one tag
  *        has been repeated.)
  */
-std::string CalcChecksum(const Record &record, const bool exclude_001 = false);
+std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fields = { "001" });
 
 
 bool IsRepeatableField(const Tag &tag);
