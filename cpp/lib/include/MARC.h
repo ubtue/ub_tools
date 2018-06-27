@@ -793,8 +793,7 @@ bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
 
 
 /** \brief Generates a reproducible SHA-1 hash over our internal data.
- *  \param exclude_001  If true, do not include the contents of the 001 control field in the generation of the
- *                      hash.
+ *  \param excluded_fields  The list of tags specified here will be excluded from the checksum calculation.
  *  \return the hash
  *  \note Equivalent records with different field order generate the same hash.  (This can only happen if at least one tag
  *        has been repeated.)
