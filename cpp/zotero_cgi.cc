@@ -125,13 +125,17 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> crawling_depths;
     std::vector<std::string> crawling_strptime_formats;
 
+    std::set<std::string> group_names;
     for (const auto &section : ini) {
-        const std::string title(section.getSectionName());
-
+        const std::string &title(section.getSectionName());
         if (title.empty()) {
             zts_url = section.getString("zts_server_url");
             zts_client_maps_directory = section.getString("map_directory_path");
+            StringUtil::SplitThenTrimWhite(section.getString("groups"), ',', &group_names);
         } else {
+            if (group_names.find(title) != group_names.cend())
+                continue;
+
             const HarvestType harvest_type(static_cast<HarvestType>(section.getEnum("type", STRING_TO_HARVEST_TYPE_MAP)));
             const std::string harvest_type_raw(section.getString("type"));
             const std::string issn_print(section.getString("issn_print", ""));
