@@ -64,7 +64,7 @@ public:
     }
 
     /** Copy constructor. */
-    Tag(const Tag &other_tag): tag_(other_tag.tag_) {}
+    Tag(const Tag &other_tag): tag_(other_tag.tag_) { }
 
     bool operator==(const Tag &rhs) const { return to_int() == rhs.to_int(); }
     bool operator!=(const Tag &rhs) const { return to_int() != rhs.to_int(); }
@@ -84,6 +84,7 @@ public:
     inline uint32_t to_int() const { return htonl(tag_.as_int_); }
 
     inline bool isTagOfControlField() const { return tag_.as_cstring_[0] == '0' and tag_.as_cstring_[1] == '0'; }
+    bool isLocal() const;
 };
 
 
@@ -368,7 +369,7 @@ private:
     friend class XmlReader;
     friend class BinaryWriter;
     friend class XmlWriter;
-    friend std::string CalcChecksum(const Record &record, const bool exclude_001);
+    friend std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fields, const bool suppress_local_fields);
     size_t record_size_; // in bytes
     std::string leader_;
     std::vector<Field> fields_;
@@ -519,7 +520,7 @@ public:
     inline const Field &back() const { return fields_.back(); }
 
     // Alphanumerically sorts the fields in the range [begin_field, end_field).
-    void sortFields(const iterator &begin_field, const iterator &end_field) { std::sort(begin_field, end_field); }
+    void sortFields(const iterator &begin_field, const iterator &end_field) { std::stable_sort(begin_field, end_field); }
 
     /** \return Iterators pointing to the half-open interval of the first range of fields corresponding to the tag "tag".
      *  \remark {
@@ -793,13 +794,13 @@ bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
 
 
 /** \brief Generates a reproducible SHA-1 hash over our internal data.
- *  \param exclude_001  If true, do not include the contents of the 001 control field in the generation of the
- *                      hash.
+ *  \param excluded_fields        The list of tags specified here will be excluded from the checksum calculation.
+ *  \param suppress_local_fields  If true we exclude fields that have non-pure-digit tags or tags that contain at least one digit nine.
  *  \return the hash
  *  \note Equivalent records with different field order generate the same hash.  (This can only happen if at least one tag
  *        has been repeated.)
  */
-std::string CalcChecksum(const Record &record, const bool exclude_001 = false);
+std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fields = { "001" }, const bool suppress_local_fields = true);
 
 
 bool IsRepeatableField(const Tag &tag);

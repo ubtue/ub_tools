@@ -211,7 +211,7 @@ void GenerateValidatedOutput(kyotocabinet::HashDB * const dups_db, MARC::Reader 
             continue;
 
         if (dups_db != nullptr) {
-            const std::string checksum(MARC::CalcChecksum(record, /* exclude_001 = */true));
+            const std::string checksum(MARC::CalcChecksum(record));
             if (dups_db->check(checksum) > 0) {
                 LOG_DEBUG("found a dupe w/ checksum \"" + checksum + "\".");
                 continue;

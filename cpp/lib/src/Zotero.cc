@@ -514,6 +514,9 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         }
     }
 
+    // 003 field => insert ISIL:
+    new_record.insertField("003", augment_params_->isil_);
+
     // language code fallback:
     if (not new_record.hasTag("041"))
         new_record.insertField("041", { { 'a', DEFAULT_SUBFIELD_CODE } });
@@ -523,7 +526,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         LOG_ERROR("editing the new MARC record failed: " + error_message);
 
     // previously downloaded?
-    const std::string checksum(MARC::CalcChecksum(new_record, /* exclude_001 = */ true));
+    const std::string checksum(MARC::CalcChecksum(new_record));
     if (unlikely(url.empty()))
         LOG_ERROR("\"url\" has not been set!");
     time_t creation_time;
