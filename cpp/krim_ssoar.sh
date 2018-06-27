@@ -22,6 +22,6 @@ marc_augmentor krim_ssoar.xml "$augmented_file" \
 
 
 echo "Uploading to the BSZ File Server"
-./upload_to_bsz_ftp_server.sh $augmented_file "/pub/UBTuebingen_Import_Test/krimdok_Test"
+upload_to_bsz_ftp_server.sh $augmented_file "/pub/UBTuebingen_Import_Test/krimdok_Test"
 
 echo '*** DONE ***'
