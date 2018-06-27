@@ -1159,19 +1159,31 @@ public class TuelibMixin extends SolrIndexerMixin {
         return results;
     }
 
-    private Set<String> addHonourees(final Record record, final Set<String> values) {
+    private Set<String> addHonourees(final Record record, final Set<String> values, String lang) {
         for (final VariableField variableField : record.getVariableFields("700")) {
             final DataField dataField = (DataField) variableField;
             final List<Subfield> subfieldFields4 = dataField.getSubfields('4');
             if (subfieldFields4 != null) {
                 for (final Subfield subfield4 : subfieldFields4) {
                     if (subfield4.getData().equals("hnr")) {
-                        final List<Subfield> subfieldsA = dataField.getSubfields('a');
-                        if (subfieldsA != null) {
-                            for (final Subfield subfieldA : subfieldsA)
-                                values.add(subfieldA.getData());
+                        final List<Subfield> subfields = dataField.getSubfields();
+                        StringBuilder honouree = new StringBuilder();
+                        for (Subfield subfield : subfields) {
+                            if (Character.isDigit(subfield.getCode()))
+                                continue;
+                            if (subfield.getCode() == 'a')
+                                honouree.append(translateTopic(subfield.getData(), lang));
+                            if (subfield.getCode() == 'b' || subfield.getCode() == 'c') {
+                                honouree.append(", ");
+                                honouree.append(translateTopic(subfield.getData(), lang));
+                            }
+                            if (subfield.getCode() == 'd') {
+                                honouree.append(" ");
+                                honouree.append(subfield.getData());
+                            }
                         }
-                        break;
+                       values.add(honouree.toString());
+                       break;
                     }
                 }
             }
@@ -1533,7 +1545,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         // $n is converted to a space if there is additional information
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
         getTopicsCollector(record, fieldSpec, separators, topics, langShortcut);
-        return addHonourees(record, topics);
+        return addHonourees(record, topics, langShortcut);
     }
 
 
@@ -1574,7 +1586,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                                             });
         valuesTranslated.removeAll(toRemove);
         valuesTranslated.addAll(toAdd);
-        addHonourees(record, valuesTranslated);
+        addHonourees(record, valuesTranslated, lang);
         if (valuesTranslated.size() == 0)
             valuesTranslated.add(UNASSIGNED_STRING);
         return valuesTranslated;
