@@ -54,6 +54,16 @@ inline std::string ToStringWithLeadingZeros(const unsigned n, const unsigned wid
 namespace MARC {
 
 
+static inline bool IsNineOrNonDigit(const char ch) {
+    return not StringUtil::IsDigit(ch) or ch == '9';
+}
+
+
+bool Tag::isLocal() const {
+    return IsNineOrNonDigit(tag_.as_cstring_[0]) or IsNineOrNonDigit(tag_.as_cstring_[1]) or IsNineOrNonDigit(tag_.as_cstring_[2]);
+}
+
+
 void Subfields::addSubfield(const char subfield_code, const std::string &subfield_value) {
     auto insertion_location(subfields_.begin());
     while (insertion_location != subfields_.end() and insertion_location->code_ < subfield_code)
@@ -1310,7 +1320,7 @@ static inline bool CompareField(const Record::Field * const field1, const Record
 }
 
 
-std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fields) {
+std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fields, const bool suppress_local_fields) {
     std::vector<const Record::Field *> field_refs;
     field_refs.reserve(record.fields_.size());
 
@@ -1318,7 +1328,7 @@ std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fie
     // sorted order.  This allows us to generate checksums that are identical for non-equal but equivalent records.
 
     for (const auto &field : record.fields_) {
-        if (excluded_fields.find(field.getTag()) == excluded_fields.cend())
+        if (excluded_fields.find(field.getTag()) == excluded_fields.cend() and (not suppress_local_fields or not field.getTag().isLocal()))
             field_refs.emplace_back(&field);
     }
 
