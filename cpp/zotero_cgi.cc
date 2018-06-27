@@ -137,14 +137,14 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             const std::string issn_print(section.getString("issn_print", ""));
             const std::string issn_online(section.getString("issn_online", ""));
             const std::string parent_ppn(section.getString("parent_ppn", ""));
-            const std::string groups(section.getString("groups", ""));
+            const std::string group(section.getString("group"));
             const bool live(section.getBool("live", false));
 
             all_journal_titles.emplace_back(title);
             all_journal_print_issns.emplace_back(issn_print);
             all_journal_online_issns.emplace_back(issn_online);
             all_journal_parent_ppns.emplace_back(parent_ppn);
-            all_journal_groups.emplace_back(groups);
+            all_journal_groups.emplace_back(group);
             all_journal_methods.emplace_back(harvest_type_raw);
 
             if (live)

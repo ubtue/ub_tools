@@ -514,6 +514,9 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         }
     }
 
+    // 003 field => insert ISIL:
+    new_record.insertField("003", augment_params_->isil_);
+
     // language code fallback:
     if (not new_record.hasTag("041"))
         new_record.insertField("041", { { 'a', DEFAULT_SUBFIELD_CODE } });
