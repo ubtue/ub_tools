@@ -81,14 +81,6 @@ std::string GetNextSessionId() {
 }
 
 
-std::string GetNextControlNumber() {
-    static unsigned last_control_number;
-    ++last_control_number;
-    static const std::string prefix("ZTS");
-    return prefix + StringUtil::PadLeading(std::to_string(last_control_number), 7, '0');
-}
-
-
 } // unnamed namespace
 
 
@@ -388,8 +380,7 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
     if (bibliographic_level_iterator == ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.end())
         LOG_ERROR("No bibliographic level mapping entry available for Zotero item type: " + item_type);
 
-    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level_iterator->second,
-                            GetNextControlNumber());
+    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level_iterator->second);
 
     if (item_type == "journalArticle") {
         *is_journal_article = true;
@@ -455,6 +446,7 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
                       + key_and_node.second->toString() + "), whole record: " + object_node->toString());
     }
 
+    new_record.insertField("001", TimeUtil::GetCurrentDateAndTime("%Y-%m-%d") + "#" + StringUtil::ToHexStringMARC::CalcChecksum(new_record));
     return new_record;
 }
 
