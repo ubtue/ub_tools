@@ -13,8 +13,7 @@ fi
 
 
 echo "Add various selection identifiers"
-augmented_file=krim_ssoar-$(date +%Y%m%d).xml
-augmented_file_tmp=${augmented_file%.*}.tmp
+augmented_file="krim_ssoar-$(date +%Y%m%d).xml"
 marc_augmentor krim_ssoar.xml "$augmented_file" \
     --insert-field '084:  \x1FaKRIM\x1FqDE-21\x1F2fid' \
     --insert-field '852a:DE-21' \
@@ -22,18 +21,6 @@ marc_augmentor krim_ssoar.xml "$augmented_file" \
 
 
 echo "Uploading to the BSZ File Server"
-path=/usr/local/var/lib/tuelib/cronjobs/fetch_marc_updates.conf
-host=$(inifile_lookup --suppress-newline "${path}" FTP host)
-username=$(inifile_lookup --suppress-newline "${path}" FTP username)
-password=$(inifile_lookup --suppress-newline "${path}" FTP password)
-ftp -invp "${host}" <<EOF
-user ${username} ${password}
-cd /pub/UBTuebingen_Import_Test/krimdok_Test
-bin
-put ${augmented_file} ${augmented_file_tmp}
-rename ${augmented_file_tmp} ${augmented_file}
-bye
-EOF
-
+upload_to_bsz_ftp_server.sh "$augmented_file" "/pub/UBTuebingen_Import_Test/krimdok_Test"
 
 echo '*** DONE ***'
