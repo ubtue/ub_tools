@@ -45,10 +45,21 @@ const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/
 const std::string ISSN_TO_PPN_MAP_PATH("/usr/local/var/lib/tuelib/issn_to_ppn.map");
 
 
-const std::vector<std::string> EXPORT_FORMATS{
+const std::vector<std::string> EXPORT_FORMATS {
     "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
     "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei",
     "json", "marc21", "marcxml"
+};
+
+
+const std::map<std::string, MARC::Record::BibliographicLevel> ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP {
+    { "book", MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM },
+    { "bookSection", MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART },
+    { "document", MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM },
+    { "journalArticle", MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART },
+    { "magazineArticle", MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART },
+    { "newspaperArticle", MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART },
+    { "webpage", MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART }
 };
 
 
@@ -372,11 +383,29 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
                                             std::string * const website_title)
 {
     *is_journal_article = false;
+    const std::string item_type(object_node->getStringValue("itemType"));
+    const auto bibliographic_level_iterator(ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.find(item_type));
+    if (bibliographic_level_iterator == ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.end())
+        LOG_ERROR("No bibligraphic level mapping entry available for Zotero item type: " + item_type);
+
+    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level_iterator->second,
+                            GetNextControlNumber());
+
+    if (item_type == "journalArticle") {
+        *is_journal_article = true;
+        *publication_title = object_node->getOptionalStringValue("publicationTitle");
+        ExtractVolumeYearIssueAndPages(*object_node, &new_record);
+    } else if (item_type == "magazineArticle")
+        ExtractVolumeYearIssueAndPages(*object_node, &new_record);
+    else if (item_type == "webpage") {
+        // just add the encoding marker
+        LOG_WARNING("TODO: add proper support for webpages");
+        new_record.insertField("935", { { 'c', "website" } });
+    } else
+        LOG_ERROR("unknown item type: \"" + item_type + "\"! JSON node dump: " + object_node->toString());
 
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
-        "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|websiteType|ISSN|ubtue$"));
-    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
-                            GetNextControlNumber());
+        "^itemType|issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|websiteType|ISSN|ubtue$"));
     for (const auto &key_and_node : *object_node) {
         if (ignore_fields->matched(key_and_node.first))
             continue;
@@ -401,21 +430,7 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
             CreateSubfieldFromStringNode(key_and_node, "246", 'a', &new_record);
         else if (key_and_node.first == "creators")
             CreateCreatorFields(key_and_node.second, &new_record);
-        else if (key_and_node.first == "itemType") {
-            const std::string item_type(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
-            if (item_type == "journalArticle") {
-                *is_journal_article = true;
-                *publication_title = object_node->getOptionalStringValue("publicationTitle");
-                ExtractVolumeYearIssueAndPages(*object_node, &new_record);
-            } else if (item_type == "magazineArticle")
-                ExtractVolumeYearIssueAndPages(*object_node, &new_record);
-            else if (item_type == "webpage") {
-                // just add the encoding marker
-                LOG_WARNING("TODO: add proper support for webpages");
-                new_record.insertField("935", { { 'c', "website" } });
-            } else
-                LOG_ERROR("unknown item type: \"" + item_type + "\"! JSON node dump: " + object_node->toString());
-        } else if (key_and_node.first == "rights") {
+        else if (key_and_node.first == "rights") {
             const std::string copyright(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
                                                                               key_and_node.second)->getValue());
             if (UrlUtil::IsValidWebUrl(copyright))
