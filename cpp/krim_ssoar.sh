@@ -14,7 +14,7 @@ fi
 
 echo "Add various selection identifiers"
 augmented_file=krim_ssoar-$(date +%Y%m%d).xml
-augmented_file_tmp=krim_ssoar-$(date +%Y%m%d).tmp
+augmented_file_tmp=${augmented_file%.*}
 marc_augmentor krim_ssoar.xml "$augmented_file" \
     --insert-field '084:  \x1FaKRIM\x1FqDE-21\x1F2fid' \
     --insert-field '852a:DE-21' \
