@@ -20,6 +20,7 @@
 #include <memory>
 #include <unordered_map>
 #include <cstdlib>
+#include "Compiler.h"
 #include "DbConnection.h"
 #include "IniFile.h"
 #include "MARC.h"
@@ -148,6 +149,20 @@ std::string GetMarcFormat(const std::string &output_filename) {
 }
 
 
+struct GroupInfo {
+    std::string user_agent_;
+    std::string isil_;
+};
+
+
+void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupInfo> * const group_name_to_info_map) {
+    GroupInfo new_group_info;
+    new_group_info.user_agent_ = section.getString("user_agent");
+    new_group_info.isil_       = section.getString("isil");
+    group_name_to_info_map->emplace(section.getSectionName(), new_group_info);
+}
+
+
 } // unnamed namespace
 
 
@@ -239,21 +254,27 @@ int Main(int argc, char *argv[]) {
     unsigned processed_section_count(0);
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
 
+    std::set<std::string> group_names;
+    std::map<std::string, GroupInfo> group_name_to_info_map;
     for (const auto &section : ini_file) {
-        if (section.getSectionName().empty())
-            continue;       // don't parse the global parameters section
+        if (section.getSectionName().empty()) {
+            StringUtil::SplitThenTrimWhite(section.getString("groups"), ',', &group_names);
+            continue;
+        }
 
+        // Group processing:
+        if (group_names.find(section.getSectionName()) != group_names.cend()) {
+            LoadGroup(section, &group_name_to_info_map);
+            continue;
+        }
+        
         if (live_only and section.getBool("live", false) != true)
             continue;
 
-        const std::string groups_str(section.getString("groups"));
-        std::set<std::string> section_groups;
-        StringUtil::SplitThenTrimWhite(groups_str, ',', &section_groups);
-        if (not groups_filter.empty()) {
-            const std::set<std::string> common_groups(StlHelpers::SetIntersection(groups_filter, section_groups));
-            if (common_groups.empty())
-                continue;
-        }
+        const std::string group_name(section.getString("group"));
+        const auto group_name_and_info(group_name_to_info_map.find(group_name));
+        if (group_name_and_info == group_name_to_info_map.cend())
+            LOG_ERROR("unknown or undefined group \"" + group_name + "\" in section \"" + section.getSectionName() + "\"!");
 
         std::vector<MARC::EditInstruction> edit_instructions;
         LoadMARCEditInstructions(section, &edit_instructions);
@@ -261,8 +282,9 @@ int Main(int argc, char *argv[]) {
         Zotero::GobalAugmentParams global_augment_params(&augment_maps);
 
         Zotero::SiteAugmentParams site_augment_params;
-        site_augment_params.global_params_ = &global_augment_params;
+        site_augment_params.global_params_          = &global_augment_params;
         site_augment_params.marc_edit_instructions_ = edit_instructions;
+        site_augment_params.isil_                   = group_name_and_info->second.isil_;
         ReadGenericSiteAugmentParams(section, &site_augment_params);
 
         harvest_params->format_handler_->setAugmentParams(&site_augment_params);
@@ -274,21 +296,7 @@ int Main(int argc, char *argv[]) {
             section_name_and_found_flag->second = true;
         }
 
-        harvest_params->user_agent_.clear();
-        for (const auto &section_group : section_groups) {
-            if (group_to_user_agent_map.find(section_group) != group_to_user_agent_map.end()) {
-                const std::string group_user_agent(group_to_user_agent_map.at(section_group));
-                if (harvest_params->user_agent_.empty() or group_user_agent != harvest_params->user_agent_)
-                    harvest_params->user_agent_ = group_user_agent;
-                else
-                    LOG_WARNING("groups with multiple user agents are not allowed for '" + section_group + "', skipping section '"
-                                + section.getSectionName() + "'");
-            } else
-                LOG_WARNING("user agent for group '" + section_group + "' is not defined, skipping section '" + section.getSectionName()
-                            + "'");
-        }
-        if (harvest_params->user_agent_.empty())
-            continue;
+        harvest_params->user_agent_ = group_name_and_info->second.user_agent_;
 
         LOG_INFO("Processing section \"" + section.getSectionName() + "\".");
         ++processed_section_count;
