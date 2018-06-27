@@ -45,14 +45,14 @@ const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/
 const std::string ISSN_TO_PPN_MAP_PATH("/usr/local/var/lib/tuelib/issn_to_ppn.map");
 
 
-const std::vector<std::string> EXPORT_FORMATS {
+const std::vector<std::string> EXPORT_FORMATS{
     "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
     "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei",
     "json", "marc21", "marcxml"
 };
 
 
-const std::map<std::string, MARC::Record::BibliographicLevel> ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP {
+const std::map<std::string, MARC::Record::BibliographicLevel> ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP{
     { "book", MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM },
     { "bookSection", MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART },
     { "document", MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM },
@@ -386,7 +386,7 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
     const std::string item_type(object_node->getStringValue("itemType"));
     const auto bibliographic_level_iterator(ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.find(item_type));
     if (bibliographic_level_iterator == ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.end())
-        LOG_ERROR("No bibligraphic level mapping entry available for Zotero item type: " + item_type);
+        LOG_ERROR("No bibliographic level mapping entry available for Zotero item type: " + item_type);
 
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level_iterator->second,
                             GetNextControlNumber());
