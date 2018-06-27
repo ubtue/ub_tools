@@ -367,14 +367,17 @@ void InsertDOI(MARC::Record * const record, const std::string &doi) {
 }
 
 
-std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
+MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::ObjectNode> &object_node, std::string * const url,
+                                            bool * const is_journal_article, std::string * const publication_title,
+                                            std::string * const website_title)
+{
+    *is_journal_article = false;
+
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
         "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|websiteType|ISSN|ubtue$"));
-    unsigned record_count(0), previously_downloaded_count(0);
+
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                             GetNextControlNumber());
-    bool is_journal_article(false);
-    std::string publication_title, issn_normalized, url, website_title;
     for (const auto &key_and_node : *object_node) {
         if (ignore_fields->matched(key_and_node.first))
             continue;
@@ -384,7 +387,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                 JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue() } });
         else if (key_and_node.first == "url") {
             CreateSubfieldFromStringNode(key_and_node, "856", 'u', &new_record);
-            url = reinterpret_cast<const JSON::StringNode * const>(key_and_node.second.get())->getValue();
+            *url = reinterpret_cast<const JSON::StringNode * const>(key_and_node.second.get())->getValue();
         } else if (key_and_node.first == "title")
             CreateSubfieldFromStringNode(key_and_node, "245", 'a', &new_record);
         else if (key_and_node.first == "abstractNote")
@@ -402,8 +405,8 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         else if (key_and_node.first == "itemType") {
             const std::string item_type(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             if (item_type == "journalArticle") {
-                is_journal_article = true;
-                publication_title = object_node->getOptionalStringValue("publicationTitle");
+                *is_journal_article = true;
+                *publication_title = object_node->getOptionalStringValue("publicationTitle");
                 ExtractVolumeYearIssueAndPages(*object_node, &new_record);
             } else if (item_type == "magazineArticle")
                 ExtractVolumeYearIssueAndPages(*object_node, &new_record);
@@ -431,60 +434,78 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             if (doi_matcher->matched(extra))
                 InsertDOI(&new_record, (*doi_matcher)[1]);
         } else if (key_and_node.first == "websiteTitle")
-            website_title = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
+            *website_title = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
         else
             LOG_ERROR("unknown key \"" + key_and_node.first + "\" with node type "
                       + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
                       + key_and_node.second->toString() + "), whole record: " + object_node->toString());
     }
 
-    std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
-    if (custom_node != nullptr) {
-        const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
-        if (custom_object->getOptionalStringNode("ISSN_untagged"))
-            issn_normalized = custom_object->getOptionalStringValue("ISSN_untagged");
-        else if (custom_object->getOptionalStringNode("ISSN_online"))
-            issn_normalized = custom_object->getOptionalStringValue("ISSN_online");
-        else if (custom_object->getOptionalStringNode("ISSN_print"))
-            issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
+    return new_record;
+}
+
+
+// Populates the "ubtue" node.
+void MarcFormatHandler::populateCustomNode(std::shared_ptr<const JSON::JSONNode> custom_node, std::string * const issn_normalized,
+                                           MARC::Record * const new_record)
+{
+    const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
+    if (custom_object->getOptionalStringNode("ISSN_untagged"))
+        *issn_normalized = custom_object->getOptionalStringValue("ISSN_untagged");
+    else if (custom_object->getOptionalStringNode("ISSN_online"))
+        *issn_normalized = custom_object->getOptionalStringValue("ISSN_online");
+    else if (custom_object->getOptionalStringNode("ISSN_print"))
+        *issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
+    else
+        LOG_WARNING("No ISSN found for article.");
+
+    // physical form
+    const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
+    if (not physical_form.empty()) {
+        if (physical_form == "A")
+            new_record->insertField("007", "tu");
+        else if (physical_form == "O")
+            new_record->insertField("007", "cr uuu---uuuuu");
         else
-            LOG_WARNING("No ISSN found for article.");
-
-        // physical form
-        const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
-        if (not physical_form.empty()) {
-            if (physical_form == "A")
-                new_record.insertField("007", "tu");
-            else if (physical_form == "O")
-                new_record.insertField("007", "cr uuu---uuuuu");
-            else
-                LOG_ERROR("unhandled value of physical form: \""
-                          + physical_form + "\"!");
-        }
-
-        // volume
-        const std::string volume(custom_object->getOptionalStringValue("volume"));
-        if (not volume.empty()) {
-            const auto field_it(new_record.findTag("936"));
-            if (field_it == new_record.end())
-                new_record.insertField("936", { { 'v', volume } });
-            else
-                field_it->getSubfields().addSubfield('v', volume);
-        }
-
-        // license code
-        const std::string license(custom_object->getOptionalStringValue("licenseCode"));
-        if (license == "l") {
-            const auto field_it(new_record.findTag("936"));
-            if (field_it != new_record.end())
-                field_it->getSubfields().addSubfield('z', "Kostenfrei");
-        }
-
-        // SSG numbers:
-        const std::string ssg_numbers(custom_object->getOptionalStringValue("ssgNumbers"));
-        if (not ssg_numbers.empty())
-            new_record.addSubfield("084", 'a', ssg_numbers);
+            LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
     }
+
+    // volume
+    const std::string volume(custom_object->getOptionalStringValue("volume"));
+    if (not volume.empty()) {
+        const auto field_it(new_record->findTag("936"));
+        if (field_it == new_record->end())
+            new_record->insertField("936", { { 'v', volume } });
+        else
+            field_it->getSubfields().addSubfield('v', volume);
+    }
+
+    // license code
+    const std::string license(custom_object->getOptionalStringValue("licenseCode"));
+    if (license == "l") {
+        const auto field_it(new_record->findTag("936"));
+        if (field_it != new_record->end())
+            field_it->getSubfields().addSubfield('z', "Kostenfrei");
+    }
+
+    // SSG numbers:
+    const std::string ssg_numbers(custom_object->getOptionalStringValue("ssgNumbers"));
+    if (not ssg_numbers.empty())
+        new_record->addSubfield("084", 'a', ssg_numbers);
+}
+
+
+std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
+    bool is_journal_article;
+    std::string publication_title, url, website_title;
+    MARC::Record new_record(processJSON(object_node, &url, &is_journal_article, &publication_title, &website_title));
+
+    std::string issn_normalized;
+    unsigned previously_downloaded_count(0);
+
+    std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
+    if (custom_node != nullptr)
+        populateCustomNode(custom_node, &issn_normalized, &new_record);
 
     // title:
     if (not website_title.empty() and not new_record.hasTag("245"))
@@ -531,16 +552,13 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         LOG_ERROR("\"url\" has not been set!");
     time_t creation_time;
 
-    if (not download_tracker_.hasAlreadyBeenDownloaded(url, &creation_time, &error_message, checksum)
-        or not error_message.empty())
-    {
+    if (not download_tracker_.hasAlreadyBeenDownloaded(url, &creation_time, &error_message, checksum) or not error_message.empty()) {
         marc_writer_->write(new_record);
         download_tracker_.addOrReplace(url, checksum, /* error_message = */"");
     } else
         ++previously_downloaded_count;
-    ++record_count;
 
-    return std::make_pair(record_count, previously_downloaded_count);
+    return std::make_pair(/* record count */1, previously_downloaded_count);
 }
 
 
