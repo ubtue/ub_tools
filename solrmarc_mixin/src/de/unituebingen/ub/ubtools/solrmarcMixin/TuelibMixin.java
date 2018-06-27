@@ -1171,13 +1171,13 @@ public class TuelibMixin extends SolrIndexerMixin {
                         for (Subfield subfield : subfields) {
                             if (Character.isDigit(subfield.getCode()))
                                 continue;
-                            if (subfield.getCode() == 'a')
+                            else if (subfield.getCode() == 'a')
                                 honouree.append(translateTopic(subfield.getData(), lang));
-                            if (subfield.getCode() == 'b' || subfield.getCode() == 'c') {
+                            else if (subfield.getCode() == 'b' || subfield.getCode() == 'c') {
                                 honouree.append(", ");
                                 honouree.append(translateTopic(subfield.getData(), lang));
                             }
-                            if (subfield.getCode() == 'd') {
+                            else if (subfield.getCode() == 'd') {
                                 honouree.append(" ");
                                 honouree.append(subfield.getData());
                             }
