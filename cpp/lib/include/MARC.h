@@ -368,7 +368,7 @@ private:
     friend class XmlReader;
     friend class BinaryWriter;
     friend class XmlWriter;
-    friend std::string CalcChecksum(const Record &record, const bool exclude_001);
+    friend std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fields);
     size_t record_size_; // in bytes
     std::string leader_;
     std::vector<Field> fields_;
@@ -799,7 +799,7 @@ bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
  *  \note Equivalent records with different field order generate the same hash.  (This can only happen if at least one tag
  *        has been repeated.)
  */
-std::string CalcChecksum(const Record &record, const bool exclude_001 = false);
+std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fields = { "001" });
 
 
 bool IsRepeatableField(const Tag &tag);
