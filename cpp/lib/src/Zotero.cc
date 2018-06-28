@@ -81,14 +81,6 @@ std::string GetNextSessionId() {
 }
 
 
-std::string GetNextControlNumber() {
-    static unsigned last_control_number;
-    ++last_control_number;
-    static const std::string prefix("ZTS");
-    return prefix + StringUtil::PadLeading(std::to_string(last_control_number), 7, '0');
-}
-
-
 } // unnamed namespace
 
 
@@ -171,6 +163,15 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 
 
 } // namespace TranslationServer
+
+
+void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParams> * const group_name_to_params_map) {
+    GroupParams new_group_params;
+    new_group_params.name_       = section.getSectionName();
+    new_group_params.user_agent_ = section.getString("user_agent");
+    new_group_params.isil_       = section.getString("isil");
+    group_name_to_params_map->emplace(section.getSectionName(), new_group_params);
+}
 
 
 std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &previous_downloads_db_path, const std::string &output_format,
@@ -388,8 +389,7 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
     if (bibliographic_level_iterator == ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.end())
         LOG_ERROR("No bibliographic level mapping entry available for Zotero item type: " + item_type);
 
-    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level_iterator->second,
-                            GetNextControlNumber());
+    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level_iterator->second);
 
     if (item_type == "journalArticle") {
         *is_journal_article = true;
@@ -455,6 +455,8 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
                       + key_and_node.second->toString() + "), whole record: " + object_node->toString());
     }
 
+    new_record.insertField("001", augment_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
+                                  + "#" + StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
     return new_record;
 }
 
@@ -550,7 +552,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     }
 
     // 003 field => insert ISIL:
-    new_record.insertField("003", augment_params_->isil_);
+    new_record.insertField("003", augment_params_->group_params_->isil_);
 
     // language code fallback:
     if (not new_record.hasTag("041"))
