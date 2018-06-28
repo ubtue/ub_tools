@@ -26,8 +26,8 @@
 #include "MarcWriter.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
-#include "SimpleXmlParser.h"
 #include "StringUtil.h"
+#include "XMLParser.h"
 #include "util.h"
 
 
@@ -413,10 +413,7 @@ void ProcessRecords(const bool verbose, File * const input, MarcWriter * const m
 {
     const unsigned REQUIRED_CONDITIONS_COUNT(CountRequiredMatchers(xml_tag_to_matchers_map));
 
-    SimpleXmlParser<File>::Type type;
-    std::string data;
-    std::map<std::string, std::string> attrib_map;
-    SimpleXmlParser<File> xml_parser(input);
+    XMLParser xml_parser(input->getPath(), XMLParser::XML_FILE);
     MarcRecord record;
     unsigned record_count(0), written_record_count(0);
     bool collect_character_data(false);
@@ -424,15 +421,11 @@ void ProcessRecords(const bool verbose, File * const input, MarcWriter * const m
     unsigned met_required_conditions_count(0);
     std::vector<const Matcher *> matchers;
 xml_parse_loop:
-    while (xml_parser.getNext(&type, &attrib_map, &data)) {
-        switch (type) {
-        case SimpleXmlParser<File>::END_OF_DOCUMENT:
-            if (verbose)
-                std::cout << "Wrote " << written_record_count << " record(s) of " << record_count
-                          << " record(s) which were found in the XML input stream.\n";
-            return;
-        case SimpleXmlParser<File>::OPENING_TAG:
-            if (data == "record") {
+    XMLParser::XMLPart xml_part;
+    while (xml_parser.getNext(&xml_part)) {
+        switch (xml_part.type_) {
+        case XMLParser::XMLPart::OPENING_TAG:
+            if (xml_part.data_ == "record") {
                 record = MarcRecord();
                 record.insertField("001", GeneratePPN());
                 collect_character_data = false;
@@ -440,20 +433,20 @@ xml_parse_loop:
             } else {
                 matchers.clear();
                 character_data.clear();
-                const auto tags_and_matchers(xml_tag_to_matchers_map.find(data));
+                const auto tags_and_matchers(xml_tag_to_matchers_map.find(xml_part.data_));
                 if (tags_and_matchers != xml_tag_to_matchers_map.cend()) {
                     for (const auto matcher : tags_and_matchers->second) {
-                        if (matcher->Matcher::xmlTagAttribsAndValuesMatched(attrib_map))
+                        if (matcher->Matcher::xmlTagAttribsAndValuesMatched(xml_part.attributes_))
                             matchers.emplace_back(matcher);
                     }
                 }
                 collect_character_data = not matchers.empty();
                 if (matchers.empty() and verbose)
-                    std::cerr << "No matcher found for XML tag \"" << data << "\".\n";
+                    std::cerr << "No matcher found for XML tag \"" << xml_part.data_ << "\".\n";
             }
             break;
-        case SimpleXmlParser<File>::CLOSING_TAG:
-            if (data == "record") {
+        case XMLParser::XMLPart::CLOSING_TAG:
+            if (xml_part.data_ == "record") {
                 if (met_required_conditions_count == REQUIRED_CONDITIONS_COUNT) {
                     marc_writer->write(record);
                     ++written_record_count;
@@ -493,23 +486,26 @@ xml_parse_loop:
                                 goto xml_parse_loop;
                             }
                         }
-                        logger->warning("found no match for \"" + character_data + "\"! (XML tag was " + data + ".)");
+                        logger->warning("found no match for \"" + character_data + "\"! (XML tag was " + xml_part.data_ + ".)");
                         break;
                     }
                     }
                 }
             }
             break;
-        case SimpleXmlParser<File>::CHARACTERS:
+        case XMLParser::XMLPart::CHARACTERS:
             if (collect_character_data)
-                character_data += data;
+                character_data += xml_part.data_;
             break;
         default:
             /* Intentionally empty! */;
         }
     }
 
-    logger->error("XML parsing error: " + xml_parser.getLastErrorMessage());
+    if (verbose)
+        std::cout << "Wrote " << written_record_count << " record(s) of " << record_count
+                  << " record(s) which were found in the XML input stream.\n";
+    return;
 }
 
 
