@@ -25,6 +25,7 @@
 #include <ctime>
 #include <kchashdb.h>
 #include "Downloader.h"
+#include "IniFile.h"
 #include "JSON.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
@@ -112,6 +113,16 @@ public:
 };
 
 
+struct GroupInfo {
+    std::string id_;
+    std::string user_agent_;
+    std::string isil_;
+};
+
+
+void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupInfo> * const group_name_to_info_map);
+
+
 /** \brief Parameters that apply to all sites equally. */
 struct GobalAugmentParams {
     AugmentMaps * const maps_;
@@ -122,14 +133,15 @@ public:
 
 /** \brief Parameters that apply to single sites only. */
 struct SiteAugmentParams {
-    GobalAugmentParams *global_params_; // So that we don't have to pass through two arguments everywhere.
+    // So that we don't have to pass through two arguments everywhere.
+    GobalAugmentParams *global_params_;
+    GroupInfo *group_info_;
 
     std::string parent_ISSN_print_;
     std::string parent_ISSN_online_;
     std::string parent_PPN_;
     std::string strptime_format_;
     std::vector<MARC::EditInstruction> marc_edit_instructions_;
-    std::string isil_;
 public:
 };
 
