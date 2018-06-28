@@ -52,6 +52,47 @@ const std::vector<std::string> EXPORT_FORMATS{
 };
 
 
+// Zotero values see https://raw.githubusercontent.com/zotero/zotero/master/test/tests/data/allTypesAndFields.js
+// MARC21 values see https://www.loc.gov/marc/relators/relaterm.html
+const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP{
+    { "artist",             "art" },
+    { "attorneyAgent",      "csl" },
+    { "author",             "aut" },
+    { "bookAuthor",         "edc" },
+    { "cartographer",       "ctg" },
+    { "castMember",         "act" },
+    { "commenter",          "cwt" },
+    { "composer",           "cmp" },
+    { "contributor",        "ctb" },
+    { "cosponsor",          "spn" },
+    { "director",           "drt" },
+    { "editor",             "edt" },
+    { "guest",              "pan" },
+    { "interviewee",        "ive" },
+    { "inventor",           "inv" },
+    { "performer",          "prf" },
+    { "podcaster",          "brd" },
+    { "presenter",          "pre" },
+    { "producer",           "pro" },
+    { "programmer",         "prg" },
+    { "recipient",          "rcp" },
+    { "reviewedAuthor",     "aut" },
+    { "scriptwriter",       "aus" },
+    { "seriesEditor",       "edt" },
+    { "sponsor",            "spn" },
+    { "translator",         "trl" },
+    { "wordsBy",            "wam" },
+};
+
+
+const std::string GetCreatorTypeForMarc21(const std::string &zotero_creator_type) {
+    const auto creator_type_zotero_and_marc21(CREATOR_TYPES_TO_MARC21_MAP.find(zotero_creator_type));
+    if (creator_type_zotero_and_marc21 == CREATOR_TYPES_TO_MARC21_MAP.end())
+        LOG_ERROR("Zotero creatorType could not be mapped to MARC21: \"" + zotero_creator_type + "\"");
+    return creator_type_zotero_and_marc21->second;
+}
+
+
 const std::map<std::string, MARC::Record::BibliographicLevel> ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP{
     { "book", MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM },
     { "bookSection", MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART },
@@ -332,13 +373,13 @@ void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &o
 
 void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record) {
     const std::shared_ptr<const JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", creators_node));
-    for (auto creator_node : *creators_array) {
+
+    // only use 100 if we have exactly 1 creator, else it is impossible to say which is the most important one
+    std::string tag(creators_array->size() > 1 ? "700" : "100");
+    for (const auto &creator_node : *creators_array) {
         const std::shared_ptr<const JSON::ObjectNode> creator_object(JSON::JSONNode::CastToObjectNodeOrDie("creator",
                                                                                                            creator_node));
         MARC::Subfields subfields;
-        std::string tag("100");
-        if (creator_node != *(creators_array->begin()))
-            tag = "700";
 
         const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
         if (last_name_node == nullptr)
@@ -366,7 +407,7 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
         if (creator_type != nullptr) {
             const std::shared_ptr<const JSON::StringNode> creator_role_node(JSON::JSONNode::CastToStringNodeOrDie("creatorType",
                                                                                                                   creator_type));
-            subfields.addSubfield('e', creator_role_node->getValue());
+            subfields.addSubfield('e', GetCreatorTypeForMarc21(creator_role_node->getValue()));
         }
 
         marc_record->insertField(tag, subfields);
@@ -591,7 +632,7 @@ void LoadISSNToPPNMap(std::unordered_map<std::string, PPNandTitle> * const ISSN_
             LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_PPN_MAP_PATH + "\"! (1)");
         const std::string ISSN(line.substr(0, FIRST_COMMA_POS));
 
-        const size_t SECOND_COMMA_POS(line.find_first_of(',', FIRST_COMMA_POS));
+        const size_t SECOND_COMMA_POS(line.find_first_of(',', FIRST_COMMA_POS + 1));
         if (unlikely(SECOND_COMMA_POS == std::string::npos or SECOND_COMMA_POS == FIRST_COMMA_POS + 1))
             LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_PPN_MAP_PATH + "\"! (2)");
         const std::string PPN(line.substr(FIRST_COMMA_POS + 1, SECOND_COMMA_POS - FIRST_COMMA_POS - 1));
@@ -623,19 +664,28 @@ inline std::string OptionalMap(const std::string &key, const std::unordered_map<
 
 // "author" must be in the lastname,firstname format. Returns the empty string if no PPN was found.
 std::string DownloadAuthorPPN(const std::string &author) {
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-         "<SMALL>PPN</SMALL>.*<div><SMALL>([0-9X]+)"));
-    const std::string lookup_url("http://swb.bsz-bw.de/DB=2.104/SET=70/TTL=1/CMD?SGE=&ACT=SRCHM&MATCFILTER=Y"
+    const std::string LOOKUP_URL("http://swb.bsz-bw.de/DB=2.104/SET=70/TTL=1/CMD?SGE=&ACT=SRCHM&MATCFILTER=Y"
                                  "&MATCSET=Y&NOSCAN=Y&PARSE_MNEMONICS=N&PARSE_OPWORDS=N&PARSE_OLDSETS=N&IMPLAND=Y"
                                  "&NOABS=Y&ACT0=SRCHA&SHRTST=50&IKT0=1&TRM0=" + UrlUtil::UrlEncode(author)
                                  +"&ACT1=*&IKT1=2057&TRM1=*&ACT2=*&IKT2=8977&TRM2=theolog*&ACT3=-&IKT3=8978-&TRM3=1"
                                  "[1%2C2%2C3%2C4%2C5%2C6%2C7%2C8][0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]"
                                  "[0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]?");
-    Downloader downloader(lookup_url);
-    if (downloader.anErrorOccurred())
-        LOG_ERROR(downloader.getLastErrorMessage());
-    else if (matcher->matched(downloader.getMessageBody()))
-        return (*matcher)[1];
+
+    static std::unordered_map<std::string, std::string> url_to_lookup_result_cache;
+    const auto url_and_lookup_result(url_to_lookup_result_cache.find(LOOKUP_URL));
+    if (url_and_lookup_result == url_to_lookup_result_cache.end()) {
+        static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("<SMALL>PPN</SMALL>.*<div><SMALL>([0-9X]+)"));
+        Downloader downloader(LOOKUP_URL);
+        if (downloader.anErrorOccurred())
+            LOG_ERROR(downloader.getLastErrorMessage());
+        else if (matcher->matched(downloader.getMessageBody())) {
+            url_to_lookup_result_cache.emplace(LOOKUP_URL, (*matcher)[1]);
+            return (*matcher)[1];
+        } else
+            url_to_lookup_result_cache.emplace(LOOKUP_URL, "");
+    } else
+        return url_and_lookup_result->second;
+
     return "";
 }
 
