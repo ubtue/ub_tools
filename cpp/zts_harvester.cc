@@ -150,6 +150,7 @@ std::string GetMarcFormat(const std::string &output_filename) {
 
 
 struct GroupInfo {
+    std::string id_;
     std::string user_agent_;
     std::string isil_;
 };
@@ -157,6 +158,7 @@ struct GroupInfo {
 
 void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupInfo> * const group_name_to_info_map) {
     GroupInfo new_group_info;
+    new_group_info.id_         = section.getSectionName();
     new_group_info.user_agent_ = section.getString("user_agent");
     new_group_info.isil_       = section.getString("isil");
     group_name_to_info_map->emplace(section.getSectionName(), new_group_info);
@@ -267,7 +269,7 @@ int Main(int argc, char *argv[]) {
             LoadGroup(section, &group_name_to_info_map);
             continue;
         }
-        
+
         if (live_only and section.getBool("live", false) != true)
             continue;
 
