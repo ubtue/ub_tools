@@ -28,6 +28,7 @@
 #include <xercesc/framework/XMLPScanToken.hpp>
 #include <xercesc/parsers/SAXParser.hpp>
 #include <xercesc/sax/HandlerBase.hpp>
+#include <xercesc/sax/Locator.hpp>
 #include <xercesc/util/XMLString.hpp>
 #include "util.h"
 
@@ -35,6 +36,7 @@
 class XMLParser {
     xercesc::SAXParser *parser_;
     xercesc::XMLPScanToken token_;
+    xercesc::Locator *locator_;
     std::string xml_filename_or_string_;
     bool prolog_parsing_done_ = false;
     bool body_has_more_contents_;
@@ -74,6 +76,7 @@ private:
         void characters(const XMLCh * const chars, const XMLSize_t length);
         void endElement(const XMLCh * const name);
         void ignorableWhitespace(const XMLCh * const chars, const XMLSize_t length);
+        void setDocumentLocator(const xercesc::Locator * const locator);
         void startElement(const XMLCh * const name, xercesc::AttributeList &attributes);
     };
 
@@ -104,6 +107,9 @@ public:
     explicit XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
     ~XMLParser() = default;
     void rewind();
+    XMLFileLoc getLineNo() { return locator_->getLineNumber(); }
+    XMLFileLoc getColumnNo() { return locator_->getColumnNumber(); }
+
 
     /** \return true if there are more elements to parse, o/w false.
      *  \note   parsing is done in progressive mode, meaning that the document is
