@@ -308,7 +308,7 @@ private:
     void CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record);
 
     MARC::Record processJSON(const std::shared_ptr<const JSON::ObjectNode> &object_node, std::string * const url,
-                             bool * const is_journal_article, std::string * const publication_title,
+                             std::string * const publication_title, std::string * const abbreviated_publication_title,
                              std::string * const website_title);
 
     void populateCustomNode(std::shared_ptr<const JSON::JSONNode> custom_node, std::string * const issn_normalized,

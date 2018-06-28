@@ -380,10 +380,9 @@ void InsertDOI(MARC::Record * const record, const std::string &doi) {
 
 
 MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::ObjectNode> &object_node, std::string * const url,
-                                            bool * const is_journal_article, std::string * const publication_title,
+                                            std::string * const publication_title, std::string * const abbreviated_publication_title,
                                             std::string * const website_title)
 {
-    *is_journal_article = false;
     const std::string item_type(object_node->getStringValue("itemType"));
     const auto bibliographic_level_iterator(ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.find(item_type));
     if (bibliographic_level_iterator == ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.end())
@@ -392,12 +391,13 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level_iterator->second);
 
     if (item_type == "journalArticle") {
-        *is_journal_article = true;
+        *publication_title = object_node->getOptionalStringValue("publicationTitle");
+        *abbreviated_publication_title = object_node->getOptionalStringValue("journalAbbreviation");
+        ExtractVolumeYearIssueAndPages(*object_node, &new_record);
+    } else if (item_type == "magazineArticle" or item_type == "newspaperArticle") {
         *publication_title = object_node->getOptionalStringValue("publicationTitle");
         ExtractVolumeYearIssueAndPages(*object_node, &new_record);
-    } else if (item_type == "magazineArticle")
-        ExtractVolumeYearIssueAndPages(*object_node, &new_record);
-    else if (item_type == "webpage") {
+    } else if (item_type == "webpage") {
         // just add the encoding marker
         LOG_WARNING("TODO: add proper support for webpages");
         new_record.insertField("935", { { 'c', "website" } });
@@ -405,7 +405,7 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
         LOG_ERROR("unknown item type: \"" + item_type + "\"! JSON node dump: " + object_node->toString());
 
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
-        "^itemType|issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|websiteType|ISSN|ubtue$"));
+        "^itemType|issue|journalAbbreviation|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|websiteType|ISSN|ubtue$"));
     for (const auto &key_and_node : *object_node) {
         if (ignore_fields->matched(key_and_node.first))
             continue;
@@ -437,10 +437,7 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
                 new_record.insertField("542", { { 'u', copyright } });
             else
                 new_record.insertField("542", { { 'f', copyright } });
-        } else if (key_and_node.first == "journalAbbreviation")
-            new_record.insertField("773", { { 'p', JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
-                                                                                         key_and_node.second)->getValue() } });
-        else if (key_and_node.first == "extra") {
+        } else if (key_and_node.first == "extra") {
             // comment field, can contain anything, even DOI's (e.g. for a webpage which has no DOI field)
             const std::string extra(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
                                                                           key_and_node.second)->getValue());
@@ -512,9 +509,8 @@ void MarcFormatHandler::populateCustomNode(std::shared_ptr<const JSON::JSONNode>
 
 
 std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
-    bool is_journal_article;
-    std::string publication_title, url, website_title;
-    MARC::Record new_record(processJSON(object_node, &url, &is_journal_article, &publication_title, &website_title));
+    std::string publication_title, abbreviated_publication_title, url, website_title;
+    MARC::Record new_record(processJSON(object_node, &url, &publication_title, &abbreviated_publication_title, &website_title));
 
     std::string issn_normalized;
     unsigned previously_downloaded_count(0);
@@ -533,7 +529,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         ExtractKeywords(tags_node, issn_normalized, augment_params_->global_params_->maps_->ISSN_to_keyword_field_map_, &new_record);
 
     // Populate 773:
-    if (is_journal_article) {
+    if (new_record.isArticle()) {
         const auto superior_ppn_and_title(augment_params_->global_params_->maps_->ISSN_to_superior_ppn_and_title_map_.find(issn_normalized));
         if (superior_ppn_and_title != augment_params_->global_params_->maps_->ISSN_to_superior_ppn_and_title_map_.end()) {
             std::vector<MARC::Subfield> subfields;
@@ -541,6 +537,8 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                 publication_title = superior_ppn_and_title->second.getTitle();
             if (not publication_title.empty())
                 subfields.emplace_back('a', publication_title);
+            if (not abbreviated_publication_title.empty())
+                subfields.emplace_back('p', abbreviated_publication_title);
             if (not issn_normalized.empty())
                 subfields.emplace_back('x', issn_normalized);
             const std::string journal_ppn(superior_ppn_and_title->second.getPPN());
