@@ -446,7 +446,7 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
                       + key_and_node.second->toString() + "), whole record: " + object_node->toString());
     }
 
-    new_record.insertField("001", TimeUtil::GetCurrentDateAndTime("%Y-%m-%d") + "#" + StringUtil::ToHexStringMARC::CalcChecksum(new_record));
+    new_record.insertField("001", TimeUtil::GetCurrentDateAndTime("%Y-%m-%d") + "#" + StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
     return new_record;
 }
 
