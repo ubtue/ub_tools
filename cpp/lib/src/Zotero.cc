@@ -591,7 +591,7 @@ void LoadISSNToPPNMap(std::unordered_map<std::string, PPNandTitle> * const ISSN_
             LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_PPN_MAP_PATH + "\"! (1)");
         const std::string ISSN(line.substr(0, FIRST_COMMA_POS));
 
-        const size_t SECOND_COMMA_POS(line.find_first_of(',', FIRST_COMMA_POS));
+        const size_t SECOND_COMMA_POS(line.find_first_of(',', FIRST_COMMA_POS + 1));
         if (unlikely(SECOND_COMMA_POS == std::string::npos or SECOND_COMMA_POS == FIRST_COMMA_POS + 1))
             LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_PPN_MAP_PATH + "\"! (2)");
         const std::string PPN(line.substr(FIRST_COMMA_POS + 1, SECOND_COMMA_POS - FIRST_COMMA_POS - 1));
