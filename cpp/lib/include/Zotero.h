@@ -113,14 +113,14 @@ public:
 };
 
 
-struct GroupInfo {
+struct GroupParams {
     std::string id_;
     std::string user_agent_;
     std::string isil_;
 };
 
 
-void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupInfo> * const group_name_to_info_map);
+void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParams> * const group_name_to_info_map);
 
 
 /** \brief Parameters that apply to all sites equally. */
@@ -135,7 +135,7 @@ public:
 struct SiteAugmentParams {
     // So that we don't have to pass through two arguments everywhere.
     GobalAugmentParams *global_params_;
-    GroupInfo *group_info_;
+    GroupParams *group_params_;
 
     std::string parent_ISSN_print_;
     std::string parent_ISSN_online_;

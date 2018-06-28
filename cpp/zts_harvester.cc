@@ -241,7 +241,7 @@ int Main(int argc, char *argv[]) {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
 
     std::set<std::string> group_names;
-    std::map<std::string, Zotero::GroupInfo> group_name_to_info_map;
+    std::map<std::string, Zotero::GroupParams> group_name_to_info_map;
     for (const auto &section : ini_file) {
         if (section.getSectionName().empty()) {
             StringUtil::SplitThenTrimWhite(section.getString("groups"), ',', &group_names);
@@ -269,7 +269,7 @@ int Main(int argc, char *argv[]) {
 
         Zotero::SiteAugmentParams site_augment_params;
         site_augment_params.global_params_          = &global_augment_params;
-        site_augment_params.group_info_             = &group_name_and_info->second;
+        site_augment_params.group_params_           = &group_name_and_info->second;
         site_augment_params.marc_edit_instructions_ = edit_instructions;
         ReadGenericSiteAugmentParams(section, &site_augment_params);
 

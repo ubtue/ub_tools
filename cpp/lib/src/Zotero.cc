@@ -165,12 +165,12 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 } // namespace TranslationServer
 
 
-void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupInfo> * const group_name_to_info_map) {
-    GroupInfo new_group_info;
-    new_group_info.id_         = section.getSectionName();
-    new_group_info.user_agent_ = section.getString("user_agent");
-    new_group_info.isil_       = section.getString("isil");
-    group_name_to_info_map->emplace(section.getSectionName(), new_group_info);
+void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParams> * const group_name_to_info_map) {
+    GroupParams new_group_params;
+    new_group_params.id_         = section.getSectionName();
+    new_group_params.user_agent_ = section.getString("user_agent");
+    new_group_params.isil_       = section.getString("isil");
+    group_name_to_info_map->emplace(section.getSectionName(), new_group_params);
 }
 
 
@@ -455,8 +455,7 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
                       + key_and_node.second->toString() + "), whole record: " + object_node->toString());
     }
 
-    new_record.insertField("001", augment_params_->group_info_->id_
-                                  + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
+    new_record.insertField("001", augment_params_->group_params_->id_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
                                   + "#" + StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
     return new_record;
 }
@@ -553,7 +552,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     }
 
     // 003 field => insert ISIL:
-    new_record.insertField("003", augment_params_->group_info_->isil_);
+    new_record.insertField("003", augment_params_->group_params_->isil_);
 
     // language code fallback:
     if (not new_record.hasTag("041"))
