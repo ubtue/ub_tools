@@ -407,7 +407,7 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
         if (creator_type != nullptr) {
             const std::shared_ptr<const JSON::StringNode> creator_role_node(JSON::JSONNode::CastToStringNodeOrDie("creatorType",
                                                                                                                   creator_type));
-            subfields.addSubfield('e', GetCreatorTypeForMarc21(creator_role_node->getValue()));
+            subfields.addSubfield('4', GetCreatorTypeForMarc21(creator_role_node->getValue()));
         }
 
         marc_record->insertField(tag, subfields);
