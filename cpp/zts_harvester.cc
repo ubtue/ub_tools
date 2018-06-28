@@ -149,22 +149,6 @@ std::string GetMarcFormat(const std::string &output_filename) {
 }
 
 
-struct GroupInfo {
-    std::string id_;
-    std::string user_agent_;
-    std::string isil_;
-};
-
-
-void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupInfo> * const group_name_to_info_map) {
-    GroupInfo new_group_info;
-    new_group_info.id_         = section.getSectionName();
-    new_group_info.user_agent_ = section.getString("user_agent");
-    new_group_info.isil_       = section.getString("isil");
-    group_name_to_info_map->emplace(section.getSectionName(), new_group_info);
-}
-
-
 } // unnamed namespace
 
 
@@ -257,7 +241,7 @@ int Main(int argc, char *argv[]) {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
 
     std::set<std::string> group_names;
-    std::map<std::string, GroupInfo> group_name_to_info_map;
+    std::map<std::string, Zotero::GroupInfo> group_name_to_info_map;
     for (const auto &section : ini_file) {
         if (section.getSectionName().empty()) {
             StringUtil::SplitThenTrimWhite(section.getString("groups"), ',', &group_names);
@@ -266,7 +250,7 @@ int Main(int argc, char *argv[]) {
 
         // Group processing:
         if (group_names.find(section.getSectionName()) != group_names.cend()) {
-            LoadGroup(section, &group_name_to_info_map);
+            Zotero::LoadGroup(section, &group_name_to_info_map);
             continue;
         }
 
@@ -285,8 +269,8 @@ int Main(int argc, char *argv[]) {
 
         Zotero::SiteAugmentParams site_augment_params;
         site_augment_params.global_params_          = &global_augment_params;
+        site_augment_params.group_info_             = &group_name_and_info->second;
         site_augment_params.marc_edit_instructions_ = edit_instructions;
-        site_augment_params.isil_                   = group_name_and_info->second.isil_;
         ReadGenericSiteAugmentParams(section, &site_augment_params);
 
         harvest_params->format_handler_->setAugmentParams(&site_augment_params);

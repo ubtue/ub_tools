@@ -165,6 +165,15 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 } // namespace TranslationServer
 
 
+void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupInfo> * const group_name_to_info_map) {
+    GroupInfo new_group_info;
+    new_group_info.id_         = section.getSectionName();
+    new_group_info.user_agent_ = section.getString("user_agent");
+    new_group_info.isil_       = section.getString("isil");
+    group_name_to_info_map->emplace(section.getSectionName(), new_group_info);
+}
+
+
 std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &previous_downloads_db_path, const std::string &output_format,
                                                       const std::string &output_file,
                                                       const std::shared_ptr<const HarvestParams> &harvest_params)
@@ -542,7 +551,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     }
 
     // 003 field => insert ISIL:
-    new_record.insertField("003", augment_params_->isil_);
+    new_record.insertField("003", augment_params_->group_info_->isil_);
 
     // language code fallback:
     if (not new_record.hasTag("041"))
