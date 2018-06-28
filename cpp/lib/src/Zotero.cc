@@ -167,7 +167,7 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 
 void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParams> * const group_name_to_params_map) {
     GroupParams new_group_params;
-    new_group_params.id_         = section.getSectionName();
+    new_group_params.name_       = section.getSectionName();
     new_group_params.user_agent_ = section.getString("user_agent");
     new_group_params.isil_       = section.getString("isil");
     group_name_to_params_map->emplace(section.getSectionName(), new_group_params);
@@ -455,7 +455,7 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
                       + key_and_node.second->toString() + "), whole record: " + object_node->toString());
     }
 
-    new_record.insertField("001", augment_params_->group_params_->id_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
+    new_record.insertField("001", augment_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
                                   + "#" + StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
     return new_record;
 }

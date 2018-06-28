@@ -258,8 +258,8 @@ int Main(int argc, char *argv[]) {
             continue;
 
         const std::string group_name(section.getString("group"));
-        const auto group_name_and_info(group_name_to_params_map.find(group_name));
-        if (group_name_and_info == group_name_to_params_map.cend())
+        const auto group_name_and_params(group_name_to_params_map.find(group_name));
+        if (group_name_and_params == group_name_to_params_map.cend())
             LOG_ERROR("unknown or undefined group \"" + group_name + "\" in section \"" + section.getSectionName() + "\"!");
 
         std::vector<MARC::EditInstruction> edit_instructions;
@@ -269,7 +269,7 @@ int Main(int argc, char *argv[]) {
 
         Zotero::SiteAugmentParams site_augment_params;
         site_augment_params.global_params_          = &global_augment_params;
-        site_augment_params.group_params_           = &group_name_and_info->second;
+        site_augment_params.group_params_           = &group_name_and_params->second;
         site_augment_params.marc_edit_instructions_ = edit_instructions;
         ReadGenericSiteAugmentParams(section, &site_augment_params);
 
@@ -282,7 +282,7 @@ int Main(int argc, char *argv[]) {
             section_name_and_found_flag->second = true;
         }
 
-        harvest_params->user_agent_ = group_name_and_info->second.user_agent_;
+        harvest_params->user_agent_ = group_name_and_params->second.user_agent_;
 
         LOG_INFO("Processing section \"" + section.getSectionName() + "\".");
         ++processed_section_count;
