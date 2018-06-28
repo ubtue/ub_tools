@@ -165,12 +165,12 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 } // namespace TranslationServer
 
 
-void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParams> * const group_name_to_info_map) {
+void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParams> * const group_name_to_params_map) {
     GroupParams new_group_params;
     new_group_params.id_         = section.getSectionName();
     new_group_params.user_agent_ = section.getString("user_agent");
     new_group_params.isil_       = section.getString("isil");
-    group_name_to_info_map->emplace(section.getSectionName(), new_group_params);
+    group_name_to_params_map->emplace(section.getSectionName(), new_group_params);
 }
 
 
