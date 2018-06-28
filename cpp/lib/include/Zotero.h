@@ -114,7 +114,7 @@ public:
 
 
 struct GroupParams {
-    std::string id_;
+    std::string name_;
     std::string user_agent_;
     std::string isil_;
 };
