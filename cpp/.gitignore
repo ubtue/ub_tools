@@ -21,6 +21,7 @@
 /base64_coder
 /bib_ref_to_codes_tool
 /categorise_marc_xml
+/clean_tag_db
 /collect_solr_stats_data
 /control_number_filter
 /convert_bible_references
