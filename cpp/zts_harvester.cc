@@ -241,7 +241,7 @@ int Main(int argc, char *argv[]) {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
 
     std::set<std::string> group_names;
-    std::map<std::string, Zotero::GroupParams> group_name_to_info_map;
+    std::map<std::string, Zotero::GroupParams> group_name_to_params_map;
     for (const auto &section : ini_file) {
         if (section.getSectionName().empty()) {
             StringUtil::SplitThenTrimWhite(section.getString("groups"), ',', &group_names);
@@ -250,7 +250,7 @@ int Main(int argc, char *argv[]) {
 
         // Group processing:
         if (group_names.find(section.getSectionName()) != group_names.cend()) {
-            Zotero::LoadGroup(section, &group_name_to_info_map);
+            Zotero::LoadGroup(section, &group_name_to_params_map);
             continue;
         }
 
@@ -258,8 +258,8 @@ int Main(int argc, char *argv[]) {
             continue;
 
         const std::string group_name(section.getString("group"));
-        const auto group_name_and_info(group_name_to_info_map.find(group_name));
-        if (group_name_and_info == group_name_to_info_map.cend())
+        const auto group_name_and_info(group_name_to_params_map.find(group_name));
+        if (group_name_and_info == group_name_to_params_map.cend())
             LOG_ERROR("unknown or undefined group \"" + group_name + "\" in section \"" + section.getSectionName() + "\"!");
 
         std::vector<MARC::EditInstruction> edit_instructions;

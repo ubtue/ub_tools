@@ -120,7 +120,7 @@ struct GroupParams {
 };
 
 
-void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParams> * const group_name_to_info_map);
+void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParams> * const group_name_to_params_map);
 
 
 /** \brief Parameters that apply to all sites equally. */
