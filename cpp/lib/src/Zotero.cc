@@ -380,10 +380,8 @@ void InsertDOI(MARC::Record * const record, const std::string &doi) {
 
 
 MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::ObjectNode> &object_node, std::string * const url,
-                                            bool * const is_journal_article, std::string * const publication_title,
-                                            std::string * const website_title)
+                                            std::string * const publication_title, std::string * const website_title)
 {
-    *is_journal_article = false;
     const std::string item_type(object_node->getStringValue("itemType"));
     const auto bibliographic_level_iterator(ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.find(item_type));
     if (bibliographic_level_iterator == ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.end())
@@ -392,7 +390,6 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level_iterator->second);
 
     if (item_type == "journalArticle") {
-        *is_journal_article = true;
         *publication_title = object_node->getOptionalStringValue("publicationTitle");
         ExtractVolumeYearIssueAndPages(*object_node, &new_record);
     } else if (item_type == "magazineArticle")
@@ -512,9 +509,8 @@ void MarcFormatHandler::populateCustomNode(std::shared_ptr<const JSON::JSONNode>
 
 
 std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
-    bool is_journal_article;
     std::string publication_title, url, website_title;
-    MARC::Record new_record(processJSON(object_node, &url, &is_journal_article, &publication_title, &website_title));
+    MARC::Record new_record(processJSON(object_node, &url, &publication_title, &website_title));
 
     std::string issn_normalized;
     unsigned previously_downloaded_count(0);
@@ -533,7 +529,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         ExtractKeywords(tags_node, issn_normalized, augment_params_->global_params_->maps_->ISSN_to_keyword_field_map_, &new_record);
 
     // Populate 773:
-    if (is_journal_article) {
+    if (new_record.isArticle()) {
         const auto superior_ppn_and_title(augment_params_->global_params_->maps_->ISSN_to_superior_ppn_and_title_map_.find(issn_normalized));
         if (superior_ppn_and_title != augment_params_->global_params_->maps_->ISSN_to_superior_ppn_and_title_map_.end()) {
             std::vector<MARC::Subfield> subfields;
