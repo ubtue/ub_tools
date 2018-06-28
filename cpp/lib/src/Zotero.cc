@@ -55,40 +55,40 @@ const std::vector<std::string> EXPORT_FORMATS{
 // Zotero values see https://raw.githubusercontent.com/zotero/zotero/master/test/tests/data/allTypesAndFields.js
 // MARC21 values see https://www.loc.gov/marc/relators/relaterm.html
 const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP{
-    { "artist", "art" },
-    { "attorneyAgent", "csl" },
-    { "author", "aut" },
-    { "bookAuthor", "edc" },
-    { "cartographer", "ctg" },
-    { "castMember", "act" },
-    { "commenter", "cwt" },
-    { "composer", "cmp" },
-    { "contributor", "ctb" },
-    { "cosponsor", "spn" },
-    { "director", "drt" },
-    { "editor", "edt" },
-    { "guest", "pan" },
-    { "interviewee", "ive" },
-    { "inventor", "inv" },
-    { "performer", "prf" },
-    { "podcaster", "brd" },
-    { "presenter", "pre" },
-    { "producer", "pro" },
-    { "programmer", "prg" },
-    { "recipient", "rcp" },
-    { "reviewedAuthor", "aut" },
-    { "scriptwriter", "aus" },
-    { "seriesEditor", "edt" },
-    { "sponsor", "spn" },
-    { "translator", "trl" },
-    { "wordsBy", "wam" }
+    { "artist",             "art" },
+    { "attorneyAgent",      "csl" },
+    { "author",             "aut" },
+    { "bookAuthor",         "edc" },
+    { "cartographer",       "ctg" },
+    { "castMember",         "act" },
+    { "commenter",          "cwt" },
+    { "composer",           "cmp" },
+    { "contributor",        "ctb" },
+    { "cosponsor",          "spn" },
+    { "director",           "drt" },
+    { "editor",             "edt" },
+    { "guest",              "pan" },
+    { "interviewee",        "ive" },
+    { "inventor",           "inv" },
+    { "performer",          "prf" },
+    { "podcaster",          "brd" },
+    { "presenter",          "pre" },
+    { "producer",           "pro" },
+    { "programmer",         "prg" },
+    { "recipient",          "rcp" },
+    { "reviewedAuthor",     "aut" },
+    { "scriptwriter",       "aus" },
+    { "seriesEditor",       "edt" },
+    { "sponsor",            "spn" },
+    { "translator",         "trl" },
+    { "wordsBy",            "wam" },
 };
 
 
 const std::string GetCreatorTypeForMarc21(const std::string &zotero_creator_type) {
     const auto creator_type_zotero_and_marc21(CREATOR_TYPES_TO_MARC21_MAP.find(zotero_creator_type));
     if (creator_type_zotero_and_marc21 == CREATOR_TYPES_TO_MARC21_MAP.end())
-        LOG_ERROR("Zotero creatorType could not be mapped to MARC21: " + zotero_creator_type);
+        LOG_ERROR("Zotero creatorType could not be mapped to MARC21: \"" + zotero_creator_type + "\"");
     return creator_type_zotero_and_marc21->second;
 }
 
@@ -375,11 +375,8 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
     const std::shared_ptr<const JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", creators_node));
 
     // only use 100 if we have exactly 1 creator, else it is impossible to say which is the most important one
-    std::string tag("100");
-    if (creators_array->size() > 1)
-        tag = "700";
-
-    for (auto creator_node : *creators_array) {
+    std::string tag(creators_array->size() > 1 ? "700" : "100");
+    for (const auto &creator_node : *creators_array) {
         const std::shared_ptr<const JSON::ObjectNode> creator_object(JSON::JSONNode::CastToObjectNodeOrDie("creator",
                                                                                                            creator_node));
         MARC::Subfields subfields;
