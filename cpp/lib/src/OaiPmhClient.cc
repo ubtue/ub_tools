@@ -33,13 +33,13 @@
 #include "HtmlUtil.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
-#include "SimpleXmlParser.h"
 #include "StringDataSource.h"
 #include "StringUtil.h"
 #include "Url.h"
 #include "UrlUtil.h"
 #include "util.h"
 #include "XmlParser.h"
+#include "XMLParser.h"
 #include "WebUtil.h"
 
 
@@ -392,47 +392,23 @@ std::string Client::progressFile(const std::string &set_name) {
 }
 
 
-static bool LookFor(const std::string &expected_tag, SimpleXmlParser<StringDataSource> * const xml_parser,
+static bool LookFor(const std::string &expected_tag, XMLParser * const xml_parser,
                     std::string * const extracted_data, std::string * const err_msg)
 {
-    SimpleXmlParser<StringDataSource>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-
-    if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)
-                 or type == SimpleXmlParser<StringDataSource>::ERROR))
-    {
-        *err_msg = "XML parser failed: " + xml_parser->getLastErrorMessage();
+    XMLParser::XMLPart xml_part;
+    if (unlikely(not xml_parser->getNext(&xml_part) or xml_part.type_ != XMLParser::XMLPart::OPENING_TAG or xml_part.data_ != expected_tag)) {
+        *err_msg = "expected opening <metadataPrefix> tag!";
         return false;
     }
 
-    if (unlikely(type != SimpleXmlParser<StringDataSource>::OPENING_TAG or data != expected_tag)) {
-        *err_msg = "expected opening <metadataPrefix> tag on line #" + std::to_string(xml_parser->getLineNo()) + "!";
+    if (unlikely(not xml_parser->getNext(&xml_part) or xml_part.type_ != XMLParser::XMLPart::CHARACTERS)) {
+        *err_msg = "expected character data!";
         return false;
     }
+    *extracted_data = xml_part.data_;
 
-    if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)
-                 or type == SimpleXmlParser<StringDataSource>::ERROR))
-    {
-        *err_msg = "XML parser failed: " + xml_parser->getLastErrorMessage();
-        return false;
-    }
-
-    if (unlikely(type != SimpleXmlParser<StringDataSource>::CHARACTERS)) {
-        *err_msg = "expected character data on line #" + std::to_string(xml_parser->getLineNo()) + "!";
-        return false;
-    }
-    *extracted_data = data;
-
-    if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)
-                 or type == SimpleXmlParser<StringDataSource>::ERROR))
-    {
-        *err_msg = "XML parser failed: " + xml_parser->getLastErrorMessage();
-        return false;
-    }
-
-    if (unlikely(type != SimpleXmlParser<StringDataSource>::CLOSING_TAG or data != expected_tag)) {
-        *err_msg = "expected closing <metadataPrefix> tag on line #" + std::to_string(xml_parser->getLineNo()) + "!";
+    if (unlikely(not xml_parser->getNext(&xml_part) or xml_part.type_ != XMLParser::XMLPart::CLOSING_TAG or xml_part.data_ != expected_tag)) {
+        *err_msg = "expected closing <metadataPrefix> tag!";
         return false;
     }
 
@@ -440,17 +416,14 @@ static bool LookFor(const std::string &expected_tag, SimpleXmlParser<StringDataS
 }
 
 
-static bool ParseMetadataFormat(SimpleXmlParser<StringDataSource> * const xml_parser,
+static bool ParseMetadataFormat(XMLParser * const xml_parser,
                                 Client::MetadataFormatDescriptor * const metadata_format_descriptor,
                                 std::string * const err_msg)
 {
-    SimpleXmlParser<StringDataSource>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-    if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)
-                 or type == SimpleXmlParser<StringDataSource>::ERROR))
+    XMLParser::XMLPart xml_part;
+    if (unlikely(not xml_parser->getNext(&xml_part)))
     {
-        *err_msg = "XML parser failed: " + xml_parser->getLastErrorMessage();
+        *err_msg = "could not parse metadata format!";
         return false;
     }
 
@@ -500,17 +473,15 @@ bool Client::listMetadataFormats(std::vector<MetadataFormatDescriptor> * const m
 
     metadata_format_list->clear();
 
-    StringDataSource string_data_source(xml_response);
-    SimpleXmlParser<StringDataSource> xml_parser(&string_data_source);
-
-    if (unlikely(not xml_parser.skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "ListMetadataFormats"))) {
+    XMLParser xml_parser(xml_response, XMLParser::XML_STRING);
+    if (unlikely(not xml_parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "ListMetadataFormats"))) {
         *error_message = "failed to find <ListMetadataFormats>!";
         return false;
     }
 
     // Process the "metadataFormat" sections:
     for (;;) {
-        if (not xml_parser.skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "metadataFormat"))
+        if (not xml_parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "metadataFormat"))
             return true;
         MetadataFormatDescriptor metadata_format_descriptor;
         std::string err_msg;
