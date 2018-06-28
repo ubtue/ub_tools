@@ -664,25 +664,25 @@ inline std::string OptionalMap(const std::string &key, const std::unordered_map<
 
 // "author" must be in the lastname,firstname format. Returns the empty string if no PPN was found.
 std::string DownloadAuthorPPN(const std::string &author) {
-    const std::string lookup_url("http://swb.bsz-bw.de/DB=2.104/SET=70/TTL=1/CMD?SGE=&ACT=SRCHM&MATCFILTER=Y"
+    const std::string LOOKUP_URL("http://swb.bsz-bw.de/DB=2.104/SET=70/TTL=1/CMD?SGE=&ACT=SRCHM&MATCFILTER=Y"
                                  "&MATCSET=Y&NOSCAN=Y&PARSE_MNEMONICS=N&PARSE_OPWORDS=N&PARSE_OLDSETS=N&IMPLAND=Y"
                                  "&NOABS=Y&ACT0=SRCHA&SHRTST=50&IKT0=1&TRM0=" + UrlUtil::UrlEncode(author)
                                  +"&ACT1=*&IKT1=2057&TRM1=*&ACT2=*&IKT2=8977&TRM2=theolog*&ACT3=-&IKT3=8978-&TRM3=1"
                                  "[1%2C2%2C3%2C4%2C5%2C6%2C7%2C8][0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]"
                                  "[0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]?");
 
-    static std::map<std::string, std::string> url_to_lookup_result_cache;
-    const auto url_and_lookup_result(url_to_lookup_result_cache.find(lookup_url));
+    static std::unordered_map<std::string, std::string> url_to_lookup_result_cache;
+    const auto url_and_lookup_result(url_to_lookup_result_cache.find(LOOKUP_URL));
     if (url_and_lookup_result == url_to_lookup_result_cache.end()) {
         static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("<SMALL>PPN</SMALL>.*<div><SMALL>([0-9X]+)"));
-        Downloader downloader(lookup_url);
+        Downloader downloader(LOOKUP_URL);
         if (downloader.anErrorOccurred())
             LOG_ERROR(downloader.getLastErrorMessage());
         else if (matcher->matched(downloader.getMessageBody())) {
-            url_to_lookup_result_cache.emplace(lookup_url, (*matcher)[1]);
+            url_to_lookup_result_cache.emplace(LOOKUP_URL, (*matcher)[1]);
             return (*matcher)[1];
         } else
-            url_to_lookup_result_cache.emplace(lookup_url, "");
+            url_to_lookup_result_cache.emplace(LOOKUP_URL, "");
     } else
         return url_and_lookup_result->second;
 
