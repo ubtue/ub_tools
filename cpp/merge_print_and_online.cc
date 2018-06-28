@@ -29,6 +29,7 @@
 #include "FileUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "util.h"
 #include "VuFind.h"
 
