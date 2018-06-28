@@ -52,6 +52,47 @@ const std::vector<std::string> EXPORT_FORMATS{
 };
 
 
+// Zotero values see https://raw.githubusercontent.com/zotero/zotero/master/test/tests/data/allTypesAndFields.js
+// MARC21 values see https://www.loc.gov/marc/relators/relaterm.html
+const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP{
+    { "artist", "art" },
+    { "attorneyAgent", "csl" },
+    { "author", "aut" },
+    { "bookAuthor", "edc" },
+    { "cartographer", "ctg" },
+    { "castMember", "act" },
+    { "commenter", "cwt" },
+    { "composer", "cmp" },
+    { "contributor", "ctb" },
+    { "cosponsor", "spn" },
+    { "director", "drt" },
+    { "editor", "edt" },
+    { "guest", "pan" },
+    { "interviewee", "ive" },
+    { "inventor", "inv" },
+    { "performer", "prf" },
+    { "podcaster", "brd" },
+    { "presenter", "pre" },
+    { "producer", "pro" },
+    { "programmer", "prg" },
+    { "recipient", "rcp" },
+    { "reviewedAuthor", "aut" },
+    { "scriptwriter", "aus" },
+    { "seriesEditor", "edt" },
+    { "sponsor", "spn" },
+    { "translator", "trl" },
+    { "wordsBy", "wam" }
+};
+
+
+const std::string GetCreatorTypeForMarc21(const std::string &zotero_creator_type) {
+    const auto creator_type_zotero_and_marc21(CREATOR_TYPES_TO_MARC21_MAP.find(zotero_creator_type));
+    if (creator_type_zotero_and_marc21 == CREATOR_TYPES_TO_MARC21_MAP.end())
+        LOG_ERROR("Zotero creatorType could not be mapped to MARC21: " + zotero_creator_type);
+    return creator_type_zotero_and_marc21->second;
+}
+
+
 const std::map<std::string, MARC::Record::BibliographicLevel> ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP{
     { "book", MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM },
     { "bookSection", MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART },
@@ -332,13 +373,16 @@ void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &o
 
 void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record) {
     const std::shared_ptr<const JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", creators_node));
+
+    // only use 100 if we have exactly 1 creator, else it is impossible to say which is the most important one
+    std::string tag("100");
+    if (creators_array->size() > 1)
+        tag = "700";
+
     for (auto creator_node : *creators_array) {
         const std::shared_ptr<const JSON::ObjectNode> creator_object(JSON::JSONNode::CastToObjectNodeOrDie("creator",
                                                                                                            creator_node));
         MARC::Subfields subfields;
-        std::string tag("100");
-        if (creator_node != *(creators_array->begin()))
-            tag = "700";
 
         const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
         if (last_name_node == nullptr)
@@ -366,7 +410,7 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
         if (creator_type != nullptr) {
             const std::shared_ptr<const JSON::StringNode> creator_role_node(JSON::JSONNode::CastToStringNodeOrDie("creatorType",
                                                                                                                   creator_type));
-            subfields.addSubfield('e', creator_role_node->getValue());
+            subfields.addSubfield('e', GetCreatorTypeForMarc21(creator_role_node->getValue()));
         }
 
         marc_record->insertField(tag, subfields);
