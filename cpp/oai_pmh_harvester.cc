@@ -27,6 +27,7 @@
 #include "StringDataSource.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
+#include "XMLParser.h"
 #include "util.h"
 
 
@@ -50,30 +51,27 @@ std::string ExtractResumptionToken(const std::string &xml_document, std::string 
     cursor->clear();
     complete_list_size->clear();
 
-    StringDataSource data_source(xml_document);
-    SimpleXmlParser<StringDataSource> xml_parser(&data_source);
-    if (not xml_parser.skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "resumptionToken"))
+    XMLParser xml_parser(xml_document, XMLParser::XML_STRING);
+    if (not xml_parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "resumptionToken"))
         return "";
 
-    SimpleXmlParser<StringDataSource>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-    if (not xml_parser.getNext(&type, &attrib_map, &data) or type == SimpleXmlParser<StringDataSource>::CLOSING_TAG)
+    XMLParser::XMLPart xml_part;
+    if (not xml_parser.getNext(&xml_part) or xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG)
         return "";
-    if (type != SimpleXmlParser<StringDataSource>::CHARACTERS)
+    if (xml_part.type_ != XMLParser::XMLPart::CHARACTERS)
         LOG_ERROR("strange resumption token XML structure!");
 
     // Extract the "cursor" attribute:
-    auto name_and_value(attrib_map.find("cursor"));
-    if (name_and_value != attrib_map.end())
+    auto name_and_value(xml_part.attributes_.find("cursor"));
+    if (name_and_value != xml_part.attributes_.end())
         *cursor = name_and_value->second;
 
     // Extract the "completeListSize" attribute:
-    name_and_value = attrib_map.find("completeListSize");
-    if (name_and_value != attrib_map.end())
+    name_and_value = xml_part.attributes_.find("completeListSize");
+    if (name_and_value != xml_part.attributes_.end())
         *complete_list_size = name_and_value->second;
 
-    return data;
+    return xml_part.data_;
 }
 
 
@@ -94,20 +92,21 @@ bool StripOffTrailingGarbage(std::string * const extracted_records) {
 
 
 // Returns the number of extracted records.
-unsigned ExtractEncapsulatedRecordData(SimpleXmlParser<StringDataSource> * const xml_parser,
+unsigned ExtractEncapsulatedRecordData(XMLParser * const xml_parser,
                                        std::string * const extracted_records)
 {
     unsigned record_count(0);
-    while (xml_parser->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "record")) {
+    while (xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, "record")) {
         ++record_count;
-        if (not xml_parser->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "metadata"))
+        if (not xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, "metadata"))
             LOG_ERROR("no <metadata> tag found after a <record> tag!");
-        xml_parser->skipWhiteSpace();
 
-        if (not xml_parser->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "metadata",
-                                   /* attrib_map = */ nullptr, extracted_records))
+        XMLParser::XMLPart extracted_records_part;
+        if (not xml_parser->skipTo(XMLParser::XMLPart::CLOSING_TAG, "metadata",
+                                   &extracted_records_part))
             LOG_ERROR("no </metadata> tag found after a <metadata> tag!");
 
+        *extracted_records = extracted_records_part.data_;
         StripOffTrailingGarbage(extracted_records);
         *extracted_records += '\n';
     }
@@ -146,22 +145,20 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
 
     const std::string message_body(downloader.getMessageBody());
     std::string extracted_records;
-    StringDataSource data_source(message_body);
-    SimpleXmlParser<StringDataSource> xml_parser(&data_source);
+    XMLParser xml_parser(message_body, XMLParser::XML_STRING);
     const unsigned record_count(ExtractEncapsulatedRecordData(&xml_parser, &extracted_records));
     if (record_count == 0) {
         xml_parser.rewind();
-        std::map<std::string, std::string> attrib_map;
-        if (not xml_parser.skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "error", &attrib_map))
+        XMLParser::XMLPart xml_part;
+        if (not xml_parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "error", &xml_part))
             return 0;
-        const auto key_and_value(attrib_map.find("code"));
+        const auto key_and_value(xml_part.attributes_.find("code"));
         std::string error_msg;
-        if (key_and_value != attrib_map.cend())
+        if (key_and_value != xml_part.attributes_.cend())
             error_msg += key_and_value->second + ": ";
-        SimpleXmlParser<StringDataSource>::Type type;
-        std::string data;
-        if (xml_parser.getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<StringDataSource>::CHARACTERS)
-            error_msg += data;
+
+        if (xml_parser.getNext(&xml_part) and xml_part.type_ == XMLParser::XMLPart::CHARACTERS)
+            error_msg += xml_part.data_;
         LOG_ERROR("OAI-PMH server returned an error: " + error_msg + " (We sent \"" + url + "\")");
     } else { // record_count > 0
         *total_record_count += record_count;
