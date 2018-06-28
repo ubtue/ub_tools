@@ -49,7 +49,10 @@ extern const std::string ISSN_TO_PPN_MAP_PATH;
 
 // native supported formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
 // also allowed: json, marc21 and marcxml
-extern const std::vector<std::string> ExportFormats;
+extern const std::vector<std::string> EXPORT_FORMATS;
+
+
+const std::string GetCreatorTypeForMarc21(const std::string &zotero_creator_type);
 
 
 /**
