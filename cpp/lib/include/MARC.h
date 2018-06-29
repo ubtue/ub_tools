@@ -632,7 +632,7 @@ protected:
     File *input_;
     Reader(File * const input): input_(input) { }
 public:
-    virtual ~Reader() { delete input_; }
+    virtual ~Reader() = default;
 
     virtual FileType getReaderType() = 0;
     virtual Record read() = 0;
