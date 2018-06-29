@@ -1,4 +1,4 @@
-/** \file   normalise_and_deduplicate_lang.cc
+/** \file   normalise_and_deduplicate_language.cc
  *  \brief  Normalises language codes and removes duplicates from specific MARC record fields
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
