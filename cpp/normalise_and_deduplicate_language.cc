@@ -40,7 +40,7 @@ namespace {
 }
 
 
-const std::string CONFIG_FILE_PATH("/usr/local/var/lib/tuelib/normalize_and_deduplicate_language.conf");
+const std::string CONFIG_FILE_PATH("/usr/local/var/lib/tuelib/normalise_and_deduplicate_language.conf");
 
 
 const std::string LANGUAGE_CODE_OVERRIDE_SECTION("Overrides");
