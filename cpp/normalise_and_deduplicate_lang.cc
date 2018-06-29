@@ -1,5 +1,5 @@
-/** \file   normalize_and_deduplicate_lang.cc
- *  \brief  Normalizes language codes and removes duplicates from specific MARC record fields
+/** \file   normalise_and_deduplicate_lang.cc
+ *  \brief  Normalises language codes and removes duplicates from specific MARC record fields
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -52,7 +52,7 @@ struct LanguageCodeParams {
     std::unordered_set<std::string> valid_language_codes_;
 public:
     inline bool isCanonical(const std::string &language_code) { return valid_language_codes_.find(language_code) != valid_language_codes_.end(); }
-    std::string getCanonicalCode(const std::string &language_code, bool fallback_to_original = true);
+    bool getCanonicalCode(const std::string &language_code, std::string * const canonical_code, bool fallback_to_original = true);
 };
 
 
@@ -61,18 +61,21 @@ bool IsValidLanguageCodeLength(const std::string &language_code) {
 }
 
 
-std::string LanguageCodeParams::getCanonicalCode(const std::string &language_code, bool fallback_to_original) {
-    if (isCanonical(language_code))
-        return language_code;
+bool LanguageCodeParams::getCanonicalCode(const std::string &language_code, std::string * const canonical_code, bool fallback_to_original) {
+    if (isCanonical(language_code)) {
+        *canonical_code = language_code;
+        return true;
+    }
 
     const auto match(variant_to_canonical_form_map_.find(language_code));
-    if (match != variant_to_canonical_form_map_.cend())
-        return match->second;
-    else if (fallback_to_original) {
-        LOG_WARNING("No canonical language code found for variant '" + language_code + "'");
-        return language_code;
-    } else
-        LOG_ERROR("Unknown language code variant '" + language_code + "'!");
+    if (match != variant_to_canonical_form_map_.cend()) {
+        *canonical_code = match->second;
+        return true;
+    } else {
+        if (fallback_to_original)
+            *canonical_code = language_code;
+        return false;
+    }
 }
 
 
@@ -122,11 +125,16 @@ int Main(int argc, char *argv[]) {
 
     LoadLanguageCodesFromConfig(config_file, &params);
     int num_records(0);
+
     while (MARC::Record record = reader->read()) {
         num_records++;
         const auto ppn(record.findTag("001")->getContents());
-        const auto PrintInfo = [&ppn, &num_records](const std::string &message) {
-            LOG_INFO("Record '" + ppn + "' [" + std::to_string(num_records) + "]: " + message);
+        const auto LogOutput = [&ppn, &num_records](const std::string &message, bool warning = false) {
+            const auto msg("Record '" + ppn + "' [" + std::to_string(num_records) + "]: " + message);
+            if (not warning)
+                LOG_INFO(msg);
+            else
+                LOG_WARNING(msg);
         };
 
         const auto tag_008(record.findTag("008"));
@@ -134,13 +142,14 @@ int Main(int argc, char *argv[]) {
         auto language_code_008(tag_008->getContents().substr(35, 3));
 
         StringUtil::Trim(&language_code_008);
-        if (language_code_008.empty() or language_code_008 == "|||") {
-    //        PrintInfo("No language code found in control field");
+        if (language_code_008.empty() or language_code_008 == "|||")
             language_code_008.clear();      // to indicate absence in the case of '|||'
-        } else {
-            const auto language_code_008_normalized(params.getCanonicalCode(language_code_008));
+        else {
+            std::string language_code_008_normalized;
+            if (not params.getCanonicalCode(language_code_008, &language_code_008_normalized))
+                LogOutput("Unknown language code variant '" + language_code_008 + "' in control field 008", true);
             if (language_code_008 != language_code_008_normalized) {
-                PrintInfo("Normalized control field 008 language code: '" + language_code_008
+                LogOutput("Normalized control field 008 language code: '" + language_code_008
                          + "' => " + language_code_008_normalized + "'");
 
                 auto old_content(tag_008->getContents());
@@ -152,35 +161,45 @@ int Main(int argc, char *argv[]) {
 
         if (tag_041 == record.end()) {
             if (not language_code_008.empty()) {
-                PrintInfo("Copying language code '" + language_code_008 + "' from 008 => 041");
+                LogOutput("Copying language code '" + language_code_008 + "' from 008 => 041");
                 record.insertField("041", { { 'a', language_code_008 } });
             }
         } else {
-            // normalize the existing records
-            for (auto& subfield : tag_041->getSubfields()) {
-                const auto normalized_language_code(params.getCanonicalCode(subfield.value_));
-                if (normalized_language_code != subfield.value_) {
-                    PrintInfo("Normalized subfield 041$" + std::string(1, subfield.code_) +
-                             " language code: '" + subfield.value_ + "' => '" + normalized_language_code + "'");
-
-                    subfield.value_ = normalized_language_code;
-                }
-            }
-
-            // remove duplicates
+            // normalize and remove the existing records
+            MARC::Record::Field modified_tag_041(*tag_041);
+            MARC::Subfields modified_subfields;
+            bool propagate_changes(false);
             std::unordered_set<std::string> unique_language_codes;
-            for (auto subfield(tag_041->getSubfields().begin()); subfield != tag_041->getSubfields().end();) {
-                if (unique_language_codes.find(subfield->value_) != unique_language_codes.end()) {
-                    PrintInfo("Removing duplicate subfield entry 041$" + std::string(1, subfield->code_) +
-                             " '" + subfield->value_ + "'");
-                    subfield = tag_041->getSubfields().deleteSubfield(subfield);
-                    // ### WTF!
+            const auto indicator1(modified_tag_041.getIndicator1()), indicator2(modified_tag_041.getIndicator2());
+
+            for (auto& subfield : tag_041->getSubfields()) {
+                if (unique_language_codes.find(subfield.value_) != unique_language_codes.end()) {
+                    LogOutput("Removing duplicate subfield entry 041$" + std::string(1, subfield.code_) +
+                              " '" + subfield.value_ + "'");
+                    propagate_changes = true;
                     continue;
                 }
 
-                 unique_language_codes.insert(subfield->value_);
-                ++subfield;
+                std::string normalized_language_code;
+                if (not params.getCanonicalCode(subfield.value_, &normalized_language_code)) {
+                    LogOutput("Unknown language code variant '" + subfield.value_ + "' in subfield 041$" +
+                              std::string(1, subfield.code_), true);
+                }
+
+                if (normalized_language_code != subfield.value_) {
+                    LogOutput("Normalized subfield 041$" + std::string(1, subfield.code_) +
+                             " language code: '" + subfield.value_ + "' => '" + normalized_language_code + "'");
+
+                    subfield.value_ = normalized_language_code;
+                    propagate_changes = true;
+                }
+
+                unique_language_codes.insert(subfield.value_);
+                modified_subfields.addSubfield(subfield.code_, subfield.value_);
             }
+
+            if (propagate_changes)
+                tag_041->setContents(modified_subfields, indicator1, indicator2);
         }
 
         writer->write(record);
