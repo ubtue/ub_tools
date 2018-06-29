@@ -34,6 +34,8 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbosity=min_verbosity] marc_input marc_output \n"
+              << "      Normalises language codes and removes their duplicates from specific MARC "
+                 "record fields (008 and 041)."
               << "\n";
     std::exit(EXIT_FAILURE);
 }
@@ -46,22 +48,22 @@ const std::string LANGUAGE_CODE_OVERRIDE_SECTION("Overrides");
 
 
 struct LanguageCodeParams {
-    static constexpr size_t MAX_LANGUAGE_CODE_LENGTH = 3;
+    static constexpr size_t LANGUAGE_CODE_LENGTH = 3;
 
     std::unordered_map<std::string, std::string> variant_to_canonical_form_map_;
     std::unordered_set<std::string> valid_language_codes_;
 public:
     inline bool isCanonical(const std::string &language_code) { return valid_language_codes_.find(language_code) != valid_language_codes_.end(); }
-    bool getCanonicalCode(const std::string &language_code, std::string * const canonical_code, bool fallback_to_original = true);
+    bool getCanonicalCode(const std::string &language_code, std::string * const canonical_code, const bool fallback_to_original = true);
 };
 
 
-bool IsValidLanguageCodeLength(const std::string &language_code) {
-    return language_code.length() == LanguageCodeParams::MAX_LANGUAGE_CODE_LENGTH;
+bool HasValidLanguageCodeLength(const std::string &language_code) {
+    return language_code.length() == LanguageCodeParams::LANGUAGE_CODE_LENGTH;
 }
 
 
-bool LanguageCodeParams::getCanonicalCode(const std::string &language_code, std::string * const canonical_code, bool fallback_to_original) {
+bool LanguageCodeParams::getCanonicalCode(const std::string &language_code, std::string * const canonical_code, const bool fallback_to_original) {
     if (isCanonical(language_code)) {
         *canonical_code = language_code;
         return true;
@@ -83,10 +85,10 @@ void LoadLanguageCodesFromConfig(const IniFile &config, LanguageCodeParams * con
     std::vector<std::string> raw_language_codes;
     StringUtil::Split(config.getString("", "canonical_language_codes"), ",", &raw_language_codes);
     if (raw_language_codes.empty())
-        LOG_ERROR("Couldn't read canonical language codes from config file!");
+        LOG_ERROR("Couldn't read canonical language codes from config file '" + CONFIG_FILE_PATH + "'!");
 
-    for (const auto& language_code : raw_language_codes) {
-        if (not IsValidLanguageCodeLength(language_code))
+    for (const auto &language_code : raw_language_codes) {
+        if (not HasValidLanguageCodeLength(language_code))
             LOG_ERROR("Invalid length for language code '" + language_code + "'!");
         else if (params->isCanonical(language_code))
             LOG_WARNING("Duplicate canonical language code '" + language_code + "' found!");
@@ -94,11 +96,11 @@ void LoadLanguageCodesFromConfig(const IniFile &config, LanguageCodeParams * con
             params->valid_language_codes_.insert(language_code);
     }
 
-    for (const auto& variant : config.getSectionEntryNames(LANGUAGE_CODE_OVERRIDE_SECTION)) {
+    for (const auto &variant : config.getSectionEntryNames(LANGUAGE_CODE_OVERRIDE_SECTION)) {
         const auto canonical_name(config.getString(LANGUAGE_CODE_OVERRIDE_SECTION, variant));
-        if (not IsValidLanguageCodeLength(variant))
+        if (not HasValidLanguageCodeLength(variant))
             LOG_ERROR("Invalid length for language code '" + variant + "'!");
-        else if (not IsValidLanguageCodeLength(canonical_name))
+        else if (not HasValidLanguageCodeLength(canonical_name))
             LOG_ERROR("Invalid length for language code '" + canonical_name + "'!");
         else if (not params->isCanonical(canonical_name))
             LOG_ERROR("Unknown canonical language code '" + canonical_name + "' for variant '" + variant + "'!");
@@ -127,7 +129,7 @@ int Main(int argc, char *argv[]) {
     int num_records(0);
 
     while (MARC::Record record = reader->read()) {
-        num_records++;
+        ++num_records;
         const auto ppn(record.findTag("001")->getContents());
         const auto LogOutput = [&ppn, &num_records](const std::string &message, bool warning = false) {
             const auto msg("Record '" + ppn + "' [" + std::to_string(num_records) + "]: " + message);
@@ -188,7 +190,7 @@ int Main(int argc, char *argv[]) {
 
                 if (normalized_language_code != subfield.value_) {
                     LogOutput("Normalized subfield 041$" + std::string(1, subfield.code_) +
-                             " language code: '" + subfield.value_ + "' => '" + normalized_language_code + "'");
+                              " language code: '" + subfield.value_ + "' => '" + normalized_language_code + "'");
 
                     subfield.value_ = normalized_language_code;
                     propagate_changes = true;
