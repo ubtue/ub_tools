@@ -46,77 +46,68 @@ MarcRecord XmlMarcReader::read() {
     std::vector<DirectoryEntry> dir_entries;
     std::string raw_data;
 
-    SimpleXmlParser<File>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-    while (getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<File>::CHARACTERS)
+    XMLParser::XMLPart xml_part;
+    while (getNext(&xml_part) and xml_part.type_ == XMLParser::XMLPart::CHARACTERS)
         /* Intentionally empty! */;
 
-    if (unlikely(type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "collection"))
+    if (unlikely(xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG and xml_part.data_ == namespace_prefix_ + "collection"))
         return MarcRecord(leader, dir_entries, raw_data);
 
         //
         // Now parse a <record>:
         //
 
-    if (unlikely(type != SimpleXmlParser<File>::OPENING_TAG or data != namespace_prefix_ + "record")) {
-        const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
-                             or type == SimpleXmlParser<File>::CLOSING_TAG);
-        if (type == SimpleXmlParser<File>::ERROR)
-            throw std::runtime_error("in XmlMarcReader::read: opening <" + namespace_prefix_
-                                     + "record> tag expected while parsing \"" + input_->getPath() + "\" on line "
-                                     + std::to_string(xml_parser_->getLineNo()) + "! ("
-                                     + xml_parser_->getLastErrorMessage() + ")");
-        else
-            throw std::runtime_error("in XmlMarcReader::read: opening <" + namespace_prefix_
-                                     + "record> tag expected while parsing \"" + input_->getPath() + "\" on line "
-                                     + std::to_string(xml_parser_->getLineNo()) + "! (Found: "
-                                     + SimpleXmlParser<File>::TypeToString(type)
-                                     + (tag_found ? (":" + data + ")") : ")"));
+    if (unlikely(xml_part.type_ != XMLParser::XMLPart::OPENING_TAG or xml_part.data_ != namespace_prefix_ + "record")) {
+        const bool tag_found(xml_part.type_ == XMLParser::XMLPart::OPENING_TAG or xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG);
+        throw std::runtime_error("in XmlMarcReader::read: opening <" + namespace_prefix_
+                                 + "record> tag expected while parsing \"" + input_->getPath() + "\" on line "
+                                 + std::to_string(xml_parser_->getLineNo()) + "! (Found: "
+                                 + XMLParser::XMLPart::TypeToString(xml_part.type_)
+                                 + (tag_found ? (":" + xml_part.data_ + ")") : ")"));
     }
 
     parseLeader(input_->getPath(), &leader);
 
     bool datafield_seen(false);
     for (;;) { // Process "datafield" and "controlfield" sections.
-        if (unlikely(not getNext(&type, &attrib_map, &data)))
+        if (unlikely(not getNext(&xml_part)))
             throw std::runtime_error("in XmlMarcReader::read: error while parsing \"" + input_->getPath()
-                                     + "\": " + xml_parser_->getLastErrorMessage() + " on line "
+                                     + "\": unexpected end of file on line "
                                      + std::to_string(xml_parser_->getLineNo()) + "!");
 
-        if (type == SimpleXmlParser<File>::CLOSING_TAG) {
-            if (unlikely(data != namespace_prefix_ + "record"))
+        if (xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG) {
+            if (unlikely(xml_part.data_ != namespace_prefix_ + "record"))
                 throw std::runtime_error("in MarcUtil::Record::XmlFactory: closing </record> tag expected while "
                                          "parsing \"" + input_->getPath() + "\" on line "
                                          + std::to_string(xml_parser_->getLineNo()) + "!");
             return MarcRecord(leader, dir_entries, raw_data);
         }
 
-        if (type != SimpleXmlParser<File>::OPENING_TAG
-            or (data != namespace_prefix_ + "datafield" and data != namespace_prefix_ + "controlfield"))
+        if (xml_part.type_ != XMLParser::XMLPart::OPENING_TAG
+            or (xml_part.data_ != namespace_prefix_ + "datafield" and xml_part.data_ != namespace_prefix_ + "controlfield"))
             throw std::runtime_error("in XmlMarcReader::read: expected either <" + namespace_prefix_
                                      + "controlfield> or <" + namespace_prefix_ + "datafield> on line "
                                      + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_->getPath()
                                      + "\"!");
 
-        if (unlikely(attrib_map.find("tag") == attrib_map.end()))
+        if (unlikely(xml_part.attributes_.find("tag") == xml_part.attributes_.end()))
             throw std::runtime_error("in XmlMarcReader::read: expected a \"tag\" attribute as part of an opening "
                                      "<" + namespace_prefix_ + "controlfield> or <" + namespace_prefix_
                                      + "datafield> tag on line " + std::to_string(xml_parser_->getLineNo())
                                      + " in file \"" + input_->getPath() + "\"!");
 
-        if (data == namespace_prefix_ + "controlfield") {
+        if (xml_part.data_ == namespace_prefix_ + "controlfield") {
             if (unlikely(datafield_seen))
                 throw std::runtime_error("in MarcUtil::Record::XmlFactory: <" + namespace_prefix_
                                          + "controlfield> found after <" + namespace_prefix_ + "datafield> on "
                                          "line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
                                          + input_->getPath() + "\"!");
             DirectoryEntry dir_entry("000", 0, 0);
-            if (parseControlfield(input_->getPath(), attrib_map["tag"], &dir_entry, &raw_data))
+            if (parseControlfield(input_->getPath(), xml_part.attributes_["tag"], &dir_entry, &raw_data))
                 dir_entries.emplace_back(dir_entry);
         } else {
             datafield_seen = true;
-            dir_entries.emplace_back(parseDatafield(input_->getPath(), attrib_map, attrib_map["tag"], raw_data));
+            dir_entries.emplace_back(parseDatafield(input_->getPath(), xml_part.attributes_, xml_part.attributes_["tag"], raw_data));
         }
     }
 }
@@ -128,69 +119,61 @@ void XmlMarcReader::rewind() {
     if (unlikely(fstat(input_->getFileDescriptor(), &stat_buf) and S_ISFIFO(stat_buf.st_mode)))
         logger->error("in XmlMarcReader::rewind: can't rewind a FIFO!");
 
-    input_->rewind();
-
-    delete xml_parser_;
-    xml_parser_ = new SimpleXmlParser<File>(input_);
-
+    xml_parser_->rewind();
     skipOverStartOfDocument();
 }
 
 
 void XmlMarcReader::parseLeader(const std::string &input_filename, Leader * const leader) {
-    SimpleXmlParser<File>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-
-    while (getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<File>::CHARACTERS)
+    XMLParser::XMLPart xml_part;
+    while (getNext(&xml_part) and xml_part.type_ == XMLParser::XMLPart::CHARACTERS)
         /* Intentionally empty! */;
-    if (unlikely(type != SimpleXmlParser<File>::OPENING_TAG or data != namespace_prefix_ + "leader"))
+    if (unlikely(xml_part.type_ != XMLParser::XMLPart::OPENING_TAG or xml_part.data_ != namespace_prefix_ + "leader"))
         throw std::runtime_error("in XmlMarcReader::ParseLeader: opening <marc:leader> tag expected while parsing \""
                                  + input_filename + "\" on line " + std::to_string(xml_parser_->getLineNo()) + ".");
 
-    if (unlikely(not getNext(&type, &attrib_map, &data)))
+    if (unlikely(not getNext(&xml_part)))
         throw std::runtime_error("in XmlMarcReader::ParseLeader: error while parsing \"" + input_filename + "\": "
-                                 + xml_parser_->getLastErrorMessage() + " on line "
+                                 + "unexpected end of file on line "
                                  + std::to_string(xml_parser_->getLineNo()) + ".");
-    if (unlikely(type != SimpleXmlParser<File>::CHARACTERS or data.length() != Leader::LEADER_LENGTH)) {
+    if (unlikely(xml_part.type_ != XMLParser::XMLPart::CHARACTERS or xml_part.data_.length() != Leader::LEADER_LENGTH)) {
         logger->warning("in XmlMarcReader::ParseLeader: leader data expected while parsing \"" + input_filename
                         + "\" on line "
                 + std::to_string(xml_parser_->getLineNo()) + ".");
-        if (unlikely(not getNext(&type, &attrib_map, &data)))
+        if (unlikely(not getNext(&xml_part)))
             throw std::runtime_error("in XmlMarcReader::ParseLeader: error while skipping to </" + namespace_prefix_
                                      + "leader>!");
-        if (unlikely(type != SimpleXmlParser<File>::CLOSING_TAG or data != namespace_prefix_ + "leader")) {
-            const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
-                                 or type == SimpleXmlParser<File>::CLOSING_TAG);
+        if (unlikely(xml_part.type_ != XMLParser::XMLPart::CLOSING_TAG or xml_part.data_ != namespace_prefix_ + "leader")) {
+            const bool tag_found(xml_part.type_ == XMLParser::XMLPart::OPENING_TAG or xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG);
             throw std::runtime_error("in XmlMarcReader::ParseLeader: closing </" + namespace_prefix_
                                      + "leader> tag expected while parsing \"" + input_filename + "\" on line "
                                      + std::to_string(xml_parser_->getLineNo())
-                                     + ". (Found: " + SimpleXmlParser<File>::TypeToString(type)
-                                     + (tag_found ? (":" + data) : ""));
+                                     + ". (Found: " + XMLParser::XMLPart::TypeToString(xml_part.type_)
+                                     + (tag_found ? (":" + xml_part.data_) : ""));
         }
         return;
     }
 
-    if (data.substr(0, 5) == "     ") // record length
-        data = "00000" + data.substr(5);
-    if (data.substr(12, 5) == "     ") // base address of data
-        data = data.substr(0, 12) + "00000" + data.substr(12 + 5);
+    if (xml_part.data_.substr(0, 5) == "     ") // record length
+        xml_part.data_ = "00000" + xml_part.data_.substr(5);
+    if (xml_part.data_.substr(12, 5) == "     ") // base address of data
+        xml_part.data_ = xml_part.data_.substr(0, 12) + "00000" + xml_part.data_.substr(12 + 5);
     std::string err_msg;
-    if (unlikely(not Leader::ParseLeader(data, leader, &err_msg)))
+    if (unlikely(not Leader::ParseLeader(xml_part.data_, leader, &err_msg)))
         throw std::runtime_error("in XmlMarcReader::ParseLeader: error while parsing leader data: " + err_msg);
 
-    if (unlikely(not getNext(&type, &attrib_map, &data)))
+    if (unlikely(not getNext(&xml_part)))
         throw std::runtime_error("in XmlMarcReader::ParseLeader: error while parsing \"" + input_filename + "\": "
-                                 + xml_parser_->getLastErrorMessage() + " on line "
+                                 + "unexpected end of file on line "
                                  + std::to_string(xml_parser_->getLineNo()) + ".");
-    if (unlikely(type != SimpleXmlParser<File>::CLOSING_TAG or data != namespace_prefix_ + "leader")) {
-        const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
-                             or type == SimpleXmlParser<File>::CLOSING_TAG);
+    if (unlikely(xml_part.type_ != XMLParser::XMLPart::CLOSING_TAG or xml_part.data_ != namespace_prefix_ + "leader")) {
+        const bool tag_found(xml_part.type_ == XMLParser::XMLPart::OPENING_TAG
+                             or xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG);
         throw std::runtime_error("in XmlMarcReader::ParseLeader: closing </" + namespace_prefix_
                                                                   + "leader> tag expected while parsing \"" + input_filename + "\" on line "
                                  + std::to_string(xml_parser_->getLineNo())
-                                 + ". (Found: " + SimpleXmlParser<File>::TypeToString(type)
-                                 + (tag_found ? (":" + data) : ""));
+                                 + ". (Found: " + XMLParser::XMLPart::TypeToString(xml_part.type_)
+                                 + (tag_found ? (":" + xml_part.data_) : ""));
     }
 }
 
@@ -201,26 +184,24 @@ bool XmlMarcReader::parseControlfield(const std::string &input_filename, const s
 {
     const size_t offset(raw_data->size());
 
-    SimpleXmlParser<File>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-    if (unlikely(not getNext(&type, &attrib_map, &data)))
+    XMLParser::XMLPart xml_part;
+    if (unlikely(not getNext(&xml_part)))
         throw std::runtime_error("in XmlMarcReader::ParseControlfield: failed to get next XML element!");
 
         // Do we have an empty control field?
-    if (unlikely(type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "controlfield")) {
+    if (unlikely(xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG and xml_part.data_ == namespace_prefix_ + "controlfield")) {
         logger->warning("in XmlMarcReader::ParseControlfield: empty \"" + tag + "\" control field on line "
                         + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
         return false;
     }
 
-    if (type != SimpleXmlParser<File>::CHARACTERS)
+    if (xml_part.type_ != XMLParser::XMLPart::CHARACTERS)
         std::runtime_error("in XmlMarcReader::ParseControlfield: character data expected on line "
                            + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
-    *raw_data += data + '\x1E';
+    *raw_data += xml_part.data_ + '\x1E';
 
-    if (unlikely(not getNext(&type, &attrib_map, &data) or type != SimpleXmlParser<File>::CLOSING_TAG
-                 or data != namespace_prefix_ + "controlfield"))
+    if (unlikely(not getNext(&xml_part) or xml_part.type_ != XMLParser::XMLPart::CLOSING_TAG
+                 or xml_part.data_ != namespace_prefix_ + "controlfield"))
         throw std::runtime_error("in XmlMarcReader::ParseControlfield: </controlfield> expected on line "
                                  + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
 
@@ -246,42 +227,35 @@ DirectoryEntry XmlMarcReader::parseDatafield(const std::string &input_filename,
     field_data += ind2->second;
 
     const size_t offset = raw_data.size();
-    SimpleXmlParser<File>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
+    XMLParser::XMLPart xml_part;
     for (;;) {
-        while (getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<File>::CHARACTERS)
+        while (getNext(&xml_part) and xml_part.type_ == XMLParser::XMLPart::CHARACTERS)
             /* Intentionally empty! */;
 
-        if (type == SimpleXmlParser<File>::ERROR)
-            throw std::runtime_error("in XmlMarcReader::ParseDatafield: error while parsing a data field on line "
-                                     + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
-                                     + "\": " + xml_parser_->getLastErrorMessage());
-
-        if (type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "datafield") {
+        if (xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG and xml_part.data_ == namespace_prefix_ + "datafield") {
             raw_data += field_data + '\x1E';
             return DirectoryEntry(tag, raw_data.size() - offset, offset);
         }
 
                 // 1. <subfield code=...>
-        if (unlikely(type != SimpleXmlParser<File>::OPENING_TAG or data != namespace_prefix_ + "subfield")) {
-            const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
-                                 or type == SimpleXmlParser<File>::CLOSING_TAG);
+        if (unlikely(xml_part.type_ != XMLParser::XMLPart::OPENING_TAG or xml_part.data_ != namespace_prefix_ + "subfield")) {
+            const bool tag_found(xml_part.type_ == XMLParser::XMLPart::OPENING_TAG
+                                 or xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG);
             throw std::runtime_error("in XmlMarcReader::ParseDatafield: expected <" + namespace_prefix_ +
                                      "subfield> opening tag on line " + std::to_string(xml_parser_->getLineNo())
                                      + " in file \"" + input_filename
-                                     + "\"! (Found: " + SimpleXmlParser<File>::TypeToString(type)
-                                     + (tag_found ? (":" + data) : ""));
+                                     + "\"! (Found: " + XMLParser::XMLPart::TypeToString(xml_part.type_)
+                                     + (tag_found ? (":" + xml_part.data_) : ""));
         }
-        if (unlikely(attrib_map.find("code") == attrib_map.cend() or attrib_map["code"].length() != 1))
+        if (unlikely(xml_part.attributes_.find("code") == xml_part.attributes_.cend() or xml_part.attributes_["code"].length() != 1))
             throw std::runtime_error("in XmlMarcReader::ParseDatafield: missing or invalid \"code\" attribute as "
                                      "rt   of the <subfield> tag " + std::to_string(xml_parser_->getLineNo())
                                      + " in file \"" + input_filename + "\"!");
-        field_data += '\x1F' + attrib_map["code"];
+        field_data += '\x1F' + xml_part.attributes_["code"];
 
                 // 2. Subfield data.
-        if (unlikely(not getNext(&type, &attrib_map, &data) or type != SimpleXmlParser<File>::CHARACTERS)) {
-            if (type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "subfield") {
+        if (unlikely(not getNext(&xml_part) or xml_part.type_ != XMLParser::XMLPart::CHARACTERS)) {
+            if (xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG and xml_part.data_ == namespace_prefix_ + "subfield") {
                 logger->warning("Found an empty subfield on line " + std::to_string(xml_parser_->getLineNo())
                                 + " in file \"" + input_filename + "\"!");
                 field_data.resize(field_data.length() - 2); // Remove subfield delimiter and code.
@@ -289,62 +263,54 @@ DirectoryEntry XmlMarcReader::parseDatafield(const std::string &input_filename,
             }
             throw std::runtime_error("in XmlMarcReader::ParseDatafield: error while looking for character data after "
                                      "  <" + namespace_prefix_ + "subfield> tag on line "
-                                     + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
-                                     + "\": " + xml_parser_->getLastErrorMessage());
+                                     + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"");
         }
-        field_data += data;
+        field_data += xml_part.data_;
 
                 // 3. </subfield>
-        if (unlikely(not getNext(&type, &attrib_map, &data) or type != SimpleXmlParser<File>::CLOSING_TAG
-                     or data != namespace_prefix_ + "subfield"))
+        if (unlikely(not getNext(&xml_part) or xml_part.type_ != XMLParser::XMLPart::CLOSING_TAG
+                     or xml_part.data_ != namespace_prefix_ + "subfield"))
             {
-                const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
-                                     or type == SimpleXmlParser<File>::CLOSING_TAG);
+                const bool tag_found(xml_part.type_ == XMLParser::XMLPart::OPENING_TAG
+                                     or xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG);
                 throw std::runtime_error("in XmlMarcReader::ParseDatafield: expected </" + namespace_prefix_
                                          + "subfield> closing tag on line " + std::to_string(xml_parser_->getLineNo())
                                                                               + " in file \"" + input_filename
-                                         + "\"! (Found: " + SimpleXmlParser<File>::TypeToString(type)
-                                         + (tag_found ? (":" + data) : ""));
+                                         + "\"! (Found: " + XMLParser::XMLPart::TypeToString(xml_part.type_)
+                                         + (tag_found ? (":" + xml_part.data_) : ""));
             }
     }
 }
 
 
 void XmlMarcReader::skipOverStartOfDocument() {
-    SimpleXmlParser<File>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-
-    while (getNext(&type, &attrib_map, &data)) {
-        if (type == SimpleXmlParser<File>::OPENING_TAG and data == namespace_prefix_ + "collection")
+    XMLParser::XMLPart xml_part;
+    while (getNext(&xml_part)) {
+        if (xml_part.type_ == XMLParser::XMLPart::OPENING_TAG and xml_part.data_ == namespace_prefix_ + "collection")
             return;
     }
 
         // We should never get here!
     throw std::runtime_error("in XmlMarcReader::SkipOverStartOfDocument: error while trying to skip to "
                                                           "<" + namespace_prefix_ + "collection>:  \""
-                             + xml_parser_->getDataSource()->getPath() + "\": "
-                             + xml_parser_->getLastErrorMessage() + " on line "
-                             + std::to_string(xml_parser_->getLineNo()) + "!");
+                             + input_->getPath() + "\": on line " + std::to_string(xml_parser_->getLineNo()) + "!");
 }
 
 
-bool XmlMarcReader::getNext(SimpleXmlParser<File>::Type * const type,
-                            std::map<std::string, std::string> * const attrib_map, std::string * const data)
-{
-    if (unlikely(not xml_parser_->getNext(type, attrib_map, data)))
+bool XmlMarcReader::getNext(XMLParser::XMLPart * const xml_part) {
+    if (unlikely(not xml_parser_->getNext(xml_part)))
         return false;
 
-    if (*type != SimpleXmlParser<File>::OPENING_TAG)
+    if (xml_part->type_ != XMLParser::XMLPart::OPENING_TAG)
         return true;
 
-    auto key_and_value(attrib_map->find("xmlns"));
-    if (unlikely(key_and_value != attrib_map->cend() and key_and_value->second != "http://www.loc.gov/MARC21/slim"))
+    auto key_and_value(xml_part->attributes_.find("xmlns"));
+    if (unlikely(key_and_value != xml_part->attributes_.cend() and key_and_value->second != "http://www.loc.gov/MARC21/slim"))
         throw std::runtime_error("in XmlMarcReader::getNext: opening tag has unsupported \"xmlns\" attribute near "
                                  "line #" + std::to_string(xml_parser_->getLineNo()) + " in \"" + getPath() + "\"!");
 
-    key_and_value = attrib_map->find("xmlns:marc");
-    if (unlikely(key_and_value != attrib_map->cend())) {
+    key_and_value = xml_part->attributes_.find("xmlns:marc");
+    if (unlikely(key_and_value != xml_part->attributes_.cend())) {
         if (unlikely(key_and_value->second != "http://www.loc.gov/MARC21/slim"))
             throw std::runtime_error("in XmlMarcReader::getNext: opening tag has unsupported \"xmlns:marc\" "
                                      "attribute near line #" + std::to_string(xml_parser_->getLineNo()) + " in \""
