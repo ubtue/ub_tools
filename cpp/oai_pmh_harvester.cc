@@ -100,8 +100,7 @@ unsigned ExtractEncapsulatedRecordData(XMLParser * const xml_parser, std::string
             LOG_ERROR("no <metadata> tag found after a <record> tag!");
 
         XMLParser::XMLPart extracted_records_part;
-        if (not xml_parser->skipTo(XMLParser::XMLPart::CLOSING_TAG, "metadata",
-                                   &extracted_records_part))
+        if (not xml_parser->skipTo(XMLParser::XMLPart::CLOSING_TAG, "metadata", &extracted_records_part))
             LOG_ERROR("no </metadata> tag found after a <metadata> tag!");
 
         *extracted_records = extracted_records_part.data_;
