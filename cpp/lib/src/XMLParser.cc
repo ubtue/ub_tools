@@ -102,7 +102,7 @@ void XMLParser::Handler::ignorableWhitespace(const XMLCh * const chars, const XM
 
 
 void XMLParser::Handler::setDocumentLocator(const xercesc::Locator * const locator) {
-    parser_->locator_ = (xercesc::Locator*)locator;
+    parser_->locator_ = locator;
 }
 
 
