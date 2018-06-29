@@ -30,6 +30,21 @@ const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
 };
 
 
+void XMLParser::ConvertAndThrowException(const xercesc::RuntimeException &exc) {
+    throw XMLParser::RuntimeError("Xerces RuntimeException: " + ToString(exc.getMessage()));
+}
+
+
+void XMLParser::ConvertAndThrowException(const xercesc::SAXParseException &exc) {
+    throw XMLParser::RuntimeError("Xerces SAXParseException on line " + std::to_string(exc.getLineNumber()) + ": " + ToString(exc.getMessage()));
+}
+
+
+void XMLParser::ConvertAndThrowException(const xercesc::XMLException &exc) {
+    throw XMLParser::RuntimeError("Xerces XMLException on line " + std::to_string(exc.getSrcLine()) + ": " + ToString(exc.getMessage()));
+}
+
+
 std::string XMLParser::ToString(const XMLCh * const xmlch) {
     return xercesc::XMLString::transcode(xmlch);
 }
@@ -130,46 +145,51 @@ void XMLParser::rewind() {
 
     open_elements_ = 0;
     locator_ = nullptr;
+    prolog_parsing_done_ = false;
 }
 
 
 bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_characters) {
-    if (not prolog_parsing_done_) {
-        if (type_ == XML_FILE) {
-            body_has_more_contents_ = parser_->parseFirst(xml_filename_or_string_.c_str(), token_);
-            if (not body_has_more_contents_)
-                LOG_ERROR("error parsing document header: " + xml_filename_or_string_);
-        } else if (type_ == XML_STRING) {
-            xercesc::MemBufInputSource input_buffer((const XMLByte*)xml_filename_or_string_.c_str(), xml_filename_or_string_.size(),
-                                                    "xml_string (in memory)");
-            body_has_more_contents_ = parser_->parseFirst(input_buffer, token_);
-            if (not body_has_more_contents_)
-                LOG_ERROR("error parsing document header: " + xml_filename_or_string_);
-        } else
-            LOG_ERROR("Undefined XMLParser::Type!");
+    try {
+        if (not prolog_parsing_done_) {
+            if (type_ == XML_FILE) {
+                body_has_more_contents_ = parser_->parseFirst(xml_filename_or_string_.c_str(), token_);
+                if (not body_has_more_contents_)
+                    throw XMLParser::RuntimeError("error parsing document header: " + xml_filename_or_string_);
+            } else if (type_ == XML_STRING) {
+                xercesc::MemBufInputSource input_buffer((const XMLByte*)xml_filename_or_string_.c_str(), xml_filename_or_string_.size(),
+                                                        "xml_string (in memory)");
+                body_has_more_contents_ = parser_->parseFirst(input_buffer, token_);
+                if (not body_has_more_contents_)
+                    throw XMLParser::RuntimeError("error parsing document header: " + xml_filename_or_string_);
+            } else
+                throw XMLParser::RuntimeError("Undefined XMLParser::Type!");
 
-        prolog_parsing_done_ = true;
-    }
-
-    if (buffer_.empty() && body_has_more_contents_)
-        body_has_more_contents_ = parser_->parseNext(token_);
-
-    if (not buffer_.empty()) {
-        buffer_.front();
-        if (next != nullptr)
-            *next = buffer_.front();
-        buffer_.pop_front();
-        if (next != nullptr and next->type_ == XMLPart::CHARACTERS and combine_consecutive_characters) {
-            XMLPart peek;
-            while(getNext(&peek, /* combine_consecutive_characters = */false) and peek.type_ == XMLPart::CHARACTERS)
-                next->data_ += peek.data_;
-            if (peek.type_ != XMLPart::CHARACTERS) {
-                buffer_.emplace_front(peek);
-            }
+            prolog_parsing_done_ = true;
         }
 
-        if (options_.ignore_whitespace_ and next != nullptr and next->type_ == XMLPart::CHARACTERS and StringUtil::IsWhitespace(next->data_))
-            return getNext(next);
+        if (buffer_.empty() && body_has_more_contents_)
+            body_has_more_contents_ = parser_->parseNext(token_);
+
+        if (not buffer_.empty()) {
+            buffer_.front();
+            if (next != nullptr)
+                *next = buffer_.front();
+            buffer_.pop_front();
+            if (next != nullptr and next->type_ == XMLPart::CHARACTERS and combine_consecutive_characters) {
+                XMLPart peek;
+                while(getNext(&peek, /* combine_consecutive_characters = */false) and peek.type_ == XMLPart::CHARACTERS)
+                    next->data_ += peek.data_;
+                if (peek.type_ != XMLPart::CHARACTERS) {
+                    buffer_.emplace_front(peek);
+                }
+            }
+
+            if (options_.ignore_whitespace_ and next != nullptr and next->type_ == XMLPart::CHARACTERS and StringUtil::IsWhitespace(next->data_))
+                return getNext(next);
+        }
+    } catch (xercesc::RuntimeException &exc) {
+        ConvertAndThrowException(exc);
     }
 
     return (not buffer_.empty() or body_has_more_contents_);
