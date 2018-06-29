@@ -1,4 +1,4 @@
-/** \brief Test harness for the SimpleXmlParser class.
+/** \brief Test harness for the XMLParser class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -19,7 +19,7 @@
 #include <iostream>
 #include <cstdlib>
 #include "File.h"
-#include "SimpleXmlParser.h"
+#include "XMLParser.h"
 #include "util.h"
 
 
@@ -43,48 +43,34 @@ int main(int argc, char *argv[]) {
     }
 
     const std::string input_filename(argv[silent ? 2 : 1]);
-    File input(input_filename, "r");
-    if (not input)
-        logger->error("can't open \"" + input_filename + "\" for reading!");
 
     try {
-        SimpleXmlParser<File>::Type type;
-        std::string data;
-        std::map<std::string, std::string> attrib_map;
-        SimpleXmlParser<File> xml_parser(&input);
-        while (xml_parser.getNext(&type, &attrib_map, &data)) {
-            switch (type) {
-            case SimpleXmlParser<File>::UNINITIALISED:
+        XMLParser::XMLPart xml_part;
+        XMLParser xml_parser(input_filename, XMLParser::XML_FILE);
+        while (xml_parser.getNext(&xml_part)) {
+            switch (xml_part.type_) {
+            case XMLParser::XMLPart::UNINITIALISED:
                 logger->error("we should never get here as UNINITIALISED should never be returned!");
-            case SimpleXmlParser<File>::START_OF_DOCUMENT:
-                if (not silent)
-                    std::cout << xml_parser.getLineNo() << ":START_OF_DOCUMENT()\n";
-                break;
-            case SimpleXmlParser<File>::END_OF_DOCUMENT:
-                return EXIT_SUCCESS;
-            case SimpleXmlParser<File>::ERROR:
-                logger->error("we should never get here because SimpleXmlParser<File>::getNext() should have "
-                              "returned false!");
-            case SimpleXmlParser<File>::OPENING_TAG:
+            case XMLParser::XMLPart::OPENING_TAG:
                 if (not silent) {
-                    std::cout << xml_parser.getLineNo() << ":OPENING_TAG(" << data;
-                    for (const auto &name_and_value : attrib_map)
+                    std::cout << xml_parser.getLineNo() << ":OPENING_TAG(" << xml_part.data_;
+                    for (const auto &name_and_value : xml_part.attributes_)
                         std::cout << ' ' << name_and_value.first << '=' << name_and_value.second;
                     std::cout << ")\n";
                 }
                 break;
-            case SimpleXmlParser<File>::CLOSING_TAG:
+            case XMLParser::XMLPart::CLOSING_TAG:
                 if (not silent)
-                    std::cout << xml_parser.getLineNo() << ":CLOSING_TAG(" << data << ")\n";
+                    std::cout << xml_parser.getLineNo() << ":CLOSING_TAG(" << xml_part.data_ << ")\n";
                 break;
-            case SimpleXmlParser<File>::CHARACTERS:
+            case XMLParser::XMLPart::CHARACTERS:
                 if (not silent)
-                    std::cout << xml_parser.getLineNo() << ":CHARACTERS(" << data << ")\n";
+                    std::cout << xml_parser.getLineNo() << ":CHARACTERS(" << xml_part.data_ << ")\n";
                 break;
             }
         }
 
-        logger->error("XML parsing error: " + xml_parser.getLastErrorMessage());
+        return EXIT_SUCCESS;
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
