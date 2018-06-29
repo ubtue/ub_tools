@@ -42,6 +42,10 @@ class XMLParser {
     bool body_has_more_contents_;
     unsigned open_elements_;
 public:
+    class RuntimeError : public std::runtime_error {
+    public:
+        explicit RuntimeError(const std::string &message) : std::runtime_error(message) { };
+    };
     typedef std::map<std::string, std::string> Attributes;
 
     enum Type { XML_FILE, XML_STRING };
@@ -68,6 +72,11 @@ public:
 private:
     Type type_;
     Options options_;
+
+    static void ConvertAndThrowException(const xercesc::RuntimeException &exc);
+    static void ConvertAndThrowException(const xercesc::SAXParseException &exc);
+    static void ConvertAndThrowException(const xercesc::XMLException &exc);
+
     class Handler : public xercesc::HandlerBase {
         friend class XMLParser;
         XMLParser *parser_;
@@ -91,7 +100,7 @@ private:
     public:
         void warning(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToString(exc.getMessage())); }
         void error(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToString(exc.getMessage())); }
-        void fatalError(const xercesc::SAXParseException &exc) { throw std::runtime_error(getExceptionMessage(exc)); }
+        void fatalError(const xercesc::SAXParseException &exc) { XMLParser::ConvertAndThrowException(exc); }
         void resetErrors() {}
     };
 
@@ -105,7 +114,7 @@ private:
     static std::string ToString(const XMLCh * const xmlch);
 public:
     explicit XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
-    ~XMLParser() = default;
+    ~XMLParser() { delete parser_; delete locator_; delete handler_; delete error_handler_; }
     void rewind();
     unsigned getLineNo() { return static_cast<unsigned>(locator_->getLineNumber()); }
     unsigned getColumnNo() { return static_cast<unsigned>(locator_->getColumnNumber()); }
@@ -114,7 +123,7 @@ public:
     /** \return true if there are more elements to parse, o/w false.
      *  \note   parsing is done in progressive mode, meaning that the document is
      *          still being parsed during consecutive getNext() calls.
-     *  \throws std::runtime_error, see ErrorHandler.
+     *  \throws XMLParser::RuntimeError
      */
     bool getNext(XMLPart * const next, bool combine_consecutive_characters = true);
 
