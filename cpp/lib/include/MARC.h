@@ -246,6 +246,8 @@ public:
                          { return subfield.code_ == subfield_code; }), subfields_.end());
     }
 
+    inline iterator deleteSubfield(const iterator &subfield_iterator) { return subfields_.erase(subfield_iterator); }
+
     inline std::string toString() const {
         std::string as_string;
         for (const auto &subfield : subfields_)
