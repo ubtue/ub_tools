@@ -35,13 +35,12 @@ namespace {
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbosity=min_verbosity] marc_input marc_output \n"
               << "      Normalises language codes and removes their duplicates from specific MARC "
-                 "record fields (008 and 041)."
-              << "\n";
+                 "record fields (008 and 041).\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-const std::string CONFIG_FILE_PATH("/usr/local/var/lib/tuelib/normalize_and_deduplicate_lang.conf");
+const std::string CONFIG_FILE_PATH("/usr/local/var/lib/tuelib/normalize_and_deduplicate_language.conf");
 
 
 const std::string LANGUAGE_CODE_OVERRIDE_SECTION("Overrides");
