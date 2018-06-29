@@ -52,6 +52,58 @@ const std::vector<std::string> EXPORT_FORMATS{
 };
 
 
+// Zotero values see https://raw.githubusercontent.com/zotero/zotero/master/test/tests/data/allTypesAndFields.js
+// MARC21 values see https://www.loc.gov/marc/relators/relaterm.html
+const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP{
+    { "artist",             "art" },
+    { "attorneyAgent",      "csl" },
+    { "author",             "aut" },
+    { "bookAuthor",         "edc" },
+    { "cartographer",       "ctg" },
+    { "castMember",         "act" },
+    { "commenter",          "cwt" },
+    { "composer",           "cmp" },
+    { "contributor",        "ctb" },
+    { "cosponsor",          "spn" },
+    { "director",           "drt" },
+    { "editor",             "edt" },
+    { "guest",              "pan" },
+    { "interviewee",        "ive" },
+    { "inventor",           "inv" },
+    { "performer",          "prf" },
+    { "podcaster",          "brd" },
+    { "presenter",          "pre" },
+    { "producer",           "pro" },
+    { "programmer",         "prg" },
+    { "recipient",          "rcp" },
+    { "reviewedAuthor",     "aut" },
+    { "scriptwriter",       "aus" },
+    { "seriesEditor",       "edt" },
+    { "sponsor",            "spn" },
+    { "translator",         "trl" },
+    { "wordsBy",            "wam" },
+};
+
+
+const std::string GetCreatorTypeForMarc21(const std::string &zotero_creator_type) {
+    const auto creator_type_zotero_and_marc21(CREATOR_TYPES_TO_MARC21_MAP.find(zotero_creator_type));
+    if (creator_type_zotero_and_marc21 == CREATOR_TYPES_TO_MARC21_MAP.end())
+        LOG_ERROR("Zotero creatorType could not be mapped to MARC21: \"" + zotero_creator_type + "\"");
+    return creator_type_zotero_and_marc21->second;
+}
+
+
+const std::map<std::string, MARC::Record::BibliographicLevel> ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP{
+    { "book", MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM },
+    { "bookSection", MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART },
+    { "document", MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM },
+    { "journalArticle", MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART },
+    { "magazineArticle", MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART },
+    { "newspaperArticle", MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART },
+    { "webpage", MARC::Record::BibliographicLevel::INTEGRATING_RESOURCE }
+};
+
+
 const std::string DEFAULT_SUBFIELD_CODE("eng");
 
 
@@ -67,14 +119,6 @@ std::string GetNextSessionId() {
     ++counter;
     return "ub_tools_zts_client_" + StringUtil::ToString(uuid[0]) + StringUtil::ToString(uuid[1])
            + StringUtil::ToString(uuid[2]) + StringUtil::ToString(uuid[3]) + "_" + StringUtil::ToString(counter);
-}
-
-
-std::string GetNextControlNumber() {
-    static unsigned last_control_number;
-    ++last_control_number;
-    static const std::string prefix("ZTS");
-    return prefix + StringUtil::PadLeading(std::to_string(last_control_number), 7, '0');
 }
 
 
@@ -160,6 +204,15 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 
 
 } // namespace TranslationServer
+
+
+void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParams> * const group_name_to_params_map) {
+    GroupParams new_group_params;
+    new_group_params.name_       = section.getSectionName();
+    new_group_params.user_agent_ = section.getString("user_agent");
+    new_group_params.isil_       = section.getString("isil");
+    group_name_to_params_map->emplace(section.getSectionName(), new_group_params);
+}
 
 
 std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &previous_downloads_db_path, const std::string &output_format,
@@ -320,13 +373,13 @@ void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &o
 
 void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record) {
     const std::shared_ptr<const JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", creators_node));
-    for (auto creator_node : *creators_array) {
+
+    // only use 100 if we have exactly 1 creator, else it is impossible to say which is the most important one
+    std::string tag(creators_array->size() > 1 ? "700" : "100");
+    for (const auto &creator_node : *creators_array) {
         const std::shared_ptr<const JSON::ObjectNode> creator_object(JSON::JSONNode::CastToObjectNodeOrDie("creator",
                                                                                                            creator_node));
         MARC::Subfields subfields;
-        std::string tag("100");
-        if (creator_node != *(creators_array->begin()))
-            tag = "700";
 
         const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
         if (last_name_node == nullptr)
@@ -354,7 +407,7 @@ void MarcFormatHandler::CreateCreatorFields(const std::shared_ptr<const JSON::JS
         if (creator_type != nullptr) {
             const std::shared_ptr<const JSON::StringNode> creator_role_node(JSON::JSONNode::CastToStringNodeOrDie("creatorType",
                                                                                                                   creator_type));
-            subfields.addSubfield('e', creator_role_node->getValue());
+            subfields.addSubfield('4', GetCreatorTypeForMarc21(creator_role_node->getValue()));
         }
 
         marc_record->insertField(tag, subfields);
@@ -367,14 +420,33 @@ void InsertDOI(MARC::Record * const record, const std::string &doi) {
 }
 
 
-std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
+MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::ObjectNode> &object_node, std::string * const url,
+                                            std::string * const publication_title, std::string * const abbreviated_publication_title,
+                                            std::string * const website_title)
+{
+    const std::string item_type(object_node->getStringValue("itemType"));
+    const auto bibliographic_level_iterator(ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.find(item_type));
+    if (bibliographic_level_iterator == ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.end())
+        LOG_ERROR("No bibliographic level mapping entry available for Zotero item type: " + item_type);
+
+    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level_iterator->second);
+
+    if (item_type == "journalArticle") {
+        *publication_title = object_node->getOptionalStringValue("publicationTitle");
+        *abbreviated_publication_title = object_node->getOptionalStringValue("journalAbbreviation");
+        ExtractVolumeYearIssueAndPages(*object_node, &new_record);
+    } else if (item_type == "magazineArticle" or item_type == "newspaperArticle") {
+        *publication_title = object_node->getOptionalStringValue("publicationTitle");
+        ExtractVolumeYearIssueAndPages(*object_node, &new_record);
+    } else if (item_type == "webpage") {
+        // just add the encoding marker
+        LOG_WARNING("TODO: add proper support for webpages");
+        new_record.insertField("935", { { 'c', "website" } });
+    } else
+        LOG_ERROR("unknown item type: \"" + item_type + "\"! JSON node dump: " + object_node->toString());
+
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
-        "^issue|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|websiteType|ISSN|ubtue$"));
-    unsigned record_count(0), previously_downloaded_count(0);
-    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
-                            GetNextControlNumber());
-    bool is_journal_article(false);
-    std::string publication_title, issn_normalized, url, website_title;
+        "^itemType|issue|journalAbbreviation|pages|publicationTitle|volume|version|date|tags|libraryCatalog|itemVersion|accessDate|key|websiteType|ISSN|ubtue$"));
     for (const auto &key_and_node : *object_node) {
         if (ignore_fields->matched(key_and_node.first))
             continue;
@@ -384,7 +456,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                 JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue() } });
         else if (key_and_node.first == "url") {
             CreateSubfieldFromStringNode(key_and_node, "856", 'u', &new_record);
-            url = reinterpret_cast<const JSON::StringNode * const>(key_and_node.second.get())->getValue();
+            *url = reinterpret_cast<const JSON::StringNode * const>(key_and_node.second.get())->getValue();
         } else if (key_and_node.first == "title")
             CreateSubfieldFromStringNode(key_and_node, "245", 'a', &new_record);
         else if (key_and_node.first == "abstractNote")
@@ -399,31 +471,14 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             CreateSubfieldFromStringNode(key_and_node, "246", 'a', &new_record);
         else if (key_and_node.first == "creators")
             CreateCreatorFields(key_and_node.second, &new_record);
-        else if (key_and_node.first == "itemType") {
-            const std::string item_type(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
-            if (item_type == "journalArticle") {
-                is_journal_article = true;
-                publication_title = object_node->getOptionalStringValue("publicationTitle");
-                ExtractVolumeYearIssueAndPages(*object_node, &new_record);
-            } else if (item_type == "magazineArticle")
-                ExtractVolumeYearIssueAndPages(*object_node, &new_record);
-            else if (item_type == "webpage") {
-                // just add the encoding marker
-                LOG_WARNING("TODO: add proper support for webpages");
-                new_record.insertField("935", { { 'c', "website" } });
-            } else
-                LOG_ERROR("unknown item type: \"" + item_type + "\"! JSON node dump: " + object_node->toString());
-        } else if (key_and_node.first == "rights") {
+        else if (key_and_node.first == "rights") {
             const std::string copyright(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
                                                                               key_and_node.second)->getValue());
             if (UrlUtil::IsValidWebUrl(copyright))
                 new_record.insertField("542", { { 'u', copyright } });
             else
                 new_record.insertField("542", { { 'f', copyright } });
-        } else if (key_and_node.first == "journalAbbreviation")
-            new_record.insertField("773", { { 'p', JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
-                                                                                         key_and_node.second)->getValue() } });
-        else if (key_and_node.first == "extra") {
+        } else if (key_and_node.first == "extra") {
             // comment field, can contain anything, even DOI's (e.g. for a webpage which has no DOI field)
             const std::string extra(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first,
                                                                           key_and_node.second)->getValue());
@@ -431,60 +486,79 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
             if (doi_matcher->matched(extra))
                 InsertDOI(&new_record, (*doi_matcher)[1]);
         } else if (key_and_node.first == "websiteTitle")
-            website_title = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
+            *website_title = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
         else
             LOG_ERROR("unknown key \"" + key_and_node.first + "\" with node type "
                       + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
                       + key_and_node.second->toString() + "), whole record: " + object_node->toString());
     }
 
-    std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
-    if (custom_node != nullptr) {
-        const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
-        if (custom_object->getOptionalStringNode("ISSN_untagged"))
-            issn_normalized = custom_object->getOptionalStringValue("ISSN_untagged");
-        else if (custom_object->getOptionalStringNode("ISSN_online"))
-            issn_normalized = custom_object->getOptionalStringValue("ISSN_online");
-        else if (custom_object->getOptionalStringNode("ISSN_print"))
-            issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
+    new_record.insertField("001", augment_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
+                                  + "#" + StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
+    return new_record;
+}
+
+
+// Populates the "ubtue" node.
+void MarcFormatHandler::populateCustomNode(std::shared_ptr<const JSON::JSONNode> custom_node, std::string * const issn_normalized,
+                                           MARC::Record * const new_record)
+{
+    const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
+    if (custom_object->getOptionalStringNode("ISSN_untagged"))
+        *issn_normalized = custom_object->getOptionalStringValue("ISSN_untagged");
+    else if (custom_object->getOptionalStringNode("ISSN_online"))
+        *issn_normalized = custom_object->getOptionalStringValue("ISSN_online");
+    else if (custom_object->getOptionalStringNode("ISSN_print"))
+        *issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
+    else
+        LOG_WARNING("No ISSN found for article.");
+
+    // physical form
+    const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
+    if (not physical_form.empty()) {
+        if (physical_form == "A")
+            new_record->insertField("007", "tu");
+        else if (physical_form == "O")
+            new_record->insertField("007", "cr uuu---uuuuu");
         else
-            LOG_WARNING("No ISSN found for article.");
-
-        // physical form
-        const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
-        if (not physical_form.empty()) {
-            if (physical_form == "A")
-                new_record.insertField("007", "tu");
-            else if (physical_form == "O")
-                new_record.insertField("007", "cr uuu---uuuuu");
-            else
-                LOG_ERROR("unhandled value of physical form: \""
-                          + physical_form + "\"!");
-        }
-
-        // volume
-        const std::string volume(custom_object->getOptionalStringValue("volume"));
-        if (not volume.empty()) {
-            const auto field_it(new_record.findTag("936"));
-            if (field_it == new_record.end())
-                new_record.insertField("936", { { 'v', volume } });
-            else
-                field_it->getSubfields().addSubfield('v', volume);
-        }
-
-        // license code
-        const std::string license(custom_object->getOptionalStringValue("licenseCode"));
-        if (license == "l") {
-            const auto field_it(new_record.findTag("936"));
-            if (field_it != new_record.end())
-                field_it->getSubfields().addSubfield('z', "Kostenfrei");
-        }
-
-        // SSG numbers:
-        const std::string ssg_numbers(custom_object->getOptionalStringValue("ssgNumbers"));
-        if (not ssg_numbers.empty())
-            new_record.addSubfield("084", 'a', ssg_numbers);
+            LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
     }
+
+    // volume
+    const std::string volume(custom_object->getOptionalStringValue("volume"));
+    if (not volume.empty()) {
+        const auto field_it(new_record->findTag("936"));
+        if (field_it == new_record->end())
+            new_record->insertField("936", { { 'v', volume } });
+        else
+            field_it->getSubfields().addSubfield('v', volume);
+    }
+
+    // license code
+    const std::string license(custom_object->getOptionalStringValue("licenseCode"));
+    if (license == "l") {
+        const auto field_it(new_record->findTag("936"));
+        if (field_it != new_record->end())
+            field_it->getSubfields().addSubfield('z', "Kostenfrei");
+    }
+
+    // SSG numbers:
+    const std::string ssg_numbers(custom_object->getOptionalStringValue("ssgNumbers"));
+    if (not ssg_numbers.empty())
+        new_record->addSubfield("084", 'a', ssg_numbers);
+}
+
+
+std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
+    std::string publication_title, abbreviated_publication_title, url, website_title;
+    MARC::Record new_record(processJSON(object_node, &url, &publication_title, &abbreviated_publication_title, &website_title));
+
+    std::string issn_normalized;
+    unsigned previously_downloaded_count(0);
+
+    std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
+    if (custom_node != nullptr)
+        populateCustomNode(custom_node, &issn_normalized, &new_record);
 
     // title:
     if (not website_title.empty() and not new_record.hasTag("245"))
@@ -496,7 +570,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         ExtractKeywords(tags_node, issn_normalized, augment_params_->global_params_->maps_->ISSN_to_keyword_field_map_, &new_record);
 
     // Populate 773:
-    if (is_journal_article) {
+    if (new_record.isArticle()) {
         const auto superior_ppn_and_title(augment_params_->global_params_->maps_->ISSN_to_superior_ppn_and_title_map_.find(issn_normalized));
         if (superior_ppn_and_title != augment_params_->global_params_->maps_->ISSN_to_superior_ppn_and_title_map_.end()) {
             std::vector<MARC::Subfield> subfields;
@@ -504,6 +578,8 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                 publication_title = superior_ppn_and_title->second.getTitle();
             if (not publication_title.empty())
                 subfields.emplace_back('a', publication_title);
+            if (not abbreviated_publication_title.empty())
+                subfields.emplace_back('p', abbreviated_publication_title);
             if (not issn_normalized.empty())
                 subfields.emplace_back('x', issn_normalized);
             const std::string journal_ppn(superior_ppn_and_title->second.getPPN());
@@ -513,6 +589,9 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
                 new_record.insertField("773", subfields);
         }
     }
+
+    // 003 field => insert ISIL:
+    new_record.insertField("003", augment_params_->group_params_->isil_);
 
     // language code fallback:
     if (not new_record.hasTag("041"))
@@ -528,16 +607,13 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         LOG_ERROR("\"url\" has not been set!");
     time_t creation_time;
 
-    if (not download_tracker_.hasAlreadyBeenDownloaded(url, &creation_time, &error_message, checksum)
-        or not error_message.empty())
-    {
+    if (not download_tracker_.hasAlreadyBeenDownloaded(url, &creation_time, &error_message, checksum) or not error_message.empty()) {
         marc_writer_->write(new_record);
         download_tracker_.addOrReplace(url, checksum, /* error_message = */"");
     } else
         ++previously_downloaded_count;
-    ++record_count;
 
-    return std::make_pair(record_count, previously_downloaded_count);
+    return std::make_pair(/* record count */1, previously_downloaded_count);
 }
 
 
@@ -556,7 +632,7 @@ void LoadISSNToPPNMap(std::unordered_map<std::string, PPNandTitle> * const ISSN_
             LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_PPN_MAP_PATH + "\"! (1)");
         const std::string ISSN(line.substr(0, FIRST_COMMA_POS));
 
-        const size_t SECOND_COMMA_POS(line.find_first_of(',', FIRST_COMMA_POS));
+        const size_t SECOND_COMMA_POS(line.find_first_of(',', FIRST_COMMA_POS + 1));
         if (unlikely(SECOND_COMMA_POS == std::string::npos or SECOND_COMMA_POS == FIRST_COMMA_POS + 1))
             LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_PPN_MAP_PATH + "\"! (2)");
         const std::string PPN(line.substr(FIRST_COMMA_POS + 1, SECOND_COMMA_POS - FIRST_COMMA_POS - 1));
@@ -588,19 +664,28 @@ inline std::string OptionalMap(const std::string &key, const std::unordered_map<
 
 // "author" must be in the lastname,firstname format. Returns the empty string if no PPN was found.
 std::string DownloadAuthorPPN(const std::string &author) {
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-         "<SMALL>PPN</SMALL>.*<div><SMALL>([0-9X]+)"));
-    const std::string lookup_url("http://swb.bsz-bw.de/DB=2.104/SET=70/TTL=1/CMD?SGE=&ACT=SRCHM&MATCFILTER=Y"
+    const std::string LOOKUP_URL("http://swb.bsz-bw.de/DB=2.104/SET=70/TTL=1/CMD?SGE=&ACT=SRCHM&MATCFILTER=Y"
                                  "&MATCSET=Y&NOSCAN=Y&PARSE_MNEMONICS=N&PARSE_OPWORDS=N&PARSE_OLDSETS=N&IMPLAND=Y"
                                  "&NOABS=Y&ACT0=SRCHA&SHRTST=50&IKT0=1&TRM0=" + UrlUtil::UrlEncode(author)
                                  +"&ACT1=*&IKT1=2057&TRM1=*&ACT2=*&IKT2=8977&TRM2=theolog*&ACT3=-&IKT3=8978-&TRM3=1"
                                  "[1%2C2%2C3%2C4%2C5%2C6%2C7%2C8][0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]"
                                  "[0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]?");
-    Downloader downloader(lookup_url);
-    if (downloader.anErrorOccurred())
-        LOG_ERROR(downloader.getLastErrorMessage());
-    else if (matcher->matched(downloader.getMessageBody()))
-        return (*matcher)[1];
+
+    static std::unordered_map<std::string, std::string> url_to_lookup_result_cache;
+    const auto url_and_lookup_result(url_to_lookup_result_cache.find(LOOKUP_URL));
+    if (url_and_lookup_result == url_to_lookup_result_cache.end()) {
+        static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("<SMALL>PPN</SMALL>.*<div><SMALL>([0-9X]+)"));
+        Downloader downloader(LOOKUP_URL);
+        if (downloader.anErrorOccurred())
+            LOG_ERROR(downloader.getLastErrorMessage());
+        else if (matcher->matched(downloader.getMessageBody())) {
+            url_to_lookup_result_cache.emplace(LOOKUP_URL, (*matcher)[1]);
+            return (*matcher)[1];
+        } else
+            url_to_lookup_result_cache.emplace(LOOKUP_URL, "");
+    } else
+        return url_and_lookup_result->second;
+
     return "";
 }
 
