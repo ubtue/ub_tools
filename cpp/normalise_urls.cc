@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 #include "MARC.h"
+#include "StringUtil.h"
 #include "util.h"
 
 

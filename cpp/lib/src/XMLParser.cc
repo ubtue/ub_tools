@@ -101,6 +101,11 @@ void XMLParser::Handler::ignorableWhitespace(const XMLCh * const chars, const XM
 }
 
 
+void XMLParser::Handler::setDocumentLocator(const xercesc::Locator * const locator) {
+    parser_->locator_ = locator;
+}
+
+
 XMLParser::XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options) {
     xml_filename_or_string_ = xml_filename_or_string;
     type_ = type;
@@ -124,6 +129,7 @@ void XMLParser::rewind() {
     parser_->setDoSchema(options_.do_schema_);
 
     open_elements_ = 0;
+    locator_ = nullptr;
 }
 
 
