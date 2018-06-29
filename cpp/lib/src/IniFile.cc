@@ -480,8 +480,11 @@ void IniFile::processFile(const std::string &external_filename) {
             processSectionHeader(line);
         else if (line.length() > 7 and line.substr(0, 7) == "include" and (line[7] == ' ' or line[7] == '\t'))
             processInclude(line);
-        else // should be a new setting!
+        else {// should be a new setting!
+            if (sections_.empty())
+                sections_.emplace_back(Section(""));
             processSectionEntry(line);
+        }
     }
 
     include_file_infos_.pop();

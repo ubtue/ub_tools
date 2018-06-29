@@ -25,6 +25,7 @@
 #include <ctime>
 #include <kchashdb.h>
 #include "Downloader.h"
+#include "IniFile.h"
 #include "JSON.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
@@ -48,7 +49,10 @@ extern const std::string ISSN_TO_PPN_MAP_PATH;
 
 // native supported formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
 // also allowed: json, marc21 and marcxml
-extern const std::vector<std::string> ExportFormats;
+extern const std::vector<std::string> EXPORT_FORMATS;
+
+
+const std::string GetCreatorTypeForMarc21(const std::string &zotero_creator_type);
 
 
 /**
@@ -112,6 +116,16 @@ public:
 };
 
 
+struct GroupParams {
+    std::string name_;
+    std::string user_agent_;
+    std::string isil_;
+};
+
+
+void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParams> * const group_name_to_params_map);
+
+
 /** \brief Parameters that apply to all sites equally. */
 struct GobalAugmentParams {
     AugmentMaps * const maps_;
@@ -122,7 +136,9 @@ public:
 
 /** \brief Parameters that apply to single sites only. */
 struct SiteAugmentParams {
-    GobalAugmentParams *global_params_; // So that we don't have to pass through two arguments everywhere.
+    // So that we don't have to pass through two arguments everywhere.
+    GobalAugmentParams *global_params_;
+    GroupParams *group_params_;
 
     std::string parent_ISSN_print_;
     std::string parent_ISSN_online_;
@@ -293,6 +309,13 @@ private:
     void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node,
                                         MARC::Record * const new_record);
     void CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record);
+
+    MARC::Record processJSON(const std::shared_ptr<const JSON::ObjectNode> &object_node, std::string * const url,
+                             std::string * const publication_title, std::string * const abbreviated_publication_title,
+                             std::string * const website_title);
+
+    void populateCustomNode(std::shared_ptr<const JSON::JSONNode> custom_node, std::string * const issn_normalized,
+                            MARC::Record * const new_record);
 };
 
 
