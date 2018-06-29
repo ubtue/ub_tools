@@ -33,12 +33,13 @@
 #include "FileUtil.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
 namespace {
 
-    
+
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
@@ -73,7 +74,7 @@ void LoadSuperiorPPNs(MARC::Reader * const marc_reader, std::unordered_set<std::
             }
         }
     }
-    
+
     LOG_INFO("Found " + std::to_string(superior_ppns->size()) + " superior PPNs.");
 }
 
