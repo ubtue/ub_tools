@@ -442,7 +442,7 @@ xml_parse_loop:
                 }
                 collect_character_data = not matchers.empty();
                 if (matchers.empty() and verbose)
-                    std::cerr << "No matcher found for XML tag \"" << xml_part.data_ << "\".\n";
+                    LOG_WARNING("No matcher found for XML tag \"" + xml_part.data_ + "\".");
             }
             break;
         case XMLParser::XMLPart::CLOSING_TAG:
@@ -486,7 +486,7 @@ xml_parse_loop:
                                 goto xml_parse_loop;
                             }
                         }
-                        logger->warning("found no match for \"" + character_data + "\"! (XML tag was " + xml_part.data_ + ".)");
+                        LOG_WARNING("found no match for \"" + character_data + "\"! (XML tag was " + xml_part.data_ + ".)");
                         break;
                     }
                     }
@@ -503,13 +503,13 @@ xml_parse_loop:
     }
 
     if (verbose)
-        std::cout << "Wrote " << written_record_count << " record(s) of " << record_count
-                  << " record(s) which were found in the XML input stream.\n";
+        LOG_INFO("Wrote " + std::to_string(written_record_count) + " record(s) of " + std::to_string(record_count)
+                 + " record(s) which were found in the XML input stream.");
     return;
 }
 
 
-int main(int argc, char *argv[]) {
+int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 5 and argc != 6)
@@ -536,11 +536,9 @@ int main(int argc, char *argv[]) {
     const std::unique_ptr<MarcWriter> marc_writer(
         MarcWriter::Factory(argv[4], output_format == MARC_BINARY ? MarcWriter::BINARY : MarcWriter::XML));
 
-    try {
-        std::map<std::string, std::list<const Matcher *>> xml_tag_to_matchers_map;
-        LoadConfig(config_input.get(), &xml_tag_to_matchers_map);
-        ProcessRecords(verbose, input.get(), marc_writer.get(), xml_tag_to_matchers_map);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    std::map<std::string, std::list<const Matcher *>> xml_tag_to_matchers_map;
+    LoadConfig(config_input.get(), &xml_tag_to_matchers_map);
+    ProcessRecords(verbose, input.get(), marc_writer.get(), xml_tag_to_matchers_map);
+
+    return EXIT_SUCCESS;
 }
