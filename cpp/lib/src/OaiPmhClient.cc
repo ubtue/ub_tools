@@ -33,7 +33,6 @@
 #include "HtmlUtil.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
-#include "StringDataSource.h"
 #include "StringUtil.h"
 #include "Url.h"
 #include "UrlUtil.h"
@@ -416,8 +415,7 @@ static bool LookFor(const std::string &expected_tag, XMLParser * const xml_parse
 }
 
 
-static bool ParseMetadataFormat(XMLParser * const xml_parser,
-                                Client::MetadataFormatDescriptor * const metadata_format_descriptor,
+static bool ParseMetadataFormat(XMLParser * const xml_parser, Client::MetadataFormatDescriptor * const metadata_format_descriptor,
                                 std::string * const err_msg)
 {
     XMLParser::XMLPart xml_part;

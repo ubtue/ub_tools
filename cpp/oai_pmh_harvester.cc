@@ -92,9 +92,7 @@ bool StripOffTrailingGarbage(std::string * const extracted_records) {
 
 
 // Returns the number of extracted records.
-unsigned ExtractEncapsulatedRecordData(XMLParser * const xml_parser,
-                                       std::string * const extracted_records)
-{
+unsigned ExtractEncapsulatedRecordData(XMLParser * const xml_parser, std::string * const extracted_records) {
     unsigned record_count(0);
     while (xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, "record")) {
         ++record_count;
