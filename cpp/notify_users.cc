@@ -31,17 +31,18 @@ database = "vufind"
 #include <vector>
 #include <cstdlib>
 #include <cstdint>
-#include <DbConnection.h>
-#include <DbResultSet.h>
-#include <DbRow.h>
-#include <Downloader.h>
-#include <GzStream.h>
-#include <RegexMatcher.h>
-#include <IniFile.h>
-#include <StringUtil.h>
-#include <UrlUtil.h>
-#include <util.h>
-#include <XmlParser.h>
+#include "DbConnection.h"
+#include "DbResultSet.h"
+#include "DbRow.h"
+#include "Downloader.h"
+#include "GzStream.h"
+#include "IniFile.h"
+#include "RegexMatcher.h"
+#include "StringUtil.h"
+#include "UrlUtil.h"
+#include "XMLParser.h"
+#include "util.h"
+
 
 
 namespace {
@@ -201,48 +202,41 @@ std::string GenerateSolrQuery(const std::map<std::string, std::string> &params_t
 
 
 /** \brief Extracts ID's between <str name="id"> and </str> tags. */
-class IdExtractor: public XmlParser {
-    std::string first_error_;
+class IdExtractor {
     std::vector<std::string> extracted_ids_;
-    bool between_opening_and_closing_id_str_tags_;
     std::string current_id_;
 public:
-    explicit IdExtractor(const std::string &document)
-        : XmlParser(document.c_str(), document.size(), /* convert_to_iso8859_15 = */false,
-                    XmlParser::START_ELEMENT | XmlParser::END_ELEMENT | XmlParser::CHARACTERS
-                    | XmlParser::ERROR | XmlParser::FATAL_ERROR),
-          between_opening_and_closing_id_str_tags_(false) { }
-    virtual void notify(const Chunk &chunk);
-    const std::string &getFirstError() const { return first_error_; }
+    void parse(const std::string &xml_string);
     void getExtractedIds(std::vector<std::string> * const extracted_ids) {
         extracted_ids->swap(extracted_ids_);
     }
 };
 
 
-void IdExtractor::notify(const Chunk &chunk) {
-    if (not first_error_.empty())
-        return;
+void IdExtractor::parse(const std::string &xml_string) {
+    XMLParser xml_parser(xml_string, XMLParser::XML_STRING);
+    XMLParser::XMLPart xml_part;
 
-    if (chunk.type_ == XmlParser::START_ELEMENT) {
-        if (chunk.text_ != "str" or chunk.attribute_map_->find("name") == chunk.attribute_map_->end())
-            return;
-        if ((*chunk.attribute_map_)["name"] != "id")
-            return;
-        between_opening_and_closing_id_str_tags_ = true;
-    } else if (chunk.type_ == XmlParser::CHARACTERS) {
-        if (between_opening_and_closing_id_str_tags_)
-            current_id_ += chunk.text_;
-    } else if (chunk.type_ == XmlParser::END_ELEMENT) {
-        if (between_opening_and_closing_id_str_tags_) {
-            between_opening_and_closing_id_str_tags_ = false;
-            extracted_ids_.emplace_back(current_id_);
-            current_id_.clear();
+    bool between_opening_and_closing_id_str_tags(false);
+
+    while (xml_parser.getNext(&xml_part)) {
+        if (xml_part.type_ == XMLParser::XMLPart::OPENING_TAG) {
+            if (xml_part.data_ != "str" or xml_part.attributes_.find("name") == xml_part.attributes_.end())
+                continue;
+            if (xml_part.attributes_["name"] != "id")
+                continue;
+            between_opening_and_closing_id_str_tags = true;
+        } else if (xml_part.type_ == XMLParser::XMLPart::CHARACTERS) {
+            if (between_opening_and_closing_id_str_tags)
+                current_id_ += xml_part.data_;
+        } else if (xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG) {
+            if (between_opening_and_closing_id_str_tags) {
+                between_opening_and_closing_id_str_tags = false;
+                extracted_ids_.emplace_back(current_id_);
+                current_id_.clear();
+            }
         }
-    } else if (chunk.type_ == XmlParser::ERROR)
-        first_error_ = chunk.text_;
-    else if (chunk.type_ == XmlParser::FATAL_ERROR)
-        first_error_ = chunk.text_;
+    }
 }
 
 
@@ -338,9 +332,11 @@ bool ProcessUser(const std::string &user_id, const std::string &/*email_address*
             return false;
         }
 
-        IdExtractor id_extractor(xml_document);
-        if (not id_extractor.parse()) {
-            logger->warning("Failed to parse XML document! (" + id_extractor.getFirstError() + ")");
+        IdExtractor id_extractor;
+        try {
+            id_extractor.parse(xml_document);
+        } catch (std::runtime_error &exc) {
+            logger->warning("Failed to parse XML document! (" + std::string(exc.what()) + ")");
             return false;
         }
 
