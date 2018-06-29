@@ -29,7 +29,7 @@
 #include "Compiler.h"
 #include "File.h"
 #include "MarcXmlWriter.h"
-#include "SimpleXmlParser.h"
+#include "XMLParser.h"
 
 
 namespace MARC {
@@ -674,7 +674,7 @@ private:
 
 
 class XmlReader: public Reader {
-    SimpleXmlParser<File> *xml_parser_;
+    XMLParser *xml_parser_;
     std::string namespace_prefix_;
 public:
     /** \brief Initialise a XmlReader instance.
@@ -683,7 +683,7 @@ public:
      *                                      to seek to an offset on \"input\" before calling this constructor.
      */
     explicit XmlReader(File * const input, const bool skip_over_start_of_document = true)
-        : Reader(input), xml_parser_(new SimpleXmlParser<File>(input))
+        : Reader(input), xml_parser_(new XMLParser(input->getPath(), XMLParser::XML_FILE))
     {
         if (skip_over_start_of_document)
             skipOverStartOfDocument();
@@ -703,8 +703,7 @@ private:
                         const std::map<std::string, std::string> &datafield_attrib_map,
                         const std::string &tag, Record * const record);
     void skipOverStartOfDocument();
-    bool getNext(SimpleXmlParser<File>::Type * const type, std::map<std::string, std::string> * const attrib_map,
-                 std::string * const data);
+    bool getNext(XMLParser::XMLPart * const xml_part);
 };
 
 
