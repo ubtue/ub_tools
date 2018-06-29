@@ -99,6 +99,7 @@
 /merge_print_and_online
 /mpi_stats
 /new_journal_alert
+/normalise_and_deduplicate_language
 /normalise_marc_contents
 /normalise_urls
 /notify_users
