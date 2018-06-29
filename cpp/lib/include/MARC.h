@@ -247,6 +247,7 @@ public:
                          { return subfield.code_ == subfield_code; }), subfields_.end());
     }
 
+
     inline std::string toString() const {
         std::string as_string;
         for (const auto &subfield : subfields_)
