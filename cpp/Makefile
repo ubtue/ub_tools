@@ -78,6 +78,7 @@ data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.tem
 	cp data/publisher_normalistion.map /usr/local/var/lib/tuelib/
 	mkdir --parents /usr/local/var/lib/tuelib/crossref_downloader/
 	cp data/crossref_journal_list /usr/local/var/lib/tuelib/crossref_downloader
+	cp data/normalize_and_deduplicate_lang.conf /usr/local/var/lib/tuelib/normalize_and_deduplicate_lang.conf
 
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
