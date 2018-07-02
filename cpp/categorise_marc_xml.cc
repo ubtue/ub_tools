@@ -25,7 +25,7 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << ::progname << " marc_xml_input\n";
+    std::cerr << "usage: " << ::progname << " marc_input\n";
     std::exit(EXIT_FAILURE);
 }
 
