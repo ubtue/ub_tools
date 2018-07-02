@@ -29,10 +29,10 @@
 #pragma once
 
 
+#include <algorithm>
 #include <map>
 #include <stack>
 #include <string>
-#include <unordered_map>
 #include <vector>
 #include <cassert>
 
@@ -48,12 +48,21 @@
  */
 class IniFile {
 public:
+    struct Entry {
+        std::string name_, value_, comment_;
+    public:
+        Entry(const std::string &name, const std::string &value, const std::string &comment)
+            : name_(name), value_(value), comment_(comment) { }
+    };
+public:
     class Section {
+        friend class IniFile;
         std::string section_name_;
-        std::unordered_map<std::string, std::string> name_to_value_map_;
+        std::vector<Entry> entries_;
     public:
         enum DupeInsertionBehaviour { OVERWRITE_EXISTING_VALUE, ABORT_ON_DUPLICATE_NAME };
-        typedef std::unordered_map<std::string, std::string>::const_iterator const_iterator;
+        typedef std::vector<Entry>::const_iterator const_iterator;
+        typedef std::vector<Entry>::iterator iterator;
     public:
         explicit Section(const std::string &section_name): section_name_(section_name) { }
         Section() = default;
@@ -63,11 +72,16 @@ public:
 
         inline const std::string &getSectionName() const { return section_name_; }
 
-        inline const_iterator begin() const { return name_to_value_map_.begin(); }
-        inline const_iterator end() const { return name_to_value_map_.end(); }
+        inline const_iterator begin() const { return entries_.cbegin(); }
+        inline const_iterator end() const { return entries_.cend(); }
 
-        void insert(const std::string &variable_name, const std::string &value,
+        inline iterator begin() { return entries_.begin(); }
+        inline iterator end() { return entries_.end(); }
+
+        void insert(const std::string &variable_name, const std::string &value, const std::string &comment = "",
                     const DupeInsertionBehaviour dupe_insertion_behaviour = ABORT_ON_DUPLICATE_NAME);
+
+        void replace(const std::string &variable_name, const std::string &value, const std::string &comment = "");
 
         bool lookup(const std::string &variable_name, std::string * const s) const;
 
@@ -223,8 +237,17 @@ public:
          */
         std::vector<std::string> getEntryNamesThatStartWith(const std::string &starting_with) const;
 
-        inline bool variableIsDefined(const std::string &variable_name) const
-            { return name_to_value_map_.find(variable_name) != name_to_value_map_.end(); }
+        // \return An iterator referencing the found entry or end() if no matching enmtry was found.
+        inline const_iterator find(const std::string &variable_name) const {
+            return std::find_if(entries_.cbegin(), entries_.cend(), [&variable_name](const Entry &entry)
+                             { return entry.name_ == variable_name; });
+        }
+
+        // \return An iterator referencing the found entry or end() if no matching enmtry was found.
+        inline iterator find(const std::string &variable_name) {
+            return std::find_if(entries_.begin(), entries_.end(), [&variable_name](const Entry &entry)
+                             { return entry.name_ == variable_name; });
+        }
     };
 public:
     typedef std::vector<Section> Sections;
