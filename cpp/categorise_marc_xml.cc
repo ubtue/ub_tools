@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
+    const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
     try {
         Categorise(marc_reader.get());
     } catch (const std::exception &x) {
