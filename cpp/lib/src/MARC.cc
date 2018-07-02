@@ -707,7 +707,8 @@ Record BinaryReader::read() {
     } while (new_record.getControlNumber() == last_record_.getControlNumber());
 
     new_record.swap(last_record_);
-    // new_record.sortFields(new_record.begin(), new_record.end());
+    new_record.sortFieldTags(new_record.begin(), new_record.end());
+
     return new_record;
 }
 
@@ -750,7 +751,7 @@ Record XmlReader::read() {
         /* Intentionally empty! */;
 
     if (unlikely(type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "collection")) {
-        // new_record.sortFields(new_record.begin(), new_record.end());
+        new_record.sortFieldTags(new_record.begin(), new_record.end());
         return new_record;
     }
 
@@ -788,7 +789,7 @@ Record XmlReader::read() {
                 throw std::runtime_error("in MARC::MarcUtil::Record::XmlFactory: closing </record> tag expected "
                                          "while parsing \"" + input_->getPath() + "\" on line "
                                          + std::to_string(xml_parser_->getLineNo()) + "!");
-            // new_record.sortFields(new_record.begin(), new_record.end());
+            new_record.sortFieldTags(new_record.begin(), new_record.end());
             return new_record;
         }
 
