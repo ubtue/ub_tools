@@ -522,7 +522,7 @@ public:
 
     // Alphanumerically sorts the fields in the range [begin_field, end_field).
     inline void sortFields(const iterator &begin_field, const iterator &end_field) { std::stable_sort(begin_field, end_field); }
-    void sortFieldTags(const iterator &begin_field, const iterator &end_field)  {
+    inline void sortFieldTags(const iterator &begin_field, const iterator &end_field)  {
         std::stable_sort(begin_field, end_field, [](const Field &lhs, const Field &rhs){ return lhs.tag_ < rhs.tag_; });
     }
 
