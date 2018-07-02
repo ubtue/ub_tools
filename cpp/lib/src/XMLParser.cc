@@ -177,12 +177,11 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
 
 
 bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags,
-                       XMLPart * const part)
-{
+                       XMLPart * const part) {
     if (unlikely(expected_type != XMLPart::OPENING_TAG and expected_type != XMLPart::CLOSING_TAG))
         LOG_ERROR("Bad expected type: " + XMLPart::TypeToString(expected_type));
 
-    if (unlikely(expected_tags.empty())
+    if (unlikely(expected_tags.empty()))
         LOG_ERROR("Need at least one expected tag!");
 
     XMLPart result;
