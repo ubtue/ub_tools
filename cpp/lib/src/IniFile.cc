@@ -270,7 +270,7 @@ int IniFile::Section::getEnum(const std::string &variable_name,
 
 
 void IniFile::Section::write(File * const output) const {
-    if (unlikely(not output->write("[" + section_name_ + "]\n")))
+    if (unlikely(not section_name_.empty() and not output->write("[" + section_name_ + "]\n")))
         LOG_ERROR("failed to write section header to \"" + output->getPath() + "\"!");
 
     for (const auto &entry : entries_) {
