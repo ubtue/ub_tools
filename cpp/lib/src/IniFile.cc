@@ -52,7 +52,7 @@ void IniFile::Section::insert(const std::string &variable_name, const std::strin
 
     const bool variable_is_defined(find(variable_name) != end());
     if (dupe_insertion_behaviour == ABORT_ON_DUPLICATE_NAME and unlikely(variable_is_defined))
-        LOG_ERROR("attemting to insert a duplicate variable name: \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+        LOG_ERROR("attempting to insert a duplicate variable name: \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     replace(variable_name, value, comment);
 }
