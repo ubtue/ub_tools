@@ -41,6 +41,26 @@ class File;
 namespace Zotero {
 
 
+const std::map<HarvesterType, std::string> HARVESTER_TYPE_TO_STRING_MAP{
+    { HarvesterType::RSS, "RSS" },
+    { HarvesterType::CRAWL, "CRAWL" },
+    { HarvesterType::DIRECT, "DIRECT" }
+};
+const std::map<HarvesterConfigEntry, std::string> HARVESTER_CONFIG_ENTRY_TO_STRING_MAP{
+    { HarvesterConfigEntry::TYPE, "type" },
+    { HarvesterConfigEntry::GROUP, "group" },
+    { HarvesterConfigEntry::PARENT_PPN, "parent_ppn" },
+    { HarvesterConfigEntry::PARENT_ISSN_PRINT, "parent_issn_print" },
+    { HarvesterConfigEntry::PARENT_ISSN_ONLINE, "parent_issn_online" },
+    { HarvesterConfigEntry::STRPTIME_FORMAT, "strptime_format" },
+    { HarvesterConfigEntry::FEED, "feed" },
+    { HarvesterConfigEntry::URL, "url" },
+    { HarvesterConfigEntry::BASE_URL, "base_url" },
+    { HarvesterConfigEntry::EXTRACTION_REGEX, "extraction_regex" },
+    { HarvesterConfigEntry::MAX_CRAWL_DEPTH, "max_crawl_depth" }
+};
+
+
 const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
 const std::string ISSN_TO_PPN_MAP_PATH("/usr/local/var/lib/tuelib/issn_to_ppn.map");
 
