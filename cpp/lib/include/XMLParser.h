@@ -137,6 +137,6 @@ public:
      */
     inline bool skipTo(const XMLPart::Type expected_type, const std::string &expected_tag,
                 XMLPart * const part = nullptr)
-        { return skipTo(expected_type, { expected_tag }, part); }
+        { return skipTo(expected_type, std::set<std::string>{ expected_tag }, part); }
 
 };
