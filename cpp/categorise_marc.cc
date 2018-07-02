@@ -1,8 +1,8 @@
-/** \file categorise_marc_xml.cc
- *  \brief Determines the type of MARC-XML records.
+/** \file categorise_marc.cc
+ *  \brief Determines the type of MARC records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -25,7 +25,7 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << ::progname << " marc_xml_input\n";
+    std::cerr << "usage: " << ::progname << " marc_input\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
+    const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
     try {
         Categorise(marc_reader.get());
     } catch (const std::exception &x) {
