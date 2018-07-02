@@ -658,10 +658,12 @@ public:
 
 
 class BinaryReader: public Reader {
+    friend class Reader;
     Record last_record_;
     off_t next_record_start_;
-public:
+private:
     explicit BinaryReader(File * const input): Reader(input), last_record_(actualRead()), next_record_start_(0) { }
+public:
     virtual ~BinaryReader() = default;
 
     virtual FileType getReaderType() override final { return FileType::BINARY; }
@@ -678,9 +680,10 @@ private:
 
 
 class XmlReader: public Reader {
+    friend class Reader;
     SimpleXmlParser<File> *xml_parser_;
     std::string namespace_prefix_;
-public:
+private:
     /** \brief Initialise a XmlReader instance.
      *  \param input                        Where to read from.
      *  \param skip_over_start_of_document  Skips to the first marc:record tag.  Do not set this if you intend
@@ -692,6 +695,7 @@ public:
         if (skip_over_start_of_document)
             skipOverStartOfDocument();
     }
+public:
     virtual ~XmlReader() { delete xml_parser_; }
 
     virtual FileType getReaderType() override final { return FileType::XML; }
@@ -735,9 +739,11 @@ public:
 
 
 class BinaryWriter: public Writer {
+    friend class Writer;
     File * const output_;
-public:
+private:
     BinaryWriter(File * const output): output_(output) { }
+public:
     virtual ~BinaryWriter() { delete output_; }
 
     virtual void write(const Record &record) override final;
@@ -753,10 +759,12 @@ public:
 
 
 class XmlWriter: public Writer {
+    friend class Writer;
     MarcXmlWriter *xml_writer_;
-public:
+private:
     explicit XmlWriter(File * const output_file, const unsigned indent_amount = 0,
                        const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion);
+public:
     virtual ~XmlWriter() final { delete xml_writer_; }
 
     virtual void write(const Record &record) override final;
