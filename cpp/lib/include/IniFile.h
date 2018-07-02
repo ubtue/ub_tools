@@ -527,7 +527,7 @@ private:
 
     void processSectionHeader(const std::string &line);
     void processInclude(const std::string &line);
-    void processSectionEntry(const std::string &line);
+    void processSectionEntry(const std::string &line, const std::string &comment);
     void processFile(const std::string &filename);
 };
 
