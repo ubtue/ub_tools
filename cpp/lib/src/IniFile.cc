@@ -46,6 +46,10 @@
 void IniFile::Section::insert(const std::string &variable_name, const std::string &value, const std::string &comment,
                               const DupeInsertionBehaviour dupe_insertion_behaviour)
 {
+    // Handle comment-only lines first:
+    if (variable_name.empty() and value.empty())
+        entries_.emplace_back("", "", comment);
+
     const bool variable_is_defined(find(variable_name) != end());
     if (dupe_insertion_behaviour == ABORT_ON_DUPLICATE_NAME and unlikely(variable_is_defined))
         LOG_ERROR("attemting to insert a duplicate variable name: \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
@@ -72,7 +76,7 @@ bool IniFile::Section::lookup(const std::string &variable_name, std::string * co
         s->clear();
         return false;
     }
-    
+
     *s = existing_entry->value_;
     return true;
 }
@@ -283,27 +287,6 @@ void IniFile::Section::write(File * const output) const {
 }
 
 
-namespace {
-
-
-std::string StripComment(std::string * const s) {
-    size_t hash_mark_pos(0);
-    while ((hash_mark_pos = s->find('#', hash_mark_pos)) != std::string::npos) {
-        if (hash_mark_pos == 0)
-            return (*s = "");
-        else if ((*s)[hash_mark_pos - 1] == '\\')
-            hash_mark_pos = s->find('#', hash_mark_pos + 1);
-        else
-            return (*s = s->substr(0, hash_mark_pos));
-    }
-
-    return *s;
-}
-
-
-} // unnamed namespace
-
-
 IniFile::IniFile()
     : ini_file_name_(FileUtil::MakeAbsolutePath(DefaultIniFileName())), ignore_failed_includes_(false)
 {
@@ -404,7 +387,7 @@ bool IsValidVariableName(const std::string &possible_variable_name) {
 } // unnamed namespace
 
 
-void IniFile::processSectionEntry(const std::string &line) {
+void IniFile::processSectionEntry(const std::string &line, const std::string &comment) {
     const size_t equal_sign = line.find('=');
     if (equal_sign == std::string::npos) { // Not a normal "variable = value" type line.
         std::string trimmed_line(line);
@@ -447,8 +430,31 @@ void IniFile::processSectionEntry(const std::string &line) {
             TextUtil::CStyleUnescape(&value);
         }
 
-        sections_.back().insert(variable_name, value);
+        sections_.back().insert(variable_name, value, comment);
     }
+}
+
+
+static std::string StripComment(std::string * const line, std::string * const comment) {
+    comment->clear();
+
+    size_t comment_start_pos(0);
+    while ((comment_start_pos = line->find('#', comment_start_pos)) != std::string::npos) {
+        if (comment_start_pos == 0) {
+            line->swap(*comment);
+            return *line;
+        } else if ((*line)[comment_start_pos - 1] == '\\')
+            comment_start_pos = line->find('#', comment_start_pos + 1);
+        else {
+            while (comment_start_pos > 0 and (*line)[comment_start_pos - 1] == ' ')
+                --comment_start_pos;
+            *comment = line->substr(comment_start_pos);
+            line->resize(comment_start_pos);
+            return *line;
+        }
+    }
+
+    return *line;
 }
 
 
@@ -494,8 +500,15 @@ void IniFile::processFile(const std::string &external_filename) {
                 line = line.substr(0, line.length() - 1);
         } while (continued_line);
 
-        StripComment(&line);
+        std::string comment;
+        StripComment(&line, &comment);
         StringUtil::Trim(" \t", &line);
+        if (line.empty()) {
+            if (sections_.empty())
+                sections_.emplace_back(Section(""));
+            sections_.back().insert("", "", comment);
+            continue;
+        }
 
         // skip blank lines:
         if (line.length() == 0)
@@ -508,7 +521,7 @@ void IniFile::processFile(const std::string &external_filename) {
         else {// should be a new setting!
             if (sections_.empty())
                 sections_.emplace_back(Section(""));
-            processSectionEntry(line);
+            processSectionEntry(line, comment);
         }
     }
 
@@ -788,4 +801,3 @@ void IniFile::write(const std::string &path) const {
     for (const auto &section : sections_)
         section.write(output.get());
 }
-
