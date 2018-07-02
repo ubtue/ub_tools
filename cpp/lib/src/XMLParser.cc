@@ -179,39 +179,20 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
 bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags,
                        XMLPart * const part)
 {
+    if (unlikely(expected_type != XMLPart::OPENING_TAG and expected_type != XMLPart::CLOSING_TAG))
+        LOG_ERROR("Bad expected type: " + XMLPart::TypeToString(expected_type));
+
+    if (unlikely(expected_tags.empty())
+        LOG_ERROR("Need at least one expected tag!");
+
     XMLPart result;
-    bool return_value(false);
     while (getNext(&result)) {
-        if (result.type_ == expected_type) {
-            if (expected_type == XMLPart::OPENING_TAG or expected_type == XMLPart::CLOSING_TAG) {
-                if (expected_tags.empty()) {
-                    return_value = true;
-                    break;
-                } else if (expected_tags.find(result.data_) != expected_tags.end()) {
-                    return_value = true;
-                    break;
-                }
-            } else {
-                return_value = true;
-                break;
-            }
+        if (result.type_ == expected_type and expected_tags.find(result.data_) != expected_tags.end()) {
+            if (part != nullptr)
+                *part = result;
+            return true;
         }
     }
 
-    if (part != nullptr) {
-        part->type_ = result.type_;
-        part->data_ = result.data_;
-        part->attributes_ = result.attributes_;
-    }
-
-    return return_value;
-}
-
-
-bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::string &expected_tag, XMLPart * const part)
-{
-    std::set<std::string> expected_tags;
-    if (not expected_tag.empty())
-        expected_tags.emplace(expected_tag);
-    return skipTo(expected_type, expected_tags, part);
+    return false;
 }

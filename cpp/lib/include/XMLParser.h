@@ -135,6 +135,8 @@ public:
      *  \param part           The found XMLPart will be returned here.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
-    bool skipTo(const XMLPart::Type expected_type, const std::string &expected_tag = "",
-                XMLPart * const part = nullptr);
+    inline bool skipTo(const XMLPart::Type expected_type, const std::string &expected_tag,
+                XMLPart * const part = nullptr)
+        { return skipTo(expected_type, { expected_tag }, part); }
+
 };
