@@ -38,7 +38,7 @@ namespace {
               << "       --insert-entry=section_name:entry_name:value\n"
               << "       --append-section=section_name\n"
               << "       --replace-value=section_name:entry_name:value\n"
-              << "       To include colons in values, you can backslash -escape them.\n"
+              << "       To include colons in values, you can backslash-escape them.\n"
               << "\n\n";
     std::exit(EXIT_FAILURE);
 }
