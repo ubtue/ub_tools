@@ -823,19 +823,18 @@ std::vector<std::string> IniFile::getSectionEntryValuesHavingNamesStartingWith(c
 }
 
 
-const IniFile::Section &IniFile::getSection(const std::string &section_name) const {
-    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
-    if (section != sections_.cend())
-        return *section;
-    else {
-        static Section empty_section("");
-        return empty_section;
-    }
+bool IniFile::sectionIsDefined(const std::string &section_name) const {
+    return std::find(sections_.cbegin(), sections_.cend(), section_name) != sections_.cend();
 }
 
 
-bool IniFile::sectionIsDefined(const std::string &section_name) const {
-    return std::find(sections_.cbegin(), sections_.cend(), section_name) != sections_.end();
+bool IniFile::appendSection(const std::string &section_name) {
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section != sections_.cend())
+        return false;
+
+    sections_.emplace_back(section_name);
+    return true;
 }
 
 

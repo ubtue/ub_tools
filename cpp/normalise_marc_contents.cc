@@ -56,9 +56,11 @@ std::string NormaliseSubfieldContents(std::string subfield_contents) {
 void LoadTagAndSubfieldCodesGroupsFromGlobalSection(const IniFile &ini_file,
                                                     std::map<std::string, std::vector<std::string>> * const subfields_name_to_subfields_map)
 {
-    const IniFile::Section &global_section(ini_file.getSection(""));
+    const auto global_section(ini_file.getSection(""));
+    if (global_section == ini_file.end())
+        LOG_ERROR("missing gobal section!");
 
-    for (const auto &entry : global_section) {
+    for (const auto &entry : *global_section) {
         if (unlikely(subfields_name_to_subfields_map->find(entry.name_) != subfields_name_to_subfields_map->cend()))
             LOG_ERROR("duplicate subfields name \"" + entry.name_ + "\"!");
         if (unlikely(entry.value_.empty()))
