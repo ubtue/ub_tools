@@ -31,7 +31,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " input output [edit1 edit2 ... editN]\n"
+    std::cerr << "Usage: " << ::progname << " input output edit1 [edit2 ... editN]\n"
               << "       Where possible edit instructions are\n"
               << "       --delete-section=section_name\n"
               << "       --delete-entry=section_name:entry_name\n"
@@ -141,7 +141,7 @@ void PerformEdit(IniFile * const ini_file, const std::string &edit_instruction) 
 int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc < 3)
+    if (argc < 4)
         Usage();
 
     IniFile ini_file(argv[1]);
