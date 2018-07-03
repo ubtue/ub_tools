@@ -58,20 +58,20 @@ void LoadTagAndSubfieldCodesGroupsFromGlobalSection(const IniFile &ini_file,
 {
     const IniFile::Section &global_section(ini_file.getSection(""));
 
-    for (const auto &entry_and_value : global_section) {
-        if (unlikely(subfields_name_to_subfields_map->find(entry_and_value.first) != subfields_name_to_subfields_map->cend()))
-            LOG_ERROR("duplicate subfields name \"" + entry_and_value.first + "\"!");
-        if (unlikely(entry_and_value.second.empty()))
-            LOG_ERROR("missing subfields spec for \"" + entry_and_value.first + "\"!");
+    for (const auto &entry : global_section) {
+        if (unlikely(subfields_name_to_subfields_map->find(entry.name_) != subfields_name_to_subfields_map->cend()))
+            LOG_ERROR("duplicate subfields name \"" + entry.name_ + "\"!");
+        if (unlikely(entry.value_.empty()))
+            LOG_ERROR("missing subfields spec for \"" + entry.name_ + "\"!");
 
         std::vector<std::string> tags_and_subfield_codes;
-        StringUtil::Split(entry_and_value.second, ':', &tags_and_subfield_codes);
+        StringUtil::Split(entry.value_, ':', &tags_and_subfield_codes);
         for (const auto &tag_and_subfield_code : tags_and_subfield_codes) {
             if (unlikely(tag_and_subfield_code.length() != MARC::Record::TAG_LENGTH + 1))
-                LOG_ERROR("bad subfields spec for \"" + entry_and_value.first + "\"!");
+                LOG_ERROR("bad subfields spec for \"" + entry.name_ + "\"!");
         }
 
-        (*subfields_name_to_subfields_map)[entry_and_value.first] = tags_and_subfield_codes;
+        (*subfields_name_to_subfields_map)[entry.name_] = tags_and_subfield_codes;
     }
 }
 
@@ -125,16 +125,16 @@ void LoadConfigFile(std::vector<std::pair<std::string, VariantsToCanonicalNameMa
         const std::string canonical_name(section.getSectionName());
         const std::vector<std::string> *subfield_specs(nullptr);
         std::unordered_set<std::string> variants;
-        for (const auto &entry_and_value : section) {
-            if (entry_and_value.first == "subfields") {
-                const auto subfields_name_and_specs(subfields_name_to_subfields_map.find(entry_and_value.second));
+        for (const auto &entry : section) {
+            if (entry.name_ == "subfields") {
+                const auto subfields_name_and_specs(subfields_name_to_subfields_map.find(entry.value_));
                 if (unlikely(subfields_name_and_specs == subfields_name_to_subfields_map.cend()))
-                    LOG_ERROR("unknown \"subfields\": \"" + entry_and_value.second + "\"!");
+                    LOG_ERROR("unknown \"subfields\": \"" + entry.value_ + "\"!");
                 subfield_specs = &(subfields_name_and_specs->second);
             } else {
-                if (unlikely(not StringUtil::StartsWith(entry_and_value.first, "variant")))
-                    LOG_ERROR("unknown entry \"" + entry_and_value.first + "\" entry in section \"" + section.getSectionName() + "\"!");
-                variants.emplace(NormaliseSubfieldContents(entry_and_value.second));
+                if (unlikely(not StringUtil::StartsWith(entry.name_, "variant")))
+                    LOG_ERROR("unknown entry \"" + entry.name_ + "\" entry in section \"" + section.getSectionName() + "\"!");
+                variants.emplace(NormaliseSubfieldContents(entry.value_));
             }
         }
 

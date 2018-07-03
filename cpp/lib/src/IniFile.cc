@@ -35,6 +35,7 @@
 #include <unistd.h>
 #include <fstream>
 #include <stdexcept>
+#include <unordered_map>
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
@@ -42,36 +43,52 @@
 #include "util.h"
 
 
-void IniFile::Section::insert(const std::string &variable_name, const std::string &value,
+void IniFile::Section::insert(const std::string &variable_name, const std::string &value, const std::string &comment,
                               const DupeInsertionBehaviour dupe_insertion_behaviour)
 {
-    if (dupe_insertion_behaviour == ABORT_ON_DUPLICATE_NAME
-        and unlikely(name_to_value_map_.find(variable_name) != name_to_value_map_.end()))
-        LOG_ERROR("attemting to insert a duplicate variable name: \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+    // Handle comment-only lines first:
+    if (variable_name.empty() and value.empty())
+        entries_.emplace_back("", "", comment);
 
-    name_to_value_map_[variable_name] = value;
+    const bool variable_is_defined(find(variable_name) != end());
+    if (dupe_insertion_behaviour == ABORT_ON_DUPLICATE_NAME and unlikely(variable_is_defined))
+        LOG_ERROR("attempting to insert a duplicate variable name: \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
+
+    replace(variable_name, value, comment);
+}
+
+
+void IniFile::Section::replace(const std::string &variable_name, const std::string &value, const std::string &comment) {
+    const auto existing_entry(find(variable_name));
+    if (existing_entry == entries_.end())
+        entries_.emplace_back(variable_name, value, comment);
+    else {
+        existing_entry->name_    = variable_name;
+        existing_entry->value_   = value;
+        existing_entry->comment_ = comment;
+    }
 }
 
 
 bool IniFile::Section::lookup(const std::string &variable_name, std::string * const s) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value != name_to_value_map_.end()) {
-        *s = name_and_value->second;
-        return true;
+    const auto existing_entry(find(variable_name));
+    if (existing_entry == entries_.end()) {
+        s->clear();
+        return false;
     }
 
-    s->clear();
-    return false;
+    *s = existing_entry->value_;
+    return true;
 }
 
 
 long IniFile::Section::getInteger(const std::string &variable_name) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     long number;
-    if (not StringUtil::ToNumber(name_and_value->second, &number))
+    if (not StringUtil::ToNumber(existing_entry->value_, &number))
         LOG_ERROR("invalid long entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
@@ -79,12 +96,12 @@ long IniFile::Section::getInteger(const std::string &variable_name) const {
 
 
 double IniFile::Section::getDouble(const std::string &variable_name) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     double number;
-    if (not StringUtil::ToDouble(name_and_value->second, &number))
+    if (not StringUtil::ToDouble(existing_entry->value_, &number))
         LOG_ERROR("invalid double entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
@@ -92,12 +109,12 @@ double IniFile::Section::getDouble(const std::string &variable_name) const {
 
 
 double IniFile::Section::getDouble(const std::string &variable_name, const double &default_value) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         return default_value;
 
     double number;
-    if (not StringUtil::ToDouble(name_and_value->second, &number))
+    if (not StringUtil::ToDouble(existing_entry->value_, &number))
         LOG_ERROR("invalid double entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
@@ -105,56 +122,56 @@ double IniFile::Section::getDouble(const std::string &variable_name, const doubl
 
 
 std::string IniFile::Section::getString(const std::string &variable_name) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
-    return name_and_value->second;
+    return existing_entry->value_;
 }
 
 
 std::string IniFile::Section::getString(const std::string &variable_name, const std::string &default_value) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         return default_value;
 
-    return name_and_value->second;
+    return existing_entry->value_;
 }
 
 
 char IniFile::Section::getChar(const std::string &variable_name) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
-    if (name_and_value->second.length() != 1)
+    if (existing_entry->value_.length() != 1)
         throw std::runtime_error("invalid character variable value \"" + variable_name + "\" in section \""
                                  + section_name_ + "\" (must be exactly one character in length)!");
 
-    return name_and_value->second[0];
+    return existing_entry->value_[0];
 }
 
 
 char IniFile::Section::getChar(const std::string &variable_name, const char default_value) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         return default_value;
 
-    if (name_and_value->second.length() != 1)
+    if (existing_entry->value_.length() != 1)
         throw std::runtime_error("invalid character variable value \"" + variable_name + "\" in section \""
                                  + section_name_ + "\" (must be exactly one character in length)!");
 
-    return name_and_value->second[0];
+    return existing_entry->value_[0];
 }
 
 
 unsigned IniFile::Section::getUnsigned(const std::string &variable_name) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     unsigned number;
-    if (not StringUtil::ToUnsigned(name_and_value->second, &number))
+    if (not StringUtil::ToUnsigned(existing_entry->value_, &number))
         LOG_ERROR("invalid unsigned entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
@@ -162,12 +179,12 @@ unsigned IniFile::Section::getUnsigned(const std::string &variable_name) const {
 
 
 unsigned IniFile::Section::getUnsigned(const std::string &variable_name, const unsigned &default_value) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         return default_value;
 
     unsigned number;
-    if (not StringUtil::ToUnsigned(name_and_value->second, &number))
+    if (not StringUtil::ToUnsigned(existing_entry->value_, &number))
         LOG_ERROR("invalid unsigned entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
@@ -175,12 +192,12 @@ unsigned IniFile::Section::getUnsigned(const std::string &variable_name, const u
 
 
 uint64_t IniFile::Section::getUint64T(const std::string &variable_name) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     uint64_t number;
-    if (not StringUtil::ToUInt64T(name_and_value->second, &number))
+    if (not StringUtil::ToUInt64T(existing_entry->value_, &number))
         LOG_ERROR("invalid uint64_t entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
@@ -188,12 +205,12 @@ uint64_t IniFile::Section::getUint64T(const std::string &variable_name) const {
 
 
 uint64_t IniFile::Section::getUint64T(const std::string &variable_name, const uint64_t &default_value) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         return default_value;
 
     uint64_t number;
-    if (not StringUtil::ToUInt64T(name_and_value->second, &number))
+    if (not StringUtil::ToUInt64T(existing_entry->value_, &number))
         LOG_ERROR("invalid uint64_t entry \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     return number;
@@ -201,39 +218,39 @@ uint64_t IniFile::Section::getUint64T(const std::string &variable_name, const ui
 
 
 bool IniFile::Section::getBool(const std::string &variable_name) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     bool retval;
-    if (not StringUtil::ToBool(name_and_value->second, &retval))
+    if (not StringUtil::ToBool(existing_entry->value_, &retval))
         LOG_ERROR("invalid boolean value in section \"" + section_name_ + "\", entry \"" + variable_name + "\" (bad value is \""
-              + name_and_value->second + "\")!");
+                  + existing_entry->value_ + "\")!");
 
     return retval;
 }
 
 
 bool IniFile::Section::getBool(const std::string &variable_name, const bool default_value) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         return default_value;
 
     bool retval;
-    if (not StringUtil::ToBool(name_and_value->second, &retval))
+    if (not StringUtil::ToBool(existing_entry->value_, &retval))
         LOG_ERROR("invalid boolean value in section \"" + section_name_ + "\", entry \"" + variable_name + "\" (bad value is \""
-              + name_and_value->second + "\")!");
+                  + existing_entry->value_ + "\")!");
 
     return retval;
 }
 
 
 int IniFile::Section::getEnum(const std::string &variable_name, const std::map<std::string, int> &string_to_value_map) const {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
-    const auto name_and_int_value(string_to_value_map.find(name_and_value->second));
+    const auto name_and_int_value(string_to_value_map.find(existing_entry->value_));
     if (name_and_int_value == string_to_value_map.end())
         LOG_ERROR("in section \"" + section_name_ + "\": invalid enum value for entry \"" + variable_name + "\"!");
 
@@ -244,11 +261,11 @@ int IniFile::Section::getEnum(const std::string &variable_name, const std::map<s
 int IniFile::Section::getEnum(const std::string &variable_name,
                               const std::map<std::string, int> &string_to_value_map, const int default_value) const
 {
-    const auto name_and_value(name_to_value_map_.find(variable_name));
-    if (name_and_value == name_to_value_map_.end())
+    const auto existing_entry(find(variable_name));
+    if (unlikely(existing_entry == end()))
         return default_value;
 
-    const auto name_and_int_value(string_to_value_map.find(name_and_value->second));
+    const auto name_and_int_value(string_to_value_map.find(existing_entry->value_));
     if (name_and_int_value == string_to_value_map.end())
         LOG_ERROR("in section \"" + section_name_ + "\": invalid enum value for entry \"" + variable_name + "\"!");
 
@@ -256,25 +273,18 @@ int IniFile::Section::getEnum(const std::string &variable_name,
 }
 
 
-namespace {
+void IniFile::Section::write(File * const output) const {
+    if (unlikely(not section_name_.empty() and not output->write("[" + section_name_ + "]\n")))
+        LOG_ERROR("failed to write section header to \"" + output->getPath() + "\"!");
 
-
-std::string StripComment(std::string * const s) {
-    size_t hash_mark_pos(0);
-    while ((hash_mark_pos = s->find('#', hash_mark_pos)) != std::string::npos) {
-        if (hash_mark_pos == 0)
-            return (*s = "");
-        else if ((*s)[hash_mark_pos - 1] == '\\')
-            hash_mark_pos = s->find('#', hash_mark_pos + 1);
-        else
-            return (*s = s->substr(0, hash_mark_pos));
+    for (const auto &entry : entries_) {
+        if (entry.name_.empty()) {
+            if (unlikely(not output->write(entry.comment_ + "\n")))
+                LOG_ERROR("failed to write a comment to \"" + output->getPath() + "\"!");
+        } else if (unlikely(not output->write(entry.name_ + " = " + entry.value_ + entry.comment_ + "\n")))
+            LOG_ERROR("failed to write a name/value pair to \"" + output->getPath() + "\"!");
     }
-
-    return *s;
 }
-
-
-} // unnamed namespace
 
 
 IniFile::IniFile()
@@ -377,7 +387,7 @@ bool IsValidVariableName(const std::string &possible_variable_name) {
 } // unnamed namespace
 
 
-void IniFile::processSectionEntry(const std::string &line) {
+void IniFile::processSectionEntry(const std::string &line, const std::string &comment) {
     const size_t equal_sign = line.find('=');
     if (equal_sign == std::string::npos) { // Not a normal "variable = value" type line.
         std::string trimmed_line(line);
@@ -420,8 +430,31 @@ void IniFile::processSectionEntry(const std::string &line) {
             TextUtil::CStyleUnescape(&value);
         }
 
-        sections_.back().insert(variable_name, value);
+        sections_.back().insert(variable_name, value, comment);
     }
+}
+
+
+static std::string StripComment(std::string * const line, std::string * const comment) {
+    comment->clear();
+
+    size_t comment_start_pos(0);
+    while ((comment_start_pos = line->find('#', comment_start_pos)) != std::string::npos) {
+        if (comment_start_pos == 0) {
+            line->swap(*comment);
+            return *line;
+        } else if ((*line)[comment_start_pos - 1] == '\\')
+            comment_start_pos = line->find('#', comment_start_pos + 1);
+        else {
+            while (comment_start_pos > 0 and (*line)[comment_start_pos - 1] == ' ')
+                --comment_start_pos;
+            *comment = line->substr(comment_start_pos);
+            line->resize(comment_start_pos);
+            return *line;
+        }
+    }
+
+    return *line;
 }
 
 
@@ -467,8 +500,15 @@ void IniFile::processFile(const std::string &external_filename) {
                 line = line.substr(0, line.length() - 1);
         } while (continued_line);
 
-        StripComment(&line);
+        std::string comment;
+        StripComment(&line, &comment);
         StringUtil::Trim(" \t", &line);
+        if (line.empty()) {
+            if (sections_.empty())
+                sections_.emplace_back(Section(""));
+            sections_.back().insert("", "", comment);
+            continue;
+        }
 
         // skip blank lines:
         if (line.length() == 0)
@@ -481,7 +521,7 @@ void IniFile::processFile(const std::string &external_filename) {
         else {// should be a new setting!
             if (sections_.empty())
                 sections_.emplace_back(Section(""));
-            processSectionEntry(line);
+            processSectionEntry(line, comment);
         }
     }
 
@@ -500,37 +540,24 @@ void IniFile::assign(const IniFile &rhs, const bool clear) {
         ini_file_name_ = rhs.ini_file_name_;
     } else {
         for (auto &rhs_section : rhs.sections_) {
-            const auto section_name_and_contents(std::find(sections_.begin(), sections_.end(), rhs_section.getSectionName()));
-            if (section_name_and_contents == sections_.end())
+            const auto lhs_section(std::find(sections_.begin(), sections_.end(), rhs_section.getSectionName()));
+            if (lhs_section == sections_.end())
                 sections_.emplace_back(rhs_section);
-            else { // The section already exists, therefore we have to be careful and override individual
-                // entries selectively!
+            else { // The section already exists, therefore we have to be careful and override individual entries selectively!
 
-                // 1. Remember the section name so that we can later recreate it:
-                const std::string &section_name(rhs_section.getSectionName());
+                // Create a map from names to values for the current entries of the section...
+                std::unordered_map<std::string, Entry *> lhs_names_and_entries;
+                for (auto entry(lhs_section->begin()); entry != lhs_section->end(); ++entry)
+                    lhs_names_and_entries.emplace(entry->name_, &*entry);
 
-                // 2. Create a map from names to values for the current entries of the section:
-                std::unordered_map<std::string, std::string> section_entries;
-                for (auto &name_and_value : *section_name_and_contents)
-                    section_entries.insert(name_and_value);
-
-                // 3. Remove the section from the map of sections to entries:
-                sections_.erase(section_name_and_contents);
-
-                // 4. Override and add in name/value rhs_sections from the rhs section:
-                for (auto &rhs_name_and_value : rhs_section) {
-                    // If the entry already exists, first erase it before inserting the new value:
-                    const auto old_entry(section_entries.find(rhs_name_and_value.first));
-                    if (old_entry != section_entries.end())
-                        section_entries.erase(old_entry);
-                    section_entries.insert(rhs_name_and_value);
+                // ... and override and add in name/value rhs_sections from the rhs section:
+                for (auto &rhs_entry : rhs_section) {
+                    const auto lhs_name_and_entry(lhs_names_and_entries.find(rhs_entry.name_));
+                    if (lhs_name_and_entry == lhs_names_and_entries.end())
+                        lhs_section->entries_.emplace_back(rhs_entry);
+                    else // Overwrite the existing entry.
+                        *lhs_name_and_entry->second = rhs_entry;
                 }
-
-                // 5. Restore the section, now with the overridden and new entries:
-                Section new_section(section_name);
-                for (auto &entry : section_entries)
-                    new_section.insert(entry.first, entry.second);
-                sections_.emplace_back(new_section);
             }
         }
 
@@ -544,7 +571,12 @@ bool IniFile::lookup(const std::string &section_name, const std::string &variabl
     if (section == sections_.cend())
         return false;
 
-    return section->lookup(variable_name, s);
+    const auto entry(section->find(variable_name));
+    if (entry == section->end())
+        return false;
+
+    *s = entry->value_;
+    return true;
 }
 
 
@@ -696,7 +728,7 @@ std::vector<std::string> IniFile::getSectionEntryNames(const std::string &sectio
     if (section != sections_.cend()) {
         std::vector<std::string> entry_names;
         for (const auto &entry : *section)
-            entry_names.emplace_back(entry.first);
+            entry_names.emplace_back(entry.name_);
 
         return entry_names;
     } else
@@ -733,8 +765,8 @@ std::vector<std::string> IniFile::getSectionEntryValuesHavingNamesStartingWith(c
         return entry_values;
 
     for (const auto &entry : *section) {
-        if (entry.first.find(starting_with) == 0)
-            entry_values.emplace_back(entry.second);
+        if (entry.name_.find(starting_with) == 0)
+            entry_values.emplace_back(entry.value_);
     }
 
     return entry_values;
@@ -760,4 +792,12 @@ bool IniFile::sectionIsDefined(const std::string &section_name) const {
 bool IniFile::variableIsDefined(const std::string &section_name, const std::string &variable_name) const {
     std::string temp;
     return lookup(section_name, variable_name, &temp);
+}
+
+
+void IniFile::write(const std::string &path) const {
+    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(path));
+
+    for (const auto &section : sections_)
+        section.write(output.get());
 }

@@ -29,11 +29,11 @@ for line in $(grep --only-matching ppn:'[^ ]*' "$1"); do
     cat /usr/local/var/lib/tuelib/xml/MARC_XML_HEADER /tmp/bare_record.xml /usr/local/var/lib/tuelib/xml/MARC_XML_TRAILER \
         > /tmp/single_record_collection.xml
     if xmllint --noout --schema /usr/local/var/lib/tuelib/xml/MARC21slim.xsd /tmp/single_record_collection.xml; then
-        if [[ $(categorise_marc_xml /tmp/single_record_collection.xml) == "BIBLIOGRAPHIC" ]]; then
+        if [[ $(categorise_marc /tmp/single_record_collection.xml) == "BIBLIOGRAPHIC" ]]; then
             append_marc_xml /tmp/single_record_collection.xml "$BIBLIO_OUTPUT_XML"
             ((++good_count))
-        elif [[ $(categorise_marc_xml /tmp/single_record_collection.xml) == "AUTHORITY" ]] \
-             || [[ $(categorise_marc_xml /tmp/single_record_collection.xml) == "CLASSIFICATION" ]]; then
+        elif [[ $(categorise_marc /tmp/single_record_collection.xml) == "AUTHORITY" ]] \
+             || [[ $(categorise_marc /tmp/single_record_collection.xml) == "CLASSIFICATION" ]]; then
             append_marc_xml /tmp/single_record_collection.xml "$AUTHORITY_OUTPUT_XML"
             ((++good_count))
         else
