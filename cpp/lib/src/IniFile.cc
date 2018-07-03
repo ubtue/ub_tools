@@ -47,8 +47,10 @@ void IniFile::Section::insert(const std::string &variable_name, const std::strin
                               const DupeInsertionBehaviour dupe_insertion_behaviour)
 {
     // Handle comment-only lines first:
-    if (variable_name.empty() and value.empty())
+    if (variable_name.empty() and value.empty()) {
         entries_.emplace_back("", "", comment);
+        return;
+    }
 
     const bool variable_is_defined(find(variable_name) != end());
     if (dupe_insertion_behaviour == ABORT_ON_DUPLICATE_NAME and unlikely(variable_is_defined))
