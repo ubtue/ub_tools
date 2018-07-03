@@ -68,6 +68,7 @@ public:
         Type type_ = UNINITIALISED;
         std::string data_;
         Attributes attributes_;
+        off_t offset_;
         std::string toString();
     };
 private:
@@ -81,6 +82,7 @@ private:
     class Handler : public xercesc::HandlerBase {
         friend class XMLParser;
         XMLParser *parser_;
+        inline off_t getOffset() { return static_cast<off_t>(parser_->parser_->getSrcOffset()); }
     public:
         void characters(const XMLCh * const chars, const XMLSize_t length);
         void endElement(const XMLCh * const name);

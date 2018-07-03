@@ -636,7 +636,7 @@ protected:
     File *input_;
     Reader(File * const input): input_(input) { }
 public:
-    virtual ~Reader() = default;
+    virtual ~Reader() { delete input_; };
 
     virtual FileType getReaderType() = 0;
     virtual Record read() = 0;
@@ -683,6 +683,7 @@ class XmlReader: public Reader {
     friend class Reader;
     XMLParser *xml_parser_;
     std::string namespace_prefix_;
+    XMLParser::XMLPart last_read_record_opening_tag_;
 private:
     /** \brief Initialise a XmlReader instance.
      *  \param input                        Where to read from.
@@ -703,7 +704,7 @@ public:
     virtual void rewind() override final;
 
     /** \return The file position of the start of the next record. */
-    virtual inline off_t tell() const override final { return input_->tell(); }
+    virtual inline off_t tell() const override final { return last_read_record_opening_tag_.offset_; }
 private:
     void parseLeader(const std::string &input_filename, Record * const new_record);
     void parseControlfield(const std::string &input_filename, const std::string &tag, Record * const record);

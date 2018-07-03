@@ -100,8 +100,8 @@ void XMLParser::Handler::startElement(const XMLCh * const name, xercesc::Attribu
             attrib_value = StringUtil::UTF8ToISO8859_15(attrib_value);
         }
         xml_part.attributes_[attrib_name] = attrib_value;
-
     }
+    xml_part.offset_ = getOffset();
     parser_->appendToBuffer(xml_part);
     ++parser_->open_elements_;
 }
@@ -116,6 +116,7 @@ void XMLParser::Handler::endElement(const XMLCh * const name) {
     else
         xml_part.data_ = XMLParser::ToString(name);
 
+    xml_part.offset_ = getOffset();
     parser_->appendToBuffer(xml_part);
     --parser_->open_elements_;
 }
@@ -130,6 +131,7 @@ void XMLParser::Handler::characters(const XMLCh * const chars, const XMLSize_t /
     else
         xml_part.data_ = XMLParser::ToString(chars);
 
+    xml_part.offset_ = getOffset();
     parser_->appendToBuffer(xml_part);
 }
 
@@ -165,6 +167,7 @@ void XMLParser::rewind() {
 
     parser_->setDoNamespaces(options_.do_namespaces_);
     parser_->setDoSchema(options_.do_schema_);
+    parser_->setCalculateSrcOfs(true);
 
     open_elements_ = 0;
     locator_ = nullptr;
