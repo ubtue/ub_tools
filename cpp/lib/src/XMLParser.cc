@@ -24,6 +24,7 @@
 
 
 const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
+    /* convert_to_iso8859_15_ = */false,
     /* do_namespaces_ = */false,
     /* do_schema_ = */false,
     /* ignore_whitespace_ = */true,
@@ -86,9 +87,21 @@ std::string XMLParser::XMLPart::TypeToString(const Type type) {
 void XMLParser::Handler::startElement(const XMLCh * const name, xercesc::AttributeList &attributes) {
     XMLPart xml_part;
     xml_part.type_ = XMLPart::OPENING_TAG;
-    xml_part.data_ = XMLParser::ToString(name);
-    for (XMLSize_t i = 0; i < attributes.getLength(); i++)
-        xml_part.attributes_[XMLParser::ToString(attributes.getName(i))] = XMLParser::ToString(attributes.getValue(i));
+
+    if (parser_->options_.convert_to_iso8859_15_)
+        xml_part.data_ = StringUtil::UTF8ToISO8859_15(XMLParser::ToString(name));
+    else
+        xml_part.data_ = XMLParser::ToString(name);
+
+    for (XMLSize_t i = 0; i < attributes.getLength(); i++) {
+        std::string attrib_name(XMLParser::ToString(attributes.getName(i))), attrib_value(XMLParser::ToString(attributes.getValue(i)));
+        if (parser_->options_.convert_to_iso8859_15_) {
+            attrib_name = StringUtil::UTF8ToISO8859_15(attrib_name);
+            attrib_value = StringUtil::UTF8ToISO8859_15(attrib_value);
+        }
+        xml_part.attributes_[attrib_name] = attrib_value;
+
+    }
     parser_->appendToBuffer(xml_part);
     ++parser_->open_elements_;
 }
@@ -97,7 +110,12 @@ void XMLParser::Handler::startElement(const XMLCh * const name, xercesc::Attribu
 void XMLParser::Handler::endElement(const XMLCh * const name) {
     XMLPart xml_part;
     xml_part.type_ = XMLPart::CLOSING_TAG;
-    xml_part.data_ = XMLParser::ToString(name);
+
+    if (parser_->options_.convert_to_iso8859_15_)
+        xml_part.data_ = StringUtil::UTF8ToISO8859_15(XMLParser::ToString(name));
+    else
+        xml_part.data_ = XMLParser::ToString(name);
+
     parser_->appendToBuffer(xml_part);
     --parser_->open_elements_;
 }
@@ -106,7 +124,12 @@ void XMLParser::Handler::endElement(const XMLCh * const name) {
 void XMLParser::Handler::characters(const XMLCh * const chars, const XMLSize_t /*length*/) {
     XMLPart xml_part;
     xml_part.type_ = XMLPart::CHARACTERS;
-    xml_part.data_ = XMLParser::ToString(chars);
+
+    if (parser_->options_.convert_to_iso8859_15_)
+        xml_part.data_ = StringUtil::UTF8ToISO8859_15(XMLParser::ToString(chars));
+    else
+        xml_part.data_ = XMLParser::ToString(chars);
+
     parser_->appendToBuffer(xml_part);
 }
 
