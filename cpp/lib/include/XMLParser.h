@@ -51,6 +51,7 @@ public:
     enum Type { XML_FILE, XML_STRING };
 
     struct Options {
+        bool convert_to_iso8859_15_;
         /** \brief Parser enforces all the constraints / rules specified by the NameSpace specification (default false).*/
         bool do_namespaces_;
         /** \brief Found Schema information will only be processed if set to true (default false).*/
@@ -80,7 +81,6 @@ private:
     class Handler : public xercesc::HandlerBase {
         friend class XMLParser;
         XMLParser *parser_;
-
     public:
         void characters(const XMLCh * const chars, const XMLSize_t length);
         void endElement(const XMLCh * const name);
