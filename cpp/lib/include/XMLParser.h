@@ -118,6 +118,14 @@ public:
     explicit XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
     ~XMLParser() { delete parser_; delete handler_; delete error_handler_; xercesc::XMLPlatformUtils::Terminate(); }
     void rewind();
+
+    XMLPart peek();
+
+    /** \brief  throws exception if offset cannot be found or there is no XMLPart that starts exactly at the given offset. */
+    void seek(const off_t offset, const int whence = SEEK_SET);
+
+    inline off_t tell() { return peek().offset_; }
+
     unsigned getLineNo() { return static_cast<unsigned>(locator_->getLineNumber()); }
     unsigned getColumnNo() { return static_cast<unsigned>(locator_->getColumnNumber()); }
 

@@ -19,6 +19,7 @@
  */
 #include "XMLParser.h"
 #include <xercesc/framework/MemBufInputSource.hpp>
+#include "FileUtil.h"
 #include "StringUtil.h"
 #include "XmlUtil.h"
 
@@ -172,6 +173,39 @@ void XMLParser::rewind() {
     open_elements_ = 0;
     locator_ = nullptr;
     prolog_parsing_done_ = false;
+}
+
+
+XMLParser::XMLPart XMLParser::peek() {
+    XMLParser::XMLPart xml_part;
+    if (getNext(&xml_part)) {
+        buffer_.emplace_front(xml_part);
+        return xml_part;
+    }
+
+    throw XMLParser::RuntimeError("peek not possible! (end of file)");
+}
+
+
+void XMLParser::seek(const off_t offset, const int whence) {
+    if (whence == SEEK_SET) {
+        rewind();
+        XMLPart xml_part;
+        while(getNext(&xml_part)) {
+            if (xml_part.offset_ == offset) {
+                buffer_.emplace_front(xml_part);
+                return;
+            } else if (xml_part.offset_ > offset)
+                throw XMLParser::RuntimeError("no element found at offset: " + std::to_string(offset));
+        }
+    } else if (whence == SEEK_CUR)
+        return seek(parser_->getSrcOffset() + offset, SEEK_SET);
+    else {
+        off_t size(FileUtil::GetFileSize(xml_filename_or_string_));
+        return seek(size + offset, SEEK_SET);
+    }
+
+    throw XMLParser::RuntimeError("offset not found: " + std::to_string(offset));
 }
 
 
