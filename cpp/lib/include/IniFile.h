@@ -507,6 +507,8 @@ public:
      */
     const Section &getSection(const std::string &section_name) const;
 
+    bool deleteSection(const std::string &section_name);
+
     bool sectionIsDefined(const std::string &section_name) const;
     bool variableIsDefined(const std::string &section_name, const std::string &variable_name) const;
 
