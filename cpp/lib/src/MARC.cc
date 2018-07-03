@@ -822,6 +822,8 @@ void XmlReader::rewind() {
     if (unlikely(fstat(input_->getFileDescriptor(), &stat_buf) and S_ISFIFO(stat_buf.st_mode)))
         LOG_ERROR("can't rewind a FIFO!");
 
+    last_read_record_opening_tag_ = XMLParser::XMLPart();
+    last_read_record_opening_tag_.offset_ = 0;
     xml_parser_->rewind();
     skipOverStartOfDocument();
 }
