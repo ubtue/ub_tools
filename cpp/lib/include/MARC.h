@@ -693,6 +693,7 @@ private:
     explicit XmlReader(File * const input, const bool skip_over_start_of_document = true)
         : Reader(input), xml_parser_(new XMLParser(input->getPath(), XMLParser::XML_FILE))
     {
+        last_read_record_opening_tag_.offset_ = 0;
         if (skip_over_start_of_document)
             skipOverStartOfDocument();
     }
