@@ -275,6 +275,16 @@ int IniFile::Section::getEnum(const std::string &variable_name,
 }
 
 
+bool IniFile::Section::deleteEntry(const std::string &entry_name) {
+    auto entry(find(entry_name));
+    if (unlikely(entry == end()))
+        return false;
+
+    entries_.erase(entry);
+    return true;
+}
+
+
 // Returns "value" if "value" contains no quotes or whitespace, o/w returns a quoted and escaped version.
 static std::string OptionalEscape(const std::string &value) {
     static std::string PROBLEMATIC_CHARS("\t \"'\\");
@@ -751,6 +761,15 @@ bool IniFile::deleteSection(const std::string &section_name) {
 
     sections_.erase(section);
     return true;
+}
+
+
+bool IniFile::deleteEntry(const std::string &section_name, const std::string &entry_name) {
+    auto section(std::find(sections_.begin(), sections_.end(), section_name));
+    if (section == sections_.end())
+        return false;
+
+    return section->deleteEntry(entry_name);
 }
 
 
