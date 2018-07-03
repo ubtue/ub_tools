@@ -220,17 +220,20 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
 
 
 bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags,
-                       XMLPart * const part)
+                       XMLPart * const part, std::string * const skipped_data)
 {
-    XMLPart result;
+    XMLPart xml_part;
     bool return_value(false);
-    while (getNext(&result)) {
-        if (result.type_ == expected_type) {
+    if (skipped_data != nullptr)
+        skipped_data->clear();
+
+    while (getNext(&xml_part)) {
+        if (xml_part.type_ == expected_type) {
             if (expected_type == XMLPart::OPENING_TAG or expected_type == XMLPart::CLOSING_TAG) {
                 if (expected_tags.empty()) {
                     return_value = true;
                     break;
-                } else if (expected_tags.find(result.data_) != expected_tags.end()) {
+                } else if (expected_tags.find(xml_part.data_) != expected_tags.end()) {
                     return_value = true;
                     break;
                 }
@@ -239,22 +242,26 @@ bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::st
                 break;
             }
         }
+
+        if (skipped_data != nullptr)
+            *skipped_data += xml_part.toString();
     }
 
     if (part != nullptr) {
-        part->type_ = result.type_;
-        part->data_ = result.data_;
-        part->attributes_ = result.attributes_;
+        part->type_ = xml_part.type_;
+        part->data_ = xml_part.data_;
+        part->attributes_ = xml_part.attributes_;
     }
 
     return return_value;
 }
 
 
-bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::string &expected_tag, XMLPart * const part)
+bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::string &expected_tag, XMLPart * const part,
+                       std::string * const skipped_data)
 {
     std::set<std::string> expected_tags;
     if (not expected_tag.empty())
         expected_tags.emplace(expected_tag);
-    return skipTo(expected_type, expected_tags, part);
+    return skipTo(expected_type, expected_tags, part, skipped_data);
 }
