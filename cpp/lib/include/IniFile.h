@@ -252,6 +252,8 @@ public:
             return std::find_if(entries_.begin(), entries_.end(), [&variable_name](const Entry &entry)
                              { return entry.name_ == variable_name; });
         }
+
+        bool deleteEntry(const std::string &entry_name);
     private:
         void write(File * const output) const;
     };
@@ -508,6 +510,8 @@ public:
     const Section &getSection(const std::string &section_name) const;
 
     bool deleteSection(const std::string &section_name);
+
+    bool deleteEntry(const std::string &section_name, const std::string &entry_name);
 
     bool sectionIsDefined(const std::string &section_name) const;
     bool variableIsDefined(const std::string &section_name, const std::string &variable_name) const;
