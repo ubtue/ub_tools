@@ -706,6 +706,8 @@ public:
 
     /** \return The file position of the start of the next record. */
     virtual inline off_t tell() const override final { return last_read_record_opening_tag_.offset_; }
+
+    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) override final;
 private:
     void parseLeader(const std::string &input_filename, Record * const new_record);
     void parseControlfield(const std::string &input_filename, const std::string &tag, Record * const record);

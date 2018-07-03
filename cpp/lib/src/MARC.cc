@@ -1095,6 +1095,29 @@ bool XmlReader::getNext(XMLParser::XMLPart * const xml_part)
 }
 
 
+bool XmlReader::seek(const off_t offset, const int whence) {
+    off_t real_offset(offset);
+    int real_whence(whence);
+
+    try {
+        if (offset == SEEK_CUR) {
+            real_offset += last_read_record_opening_tag_.offset_;
+            real_whence = SEEK_SET;
+        }
+        xml_parser_->seek(real_offset, real_whence);
+    } catch (XMLParser::RuntimeError &exc) {
+        return false;
+    }
+    XMLParser::XMLPart xml_part(xml_parser_->peek());
+    if (xml_part.type_ != XMLParser::XMLPart::OPENING_TAG or xml_part.data_ != "record")
+        return false;
+    else {
+        last_read_record_opening_tag_ = xml_part;
+        return true;
+    }
+}
+
+
 std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, FileType writer_type,
                                         const WriterMode writer_mode)
 {
