@@ -125,7 +125,7 @@ void PerformEdit(IniFile * const ini_file, const std::string &edit_instruction) 
     else if (StringUtil::StartsWith(edit_instruction, "--delete-entry="))
         DeleteEntry(ini_file, edit_instruction.substr(__builtin_strlen("--delete-entry=")));
     else if (StringUtil::StartsWith(edit_instruction, "--insert-entry="))
-        InsertEntry(ini_file, edit_instruction.substr(__builtin_strlen("--insert-section=")));
+        InsertEntry(ini_file, edit_instruction.substr(__builtin_strlen("--insert-entry=")));
     else if (StringUtil::StartsWith(edit_instruction, "--append-section="))
         AppendSection(ini_file, edit_instruction.substr(__builtin_strlen("--append-section=")));
     else if (StringUtil::StartsWith(edit_instruction, "--replace-value="))
