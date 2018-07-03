@@ -275,6 +275,35 @@ int IniFile::Section::getEnum(const std::string &variable_name,
 }
 
 
+bool IniFile::Section::deleteEntry(const std::string &entry_name) {
+    auto entry(find(entry_name));
+    if (unlikely(entry == end()))
+        return false;
+
+    entries_.erase(entry);
+    return true;
+}
+
+
+// Returns "value" if "value" contains no quotes or whitespace, o/w returns a quoted and escaped version.
+static std::string OptionalEscape(const std::string &value) {
+    static std::string PROBLEMATIC_CHARS("\t \"'\\");
+    bool need_to_escape(false);
+
+    for (const auto ch : value) {
+        if (PROBLEMATIC_CHARS.find(ch) != std::string::npos) {
+            need_to_escape = true;
+            break;
+        }
+    }
+
+    if (need_to_escape)
+        return "\"" + StringUtil::BackslashEscape("\t\"\\", value) + "\"";
+    else
+        return value;
+}
+
+
 void IniFile::Section::write(File * const output) const {
     if (unlikely(not section_name_.empty() and not output->write("[" + section_name_ + "]\n")))
         LOG_ERROR("failed to write section header to \"" + output->getPath() + "\"!");
@@ -283,7 +312,7 @@ void IniFile::Section::write(File * const output) const {
         if (entry.name_.empty()) {
             if (unlikely(not output->write(entry.comment_ + "\n")))
                 LOG_ERROR("failed to write a comment to \"" + output->getPath() + "\"!");
-        } else if (unlikely(not output->write(entry.name_ + " = " + entry.value_ + entry.comment_ + "\n")))
+        } else if (unlikely(not output->write(entry.name_ + " = " + OptionalEscape(entry.value_) + entry.comment_ + "\n")))
             LOG_ERROR("failed to write a name/value pair to \"" + output->getPath() + "\"!");
     }
 }
@@ -732,6 +761,15 @@ bool IniFile::deleteSection(const std::string &section_name) {
 
     sections_.erase(section);
     return true;
+}
+
+
+bool IniFile::deleteEntry(const std::string &section_name, const std::string &entry_name) {
+    auto section(std::find(sections_.begin(), sections_.end(), section_name));
+    if (section == sections_.end())
+        return false;
+
+    return section->deleteEntry(entry_name);
 }
 
 
