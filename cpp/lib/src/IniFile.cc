@@ -288,7 +288,7 @@ static std::string OptionalEscape(const std::string &value) {
     }
 
     if (need_to_escape)
-        return "\"" + StringUtil::BackslashEscape(PROBLEMATIC_CHARS, value) + "\"";
+        return "\"" + StringUtil::BackslashEscape("\t\"\\", value) + "\"";
     else
         return value;
 }
