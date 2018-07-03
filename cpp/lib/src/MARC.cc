@@ -768,6 +768,7 @@ Record XmlReader::read() {
                                  + (tag_found ? (":" + xml_part.data_ + ")") : ")"));
     }
 
+    last_read_record_opening_tag_ = xml_part;
     parseLeader(input_->getPath(), &new_record);
 
     bool datafield_seen(false);
