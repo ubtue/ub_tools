@@ -824,7 +824,7 @@ std::vector<std::string> IniFile::getSectionEntryValuesHavingNamesStartingWith(c
 
 
 bool IniFile::sectionIsDefined(const std::string &section_name) const {
-    return std::find(sections_.cbegin(), sections_.cend(), section_name) != sections_.end();
+    return std::find(sections_.cbegin(), sections_.cend(), section_name) != sections_.cend();
 }
 
 
