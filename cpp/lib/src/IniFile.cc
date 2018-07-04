@@ -765,7 +765,7 @@ std::vector<std::string> IniFile::getSections() const {
 
 
 bool IniFile::deleteSection(const std::string &section_name) {
-    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.cend())
         return false;
 
