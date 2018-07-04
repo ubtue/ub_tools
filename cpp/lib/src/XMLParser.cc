@@ -279,6 +279,12 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
 bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags,
                        XMLPart * const part, std::string * const skipped_data)
 {
+    if (unlikely(expected_type != XMLPart::OPENING_TAG and expected_type != XMLPart::CLOSING_TAG))
+        LOG_ERROR("Bad expected type: " + XMLPart::TypeToString(expected_type));
+
+    if (unlikely(expected_tags.empty()))
+        LOG_ERROR("Need at least one expected tag!");
+
     XMLPart xml_part;
     bool return_value(false);
     if (skipped_data != nullptr)
@@ -311,14 +317,4 @@ bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::st
     }
 
     return return_value;
-}
-
-
-bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::string &expected_tag, XMLPart * const part,
-                       std::string * const skipped_data)
-{
-    std::set<std::string> expected_tags;
-    if (not expected_tag.empty())
-        expected_tags.emplace(expected_tag);
-    return skipTo(expected_type, expected_tags, part, skipped_data);
 }

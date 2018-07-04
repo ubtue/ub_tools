@@ -157,6 +157,7 @@ public:
      *  \param skipped_data   If not NULL, the skipped over XML data will be returned here.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
-    bool skipTo(const XMLPart::Type expected_type, const std::string &expected_tag = "",
-                XMLPart * const part = nullptr, std::string * const skipped_data = nullptr);
+    inline bool skipTo(const XMLPart::Type expected_type, const std::string &expected_tag,
+                XMLPart * const part = nullptr, std::string * const skipped_data = nullptr)
+        { return skipTo(expected_type, std::set<std::string>{ expected_tag }, part, skipped_data); }
 };
