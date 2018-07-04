@@ -21,8 +21,8 @@ import datetime
 import fnmatch
 import functools
 import os
-import paramiko
 import re
+import string
 import subprocess
 import sys
 import time
@@ -43,19 +43,21 @@ def FindFilesByPattern(pattern, path):
 def StripPathPrefix(entry, start):
     return os.path.relpath(entry, start)
 
+
 def ExtractDirectories(entry):
     return os.path.dirname(entry)
 
 
-def GetFulltextDirectoriesToTransfer(local_top_dir):
+def GetExistingSevenZFiles(local_top_dir):
+    return FindFilesByPattern('*.7z', local_top_dir)
+
+
+def GetFulltextDirectoriesToTransfer(local_top_dir, full_7zFiles_paths):
     os.chdir(local_top_dir)
-    full_paths =  FindFilesByPattern('*.7z', local_top_dir)
-    stripped_paths = list(map(lambda path:StripPathPrefix(path, local_top_dir), full_paths))
+    stripped_paths = list(map(lambda path:StripPathPrefix(path, local_top_dir), full_7zFiles_paths))
     directory_set = set(list(map(ExtractDirectories, stripped_paths)))
     return directory_set
-    
 
-#def TransferFiles(sftp, local_filename, remote_filename):
 
 def Main():
     if len(sys.argv) != 2:
@@ -70,22 +72,30 @@ def Main():
         sftp_keyfile             = config.get("SFTP", "keyfile")
         local_directory          = config.get("Upload", "local_directory")
         directory_on_sftp_server = config.get("Upload", "directory_on_sftp_server")
-        
+
     except Exception as e:
         util.Error("failed to read config file! (" + str(e) + ")")
+
     # Check directories with new Data
-    os.chdir(local_directory)
-    for filename in GetFulltextDirectoriesToTransfer(local_directory):
-        print filename
+    SevenZFiles = GetExistingSevenZFiles(local_directory)
+    dirs_to_transfer = GetFulltextDirectoriesToTransfer(local_directory, SevenZFiles)
 
     # Transfer the data
-    util.ExecOrDie("/usr/local/bin/transfer_fulltext.sh", 
-                   [sftp_host, sftp_user, sftp_keyfile, local_directory, directory_on_sftp_server])
+    util.ExecOrDie("/usr/local/bin/transfer_fulltext.sh",
+                   [sftp_host, sftp_user, sftp_keyfile, local_directory, directory_on_sftp_server]
+                   + list(dirs_to_transfer))
+    # Clean up on the server
+    # TODO...
+    # Currently not integrated
+    email_msg_body = ("Found Files:\n\n" +
+                       string.join(SevenZFiles, "\n") +
+                       "\n\nTransferred directories:\n\n" +
+                       string.join(dirs_to_transfer, "\n"))
+    util.SendEmail("Transfer Fulltexts", email_msg_body, priority=5)
 
 
 try:
     Main()
 except Exception as e:
-    print("Transfer Fulltexts", "An unexpected error occurred: "
-                   + str(e) + "\n\n" + traceback.format_exc(20))
-
+    util.SendEmail("Transfer Fulltexts", "An unexpected error occurred: "
+                   + str(e) + "\n\n" + traceback.format_exc(20), priority=1)
