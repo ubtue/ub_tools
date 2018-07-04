@@ -144,7 +144,7 @@ public:
      *  \param expected_tags  If "type" is OPENING_TAG or CLOSING_TAG, the name of the tags we're looking for.  We return when we
      *                        have found the first matching one.
      *  \param part           If not NULL, the found XMLPart will be returned here.
-     *  \param skipped_data   If not NULL, the skipped over XML data will be returned here.
+     *  \param skipped_data   If not NULL, the skipped over XML data will be appended here.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
     bool skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags,
@@ -154,7 +154,7 @@ public:
      *  \param expected_type  The type of element we're looking for.
      *  \param expected_tag   If "type" is OPENING_TAG or CLOSING_TAG, the name of the tag we're looking for.
      *  \param part           If not NULL, the found XMLPart will be returned here.
-     *  \param skipped_data   If not NULL, the skipped over XML data will be returned here.
+     *  \param skipped_data   If not NULL, the skipped over XML data will be appended here.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
     inline bool skipTo(const XMLPart::Type expected_type, const std::string &expected_tag,
