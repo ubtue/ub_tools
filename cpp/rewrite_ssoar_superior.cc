@@ -17,7 +17,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #include <iostream>
 #include <memory>
 #include <unordered_map>
@@ -34,7 +33,9 @@
 #include "TextUtil.h"
 #include "util.h"
 
+
 namespace {
+
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--input-format=(marc-21|marc-xml)] marc_input marc_output\n";
@@ -43,29 +44,25 @@ namespace {
 
 
 void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773subfields) {
+   // Belegung nach BSZ-Konkordanz
    // 773 $a "Geistiger Schöpfer"
    // 773 08 $i "Beziehungskennzeichnung" (== Übergerordnetes Werk)
    // 773 $d Jahr
    // 773 $t Titel
-   // 773 $g Banzählung
+   // 773 $g Bandzählung
    // 773 $o "Sonstige Identifier für die andere Ausgabe" (ISBN)
 
-   // Article
+   // Structure 500a fields for articles
    // Normally Journal ; Edition String ; Page (??)
    const std::string article_regex("^([^;]*)\\s*;\\s*([^;]*)\\s*;\\s*([\\d\\-]*)\\s*");
-   RegexMatcher * const article_matcher(RegexMatcher::RegexMatcherFactory(article_regex));
-   // Book
+   static RegexMatcher * const article_matcher(RegexMatcher::RegexMatcherFactoryOrDie(article_regex));
+   // Structure 500a for books
    // Normally it is Author(s) : Title. Year. S. xxx. ISBN
-   std::string err_msg;
    const std::string book_regex("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\s*S\\.\\s*([\\d\\-]+)\\.\\s*ISBN\\s*([\\d\\-X]+))");
+   static RegexMatcher * const book_matcher(RegexMatcher::RegexMatcherFactoryOrDie(book_regex));
    // Authors : Title. Year. Pages
    const std::string book_regex_1("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\sS\\.\\s([\\d\\-]+))");
-
-   RegexMatcher * const book_matcher(RegexMatcher::RegexMatcherFactory(book_regex, &err_msg));
-   RegexMatcher * const book_matcher_1(RegexMatcher::RegexMatcherFactory(book_regex_1, &err_msg));
-
-   if (article_matcher == nullptr or book_matcher == nullptr)
-        LOG_ERROR(err_msg);
+   static RegexMatcher * const book_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_1));
 
    if (article_matcher->matched(_500aContent)) {
        const std::string title((*article_matcher)[1]);
@@ -96,7 +93,7 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
 }
 
 
-void RewriteSSOARSuperior(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
+void RewriteSSOARSuperiorReference(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     unsigned record_count(0), modified_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
@@ -131,12 +128,13 @@ void RewriteSSOARSuperior(MARC::Reader * const marc_reader, MARC::Writer * const
             ++modified_count;
     }
 
-    std::cerr << "Modified " << modified_count << " of " << record_count << " records\n";
+    LOG_INFO("Modified " + std::to_string(modified_count) + " of " + std::to_string(record_count) + " records");
 }
+
 
 } // unnamed namespace
 
-int main(int argc, char **argv) {
+int Main(int argc, char **argv) {
     ::progname = argv[0];
 
     MARC::FileType reader_type(MARC::FileType::AUTO);
@@ -150,7 +148,6 @@ int main(int argc, char **argv) {
         ++argv, --argc;
     }
 
-
     if (argc != 3)
         Usage();
 
@@ -158,14 +155,8 @@ int main(int argc, char **argv) {
     const std::string marc_output_filename(argv[2]);
     if (unlikely(marc_input_filename == marc_output_filename))
         LOG_ERROR("Title data input file name equals output file name!");
-    try {
-        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, reader_type));
-        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
-        RewriteSSOARSuperior(marc_reader.get() , marc_writer.get());
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, reader_type));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
+    RewriteSSOARSuperiorReference(marc_reader.get() , marc_writer.get());
+    return(EXIT_SUCCESS);
 }
-
-
-
