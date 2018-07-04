@@ -1,9 +1,17 @@
 INC            = lib/include
 LIB_SRCS       = lib/src
 CCC            ?= clang++
-CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -O3 -ftrapv \
+CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -ftrapv \
                  -Ilib/libstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
                  -DETC_DIR='"/usr/local/var/lib/tuelib"'
+OPTIMISATIONS_STATE =
+
+ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
+  CCCFLAGS += -O3
+else
+  OPTIMISATIONS_STATE = (unoptimised)
+endif
+
 ifeq ($(CCC),clang++)
   CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions
 else
@@ -30,7 +38,7 @@ all: .deps $(PROGS)
 	$(MAKE) -C test
 
 %.o: %.cc Makefile
-	@echo "Compiling $<..."
+	@echo "Compiling $< $(OPTIMISATIONS_STATE)..."
 	@$(CCC) $(CCCFLAGS) $< -c
 
 $(PROGS): % : %.o lib/libubtue.a Makefile
