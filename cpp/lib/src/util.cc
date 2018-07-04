@@ -203,14 +203,10 @@ std::string ReadQuotedValue(FILE * const input, const char field_delimiter) {
         if (ch == EOF)
             throw std::runtime_error("unexpected EOF while reading a quoted DSV value!");
         if (ch == field_delimiter) {
-            if (delimiter_seen) {
-                value += static_cast<char>(ch);
-                delimiter_seen = false;
-            } else
+            if (delimiter_seen)
+                return value;
+            else
                 delimiter_seen = true;
-        } else if (delimiter_seen) {
-            std::ungetc(ch, input);
-            return value;
         } else
             value += static_cast<char>(ch);
     }
@@ -300,9 +296,10 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
         if (ch == field_separator_) {
             std::ungetc(ch, input_);
             values->emplace_back("");
-        } else if (ch == field_delimiter_)
+        } else if (ch == field_delimiter_) {
+            std::ungetc(ch, input_);
             values->emplace_back(ReadQuotedValue(input_, field_delimiter_));
-        else {
+        } else {
             std::ungetc(ch, input_);
             values->emplace_back(ReadNonQuotedValue(input_, field_separator_));
         }
