@@ -304,16 +304,31 @@ static std::string OptionalEscape(const std::string &value) {
 }
 
 
-void IniFile::Section::write(File * const output) const {
+void IniFile::Section::write(File * const output, const bool pretty_print) const {
     if (unlikely(not section_name_.empty() and not output->write("[" + section_name_ + "]\n")))
         LOG_ERROR("failed to write section header to \"" + output->getPath() + "\"!");
+
+    // If we want pretty output we align all the equal signs in a section:
+    size_t max_name_length(0);
+    if (pretty_print) {
+        for (const auto &entry : entries_) {
+            if (entry.name_.length() > max_name_length)
+                max_name_length = entry.name_.length();
+        }
+    }
 
     for (const auto &entry : entries_) {
         if (entry.name_.empty()) {
             if (unlikely(not output->write(entry.comment_ + "\n")))
                 LOG_ERROR("failed to write a comment to \"" + output->getPath() + "\"!");
-        } else if (unlikely(not output->write(entry.name_ + " = " + OptionalEscape(entry.value_) + entry.comment_ + "\n")))
-            LOG_ERROR("failed to write a name/value pair to \"" + output->getPath() + "\"!");
+        } else {
+            std::string line(entry.name_);
+            if (max_name_length > 0)
+                line += std::string(max_name_length - entry.name_.length(), ' ');
+            line += " = " + OptionalEscape(entry.value_) + entry.comment_;
+            if (unlikely(not output->write(line + "\n")))
+                LOG_ERROR("failed to write a name/value pair to \"" + output->getPath() + "\"!");
+        }
     }
 }
 
@@ -844,9 +859,9 @@ bool IniFile::variableIsDefined(const std::string &section_name, const std::stri
 }
 
 
-void IniFile::write(const std::string &path) const {
+void IniFile::write(const std::string &path, const bool pretty_print) const {
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(path));
 
     for (const auto &section : sections_)
-        section.write(output.get());
+        section.write(output.get(), pretty_print);
 }
