@@ -285,22 +285,8 @@ bool IniFile::Section::deleteEntry(const std::string &entry_name) {
 }
 
 
-// Returns "value" if "value" contains no quotes or whitespace, o/w returns a quoted and escaped version.
-static std::string OptionalEscape(const std::string &value) {
-    static std::string PROBLEMATIC_CHARS("\t \"'\\");
-    bool need_to_escape(false);
-
-    for (const auto ch : value) {
-        if (PROBLEMATIC_CHARS.find(ch) != std::string::npos) {
-            need_to_escape = true;
-            break;
-        }
-    }
-
-    if (need_to_escape)
-        return "\"" + StringUtil::BackslashEscape("\t\"\\", value) + "\"";
-    else
-        return value;
+static inline bool ContainsSpaces(const std::string &value) {
+    return value.find(' ') != std::string::npos;
 }
 
 
@@ -325,7 +311,14 @@ void IniFile::Section::write(File * const output, const bool pretty_print) const
             std::string line(entry.name_);
             if (max_name_length > 0)
                 line += std::string(max_name_length - entry.name_.length(), ' ');
-            line += " = " + OptionalEscape(entry.value_) + entry.comment_;
+            line += " = ";
+            const bool need_quotes(ContainsSpaces(entry.value_));
+            if (need_quotes)
+                line += '"';
+            line += TextUtil::CStyleEscape(entry.value_);
+            if (need_quotes)
+                line += '"';
+            line += entry.comment_;
             if (unlikely(not output->write(line + "\n")))
                 LOG_ERROR("failed to write a name/value pair to \"" + output->getPath() + "\"!");
         }
