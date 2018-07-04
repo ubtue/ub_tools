@@ -285,8 +285,10 @@ bool IniFile::Section::deleteEntry(const std::string &entry_name) {
 }
 
 
-static inline bool ContainsSpaces(const std::string &value) {
-    return value.find(' ') != std::string::npos;
+static inline bool ContainsSpacesOrDoubleQuotes(const std::string &value) {
+    if (value.find(' ') != std::string::npos)
+        return true;
+    return value.find('"') != std::string::npos;
 }
 
 
@@ -312,7 +314,7 @@ void IniFile::Section::write(File * const output, const bool pretty_print) const
             if (max_name_length > 0)
                 line += std::string(max_name_length - entry.name_.length(), ' ');
             line += " = ";
-            const bool need_quotes(ContainsSpaces(entry.value_));
+            const bool need_quotes(ContainsSpacesOrDoubleQuotes(entry.value_));
             if (need_quotes)
                 line += '"';
             line += TextUtil::CStyleEscape(entry.value_);
