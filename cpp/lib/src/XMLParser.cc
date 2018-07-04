@@ -189,7 +189,7 @@ XMLParser::XMLPart XMLParser::peek() {
 
 void XMLParser::seek(const off_t offset, const int whence) {
     if (whence == SEEK_SET) {
-        if (offset < parser_->getSrcOffset())
+        if (offset < tell())
             rewind();
         XMLPart xml_part;
         while(getNext(&xml_part)) {
@@ -200,7 +200,7 @@ void XMLParser::seek(const off_t offset, const int whence) {
                 throw XMLParser::RuntimeError("no element found at offset: " + std::to_string(offset));
         }
     } else if (whence == SEEK_CUR)
-        return seek(parser_->getSrcOffset() + offset, SEEK_SET);
+        return seek(tell() + offset, SEEK_SET);
     else {
         off_t size(FileUtil::GetFileSize(xml_filename_or_string_));
         return seek(size + offset, SEEK_SET);
