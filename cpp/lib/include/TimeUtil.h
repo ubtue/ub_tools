@@ -282,4 +282,8 @@ std::string StructTmToString(const struct tm &tm);
 struct tm StringToStructTm(std::string date_str, std::string optional_strptime_format = DEFAULT_FORMAT);
 
 
+/* Returns the difference in seconds between beginning and end. */
+double DiffStructTm(const struct tm &end, const struct tm &beginning);
+
+
 } // namespace TimeUtil
