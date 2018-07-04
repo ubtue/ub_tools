@@ -176,14 +176,12 @@ void XMLParser::rewind() {
 }
 
 
-XMLParser::XMLPart XMLParser::peek() {
-    XMLParser::XMLPart xml_part;
-    if (getNext(&xml_part)) {
-        buffer_.emplace_front(xml_part);
-        return xml_part;
-    }
-
-    throw XMLParser::RuntimeError("peek not possible! (end of file)");
+bool XMLParser::peek(XMLPart * const xml_part) {
+    if (getNext(xml_part)) {
+        buffer_.emplace_front(*xml_part);
+        return true;
+    } else
+        return false;
 }
 
 
@@ -191,6 +189,7 @@ void XMLParser::seek(const off_t offset, const int whence) {
     if (whence == SEEK_SET) {
         if (offset < tell())
             rewind();
+
         XMLPart xml_part;
         while(getNext(&xml_part)) {
             if (xml_part.offset_ == offset) {
@@ -202,11 +201,30 @@ void XMLParser::seek(const off_t offset, const int whence) {
     } else if (whence == SEEK_CUR)
         return seek(tell() + offset, SEEK_SET);
     else {
-        off_t size(FileUtil::GetFileSize(xml_filename_or_string_));
+        off_t size(getMaxOffset());
         return seek(size + offset, SEEK_SET);
     }
 
     throw XMLParser::RuntimeError("offset not found: " + std::to_string(offset));
+}
+
+
+off_t XMLParser::tell() {
+    XMLPart xml_part;
+    if (peek(&xml_part))
+        return xml_part.offset_;
+    else
+        return getMaxOffset();
+}
+
+
+off_t XMLParser::getMaxOffset() {
+    switch (type_) {
+        case XMLParser::XML_FILE:
+            return FileUtil::GetFileSize(xml_filename_or_string_);
+        case XMLParser::XML_STRING:
+            return xml_filename_or_string_.length();
+    }
 }
 
 

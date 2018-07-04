@@ -110,6 +110,7 @@ private:
     ErrorHandler *error_handler_;
     std::deque<XMLPart> buffer_;
     inline void appendToBuffer(XMLPart &xml_part) { buffer_.emplace_back(xml_part); }
+    off_t getMaxOffset();
     friend class Handler;
 
     /** \brief  converts xerces' internal string type to std::string. */
@@ -119,12 +120,12 @@ public:
     ~XMLParser() { delete parser_; delete handler_; delete error_handler_; xercesc::XMLPlatformUtils::Terminate(); }
     void rewind();
 
-    XMLPart peek();
+    bool peek(XMLPart * const xml_part);
 
     /** \brief  throws exception if offset cannot be found or there is no XMLPart that starts exactly at the given offset. */
     void seek(const off_t offset, const int whence = SEEK_SET);
 
-    inline off_t tell() { return peek().offset_; }
+    off_t tell();
 
     unsigned getLineNo() { return static_cast<unsigned>(locator_->getLineNumber()); }
     unsigned getColumnNo() { return static_cast<unsigned>(locator_->getColumnNumber()); }
