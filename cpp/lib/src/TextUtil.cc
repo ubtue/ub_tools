@@ -1401,6 +1401,9 @@ std::string &CStyleEscape(std::string * const s) {
             case '\\':
                 escaped_string += "\\\\";
                 break;
+            case '"':
+                escaped_string += "\\\"";
+                break;
             default:
                 escaped_string += *ch;
             }
