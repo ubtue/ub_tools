@@ -327,7 +327,7 @@ void IniFile::Section::write(File * const output, const bool pretty_print) const
                 line += std::string(max_name_length - entry.name_.length(), ' ');
             line += " = " + OptionalEscape(entry.value_) + entry.comment_;
             if (unlikely(not output->write(line + "\n")))
-            LOG_ERROR("failed to write a name/value pair to \"" + output->getPath() + "\"!");
+                LOG_ERROR("failed to write a name/value pair to \"" + output->getPath() + "\"!");
         }
     }
 }
