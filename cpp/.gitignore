@@ -37,6 +37,7 @@
 /delete_unused_local_data
 /display_translate_stats
 /dsv_reader
+/edit_ini_file
 /enrich_ddcs
 /enrich_keywords_with_title_words
 /es_store_document

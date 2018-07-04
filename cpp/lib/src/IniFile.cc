@@ -47,8 +47,10 @@ void IniFile::Section::insert(const std::string &variable_name, const std::strin
                               const DupeInsertionBehaviour dupe_insertion_behaviour)
 {
     // Handle comment-only lines first:
-    if (variable_name.empty() and value.empty())
+    if (variable_name.empty() and value.empty()) {
         entries_.emplace_back("", "", comment);
+        return;
+    }
 
     const bool variable_is_defined(find(variable_name) != end());
     if (dupe_insertion_behaviour == ABORT_ON_DUPLICATE_NAME and unlikely(variable_is_defined))
@@ -273,16 +275,60 @@ int IniFile::Section::getEnum(const std::string &variable_name,
 }
 
 
-void IniFile::Section::write(File * const output) const {
+bool IniFile::Section::deleteEntry(const std::string &entry_name) {
+    auto entry(find(entry_name));
+    if (unlikely(entry == end()))
+        return false;
+
+    entries_.erase(entry);
+    return true;
+}
+
+
+// Returns "value" if "value" contains no quotes or whitespace, o/w returns a quoted and escaped version.
+static std::string OptionalEscape(const std::string &value) {
+    static std::string PROBLEMATIC_CHARS("\t \"'\\");
+    bool need_to_escape(false);
+
+    for (const auto ch : value) {
+        if (PROBLEMATIC_CHARS.find(ch) != std::string::npos) {
+            need_to_escape = true;
+            break;
+        }
+    }
+
+    if (need_to_escape)
+        return "\"" + StringUtil::BackslashEscape("\t\"\\", value) + "\"";
+    else
+        return value;
+}
+
+
+void IniFile::Section::write(File * const output, const bool pretty_print) const {
     if (unlikely(not section_name_.empty() and not output->write("[" + section_name_ + "]\n")))
         LOG_ERROR("failed to write section header to \"" + output->getPath() + "\"!");
+
+    // If we want pretty output we align all the equal signs in a section:
+    size_t max_name_length(0);
+    if (pretty_print) {
+        for (const auto &entry : entries_) {
+            if (entry.name_.length() > max_name_length)
+                max_name_length = entry.name_.length();
+        }
+    }
 
     for (const auto &entry : entries_) {
         if (entry.name_.empty()) {
             if (unlikely(not output->write(entry.comment_ + "\n")))
                 LOG_ERROR("failed to write a comment to \"" + output->getPath() + "\"!");
-        } else if (unlikely(not output->write(entry.name_ + " = " + entry.value_ + entry.comment_ + "\n")))
-            LOG_ERROR("failed to write a name/value pair to \"" + output->getPath() + "\"!");
+        } else {
+            std::string line(entry.name_);
+            if (max_name_length > 0)
+                line += std::string(max_name_length - entry.name_.length(), ' ');
+            line += " = " + OptionalEscape(entry.value_) + entry.comment_;
+            if (unlikely(not output->write(line + "\n")))
+                LOG_ERROR("failed to write a name/value pair to \"" + output->getPath() + "\"!");
+        }
     }
 }
 
@@ -723,6 +769,25 @@ std::vector<std::string> IniFile::getSections() const {
 }
 
 
+bool IniFile::deleteSection(const std::string &section_name) {
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend())
+        return false;
+
+    sections_.erase(section);
+    return true;
+}
+
+
+bool IniFile::deleteEntry(const std::string &section_name, const std::string &entry_name) {
+    auto section(std::find(sections_.begin(), sections_.end(), section_name));
+    if (section == sections_.end())
+        return false;
+
+    return section->deleteEntry(entry_name);
+}
+
+
 std::vector<std::string> IniFile::getSectionEntryNames(const std::string &section_name) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section != sections_.cend()) {
@@ -773,19 +838,18 @@ std::vector<std::string> IniFile::getSectionEntryValuesHavingNamesStartingWith(c
 }
 
 
-const IniFile::Section &IniFile::getSection(const std::string &section_name) const {
-    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
-    if (section != sections_.cend())
-        return *section;
-    else {
-        static Section empty_section("");
-        return empty_section;
-    }
+bool IniFile::sectionIsDefined(const std::string &section_name) const {
+    return std::find(sections_.cbegin(), sections_.cend(), section_name) != sections_.cend();
 }
 
 
-bool IniFile::sectionIsDefined(const std::string &section_name) const {
-    return std::find(sections_.cbegin(), sections_.cend(), section_name) != sections_.end();
+bool IniFile::appendSection(const std::string &section_name) {
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section != sections_.cend())
+        return false;
+
+    sections_.emplace_back(section_name);
+    return true;
 }
 
 
@@ -795,9 +859,9 @@ bool IniFile::variableIsDefined(const std::string &section_name, const std::stri
 }
 
 
-void IniFile::write(const std::string &path) const {
+void IniFile::write(const std::string &path, const bool pretty_print) const {
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(path));
 
     for (const auto &section : sections_)
-        section.write(output.get());
+        section.write(output.get(), pretty_print);
 }

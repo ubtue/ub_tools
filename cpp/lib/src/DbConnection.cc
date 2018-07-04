@@ -54,18 +54,21 @@ DbConnection::DbConnection(const std::string &mysql_url, const Charset charset):
 
 
 DbConnection::DbConnection(const IniFile &ini_file, const std::string &ini_file_section) {
-    const IniFile::Section &db_section(ini_file.getSection(ini_file_section));
-    const std::string host(db_section.getString("sql_host", "localhost"));
-    const std::string database(db_section.getString("sql_database"));
-    const std::string user(db_section.getString("sql_username"));
-    const std::string password(db_section.getString("sql_password"));
-    const unsigned port(db_section.getUnsigned("sql_port", MYSQL_PORT));
+    const auto db_section(ini_file.getSection(ini_file_section));
+    if (db_section == ini_file.end())
+        LOG_ERROR("DbConnection section \"" + ini_file_section +"\" not found in config file \"" + ini_file.getFilename() + "\"!");
+
+    const std::string host(db_section->getString("sql_host", "localhost"));
+    const std::string database(db_section->getString("sql_database"));
+    const std::string user(db_section->getString("sql_username"));
+    const std::string password(db_section->getString("sql_password"));
+    const unsigned port(db_section->getUnsigned("sql_port", MYSQL_PORT));
 
     const std::map<std::string, int> string_to_value_map{
         { "UTF8MB3", UTF8MB3 },
         { "UTF8MB4", UTF8MB4 },
     };
-    const Charset charset(static_cast<Charset>(db_section.getEnum("sql_charset", string_to_value_map, UTF8MB4)));
+    const Charset charset(static_cast<Charset>(db_section->getEnum("sql_charset", string_to_value_map, UTF8MB4)));
 
     init(database, user, password, host, port, charset);
 }

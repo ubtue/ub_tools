@@ -252,11 +252,14 @@ public:
             return std::find_if(entries_.begin(), entries_.end(), [&variable_name](const Entry &entry)
                              { return entry.name_ == variable_name; });
         }
+
+        bool deleteEntry(const std::string &entry_name);
     private:
-        void write(File * const output) const;
+        void write(File * const output, const bool pretty_print) const;
     };
 public:
     typedef std::vector<Section> Sections;
+    typedef Sections::iterator iterator;
     typedef Sections::const_iterator const_iterator;
 protected:
     Sections sections_;
@@ -503,14 +506,35 @@ public:
 
     /** \brief  Generates a map from a sections' entries to it's values.
      *  \param  section_name  The name of the section whose map will be returned.
-     *  \return The mapping of entry names to values for the "section_name" section.
+     *  \return An iterator referencing the found section or end() if it doesn't exist.
      */
-    const Section &getSection(const std::string &section_name) const;
+    inline const_iterator getSection(const std::string &section_name) const {
+        return std::find(sections_.cbegin(), sections_.cend(), section_name);
+    }
+
+    /** \brief  Generates a map from a sections' entries to it's values.
+     *  \param  section_name  The name of the section whose map will be returned.
+     *  \return An iterator referencing the foloung section or end() if it doesn't exist.
+     */
+    inline iterator getSection(const std::string &section_name) {
+        return std::find(sections_.begin(), sections_.end(), section_name);
+    }
+
+    bool deleteSection(const std::string &section_name);
+
+    bool deleteEntry(const std::string &section_name, const std::string &entry_name);
 
     bool sectionIsDefined(const std::string &section_name) const;
+
+    /** \brief Creates "section_name" if it doesn't already exist.
+     *  \return True if a nedw section was created and false if the section already existed.
+     */
+    bool appendSection(const std::string &section_name);
+
     bool variableIsDefined(const std::string &section_name, const std::string &variable_name) const;
 
-    void write(const std::string &path) const;
+    // \param pretty_print  If true we vertically align equal signs w/in each section.
+    void write(const std::string &path, const bool pretty_print = true) const;
 
     /** \brief  Generate an ini file name based upon the program name, i.e, programname.conf */
     static std::string DefaultIniFileName();
