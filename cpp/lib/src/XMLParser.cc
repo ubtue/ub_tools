@@ -287,30 +287,25 @@ bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::st
 
     XMLPart xml_part;
     bool return_value(false);
-    if (skipped_data != nullptr)
-        skipped_data->clear();
-
     while (getNext(&xml_part)) {
         if (xml_part.type_ == expected_type) {
             if (expected_type == XMLPart::OPENING_TAG or expected_type == XMLPart::CLOSING_TAG) {
-                if (expected_tags.empty()) {
+                if (expected_tags.empty())
                     return_value = true;
-                    break;
-                } else if (expected_tags.find(xml_part.data_) != expected_tags.end()) {
+                else if (expected_tags.find(xml_part.data_) != expected_tags.end())
                     return_value = true;
-                    break;
-                }
-            } else {
+            } else
                 return_value = true;
-                break;
-            }
         }
 
         if (skipped_data != nullptr)
             *skipped_data += xml_part.toString();
+
+        if (return_value)
+            break;
     }
 
-    if (part != nullptr) {
+    if (return_value == true && part != nullptr) {
         part->type_ = xml_part.type_;
         part->data_ = xml_part.data_;
         part->attributes_ = xml_part.attributes_;
