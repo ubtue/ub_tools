@@ -255,7 +255,7 @@ public:
 
         bool deleteEntry(const std::string &entry_name);
     private:
-        void write(File * const output) const;
+        void write(File * const output, const bool pretty_print) const;
     };
 public:
     typedef std::vector<Section> Sections;
@@ -533,7 +533,8 @@ public:
 
     bool variableIsDefined(const std::string &section_name, const std::string &variable_name) const;
 
-    void write(const std::string &path) const;
+    // \param pretty_print  If true we vertically align equal signs w/in each section.
+    void write(const std::string &path, const bool pretty_print = true) const;
 
     /** \brief  Generate an ini file name based upon the program name, i.e, programname.conf */
     static std::string DefaultIniFileName();

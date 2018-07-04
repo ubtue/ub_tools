@@ -1,4 +1,4 @@
-/** \brief Utility for displaying various bits of info about a collection of MARC records.
+/** \brief Utility for copying and modifying of our IniFile-type config files.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
