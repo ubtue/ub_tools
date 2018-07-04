@@ -52,11 +52,12 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
    // 773 $g Bandzählung
    // 773 $o "Sonstige Identifier für die andere Ausgabe" (ISBN)
 
-   // Structure 500a fields for articles
+   // 500 Structure fields for articles
    // Normally Journal ; Edition String ; Page (??)
    const std::string article_regex("^([^;]*)\\s*;\\s*([^;]*)\\s*;\\s*([\\d\\-]*)\\s*");
    static RegexMatcher * const article_matcher(RegexMatcher::RegexMatcherFactoryOrDie(article_regex));
-   // Structure 500a for books
+
+   // 500 Structure for books
    // Normally it is Author(s) : Title. Year. S. xxx. ISBN
    const std::string book_regex("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\s*S\\.\\s*([\\d\\-]+)\\.\\s*ISBN\\s*([\\d\\-X]+))");
    static RegexMatcher * const book_matcher(RegexMatcher::RegexMatcherFactoryOrDie(book_regex));
@@ -81,7 +82,6 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
        _773subfields->addSubfield('d', year);
        _773subfields->addSubfield('o', isbn);
        // FIXME pages
-
    } else if (book_matcher_1->matched(_500aContent)) {
        const std::string authors((*book_matcher_1)[1]);
        const std::string title((*book_matcher_1)[2]);
@@ -134,6 +134,7 @@ void RewriteSSOARSuperiorReference(MARC::Reader * const marc_reader, MARC::Write
 
 } // unnamed namespace
 
+
 int Main(int argc, char **argv) {
     ::progname = argv[0];
 
@@ -158,5 +159,6 @@ int Main(int argc, char **argv) {
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, reader_type));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
     RewriteSSOARSuperiorReference(marc_reader.get() , marc_writer.get());
-    return(EXIT_SUCCESS);
+
+    return EXIT_SUCCESS;
 }
