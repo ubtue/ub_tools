@@ -688,9 +688,11 @@ std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, FileT
     if (reader_type == FileType::AUTO)
         reader_type = GuessFileType(input_filename, /* read_file = */ true);
 
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
-    return (reader_type == FileType::XML) ? std::unique_ptr<Reader>(new XmlReader(input.release()))
-                                          : std::unique_ptr<Reader>(new BinaryReader(input.release()));
+    if (reader_type == FileType::BINARY) {
+        std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
+        return std::unique_ptr<Reader>(new BinaryReader(input.release()));
+    } else
+        return std::unique_ptr<Reader>(new XmlReader(input_filename));
 }
 
 
@@ -762,26 +764,26 @@ Record XmlReader::read() {
                              or xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG);
 
         throw std::runtime_error("in MARC::XmlReader::read: opening <" + namespace_prefix_
-                                 + "record> tag expected while parsing \"" + input_->getPath() + "\" on line "
+                                 + "record> tag expected while parsing \"" + getPath() + "\" on line "
                                  + std::to_string(xml_parser_->getLineNo()) + "! (Found: "
                                  + XMLParser::XMLPart::TypeToString(xml_part.type_)
                                  + (tag_found ? (":" + xml_part.data_ + ")") : ")"));
     }
 
     last_read_record_opening_tag_ = xml_part;
-    parseLeader(input_->getPath(), &new_record);
+    parseLeader(getPath(), &new_record);
 
     bool datafield_seen(false);
     for (;;) { // Process "datafield" and "controlfield" sections.
         if (unlikely(not getNext(&xml_part)))
-            throw std::runtime_error("in MARC::XmlReader::read: error while parsing \"" + input_->getPath()
+            throw std::runtime_error("in MARC::XmlReader::read: error while parsing \"" + getPath()
                                      + "\": unexpected end of file on line "
                                      + std::to_string(xml_parser_->getLineNo()) + "!");
 
         if (xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG) {
             if (unlikely(xml_part.data_ != namespace_prefix_ + "record"))
                 throw std::runtime_error("in MARC::MarcUtil::Record::XmlFactory: closing </record> tag expected "
-                                         "while parsing \"" + input_->getPath() + "\" on line "
+                                         "while parsing \"" + getPath() + "\" on line "
                                          + std::to_string(xml_parser_->getLineNo()) + "!");
             new_record.sortFieldTags(new_record.begin(), new_record.end());
             return new_record;
@@ -791,26 +793,26 @@ Record XmlReader::read() {
             or (xml_part.data_ != namespace_prefix_ + "datafield" and xml_part.data_ != namespace_prefix_ + "controlfield"))
             throw std::runtime_error("in MARC::XmlReader::read: expected either <" + namespace_prefix_
                                      + "controlfield> or <" + namespace_prefix_ + "datafield> on line "
-                                     + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_->getPath()
+                                     + std::to_string(xml_parser_->getLineNo()) + " in file \"" + getPath()
                                      + "\"!");
 
         if (unlikely(xml_part.attributes_.find("tag") == xml_part.attributes_.end()))
             throw std::runtime_error("in MARC::XmlReader::read: expected a \"tag\" attribute as part of an opening "
                                      "<" + namespace_prefix_ + "controlfield> or <" + namespace_prefix_
                                      + "datafield> tag on line " + std::to_string(xml_parser_->getLineNo())
-                                     + " in file \"" + input_->getPath() + "\"!");
+                                     + " in file \"" + getPath() + "\"!");
 
         if (xml_part.data_ == namespace_prefix_ + "controlfield") {
             if (unlikely(datafield_seen))
                 throw std::runtime_error("in MARC::MarcUtil::Record::XmlFactory: <" + namespace_prefix_
                                          + "controlfield> found after <" + namespace_prefix_ + "datafield> on "
                                          "line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
-                                         + input_->getPath() + "\"!");
-            parseControlfield(input_->getPath(), xml_part.attributes_["tag"], &new_record);
+                                         + getPath() + "\"!");
+            parseControlfield(getPath(), xml_part.attributes_["tag"], &new_record);
 
         } else {
             datafield_seen = true;
-            parseDatafield(input_->getPath(), xml_part.attributes_, xml_part.attributes_["tag"], &new_record);
+            parseDatafield(getPath(), xml_part.attributes_, xml_part.attributes_["tag"], &new_record);
         }
     }
 }
@@ -819,8 +821,10 @@ Record XmlReader::read() {
 void XmlReader::rewind() {
     // We can't handle FIFO's here:
     struct stat stat_buf;
-    if (unlikely(fstat(input_->getFileDescriptor(), &stat_buf) and S_ISFIFO(stat_buf.st_mode)))
+    File input(input_filename_, "r");
+    if (unlikely(fstat(input.getFileDescriptor(), &stat_buf) and S_ISFIFO(stat_buf.st_mode)))
         LOG_ERROR("can't rewind a FIFO!");
+    input.close();
 
     last_read_record_opening_tag_ = XMLParser::XMLPart();
     last_read_record_opening_tag_.offset_ = 0;
@@ -1061,7 +1065,7 @@ void XmlReader::skipOverStartOfDocument() {
     // We should never get here!
     throw std::runtime_error("in MARC::XmlReader::skipOverStartOfDocument: error while trying to skip to "
                              "<" + namespace_prefix_ + "collection>:  \""
-                             + input_->getPath() + "\": "
+                             + getPath() + "\": "
                              + "unexpected end of file on line "
                              + std::to_string(xml_parser_->getLineNo()) + "!");
 }
@@ -1108,13 +1112,12 @@ bool XmlReader::seek(const off_t offset, const int whence) {
     } catch (XMLParser::RuntimeError &exc) {
         return false;
     }
-    XMLParser::XMLPart xml_part(xml_parser_->peek());
-    if (xml_part.type_ != XMLParser::XMLPart::OPENING_TAG or xml_part.data_ != "record")
-        return false;
-    else {
+    XMLParser::XMLPart xml_part;
+    if (xml_parser_->peek(&xml_part) and xml_part.type_ == XMLParser::XMLPart::OPENING_TAG and xml_part.data_ == "record") {
         last_read_record_opening_tag_ = xml_part;
         return true;
-    }
+    } else
+        return false;
 }
 
 
