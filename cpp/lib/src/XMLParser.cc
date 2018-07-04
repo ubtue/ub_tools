@@ -173,6 +173,7 @@ void XMLParser::rewind() {
     open_elements_ = 0;
     locator_ = nullptr;
     prolog_parsing_done_ = false;
+    buffer_.clear();
 }
 
 
