@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <functional>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -799,6 +800,12 @@ bool IsValidMarcFile(const std::string &filename, std::string * const err_msg, c
  *  \return The extracted language code or the empty string if no language code was found.
  */
 std::string GetLanguageCode(const Record &record);
+
+
+/** \brief Extracts all language codes from a MARC record
+ *  \return The count of the extracted language codes
+ */
+size_t GetLanguageCodes(const Record &record, std::set<std::string> * const language_codes);
 
 
 /** \brief True if a GND code was found in 035$a else false. */
