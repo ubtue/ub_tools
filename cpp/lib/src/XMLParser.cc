@@ -189,7 +189,8 @@ XMLParser::XMLPart XMLParser::peek() {
 
 void XMLParser::seek(const off_t offset, const int whence) {
     if (whence == SEEK_SET) {
-        rewind();
+        if (offset < parser_->getSrcOffset())
+            rewind();
         XMLPart xml_part;
         while(getNext(&xml_part)) {
             if (xml_part.offset_ == offset) {
