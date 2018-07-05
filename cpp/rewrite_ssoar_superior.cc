@@ -48,22 +48,28 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
    // 773 $a "Geistiger Schöpfer"
    // 773 08 $i "Beziehungskennzeichnung" (== Übergerordnetes Werk)
    // 773 $d Jahr
-   // 773 $t Titel
-   // 773 $g Bandzählung
+   // 773 $t Titel (wenn Autor nicht vorhanden, dann stattdessen $a -> hier nicht einschlägig)
+   // 773 $g Bandzählung [und weitere Angaben]
    // 773 $o "Sonstige Identifier für die andere Ausgabe" (ISBN)
 
    // 500 Structure fields for articles
    // Normally Journal ; Edition String ; Page (??)
-   const std::string article_regex("^([^;]*)\\s*;\\s*([^;]*)\\s*;\\s*([\\d\\-]*)\\s*");
+   static const std::string article_regex("^([^;]*)\\s*;\\s*([^;]*)\\s*;\\s*([\\d\\-]*)\\s*");
    static RegexMatcher * const article_matcher(RegexMatcher::RegexMatcherFactoryOrDie(article_regex));
+   // Journal; Pages 
+   static const std::string article_regex_1("^([^;]*)\\s*;\\s*([\\d\\-]*)\\s*");
+   static RegexMatcher * const article_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(article_regex));
 
    // 500 Structure for books
    // Normally it is Author(s) : Title. Year. S. xxx. ISBN
-   const std::string book_regex("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\s*S\\.\\s*([\\d\\-]+)\\.\\s*ISBN\\s*([\\d\\-X]+))");
+   static const std::string book_regex("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\s*S\\.\\s*([\\d\\-]+)\\.\\s*ISBN\\s*([\\d\\-X]+))");
    static RegexMatcher * const book_matcher(RegexMatcher::RegexMatcherFactoryOrDie(book_regex));
    // Authors : Title. Year. Pages
-   const std::string book_regex_1("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\sS\\.\\s([\\d\\-]+))");
+   static const std::string book_regex_1("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\sS\\.\\s([\\d\\-]+))");
    static RegexMatcher * const book_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_1));
+   // Authors : Title. Year. ISBN
+   static const std::string book_regex_2("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\s*ISBN\\s*([\\d\\-X]+))");
+   static RegexMatcher * const book_matcher_2(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_2));
 
    if (article_matcher->matched(_500aContent)) {
        const std::string title((*article_matcher)[1]);
@@ -71,6 +77,23 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
        const std::string page((*article_matcher)[3]);
        _773subfields->addSubfield('t', title);
        _773subfields->addSubfield('g', volinfo);
+       _773subfields->addSubfield('g', page);
+   } else if (article_matcher_1->matched(_500aContent)) {
+       // See whether we can extract further information
+       const std::string title_and_spec((*article_matcher_1)[1]);
+       const std::string pages((*article_matcher_1)[2]);
+       static const std::string title_and_spec_regex("^([^(]*)\\s*\\((\\d{4})\\)\\s*(\\d+)\\s*");
+       static RegexMatcher * const title_and_spec_matcher(RegexMatcher::RegexMatcherFactoryOrDie(title_and_spec_regex));
+       if (title_and_spec_matcher->matched(title_and_spec)) {
+          const std::string title((*title_and_spec_matcher)[1]);
+          const std::string year((*title_and_spec_matcher)[2]);
+          const std::string edition((*title_and_spec_matcher)[3]);
+          _773subfields->addSubfield('t', title);
+          _773subfields->addSubfield('g', year);
+          _773subfields->addSubfield('g', edition);
+       } else 
+          _773subfields->addSubfield('t', title_and_spec);          
+       _773subfields->addSubfield('g', pages);
    } else if (book_matcher->matched(_500aContent)) {
        const std::string authors((*book_matcher)[1]);
        const std::string title((*book_matcher)[2]);
@@ -81,7 +104,7 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
        _773subfields->addSubfield('a', authors);
        _773subfields->addSubfield('d', year);
        _773subfields->addSubfield('o', isbn);
-       // FIXME pages
+       _773subfields->addSubfield('g', pages);
    } else if (book_matcher_1->matched(_500aContent)) {
        const std::string authors((*book_matcher_1)[1]);
        const std::string title((*book_matcher_1)[2]);
@@ -89,6 +112,17 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
        _773subfields->addSubfield('t', title);
        _773subfields->addSubfield('a', authors);
        _773subfields->addSubfield('d', year);
+   } else if (book_matcher_2->matched(_500aContent)) {
+       const std::string authors((*book_matcher_2)[1]);
+       const std::string title((*book_matcher_2)[2]);
+       const std::string year((*book_matcher_2)[3]);
+       const std::string isbn((*book_matcher_2)[4]);
+       _773subfields->addSubfield('t', title);
+       _773subfields->addSubfield('a', authors);
+       _773subfields->addSubfield('d', year);
+       _773subfields->addSubfield('o', isbn);
+   } else {
+       LOG_WARNING("No matching regex for " + _500aContent);
    }
 }
 
@@ -137,7 +171,8 @@ void RewriteSSOARSuperiorReference(MARC::Reader * const marc_reader, MARC::Write
 
 int Main(int argc, char **argv) {
     ::progname = argv[0];
-
+std::cerr << "XXXXX\n";
+LOG_WARNING("ENTERING");
     MARC::FileType reader_type(MARC::FileType::AUTO);
     if (argc == 4) {
         if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
@@ -159,6 +194,6 @@ int Main(int argc, char **argv) {
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, reader_type));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
     RewriteSSOARSuperiorReference(marc_reader.get() , marc_writer.get());
-
+LOG_WARNING("AT END");
     return EXIT_SUCCESS;
 }
