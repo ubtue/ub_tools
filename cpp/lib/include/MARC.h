@@ -652,7 +652,7 @@ public:
     /** \return The file position of the start of the next record. */
     virtual off_t tell() const = 0;
 
-    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) { return input_->seek(offset, whence); }
+    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) = 0;
 
     /** \return a BinaryMarcReader or an XmlMarcReader. */
     static std::unique_ptr<Reader> Factory(const std::string &input_filename, FileType reader_type = FileType::AUTO);
@@ -705,7 +705,9 @@ public:
     virtual void rewind() override final;
 
     /** \return The file position of the start of the next record. */
-    virtual inline off_t tell() const override final { return input_->tell(); }
+    virtual inline off_t tell() const override final { return xml_parser_->tell(); }
+
+    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) override final { return xml_parser_->seek(offset, whence); }
 private:
     void parseLeader(const std::string &input_filename, Record * const new_record);
     void parseControlfield(const std::string &input_filename, const std::string &tag, Record * const record);

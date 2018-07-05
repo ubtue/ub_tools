@@ -79,7 +79,10 @@ public:
     bool getNext(Type * const type, std::map<std::string, std::string> * const attrib_map, std::string * const data);
 
     const std::string &getLastErrorMessage() const { return last_error_message_; }
+
+    /** \brief Returns 0 if line number cannot be determined, e.g. after seek was used. */
     unsigned getLineNo() const { return line_no_; }
+
     DataSource *getDataSource() const { return input_; }
 
     /** \brief Skip forward until we encounter a certain element.
@@ -108,6 +111,8 @@ public:
 
     void skipWhiteSpace();
     void rewind();
+    bool seek(const off_t offset, const int whence = SEEK_SET);
+    off_t tell();
 
     static std::string TypeToString(const Type type);
 private:
@@ -370,7 +375,7 @@ template<typename DataSource> void XMLSubsetParser<DataSource>::skipWhiteSpace()
         if (ch != ' ' and ch != '\t' and ch != '\n' and ch != '\r') {
             unget(ch);
             return;
-        } else if (ch == '\n')
+        } else if (ch == '\n' and line_no_ != 0)
             ++line_no_;
     }
 }
@@ -433,7 +438,7 @@ template<typename DataSource> void XMLSubsetParser<DataSource>::parseOptionalPro
         internal_encoding_ = TextUtil::CanonizeCharset(attrib_value);
 
     while (ch != EOF and ch != '>') {
-        if (unlikely(ch == '\n'))
+        if (unlikely(ch == '\n' and line_no_ != 0))
             ++line_no_;
         ch = get(/* skip_comment = */false);
     }
@@ -527,7 +532,7 @@ template<typename DataSource> bool XMLSubsetParser<DataSource>::parseCDATA(std::
             }
             consecutive_closing_bracket_count = 0;
         } else {
-            if (unlikely(ch == '\n'))
+            if (unlikely(ch == '\n' and line_no_ != 0))
                 ++line_no_;
             consecutive_closing_bracket_count = 0;
         }
@@ -570,7 +575,7 @@ collect_next_character:
                     last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
                     return false;
                 }
-                if (unlikely(ch == '\n'))
+                if (unlikely(ch == '\n' and line_no_ != 0))
                     ++line_no_;
                 *data += TextUtil::UTF32ToUTF8(ch);
             }
@@ -723,6 +728,21 @@ template<typename DataSource> void XMLSubsetParser<DataSource>::rewind() {
     pushed_back_chars_.clear();
 
     parseOptionalPrologue();
+}
+
+
+template<typename DataSource> bool XMLSubsetParser<DataSource>::seek(const off_t offset, const int whence) {
+    line_no_                = 0;
+    last_type_              = UNINITIALISED;
+    last_element_was_empty_ = false;
+    pushed_back_chars_.clear();
+
+    return input_->seek(offset, whence);
+}
+
+
+template<typename DataSource> off_t XMLSubsetParser<DataSource>::tell() {
+    return input_->tell() - pushed_back_chars_.size();
 }
 
 
