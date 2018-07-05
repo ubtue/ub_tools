@@ -22,9 +22,7 @@
 
 #include <iostream>
 #include <cstdlib>
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcTag.h"
+#include "MARC.h"
 #include "RegexMatcher.h"
 #include "util.h"
 
@@ -36,7 +34,7 @@ void Usage() {
 
 
 void TagGrep(const std::string &regex, const std::string &input_filename) {
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(input_filename));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename));
 
     std::string err_msg;
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex, &err_msg));
@@ -44,13 +42,12 @@ void TagGrep(const std::string &regex, const std::string &input_filename) {
         logger->error("bad regex: " + err_msg);
 
     unsigned count(0), field_matched_count(0), record_matched_count(0);
-    while (const MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++count;
         bool at_least_one_field_matched(false);
-        for (size_t index(0); index < record.getNumberOfFields(); ++index) {
-            const MarcTag &tag(record.getTag(index));
-            if (matcher->matched(tag.to_string())) {
-                std::cout << record.getControlNumber() << ':' << tag << ':' << record.getFieldData(index) << '\n';
+        for (const auto &field : record) {
+            if (matcher->matched(field.getTag().toString())) {
+                std::cout << record.getControlNumber() << ':' << field.toString() << '\n';
                 ++field_matched_count;
                 at_least_one_field_matched = true;
             }
