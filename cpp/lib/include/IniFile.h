@@ -29,12 +29,16 @@
 #pragma once
 
 
+#include <algorithm>
 #include <map>
 #include <stack>
 #include <string>
-#include <unordered_map>
 #include <vector>
 #include <cassert>
+
+
+// Forward declaration:
+class File;
 
 
 /** \class  IniFile
@@ -48,12 +52,21 @@
  */
 class IniFile {
 public:
+    struct Entry {
+        std::string name_, value_, comment_;
+    public:
+        Entry(const std::string &name, const std::string &value, const std::string &comment)
+            : name_(name), value_(value), comment_(comment) { }
+    };
+public:
     class Section {
+        friend class IniFile;
         std::string section_name_;
-        std::unordered_map<std::string, std::string> name_to_value_map_;
+        std::vector<Entry> entries_;
     public:
         enum DupeInsertionBehaviour { OVERWRITE_EXISTING_VALUE, ABORT_ON_DUPLICATE_NAME };
-        typedef std::unordered_map<std::string, std::string>::const_iterator const_iterator;
+        typedef std::vector<Entry>::const_iterator const_iterator;
+        typedef std::vector<Entry>::iterator iterator;
     public:
         explicit Section(const std::string &section_name): section_name_(section_name) { }
         Section() = default;
@@ -63,11 +76,16 @@ public:
 
         inline const std::string &getSectionName() const { return section_name_; }
 
-        inline const_iterator begin() const { return name_to_value_map_.begin(); }
-        inline const_iterator end() const { return name_to_value_map_.end(); }
+        inline const_iterator begin() const { return entries_.cbegin(); }
+        inline const_iterator end() const { return entries_.cend(); }
 
-        void insert(const std::string &variable_name, const std::string &value,
+        inline iterator begin() { return entries_.begin(); }
+        inline iterator end() { return entries_.end(); }
+
+        void insert(const std::string &variable_name, const std::string &value, const std::string &comment = "",
                     const DupeInsertionBehaviour dupe_insertion_behaviour = ABORT_ON_DUPLICATE_NAME);
+
+        void replace(const std::string &variable_name, const std::string &value, const std::string &comment = "");
 
         bool lookup(const std::string &variable_name, std::string * const s) const;
 
@@ -223,11 +241,25 @@ public:
          */
         std::vector<std::string> getEntryNamesThatStartWith(const std::string &starting_with) const;
 
-        inline bool variableIsDefined(const std::string &variable_name) const
-            { return name_to_value_map_.find(variable_name) != name_to_value_map_.end(); }
+        // \return An iterator referencing the found entry or end() if no matching enmtry was found.
+        inline const_iterator find(const std::string &variable_name) const {
+            return std::find_if(entries_.cbegin(), entries_.cend(), [&variable_name](const Entry &entry)
+                             { return entry.name_ == variable_name; });
+        }
+
+        // \return An iterator referencing the found entry or end() if no matching enmtry was found.
+        inline iterator find(const std::string &variable_name) {
+            return std::find_if(entries_.begin(), entries_.end(), [&variable_name](const Entry &entry)
+                             { return entry.name_ == variable_name; });
+        }
+
+        bool deleteEntry(const std::string &entry_name);
+    private:
+        void write(File * const output, const bool pretty_print) const;
     };
 public:
     typedef std::vector<Section> Sections;
+    typedef Sections::iterator iterator;
     typedef Sections::const_iterator const_iterator;
 protected:
     Sections sections_;
@@ -474,12 +506,35 @@ public:
 
     /** \brief  Generates a map from a sections' entries to it's values.
      *  \param  section_name  The name of the section whose map will be returned.
-     *  \return The mapping of entry names to values for the "section_name" section.
+     *  \return An iterator referencing the found section or end() if it doesn't exist.
      */
-    const Section &getSection(const std::string &section_name) const;
+    inline const_iterator getSection(const std::string &section_name) const {
+        return std::find(sections_.cbegin(), sections_.cend(), section_name);
+    }
+
+    /** \brief  Generates a map from a sections' entries to it's values.
+     *  \param  section_name  The name of the section whose map will be returned.
+     *  \return An iterator referencing the foloung section or end() if it doesn't exist.
+     */
+    inline iterator getSection(const std::string &section_name) {
+        return std::find(sections_.begin(), sections_.end(), section_name);
+    }
+
+    bool deleteSection(const std::string &section_name);
+
+    bool deleteEntry(const std::string &section_name, const std::string &entry_name);
 
     bool sectionIsDefined(const std::string &section_name) const;
+
+    /** \brief Creates "section_name" if it doesn't already exist.
+     *  \return True if a nedw section was created and false if the section already existed.
+     */
+    bool appendSection(const std::string &section_name);
+
     bool variableIsDefined(const std::string &section_name, const std::string &variable_name) const;
+
+    // \param pretty_print  If true we vertically align equal signs w/in each section.
+    void write(const std::string &path, const bool pretty_print = true) const;
 
     /** \brief  Generate an ini file name based upon the program name, i.e, programname.conf */
     static std::string DefaultIniFileName();
@@ -496,7 +551,7 @@ private:
 
     void processSectionHeader(const std::string &line);
     void processInclude(const std::string &line);
-    void processSectionEntry(const std::string &line);
+    void processSectionEntry(const std::string &line, const std::string &comment);
     void processFile(const std::string &filename);
 };
 

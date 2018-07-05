@@ -20,7 +20,7 @@
 /base_tar_unpacker
 /base64_coder
 /bib_ref_to_codes_tool
-/categorise_marc_xml
+/categorise_marc
 /clean_tag_db
 /collect_solr_stats_data
 /control_number_filter
@@ -37,6 +37,7 @@
 /delete_unused_local_data
 /display_translate_stats
 /dsv_reader
+/edit_ini_file
 /enrich_ddcs
 /enrich_keywords_with_title_words
 /es_store_document
@@ -63,7 +64,7 @@
 /full_text_cache_monitor
 /full_text_lookup
 /full_text_stats
-/generate_issn_to_ppn_map
+/generate_issn_to_misc_bits_map
 /generate_large_marc_record
 /generate_title_and_author_list
 /generate_vufind_translation_files
@@ -91,6 +92,7 @@
 /marc_filter
 /marc_grep
 /marc_info
+/marc21_scramble
 /marc_size
 /marc_split
 /marc_tag_grep

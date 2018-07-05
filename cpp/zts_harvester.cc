@@ -68,43 +68,43 @@ const std::unordered_map<std::string, std::string> group_to_user_agent_map = {
 void LoadMARCEditInstructions(const IniFile::Section &section, std::vector<MARC::EditInstruction> * edit_instructions) {
     edit_instructions->clear();
 
-    for (const auto &name_and_value : section) {
-        if (StringUtil::StartsWith(name_and_value.first, "insert_field_")) {
-            const std::string tag_candidate(name_and_value.first.substr(__builtin_strlen("insert_field_")));
+    for (const auto &entry : section) {
+        if (StringUtil::StartsWith(entry.name_, "insert_field_")) {
+            const std::string tag_candidate(entry.name_.substr(__builtin_strlen("insert_field_")));
             if (tag_candidate.length() != MARC::Record::TAG_LENGTH)
-                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + name_and_value.first + "\"!");
-            edit_instructions->emplace_back(MARC::EditInstruction::CreateInsertFieldInstruction(tag_candidate, name_and_value.second));
-        } else if (StringUtil::StartsWith(name_and_value.first, "insert_subfield_")) {
-            const std::string tag_and_subfield_code_candidate(name_and_value.first.substr(__builtin_strlen("insert_subfield_")));
+                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + entry.name_ + "\"!");
+            edit_instructions->emplace_back(MARC::EditInstruction::CreateInsertFieldInstruction(tag_candidate, entry.value_));
+        } else if (StringUtil::StartsWith(entry.name_, "insert_subfield_")) {
+            const std::string tag_and_subfield_code_candidate(entry.name_.substr(__builtin_strlen("insert_subfield_")));
             if (tag_and_subfield_code_candidate.length() != MARC::Record::TAG_LENGTH + 1)
-                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + name_and_value.first + "\"!");
+                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + entry.name_ + "\"!");
             edit_instructions->emplace_back(MARC::EditInstruction::CreateInsertSubfieldInstruction(
                 tag_and_subfield_code_candidate.substr(0, MARC::Record::TAG_LENGTH),
-                tag_and_subfield_code_candidate[MARC::Record::TAG_LENGTH], name_and_value.second));
-        } else if (StringUtil::StartsWith(name_and_value.first, "add_subfield_")) {
-            const std::string tag_and_subfield_code_candidate(name_and_value.first.substr(__builtin_strlen("add_subfield_")));
+                tag_and_subfield_code_candidate[MARC::Record::TAG_LENGTH], entry.value_));
+        } else if (StringUtil::StartsWith(entry.name_, "add_subfield_")) {
+            const std::string tag_and_subfield_code_candidate(entry.name_.substr(__builtin_strlen("add_subfield_")));
             if (tag_and_subfield_code_candidate.length() != MARC::Record::TAG_LENGTH + 1)
-                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + name_and_value.first + "\"!");
+                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + entry.name_ + "\"!");
             edit_instructions->emplace_back(MARC::EditInstruction::CreateAddSubfieldInstruction(
                 tag_and_subfield_code_candidate.substr(0, MARC::Record::TAG_LENGTH),
-                tag_and_subfield_code_candidate[MARC::Record::TAG_LENGTH], name_and_value.second));
+                tag_and_subfield_code_candidate[MARC::Record::TAG_LENGTH], entry.value_));
         }
     }
 }
 
 
 void ReadGenericSiteAugmentParams(const IniFile::Section &section, Zotero::SiteAugmentParams * const augment_params) {
-    augment_params->parent_ISSN_print_ = section.getString("parent_issn_print", "");
-    augment_params->parent_ISSN_online_ = section.getString("parent_issn_online", "");
-    augment_params->strptime_format_ = section.getString("strptime_format", "");
-    augment_params->parent_PPN_ = section.getString("parent_PPN", "");
+    augment_params->parent_ISSN_print_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_PRINT), "");
+    augment_params->parent_ISSN_online_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_ONLINE), "");
+    augment_params->strptime_format_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT), "");
+    augment_params->parent_PPN_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_PPN), "");
 }
 
 
 UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
                             const Zotero::SiteAugmentParams &augment_params, DbConnection * const db_connection, const bool &test)
 {
-    const std::string feed_url(section.getString("feed"));
+    const std::string feed_url(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::FEED)));
     LOG_DEBUG("feed_url: " + feed_url);
     Zotero::RSSHarvestMode rss_harvest_mode(Zotero::RSSHarvestMode::NORMAL);
     if (test)
@@ -114,9 +114,9 @@ UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const std::shared_p
 
 
 void ReadCrawlerSiteDesc(const IniFile::Section &section, SimpleCrawler::SiteDesc * const site_desc) {
-    site_desc->start_url_ = section.getString("base_url");
-    site_desc->max_crawl_depth_ = section.getUnsigned("max_crawl_depth");
-    site_desc->url_regex_matcher_.reset(RegexMatcher::RegexMatcherFactoryOrDie(section.getString("extraction_regex")));
+    site_desc->start_url_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::BASE_URL));
+    site_desc->max_crawl_depth_ = section.getUnsigned(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::MAX_CRAWL_DEPTH));
+    site_desc->url_regex_matcher_.reset(RegexMatcher::RegexMatcherFactoryOrDie(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX))));
 }
 
 
@@ -133,7 +133,7 @@ UnsignedPair ProcessCrawl(const IniFile::Section &section, const std::shared_ptr
 UnsignedPair ProcessDirectHarvest(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
                                   const Zotero::SiteAugmentParams &augment_params)
 {
-    return Zotero::HarvestURL(section.getString("url"), harvest_params, augment_params);
+    return Zotero::HarvestURL(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::URL)), harvest_params, augment_params);
 }
 
 
@@ -234,9 +234,9 @@ int Main(int argc, char *argv[]) {
     for (int arg_no(2); arg_no < argc; ++arg_no)
         section_name_to_found_flag_map.emplace(argv[arg_no], false);
 
-    enum Type { RSS, CRAWL, DIRECT };
-    const std::map<std::string, int> string_to_value_map{ {"RSS", RSS }, { "CRAWL", CRAWL }, { "DIRECT", DIRECT } };
-
+    std::map<std::string, int> type_string_to_value_map;
+    for (const auto &type : Zotero::HARVESTER_TYPE_TO_STRING_MAP)
+        type_string_to_value_map[type.second] = type.first;
     unsigned processed_section_count(0);
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
 
@@ -257,7 +257,7 @@ int Main(int argc, char *argv[]) {
         if (live_only and section.getBool("live", false) != true)
             continue;
 
-        const std::string group_name(section.getString("group"));
+        const std::string group_name(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::GROUP)));
         const auto group_name_and_params(group_name_to_params_map.find(group_name));
         if (group_name_and_params == group_name_to_params_map.cend())
             LOG_ERROR("unknown or undefined group \"" + group_name + "\" in section \"" + section.getSectionName() + "\"!");
@@ -287,11 +287,12 @@ int Main(int argc, char *argv[]) {
         LOG_INFO("Processing section \"" + section.getSectionName() + "\".");
         ++processed_section_count;
 
-        const Type type(static_cast<Type>(section.getEnum("type", string_to_value_map)));
-        if (type == RSS)
+        const Zotero::HarvesterType type(static_cast<Zotero::HarvesterType>(section.getEnum(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::TYPE),
+                                                                                            type_string_to_value_map)));
+        if (type == Zotero::HarvesterType::RSS)
             total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section, harvest_params, site_augment_params,
                                                                                         db_connection.get(), test);
-        else if (type == CRAWL) {
+        else if (type == Zotero::HarvesterType::CRAWL) {
             SimpleCrawler::Params crawler_params;
             crawler_params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
             crawler_params.min_url_processing_time_ = Zotero::DEFAULT_MIN_URL_PROCESSING_TIME;

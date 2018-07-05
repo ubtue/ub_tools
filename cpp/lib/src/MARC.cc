@@ -1298,6 +1298,26 @@ std::string GetLanguageCode(const Record &record) {
 }
 
 
+size_t GetLanguageCodes(const Record &record, std::set<std::string> * const language_codes) {
+    language_codes->clear();
+
+    const auto _008_language_code(GetLanguageCode(record));
+    if (not _008_language_code.empty())
+        language_codes->emplace(_008_language_code);
+
+    // See https://www.loc.gov/marc/bibliographic/bd041.html if you ever hope to understand this eimplementation!
+    static const std::set<char> LANGUAGE_CODE_SUBFIELD_CODES{ 'a', 'b', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'm', 'n' };
+    for (const auto &_041_field : record.getTagRange("041")) {
+        for (const auto &subfield : _041_field.getSubfields()) {
+            if (LANGUAGE_CODE_SUBFIELD_CODES.find(subfield.code_) != LANGUAGE_CODE_SUBFIELD_CODES.cend())
+                language_codes->emplace(subfield.value_);
+        }
+    }
+
+    return language_codes->size();
+}
+
+
 bool GetGNDCode(const Record &record, std::string * const gnd_code) {
     gnd_code->clear();
     for (const auto &_035_field : record.getTagRange("035")) {
@@ -1621,6 +1641,17 @@ bool IsOpenAccess(const Record &marc_record) {
     }
 
     return false;
+}
+
+
+size_t CollectRecordOffsets(MARC::Reader * const marc_reader, std::unordered_map<std::string, off_t> * const control_number_to_offset_map) {
+    off_t last_offset(marc_reader->tell());
+    while (const MARC::Record record = marc_reader->read()) {
+        (*control_number_to_offset_map)[record.getControlNumber()] = last_offset;
+        last_offset = marc_reader->tell();
+    }
+
+    return control_number_to_offset_map->size();
 }
 
 
