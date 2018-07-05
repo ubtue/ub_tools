@@ -26,8 +26,7 @@
 #include "Compiler.h"
 #include "Downloader.h"
 #include "FileUtil.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
+#include "MARC.h"
 #include "MediaTypeUtil.h"
 #include "PerlCompatRegExp.h"
 #include "Subfields.h"
@@ -44,26 +43,16 @@ static void Usage() {
 }
 
 
-bool IsEssayCollection(const std::string &tag, const MarcRecord &record) {
-    std::vector<size_t> field_indices;
-    record.getFieldIndices(tag, &field_indices);
-    for (const size_t index : field_indices) {
-        const std::string field_contents(record.getFieldData(index));
-        if (field_contents.empty())
-            continue;
-        const Subfields subfields(field_contents);
-        const auto begin_end(subfields.getIterators('a'));
-        for (auto a_iter(begin_end.first); a_iter != begin_end.second; ++a_iter) {
-            if (a_iter->value_.find("Aufsatzsammlung") != std::string::npos)
-                return true;
-        }
+bool IsEssayCollection(const std::string &tag, const MARC::Record &record) {
+    for (const std::string &value : record.getSubfieldValues(tag, 'a')) {
+        if (value.find("Aufsatzsammlung") != std::string::npos)
+            return true;
     }
-
     return false;
 }
 
 
-bool IsEssayCollection(const MarcRecord &record) {
+bool IsEssayCollection(const MARC::Record &record) {
     if (IsEssayCollection("650", record))
         return true;
     if (IsEssayCollection("655", record))
@@ -74,26 +63,23 @@ bool IsEssayCollection(const MarcRecord &record) {
 }
 
 
-std::string GetTOC_URL(const MarcRecord &record) {
-    std::vector<size_t> field_indices;
-    record.getFieldIndices("856", &field_indices);
-    for (const size_t index : field_indices) {
-        const std::string field_contents(record.getFieldData(index));
-        if (field_contents.empty())
+std::string GetTOC_URL(const MARC::Record &record) {
+    for (const auto &field : record.getTagRange("856")) {
+        if (field.getContents().empty())
             continue;
-        const Subfields _856_subfields(field_contents);
-        if (likely(_856_subfields.hasSubfield('u'))
-            and _856_subfields.hasSubfieldWithValue('3', "Inhaltsverzeichnis"))
-            return _856_subfields.getFirstSubfieldValue('u');
+        const MARC::Subfields subfields(field.getSubfields());
+        if (likely(subfields.hasSubfield('u'))
+            and subfields.hasSubfieldWithValue('3', "Inhaltsverzeichnis"))
+            return subfields.getFirstSubfieldWithCode('u');
     }
 
     return ""; // Found no TOC URL.
 }
 
 
-std::string GetYear(const std::string &tag, const MarcRecord &record) {
+std::string GetYear(const std::string &tag, const MARC::Record &record) {
     static PerlCompatRegExp year_reg_exp(PerlCompatRegExp("(\\d\\d\\d\\d)"));
-    const std::string field_contents(record.getFieldData(tag));
+    const std::string field_contents(record.getFirstFieldContents(tag));
     if (field_contents.empty())
         return "";
     const Subfields subfields(field_contents);
@@ -105,7 +91,7 @@ std::string GetYear(const std::string &tag, const MarcRecord &record) {
 }
 
 
-std::string GetYear(const MarcRecord &record) {
+std::string GetYear(const MARC::Record &record) {
     std::string year(GetYear("264", record));
     if (year.empty())
         return GetYear("260", record);
@@ -113,10 +99,10 @@ std::string GetYear(const MarcRecord &record) {
 }
 
 
-void ProcessRecords(MarcReader * const marc_reader, const unsigned pdf_limit_count) {
+void ProcessRecords(MARC::Reader * const marc_reader, const unsigned pdf_limit_count) {
     unsigned record_count(0), until1999_count(0), from2000_to_2009_count(0), after2009_count(0),
         unhandled_url_count(0), good_count(0), download_failure_count(0), pdf_success_count(0);
-    while (const MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
 
         if (not IsEssayCollection(record))
@@ -202,7 +188,7 @@ int main(int argc, char *argv[]) {
     } else
         pdf_limit_count = 0;
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[argc == 2 ? 1 : 3]));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[argc == 2 ? 1 : 3]));
 
     try {
         ProcessRecords(marc_reader.get(), pdf_limit_count);
