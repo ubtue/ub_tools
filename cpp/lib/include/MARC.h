@@ -602,6 +602,10 @@ public:
     /** \return Values for all fields with tag "tag" and subfield codes "subfield_codes". Handle subfields of numeric subfields like 9v appropriately*/
     std::vector<std::string> getSubfieldAndNumericSubfieldValues(const Tag &tag, const std::string &subfield_spec) const;
 
+    /** \return Iterators pointing to the first field of each local data block, i.e. blocks of LOK fields.
+     */
+    std::vector<const_iterator> findStartOfAllLocalDataBlocks() const;
+
     /** \brief Finds local ("LOK") block boundaries.
      *  \param local_block_boundaries  Each entry contains the iterator pointing to the first field of a local block
      *                                 in "first" and the iterator pointing past the last field of a local block in
