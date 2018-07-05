@@ -249,7 +249,6 @@ public:
                          { return subfield.code_ == subfield_code; }), subfields_.end());
     }
 
-
     inline std::string toString() const {
         std::string as_string;
         for (const auto &subfield : subfields_)
@@ -447,6 +446,25 @@ public:
     inline iterator getFirstField(const Tag &field_tag) {
         return std::find_if(fields_.begin(), fields_.end(),
                             [&field_tag](const Field &field){ return field.getTag() == field_tag; });
+    }
+
+    /** \return Returns the content of the first field with given tag or an empty string if the tag is not present. */
+    const std::string getFirstFieldContents(const Tag &field_tag) const {
+        const_iterator field(getFirstField(field_tag));
+        if (field == fields_.cend())
+            return "";
+        else
+            return field->getContents();
+    }
+
+    /** \return Returns the content of the first subfield found in a given tag or an empty string if the subfield cannot be found. */
+    const std::string getFirstSubfieldValue(const Tag &field_tag, const char code) const {
+        for (const auto &field : getTagRange(field_tag)) {
+            const std::string value(field.getSubfields().getFirstSubfieldWithCode(code));
+            if (not value.empty())
+                return value;
+        }
+        return "";
     }
 
     RecordType getRecordType() const {
