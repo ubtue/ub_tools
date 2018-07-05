@@ -646,7 +646,7 @@ public:
     virtual inline const std::string &getPath() const = 0;
 
     /** \return The file position of the start of the next record. */
-    virtual off_t tell() const = 0;
+    virtual off_t tell() = 0;
 
     virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) = 0;
 
@@ -671,7 +671,7 @@ public:
     virtual inline const std::string &getPath() const override final { return input_->getPath(); }
 
     /** \return The file position of the start of the next record. */
-    virtual off_t tell() const override final { return next_record_start_; }
+    virtual inline off_t tell() override final { return next_record_start_; }
 
     virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) override final;
 private:
@@ -707,7 +707,7 @@ public:
     virtual inline const std::string &getPath() const override final { return input_filename_; }
 
     /** \return The file position of the start of the next record. */
-    virtual inline off_t tell() const override final { return last_read_record_opening_tag_.offset_; }
+    virtual off_t tell() override final;
 
     virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) override final;
 private:
