@@ -448,6 +448,53 @@ std::string Record::getMainTitle() const {
 }
 
 
+namespace {
+
+
+const std::string LOCAL_FIELD_PREFIX("  ""\x1F""0"); // Every local field starts w/ this.
+
+
+inline std::string GetLocalTag(const Record::Field &local_field) {
+    return local_field.getContents().substr(LOCAL_FIELD_PREFIX.size(), Record::TAG_LENGTH);
+}
+
+
+inline bool LocalIndicatorsMatch(const char indicator1, const char indicator2, const Record::Field &local_field) {
+    if (indicator1 != '?' and (indicator1 != local_field.getContents()[LOCAL_FIELD_PREFIX.size() + Record::TAG_LENGTH + 0]))
+        return false;
+    if (indicator2 != '?' and (indicator2 != local_field.getContents()[LOCAL_FIELD_PREFIX.size() + Record::TAG_LENGTH + 1]))
+        return false;
+    return true;
+}
+
+
+inline bool LocalTagMatches(const Tag &tag, const Record::Field &local_field) {
+    return local_field.getContents().substr(LOCAL_FIELD_PREFIX.size(), Record::TAG_LENGTH) == tag.toString();
+}
+
+
+} // unnamed namespace
+
+
+std::vector<Record::const_iterator> Record::findStartOfAllLocalDataBlocks() const {
+    std::vector<const_iterator> block_start_iterators;
+
+    std::string last_local_tag;
+    const_iterator local_field(getFirstField("LOK"));
+    if (local_field == end())
+        return block_start_iterators;
+
+    while (local_field != end()) {
+        if (GetLocalTag(*local_field) < last_local_tag)
+            block_start_iterators.emplace_back(local_field);
+        last_local_tag = GetLocalTag(*local_field);
+        ++local_field;
+    }
+
+    return block_start_iterators;
+}
+
+
 size_t Record::findAllLocalDataBlocks(
     std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const
 {
@@ -564,34 +611,6 @@ bool Record::edit(const std::vector<EditInstruction> &edit_instructions, std::st
 
     return not failed_at_least_once;
 }
-
-
-namespace {
-
-
-const std::string LOCAL_FIELD_PREFIX("  ""\x1F""0"); // Every local field starts w/ this.
-
-
-inline std::string GetLocalTag(const Record::Field &local_field) {
-    return local_field.getContents().substr(LOCAL_FIELD_PREFIX.size(), Record::TAG_LENGTH);
-}
-
-    
-inline bool LocalIndicatorsMatch(const char indicator1, const char indicator2, const Record::Field &local_field) {
-    if (indicator1 != '?' and (indicator1 != local_field.getContents()[LOCAL_FIELD_PREFIX.size() + Record::TAG_LENGTH + 0]))
-        return false;
-    if (indicator2 != '?' and (indicator2 != local_field.getContents()[LOCAL_FIELD_PREFIX.size() + Record::TAG_LENGTH + 1]))
-        return false;
-    return true;
-}
-
-
-inline bool LocalTagMatches(const Tag &tag, const Record::Field &local_field) {
-    return local_field.getContents().substr(LOCAL_FIELD_PREFIX.size(), Record::TAG_LENGTH) == tag.toString();
-}
-
-
-} // unnamed namespace
 
 
 Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag, const const_iterator &block_start, const char indicator1,
