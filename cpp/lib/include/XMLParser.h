@@ -42,9 +42,9 @@ class XMLParser {
     bool body_has_more_contents_;
     unsigned open_elements_;
 public:
-    class RuntimeError : public std::runtime_error {
+    class Error : public std::runtime_error {
     public:
-        explicit RuntimeError(const std::string &message) : std::runtime_error(message) { };
+        explicit Error(const std::string &message) : std::runtime_error(message) { };
     };
     typedef std::map<std::string, std::string> Attributes;
 
@@ -134,7 +134,7 @@ public:
     /** \return true if there are more elements to parse, o/w false.
      *  \note   parsing is done in progressive mode, meaning that the document is
      *          still being parsed during consecutive getNext() calls.
-     *  \throws XMLParser::RuntimeError
+     *  \throws XMLParser::Error
      */
     bool getNext(XMLPart * const next, bool combine_consecutive_characters = true);
 
