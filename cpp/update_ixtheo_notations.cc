@@ -24,10 +24,7 @@
 #include <unordered_map>
 #include <cctype>
 #include <cstdlib>
-#include "MarcRecord.h"
-#include "MarcReader.h"
-#include "MarcWriter.h"
-#include "Subfields.h"
+#include "MARC.h"
 #include "util.h"
 
 
@@ -64,14 +61,9 @@ void LoadCodeToDescriptionMap(File * const code_to_description_map_file,
 }
 
 
-bool LocalBlockIsFromUbTueTheologians(const std::pair<size_t, size_t> &local_block_begin_and_end,
-                                      const MarcRecord &record)
-{
-    std::vector<size_t> _852_indices;
-    record.findFieldsInLocalBlock("852", "  ", local_block_begin_and_end, &_852_indices);
-
-    for (const auto index : _852_indices) {
-        const Subfields subfields(record.getSubfields(index));
+bool LocalBlockIsFromUbTueTheologians(const MARC::Record::const_iterator &local_block_start, const MARC::Record &record) {
+    for (const auto &_852_local_field : record.findFieldsInLocalBlock("852", local_block_start, /*indicator1*/' ', /*indicator2*/' ')) {
+        const MARC::Subfields subfields(_852_local_field.getSubfields());
         if (subfields.hasSubfieldWithValue('a', "Tü 135"))
             return true;
     }
@@ -80,18 +72,14 @@ bool LocalBlockIsFromUbTueTheologians(const std::pair<size_t, size_t> &local_blo
 }
 
 
-unsigned ExtractIxTheoNotations(const std::pair<size_t, size_t> &local_block_begin_and_end,
-                                const MarcRecord &record,
+unsigned ExtractIxTheoNotations(const MARC::Record::const_iterator &local_block_start, const MARC::Record &record,
                                 const std::unordered_map<std::string, std::string> &code_to_description_map,
                                 std::string * const ixtheo_notations_list)
 {
-    std::vector<size_t> _936ln_indices;
-    record.findFieldsInLocalBlock("936", "ln", local_block_begin_and_end, &_936ln_indices);
-
     size_t found_count(0);
-    for (const auto index : _936ln_indices) {
-        const Subfields subfields(record.getSubfields(index));
-        const std::string ixtheo_notation_candidate(subfields.getFirstSubfieldValue('a'));
+    for (const auto &_936_local_field : record.findFieldsInLocalBlock("936", local_block_start, /*indicator1*/'l', /*indicator2*/'n')) {
+        const MARC::Subfields subfields(_936_local_field.getSubfields());
+        const std::string ixtheo_notation_candidate(subfields.getFirstSubfieldWithCode('a'));
         if (code_to_description_map.find(ixtheo_notation_candidate) != code_to_description_map.end()) {
             ++found_count;
             if (ixtheo_notations_list->empty())
@@ -105,26 +93,20 @@ unsigned ExtractIxTheoNotations(const std::pair<size_t, size_t> &local_block_beg
 }
 
 
-void ProcessRecords(MarcReader * const marc_reader, MarcWriter * const marc_writer,
+void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                     const std::unordered_map<std::string, std::string> &code_to_description_map)
 {
     unsigned count(0), ixtheo_notation_count(0), records_with_ixtheo_notations(0);
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         ++count;
 
-        std::vector<std::pair<size_t, size_t>> local_block_boundaries;
-        if (record.findAllLocalDataBlocks(&local_block_boundaries) == 0) {
-            marc_writer->write(record);
-            continue;
-        }
-
         std::string ixtheo_notations_list; // Colon-separated list of ixTheo notations.
-        for (const auto &local_block_begin_and_end : local_block_boundaries) {
-            if (not LocalBlockIsFromUbTueTheologians(local_block_begin_and_end, record))
+        for (const auto &local_block_start_iter : record.findStartOfAllLocalDataBlocks()) {
+            if (not LocalBlockIsFromUbTueTheologians(local_block_start_iter, record))
                 continue;
 
-            const unsigned notation_count(ExtractIxTheoNotations(local_block_begin_and_end, record,
-                                                                 code_to_description_map, &ixtheo_notations_list));
+            const unsigned notation_count(ExtractIxTheoNotations(local_block_start_iter, record, code_to_description_map,
+                                                                 &ixtheo_notations_list));
             if (notation_count > 0) {
                 ++records_with_ixtheo_notations;
                 ixtheo_notation_count += notation_count;
@@ -132,7 +114,7 @@ void ProcessRecords(MarcReader * const marc_reader, MarcWriter * const marc_writ
         }
 
         if (not ixtheo_notations_list.empty()) // Insert a new 652 field w/ a $a subfield.
-            record.insertSubfield("652", 'a', ixtheo_notations_list);
+            record.insertField("652", { { 'a', ixtheo_notations_list } });
         marc_writer->write(record);
     }
 
@@ -142,25 +124,23 @@ void ProcessRecords(MarcReader * const marc_reader, MarcWriter * const marc_writ
 }
 
 
-int main(int argc, char **argv) {
+int Main(int argc, char **argv) {
     ::progname = argv[0];
 
     if (argc != 4)
         Usage();
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], MarcWriter::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1], MARC::FileType::BINARY));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2], MARC::FileType::BINARY));
 
     const std::string code_to_description_map_filename(argv[3]);
     File code_to_description_map_file(code_to_description_map_filename, "r");
     if (not code_to_description_map_file)
         logger->error("can't open \"" + code_to_description_map_filename + "\" for reading!");
 
-    try {
-        std::unordered_map<std::string, std::string> code_to_description_map;
-        LoadCodeToDescriptionMap(&code_to_description_map_file, &code_to_description_map);
-        ProcessRecords(marc_reader.get(), marc_writer.get(), code_to_description_map);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    std::unordered_map<std::string, std::string> code_to_description_map;
+    LoadCodeToDescriptionMap(&code_to_description_map_file, &code_to_description_map);
+    ProcessRecords(marc_reader.get(), marc_writer.get(), code_to_description_map);
+
+    return EXIT_SUCCESS;
 }
