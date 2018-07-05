@@ -64,7 +64,7 @@
 /full_text_cache_monitor
 /full_text_lookup
 /full_text_stats
-/generate_issn_to_ppn_map
+/generate_issn_to_misc_bits_map
 /generate_large_marc_record
 /generate_title_and_author_list
 /generate_vufind_translation_files
@@ -92,6 +92,7 @@
 /marc_filter
 /marc_grep
 /marc_info
+/marc21_scramble
 /marc_size
 /marc_split
 /marc_tag_grep

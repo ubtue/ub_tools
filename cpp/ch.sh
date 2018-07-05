@@ -12,5 +12,5 @@ marc_filter "${newest}" "${output}" --output-format=marc-xml --remove-fields 'LO
 7za u -p"${PASSWORD}" /usr/local/vufind/public/docs/"${output}".7z "${output}"
 rm "${output}"
 chcon unconfined_u:object_r:usr_t:s0 /usr/local/vufind/public/docs/"${output}".7z
-send_email -reply-to=ixtheo@ub.uni-tuebingen.de --recipients=johannes.ruscheinski@uni-tuebingen.de,waldvogel@globethics.net,support@novalogix.ch \
+send_email --reply-to=ixtheo@ub.uni-tuebingen.de --recipients=johannes.ruscheinski@uni-tuebingen.de,waldvogel@globethics.net,support@novalogix.ch \
            --subject="Neue IxTheo-Daten verfügbar" --message-body="URL: http://ixtheo.de/docs/"${output}".7z"
