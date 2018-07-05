@@ -31,7 +31,7 @@
 #include "Compiler.h"
 #include "File.h"
 #include "MarcXmlWriter.h"
-#include "XMLParser.h"
+#include "XMLSubsetParser.h"
 
 
 namespace MARC {
@@ -634,8 +634,11 @@ FileType GuessFileType(const std::string &filename, const bool read_file = true)
 
 
 class Reader {
+protected:
+    File *input_;
+    Reader(File * const input): input_(input) { }
 public:
-    virtual ~Reader() = default;
+    virtual ~Reader() { delete input_; }
 
     virtual FileType getReaderType() = 0;
     virtual Record read() = 0;
@@ -644,12 +647,12 @@ public:
     virtual void rewind() = 0;
 
     /** \return The path of the underlying file. */
-    virtual inline const std::string &getPath() const = 0;
+    inline const std::string &getPath() const { return input_->getPath(); }
 
     /** \return The file position of the start of the next record. */
-    virtual off_t tell() = 0;
+    virtual off_t tell() const = 0;
 
-    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) = 0;
+    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) { return input_->seek(offset, whence); }
 
     /** \return a BinaryMarcReader or an XmlMarcReader. */
     static std::unique_ptr<Reader> Factory(const std::string &input_filename, FileType reader_type = FileType::AUTO);
@@ -658,21 +661,19 @@ public:
 
 class BinaryReader: public Reader {
     friend class Reader;
-    File *input_;
     Record last_record_;
     off_t next_record_start_;
 private:
-    explicit BinaryReader(File * const input): input_(input), last_record_(actualRead()), next_record_start_(0) { }
+    explicit BinaryReader(File * const input): Reader(input), last_record_(actualRead()), next_record_start_(0) { }
 public:
-    virtual ~BinaryReader() { delete input_; };
+    virtual ~BinaryReader() = default;
 
     virtual FileType getReaderType() override final { return FileType::BINARY; }
     virtual Record read() override final;
     virtual void rewind() override final { input_->rewind(); next_record_start_ = 0; last_record_ = actualRead(); }
-    virtual inline const std::string &getPath() const override final { return input_->getPath(); }
 
     /** \return The file position of the start of the next record. */
-    virtual inline off_t tell() override final { return next_record_start_; }
+    virtual off_t tell() const override final { return next_record_start_; }
 
     virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) override final;
 private:
@@ -682,20 +683,17 @@ private:
 
 class XmlReader: public Reader {
     friend class Reader;
-    XMLParser *xml_parser_;
-    std::string input_filename_;
+    XMLSubsetParser<File> *xml_parser_;
     std::string namespace_prefix_;
-    XMLParser::XMLPart last_read_record_opening_tag_;
 private:
     /** \brief Initialise a XmlReader instance.
      *  \param input                        Where to read from.
      *  \param skip_over_start_of_document  Skips to the first marc:record tag.  Do not set this if you intend
      *                                      to seek to an offset on \"input\" before calling this constructor.
      */
-    explicit XmlReader(const std::string &input_filename, const bool skip_over_start_of_document = true)
-        : xml_parser_(new XMLParser(input_filename, XMLParser::XML_FILE)), input_filename_(input_filename)
+    explicit XmlReader(File * const input, const bool skip_over_start_of_document = true)
+        : Reader(input), xml_parser_(new XMLSubsetParser<File>(input))
     {
-        last_read_record_opening_tag_.offset_ = 0;
         if (skip_over_start_of_document)
             skipOverStartOfDocument();
     }
@@ -705,12 +703,9 @@ public:
     virtual FileType getReaderType() override final { return FileType::XML; }
     virtual Record read() override final;
     virtual void rewind() override final;
-    virtual inline const std::string &getPath() const override final { return input_filename_; }
 
     /** \return The file position of the start of the next record. */
-    virtual off_t tell() override final;
-
-    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) override final;
+    virtual inline off_t tell() const override final { return input_->tell(); }
 private:
     void parseLeader(const std::string &input_filename, Record * const new_record);
     void parseControlfield(const std::string &input_filename, const std::string &tag, Record * const record);
@@ -718,7 +713,8 @@ private:
                         const std::map<std::string, std::string> &datafield_attrib_map,
                         const std::string &tag, Record * const record);
     void skipOverStartOfDocument();
-    bool getNext(XMLParser::XMLPart * const xml_part);
+    bool getNext(XMLSubsetParser<File>::Type * const type, std::map<std::string, std::string> * const attrib_map,
+                 std::string * const data);
 };
 
 
