@@ -1662,4 +1662,15 @@ bool IsOpenAccess(const Record &marc_record) {
 }
 
 
+size_t CollectRecordOffsets(MARC::Reader * const marc_reader, std::unordered_map<std::string, off_t> * const control_number_to_offset_map) {
+    off_t last_offset(marc_reader->tell());
+    while (const MARC::Record record = marc_reader->read()) {
+        (*control_number_to_offset_map)[record.getControlNumber()] = last_offset;
+        last_offset = marc_reader->tell();
+    }
+
+    return control_number_to_offset_map->size();
+}
+
+
 } // namespace MARC
