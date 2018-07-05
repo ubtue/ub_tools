@@ -514,12 +514,12 @@ public:
     bool edit(const std::vector<EditInstruction> &edit_instructions, std::string * const error_message);
 
     /** \brief Locate a field in a local block.
+     *  \param local_field_tag      The nested tag that we're looking for.
      *  \param indicators           The two 1-character indicators that we're looking for. A question mark here
      *                              means don't care.  So, if you want to match any indicators you should pass "??"
      *                              here.
-     *  \param local_field_tag      The nested tag that we're looking for.
      *  \param block_start          An iterator referencing the start of the local block that we're scanning.
-     *  \return The half-open range of fields that matched ourv criteria.
+     *  \return The half-open range of fields that matched our criteria.
      */
     ConstantRange findFieldsInLocalBlock(const Tag &local_field_tag, const std::string &indicators,
                                          const const_iterator &block_start) const;

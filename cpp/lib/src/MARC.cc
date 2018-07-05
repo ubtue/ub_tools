@@ -572,7 +572,12 @@ namespace {
 const std::string LOCAL_FIELD_PREFIX("  ""\x1F""0"); // Every local field starts w/ this.
 
 
-inline bool IndicatorsMatch(const std::string &indicators, const Record::Field &local_field) {
+inline std::string GetLocalTag(const Record::Field &local_field) {
+    return local_field.getContents().substr(LOCAL_FIELD_PREFIX.size(), Record::TAG_LENGTH);
+}
+
+    
+inline bool LocalIndicatorsMatch(const std::string &indicators, const Record::Field &local_field) {
     if (indicators[0] != '?' and (indicators[0] != local_field.getContents()[LOCAL_FIELD_PREFIX.size() + Record::TAG_LENGTH + 0]))
         return false;
     if (indicators[1] != '?' and (indicators[1] != local_field.getContents()[LOCAL_FIELD_PREFIX.size() + Record::TAG_LENGTH + 1]))
@@ -599,17 +604,17 @@ Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag,
     auto local_field(block_start);
     const_iterator range_start(fields_.end()), range_end(fields_.end());
     while (local_field != fields_.end()) {
-        if (local_field->getTag() < last_tag) { // We found the start of a new local block!
+        if (GetLocalTag(*local_field) < last_tag) { // We found the start of a new local block!
             if (range_start == fields_.end())
                 return Record::ConstantRange(fields_.end(), fields_.end());
             return Record::ConstantRange(range_start, local_field);
         }
 
-        if (IndicatorsMatch(indicators, *local_field) and LocalTagMatches(local_field_tag, *local_field)) {
+        if (LocalIndicatorsMatch(indicators, *local_field) and LocalTagMatches(local_field_tag, *local_field)) {
             range_start = local_field;
             range_end = ++range_start;
             while (range_end != fields_.end()) {
-                if (not IndicatorsMatch(indicators, *range_end) or not LocalTagMatches(local_field_tag, *range_end))
+                if (not LocalIndicatorsMatch(indicators, *range_end) or not LocalTagMatches(local_field_tag, *range_end))
                     break;
                 ++range_end;
             }
@@ -617,7 +622,7 @@ Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag,
             return Record::ConstantRange(range_start, range_end);
         }
 
-        last_tag = local_field->getTag().toString();
+        last_tag = GetLocalTag(*local_field);
         ++local_field;
     }
 
