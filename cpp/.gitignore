@@ -92,6 +92,7 @@
 /marc_filter
 /marc_grep
 /marc_info
+/marc21_scramble
 /marc_size
 /marc_split
 /marc_tag_grep
