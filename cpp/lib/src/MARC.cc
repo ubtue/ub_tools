@@ -606,7 +606,7 @@ Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag,
 
         if (LocalIndicatorsMatch(indicator1, indicator2, *local_field) and LocalTagMatches(local_field_tag, *local_field)) {
             range_start = local_field;
-            range_end = ++range_start;
+            range_end = range_start + 1;
             while (range_end != fields_.end()) {
                 if (not LocalIndicatorsMatch(indicator1, indicator2, *range_end) or not LocalTagMatches(local_field_tag, *range_end))
                     break;
