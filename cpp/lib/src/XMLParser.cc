@@ -33,17 +33,17 @@ const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
 
 
 void XMLParser::ConvertAndThrowException(const xercesc::RuntimeException &exc) {
-    throw XMLParser::RuntimeError("Xerces RuntimeException: " + ToString(exc.getMessage()));
+    throw XMLParser::Error("Xerces RuntimeException: " + ToString(exc.getMessage()));
 }
 
 
 void XMLParser::ConvertAndThrowException(const xercesc::SAXParseException &exc) {
-    throw XMLParser::RuntimeError("Xerces SAXParseException on line " + std::to_string(exc.getLineNumber()) + ": " + ToString(exc.getMessage()));
+    throw XMLParser::Error("Xerces SAXParseException on line " + std::to_string(exc.getLineNumber()) + ": " + ToString(exc.getMessage()));
 }
 
 
 void XMLParser::ConvertAndThrowException(const xercesc::XMLException &exc) {
-    throw XMLParser::RuntimeError("Xerces XMLException on line " + std::to_string(exc.getSrcLine()) + ": " + ToString(exc.getMessage()));
+    throw XMLParser::Error("Xerces XMLException on line " + std::to_string(exc.getSrcLine()) + ": " + ToString(exc.getMessage()));
 }
 
 
@@ -197,7 +197,7 @@ void XMLParser::seek(const off_t offset, const int whence) {
                 buffer_.emplace_front(xml_part);
                 return;
             } else if (xml_part.offset_ > offset)
-                throw XMLParser::RuntimeError("no element found at offset: " + std::to_string(offset));
+                throw XMLParser::Error("no element found at offset: " + std::to_string(offset));
         }
     } else if (whence == SEEK_CUR)
         return seek(tell() + offset, SEEK_SET);
@@ -206,7 +206,7 @@ void XMLParser::seek(const off_t offset, const int whence) {
         return seek(size + offset, SEEK_SET);
     }
 
-    throw XMLParser::RuntimeError("offset not found: " + std::to_string(offset));
+    throw XMLParser::Error("offset not found: " + std::to_string(offset));
 }
 
 
@@ -235,15 +235,15 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
             if (type_ == XML_FILE) {
                 body_has_more_contents_ = parser_->parseFirst(xml_filename_or_string_.c_str(), token_);
                 if (not body_has_more_contents_)
-                    throw XMLParser::RuntimeError("error parsing document header: " + xml_filename_or_string_);
+                    throw XMLParser::Error("error parsing document header: " + xml_filename_or_string_);
             } else if (type_ == XML_STRING) {
                 xercesc::MemBufInputSource input_buffer((const XMLByte*)xml_filename_or_string_.c_str(), xml_filename_or_string_.size(),
                                                         "xml_string (in memory)");
                 body_has_more_contents_ = parser_->parseFirst(input_buffer, token_);
                 if (not body_has_more_contents_)
-                    throw XMLParser::RuntimeError("error parsing document header: " + xml_filename_or_string_);
+                    throw XMLParser::Error("error parsing document header: " + xml_filename_or_string_);
             } else
-                throw XMLParser::RuntimeError("Undefined XMLParser::Type!");
+                throw XMLParser::Error("Undefined XMLParser::Type!");
 
             prolog_parsing_done_ = true;
         }
