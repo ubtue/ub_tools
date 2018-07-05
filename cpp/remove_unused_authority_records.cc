@@ -1,7 +1,7 @@
 /** \brief Utility for removing unreferenced authority records
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -25,9 +25,7 @@
 #include <cstdlib>
 #include "FileUtil.h"
 #include "Leader.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -36,16 +34,13 @@
 namespace {
 
 
-void Usage() __attribute__((noreturn));
-
-
-void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " title_data authority_data filtered_authority_data\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-void CollectGNDReferences(MarcReader * const marc_reader, std::unordered_set<std::string> * const gnd_numbers) {
+void CollectGNDReferences(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const gnd_numbers) {
     std::string err_msg;
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\x1F""0\\(DE-588\\)([^\x1F]+).*\x1F""2gnd",
                                                                    &err_msg));
@@ -53,11 +48,11 @@ void CollectGNDReferences(MarcReader * const marc_reader, std::unordered_set<std
         logger->error("failed to compile a regex in CollectGNDReferences: " + err_msg);
 
     unsigned record_count(0);
-    while (const MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
 
-        for (const auto field_contents : record) {
-            if (matcher->matched(field_contents))
+        for (const auto field : record) {
+            if (matcher->matched(field.getContents()))
                 gnd_numbers->emplace((*matcher)[1]);
         }
     }
@@ -67,13 +62,10 @@ void CollectGNDReferences(MarcReader * const marc_reader, std::unordered_set<std
 }
 
 
-std::string GetGNDNumber(const MarcRecord &record) {
-    std::vector<size_t> _035_indices;
-    record.getFieldIndices("035", &_035_indices);
-
-    for (const auto index : _035_indices) {
-        const Subfields _035_subfields(record.getFieldData(index));
-        const std::string _035a_contents(_035_subfields.getFirstSubfieldValue('a'));
+std::string GetGNDNumber(const MARC::Record &record) {
+    for (const auto &_035_field : record.getTagRange("035")) {
+        const MARC::Subfields _035_subfields(_035_field.getSubfields());
+        const std::string _035a_contents(_035_subfields.getFirstSubfieldWithCode('a'));
         if (StringUtil::StartsWith(_035a_contents, "(DE-588)"))
             return _035a_contents.substr(__builtin_strlen("(DE-588)"));
     }
@@ -85,12 +77,12 @@ std::string GetGNDNumber(const MarcRecord &record) {
 const std::string DROPPED_GND_LIST_FILE("/usr/local/var/log/tuefind/dropped_gnd_numbers.list");
 
 
-void FilterAuthorityData(MarcReader * const marc_reader, MarcWriter * const marc_writer,
+void FilterAuthorityData(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                          const std::unordered_set<std::string> &gnd_numbers)
 {
     std::unique_ptr<File> gnd_list_file(FileUtil::OpenOutputFileOrDie(DROPPED_GND_LIST_FILE));
     unsigned record_count(0), dropped_count(0), authority_records_without_gnd_numbers_count(0);
-    while (const MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
 
         const std::string gnd_number(GetGNDNumber(record));
@@ -114,21 +106,19 @@ void FilterAuthorityData(MarcReader * const marc_reader, MarcWriter * const marc
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
+int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 4)
         Usage();
 
-    try {
-        std::unique_ptr<MarcReader> marc_title_reader(MarcReader::Factory(argv[1]));
-        std::unique_ptr<MarcReader> marc_authority_reader(MarcReader::Factory(argv[2]));
-        std::unique_ptr<MarcWriter> marc_authority_writer(MarcWriter::Factory(argv[3]));
+    std::unique_ptr<MARC::Reader> marc_title_reader(MARC::Reader::Factory(argv[1]));
+    std::unique_ptr<MARC::Reader> marc_authority_reader(MARC::Reader::Factory(argv[2]));
+    std::unique_ptr<MARC::Writer> marc_authority_writer(MARC::Writer::Factory(argv[3]));
 
-        std::unordered_set<std::string> gnd_numbers;
-        CollectGNDReferences(marc_title_reader.get(), &gnd_numbers);
-        FilterAuthorityData(marc_authority_reader.get(), marc_authority_writer.get(), gnd_numbers);
-    } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
-    }
+    std::unordered_set<std::string> gnd_numbers;
+    CollectGNDReferences(marc_title_reader.get(), &gnd_numbers);
+    FilterAuthorityData(marc_authority_reader.get(), marc_authority_writer.get(), gnd_numbers);
+
+    return EXIT_SUCCESS;
 }
