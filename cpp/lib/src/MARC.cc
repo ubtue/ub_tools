@@ -566,6 +566,65 @@ bool Record::edit(const std::vector<EditInstruction> &edit_instructions, std::st
 }
 
 
+namespace {
+
+
+const std::string LOCAL_FIELD_PREFIX("  ""\x1F""0"); // Every local field starts w/ this.
+
+
+inline bool IndicatorsMatch(const std::string &indicators, const Record::Field &local_field) {
+    if (indicators[0] != '?' and (indicators[0] != local_field.getContents()[LOCAL_FIELD_PREFIX.size() + Record::TAG_LENGTH + 0]))
+        return false;
+    if (indicators[1] != '?' and (indicators[1] != local_field.getContents()[LOCAL_FIELD_PREFIX.size() + Record::TAG_LENGTH + 1]))
+        return false;
+    return true;
+}
+
+
+inline bool LocalTagMatches(const Tag &tag, const Record::Field &local_field) {
+    return local_field.getContents().substr(LOCAL_FIELD_PREFIX.size(), Record::TAG_LENGTH) == tag.toString();
+}
+
+
+} // unnamed namespace
+
+
+Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag, const std::string &indicators,
+                                                     const const_iterator &block_start) const
+{
+    if (unlikely(indicators.length() != 2))
+        LOG_ERROR("we need exactly 2 indicators here!");
+
+    std::string last_tag;
+    auto local_field(block_start);
+    const_iterator range_start(fields_.end()), range_end(fields_.end());
+    while (local_field != fields_.end()) {
+        if (local_field->getTag() < last_tag) { // We found the start of a new local block!
+            if (range_start == fields_.end())
+                return Record::ConstantRange(fields_.end(), fields_.end());
+            return Record::ConstantRange(range_start, local_field);
+        }
+
+        if (IndicatorsMatch(indicators, *local_field) and LocalTagMatches(local_field_tag, *local_field)) {
+            range_start = local_field;
+            range_end = ++range_start;
+            while (range_end != fields_.end()) {
+                if (not IndicatorsMatch(indicators, *range_end) or not LocalTagMatches(local_field_tag, *range_end))
+                    break;
+                ++range_end;
+            }
+
+            return Record::ConstantRange(range_start, range_end);
+        }
+
+        last_tag = local_field->getTag().toString();
+        ++local_field;
+    }
+
+    return ConstantRange(range_start, fields_.end());
+}
+
+
 std::unordered_set<std::string> Record::getTagSet() const {
     std::unordered_set<std::string> tags;
     for (const auto &field : fields_)
