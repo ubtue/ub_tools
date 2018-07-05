@@ -43,8 +43,21 @@ class DbConnection;
 namespace Zotero {
 
 
+enum HarvesterType { RSS, CRAWL, DIRECT };
+enum HarvesterConfigEntry {
+    TYPE, GROUP,
+    PARENT_PPN, PARENT_ISSN_PRINT, PARENT_ISSN_ONLINE, STRPTIME_FORMAT,
+    FEED, URL, BASE_URL,
+    EXTRACTION_REGEX, MAX_CRAWL_DEPTH
+};
+
+
+extern const std::map<HarvesterType, std::string> HARVESTER_TYPE_TO_STRING_MAP;
+extern const std::map<HarvesterConfigEntry, std::string> HARVESTER_CONFIG_ENTRY_TO_STRING_MAP;
+
+
 extern const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH;
-extern const std::string ISSN_TO_PPN_MAP_PATH;
+extern const std::string ISSN_TO_MISC_BITS_MAP_PATH;
 
 
 // native supported formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43

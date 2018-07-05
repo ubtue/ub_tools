@@ -76,12 +76,13 @@ MetadataFormat::MetadataFormat(const std::string &name, const IniFile &ini_file)
     container_ = ini_file.getString(name, "container", "");
 
     // Read the set of namespaces and schema locations:
-    const IniFile::Section section(ini_file.getSection(name));
-    for (const auto &name_value_pair : section)
-        if (std::strncmp("xmlns", name_value_pair.first.c_str(), 5) == 0
-            or std::strncmp("xsi", name_value_pair.first.c_str(), 3) == 0
-            or std::strcmp("schemaVersion", name_value_pair.first.c_str()) == 0)
-            namespaces_and_schema_locations_.push_back(name_value_pair.first + "=\"" + name_value_pair.second + "\"");
+    const auto section(ini_file.getSection(name));
+    for (const auto &entry : *section) {
+        if (std::strncmp("xmlns", entry.name_.c_str(), 5) == 0
+            or std::strncmp("xsi", entry.name_.c_str(), 3) == 0
+            or std::strcmp("schemaVersion", entry.name_.c_str()) == 0)
+            namespaces_and_schema_locations_.push_back(entry.name_ + "=\"" + entry.value_ + "\"");
+    }
 
     // Grab the list of fields from the configuration file:
     std::string fields = ini_file.getString(name, "fields");

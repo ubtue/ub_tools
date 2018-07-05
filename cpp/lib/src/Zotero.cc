@@ -41,8 +41,28 @@ class File;
 namespace Zotero {
 
 
+const std::map<HarvesterType, std::string> HARVESTER_TYPE_TO_STRING_MAP{
+    { HarvesterType::RSS, "RSS" },
+    { HarvesterType::CRAWL, "CRAWL" },
+    { HarvesterType::DIRECT, "DIRECT" }
+};
+const std::map<HarvesterConfigEntry, std::string> HARVESTER_CONFIG_ENTRY_TO_STRING_MAP{
+    { HarvesterConfigEntry::TYPE, "type" },
+    { HarvesterConfigEntry::GROUP, "group" },
+    { HarvesterConfigEntry::PARENT_PPN, "parent_ppn" },
+    { HarvesterConfigEntry::PARENT_ISSN_PRINT, "parent_issn_print" },
+    { HarvesterConfigEntry::PARENT_ISSN_ONLINE, "parent_issn_online" },
+    { HarvesterConfigEntry::STRPTIME_FORMAT, "strptime_format" },
+    { HarvesterConfigEntry::FEED, "feed" },
+    { HarvesterConfigEntry::URL, "url" },
+    { HarvesterConfigEntry::BASE_URL, "base_url" },
+    { HarvesterConfigEntry::EXTRACTION_REGEX, "extraction_regex" },
+    { HarvesterConfigEntry::MAX_CRAWL_DEPTH, "max_crawl_depth" }
+};
+
+
 const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
-const std::string ISSN_TO_PPN_MAP_PATH("/usr/local/var/lib/tuelib/issn_to_ppn.map");
+const std::string ISSN_TO_MISC_BITS_MAP_PATH("/usr/local/var/lib/tuelib/issn_to_misc_bits.map");
 
 
 const std::vector<std::string> EXPORT_FORMATS{
@@ -618,7 +638,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 
 
 void LoadISSNToPPNMap(std::unordered_map<std::string, PPNandTitle> * const ISSN_to_superior_ppn_map) {
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(ISSN_TO_PPN_MAP_PATH));
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(ISSN_TO_MISC_BITS_MAP_PATH));
     unsigned line_no(0);
     while (not input->eof()) {
         ++line_no;
@@ -629,12 +649,12 @@ void LoadISSNToPPNMap(std::unordered_map<std::string, PPNandTitle> * const ISSN_
 
         const size_t FIRST_COMMA_POS(line.find_first_of(','));
         if (unlikely(FIRST_COMMA_POS == std::string::npos or FIRST_COMMA_POS == 0))
-            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_PPN_MAP_PATH + "\"! (1)");
+            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_MISC_BITS_MAP_PATH + "\"! (1)");
         const std::string ISSN(line.substr(0, FIRST_COMMA_POS));
 
         const size_t SECOND_COMMA_POS(line.find_first_of(',', FIRST_COMMA_POS + 1));
         if (unlikely(SECOND_COMMA_POS == std::string::npos or SECOND_COMMA_POS == FIRST_COMMA_POS + 1))
-            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_PPN_MAP_PATH + "\"! (2)");
+            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_MISC_BITS_MAP_PATH + "\"! (2)");
         const std::string PPN(line.substr(FIRST_COMMA_POS + 1, SECOND_COMMA_POS - FIRST_COMMA_POS - 1));
 
         const std::string title(StringUtil::RightTrim(" \t", line.substr(SECOND_COMMA_POS + 1)));

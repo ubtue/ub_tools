@@ -209,10 +209,10 @@ const std::string GetTueFindFlavour() {
 void CreateDatabases(const bool ub_tools) {
     if (ub_tools) {
         IniFile ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
-        IniFile::Section section(ini_file.getSection("Database"));
-        const std::string sql_database(section.getString("sql_database"));
-        const std::string sql_username(section.getString("sql_username"));
-        const std::string sql_password(section.getString("sql_password"));
+        const auto section(ini_file.getSection("Database"));
+        const std::string sql_database(section->getString("sql_database"));
+        const std::string sql_username(section->getString("sql_username"));
+        const std::string sql_password(section->getString("sql_password"));
 
         const std::string root_username("root");
         const std::string root_password("");
