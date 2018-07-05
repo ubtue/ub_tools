@@ -249,6 +249,16 @@ public:
                          { return subfield.code_ == subfield_code; }), subfields_.end());
     }
 
+    inline bool replaceSubfieldCode(const char old_code, const char new_code) {
+        bool replaced_at_least_one_code(false);
+        for (auto &subfield : *this) {
+            if (subfield.code_ == old_code) {
+                subfield.code_ = new_code;
+                replaced_at_least_one_code = true;
+            }
+        }
+        return replaced_at_least_one_code;
+    }
 
     inline std::string toString() const {
         std::string as_string;
