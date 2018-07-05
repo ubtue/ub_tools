@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2017, Library of the University of Tübingen
+    Copyright (C) 2017,2018 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,9 +24,7 @@
 #include <unordered_map>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "util.h"
 
 
@@ -41,7 +39,7 @@ const int PDA_CUTOFF_YEAR(2014);
 
 namespace {
 
-    
+
 void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbose] ill_list marc_input marc_output\n"
               << "       Insert an additional field for monographs published after " << PDA_CUTOFF_YEAR << "\n"
@@ -70,47 +68,45 @@ void ExtractILLPPNs(const bool verbose, const std::unique_ptr<File>& ill_list,
 }
 
 
-void ProcessRecord(const bool verbose, MarcRecord * const record, const std::unordered_set<std::string> &ill_set) {
-     // We tag a record as potentially PDA if it is 
-     // a) a monograph b) published after a given cutoff date c) not in the list of known SWB-ILLs
-     
-     if (not record->getLeader().isMonograph())
-         return;
+void ProcessRecord(const bool verbose, MARC::Record * const record, const std::unordered_set<std::string> &ill_set) {
+    // We tag a record as potentially PDA if it is
+    // a) a monograph b) published after a given cutoff date c) not in the list of known SWB-ILLs
+    if (not record->isMonograph())
+        return;
 
-     if (record->isElectronicResource())
-         return;
-     
-     const size_t _008_index(record->getFieldIndex("008"));
-     if (unlikely(_008_index == MarcRecord::FIELD_NOT_FOUND))
-         return;
+    if (record->isElectronicResource())
+        return;
 
-     // Determine publication sort year given in Bytes 7-10 of field 008
-     const std::string &_008_contents(record->getFieldData(_008_index));
-     int publication_year;
-     if (StringUtil::ToNumber(_008_contents.substr(7, 4), &publication_year)) {
-         if (publication_year < PDA_CUTOFF_YEAR)
-             return;
-     } else {
-         if (verbose) 
-             std::cerr << "Could not determine publication year for record " << record->getControlNumber()
-                   << " [ " <<  _008_contents.substr(7, 4) << " given ]\n";
-         return;
-     }
-     
-     if (ill_set.find(record->getControlNumber()) == ill_set.cend()) {
-         if (record->getFieldIndex(POTENTIALLY_PDA_TAG) != MarcRecord::FIELD_NOT_FOUND)
-             logger->error("Field " + POTENTIALLY_PDA_TAG + " already populated for PPN "
-                           + record->getControlNumber());
-         record->insertSubfield(POTENTIALLY_PDA_TAG, POTENTIALLY_PDA_SUBFIELD, "1");
-         ++modified_count;
-     }
+    if (unlikely(not record->hasTag("008")))
+        return;
+
+    // Determine publication sort year given in Bytes 7-10 of field 008
+    const std::string &_008_contents(record->getFirstField("008")->getContents());
+    int publication_year;
+    if (StringUtil::ToNumber(_008_contents.substr(7, 4), &publication_year)) {
+        if (publication_year < PDA_CUTOFF_YEAR)
+            return;
+    } else {
+        if (verbose)
+            std::cerr << "Could not determine publication year for record " << record->getControlNumber()
+                  << " [ " <<  _008_contents.substr(7, 4) << " given ]\n";
+        return;
+    }
+
+    if (ill_set.find(record->getControlNumber()) == ill_set.cend()) {
+        if (record->hasTag(POTENTIALLY_PDA_TAG))
+            logger->error("Field " + POTENTIALLY_PDA_TAG + " already populated for PPN "
+                          + record->getControlNumber());
+        record->insertField(POTENTIALLY_PDA_TAG, { { POTENTIALLY_PDA_SUBFIELD, "1" } });
+        ++modified_count;
+    }
 }
 
 
-void TagRelevantRecords(const bool verbose, MarcReader * const marc_reader, MarcWriter * const marc_writer,
+void TagRelevantRecords(const bool verbose, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                         const std::unordered_set<std::string> * ill_set)
 {
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         ProcessRecord(verbose, &record, *ill_set);
         marc_writer->write(record);
         ++record_count;
@@ -152,8 +148,8 @@ int main(int argc, char **argv) {
     try {
         std::unordered_set<std::string> ill_set;
         std::unique_ptr<File> ill_reader(FileUtil::OpenInputFileOrDie(ill_list_filename));
-        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename));
-        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename));
+        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
+        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
 
         ExtractILLPPNs(verbose, ill_reader, &ill_set);
         TagRelevantRecords(verbose, marc_reader.get(), marc_writer.get(), &ill_set);
