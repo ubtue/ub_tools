@@ -39,19 +39,6 @@ namespace {
 }
 
 
-unsigned LoadMap(MARC::Reader * const marc_reader, std::unordered_map<std::string, off_t> * const control_number_to_offset_map) {
-    unsigned record_count(0);
-    off_t last_offset(marc_reader->tell());
-    while (const MARC::Record record = marc_reader->read()) {
-        ++record_count;
-        (*control_number_to_offset_map)[record.getControlNumber()] = last_offset;
-        last_offset = marc_reader->tell();
-    }
-
-    return record_count;
-}
-
-
 void WriteRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const std::vector<std::string> &control_numbers,
                   const std::unordered_map<std::string, off_t>  &control_number_to_offset_map)
 {
@@ -83,7 +70,7 @@ int Main(int argc, char *argv[]) {
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2], MARC::FileType::BINARY));
 
     std::unordered_map<std::string, off_t> control_number_to_offset_map;
-    LoadMap(marc_reader.get(), &control_number_to_offset_map);
+    MARC::CollectRecordOffsets(marc_reader.get(), &control_number_to_offset_map);
 
     std::vector<std::string> control_numbers;
     control_numbers.reserve(control_number_to_offset_map.size());

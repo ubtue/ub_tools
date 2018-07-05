@@ -34,25 +34,9 @@
 namespace {
 
 
-static void Usage() __attribute__((noreturn));
-
-
-static void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbose] marc_collection1 marc_collection2\n";
     std::exit(EXIT_FAILURE);
-}
-
-
-unsigned LoadMap(MARC::Reader * const marc_reader, std::unordered_map<std::string, off_t> * const control_number_to_offset_map) {
-    unsigned record_count(0);
-    off_t last_offset(marc_reader->tell());
-    while (const MARC::Record record = marc_reader->read()) {
-        ++record_count;
-        (*control_number_to_offset_map)[record.getControlNumber()] = last_offset;
-        last_offset = marc_reader->tell();
-    }
-
-    return record_count;
 }
 
 
@@ -220,7 +204,7 @@ void EmitStandardReport(const bool verbose, const std::string &collection1_name,
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
+int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc < 3)
@@ -233,24 +217,22 @@ int main(int argc, char *argv[]) {
     if (argc != 3)
         Usage();
 
-    try {
-        const std::string collection1_name(argv[1]);
-        const std::string collection2_name(argv[2]);
-        std::unique_ptr<MARC::Reader> marc_reader1(MARC::Reader::Factory(collection1_name));
-        std::unique_ptr<MARC::Reader> marc_reader2(MARC::Reader::Factory(collection2_name));
+    const std::string collection1_name(argv[1]);
+    const std::string collection2_name(argv[2]);
+    std::unique_ptr<MARC::Reader> marc_reader1(MARC::Reader::Factory(collection1_name));
+    std::unique_ptr<MARC::Reader> marc_reader2(MARC::Reader::Factory(collection2_name));
 
-        std::unordered_map<std::string, off_t> control_number_to_offset_map1;
-        const unsigned collection1_size(LoadMap(marc_reader1.get(), &control_number_to_offset_map1));
+    std::unordered_map<std::string, off_t> control_number_to_offset_map1;
+    const size_t collection1_size(MARC::CollectRecordOffsets(marc_reader1.get(), &control_number_to_offset_map1));
 
-        std::unordered_map<std::string, off_t> control_number_to_offset_map2;
-        const unsigned collection2_size(LoadMap(marc_reader2.get(), &control_number_to_offset_map2));
+    std::unordered_map<std::string, off_t> control_number_to_offset_map2;
+    const unsigned collection2_size(MARC::CollectRecordOffsets(marc_reader2.get(), &control_number_to_offset_map2));
 
-        EmitDifferenceReport(verbose, control_number_to_offset_map1, control_number_to_offset_map2, marc_reader1.get(),
-                             marc_reader2.get());
+    EmitDifferenceReport(verbose, control_number_to_offset_map1, control_number_to_offset_map2, marc_reader1.get(),
+                         marc_reader2.get());
 
-        EmitStandardReport(verbose, collection1_name, collection2_name, collection1_size, collection2_size,
-                           control_number_to_offset_map1, control_number_to_offset_map2);
-    } catch (const std::exception &e) {
-        LOG_ERROR("Caught exception: " + std::string(e.what()));
-    }
+    EmitStandardReport(verbose, collection1_name, collection2_name, collection1_size, collection2_size,
+                       control_number_to_offset_map1, control_number_to_offset_map2);
+
+    return EXIT_SUCCESS;
 }
