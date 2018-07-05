@@ -33,9 +33,7 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
@@ -71,7 +69,7 @@ void SetupPublicationYearMap(File * const sort_year_list, SortList * const sort_
 static unsigned modified_count(0);
 
 
-void ProcessRecord(MarcRecord * const record, const SortList &sort_year_map) {
+void ProcessRecord(MARC::Record * const record, const SortList &sort_year_map) {
     SortList::const_iterator iter(sort_year_map.find(record->getControlNumber()));
     if (iter == sort_year_map.cend())
        return;
@@ -79,37 +77,34 @@ void ProcessRecord(MarcRecord * const record, const SortList &sort_year_map) {
     std::string sort_year(iter->second);
 
     // We insert in 190j
-    std::vector<size_t> _190Indices;
-    record->getFieldIndices("190", &_190Indices);
-
     // Case 1: If there is no 190 tag yet, insert subfield j and we are done
-    if (_190Indices.empty()) {
-        record->insertSubfield("190", 'j', sort_year);
+    if (not record->hasTag("190")) {
+        record->insertField("190", { { 'j', sort_year } });
         ++modified_count;
         return;
     }
 
     // Case 2: There is a 190 tag
-    for (auto &_190Index : _190Indices) {
-        Subfields _190Subfields = record->getSubfields("190");
-        if (_190Subfields.hasSubfield('j'))
+    MARC::Record::Range range(record->getTagRange("190"));
+    for (auto &field : range) {
+        MARC::Subfields subfields = field.getSubfields();
+        if (subfields.hasSubfield('j'))
             LOG_ERROR("We already have a 190j subfield for PPN " + record->getControlNumber());
 
         // If there is no 190j subfield yet, we insert at the last field occurence
-        if (_190Index == _190Indices.back()) {
-            _190Subfields.addSubfield('j', sort_year);
-            record->updateField(_190Index, _190Subfields);
+        if (field == *(range.end() - 1)) {
+            subfields.appendSubfield('j', sort_year);
             ++modified_count;
         }
     }
 }
 
 
-void AddPublicationYearField(MarcReader * const marc_reader, MarcWriter * const marc_writer,
+void AddPublicationYearField(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                              const SortList &sort_year_map)
 {
     unsigned record_count(0);
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         ProcessRecord(&record, sort_year_map);
         marc_writer->write(record);
         ++record_count;
@@ -139,9 +134,9 @@ int main(int argc, char **argv) {
         LOG_ERROR("Either marc input filename or marc output filename equals the sort list filename");
 
     try {
-        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
+        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::FileType::BINARY));
         std::unique_ptr<File> sort_year_list(FileUtil::OpenInputFileOrDie(sort_year_list_filename));
-        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
+        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY));
         SortList sort_year_map;
         SetupPublicationYearMap(sort_year_list.get(), &sort_year_map);
         AddPublicationYearField(marc_reader.get(), marc_writer.get(), sort_year_map);
