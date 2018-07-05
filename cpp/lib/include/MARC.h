@@ -24,6 +24,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include <arpa/inet.h>
@@ -836,6 +837,10 @@ bool UBTueIsAquisitionRecord(const Record &marc_record);
 
 
 bool IsOpenAccess(const Record &marc_record);
+
+
+// \warning After a call to this function you may want to rewind the MARC Reader.
+size_t CollectRecordOffsets(MARC::Reader * const marc_reader, std::unordered_map<std::string, off_t> * const control_number_to_offset_map);
 
 
 } // namespace MARC
