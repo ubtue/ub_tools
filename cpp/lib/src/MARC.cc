@@ -1121,6 +1121,24 @@ bool XmlReader::seek(const off_t offset, const int whence) {
 }
 
 
+off_t XmlReader::tell() {
+    bool lookahead(false);
+    if (last_read_record_opening_tag_.offset_ == 0) {
+        lookahead = true;
+        read();
+    }
+
+    if (last_read_record_opening_tag_.offset_ == 0)
+        throw std::runtime_error("no record found in " + input_filename_ + "!");
+
+    off_t offset(last_read_record_opening_tag_.offset_);
+    if (lookahead)
+        rewind();
+
+    return offset;
+}
+
+
 std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, FileType writer_type,
                                         const WriterMode writer_mode)
 {
