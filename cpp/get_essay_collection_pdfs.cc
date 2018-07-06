@@ -29,7 +29,6 @@
 #include "MARC.h"
 #include "MediaTypeUtil.h"
 #include "PerlCompatRegExp.h"
-#include "Subfields.h"
 #include "StringUtil.h"
 #include "util.h"
 
