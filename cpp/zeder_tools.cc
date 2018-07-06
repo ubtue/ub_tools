@@ -43,9 +43,10 @@ using namespace Zotero;
     std::cerr << "Usage: " << ::progname
               << " [--verbosity=min_verbosity] --mode=tool_mode flavour first_path second_path \n"
               << "Modes:\n"
-              << "\t" << "generate:" << "\t" << "Converts the .csv file exported from Zeder into a zeder_tools generated .conf "                                                  "file. The first path points to the .csv file and the second to the output .conf "                                                "file.\n"
-              << "\t" << "merge:"   << "\t\t"  << "Compares the last modified time stamps of entries in a pair of zeder_tools generated "                                        << ".conf files and merges any changes. The first path points to the source/updated .conf file and "
-                                               << " file and the second to the destination/old .conf into which the changes are merged.\n\n"
+              << "\t" << "generate:" << "\t"    << "Converts the .csv file exported from Zeder into a zeder_tools generated .conf "                                                  "file. The first path points to the .csv file and the second to the output .conf "                                                "file.\n"
+              << "\t" << "diff:"     << "\t\t"  << "Compares the last modified time stamps of entries in a pair of zeder_tools generated "                                           ".conf files. The first path points to the source/updated .conf file and "
+                                                   " file and the second to the destination/old .conf.\n"
+              << "\t" << "merge:"    << "\t\t"  << "Same as above but additionally merges any changes into the destination/old .conf.\n\n"
               << "Flavour: Either 'ixtheo' or 'krimdok'.\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -214,7 +215,7 @@ inline ZederConfigData::const_iterator ZederConfigData::find(const ZederEntry::I
 }
 
 
-enum Mode { GENERATE, MERGE };
+enum Mode { GENERATE, DIFF, MERGE };
 
 enum ZederColumn { Z, PPPN, EPPN, ISSN, ESSN, TIT, KAT, PRODF, LRT, P_ZOT1, P_ZOT2, B_ZOT, URL1, URL2, MTIME };
 enum ZederSpecificConfigKey { ID, MODIFIED_TIME };
@@ -488,10 +489,13 @@ void WriteZederIni(IniFile * const ini, const ZederConfigData &zeder_config) {
                 current_section->insert(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::BASE_URL), entry.primary_url_, "",
                                 IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
 
-                // insert the max_crawl_depth key if not present
-                std::string max_crawl_depth;
-                if (not current_section->lookup(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::MAX_CRAWL_DEPTH), &max_crawl_depth))
+                // insert other required keys if not present
+                std::string temp_buffer;
+                if (not current_section->lookup(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::MAX_CRAWL_DEPTH), &temp_buffer))
                     current_section->insert(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::MAX_CRAWL_DEPTH), "1", "");
+
+                if (not current_section->lookup(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::EXTRACTION_REGEX), &temp_buffer))
+                    current_section->insert(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::EXTRACTION_REGEX), "", "");
 
                 break;
             }
@@ -504,10 +508,8 @@ void WriteZederIni(IniFile * const ini, const ZederConfigData &zeder_config) {
 }
 
 
-bool DiffZederEntries(const ZederConfigData &old_config,
-                      const ZederConfigData &new_config,
-                      std::map<ZederEntry::Id, ZederConfigDiff> * const diffs,
-                      bool skip_global_timestamp_check = false)
+bool DiffZederEntries(const ZederConfigData &old_config, const ZederConfigData &new_config,
+                      std::map<ZederEntry::Id, ZederConfigDiff> * const diffs, bool skip_global_timestamp_check = false)
 {
     if (not skip_global_timestamp_check) {
         if (TimeUtil::DiffStructTm(new_config.getModifiedTimestamp(), old_config.getModifiedTimestamp()) <= 0)
@@ -562,6 +564,8 @@ int Main(int argc, char *argv[]) {
         const auto mode_string(argv[1] + __builtin_strlen("--mode="));
         if (std::strcmp(mode_string, "generate") == 0)
             current_mode = Mode::GENERATE;
+        else if (std::strcmp(mode_string, "diff") == 0)
+            current_mode = Mode::DIFF;
         else if (std::strcmp(mode_string, "merge") == 0)
             current_mode = Mode::MERGE;
         else
@@ -595,6 +599,7 @@ int Main(int argc, char *argv[]) {
 
         break;
     }
+    case Mode::DIFF:
     case Mode::MERGE: {
         ZederConfigData old_data(source), new_data(source);
         IniFile updated_ini(first_path), old_ini(second_path);
@@ -609,10 +614,12 @@ int Main(int argc, char *argv[]) {
                 old_data.mergeEntry(entry.second);
             }
 
-            old_data.sortEntries();
-            old_data.setModifiedTimestamp(*current_time);
-            WriteZederIni(&old_ini, old_data);
-            old_ini.write(second_path);
+            if (current_mode == Mode::MERGE) {
+                old_data.sortEntries();
+                old_data.setModifiedTimestamp(*current_time);
+                WriteZederIni(&old_ini, old_data);
+                old_ini.write(second_path);
+            }
 
             LOG_INFO("Modified entries: " + std::to_string(diffs.size()));
         }
