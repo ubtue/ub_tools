@@ -32,11 +32,8 @@
 #include "DbResultSet.h"
 #include "DbRow.h"
 #include "IniFile.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "StringUtil.h"
-#include "Subfields.h"
 #include "TextUtil.h"
 #include "util.h"
 
@@ -113,35 +110,35 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
 }
 
 
-void InsertTranslation(MarcRecord * const record, const char indicator1, const char indicator2,
+void InsertTranslation(MARC::Record * const record, const char indicator1, const char indicator2,
                        const std::string &term, const std::string &language_code, const std::string &status)
 {
-    Subfields subfields(indicator1, indicator2);
+    MARC::Subfields subfields;
     subfields.addSubfield('a', term);
     subfields.addSubfield('9', "L:" + language_code);
     subfields.addSubfield('9', "Z:" + std::string(IsReliableSynonym(status) ? "VW" : "AF"));
     subfields.addSubfield('2', "IxTheo");
-    record->insertField("750", subfields);
+    record->insertField("750", subfields, indicator1, indicator2);
 }
 
 
-size_t GetFieldIndexForExistingTranslation(const MarcRecord *record, const std::vector<size_t> &field_indices,
-                                           const std::string &language_code, const std::string &status) {
+bool HasExistingTranslation(const MARC::Record &record, const std::string &language_code, const std::string &status) {
     // We can have several either previously existing or already inserted synonyms, so don't replace synonyms
     if (IsReliableSynonym(status))
-        return MarcRecord::FIELD_NOT_FOUND;
-    for (const auto field_index : field_indices) {
-        Subfields subfields_present(record->getSubfields(field_index));
-        if (subfields_present.hasSubfieldWithValue('2', "IxTheo") and
-            subfields_present.hasSubfieldWithValue('9', "L:" + language_code) and
-            subfields_present.hasSubfieldWithValue('9', "Z:AF"))
-                return field_index;
+        return false;
+
+    for (const auto &field : record.getTagRange("750")) {
+        MARC::Subfields subfields(field.getSubfields());
+        if (subfields.hasSubfieldWithValue('2', "IxTheo") and
+            subfields.hasSubfieldWithValue('9', "L:" + language_code) and
+            subfields.hasSubfieldWithValue('9', "Z:AF"))
+                return true;
     }
-    return MarcRecord::FIELD_NOT_FOUND;
+    return false;
 }
 
 
-void ProcessRecord(MarcRecord * const record,
+void ProcessRecord(MARC::Record * const record,
                    const std::map<std::string, std::vector<Translation> > &all_translations)
 {
     const std::string ppn(record->getControlNumber());
@@ -161,13 +158,7 @@ void ProcessRecord(MarcRecord * const record,
                 continue;
 
             // Don't touch MACS translations and leave alone authoritative IxTheo Translations from BSZ
-            std::vector<size_t> field_indices;
-            if (record->getFieldIndices("750", &field_indices) > 0) {
-                const size_t field_index(GetFieldIndexForExistingTranslation(record, field_indices, language_code,
-                                                                             status));
-                if (field_index == MarcRecord::FIELD_NOT_FOUND)
-                    InsertTranslation(record, ' ', '6', term, language_code, status);
-            } else
+            if (not HasExistingTranslation(*record, language_code, status))
                 InsertTranslation(record, ' ', '6', term, language_code, status);
         }
         ++modified_count;
@@ -175,11 +166,11 @@ void ProcessRecord(MarcRecord * const record,
 }
 
 
-void AugmentNormdata(MarcReader * const marc_reader, MarcWriter *marc_writer, const std::map<std::string,
+void AugmentNormdata(MARC::Reader * const marc_reader, MARC::Writer *marc_writer, const std::map<std::string,
                      std::vector<Translation> > &all_translations)
 {
     // Read in all PPNs from authority data
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         ProcessRecord(&record, all_translations);
         marc_writer->write(record);
         ++record_count;
@@ -208,8 +199,8 @@ int main(int argc, char **argv) {
         logger->error("Input file equals output file");
 
     try {
-        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename));
-        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename));
+        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
+        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
 
         const IniFile ini_file(CONF_FILE_PATH);
         const std::string sql_database(ini_file.getString("Database", "sql_database"));

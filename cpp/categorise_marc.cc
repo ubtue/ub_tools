@@ -19,8 +19,7 @@
  */
 #include <iostream>
 #include "Compiler.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
+#include "MARC.h"
 #include "util.h"
 
 
@@ -31,19 +30,19 @@ void Usage() {
 
 
 /** \brief Appends "source" to "target". */
-void Categorise(MarcReader * const marc_reader) {
-    while (const MarcRecord record = marc_reader->read()) {
+void Categorise(MARC::Reader * const marc_reader) {
+    while (const MARC::Record record = marc_reader->read()) {
         switch (record.getRecordType()) {
-        case Leader::RecordType::AUTHORITY:
+        case MARC::Record::RecordType::AUTHORITY:
             std::cout << "AUTHORITY\n";
             break;
-        case Leader::RecordType::BIBLIOGRAPHIC:
+        case MARC::Record::RecordType::BIBLIOGRAPHIC:
             std::cout << "BIBLIOGRAPHIC\n";
             break;
-        case Leader::RecordType::CLASSIFICATION:
+        case MARC::Record::RecordType::CLASSIFICATION:
             std::cout << "CLASSIFICATION\n";
             break;
-        case Leader::RecordType::UNKNOWN:
+        case MARC::Record::RecordType::UNKNOWN:
             std::cout << "UNKNOWN\n";
             break;
         }
@@ -57,7 +56,7 @@ int main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
+    const std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
     try {
         Categorise(marc_reader.get());
     } catch (const std::exception &x) {

@@ -23,12 +23,12 @@
 #include "DirectoryEntry.h"
 #include "File.h"
 #include "Leader.h"
-#include "SimpleXmlParser.h"
+#include "XMLSubsetParser.h"
 
 
 // Forward declaration.
 class MarcRecord;
-template<typename DataSource> class SimpleXmlParser;
+template<typename DataSource> class XMLSubsetParser;
 
 
 class MarcReader {
@@ -73,7 +73,7 @@ public:
 
 
 class XmlMarcReader: public MarcReader {
-    SimpleXmlParser<File> *xml_parser_;
+    XMLSubsetParser<File> *xml_parser_;
     std::string namespace_prefix_;
 public:
     /** \brief Initialise a XmlMarcReader instance.
@@ -82,7 +82,7 @@ public:
      *                                      to seek to an offset on \"input\" before calling this constructor.
      */
     explicit XmlMarcReader(File * const input, const bool skip_over_start_of_document = true)
-        : MarcReader(input), xml_parser_(new SimpleXmlParser<File>(input))
+        : MarcReader(input), xml_parser_(new XMLSubsetParser<File>(input))
     {
         if (skip_over_start_of_document)
             skipOverStartOfDocument();
@@ -101,6 +101,6 @@ private:
                                   const std::map<std::string, std::string> &datafield_attrib_map,
                                   std::string tag, std::string &raw_data);
     void skipOverStartOfDocument();
-    bool getNext(SimpleXmlParser<File>::Type * const type, std::map<std::string, std::string> * const attrib_map,
+    bool getNext(XMLSubsetParser<File>::Type * const type, std::map<std::string, std::string> * const attrib_map,
                  std::string * const data);
 };

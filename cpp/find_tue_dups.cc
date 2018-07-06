@@ -29,8 +29,7 @@
 #include "FileUtil.h"
 #include "JSON.h"
 #include "TextUtil.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
+#include "MARC.h"
 #include "util.h"
 
 
@@ -42,36 +41,27 @@ void Usage() {
 }
 
 
-void ExtractSubfield(const MarcRecord &record, const std::string &tag, const char subfield_code,
+void ExtractSubfield(const MARC::Record &record, const std::string &tag, const char subfield_code,
                      std::set<std::string> * const extracted_values)
 {
-    std::vector<size_t> field_indices;
-    record.getFieldIndices(tag, &field_indices);
-    for (const size_t field_index : field_indices) {
-        const std::string subfield_a(record.extractFirstSubfield(field_index, subfield_code));
-        if (likely(not subfield_a.empty()))
-            extracted_values->emplace(subfield_a);
-    }
+    std::vector<std::string> subfield_a_values(record.getSubfieldValues(tag, subfield_code));
+    if (not subfield_a_values.empty())
+        extracted_values->emplace(subfield_a_values[0]);
 }
 
 
-std::string ExtractZDBNumber(const MarcRecord &record) {
+std::string ExtractZDBNumber(const MARC::Record &record) {
     // First we try our luck w/ 016...
-    std::vector<size_t> field_indices;
-    record.getFieldIndices("016", &field_indices);
-    for (const size_t field_index : field_indices) {
-        const std::string field_contents(record.getFieldData(field_index));
-        const Subfields subfields(field_contents);
-        if (subfields.getFirstSubfieldValue('2') == "DE-600")
-            return subfields.getFirstSubfieldValue('a');
+    for (const auto &field : record.getTagRange("016")) {
+        const MARC::Subfields subfields(field.getSubfields());
+        if (subfields.hasSubfieldWithValue('2', "DE-600"))
+            return subfields.getFirstSubfieldWithCode('a');
     }
 
     // ...and then we try our luck w/ 035:
-    record.getFieldIndices("035", &field_indices);
-    for (const size_t field_index : field_indices) {
-        const std::string field_contents(record.getFieldData(field_index));
-        const Subfields subfields(field_contents);
-        const std::string subfield_a(subfields.getFirstSubfieldValue('a'));
+    for (const auto &field : record.getTagRange("035")) {
+        const MARC::Subfields subfields(field.getSubfields());
+        const std::string subfield_a(subfields.getFirstSubfieldWithCode('a'));
         if (StringUtil::StartsWith(subfield_a, "(DE-599)ZDB"))
             return subfield_a.substr(11);
     }
@@ -80,7 +70,7 @@ std::string ExtractZDBNumber(const MarcRecord &record) {
 }
 
 
-void ExtractISSNs(const MarcRecord &record, std::set<std::string> * const issns_and_isbns) {
+void ExtractISSNs(const MARC::Record &record, std::set<std::string> * const issns_and_isbns) {
     ExtractSubfield(record, "022", 'a', issns_and_isbns);
     ExtractSubfield(record, "440", 'x', issns_and_isbns);
     ExtractSubfield(record, "490", 'x', issns_and_isbns);
@@ -92,7 +82,7 @@ void ExtractISSNs(const MarcRecord &record, std::set<std::string> * const issns_
 }
 
 
-void ExtractISBNs(const MarcRecord &record, std::set<std::string> * const issns_and_isbns) {
+void ExtractISBNs(const MARC::Record &record, std::set<std::string> * const issns_and_isbns) {
     ExtractSubfield(record, "020", 'a', issns_and_isbns);
     ExtractSubfield(record, "773", 'a', issns_and_isbns);
 }
@@ -136,28 +126,23 @@ const std::set<std::string> SIGILS_OF_INTEREST{ "21", "21-24", "21-108", "21-31"
 
 
 // \return The number of occurrences of an object in Tübingen.
-unsigned FindTueSigilsAndSignaturesOrInventory(const MarcRecord &record,
+unsigned FindTueSigilsAndSignaturesOrInventory(const MARC::Record &record,
                                                const SupplementaryInfoType supplementary_info_type,
                                                std::string * const ub_signatures_or_inventory,
                                                std::string * const non_ub_sigils_and_inventory)
 {
     unsigned occurrence_count(0);
-    std::vector<size_t> _910_indices;
-    record.getFieldIndices("910", &_910_indices);
-    for (const size_t _910_index : _910_indices) {
-        const std::string _910_field_contents(record.getFieldData(_910_index));
-        if (_910_field_contents.empty())
-            continue;
-        const Subfields subfields(_910_field_contents);
-        const std::string sigil(subfields.getFirstSubfieldValue('c'));
-        const bool is_monograph(record.getLeader().isMonograph());
+    for (const auto &field : record.getTagRange("910")) {
+        const MARC::Subfields subfields(field.getSubfields());
+        const std::string sigil(subfields.getFirstSubfieldWithCode('c'));
+        const bool is_monograph(record.isMonograph());
 
         std::vector<std::string> signatures;
         std::string inventory;
         if (supplementary_info_type == SIGNATURE)
-            subfields.extractSubfields('d', &signatures);
+            signatures = subfields.extractSubfields('d');
         else
-            inventory = ExtractInventory(subfields.getFirstSubfieldValue('a'), is_monograph);
+            inventory = ExtractInventory(subfields.getFirstSubfieldWithCode('a'), is_monograph);
 
         if (is_monograph and sigil != "21")
             continue;
@@ -191,18 +176,15 @@ unsigned FindTueSigilsAndSignaturesOrInventory(const MarcRecord &record,
 
 
 // Extracts 084$a entries but only if 084$2 contains "zdbs".
-std::string ExtractDDCGroups(const MarcRecord &record) {
+std::string ExtractDDCGroups(const MARC::Record &record) {
     std::string ddc_groups;
-    std::vector<size_t> _084_indices;
-    record.getFieldIndices("084", &_084_indices);
-    for (const size_t _084_index : _084_indices) {
-        const std::string _084_field_contents(record.getFieldData(_084_index));
-        if (_084_field_contents.empty())
+    for (const auto &field : record.getTagRange("084")) {
+        if (field.getContents().empty())
             continue;
-        const Subfields subfields(_084_field_contents);
+        const MARC::Subfields subfields(field.getSubfields());
         if (not subfields.hasSubfieldWithValue('2', "zdbs"))
             continue;
-        const std::string a_contents(subfields.getFirstSubfieldValue('a'));
+        const std::string a_contents(subfields.getFirstSubfieldWithCode('a'));
         if (not a_contents.empty()) {
             if (not ddc_groups.empty())
                 ddc_groups += ';';
@@ -246,11 +228,11 @@ bool IsProbablyAYear(const std::string &year_candidate) {
 }
 
 
-bool FindTueDups(const MarcRecord &record, File * const monos_csv, File * const juristisches_seminar_csv,
+bool FindTueDups(const MARC::Record &record, File * const monos_csv, File * const juristisches_seminar_csv,
                  File * const brechtbau_bibliothek_csv, File * const evangelische_theologie_csv,
                  File * const katholische_theologie_csv)
 {
-    const bool is_monograph(record.getLeader().isMonograph());
+    const bool is_monograph(record.isMonograph());
     std::string ub_signatures_or_inventory, non_ub_sigils_and_inventory;
     if (FindTueSigilsAndSignaturesOrInventory(record, (is_monograph ? SIGNATURE : INVENTORY),
                                               &ub_signatures_or_inventory, &non_ub_sigils_and_inventory) < 2)
@@ -262,7 +244,7 @@ bool FindTueDups(const MarcRecord &record, File * const monos_csv, File * const 
     } else if (ub_signatures_or_inventory.empty() or non_ub_sigils_and_inventory.empty())
         return false;
 
-    const std::string _008_contents(record.getFieldData("008"));
+    const std::string _008_contents(record.getFirstFieldContents("008"));
     std::string publication_year;
     if (likely(_008_contents.length() >= 11))
         publication_year = _008_contents.substr(7, 4);
@@ -272,20 +254,16 @@ bool FindTueDups(const MarcRecord &record, File * const monos_csv, File * const 
         if (not IsProbablyAYear(publication_year) or (publication_year < "1960" or publication_year > "2010"))
             return false;
 
-        const std::string _910_contents(record.getFieldData("910"));
+        const std::string _910_contents(record.getFirstFieldContents("910"));
         if (not _910_contents.empty()) {
-            const Subfields subfields(_910_contents);
-            area_or_zdb_number = subfields.getFirstSubfieldValue('j');
+            const MARC::Subfields subfields(_910_contents);
+            area_or_zdb_number = subfields.getFirstSubfieldWithCode('j');
         }
     } else // SERIALS
         area_or_zdb_number = ExtractZDBNumber(record);
 
-    const std::string _245_contents(record.getFieldData("245"));
-    std::string main_title;
-    if (not _245_contents.empty()) {
-        const Subfields subfields(_245_contents);
-        main_title = subfields.getFirstSubfieldValue('a');
-    }
+
+    std::string main_title(record.getFirstSubfieldValue("245", 'a'));
 
     std::set<std::string> issns_and_isbns;
     if (is_monograph)
@@ -330,7 +308,7 @@ void WriteHeader(File * const output, const OutputSet output_set) {
 }
 
 
-void FindTueDups(MarcReader * const marc_reader) {
+void FindTueDups(MARC::Reader * const marc_reader) {
     std::unique_ptr<File> monos_csv(FileUtil::OpenOutputFileOrDie("monos.csv"));
     std::unique_ptr<File> juristisches_seminar_csv(FileUtil::OpenOutputFileOrDie("juristisches_seminar.csv"));
     std::unique_ptr<File> brechtbau_bibliothek_csv(FileUtil::OpenOutputFileOrDie("brechtbau_bibliothek.csv"));
@@ -347,7 +325,7 @@ void FindTueDups(MarcReader * const marc_reader) {
     unsigned count(0), control_number_dups_count(0), dups_count(0), monograph_count(0), serial_count(0),
              linked_ppn_count(0);
     std::unordered_set<std::string> previously_seen_ppns;
-    while (const MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++count;
         if (record.isElectronicResource())
             continue;
@@ -366,15 +344,14 @@ void FindTueDups(MarcReader * const marc_reader) {
         }
 
         // Only consider monographs and serials:
-        const Leader &leader(record.getLeader());
-        if (not (leader.isMonograph() or leader.isSerial()))
+        if (not (record.isMonograph() or record.isSerial()))
             continue;
 
         if (FindTueDups(record, monos_csv.get(), juristisches_seminar_csv.get(), brechtbau_bibliothek_csv.get(),
                         evangelische_theologie_csv.get(), katholische_theologie_csv.get()))
         {
             ++dups_count;
-            if (leader.isMonograph())
+            if (record.isMonograph())
                 ++monograph_count;
             else
                 ++serial_count;
@@ -393,7 +370,7 @@ int main(int argc, char **argv) {
     if (argc != 2)
         Usage();
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1], MARC::FileType::BINARY));
 
     try {
         FindTueDups(marc_reader.get());
