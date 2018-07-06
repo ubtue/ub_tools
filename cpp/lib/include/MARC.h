@@ -249,6 +249,16 @@ public:
                          { return subfield.code_ == subfield_code; }), subfields_.end());
     }
 
+    inline bool replaceSubfieldCode(const char old_code, const char new_code) {
+        bool replaced_at_least_one_code(false);
+        for (auto &subfield : *this) {
+            if (subfield.code_ == old_code) {
+                subfield.code_ = new_code;
+                replaced_at_least_one_code = true;
+            }
+        }
+        return replaced_at_least_one_code;
+    }
 
     inline std::string toString() const {
         std::string as_string;
@@ -315,6 +325,9 @@ public:
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
+
+        /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
+        std::string getFirstSubfieldWithCode(const char subfield_code) const;
 
         inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
             { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
