@@ -792,8 +792,8 @@ struct tm StringToStructTm(std::string date_str, std::string optional_strptime_f
 }
 
 
-double DiffStructTm(const struct tm &end, const struct tm &beginning) {
-    return difftime(::timegm(const_cast<struct tm *>(&end)), ::timegm(const_cast<struct tm *>(&beginning)));
+double DiffStructTm(struct tm end, struct tm beginning) {
+    return difftime(::timegm(&end), ::timegm(&beginning));
 }
 
 
