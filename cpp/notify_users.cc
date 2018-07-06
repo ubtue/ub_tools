@@ -378,29 +378,27 @@ public:
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
+int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 2)
         Usage();
 
-    try {
-        const IniFile ini_file(argv[1]);
-        const std::string user(ini_file.getString("", "user"));
-        const std::string passwd(ini_file.getString("", "passwd"));
-        const std::string db(ini_file.getString("", "database"));
+    const IniFile ini_file(argv[1]);
+    const std::string user(ini_file.getString("", "user"));
+    const std::string passwd(ini_file.getString("", "passwd"));
+    const std::string db(ini_file.getString("", "database"));
 
-        DbConnection connection(db, user, passwd);
-        connection.queryOrDie("SELECT id,email FROM user");
-        DbResultSet result_set(connection.getLastResultSet());
-        DbRow row;
-        while ((row = result_set.getNextRow())) {
-            const std::string id(row[0]);
-            const std::string email_address(row[1]);
-            if (not ProcessUser(id, email_address, &connection))
-                logger->error("Failed to process user w/ ID: " + id);
-        }
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+    DbConnection connection(db, user, passwd);
+    connection.queryOrDie("SELECT id,email FROM user");
+    DbResultSet result_set(connection.getLastResultSet());
+    DbRow row;
+    while ((row = result_set.getNextRow())) {
+        const std::string id(row[0]);
+        const std::string email_address(row[1]);
+        if (not ProcessUser(id, email_address, &connection))
+            logger->error("Failed to process user w/ ID: " + id);
     }
+
+    return EXIT_SUCCESS;
 }

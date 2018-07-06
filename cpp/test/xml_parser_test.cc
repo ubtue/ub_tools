@@ -23,14 +23,14 @@
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "Usage: " << progname << " [--silent] xml_input\n";
+[[noreturn]] void Usage() {
+    std::cerr << "Usage: " << ::progname << " [--silent] xml_input\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-int main(int argc, char *argv[]) {
-    progname = argv[0];
+int Main(int argc, char *argv[]) {
+    ::progname = argv[0];
 
     if (argc != 2 and argc != 3)
         Usage();
@@ -44,34 +44,30 @@ int main(int argc, char *argv[]) {
 
     const std::string input_filename(argv[silent ? 2 : 1]);
 
-    try {
-        XMLParser::XMLPart xml_part;
-        XMLParser xml_parser(input_filename, XMLParser::XML_FILE);
-        while (xml_parser.getNext(&xml_part)) {
-            switch (xml_part.type_) {
-            case XMLParser::XMLPart::UNINITIALISED:
-                logger->error("we should never get here as UNINITIALISED should never be returned!");
-            case XMLParser::XMLPart::OPENING_TAG:
-                if (not silent) {
-                    std::cout << xml_parser.getLineNo() << ":OPENING_TAG(" << xml_part.data_;
-                    for (const auto &name_and_value : xml_part.attributes_)
-                        std::cout << ' ' << name_and_value.first << '=' << name_and_value.second;
-                    std::cout << ")\n";
-                }
-                break;
-            case XMLParser::XMLPart::CLOSING_TAG:
-                if (not silent)
-                    std::cout << xml_parser.getLineNo() << ":CLOSING_TAG(" << xml_part.data_ << ")\n";
-                break;
-            case XMLParser::XMLPart::CHARACTERS:
-                if (not silent)
-                    std::cout << xml_parser.getLineNo() << ":CHARACTERS(" << xml_part.data_ << ")\n";
-                break;
+    XMLParser::XMLPart xml_part;
+    XMLParser xml_parser(input_filename, XMLParser::XML_FILE);
+    while (xml_parser.getNext(&xml_part)) {
+        switch (xml_part.type_) {
+        case XMLParser::XMLPart::UNINITIALISED:
+            LOG_ERROR("we should never get here as UNINITIALISED should never be returned!");
+        case XMLParser::XMLPart::OPENING_TAG:
+            if (not silent) {
+                std::cout << xml_parser.getLineNo() << ":OPENING_TAG(" << xml_part.data_;
+                for (const auto &name_and_value : xml_part.attributes_)
+                    std::cout << ' ' << name_and_value.first << '=' << name_and_value.second;
+                std::cout << ")\n";
             }
+            break;
+        case XMLParser::XMLPart::CLOSING_TAG:
+            if (not silent)
+                std::cout << xml_parser.getLineNo() << ":CLOSING_TAG(" << xml_part.data_ << ")\n";
+            break;
+        case XMLParser::XMLPart::CHARACTERS:
+            if (not silent)
+                std::cout << xml_parser.getLineNo() << ":CHARACTERS(" << xml_part.data_ << ")\n";
+            break;
         }
-
-        return EXIT_SUCCESS;
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
     }
+
+    return EXIT_SUCCESS;
 }
