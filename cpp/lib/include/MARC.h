@@ -24,6 +24,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include <arpa/inet.h>
@@ -248,6 +249,16 @@ public:
                          { return subfield.code_ == subfield_code; }), subfields_.end());
     }
 
+    inline bool replaceSubfieldCode(const char old_code, const char new_code) {
+        bool replaced_at_least_one_code(false);
+        for (auto &subfield : *this) {
+            if (subfield.code_ == old_code) {
+                subfield.code_ = new_code;
+                replaced_at_least_one_code = true;
+            }
+        }
+        return replaced_at_least_one_code;
+    }
 
     inline std::string toString() const {
         std::string as_string;
@@ -315,6 +326,9 @@ public:
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
 
+        /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
+        std::string getFirstSubfieldWithCode(const char subfield_code) const;
+
         inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
             { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
 
@@ -351,6 +365,10 @@ public:
         inline const_iterator begin() const { return begin_; }
         inline const_iterator end() const { return end_; }
         inline bool empty() const { return begin_ == end_; }
+
+        // \warning Only call the following on non-empty ranges!
+        inline const Field &front() const { return *begin_; }
+        inline const Field &back() const { return *(end_ - 1); }
     };
 
     /** \brief Represents a range of fields.
@@ -365,6 +383,10 @@ public:
         inline iterator begin() const { return begin_; }
         inline iterator end() const { return end_; }
         inline bool empty() const { return begin_ == end_; }
+
+        // \warning Only call the following on non-empty ranges!
+        inline Field &front() { return *begin_; }
+        inline Field &back() { return *(end_ - 1); }
     };
 private:
     friend class BinaryReader;
@@ -512,6 +534,16 @@ public:
      */
     bool edit(const std::vector<EditInstruction> &edit_instructions, std::string * const error_message);
 
+    /** \brief Locate a field in a local block.
+     *  \param local_field_tag      The nested tag that we're looking for.
+     *  \param block_start          An iterator referencing the start of the local block that we're scanning.
+     *  \param indicator1           An indicator that we're looking for. A question mark here means don't care.
+     *  \param indicator2           An indicator that we're looking for. A question mark here means don't care.
+     *  \return The half-open range of fields that matched our criteria.
+     */
+    ConstantRange findFieldsInLocalBlock(const Tag &local_field_tag, const const_iterator &block_start, const char indicator1 = '?',
+                                         const char indicator2 = '?') const;
+
     inline iterator begin() { return fields_.begin(); }
     inline iterator end() { return fields_.end(); }
     inline const_iterator begin() const { return fields_.cbegin(); }
@@ -590,6 +622,10 @@ public:
 
     /** \return Values for all fields with tag "tag" and subfield codes "subfield_codes". Handle subfields of numeric subfields like 9v appropriately*/
     std::vector<std::string> getSubfieldAndNumericSubfieldValues(const Tag &tag, const std::string &subfield_spec) const;
+
+    /** \return Iterators pointing to the first field of each local data block, i.e. blocks of LOK fields.
+     */
+    std::vector<const_iterator> findStartOfAllLocalDataBlocks() const;
 
     /** \brief Finds local ("LOK") block boundaries.
      *  \param local_block_boundaries  Each entry contains the iterator pointing to the first field of a local block
@@ -835,7 +871,15 @@ bool UBTueIsElectronicResource(const Record &marc_record);
 bool UBTueIsAquisitionRecord(const Record &marc_record);
 
 
+/** \return A Non-empty string if we managed to find a parent PPN o/w the empty string. */
+std::string GetParentPPN(const Record &record);
+
+
 bool IsOpenAccess(const Record &marc_record);
+
+
+// \warning After a call to this function you may want to rewind the MARC Reader.
+size_t CollectRecordOffsets(MARC::Reader * const marc_reader, std::unordered_map<std::string, off_t> * const control_number_to_offset_map);
 
 
 } // namespace MARC

@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include "FileLocker.h"
 #include "FileUtil.h"
+#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -145,6 +146,25 @@ bool Record::Field::operator<(const Record::Field &rhs) const {
     if (tag_ > rhs.tag_)
         return false;
     return contents_ < rhs.contents_;
+}
+
+
+std::string Record::Field::getFirstSubfieldWithCode(const char subfield_code) const {
+    if (unlikely(contents_.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
+        return "";
+
+    const size_t subfield_start_pos(contents_.find({ '\x1F', subfield_code, '\0' }));
+    if (subfield_start_pos == std::string::npos)
+        return "";
+
+    std::string subfield_value;
+    for (auto ch(contents_.cbegin() + subfield_start_pos + 2); ch != contents_.cend(); ++ch) {
+        if (*ch == '\x1F')
+            break;
+        subfield_value += *ch;
+    }
+
+    return subfield_value;
 }
 
 
@@ -448,6 +468,53 @@ std::string Record::getMainTitle() const {
 }
 
 
+namespace {
+
+
+const std::string LOCAL_FIELD_PREFIX("  ""\x1F""0"); // Every local field starts w/ this.
+
+
+inline std::string GetLocalTag(const Record::Field &local_field) {
+    return local_field.getContents().substr(LOCAL_FIELD_PREFIX.size(), Record::TAG_LENGTH);
+}
+
+
+inline bool LocalIndicatorsMatch(const char indicator1, const char indicator2, const Record::Field &local_field) {
+    if (indicator1 != '?' and (indicator1 != local_field.getContents()[LOCAL_FIELD_PREFIX.size() + Record::TAG_LENGTH + 0]))
+        return false;
+    if (indicator2 != '?' and (indicator2 != local_field.getContents()[LOCAL_FIELD_PREFIX.size() + Record::TAG_LENGTH + 1]))
+        return false;
+    return true;
+}
+
+
+inline bool LocalTagMatches(const Tag &tag, const Record::Field &local_field) {
+    return local_field.getContents().substr(LOCAL_FIELD_PREFIX.size(), Record::TAG_LENGTH) == tag.toString();
+}
+
+
+} // unnamed namespace
+
+
+std::vector<Record::const_iterator> Record::findStartOfAllLocalDataBlocks() const {
+    std::vector<const_iterator> block_start_iterators;
+
+    std::string last_local_tag;
+    const_iterator local_field(getFirstField("LOK"));
+    if (local_field == end())
+        return block_start_iterators;
+
+    while (local_field != end()) {
+        if (GetLocalTag(*local_field) < last_local_tag)
+            block_start_iterators.emplace_back(local_field);
+        last_local_tag = GetLocalTag(*local_field);
+        ++local_field;
+    }
+
+    return block_start_iterators;
+}
+
+
 size_t Record::findAllLocalDataBlocks(
     std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const
 {
@@ -563,6 +630,36 @@ bool Record::edit(const std::vector<EditInstruction> &edit_instructions, std::st
     }
 
     return not failed_at_least_once;
+}
+
+
+Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag, const const_iterator &block_start, const char indicator1,
+                                                     const char indicator2) const
+{
+    std::string last_tag;
+    auto local_field(block_start);
+    const_iterator range_start(fields_.end()), range_end(fields_.end());
+    while (local_field != fields_.end()) {
+        if (GetLocalTag(*local_field) < last_tag) // We found the start of a new local block!
+            return Record::ConstantRange(fields_.end(), fields_.end());
+
+        if (LocalIndicatorsMatch(indicator1, indicator2, *local_field) and LocalTagMatches(local_field_tag, *local_field)) {
+            range_start = local_field;
+            range_end = range_start + 1;
+            while (range_end != fields_.end()) {
+                if (not LocalIndicatorsMatch(indicator1, indicator2, *range_end) or not LocalTagMatches(local_field_tag, *range_end))
+                    break;
+                ++range_end;
+            }
+
+            return Record::ConstantRange(range_start, range_end);
+        }
+
+        last_tag = GetLocalTag(*local_field);
+        ++local_field;
+    }
+
+    return ConstantRange(range_start, fields_.end());
 }
 
 
@@ -1377,6 +1474,25 @@ bool UBTueIsAquisitionRecord(const Record &marc_record) {
 }
 
 
+std::string GetParentPPN(const Record &record) {
+    static const std::vector<Tag> parent_reference_tags{ "800", "810", "830", "773", "776" };
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\([^)]+\\)(.+)$"));
+    for (auto &field : record) {
+        if (std::find_if(parent_reference_tags.cbegin(), parent_reference_tags.cend(),
+                         [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == parent_reference_tags.cend())
+            continue;
+
+        if (matcher->matched(field.getFirstSubfieldWithCode('w'))) {
+            const std::string ppn_candidate((*matcher)[1]);
+            if (MiscUtil::IsValidPPN(ppn_candidate))
+                return ppn_candidate;
+        }
+    }
+
+    return "";
+}
+
+
 // See https://www.loc.gov/marc/bibliographic/ for how to construct this map:
 static std::unordered_map<Tag, bool> tag_to_repeatable_map{
     { Tag("001"), false },
@@ -1641,6 +1757,17 @@ bool IsOpenAccess(const Record &marc_record) {
     }
 
     return false;
+}
+
+
+size_t CollectRecordOffsets(MARC::Reader * const marc_reader, std::unordered_map<std::string, off_t> * const control_number_to_offset_map) {
+    off_t last_offset(marc_reader->tell());
+    while (const MARC::Record record = marc_reader->read()) {
+        (*control_number_to_offset_map)[record.getControlNumber()] = last_offset;
+        last_offset = marc_reader->tell();
+    }
+
+    return control_number_to_offset_map->size();
 }
 
 
