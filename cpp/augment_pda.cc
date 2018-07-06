@@ -40,7 +40,7 @@ const int PDA_CUTOFF_YEAR(2014);
 namespace {
 
 
-void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbose] ill_list marc_input marc_output\n"
               << "       Insert an additional field for monographs published after " << PDA_CUTOFF_YEAR << "\n"
               << "       that are not available as an SWB interlibrary loan (show up in the ill_list)\n"
@@ -57,12 +57,12 @@ void ExtractILLPPNs(const bool verbose, const std::unique_ptr<File>& ill_list,
     while ((line_size = ill_list->getline(&line))) {
         if (line_size == 0) {
             if (unlikely(ill_list->anErrorOccurred()))
-                logger->error("Error while reading ILL list " + ill_list->getPath());
+                LOG_ERROR("Error while reading ILL list " + ill_list->getPath());
             if (unlikely(ill_list->eof()))
                 return;
         }
         if (verbose)
-           std::cerr << "Adding " << line << " to ill set";
+           LOG_INFO("Adding " + line + " to ill set");
         ill_set->emplace(line);
     }
 }
@@ -77,19 +77,18 @@ void ProcessRecord(const bool verbose, MARC::Record * const record, const std::u
     if (record->isElectronicResource())
         return;
 
-    if (unlikely(not record->hasTag("008")))
-        return;
-
     // Determine publication sort year given in Bytes 7-10 of field 008
-    const std::string &_008_contents(record->getFirstField("008")->getContents());
+    const std::string _008_contents(record->getFirstFieldContents("008"));
+    if (_008_contents.empty())
+        return;
     int publication_year;
     if (StringUtil::ToNumber(_008_contents.substr(7, 4), &publication_year)) {
         if (publication_year < PDA_CUTOFF_YEAR)
             return;
     } else {
         if (verbose)
-            std::cerr << "Could not determine publication year for record " << record->getControlNumber()
-                  << " [ " <<  _008_contents.substr(7, 4) << " given ]\n";
+            LOG_INFO("Could not determine publication year for record " + record->getControlNumber()
+                     + " [ " + _008_contents.substr(7, 4) + " given ]");
         return;
     }
 
@@ -111,14 +110,14 @@ void TagRelevantRecords(const bool verbose, MARC::Reader * const marc_reader, MA
         marc_writer->write(record);
         ++record_count;
     }
-    std::cerr << "Modified " << modified_count << " of " << record_count << " record(s).\n";
+    LOG_INFO("Modified " + std::to_string(modified_count) + " of " + std::to_string(record_count) + " record(s).");
 }
 
 
 } // unnamed namespace
 
 
-int main(int argc, char **argv) {
+int Main(int argc, char **argv) {
     ::progname = argv[0];
 
     if (argc < 2)
@@ -140,21 +139,18 @@ int main(int argc, char **argv) {
     const std::string marc_output_filename(argv[3]);
 
     if (unlikely(marc_input_filename == marc_output_filename))
-        logger->error("Input file equals output file!");
+        LOG_ERROR("Input file equals output file!");
 
     if (unlikely(marc_input_filename == ill_list_filename || marc_output_filename == ill_list_filename))
-        logger->error("ILL list file equals marc input or output file!");
+        LOG_ERROR("ILL list file equals marc input or output file!");
 
-    try {
-        std::unordered_set<std::string> ill_set;
-        std::unique_ptr<File> ill_reader(FileUtil::OpenInputFileOrDie(ill_list_filename));
-        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
-        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
+    std::unordered_set<std::string> ill_set;
+    std::unique_ptr<File> ill_reader(FileUtil::OpenInputFileOrDie(ill_list_filename));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
 
-        ExtractILLPPNs(verbose, ill_reader, &ill_set);
-        TagRelevantRecords(verbose, marc_reader.get(), marc_writer.get(), &ill_set);
+    ExtractILLPPNs(verbose, ill_reader, &ill_set);
+    TagRelevantRecords(verbose, marc_reader.get(), marc_writer.get(), &ill_set);
 
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    return EXIT_SUCCESS;
 }
