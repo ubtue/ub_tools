@@ -86,7 +86,7 @@ void ProcessRecord(MARC::Record * const record, const SortList &sort_year_map) {
     // Case 2: There is a 190 tag
     MARC::Record::Range range(record->getTagRange("190"));
     for (auto &field : range) {
-        MARC::Subfields subfields = field.getSubfields();
+        MARC::Subfields subfields(field.getSubfields());
         if (subfields.hasSubfield('j'))
             LOG_ERROR("We already have a 190j subfield for PPN " + record->getControlNumber());
 
