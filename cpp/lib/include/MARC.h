@@ -365,6 +365,10 @@ public:
         inline const_iterator begin() const { return begin_; }
         inline const_iterator end() const { return end_; }
         inline bool empty() const { return begin_ == end_; }
+
+        // \warning Only call the following on non-empty ranges!
+        inline const Field &front() const { return *begin_; }
+        inline const Field &back() const { return *(end_ - 1); }
     };
 
     /** \brief Represents a range of fields.
@@ -379,6 +383,10 @@ public:
         inline iterator begin() const { return begin_; }
         inline iterator end() const { return end_; }
         inline bool empty() const { return begin_ == end_; }
+
+        // \warning Only call the following on non-empty ranges!
+        inline Field &front() { return *begin_; }
+        inline Field &back() { return *(end_ - 1); }
     };
 private:
     friend class BinaryReader;
@@ -882,6 +890,10 @@ bool UBTueIsElectronicResource(const Record &marc_record);
  *  \return True if the referenced item has been ordered but is not yet available, else false.
  */
 bool UBTueIsAquisitionRecord(const Record &marc_record);
+
+
+/** \return A Non-empty string if we managed to find a parent PPN o/w the empty string. */
+std::string GetParentPPN(const Record &record);
 
 
 bool IsOpenAccess(const Record &marc_record);
