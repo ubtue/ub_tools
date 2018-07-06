@@ -515,6 +515,62 @@ std::vector<Record::const_iterator> Record::findStartOfAllLocalDataBlocks() cons
 }
 
 
+std::vector<Record::iterator> Record::findStartOfAllLocalDataBlocks() {
+    std::vector<iterator> block_start_iterators;
+
+    std::string last_local_tag;
+    iterator local_field(getFirstField("LOK"));
+    if (local_field == end())
+        return block_start_iterators;
+
+    while (local_field != end()) {
+        if (GetLocalTag(*local_field) < last_local_tag)
+            block_start_iterators.emplace_back(local_field);
+        last_local_tag = GetLocalTag(*local_field);
+        ++local_field;
+    }
+
+    return block_start_iterators;
+}
+
+
+void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
+    std::sort(local_block_starts.begin(), local_block_starts.end());
+
+    std::vector<std::pair<iterator, iterator>> deletion_ranges;
+
+    // Coalesce as many blocks as possible:
+    auto block_start(local_block_starts.begin());
+    while (block_start != local_block_starts.end()) {
+        iterator range_start(*block_start);
+        Tag last_tag(range_start->getTag());
+        iterator range_end(range_start + 1);
+        for (;;) {
+            if (range_end == fields_.end()) {
+                deletion_ranges.emplace_back(range_start, range_end);
+                goto coalescing_done;
+            }
+
+            // Start of a new block?
+            if (range_end->getTag() < last_tag) {
+                ++block_start;
+                if (range_end != *block_start) {
+                    deletion_ranges.emplace_back(range_start, range_end);
+                    break;
+                }
+            }
+
+            last_tag = range_end->getTag();
+            ++range_end;
+        }
+    }
+
+coalescing_done:
+    for (auto deletion_range(deletion_ranges.rbegin()); deletion_range != deletion_ranges.rend(); ++deletion_range)
+        fields_.erase(deletion_range->first, deletion_range->second);
+}
+
+
 size_t Record::findAllLocalDataBlocks(
     std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const
 {
@@ -680,6 +736,36 @@ Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag,
     }
 
     return ConstantRange(range_start, fields_.end());
+}
+
+
+Record::Range Record::findFieldsInLocalBlock(const Tag &local_field_tag, const iterator &block_start, const char indicator1,
+                                             const char indicator2)
+{
+    std::string last_tag;
+    auto local_field(block_start);
+    iterator range_start(fields_.end()), range_end(fields_.end());
+    while (local_field != fields_.end()) {
+        if (GetLocalTag(*local_field) < last_tag) // We found the start of a new local block!
+            return Record::Range(fields_.end(), fields_.end());
+
+        if (LocalIndicatorsMatch(indicator1, indicator2, *local_field) and LocalTagMatches(local_field_tag, *local_field)) {
+            range_start = local_field;
+            range_end = range_start + 1;
+            while (range_end != fields_.end()) {
+                if (not LocalIndicatorsMatch(indicator1, indicator2, *range_end) or not LocalTagMatches(local_field_tag, *range_end))
+                    break;
+                ++range_end;
+            }
+
+            return Record::Range(range_start, range_end);
+        }
+
+        last_tag = GetLocalTag(*local_field);
+        ++local_field;
+    }
+
+    return Range(range_start, fields_.end());
 }
 
 
