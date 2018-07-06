@@ -91,7 +91,7 @@ void ProcessRecord(MARC::Record * const record, const SortList &sort_year_map) {
             LOG_ERROR("We already have a 190j subfield for PPN " + record->getControlNumber());
 
         // If there is no 190j subfield yet, we insert at the last field occurence
-        if (field == *(range.end() - 1)) {
+        if (field == range.back()) {
             subfields.appendSubfield('j', sort_year);
             ++modified_count;
         }
