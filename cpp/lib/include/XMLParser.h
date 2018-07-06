@@ -44,7 +44,7 @@ class XMLParser {
 public:
     class Error : public std::runtime_error {
     public:
-        explicit Error(const std::string &message) : std::runtime_error(message) { };
+        explicit Error(const std::string &message): std::runtime_error(message) { }
     };
     typedef std::map<std::string, std::string> Attributes;
 
