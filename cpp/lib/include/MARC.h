@@ -31,7 +31,7 @@
 #include "Compiler.h"
 #include "File.h"
 #include "MarcXmlWriter.h"
-#include "SimpleXmlParser.h"
+#include "XMLSubsetParser.h"
 
 
 namespace MARC {
@@ -470,6 +470,25 @@ public:
                             [&field_tag](const Field &field){ return field.getTag() == field_tag; });
     }
 
+    /** \return Returns the content of the first field with given tag or an empty string if the tag is not present. */
+    const std::string getFirstFieldContents(const Tag &field_tag) const {
+        const_iterator field(getFirstField(field_tag));
+        if (field == fields_.cend())
+            return "";
+        else
+            return field->getContents();
+    }
+
+    /** \return Returns the content of the first subfield found in a given tag or an empty string if the subfield cannot be found. */
+    const std::string getFirstSubfieldValue(const Tag &field_tag, const char code) const {
+        for (const auto &field : getTagRange(field_tag)) {
+            const std::string value(field.getSubfields().getFirstSubfieldWithCode(code));
+            if (not value.empty())
+                return value;
+        }
+        return "";
+    }
+
     RecordType getRecordType() const {
         if (leader_[6] == 'z')
             return AUTHORITY;
@@ -687,7 +706,7 @@ public:
     /** \return The file position of the start of the next record. */
     virtual off_t tell() const = 0;
 
-    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) { return input_->seek(offset, whence); }
+    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) = 0;
 
     /** \return a BinaryMarcReader or an XmlMarcReader. */
     static std::unique_ptr<Reader> Factory(const std::string &input_filename, FileType reader_type = FileType::AUTO);
@@ -718,7 +737,7 @@ private:
 
 class XmlReader: public Reader {
     friend class Reader;
-    SimpleXmlParser<File> *xml_parser_;
+    XMLSubsetParser<File> *xml_parser_;
     std::string namespace_prefix_;
 private:
     /** \brief Initialise a XmlReader instance.
@@ -727,7 +746,7 @@ private:
      *                                      to seek to an offset on \"input\" before calling this constructor.
      */
     explicit XmlReader(File * const input, const bool skip_over_start_of_document = true)
-        : Reader(input), xml_parser_(new SimpleXmlParser<File>(input))
+        : Reader(input), xml_parser_(new XMLSubsetParser<File>(input))
     {
         if (skip_over_start_of_document)
             skipOverStartOfDocument();
@@ -740,7 +759,9 @@ public:
     virtual void rewind() override final;
 
     /** \return The file position of the start of the next record. */
-    virtual inline off_t tell() const override final { return input_->tell(); }
+    virtual inline off_t tell() const override final { return xml_parser_->tell(); }
+
+    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) override final { return xml_parser_->seek(offset, whence); }
 private:
     void parseLeader(const std::string &input_filename, Record * const new_record);
     void parseControlfield(const std::string &input_filename, const std::string &tag, Record * const record);
@@ -748,7 +769,7 @@ private:
                         const std::map<std::string, std::string> &datafield_attrib_map,
                         const std::string &tag, Record * const record);
     void skipOverStartOfDocument();
-    bool getNext(SimpleXmlParser<File>::Type * const type, std::map<std::string, std::string> * const attrib_map,
+    bool getNext(XMLSubsetParser<File>::Type * const type, std::map<std::string, std::string> * const attrib_map,
                  std::string * const data);
 };
 
