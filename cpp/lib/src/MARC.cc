@@ -148,6 +148,25 @@ bool Record::Field::operator<(const Record::Field &rhs) const {
 }
 
 
+std::string Record::Field::getFirstSubfieldWithCode(const char subfield_code) const {
+    if (unlikely(contents_.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
+        return "";
+
+    const size_t subfield_start_pos(contents_.find({ '\x1F', subfield_code, '\0' }));
+    if (subfield_start_pos == std::string::npos)
+        return "";
+
+    std::string subfield_value;
+    for (auto ch(contents_.cbegin() + subfield_start_pos + 2); ch != contents_.cend(); ++ch) {
+        if (*ch == '\x1F')
+            break;
+        subfield_value += *ch;
+    }
+
+    return subfield_value;
+}
+
+
 void Record::Field::insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents) {
     Subfields subfields(contents_);
     if (not subfields.replaceFirstSubfield(subfield_code, subfield_contents))
