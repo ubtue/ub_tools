@@ -63,12 +63,11 @@ bool IsEssayCollection(const MARC::Record &record) {
 
 
 std::string GetTOC_URL(const MARC::Record &record) {
-    for (const auto &field : record.getTagRange("856")) {
+    for (const MARC::Record::Field &field : record.getTagRange("856")) {
         if (field.getContents().empty())
             continue;
         const MARC::Subfields subfields(field.getSubfields());
-        if (likely(subfields.hasSubfield('u'))
-            and subfields.hasSubfieldWithValue('3', "Inhaltsverzeichnis"))
+        if (likely(subfields.hasSubfield('u')) and subfields.hasSubfieldWithValue('3', "Inhaltsverzeichnis"))
             return subfields.getFirstSubfieldWithCode('u');
     }
 
@@ -81,10 +80,10 @@ std::string GetYear(const std::string &tag, const MARC::Record &record) {
     const std::string field_contents(record.getFirstFieldContents(tag));
     if (field_contents.empty())
         return "";
-    const Subfields subfields(field_contents);
+    const MARC::Subfields subfields(field_contents);
     if (not subfields.hasSubfield('c'))
         return "";
-    if (not year_reg_exp.match(subfields.getFirstSubfieldValue('c')))
+    if (not year_reg_exp.match(subfields.getFirstSubfieldWithCode('c')))
         return "";
     return year_reg_exp.getMatchedSubstring(1);
 }
@@ -100,7 +99,7 @@ std::string GetYear(const MARC::Record &record) {
 
 void ProcessRecords(MARC::Reader * const marc_reader, const unsigned pdf_limit_count) {
     unsigned record_count(0), until1999_count(0), from2000_to_2009_count(0), after2009_count(0),
-        unhandled_url_count(0), good_count(0), download_failure_count(0), pdf_success_count(0);
+             unhandled_url_count(0), good_count(0), download_failure_count(0), pdf_success_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
 

@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2008 Project iVia.
  *  Copyright 2003-2008 The Regents of The University of California.]
- *  Copyright 2017 Universitätsbibliothek Tübingen
+ *  Copyright 2017,2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaOaiPmh package.
  *
@@ -56,10 +56,10 @@ class ListRecordsParser {
     std::string error_code_;
     std::string error_message_;
 
-    std::string response_date_;      //< Will hold the value of the responseDate element.
-    std::string resumption_token_;   //< Will hold the value of the resumptonToken element.
-    std::string identifier_;         //< Will hold the value of the identifier element.
-    std::string datestamp_;          //< Will hold the value of the datestamp element.
+    std::string response_date_;      //< Will hold the value of the "responseDate" element.
+    std::string resumption_token_;   //< Will hold the value of the "resumptionToken" element.
+    std::string identifier_;         //< Will hold the value of the "identifier" element.
+    std::string datestamp_;          //< Will hold the value of the "datestamp" element.
     std::list<OaiPmh::Field> metadata_fields_; //< The list of metadata fields for the current record.
 
     /** The records received. */
@@ -203,9 +203,9 @@ void ListRecordsParser::parse(const std::string &xml_document, const unsigned ve
 
             // Make sure that when we open simple tags, we immediately close them (i.e. they are not nested).
             if (unlikely(response_date_tag_open))
-                throw std::runtime_error("in ListRecordsParser: resumption-date tag was not closed!");
+                throw std::runtime_error("in ListRecordsParser: responseDate tag was not closed!");
             if (unlikely(resumption_token_tag_open))
-                throw std::runtime_error("in ListRecordsParser: resumption-token tag was not closed!");
+                throw std::runtime_error("in ListRecordsParser: resumptionToken tag was not closed!");
             if (unlikely(identifier_tag_open))
                 throw std::runtime_error("in ListRecordsParser: identifier tag was not closed!");
             if (unlikely(datestamp_tag_open))

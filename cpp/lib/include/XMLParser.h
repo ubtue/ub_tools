@@ -33,7 +33,7 @@
 #include "util.h"
 
 
-class XMLParser {
+class XMLParser final {
     xercesc::SAXParser *parser_;
     xercesc::XMLPScanToken token_;
     const xercesc::Locator *locator_;
@@ -51,7 +51,6 @@ public:
     enum Type { XML_FILE, XML_STRING };
 
     struct Options {
-        bool convert_to_iso8859_15_;
         /** \brief Parser enforces all the constraints / rules specified by the NameSpace specification (default false).*/
         bool do_namespaces_;
         /** \brief Found Schema information will only be processed if set to true (default false).*/
@@ -96,12 +95,12 @@ private:
             std::string message;
             message += "line " + std::to_string(exc.getLineNumber());
             message += ", col " + std::to_string(exc.getColumnNumber());
-            message += ": " + XMLParser::ToString(exc.getMessage());
+            message += ": " + XMLParser::ToStdString(exc.getMessage());
             return message;
         }
     public:
-        void warning(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToString(exc.getMessage())); }
-        void error(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToString(exc.getMessage())); }
+        void warning(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToStdString(exc.getMessage())); }
+        void error(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToStdString(exc.getMessage())); }
         void fatalError(const xercesc::SAXParseException &exc) { XMLParser::ConvertAndThrowException(exc); }
         void resetErrors() {}
     };
@@ -110,11 +109,14 @@ private:
     ErrorHandler *error_handler_;
     std::deque<XMLPart> buffer_;
     inline void appendToBuffer(XMLPart &xml_part) { buffer_.emplace_back(xml_part); }
+
+    /** \brief depending on type_: returns either length of the file or length of the string.*/
     off_t getMaxOffset();
+
     friend class Handler;
 
     /** \brief  converts xerces' internal string type to std::string. */
-    static std::string ToString(const XMLCh * const xmlch);
+    static std::string ToStdString(const XMLCh * const xmlch);
 public:
     explicit XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
     ~XMLParser() { delete parser_; delete handler_; delete error_handler_; xercesc::XMLPlatformUtils::Terminate(); }
@@ -122,13 +124,15 @@ public:
 
     bool peek(XMLPart * const xml_part);
 
-    /** \brief  throws exception if offset cannot be found or there is no XMLPart that starts exactly at the given offset. */
+    /** \brief  seeks for the given offset in the underlying string or file.
+     *  \throws XMLParser::Error if offset cannot be found or there is no XMLPart that starts exactly at the given offset.
+     */
     void seek(const off_t offset, const int whence = SEEK_SET);
 
     off_t tell();
 
-    unsigned getLineNo() { return static_cast<unsigned>(locator_->getLineNumber()); }
-    unsigned getColumnNo() { return static_cast<unsigned>(locator_->getColumnNumber()); }
+    inline unsigned getLineNo() { return static_cast<unsigned>(locator_->getLineNumber()); }
+    inline unsigned getColumnNo() { return static_cast<unsigned>(locator_->getColumnNumber()); }
 
 
     /** \return true if there are more elements to parse, o/w false.
