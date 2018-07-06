@@ -51,7 +51,7 @@ void CollectGNDReferences(MARC::Reader * const marc_reader, std::unordered_set<s
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
 
-        for (const auto field : record) {
+        for (const auto &field : record) {
             if (matcher->matched(field.getContents()))
                 gnd_numbers->emplace((*matcher)[1]);
         }
