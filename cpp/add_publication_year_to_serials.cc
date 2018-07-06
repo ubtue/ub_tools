@@ -45,7 +45,7 @@ typedef std::map<std::string, std::string> SortList;
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " sort_year_list title_data_marc_input title_date_marc_output\n";
+    std::cerr << "Usage: " << ::progname << " sort_year_list title_data_marc21_input title_date_marc21_output\n";
     std::exit(EXIT_FAILURE);
 }
 
