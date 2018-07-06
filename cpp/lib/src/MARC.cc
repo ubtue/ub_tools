@@ -552,12 +552,15 @@ void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
             }
 
             if (range_end->getTag() < last_tag) {
-                if (range_end != *(block_start + 1)) {
+                ++block_start;
+                if (range_end != *block_start) {
                     deletion_ranges.emplace_back(range_start, range_end);
                     break;
                 }
                 last_tag = range_end->getTag();
             }
+
+            ++range_end;
         }
     }
 
