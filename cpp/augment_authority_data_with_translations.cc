@@ -34,7 +34,6 @@
 #include "IniFile.h"
 #include "MARC.h"
 #include "StringUtil.h"
-#include "Subfields.h"
 #include "TextUtil.h"
 #include "util.h"
 
