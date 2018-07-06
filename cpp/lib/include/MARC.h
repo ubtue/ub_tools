@@ -863,6 +863,10 @@ bool UBTueIsElectronicResource(const Record &marc_record);
 bool UBTueIsAquisitionRecord(const Record &marc_record);
 
 
+/** \return A Non-empty string if we managed to find a parent PPN o/w the empty string. */
+std::string GetParentPPN(const Record &record);
+
+
 bool IsOpenAccess(const Record &marc_record);
 
 

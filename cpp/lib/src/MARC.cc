@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include "FileLocker.h"
 #include "FileUtil.h"
+#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -1470,6 +1471,25 @@ bool UBTueIsAquisitionRecord(const Record &marc_record) {
     }
 
     return false;
+}
+
+
+std::string GetParentPPN(const Record &record) {
+    static const std::vector<Tag> parent_reference_tags{ "800", "810", "830", "773", "776" };
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\([^)]+\\)(.+)$"));
+    for (auto &field : record) {
+        if (std::find_if(parent_reference_tags.cbegin(), parent_reference_tags.cend(),
+                         [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == parent_reference_tags.cend())
+            continue;
+
+        if (matcher->matched(field.getFirstSubfieldWithCode('w'))) {
+            const std::string ppn_candidate((*matcher)[1]);
+            if (MiscUtil::IsValidPPN(ppn_candidate))
+                return ppn_candidate;
+        }
+    }
+
+    return "";
 }
 
 
