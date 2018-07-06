@@ -325,6 +325,9 @@ void IniFile::Section::write(File * const output, const bool pretty_print) const
                 LOG_ERROR("failed to write a name/value pair to \"" + output->getPath() + "\"!");
         }
     }
+
+    if (unlikely(not output->write("\n")))
+        LOG_ERROR("failed to write padding line to \"" + output->getPath() + "\"!");
 }
 
 
