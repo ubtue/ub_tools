@@ -538,6 +538,26 @@ size_t Record::findAllLocalDataBlocks(
 }
 
 
+Record::ConstantRange Record::getLocalTagRange(const Tag &field_tag, const const_iterator &block_start) const {
+    const_iterator tag_range_start(block_start);
+    Tag last_tag(tag_range_start->getTag());
+    for (;;) {
+        if (tag_range_start->getTag() == field_tag)
+            break;
+        ++tag_range_start;
+        if (tag_range_start == fields_.cend() or tag_range_start->getTag() < last_tag)
+            return ConstantRange(fields_.cend(), fields_.cend());
+        last_tag = tag_range_start->getTag();
+    }
+
+    const_iterator tag_range_end(tag_range_start + 1);
+    while (tag_range_end != fields_.cend() and tag_range_end->getTag() == field_tag)
+        ++tag_range_end;
+
+    return ConstantRange(tag_range_start, tag_range_end);
+}
+
+
 static inline bool IndicatorsMatch(const std::string &indicator_pattern, const std::string &indicators) {
     if (indicator_pattern[0] != '?' and indicator_pattern[0] != indicators[0])
         return false;
