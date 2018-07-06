@@ -126,6 +126,7 @@ class DSVReader {
 public:
     explicit DSVReader(const std::string &filename, const char field_separator=',', const char field_delimiter='"');
     ~DSVReader();
+    /* Returns false on reaching the EOF (the output vector might contain valid values at this point, if there was no trailing new line character.    */
     bool readLine(std::vector<std::string> * const values);
 };
 
