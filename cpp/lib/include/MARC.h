@@ -654,6 +654,22 @@ public:
     size_t findAllLocalDataBlocks(
         std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const;
 
+
+    /** \return Iterators pointing to the half-open interval of the first range of fields corresponding to the tag "tag" in a local block
+     *          starting at "local_block_start".
+     *  \remark {
+     *     Typical usage of this function looks like this:<br />
+     *     \code{.cpp}
+     *         for (auto &local_field : record.getLocalTagRange("852", local_block_start)) {
+     *             local_field.doSomething();
+     *             ...
+     *         }
+     *
+     *     \endcode
+     *  }
+     */
+    ConstantRange getLocalTagRange(const Tag &field_tag, const const_iterator &block_start) const;
+
     /** \brief Locate a field in a local block.
      *  \param indicators           The two 1-character indicators that we're looking for. A question mark here
      *                              means: don't care.  So, if you want to match any indicators you should pass "??"
