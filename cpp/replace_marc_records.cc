@@ -1,7 +1,7 @@
 /** \brief Utility for replacing MARC records in one file with records from another file with the same control number.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,17 +24,14 @@
 #include <cstdio>
 #include <cstdlib>
 #include "Compiler.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcUtil.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "util.h"
 
 
-static void Usage() __attribute__((noreturn));
+namespace {
 
 
-static void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " reference_records source_records target_records\n"
               << "       Replaces all records in \"source_records\" that have an identical control number\n"
               << "       as a record in \"reference_records\" with the corresponding record in\n"
@@ -44,12 +41,12 @@ static void Usage() {
 }
 
 
-void ProcessSourceRecords(MarcReader * const marc_source_reader, MarcReader * const marc_reference_reader,
-                          MarcWriter * const marc_writer,
+void ProcessSourceRecords(MARC::Reader * const marc_source_reader, MARC::Reader * const marc_reference_reader,
+                          MARC::Writer * const marc_writer,
                           const std::unordered_map<std::string, off_t> &control_number_to_offset_map)
 {
     unsigned source_record_count(0), replacement_count(0);
-    while (const MarcRecord source_record = marc_source_reader->read()) {
+    while (const MARC::Record source_record = marc_source_reader->read()) {
         ++source_record_count;
 
         const auto control_number_and_offset(control_number_to_offset_map.find(source_record.getControlNumber()));
@@ -62,7 +59,7 @@ void ProcessSourceRecords(MarcReader * const marc_source_reader, MarcReader * co
             logger->error("failed to seek in reference records! (offset: "
                           + std::to_string(control_number_and_offset->second));
 
-        const MarcRecord reference_record(marc_reference_reader->read());
+        const MARC::Record reference_record(marc_reference_reader->read());
         marc_writer->write(reference_record);
         ++replacement_count;
     }
@@ -72,25 +69,26 @@ void ProcessSourceRecords(MarcReader * const marc_source_reader, MarcReader * co
 }
 
 
-int main(int argc, char *argv[]) {
+} // unnamed namespace
+
+
+int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 4)
         Usage();
 
-    std::unique_ptr<MarcReader> marc_reference_reader(MarcReader::Factory(argv[1]));
-    std::unique_ptr<MarcReader> marc_source_reader(MarcReader::Factory(argv[2]));
-    std::unique_ptr<MarcWriter> marc_target_writer(MarcWriter::Factory(argv[3]));
+    std::unique_ptr<MARC::Reader> marc_reference_reader(MARC::Reader::Factory(argv[1]));
+    std::unique_ptr<MARC::Reader> marc_source_reader(MARC::Reader::Factory(argv[2]));
+    std::unique_ptr<MARC::Writer> marc_target_writer(MARC::Writer::Factory(argv[3]));
 
-    try {
-        std::unordered_map<std::string, off_t> control_number_to_offset_map;
-        std::cout << "Read "
-                  << MarcUtil::CollectRecordOffsets(marc_reference_reader.get(), &control_number_to_offset_map)
-                  << " reference records.\n";
+    std::unordered_map<std::string, off_t> control_number_to_offset_map;
+    std::cout << "Read "
+              << MARC::CollectRecordOffsets(marc_reference_reader.get(), &control_number_to_offset_map)
+              << " reference records.\n";
 
-        ProcessSourceRecords(marc_source_reader.get(), marc_reference_reader.get(), marc_target_writer.get(),
-                             control_number_to_offset_map);
-    } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
-    }
+    ProcessSourceRecords(marc_source_reader.get(), marc_reference_reader.get(), marc_target_writer.get(),
+                         control_number_to_offset_map);
+
+    return EXIT_SUCCESS;
 }
