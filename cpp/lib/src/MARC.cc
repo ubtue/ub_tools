@@ -551,6 +551,7 @@ void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
                 goto coalescing_done;
             }
 
+            // Start of a new block?
             if (range_end->getTag() < last_tag) {
                 ++block_start;
                 if (range_end != *block_start) {
@@ -560,6 +561,7 @@ void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
                 last_tag = range_end->getTag();
             }
 
+            last_tag = range_end->getTag();
             ++range_end;
         }
     }
