@@ -25,7 +25,6 @@
 
 
 const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
-    /* convert_to_iso8859_15_ = */false,
     /* do_namespaces_ = */false,
     /* do_schema_ = */false,
     /* ignore_whitespace_ = */true,
@@ -33,21 +32,21 @@ const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
 
 
 void XMLParser::ConvertAndThrowException(const xercesc::RuntimeException &exc) {
-    throw XMLParser::Error("Xerces RuntimeException: " + ToString(exc.getMessage()));
+    throw XMLParser::Error("Xerces RuntimeException: " + ToStdString(exc.getMessage()));
 }
 
 
 void XMLParser::ConvertAndThrowException(const xercesc::SAXParseException &exc) {
-    throw XMLParser::Error("Xerces SAXParseException on line " + std::to_string(exc.getLineNumber()) + ": " + ToString(exc.getMessage()));
+    throw XMLParser::Error("Xerces SAXParseException on line " + std::to_string(exc.getLineNumber()) + ": " + ToStdString(exc.getMessage()));
 }
 
 
 void XMLParser::ConvertAndThrowException(const xercesc::XMLException &exc) {
-    throw XMLParser::Error("Xerces XMLException on line " + std::to_string(exc.getSrcLine()) + ": " + ToString(exc.getMessage()));
+    throw XMLParser::Error("Xerces XMLException on line " + std::to_string(exc.getSrcLine()) + ": " + ToStdString(exc.getMessage()));
 }
 
 
-std::string XMLParser::ToString(const XMLCh * const xmlch) {
+std::string XMLParser::ToStdString(const XMLCh * const xmlch) {
     return xercesc::XMLString::transcode(xmlch);
 }
 
@@ -88,20 +87,10 @@ std::string XMLParser::XMLPart::TypeToString(const Type type) {
 void XMLParser::Handler::startElement(const XMLCh * const name, xercesc::AttributeList &attributes) {
     XMLPart xml_part;
     xml_part.type_ = XMLPart::OPENING_TAG;
+    xml_part.data_ = XMLParser::ToStdString(name);
+    for (XMLSize_t i(0); i < attributes.getLength(); ++i)
+        xml_part.attributes_[XMLParser::ToStdString(attributes.getName(i))] = XMLParser::ToStdString(attributes.getValue(i));
 
-    if (parser_->options_.convert_to_iso8859_15_)
-        xml_part.data_ = StringUtil::UTF8ToISO8859_15(XMLParser::ToString(name));
-    else
-        xml_part.data_ = XMLParser::ToString(name);
-
-    for (XMLSize_t i = 0; i < attributes.getLength(); i++) {
-        std::string attrib_name(XMLParser::ToString(attributes.getName(i))), attrib_value(XMLParser::ToString(attributes.getValue(i)));
-        if (parser_->options_.convert_to_iso8859_15_) {
-            attrib_name = StringUtil::UTF8ToISO8859_15(attrib_name);
-            attrib_value = StringUtil::UTF8ToISO8859_15(attrib_value);
-        }
-        xml_part.attributes_[attrib_name] = attrib_value;
-    }
     xml_part.offset_ = getOffset();
     parser_->appendToBuffer(xml_part);
     ++parser_->open_elements_;
@@ -111,12 +100,7 @@ void XMLParser::Handler::startElement(const XMLCh * const name, xercesc::Attribu
 void XMLParser::Handler::endElement(const XMLCh * const name) {
     XMLPart xml_part;
     xml_part.type_ = XMLPart::CLOSING_TAG;
-
-    if (parser_->options_.convert_to_iso8859_15_)
-        xml_part.data_ = StringUtil::UTF8ToISO8859_15(XMLParser::ToString(name));
-    else
-        xml_part.data_ = XMLParser::ToString(name);
-
+    xml_part.data_ = XMLParser::ToStdString(name);
     xml_part.offset_ = getOffset();
     parser_->appendToBuffer(xml_part);
     --parser_->open_elements_;
@@ -126,12 +110,7 @@ void XMLParser::Handler::endElement(const XMLCh * const name) {
 void XMLParser::Handler::characters(const XMLCh * const chars, const XMLSize_t /*length*/) {
     XMLPart xml_part;
     xml_part.type_ = XMLPart::CHARACTERS;
-
-    if (parser_->options_.convert_to_iso8859_15_)
-        xml_part.data_ = StringUtil::UTF8ToISO8859_15(XMLParser::ToString(chars));
-    else
-        xml_part.data_ = XMLParser::ToString(chars);
-
+    xml_part.data_ = XMLParser::ToStdString(chars);
     xml_part.offset_ = getOffset();
     parser_->appendToBuffer(xml_part);
 }
@@ -192,7 +171,7 @@ void XMLParser::seek(const off_t offset, const int whence) {
             rewind();
 
         XMLPart xml_part;
-        while(getNext(&xml_part)) {
+        while (getNext(&xml_part)) {
             if (xml_part.offset_ == offset) {
                 buffer_.emplace_front(xml_part);
                 return;
@@ -221,10 +200,10 @@ off_t XMLParser::tell() {
 
 off_t XMLParser::getMaxOffset() {
     switch (type_) {
-        case XMLParser::XML_FILE:
-            return FileUtil::GetFileSize(xml_filename_or_string_);
-        case XMLParser::XML_STRING:
-            return xml_filename_or_string_.length();
+    case XMLParser::XML_FILE:
+        return FileUtil::GetFileSize(xml_filename_or_string_);
+    case XMLParser::XML_STRING:
+        return xml_filename_or_string_.length();
     }
 }
 
@@ -248,7 +227,7 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
             prolog_parsing_done_ = true;
         }
 
-        if (buffer_.empty() && body_has_more_contents_)
+        if (buffer_.empty() and body_has_more_contents_)
             body_has_more_contents_ = parser_->parseNext(token_);
 
         if (not buffer_.empty()) {
@@ -258,11 +237,10 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
             buffer_.pop_front();
             if (next != nullptr and next->type_ == XMLPart::CHARACTERS and combine_consecutive_characters) {
                 XMLPart peek;
-                while(getNext(&peek, /* combine_consecutive_characters = */false) and peek.type_ == XMLPart::CHARACTERS)
+                while (getNext(&peek, /* combine_consecutive_characters = */false) and peek.type_ == XMLPart::CHARACTERS)
                     next->data_ += peek.data_;
-                if (peek.type_ != XMLPart::CHARACTERS) {
+                if (peek.type_ != XMLPart::CHARACTERS)
                     buffer_.emplace_front(peek);
-                }
             }
 
             if (options_.ignore_whitespace_ and next != nullptr and next->type_ == XMLPart::CHARACTERS and StringUtil::IsWhitespace(next->data_))
@@ -272,7 +250,7 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
         ConvertAndThrowException(exc);
     }
 
-    return (not buffer_.empty() or body_has_more_contents_);
+    return not buffer_.empty() or body_has_more_contents_;
 }
 
 
@@ -280,7 +258,7 @@ bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::st
                        XMLPart * const part, std::string * const skipped_data)
 {
     if (unlikely(expected_type != XMLPart::OPENING_TAG and expected_type != XMLPart::CLOSING_TAG))
-        LOG_ERROR("Bad expected type: " + XMLPart::TypeToString(expected_type));
+        LOG_ERROR("Unexpected type: " + XMLPart::TypeToString(expected_type));
 
     if (unlikely(expected_tags.empty()))
         LOG_ERROR("Need at least one expected tag!");
@@ -305,7 +283,7 @@ bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::st
             break;
     }
 
-    if (return_value == true && part != nullptr) {
+    if (return_value == true and part != nullptr) {
         part->type_ = xml_part.type_;
         part->data_ = xml_part.data_;
         part->attributes_ = xml_part.attributes_;

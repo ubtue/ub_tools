@@ -112,7 +112,7 @@ public:
     void skipWhiteSpace();
     void rewind();
     bool seek(const off_t offset, const int whence = SEEK_SET);
-    off_t tell();
+    off_t tell() const;
 
     static std::string TypeToString(const Type type);
 private:
@@ -741,7 +741,7 @@ template<typename DataSource> bool XMLSubsetParser<DataSource>::seek(const off_t
 }
 
 
-template<typename DataSource> off_t XMLSubsetParser<DataSource>::tell() {
+template<typename DataSource> off_t XMLSubsetParser<DataSource>::tell() const {
     return input_->tell() - pushed_back_chars_.size();
 }
 
