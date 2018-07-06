@@ -326,6 +326,9 @@ public:
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
 
+        /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
+        std::string getFirstSubfieldWithCode(const char subfield_code) const;
+
         inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
             { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
 
