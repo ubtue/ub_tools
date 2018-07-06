@@ -28,12 +28,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <getopt.h>
-#include "Leader.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcTag.h"
+#include "MARC.h"
 #include "StringUtil.h"
-#include "Subfields.h"
 #include "util.h"
 
 
@@ -44,40 +40,37 @@ void Usage() {
 
 
 void JOP_Grep(const std::string &input_filename, const unsigned max_result_count) {
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(input_filename, MarcReader::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename, MARC::FileType::BINARY));
 
     unsigned count(0), result_count(0);
-    while (const MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++count;
 
-        const Leader &leader(record.getLeader());
-        const bool is_article(leader.isArticle());
-        const bool is_serial(leader.isSerial());
+        const bool is_article(record.isArticle());
+        const bool is_serial(record.isSerial());
         if (not is_article and not is_serial)
             continue;
 
         std::string isbn, issn;
-        for (size_t i(0); i < record.getNumberOfFields(); ++i) {
-            const MarcTag &tag(record.getTag(i));
+        for (const auto &field : record) {
+            const MARC::Tag tag(field.getTag());
             if (tag == "020" or tag == "022") {
-                const Subfields subfields(record.getSubfields(i));
-                auto begin_end = subfields.getIterators('a');
-                if (begin_end.first != begin_end.second) {
+                const std::string a_value(field.getFirstSubfieldWithCode('a'));
+                if (not a_value.empty()) {
                     if (tag == "020")
-                        isbn = begin_end.first->value_;
+                        isbn = a_value;
                     else // Assume tag == "022".
-                        issn = begin_end.first->value_;
+                        issn = a_value;
                 }
             } else if (is_article and tag == "773") {
-                const Subfields subfields(record.getSubfields(i));
-                auto begin_end = subfields.getIterators('x'); // ISSN
-                if (begin_end.first != begin_end.second)
-                    issn = begin_end.first->value_;
-                begin_end = subfields.getIterators('z'); // ISBN
-                if (begin_end.first != begin_end.second)
-                    isbn = begin_end.first->value_;
+                const std::string x_value(field.getFirstSubfieldWithCode('x'));
+                if (not x_value.empty())
+                    issn = x_value;
+                const std::string z_value(field.getFirstSubfieldWithCode('z'));
+                if (not z_value.empty())
+                    isbn = z_value;
             }
-            
+
             if (not issn.empty() or not isbn.empty()) {
                 ++result_count;
                 if (result_count > max_result_count)
