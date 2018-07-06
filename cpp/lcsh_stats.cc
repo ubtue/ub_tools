@@ -24,8 +24,7 @@
 #include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
-#include "MarcRecord.h"
-#include "MarcReader.h"
+#include "MARC.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -66,17 +65,17 @@ size_t RemoveEmptyEntries(std::vector<std::string> * const entries) {
 }
 
 
-void CollectStats(MarcReader * const marc_reader, const std::unordered_set<std::string> &loc_subject_headings,
+void CollectStats(MARC::Reader * const marc_reader, const std::unordered_set<std::string> &loc_subject_headings,
                   std::unordered_map<std::string, unsigned> * const subjects_to_counts_map,
                   unsigned * const match_count)
 {
     *match_count = 0;
     unsigned total_count(0), duplicate_count(0), empty_count(0);
-    while (const MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++total_count;
 
-        std::vector<std::string> subjects;
-        if (record.extractSubfield("650", 'a', &subjects) == 0)
+        std::vector<std::string> subjects(record.getSubfieldValues("650", 'a'));
+        if (subjects.empty())
             continue;
 
         for (auto &subject : subjects)
@@ -136,26 +135,25 @@ void DisplayStats(const std::unordered_map<std::string, unsigned> &subjects_to_c
 }
 
 
-int main(int /*argc*/, char **argv) {
+int Main(int /*argc*/, char **argv) {
     ::progname = argv[0];
     ++argv;
     if (*argv == nullptr)
         Usage();
 
-    try {
-        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(*argv++));
-        if (*argv == nullptr)
-            Usage();
 
-        std::unordered_set<std::string> loc_subject_headings;
-        while (*argv != nullptr)
-            loc_subject_headings.insert(*argv++);
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(*argv++));
+    if (*argv == nullptr)
+        Usage();
 
-        std::unordered_map<std::string, unsigned> subjects_to_counts_map;
-        unsigned match_count;
-        CollectStats(marc_reader.get(), loc_subject_headings, &subjects_to_counts_map, &match_count);
-        DisplayStats(subjects_to_counts_map, match_count);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    std::unordered_set<std::string> loc_subject_headings;
+    while (*argv != nullptr)
+        loc_subject_headings.insert(*argv++);
+
+    std::unordered_map<std::string, unsigned> subjects_to_counts_map;
+    unsigned match_count;
+    CollectStats(marc_reader.get(), loc_subject_headings, &subjects_to_counts_map, &match_count);
+    DisplayStats(subjects_to_counts_map, match_count);
+
+    return EXIT_SUCCESS;
 }

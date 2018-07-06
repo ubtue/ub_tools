@@ -49,7 +49,7 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
         cumulative_field_count += record.getNumberOfFields();
-        
+
         if (unlikely(record.getNumberOfFields() == 0))
             logger->error("record #" + std::to_string(record_count) + " has zero fields!");
         const std::string &control_number(record.getControlNumber());
@@ -90,7 +90,7 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
                 logger->error("Every local data block has to have exactly one 001 field. (Record: "
                               + record.getControlNumber() + ", Local data block: "
                               + std::to_string(local_block_boundary.first - record.begin()) + " - "
-                              + std::to_string(local_block_boundary.second - record.begin()));
+                              + std::to_string(local_block_boundary.second - record.begin()) + ")");
         }
     }
 

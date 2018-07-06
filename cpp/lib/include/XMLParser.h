@@ -33,7 +33,7 @@
 #include "util.h"
 
 
-class XMLParser {
+class XMLParser final {
     xercesc::SAXParser *parser_;
     xercesc::XMLPScanToken token_;
     const xercesc::Locator *locator_;
@@ -42,6 +42,10 @@ class XMLParser {
     bool body_has_more_contents_;
     unsigned open_elements_;
 public:
+    class Error : public std::runtime_error {
+    public:
+        explicit Error(const std::string &message): std::runtime_error(message) { }
+    };
     typedef std::map<std::string, std::string> Attributes;
 
     enum Type { XML_FILE, XML_STRING };
@@ -63,15 +67,21 @@ public:
         Type type_ = UNINITIALISED;
         std::string data_;
         Attributes attributes_;
+        off_t offset_;
         std::string toString();
     };
 private:
     Type type_;
     Options options_;
+
+    static void ConvertAndThrowException(const xercesc::RuntimeException &exc);
+    static void ConvertAndThrowException(const xercesc::SAXParseException &exc);
+    static void ConvertAndThrowException(const xercesc::XMLException &exc);
+
     class Handler : public xercesc::HandlerBase {
         friend class XMLParser;
         XMLParser *parser_;
-
+        inline off_t getOffset() { return static_cast<off_t>(parser_->parser_->getSrcOffset()); }
     public:
         void characters(const XMLCh * const chars, const XMLSize_t length);
         void endElement(const XMLCh * const name);
@@ -85,13 +95,13 @@ private:
             std::string message;
             message += "line " + std::to_string(exc.getLineNumber());
             message += ", col " + std::to_string(exc.getColumnNumber());
-            message += ": " + XMLParser::ToString(exc.getMessage());
+            message += ": " + XMLParser::ToStdString(exc.getMessage());
             return message;
         }
     public:
-        void warning(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToString(exc.getMessage())); }
-        void error(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToString(exc.getMessage())); }
-        void fatalError(const xercesc::SAXParseException &exc) { throw std::runtime_error(getExceptionMessage(exc)); }
+        void warning(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToStdString(exc.getMessage())); }
+        void error(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToStdString(exc.getMessage())); }
+        void fatalError(const xercesc::SAXParseException &exc) { XMLParser::ConvertAndThrowException(exc); }
         void resetErrors() {}
     };
 
@@ -99,22 +109,36 @@ private:
     ErrorHandler *error_handler_;
     std::deque<XMLPart> buffer_;
     inline void appendToBuffer(XMLPart &xml_part) { buffer_.emplace_back(xml_part); }
+
+    /** \brief depending on type_: returns either length of the file or length of the string.*/
+    off_t getMaxOffset();
+
     friend class Handler;
 
     /** \brief  converts xerces' internal string type to std::string. */
-    static std::string ToString(const XMLCh * const xmlch);
+    static std::string ToStdString(const XMLCh * const xmlch);
 public:
     explicit XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
-    ~XMLParser() = default;
+    ~XMLParser() { delete parser_; delete handler_; delete error_handler_; xercesc::XMLPlatformUtils::Terminate(); }
     void rewind();
-    unsigned getLineNo() { return static_cast<unsigned>(locator_->getLineNumber()); }
-    unsigned getColumnNo() { return static_cast<unsigned>(locator_->getColumnNumber()); }
+
+    bool peek(XMLPart * const xml_part);
+
+    /** \brief  seeks for the given offset in the underlying string or file.
+     *  \throws XMLParser::Error if offset cannot be found or there is no XMLPart that starts exactly at the given offset.
+     */
+    void seek(const off_t offset, const int whence = SEEK_SET);
+
+    off_t tell();
+
+    inline unsigned getLineNo() { return static_cast<unsigned>(locator_->getLineNumber()); }
+    inline unsigned getColumnNo() { return static_cast<unsigned>(locator_->getColumnNumber()); }
 
 
     /** \return true if there are more elements to parse, o/w false.
      *  \note   parsing is done in progressive mode, meaning that the document is
      *          still being parsed during consecutive getNext() calls.
-     *  \throws std::runtime_error, see ErrorHandler.
+     *  \throws XMLParser::Error
      */
     bool getNext(XMLPart * const next, bool combine_consecutive_characters = true);
 
@@ -123,20 +147,21 @@ public:
      *  \param expected_type  The type of element we're looking for.
      *  \param expected_tags  If "type" is OPENING_TAG or CLOSING_TAG, the name of the tags we're looking for.  We return when we
      *                        have found the first matching one.
-     *  \param part           The found XMLPart will be returned here.
+     *  \param part           If not NULL, the found XMLPart will be returned here.
+     *  \param skipped_data   If not NULL, the skipped over XML data will be appended here.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
     bool skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags,
-                XMLPart * const part = nullptr);
+                XMLPart * const part = nullptr, std::string * const skipped_data = nullptr);
 
     /** \brief Skip forward until we encounter a certain element.
      *  \param expected_type  The type of element we're looking for.
      *  \param expected_tag   If "type" is OPENING_TAG or CLOSING_TAG, the name of the tag we're looking for.
-     *  \param part           The found XMLPart will be returned here.
+     *  \param part           If not NULL, the found XMLPart will be returned here.
+     *  \param skipped_data   If not NULL, the skipped over XML data will be appended here.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
     inline bool skipTo(const XMLPart::Type expected_type, const std::string &expected_tag,
-                XMLPart * const part = nullptr)
-        { return skipTo(expected_type, std::set<std::string>{ expected_tag }, part); }
-
+                XMLPart * const part = nullptr, std::string * const skipped_data = nullptr)
+        { return skipTo(expected_type, std::set<std::string>{ expected_tag }, part, skipped_data); }
 };

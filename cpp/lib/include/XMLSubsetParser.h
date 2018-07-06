@@ -1,4 +1,4 @@
-/** \file   SimpleXmlParser.h
+/** \file   XMLSubsetParser.h (former SimpleXmlParser.h)
  *  \brief  A non-validating XML parser class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
@@ -47,7 +47,7 @@
  *                      3. If neither of the above are available, we fallback to UTF-8 as the default
  *                         and fail elegantly.
  */
-template<typename DataSource> class SimpleXmlParser {
+template<typename DataSource> class XMLSubsetParser {
 public:
     enum Type { UNINITIALISED, START_OF_DOCUMENT, END_OF_DOCUMENT, ERROR, OPENING_TAG, CLOSING_TAG, CHARACTERS };
 private:
@@ -74,12 +74,15 @@ private:
     static const uint8_t FIRST_FOUR_BYTES_NO_BOM[5][4];
     static const std::string CANONICAL_ENCODING_NAMES[5];
 public:
-    SimpleXmlParser(DataSource * const input, const std::string &external_encoding = "");
+    XMLSubsetParser(DataSource * const input, const std::string &external_encoding = "");
 
     bool getNext(Type * const type, std::map<std::string, std::string> * const attrib_map, std::string * const data);
 
     const std::string &getLastErrorMessage() const { return last_error_message_; }
+
+    /** \brief Returns 0 if line number cannot be determined, e.g. after seek was used. */
     unsigned getLineNo() const { return line_no_; }
+
     DataSource *getDataSource() const { return input_; }
 
     /** \brief Skip forward until we encounter a certain element.
@@ -108,6 +111,8 @@ public:
 
     void skipWhiteSpace();
     void rewind();
+    bool seek(const off_t offset, const int whence = SEEK_SET);
+    off_t tell() const;
 
     static std::string TypeToString(const Type type);
 private:
@@ -129,26 +134,26 @@ private:
 };
 
 
-template<typename DataSource> const std::deque<int> SimpleXmlParser<DataSource>::CDATA_START_DEQUE{
+template<typename DataSource> const std::deque<int> XMLSubsetParser<DataSource>::CDATA_START_DEQUE{
     '<', '!', '[', 'C', 'D', 'A', 'T', 'A', '[' };
 
 // '##' characters denote any byte value except that two consecutive ##s cannot be both 00
 // in the case of UTF-8, the 4th byte is ignored
-template<typename DataSource> const uint8_t SimpleXmlParser<DataSource>::FIRST_FOUR_BYTES_WITH_BOM[5][4]{
+template<typename DataSource> const uint8_t XMLSubsetParser<DataSource>::FIRST_FOUR_BYTES_WITH_BOM[5][4]{
     { 0, 0, 0xFE, 0xFF }, { 0xFF, 0xFE, 0, 0 }, { 0xFE, 0xFF, /*##*/0x0, /*##*/0x0 }, { 0xFF, 0xFE, /*##*/0x0, /*##*/0x0 }, { 0xEF, 0xBB, 0xBF, /*##*/0x0 }
 };
 
 // Encodings of the first four characters in the XML file (<?xm)
-template<typename DataSource> const uint8_t SimpleXmlParser<DataSource>::FIRST_FOUR_BYTES_NO_BOM[5][4]{
+template<typename DataSource> const uint8_t XMLSubsetParser<DataSource>::FIRST_FOUR_BYTES_NO_BOM[5][4]{
     { 0, 0, 0, 0x3C }, { 0x3C, 0, 0, 0 }, { 0, 0x3C, 0, 0x3F }, { 0x3C, 0, 0x3F, 0 }, { 0x3C, 0x3F, 0x78, 0x6D }
 };
 
-template<typename DataSource> const std::string SimpleXmlParser<DataSource>::CANONICAL_ENCODING_NAMES[5]{
+template<typename DataSource> const std::string XMLSubsetParser<DataSource>::CANONICAL_ENCODING_NAMES[5]{
     "UTF32BE", "UTF32LE", "UTF16BE", "UTF16LE", "UTF8"
 };
 
 
-template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataSource * const input, const std::string &external_encoding)
+template<typename DataSource> XMLSubsetParser<DataSource>::XMLSubsetParser(DataSource * const input, const std::string &external_encoding)
     : input_(input), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false), data_collector_(nullptr), datasource_content_start_pos_(0)
 {
     if (not external_encoding.empty())
@@ -158,7 +163,7 @@ template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataS
 }
 
 
-template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding() {
+template<typename DataSource> void XMLSubsetParser<DataSource>::detectEncoding() {
     // compare the first 4 bytes with the expected bytes to determine the initial encoding
     char first_four_bytes[4]{0};
     const char null_two_bytes[2]{0};
@@ -255,7 +260,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::detectEncoding()
 }
 
 
-template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoint() {
+template<typename DataSource> int XMLSubsetParser<DataSource>::getUnicodeCodePoint() {
     int ch(input_->get());
     if (unlikely(ch == EOF))
         return ch;
@@ -264,13 +269,13 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoi
             return static_cast<int>(to_utf32_decoder_->getUTF32Char());
         ch = input_->get();
         if (unlikely(ch == EOF))
-            throw std::runtime_error("in SimpleXmlParser::getUnicodeCodePoint: unexpected EOF while decoding "
+            throw std::runtime_error("in XMLSubsetParser::getUnicodeCodePoint: unexpected EOF while decoding "
                                      "a byte sequence!");
     }
 }
 
 
-template<typename DataSource> int SimpleXmlParser<DataSource>::get(const bool skip_comment, bool * const cdata_start) {
+template<typename DataSource> int XMLSubsetParser<DataSource>::get(const bool skip_comment, bool * const cdata_start) {
     if (skip_comment) {
         static constexpr char COMMENT_START[]{"<!--"};
         if (pushed_back_chars_.empty())
@@ -342,27 +347,27 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::get(const bool sk
 }
 
 
-template<typename DataSource> int SimpleXmlParser<DataSource>::peek() {
+template<typename DataSource> int XMLSubsetParser<DataSource>::peek() {
     if (pushed_back_chars_.empty())
         pushed_back_chars_.push_back(getUnicodeCodePoint());
     return pushed_back_chars_.front();
 }
 
 
-template<typename DataSource> void SimpleXmlParser<DataSource>::unget(const int ch) {
+template<typename DataSource> void XMLSubsetParser<DataSource>::unget(const int ch) {
     if (unlikely(pushed_back_chars_.size() == __builtin_strlen("<![CDATA[")))
-        throw std::runtime_error("in SimpleXmlParser::unget: can't push back more than "
+        throw std::runtime_error("in XMLSubsetParser::unget: can't push back more than "
                                  + std::to_string(__builtin_strlen("<![CDATA[")) + " characters in a row!");
     pushed_back_chars_.push_front(ch);
     if (data_collector_ != nullptr) {
         if (unlikely(not TextUtil::TrimLastCharFromUTF8Sequence(data_collector_)))
-            throw std::runtime_error("in SimpleXmlParser<DataSource>::unget: \"" + *data_collector_
+            throw std::runtime_error("in XMLSubsetParser<DataSource>::unget: \"" + *data_collector_
                                      + "\" is an invalid UTF-8 sequence!");
     }
 }
 
 
-template<typename DataSource> void SimpleXmlParser<DataSource>::skipWhiteSpace() {
+template<typename DataSource> void XMLSubsetParser<DataSource>::skipWhiteSpace() {
     for (;;) {
         const int ch(get());
         if (unlikely(ch == EOF))
@@ -370,7 +375,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::skipWhiteSpace()
         if (ch != ' ' and ch != '\t' and ch != '\n' and ch != '\r') {
             unget(ch);
             return;
-        } else if (ch == '\n')
+        } else if (ch == '\n' and line_no_ != 0)
             ++line_no_;
     }
 }
@@ -378,7 +383,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::skipWhiteSpace()
 
 // \return If true, we have a valid "name" and "value".  If false we haven't found a name/value-pair if
 //         *error_message is empty or we have a real problem if *error_message is not empty.
-template<typename DataSource> bool SimpleXmlParser<DataSource>::extractAttribute(std::string * const name,
+template<typename DataSource> bool XMLSubsetParser<DataSource>::extractAttribute(std::string * const name,
                                                                                  std::string * const value,
                                                                                  std::string * const error_message)
 {
@@ -410,7 +415,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractAttribute
 }
 
 
-template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPrologue() {
+template<typename DataSource> void XMLSubsetParser<DataSource>::parseOptionalPrologue() {
     skipWhiteSpace();
     int ch(get(/* skip_comment = */false));
     if (unlikely(ch != '<') or peek() != '?') {
@@ -421,19 +426,19 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPro
 
     std::string name;
     if (not extractName(&name) or name != "xml")
-        throw std::runtime_error("in SimpleXmlParser::parseOptionalPrologue: failed to parse a prologue!");
+        throw std::runtime_error("in XMLSubsetParser::parseOptionalPrologue: failed to parse a prologue!");
 
     std::string attrib_name, attrib_value, error_message;
     while (extractAttribute(&attrib_name, &attrib_value, &error_message) and attrib_name != "encoding")
         skipWhiteSpace();
     if (not error_message.empty())
-        throw std::runtime_error("in SimpleXmlParser::parseOptionalPrologue: " + error_message);
+        throw std::runtime_error("in XMLSubsetParser::parseOptionalPrologue: " + error_message);
 
     if (attrib_name == "encoding")
         internal_encoding_ = TextUtil::CanonizeCharset(attrib_value);
 
     while (ch != EOF and ch != '>') {
-        if (unlikely(ch == '\n'))
+        if (unlikely(ch == '\n' and line_no_ != 0))
             ++line_no_;
         ch = get(/* skip_comment = */false);
     }
@@ -446,7 +451,7 @@ inline bool IsValidElementFirstCharacter(const int ch) {
 }
 
 
-template<typename DataSource> bool SimpleXmlParser<DataSource>::extractName(std::string * const name) {
+template<typename DataSource> bool XMLSubsetParser<DataSource>::extractName(std::string * const name) {
     name->clear();
 
     int ch(get(/* skip_comment = */false));
@@ -471,7 +476,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractName(std:
 }
 
 
-template<typename DataSource> bool SimpleXmlParser<DataSource>::skipOptionalProcessingInstruction() {
+template<typename DataSource> bool XMLSubsetParser<DataSource>::skipOptionalProcessingInstruction() {
     int ch(get(/* skip_comment = */false));
     if (ch != '<' or peek() != '?') {
         unget(ch);
@@ -494,7 +499,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::skipOptionalProc
 }
 
 
-template<typename DataSource> bool SimpleXmlParser<DataSource>::extractQuotedString(const int closing_quote,
+template<typename DataSource> bool XMLSubsetParser<DataSource>::extractQuotedString(const int closing_quote,
                                                                                     std::string * const s)
 {
     s->clear();
@@ -511,7 +516,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractQuotedStr
 
 
 // Collects characters while looking for the end of a CDATA section.
-template<typename DataSource> bool SimpleXmlParser<DataSource>::parseCDATA(std::string * const data) {
+template<typename DataSource> bool XMLSubsetParser<DataSource>::parseCDATA(std::string * const data) {
     int consecutive_closing_bracket_count(0);
     for (;;) {
         const int ch(get(/* skip_comment = */false));
@@ -527,7 +532,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::parseCDATA(std::
             }
             consecutive_closing_bracket_count = 0;
         } else {
-            if (unlikely(ch == '\n'))
+            if (unlikely(ch == '\n' and line_no_ != 0))
                 ++line_no_;
             consecutive_closing_bracket_count = 0;
         }
@@ -536,11 +541,11 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::parseCDATA(std::
 }
 
 
-template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
+template<typename DataSource> bool XMLSubsetParser<DataSource>::getNext(
     Type * const type, std::map<std::string, std::string> * const attrib_map, std::string * const data)
 {
     if (unlikely(last_type_ == ERROR))
-        throw std::runtime_error("in SimpleXmlParser::getNext: previous call already indicated an error!");
+        throw std::runtime_error("in XMLSubsetParser::getNext: previous call already indicated an error!");
 
     attrib_map->clear();
     data->clear();
@@ -570,7 +575,7 @@ collect_next_character:
                     last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
                     return false;
                 }
-                if (unlikely(ch == '\n'))
+                if (unlikely(ch == '\n' and line_no_ != 0))
                     ++line_no_;
                 *data += TextUtil::UTF32ToUTF8(ch);
             }
@@ -665,12 +670,12 @@ collect_next_character:
 }
 
 
-template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
+template<typename DataSource> bool XMLSubsetParser<DataSource>::skipTo(
     const Type expected_type, const std::vector<std::string> &expected_tags, std::string * const found_tag,
     std::map<std::string, std::string> * const attrib_map, std::string * const data)
 {
     if (unlikely((expected_type == OPENING_TAG or expected_type == CLOSING_TAG) and expected_tags.empty()))
-        throw std::runtime_error("in SimpleXmlParser::skipTo: \"expected_type\" is OPENING_TAG or CLOSING_TAG but no "
+        throw std::runtime_error("in XMLSubsetParser::skipTo: \"expected_type\" is OPENING_TAG or CLOSING_TAG but no "
                                  "tag names have been specified!");
 
     if (data != nullptr)
@@ -680,7 +685,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
         static std::map<std::string, std::string> local_attrib_map;
         std::string data2;
         if (unlikely(not getNext(&type, attrib_map == nullptr ? &local_attrib_map : attrib_map, &data2)))
-            throw std::runtime_error("in SimpleXmlParser::skipTo: " + last_error_message_);
+            throw std::runtime_error("in XMLSubsetParser::skipTo: " + last_error_message_);
 
         if (expected_type == type) {
             if (expected_type == OPENING_TAG or expected_type == CLOSING_TAG) {
@@ -702,7 +707,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
 }
 
 
-template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
+template<typename DataSource> bool XMLSubsetParser<DataSource>::skipTo(
     const Type expected_type, const std::string &expected_tag, std::map<std::string, std::string> * const attrib_map,
     std::string * const data)
 {
@@ -711,7 +716,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
 }
 
 
-template<typename DataSource> void SimpleXmlParser<DataSource>::rewind() {
+template<typename DataSource> void XMLSubsetParser<DataSource>::rewind() {
     input_->rewind();
     if (datasource_content_start_pos_ != 0)
         input_->seek(datasource_content_start_pos_);
@@ -726,7 +731,22 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::rewind() {
 }
 
 
-template<typename DataSource> bool SimpleXmlParser<DataSource>::parseOpeningTag(
+template<typename DataSource> bool XMLSubsetParser<DataSource>::seek(const off_t offset, const int whence) {
+    line_no_                = 0;
+    last_type_              = UNINITIALISED;
+    last_element_was_empty_ = false;
+    pushed_back_chars_.clear();
+
+    return input_->seek(offset, whence);
+}
+
+
+template<typename DataSource> off_t XMLSubsetParser<DataSource>::tell() const {
+    return input_->tell() - pushed_back_chars_.size();
+}
+
+
+template<typename DataSource> bool XMLSubsetParser<DataSource>::parseOpeningTag(
     std::string * const tag_name, std::map<std::string, std::string> * const attrib_map,
     std::string * const error_message)
 {
@@ -757,7 +777,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::parseOpeningTag(
 }
 
 
-template<typename DataSource> bool SimpleXmlParser<DataSource>::parseClosingTag(std::string * const tag_name) {
+template<typename DataSource> bool XMLSubsetParser<DataSource>::parseClosingTag(std::string * const tag_name) {
     tag_name->clear();
 
     if (not extractName(tag_name))
@@ -768,7 +788,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::parseClosingTag(
 }
 
 
-template<typename DataSource> std::string SimpleXmlParser<DataSource>::TypeToString(const Type type) {
+template<typename DataSource> std::string XMLSubsetParser<DataSource>::TypeToString(const Type type) {
     switch (type) {
     case UNINITIALISED:     return "UNINITIALISED";
     case START_OF_DOCUMENT: return "START_OF_DOCUMENT";
