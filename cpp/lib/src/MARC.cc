@@ -558,7 +558,6 @@ void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
                     deletion_ranges.emplace_back(range_start, range_end);
                     break;
                 }
-                last_tag = range_end->getTag();
             }
 
             last_tag = range_end->getTag();
