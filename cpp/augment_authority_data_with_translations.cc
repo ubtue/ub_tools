@@ -122,12 +122,12 @@ void InsertTranslation(MARC::Record * const record, const char indicator1, const
 }
 
 
-bool HasExistingTranslation(const MARC::Record *record, const std::string &language_code, const std::string &status) {
+bool HasExistingTranslation(const MARC::Record &record, const std::string &language_code, const std::string &status) {
     // We can have several either previously existing or already inserted synonyms, so don't replace synonyms
     if (IsReliableSynonym(status))
         return false;
 
-    for (const auto field : record->getTagRange("750")) {
+    for (const auto &field : record.getTagRange("750")) {
         MARC::Subfields subfields(field.getSubfields());
         if (subfields.hasSubfieldWithValue('2', "IxTheo") and
             subfields.hasSubfieldWithValue('9', "L:" + language_code) and
@@ -158,10 +158,7 @@ void ProcessRecord(MARC::Record * const record,
                 continue;
 
             // Don't touch MACS translations and leave alone authoritative IxTheo Translations from BSZ
-            if (record->hasTag("750")) {
-                if (not HasExistingTranslation(record, language_code, status))
-                    InsertTranslation(record, ' ', '6', term, language_code, status);
-            } else
+            if (not HasExistingTranslation(*record, language_code, status))
                 InsertTranslation(record, ' ', '6', term, language_code, status);
         }
         ++modified_count;
