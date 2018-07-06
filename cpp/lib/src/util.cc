@@ -278,7 +278,7 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
             SkipFieldPadding(input_);
             ch = std::fgetc(input_);
             if (ch == EOF)
-                return false;
+                return not values->empty();
             if (ch == '\n')
                 return true;
             if (ch != field_separator_)
@@ -292,7 +292,7 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
         if (ch == '\n')
             return true;
         if (ch == EOF)
-            return false;
+            return not values->empty();
         if (ch == field_separator_) {
             std::ungetc(ch, input_);
             values->emplace_back("");
