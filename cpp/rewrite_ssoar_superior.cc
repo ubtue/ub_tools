@@ -155,43 +155,44 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
        const std::string title((*article_matcher_2)[1]);
        const std::string year((*article_matcher_2)[2]);
        Assemble773Article(_773subfields, title, year);
-
    } else {
        LOG_WARNING("No matching regex for " + _500aContent);
    }
 }
 
 
-void RewriteSSOARSuperiorReference(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
+void RewriteSuperiorReference(MARC::Record * const record, bool * const modified_record) {
+    if (record->findTag("773") != record->end())
+        return;
+
+    // Check if we have matching 500 field
+    const std::string superior_string("^In:[\\s]*(.*)");
+    RegexMatcher * const superior_matcher(RegexMatcher::RegexMatcherFactory(superior_string));
+
+    for (auto &field : record->getTagRange("500")) {
+        const auto subfields(field.getSubfields());
+        for (const auto &subfield : subfields) {
+            if (subfield.code_ == 'a' && superior_matcher->matched(subfield.value_)) {
+                MARC::Subfields new773Subfields;
+                // Parse Field Contents
+                ParseSuperior((*superior_matcher)[1], &new773Subfields);
+                // Write 773 Field
+                if (not new773Subfields.empty()) {
+                    record->insertField("773", new773Subfields, '0', '8');
+                    *modified_record = true;
+                }
+            }
+        }
+    }
+}
+
+
+void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     unsigned record_count(0), modified_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
         bool modified_record(false);
-
-        if (record.findTag("773") != record.end()) {
-            marc_writer->write(record);
-            continue;
-        }
-
-        // Check if we have matching 500 field
-        const std::string superior_string("^In:[\\s]*(.*)");
-        RegexMatcher * const superior_matcher(RegexMatcher::RegexMatcherFactory(superior_string));
-
-        for (auto &field : record.getTagRange("500")) {
-            const auto subfields(field.getSubfields());
-            for (const auto &subfield : subfields) {
-                if (subfield.code_ == 'a' && superior_matcher->matched(subfield.value_)) {
-                    MARC::Subfields new773Subfields;
-                    // Parse Field Contents
-                    ParseSuperior((*superior_matcher)[1], &new773Subfields);
-                    // Write 773 Field
-                    if (not new773Subfields.empty()) {
-                        record.insertField("773", new773Subfields, '0', '8');
-                        modified_record = true;
-                    }
-                }
-            }
-        }
+        RewriteSuperiorReference(&record, &modified_record);
         marc_writer->write(record);
         if (modified_record)
             ++modified_count;
@@ -226,6 +227,6 @@ int Main(int argc, char **argv) {
         LOG_ERROR("Title data input file name equals output file name!");
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, reader_type));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
-    RewriteSSOARSuperiorReference(marc_reader.get() , marc_writer.get());
+    ProcessRecords(marc_reader.get() , marc_writer.get());
     return EXIT_SUCCESS;
 }
