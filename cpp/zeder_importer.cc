@@ -128,6 +128,7 @@ public:
        Returns true if an exisiting entry was modified or a new entry was added.
     */
     bool mergeEntry(const ZederEntry &diff, const bool add_if_absent = true);
+
     iterator find(const ZederEntry::Id id);
     const_iterator find(const ZederEntry::Id id) const;
     const_iterator begin() const { return entries_.begin(); }
@@ -360,9 +361,9 @@ void ParseZederCsv(const std::string &csv_path, ZederConfigData * const zeder_co
         }
 
         if (new_entry.primary_url_.empty())
-            LOG_WARNING("No URL for entry " + std::to_string(new_entry.id_) + "!");
-
-        zeder_config->addEntry(new_entry);
+            LOG_WARNING("No URL for entry " + std::to_string(new_entry.id_) + "! Skipping...");
+        else
+            zeder_config->addEntry(new_entry);
     }
 
     zeder_config->sortEntries();
@@ -494,7 +495,7 @@ void WriteZederIni(IniFile * const ini, const ZederConfigData &zeder_config) {
                 current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::MAX_CRAWL_DEPTH), "1", "");
 
             if (not current_section->lookup(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), &temp_buffer))
-                current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), "\"\"", "");
+                current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), "", "");
 
             break;
         }
