@@ -27,6 +27,7 @@
 #include <cstring>
 #include <unistd.h>
 #include "IniFile.h"
+#include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
 #include "util.h"
@@ -65,26 +66,27 @@ struct ZederEntry {
     bool has_rss_feed_;
     bool has_multiple_downloads_;
     struct tm last_modified_timestamp_;
-
-    explicit ZederEntry() : id_(0), has_rss_feed_(false), has_multiple_downloads_(false), last_modified_timestamp_{} {}
-    ZederEntry& operator=(const ZederEntry &rhs);
-
+public:
+    ZederEntry(): id_(0), has_rss_feed_(false), has_multiple_downloads_(false), last_modified_timestamp_{} {}
+    ZederEntry &operator=(const ZederEntry &rhs);
     void setModifiedTimestamp(const struct tm &timestamp);
 };
 
 
-ZederEntry& ZederEntry::operator=(const ZederEntry &rhs) {
-    id_ = rhs.id_;
-    parent_ppn_ = rhs.parent_ppn_;
-    parent_issn_print_ = rhs.parent_issn_print_;
-    parent_issn_online_ = rhs.parent_issn_online_;
-    title_ = rhs.title_;
-    comment_ = rhs.comment_;
-    primary_url_ = rhs.primary_url_;
-    auxiliary_url_ = rhs.auxiliary_url_;
-    has_rss_feed_ = rhs.has_rss_feed_;
-    has_multiple_downloads_ = rhs.has_multiple_downloads_;
-    std::memcpy(&this->last_modified_timestamp_, &rhs.last_modified_timestamp_, sizeof(struct tm));
+ZederEntry &ZederEntry::operator=(const ZederEntry &rhs) {
+    if (this != &rhs) {
+        id_ = rhs.id_;
+        parent_ppn_ = rhs.parent_ppn_;
+        parent_issn_print_ = rhs.parent_issn_print_;
+        parent_issn_online_ = rhs.parent_issn_online_;
+        title_ = rhs.title_;
+        comment_ = rhs.comment_;
+        primary_url_ = rhs.primary_url_;
+        auxiliary_url_ = rhs.auxiliary_url_;
+        has_rss_feed_ = rhs.has_rss_feed_;
+        has_multiple_downloads_ = rhs.has_multiple_downloads_;
+        std::memcpy(&this->last_modified_timestamp_, &rhs.last_modified_timestamp_, sizeof(struct tm));
+    }
     return *this;
 }
 
@@ -94,10 +96,8 @@ inline void ZederEntry::setModifiedTimestamp(const struct tm &timestamp) {
 }
 
 
-using ZederConfigDiff = ZederEntry;     // stores modified/new values of a given entry
-
-
 enum Flavour { IXTHEO, KRIMDOK };
+
 
 class ZederConfigData {
     Flavour source_;
@@ -110,36 +110,39 @@ public:
     ZederConfigData(Flavour source) : source_(source), last_modified_timestamp_{}, entries_() {}
 
     Flavour getSource() const { return source_; }
+    const struct tm &getModifiedTimestamp() const { return last_modified_timestamp_; }
+    void setModifiedTimestamp(const struct tm &new_timestamp) {
+        std::memcpy(&last_modified_timestamp_, &new_timestamp, sizeof(new_timestamp));
+    }
 
-    const struct tm& getModifiedTimestamp() const { return last_modified_timestamp_; }
-    void setModifiedTimestamp(const struct tm &timestamp);
-
+    /* Sorts entries by their Zeder ID */
     void sortEntries();
-    void addEntry(const ZederEntry &new_entry, bool sort_after_add = false);
-    bool mergeEntry(const ZederConfigDiff &diff, bool add_new_entries = true);
 
+    /* Adds an entry to the config if it's not already present */
+    void addEntry(const ZederEntry &new_entry, const bool sort_after_add = false);
+
+    /* Attempts to merge the changes specified in the diff into the config.
+       The ID field of the diff specifies the entry to merge into. If the
+       entry doesn't exist and 'add_if_absent' is true, a new entry is created for the ID.
+
+       Returns true if an exisiting entry was modified or a new entry was added.
+    */
+    bool mergeEntry(const ZederEntry &diff, const bool add_if_absent = true);
     iterator find(const ZederEntry::Id id);
     const_iterator find(const ZederEntry::Id id) const;
     const_iterator begin() const { return entries_.begin(); }
     const_iterator end() const { return entries_.end(); }
-
     size_t size() const { return entries_.size(); }
 };
 
 
-inline void ZederConfigData::setModifiedTimestamp(const struct tm &timestamp) {
-    std::memcpy(&last_modified_timestamp_, &timestamp, sizeof(timestamp));
-}
-
-
 inline void ZederConfigData::sortEntries() {
-    std::sort(entries_.begin(), entries_.end(), [](const ZederEntry &a, const ZederEntry &b) {
-        return a.id_ < b.id_;
-    });
+    std::sort(entries_.begin(), entries_.end(),
+              [](const ZederEntry &a, const ZederEntry &b) { return a.id_ < b.id_; });
 }
 
 
-void ZederConfigData::addEntry(const ZederEntry &new_entry, bool sort_after_add) {
+void ZederConfigData::addEntry(const ZederEntry &new_entry, const bool sort_after_add) {
     const iterator match(find(new_entry.id_));
     if (unlikely(match != end()))
         LOG_ERROR("Duplicate ID " + std::to_string(new_entry.id_) + "! Existing title: '" + match->title_ + "'");
@@ -151,12 +154,12 @@ void ZederConfigData::addEntry(const ZederEntry &new_entry, bool sort_after_add)
 }
 
 
-bool ZederConfigData::mergeEntry(const ZederConfigDiff &diff, bool add_new_entries) {
+bool ZederConfigData::mergeEntry(const ZederEntry &diff, const bool add_if_absent) {
     const iterator into(find(diff.id_));
     bool modified(false);
 
     if (into == end()) {
-        if (add_new_entries) {
+        if (add_if_absent) {
             addEntry(diff);
             modified = true;
             LOG_INFO("New entry " + std::to_string(diff.id_) + " merged into config data");
@@ -200,15 +203,13 @@ bool ZederConfigData::mergeEntry(const ZederConfigDiff &diff, bool add_new_entri
 
 
 inline ZederConfigData::iterator ZederConfigData::find(const ZederEntry::Id id) {
-    return std::find_if(entries_.begin(), entries_.end(), [id] (const ZederEntry &entry) {
-        return entry.id_ == id;
-    });
+    return std::find_if(entries_.begin(), entries_.end(),
+                        [id] (const ZederEntry &entry) { return entry.id_ == id; });
 }
 
 inline ZederConfigData::const_iterator ZederConfigData::find(const ZederEntry::Id id) const {
-    return std::find_if(entries_.begin(), entries_.end(), [id] (const ZederEntry &entry) {
-        return entry.id_ == id;
-    });
+    return std::find_if(entries_.begin(), entries_.end(),
+                        [id] (const ZederEntry &entry) { return entry.id_ == id; });
 }
 
 
@@ -219,29 +220,29 @@ enum ZederSpecificConfigKey { ID, MODIFIED_TIME };
 
 
 const std::map<ZederColumn, std::string> ZEDER_COLUMN_TO_STRING_MAP {
-    { Z, "Z"},
-    { PPPN, "pppn" },
-    { EPPN, "eppn" },
-    { ISSN, "issn" },
-    { ESSN, "essn" },
-    { TIT, "tit" },
-    { KAT, "kat" },
-    { PRODF, "prodf" },
-    { LRT, "lrt" },
-    { P_ZOT1, "p_zot1" },
-    { P_ZOT2, "p_zot2" },
-    { B_ZOT, "b_zot" },
-    { URL1, "url1" },
-    { URL2, "url2" },
-    { MTIME, "Mtime" }
+    { Z,        "Z"      },
+    { PPPN,     "pppn"   },
+    { EPPN,     "eppn"   },
+    { ISSN,     "issn"   },
+    { ESSN,     "essn"   },
+    { TIT,      "tit"    },
+    { KAT,      "kat"    },
+    { PRODF,    "prodf"  },
+    { LRT,      "lrt"    },
+    { P_ZOT1,   "p_zot1" },
+    { P_ZOT2,   "p_zot2" },
+    { B_ZOT,    "b_zot"  },
+    { URL1,     "url1"   },
+    { URL2,     "url2"   },
+    { MTIME,    "Mtime"  }
 };
 const std::map<ZederSpecificConfigKey, std::string> ZEDER_CONFIG_KEY_TO_STRING_MAP {
-    { ID, "zeder_id"},
+    { ID,            "zeder_id"            },
     { MODIFIED_TIME, "zeder_modified_time" }
 };
 
 
-void ParseZederCsv(const std::string &csv_path, ZederConfigData * const zeder_config, bool break_on_error = false) {
+void ParseZederCsv(const std::string &csv_path, ZederConfigData * const zeder_config, const bool break_on_error = false) {
     DSVReader reader(csv_path, ',');
     std::vector<std::string> splits;
     size_t line(0);
@@ -272,27 +273,22 @@ void ParseZederCsv(const std::string &csv_path, ZederConfigData * const zeder_co
                     break;
                 case PPPN:
                 case EPPN: {
-                    static constexpr size_t MAX_PPN_LENGTH = 9;
+                    if (element.empty() or element == "NV")
+                        break;
+                    else if (not MiscUtil::IsValidPPN(element))
+                        throw "Invalid PPN";
 
-                    if (element.length() > MAX_PPN_LENGTH)
-                        throw "Invalid PPN length " + std::to_string(element.length());
-
-                    if (not element.empty())
-                        element = StringUtil::PadLeading(element, MAX_PPN_LENGTH, '0');
-                    StringUtil::Trim(&element);
                     if (column == PPPN or new_entry.parent_ppn_.empty())
                         new_entry.parent_ppn_ = element;
                     break;
                 }
                 case ISSN:
                 case ESSN: {
-                    constexpr size_t ISSN_LENGTH = 9;
-
                     StringUtil::Trim(&element);
                     if (element.empty() or element == "NV")
                         break;
-                    else if (element.length() != ISSN_LENGTH)
-                        throw "Invalid ISSN length " + std::to_string(element.length());
+                    else if (not MiscUtil::IsPossibleISSN(element))
+                        throw "Invalid ISSN";
 
                     if (column == ISSN)
                         new_entry.parent_issn_print_ = element;
@@ -328,12 +324,18 @@ void ParseZederCsv(const std::string &csv_path, ZederConfigData * const zeder_co
                     new_entry.comment_ = element;
                     break;
                 case URL1:
+                    if (element.empty())
+                        break;
+
                     if (new_entry.primary_url_.empty())
                         new_entry.primary_url_ = element;
                     else
                         new_entry.auxiliary_url_ = element;
                     break;
                 case URL2:
+                    if (element.empty())
+                        break;
+
                     if (new_entry.auxiliary_url_.empty())
                         new_entry.auxiliary_url_ = element;
                     else
@@ -346,7 +348,7 @@ void ParseZederCsv(const std::string &csv_path, ZederConfigData * const zeder_co
                 default:
                     LOG_ERROR("Unknown data column '" + std::to_string(column) + "'");
                 }
-            } catch (const std::string &ex) {
+            } catch (const char *ex) {
                 const auto error_msg("Invalid element '" + element + "' for column '" +
                                              ZEDER_COLUMN_TO_STRING_MAP.at(column) + "' at line " + std::to_string(line) +
                                              ": " + ex);
@@ -358,7 +360,7 @@ void ParseZederCsv(const std::string &csv_path, ZederConfigData * const zeder_co
         }
 
         if (new_entry.primary_url_.empty())
-            LOG_ERROR("No URL for entry " + std::to_string(new_entry.id_) + "!");
+            LOG_WARNING("No URL for entry " + std::to_string(new_entry.id_) + "!");
 
         zeder_config->addEntry(new_entry);
     }
@@ -426,7 +428,7 @@ void WriteZederIni(IniFile * const ini, const ZederConfigData &zeder_config) {
     ini->appendSection("");
 
     char time_buffer[0x50]{};
-    strftime(time_buffer, sizeof(time_buffer), ZederEntry::MODIFIED_TIMESTAMP_FORMAT_STRING, &zeder_config.getModifiedTimestamp());
+    std::strftime(time_buffer, sizeof(time_buffer), ZederEntry::MODIFIED_TIMESTAMP_FORMAT_STRING, &zeder_config.getModifiedTimestamp());
     ini->getSection("")->insert(ZEDER_CONFIG_KEY_TO_STRING_MAP.at(ZederSpecificConfigKey::MODIFIED_TIME), time_buffer, "",
                                 IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
 
@@ -437,7 +439,7 @@ void WriteZederIni(IniFile * const ini, const ZederConfigData &zeder_config) {
 
         current_section->insert(ZEDER_CONFIG_KEY_TO_STRING_MAP.at(ZederSpecificConfigKey::ID), std::to_string(entry.id_), "",
                                 IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
-        strftime(time_buffer, sizeof(time_buffer), ZederEntry::MODIFIED_TIMESTAMP_FORMAT_STRING, &entry.last_modified_timestamp_);
+        std::strftime(time_buffer, sizeof(time_buffer), ZederEntry::MODIFIED_TIMESTAMP_FORMAT_STRING, &entry.last_modified_timestamp_);
         current_section->insert(ZEDER_CONFIG_KEY_TO_STRING_MAP.at(ZederSpecificConfigKey::MODIFIED_TIME), time_buffer, "",
                                 IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
 
@@ -478,35 +480,35 @@ void WriteZederIni(IniFile * const ini, const ZederConfigData &zeder_config) {
         }
 
         switch (type) {
-            case Zotero::HarvesterType::RSS:
-                current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::FEED), entry.primary_url_, "",
-                                IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
-                break;
-            case Zotero::HarvesterType::CRAWL: {
-                current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::BASE_URL), entry.primary_url_, "",
-                                IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+        case Zotero::HarvesterType::RSS:
+            current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::FEED), entry.primary_url_, "",
+                            IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+            break;
+        case Zotero::HarvesterType::CRAWL: {
+            current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::BASE_URL), entry.primary_url_, "",
+                            IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
 
-                // insert other required keys if not present
-                std::string temp_buffer;
-                if (not current_section->lookup(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::MAX_CRAWL_DEPTH), &temp_buffer))
-                    current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::MAX_CRAWL_DEPTH), "1", "");
+            // insert other required keys if not present
+            std::string temp_buffer;
+            if (not current_section->lookup(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::MAX_CRAWL_DEPTH), &temp_buffer))
+                current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::MAX_CRAWL_DEPTH), "1", "");
 
-                if (not current_section->lookup(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), &temp_buffer))
-                    current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), "", "");
+            if (not current_section->lookup(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), &temp_buffer))
+                current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), "", "");
 
-                break;
-            }
-            case Zotero::HarvesterType::DIRECT:
-                current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::URL), entry.primary_url_, "",
-                                IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
-                break;
+            break;
+        }
+        case Zotero::HarvesterType::DIRECT:
+            current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::URL), entry.primary_url_, "",
+                            IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+            break;
         }
     }
 }
 
 
 bool DiffZederEntries(const ZederConfigData &old_config, const ZederConfigData &new_config,
-                      std::map<ZederEntry::Id, ZederConfigDiff> * const diffs, bool skip_global_timestamp_check = false)
+                      std::map<ZederEntry::Id, ZederEntry> * const diffs, const bool skip_global_timestamp_check = false)
 {
     if (not skip_global_timestamp_check) {
         if (TimeUtil::DiffStructTm(new_config.getModifiedTimestamp(), old_config.getModifiedTimestamp()) <= 0)
@@ -604,7 +606,7 @@ int Main(int argc, char *argv[]) {
         ParseZederIni(old_ini, &old_data);
         ParseZederIni(updated_ini, &new_data);
 
-        std::map<ZederEntry::Id, ZederConfigDiff> diffs;
+        std::map<ZederEntry::Id, ZederEntry> diffs;
         if (DiffZederEntries(old_data, new_data, &diffs)) {
             for (const auto &entry : diffs) {
                 LOG_INFO("Modifying entry " + std::to_string(entry.first) + "...");
@@ -624,7 +626,6 @@ int Main(int argc, char *argv[]) {
         break;
     }
     }
-
 
     return EXIT_SUCCESS;
 }
