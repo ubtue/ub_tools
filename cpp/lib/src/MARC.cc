@@ -177,9 +177,11 @@ void Record::Field::insertOrReplaceSubfield(const char subfield_code, const std:
 
 
 bool Record::Field::replaceSubfieldCode(const char old_code, const char new_code) {
-    std::string new_contents;
     if (contents_.length() < 5)
         return false;
+
+    std::string new_contents;
+    new_contents.reserve(contents_.length());
 
     bool replaced_at_least_one_code(false), subfield_delimiter_seen(false);    
     for (const auto ch : contents_) {
