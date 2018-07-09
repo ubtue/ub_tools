@@ -1,5 +1,5 @@
-/** \file   zeder_tools.cc
- *  \brief  Collection of tools to marshal configuration files between Zeder and zts_harvester
+/** \file   zeder_importer.cc
+ *  \brief  Imports data from Zeder and merges it into zts_harvester config files
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -36,12 +36,9 @@
 namespace {
 
 
-using namespace Zotero;
-
-
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--verbosity=min_verbosity] --mode=tool_mode flavour first_path second_path \n"
+              << " [--verbosity=min_verbosity] --mode=tool_mode flavour first_path second_path\n"
               << "Modes:\n"
               << "\t" << "generate:" << "\t"    << "Converts the .csv file exported from Zeder into a zeder_tools generated .conf "                                                  "file. The first path points to the .csv file and the second to the output .conf "                                                "file.\n"
               << "\t" << "diff:"     << "\t\t"  << "Compares the last modified time stamps of entries in a pair of zeder_tools generated "                                           ".conf files. The first path points to the source/updated .conf file and "
@@ -382,7 +379,7 @@ void ParseZederIni(const IniFile &ini, ZederConfigData * const zeder_config) {
     for (const auto &type : Zotero::HARVESTER_TYPE_TO_STRING_MAP)
         type_string_to_value_map[type.second] = type.first;
 
-    StringUtil::Split(ini.getString("", HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::GROUP) + "s", ""),
+    StringUtil::Split(ini.getString("", Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::GROUP) + "s", ""),
                      ',', &groups);
 
     for (const auto &section : ini) {
@@ -398,23 +395,23 @@ void ParseZederIni(const IniFile &ini, ZederConfigData * const zeder_config) {
         new_entry.last_modified_timestamp_ = TimeUtil::StringToStructTm(section.getString(ZEDER_CONFIG_KEY_TO_STRING_MAP.at(ZederSpecificConfigKey::MODIFIED_TIME)),
                                                                         ZederEntry::MODIFIED_TIMESTAMP_FORMAT_STRING);
         new_entry.title_ = section_name;
-        new_entry.parent_issn_print_ = section.getString(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::PARENT_ISSN_PRINT), "");
-        new_entry.parent_issn_online_ = section.getString(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::PARENT_ISSN_ONLINE), "");
-        new_entry.parent_ppn_ = section.getString(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::PARENT_PPN), "");
+        new_entry.parent_issn_print_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_PRINT), "");
+        new_entry.parent_issn_online_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_ONLINE), "");
+        new_entry.parent_ppn_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_PPN), "");
 
-        const auto type(static_cast<HarvesterType>(section.getEnum(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::TYPE),
+        const auto type(static_cast<Zotero::HarvesterType>(section.getEnum(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::TYPE),
                                                                                             type_string_to_value_map)));
         switch (type) {
-        case RSS:
+        case Zotero::HarvesterType::RSS:
             new_entry.has_rss_feed_= true;
-            new_entry.primary_url_ = section.getString(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::FEED));
+            new_entry.primary_url_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::FEED));
             break;
-        case CRAWL:
+        case Zotero::HarvesterType::CRAWL:
             new_entry.has_multiple_downloads_ = true;
-            new_entry.primary_url_ = section.getString(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::BASE_URL));
+            new_entry.primary_url_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::BASE_URL));
             break;
-        case DIRECT:
-            new_entry.primary_url_ = section.getString(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::URL));
+        case Zotero::HarvesterType::DIRECT:
+            new_entry.primary_url_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::URL));
             break;
         }
 
@@ -444,63 +441,63 @@ void WriteZederIni(IniFile * const ini, const ZederConfigData &zeder_config) {
         current_section->insert(ZEDER_CONFIG_KEY_TO_STRING_MAP.at(ZederSpecificConfigKey::MODIFIED_TIME), time_buffer, "",
                                 IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
 
-        HarvesterType type;
+        Zotero::HarvesterType type;
         if (entry.has_rss_feed_)
-            type = HarvesterType::RSS;
+            type = Zotero::HarvesterType::RSS;
         else if (entry.has_multiple_downloads_)
-            type = HarvesterType::CRAWL;
+            type = Zotero::HarvesterType::CRAWL;
         else
-            type = HarvesterType::DIRECT;
-        current_section->insert(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::TYPE), HARVESTER_TYPE_TO_STRING_MAP.at(type), "",
+            type = Zotero::HarvesterType::DIRECT;
+        current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::TYPE), Zotero::HARVESTER_TYPE_TO_STRING_MAP.at(type), "",
                                 IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
 
         switch (zeder_config.getSource()) {
         case IXTHEO:
-            current_section->insert(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::GROUP), "IxTheo", "",
+            current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::GROUP), "IxTheo", "",
                                 IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
             break;
         case KRIMDOK:
-            current_section->insert(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::GROUP), "KrimDok", "",
+            current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::GROUP), "KrimDok", "",
                                 IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
             break;
         }
 
         if (not entry.parent_ppn_.empty()) {
-            current_section->insert(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::PARENT_PPN),
+            current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_PPN),
                                     entry.parent_ppn_, "", IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
         }
 
         if (not entry.parent_issn_print_.empty()) {
-            current_section->insert(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::PARENT_ISSN_PRINT),
+            current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_PRINT),
                                     entry.parent_issn_print_, "", IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
         }
 
         if (not entry.parent_issn_online_.empty()) {
-            current_section->insert(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::PARENT_ISSN_ONLINE),
+            current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_ONLINE),
                                     entry.parent_issn_online_, "", IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
         }
 
         switch (type) {
-            case HarvesterType::RSS:
-                current_section->insert(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::FEED), entry.primary_url_, "",
+            case Zotero::HarvesterType::RSS:
+                current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::FEED), entry.primary_url_, "",
                                 IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
                 break;
-            case HarvesterType::CRAWL: {
-                current_section->insert(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::BASE_URL), entry.primary_url_, "",
+            case Zotero::HarvesterType::CRAWL: {
+                current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::BASE_URL), entry.primary_url_, "",
                                 IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
 
                 // insert other required keys if not present
                 std::string temp_buffer;
-                if (not current_section->lookup(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::MAX_CRAWL_DEPTH), &temp_buffer))
-                    current_section->insert(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::MAX_CRAWL_DEPTH), "1", "");
+                if (not current_section->lookup(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::MAX_CRAWL_DEPTH), &temp_buffer))
+                    current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::MAX_CRAWL_DEPTH), "1", "");
 
-                if (not current_section->lookup(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::EXTRACTION_REGEX), &temp_buffer))
-                    current_section->insert(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::EXTRACTION_REGEX), "", "");
+                if (not current_section->lookup(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), &temp_buffer))
+                    current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), "", "");
 
                 break;
             }
-            case HarvesterType::DIRECT:
-                current_section->insert(HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(HarvesterConfigEntry::URL), entry.primary_url_, "",
+            case Zotero::HarvesterType::DIRECT:
+                current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::URL), entry.primary_url_, "",
                                 IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
                 break;
         }
