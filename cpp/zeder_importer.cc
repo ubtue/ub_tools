@@ -494,7 +494,7 @@ void WriteZederIni(IniFile * const ini, const ZederConfigData &zeder_config) {
                 current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::MAX_CRAWL_DEPTH), "1", "");
 
             if (not current_section->lookup(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), &temp_buffer))
-                current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), "", "");
+                current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), "\"\"", "");
 
             break;
         }
