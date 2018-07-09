@@ -594,11 +594,14 @@ size_t Record::findAllLocalDataBlocks(
 }
 
 
-Record::ConstantRange Record::getLocalTagRange(const Tag &field_tag, const const_iterator &block_start) const {
+Record::ConstantRange Record::getLocalTagRange(const Tag &field_tag, const const_iterator &block_start, const char indicator1,
+                                               const char indicator2) const
+{
     const_iterator tag_range_start(block_start);
     Tag last_tag(tag_range_start->getTag());
     for (;;) {
-        if (tag_range_start->getTag() == field_tag)
+        if (tag_range_start->getTag() == field_tag and (indicator1 == '?' or tag_range_start->getIndicator1() == indicator1)
+            and (indicator2 == '?' or tag_range_start->getIndicator2() == indicator2))
             break;
         ++tag_range_start;
         if (tag_range_start == fields_.cend() or tag_range_start->getTag() < last_tag)
@@ -607,7 +610,9 @@ Record::ConstantRange Record::getLocalTagRange(const Tag &field_tag, const const
     }
 
     const_iterator tag_range_end(tag_range_start + 1);
-    while (tag_range_end != fields_.cend() and tag_range_end->getTag() == field_tag)
+    while (tag_range_end != fields_.cend() and tag_range_end->getTag() == field_tag
+           and (indicator1 == '?' or tag_range_end->getIndicator1() == indicator1)
+           and (indicator2 == '?' or tag_range_end->getIndicator2() == indicator2))
         ++tag_range_end;
 
     return ConstantRange(tag_range_start, tag_range_end);
@@ -766,6 +771,25 @@ Record::Range Record::findFieldsInLocalBlock(const Tag &local_field_tag, const i
     }
 
     return Range(range_start, fields_.end());
+}
+
+
+Record::const_iterator Record::getFirstLocalField(const Tag &local_field_tag, const const_iterator &block_start) const {
+    std::string last_tag;
+    auto local_field(block_start);
+    while (local_field != fields_.end()) {
+        const auto current_tag(GetLocalTag(*local_field));
+        if (local_field_tag == current_tag)
+            return local_field; // Success!
+
+        if (current_tag < last_tag) // We found the start of a new local block!
+            return fields_.cend();
+
+        last_tag = GetLocalTag(*local_field);
+        ++local_field;
+    }
+
+    return fields_.cend();
 }
 
 
@@ -1848,6 +1872,29 @@ bool IsRepeatableField(const Tag &tag) {
     if (unlikely(tag_and_repeatable == tag_to_repeatable_map.end()))
         LOG_ERROR(tag.toString() + " is not in our map!");
     return tag_and_repeatable->second;
+}
+
+
+bool UBTueIsElectronicResource(const Record &marc_record) {
+    if (std::toupper(marc_record.leader_[6]) == 'M')
+        return true;
+
+    if (marc_record.isMonograph()) {
+        for (const auto &_007_field : marc_record.getTagRange("007")) {
+            const std::string _007_field_contents(_007_field.getContents());
+            if (not _007_field_contents.empty() and std::toupper(_007_field_contents[0]) == 'C')
+                return true;
+        }
+    }
+
+    for (const auto &_245_field : marc_record.getTagRange("245")) {
+        for (const auto subfield : _245_field.getSubfields()) {
+            if (subfield.code_ == 'h' and subfield.value_.find("[Elektronische Ressource]") != std::string::npos)
+                return true;
+        }
+    }
+
+    return false;
 }
 
 
