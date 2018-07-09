@@ -314,7 +314,7 @@ void IniFile::Section::write(File * const output, const bool pretty_print) const
             if (max_name_length > 0)
                 line += std::string(max_name_length - entry.name_.length(), ' ');
             line += " = ";
-            const bool need_quotes(ContainsSpacesOrDoubleQuotes(entry.value_));
+            const bool need_quotes(entry.value_.empty() or ContainsSpacesOrDoubleQuotes(entry.value_));
             if (need_quotes)
                 line += '"';
             line += TextUtil::CStyleEscape(entry.value_);
