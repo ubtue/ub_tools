@@ -672,8 +672,8 @@ public:
         std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const;
 
 
-    /** \param indicator1  The returned range only includes fields matchinbg this indicator. A question mark is the wildcard character here.
-     *  \param indicator2  The returned range only includes fields matchinbg this indicator. A question mark is the wildcard character here.
+    /** \param indicator1  The returned range only includes fields matching this indicator. A question mark is the wildcard character here.
+     *  \param indicator2  The returned range only includes fields matching this indicator. A question mark is the wildcard character here.
      *  \return Iterators pointing to the half-open interval of the first range of fields corresponding to the tag "tag" in a local block
      *          starting at "local_block_start".
      *
