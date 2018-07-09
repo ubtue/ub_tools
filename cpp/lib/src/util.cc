@@ -305,7 +305,7 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
             values->emplace_back("");
         } else if (ch == field_delimiter_) {
             std::ungetc(ch, input_);
-            values->push_back(ReadQuotedValue(input_, field_delimiter_, field_separator_));
+            values->emplace_back(ReadQuotedValue(input_, field_delimiter_, field_separator_));
         } else {
             std::ungetc(ch, input_);
             values->emplace_back(ReadNonQuotedValue(input_, field_separator_));
