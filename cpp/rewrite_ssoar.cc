@@ -54,7 +54,7 @@ void Assemble773Article(MARC::Subfields * const _773subfields,
     if (not title.empty())
         _773subfields->addSubfield('a', StringUtil::Trim(title));
     if (not volinfo.empty())
-        _773subfields->addSubfield('g', "volume:" + volinfo);
+        _773subfields->addSubfield('g', "volume: " + volinfo);
     if (not pages.empty())
         _773subfields->addSubfield('g', "pages: " + pages);
     if (not year.empty())
@@ -178,11 +178,10 @@ void InsertLanguageTo041(MARC::Record * const record, bool * const modified_reco
      for (auto &field : record->getTagRange("041")) {
          if (not field.getFirstSubfieldWithCode('h').empty())
              return;
-         // Possibly the information is in the $a field
-         static const std::string valid_language_regex("([a-zA-Z]{3})(.{2})?$");
+         // Possibly the information is already in the $a field
+         static const std::string valid_language_regex("([a-zA-Z]{3})$");
          static RegexMatcher * const valid_language_matcher(RegexMatcher::RegexMatcherFactoryOrDie(valid_language_regex));
          std::string language;
-
          if (valid_language_matcher->matched(field.getFirstSubfieldWithCode('a'))) {
              field.replaceSubfieldCode('a', 'h');
              *modified_record=true;
