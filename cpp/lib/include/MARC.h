@@ -31,7 +31,7 @@
 #include "Compiler.h"
 #include "File.h"
 #include "MarcXmlWriter.h"
-#include "SimpleXmlParser.h"
+#include "XMLSubsetParser.h"
 
 
 namespace MARC {
@@ -249,6 +249,16 @@ public:
                          { return subfield.code_ == subfield_code; }), subfields_.end());
     }
 
+    inline bool replaceSubfieldCode(const char old_code, const char new_code) {
+        bool replaced_at_least_one_code(false);
+        for (auto &subfield : *this) {
+            if (subfield.code_ == old_code) {
+                subfield.code_ = new_code;
+                replaced_at_least_one_code = true;
+            }
+        }
+        return replaced_at_least_one_code;
+    }
 
     inline std::string toString() const {
         std::string as_string;
@@ -316,6 +326,9 @@ public:
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
 
+        /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
+        std::string getFirstSubfieldWithCode(const char subfield_code) const;
+
         inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
             { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
 
@@ -352,6 +365,10 @@ public:
         inline const_iterator begin() const { return begin_; }
         inline const_iterator end() const { return end_; }
         inline bool empty() const { return begin_ == end_; }
+
+        // \warning Only call the following on non-empty ranges!
+        inline const Field &front() const { return *begin_; }
+        inline const Field &back() const { return *(end_ - 1); }
     };
 
     /** \brief Represents a range of fields.
@@ -366,6 +383,10 @@ public:
         inline iterator begin() const { return begin_; }
         inline iterator end() const { return end_; }
         inline bool empty() const { return begin_ == end_; }
+
+        // \warning Only call the following on non-empty ranges!
+        inline Field &front() { return *begin_; }
+        inline Field &back() { return *(end_ - 1); }
     };
 private:
     friend class BinaryReader;
@@ -449,6 +470,25 @@ public:
                             [&field_tag](const Field &field){ return field.getTag() == field_tag; });
     }
 
+    /** \return Returns the content of the first field with given tag or an empty string if the tag is not present. */
+    const std::string getFirstFieldContents(const Tag &field_tag) const {
+        const_iterator field(getFirstField(field_tag));
+        if (field == fields_.cend())
+            return "";
+        else
+            return field->getContents();
+    }
+
+    /** \return Returns the content of the first subfield found in a given tag or an empty string if the subfield cannot be found. */
+    const std::string getFirstSubfieldValue(const Tag &field_tag, const char code) const {
+        for (const auto &field : getTagRange(field_tag)) {
+            const std::string value(field.getSubfields().getFirstSubfieldWithCode(code));
+            if (not value.empty())
+                return value;
+        }
+        return "";
+    }
+
     RecordType getRecordType() const {
         if (leader_[6] == 'z')
             return AUTHORITY;
@@ -513,6 +553,26 @@ public:
      */
     bool edit(const std::vector<EditInstruction> &edit_instructions, std::string * const error_message);
 
+    /** \brief Locate a field in a local block.
+     *  \param local_field_tag      The nested tag that we're looking for.
+     *  \param block_start          An iterator referencing the start of the local block that we're scanning.
+     *  \param indicator1           An indicator that we're looking for. A question mark here means don't care.
+     *  \param indicator2           An indicator that we're looking for. A question mark here means don't care.
+     *  \return The half-open range of fields that matched our criteria.
+     */
+    ConstantRange findFieldsInLocalBlock(const Tag &local_field_tag, const const_iterator &block_start, const char indicator1 = '?',
+                                         const char indicator2 = '?') const;
+
+    /** \brief Locate a field in a local block.
+     *  \param local_field_tag      The nested tag that we're looking for.
+     *  \param block_start          An iterator referencing the start of the local block that we're scanning.
+     *  \param indicator1           An indicator that we're looking for. A question mark here means don't care.
+     *  \param indicator2           An indicator that we're looking for. A question mark here means don't care.
+     *  \return The half-open range of fields that matched our criteria.
+     */
+    Range findFieldsInLocalBlock(const Tag &local_field_tag, const iterator &block_start, const char indicator1 = '?',
+                                 const char indicator2 = '?');
+    
     inline iterator begin() { return fields_.begin(); }
     inline iterator end() { return fields_.end(); }
     inline const_iterator begin() const { return fields_.cbegin(); }
@@ -592,6 +652,16 @@ public:
     /** \return Values for all fields with tag "tag" and subfield codes "subfield_codes". Handle subfields of numeric subfields like 9v appropriately*/
     std::vector<std::string> getSubfieldAndNumericSubfieldValues(const Tag &tag, const std::string &subfield_spec) const;
 
+    /** \return Iterators pointing to the first field of each local data block, i.e. blocks of LOK fields.
+     */
+    std::vector<const_iterator> findStartOfAllLocalDataBlocks() const;
+
+    /** \return Iterators pointing to the first field of each local data block, i.e. blocks of LOK fields.
+     */
+    std::vector<iterator> findStartOfAllLocalDataBlocks();
+
+    void deleteLocalBlocks(std::vector<iterator> &local_block_starts);
+
     /** \brief Finds local ("LOK") block boundaries.
      *  \param local_block_boundaries  Each entry contains the iterator pointing to the first field of a local block
      *                                 in "first" and the iterator pointing past the last field of a local block in
@@ -599,6 +669,22 @@ public:
      */
     size_t findAllLocalDataBlocks(
         std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const;
+
+
+    /** \return Iterators pointing to the half-open interval of the first range of fields corresponding to the tag "tag" in a local block
+     *          starting at "local_block_start".
+     *  \remark {
+     *     Typical usage of this function looks like this:<br />
+     *     \code{.cpp}
+     *         for (auto &local_field : record.getLocalTagRange("852", local_block_start)) {
+     *             local_field.doSomething();
+     *             ...
+     *         }
+     *
+     *     \endcode
+     *  }
+     */
+    ConstantRange getLocalTagRange(const Tag &field_tag, const const_iterator &block_start) const;
 
     /** \brief Locate a field in a local block.
      *  \param indicators           The two 1-character indicators that we're looking for. A question mark here
@@ -652,7 +738,7 @@ public:
     /** \return The file position of the start of the next record. */
     virtual off_t tell() const = 0;
 
-    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) { return input_->seek(offset, whence); }
+    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) = 0;
 
     /** \return a BinaryMarcReader or an XmlMarcReader. */
     static std::unique_ptr<Reader> Factory(const std::string &input_filename, FileType reader_type = FileType::AUTO);
@@ -683,7 +769,7 @@ private:
 
 class XmlReader: public Reader {
     friend class Reader;
-    SimpleXmlParser<File> *xml_parser_;
+    XMLSubsetParser<File> *xml_parser_;
     std::string namespace_prefix_;
 private:
     /** \brief Initialise a XmlReader instance.
@@ -692,7 +778,7 @@ private:
      *                                      to seek to an offset on \"input\" before calling this constructor.
      */
     explicit XmlReader(File * const input, const bool skip_over_start_of_document = true)
-        : Reader(input), xml_parser_(new SimpleXmlParser<File>(input))
+        : Reader(input), xml_parser_(new XMLSubsetParser<File>(input))
     {
         if (skip_over_start_of_document)
             skipOverStartOfDocument();
@@ -705,7 +791,9 @@ public:
     virtual void rewind() override final;
 
     /** \return The file position of the start of the next record. */
-    virtual inline off_t tell() const override final { return input_->tell(); }
+    virtual inline off_t tell() const override final { return xml_parser_->tell(); }
+
+    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) override final { return xml_parser_->seek(offset, whence); }
 private:
     void parseLeader(const std::string &input_filename, Record * const new_record);
     void parseControlfield(const std::string &input_filename, const std::string &tag, Record * const record);
@@ -713,7 +801,7 @@ private:
                         const std::map<std::string, std::string> &datafield_attrib_map,
                         const std::string &tag, Record * const record);
     void skipOverStartOfDocument();
-    bool getNext(SimpleXmlParser<File>::Type * const type, std::map<std::string, std::string> * const attrib_map,
+    bool getNext(XMLSubsetParser<File>::Type * const type, std::map<std::string, std::string> * const attrib_map,
                  std::string * const data);
 };
 
@@ -834,6 +922,10 @@ bool UBTueIsElectronicResource(const Record &marc_record);
  *  \return True if the referenced item has been ordered but is not yet available, else false.
  */
 bool UBTueIsAquisitionRecord(const Record &marc_record);
+
+
+/** \return A Non-empty string if we managed to find a parent PPN o/w the empty string. */
+std::string GetParentPPN(const Record &record);
 
 
 bool IsOpenAccess(const Record &marc_record);

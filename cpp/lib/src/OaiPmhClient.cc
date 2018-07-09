@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2008 Project iVia.
  *  Copyright 2003-2008 The Regents of The University of California.]
- *  Copyright 2017 Universitätsbibliothek Tübingen
+ *  Copyright 2017,2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaOaiPmh package.
  *
@@ -37,7 +37,6 @@
 #include "Url.h"
 #include "UrlUtil.h"
 #include "util.h"
-#include "XmlParser.h"
 #include "XMLParser.h"
 #include "WebUtil.h"
 
@@ -45,49 +44,35 @@
 namespace { // Helper functions.
 
 
+
 /** \class  ListRecordsParser
  *  \brief  A class that reads an OAI ListRecords response and creates records based on its contents.
  */
-class ListRecordsParser: public XmlParser {
-private:
-    /** The records received. */
-    std::list<OaiPmh::Record> records_;
-
-    /** The number of records received. */
-    unsigned received_record_count_;
+class ListRecordsParser {
+    unsigned verbosity_;
 
     /** If true, an error of some sort was detected processing the XML and we ignore the remaining XML. */
     bool detected_error_;
+    std::string error_code_;
+    std::string error_message_;
 
-    // High-level tags
-    bool error_tag_open_;            //< True if an "error" element is being read.
-    std::string error_message_, error_code_;
-
-    bool response_date_tag_open_;    //< True if a "responseDate" element is being read.
-    std::string response_date_;      //< Will hold the value of the responseDate element.
-
-    bool header_tag_open_;           //< True if a "header" element is being read.
-    bool identifier_tag_open_;       //< True if an "identifier" element is being read (inside header).
-    std::string identifier_;         //< Will hold the value of the identifier element.
-    bool datestamp_tag_open_;        //< True if an "datestamp" element is being read (inside header).
-    std::string datestamp_;          //< Will hold the value of the datestamp element.
-
-    bool resumption_token_tag_open_; //< True if a "resumptionToken" is being read.
-    std::string resumption_token_;   //< Will hold the value of the resumptonToken element.
-
-    bool metadata_tag_open_;         //< True if we are reading a "metadata" element.
-    std::string current_tag_name_;   //< The name of the data element currently being read.
-    std::string current_tag_value_;  //< The value of the data element currently being read.
-    std::string current_tag_attrib_; //< The attribute of the data element currently being read.
-
+    std::string response_date_;      //< Will hold the value of the "responseDate" element.
+    std::string resumption_token_;   //< Will hold the value of the "resumptionToken" element.
+    std::string identifier_;         //< Will hold the value of the "identifier" element.
+    std::string datestamp_;          //< Will hold the value of the "datestamp" element.
     std::list<OaiPmh::Field> metadata_fields_; //< The list of metadata fields for the current record.
 
-    unsigned verbosity_;
+    /** The records received. */
+    std::list<OaiPmh::Record> records_;
+    /** The number of records received. */
+    unsigned received_record_count_;
+
+    /** Update the database with a complete received record. */
+    bool importReceivedRecord();
 public:
     /** Construct a ListRecords parser. */
-    ListRecordsParser(const std::string &xml_document, const unsigned verbosity);
-
-    virtual void notify(const Chunk &chunk);
+    ListRecordsParser(): detected_error_(false), received_record_count_(0) { }
+    void parse(const std::string &xml_document, const unsigned verbosity);
 
     /** Return true if an error was detected. */
     bool detectedError() const { return detected_error_; }
@@ -106,9 +91,6 @@ public:
 
     /** Get the number of records extracted from the XML file.*/
     unsigned getRecordCount() const { return received_record_count_; }
-protected:
-    /** Update the database with a complete received record. */
-    bool importReceivedRecord();
 };
 
 
@@ -135,123 +117,114 @@ bool ListRecordsParser::importReceivedRecord() {
 }
 
 
-// ListRecordsParser -- Construct a ListRecords parser.
-//
-ListRecordsParser::ListRecordsParser(const std::string &xml_document, const unsigned verbosity)
-    : XmlParser(xml_document.c_str(), xml_document.size(), true /* = convert_to_iso8859_15 */,
-                XmlParser::START_ELEMENT | XmlParser::END_ELEMENT | XmlParser::CHARACTERS | XmlParser::WARNING
-                | XmlParser::ERROR | XmlParser::FATAL_ERROR),
-      received_record_count_(0), detected_error_(false), error_tag_open_(false),
-      response_date_tag_open_(false), header_tag_open_(false), identifier_tag_open_(false),
-      datestamp_tag_open_(false), resumption_token_tag_open_(false), metadata_tag_open_(false), verbosity_(verbosity)
-{
-}
+void ListRecordsParser::parse(const std::string &xml_document, const unsigned verbosity) {
+    verbosity_ = verbosity;
 
+    XMLParser parser(xml_document, XMLParser::XML_STRING);
+    XMLParser::XMLPart xml_part;
 
-void ListRecordsParser::notify(const Chunk &chunk) {
-    if (detected_error_)
-        return;
+    bool error_tag_open(false);
+    bool response_date_tag_open(false);
+    bool header_tag_open(false);
+    bool identifier_tag_open(false);
+    bool datestamp_tag_open(false);
+    bool resumption_token_tag_open(false);
+    bool metadata_tag_open(false);
 
-    if (chunk.type_ == XmlParser::WARNING or chunk.type_ == XmlParser::ERROR
-        or chunk.type_ == XmlParser::FATAL_ERROR)
-    {
-        detected_error_ = true;
-        error_message_  = "the XML parser reported an error: " + chunk.text_;
-    } else if (chunk.type_ == XmlParser::START_ELEMENT) {
-        if (chunk.text_ == "error") {
-            error_tag_open_ = true;
-            error_message_.clear();
-            if (chunk.attribute_map_ != NULL) {
-                XmlParser::AttributeMap::const_iterator iter =
-                    chunk.attribute_map_->find("code");
-                if (iter != chunk.attribute_map_->end())
-                    error_code_ = iter->second;
+    std::string current_tag_name, current_tag_value, current_tag_attrib;
+
+    while (parser.getNext(&xml_part)) {
+        if (xml_part.type_ == XMLParser::XMLPart::OPENING_TAG) {
+            if (xml_part.data_ == "error") {
+                error_tag_open = true;
+                error_message_.clear();
+                const auto error_code(xml_part.attributes_.find("code"));
+                if (error_code != xml_part.attributes_.end())
+                    error_code_ = error_code->second;
+            } else if (header_tag_open) {
+                // Between header tags, so process a header element:
+                if (xml_part.data_ == "identifier") {
+                    identifier_tag_open = true;
+                    identifier_.clear();
+                } else if (xml_part.data_ == "datestamp") {
+                    datestamp_tag_open = true;
+                    datestamp_.clear();
+                }
+            } else if (metadata_tag_open) {
+                // Between metadata tags, so we must be processing a metadata element:
+                current_tag_name = xml_part.data_;
+                current_tag_value.clear();
+                current_tag_attrib.clear();
+
+                const auto xsi_type(xml_part.attributes_.find("xsi:type"));
+                if (xsi_type != xml_part.attributes_.end())
+                    current_tag_attrib = xsi_type->second;
+            } else if (xml_part.data_ == "responseDate") {
+                response_date_tag_open = true;
+                response_date_.clear();
+            } else if (xml_part.data_ == "resumptionToken") {
+                resumption_token_tag_open = true;
+                resumption_token_.clear();
+            } else if (xml_part.data_ == "header")
+                header_tag_open = true;
+            else if (xml_part.data_ == "metadata") {
+                metadata_tag_open = true;
+                metadata_fields_.clear();
             }
-        } else if (header_tag_open_) {
-            // Between header tags, so process a header element:
-            if (chunk.text_ == "identifier") {
-                identifier_tag_open_ = true;
-                identifier_.clear();
-            } else if (chunk.text_ == "datestamp") {
-                datestamp_tag_open_ = true;
-                datestamp_.clear();
+        } else if (xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG) {
+            if (error_tag_open) {
+                error_message_ = "the OAI-PMH server reported an error (" + error_code_ + "): " + error_message_;
+                detected_error_ = true;
+                break;
+            } else if (response_date_tag_open and xml_part.data_ == "responseDate")
+                response_date_tag_open = false;
+            else if (resumption_token_tag_open and xml_part.data_ == "resumptionToken")
+                resumption_token_tag_open = false;
+            else if (identifier_tag_open and xml_part.data_ == "identifier")
+                identifier_tag_open = false;
+            else if (datestamp_tag_open and xml_part.data_ == "datestamp")
+                datestamp_tag_open = false;
+            else if (header_tag_open and xml_part.data_ == "header")
+                header_tag_open = false;
+            else if (xml_part.data_== "metadata")
+                metadata_tag_open = false;
+            else if (metadata_tag_open) {
+                // Finished processing some data element:
+                /** \todo  Should we warn the user if the data received is not properly escaped? */
+                if (not HtmlUtil::IsHtmlEscaped(current_tag_value))
+                    HtmlUtil::HtmlEscape(&current_tag_value);
+                metadata_fields_.push_back(OaiPmh::Field(current_tag_name, current_tag_value, current_tag_attrib));
+                current_tag_name.clear();
+            } else if (xml_part.data_ == "record") {
+                // The end of the record, save to database:
+                importReceivedRecord();
+                return;
             }
-        } else if (metadata_tag_open_) {
-            // Between metadata tags, so we must be processing a metadata element:
-            current_tag_name_ = chunk.text_;
-            current_tag_value_.clear();
-            current_tag_attrib_.clear();
 
-            if (chunk.attribute_map_ != NULL) {
-                XmlParser::AttributeMap::const_iterator iter(chunk.attribute_map_->find("xsi:type"));
-                if (iter != chunk.attribute_map_->end())
-                    current_tag_attrib_ = iter->second;
+            // Make sure that when we open simple tags, we immediately close them (i.e. they are not nested).
+            if (unlikely(response_date_tag_open))
+                throw std::runtime_error("in ListRecordsParser: responseDate tag was not closed!");
+            if (unlikely(resumption_token_tag_open))
+                throw std::runtime_error("in ListRecordsParser: resumptionToken tag was not closed!");
+            if (unlikely(identifier_tag_open))
+                throw std::runtime_error("in ListRecordsParser: identifier tag was not closed!");
+            if (unlikely(datestamp_tag_open))
+                throw std::runtime_error("in ListRecordsParser: datestamp tag was not closed!");
+        } else if (xml_part.type_ == XMLParser::XMLPart::CHARACTERS) {
+            if (error_tag_open)
+                error_message_ += xml_part.data_;
+            else if (response_date_tag_open)
+                response_date_ += xml_part.data_;
+            else if (resumption_token_tag_open)
+                resumption_token_ += xml_part.data_;
+            else if (identifier_tag_open)
+                identifier_ += xml_part.data_;
+            else if (datestamp_tag_open)
+                datestamp_ += xml_part.data_;
+            else if (metadata_tag_open) {
+                // Process a data element (extract data to later store in the database).
+                current_tag_value += xml_part.data_;
             }
-        } else if (chunk.text_ == "responseDate") {
-            response_date_tag_open_ = true;
-            response_date_.clear();
-        } else if (chunk.text_ == "resumptionToken") {
-            resumption_token_tag_open_ = true;
-            resumption_token_.clear();
-        } else if (chunk.text_ == "header") {
-            header_tag_open_ = true;
-        } else if (chunk.text_ == "metadata") {
-            metadata_tag_open_ = true;
-            metadata_fields_.clear();
-        }
-    } else if (chunk.type_ == XmlParser::END_ELEMENT) {
-        if (error_tag_open_) {
-            error_message_ = "the OAI-PMH server reported an error (" + error_code_ + "): "
-                + error_message_;
-            detected_error_ = true;
-        } else if (response_date_tag_open_ and chunk.text_ == "responseDate")
-            response_date_tag_open_ = false;
-        else if (resumption_token_tag_open_ and chunk.text_ == "resumptionToken")
-            resumption_token_tag_open_ = false;
-        else if (identifier_tag_open_ and chunk.text_ == "identifier")
-            identifier_tag_open_ = false;
-        else if (datestamp_tag_open_ and chunk.text_ == "datestamp")
-            datestamp_tag_open_ = false;
-        else if (header_tag_open_ and chunk.text_ == "header")
-            header_tag_open_ = false;
-        else if (chunk.text_ == "metadata")
-            metadata_tag_open_ = false;
-        else if (metadata_tag_open_) {
-            // Finished processing some data element:
-            /** \todo  Should we warn the user if the data received is not properly escaped? */
-            if (not HtmlUtil::IsHtmlEscaped(current_tag_value_))
-                HtmlUtil::HtmlEscape(&current_tag_value_);
-            metadata_fields_.push_back(OaiPmh::Field(current_tag_name_, current_tag_value_, current_tag_attrib_));
-            current_tag_name_.clear();
-        } else if (chunk.text_ == "record") {
-            // The end of the record, save to database:
-            importReceivedRecord();
-            return;
-        }
-
-        // Make sure that when we open simple tags, we immediately close them (i.e. they are not nested).
-        if (unlikely(response_date_tag_open_))
-            throw std::runtime_error("in ListRecordsParser::notify: resumption-date tag was not closed!");
-        if (unlikely(resumption_token_tag_open_))
-            throw std::runtime_error("in ListRecordsParser::notify: resumption-token tag was not closed!");
-        if (unlikely(identifier_tag_open_))
-            throw std::runtime_error("in ListRecordsParser::notify: identifier tag was not closed!");
-        if (unlikely(datestamp_tag_open_))
-            throw std::runtime_error("in ListRecordsParser::notify: datestamp tag was not closed!");
-    } else if (chunk.type_ == XmlParser::CHARACTERS) {
-        if (error_tag_open_)
-            error_message_ += chunk.text_;
-        else if (response_date_tag_open_)
-            response_date_ += chunk.text_;
-        else if (resumption_token_tag_open_)
-            resumption_token_ += chunk.text_;
-        else if (identifier_tag_open_)
-            identifier_ += chunk.text_;
-        else if (datestamp_tag_open_)
-            datestamp_ += chunk.text_;
-        else if (metadata_tag_open_) {
-            // Process a data element (extract data to later store in the database).
-            current_tag_value_ += chunk.text_;
         }
     }
 }
@@ -518,12 +491,11 @@ void Client::harvestSet(const std::string &set_spec, const std::string &from, co
         ++received_xml_page_count;
 
         // Parse the XML document:
-        ListRecordsParser list_records_parser(xml_document, verbosity);
-        const bool parse_succeeded(list_records_parser.parse());
-
-        // Check for unparsable XML file:
-        if (not parse_succeeded) {
-            std::string error_message("An error occurred while parsing the data returned by the OAI-PMH server!");
+        ListRecordsParser list_records_parser;
+        try {
+            list_records_parser.parse(xml_document, verbosity);
+        } catch (const std::runtime_error &exc) {
+            std::string error_message("An error occurred while parsing the data returned by the OAI-PMH server! (" + std::string(exc.what()) + ")");
             if (not resumption_token.empty())
                 error_message += " Resumption token was \"" + resumption_token + "\". ";
             throw std::runtime_error(error_message);

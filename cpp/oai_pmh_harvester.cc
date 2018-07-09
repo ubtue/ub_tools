@@ -99,11 +99,10 @@ unsigned ExtractEncapsulatedRecordData(XMLParser * const xml_parser, std::string
         if (not xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, "metadata"))
             LOG_ERROR("no <metadata> tag found after a <record> tag!");
 
-        XMLParser::XMLPart extracted_records_part;
-        if (not xml_parser->skipTo(XMLParser::XMLPart::CLOSING_TAG, "metadata", &extracted_records_part))
+        XMLParser::XMLPart closing_tag;
+        if (not xml_parser->skipTo(XMLParser::XMLPart::CLOSING_TAG, "metadata", &closing_tag, extracted_records))
             LOG_ERROR("no </metadata> tag found after a <metadata> tag!");
 
-        *extracted_records = extracted_records_part.data_;
         StripOffTrailingGarbage(extracted_records);
         *extracted_records += '\n';
     }
