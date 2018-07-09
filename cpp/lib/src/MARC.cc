@@ -153,7 +153,7 @@ std::string Record::Field::getFirstSubfieldWithCode(const char subfield_code) co
     if (unlikely(contents_.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
         return "";
 
-    const size_t subfield_start_pos(contents_.find({ '\x1F', subfield_code, '\0' }));
+    const size_t subfield_start_pos(contents_.find( {'\x1F', subfield_code }));
     if (subfield_start_pos == std::string::npos)
         return "";
 
