@@ -176,6 +176,31 @@ void Record::Field::insertOrReplaceSubfield(const char subfield_code, const std:
 }
 
 
+bool Record::Field::replaceSubfieldCode(const char old_code, const char new_code) {
+    std::string new_contents;
+    if (contents_.length() < 5)
+        return false;
+
+    bool replaced_at_least_one_code(false), subfield_delimiter_seen(false);    
+    for (const auto ch : contents_) {
+        if (subfield_delimiter_seen) {
+            subfield_delimiter_seen = false;
+            new_contents += (ch == old_code) ? new_code : ch;
+        } else {
+            if (ch == '\x1F')
+                subfield_delimiter_seen = true;
+            new_contents += ch;
+        }
+    }
+
+    if (replaced_at_least_one_code) {
+        new_contents.swap(contents_);
+        return true;
+    } else
+        return false;
+}
+
+
 void Record::Field::deleteAllSubfieldsWithCode(const char subfield_code) {
     if (contents_.size() < 5)
         return;

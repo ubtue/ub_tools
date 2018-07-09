@@ -334,6 +334,9 @@ public:
 
         void insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents);
 
+        /** \return True if one or more subfield codes were replaces, else false. */
+        bool replaceSubfieldCode(const char old_code, const char new_code);
+
         std::string toString() const { return tag_.toString() + contents_; }
 
         /** \note Do *not* call this on control fields! */
