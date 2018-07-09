@@ -161,6 +161,54 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
 }
 
 
+void InsertSigelTo003(MARC::Record * const record, bool * const modified_record) {
+    record->insertField("003", "INSERT_VALID_SIGEL_HERE");
+    *modified_record=true;
+}
+
+// Rewrite to 041$h or get date forom 008
+void InsertLanguageTo041(MARC::Record * const record, bool * const modified_record) {
+     for (auto field : record->getTagRange("041")) {
+         if (not field.getFirstSubfieldWithCode('h').empty())
+             return;
+         // Possibly the information is in the $a field
+         static const std::string valid_language_regex("([a-zA-Z]{3})(.{2})?$");
+         //static const std::string valid_language_regex("([a-zA-Z]{3})$");
+         static RegexMatcher * const valid_language_matcher(RegexMatcher::RegexMatcherFactoryOrDie(valid_language_regex));
+         std::string language;
+
+         if (valid_language_matcher->matched(field.getFirstSubfieldWithCode('a'))) {
+             language = (*valid_language_matcher)[1];
+         }
+         else {
+             const std::string _008Field(record->getFirstFieldContents("008"));
+             if (not valid_language_matcher->matched(_008Field)) {
+                 LOG_WARNING("Invalid language code " + language);
+                 continue;
+             }
+             language = (*valid_language_matcher)[1];
+         }
+         record->addSubfield("041", 'h', language);
+         *modified_record=true;
+         return;
+    }
+}
+
+
+void InsertYearTo264c(MARC::Record * const record, bool * const modified_record) {
+    for (auto field : record->getTagRange("264")) {
+        if (not field.getFirstSubfieldWithCode('c').empty())
+            return;
+        // Extract year from 008 if available
+        const std::string _008Field(record->getFirstFieldContents("008"));
+        const std::string year(_008Field.substr(7,4));
+        record->addSubfield("264", 'c', year);
+        *modified_record=true;
+        return;
+    }
+}
+
+
 void RewriteSuperiorReference(MARC::Record * const record, bool * const modified_record) {
     if (record->findTag("773") != record->end())
         return;
@@ -192,6 +240,9 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
         bool modified_record(false);
+        InsertSigelTo003(&record, &modified_record);
+        InsertLanguageTo041(&record, &modified_record);
+        InsertYearTo264c(&record, &modified_record);
         RewriteSuperiorReference(&record, &modified_record);
         marc_writer->write(record);
         if (modified_record)
