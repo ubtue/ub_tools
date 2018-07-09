@@ -27,9 +27,7 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "util.h"
 
 
@@ -44,8 +42,8 @@ const char RELBIB_SUBFIELD('a');
 
 namespace {
 
-    
-void Usage() {
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " marc_input marc_output\n"
               << "       Tag entries that are not yet officially part of the set of titles relevant for relbib\n"
               << "       but have been identified to be probably relevant.\n";
@@ -53,21 +51,21 @@ void Usage() {
 }
 
 
-void ProcessRecord(MarcRecord * const record, const std::unordered_set<std::string> &relbib_relevant_set) {
+void ProcessRecord(MARC::Record * const record, const std::unordered_set<std::string> &relbib_relevant_set) {
      if (relbib_relevant_set.find(record->getControlNumber()) != relbib_relevant_set.end()) {
-         if (record->getFieldIndex(RELBIB_RELEVANT_TAG) != MarcRecord::FIELD_NOT_FOUND)
+         if (record->findTag(RELBIB_RELEVANT_TAG) != record->end())
              LOG_ERROR("Field " + RELBIB_RELEVANT_TAG + " already populated for PPN " + record->getControlNumber());
-         record->insertSubfield(RELBIB_RELEVANT_TAG, RELBIB_SUBFIELD, "1");
+         record->addSubfield(RELBIB_RELEVANT_TAG, RELBIB_SUBFIELD, "1");
          ++modified_count;
      }
 }
 
 
-void TagRelevantRecords(MarcReader * const marc_reader, MarcWriter * const marc_writer,
+void TagRelevantRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                         const std::unordered_set<std::string> &relbib_relevant_set)
 {
     unsigned total_count(0);
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         ProcessRecord(&record, relbib_relevant_set);
         marc_writer->write(record);
         ++record_count;
@@ -87,7 +85,7 @@ void SetupRelBibRelevantSet(std::unordered_set<std::string> * const relbib_relev
             if (unlikely(relbib_relevant->anErrorOccurred()))
                 LOG_ERROR("Error on reading in relbib relevant file " + relbib_relevant->getPath());
             if (unlikely(relbib_relevant->eof()))
-                return;                             
+                return;
             continue;
         }
         relbib_relevant_set->emplace(line);
@@ -98,9 +96,7 @@ void SetupRelBibRelevantSet(std::unordered_set<std::string> * const relbib_relev
 } // unnamed namespace
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
-
+int Main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
@@ -109,8 +105,8 @@ int main(int argc, char **argv) {
     if (unlikely(marc_input_filename == marc_output_filename))
         LOG_ERROR("Title data input file name equals output file name!");
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
+    auto marc_reader(MARC::Reader::Factory(marc_input_filename));
+    auto marc_writer(MARC::Writer::Factory(marc_output_filename));
 
     try {
         std::unordered_set<std::string> relbib_relevant_set;
@@ -119,4 +115,6 @@ int main(int argc, char **argv) {
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }
+
+    return EXIT_SUCCESS;
 }
