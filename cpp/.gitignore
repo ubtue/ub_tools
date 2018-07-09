@@ -1,4 +1,4 @@
- # compiled cpp programs
+# compiled cpp programs
 ## (here we use / at the beginning by default, so e.g. /installer is ignored, but not data/installer)
 /add_additional_relbib_entries
 /add_author_synonyms
