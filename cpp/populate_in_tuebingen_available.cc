@@ -29,17 +29,17 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "HtmlUtil.h"
-#include "MarcRecord.h"
-#include "MarcReader.h"
-#include "MarcUtil.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbose] marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
@@ -106,11 +106,9 @@ static unsigned bad_match_count;
 
 
 // Returns UB and criminology sigils or the empty string.
-std::string FindSigil(MarcRecord * const record, const std::pair<size_t, size_t> &block_start_and_end) {
-    std::vector<size_t> field_indices;
-    record->findFieldsInLocalBlock("852", "  ", block_start_and_end, &field_indices);
-    for (size_t field_index : field_indices) {
-        const std::string _852a_contents(record->extractFirstSubfield(field_index, 'a'));
+std::string FindSigil(MARC::Record * const record, const MARC::Record::const_iterator &block_start) {
+    for (const auto &field : record->findFieldsInLocalBlock("852", block_start, /*indicator1*/' ', /*indicator2*/' ')) {
+        const std::string _852a_contents(field.getFirstSubfieldWithCode('a'));
         if (StringUtil::StartsWith(_852a_contents, "DE-21"))
             return _852a_contents;
     }
@@ -1003,24 +1001,18 @@ void ParseRanges(const std::string &_866a_contents, std::vector<Range> * const r
 std::unordered_map<std::string, std::vector<Range>> parent_ppn_to_ranges_map;
 
 
-bool ProcessSerialRecord(MarcRecord * const record, MarcWriter * const /*output*/, std::string * const /*err_msg*/) {
-    if (not record->getLeader().isSerial())
+bool ProcessSerialRecord(MARC::Record * const record, MARC::Writer * const /*output*/, std::string * const /*err_msg*/) {
+    if (not record->isSerial())
         return true;
 
-    std::vector<std::pair<size_t, size_t>> local_block_boundaries;
-    record->findAllLocalDataBlocks(&local_block_boundaries);
-    for (const auto &block_start_and_end : local_block_boundaries) {
-        const std::string sigil(FindSigil(record, block_start_and_end));
+    std::vector<MARC::Record::const_iterator> local_block_starts(record->findStartOfAllLocalDataBlocks());
+    for (const auto &local_block_start : local_block_starts) {
+        const std::string sigil(FindSigil(record, local_block_start));
         if (sigil != "DE-21" and sigil != "DE-21-110")
             continue;
 
-        std::vector<size_t> field_indices;
-        record->findFieldsInLocalBlock("866", "30", block_start_and_end, &field_indices);
-        if (field_indices.empty())
-            continue;
-
-        for (size_t field_index : field_indices) {
-            const std::string _866a_contents(record->extractFirstSubfield(field_index, 'a'));
+        for (auto &_866_field : record->findFieldsInLocalBlock("866", local_block_start, /*indicator1*/'3', /*indicator2*/'0')) {
+            const std::string _866a_contents(_866_field.getFirstSubfieldWithCode('a'));
             if (unlikely(_866a_contents.empty()))
                 continue;
 
@@ -1035,9 +1027,9 @@ bool ProcessSerialRecord(MarcRecord * const record, MarcWriter * const /*output*
 }
 
 
-bool ElectronicArticleIsAvailableInTuebingen(const MarcRecord &record) {
-    if (MarcUtil::UBTueIsElectronicResource(record) and record.getLeader().isArticle()) {
-        const std::string parent_ppn(MarcUtil::GetParentPPN(record));
+bool ElectronicArticleIsAvailableInTuebingen(const MARC::Record &record) {
+    if (MARC::UBTueIsElectronicResource(record) and record.isArticle()) {
+        const std::string parent_ppn(MARC::GetParentPPN(record));
         if (parent_ppn.empty())
             return false;
 
@@ -1045,10 +1037,15 @@ bool ElectronicArticleIsAvailableInTuebingen(const MarcRecord &record) {
         if (parent_ppn_and_ranges == parent_ppn_to_ranges_map.end())
             return false;
 
-        const Subfields _936_subfields(record.getSubfields("936"));
-        const std::string issue_string(_936_subfields.getFirstSubfieldValue('e'));
-        const std::string year_string(_936_subfields.getFirstSubfieldValue('j'));
-        const std::string volume_string(_936_subfields.getFirstSubfieldValue('d'));
+        std::string issue_string, year_string, volume_string;
+        const auto _936_field(record.getFirstField("936"));
+        if (_936_field != record.end()) {
+            const MARC::Subfields _936_subfields(_936_field->getSubfields());
+            issue_string  = _936_subfields.getFirstSubfieldWithCode('e');
+            year_string   = _936_subfields.getFirstSubfieldWithCode('j');
+            volume_string =  _936_subfields.getFirstSubfieldWithCode('d');
+        }
+
         if (issue_string.empty() and year_string.empty() and volume_string.empty())
             return false;
         unsigned issue;
@@ -1093,51 +1090,41 @@ bool Get856URLAndAnchor(const std::string &_856_field_contents, std::string * co
 }
 
 
-bool ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer, std::string * const /*err_msg*/) {
-    std::vector <std::pair<size_t, size_t>> local_block_boundaries;
-    record->findAllLocalDataBlocks(&local_block_boundaries);
-
+bool ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer, std::string * const /*err_msg*/) {
     bool modified_record(false);
     std::set<std::string> alread_seen_urls;
-    for (const auto &block_start_and_end : local_block_boundaries) {
-        std::vector <size_t> _852_field_indices;
-        if (record->findFieldsInLocalBlock("852", "??", block_start_and_end, &_852_field_indices) == 0)
-            continue;
-        for (const size_t _852_index : _852_field_indices) {
-            const Subfields subfields1(record->getSubfields(_852_index));
-            const std::string not_available_subfield(subfields1.getFirstSubfieldValue('z'));
+    for (const auto &block_start : record->findStartOfAllLocalDataBlocks()) {
+        for (const auto &_852_field : record->findFieldsInLocalBlock("852", block_start)) {
+            const MARC::Subfields subfields1(_852_field.getSubfields());
+            const std::string not_available_subfield(subfields1.getFirstSubfieldWithCode('z'));
             if (not_available_subfield == "Kein Bestand am IfK; Nachweis für KrimDok")
                 goto final_processing;
 
             // Only ordered but not actually available?
-            if (subfields1.getFirstSubfieldValue('m') == "e")
+            if (subfields1.getFirstSubfieldWithCode('m') == "e")
                 goto final_processing;
 
-            const std::string isil_subfield(subfields1.getFirstSubfieldValue('a'));
+            const std::string isil_subfield(subfields1.getFirstSubfieldWithCode('a'));
             if (isil_subfield != "DE-21" and isil_subfield != "DE-21-110")
                 continue;
 
             std::string detailed_availability;
-            std::vector <size_t> _866_field_indices;
-            if (record->findFieldsInLocalBlock("866", "30", block_start_and_end, &_866_field_indices) > 0) {
-                for (const size_t _866_index : _866_field_indices) {
-                    const Subfields subfields2(record->getSubfields(_866_index));
-                    const std::string subfield_a(subfields2.getFirstSubfieldValue('a'));
-                    if (not subfield_a.empty()) {
-                        if (not detailed_availability.empty())
-                            detailed_availability += "; ";
-                        detailed_availability += subfield_a;
-                        const std::string subfield_z(subfields2.getFirstSubfieldValue('z'));
-                        if (not subfield_z.empty())
-                            detailed_availability += " " + subfield_z;
-                    }
+            for (const auto &_866_field : record->findFieldsInLocalBlock("866", block_start, /*indicator1*/'3', /*indicator2*/'0')) {
+                const std::string subfield_a(_866_field.getFirstSubfieldWithCode('a'));
+                if (not subfield_a.empty()) {
+                    if (not detailed_availability.empty())
+                        detailed_availability += "; ";
+                    detailed_availability += subfield_a;
+                    const std::string subfield_z(_866_field.getFirstSubfieldWithCode('z'));
+                    if (not subfield_z.empty())
+                        detailed_availability += " " + subfield_z;
                 }
             }
 
             const std::string institution(isil_subfield == "DE-21" ? "UB: " : "IFK: ");
             if (_852_index + 1 < block_start_and_end.second) {
                 const Subfields subfields2(record->getSubfields(_852_index + 1));
-                const std::string call_number_subfield(subfields2.getFirstSubfieldValue('c'));
+                const std::string call_number_subfield(subfields2.getFirstSubfieldWithCode('c'));
                 if (not call_number_subfield.empty()) {
                     const std::string institution_and_call_number(institution + call_number_subfield);
                     ++add_sig_count;
@@ -1193,11 +1180,9 @@ std::string Percentage(const float fraction, const float total) {
 }
 
 
-void PopulateTheInTuebingenAvailableField(const bool verbose, MarcReader * const marc_reader,
-                                          MarcWriter * const marc_writer)
-{
+void PopulateTheInTuebingenAvailableField(const bool verbose, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     std::string err_msg;
-    if (not MarcRecord::ProcessRecords(marc_reader, ProcessSerialRecord, marc_writer, &err_msg))
+    if (not MARC::Record::ProcessRecords(marc_reader, ProcessSerialRecord, marc_writer, &err_msg))
         logger->error("error while processing serial records: " + err_msg);
 
     if (verbose) {
@@ -1208,7 +1193,7 @@ void PopulateTheInTuebingenAvailableField(const bool verbose, MarcReader * const
     }
 
     marc_reader->rewind();
-    if (not MarcRecord::ProcessRecords(marc_reader, ProcessRecord, marc_writer, &err_msg))
+    if (not MARC::Record::ProcessRecords(marc_reader, ProcessRecord, marc_writer, &err_msg))
         logger->error("error while processing records: " + err_msg);
 
     if (verbose) {
@@ -1218,7 +1203,10 @@ void PopulateTheInTuebingenAvailableField(const bool verbose, MarcReader * const
 }
 
 
-int main(int argc, char **argv) {
+} // unnamed namespace
+
+
+int Main(int argc, char **argv) {
     ::progname = argv[0];
 
     if (argc != 3 and argc != 4)
@@ -1233,11 +1221,9 @@ int main(int argc, char **argv) {
         verbose = true;
     }
 
-    try {
-        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[argc == 3 ? 1 : 2]));
-        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[argc == 3 ? 2 : 3]));
-        PopulateTheInTuebingenAvailableField(verbose, marc_reader.get(), marc_writer.get());
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[argc == 3 ? 1 : 2]));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[argc == 3 ? 2 : 3]));
+    PopulateTheInTuebingenAvailableField(verbose, marc_reader.get(), marc_writer.get());
+
+    return EXIT_SUCCESS;
 }
