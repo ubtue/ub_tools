@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include "FileLocker.h"
 #include "FileUtil.h"
+#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -145,6 +146,25 @@ bool Record::Field::operator<(const Record::Field &rhs) const {
     if (tag_ > rhs.tag_)
         return false;
     return contents_ < rhs.contents_;
+}
+
+
+std::string Record::Field::getFirstSubfieldWithCode(const char subfield_code) const {
+    if (unlikely(contents_.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
+        return "";
+
+    const size_t subfield_start_pos(contents_.find({ '\x1F', subfield_code, '\0' }));
+    if (subfield_start_pos == std::string::npos)
+        return "";
+
+    std::string subfield_value;
+    for (auto ch(contents_.cbegin() + subfield_start_pos + 2); ch != contents_.cend(); ++ch) {
+        if (*ch == '\x1F')
+            break;
+        subfield_value += *ch;
+    }
+
+    return subfield_value;
 }
 
 
@@ -448,6 +468,109 @@ std::string Record::getMainTitle() const {
 }
 
 
+namespace {
+
+
+const std::string LOCAL_FIELD_PREFIX("  ""\x1F""0"); // Every local field starts w/ this.
+
+
+inline std::string GetLocalTag(const Record::Field &local_field) {
+    return local_field.getContents().substr(LOCAL_FIELD_PREFIX.size(), Record::TAG_LENGTH);
+}
+
+
+inline bool LocalIndicatorsMatch(const char indicator1, const char indicator2, const Record::Field &local_field) {
+    if (indicator1 != '?' and (indicator1 != local_field.getContents()[LOCAL_FIELD_PREFIX.size() + Record::TAG_LENGTH + 0]))
+        return false;
+    if (indicator2 != '?' and (indicator2 != local_field.getContents()[LOCAL_FIELD_PREFIX.size() + Record::TAG_LENGTH + 1]))
+        return false;
+    return true;
+}
+
+
+inline bool LocalTagMatches(const Tag &tag, const Record::Field &local_field) {
+    return local_field.getContents().substr(LOCAL_FIELD_PREFIX.size(), Record::TAG_LENGTH) == tag.toString();
+}
+
+
+} // unnamed namespace
+
+
+std::vector<Record::const_iterator> Record::findStartOfAllLocalDataBlocks() const {
+    std::vector<const_iterator> block_start_iterators;
+
+    std::string last_local_tag;
+    const_iterator local_field(getFirstField("LOK"));
+    if (local_field == end())
+        return block_start_iterators;
+
+    while (local_field != end()) {
+        if (GetLocalTag(*local_field) < last_local_tag)
+            block_start_iterators.emplace_back(local_field);
+        last_local_tag = GetLocalTag(*local_field);
+        ++local_field;
+    }
+
+    return block_start_iterators;
+}
+
+
+std::vector<Record::iterator> Record::findStartOfAllLocalDataBlocks() {
+    std::vector<iterator> block_start_iterators;
+
+    std::string last_local_tag;
+    iterator local_field(getFirstField("LOK"));
+    if (local_field == end())
+        return block_start_iterators;
+
+    while (local_field != end()) {
+        if (GetLocalTag(*local_field) < last_local_tag)
+            block_start_iterators.emplace_back(local_field);
+        last_local_tag = GetLocalTag(*local_field);
+        ++local_field;
+    }
+
+    return block_start_iterators;
+}
+
+
+void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
+    std::sort(local_block_starts.begin(), local_block_starts.end());
+
+    std::vector<std::pair<iterator, iterator>> deletion_ranges;
+
+    // Coalesce as many blocks as possible:
+    auto block_start(local_block_starts.begin());
+    while (block_start != local_block_starts.end()) {
+        iterator range_start(*block_start);
+        Tag last_tag(range_start->getTag());
+        iterator range_end(range_start + 1);
+        for (;;) {
+            if (range_end == fields_.end()) {
+                deletion_ranges.emplace_back(range_start, range_end);
+                goto coalescing_done;
+            }
+
+            // Start of a new block?
+            if (range_end->getTag() < last_tag) {
+                ++block_start;
+                if (range_end != *block_start) {
+                    deletion_ranges.emplace_back(range_start, range_end);
+                    break;
+                }
+            }
+
+            last_tag = range_end->getTag();
+            ++range_end;
+        }
+    }
+
+coalescing_done:
+    for (auto deletion_range(deletion_ranges.rbegin()); deletion_range != deletion_ranges.rend(); ++deletion_range)
+        fields_.erase(deletion_range->first, deletion_range->second);
+}
+
+
 size_t Record::findAllLocalDataBlocks(
     std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const
 {
@@ -468,6 +591,26 @@ size_t Record::findAllLocalDataBlocks(
     local_block_boundaries->emplace_back(std::make_pair(local_block_start, local_block_end));
 
     return local_block_boundaries->size();
+}
+
+
+Record::ConstantRange Record::getLocalTagRange(const Tag &field_tag, const const_iterator &block_start) const {
+    const_iterator tag_range_start(block_start);
+    Tag last_tag(tag_range_start->getTag());
+    for (;;) {
+        if (tag_range_start->getTag() == field_tag)
+            break;
+        ++tag_range_start;
+        if (tag_range_start == fields_.cend() or tag_range_start->getTag() < last_tag)
+            return ConstantRange(fields_.cend(), fields_.cend());
+        last_tag = tag_range_start->getTag();
+    }
+
+    const_iterator tag_range_end(tag_range_start + 1);
+    while (tag_range_end != fields_.cend() and tag_range_end->getTag() == field_tag)
+        ++tag_range_end;
+
+    return ConstantRange(tag_range_start, tag_range_end);
 }
 
 
@@ -563,6 +706,66 @@ bool Record::edit(const std::vector<EditInstruction> &edit_instructions, std::st
     }
 
     return not failed_at_least_once;
+}
+
+
+Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag, const const_iterator &block_start, const char indicator1,
+                                                     const char indicator2) const
+{
+    std::string last_tag;
+    auto local_field(block_start);
+    const_iterator range_start(fields_.end()), range_end(fields_.end());
+    while (local_field != fields_.end()) {
+        if (GetLocalTag(*local_field) < last_tag) // We found the start of a new local block!
+            return Record::ConstantRange(fields_.end(), fields_.end());
+
+        if (LocalIndicatorsMatch(indicator1, indicator2, *local_field) and LocalTagMatches(local_field_tag, *local_field)) {
+            range_start = local_field;
+            range_end = range_start + 1;
+            while (range_end != fields_.end()) {
+                if (not LocalIndicatorsMatch(indicator1, indicator2, *range_end) or not LocalTagMatches(local_field_tag, *range_end))
+                    break;
+                ++range_end;
+            }
+
+            return Record::ConstantRange(range_start, range_end);
+        }
+
+        last_tag = GetLocalTag(*local_field);
+        ++local_field;
+    }
+
+    return ConstantRange(range_start, fields_.end());
+}
+
+
+Record::Range Record::findFieldsInLocalBlock(const Tag &local_field_tag, const iterator &block_start, const char indicator1,
+                                             const char indicator2)
+{
+    std::string last_tag;
+    auto local_field(block_start);
+    iterator range_start(fields_.end()), range_end(fields_.end());
+    while (local_field != fields_.end()) {
+        if (GetLocalTag(*local_field) < last_tag) // We found the start of a new local block!
+            return Record::Range(fields_.end(), fields_.end());
+
+        if (LocalIndicatorsMatch(indicator1, indicator2, *local_field) and LocalTagMatches(local_field_tag, *local_field)) {
+            range_start = local_field;
+            range_end = range_start + 1;
+            while (range_end != fields_.end()) {
+                if (not LocalIndicatorsMatch(indicator1, indicator2, *range_end) or not LocalTagMatches(local_field_tag, *range_end))
+                    break;
+                ++range_end;
+            }
+
+            return Record::Range(range_start, range_end);
+        }
+
+        last_tag = GetLocalTag(*local_field);
+        ++local_field;
+    }
+
+    return Range(range_start, fields_.end());
 }
 
 
@@ -744,13 +947,13 @@ bool BinaryReader::seek(const off_t offset, const int whence) {
 Record XmlReader::read() {
     Record new_record;
 
-    SimpleXmlParser<File>::Type type;
+    XMLSubsetParser<File>::Type type;
     std::map<std::string, std::string> attrib_map;
     std::string data;
-    while (getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<File>::CHARACTERS)
+    while (getNext(&type, &attrib_map, &data) and type == XMLSubsetParser<File>::CHARACTERS)
         /* Intentionally empty! */;
 
-    if (unlikely(type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "collection")) {
+    if (unlikely(type == XMLSubsetParser<File>::CLOSING_TAG and data == namespace_prefix_ + "collection")) {
         new_record.sortFieldTags(new_record.begin(), new_record.end());
         return new_record;
     }
@@ -759,10 +962,10 @@ Record XmlReader::read() {
     // Now parse a <record>:
     //
 
-    if (unlikely(type != SimpleXmlParser<File>::OPENING_TAG or data != namespace_prefix_ + "record")) {
-        const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
-                             or type == SimpleXmlParser<File>::CLOSING_TAG);
-        if (type == SimpleXmlParser<File>::ERROR)
+    if (unlikely(type != XMLSubsetParser<File>::OPENING_TAG or data != namespace_prefix_ + "record")) {
+        const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG
+                             or type == XMLSubsetParser<File>::CLOSING_TAG);
+        if (type == XMLSubsetParser<File>::ERROR)
             throw std::runtime_error("in MARC::XmlReader::read: opening <" + namespace_prefix_
                                      + "record> tag expected while parsing \"" + input_->getPath() + "\" on line "
                                      + std::to_string(xml_parser_->getLineNo()) + "! ("
@@ -771,7 +974,7 @@ Record XmlReader::read() {
             throw std::runtime_error("in MARC::XmlReader::read: opening <" + namespace_prefix_
                                      + "record> tag expected while parsing \"" + input_->getPath() + "\" on line "
                                      + std::to_string(xml_parser_->getLineNo()) + "! (Found: "
-                                     + SimpleXmlParser<File>::TypeToString(type)
+                                     + XMLSubsetParser<File>::TypeToString(type)
                                      + (tag_found ? (":" + data + ")") : ")"));
     }
 
@@ -784,7 +987,7 @@ Record XmlReader::read() {
                                      + "\": " + xml_parser_->getLastErrorMessage() + " on line "
                                      + std::to_string(xml_parser_->getLineNo()) + "!");
 
-        if (type == SimpleXmlParser<File>::CLOSING_TAG) {
+        if (type == XMLSubsetParser<File>::CLOSING_TAG) {
             if (unlikely(data != namespace_prefix_ + "record"))
                 throw std::runtime_error("in MARC::MarcUtil::Record::XmlFactory: closing </record> tag expected "
                                          "while parsing \"" + input_->getPath() + "\" on line "
@@ -793,7 +996,7 @@ Record XmlReader::read() {
             return new_record;
         }
 
-        if (type != SimpleXmlParser<File>::OPENING_TAG
+        if (type != XMLSubsetParser<File>::OPENING_TAG
             or (data != namespace_prefix_ + "datafield" and data != namespace_prefix_ + "controlfield"))
             throw std::runtime_error("in MARC::XmlReader::read: expected either <" + namespace_prefix_
                                      + "controlfield> or <" + namespace_prefix_ + "datafield> on line "
@@ -831,7 +1034,7 @@ void XmlReader::rewind() {
     input_->rewind();
 
     delete xml_parser_;
-    xml_parser_ = new SimpleXmlParser<File>(input_);
+    xml_parser_ = new XMLSubsetParser<File>(input_);
 
     skipOverStartOfDocument();
 }
@@ -893,13 +1096,13 @@ bool ParseLeader(const std::string &leader_string, std::string * const leader, s
 
 
 void XmlReader::parseLeader(const std::string &input_filename, Record * const new_record) {
-    SimpleXmlParser<File>::Type type;
+    XMLSubsetParser<File>::Type type;
     std::map<std::string, std::string> attrib_map;
     std::string data;
 
-    while (getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<File>::CHARACTERS)
+    while (getNext(&type, &attrib_map, &data) and type == XMLSubsetParser<File>::CHARACTERS)
         /* Intentionally empty! */;
-    if (unlikely(type != SimpleXmlParser<File>::OPENING_TAG or data != namespace_prefix_ + "leader"))
+    if (unlikely(type != XMLSubsetParser<File>::OPENING_TAG or data != namespace_prefix_ + "leader"))
         throw std::runtime_error("in MARC::XmlReader::ParseLeader: opening <marc:leader> tag expected while "
                                  "parsing \"" + input_filename + "\" on line "
                                  + std::to_string(xml_parser_->getLineNo()) + ".");
@@ -908,19 +1111,19 @@ void XmlReader::parseLeader(const std::string &input_filename, Record * const ne
         throw std::runtime_error("in MARC::XmlReader::ParseLeader: error while parsing \"" + input_filename + "\": "
                                  + xml_parser_->getLastErrorMessage() + " on line "
                                  + std::to_string(xml_parser_->getLineNo()) + ".");
-    if (unlikely(type != SimpleXmlParser<File>::CHARACTERS or data.length() != Record::LEADER_LENGTH)) {
+    if (unlikely(type != XMLSubsetParser<File>::CHARACTERS or data.length() != Record::LEADER_LENGTH)) {
         LOG_WARNING("leader data expected while parsing \"" + input_filename + "\" on line "
                 + std::to_string(xml_parser_->getLineNo()) + ".");
         if (unlikely(not getNext(&type, &attrib_map, &data)))
             throw std::runtime_error("in MARC::XmlReader::ParseLeader: error while skipping to </"
                                      + namespace_prefix_ + "leader>!");
-        if (unlikely(type != SimpleXmlParser<File>::CLOSING_TAG or data != namespace_prefix_ + "leader")) {
-            const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
-                                 or type == SimpleXmlParser<File>::CLOSING_TAG);
+        if (unlikely(type != XMLSubsetParser<File>::CLOSING_TAG or data != namespace_prefix_ + "leader")) {
+            const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG
+                                 or type == XMLSubsetParser<File>::CLOSING_TAG);
             throw std::runtime_error("in MARC::XmlReader::ParseLeader: closing </" + namespace_prefix_
                                      + "leader> tag expected while parsing \"" + input_filename + "\" on line "
                                      + std::to_string(xml_parser_->getLineNo())
-                                     + ". (Found: " + SimpleXmlParser<File>::TypeToString(type)
+                                     + ". (Found: " + XMLSubsetParser<File>::TypeToString(type)
                                      + (tag_found ? (":" + data) : ""));
         }
         return;
@@ -938,13 +1141,13 @@ void XmlReader::parseLeader(const std::string &input_filename, Record * const ne
         throw std::runtime_error("in MARC::XmlReader::ParseLeader: error while parsing \"" + input_filename + "\": "
                                  + xml_parser_->getLastErrorMessage() + " on line "
                                  + std::to_string(xml_parser_->getLineNo()) + ".");
-    if (unlikely(type != SimpleXmlParser<File>::CLOSING_TAG or data != namespace_prefix_ + "leader")) {
-        const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
-                             or type == SimpleXmlParser<File>::CLOSING_TAG);
+    if (unlikely(type != XMLSubsetParser<File>::CLOSING_TAG or data != namespace_prefix_ + "leader")) {
+        const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG
+                             or type == XMLSubsetParser<File>::CLOSING_TAG);
         throw std::runtime_error("in MARC::XmlReader::ParseLeader: closing </" + namespace_prefix_
                                  + "leader> tag expected while parsing \"" + input_filename + "\" on line "
                                  + std::to_string(xml_parser_->getLineNo())
-                                 + ". (Found: " + SimpleXmlParser<File>::TypeToString(type)
+                                 + ". (Found: " + XMLSubsetParser<File>::TypeToString(type)
                                  + (tag_found ? (":" + data) : ""));
     }
 }
@@ -954,25 +1157,25 @@ void XmlReader::parseLeader(const std::string &input_filename, Record * const ne
 void XmlReader::parseControlfield(const std::string &input_filename, const std::string &tag,
                                   Record * const record)
 {
-    SimpleXmlParser<File>::Type type;
+    XMLSubsetParser<File>::Type type;
     std::map<std::string, std::string> attrib_map;
     std::string data;
     if (unlikely(not getNext(&type, &attrib_map, &data)))
         throw std::runtime_error("in MARC::XmlReader::parseControlfield: failed to get next XML element!");
 
         // Do we have an empty control field?
-    if (unlikely(type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "controlfield")) {
+    if (unlikely(type == XMLSubsetParser<File>::CLOSING_TAG and data == namespace_prefix_ + "controlfield")) {
         LOG_WARNING("empty \"" + tag + "\" control field on line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
                 + input_filename + "\"!");
         return;
     }
 
-    if (type != SimpleXmlParser<File>::CHARACTERS)
+    if (type != XMLSubsetParser<File>::CHARACTERS)
         std::runtime_error("in MARC::XmlReader::parseControlfield: character data expected on line "
                            + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
     Record::Field new_field(tag, data);
 
-    if (unlikely(not getNext(&type, &attrib_map, &data) or type != SimpleXmlParser<File>::CLOSING_TAG
+    if (unlikely(not getNext(&type, &attrib_map, &data) or type != XMLSubsetParser<File>::CLOSING_TAG
                  or data != namespace_prefix_ + "controlfield"))
         throw std::runtime_error("in MARC::XmlReader::parseControlfield: </controlfield> expected on line "
                                  + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
@@ -1002,19 +1205,19 @@ void XmlReader::parseDatafield(const std::string &input_filename,
                                  + "\"!");
     field_data += ind2->second;
 
-    SimpleXmlParser<File>::Type type;
+    XMLSubsetParser<File>::Type type;
     std::map<std::string, std::string> attrib_map;
     std::string data;
     for (;;) {
-        while (getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<File>::CHARACTERS)
+        while (getNext(&type, &attrib_map, &data) and type == XMLSubsetParser<File>::CHARACTERS)
             /* Intentionally empty! */;
 
-        if (type == SimpleXmlParser<File>::ERROR)
+        if (type == XMLSubsetParser<File>::ERROR)
             throw std::runtime_error("in MARC::XmlReader::parseDatafield: error while parsing a data field on line "
                                      + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
                                      + "\": " + xml_parser_->getLastErrorMessage());
 
-        if (type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "datafield") {
+        if (type == XMLSubsetParser<File>::CLOSING_TAG and data == namespace_prefix_ + "datafield") {
             // If the field contents consists of the indicators only, we drop it.
             if (unlikely(field_data.length() == 1 /*indicator1*/ + 1/*indicator2*/)) {
                 LOG_WARNING("dropped empty \"" + tag + "\" field!");
@@ -1027,13 +1230,13 @@ void XmlReader::parseDatafield(const std::string &input_filename,
         }
 
         // 1. <subfield code=...>
-        if (unlikely(type != SimpleXmlParser<File>::OPENING_TAG or data != namespace_prefix_ + "subfield")) {
-            const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
-                                 or type == SimpleXmlParser<File>::CLOSING_TAG);
+        if (unlikely(type != XMLSubsetParser<File>::OPENING_TAG or data != namespace_prefix_ + "subfield")) {
+            const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG
+                                 or type == XMLSubsetParser<File>::CLOSING_TAG);
             throw std::runtime_error("in MARC::XmlReader::parseDatafield: expected <" + namespace_prefix_ +
                                      "subfield> opening tag on line " + std::to_string(xml_parser_->getLineNo())
                                      + " in file \"" + input_filename
-                                     + "\"! (Found: " + SimpleXmlParser<File>::TypeToString(type)
+                                     + "\"! (Found: " + XMLSubsetParser<File>::TypeToString(type)
                                      + (tag_found ? (":" + data) : ""));
         }
         if (unlikely(attrib_map.find("code") == attrib_map.cend() or attrib_map["code"].length() != 1))
@@ -1043,8 +1246,8 @@ void XmlReader::parseDatafield(const std::string &input_filename,
         field_data += '\x1F' + attrib_map["code"];
 
         // 2. Subfield data.
-        if (unlikely(not getNext(&type, &attrib_map, &data) or type != SimpleXmlParser<File>::CHARACTERS)) {
-            if (type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "subfield") {
+        if (unlikely(not getNext(&type, &attrib_map, &data) or type != XMLSubsetParser<File>::CHARACTERS)) {
+            if (type == XMLSubsetParser<File>::CLOSING_TAG and data == namespace_prefix_ + "subfield") {
                 LOG_WARNING("found an empty subfield on line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
                         + input_filename + "\"!");
                 field_data.resize(field_data.length() - 2); // Remove subfield delimiter and code.
@@ -1058,15 +1261,15 @@ void XmlReader::parseDatafield(const std::string &input_filename,
         field_data += data;
 
         // 3. </subfield>
-        if (unlikely(not getNext(&type, &attrib_map, &data) or type != SimpleXmlParser<File>::CLOSING_TAG
+        if (unlikely(not getNext(&type, &attrib_map, &data) or type != XMLSubsetParser<File>::CLOSING_TAG
                      or data != namespace_prefix_ + "subfield"))
         {
-            const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
-                                 or type == SimpleXmlParser<File>::CLOSING_TAG);
+            const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG
+                                 or type == XMLSubsetParser<File>::CLOSING_TAG);
             throw std::runtime_error("in MARC::XmlReader::parseDatafield: expected </" + namespace_prefix_
                                      + "subfield> closing tag on line "
                                      + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
-                                     + "\"! (Found: " + SimpleXmlParser<File>::TypeToString(type)
+                                     + "\"! (Found: " + XMLSubsetParser<File>::TypeToString(type)
                                      + (tag_found ? (":" + data) : ""));
         }
     }
@@ -1074,12 +1277,12 @@ void XmlReader::parseDatafield(const std::string &input_filename,
 
 
 void XmlReader::skipOverStartOfDocument() {
-    SimpleXmlParser<File>::Type type;
+    XMLSubsetParser<File>::Type type;
     std::map<std::string, std::string> attrib_map;
     std::string data;
 
     while (getNext(&type, &attrib_map, &data)) {
-        if (type == SimpleXmlParser<File>::OPENING_TAG and data == namespace_prefix_ + "collection")
+        if (type == XMLSubsetParser<File>::OPENING_TAG and data == namespace_prefix_ + "collection")
             return;
     }
 
@@ -1092,13 +1295,13 @@ void XmlReader::skipOverStartOfDocument() {
 }
 
 
-bool XmlReader::getNext(SimpleXmlParser<File>::Type * const type,
+bool XmlReader::getNext(XMLSubsetParser<File>::Type * const type,
                         std::map<std::string, std::string> * const attrib_map, std::string * const data)
 {
     if (unlikely(not xml_parser_->getNext(type, attrib_map, data)))
         return false;
 
-    if (*type != SimpleXmlParser<File>::OPENING_TAG)
+    if (*type != XMLSubsetParser<File>::OPENING_TAG)
         return true;
 
     auto key_and_value(attrib_map->find("xmlns"));
@@ -1374,6 +1577,25 @@ bool UBTueIsAquisitionRecord(const Record &marc_record) {
     }
 
     return false;
+}
+
+
+std::string GetParentPPN(const Record &record) {
+    static const std::vector<Tag> parent_reference_tags{ "800", "810", "830", "773", "776" };
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\([^)]+\\)(.+)$"));
+    for (auto &field : record) {
+        if (std::find_if(parent_reference_tags.cbegin(), parent_reference_tags.cend(),
+                         [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == parent_reference_tags.cend())
+            continue;
+
+        if (matcher->matched(field.getFirstSubfieldWithCode('w'))) {
+            const std::string ppn_candidate((*matcher)[1]);
+            if (MiscUtil::IsValidPPN(ppn_candidate))
+                return ppn_candidate;
+        }
+    }
+
+    return "";
 }
 
 

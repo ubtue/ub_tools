@@ -23,14 +23,14 @@
 #include <iostream>
 #include <memory>
 #include <cstdlib>
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
-#include "Subfields.h"
+#include "MARC.h"
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+    
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--input-format=(marc-xml|marc-21)] marc_input marc_output pattern1 ";
     std::cerr << "[pattern2 .. patternN]\n";
     std::cerr << "  where each pattern must look like TTTa=b where TTT is a tag and \"a\" and \"b\"\n";
@@ -49,19 +49,15 @@ public:
 
 
 // \return True if at least one code has been replaced else false.
-bool ReplaceCodes(MarcRecord * const record, const std::vector<Replacement> &replacements) {
+bool ReplaceCodes(MARC::Record * const record, const std::vector<Replacement> &replacements) {
     bool replaced_at_least_one_code(false);
 
     for (const auto &replacement : replacements) {
-        std::vector<size_t> field_indices;
-        if (record->getFieldIndices(replacement.tag_, &field_indices) == 0)
-            continue;
-
-        for (const size_t field_index : field_indices) {
-            Subfields subfields(record->getFieldData(field_index));
+        for (auto &field : record->getTagRange(replacement.tag_)) {
+            MARC::Subfields subfields(field.getSubfields());
             if (subfields.replaceSubfieldCode(replacement.old_code_, replacement.new_code_)) {
                 replaced_at_least_one_code = true;
-                record->updateField(field_index, subfields.toString());
+                field.setContents(subfields.toString());
             }
         }
     }
@@ -70,12 +66,10 @@ bool ReplaceCodes(MarcRecord * const record, const std::vector<Replacement> &rep
 }
 
 
-void ReplaceCodes(MarcReader * const marc_reader, MarcWriter * const marc_writer,
-                  const std::vector<Replacement> &replacements)
-{
+void ReplaceCodes(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const std::vector<Replacement> &replacements) {
     unsigned total_count(0), modified_count(0);
 
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         ++total_count;
 
         if (ReplaceCodes(&record, replacements))
@@ -84,8 +78,8 @@ void ReplaceCodes(MarcReader * const marc_reader, MarcWriter * const marc_writer
         marc_writer->write(record);
     }
 
-    std::cout << ::progname << ": Read " << total_count << " records.\n";
-    std::cout << ::progname << ": Modified " << modified_count << " record(s).\n";
+    LOG_INFO("Read " + std::to_string(total_count) + " records.");
+    LOG_INFO("Modified " + std::to_string(modified_count) + " record(s).");
 }
 
 
@@ -93,43 +87,44 @@ void CollectReplacements(int argc, char **argv, std::vector<Replacement> * const
     for (int arg_no(3); arg_no < argc; ++arg_no) {
         const std::string replacement_pattern(argv[arg_no]);
         if (replacement_pattern.length() != 6 or replacement_pattern[4] != '=')
-            logger->error("bad replacement pattern: \"" + replacement_pattern + "\"!");
+            LOG_ERROR("bad replacement pattern: \"" + replacement_pattern + "\"!");
         replacements->emplace_back(replacement_pattern.substr(0, 3), replacement_pattern[3], replacement_pattern[5]);
     }
 }
 
 
-int main(int argc, char **argv) {
+} // unnmaed namespace
+
+
+int Main(int argc, char **argv) {
     ::progname = argv[0];
 
     if (argc < 4)
         Usage();
 
-    MarcReader::ReaderType reader_type(MarcReader::AUTO);
+    MARC::FileType reader_type(MARC::FileType::AUTO);
     if (StringUtil::StartsWith(argv[1], "--input-format=marc-")) {
         if (argc < 5)
             Usage();
         if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
-            reader_type = MarcReader::BINARY;
+            reader_type = MARC::FileType::BINARY;
         else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
-            reader_type = MarcReader::XML;
+            reader_type = MARC::FileType::XML;
         else
             logger->error("invalid reader type \"" + std::string(argv[1] + std::strlen("--input-format=")) + "\"!");
         ++argv;
         --argc;
     }
 
-    try {
-        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], reader_type));
-        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1], reader_type));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
 
-        std::vector<Replacement> replacements;
-        CollectReplacements(argc, argv, &replacements);
-        if (replacements.empty())
-            logger->error("need at least one replacement pattern!");
+    std::vector<Replacement> replacements;
+    CollectReplacements(argc, argv, &replacements);
+    if (replacements.empty())
+        LOG_ERROR("need at least one replacement pattern!");
 
-        ReplaceCodes(marc_reader.get(), marc_writer.get(), replacements);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    ReplaceCodes(marc_reader.get(), marc_writer.get(), replacements);
+
+    return EXIT_SUCCESS;
 }
