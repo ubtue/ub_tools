@@ -394,6 +394,7 @@ private:
     friend class BinaryWriter;
     friend class XmlWriter;
     friend std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fields, const bool suppress_local_fields);
+    friend bool UBTueIsElectronicResource(const Record &marc_record);
     size_t record_size_; // in bytes
     std::string leader_;
     std::vector<Field> fields_;
@@ -671,8 +672,11 @@ public:
         std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const;
 
 
-    /** \return Iterators pointing to the half-open interval of the first range of fields corresponding to the tag "tag" in a local block
+    /** \param indicator1  The returned range only includes fields matching this indicator. A question mark is the wildcard character here.
+     *  \param indicator2  The returned range only includes fields matching this indicator. A question mark is the wildcard character here.
+     *  \return Iterators pointing to the half-open interval of the first range of fields corresponding to the tag "tag" in a local block
      *          starting at "local_block_start".
+     *
      *  \remark {
      *     Typical usage of this function looks like this:<br />
      *     \code{.cpp}
@@ -684,7 +688,8 @@ public:
      *     \endcode
      *  }
      */
-    ConstantRange getLocalTagRange(const Tag &field_tag, const const_iterator &block_start) const;
+    ConstantRange getLocalTagRange(const Tag &field_tag, const const_iterator &block_start, const char indicator1 = '?',
+                                   const char indicator2 = '?') const;
 
     /** \brief Locate a field in a local block.
      *  \param indicators           The two 1-character indicators that we're looking for. A question mark here
@@ -699,6 +704,9 @@ public:
     size_t findFieldsInLocalBlock(const Tag &field_tag, const std::string &indicators,
                                   const std::pair<const_iterator, const_iterator> &block_start_and_end,
                                   std::vector<const_iterator> * const fields) const;
+
+    /** \return An iterator pointing to the first field w/ local tag "local_field_tag" or end() if no such field was found. */
+    const_iterator getFirstLocalField(const Tag &local_field_tag, const const_iterator &block_start) const;
 
     /** \return The set of all tags in the record. */
     std::unordered_set<std::string> getTagSet() const;
