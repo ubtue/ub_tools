@@ -30,10 +30,10 @@
 #include "util.h"
 
 
-static void Usage() __attribute__((noreturn));
+namespace {
 
 
-static void Usage() {
+[[noreturn]] static void Usage() {
     std::cerr << "Usage: " << ::progname << " deletion_list input_marc21 output_marc21\n";
     std::exit(EXIT_FAILURE);
 }
@@ -90,6 +90,9 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
     std::cerr << "Deleted " << deleted_record_count << " records.\n";
     std::cerr << "Modified " << modified_record_count << " records.\n";
 }
+
+
+} // unnamed namespace
 
 
 int Main(int argc, char *argv[]) {
