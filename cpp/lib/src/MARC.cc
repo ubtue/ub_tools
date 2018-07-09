@@ -187,7 +187,11 @@ bool Record::Field::replaceSubfieldCode(const char old_code, const char new_code
     for (const auto ch : contents_) {
         if (subfield_delimiter_seen) {
             subfield_delimiter_seen = false;
-            new_contents += (ch == old_code) ? new_code : ch;
+            if (ch == old_code) {
+                new_contents += new_code;
+                replaced_at_least_one_code = true;
+            } else
+                new_contents += ch;
         } else {
             if (ch == '\x1F')
                 subfield_delimiter_seen = true;
