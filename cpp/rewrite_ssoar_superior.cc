@@ -58,7 +58,10 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
    static RegexMatcher * const article_matcher(RegexMatcher::RegexMatcherFactoryOrDie(article_regex));
    // Journal; Pages 
    static const std::string article_regex_1("^([^;]*)\\s*;\\s*([\\d\\-]*)\\s*");
-   static RegexMatcher * const article_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(article_regex));
+   static RegexMatcher * const article_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(article_regex_1));
+   // Journal (Year)
+   static const std::string article_regex_2("^(.*)\\s*\\((\\d{4})\\)");
+   static RegexMatcher * const article_matcher_2(RegexMatcher::RegexMatcherFactoryOrDie(article_regex_2));
 
    // 500 Structure for books
    // Normally it is Author(s) : Title. Year. S. xxx. ISBN
@@ -94,6 +97,11 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
        } else 
           _773subfields->addSubfield('t', title_and_spec);          
        _773subfields->addSubfield('g', pages);
+   } else if (article_matcher_2->matched(_500aContent)) {
+       const std::string title((*article_matcher_2)[1]);
+       const std::string year((*article_matcher_2)[2]);
+       _773subfields->addSubfield('t', title);
+       _773subfields->addSubfield('g', year);
    } else if (book_matcher->matched(_500aContent)) {
        const std::string authors((*book_matcher)[1]);
        const std::string title((*book_matcher)[2]);
