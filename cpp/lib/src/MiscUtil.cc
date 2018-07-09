@@ -36,6 +36,7 @@
 #include <cxxabi.h>
 #include <execinfo.h>
 #include <unistd.h>
+#include "BSZUtil.h"
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "RegexMatcher.h"
@@ -108,7 +109,7 @@ char GeneratePPNChecksumDigit(const std::string &ppn_without_checksum_digit) {
 
 
 bool IsValidPPN(const std::string &ppn_candidate) {
-    if (ppn_candidate.length() != 9 and ppn_candidate.length() != 10)
+    if (ppn_candidate.length() != BSZUtil::PPN_LENGTH_OLD and ppn_candidate.length() != BSZUtil::PPN_LENGTH_NEW)
         return false;
 
     for (unsigned i(0); i < ppn_candidate.length() - 1; ++i) {

@@ -5,9 +5,17 @@ SRCS       = $(SRC)/*.cc
 TEMP       = $(addprefix $(OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
 OBJS       = $(TEMP:.cc=.o)
 CCC        ?= clang++
-CCCFLAGS   = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -O3 -ftrapv \
+CCCFLAGS   = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -ftrapv \
              -Ilibstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
              -DETC_DIR='"/usr/local/var/lib/tuelib"'
+
+ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
+  CCCFLAGS += -O3
+  OPTIMISATIONS_STATE =
+else
+  OPTIMISATIONS_STATE = (unoptimised)
+endif
+
 ifeq ($(CCC),clang++)
   ifeq ("$(wildcard /etc/centos-release)","") # Not on CentOS!
     CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions -Wno-c++1z-extensions
@@ -27,7 +35,7 @@ MAKE_DEPS=iViaCore-mkdep
 
 # Rules for building:
 $(OBJ)/%.o: $(SRC)/%.cc Makefile
-	@echo "Compiling $<..."
+	@echo "Compiling $< $(OPTIMISATIONS_STATE)..."
 	@$(CCC) $(CCCFLAGS) $< -c -o $@
 
 all: /usr/local/bin/iViaCore-mkdep .deps libstemmer/libstemmer.a libubtue.a
@@ -43,7 +51,7 @@ libstemmer/libstemmer_amd64.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libst
 	$(MAKE) -C libstemmer libstemmer_amd64.a
 
 /usr/local/bin/iViaCore-mkdep:
-	$(MAKE) -C mkdep install 
+	$(MAKE) -C mkdep install
 
 -include .deps
 .deps: $(SRCS) $(INC)/*.h Makefile

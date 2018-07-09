@@ -195,7 +195,7 @@ void SkipFieldPadding(FILE * const input) {
 }
 
 
-std::string ReadQuotedValue(FILE * const input, const char field_delimiter) {
+std::string ReadQuotedValue(FILE * const input, const char field_delimiter, const char field_separator) {
     std::string value;
     bool delimiter_seen(false);
     for (;;) {
@@ -204,13 +204,16 @@ std::string ReadQuotedValue(FILE * const input, const char field_delimiter) {
             throw std::runtime_error("unexpected EOF while reading a quoted DSV value!");
         if (ch == field_delimiter) {
             if (delimiter_seen) {
-                value += static_cast<char>(ch);
-                delimiter_seen = false;
+                // ignore if it's not the outermost delimiter
+                const int next(std::fgetc(input));
+                std::ungetc(next, input);
+
+                if (next == field_separator or next == '\n' or next == EOF)
+                    return value;
+                else
+                    value += field_delimiter;
             } else
                 delimiter_seen = true;
-        } else if (delimiter_seen) {
-            std::ungetc(ch, input);
-            return value;
         } else
             value += static_cast<char>(ch);
     }
@@ -282,7 +285,7 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
             SkipFieldPadding(input_);
             ch = std::fgetc(input_);
             if (ch == EOF)
-                return false;
+                return not values->empty();
             if (ch == '\n')
                 return true;
             if (ch != field_separator_)
@@ -296,13 +299,14 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
         if (ch == '\n')
             return true;
         if (ch == EOF)
-            return false;
+            return not values->empty();
         if (ch == field_separator_) {
             std::ungetc(ch, input_);
             values->emplace_back("");
-        } else if (ch == field_delimiter_)
-            values->emplace_back(ReadQuotedValue(input_, field_delimiter_));
-        else {
+        } else if (ch == field_delimiter_) {
+            std::ungetc(ch, input_);
+            values->emplace_back(ReadQuotedValue(input_, field_delimiter_, field_separator_));
+        } else {
             std::ungetc(ch, input_);
             values->emplace_back(ReadNonQuotedValue(input_, field_separator_));
         }
