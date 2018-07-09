@@ -1,4 +1,4 @@
-/** \brief A tool for rewriting superior information in ssoar data
+/** \brief A tool for rewriting  information in ssoar data
  *  \author Johannes Riedl
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -49,17 +49,18 @@ void Assemble773Article(MARC::Subfields * const _773subfields,
                         const std::string &pages = "",
                         const std::string &volinfo = "",
                         const std::string &edition = "") {
-    // FIXME Unterschied volinfo vs edition
+    if (not (title.empty() and volinfo.empty() and pages.empty() and year.empty() and edition.empty()))
+       _773subfields->addSubfield('i', "In:");
     if (not title.empty())
-        _773subfields->addSubfield('t', title);
+        _773subfields->addSubfield('a', StringUtil::Trim(title));
     if (not volinfo.empty())
-        _773subfields->addSubfield('g', volinfo);
+        _773subfields->addSubfield('g', "volume:" + volinfo);
     if (not pages.empty())
-        _773subfields->addSubfield('g', pages);
+        _773subfields->addSubfield('g', "pages: " + pages);
     if (not year.empty())
-        _773subfields->addSubfield('g', year);
+        _773subfields->addSubfield('g', "year: " + year);
     if (not edition.empty())
-        _773subfields->addSubfield('g', edition);
+        _773subfields->addSubfield('g', "edition: "  + edition);
 }
 
 
@@ -69,14 +70,20 @@ void Assemble773Book(MARC::Subfields * const _773subfields,
                      const std::string &year = "",
                      const std::string &pages = "",
                      const std::string &isbn = "") {
-    if (not title.empty())
-        _773subfields->addSubfield('t', title);
+    if (not (title.empty() and authors.empty() and year.empty() and pages.empty() and isbn.empty()))
+       _773subfields->addSubfield('i', "In:");
+    if (not title.empty()) {
+        if (not authors.empty())
+            _773subfields->addSubfield('t', StringUtil::Trim(title));
+        else
+            _773subfields->addSubfield('a', StringUtil::Trim(title));
+    }
     if (not authors.empty())
         _773subfields->addSubfield('a', authors);
     if (not year.empty())
         _773subfields->addSubfield('d', year);
     if ( not pages.empty())
-        _773subfields->addSubfield('g', pages);
+        _773subfields->addSubfield('g', "pages:" + pages);
     if (not isbn.empty())
         _773subfields->addSubfield('o', isbn);
 }
@@ -86,7 +93,7 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
    // 773 $a "Geistiger Schöpfer"
    // 773 08 $i "Beziehungskennzeichnung" (== Übergerordnetes Werk)
    // 773 $d Jahr
-   // 773 $t Titel (wenn Autor nicht vorhanden, dann stattdessen $a -> hier nicht einschlägig)
+   // 773 $t Titel (wenn Autor nicht vorhanden, dann stattdessen $a)
    // 773 $g Bandzählung [und weitere Angaben]
    // 773 $o "Sonstige Identifier für die andere Ausgabe" (ISBN)
 
@@ -166,31 +173,30 @@ void InsertSigelTo003(MARC::Record * const record, bool * const modified_record)
     *modified_record=true;
 }
 
-// Rewrite to 041$h or get date forom 008
+// Rewrite to 041$h or get date from 008
 void InsertLanguageTo041(MARC::Record * const record, bool * const modified_record) {
-     for (auto field : record->getTagRange("041")) {
+     for (auto &field : record->getTagRange("041")) {
          if (not field.getFirstSubfieldWithCode('h').empty())
              return;
          // Possibly the information is in the $a field
          static const std::string valid_language_regex("([a-zA-Z]{3})(.{2})?$");
-         //static const std::string valid_language_regex("([a-zA-Z]{3})$");
          static RegexMatcher * const valid_language_matcher(RegexMatcher::RegexMatcherFactoryOrDie(valid_language_regex));
          std::string language;
 
          if (valid_language_matcher->matched(field.getFirstSubfieldWithCode('a'))) {
-             language = (*valid_language_matcher)[1];
-         }
-         else {
+             field.replaceSubfieldCode('a', 'h');
+             *modified_record=true;
+             return;
+         } else {
              const std::string _008Field(record->getFirstFieldContents("008"));
              if (not valid_language_matcher->matched(_008Field)) {
                  LOG_WARNING("Invalid language code " + language);
                  continue;
              }
-             language = (*valid_language_matcher)[1];
-         }
-         record->addSubfield("041", 'h', language);
-         *modified_record=true;
-         return;
+             record->addSubfield("041", 'h', language);
+             *modified_record=true;
+             return;
+        }
     }
 }
 
