@@ -133,6 +133,7 @@ struct GroupParams {
     std::string name_;
     std::string user_agent_;
     std::string isil_;
+    std::string author_lookup_url_;
 };
 
 

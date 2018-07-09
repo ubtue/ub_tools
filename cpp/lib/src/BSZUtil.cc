@@ -48,7 +48,7 @@ const size_t PPN_LENGTH_NEW(10);
 const size_t PPN_START_INDEX(12);
 const size_t SEPARATOR_INDEX(PPN_START_INDEX - 1);
 
-    
+
 void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const delete_full_record_ids,
                         std::unordered_set <std::string> * const local_deletion_ids)
 {
@@ -73,9 +73,9 @@ top_loop:
                        + " in deletion list file \"" + deletion_list->getPath() + "\"!");
             ppn_len = PPN_LENGTH_OLD;       // fallback to the more conservative of the two lengths
         }
-        
+
         for (const char indicator : FULL_RECORD_DELETE_INDICATORS) {
-            if (line[SEPARATOR_INDEX] == indicator) {                            
+            if (line[SEPARATOR_INDEX] == indicator) {
                 delete_full_record_ids->insert(StringUtil::Trim(line.substr(PPN_START_INDEX, ppn_len)));
                 goto top_loop;
             }
