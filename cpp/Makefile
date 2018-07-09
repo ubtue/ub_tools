@@ -7,7 +7,7 @@ CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=nat
 
 ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
   CCCFLAGS += -O3
-	OPTIMISATIONS_STATE =
+  OPTIMISATIONS_STATE =
 else
   OPTIMISATIONS_STATE = (unoptimised)
 endif
