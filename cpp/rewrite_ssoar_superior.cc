@@ -179,8 +179,6 @@ void RewriteSSOARSuperiorReference(MARC::Reader * const marc_reader, MARC::Write
 
 int Main(int argc, char **argv) {
     ::progname = argv[0];
-std::cerr << "XXXXX\n";
-LOG_WARNING("ENTERING");
     MARC::FileType reader_type(MARC::FileType::AUTO);
     if (argc == 4) {
         if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
@@ -202,6 +200,5 @@ LOG_WARNING("ENTERING");
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, reader_type));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
     RewriteSSOARSuperiorReference(marc_reader.get() , marc_writer.get());
-LOG_WARNING("AT END");
     return EXIT_SUCCESS;
 }
