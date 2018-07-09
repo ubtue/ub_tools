@@ -548,22 +548,24 @@ void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
         for (;;) {
             if (range_end == fields_.end()) {
                 deletion_ranges.emplace_back(range_start, range_end);
-                break;
+                goto coalescing_done;
             }
 
+            // Start of a new block?
             if (range_end->getTag() < last_tag) {
                 ++block_start;
                 if (range_end != *block_start) {
                     deletion_ranges.emplace_back(range_start, range_end);
                     break;
                 }
-                last_tag = range_end->getTag();
             }
 
+            last_tag = range_end->getTag();
             ++range_end;
         }
     }
 
+coalescing_done:
     for (auto deletion_range(deletion_ranges.rbegin()); deletion_range != deletion_ranges.rend(); ++deletion_range)
         fields_.erase(deletion_range->first, deletion_range->second);
 }
