@@ -502,6 +502,7 @@ public:
 
     inline Field getField(const size_t field_index) { return fields_[field_index]; }
     inline const Field &getField(const size_t field_index) const { return fields_[field_index]; }
+    inline size_t getFieldIndex(const const_iterator &field) { return field - fields_.begin(); }
 
     /** \return True if we added the new field and false if it is a non-repeatable field and we already have this tag.
      *  \note   "new_field_value" includes the two indicators and any subfield structure if "new_field_tag" references a
@@ -672,6 +673,7 @@ public:
     std::unordered_set<std::string> getTagSet() const;
 
     void deleteFields(std::vector<size_t> field_indices);
+    void deleteFields(std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> blocks);
     bool isValid(std::string * const error_message) const;
 };
 

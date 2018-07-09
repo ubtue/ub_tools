@@ -25,18 +25,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include "BSZUtil.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "StringUtil.h"
-#include "Subfields.h"
 #include "util.h"
 
 
-static void Usage() __attribute__((noreturn));
-
-
-static void Usage() {
+[[noreturn]]  void Usage() {
     std::cerr << "Usage: " << ::progname << " deletion_list input_marc output_marc\n";
     std::exit(EXIT_FAILURE);
 }
@@ -45,24 +39,23 @@ static void Usage() {
 /** \brief Deletes LOK sections if their pseudo tags are found in "local_deletion_ids"
  *  \return True if at least one local section has been deleted, else false.
  */
-bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_ids, MarcRecord * const record) {
+bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_ids, MARC::Record * const record) {
     bool modified(false);
 
-    std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+    std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> local_block_boundaries, local_block_boundaries_for_deletion;
     record->findAllLocalDataBlocks(&local_block_boundaries);
-    std::vector<std::pair<size_t, size_t>> local_block_boundaries_for_deletion;
 
     for (const auto local_block_boundary : local_block_boundaries) {
-        std::vector<size_t> field_indices;
+        std::vector<MARC::Record::const_iterator> field_indices;
         record->findFieldsInLocalBlock("001", "??", local_block_boundary, &field_indices);
         if (field_indices.size() != 1)
-            logger->error("Every local data block has to have exactly one 001 field. (Record: "
+            LOG_ERROR("Every local data block has to have exactly one 001 field. (Record: "
                           + record->getControlNumber() + ", Local data block: "
-                          + std::to_string(local_block_boundary.first) + " - "
-                          + std::to_string(local_block_boundary.second) + ". Found "
+                          + std::to_string(record->getFieldIndex(local_block_boundary.first)) + " - "
+                          + std::to_string(record->getFieldIndex(local_block_boundary.second)) + ". Found "
                           + std::to_string(field_indices.size()) + ")");
-        const Subfields subfields(record->getSubfields(field_indices[0]));
-        const std::string subfield_contents(subfields.getFirstSubfieldValue('0'));
+        const auto subfields(field_indices[0]->getSubfields());
+        const std::string subfield_contents(subfields.getFirstSubfieldWithCode('0'));
         if (not StringUtil::StartsWith(subfield_contents, "001 ")
             or local_deletion_ids.find(subfield_contents.substr(4)) == local_deletion_ids.end())
             continue;
@@ -77,11 +70,11 @@ bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_
 
 
 void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
-                    const std::unordered_set <std::string> &local_deletion_ids, MarcReader * const marc_reader,
-                    MarcWriter * const marc_writer)
+                    const std::unordered_set <std::string> &local_deletion_ids, MARC::Reader * const marc_reader,
+                    MARC::Writer * const marc_writer)
 {
     unsigned total_record_count(0), deleted_record_count(0), modified_record_count(0);
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         ++total_record_count;
 
         if (title_deletion_ids.find(record.getControlNumber()) != title_deletion_ids.end())
@@ -99,26 +92,26 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     if (argc != 4)
         Usage();
 
     const std::string deletion_list_filename(argv[1]);
     File deletion_list(deletion_list_filename, "r");
     if (not deletion_list)
-        logger->error("can't open \"" + deletion_list_filename + "\" for reading!");
+        LOG_ERROR("can't open \"" + deletion_list_filename + "\" for reading!");
 
     std::unordered_set <std::string> title_deletion_ids, local_deletion_ids;
     BSZUtil::ExtractDeletionIds(&deletion_list, &title_deletion_ids, &local_deletion_ids);
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[2], MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[3], MarcWriter::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
 
     try {
         ProcessRecords(title_deletion_ids, local_deletion_ids, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
+        LOG_ERROR("Caught exception: " + std::string(e.what()));
     }
+
+    return EXIT_SUCCESS;
 }
