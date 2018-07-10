@@ -57,7 +57,7 @@ bool ReplaceCodes(MARC::Record * const record, const std::vector<Replacement> &r
             MARC::Subfields subfields(field.getSubfields());
             if (subfields.replaceSubfieldCode(replacement.old_code_, replacement.new_code_)) {
                 replaced_at_least_one_code = true;
-                field.setContents(subfields.toString());
+                field.setContents(subfields, field.getIndicator1(), field.getIndicator2());
             }
         }
     }

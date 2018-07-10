@@ -2,7 +2,7 @@
  *  \brief A tool creating authority data records from expert-translated keywords.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,13 +24,16 @@
 #include "DbResultSet.h"
 #include "DbRow.h"
 #include "IniFile.h"
-#include "MarcRecord.h"
+#include "MARC.h"
 #include "StringUtil.h"
 #include "TranslationUtil.h"
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " authority_marc_file\n";
     std::exit(EXIT_FAILURE);
 }
@@ -61,7 +64,7 @@ void GetMainAndAdditionalTranslations(const std::string &translation, std::strin
 }
 
 
-void GenerateAuthortyRecords(DbConnection * const db_connection, MarcWriter * const marc_writer) {
+void GenerateAuthortyRecords(DbConnection * const db_connection, MARC::Writer * const marc_writer) {
     db_connection->queryOrDie("SELECT DISTINCT ppn FROM keyword_translations WHERE status='new' OR status='replaced'"
                               " OR status='replaced_synonym' OR status='new_synonym'");
     DbResultSet ppn_result_set(db_connection->getLastResultSet());
@@ -72,12 +75,10 @@ void GenerateAuthortyRecords(DbConnection * const db_connection, MarcWriter * co
                                   + "' AND (status='new' OR status='replaced')");
         DbResultSet result_set(db_connection->getLastResultSet());
 
-        MarcRecord new_record;
-        new_record.getLeader().setRecordType(Leader::AUTHORITY);
-        new_record.insertField("001", ppn);
+        MARC::Record new_record(MARC::Record::TypeOfRecord::AUTHORITY, MARC::Record::BibliographicLevel::UNDEFINED, ppn);
 
         while (const DbRow row = result_set.getNextRow()) {
-            Subfields subfields(' ', ' ');
+            MARC::Subfields subfields;
             std::string main_translation, additional_translation;
             GetMainAndAdditionalTranslations(row["translation"], &main_translation, &additional_translation);
             subfields.addSubfield('a', main_translation);
@@ -100,22 +101,23 @@ void GenerateAuthortyRecords(DbConnection * const db_connection, MarcWriter * co
 const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
 
 
-int main(int argc, char *argv[]) {
+} // unnamed namespace
+
+
+int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    try {
-        if (argc != 2)
-            Usage();
-        const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[1]));
+    if (argc != 2)
+        Usage();
+    const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[1]));
 
-        const IniFile ini_file(CONF_FILE_PATH);
-        const std::string sql_database(ini_file.getString("", "sql_database"));
-        const std::string sql_username(ini_file.getString("", "sql_username"));
-        const std::string sql_password(ini_file.getString("", "sql_password"));
-        DbConnection db_connection(sql_database, sql_username, sql_password);
+    const IniFile ini_file(CONF_FILE_PATH);
+    const std::string sql_database(ini_file.getString("", "sql_database"));
+    const std::string sql_username(ini_file.getString("", "sql_username"));
+    const std::string sql_password(ini_file.getString("", "sql_password"));
+    DbConnection db_connection(sql_database, sql_username, sql_password);
 
-        GenerateAuthortyRecords(&db_connection, marc_writer.get());
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    GenerateAuthortyRecords(&db_connection, marc_writer.get());
+
+    return EXIT_SUCCESS;
 }
