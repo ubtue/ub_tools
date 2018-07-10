@@ -173,10 +173,11 @@ void InsertSigelTo003(MARC::Record * const record, bool * const modified_record)
     *modified_record=true;
 }
 
+
 // Rewrite to 041$h or get date from 008
 void InsertLanguageInto041(MARC::Record * const record, bool * const modified_record) {
      for (auto &field : record->getTagRange("041")) {
-         if (not field.getFirstSubfieldWithCode('h').empty())
+         if (field.hasSubfield('h'))
              return;
          // Possibly the information is already in the $a field
          static const std::string valid_language_regex("([a-zA-Z]{3})$");
@@ -184,7 +185,7 @@ void InsertLanguageInto041(MARC::Record * const record, bool * const modified_re
          std::string language;
          if (valid_language_matcher->matched(field.getFirstSubfieldWithCode('a'))) {
              field.replaceSubfieldCode('a', 'h');
-             *modified_record=true;
+             *modified_record = true;
              return;
          } else {
              const std::string _008Field(record->getFirstFieldContents("008"));
@@ -193,7 +194,7 @@ void InsertLanguageInto041(MARC::Record * const record, bool * const modified_re
                  continue;
              }
              record->addSubfield("041", 'h', language);
-             *modified_record=true;
+             *modified_record = true;
              return;
         }
     }
@@ -208,7 +209,7 @@ void InsertYearTo264c(MARC::Record * const record, bool * const modified_record)
         const std::string _008Field(record->getFirstFieldContents("008"));
         const std::string year(_008Field.substr(7,4));
         record->addSubfield("264", 'c', year);
-        *modified_record=true;
+        *modified_record = true;
         return;
     }
 }
