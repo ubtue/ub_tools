@@ -43,12 +43,9 @@ namespace {
 }
 
 
-void Assemble773Article(MARC::Subfields * const _773subfields,
-                        const std::string &title = "",
-                        const std::string &year = "",
-                        const std::string &pages = "",
-                        const std::string &volinfo = "",
-                        const std::string &edition = "") 
+void Assemble773Article(MARC::Subfields * const _773subfields, const std::string &title = "",
+                        const std::string &year = "", const std::string &pages = "",
+                        const std::string &volinfo = "", const std::string &edition = "")
 {
     if (not (title.empty() and volinfo.empty() and pages.empty() and year.empty() and edition.empty()))
        _773subfields->addSubfield('i', "In:");
@@ -65,12 +62,10 @@ void Assemble773Article(MARC::Subfields * const _773subfields,
 }
 
 
-void Assemble773Book(MARC::Subfields * const _773subfields,
-                     const std::string &title = "",
-                     const std::string &authors = "",
-                     const std::string &year = "",
-                     const std::string &pages = "",
-                     const std::string &isbn = "") {
+void Assemble773Book(MARC::Subfields * const _773subfields, const std::string &title = "",
+                     const std::string &authors = "", const std::string &year = "",
+                     const std::string &pages = "", const std::string &isbn = "")
+{
     if (not (title.empty() and authors.empty() and year.empty() and pages.empty() and isbn.empty()))
        _773subfields->addSubfield('i', "In:");
     if (not title.empty()) {
@@ -102,54 +97,53 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
    // 500 Structure for books
    // Must be checked first since it is more explicit
    // Normally it is Author(s) : Title. Year. S. xxx. ISBN
-   static const std::string book_regex("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\s*S\\.\\s*([\\d\\-]+)\\.\\s*ISBN\\s*([\\d\\-X]+))");
-   static RegexMatcher * const book_matcher(RegexMatcher::RegexMatcherFactoryOrDie(book_regex));
+   static const std::string book_regex_1("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\s*S\\.\\s*([\\d\\-]+)\\.\\s*ISBN\\s*([\\d\\-X]+))");
+   static RegexMatcher * const book_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(book_regex));
    // Authors : Title. Year. Pages
-   static const std::string book_regex_1("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\sS\\.\\s([\\d\\-]+))");
+   static const std::string book_regex_2("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\sS\\.\\s([\\d\\-]+))");
    static RegexMatcher * const book_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_1));
    // Authors : Title. Year. ISBN
-   static const std::string book_regex_2("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\s*ISBN\\s*([\\d\\-X]+))");
+   static const std::string book_regex_3("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\s*ISBN\\s*([\\d\\-X]+))");
    static RegexMatcher * const book_matcher_2(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_2));
 
    // 500 Structure fields for articles
    // Normally Journal ; Edition String ; Page (??)
-   static const std::string article_regex("^([^;]*)\\s*;\\s*([^;]*)\\s*;\\s*([\\d\\-]*)\\s*");
-   static RegexMatcher * const article_matcher(RegexMatcher::RegexMatcherFactoryOrDie(article_regex));
+   static const std::string article_regex_1("^([^;]*)\\s*;\\s*([^;]*)\\s*;\\s*([\\d\\-]*)\\s*");
+   static RegexMatcher * const article_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(article_regex));
    // Journal; Pages
-   static const std::string article_regex_1("^([^;]*)\\s*;\\s*([\\d\\-]*)\\s*");
-   static RegexMatcher * const article_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(article_regex_1));
+   static const std::string article_regex_2("^([^;]*)\\s*;\\s*([\\d\\-]*)\\s*");
+   static RegexMatcher * const article_matcher_2(RegexMatcher::RegexMatcherFactoryOrDie(article_regex_1));
    // Journal (Year)
-   static const std::string article_regex_2("^(.*)\\s*\\((\\d{4})\\)");
-   static RegexMatcher * const article_matcher_2(RegexMatcher::RegexMatcherFactoryOrDie(article_regex_2));
+   static const std::string article_regex_3("^(.*)\\s*\\((\\d{4})\\)");
+   static RegexMatcher * const article_matcher_3(RegexMatcher::RegexMatcherFactoryOrDie(article_regex_2));
 
-
-   if (book_matcher->matched(_500aContent)) {
-       const std::string authors((*book_matcher)[1]);
-       const std::string title((*book_matcher)[2]);
-       const std::string year((*book_matcher)[3]);
-       const std::string pages((*book_matcher)[4]);
-       const std::string isbn((*book_matcher)[5]);
-       Assemble773Book(_773subfields, title, authors, year, pages, isbn);
-   } else if (book_matcher_1->matched(_500aContent)) {
+   if (book_matcher_1->matched(_500aContent)) {
        const std::string authors((*book_matcher_1)[1]);
        const std::string title((*book_matcher_1)[2]);
        const std::string year((*book_matcher_1)[3]);
-       Assemble773Book(_773subfields, title, authors, year);
+       const std::string pages((*book_matcher_1)[4]);
+       const std::string isbn((*book_matcher_1)[5]);
+       Assemble773Book(_773subfields, title, authors, year, pages, isbn);
    } else if (book_matcher_2->matched(_500aContent)) {
        const std::string authors((*book_matcher_2)[1]);
        const std::string title((*book_matcher_2)[2]);
        const std::string year((*book_matcher_2)[3]);
-       const std::string isbn((*book_matcher_2)[4]);
+       Assemble773Book(_773subfields, title, authors, year);
+   } else if (book_matcher_3->matched(_500aContent)) {
+       const std::string authors((*book_matcher_3)[1]);
+       const std::string title((*book_matcher_3)[2]);
+       const std::string year((*book_matcher_3)[3]);
+       const std::string isbn((*book_matcher_3)[4]);
        Assemble773Book(_773subfields, title, authors, year, "", isbn);
-   } else if (article_matcher->matched(_500aContent)) {
-       const std::string title((*article_matcher)[1]);
-       const std::string volinfo((*article_matcher)[2]);
-       const std::string page((*article_matcher)[3]);
-       Assemble773Article(_773subfields, title, "", page, volinfo, "");
    } else if (article_matcher_1->matched(_500aContent)) {
+       const std::string title((*article_matcher_1)[1]);
+       const std::string volinfo((*article_matcher_1)[2]);
+       const std::string page((*article_matcher_1)[3]);
+       Assemble773Article(_773subfields, title, "", page, volinfo, "");
+   } else if (article_matcher_2->matched(_500aContent)) {
        // See whether we can extract further information
-       const std::string title_and_spec((*article_matcher_1)[1]);
-       const std::string pages((*article_matcher_1)[2]);
+       const std::string title_and_spec((*article_matcher_2)[1]);
+       const std::string pages((*article_matcher_2)[2]);
        static const std::string title_and_spec_regex("^([^(]*)\\s*\\((\\d{4})\\)\\s*(\\d+)\\s*");
        static RegexMatcher * const title_and_spec_matcher(RegexMatcher::RegexMatcherFactoryOrDie(title_and_spec_regex));
        if (title_and_spec_matcher->matched(title_and_spec)) {
@@ -159,19 +153,18 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
           Assemble773Article(_773subfields, title, year, pages, "", edition);
        } else
           Assemble773Article(_773subfields, title_and_spec, "", pages);
-   } else if (article_matcher_2->matched(_500aContent)) {
-       const std::string title((*article_matcher_2)[1]);
-       const std::string year((*article_matcher_2)[2]);
+   } else if (article_matcher_3->matched(_500aContent)) {
+       const std::string title((*article_matcher_3)[1]);
+       const std::string year((*article_matcher_3)[2]);
        Assemble773Article(_773subfields, title, year);
-   } else {
+   } else
        LOG_WARNING("No matching regex for " + _500aContent);
-   }
 }
 
 
 void InsertSigelTo003(MARC::Record * const record, bool * const modified_record) {
     record->insertField("003", "INSERT_VALID_SIGEL_HERE");
-    *modified_record=true;
+    *modified_record = true;
 }
 
 
@@ -204,7 +197,7 @@ void InsertLanguageInto041(MARC::Record * const record, bool * const modified_re
 
 void InsertYearTo264c(MARC::Record * const record, bool * const modified_record) {
     for (auto field : record->getTagRange("264")) {
-        if (not field.getFirstSubfieldWithCode('c').empty())
+        if (field.hasSubfieldCode('c'))
             return;
         // Extract year from 008 if available
         const std::string _008Field(record->getFirstFieldContents("008"));
@@ -227,7 +220,7 @@ void RewriteSuperiorReference(MARC::Record * const record, bool * const modified
     for (auto &field : record->getTagRange("500")) {
         const auto subfields(field.getSubfields());
         for (const auto &subfield : subfields) {
-            if (subfield.code_ == 'a' && superior_matcher->matched(subfield.value_)) {
+            if (subfield.code_ == 'a' and superior_matcher->matched(subfield.value_)) {
                 MARC::Subfields new773Subfields;
                 // Parse Field Contents
                 ParseSuperior((*superior_matcher)[1], &new773Subfields);
