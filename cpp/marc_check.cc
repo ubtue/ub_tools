@@ -68,10 +68,10 @@ void CheckDataField(const bool do_not_abort_on_empty_subfields, const MARC::Reco
         } else if (ch == '\x1F') {
             if (unlikely(subfield_code_seen)) {
                 if (do_not_abort_on_empty_subfields)
-                    LOG_WARNING("empty subfield in a " + data_field.getTag().toString() +"-field in the record w/ control number \""
+                    LOG_WARNING("empty subfield in a " + data_field.getTag().toString() + "-field in the record w/ control number \""
                                 + control_number + "\"!");
                 else
-                    LOG_ERROR("empty subfield in a " + data_field.getTag().toString() +"-field in the record w/ control number \""
+                    LOG_ERROR("empty subfield in a " + data_field.getTag().toString() + "-field in the record w/ control number \""
                               + control_number + "\"!");
             }
             delimiter_seen = true;
