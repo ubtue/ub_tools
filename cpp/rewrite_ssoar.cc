@@ -84,6 +84,7 @@ void Assemble773Book(MARC::Subfields * const _773subfields, const std::string &t
         _773subfields->addSubfield('o', isbn);
 }
 
+
 void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773subfields) {
    // Belegung nach BSZ-Konkordanz
    // 773 $a "Geistiger Schöpfer"
