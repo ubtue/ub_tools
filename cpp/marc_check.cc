@@ -101,7 +101,7 @@ void CheckLocalBlockConsistency(const MARC::Record &record) {
         ++field;
 
     // Check the internal structure of each local block:
-    while (field != record.end()) {
+    while (field != record.end() and field->getTag().toString() != "LOK") {
         if (field->getLocalTag() != "000")
             LOG_ERROR("local block does not start w/ a 000 pseudo tag in the record w/ control number \"" + record.getControlNumber()
                       + "\"!!");
@@ -110,7 +110,7 @@ void CheckLocalBlockConsistency(const MARC::Record &record) {
                       + record.getControlNumber() + "\"!!");
 
         std::string last_local_tag;
-        while (field != record.end() and field->getLocalTag() != "000") {
+        while (field != record.end() and field->getLocalTag() != "000" and field->getTag().toString() != "LOK") {
             const std::string current_local_tag(field->getLocalTag());
             if (unlikely(current_local_tag < last_local_tag))
                 LOG_ERROR("invalid tag order in a local block in the record with control number \"" + record.getControlNumber() + "\"!");
