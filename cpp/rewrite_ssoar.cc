@@ -48,7 +48,8 @@ void Assemble773Article(MARC::Subfields * const _773subfields,
                         const std::string &year = "",
                         const std::string &pages = "",
                         const std::string &volinfo = "",
-                        const std::string &edition = "") {
+                        const std::string &edition = "") 
+{
     if (not (title.empty() and volinfo.empty() and pages.empty() and year.empty() and edition.empty()))
        _773subfields->addSubfield('i', "In:");
     if (not title.empty())
