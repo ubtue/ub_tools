@@ -99,24 +99,24 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
    // Must be checked first since it is more explicit
    // Normally it is Author(s) : Title. Year. S. xxx. ISBN
    static const std::string book_regex_1("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\s*S\\.\\s*([\\d\\-]+)\\.\\s*ISBN\\s*([\\d\\-X]+))");
-   static RegexMatcher * const book_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(book_regex));
+   static RegexMatcher * const book_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_1));
    // Authors : Title. Year. Pages
    static const std::string book_regex_2("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\sS\\.\\s([\\d\\-]+))");
-   static RegexMatcher * const book_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_1));
+   static RegexMatcher * const book_matcher_2(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_1));
    // Authors : Title. Year. ISBN
    static const std::string book_regex_3("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\s*ISBN\\s*([\\d\\-X]+))");
-   static RegexMatcher * const book_matcher_2(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_2));
+   static RegexMatcher * const book_matcher_3(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_2));
 
    // 500 Structure fields for articles
    // Normally Journal ; Edition String ; Page (??)
    static const std::string article_regex_1("^([^;]*)\\s*;\\s*([^;]*)\\s*;\\s*([\\d\\-]*)\\s*");
-   static RegexMatcher * const article_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(article_regex));
+   static RegexMatcher * const article_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(article_regex_1));
    // Journal; Pages
    static const std::string article_regex_2("^([^;]*)\\s*;\\s*([\\d\\-]*)\\s*");
-   static RegexMatcher * const article_matcher_2(RegexMatcher::RegexMatcherFactoryOrDie(article_regex_1));
+   static RegexMatcher * const article_matcher_2(RegexMatcher::RegexMatcherFactoryOrDie(article_regex_2));
    // Journal (Year)
    static const std::string article_regex_3("^(.*)\\s*\\((\\d{4})\\)");
-   static RegexMatcher * const article_matcher_3(RegexMatcher::RegexMatcherFactoryOrDie(article_regex_2));
+   static RegexMatcher * const article_matcher_3(RegexMatcher::RegexMatcherFactoryOrDie(article_regex_3));
 
    if (book_matcher_1->matched(_500aContent)) {
        const std::string authors((*book_matcher_1)[1]);
@@ -198,7 +198,7 @@ void InsertLanguageInto041(MARC::Record * const record, bool * const modified_re
 
 void InsertYearTo264c(MARC::Record * const record, bool * const modified_record) {
     for (auto field : record->getTagRange("264")) {
-        if (field.hasSubfieldCode('c'))
+        if (field.hasSubfield('c'))
             return;
         // Extract year from 008 if available
         const std::string _008Field(record->getFirstFieldContents("008"));
@@ -222,12 +222,12 @@ void RewriteSuperiorReference(MARC::Record * const record, bool * const modified
         const auto subfields(field.getSubfields());
         for (const auto &subfield : subfields) {
             if (subfield.code_ == 'a' and superior_matcher->matched(subfield.value_)) {
-                MARC::Subfields new773Subfields;
+                MARC::Subfields new_773_Subfields;
                 // Parse Field Contents
-                ParseSuperior((*superior_matcher)[1], &new773Subfields);
+                ParseSuperior((*superior_matcher)[1], &new_773_Subfields);
                 // Write 773 Field
-                if (not new773Subfields.empty()) {
-                    record->insertField("773", new773Subfields, '0', '8');
+                if (not new_773_Subfields.empty()) {
+                    record->insertField("773", new_773_Subfields, '0', '8');
                     *modified_record = true;
                 }
             }
