@@ -181,30 +181,19 @@ bool Record::Field::replaceSubfieldCode(const char old_code, const char new_code
     if (contents_.length() < 5)
         return false;
 
-    std::string new_contents;
-    new_contents.reserve(contents_.length());
-
     bool replaced_at_least_one_code(false), subfield_delimiter_seen(false);    
-    for (const auto ch : contents_) {
+    for (auto &ch : contents_) {
         if (subfield_delimiter_seen) {
             subfield_delimiter_seen = false;
             if (ch == old_code) {
-                new_contents += new_code;
+                ch = new_code;
                 replaced_at_least_one_code = true;
-            } else
-                new_contents += ch;
-        } else {
-            if (ch == '\x1F')
-                subfield_delimiter_seen = true;
-            new_contents += ch;
-        }
+            }
+        } else if (ch == '\x1F')
+            subfield_delimiter_seen = true;
     }
 
-    if (replaced_at_least_one_code) {
-        new_contents.swap(contents_);
-        return true;
-    } else
-        return false;
+    return replaced_at_least_one_code;
 }
 
 
