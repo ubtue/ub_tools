@@ -85,7 +85,7 @@ void Assemble773Book(MARC::Subfields * const _773subfields, const std::string &t
 }
 
 
-void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773subfields) {
+void ParseSuperior(const std::string &_500a_content, MARC::Subfields * const _773subfields) {
    // Belegung nach BSZ-Konkordanz
    // 773 $a "Geistiger Schöpfer"
    // 773 08 $i "Beziehungskennzeichnung" (== Übergerordnetes Werk)
@@ -117,30 +117,30 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
    static const std::string article_regex_3("^(.*)\\s*\\((\\d{4})\\)");
    static RegexMatcher * const article_matcher_3(RegexMatcher::RegexMatcherFactoryOrDie(article_regex_3));
 
-   if (book_matcher_1->matched(_500aContent)) {
+   if (book_matcher_1->matched(_500a_content)) {
        const std::string authors((*book_matcher_1)[1]);
        const std::string title((*book_matcher_1)[2]);
        const std::string year((*book_matcher_1)[3]);
        const std::string pages((*book_matcher_1)[4]);
        const std::string isbn((*book_matcher_1)[5]);
        Assemble773Book(_773subfields, title, authors, year, pages, isbn);
-   } else if (book_matcher_2->matched(_500aContent)) {
+   } else if (book_matcher_2->matched(_500a_content)) {
        const std::string authors((*book_matcher_2)[1]);
        const std::string title((*book_matcher_2)[2]);
        const std::string year((*book_matcher_2)[3]);
        Assemble773Book(_773subfields, title, authors, year);
-   } else if (book_matcher_3->matched(_500aContent)) {
+   } else if (book_matcher_3->matched(_500a_content)) {
        const std::string authors((*book_matcher_3)[1]);
        const std::string title((*book_matcher_3)[2]);
        const std::string year((*book_matcher_3)[3]);
        const std::string isbn((*book_matcher_3)[4]);
        Assemble773Book(_773subfields, title, authors, year, "", isbn);
-   } else if (article_matcher_1->matched(_500aContent)) {
+   } else if (article_matcher_1->matched(_500a_content)) {
        const std::string title((*article_matcher_1)[1]);
        const std::string volinfo((*article_matcher_1)[2]);
        const std::string page((*article_matcher_1)[3]);
        Assemble773Article(_773subfields, title, "", page, volinfo, "");
-   } else if (article_matcher_2->matched(_500aContent)) {
+   } else if (article_matcher_2->matched(_500a_content)) {
        // See whether we can extract further information
        const std::string title_and_spec((*article_matcher_2)[1]);
        const std::string pages((*article_matcher_2)[2]);
@@ -153,12 +153,12 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
           Assemble773Article(_773subfields, title, year, pages, "", edition);
        } else
           Assemble773Article(_773subfields, title_and_spec, "", pages);
-   } else if (article_matcher_3->matched(_500aContent)) {
+   } else if (article_matcher_3->matched(_500a_content)) {
        const std::string title((*article_matcher_3)[1]);
        const std::string year((*article_matcher_3)[2]);
        Assemble773Article(_773subfields, title, year);
    } else
-       LOG_WARNING("No matching regex for " + _500aContent);
+       LOG_WARNING("No matching regex for " + _500a_content);
 }
 
 
