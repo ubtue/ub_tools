@@ -106,8 +106,8 @@ void CheckLocalBlockConsistency(const MARC::Record &record) {
             LOG_ERROR("local block does not start w/ a 000 pseudo tag in the record w/ control number \"" + record.getControlNumber()
                       + "\"!!");
         if (++field == record.end() or field->getLocalTag() != "001")
-            LOG_ERROR("local block does not start w/ a 000 pseudo tag in the record w/ control number \"" + record.getControlNumber()
-                      + "\"!!");
+            LOG_ERROR("local block does not contain a 001 pseudo tag after a 000 pseudo tag in the record w/ control number \""
+                      + record.getControlNumber() + "\"!!");
 
         std::string last_local_tag;
         while (field != record.end() and field->getLocalTag() != "000") {
