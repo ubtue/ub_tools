@@ -86,6 +86,7 @@
 /map_ddc_and_rvk_to_ixtheo_notations
 /marc_augmentor
 /marc_char_filter
+/marc_check
 /marc_compare
 /marc_convert
 /marc_diff

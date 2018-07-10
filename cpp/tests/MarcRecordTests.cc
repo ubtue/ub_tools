@@ -2,7 +2,7 @@
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,7 +24,7 @@
 
 
 TEST(empty) {
-    MARC::Record emptyRecord(MARC::Record::LANGUAGE_MATERIAL, MARC::Record::MONOGRAPHIC_COMPONENT_PART);
+    MARC::Record emptyRecord(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART);
     CHECK_EQ(emptyRecord, false);
 
     std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
@@ -34,7 +34,7 @@ TEST(empty) {
 
 
 TEST(getNumberOfFields) {
-    MARC::Record emptyRecord(MARC::Record::LANGUAGE_MATERIAL, MARC::Record::MONOGRAPHIC_COMPONENT_PART);
+    MARC::Record emptyRecord(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART);
     CHECK_EQ(emptyRecord.getNumberOfFields(), 0);
 
     std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
@@ -50,7 +50,7 @@ TEST(getNumberOfFields) {
 
 
 TEST(getFirstField) {
-    MARC::Record emptyRecord(MARC::Record::LANGUAGE_MATERIAL, MARC::Record::MONOGRAPHIC_COMPONENT_PART);
+    MARC::Record emptyRecord(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART);
     CHECK_EQ(emptyRecord.getFirstField("001"), emptyRecord.end());
 
     std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
@@ -65,7 +65,7 @@ TEST(getFirstField) {
 
 
 TEST(getTagRange) {
-    MARC::Record emptyRecord(MARC::Record::LANGUAGE_MATERIAL, MARC::Record::MONOGRAPHIC_COMPONENT_PART);
+    MARC::Record emptyRecord(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART);
     CHECK_EQ(emptyRecord.getFirstField("001"), emptyRecord.end());
 
     size_t count(emptyRecord.getTagRange("001").size());
@@ -85,7 +85,7 @@ TEST(getTagRange) {
 
 
 TEST(hasTag) {
-    MARC::Record emptyRecord(MARC::Record::LANGUAGE_MATERIAL, MARC::Record::MONOGRAPHIC_COMPONENT_PART);
+    MARC::Record emptyRecord(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART);
     CHECK_FALSE(emptyRecord.hasTag("001"));
 
     std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
@@ -163,7 +163,7 @@ TEST(filterTags) {
 
 
 TEST(getLanguageCode) {
-    MARC::Record emptyRecord(MARC::Record::LANGUAGE_MATERIAL, MARC::Record::MONOGRAPHIC_COMPONENT_PART);
+    MARC::Record emptyRecord(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART);
     CHECK_NE(MARC::GetLanguageCode(emptyRecord), "not found");
     CHECK_EQ(MARC::GetLanguageCode(emptyRecord), "");
 
