@@ -84,6 +84,7 @@ public:
     inline const char *c_str() const { return tag_.as_cstring_; }
     inline const std::string toString() const { return std::string(c_str(), 3); }
     inline uint32_t to_int() const { return htonl(tag_.as_int_); }
+    inline operator std::string() const { return tag_.as_cstring_; }
 
     inline bool isTagOfControlField() const { return tag_.as_cstring_[0] == '0' and tag_.as_cstring_[1] == '0'; }
     bool isLocal() const;
@@ -325,6 +326,13 @@ public:
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
+
+        inline std::string getLocalTag() const {
+            if (contents_.length() < 2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/
+                or contents_[2] != '\x1F' or contents_[3] != '0')
+                return "";
+            return contents_.substr(2 /*indicators*/ + 2/*delimiter and subfield code*/, 3 /*tag length*/);
+        }
 
         /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
         std::string getFirstSubfieldWithCode(const char subfield_code) const;
