@@ -104,8 +104,13 @@ void ExtractSynonyms(MARC::Reader * const authority_reader,
             std::vector<std::string> synonym_values(record.getSubfieldAndNumericSubfieldValues(GetTag(*synonym), GetSubfieldCodes(*synonym)));
 
             if (FilterPasses(record, filter_spec, *primary) and primary_values.size() and synonym_values.size()) {
-                    (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','),
-                                               StringUtil::Join(synonym_values, ','));
+                   // Append if other synonyms for the same keyword exist
+                   const std::string key(StringUtil::Join(primary_values, ','));
+                   const std::string existing_synonyms((*synonym_maps)[i][key]);
+                   std::string new_synonyms(StringUtil::Join(synonym_values, ','));
+                   if (not existing_synonyms.empty())
+                       new_synonyms = existing_synonyms + ',' + new_synonyms;
+                   (*synonym_maps)[i][key] = new_synonyms;
             }
         }
     }
@@ -372,9 +377,9 @@ int main(int argc, char **argv) {
     try {
         // Determine possible mappings
         // Values in square brackets specify a positive criterion for values to be taken into account
-        const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcd9g[079v=piz]:110abcd9g:111abcd9g:130abcd9g:150abcd9g:151abcd9g:100a9g");
-        const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcd9g:410abcd9g:411abcd9g:430abcd9g:450abcd9g:451abcd9g:700a9g");
-        const std::string TITLE_DATA_PRIMARY_SPEC("600abcd9g:610abcd9g:611abcd:630abcd:650abcd9g:651abcd9g:689abcdt9g");
+        const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcd9g[079v=piz]:110abcd9g:111abcd9g:130abcd9g:150abcd9g:151abcdz9g:100a9g");
+        const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcd9g:410abcd9g:411abcd9g:430abcd9g:450abcd9g:451abcdz9g:700a9g");
+        const std::string TITLE_DATA_PRIMARY_SPEC("600abcd9g:610abcd9g:611abcd:630abcd:650abcd9g:651abcd9g:689abcdtz9g");
         const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("180a:181a:182a:183a:184a:185a:186a");
         const std::string TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS("950a:951a:952a:953a:954a:955a:956a:957a:958a");
 
