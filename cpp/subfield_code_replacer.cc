@@ -56,7 +56,6 @@ bool ReplaceCodes(MARC::Record * const record, const std::vector<Replacement> &r
         for (auto &field : record->getTagRange(replacement.tag_)) {
             if (field.replaceSubfieldCode(replacement.old_code_, replacement.new_code_))
                 replaced_at_least_one_code = true;
-            }
         }
     }
 
