@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include "FileUtil.h"
 #include "MARC.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -34,7 +35,10 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--do-not-abort-on-empty-subfields] marc_data\n";
+    std::cerr << "Usage: " << ::progname
+              << " [--do-not-abort-on-empty-subfields] [--input-format=(marc-21|marc-xml)] [--output-format=(marc-21|marc-xml)] "
+              << "[--write-data=output_filename] marc_data\n"
+              << "       If \"--write-data\" has been specified, the read records will be written out again.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -49,10 +53,10 @@ void CheckFieldOrder(const MARC::Record &record) {
     }
 }
 
-    
+
 void CheckDataField(const bool do_not_abort_on_empty_subfields, const MARC::Record::Field &data_field, const std::string &control_number) {
     const std::string &contents(data_field.getContents());
-    
+
     if (contents.length() < 5) // Need at least 2 indicators a delimiter a subfield code + subfield contents
         LOG_ERROR("short data field in record w/ control number \"" + control_number + "\"!");
 
@@ -78,7 +82,7 @@ void CheckDataField(const bool do_not_abort_on_empty_subfields, const MARC::Reco
         } else
             subfield_code_seen = false;
     }
-    
+
     if (unlikely(delimiter_seen))
         LOG_ERROR("subfield delimiter at end of " + data_field.getTag().toString() + "-field in record w/ control number \""
                   + control_number + "\"!");
@@ -121,7 +125,7 @@ void CheckLocalBlockConsistency(const MARC::Record &record) {
 }
 
 
-void ProcessRecords(const bool do_not_abort_on_empty_subfields, MARC::Reader * const marc_reader) {
+void ProcessRecords(const bool do_not_abort_on_empty_subfields, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     unsigned record_count(0);
 
     while (const MARC::Record record = marc_reader->read()) {
@@ -132,7 +136,7 @@ void ProcessRecords(const bool do_not_abort_on_empty_subfields, MARC::Reader * c
             LOG_ERROR("Record #" + std::to_string(record_count) + " is missing a control number!");
 
         CheckFieldOrder(record);
-        
+
         MARC::Tag last_tag(std::string(MARC::Record::TAG_LENGTH, ' '));
         for (const auto &field : record) {
             if (not field.getTag().isTagOfControlField())
@@ -144,6 +148,9 @@ void ProcessRecords(const bool do_not_abort_on_empty_subfields, MARC::Reader * c
         }
 
         CheckLocalBlockConsistency(record);
+
+        if (marc_writer != nullptr)
+            marc_writer->write(record);
     }
 
     std::cout << "Data set contains " << record_count << " valid MARC record(s).\n";
@@ -164,12 +171,36 @@ int Main(int argc, char *argv[]) {
         do_not_abort_on_empty_subfields = true;
         --argc, ++argv;
     }
-    
+
+    if (argc < 2)
+        Usage();
+
+    const MARC::FileType input_format(MARC::GetOptionalReaderType(&argc, &argv, 1));
+
+    if (argc < 2)
+        Usage();
+
+    const MARC::FileType output_format(MARC::GetOptionalWriterType(&argc, &argv, 1));
+
+    if (argc < 2)
+        Usage();
+
+    std::string output_filename;
+    if (StringUtil::StartsWith(argv[1], "--write-data=")) {
+        output_filename = argv[1] + __builtin_strlen("--write-data=");
+        --argc, ++argv;
+    }
+
     if (argc != 2)
         Usage();
 
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
-    ProcessRecords(do_not_abort_on_empty_subfields, marc_reader.get());
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1], input_format));
+
+    std::unique_ptr<MARC::Writer> marc_writer;
+    if (not output_filename.empty())
+        marc_writer = MARC::Writer::Factory(output_filename, output_format);
+
+    ProcessRecords(do_not_abort_on_empty_subfields, marc_reader.get(), marc_writer.get());
 
     return EXIT_SUCCESS;
 }
