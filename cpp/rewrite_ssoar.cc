@@ -162,7 +162,7 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
 }
 
 
-void InsertSigelTo003(MARC::Record * const record, bool * const modified_record) {
+void InsertSigilTo003(MARC::Record * const record, bool * const modified_record) {
     record->insertField("003", "INSERT_VALID_SIGEL_HERE");
     *modified_record = true;
 }
@@ -182,8 +182,8 @@ void InsertLanguageInto041(MARC::Record * const record, bool * const modified_re
              *modified_record = true;
              return;
          } else {
-             const std::string _008Field(record->getFirstFieldContents("008"));
-             if (not valid_language_matcher->matched(_008Field)) {
+             const std::string _008_field(record->getFirstFieldContents("008"));
+             if (not valid_language_matcher->matched(_008_field)) {
                  LOG_WARNING("Invalid language code " + language);
                  continue;
              }
@@ -196,12 +196,12 @@ void InsertLanguageInto041(MARC::Record * const record, bool * const modified_re
 
 
 void InsertYearTo264c(MARC::Record * const record, bool * const modified_record) {
-    for (auto field : record->getTagRange("264")) {
+    for (const auto &field : record->getTagRange("264")) {
         if (field.hasSubfield('c'))
             return;
         // Extract year from 008 if available
-        const std::string _008Field(record->getFirstFieldContents("008"));
-        const std::string year(_008Field.substr(7,4));
+        const std::string _008_field(record->getFirstFieldContents("008"));
+        const std::string year(_008_field.substr(7,4));
         record->addSubfield("264", 'c', year);
         *modified_record = true;
         return;
@@ -240,7 +240,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
         bool modified_record(false);
-        InsertSigelTo003(&record, &modified_record);
+        InsertSigilTo003(&record, &modified_record);
         InsertLanguageInto041(&record, &modified_record);
         InsertYearTo264c(&record, &modified_record);
         RewriteSuperiorReference(&record, &modified_record);
