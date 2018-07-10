@@ -345,15 +345,15 @@ public:
         void deleteAllSubfieldsWithCode(const char subfield_code);
     };
 
-    enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
-    enum TypeOfRecord {
+    enum class RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
+    enum class TypeOfRecord {
         LANGUAGE_MATERIAL, NOTATED_MUSIC, MANUSCRIPT_NOTATED_MUSIC, CARTOGRAPHIC_MATERIAL, MANUSCRIPT_CARTOGRAPHIC_MATERIAL,
         PROJECTED_MEDIUM, NONMUSICAL_SOUND_RECORDING, MUSICAL_SOUND_RECORDING, TWO_DIMENSIONAL_NONPROJECTABLE_GRAPHIC,
         COMPUTER_FILE, KIT, MIXED_MATERIALS, THREE_DIMENSIONAL_ARTIFACT_OR_NATURALLY_OCCURRING_OBJECT,
-        MANUSCRIPT_LANGUAGE_MATERIAL
+        MANUSCRIPT_LANGUAGE_MATERIAL, AUTHORITY
     };
     enum BibliographicLevel {
-        MONOGRAPHIC_COMPONENT_PART, SERIAL_COMPONENT_PART, COLLECTION, SUBUNIT, INTEGRATING_RESOURCE, MONOGRAPH_OR_ITEM, SERIAL
+        MONOGRAPHIC_COMPONENT_PART, SERIAL_COMPONENT_PART, COLLECTION, SUBUNIT, INTEGRATING_RESOURCE, MONOGRAPH_OR_ITEM, SERIAL, UNDEFINED
     };
     typedef std::vector<Field>::iterator iterator;
     typedef std::vector<Field>::const_iterator const_iterator;
@@ -497,10 +497,10 @@ public:
 
     RecordType getRecordType() const {
         if (leader_[6] == 'z')
-            return AUTHORITY;
+            return RecordType::AUTHORITY;
         if (leader_[6] == 'w')
-            return CLASSIFICATION;
-        return __builtin_strchr("acdefgijkmoprt", leader_[6]) == nullptr ? UNKNOWN : BIBLIOGRAPHIC;
+            return RecordType::CLASSIFICATION;
+        return __builtin_strchr("acdefgijkmoprt", leader_[6]) == nullptr ? RecordType::UNKNOWN : RecordType::BIBLIOGRAPHIC;
     }
 
     char getBibliographicLevel() const { return leader_[7]; }
