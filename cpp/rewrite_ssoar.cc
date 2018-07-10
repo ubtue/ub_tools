@@ -173,7 +173,8 @@ void InsertLanguageInto041(MARC::Record * const record, bool * const modified_re
      for (auto &field : record->getTagRange("041")) {
          if (field.hasSubfield('h'))
              return;
-         // Possibly the information is already in the $a field
+
+         // Check whether the information is already in the $a field
          static const std::string valid_language_regex("([a-zA-Z]{3})$");
          static RegexMatcher * const valid_language_matcher(RegexMatcher::RegexMatcherFactoryOrDie(valid_language_regex));
          std::string language;
