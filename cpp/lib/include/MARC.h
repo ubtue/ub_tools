@@ -329,6 +329,8 @@ public:
         /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
         std::string getFirstSubfieldWithCode(const char subfield_code) const;
 
+        bool hasSubfield(const char subfield_code) const;
+
         inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
             { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
 
@@ -576,7 +578,7 @@ public:
      */
     Range findFieldsInLocalBlock(const Tag &local_field_tag, const iterator &block_start, const char indicator1 = '?',
                                  const char indicator2 = '?');
-    
+
     inline iterator begin() { return fields_.begin(); }
     inline iterator end() { return fields_.end(); }
     inline const_iterator begin() const { return fields_.cbegin(); }
