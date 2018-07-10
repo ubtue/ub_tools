@@ -162,7 +162,7 @@ void ParseSuperior(const std::string &_500a_content, MARC::Subfields * const _77
 }
 
 
-void InsertSigilTo003(MARC::Record * const record, bool * const modified_record) {
+void InsertSigilInto003(MARC::Record * const record, bool * const modified_record) {
     record->insertField("003", "INSERT_VALID_SIGEL_HERE");
     *modified_record = true;
 }
@@ -196,7 +196,7 @@ void InsertLanguageInto041(MARC::Record * const record, bool * const modified_re
 }
 
 
-void InsertYearTo264c(MARC::Record * const record, bool * const modified_record) {
+void InsertYearInto264c(MARC::Record * const record, bool * const modified_record) {
     for (const auto &field : record->getTagRange("264")) {
         if (field.hasSubfield('c'))
             return;
@@ -241,9 +241,9 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
         bool modified_record(false);
-        InsertSigilTo003(&record, &modified_record);
+        InsertSigilInto003(&record, &modified_record);
         InsertLanguageInto041(&record, &modified_record);
-        InsertYearTo264c(&record, &modified_record);
+        InsertYearInto264c(&record, &modified_record);
         RewriteSuperiorReference(&record, &modified_record);
         marc_writer->write(record);
         if (modified_record)
