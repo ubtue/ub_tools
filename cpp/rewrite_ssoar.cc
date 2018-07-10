@@ -94,7 +94,6 @@ void ParseSuperior(const std::string &_500aContent, MARC::Subfields * const _773
    // 773 $g Bandzählung [und weitere Angaben]
    // 773 $o "Sonstige Identifier für die andere Ausgabe" (ISBN)
 
-
    // 500 Structure for books
    // Must be checked first since it is more explicit
    // Normally it is Author(s) : Title. Year. S. xxx. ISBN
