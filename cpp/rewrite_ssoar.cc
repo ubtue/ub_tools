@@ -174,7 +174,7 @@ void InsertSigelTo003(MARC::Record * const record, bool * const modified_record)
 }
 
 // Rewrite to 041$h or get date from 008
-void InsertLanguageTo041(MARC::Record * const record, bool * const modified_record) {
+void InsertLanguageInto041(MARC::Record * const record, bool * const modified_record) {
      for (auto &field : record->getTagRange("041")) {
          if (not field.getFirstSubfieldWithCode('h').empty())
              return;
@@ -246,7 +246,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         ++record_count;
         bool modified_record(false);
         InsertSigelTo003(&record, &modified_record);
-        InsertLanguageTo041(&record, &modified_record);
+        InsertLanguageInto041(&record, &modified_record);
         InsertYearTo264c(&record, &modified_record);
         RewriteSuperiorReference(&record, &modified_record);
         marc_writer->write(record);
