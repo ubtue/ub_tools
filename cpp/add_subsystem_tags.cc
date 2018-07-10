@@ -218,16 +218,7 @@ int main(int argc, char **argv) {
     if (argc != 3 and argc != 4)
         Usage();
 
-    MARC::FileType reader_type(MARC::FileType::AUTO);
-    if (argc == 4) {
-        if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
-            reader_type = MARC::FileType::BINARY;
-        else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
-            reader_type = MARC::FileType::XML;
-        else
-            Usage();
-        ++argv, --argc;
-    }
+    const MARC::FileType reader_type(MARC::GetOptionalReaderType(&argc, &argv, 1));
 
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
