@@ -356,7 +356,7 @@ bool ParseSpec(std::string spec_str, std::vector<std::string> * const field_spec
 }
 
 
-int main(int argc, char **argv) {
+int Main(int argc, char **argv) {
     ::progname = argv[0];
 
     if (argc != 4)
@@ -374,67 +374,63 @@ int main(int argc, char **argv) {
     std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_data_marc_input_filename, MARC::FileType::BINARY));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY));
 
-    try {
-        // Determine possible mappings
-        // Values in square brackets specify a positive criterion for values to be taken into account
-        const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcd9g[079v=piz]:110abcd9g:111abcd9g:130abcd9g:150abcd9g:151abcdz9g:100a9g");
-        const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcd9g:410abcd9g:411abcd9g:430abcd9g:450abcd9g:451abcdz9g:700a9g");
-        const std::string TITLE_DATA_PRIMARY_SPEC("600abcd9g:610abcd9g:611abcd:630abcd:650abcd9g:651abcd9g:689abcdtz9g");
-        const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("180a:181a:182a:183a:184a:185a:186a");
-        const std::string TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS("950a:951a:952a:953a:954a:955a:956a:957a:958a");
+   // Determine possible mappings
+   // Values in square brackets specify a positive criterion for values to be taken into account
+   const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcd9g[079v=piz]:110abcd9g:111abcd9g:130abcd9g:150abcd9g:151abcdz9g:100a9g");
+   const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcd9g:410abcd9g:411abcd9g:430abcd9g:450abcd9g:451abcdz9g:700a9g");
+   const std::string TITLE_DATA_PRIMARY_SPEC("600abcd9g:610abcd9g:611abcd:630abcd:650abcd9g:651abcd9g:689abcdtz9g");
+   const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("180a:181a:182a:183a:184a:185a:186a");
+   const std::string TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS("950a:951a:952a:953a:954a:955a:956a:957a:958a");
 
-        // Determine fields to handle
-        std::vector<std::string> primary_tags_and_subfield_codes;
-        std::vector<std::string> synonym_tags_and_subfield_codes;
-        std::vector<std::string> input_tags_and_subfield_codes;
-        std::vector<std::string> output_tags_and_subfield_codes;
-        std::vector<std::string> translation_tags_and_subfield_codes;
+   // Determine fields to handle
+   std::vector<std::string> primary_tags_and_subfield_codes;
+   std::vector<std::string> synonym_tags_and_subfield_codes;
+   std::vector<std::string> input_tags_and_subfield_codes;
+   std::vector<std::string> output_tags_and_subfield_codes;
+   std::vector<std::string> translation_tags_and_subfield_codes;
 
-        std::map<std::string, std::pair<std::string, std::string>> filter_specs;
+   std::map<std::string, std::pair<std::string, std::string>> filter_specs;
 
-        if (not unlikely(ParseSpec(AUTHORITY_DATA_PRIMARY_SPEC, &primary_tags_and_subfield_codes, &filter_specs)))
-            logger->error("Could not properly parse " + AUTHORITY_DATA_PRIMARY_SPEC);
+   if (not unlikely(ParseSpec(AUTHORITY_DATA_PRIMARY_SPEC, &primary_tags_and_subfield_codes, &filter_specs)))
+       logger->error("Could not properly parse " + AUTHORITY_DATA_PRIMARY_SPEC);
 
-        if (unlikely(StringUtil::Split(AUTHORITY_DATA_SYNONYM_SPEC, ":", &synonym_tags_and_subfield_codes) == 0))
-            logger->error("Need at least one synonym field");
+   if (unlikely(StringUtil::Split(AUTHORITY_DATA_SYNONYM_SPEC, ":", &synonym_tags_and_subfield_codes) == 0))
+       logger->error("Need at least one synonym field");
 
-        if (unlikely(StringUtil::Split(TITLE_DATA_PRIMARY_SPEC, ":", &input_tags_and_subfield_codes) == 0))
-            logger->error("Need at least one input field");
+   if (unlikely(StringUtil::Split(TITLE_DATA_PRIMARY_SPEC, ":", &input_tags_and_subfield_codes) == 0))
+       logger->error("Need at least one input field");
 
-        if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS, ":", &output_tags_and_subfield_codes)
-                     == 0))
-            logger->error("Need at least one output field");
-
-
-        if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS, ":", &translation_tags_and_subfield_codes)
-                     == 0))
-            logger->error("Need at least as many output fields as supported languages: (currently " + std::to_string(languages_to_translate.size()) + ")");
-
-        unsigned num_of_authority_entries(primary_tags_and_subfield_codes.size());
-
-        if (synonym_tags_and_subfield_codes.size() != num_of_authority_entries)
-            logger->error("Number of authority primary specs must match number of synonym specs");
-        if (input_tags_and_subfield_codes.size() != output_tags_and_subfield_codes.size())
-            logger->error("Number of fields title entry specs must match number of output specs");
-
-        std::vector<std::map<std::string, std::string>> synonym_maps(num_of_authority_entries,
-                                                                     std::map<std::string, std::string>());
-
-        // Extract the synonyms from authority data
-        ExtractSynonyms(authority_reader.get(), primary_tags_and_subfield_codes, synonym_tags_and_subfield_codes,
-                        &synonym_maps, filter_specs);
-
-        // Extract translations from authority data
-        std::vector<std::map<std::string, std::vector<std::string>>> translation_maps(NUMBER_OF_LANGUAGES,
-                                                                                      std::map<std::string, std::vector<std::string>>());
-        ExtractTranslatedSynonyms(&translation_maps);
-
-        // Iterate over the title data
-        InsertSynonyms(marc_reader.get(), marc_writer.get(), input_tags_and_subfield_codes,
-                       output_tags_and_subfield_codes, synonym_maps, translation_maps, translation_tags_and_subfield_codes);
+   if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS, ":", &output_tags_and_subfield_codes)
+                == 0))
+       logger->error("Need at least one output field");
 
 
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+   if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS, ":", &translation_tags_and_subfield_codes)
+                == 0))
+       logger->error("Need at least as many output fields as supported languages: (currently " + std::to_string(languages_to_translate.size()) + ")");
+
+   unsigned num_of_authority_entries(primary_tags_and_subfield_codes.size());
+
+   if (synonym_tags_and_subfield_codes.size() != num_of_authority_entries)
+       logger->error("Number of authority primary specs must match number of synonym specs");
+   if (input_tags_and_subfield_codes.size() != output_tags_and_subfield_codes.size())
+       logger->error("Number of fields title entry specs must match number of output specs");
+
+   std::vector<std::map<std::string, std::string>> synonym_maps(num_of_authority_entries,
+                                                                std::map<std::string, std::string>());
+
+   // Extract the synonyms from authority data
+   ExtractSynonyms(authority_reader.get(), primary_tags_and_subfield_codes, synonym_tags_and_subfield_codes,
+                   &synonym_maps, filter_specs);
+
+   // Extract translations from authority data
+   std::vector<std::map<std::string, std::vector<std::string>>> translation_maps(NUMBER_OF_LANGUAGES,
+                                                                                 std::map<std::string, std::vector<std::string>>());
+   ExtractTranslatedSynonyms(&translation_maps);
+
+   // Iterate over the title data
+   InsertSynonyms(marc_reader.get(), marc_writer.get(), input_tags_and_subfield_codes,
+                  output_tags_and_subfield_codes, synonym_maps, translation_maps, translation_tags_and_subfield_codes);
+
+   return EXIT_SUCCESS;
 }
