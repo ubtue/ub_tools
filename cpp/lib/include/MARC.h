@@ -956,4 +956,22 @@ bool IsOpenAccess(const Record &marc_record);
 size_t CollectRecordOffsets(MARC::Reader * const marc_reader, std::unordered_map<std::string, off_t> * const control_number_to_offset_map);
 
 
+/** \brief Handles optional command-line arguments of the form "--input-format=marc-21" and "--input-format=marc-xml"
+ *
+ *  If an optional argument of one of the expected forms is found in argv[arg_no], argc and argv will be incremented and
+ *  decremented respectively and the corresponding file type will be returned.  If not, the value of "default_file_type" will
+ *  be returned instead and "argc" and "argv" will remain unmodified.  If an unrecognized format has been provided, we call LOG_ERROR.
+ */
+FileType GetOptionalReaderType(int * const argc, char *** const argv, const int arg_no, const FileType default_file_type = FileType::AUTO);
+
+
+/** \brief Handles optional command-line arguments of the form "--output-format=marc-21" and "--output-format=marc-xml"
+ *
+ *  If an optional argument of one of the expected forms is found in argv[arg_no], argc and argv will be incremented and
+ *  decremented respectively and the corresponding file type will be returned.  If not, the value of "default_file_type" will
+ *  be returned instead and "argc" and "argv" will remain unmodified.  If an unrecognized format has been provided, we call LOG_ERROR.
+ */
+FileType GetOptionalWriterType(int * const argc, char *** const argv, const int arg_no, const FileType default_file_type = FileType::AUTO);
+
+
 } // namespace MARC

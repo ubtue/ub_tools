@@ -1962,4 +1962,42 @@ size_t CollectRecordOffsets(MARC::Reader * const marc_reader, std::unordered_map
 }
 
 
+FileType GetOptionalReaderType(int * const argc, char *** const argv, const int arg_no, const FileType default_file_type) {
+    FileType return_value(default_file_type);
+
+    if (StringUtil::StartsWith((*argv)[arg_no], "--input-format=")) {
+        const std::string format((*argv)[arg_no] + __builtin_strlen("--input-format="));
+        if (format == "marc-21")
+            return_value = FileType::BINARY;
+        else if (format == "marc-xml")
+            return_value = FileType::XML;
+        else
+            LOG_ERROR("bad MARC input format: \"" + format + "\"!");
+
+        --*argc, ++*argv;
+    }
+
+    return return_value;
+}
+
+
+FileType GetOptionalWriterType(int * const argc, char *** const argv, const int arg_no, const FileType default_file_type) {
+    FileType return_value(default_file_type);
+
+    if (StringUtil::StartsWith((*argv)[arg_no], "--output-format=")) {
+        const std::string format((*argv)[arg_no] + __builtin_strlen("--output-format="));
+        if (format == "marc-21")
+            return_value = FileType::BINARY;
+        else if (format == "marc-xml")
+            return_value = FileType::XML;
+        else
+            LOG_ERROR("bad MARC output format: \"" + format + "\"!");
+
+        --*argc, ++*argv;
+    }
+
+    return return_value;
+}
+
+
 } // namespace MARC
