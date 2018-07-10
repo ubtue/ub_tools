@@ -168,6 +168,21 @@ std::string Record::Field::getFirstSubfieldWithCode(const char subfield_code) co
 }
 
 
+bool Record::Field::hasSubfield(const char subfield_code) const {
+    bool subfield_delimiter_seen(false);
+    for (const char ch : contents_) {
+        if (subfield_delimiter_seen) {
+            subfield_delimiter_seen = false;
+            if (ch == subfield_code)
+                return true;
+        } else if (ch == '\x1F')
+            subfield_delimiter_seen = true;
+    }
+
+    return false;
+}
+
+
 void Record::Field::insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents) {
     Subfields subfields(contents_);
     if (not subfields.replaceFirstSubfield(subfield_code, subfield_contents))
@@ -180,7 +195,7 @@ bool Record::Field::replaceSubfieldCode(const char old_code, const char new_code
     if (contents_.length() < 5)
         return false;
 
-    bool replaced_at_least_one_code(false), subfield_delimiter_seen(false);    
+    bool replaced_at_least_one_code(false), subfield_delimiter_seen(false);
     for (auto &ch : contents_) {
         if (subfield_delimiter_seen) {
             subfield_delimiter_seen = false;
