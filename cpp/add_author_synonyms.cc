@@ -34,6 +34,8 @@ static unsigned modified_count(0);
 static unsigned record_count(0);
 
 
+namespace {
+
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " master_marc_input norm_data_marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
@@ -99,8 +101,8 @@ void ExtractSynonyms(MARC::Reader * const marc_reader, std::map<std::string, std
             const std::string tag(tags_and_subfield_codes[i].substr(0, 3));
             const std::string secondary_field_subfield_codes(tags_and_subfield_codes[i].substr(3));
             for (auto secondary_name_field(record.findTag(tag));
-                 secondary_name_field != record.end();
-                 ++secondary_name_field)
+                secondary_name_field != record.end();
+                ++secondary_name_field)
             {
                 const std::string secondary_name(ExtractNameFromSubfields(secondary_name_field->getContents(),
                                                                           secondary_field_subfield_codes));
@@ -149,7 +151,7 @@ void ProcessRecord(MARC::Record * const record, const std::map<std::string, std:
 
     if (not record->insertField(SYNOMYM_FIELD, subfields)) {
         LOG_WARNING("Not enough room to add a " + SYNOMYM_FIELD + " field! (Control number: "
-                        + record->getControlNumber() + ")");
+                    + record->getControlNumber() + ")");
         return;
     }
     ++modified_count;
@@ -168,6 +170,9 @@ void AddAuthorSynonyms(MARC::Reader * const marc_reader, MARC::Writer * marc_wri
 
     std::cerr << "Modified " << modified_count << " of " << record_count << " record(s).\n";
 }
+
+
+} // unnamed namespace
 
 
 int Main(int argc, char **argv) {

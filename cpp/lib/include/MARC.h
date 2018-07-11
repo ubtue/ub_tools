@@ -726,7 +726,6 @@ public:
     std::unordered_set<std::string> getTagSet() const;
 
     void deleteFields(std::vector<size_t> field_indices);
-    void deleteFields(std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> blocks);
     bool isValid(std::string * const error_message) const;
 };
 

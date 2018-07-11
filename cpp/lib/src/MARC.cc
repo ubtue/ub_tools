@@ -846,17 +846,6 @@ void Record::deleteFields(std::vector<size_t> field_indices) {
 }
 
 
-void Record::deleteFields(std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> blocks) {
-    std::vector<size_t> deletion_indices;
-    for (const auto &block : blocks) {
-        for (size_t index(getFieldIndex(block.first)), end(getFieldIndex(block.second)); index < end; ++index)
-            deletion_indices.emplace_back(index);
-    }
-
-    deleteFields(deletion_indices);
-}
-
-
 bool Record::isValid(std::string * const error_message) const {
     if (fields_.empty() or fields_.front().getTag() != "001") {
         *error_message = "001 field is missing!";
