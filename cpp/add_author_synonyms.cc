@@ -122,7 +122,7 @@ void ExtractSynonyms(MarcReader * const marc_reader, std::map<std::string, std::
 }
 
 
-const std::string SYNOMYM_FIELD("101"); // This must be an o/w unused field!
+const std::string SYNOMYM_FIELD("109"); // This must be an o/w unused field!
 
 
 void ProcessRecord(MarcRecord * const record, const std::map<std::string, std::string> &author_to_synonyms_map,
