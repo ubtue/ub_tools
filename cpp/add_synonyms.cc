@@ -376,9 +376,9 @@ int Main(int argc, char **argv) {
 
    // Determine possible mappings
    // Values in square brackets specify a positive criterion for values to be taken into account
-   const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcd9g[079v=piz]:110abcd9g:111abcd9g:130abcd9g:150abcd9g:151abcdz9g:100a9g");
-   const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcd9g:410abcd9g:411abcd9g:430abcd9g:450abcd9g:451abcdz9g:700a9g");
-   const std::string TITLE_DATA_PRIMARY_SPEC("600abcd9g:610abcd9g:611abcd:630abcd:650abcd9g:651abcd9g:689abcdtz9g");
+   const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcdpnt9g[079v=piz]:110abcdnpt9g:111abcdnpt9g:130abcdnpt9g:150abcdnpt9g:151abcdztnp9g:100a9g");
+   const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcdpnt9g:410abcdnpt9g:411abcdnpt9g:430abcdnpt9g:450abcdnpt9g:451abcdznpt9g:700a9g");
+   const std::string TITLE_DATA_PRIMARY_SPEC("600abcdpnt9g:610abcdnpt9g:611abcdnpt:630abcdnpt:650abcdnpt9g:651abcdnpt9g:689abcdpntz9g");
    const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("180a:181a:182a:183a:184a:185a:186a");
    const std::string TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS("950a:951a:952a:953a:954a:955a:956a:957a:958a");
 
