@@ -33,7 +33,7 @@
 namespace {
 
 
-[[noreturn]] static void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " deletion_list input_marc21 output_marc21\n";
     std::exit(EXIT_FAILURE);
 }
