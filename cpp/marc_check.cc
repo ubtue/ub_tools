@@ -48,6 +48,9 @@ void CheckFieldOrder(const MARC::Record &record) {
         const std::string current_tag(field.getTag().toString());
         if (unlikely(current_tag < last_tag))
             LOG_ERROR("invalid tag order in the record with control number \"" + record.getControlNumber() + "\"!");
+        if (unlikely(not MARC::IsRepeatableField(current_tag) and current_tag == last_tag))
+            LOG_ERROR("non-repeatable tag \"" + current_tag + "\" found in the record with control number \"" + record.getControlNumber()
+                      + "\"!");
         last_tag = current_tag;
     }
 }
