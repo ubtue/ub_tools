@@ -228,9 +228,10 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 
 void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParams> * const group_name_to_params_map) {
     GroupParams new_group_params;
-    new_group_params.name_       = section.getSectionName();
-    new_group_params.user_agent_ = section.getString("user_agent");
-    new_group_params.isil_       = section.getString("isil");
+    new_group_params.name_              = section.getSectionName();
+    new_group_params.user_agent_        = section.getString("user_agent");
+    new_group_params.isil_              = section.getString("isil");
+    new_group_params.author_lookup_url_ = section.getString("author_lookup_url");
     group_name_to_params_map->emplace(section.getSectionName(), new_group_params);
 }
 
@@ -683,13 +684,8 @@ inline std::string OptionalMap(const std::string &key, const std::unordered_map<
 
 
 // "author" must be in the lastname,firstname format. Returns the empty string if no PPN was found.
-std::string DownloadAuthorPPN(const std::string &author) {
-    const std::string LOOKUP_URL("http://swb.bsz-bw.de/DB=2.104/SET=70/TTL=1/CMD?SGE=&ACT=SRCHM&MATCFILTER=Y"
-                                 "&MATCSET=Y&NOSCAN=Y&PARSE_MNEMONICS=N&PARSE_OPWORDS=N&PARSE_OLDSETS=N&IMPLAND=Y"
-                                 "&NOABS=Y&ACT0=SRCHA&SHRTST=50&IKT0=1&TRM0=" + UrlUtil::UrlEncode(author)
-                                 +"&ACT1=*&IKT1=2057&TRM1=*&ACT2=*&IKT2=8977&TRM2=theolog*&ACT3=-&IKT3=8978-&TRM3=1"
-                                 "[1%2C2%2C3%2C4%2C5%2C6%2C7%2C8][0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]"
-                                 "[0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]?");
+std::string DownloadAuthorPPN(const std::string &author, const SiteAugmentParams &augment_params) {
+    const std::string LOOKUP_URL(augment_params.group_params_->author_lookup_url_ + UrlUtil::UrlEncode(author));
 
     static std::unordered_map<std::string, std::string> url_to_lookup_result_cache;
     const auto url_and_lookup_result(url_to_lookup_result_cache.find(LOOKUP_URL));
@@ -710,7 +706,9 @@ std::string DownloadAuthorPPN(const std::string &author) {
 }
 
 
-void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, std::vector<std::string> * const comments) {
+void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, const SiteAugmentParams &augment_params,
+                         std::vector<std::string> * const comments)
+{
     for (size_t i(0); i < creators_array->size(); ++i) {
         const std::shared_ptr<JSON::ObjectNode> creator_object(creators_array->getObjectNode(i));
 
@@ -722,7 +720,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
             if (first_name_node != nullptr)
                 name += ", " + creator_object->getStringValue("firstName");
 
-            const std::string PPN(DownloadAuthorPPN(name));
+            const std::string PPN(DownloadAuthorPPN(name, augment_params));
             if (not PPN.empty()) {
                 comments->emplace_back("Added author PPN " + PPN + " for author " + name);
                 creator_object->insert("ppn", std::make_shared<JSON::StringNode>(PPN));
@@ -754,7 +752,7 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node, const Sit
             }
         } else if (key_and_node.first == "creators") {
             std::shared_ptr<JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", key_and_node.second));
-            AugmentJsonCreators(creators_array, &comments);
+            AugmentJsonCreators(creators_array, augment_params, &comments);
         } else if (key_and_node.first == "ISSN") {
             if (not augment_params.parent_ISSN_online_.empty() or
                 not augment_params.parent_ISSN_print_.empty()) {

@@ -84,6 +84,7 @@ public:
     inline const char *c_str() const { return tag_.as_cstring_; }
     inline const std::string toString() const { return std::string(c_str(), 3); }
     inline uint32_t to_int() const { return htonl(tag_.as_int_); }
+    inline operator std::string() const { return tag_.as_cstring_; }
 
     inline bool isTagOfControlField() const { return tag_.as_cstring_[0] == '0' and tag_.as_cstring_[1] == '0'; }
     bool isLocal() const;
@@ -326,13 +327,25 @@ public:
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
 
+        inline std::string getLocalTag() const {
+            if (contents_.length() < 2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/
+                or contents_[2] != '\x1F' or contents_[3] != '0')
+                return "";
+            return contents_.substr(2 /*indicators*/ + 2/*delimiter and subfield code*/, 3 /*tag length*/);
+        }
+
         /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
         std::string getFirstSubfieldWithCode(const char subfield_code) const;
+
+        bool hasSubfield(const char subfield_code) const;
 
         inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
             { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
 
         void insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents);
+
+        /** \return True if one or more subfield codes were replaces, else false. */
+        bool replaceSubfieldCode(const char old_code, const char new_code);
 
         std::string toString() const { return tag_.toString() + contents_; }
 
@@ -340,15 +353,15 @@ public:
         void deleteAllSubfieldsWithCode(const char subfield_code);
     };
 
-    enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
-    enum TypeOfRecord {
+    enum class RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
+    enum class TypeOfRecord {
         LANGUAGE_MATERIAL, NOTATED_MUSIC, MANUSCRIPT_NOTATED_MUSIC, CARTOGRAPHIC_MATERIAL, MANUSCRIPT_CARTOGRAPHIC_MATERIAL,
         PROJECTED_MEDIUM, NONMUSICAL_SOUND_RECORDING, MUSICAL_SOUND_RECORDING, TWO_DIMENSIONAL_NONPROJECTABLE_GRAPHIC,
         COMPUTER_FILE, KIT, MIXED_MATERIALS, THREE_DIMENSIONAL_ARTIFACT_OR_NATURALLY_OCCURRING_OBJECT,
-        MANUSCRIPT_LANGUAGE_MATERIAL
+        MANUSCRIPT_LANGUAGE_MATERIAL, AUTHORITY
     };
     enum BibliographicLevel {
-        MONOGRAPHIC_COMPONENT_PART, SERIAL_COMPONENT_PART, COLLECTION, SUBUNIT, INTEGRATING_RESOURCE, MONOGRAPH_OR_ITEM, SERIAL
+        MONOGRAPHIC_COMPONENT_PART, SERIAL_COMPONENT_PART, COLLECTION, SUBUNIT, INTEGRATING_RESOURCE, MONOGRAPH_OR_ITEM, SERIAL, UNDEFINED
     };
     typedef std::vector<Field>::iterator iterator;
     typedef std::vector<Field>::const_iterator const_iterator;
@@ -394,6 +407,7 @@ private:
     friend class BinaryWriter;
     friend class XmlWriter;
     friend std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fields, const bool suppress_local_fields);
+    friend bool UBTueIsElectronicResource(const Record &marc_record);
     size_t record_size_; // in bytes
     std::string leader_;
     std::vector<Field> fields_;
@@ -491,10 +505,10 @@ public:
 
     RecordType getRecordType() const {
         if (leader_[6] == 'z')
-            return AUTHORITY;
+            return RecordType::AUTHORITY;
         if (leader_[6] == 'w')
-            return CLASSIFICATION;
-        return __builtin_strchr("acdefgijkmoprt", leader_[6]) == nullptr ? UNKNOWN : BIBLIOGRAPHIC;
+            return RecordType::CLASSIFICATION;
+        return __builtin_strchr("acdefgijkmoprt", leader_[6]) == nullptr ? RecordType::UNKNOWN : RecordType::BIBLIOGRAPHIC;
     }
 
     char getBibliographicLevel() const { return leader_[7]; }
@@ -563,6 +577,16 @@ public:
      */
     ConstantRange findFieldsInLocalBlock(const Tag &local_field_tag, const const_iterator &block_start, const char indicator1 = '?',
                                          const char indicator2 = '?') const;
+
+    /** \brief Locate a field in a local block.
+     *  \param local_field_tag      The nested tag that we're looking for.
+     *  \param block_start          An iterator referencing the start of the local block that we're scanning.
+     *  \param indicator1           An indicator that we're looking for. A question mark here means don't care.
+     *  \param indicator2           An indicator that we're looking for. A question mark here means don't care.
+     *  \return The half-open range of fields that matched our criteria.
+     */
+    Range findFieldsInLocalBlock(const Tag &local_field_tag, const iterator &block_start, const char indicator1 = '?',
+                                 const char indicator2 = '?');
 
     inline iterator begin() { return fields_.begin(); }
     inline iterator end() { return fields_.end(); }
@@ -647,6 +671,12 @@ public:
      */
     std::vector<const_iterator> findStartOfAllLocalDataBlocks() const;
 
+    /** \return Iterators pointing to the first field of each local data block, i.e. blocks of LOK fields.
+     */
+    std::vector<iterator> findStartOfAllLocalDataBlocks();
+
+    void deleteLocalBlocks(std::vector<iterator> &local_block_starts);
+
     /** \brief Finds local ("LOK") block boundaries.
      *  \param local_block_boundaries  Each entry contains the iterator pointing to the first field of a local block
      *                                 in "first" and the iterator pointing past the last field of a local block in
@@ -654,6 +684,26 @@ public:
      */
     size_t findAllLocalDataBlocks(
         std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const;
+
+
+    /** \param indicator1  The returned range only includes fields matching this indicator. A question mark is the wildcard character here.
+     *  \param indicator2  The returned range only includes fields matching this indicator. A question mark is the wildcard character here.
+     *  \return Iterators pointing to the half-open interval of the first range of fields corresponding to the tag "tag" in a local block
+     *          starting at "local_block_start".
+     *
+     *  \remark {
+     *     Typical usage of this function looks like this:<br />
+     *     \code{.cpp}
+     *         for (auto &local_field : record.getLocalTagRange("852", local_block_start)) {
+     *             local_field.doSomething();
+     *             ...
+     *         }
+     *
+     *     \endcode
+     *  }
+     */
+    ConstantRange getLocalTagRange(const Tag &field_tag, const const_iterator &block_start, const char indicator1 = '?',
+                                   const char indicator2 = '?') const;
 
     /** \brief Locate a field in a local block.
      *  \param indicators           The two 1-character indicators that we're looking for. A question mark here
@@ -668,6 +718,9 @@ public:
     size_t findFieldsInLocalBlock(const Tag &field_tag, const std::string &indicators,
                                   const std::pair<const_iterator, const_iterator> &block_start_and_end,
                                   std::vector<const_iterator> * const fields) const;
+
+    /** \return An iterator pointing to the first field w/ local tag "local_field_tag" or end() if no such field was found. */
+    const_iterator getFirstLocalField(const Tag &local_field_tag, const const_iterator &block_start) const;
 
     /** \return The set of all tags in the record. */
     std::unordered_set<std::string> getTagSet() const;
@@ -903,6 +956,24 @@ bool IsOpenAccess(const Record &marc_record);
 
 // \warning After a call to this function you may want to rewind the MARC Reader.
 size_t CollectRecordOffsets(MARC::Reader * const marc_reader, std::unordered_map<std::string, off_t> * const control_number_to_offset_map);
+
+
+/** \brief Handles optional command-line arguments of the form "--input-format=marc-21" and "--input-format=marc-xml"
+ *
+ *  If an optional argument of one of the expected forms is found in argv[arg_no], argc and argv will be incremented and
+ *  decremented respectively and the corresponding file type will be returned.  If not, the value of "default_file_type" will
+ *  be returned instead and "argc" and "argv" will remain unmodified.  If an unrecognized format has been provided, we call LOG_ERROR.
+ */
+FileType GetOptionalReaderType(int * const argc, char *** const argv, const int arg_no, const FileType default_file_type = FileType::AUTO);
+
+
+/** \brief Handles optional command-line arguments of the form "--output-format=marc-21" and "--output-format=marc-xml"
+ *
+ *  If an optional argument of one of the expected forms is found in argv[arg_no], argc and argv will be incremented and
+ *  decremented respectively and the corresponding file type will be returned.  If not, the value of "default_file_type" will
+ *  be returned instead and "argc" and "argv" will remain unmodified.  If an unrecognized format has been provided, we call LOG_ERROR.
+ */
+FileType GetOptionalWriterType(int * const argc, char *** const argv, const int arg_no, const FileType default_file_type = FileType::AUTO);
 
 
 } // namespace MARC
