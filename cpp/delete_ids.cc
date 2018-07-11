@@ -30,8 +30,11 @@
 #include "util.h"
 
 
-[[noreturn]]  void Usage() {
-    std::cerr << "Usage: " << ::progname << " deletion_list input_marc output_marc\n";
+static void Usage() __attribute__((noreturn));
+
+
+static void Usage() {
+    std::cerr << "Usage: " << ::progname << " deletion_list input_marc21 output_marc21\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -41,29 +44,26 @@
  */
 bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_ids, MARC::Record * const record) {
     bool modified(false);
+    std::vector<MARC::Record::iterator> local_block_starts_for_deletion;
 
-    std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> local_block_boundaries, local_block_boundaries_for_deletion;
-    record->findAllLocalDataBlocks(&local_block_boundaries);
+    for (const auto &local_block_start : record->findStartOfAllLocalDataBlocks()) {
+        const auto _001_range(record->getLocalTagRange("001", local_block_start));
 
-    for (const auto local_block_boundary : local_block_boundaries) {
-        std::vector<MARC::Record::const_iterator> field_indices;
-        record->findFieldsInLocalBlock("001", "??", local_block_boundary, &field_indices);
-        if (field_indices.size() != 1)
+        if (_001_range.size() != 1)
             LOG_ERROR("Every local data block has to have exactly one 001 field. (Record: "
-                          + record->getControlNumber() + ", Local data block: "
-                          + std::to_string(record->getFieldIndex(local_block_boundary.first)) + " - "
-                          + std::to_string(record->getFieldIndex(local_block_boundary.second)) + ". Found "
-                          + std::to_string(field_indices.size()) + ")");
-        const auto subfields(field_indices[0]->getSubfields());
+                      + record->getControlNumber() + ", First field in local block was: "
+                      + local_block_start->toString() + " - Found "
+                      + std::to_string(_001_range.size()) + ".)");
+        const MARC::Subfields subfields(_001_range.front().getSubfields());
         const std::string subfield_contents(subfields.getFirstSubfieldWithCode('0'));
         if (not StringUtil::StartsWith(subfield_contents, "001 ")
             or local_deletion_ids.find(subfield_contents.substr(4)) == local_deletion_ids.end())
             continue;
 
-        local_block_boundaries_for_deletion.emplace_back(local_block_boundary);
+        local_block_starts_for_deletion.emplace_back(local_block_start);
         modified = true;
     }
-    record->deleteFields(local_block_boundaries_for_deletion);
+    record->deleteLocalBlocks(local_block_starts_for_deletion);
 
     return modified;
 }
@@ -93,25 +93,23 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
 
 
 int Main(int argc, char *argv[]) {
+    ::progname = argv[0];
+
     if (argc != 4)
         Usage();
 
     const std::string deletion_list_filename(argv[1]);
     File deletion_list(deletion_list_filename, "r");
     if (not deletion_list)
-        LOG_ERROR("can't open \"" + deletion_list_filename + "\" for reading!");
+        logger->error("can't open \"" + deletion_list_filename + "\" for reading!");
 
     std::unordered_set <std::string> title_deletion_ids, local_deletion_ids;
     BSZUtil::ExtractDeletionIds(&deletion_list, &title_deletion_ids, &local_deletion_ids);
 
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2], MARC::FileType::BINARY));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3], MARC::FileType::BINARY));
 
-    try {
-        ProcessRecords(title_deletion_ids, local_deletion_ids, marc_reader.get(), marc_writer.get());
-    } catch (const std::exception &e) {
-        LOG_ERROR("Caught exception: " + std::string(e.what()));
-    }
+    ProcessRecords(title_deletion_ids, local_deletion_ids, marc_reader.get(), marc_writer.get());
 
     return EXIT_SUCCESS;
 }

@@ -153,7 +153,8 @@ std::string Record::Field::getFirstSubfieldWithCode(const char subfield_code) co
     if (unlikely(contents_.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
         return "";
 
-    const size_t subfield_start_pos(contents_.find({ '\x1F', subfield_code, '\0' }));
+    const char delimiter_and_code[]{ '\x1F', subfield_code };
+    const size_t subfield_start_pos(contents_.find(delimiter_and_code, 2 /*skip indicators*/, 2));
     if (subfield_start_pos == std::string::npos)
         return "";
 
@@ -168,11 +169,46 @@ std::string Record::Field::getFirstSubfieldWithCode(const char subfield_code) co
 }
 
 
+bool Record::Field::hasSubfield(const char subfield_code) const {
+    bool subfield_delimiter_seen(false);
+    for (const char ch : contents_) {
+        if (subfield_delimiter_seen) {
+            subfield_delimiter_seen = false;
+            if (ch == subfield_code)
+                return true;
+        } else if (ch == '\x1F')
+            subfield_delimiter_seen = true;
+    }
+
+    return false;
+}
+
+
 void Record::Field::insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents) {
     Subfields subfields(contents_);
     if (not subfields.replaceFirstSubfield(subfield_code, subfield_contents))
         subfields.addSubfield(subfield_code, subfield_contents);
     contents_ = contents_.substr(0, 2) /* keep our original indicators */ + subfields.toString();
+}
+
+
+bool Record::Field::replaceSubfieldCode(const char old_code, const char new_code) {
+    if (contents_.length() < 5)
+        return false;
+
+    bool replaced_at_least_one_code(false), subfield_delimiter_seen(false);
+    for (auto &ch : contents_) {
+        if (subfield_delimiter_seen) {
+            subfield_delimiter_seen = false;
+            if (ch == old_code) {
+                ch = new_code;
+                replaced_at_least_one_code = true;
+            }
+        } else if (ch == '\x1F')
+            subfield_delimiter_seen = true;
+    }
+
+    return replaced_at_least_one_code;
 }
 
 
@@ -233,60 +269,62 @@ Record::Record(const size_t record_size, char * const record_start)
 }
 
 
-static std::string TypeOfRecordToSTring(const Record::TypeOfRecord type_of_record) {
+static std::string TypeOfRecordToString(const Record::TypeOfRecord type_of_record) {
     switch (type_of_record) {
-    case Record::LANGUAGE_MATERIAL:
+    case Record::TypeOfRecord::LANGUAGE_MATERIAL:
         return std::string(1, 'a');
-    case Record::NOTATED_MUSIC:
+    case Record::TypeOfRecord::NOTATED_MUSIC:
         return std::string(1, 'c');
-    case Record::MANUSCRIPT_NOTATED_MUSIC:
+    case Record::TypeOfRecord::MANUSCRIPT_NOTATED_MUSIC:
         return std::string(1, 'd');
-    case Record::CARTOGRAPHIC_MATERIAL:
+    case Record::TypeOfRecord::CARTOGRAPHIC_MATERIAL:
         return std::string(1, 'e');
-    case Record::MANUSCRIPT_CARTOGRAPHIC_MATERIAL:
+    case Record::TypeOfRecord::MANUSCRIPT_CARTOGRAPHIC_MATERIAL:
         return std::string(1, 'f');
-    case Record::PROJECTED_MEDIUM:
+    case Record::TypeOfRecord::PROJECTED_MEDIUM:
         return std::string(1, 'g');
-    case Record::NONMUSICAL_SOUND_RECORDING:
+    case Record::TypeOfRecord::NONMUSICAL_SOUND_RECORDING:
         return std::string(1, 'i');
-    case Record::MUSICAL_SOUND_RECORDING:
+    case Record::TypeOfRecord::MUSICAL_SOUND_RECORDING:
         return std::string(1, 'j');
-    case Record::TWO_DIMENSIONAL_NONPROJECTABLE_GRAPHIC:
+    case Record::TypeOfRecord::TWO_DIMENSIONAL_NONPROJECTABLE_GRAPHIC:
         return std::string(1, 'k');
-    case Record::COMPUTER_FILE:
+    case Record::TypeOfRecord::COMPUTER_FILE:
         return std::string(1, 'm');
-    case Record::KIT:
+    case Record::TypeOfRecord::KIT:
         return std::string(1, 'o');
-    case Record::MIXED_MATERIALS:
+    case Record::TypeOfRecord::MIXED_MATERIALS:
         return std::string(1, 'p');
-    case Record::THREE_DIMENSIONAL_ARTIFACT_OR_NATURALLY_OCCURRING_OBJECT:
+    case Record::TypeOfRecord::THREE_DIMENSIONAL_ARTIFACT_OR_NATURALLY_OCCURRING_OBJECT:
         return std::string(1, 'r');
-    case Record::MANUSCRIPT_LANGUAGE_MATERIAL:
+    case Record::TypeOfRecord::MANUSCRIPT_LANGUAGE_MATERIAL:
         return std::string(1, 't');
     default:
-        LOG_ERROR("unknown type-of-record: " + std::to_string(type_of_record) + "!");
+        LOG_ERROR("unknown type-of-record: " + std::to_string(static_cast<int>(type_of_record)) + "!");
     }
 }
 
 
 static std::string BibliographicLevelToString(const Record::BibliographicLevel bibliographic_level) {
     switch (bibliographic_level) {
-    case Record::MONOGRAPHIC_COMPONENT_PART:
+    case Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART:
         return std::string(1, 'a');
-    case Record::SERIAL_COMPONENT_PART:
+    case Record::BibliographicLevel::SERIAL_COMPONENT_PART:
         return std::string(1, 'b');
-    case Record::COLLECTION:
+    case Record::BibliographicLevel::COLLECTION:
         return std::string(1, 'c');
-    case Record::SUBUNIT:
+    case Record::BibliographicLevel::SUBUNIT:
         return std::string(1, 'd');
-    case Record::INTEGRATING_RESOURCE:
+    case Record::BibliographicLevel::INTEGRATING_RESOURCE:
         return std::string(1, 'i');
-    case Record::MONOGRAPH_OR_ITEM:
+    case Record::BibliographicLevel::MONOGRAPH_OR_ITEM:
         return std::string(1, 'm');
-    case Record::SERIAL:
+    case Record::BibliographicLevel::SERIAL:
         return std::string(1, 's');
+    case Record::BibliographicLevel::UNDEFINED:
+        return std::string(1, ' ');
     default:
-        LOG_ERROR("unknown bibliographic level: " + std::to_string(bibliographic_level) + "!");
+        LOG_ERROR("unknown bibliographic level: " + std::to_string(static_cast<int>(bibliographic_level)) + "!");
     }
 }
 
@@ -294,7 +332,7 @@ static std::string BibliographicLevelToString(const Record::BibliographicLevel b
 Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
                const std::string &control_number)
 {
-    leader_ = "00000" "n" + TypeOfRecordToSTring(type_of_record) + BibliographicLevelToString(bibliographic_level)
+    leader_ = "00000" "n" + TypeOfRecordToString(type_of_record) + BibliographicLevelToString(bibliographic_level)
               + " a22004452  4500";
 
     if (not control_number.empty())
@@ -515,6 +553,62 @@ std::vector<Record::const_iterator> Record::findStartOfAllLocalDataBlocks() cons
 }
 
 
+std::vector<Record::iterator> Record::findStartOfAllLocalDataBlocks() {
+    std::vector<iterator> block_start_iterators;
+
+    std::string last_local_tag;
+    iterator local_field(getFirstField("LOK"));
+    if (local_field == end())
+        return block_start_iterators;
+
+    while (local_field != end()) {
+        if (GetLocalTag(*local_field) < last_local_tag)
+            block_start_iterators.emplace_back(local_field);
+        last_local_tag = GetLocalTag(*local_field);
+        ++local_field;
+    }
+
+    return block_start_iterators;
+}
+
+
+void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
+    std::sort(local_block_starts.begin(), local_block_starts.end());
+
+    std::vector<std::pair<iterator, iterator>> deletion_ranges;
+
+    // Coalesce as many blocks as possible:
+    auto block_start(local_block_starts.begin());
+    while (block_start != local_block_starts.end()) {
+        iterator range_start(*block_start);
+        Tag last_tag(range_start->getTag());
+        iterator range_end(range_start + 1);
+        for (;;) {
+            if (range_end == fields_.end()) {
+                deletion_ranges.emplace_back(range_start, range_end);
+                goto coalescing_done;
+            }
+
+            // Start of a new block?
+            if (range_end->getTag() < last_tag) {
+                ++block_start;
+                if (range_end != *block_start) {
+                    deletion_ranges.emplace_back(range_start, range_end);
+                    break;
+                }
+            }
+
+            last_tag = range_end->getTag();
+            ++range_end;
+        }
+    }
+
+coalescing_done:
+    for (auto deletion_range(deletion_ranges.rbegin()); deletion_range != deletion_ranges.rend(); ++deletion_range)
+        fields_.erase(deletion_range->first, deletion_range->second);
+}
+
+
 size_t Record::findAllLocalDataBlocks(
     std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const
 {
@@ -535,6 +629,31 @@ size_t Record::findAllLocalDataBlocks(
     local_block_boundaries->emplace_back(std::make_pair(local_block_start, local_block_end));
 
     return local_block_boundaries->size();
+}
+
+
+Record::ConstantRange Record::getLocalTagRange(const Tag &field_tag, const const_iterator &block_start, const char indicator1,
+                                               const char indicator2) const
+{
+    const_iterator tag_range_start(block_start);
+    Tag last_tag(tag_range_start->getTag());
+    for (;;) {
+        if (tag_range_start->getTag() == field_tag and (indicator1 == '?' or tag_range_start->getIndicator1() == indicator1)
+            and (indicator2 == '?' or tag_range_start->getIndicator2() == indicator2))
+            break;
+        ++tag_range_start;
+        if (tag_range_start == fields_.cend() or tag_range_start->getTag() < last_tag)
+            return ConstantRange(fields_.cend(), fields_.cend());
+        last_tag = tag_range_start->getTag();
+    }
+
+    const_iterator tag_range_end(tag_range_start + 1);
+    while (tag_range_end != fields_.cend() and tag_range_end->getTag() == field_tag
+           and (indicator1 == '?' or tag_range_end->getIndicator1() == indicator1)
+           and (indicator2 == '?' or tag_range_end->getIndicator2() == indicator2))
+        ++tag_range_end;
+
+    return ConstantRange(tag_range_start, tag_range_end);
 }
 
 
@@ -660,6 +779,55 @@ Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag,
     }
 
     return ConstantRange(range_start, fields_.end());
+}
+
+
+Record::Range Record::findFieldsInLocalBlock(const Tag &local_field_tag, const iterator &block_start, const char indicator1,
+                                             const char indicator2)
+{
+    std::string last_tag;
+    auto local_field(block_start);
+    iterator range_start(fields_.end()), range_end(fields_.end());
+    while (local_field != fields_.end()) {
+        if (GetLocalTag(*local_field) < last_tag) // We found the start of a new local block!
+            return Record::Range(fields_.end(), fields_.end());
+
+        if (LocalIndicatorsMatch(indicator1, indicator2, *local_field) and LocalTagMatches(local_field_tag, *local_field)) {
+            range_start = local_field;
+            range_end = range_start + 1;
+            while (range_end != fields_.end()) {
+                if (not LocalIndicatorsMatch(indicator1, indicator2, *range_end) or not LocalTagMatches(local_field_tag, *range_end))
+                    break;
+                ++range_end;
+            }
+
+            return Record::Range(range_start, range_end);
+        }
+
+        last_tag = GetLocalTag(*local_field);
+        ++local_field;
+    }
+
+    return Range(range_start, fields_.end());
+}
+
+
+Record::const_iterator Record::getFirstLocalField(const Tag &local_field_tag, const const_iterator &block_start) const {
+    std::string last_tag;
+    auto local_field(block_start);
+    while (local_field != fields_.end()) {
+        const auto current_tag(GetLocalTag(*local_field));
+        if (local_field_tag == current_tag)
+            return local_field; // Success!
+
+        if (current_tag < last_tag) // We found the start of a new local block!
+            return fields_.cend();
+
+        last_tag = GetLocalTag(*local_field);
+        ++local_field;
+    }
+
+    return fields_.cend();
 }
 
 
@@ -1756,6 +1924,29 @@ bool IsRepeatableField(const Tag &tag) {
 }
 
 
+bool UBTueIsElectronicResource(const Record &marc_record) {
+    if (std::toupper(marc_record.leader_[6]) == 'M')
+        return true;
+
+    if (marc_record.isMonograph()) {
+        for (const auto &_007_field : marc_record.getTagRange("007")) {
+            const std::string _007_field_contents(_007_field.getContents());
+            if (not _007_field_contents.empty() and std::toupper(_007_field_contents[0]) == 'C')
+                return true;
+        }
+    }
+
+    for (const auto &_245_field : marc_record.getTagRange("245")) {
+        for (const auto subfield : _245_field.getSubfields()) {
+            if (subfield.code_ == 'h' and subfield.value_.find("[Elektronische Ressource]") != std::string::npos)
+                return true;
+        }
+    }
+
+    return false;
+}
+
+
 bool IsOpenAccess(const Record &marc_record) {
     for (const auto &_856_field : marc_record.getTagRange("856")) {
         const Subfields subfields(_856_field.getSubfields());
@@ -1779,6 +1970,44 @@ size_t CollectRecordOffsets(MARC::Reader * const marc_reader, std::unordered_map
     }
 
     return control_number_to_offset_map->size();
+}
+
+
+FileType GetOptionalReaderType(int * const argc, char *** const argv, const int arg_no, const FileType default_file_type) {
+    FileType return_value(default_file_type);
+
+    if (StringUtil::StartsWith((*argv)[arg_no], "--input-format=")) {
+        const std::string format((*argv)[arg_no] + __builtin_strlen("--input-format="));
+        if (format == "marc-21")
+            return_value = FileType::BINARY;
+        else if (format == "marc-xml")
+            return_value = FileType::XML;
+        else
+            LOG_ERROR("bad MARC input format: \"" + format + "\"!");
+
+        --*argc, ++*argv;
+    }
+
+    return return_value;
+}
+
+
+FileType GetOptionalWriterType(int * const argc, char *** const argv, const int arg_no, const FileType default_file_type) {
+    FileType return_value(default_file_type);
+
+    if (StringUtil::StartsWith((*argv)[arg_no], "--output-format=")) {
+        const std::string format((*argv)[arg_no] + __builtin_strlen("--output-format="));
+        if (format == "marc-21")
+            return_value = FileType::BINARY;
+        else if (format == "marc-xml")
+            return_value = FileType::XML;
+        else
+            LOG_ERROR("bad MARC output format: \"" + format + "\"!");
+
+        --*argc, ++*argv;
+    }
+
+    return return_value;
 }
 
 
