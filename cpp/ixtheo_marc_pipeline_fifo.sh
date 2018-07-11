@@ -73,6 +73,14 @@ CleanUp
 OVERALL_START=$(date +%s.%N)
 
 
+StartPhase "Check Record Integity at the Beginning of the Pipeline"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
+            --write-data=GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc GesamtTiteldaten-"${date}".mrc \
+    >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Drop Records Containing mtex in 935" \
            "\n\tFilter out Self-referential 856 Fields" \
            "\n\tRemove Sorting Chars From Title Subfields" \
@@ -80,7 +88,7 @@ StartPhase "Drop Records Containing mtex in 935" \
            "\n\tFix Local Keyword Capitalisations"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (marc_filter \
-     GesamtTiteldaten-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --input-format=marc-21 \
     --output-format=marc-21 \
     --drop 935a:mtex \
@@ -92,6 +100,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
     --replace 260b:264b /usr/local/var/lib/tuelib/publisher_normalistion.map \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
@@ -286,9 +295,18 @@ StartPhase "Tag PDA candidates"
 EndPhase || Abort) &
 
 
-StartPhase "Export Subsystem Tags to VuFind Database"
+StartPhase "Export Subsystem Tags to VuFind SQL Database"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (export_subsystem_ids_to_db --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
      >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
+StartPhase "Check Record Integity at the End of the Pipeline"
+(marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields --input-format=marc-21 \
+            GesamtTiteldaten-"${date}".mrc \
+    >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 

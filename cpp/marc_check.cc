@@ -36,18 +36,27 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--do-not-abort-on-empty-subfields] [--input-format=(marc-21|marc-xml)] [--write-data=output_filename] marc_data\n"
+              << " [--do-not-abort-on-empty-subfields] [--do-not-abort-on-invalid-repeated-fields] [--input-format=(marc-21|marc-xml)] "
+              << "[--write-data=output_filename] marc_data\n"
               << "       If \"--write-data\" has been specified, the read records will be written out again.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-void CheckFieldOrder(const MARC::Record &record) {
+void CheckFieldOrder(const bool do_not_abort_on_invalid_repeated_fields, const MARC::Record &record) {
     std::string last_tag;
     for (const auto &field : record) {
         const std::string current_tag(field.getTag().toString());
         if (unlikely(current_tag < last_tag))
             LOG_ERROR("invalid tag order in the record with control number \"" + record.getControlNumber() + "\"!");
+        if (unlikely(not MARC::IsRepeatableField(current_tag) and current_tag == last_tag)) {
+            if (do_not_abort_on_invalid_repeated_fields)
+                LOG_WARNING("non-repeatable tag \"" + current_tag + "\" found in the record with control number \""
+                            + record.getControlNumber() + "\"!");
+            else
+                LOG_ERROR("non-repeatable tag \"" + current_tag + "\" found in the record with control number \"" + record.getControlNumber()
+                          + "\"!");
+        }
         last_tag = current_tag;
     }
 }
@@ -124,7 +133,9 @@ void CheckLocalBlockConsistency(const MARC::Record &record) {
 }
 
 
-void ProcessRecords(const bool do_not_abort_on_empty_subfields, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
+void ProcessRecords(const bool do_not_abort_on_empty_subfields, const bool do_not_abort_on_invalid_repeated_fields,
+                    MARC::Reader * const marc_reader, MARC::Writer * const marc_writer)
+{
     unsigned record_count(0);
 
     while (const MARC::Record record = marc_reader->read()) {
@@ -134,7 +145,7 @@ void ProcessRecords(const bool do_not_abort_on_empty_subfields, MARC::Reader * c
         if (unlikely(CONTROL_NUMBER.empty()))
             LOG_ERROR("Record #" + std::to_string(record_count) + " is missing a control number!");
 
-        CheckFieldOrder(record);
+        CheckFieldOrder(do_not_abort_on_invalid_repeated_fields, record);
 
         MARC::Tag last_tag(std::string(MARC::Record::TAG_LENGTH, ' '));
         for (const auto &field : record) {
@@ -174,6 +185,15 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
+    bool do_not_abort_on_invalid_repeated_fields(false);
+    if (std::strcmp(argv[1], "--do-not-abort-on-invalid-repeated-fields") == 0) {
+        do_not_abort_on_invalid_repeated_fields = true;
+        --argc, ++argv;
+    }
+
+    if (argc < 2)
+        Usage();
+
     const MARC::FileType input_format(MARC::GetOptionalReaderType(&argc, &argv, 1));
 
     if (argc < 2)
@@ -194,7 +214,7 @@ int Main(int argc, char *argv[]) {
     if (not output_filename.empty())
         marc_writer = MARC::Writer::Factory(output_filename);
 
-    ProcessRecords(do_not_abort_on_empty_subfields, marc_reader.get(), marc_writer.get());
+    ProcessRecords(do_not_abort_on_empty_subfields, do_not_abort_on_invalid_repeated_fields, marc_reader.get(), marc_writer.get());
 
     return EXIT_SUCCESS;
 }
