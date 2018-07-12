@@ -557,6 +557,7 @@ std::vector<Record::const_iterator> Record::findStartOfAllLocalDataBlocks() cons
     if (local_field == end())
         return block_start_iterators;
 
+    block_start_iterators.emplace_back(local_field);
     while (local_field != end()) {
         if (GetLocalTag(*local_field) < last_local_tag)
             block_start_iterators.emplace_back(local_field);
@@ -576,6 +577,7 @@ std::vector<Record::iterator> Record::findStartOfAllLocalDataBlocks() {
     if (local_field == end())
         return block_start_iterators;
 
+    block_start_iterators.emplace_back(local_field);
     while (local_field != end()) {
         if (GetLocalTag(*local_field) < last_local_tag)
             block_start_iterators.emplace_back(local_field);
