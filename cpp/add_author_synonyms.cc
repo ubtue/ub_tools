@@ -60,9 +60,8 @@ void RemoveCommasDuplicatesAndEmptyEntries(std::vector<std::string> * const vect
 }
 
 
-std::string ExtractNameFromSubfields(const std::string &field_contents, const std::string &subfield_codes) {
-    const MARC::Subfields subfields(field_contents);
-    auto subfield_values(subfields.extractSubfields(subfield_codes));
+std::string ExtractNameFromSubfields(const MARC::Record::Field &field, const std::string &subfield_codes) {
+    auto subfield_values(field.getSubfields().extractSubfields(subfield_codes));
 
     if (subfield_values.empty())
         return "";
@@ -87,7 +86,7 @@ void ExtractSynonyms(MARC::Reader * const marc_reader, std::map<std::string, std
         if (primary_name_field != record.end())
             continue;
 
-        const std::string primary_name(ExtractNameFromSubfields(primary_name_field->getContents(),
+        const std::string primary_name(ExtractNameFromSubfields(*primary_name_field,
                                                                 tags_and_subfield_codes[0].substr(3)));
         if (unlikely(primary_name.empty()))
             continue;
@@ -104,7 +103,7 @@ void ExtractSynonyms(MARC::Reader * const marc_reader, std::map<std::string, std
                 secondary_name_field != record.end();
                 ++secondary_name_field)
             {
-                const std::string secondary_name(ExtractNameFromSubfields(secondary_name_field->getContents(),
+                const std::string secondary_name(ExtractNameFromSubfields(*secondary_name_field,
                                                                           secondary_field_subfield_codes));
                 if (not secondary_name.empty())
                     alternatives.emplace_back(secondary_name);
@@ -136,7 +135,7 @@ void ProcessRecord(MARC::Record * const record, const std::map<std::string, std:
     if (primary_name_field == record->end())
         return;
 
-    const std::string primary_name(ExtractNameFromSubfields(primary_name_field->getContents(),
+    const std::string primary_name(ExtractNameFromSubfields(*primary_name_field,
                                                             primary_author_field.substr(3)));
     if (unlikely(primary_name.empty()))
         return;
