@@ -161,6 +161,7 @@ public:
     inline iterator end() { return subfields_.end(); }
     inline bool empty() const { return subfields_.empty(); }
     size_t size() const { return subfields_.size(); }
+    void clear() { return subfields_.clear(); }
 
     inline bool hasSubfield(const char subfield_code) const {
         return std::find_if(subfields_.cbegin(), subfields_.cend(),
