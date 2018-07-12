@@ -86,7 +86,6 @@ StartPhase "Drop Records Containing mtex in 935" \
            "\n\tRemove Sorting Chars From Title Subfields" \
            "\n\tRemove blmsh Subject Heading Terms" \
            "\n\tFix Local Keyword Capitalisations"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --input-format=marc-21 \
@@ -296,7 +295,6 @@ EndPhase || Abort) &
 
 
 StartPhase "Export Subsystem Tags to VuFind SQL Database"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (export_subsystem_ids_to_db --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
      >> "${log}" 2>&1 && \
 EndPhase || Abort) &
@@ -305,7 +303,7 @@ wait
 
 StartPhase "Check Record Integity at the End of the Pipeline"
 (marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields --input-format=marc-21 \
-            GesamtTiteldaten-"${date}".mrc \
+            GesamtTiteldaten-post-pipeline-"${date}".mrc \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
