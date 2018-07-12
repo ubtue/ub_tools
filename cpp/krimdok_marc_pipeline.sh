@@ -86,7 +86,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Normalise URL's"
-(normalise_urls --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-${date}".mrc \
+(normalise_urls --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
