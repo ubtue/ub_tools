@@ -1456,10 +1456,13 @@ void BinaryWriter::write(const Record &record) {
             field_start_offset += record.fields_.front().getContents().length() + 1 /* field terminator */;
         }
         for (Record::const_iterator entry(start); entry != end; ++entry) {
+            const size_t contents_length(entry->getContents().length());
+            if (unlikely(contents_length > Record::MAX_VARIABLE_FIELD_DATA_LENGTH))
+                LOG_ERROR("can't generate a directory entry w/ a field w/ data length " + std::to_string(contents_length) + "!");
             raw_record += entry->getTag().toString()
                           + ToStringWithLeadingZeros(entry->getContents().length() + 1 /* field terminator */, 4)
                           + ToStringWithLeadingZeros(field_start_offset, /* width = */ 5);
-            field_start_offset += entry->getContents().length() + 1 /* field terminator */;
+            field_start_offset += contents_length + 1 /* field terminator */;
         }
         raw_record += '\x1E'; // end-of-directory
 
