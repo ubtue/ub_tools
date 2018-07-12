@@ -773,10 +773,10 @@ Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag,
                                                      const char indicator2) const
 {
     auto local_field(block_start);
-    std::string last_local_tag(GetLocalTag(*local_field));
+    std::string last_local_tag;
     const_iterator range_start(fields_.end()), range_end(fields_.end());
     while (local_field != fields_.end()) {
-        if (GetLocalTag(*local_field) < last_local_tag) // We found the start of a new local block! (with local tag "000"
+        if (GetLocalTag(*local_field) < last_local_tag) // We found the start of a new local block! (with local tag "000")
             return Record::ConstantRange(fields_.end(), fields_.end());
 
         if (LocalIndicatorsMatch(indicator1, indicator2, *local_field) and LocalTagMatches(local_field_tag, *local_field)) {
@@ -803,7 +803,7 @@ Record::Range Record::findFieldsInLocalBlock(const Tag &local_field_tag, const i
                                              const char indicator2)
 {
     auto local_field(block_start);
-    std::string last_local_tag(GetLocalTag(*local_field));
+    std::string last_local_tag;
     iterator range_start(fields_.end()), range_end(fields_.end());
     while (local_field != fields_.end()) {
         if (GetLocalTag(*local_field) < last_local_tag) // We found the start of a new local block!
@@ -831,7 +831,7 @@ Record::Range Record::findFieldsInLocalBlock(const Tag &local_field_tag, const i
 
 Record::const_iterator Record::getFirstLocalField(const Tag &local_field_tag, const const_iterator &block_start) const {
     auto local_field(block_start);
-    std::string last_local_tag(GetLocalTag(*local_field));
+    std::string last_local_tag;
     while (local_field != fields_.end()) {
         const auto current_tag(GetLocalTag(*local_field));
         if (local_field_tag == current_tag)
