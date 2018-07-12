@@ -338,6 +338,7 @@ public:
         std::string getFirstSubfieldWithCode(const char subfield_code) const;
 
         bool hasSubfield(const char subfield_code) const;
+        bool hasSubfieldWithValue(const char subfield_code, const std::string &value) const;
 
         inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
             { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
