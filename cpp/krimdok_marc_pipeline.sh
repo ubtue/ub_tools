@@ -61,10 +61,17 @@ function EndPhase {
 }
 
 
+function CleanUp {
+    rm -f GesamtTiteldaten-post-phase?*-"${date}".mrc
+}
+
+
 # Set up the log file:
 logdir=/usr/local/var/log/tuefind
 log="${logdir}/krimdok_marc_pipeline.log"
 rm -f "${log}"
+
+CleanUp
 
 
 OVERALL_START=$(date +%s.%N)
@@ -79,7 +86,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Normalise URL's"
-(normalise_urls --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-${date}".mrc \
+(normalise_urls --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
