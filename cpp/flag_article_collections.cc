@@ -25,7 +25,7 @@
 
 namespace {
 
-    
+
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
@@ -43,7 +43,7 @@ void CollectArticleCollectionPPNs(MARC::Reader * const reader, std::unordered_se
     }
 }
 
-    
+
 // If any of the following matches, we have an essay collection:
 struct EssayCollectionMatch {
     MARC::Tag tag_;
@@ -54,7 +54,7 @@ public:
         : tag_(tag), subfield_code_(subfield_code), subfield_contents_(subfield_contents) { }
 };
 
-    
+
 const std::vector<EssayCollectionMatch> essay_collection_matches{
     { "935", 'c', "fe"               },
     { "655", 'a', "Aufsatzsammlung"  },
@@ -66,7 +66,7 @@ const std::vector<EssayCollectionMatch> essay_collection_matches{
     { "935", 'c', "gkko"             },
 };
 
-    
+
 void MarkArticleCollections(MARC::Reader * const reader, MARC::Writer * const writer,
                             const std::unordered_set<std::string> &article_collection_ppns)
 {
@@ -87,7 +87,7 @@ void MarkArticleCollections(MARC::Reader * const reader, MARC::Writer * const wr
             }
         }
 
-            
+
         if (is_article_collection) {
 found_article_collection:
             record.insertField("ACO", { { 'a', "1" } } );
@@ -105,20 +105,19 @@ found_article_collection:
 } // unnamed namespace
 
 
-int main(int argc, char **argv) {
+int Main(int argc, char **argv) {
     ::progname = argv[0];
 
     if (argc != 3)
         Usage();
-    
+
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
-    try {
-        std::unordered_set<std::string> article_collection_ppns;
-        CollectArticleCollectionPPNs(marc_reader.get(), &article_collection_ppns);
-        marc_reader->rewind();
-        MarkArticleCollections(marc_reader.get(), marc_writer.get(), article_collection_ppns);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+
+    std::unordered_set<std::string> article_collection_ppns;
+    CollectArticleCollectionPPNs(marc_reader.get(), &article_collection_ppns);
+    marc_reader->rewind();
+    MarkArticleCollections(marc_reader.get(), marc_writer.get(), article_collection_ppns);
+
+    return EXIT_SUCCESS;
 }
