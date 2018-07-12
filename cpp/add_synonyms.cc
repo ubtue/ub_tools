@@ -138,8 +138,8 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
     if (primary_tags_and_subfield_codes.size() != output_tags_and_subfield_codes.size())
         LOG_ERROR("Number of primary and output tags do not match");
 
-    for (auto primary_tag_and_subfield_codes(primary_tags_and_subfield_codes.cbegin()), output(output_tags_and_subfield_codes.cbegin());
-         primary_tag_and_subfield_codes != primary_tags_and_subfield_codes.end(); ++primary_tag_and_subfield_codes, ++output)
+    for (auto primary_tag_and_subfield_codes(primary_tags_and_subfield_codes.cbegin()), output_tag_and_subfield_code(output_tags_and_subfield_codes.cbegin());
+         primary_tag_and_subfield_codes != primary_tags_and_subfield_codes.end(); ++primary_tag_and_subfield_codes, ++output_tag_and_subfield_code)
     {
 
         std::vector<std::string> synonym_values;
@@ -161,10 +161,10 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
 
         // Insert synonyms
         // Abort if field is already populated
-        std::string tag(GetTag(*output));
+        std::string tag(GetTag(*output_tag_and_subfield_code));
         if (unlikely(record->hasTag(tag)))
             LOG_ERROR("in ProcessRecord: Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '!');
-        std::string subfield_spec(GetSubfieldCodes(*output));
+        std::string subfield_spec(GetSubfieldCodes(*output_tag_and_subfield_code));
         if (unlikely(subfield_spec.size() != 1))
             LOG_ERROR("in ProcessRecord: We currently only support a single subfield and thus specifying " + subfield_spec
                       + " as output subfield is not valid!");
@@ -218,9 +218,9 @@ void ProcessRecordTranslatedSynonyms(MARC::Record * const record, const std::vec
                                      const std::vector<std::map<std::string, std::vector<std::string>>> &translation_maps,
                                      bool * modified_record)
 {
-    auto output(translation_tags_and_subfield_codes.begin());
+    auto output_tag_and_subfield_code(translation_tags_and_subfield_codes.begin());
 
-    for (int lang(0); lang < LANGUAGES_END; ++lang, ++output) {
+    for (int lang(0); lang < LANGUAGES_END; ++lang, ++output_tag_and_subfield_code) {
 
         std::set<std::string> synonym_values;
         synonym_values.clear();
@@ -247,10 +247,10 @@ void ProcessRecordTranslatedSynonyms(MARC::Record * const record, const std::vec
         }
         // Insert translated synonyms
         // Abort if field is already populated
-        std::string tag(GetTag(*output));
+        std::string tag(GetTag(*output_tag_and_subfield_code));
         if (record->hasTag(tag))
             LOG_ERROR("in ProcessRecord: Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '!');
-        std::string subfield_spec(GetSubfieldCodes(*output));
+        std::string subfield_spec(GetSubfieldCodes(*output_tag_and_subfield_code));
         if (unlikely(subfield_spec.size() != 1))
             LOG_ERROR("in ProcessRecord: We currently only support a single subfield and thus specifying " + subfield_spec
                       + " as output subfield is not valid!");
