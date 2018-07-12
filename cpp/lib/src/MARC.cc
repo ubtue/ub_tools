@@ -173,10 +173,25 @@ bool Record::Field::hasSubfield(const char subfield_code) const {
     bool subfield_delimiter_seen(false);
     for (const char ch : contents_) {
         if (subfield_delimiter_seen) {
-            subfield_delimiter_seen = false;
             if (ch == subfield_code)
                 return true;
+            subfield_delimiter_seen = false;
         } else if (ch == '\x1F')
+            subfield_delimiter_seen = true;
+    }
+
+    return false;
+}
+
+
+bool Record::Field::hasSubfieldWithValue(const char subfield_code, const std::string &value) const {
+    bool subfield_delimiter_seen(false);
+    for (auto ch(contents_.cbegin()); ch != contents_.cend(); ++ch) {
+        if (subfield_delimiter_seen) {
+            if (*ch == subfield_code and contents_.substr(ch - contents_.cbegin() + 1, value.length()) == value)
+                return true;
+            subfield_delimiter_seen = false;
+        } else if (*ch == '\x1F')
             subfield_delimiter_seen = true;
     }
 
