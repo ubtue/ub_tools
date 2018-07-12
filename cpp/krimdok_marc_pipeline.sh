@@ -79,7 +79,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Normalise URL's"
-(normalise_urls --input-format=marc-21 GesamtTiteldaten-"${date}".mrc \
+(normalise_urls --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-${date}".mrc \
                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
@@ -152,7 +152,7 @@ EndPhase || Abort) &
 
 StartPhase "Check Record Integity at the End of the Pipeline"
 (marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields --input-format=marc-21 \
-            GesamtTiteldaten-"${date}".mrc \
+            GesamtTiteldaten-post-pipeline-"${date}".mrc \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
