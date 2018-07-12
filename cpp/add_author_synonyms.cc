@@ -77,13 +77,13 @@ void ExtractSynonyms(MARC::Reader * const marc_reader, std::map<std::string, std
     std::set<std::string> synonyms;
     std::vector<std::string> tags_and_subfield_codes;
     if (unlikely(StringUtil::Split(field_list, ':', &tags_and_subfield_codes) < 2))
-        LOG_ERROR("in ExtractSynonymsAndWriteSynonymMap: need at least two fields!");
+        LOG_ERROR("need at least two fields!");
     unsigned count(0);
     while (const MARC::Record record = marc_reader->read()) {
         ++count;
 
-        const auto primary_name_field(record.findTag(tags_and_subfield_codes[0].substr(0, 3)));
-        if (primary_name_field != record.end())
+        const auto primary_name_field(record.findTag(tags_and_subfield_codes[0].substr(0, MARC::Record::TAG_LENGTH)));
+        if (primary_name_field == record.end())
             continue;
 
         const std::string primary_name(ExtractNameFromSubfields(*primary_name_field,
