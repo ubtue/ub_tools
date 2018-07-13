@@ -92,20 +92,23 @@ void ExtractSynonyms(MARC::Reader * const authority_reader,
                      const std::map<std::string, std::pair<std::string, std::string>> &filter_spec)
 {
     while (const MARC::Record record = authority_reader->read()) {
-        std::vector<std::string>::const_iterator primary;
-        std::vector<std::string>::const_iterator synonym;
-        unsigned int i(0);
-        for (primary = primary_tags_and_subfield_codes.begin(), synonym = synonym_tags_and_subfield_codes.begin();
-            primary != primary_tags_and_subfield_codes.end();
-            ++primary, ++synonym, ++i)
+        auto primary_tag_and_subfield_codes(primary_tags_and_subfield_codes.cbegin());
+        auto synonym_tag_and_subfield_codes(synonym_tags_and_subfield_codes.cbegin());
+        auto synonym_map(synonym_maps->begin());
+        for (/*intentionally empty*/;  primary_tag_and_subfield_codes != primary_tags_and_subfield_codes.cend(); ++primary_tag_and_subfield_codes, ++synonym_tag_and_subfield_codes, ++synonym_map)
         {
             // Fill maps with synonyms
-            std::vector<std::string> primary_values(record.getSubfieldAndNumericSubfieldValues(GetTag(*primary), GetSubfieldCodes(*primary)));
-            std::vector<std::string> synonym_values(record.getSubfieldAndNumericSubfieldValues(GetTag(*synonym), GetSubfieldCodes(*synonym)));
+            std::vector<std::string> primary_values(record.getSubfieldAndNumericSubfieldValues(GetTag(*primary_tag_and_subfield_codes), GetSubfieldCodes(*primary_tag_and_subfield_codes)));
+            std::vector<std::string> synonym_values(record.getSubfieldAndNumericSubfieldValues(GetTag(*synonym_tag_and_subfield_codes), GetSubfieldCodes(*synonym_tag_and_subfield_codes)));
 
-            if (FilterPasses(record, filter_spec, *primary) and primary_values.size() and synonym_values.size()) {
-                    (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','),
-                                               StringUtil::Join(synonym_values, ','));
+            if (FilterPasses(record, filter_spec, *primary_tag_and_subfield_codes) and primary_values.size() and synonym_values.size()) {
+                // Append if other synonyms for the same keyword exist
+                const std::string key(StringUtil::Join(primary_values, ','));
+                const std::string existing_synonyms((*synonym_map)[key]);
+                std::string new_synonyms(StringUtil::Join(synonym_values, ','));
+                if (not existing_synonyms.empty())
+                    new_synonyms += "," + existing_synonyms;
+                (*synonym_map)[key] = new_synonyms;
             }
         }
     }
@@ -132,29 +135,24 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
                    const std::vector<std::string> &primary_tags_and_subfield_codes,
                    const std::vector<std::string> &output_tags_and_subfield_codes, bool * modified_record) {
 
-    std::vector<std::string>::const_iterator primary;
-    std::vector<std::string>::const_iterator output;
-    unsigned int i(0);
-
     if (primary_tags_and_subfield_codes.size() != output_tags_and_subfield_codes.size())
         LOG_ERROR("Number of primary and output tags do not match");
 
-    for (primary = primary_tags_and_subfield_codes.begin(), output = output_tags_and_subfield_codes.begin();
-        primary != primary_tags_and_subfield_codes.end();
-        ++primary, ++output, ++i)
+    for (auto primary_tag_and_subfield_codes(primary_tags_and_subfield_codes.cbegin()), output_tag_and_subfield_code(output_tags_and_subfield_codes.cbegin());
+         primary_tag_and_subfield_codes != primary_tags_and_subfield_codes.end(); ++primary_tag_and_subfield_codes, ++output_tag_and_subfield_code)
     {
 
         std::vector<std::string> synonym_values;
-        for (const auto &field : record->getTagRange(GetTag(*primary))) {
+        for (const auto &field : record->getTagRange(GetTag(*primary_tag_and_subfield_codes))) {
             const MARC::Subfields subfields(field.getSubfields());
-            std::vector<std::string> primary_values(subfields.extractSubfieldsAndNumericSubfields(GetSubfieldCodes(*primary)));
+            std::vector<std::string> primary_values(subfields.extractSubfieldsAndNumericSubfields(GetSubfieldCodes(*primary_tag_and_subfield_codes)));
             if (not primary_values.empty()) {
                 std::string searchterm(StringUtil::Join(primary_values, ','));
                 // Look up synonyms in all categories
                 for (auto &synonym_map : synonym_maps) {
-                    const auto &synonym(GetMapValueOrEmptyString(synonym_map, searchterm));
-                        if (not synonym.empty())
-                            synonym_values.push_back(synonym);
+                    const auto &synonym_tag_and_subfield_codes(GetMapValueOrEmptyString(synonym_map, searchterm));
+                        if (not synonym_tag_and_subfield_codes.empty())
+                            synonym_values.push_back(synonym_tag_and_subfield_codes);
                  }
              }
         }
@@ -163,10 +161,10 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
 
         // Insert synonyms
         // Abort if field is already populated
-        std::string tag(GetTag(*output));
+        std::string tag(GetTag(*output_tag_and_subfield_code));
         if (unlikely(record->hasTag(tag)))
             LOG_ERROR("in ProcessRecord: Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '!');
-        std::string subfield_spec(GetSubfieldCodes(*output));
+        std::string subfield_spec(GetSubfieldCodes(*output_tag_and_subfield_code));
         if (unlikely(subfield_spec.size() != 1))
             LOG_ERROR("in ProcessRecord: We currently only support a single subfield and thus specifying " + subfield_spec
                       + " as output subfield is not valid!");
@@ -220,29 +218,28 @@ void ProcessRecordTranslatedSynonyms(MARC::Record * const record, const std::vec
                                      const std::vector<std::map<std::string, std::vector<std::string>>> &translation_maps,
                                      bool * modified_record)
 {
-    std::vector<std::string>::const_iterator primary;
-    std::vector<std::string>::const_iterator output(translation_tags_and_subfield_codes.begin());
-    unsigned int i(0);
+    auto output_tag_and_subfield_code(translation_tags_and_subfield_codes.begin());
 
-    for (int lang(0); lang < LANGUAGES_END; ++lang, ++output) {
+    for (int lang(0); lang < LANGUAGES_END; ++lang, ++output_tag_and_subfield_code) {
 
         std::set<std::string> synonym_values;
         synonym_values.clear();
-        for (primary = primary_tags_and_subfield_codes.begin(); primary != primary_tags_and_subfield_codes.end();
-            ++primary, ++i)
+        for (auto primary_tag_and_subfield_codes(primary_tags_and_subfield_codes.begin()); 
+            primary_tag_and_subfield_codes != primary_tags_and_subfield_codes.end();
+            ++primary_tag_and_subfield_codes)
         {
             std::vector<std::string> primary_values;
             std::vector<size_t> field_indices;
-            for (const auto &field : record->getTagRange(GetTag(*primary))) {
+            for (const auto &field : record->getTagRange(GetTag(*primary_tag_and_subfield_codes))) {
                 const MARC::Subfields subfields(field.getContents());
-                primary_values = subfields.extractSubfields(GetSubfieldCodes(*primary));
+                primary_values = subfields.extractSubfields(GetSubfieldCodes(*primary_tag_and_subfield_codes));
                 if (primary_values.size()) {
                    std::string searchterm = StringUtil::Join(primary_values, ',');
-                   // Look up translation synonym for the respective language
-                       const auto &translated_synonym(GetMapValueOrEmptyString(translation_maps[lang], searchterm));
-                           if (not translated_synonym.empty())
+                   // Look up translation synonym_tag_and_subfield_codes for the respective language
+                       const auto &translated_synonym_tag_and_subfield_codes(GetMapValueOrEmptyString(translation_maps[lang], searchterm));
+                           if (not translated_synonym_tag_and_subfield_codes.empty())
                               // Only insert "real" synonyms without the primary translation
-                              synonym_values.emplace(StringUtil::Join(translated_synonym, ','));
+                              synonym_values.emplace(StringUtil::Join(translated_synonym_tag_and_subfield_codes, ','));
                }
             }
             if (synonym_values.empty())
@@ -250,10 +247,10 @@ void ProcessRecordTranslatedSynonyms(MARC::Record * const record, const std::vec
         }
         // Insert translated synonyms
         // Abort if field is already populated
-        std::string tag(GetTag(*output));
+        std::string tag(GetTag(*output_tag_and_subfield_code));
         if (record->hasTag(tag))
             LOG_ERROR("in ProcessRecord: Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '!');
-        std::string subfield_spec(GetSubfieldCodes(*output));
+        std::string subfield_spec(GetSubfieldCodes(*output_tag_and_subfield_code));
         if (unlikely(subfield_spec.size() != 1))
             LOG_ERROR("in ProcessRecord: We currently only support a single subfield and thus specifying " + subfield_spec
                       + " as output subfield is not valid!");
@@ -351,7 +348,7 @@ bool ParseSpec(std::string spec_str, std::vector<std::string> * const field_spec
 }
 
 
-int main(int argc, char **argv) {
+int Main(int argc, char **argv) {
     ::progname = argv[0];
 
     if (argc != 4)
@@ -369,67 +366,63 @@ int main(int argc, char **argv) {
     std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_data_marc_input_filename, MARC::FileType::BINARY));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY));
 
-    try {
-        // Determine possible mappings
-        // Values in square brackets specify a positive criterion for values to be taken into account
-        const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcd9g[079v=piz]:110abcd9g:111abcd9g:130abcd9g:150abcd9g:151abcd9g:100a9g");
-        const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcd9g:410abcd9g:411abcd9g:430abcd9g:450abcd9g:451abcd9g:700a9g");
-        const std::string TITLE_DATA_PRIMARY_SPEC("600abcd9g:610abcd9g:611abcd:630abcd:650abcd9g:651abcd9g:689abcdt9g");
-        const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("180a:181a:182a:183a:184a:185a:186a");
-        const std::string TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS("950a:951a:952a:953a:954a:955a:956a:957a:958a");
+   // Determine possible mappings
+   // Values in square brackets specify a positive criterion for values to be taken into account
+   const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcdpnt9g[079v=piz]:110abcdnpt9g:111abcdnpt9g:130abcdnpt9g:150abcdnpt9g:151abcdztnp9g:100a9g");
+   const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcdpnt9g:410abcdnpt9g:411abcdnpt9g:430abcdnpt9g:450abcdnpt9g:451abcdznpt9g:700a9g");
+   const std::string TITLE_DATA_PRIMARY_SPEC("600abcdpnt9g:610abcdnpt9g:611abcdnpt:630abcdnpt:650abcdnpt9g:651abcdnpt9g:689abcdpntz9g");
+   const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("940a:941a:942a:943a:944a:945a:946a");
+   const std::string TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS("950a:951a:952a:953a:954a:955a:956a:957a:958a");
 
-        // Determine fields to handle
-        std::vector<std::string> primary_tags_and_subfield_codes;
-        std::vector<std::string> synonym_tags_and_subfield_codes;
-        std::vector<std::string> input_tags_and_subfield_codes;
-        std::vector<std::string> output_tags_and_subfield_codes;
-        std::vector<std::string> translation_tags_and_subfield_codes;
+   // Determine fields to handle
+   std::vector<std::string> primary_tags_and_subfield_codes;
+   std::vector<std::string> synonym_tags_and_subfield_codes;
+   std::vector<std::string> input_tags_and_subfield_codes;
+   std::vector<std::string> output_tags_and_subfield_codes;
+   std::vector<std::string> translation_tags_and_subfield_codes;
 
-        std::map<std::string, std::pair<std::string, std::string>> filter_specs;
+   std::map<std::string, std::pair<std::string, std::string>> filter_specs;
 
-        if (not unlikely(ParseSpec(AUTHORITY_DATA_PRIMARY_SPEC, &primary_tags_and_subfield_codes, &filter_specs)))
-            logger->error("Could not properly parse " + AUTHORITY_DATA_PRIMARY_SPEC);
+   if (not unlikely(ParseSpec(AUTHORITY_DATA_PRIMARY_SPEC, &primary_tags_and_subfield_codes, &filter_specs)))
+       logger->error("Could not properly parse " + AUTHORITY_DATA_PRIMARY_SPEC);
 
-        if (unlikely(StringUtil::Split(AUTHORITY_DATA_SYNONYM_SPEC, ":", &synonym_tags_and_subfield_codes) == 0))
-            logger->error("Need at least one synonym field");
+   if (unlikely(StringUtil::Split(AUTHORITY_DATA_SYNONYM_SPEC, ":", &synonym_tags_and_subfield_codes) == 0))
+       logger->error("Need at least one synonym_tag_and_subfield_codes field");
 
-        if (unlikely(StringUtil::Split(TITLE_DATA_PRIMARY_SPEC, ":", &input_tags_and_subfield_codes) == 0))
-            logger->error("Need at least one input field");
+   if (unlikely(StringUtil::Split(TITLE_DATA_PRIMARY_SPEC, ":", &input_tags_and_subfield_codes) == 0))
+       logger->error("Need at least one input field");
 
-        if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS, ":", &output_tags_and_subfield_codes)
-                     == 0))
-            logger->error("Need at least one output field");
-
-
-        if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS, ":", &translation_tags_and_subfield_codes)
-                     == 0))
-            logger->error("Need at least as many output fields as supported languages: (currently " + std::to_string(languages_to_translate.size()) + ")");
-
-        unsigned num_of_authority_entries(primary_tags_and_subfield_codes.size());
-
-        if (synonym_tags_and_subfield_codes.size() != num_of_authority_entries)
-            logger->error("Number of authority primary specs must match number of synonym specs");
-        if (input_tags_and_subfield_codes.size() != output_tags_and_subfield_codes.size())
-            logger->error("Number of fields title entry specs must match number of output specs");
-
-        std::vector<std::map<std::string, std::string>> synonym_maps(num_of_authority_entries,
-                                                                     std::map<std::string, std::string>());
-
-        // Extract the synonyms from authority data
-        ExtractSynonyms(authority_reader.get(), primary_tags_and_subfield_codes, synonym_tags_and_subfield_codes,
-                        &synonym_maps, filter_specs);
-
-        // Extract translations from authority data
-        std::vector<std::map<std::string, std::vector<std::string>>> translation_maps(NUMBER_OF_LANGUAGES,
-                                                                                      std::map<std::string, std::vector<std::string>>());
-        ExtractTranslatedSynonyms(&translation_maps);
-
-        // Iterate over the title data
-        InsertSynonyms(marc_reader.get(), marc_writer.get(), input_tags_and_subfield_codes,
-                       output_tags_and_subfield_codes, synonym_maps, translation_maps, translation_tags_and_subfield_codes);
+   if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS, ":", &output_tags_and_subfield_codes)
+                == 0))
+       logger->error("Need at least one output field");
 
 
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+   if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS, ":", &translation_tags_and_subfield_codes)
+                == 0))
+       logger->error("Need at least as many output fields as supported languages: (currently " + std::to_string(languages_to_translate.size()) + ")");
+
+   unsigned num_of_authority_entries(primary_tags_and_subfield_codes.size());
+
+   if (synonym_tags_and_subfield_codes.size() != num_of_authority_entries)
+       logger->error("Number of authority primary specs must match number of synonym_tag_and_subfield_codes specs");
+   if (input_tags_and_subfield_codes.size() != output_tags_and_subfield_codes.size())
+       logger->error("Number of fields title entry specs must match number of output specs");
+
+   std::vector<std::map<std::string, std::string>> synonym_maps(num_of_authority_entries,
+                                                                std::map<std::string, std::string>());
+
+   // Extract the synonyms from authority data
+   ExtractSynonyms(authority_reader.get(), primary_tags_and_subfield_codes, synonym_tags_and_subfield_codes,
+                   &synonym_maps, filter_specs);
+
+   // Extract translations from authority data
+   std::vector<std::map<std::string, std::vector<std::string>>> translation_maps(NUMBER_OF_LANGUAGES,
+                                                                                 std::map<std::string, std::vector<std::string>>());
+   ExtractTranslatedSynonyms(&translation_maps);
+
+   // Iterate over the title data
+   InsertSynonyms(marc_reader.get(), marc_writer.get(), input_tags_and_subfield_codes,
+                  output_tags_and_subfield_codes, synonym_maps, translation_maps, translation_tags_and_subfield_codes);
+
+   return EXIT_SUCCESS;
 }

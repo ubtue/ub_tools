@@ -42,6 +42,12 @@ public class RelBib extends IxTheo {
      */
 
     public Set<String> getRelBibNotationFacets(final Record record) {
+        // Due to problems with facet filter excludes (OR-facets disable the filter
+        // facet query and display results based on the whole collection) we have to make sure
+        // that only "real" RelBib-entries get a notation
+        if (record.getVariableFields("REL").isEmpty())
+            return new HashSet<String>();
+
         Set<String> relBibNotations = getIxTheoNotationFacets(record);
         Iterator<String> relBibNotationsIter = relBibNotations.iterator();
         while (relBibNotationsIter.hasNext()) {

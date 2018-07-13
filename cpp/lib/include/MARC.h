@@ -161,6 +161,7 @@ public:
     inline iterator end() { return subfields_.end(); }
     inline bool empty() const { return subfields_.empty(); }
     size_t size() const { return subfields_.size(); }
+    void clear() { return subfields_.clear(); }
 
     inline bool hasSubfield(const char subfield_code) const {
         return std::find_if(subfields_.cbegin(), subfields_.cend(),
@@ -338,6 +339,7 @@ public:
         std::string getFirstSubfieldWithCode(const char subfield_code) const;
 
         bool hasSubfield(const char subfield_code) const;
+        bool hasSubfieldWithValue(const char subfield_code, const std::string &value) const;
 
         inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
             { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }

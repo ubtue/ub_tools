@@ -20,25 +20,23 @@
 #include <iostream>
 #include <string>
 #include <unordered_set>
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcUtil.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-void CollectArticleCollectionPPNs(MarcReader * const reader,
-                                  std::unordered_set<std::string> * const article_collection_ppns)
-{
+void CollectArticleCollectionPPNs(MARC::Reader * const reader, std::unordered_set<std::string> * const article_collection_ppns) {
     article_collection_ppns->clear();
-    while (const MarcRecord record = reader->read()) {
-        if (MarcUtil::IsArticle(record)) {
-            const std::string parent_ppn(MarcUtil::GetParentPPN(record));
+    while (const MARC::Record record = reader->read()) {
+        if (record.isArticle()) {
+            const std::string parent_ppn(MARC::GetParentPPN(record));
             if (not parent_ppn.empty())
                 article_collection_ppns->insert(parent_ppn);
         }
@@ -46,36 +44,53 @@ void CollectArticleCollectionPPNs(MarcReader * const reader,
 }
 
 
-void MarkArticleCollections(MarcReader * const reader, MarcWriter * const writer,
+// If any of the following matches, we have an essay collection:
+struct EssayCollectionMatch {
+    MARC::Tag tag_;
+    char subfield_code_;
+    std::string subfield_contents_;
+public:
+    EssayCollectionMatch(const MARC::Tag &tag, const char subfield_code, const std::string &subfield_contents)
+        : tag_(tag), subfield_code_(subfield_code), subfield_contents_(subfield_contents) { }
+};
+
+
+const std::vector<EssayCollectionMatch> essay_collection_matches{
+    { "935", 'c', "fe"               },
+    { "655", 'a', "Aufsatzsammlung"  },
+    { "689", 'a', "Aufsatzsammlung"  },
+    { "655", 'a', "Festschrift"      },
+    { "655", 'a', "Konferenzschrift" },
+    { "689", 'a', "Konferenzschrift" },
+    { "689", 'a', "Kongress"         },
+    { "935", 'c', "gkko"             },
+};
+
+
+void MarkArticleCollections(MARC::Reader * const reader, MARC::Writer * const writer,
                             const std::unordered_set<std::string> &article_collection_ppns)
 {
     unsigned count(0), modified_count(0);
-    while (MarcRecord record = reader->read()) {
+    while (MARC::Record record = reader->read()) {
         ++count;
 
         bool is_article_collection(false);
         if (article_collection_ppns.find(record.getControlNumber()) != article_collection_ppns.end())
             is_article_collection = true;
-        if (not is_article_collection and not MarcUtil::IsArticle(record)) {
-            is_article_collection = MarcUtil::HasSubfieldWithValue(record, "935", 'c', "fe");
-            if (not is_article_collection)
-                is_article_collection = MarcUtil::HasSubfieldWithValue(record, "655", 'a', "Aufsatzsammlung");
-            if (not is_article_collection)
-                is_article_collection = MarcUtil::HasSubfieldWithValue(record, "689", 'a', "Aufsatzsammlung");
-            if (not is_article_collection)
-                is_article_collection = MarcUtil::HasSubfieldWithValue(record, "655", 'a', "Festschrift");
-            if (not is_article_collection)
-                is_article_collection = MarcUtil::HasSubfieldWithValue(record, "655", 'a', "Konferenzschrift");
-            if (not is_article_collection)
-                is_article_collection = MarcUtil::HasSubfieldWithValue(record, "689", 'a', "Konferenzschrift");
-            if (not is_article_collection)
-                is_article_collection = MarcUtil::HasSubfieldWithValue(record, "689", 'a', "Kongress");
-            if (not is_article_collection)
-                is_article_collection = MarcUtil::HasSubfieldWithValue(record, "935", 'c', "gkko");
+        if (not is_article_collection and not record.isArticle()) {
+            for (const auto &field : record) {
+                for (const auto &essay_collection_match : essay_collection_matches) {
+                    if (field.getTag() == essay_collection_match.tag_
+                        and field.hasSubfieldWithValue(essay_collection_match.subfield_code_, essay_collection_match.subfield_contents_))
+                        goto found_article_collection;
+                }
+            }
         }
 
+
         if (is_article_collection) {
-            record.insertSubfield("ACO", 'a', "1");
+found_article_collection:
+            record.insertField("ACO", { { 'a', "1" } } );
             ++modified_count;
         }
 
@@ -87,20 +102,22 @@ void MarkArticleCollections(MarcReader * const reader, MarcWriter * const writer
 }
 
 
-int main(int argc, char **argv) {
+} // unnamed namespace
+
+
+int Main(int argc, char **argv) {
     ::progname = argv[0];
 
     if (argc != 3)
         Usage();
-    
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
-    try {
-        std::unordered_set<std::string> article_collection_ppns;
-        CollectArticleCollectionPPNs(marc_reader.get(), &article_collection_ppns);
-        marc_reader->rewind();
-        MarkArticleCollections(marc_reader.get(), marc_writer.get(), article_collection_ppns);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
+
+    std::unordered_set<std::string> article_collection_ppns;
+    CollectArticleCollectionPPNs(marc_reader.get(), &article_collection_ppns);
+    marc_reader->rewind();
+    MarkArticleCollections(marc_reader.get(), marc_writer.get(), article_collection_ppns);
+
+    return EXIT_SUCCESS;
 }
