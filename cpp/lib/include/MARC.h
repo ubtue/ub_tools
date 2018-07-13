@@ -34,6 +34,10 @@
 #include "XMLSubsetParser.h"
 
 
+// Forward declaration:
+class RegexMatcher;
+
+
 namespace MARC {
 
 
@@ -349,6 +353,11 @@ public:
 
         bool hasSubfield(const char subfield_code) const;
         bool hasSubfieldWithValue(const char subfield_code, const std::string &value) const;
+
+        /** \param value  Where to store the extracted data, if we have a match.
+         *  \return True, if a subfield with subfield code "subfield_code" matching "regex" exists, else false.
+         */
+        bool extractSubfieldWithPattern(const char subfield_code, RegexMatcher &regex, std::string * const value) const;
 
         inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
             { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
