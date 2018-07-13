@@ -183,38 +183,6 @@ size_t ExtractKeywordsFromKeywordChainFields(
 }
 
 
-size_t ExtractKeywordsFromIndividualKeywordFields(
-    const MARC::Record &record,
-    const Stemmer * const stemmer,
-    std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
-    std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
-{
-    size_t keyword_count(0);
-    std::vector<std::string> tag_spits, keyword_phrases;
-    static const std::string SUBFIELD_IGNORE_LIST("02"); // Do not extract $0 and $2.
-    static const std::vector<std::string> SOURCE_TAGS{ "600", "610", "611", "630", "650", "653", "656" };
-
-    for (const auto &tag : SOURCE_TAGS) {
-        const auto field(record.findTag(tag));
-        if (field == record.end())
-            continue;
-
-        for (const auto &subfield : field->getSubfields()) {
-            if (SUBFIELD_IGNORE_LIST.find(subfield.code_) == std::string::npos)
-                keyword_phrases.emplace_back(subfield.value_);
-        }
-    }
-
-    for (const auto &keyword_phrase : keyword_phrases) {
-        ProcessKeywordPhrase(CanonizeCentury(keyword_phrase), stemmer, stemmed_keyword_to_stemmed_keyphrases_map,
-                             stemmed_keyphrases_to_unstemmed_keyphrases_map);
-        ++keyword_count;
-    }
-
-    return keyword_count;
-}
-
-
 size_t ExtractAllKeywords(
     const MARC::Record &record,
     std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
@@ -226,11 +194,6 @@ size_t ExtractAllKeywords(
     size_t extracted_count(ExtractKeywordsFromKeywordChainFields(record, stemmer,
                                                                  stemmed_keyword_to_stemmed_keyphrases_map,
                                                                  stemmed_keyphrases_to_unstemmed_keyphrases_map));
-/*
-    extracted_count += ExtractKeywordsFromIndividualKeywordFields(dir_entries, fields, stemmer,
-                                                                  stemmed_keyword_to_stemmed_keyphrases_map,
-                                                                  stemmed_keyphrases_to_unstemmed_keyphrases_map);
-*/
     return extracted_count;
 }
 
