@@ -77,7 +77,6 @@ void LoadBibleOrderMap(File * const input,
 bool FindPericopes(const MARC::Record &record, const std::set<std::pair<std::string, std::string>> &ranges,
                    std::unordered_multimap<std::string, std::string> * const pericopes_to_ranges_map)
 {
-    // ### 130 doesn't seem like it's repeatable, why does the code below think otherwise?
     std::vector<std::string> pericopes;
     const auto field_130(record.findTag("130"));
     if (field_130 != record.end()) {
@@ -232,12 +231,8 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
 {
     ranges->clear();
 
-    const auto field_range(record.getTagRange(field_tag));
-    if (field_range.empty())
-        return false;
-
     bool found_at_least_one(false);
-    for (const auto &field : field_range) {
+    for (const auto &field : record.getTagRange(field_tag)) {
         const auto subfields(field.getSubfields());
         const bool esra_special_case(subfields.getFirstSubfieldWithCode('a') == "Esra");
         const bool maccabee_special_case(subfields.getFirstSubfieldWithCode('a') == "Makkabäer");
@@ -382,8 +377,7 @@ bool FindGndCodes(const std::string &tags, const MARC::Record &record,
 
     bool found_at_least_one(false);
     for (const auto &tag : individual_tags) {
-        const auto field_range(record.getTagRange(tag));
-        for (const auto &field : field_range) {
+        for (const auto &field : record.getTagRange(tag)) {
             const auto subfields(field.getSubfields());
             const std::string subfield2(subfields.getFirstSubfieldWithCode('2'));
             if (subfield2.empty() or subfield2 != "gnd")
@@ -440,7 +434,7 @@ void AugmentBibleRefs(MARC::Reader * const marc_reader, MARC::Writer * const mar
                 }
 
                 // Put the data into the $a subfield:
-                bible_reference_tag_field->insertOrReplaceSubfield('a', range_string);
+                record.insertField(BibleUtil::BIB_REF_RANGE_TAG, { { 'a', range_string } });
             }
 
             marc_writer->write(record);
