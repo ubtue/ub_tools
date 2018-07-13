@@ -84,7 +84,6 @@ public:
     inline const char *c_str() const { return tag_.as_cstring_; }
     inline const std::string toString() const { return std::string(c_str(), 3); }
     inline uint32_t to_int() const { return htonl(tag_.as_int_); }
-    inline operator std::string() const { return tag_.as_cstring_; }
 
     inline bool isTagOfControlField() const { return tag_.as_cstring_[0] == '0' and tag_.as_cstring_[1] == '0'; }
     bool isLocal() const;
