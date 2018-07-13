@@ -134,14 +134,10 @@ int Main(int argc, char **argv) {
 
     const std::string TITLE_DATA_UNUSED_FIELD_FOR_SYNONYMS("187a");
 
-    try {
-        std::map<std::string, std::string> synonym_map;
-        // Extract the synonyms from reference marc data
-        ExtractSynonyms(reference_data_id_term_list_input.get(), &synonym_map);
-        InsertSynonyms(marc_reader.get(), marc_writer.get(), TITLE_DATA_UNUSED_FIELD_FOR_SYNONYMS, synonym_map);
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
+    std::map<std::string, std::string> synonym_map;
+    // Extract the synonyms from reference marc data
+    ExtractSynonyms(reference_data_id_term_list_input.get(), &synonym_map);
+    InsertSynonyms(marc_reader.get(), marc_writer.get(), TITLE_DATA_UNUSED_FIELD_FOR_SYNONYMS, synonym_map);
 
     return EXIT_SUCCESS;
 }
