@@ -24,14 +24,15 @@
 #include <memory>
 #include <cstdlib>
 #include <cstring>
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "RegexMatcher.h"
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << "(--keep|--delete)] pattern marc_input marc_output\n";
     std::cerr << "  Removes records whose control numbers match \"pattern\" if \"--delete\" has been specified\n";
     std::cerr << "  or only keeps those records whose control numbers match \"pattern\" if \"--keep\" has\n";
@@ -40,22 +41,22 @@ void Usage() {
 }
 
 
-void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MarcReader * const marc_reader,
-                       MarcWriter * const marc_writer)
+void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MARC::Reader * const marc_reader,
+                       MARC::Writer * const marc_writer)
 {
     std::string err_msg;
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
     if (matcher == nullptr)
-        logger->error("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
+        LOG_ERROR("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
 
     unsigned count(0), kept_or_deleted_count(0);
 
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         ++count;
 
         const bool matched(matcher->matched(record.getControlNumber(), &err_msg));
         if (not err_msg.empty())
-            logger->error("regex matching error: " + err_msg);
+            LOG_ERROR("regex matching error: " + err_msg);
 
         if ((keep and matched) or (not keep and not matched)) {
             ++kept_or_deleted_count;
@@ -64,29 +65,33 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MarcRe
     }
 
     if (not err_msg.empty())
-        logger->error(err_msg);
+        LOG_ERROR(err_msg);
 
     std::cerr << "Read " << count << " records.\n";
     std::cerr << (keep ? "Kept " : "Deleted ") << kept_or_deleted_count << " record(s).\n";
 }
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
+} // unnamed namespace
 
+
+int Main(int argc, char **argv) {
     if (argc != 5)
         Usage();
     if (std::strcmp(argv[1], "--keep") != 0 and std::strcmp(argv[1], "--delete") != 0)
         Usage();
+
     const bool keep(std::strcmp(argv[1], "--keep") == 0);
     const std::string regex_pattern(argv[2]);
 
     const std::string marc_input_filename(argv[3]);
     const std::string marc_output_filename(argv[4]);
     if (unlikely(marc_input_filename == marc_output_filename))
-        logger->error("Master input file name equals output file name!");
+        LOG_ERROR("Master input file name equals output file name!");
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
+    auto marc_reader(MARC::Reader::Factory(marc_input_filename));
+    auto marc_writer(MARC::Writer::Factory(marc_output_filename));
     FilterMarcRecords(keep, regex_pattern, marc_reader.get(), marc_writer.get());
+
+    return EXIT_SUCCESS;
 }
