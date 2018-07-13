@@ -88,7 +88,7 @@ void ProcessRecord(MARC::Record * const record, const std::string &output_tag_an
     std::string subfield_spec(GetSubfieldCodes(output_tag_and_subfield_code));
     if (subfield_spec.size() != 1)
         LOG_ERROR("We currently only support a single subfield and thus specifying " + subfield_spec
-                      + " as output subfield is not valid\n");
+                  + " as output subfield is not valid\n");
     MARC::Subfields subfields;
     subfields.addSubfield(subfield_spec[0], synonyms);
     if (not record->insertField(tag, subfields))
@@ -97,7 +97,7 @@ void ProcessRecord(MARC::Record * const record, const std::string &output_tag_an
 }
 
 
-void InsertSynonyms(MARC::Reader * const marc_reader, MARC::Writer * marc_writer,
+void InsertSynonyms(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                     const std::string &output_tag_and_subfield_code,
                     const std::map<std::string, std::string> &synonym_map)
 {
