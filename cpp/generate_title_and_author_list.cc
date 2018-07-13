@@ -1,7 +1,7 @@
 /** \brief Utility for generating a list of titles and authors from a collection of MARC records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -23,50 +23,42 @@
 #include <cstdio>
 #include <cstdlib>
 #include "Compiler.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "Subfields.h"
+#include "MARC.h"
 #include "util.h"
 
 
-static void Usage() __attribute__((noreturn));
+namespace {
 
 
-static void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " marc_data\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-void ExtractAuthors(const MarcRecord &record, std::vector<std::string> * const authors) {
+void ExtractAuthors(const MARC::Record &record, std::vector<std::string> * const authors) {
     authors->clear();
 
-    std::vector<size_t> field_indices;
-    record.getFieldIndices("100", &field_indices);
-    for (const size_t field_index : field_indices) {
-        const std::string field_contents(record.getFieldData(field_index));
-        if (unlikely(field_contents.empty()))
-            continue;
-
-        const Subfields subfields(field_contents);
-        const std::string author(subfields.getFirstSubfieldValue('a'));
+    for (const auto &field : record.getTagRange("100")) {
+        const auto subfields(field.getSubfields());
+        const std::string author(subfields.getFirstSubfieldWithCode('a'));
         if (likely(not author.empty()))
             authors->emplace_back(author);
     }
 }
 
 
-void ProcessRecords(MarcReader * const marc_reader) {
+void ProcessRecords(MARC::Reader * const marc_reader) {
     unsigned record_count(0);
-    while (const MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
 
-        const std::string _245_contents(record.getFieldData("245"));
-        if (unlikely(_245_contents.empty()))
+        const auto field_245(record.findTag("245"));
+        if (unlikely(field_245 == record.end()))
             continue;
 
-        const Subfields subfields(_245_contents);
-        const std::string main_title(subfields.getFirstSubfieldValue('a'));
+        const auto subfields(field_245->getSubfields());
+        const std::string main_title(subfields.getFirstSubfieldWithCode('a'));
         if (unlikely(main_title.empty()))
             continue;
 
@@ -82,17 +74,15 @@ void ProcessRecords(MarcReader * const marc_reader) {
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
+} // unnamed namespace
 
+
+int Main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
+    auto marc_reader(MARC::Reader::Factory(argv[1]));
+    ProcessRecords(marc_reader.get());
 
-    try {
-        ProcessRecords(marc_reader.get());
-    } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
-    }
+    return EXIT_SUCCESS;
 }
