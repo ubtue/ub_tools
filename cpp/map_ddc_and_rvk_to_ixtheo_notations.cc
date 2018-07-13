@@ -26,14 +26,15 @@
 #include <unordered_map>
 #include <cctype>
 #include <cstdlib>
-#include "MarcRecord.h"
-#include "MarcReader.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "StringUtil.h"
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbose] marc_input marc_output ddc_to_ixtheo_notations_map "
               << "rvk_to_ixtheo_notations_map\n";
     std::exit(EXIT_FAILURE);
@@ -111,23 +112,23 @@ void UpdateIxTheoNotations(const std::vector<IxTheoMapper> &mappers, const std::
 }
 
 
-void ProcessRecords(const bool verbose, MarcReader * const marc_reader, MarcWriter * const marc_writer,
+void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                     const std::vector<IxTheoMapper> &ddc_to_ixtheo_notation_mappers,
                     const std::vector<IxTheoMapper> &/*rvk_to_ixtheo_notation_mappers*/)
 {
     unsigned count(0), records_with_ixtheo_notations(0), records_with_new_notations(0), skipped_group_count(0);
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         ++count;
 
-        std::string ixtheo_notations_list(record.extractFirstSubfield("652", 'a'));
+        std::string ixtheo_notations_list(record.getFirstSubfieldValue("652", 'a'));
         if (not ixtheo_notations_list.empty()) {
             ++records_with_ixtheo_notations;
             marc_writer->write(record);
             continue;
         }
 
-        std::vector<std::string> ddc_values;
-        if (record.extractSubfield("082", 'a', &ddc_values) == 0) {
+        std::vector<std::string> ddc_values(record.getSubfieldValues("082", 'a'));
+        if (ddc_values.empty()) {
             marc_writer->write(record);
             continue;
         }
@@ -148,9 +149,8 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader, MarcWrit
             StringUtil::RemoveChars("/", &ddc_value);
 
         UpdateIxTheoNotations(ddc_to_ixtheo_notation_mappers, ddc_values, &ixtheo_notations_list);
-        if (verbose and not ixtheo_notations_list.empty()) {
-            std::cout << record.getControlNumber() << ": " << StringUtil::Join(ddc_values, ',') << " -> " << ixtheo_notations_list << '\n';
-        }
+        if (not ixtheo_notations_list.empty())
+            LOG_DEBUG(record.getControlNumber() + ": " + StringUtil::Join(ddc_values, ',') + " -> " + ixtheo_notations_list);
 
 /*
         std::vector<std::string> rvk_values;
@@ -183,32 +183,25 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader, MarcWrit
 }
 
 
-int main(int argc, char **argv) {
-    progname = argv[0];
+} // unnamed namespace
 
-    if (argc != 5 and argc != 6)
+
+int Main(int argc, char **argv) {
+    if (argc < 5)
         Usage();
 
-    bool verbose(false);
-    if (argc == 6) {
-        if (std::strcmp(argv[1], "--verbose") != 0)
-            Usage();
-        verbose = true;
-    }
+    auto marc_reader(MARC::Reader::Factory(argv[1]));
+    auto marc_writer(MARC::Writer::Factory(argv[2]));
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[verbose ? 2 : 1], MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[verbose ? 3 : 2], MarcWriter::BINARY));
+    std::vector<IxTheoMapper> ddc_to_ixtheo_notation_mappers;
+    LoadCSVFile(argv[3], &ddc_to_ixtheo_notation_mappers);
 
-    try {
-        std::vector<IxTheoMapper> ddc_to_ixtheo_notation_mappers;
-        LoadCSVFile(argv[verbose ? 4 : 3], &ddc_to_ixtheo_notation_mappers);
+    std::vector<IxTheoMapper> rvk_to_ixtheo_notation_mappers;
+    // The RVK notations were never provided to us by the librarians
+    // So, we don't  use it at the moment
+    //LoadCSVFile(argv[4], &rvk_to_ixtheo_notation_mappers);
 
-        std::vector<IxTheoMapper> rvk_to_ixtheo_notation_mappers;
-//      LoadCSVFile(argv[verbose ? 5 : 4], &rvk_to_ixtheo_notation_mappers);
-
-        ProcessRecords(verbose, marc_reader.get(), marc_writer.get(), ddc_to_ixtheo_notation_mappers,
-                       rvk_to_ixtheo_notation_mappers);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    ProcessRecords(marc_reader.get(), marc_writer.get(), ddc_to_ixtheo_notation_mappers,
+                   rvk_to_ixtheo_notation_mappers);
+    return EXIT_SUCCESS;
 }
