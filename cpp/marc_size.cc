@@ -1,7 +1,7 @@
 /** \brief Utility for displaying the count of MARC records contained in a collection.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,39 +20,34 @@
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
-#include "MarcReader.h"
-#include "MarcRecord.h"
+#include "MARC.h"
 #include "util.h"
 
 
-static void Usage() __attribute__((noreturn));
+namespace {
 
 
-static void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " marc_data\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-void CountRecords(MarcReader * const marc_reader) {
+void CountRecords(MARC::Reader * const marc_reader) {
     unsigned record_count(0);
-    while (const MarcRecord record = marc_reader->read())
+    while (const MARC::Record record = marc_reader->read())
         ++record_count;
     std::cout << record_count << '\n';
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
+} // unnamed namespace
 
+int Main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
-
-    try {
-        CountRecords(marc_reader.get());
-    } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
-    }
+    auto marc_reader(MARC::Reader::Factory(argv[1]));
+    CountRecords(marc_reader.get());
+    return EXIT_SUCCESS;
 }
