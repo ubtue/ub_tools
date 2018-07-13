@@ -203,16 +203,12 @@ int Main(int argc, char **argv) {
     auto marc_reader(MARC::Reader::Factory(marc_input_filename));
     auto marc_writer(MARC::Writer::Factory(marc_output_filename));
 
-    try {
-        std::unordered_map<std::string, std::string> parent_id_to_isbn_and_issn_map;
-        PopulateParentIdToISBNAndISSNMap(verbose, marc_reader.get(), &parent_id_to_isbn_and_issn_map);
-        marc_reader->rewind();
+    std::unordered_map<std::string, std::string> parent_id_to_isbn_and_issn_map;
+    PopulateParentIdToISBNAndISSNMap(verbose, marc_reader.get(), &parent_id_to_isbn_and_issn_map);
+    marc_reader->rewind();
 
-        AddMissingISBNsOrISSNsToArticleEntries(verbose, marc_reader.get(), marc_writer.get(),
-                                               parent_id_to_isbn_and_issn_map);
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
+    AddMissingISBNsOrISSNsToArticleEntries(verbose, marc_reader.get(), marc_writer.get(),
+                                            parent_id_to_isbn_and_issn_map);
 
     return EXIT_SUCCESS;
 }
