@@ -238,21 +238,6 @@ std::vector<std::string> ExtractString(const JSON::ObjectNode &object_node, cons
 }
 
 
-std::string ExtractAuthor(const JSON::ObjectNode &object_node) {
-    const std::shared_ptr<const JSON::StringNode> name_node(object_node.getOptionalStringNode("name"));
-    if (name_node != nullptr)
-        return name_node->getValue();
-
-    const std::shared_ptr<const JSON::StringNode> family_node(object_node.getStringNode("family"));
-    std::string author(family_node->getValue());
-    const std::shared_ptr<const JSON::StringNode> given_node(object_node.getOptionalStringNode("given"));
-    if (given_node != nullptr)
-        author += ", " + given_node->getValue();
-
-    return author;
-}
-
-
 std::vector<std::string> ExtractStringVector(const JSON::ObjectNode &object_node, const std::string &json_field_name,
                                              const bool is_repeatable)
 {
