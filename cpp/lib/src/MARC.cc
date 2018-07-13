@@ -173,10 +173,25 @@ bool Record::Field::hasSubfield(const char subfield_code) const {
     bool subfield_delimiter_seen(false);
     for (const char ch : contents_) {
         if (subfield_delimiter_seen) {
-            subfield_delimiter_seen = false;
             if (ch == subfield_code)
                 return true;
+            subfield_delimiter_seen = false;
         } else if (ch == '\x1F')
+            subfield_delimiter_seen = true;
+    }
+
+    return false;
+}
+
+
+bool Record::Field::hasSubfieldWithValue(const char subfield_code, const std::string &value) const {
+    bool subfield_delimiter_seen(false);
+    for (auto ch(contents_.cbegin()); ch != contents_.cend(); ++ch) {
+        if (subfield_delimiter_seen) {
+            if (*ch == subfield_code and contents_.substr(ch - contents_.cbegin() + 1, value.length()) == value)
+                return true;
+            subfield_delimiter_seen = false;
+        } else if (*ch == '\x1F')
             subfield_delimiter_seen = true;
     }
 
@@ -542,6 +557,7 @@ std::vector<Record::const_iterator> Record::findStartOfAllLocalDataBlocks() cons
     if (local_field == end())
         return block_start_iterators;
 
+    block_start_iterators.emplace_back(local_field);
     while (local_field != end()) {
         if (GetLocalTag(*local_field) < last_local_tag)
             block_start_iterators.emplace_back(local_field);
@@ -561,6 +577,7 @@ std::vector<Record::iterator> Record::findStartOfAllLocalDataBlocks() {
     if (local_field == end())
         return block_start_iterators;
 
+    block_start_iterators.emplace_back(local_field);
     while (local_field != end()) {
         if (GetLocalTag(*local_field) < last_local_tag)
             block_start_iterators.emplace_back(local_field);
@@ -755,11 +772,11 @@ bool Record::edit(const std::vector<EditInstruction> &edit_instructions, std::st
 Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag, const const_iterator &block_start, const char indicator1,
                                                      const char indicator2) const
 {
-    std::string last_tag;
     auto local_field(block_start);
+    std::string last_local_tag;
     const_iterator range_start(fields_.end()), range_end(fields_.end());
     while (local_field != fields_.end()) {
-        if (GetLocalTag(*local_field) < last_tag) // We found the start of a new local block!
+        if (GetLocalTag(*local_field) < last_local_tag) // We found the start of a new local block! (with local tag "000")
             return Record::ConstantRange(fields_.end(), fields_.end());
 
         if (LocalIndicatorsMatch(indicator1, indicator2, *local_field) and LocalTagMatches(local_field_tag, *local_field)) {
@@ -774,7 +791,7 @@ Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag,
             return Record::ConstantRange(range_start, range_end);
         }
 
-        last_tag = GetLocalTag(*local_field);
+        last_local_tag = GetLocalTag(*local_field);
         ++local_field;
     }
 
@@ -785,11 +802,11 @@ Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag,
 Record::Range Record::findFieldsInLocalBlock(const Tag &local_field_tag, const iterator &block_start, const char indicator1,
                                              const char indicator2)
 {
-    std::string last_tag;
     auto local_field(block_start);
+    std::string last_local_tag;
     iterator range_start(fields_.end()), range_end(fields_.end());
     while (local_field != fields_.end()) {
-        if (GetLocalTag(*local_field) < last_tag) // We found the start of a new local block!
+        if (GetLocalTag(*local_field) < last_local_tag) // We found the start of a new local block!
             return Record::Range(fields_.end(), fields_.end());
 
         if (LocalIndicatorsMatch(indicator1, indicator2, *local_field) and LocalTagMatches(local_field_tag, *local_field)) {
@@ -804,7 +821,7 @@ Record::Range Record::findFieldsInLocalBlock(const Tag &local_field_tag, const i
             return Record::Range(range_start, range_end);
         }
 
-        last_tag = GetLocalTag(*local_field);
+        last_local_tag = GetLocalTag(*local_field);
         ++local_field;
     }
 
@@ -813,17 +830,17 @@ Record::Range Record::findFieldsInLocalBlock(const Tag &local_field_tag, const i
 
 
 Record::const_iterator Record::getFirstLocalField(const Tag &local_field_tag, const const_iterator &block_start) const {
-    std::string last_tag;
     auto local_field(block_start);
+    std::string last_local_tag;
     while (local_field != fields_.end()) {
         const auto current_tag(GetLocalTag(*local_field));
         if (local_field_tag == current_tag)
             return local_field; // Success!
 
-        if (current_tag < last_tag) // We found the start of a new local block!
+        if (current_tag < last_local_tag) // We found the start of a new local block!
             return fields_.cend();
 
-        last_tag = GetLocalTag(*local_field);
+        last_local_tag = GetLocalTag(*local_field);
         ++local_field;
     }
 
@@ -1439,10 +1456,13 @@ void BinaryWriter::write(const Record &record) {
             field_start_offset += record.fields_.front().getContents().length() + 1 /* field terminator */;
         }
         for (Record::const_iterator entry(start); entry != end; ++entry) {
+            const size_t contents_length(entry->getContents().length());
+            if (unlikely(contents_length > Record::MAX_VARIABLE_FIELD_DATA_LENGTH))
+                LOG_ERROR("can't generate a directory entry w/ a field w/ data length " + std::to_string(contents_length) + "!");
             raw_record += entry->getTag().toString()
                           + ToStringWithLeadingZeros(entry->getContents().length() + 1 /* field terminator */, 4)
                           + ToStringWithLeadingZeros(field_start_offset, /* width = */ 5);
-            field_start_offset += entry->getContents().length() + 1 /* field terminator */;
+            field_start_offset += contents_length + 1 /* field terminator */;
         }
         raw_record += '\x1E'; // end-of-directory
 

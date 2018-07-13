@@ -21,7 +21,7 @@
 */
 
 #include <iostream>
-#include <map>
+#include <unordered_map>
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
@@ -42,27 +42,8 @@ namespace {
 }
 
 
-void RemoveCommasDuplicatesAndEmptyEntries(std::vector<std::string> * const vector) {
-    std::vector<std::string> cleaned_up_vector;
-    std::set<std::string> unique_entries;
-
-    for (auto &entry : *vector) {
-        StringUtil::RemoveChars(",", &entry);
-
-        if (entry.empty())
-            continue;
-
-        const bool is_new_entry(unique_entries.emplace(entry).second);
-        if (is_new_entry)
-            cleaned_up_vector.emplace_back(std::move(entry));
-    }
-    vector->swap(cleaned_up_vector);
-}
-
-
-std::string ExtractNameFromSubfields(const std::string &field_contents, const std::string &subfield_codes) {
-    const MARC::Subfields subfields(field_contents);
-    auto subfield_values(subfields.extractSubfields(subfield_codes));
+std::string ExtractNameFromSubfields(const MARC::Record::Field &field, const std::string &subfield_codes) {
+    auto subfield_values(field.getSubfields().extractSubfields(subfield_codes));
 
     if (subfield_values.empty())
         return "";
@@ -72,61 +53,58 @@ std::string ExtractNameFromSubfields(const std::string &field_contents, const st
 }
 
 
-void ExtractSynonyms(MARC::Reader * const marc_reader, std::map<std::string, std::string> &author_to_synonyms_map,
+void ExtractSynonyms(MARC::Reader * const marc_reader,
+                     std::unordered_map<std::string, std::unordered_set<std::string>> * const author_to_synonyms_map,
                      const std::string &field_list)
 {
-    std::set<std::string> synonyms;
     std::vector<std::string> tags_and_subfield_codes;
     if (unlikely(StringUtil::Split(field_list, ':', &tags_and_subfield_codes) < 2))
-        LOG_ERROR("in ExtractSynonymsAndWriteSynonymMap: need at least two fields!");
+        LOG_ERROR("need at least two fields!");
     unsigned count(0);
     while (const MARC::Record record = marc_reader->read()) {
         ++count;
 
-        const auto primary_name_field(record.findTag(tags_and_subfield_codes[0].substr(0, 3)));
-        if (primary_name_field != record.end())
+        const auto primary_name_field(record.findTag(tags_and_subfield_codes[0].substr(0, MARC::Record::TAG_LENGTH)));
+        if (primary_name_field == record.end())
             continue;
 
-        const std::string primary_name(ExtractNameFromSubfields(primary_name_field->getContents(),
+        const std::string primary_name(ExtractNameFromSubfields(*primary_name_field,
                                                                 tags_and_subfield_codes[0].substr(3)));
         if (unlikely(primary_name.empty()))
             continue;
 
-        std::vector<std::string> alternatives;
-        alternatives.emplace_back(primary_name);
-        if (author_to_synonyms_map.find(primary_name) != author_to_synonyms_map.end())
+        std::unordered_set<std::string> synonyms;
+        if (author_to_synonyms_map->find(primary_name) != author_to_synonyms_map->end())
             continue;
 
-        for (unsigned i(1); i < tags_and_subfield_codes.size(); ++i) {
-            const std::string tag(tags_and_subfield_codes[i].substr(0, 3));
-            const std::string secondary_field_subfield_codes(tags_and_subfield_codes[i].substr(3));
+        for (const auto &tag_and_subfield_codes : tags_and_subfield_codes) {
+            const std::string tag(tag_and_subfield_codes.substr(0, MARC::Record::TAG_LENGTH));
+            const std::string secondary_field_subfield_codes(tag_and_subfield_codes.substr(MARC::Record::TAG_LENGTH));
             for (auto secondary_name_field(record.findTag(tag));
                 secondary_name_field != record.end();
                 ++secondary_name_field)
             {
-                const std::string secondary_name(ExtractNameFromSubfields(secondary_name_field->getContents(),
+                const std::string secondary_name(ExtractNameFromSubfields(*secondary_name_field,
                                                                           secondary_field_subfield_codes));
                 if (not secondary_name.empty())
-                    alternatives.emplace_back(secondary_name);
+                    synonyms.emplace(secondary_name);
             }
         }
-        RemoveCommasDuplicatesAndEmptyEntries(&alternatives);
-        if (alternatives.size() <= 1)
-            continue;
 
-        alternatives.erase(alternatives.begin());
-        author_to_synonyms_map.emplace(primary_name, StringUtil::Join(alternatives, ','));
+        if (not synonyms.empty())
+            author_to_synonyms_map->emplace(primary_name, synonyms);
     }
 
-    std::cout << "Found synonyms for " << author_to_synonyms_map.size() << " authors while processing " << count
+    std::cout << "Found synonyms for " << author_to_synonyms_map->size() << " authors while processing " << count
               << " norm data records.\n";
 }
 
 
-const std::string SYNOMYM_FIELD("101"); // This must be an o/w unused field!
+const std::string SYNOMYM_FIELD("109"); // This must be an o/w unused field!
 
 
-void ProcessRecord(MARC::Record * const record, const std::map<std::string, std::string> &author_to_synonyms_map,
+void ProcessRecord(MARC::Record * const record,
+                   const std::unordered_map<std::string, std::unordered_set<std::string>> &author_to_synonyms_map,
                    const std::string &primary_author_field)
 {
     if (unlikely(record->findTag(SYNOMYM_FIELD) != record->end()))
@@ -136,30 +114,41 @@ void ProcessRecord(MARC::Record * const record, const std::map<std::string, std:
     if (primary_name_field == record->end())
         return;
 
-    const std::string primary_name(ExtractNameFromSubfields(primary_name_field->getContents(),
+    const std::string primary_name(ExtractNameFromSubfields(*primary_name_field,
                                                             primary_author_field.substr(3)));
     if (unlikely(primary_name.empty()))
         return;
 
-    const auto synonyms_iterator = author_to_synonyms_map.find(primary_name);
-    if (synonyms_iterator == author_to_synonyms_map.end())
+    const auto author_and_synonyms(author_to_synonyms_map.find(primary_name));
+    if (author_and_synonyms == author_to_synonyms_map.end())
         return;
 
-    const std::string synonyms = synonyms_iterator->second;
     MARC::Subfields subfields;
-    subfields.addSubfield('a', synonyms);
-
-    if (not record->insertField(SYNOMYM_FIELD, subfields)) {
+    size_t target_field_size(2); // 2 indicators
+    for (const auto &synonym : author_and_synonyms->second) {
+        if (target_field_size + 2 /* delimiter + subfield code */ + synonym.length() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH) {
+            if (not record->insertField(SYNOMYM_FIELD, subfields)) {
+                LOG_WARNING("Not enough room to add a " + SYNOMYM_FIELD + " field! (Control number: "
+                            + record->getControlNumber() + ")");
+                return;
+            }
+            subfields.clear();
+            target_field_size = 2; // 2 indicators
+        }
+        subfields.addSubfield('a', synonym);
+        target_field_size += 2 /* delimiter + subfield code */ + synonym.length();
+    }
+    if (not subfields.empty() and not record->insertField(SYNOMYM_FIELD, subfields)) {
         LOG_WARNING("Not enough room to add a " + SYNOMYM_FIELD + " field! (Control number: "
                     + record->getControlNumber() + ")");
-        return;
     }
+
     ++modified_count;
 }
 
 
 void AddAuthorSynonyms(MARC::Reader * const marc_reader, MARC::Writer * marc_writer,
-                       const std::map<std::string, std::string> &author_to_synonyms_map,
+                       const std::unordered_map<std::string, std::unordered_set<std::string>> &author_to_synonyms_map,
                        const std::string &primary_author_field)
 {
     while (MARC::Record record = marc_reader->read()) {
@@ -193,8 +182,8 @@ int Main(int argc, char **argv) {
     auto marc_writer(MARC::Writer::Factory(marc_output_filename));
 
     try {
-        std::map<std::string, std::string> author_to_synonyms_map;
-        ExtractSynonyms(authority_reader.get(), author_to_synonyms_map, "100abcd:400abcd");
+        std::unordered_map<std::string, std::unordered_set<std::string>> author_to_synonyms_map;
+        ExtractSynonyms(authority_reader.get(), &author_to_synonyms_map, "100abcd:400abcd");
         AddAuthorSynonyms(marc_reader.get(), marc_writer.get(), author_to_synonyms_map, "100abcd");
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));

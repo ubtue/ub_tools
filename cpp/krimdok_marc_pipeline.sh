@@ -2,6 +2,19 @@
 # Runs through the phases of the KrimDok MARC processing pipeline.
 set -o errexit -o nounset
 
+
+function ExitHandler {
+    (setsid kill -- -$$) &
+    exit 1
+}
+trap ExitHandler SIGINT
+
+
+function Abort {
+    kill -INT $$
+}
+
+
 if [ -z "$VUFIND_HOME" ]; then
     VUFIND_HOME=/usr/local/vufind
 fi
@@ -48,19 +61,36 @@ function EndPhase {
 }
 
 
+function CleanUp {
+    rm -f GesamtTiteldaten-post-phase?*-"${date}".mrc
+}
+
+
 # Set up the log file:
 logdir=/usr/local/var/log/tuefind
 log="${logdir}/krimdok_marc_pipeline.log"
 rm -f "${log}"
 
+CleanUp
+
 
 OVERALL_START=$(date +%s.%N)
 
 
+StartPhase "Check Record Integity at the Beginning of the Pipeline"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
+            --write-data=GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc GesamtTiteldaten-"${date}".mrc \
+    >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Normalise URL's"
-normalise_urls GesamtTiteldaten-"${date}".mrc \
-               GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
-EndPhase
+(normalise_urls --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+               GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
+    >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
 
 
 StartPhase "Add Author Synonyms from Authority Data"
@@ -120,9 +150,19 @@ EndPhase
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
-add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                 GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1
-EndPhase
+(mkfifo GesamtTiteldaten-post-pipeline-"${date}".mrc
+ add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                  GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" \
+    >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
+StartPhase "Check Record Integity at the End of the Pipeline"
+(marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields --input-format=marc-21 \
+            GesamtTiteldaten-post-pipeline-"${date}".mrc \
+    >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
 
 
 StartPhase "Cleanup of Intermediate Files"
