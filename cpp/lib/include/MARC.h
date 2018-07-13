@@ -262,6 +262,15 @@ public:
         return replaced_at_least_one_code;
     }
 
+    /** \brief Moves the contents from the subfield with subfield code "from_subfield_code" to the
+     *         subfield with the subfield code "to_subfield_code".
+     *  \note  Pre-existing entries w/ subfield code "to_subfield_code" will be deleted.
+     */
+    inline void moveSubfield(const char from_subfield_code, const char to_subfield_code) {
+        deleteAllSubfieldsWithCode(to_subfield_code);
+        replaceSubfieldCode(from_subfield_code, to_subfield_code);
+    }
+
     inline std::string toString() const {
         std::string as_string;
         for (const auto &subfield : subfields_)
