@@ -37,7 +37,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << progname << " [-v|--verbose] master_marc_input marc_output\n";
+    std::cerr << "Usage: " << progname << " master_marc_input marc_output\n";
     std::cerr << "  Adds host/parent/journal ISBNs and ISSNs to article entries found in the\n";
     std::cerr << "  master_marc_input and writes this augmented file as marc_output.  The ISBNs and ISSNs are\n";
     std::cerr << "  extracted from superior entries found in master_marc_input.\n";
@@ -46,11 +46,10 @@ namespace {
 
 
 void PopulateParentIdToISBNAndISSNMap(
-    const bool verbose, MARC::Reader * const marc_reader,
+    MARC::Reader * const marc_reader,
     std::unordered_map<std::string, std::string> * const parent_id_to_isbn_and_issn_map)
 {
-    if (verbose)
-        std::cout << "Starting extraction of ISBN's and ISSN's.\n";
+    LOG_INFO("Starting extraction of ISBN's and ISSN's.");
 
     unsigned count(0), extracted_isbn_count(0), extracted_issn_count(0);
     std::string err_msg;
@@ -105,20 +104,17 @@ void PopulateParentIdToISBNAndISSNMap(
     if (not err_msg.empty())
         LOG_ERROR(err_msg);
 
-    if (verbose) {
-        std::cerr << "Read " << count << " records.\n";
-        std::cerr << "Extracted " << extracted_isbn_count << " ISBNs.\n";
-        std::cerr << "Extracted " << extracted_issn_count << " ISSNs.\n";
-    }
+    LOG_INFO("Read " + std::to_string(count) + " records.");
+    LOG_INFO("Extracted " + std::to_string(extracted_isbn_count) + " ISBNs.");
+    LOG_INFO("Extracted " + std::to_string(extracted_issn_count) + " ISSNs.");
 }
 
 
-void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, MARC::Reader * const marc_reader,
+void AddMissingISBNsOrISSNsToArticleEntries(MARC::Reader * const marc_reader,
                                             MARC::Writer * const marc_writer, const std::unordered_map<std::string,
                                             std::string> &parent_id_to_isbn_and_issn_map)
 {
-    if (verbose)
-        std::cout << "Starting augmentation of article entries.\n";
+    LOG_INFO("Starting augmentation of article entries.");
 
     unsigned count(0), isbns_added(0), issns_added(0), missing_host_record_ctrl_num_count(0),
              missing_isbn_or_issn_count(0);
@@ -190,13 +186,11 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, MARC::Reader * c
 
 
 int Main(int argc, char **argv) {
-    if ((argc != 3 and argc != 4)
-        or (argc == 4 and std::strcmp(argv[1], "-v") != 0 and std::strcmp(argv[1], "--verbose") != 0))
+    if (argc < 3)
         Usage();
-    const bool verbose(argc == 4);
 
-    const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
-    const std::string marc_output_filename(argv[argc == 3 ? 2 : 3]);
+    const std::string marc_input_filename(argv[1]);
+    const std::string marc_output_filename(argv[2]);
     if (unlikely(marc_input_filename == marc_output_filename))
         LOG_ERROR("Master input file name equals output file name!");
 
@@ -204,11 +198,11 @@ int Main(int argc, char **argv) {
     auto marc_writer(MARC::Writer::Factory(marc_output_filename));
 
     std::unordered_map<std::string, std::string> parent_id_to_isbn_and_issn_map;
-    PopulateParentIdToISBNAndISSNMap(verbose, marc_reader.get(), &parent_id_to_isbn_and_issn_map);
+    PopulateParentIdToISBNAndISSNMap(marc_reader.get(), &parent_id_to_isbn_and_issn_map);
     marc_reader->rewind();
 
-    AddMissingISBNsOrISSNsToArticleEntries(verbose, marc_reader.get(), marc_writer.get(),
-                                            parent_id_to_isbn_and_issn_map);
+    AddMissingISBNsOrISSNsToArticleEntries(marc_reader.get(), marc_writer.get(),
+                                           parent_id_to_isbn_and_issn_map);
 
     return EXIT_SUCCESS;
 }
