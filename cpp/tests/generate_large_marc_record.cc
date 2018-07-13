@@ -1,7 +1,7 @@
 /** \brief Test program dealing with a record that exceeds 99999 bytes.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -22,16 +22,14 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
-#include "Leader.h"
-#include "MarcWriter.h"
-#include "MarcRecord.h"
+#include "MARC.h"
 #include "util.h"
 
 
-static void Usage() __attribute__((noreturn));
+namespace {
 
 
-static void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " (xml|binary) output\n";
     std::exit(EXIT_FAILURE);
 }
@@ -39,7 +37,7 @@ static void Usage() {
 
 std::string IncrementTag(const std::string &tag) {
     std::string next_tag(tag);
-    
+
     if (next_tag[2] < '9') {
         next_tag[2] += 1; // Hurray for ASCII!
         return next_tag;
@@ -57,39 +55,31 @@ std::string IncrementTag(const std::string &tag) {
         next_tag[0] += 1; // Hurray for ASCII!
         return next_tag;
     }
-    
-    logger->error("overflow in IncrementTag()!");
+
+    LOG_ERROR("overflow in IncrementTag()!");
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
+} // unnamed namespace
 
-    if (argc != 3)
+
+int Main(int argc, char *argv[]) {
+    if (argc != 2)
         Usage();
 
-    const std::string format(argv[1]);
-    if (format != "xml" and format != "binary")
-        logger->error("bad format, format must be \"xml\" or \"binary\"!");
-
-    try {
-        MarcRecord record;
-        const Leader &leader(record.getLeader());
-        std::cout << "Initial record length is " << leader.getRecordLength() << ".\n";
-        std::string tag("001");
-        while (leader.getRecordLength() <= 99999) {
-            std::cout << "Inserted new field w/ index " << record.insertField(tag, std::string(5555, 'x')) << ".\n";
-            std::cout << "Record length is now " << leader.getRecordLength() << ".\n";
-            std::string flaw_description;
-            if (not record.isProbablyCorrect(&flaw_description))
-                logger->error("after adding tag \"" + tag + "\": " + flaw_description);
-            tag = IncrementTag(tag);
-        }
-        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], format == "xml" ? MarcWriter::XML
-                                                                                             : MarcWriter::BINARY));
-        marc_writer->write(record);
-        std::cout << "The record has been written!\n";
-    } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
+    MARC::Record record("     n   a22        4500");
+    std::cout << "Initial record length is " << record.size() << ".\n";
+    std::string tag("001");
+    while (record.size() <= 99999) {
+        std::cout << "Inserted new field w/ index " << record.insertField(tag, std::string(5555, 'x')) << ".\n";
+        std::cout << "Record length is now " << record.size() << ".\n";
+        std::string flaw_description;
+        if (not record.isValid(&flaw_description))
+            logger->error("after adding tag \"" + tag + "\": " + flaw_description);
+        tag = IncrementTag(tag);
     }
+    auto marc_writer(MARC::Writer::Factory(argv[1]));
+    marc_writer->write(record);
+    std::cout << "The record has been written!\n";
+    return EXIT_SUCCESS;
 }
