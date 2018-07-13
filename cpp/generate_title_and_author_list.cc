@@ -57,8 +57,7 @@ void ProcessRecords(MARC::Reader * const marc_reader) {
         if (unlikely(field_245 == record.end()))
             continue;
 
-        const auto subfields(field_245->getSubfields());
-        const std::string main_title(subfields.getFirstSubfieldWithCode('a'));
+        const std::string main_title(field_245->getSubfields().getFirstSubfieldWithCode('a'));
         if (unlikely(main_title.empty()))
             continue;
 

@@ -53,8 +53,7 @@ void Compare(MARC::Reader * const lhs_reader, MARC::Reader * const rhs_reader) {
                       + std::to_string(lhs.getNumberOfFields()) + "\nRHS: " + std::to_string(rhs.getNumberOfFields()));
         }
 
-        for (auto lhs_field(lhs.begin()), rhs_field(rhs.begin());
-             lhs_field != lhs.end() and rhs_field != rhs.end();
+        for (auto lhs_field(lhs.begin()), rhs_field(rhs.begin()); lhs_field != lhs.end() and rhs_field != rhs.end();
              ++lhs_field, ++rhs_field)
         {
             if (lhs_field->getTag() != lhs_field->getTag()) {
