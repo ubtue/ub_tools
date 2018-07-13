@@ -1,7 +1,7 @@
 /** \brief A MARC-21 filter utility that selects records based on Library of Congress Subject Headings.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -23,15 +23,15 @@
 #include <cstdlib>
 #include <cstring>
 #include "FileUtil.h"
-#include "MarcRecord.h"
-#include "MarcReader.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "StringUtil.h"
-#include "Subfields.h"
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "usage: " << ::progname << " [[--input-format=(marc-xml|marc-21)]\n"
               << "       [--output-format=(marc-xml|marc-21)] marc_input marc_output subject_list\n\n"
               << "       where \"subject_list\" must contain LCSH's, one per line.\n";
@@ -51,28 +51,24 @@ void LoadSubjectHeadings(File * const input, std::unordered_set<std::string> * c
 
 
 /** Returns true if we have at least one match in 650$a. */
-bool Matched(const MarcRecord &record, const std::unordered_set<std::string> &loc_subject_headings) {
-    std::vector<size_t> field_indices;
-    if (record.getFieldIndices("650", &field_indices) == 0)
-        return false;
-
-    for (auto index : field_indices) {
-        const Subfields subfields(record.getSubfields(index));
-        std::string subfield_a(StringUtil::ToLower(subfields.getFirstSubfieldValue('a')));
+bool Matched(const MARC::Record &record, const std::unordered_set<std::string> &loc_subject_headings) {
+    for (const auto &field : record.getTagRange("650")) {
+        const auto subfields(field.getSubfields());
+        std::string subfield_a(StringUtil::ToLower(subfields.getFirstSubfieldWithCode('a')));
         StringUtil::RightTrim(" .", &subfield_a);
         if (loc_subject_headings.find(subfield_a) != loc_subject_headings.cend())
             return true;
     }
-    
+
     return false;
 }
 
 
-void Filter(MarcReader * const marc_reader, MarcWriter * const marc_writer,
+void Filter(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
             const std::unordered_set<std::string> &loc_subject_headings)
 {
     unsigned total_count(0), matched_count(0);
-    while (const MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++total_count;
         if (Matched(record, loc_subject_headings)) {
             ++matched_count;
@@ -85,52 +81,26 @@ void Filter(MarcReader * const marc_reader, MarcWriter * const marc_writer,
 }
 
 
-int main(int /*argc*/, char **argv) {
-    ::progname = argv[0];
-    ++argv;
-    if (*argv == nullptr)
+} // unnamed namespace
+
+
+int Main(int argc, char **argv) {
+    if (argc < 3)
         Usage();
 
-    MarcReader::ReaderType reader_type(MarcReader::AUTO);
-    if (std::strcmp("--input-format=marc-xml", *argv) == 0) {
-        reader_type = MarcReader::XML;
-        ++argv;
-    } else if (std::strcmp("--input-format=marc-21", *argv) == 0) {
-        reader_type = MarcReader::BINARY;
-        ++argv;
-    }
-    if (*argv == nullptr)
+    const MARC::FileType reader_type(MARC::GetOptionalReaderType(&argc, &argv, 1));
+    const MARC::FileType writer_type(MARC::GetOptionalReaderType(&argc, &argv, 2));
+
+    if (argc != 4)
         Usage();
 
-    MarcWriter::WriterType writer_type(MarcWriter::AUTO);
-    if (std::strcmp("--output-format=marc-xml", *argv) == 0) {
-        writer_type = MarcWriter::XML;
-        ++argv;
-    } else if (std::strcmp("--output-format=marc-21", *argv) == 0) {
-        writer_type = MarcWriter::BINARY;
-        ++argv;
-    }
-    if (*argv == nullptr)
-        Usage();
+    auto marc_reader(MARC::Reader::Factory(argv[1], reader_type));
+    auto marc_writer(MARC::Writer::Factory(argv[2], writer_type));
+    auto subject_headings_file(FileUtil::OpenInputFileOrDie(argv[3]));
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(*argv++, reader_type));
-    if (*argv == nullptr)
-        Usage();
+    std::unordered_set<std::string> loc_subject_headings;
+    LoadSubjectHeadings(subject_headings_file.get(), &loc_subject_headings);
 
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(*argv++, writer_type));
-    if (*argv == nullptr)
-        Usage();
-
-    std::unique_ptr<File> subject_headings_file(FileUtil::OpenInputFileOrDie(*argv++));
-    if (*argv != nullptr) // Should have been the last argument.
-        Usage();
-
-    try {
-        std::unordered_set<std::string> loc_subject_headings;
-        LoadSubjectHeadings(subject_headings_file.get(), &loc_subject_headings);
-
-        Filter(marc_reader.get(), marc_writer.get(), loc_subject_headings);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    Filter(marc_reader.get(), marc_writer.get(), loc_subject_headings);
+    return EXIT_SUCCESS;
 }
