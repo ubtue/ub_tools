@@ -84,7 +84,7 @@ void LoadCSVFile(const std::string &filename, std::vector<IxTheoMapper> * const 
     while (csv_reader.readLine(&csv_values))
         mappers->emplace_back(csv_values);
 
-    std::cerr << "Read " << mappers->size() << " mappings from \"" << filename << "\".\n";
+    LOG_INFO("Read " + std::to_string(mappers->size()) + " mappings from '" + filename + "'.");
 }
 
 
@@ -175,11 +175,10 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         marc_writer->write(record);
     }
 
-    std::cout << ::progname << ": Read " << count << " records.\n";
-    std::cout << ::progname << ": " << records_with_ixtheo_notations << " records had Ixtheo notations.\n";
-    std::cout << ::progname << ": " << records_with_new_notations << " records received new Ixtheo notations.\n";
-    std::cout << ::progname << ": " << skipped_group_count
-              << " records where skipped because they were in a group that we are not interested in.\n";
+    LOG_INFO("Read " + std::to_string(count) + " records.");
+    LOG_INFO(std::to_string(records_with_ixtheo_notations) + " records had Ixtheo notations.");
+    LOG_INFO(std::to_string(records_with_new_notations) + " records received new Ixtheo notations.");
+    LOG_INFO(std::to_string(skipped_group_count) + " records where skipped because they were in a group that we are not interested in.");
 }
 
 
