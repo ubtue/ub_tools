@@ -167,7 +167,7 @@ wait
 
 
 StartPhase "Adding of ISBN's and ISSN's to Component Parts"
-(add_isbns_or_issns_to_articles --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -175,7 +175,7 @@ wait
 
 StartPhase "Extracting Keywords from Titles"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(enrich_keywords_with_title_words --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  ../cpp/data/stopwords.???  >> "${log}" 2>&1 && \
 EndPhase || Abort) &
@@ -190,7 +190,7 @@ wait
 
 StartPhase "Augment Bible References"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(augment_bible_references --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(augment_bible_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          Normdaten-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 cp pericopes_to_codes.map /usr/local/var/lib/tuelib/bibleRef/ && \
@@ -272,7 +272,7 @@ wait
 
 StartPhase "Tag Records that are Available in Tübingen with an ITA Field"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(flag_records_as_available_in_tuebingen --verbose \
+(flag_records_as_available_in_tuebingen \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
