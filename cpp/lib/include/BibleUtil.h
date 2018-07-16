@@ -29,7 +29,7 @@
 namespace BibleUtil {
 
 
-static const std::string BIB_REF_RANGE_TAG("801");
+static const std::string BIB_REF_RANGE_TAG("809");
 
     
 const unsigned BOOK_CODE_LENGTH(2);
