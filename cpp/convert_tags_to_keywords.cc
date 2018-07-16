@@ -137,7 +137,8 @@ int Main(int argc, char *argv[]) {
     if (argc != 3 and argc != 4)
         Usage();
 
-    auto reader(MARC::Reader::Factory(argv[1], MARC::GetOptionalReaderType(&argc, &argv, 1)));
+    const auto marc_reader_type(MARC::GetOptionalReaderType(&argc, &argv, 1));
+    auto reader(MARC::Reader::Factory(argv[1], marc_reader_type));
     auto writer(MARC::Writer::Factory(argv[2]));
 
     std::string mysql_url;
