@@ -202,7 +202,7 @@ void MapDescriptor::insertMarcData(const std::string &subfield_value, MARC::Reco
 class DOIMapDescriptor: public MapDescriptor {
 public:
     DOIMapDescriptor(): MapDescriptor("DOI", MapDescriptor::STRING, "024a") { }
-    virtual void insertMarcData(const std::string &subfield_value, MARC::Record * const record);
+    virtual void insertMarcData(const std::string &subfield_value, MARC::Record * const record) override final;
 };
 
 
@@ -589,8 +589,6 @@ std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB() {
 
 
 int Main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
     if (argc != 3 and argc != 5)
         Usage();
 
