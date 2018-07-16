@@ -44,7 +44,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n"
+    std::cerr << "Usage: " << ::progname << " [--input-format=[marc-21|marc-xml]] [--output-format=[marc21|marc-xml]]"
+              << " marc_input marc_output\n"
               << "       Tag entries that are not yet officially part of the set of titles relevant for relbib\n"
               << "       but have been identified to be probably relevant.\n";
     std::exit(EXIT_FAILURE);
@@ -97,16 +98,18 @@ void SetupRelBibRelevantSet(std::unordered_set<std::string> * const relbib_relev
 
 
 int Main(int argc, char **argv) {
-    if (argc != 3)
+    if (argc < 3 or argc > 5)
         Usage();
 
+    auto reader_type(MARC::GetOptionalReaderType(&argc, &argv, 1));
+    auto writer_type(MARC::GetOptionalWriterType(&argc, &argv, 1));
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
     if (unlikely(marc_input_filename == marc_output_filename))
         LOG_ERROR("Title data input file name equals output file name!");
 
-    auto marc_reader(MARC::Reader::Factory(marc_input_filename));
-    auto marc_writer(MARC::Writer::Factory(marc_output_filename));
+    auto marc_reader(MARC::Reader::Factory(marc_input_filename, reader_type));
+    auto marc_writer(MARC::Writer::Factory(marc_output_filename, writer_type));
 
     std::unordered_set<std::string> relbib_relevant_set;
     SetupRelBibRelevantSet(&relbib_relevant_set);
