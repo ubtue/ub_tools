@@ -65,7 +65,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MARC::
     }
 
     if (not err_msg.empty())
-        logger->error(err_msg);
+        LOG_ERROR(err_msg);
 
     LOG_INFO("Read " + std::to_string(count) + " records.");
     LOG_INFO((keep ? "Kept " : "Deleted ") + std::to_string(kept_or_deleted_count) + " record(s).");
@@ -76,8 +76,6 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MARC::
 
 
 int Main(int argc, char **argv) {
-    ::progname = argv[0];
-
     if (argc != 5)
         Usage();
     if (std::strcmp(argv[1], "--keep") != 0 and std::strcmp(argv[1], "--delete") != 0)
@@ -88,7 +86,7 @@ int Main(int argc, char **argv) {
     const std::string marc_input_filename(argv[3]);
     const std::string marc_output_filename(argv[4]);
     if (unlikely(marc_input_filename == marc_output_filename))
-        logger->error("Master input file name equals output file name!");
+        LOG_ERROR("Master input file name equals output file name!");
 
     auto marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::FileType::BINARY));
     auto marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY));
