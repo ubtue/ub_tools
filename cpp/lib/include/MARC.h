@@ -88,7 +88,6 @@ public:
     inline const char *c_str() const { return tag_.as_cstring_; }
     inline const std::string toString() const { return std::string(c_str(), 3); }
     inline uint32_t to_int() const { return htonl(tag_.as_int_); }
-    inline operator std::string() const { return tag_.as_cstring_; }
 
     inline bool isTagOfControlField() const { return tag_.as_cstring_[0] == '0' and tag_.as_cstring_[1] == '0'; }
     bool isLocal() const;
@@ -534,6 +533,7 @@ public:
     char getBibliographicLevel() const { return leader_[7]; }
     void setBibliographicLevel(const char new_bibliographic_level) { leader_[7] = new_bibliographic_level; }
 
+    inline bool hasFieldWithTag(const MARC::Tag &tag) const { return findTag(tag) != end(); }
     inline Field getField(const size_t field_index) { return fields_[field_index]; }
     inline const Field &getField(const size_t field_index) const { return fields_[field_index]; }
     inline size_t getFieldIndex(const const_iterator &field) const { return field - fields_.begin(); }

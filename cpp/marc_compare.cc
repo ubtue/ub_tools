@@ -1,7 +1,7 @@
 /** \brief A tool to compare two marc files, regardless of the file format.
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,63 +20,72 @@
 #include <iostream>
 #include <string>
 #include "Compiler.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
+#include "MARC.h"
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " marc_lhs marc_rhs\n\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-void Compare(MarcReader * const lhs_reader, MarcReader * const rhs_reader) {
+void Compare(MARC::Reader * const lhs_reader, MARC::Reader * const rhs_reader) {
     while (true) {
-        const MarcRecord lhs(lhs_reader->read());
-        const MarcRecord rhs(rhs_reader->read());
+        const MARC::Record lhs(lhs_reader->read());
+        const MARC::Record rhs(rhs_reader->read());
 
         if (unlikely(not lhs and not rhs))
             return;
         if (unlikely(not lhs))
-            logger->error(lhs_reader->getPath() + " has fewer records than " + rhs_reader->getPath());
+            LOG_ERROR(lhs_reader->getPath() + " has fewer records than " + rhs_reader->getPath());
         if (unlikely(not rhs))
-            logger->error(lhs_reader->getPath() + " has more records than " + rhs_reader->getPath());
+            LOG_ERROR(lhs_reader->getPath() + " has more records than " + rhs_reader->getPath());
 
         if (lhs.getControlNumber() != rhs.getControlNumber())
-            logger->error("PPN mismatch:\nLHS: " + lhs.getControlNumber() + "\nRHS: " + rhs.getControlNumber());
+            LOG_ERROR("PPN mismatch:\nLHS: " + lhs.getControlNumber() + "\nRHS: " + rhs.getControlNumber());
 
-        if (lhs.getNumberOfFields() != rhs.getNumberOfFields())
-            logger->error("Number of fields (" + lhs.getControlNumber() + "):\nLHS: "
-                  + std::to_string(lhs.getNumberOfFields()) + "\nRHS: " + std::to_string(rhs.getNumberOfFields()));
+        if (lhs.getNumberOfFields() != rhs.getNumberOfFields()) {
+            LOG_ERROR("Number of fields (" + lhs.getControlNumber() + "):\nLHS: "
+                      + std::to_string(lhs.getNumberOfFields()) + "\nRHS: " + std::to_string(rhs.getNumberOfFields()));
+        }
 
-        for (size_t index(0); index < lhs.getNumberOfFields(); ++index) {
-            if (lhs.getTag(index) != rhs.getTag(index))
-                logger->error("Tag mismatch (" + lhs.getControlNumber() + "):\nLHS: " + lhs.getTag(index).to_string()
-                      + "\nRHS: " + rhs.getTag(index).to_string());
+        for (auto lhs_field(lhs.begin()), rhs_field(rhs.begin()); lhs_field != lhs.end() and rhs_field != rhs.end();
+             ++lhs_field, ++rhs_field)
+        {
+            if (lhs_field->getTag() != lhs_field->getTag()) {
+                LOG_ERROR("Tag mismatch (" + lhs.getControlNumber() + "):\nLHS: " + lhs_field->getTag().toString()
+                          + "\nRHS: " + rhs_field->getTag().toString());
+            }
 
-            std::string lhs_data(lhs.getFieldData(index));
-            std::string rhs_data(rhs.getFieldData(index));
+            std::string lhs_data(lhs_field->getContents());
+            std::string rhs_data(rhs_field->getContents());
             while (lhs_data.find("\x1F") != std::string::npos)
                 lhs_data.replace(lhs_data.find("\x1F"), 1, " $");
             while (rhs_data.find("\x1F") != std::string::npos)
                 rhs_data.replace(rhs_data.find("\x1F"), 1, " $");
-            if (lhs_data.compare(rhs_data))
-                logger->error("Subfield mismatch (" + lhs.getControlNumber() + ", Tag: "
-                              + lhs.getTag(index).to_string() + "): \nLHS:" + lhs_data + "\nRHS:" + rhs_data);
+            if (lhs_data.compare(rhs_data)) {
+                LOG_ERROR("Subfield mismatch (" + lhs.getControlNumber() + ", Tag: "
+                          + lhs_field->getTag().toString() + "): \nLHS:" + lhs_data + "\nRHS:" + rhs_data);
+            }
         }
     }
 }
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
+} // unnamed namespace
 
+
+int Main(int argc, char **argv) {
     if (argc < 3)
         Usage();
 
-    std::unique_ptr<MarcReader> lhs_reader(MarcReader::Factory(argv[1]));
-    std::unique_ptr<MarcReader> rhs_reader(MarcReader::Factory(argv[2]));
+    auto lhs_reader(MARC::Reader::Factory(argv[1]));
+    auto rhs_reader(MARC::Reader::Factory(argv[2]));
 
     Compare(lhs_reader.get(), rhs_reader.get());
+    return EXIT_SUCCESS;
 }

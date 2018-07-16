@@ -26,19 +26,19 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "RegexMatcher.h"
 #include "Stemmer.h"
 #include "StringUtil.h"
-#include "Subfields.h"
 #include "TextUtil.h"
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] marc_input marc_output [stopwords_files]\n";
+namespace {
+
+
+[[noreturn]] void Usage() {
+    std::cerr << "Usage: " << ::progname << " marc_input marc_output [stopwords_files]\n";
     std::cerr << "       The MARC-21 output will have enriched keywords based on title words that were\n";
     std::cerr << "       similar to keywords found in the MARC-21 input file.\n";
     std::cerr << "       Stopword files must be named \"stopwords.xxx\" where xxx has to be a 3-letter\n";
@@ -47,11 +47,10 @@ void Usage() {
 }
 
 
-void LoadStopwords(const bool verbose, File * const input, const std::string &language_code,
+void LoadStopwords(File * const input, const std::string &language_code,
                    std::unordered_set<std::string> * const stopwords_set)
 {
-    if (verbose)
-        std::cout << "Starting loading of stopwords for language: " << language_code << "\n";
+    LOG_INFO("Starting loading of stopwords for language: " + language_code);
 
     unsigned count(0);
     while (not input->eof()) {
@@ -64,8 +63,7 @@ void LoadStopwords(const bool verbose, File * const input, const std::string &la
         ++count;
     }
 
-    if (verbose)
-        std::cerr << "Read " << count << " stopwords.\n";
+    LOG_INFO("Read " + std::to_string(count) + " stopwords.");
 }
 
 
@@ -160,19 +158,19 @@ std::string CanonizeCentury(const std::string &century_candidate) {
 
 
 size_t ExtractKeywordsFromKeywordChainFields(
-    const MarcRecord &record,
+    const MARC::Record &record,
     const Stemmer * const stemmer,
     std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
     std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
 {
     size_t keyword_count(0);
 
-    for (size_t _689_index(record.getFieldIndex("689")); _689_index < record.getNumberOfFields() and record.getTag(_689_index) == "689"; ++_689_index) {
-        const Subfields subfields(record.getSubfields(_689_index));
-        const std::string subfield_a_value(subfields.getFirstSubfieldValue('a'));
+    for (const auto &field : record.getTagRange("689")) {
+        const auto subfields(field.getSubfields());
+        const std::string subfield_a_value(subfields.getFirstSubfieldWithCode('a'));
         if (not subfield_a_value.empty()) {
             std::string keyphrase(subfield_a_value);
-            const std::string subfield_c_value(subfields.getFirstSubfieldValue('c'));
+            const std::string subfield_c_value(subfields.getFirstSubfieldWithCode('c'));
             if (not subfield_c_value.empty())
                 keyphrase += " " + subfield_c_value;
             ProcessKeywordPhrase(CanonizeCentury(keyphrase), stemmer, stemmed_keyword_to_stemmed_keyphrases_map,
@@ -185,56 +183,30 @@ size_t ExtractKeywordsFromKeywordChainFields(
 }
 
 
-size_t ExtractKeywordsFromIndividualKeywordFields(
-    const MarcRecord &record,
-    const Stemmer * const stemmer,
-    std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
-    std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
-{
-    size_t keyword_count(0);
-    std::vector<std::string> keyword_phrases;
-    static const std::string SUBFIELD_IGNORE_LIST("02"); // Do not extract $0 and $2.
-    record.extractAllSubfields("600:610:611:630:650:653:656", &keyword_phrases, SUBFIELD_IGNORE_LIST);
-    for (const auto &keyword_phrase : keyword_phrases) {
-        ProcessKeywordPhrase(CanonizeCentury(keyword_phrase), stemmer, stemmed_keyword_to_stemmed_keyphrases_map,
-                             stemmed_keyphrases_to_unstemmed_keyphrases_map);
-        ++keyword_count;
-    }
-
-    return keyword_count;
-}
-
-
 size_t ExtractAllKeywords(
-    const MarcRecord &record,
+    const MARC::Record &record,
     std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
     std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
 {
-    const std::string language_code(record.getLanguage());
+    const std::string language_code(MARC::GetLanguageCode(record));
     const Stemmer * const stemmer(language_code.empty() ? nullptr : Stemmer::StemmerFactory(language_code));
 
     size_t extracted_count(ExtractKeywordsFromKeywordChainFields(record, stemmer,
                                                                  stemmed_keyword_to_stemmed_keyphrases_map,
                                                                  stemmed_keyphrases_to_unstemmed_keyphrases_map));
-/*
-    extracted_count += ExtractKeywordsFromIndividualKeywordFields(dir_entries, fields, stemmer,
-                                                                  stemmed_keyword_to_stemmed_keyphrases_map,
-                                                                  stemmed_keyphrases_to_unstemmed_keyphrases_map);
-*/
     return extracted_count;
 }
 
 
 void ExtractStemmedKeywords(
-    const bool verbose, MarcReader * const marc_reader,
+    MARC::Reader * const marc_reader,
     std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
     std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
 {
-    if (verbose)
-        std::cerr << "Starting extraction and stemming of pre-existing keywords.\n";
+    LOG_INFO("Starting extraction and stemming of pre-existing keywords.");
 
     unsigned total_count(0), records_with_keywords_count(0), keywords_count(0);
-    while (const MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++total_count;
 
         const size_t extracted_count(
@@ -246,12 +218,10 @@ void ExtractStemmedKeywords(
         }
     }
 
-    if (verbose) {
-        std::cerr << total_count << " records processed.\n";
-        std::cerr << records_with_keywords_count << " records had keywords.\n";
-        std::cerr << keywords_count << " keywords were extracted of which "
-                  << stemmed_keyword_to_stemmed_keyphrases_map->size() << " were unique.\n";
-    }
+    LOG_INFO(std::to_string(total_count) + " records processed.");
+    LOG_INFO(std::to_string(records_with_keywords_count) + " records had keywords.");
+    LOG_INFO(std::to_string(keywords_count) + " keywords were extracted of which " +
+             std::to_string(stemmed_keyword_to_stemmed_keyphrases_map->size()) + " were unique.");
 }
 
 
@@ -277,36 +247,36 @@ constexpr auto MIN_SINGLE_STEMMED_KEYWORD_LENGTH(7);
 
 
 void AugmentRecordsWithTitleKeywords(
-    const bool verbose, MarcReader * const marc_reader, MarcWriter * const marc_writer,
+    MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
     const std::unordered_map<std::string, std::set<std::string>> &stemmed_keyword_to_stemmed_keyphrases_map,
     const std::unordered_map<std::string, std::string> &stemmed_keyphrases_to_unstemmed_keyphrases_map,
     const std::map<std::string, std::unordered_set<std::string>> &language_codes_to_stopword_sets)
 {
-    if (verbose)
-        std::cerr << "Starting augmentation of stopwords.\n";
+    LOG_INFO("Starting augmentation of stopwords.");
 
     unsigned total_count(0), augmented_record_count(0);
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         ++total_count;
 
         // Look for a title...
-        const size_t title_index(record.getFieldIndex("245"));
-        if (title_index == MarcRecord::FIELD_NOT_FOUND) {
+        const auto title_field(record.findTag("245"));
+        if (title_field == record.end()) {
             marc_writer->write(record);
             continue;
         }
 
         // ...in subfields 'a', 'b', 'c' and 'p':
-        Subfields subfields(record.getSubfields(title_index));
+        const auto subfields(title_field->getSubfields());
         if (not subfields.hasSubfield('a')) {
             marc_writer->write(record);
             continue;
         }
+
         std::string title;
         for (const char subfield_code : "abp") {
-            const auto begin_end = subfields.getIterators(subfield_code);
-            if (begin_end.first != begin_end.second)
-            title += " " + begin_end.first->value_;
+            const auto value(subfields.getFirstSubfieldWithCode(subfield_code));
+            if (not value.empty())
+                title += " " + value;
         }
         assert(not title.empty());
 
@@ -316,7 +286,7 @@ void AugmentRecordsWithTitleKeywords(
         TextUtil::ChopIntoWords(lowercase_title, &title_words, MIN_WORD_LENGTH);
 
         // Remove language-appropriate stop words from the title words:
-        const std::string language_code(record.getLanguage());
+        const std::string language_code(MARC::GetLanguageCode(record));
         const auto code_and_stopwords(language_codes_to_stopword_sets.find(language_code));
         if (code_and_stopwords != language_codes_to_stopword_sets.end())
             FilterOutStopwords(code_and_stopwords->second, &title_words);
@@ -374,68 +344,62 @@ void AugmentRecordsWithTitleKeywords(
 
         // Augment the record with new keywords derived from title words:
         for (const auto &new_keyword : new_keyphrases)
-            record.insertSubfield("601", 'a', new_keyword);
+            record.insertField("601", { { 'a', new_keyword } });
 
         marc_writer->write(record);
         ++augmented_record_count;
     }
 
-    if (verbose)
-        std::cout << ::progname << ": " << augmented_record_count << " records of " << total_count
-                  << " were augmented w/ additional keywords.\n";
+    LOG_INFO(std::to_string(augmented_record_count) + " records of " + std::to_string(total_count) +
+             " were augmented w/ additional keywords.");
 }
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
+} // unnamed namespace
 
+
+int Main(int argc, char **argv) {
     if (argc < 3)
         Usage();
 
-    const bool verbose(std::strcmp(argv[1], "--verbose") == 0);
-    if (verbose and argc < 4)
-        Usage();
-
-    const std::string marc_input_filename(argv[verbose ? 2 : 1]);
-    const std::string marc_output_filename(argv[verbose ? 3 : 2]);
+    const std::string marc_input_filename(argv[1]);
+    const std::string marc_output_filename(argv[2]);
     if (unlikely(marc_input_filename == marc_output_filename))
-        logger->error("MARC input file name equals MARC output file name!");
+        LOG_ERROR("MARC input file name equals MARC output file name!");
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::FileType::BINARY));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY));
 
     // Read optional stopword lists:
     std::map<std::string, std::unordered_set<std::string>> language_codes_to_stopword_sets;
-    for (int arg_no(verbose ? 4 : 3); arg_no < argc; ++arg_no) {
+    for (int arg_no(3); arg_no < argc; ++arg_no) {
         RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("stopwords\\....$"));
         const std::string stopwords_filename(argv[arg_no]);
         std::string err_msg;
         if (not matcher->matched(stopwords_filename, &err_msg))
-            logger->error("Invalid stopwords filename \"" + stopwords_filename + "\"!");
+            LOG_ERROR("Invalid stopwords filename \"" + stopwords_filename + "\"!");
         const std::string language_code(stopwords_filename.substr(stopwords_filename.length() - 3));
         File stopwords(stopwords_filename, "r");
         if (not stopwords)
-            logger->error("can't open \"" + stopwords_filename + "\" for reading!");
+            LOG_ERROR("can't open \"" + stopwords_filename + "\" for reading!");
         std::unordered_set<std::string> stopwords_set;
-        LoadStopwords(verbose, &stopwords, language_code, &stopwords_set);
+        LoadStopwords(&stopwords, language_code, &stopwords_set);
         language_codes_to_stopword_sets[language_code] = stopwords_set;
     }
 
     // We always need English because librarians suck at specifying English:
     if (language_codes_to_stopword_sets.find("eng") == language_codes_to_stopword_sets.end())
-        logger->error("You always need to provide \"stopwords.eng\"!");
+        LOG_ERROR("You always need to provide \"stopwords.eng\"!");
 
-    try {
-        std::unordered_map<std::string, std::set<std::string>> stemmed_keyword_to_stemmed_keyphrases_map;
-        std::unordered_map<std::string, std::string> stemmed_keyphrases_to_unstemmed_keyphrases_map;
-        ExtractStemmedKeywords(verbose, marc_reader.get(), &stemmed_keyword_to_stemmed_keyphrases_map,
-                               &stemmed_keyphrases_to_unstemmed_keyphrases_map);
-        marc_reader->rewind();
-        AugmentRecordsWithTitleKeywords(verbose, marc_reader.get(), marc_writer.get(),
-                                        stemmed_keyword_to_stemmed_keyphrases_map,
-                                        stemmed_keyphrases_to_unstemmed_keyphrases_map,
-                                        language_codes_to_stopword_sets);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    std::unordered_map<std::string, std::set<std::string>> stemmed_keyword_to_stemmed_keyphrases_map;
+    std::unordered_map<std::string, std::string> stemmed_keyphrases_to_unstemmed_keyphrases_map;
+    ExtractStemmedKeywords(marc_reader.get(), &stemmed_keyword_to_stemmed_keyphrases_map,
+                            &stemmed_keyphrases_to_unstemmed_keyphrases_map);
+    marc_reader->rewind();
+    AugmentRecordsWithTitleKeywords(marc_reader.get(), marc_writer.get(),
+                                    stemmed_keyword_to_stemmed_keyphrases_map,
+                                    stemmed_keyphrases_to_unstemmed_keyphrases_map,
+                                    language_codes_to_stopword_sets);
+
+    return EXIT_SUCCESS;
 }
