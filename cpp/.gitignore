@@ -27,7 +27,6 @@
 /convert_bible_references
 /convert_oai_pmh_dc_to_marc21
 /convert_tags_to_keywords
-/convert_xml_to_marc21
 /count_gnd_refs
 /create_author_synonym_map
 /create_full_text_db

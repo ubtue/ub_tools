@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015-2017, Library of the University of Tübingen
+    Copyright (C) 2015-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,14 +24,15 @@
 #include <memory>
 #include <cstdlib>
 #include <cstring>
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "RegexMatcher.h"
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << "(--keep|--delete)] pattern marc_input marc_output\n";
     std::cerr << "  Removes records whose control numbers match \"pattern\" if \"--delete\" has been specified\n";
     std::cerr << "  or only keeps those records whose control numbers match \"pattern\" if \"--keep\" has\n";
@@ -40,8 +41,8 @@ void Usage() {
 }
 
 
-void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MarcReader * const marc_reader,
-                       MarcWriter * const marc_writer)
+void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MARC::Reader * const marc_reader,
+                       MARC::Writer * const marc_writer)
 {
     std::string err_msg;
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
@@ -50,7 +51,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MarcRe
 
     unsigned count(0), kept_or_deleted_count(0);
 
-    while (MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++count;
 
         const bool matched(matcher->matched(record.getControlNumber(), &err_msg));
@@ -64,16 +65,17 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MarcRe
     }
 
     if (not err_msg.empty())
-        logger->error(err_msg);
+        LOG_ERROR(err_msg);
 
-    std::cerr << "Read " << count << " records.\n";
-    std::cerr << (keep ? "Kept " : "Deleted ") << kept_or_deleted_count << " record(s).\n";
+    LOG_INFO("Read " + std::to_string(count) + " records.");
+    LOG_INFO((keep ? "Kept " : "Deleted ") + std::to_string(kept_or_deleted_count) + " record(s).");
 }
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
+} // unnamed namespace
 
+
+int Main(int argc, char **argv) {
     if (argc != 5)
         Usage();
     if (std::strcmp(argv[1], "--keep") != 0 and std::strcmp(argv[1], "--delete") != 0)
@@ -84,9 +86,11 @@ int main(int argc, char **argv) {
     const std::string marc_input_filename(argv[3]);
     const std::string marc_output_filename(argv[4]);
     if (unlikely(marc_input_filename == marc_output_filename))
-        logger->error("Master input file name equals output file name!");
+        LOG_ERROR("Master input file name equals output file name!");
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
+    auto marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::FileType::BINARY));
+    auto marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY));
     FilterMarcRecords(keep, regex_pattern, marc_reader.get(), marc_writer.get());
+
+    return EXIT_SUCCESS;
 }

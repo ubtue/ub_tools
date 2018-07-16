@@ -29,15 +29,17 @@
 #include "FileUtil.h"
 #include "HttpHeader.h"
 #include "JSON.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+    
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--timeout seconds] journal_list marc_output\n";
     std::exit(EXIT_FAILURE);
 }
@@ -73,15 +75,13 @@ CrossrefDate::CrossrefDate(const JSON::ObjectNode &object, const std::string &fi
 
     std::shared_ptr<const JSON::IntegerNode> year_node(JSON::JSONNode::CastToIntegerNodeOrDie("date-parts[0]", *date_component_iter));
     if (year_node == nullptr or year_node->getValue() < 0) {
-        logger->warning("in CrossrefDate::CrossrefDate: cannot convert year component \""
-                        + (*date_component_iter)->toString() + "\" to an unsigned integer!");
+        LOG_WARNING("cannot convert year component \"" + (*date_component_iter)->toString() + "\" to an unsigned integer!");
         return;
     }
 
     year_ = static_cast<unsigned>(year_node->getValue());
     if (unlikely(year_ < 1000 or year_ > 3000))
-        logger->error("in CrossrefDate::CrossrefDate: year component \"" + std::to_string(year_)
-                      + "\" is unlikely to be a year!");
+        LOG_ERROR("year component \"" + std::to_string(year_) + "\" is unlikely to be a year!");
 
     ++date_component_iter;
     if (date_component_iter == date_end) {
@@ -91,12 +91,10 @@ CrossrefDate::CrossrefDate(const JSON::ObjectNode &object, const std::string &fi
 
     std::shared_ptr<const JSON::IntegerNode> month_node(JSON::JSONNode::CastToIntegerNodeOrDie("date-parts[1]", *date_component_iter));
     if (month_node == nullptr or month_node->getValue() < 0)
-        logger->error("in CrossrefDate::CrossrefDate: cannot convert month component \""
-                      + (*date_component_iter)->toString() + "\" to an unsigned integer!");
+        LOG_ERROR("cannot convert month component \"" + (*date_component_iter)->toString() + "\" to an unsigned integer!");
     month_ = static_cast<unsigned>(month_node->getValue());
     if (unlikely(month_ < 1 or month_ > 12))
-        logger->error("in CrossrefDate::CrossrefDate: month component \"" + std::to_string(month_)
-                      + "\" is not a month!");
+        LOG_ERROR("month component \"" + std::to_string(month_) + "\" is not a month!");
 
     ++date_component_iter;
     if (date_component_iter == date_end) {
@@ -106,17 +104,16 @@ CrossrefDate::CrossrefDate(const JSON::ObjectNode &object, const std::string &fi
 
     std::shared_ptr<const JSON::IntegerNode> day_node(JSON::JSONNode::CastToIntegerNodeOrDie("date-parts[2]", *date_component_iter));
     if (day_node == nullptr or day_node->getValue() < 0)
-        logger->error("in CrossrefDate::CrossrefDate: cannot convert day component \""
-                      + (*date_component_iter)->toString() + "\" to an unsigned integer!");
+        LOG_ERROR("cannot convert day component \"" + (*date_component_iter)->toString() + "\" to an unsigned integer!");
     day_ = static_cast<unsigned>(day_node->getValue());
     if (unlikely(day_ < 1 or day_ > 31))
-        logger->error("in CrossrefDate::CrossrefDate: day component \"" + std::to_string(day_) + "\" is not a day!");
+        LOG_ERROR("day component \"" + std::to_string(day_) + "\" is not a day!");
 }
 
 
 std::string CrossrefDate::toString() const {
     if (not isValid())
-        logger->error("in CrossrefDate::toString: can't convert an invalid CrossrefDate to a string!");
+        LOG_ERROR("can't convert an invalid CrossrefDate to a string!");
 
     if (month_ == 0)
         return std::to_string(year_);
@@ -160,7 +157,7 @@ std::string CrossrefDate::toString() const {
         month_as_string += "December";
         break;
     default:
-        logger->error("in CrossrefDate::toString: " + std::to_string(month_) + " is not a valid month!");
+        LOG_ERROR(std::to_string(month_) + " is not a valid month!");
     }
 
     if (day_ == 0)
@@ -191,21 +188,21 @@ public:
     inline FieldType getFieldType() const { return field_type_; }
     inline const std::string &getMarcSubfield() const { return marc_subfield_; }
     inline bool isRepeatable() const { return repeatable_; }
-    virtual void insertMarcData(const std::string &subfield_value, MarcRecord * const record);
+    virtual void insertMarcData(const std::string &subfield_value, MARC::Record * const record);
 };
 
 
-void MapDescriptor::insertMarcData(const std::string &subfield_value, MarcRecord * const record) {
-    const std::string tag(marc_subfield_.substr(0, DirectoryEntry::TAG_LENGTH));
+void MapDescriptor::insertMarcData(const std::string &subfield_value, MARC::Record * const record) {
+    const std::string tag(marc_subfield_.substr(0, MARC::Record::TAG_LENGTH));
     const char subfield_code(marc_subfield_.back());
-    record->insertSubfield(tag, subfield_code, subfield_value);
+    record->insertField(tag, { { subfield_code, subfield_value } } );
 }
 
 
 class DOIMapDescriptor: public MapDescriptor {
 public:
     DOIMapDescriptor(): MapDescriptor("DOI", MapDescriptor::STRING, "024a") { }
-    virtual void insertMarcData(const std::string &subfield_value, MarcRecord * const record);
+    virtual void insertMarcData(const std::string &subfield_value, MARC::Record * const record) override final;
 };
 
 
@@ -214,8 +211,8 @@ inline std::string CreateSubfield(const char subfield_code, const std::string &s
 }
 
 
-void DOIMapDescriptor::insertMarcData(const std::string &subfield_value, MarcRecord * const record) {
-    const std::string tag(marc_subfield_.substr(0, DirectoryEntry::TAG_LENGTH));
+void DOIMapDescriptor::insertMarcData(const std::string &subfield_value, MARC::Record * const record) {
+    const std::string tag(marc_subfield_.substr(0, MARC::Record::TAG_LENGTH));
     const char subfield_code(marc_subfield_.back());
     record->insertField(tag, "7 " + CreateSubfield(subfield_code, subfield_value)
                         + CreateSubfield('2', "doi"));
@@ -230,44 +227,6 @@ void InitCrossrefToMarcMapping(std::vector<MapDescriptor *> * const map_descript
 }
 
 
-// Compares "s1" and "s2" while ignoring any occurences of characters found in "ignore_chars".
-bool EqualIgnoreChars(const std::string &s1, const std::string &s2, const std::string &ignore_chars) {
-    auto ch1(s1.cbegin());
-    auto ch2(s2.cbegin());
-    while (ch1 != s1.cend() and ch2 != s2.cend()) {
-        if (ignore_chars.find(*ch1) != std::string::npos)
-            ++ch1;
-        else if (ignore_chars.find(*ch2) != std::string::npos)
-            ++ch2;
-        else if (*ch1 != *ch2)
-            return false;
-        else
-            ++ch1, ++ch2;
-    }
-
-    while (ch1 != s1.cend() and ignore_chars.find(*ch1) != std::string::npos)
-        ++ch1;
-    while (ch2 != s2.cend() and ignore_chars.find(*ch2) != std::string::npos)
-        ++ch2;
-
-    return ch1 == s1.cend() and ch2 == s2.cend();
-}
-
-
-bool FuzzyTextMatch(const std::string &s1, const std::string &s2) {
-    std::string lowercase_s1;
-    if (unlikely(not TextUtil::UTF8ToLower(s1, &lowercase_s1)))
-        logger->error("failed to convert supposed UTF-8 string \"" + s1 + "\" to a wide-character string! (1)");
-
-    std::string lowercase_s2;
-    if (unlikely(not TextUtil::UTF8ToLower(s2, &lowercase_s2)))
-        logger->error("failed to convert supposed UTF-8 string \"" + s2 + "\" to a wide-character string! (2)");
-
-    static const std::string IGNORE_CHARS(" :-");
-    return EqualIgnoreChars(lowercase_s1, lowercase_s2, IGNORE_CHARS);
-}
-
-
 std::vector<std::string> ExtractString(const JSON::ObjectNode &object_node, const std::string &json_field_name) {
     std::vector<std::string> extracted_values;
     const std::shared_ptr<const JSON::StringNode> node(object_node.getOptionalStringNode(json_field_name));
@@ -275,40 +234,6 @@ std::vector<std::string> ExtractString(const JSON::ObjectNode &object_node, cons
         return extracted_values;
 
     extracted_values.emplace_back(node->getValue());
-    return extracted_values;
-}
-
-
-std::string ExtractAuthor(const JSON::ObjectNode &object_node) {
-    const std::shared_ptr<const JSON::StringNode> name_node(object_node.getOptionalStringNode("name"));
-    if (name_node != nullptr)
-        return name_node->getValue();
-
-    const std::shared_ptr<const JSON::StringNode> family_node(object_node.getStringNode("family"));
-    std::string author(family_node->getValue());
-    const std::shared_ptr<const JSON::StringNode> given_node(object_node.getOptionalStringNode("given"));
-    if (given_node != nullptr)
-        author += ", " + given_node->getValue();
-
-    return author;
-}
-
-
-std::vector<std::string> ExtractAuthorVector(const JSON::ObjectNode &object_node,
-                                             const std::string &json_field_name)
-{
-    std::vector<std::string> extracted_values;
-
-    std::shared_ptr<const JSON::ArrayNode> array_node(object_node.getOptionalArrayNode(json_field_name));
-    if (array_node == nullptr)
-        return extracted_values;
-
-    for (auto &array_entry : *array_node) {
-        std::shared_ptr<const JSON::ObjectNode> author_node(JSON::JSONNode::CastToObjectNodeOrDie("authors_array[n]", array_entry));
-        if (author_node != nullptr)
-            extracted_values.emplace_back(ExtractAuthor(*author_node));
-    }
-
     return extracted_values;
 }
 
@@ -352,11 +277,11 @@ std::string ExtractName(const std::shared_ptr<const JSON::ObjectNode> object_nod
 
 
 void AddAuthors(const std::string &DOI, const std::string &ISSN, const JSON::ObjectNode &message_tree,
-                MarcRecord * const marc_record)
+                MARC::Record * const marc_record)
 {
     std::shared_ptr<const JSON::ArrayNode> authors(message_tree.getOptionalArrayNode("author"));
     if (authors == nullptr) {
-        logger->warning("no author node found, DOI was \"" + DOI + "\", ISSN was \"" + ISSN + "\"!");
+        LOG_WARNING("no author node found, DOI was \"" + DOI + "\", ISSN was \"" + ISSN + "\"!");
         return;
     }
 
@@ -376,7 +301,7 @@ void AddAuthors(const std::string &DOI, const std::string &ISSN, const JSON::Obj
 }
 
 
-void AddEditors(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
+void AddEditors(const JSON::ObjectNode &message_tree, MARC::Record * const marc_record) {
     std::shared_ptr<const JSON::ArrayNode> editors(message_tree.getOptionalArrayNode("editor"));
     if (editors == nullptr)
         return;
@@ -392,7 +317,7 @@ void AddEditors(const JSON::ObjectNode &message_tree, MarcRecord * const marc_re
 }
 
 
-void AddIssueInfo(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
+void AddIssueInfo(const JSON::ObjectNode &message_tree, MARC::Record * const marc_record) {
     std::string field_data;
     const CrossrefDate issued_date(message_tree, "issued");
     if (issued_date.isValid()) {
@@ -425,34 +350,33 @@ void AddIssueInfo(const JSON::ObjectNode &message_tree, MarcRecord * const marc_
 // first ISSN associated with such a node.  If no nodes in an "issn-type" JSON list exists we look for nodes in a
 // list called "ISSN" and take the first ISSN from such a list, should it exist.  If neither of these two lists exist
 // or contain ISSNs we will not set any ISSN in "marc_record".
-void AddISSN(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
+void AddISSN(const JSON::ObjectNode &message_tree, MARC::Record * const marc_record) {
     const std::shared_ptr<const JSON::ArrayNode> issn_types(message_tree.getOptionalArrayNode("issn-type"));
     if (issn_types != nullptr) {
         std::string issn;
         for (auto issn_type : *issn_types) {
             const std::shared_ptr<const JSON::ObjectNode> issn_type_node(JSON::JSONNode::CastToObjectNodeOrDie("issn-type[n]", issn_type));
             if (unlikely(issn_type_node == nullptr)) {
-                logger->warning("in AddISSN: strange, issn-type entry is not a JSON object!");
+                LOG_WARNING("strange, issn-type entry is not a JSON object!");
                 continue;
             }
 
             const std::shared_ptr<const JSON::StringNode> value_node(issn_type_node->getOptionalStringNode("value"));
             const std::shared_ptr<const JSON::StringNode> type_node(issn_type_node->getOptionalStringNode("type"));
             if (unlikely(value_node == nullptr or type_node == nullptr)) {
-                logger->warning("in AddISSN: strange, issn-type entry is missing a \"value\" or \"type\" string "
-                                "subnode!");
+                LOG_WARNING("strange, issn-type entry is missing a \"value\" or \"type\" string subnode!");
                 continue;
             }
 
             issn = value_node->getValue();
             if (type_node->getValue() == "electronic") {
-                marc_record->insertSubfield("022", 'a', issn);
+                marc_record->insertField("022", { { 'a', issn } });
                 return;
             }
         }
 
         if (not issn.empty()) {
-            marc_record->insertSubfield("022", 'a', issn);
+            marc_record->insertField("022", { { 'a', issn }});
             return;
         }
     }
@@ -461,25 +385,25 @@ void AddISSN(const JSON::ObjectNode &message_tree, MarcRecord * const marc_recor
     if (issns == nullptr)
         return;
     if (unlikely(issns->empty())) {
-        logger->warning("in AddISSN: bizarre, ISSN list is empty!");
+        LOG_WARNING("bizarre, ISSN list is empty!");
         return;
     }
     const std::shared_ptr<const JSON::StringNode> first_issn(issns->getOptionalStringNode(0));
     if (likely(first_issn != nullptr))
-        marc_record->insertSubfield("022", 'a', first_issn->getValue());
+        marc_record->insertField("022", { { 'a', first_issn->getValue() } });
     else
-        logger->warning("first entry of ISSN list is not a string node!");
+        LOG_WARNING("first entry of ISSN list is not a string node!");
 }
 
 
-bool AddTitle(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
+bool AddTitle(const JSON::ObjectNode &message_tree, MARC::Record * const marc_record) {
     const std::shared_ptr<const JSON::ArrayNode> titles(message_tree.getOptionalArrayNode("title"));
     if (unlikely(titles == nullptr or titles->empty()))
         return false;
     const std::shared_ptr<const JSON::StringNode> first_title(titles->getOptionalStringNode(0));
     if (unlikely(first_title == nullptr))
         return false;
-    marc_record->insertSubfield("245", 'a', first_title->getValue());
+    marc_record->insertField("245", { { 'a', first_title->getValue() } });
 
     const std::shared_ptr<const JSON::ArrayNode> subtitles(message_tree.getOptionalArrayNode("subtitle"));
     if (subtitles != nullptr and not subtitles->empty()) {
@@ -493,18 +417,17 @@ bool AddTitle(const JSON::ObjectNode &message_tree, MarcRecord * const marc_reco
 
 
 /** \return True, if we wrote a record and false if we suppressed a duplicate. */
-bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::HashDB * const notified_db,
+bool CreateAndWriteMarcRecord(MARC::Writer * const marc_writer, kyotocabinet::HashDB * const notified_db,
                               const std::string &DOI, const std::string &ISSN, const JSON::ObjectNode &message_tree,
                               const std::vector<MapDescriptor *> &map_descriptors)
 {
-    MarcRecord record;
-    record.getLeader().setBibliographicLevel('a'); // We have an article.
+    MARC::Record record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART);
     static unsigned control_number(0);
     record.insertField("001", std::to_string(++control_number));
 
     AddISSN(message_tree, &record);
     if (unlikely(not AddTitle(message_tree, &record))) {
-        logger->warning("no title found for DOI \"" + DOI + "\" and ISSN \"" + ISSN + "\".  Record skipped!");
+        LOG_WARNING("no title found for DOI \"" + DOI + "\" and ISSN \"" + ISSN + "\".  Record skipped!");
         return false;
     }
     AddAuthors(DOI, ISSN, message_tree, &record);
@@ -516,11 +439,10 @@ bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::Hash
             field_values = ExtractString(message_tree, map_descriptor->getJsonField());
             break;
         case MapDescriptor::STRING_VECTOR:
-            field_values = ExtractStringVector(message_tree, map_descriptor->getJsonField(),
-                                               map_descriptor->isRepeatable());
+            field_values = ExtractStringVector(message_tree, map_descriptor->getJsonField(), map_descriptor->isRepeatable());
             break;
         default:
-            logger->error("in CreateAndWriteMarcRecord: unexpected field type!");
+            LOG_ERROR("unexpected field type!");
         }
 
         for (const auto field_value : field_values)
@@ -529,14 +451,14 @@ bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::Hash
     AddIssueInfo(message_tree, &record);
 
     // If we have already encountered the exact same record in the past we skip writing it:
-    std::string old_hash, new_hash(record.calcChecksum());
+    std::string old_hash, new_hash(MARC::CalcChecksum(record));
     if (notified_db->get(DOI, &old_hash)) {
         if (old_hash == new_hash)
             return false;
     }
     if (unlikely(not notified_db->set(DOI, new_hash)))
-        logger->error("in CreateAndWriteMarcRecord: failed to write the DOI \"" + DOI + "\" into \""
-                      + notified_db->path() + "\"! (" + std::string(notified_db->error().message()) + ")");
+        LOG_ERROR("failed to write the DOI \"" + DOI + "\" into \"" + notified_db->path() + "\"! ("
+                  + std::string(notified_db->error().message()) + ")");
 
     marc_writer->write(record);
     return true;
@@ -545,23 +467,22 @@ bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::Hash
 
 // Expects "line" to look like "XXXX-XXXX,YYYY-YYYY,...ZZZZ-ZZZZ JJJ" where "XXXX-XXXX", "YYYY-YYYY" and "ZZZZ-ZZZZ"
 // are ISSN's and "JJJ" a journal title.
-bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * const issns,
-                            std::string * const journal_name)
+bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * const issns, std::string * const journal_name)
 {
     const size_t first_space_pos(line.find(' '));
     if (unlikely(first_space_pos == std::string::npos or first_space_pos == 0)) {
-        logger->warning("No space found!");
+        LOG_WARNING("No space found!");
         return false;
     }
 
     if (StringUtil::Split(line.substr(0, first_space_pos), ',', issns) == 0) {
-        logger->warning("No ISSNS found!");
+        LOG_WARNING("No ISSNS found!");
         return false;
     }
 
     for (const auto &issn : *issns) {
         if (unlikely(not MiscUtil::IsPossibleISSN(issn))) {
-            logger->warning(issn + " is not a valid ISSN!");
+            LOG_WARNING(issn + " is not a valid ISSN!");
             return false;
         }
     }
@@ -571,7 +492,7 @@ bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * 
 }
 
 
-void ProcessISSN(const std::string &ISSN, const unsigned timeout, MarcWriter * const marc_writer,
+void ProcessISSN(const std::string &ISSN, const unsigned timeout, MARC::Writer * const marc_writer,
                  kyotocabinet::HashDB * const notified_db, const std::vector<MapDescriptor *> &map_descriptors,
                  std::unordered_set<std::string> * const already_seen, unsigned * const written_count,
                  unsigned * const suppressed_count)
@@ -579,20 +500,18 @@ void ProcessISSN(const std::string &ISSN, const unsigned timeout, MarcWriter * c
     *written_count = *suppressed_count = 0;
 
     const std::string DOWNLOAD_URL("https://api.crossref.org/v1/journals/" + ISSN + "/works");
-    Downloader downloader(DOWNLOAD_URL, Downloader::Params(),
-                          timeout * 1000);
+    Downloader downloader(DOWNLOAD_URL, Downloader::Params(), timeout * 1000);
     if (downloader.anErrorOccurred()) {
-        std::cerr << "Error while downloading metadata for ISSN " << ISSN << ": " << downloader.getLastErrorMessage()
-                  << '\n';
+        LOG_WARNING("Error while downloading metadata for ISSN " + ISSN + ": " + downloader.getLastErrorMessage());
         return;
     }
 
     // Check for rate limiting and error status codes:
     const HttpHeader http_header(downloader.getMessageHeader());
     if (http_header.getStatusCode() == 429)
-        logger->error("we got rate limited!");
+        LOG_ERROR("we got rate limited!");
     else if (http_header.getStatusCode() != 200) {
-        logger->warning("Crossref returned HTTP status code " + std::to_string(http_header.getStatusCode()) + "!");
+        LOG_WARNING("Crossref returned HTTP status code " + std::to_string(http_header.getStatusCode()) + "!");
         return;
     }
 
@@ -600,11 +519,11 @@ void ProcessISSN(const std::string &ISSN, const unsigned timeout, MarcWriter * c
     std::shared_ptr<JSON::JSONNode> full_tree;
     JSON::Parser parser(json_document);
     if (not parser.parse(&full_tree))
-        logger->error("failed to parse JSON (" + parser.getErrorMessage() + "), download URL was: " + DOWNLOAD_URL);
+        LOG_ERROR("failed to parse JSON (" + parser.getErrorMessage() + "), download URL was: " + DOWNLOAD_URL);
 
     const std::shared_ptr<const JSON::ObjectNode> top_node(JSON::JSONNode::CastToObjectNodeOrDie("full_tree", full_tree));
     if (unlikely(top_node == nullptr))
-        logger->error("JSON returned from Crossref is not an object! (URL was " + DOWNLOAD_URL + ")");
+        LOG_ERROR("JSON returned from Crossref is not an object! (URL was " + DOWNLOAD_URL + ")");
 
     const std::shared_ptr<const JSON::ObjectNode> message_node(top_node->getOptionalObjectNode("message"));
     if (unlikely(message_node == nullptr))
@@ -618,7 +537,7 @@ void ProcessISSN(const std::string &ISSN, const unsigned timeout, MarcWriter * c
         const std::shared_ptr<const JSON::ObjectNode> item(JSON::JSONNode::CastToObjectNodeOrDie("items", item_iter));
         const std::string DOI(JSON::LookupString("/DOI", item, /* default_value = */ ""));
         if (unlikely(DOI.empty()))
-            logger->error("No \"DOI\" for an item returned for the ISSN " + ISSN + "!");
+            LOG_ERROR("No \"DOI\" for an item returned for the ISSN " + ISSN + "!");
 
         // Have we already seen this item?
         if (already_seen->find(DOI) != already_seen->cend()) {
@@ -635,14 +554,14 @@ void ProcessISSN(const std::string &ISSN, const unsigned timeout, MarcWriter * c
 }
 
 
-void ProcessJournal(const unsigned timeout, const std::string &line, MarcWriter * const marc_writer,
+void ProcessJournal(const unsigned timeout, const std::string &line, MARC::Writer * const marc_writer,
                     kyotocabinet::HashDB * const notified_db, const std::vector<MapDescriptor *> &map_descriptors,
                     unsigned * const total_written_count, unsigned * const total_suppressed_count)
 {
     std::vector<std::string> issns;
     std::string journal_name;
     if (unlikely(not GetISSNsAndJournalName(line, &issns, &journal_name)))
-        logger->error("bad input line \"" + line + "\"!");
+        LOG_ERROR("bad input line \"" + line + "\"!");
     std::cout << "Processing " << journal_name << '\n';
 
     std::unordered_set<std::string> already_seen;
@@ -661,14 +580,15 @@ std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB() {
     std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
     if (not (db->open(DB_FILENAME,
                       kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
-        logger->error("failed to open or create \"" + DB_FILENAME + "\"!");
+        LOG_ERROR("failed to open or create \"" + DB_FILENAME + "\"!");
     return db;
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
+} // unnamed namespace
 
+
+int Main(int argc, char *argv[]) {
     if (argc != 3 and argc != 5)
         Usage();
 
@@ -676,7 +596,7 @@ int main(int argc, char *argv[]) {
     unsigned timeout(DEFAULT_TIMEOUT);
     if (std::strcmp(argv[1], "--timeout") == 0) {
         if (not StringUtil::ToUnsigned(argv[2], &timeout))
-            logger->error("bad timeout \"" + std::string(argv[2]) + "\"!");
+            LOG_ERROR("bad timeout \"" + std::string(argv[2]) + "\"!");
         argc -= 2;
         argv += 2;
     }
@@ -687,35 +607,33 @@ int main(int argc, char *argv[]) {
     const std::string journal_list_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
 
-    try {
-        std::unique_ptr<kyotocabinet::HashDB> notified_db(CreateOrOpenKeyValueDB());
+    std::unique_ptr<kyotocabinet::HashDB> notified_db(CreateOrOpenKeyValueDB());
 
-        const std::unique_ptr<File> journal_list_file(FileUtil::OpenInputFileOrDie(journal_list_filename));
-        const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename));
+    const auto journal_list_file(FileUtil::OpenInputFileOrDie(journal_list_filename));
+    const auto marc_writer(MARC::Writer::Factory(marc_output_filename));
 
-        std::vector<MapDescriptor *> map_descriptors;
-        InitCrossrefToMarcMapping(&map_descriptors);
+    std::vector<MapDescriptor *> map_descriptors;
+    InitCrossrefToMarcMapping(&map_descriptors);
 
-        unsigned journal_success_count(0), total_written_count(0), total_suppressed_count(0);
-        while (not journal_list_file->eof()) {
-            std::string line;
-            journal_list_file->getline(&line);
-            StringUtil::Trim(&line);
-            if (not line.empty()) {
-                const unsigned old_total_written_count(total_written_count);
-                ProcessJournal(timeout, line, marc_writer.get(), notified_db.get(), map_descriptors,
-                               &total_written_count , &total_suppressed_count);
-                if (old_total_written_count < total_written_count)
-                    ++journal_success_count;
-            }
+    unsigned journal_success_count(0), total_written_count(0), total_suppressed_count(0);
+    while (not journal_list_file->eof()) {
+        std::string line;
+        journal_list_file->getline(&line);
+        StringUtil::Trim(&line);
+        if (not line.empty()) {
+            const unsigned old_total_written_count(total_written_count);
+            ProcessJournal(timeout, line, marc_writer.get(), notified_db.get(), map_descriptors,
+                           &total_written_count , &total_suppressed_count);
+            if (old_total_written_count < total_written_count)
+                ++journal_success_count;
         }
-
-        std::cout << "Downloaded metadata for at least one article from " << journal_success_count << " journals.\n";
-        std::cout << "The total number of articles for which metadata was downloaded and written out is "
-                  << total_written_count
-                  << ".\nAnd the number of articles that were identical to previous downloads and therefore "
-                  << "suppressed is " << total_suppressed_count << ".\n";
-    } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
     }
+
+    std::cout << "Downloaded metadata for at least one article from " << journal_success_count << " journals.\n";
+    std::cout << "The total number of articles for which metadata was downloaded and written out is "
+              << total_written_count
+              << ".\nAnd the number of articles that were identical to previous downloads and therefore "
+              << "suppressed is " << total_suppressed_count << ".\n";
+
+    return EXIT_SUCCESS;
 }
