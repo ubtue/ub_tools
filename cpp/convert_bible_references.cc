@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -21,83 +21,83 @@
 */
 #include <fstream>
 #include <iostream>
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
 
 
-static unsigned conversion_count(0);
+namespace {
 
 
-// Spits out those records that have a 040$e field which starts with "rak" and has a 130 field.
-// In that case it sets 040$e to "rda", move the contents of 130$a to 130$p and sets 130$a
-// to "Bibel".
-void ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer) {
-    const size_t _040_index(record->getFieldIndex("040"));
-    if (_040_index == MarcRecord::FIELD_NOT_FOUND)
-        return; // Nothing to do!
-
-    const size_t _130_index(record->getFieldIndex("130"));
-    if (_130_index == MarcRecord::FIELD_NOT_FOUND)
-        return; // Nothing to do!
-
-    Subfields _040_subfields(record->getSubfields(_040_index));
-    if (not StringUtil::StartsWith(_040_subfields.getFirstSubfieldValue('e'), "rak"))
-        return; // Nothing to do!
-
-    Subfields _130_subfields(record->getSubfields(_130_index));
-    if (not _130_subfields.hasSubfield('a'))
-        return; // Nothing to do!
-
-    _040_subfields.setSubfield('e', "rda");
-    record->updateField(_040_index, _040_subfields);
-
-    if (not _130_subfields.hasSubfield('p') and _130_subfields.getFirstSubfieldValue('a') != "Bibel") {
-        _130_subfields.moveSubfield('a', 'p');
-        _130_subfields.setSubfield('a', "Bibel");
-        record->updateField(static_cast<size_t>(_130_index), _130_subfields);
-    }
-
-    marc_writer->write(*record);
-
-    ++conversion_count;
-}
-
-
-void ConvertBibleRefs(MarcReader * const marc_reader, MarcWriter * const marc_writer) {
-    while (MarcRecord record = marc_reader->read())
-        ProcessRecord(&record, marc_writer);
-
-    std::cerr << "Converted " << conversion_count << " record(s).\n";
-}
-
-
-void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " norm_data_input norm_data_output\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
+// Spits out those records that have a 040$e field which starts with "rak" and has a 130 field.
+// In that case it sets 040$e to "rda", move the contents of 130$a to 130$p and sets 130$a
+// to "Bibel".
+bool ConvertRecord(MARC::Record * const record, MARC::Writer * const marc_writer) {
+    auto _040_field(record->getFirstField("040"));
+    if (_040_field == record->end())
+        return false; // Nothing to do!
 
+    auto _130_field(record->getFirstField("130"));
+    if (_130_field == record->end())
+        return false; // Nothing to do!
+
+    MARC::Subfields _040_subfields(_040_field->getSubfields());
+    if (not StringUtil::StartsWith(_040_subfields.getFirstSubfieldWithCode('e'), "rak"))
+        return false; // Nothing to do!
+
+    MARC::Subfields _130_subfields(_130_field->getSubfields());
+    if (not _130_subfields.hasSubfield('a'))
+        return false; // Nothing to do!
+
+    _040_subfields.addSubfield('e', "rda");
+    _040_field->setContents(_040_subfields, _040_field->getIndicator1(), _040_field->getIndicator2());
+
+    if (not _130_subfields.hasSubfield('p') and _130_subfields.getFirstSubfieldWithCode('a') != "Bibel") {
+        _130_subfields.moveSubfield('a', 'p');
+        _130_subfields.addSubfield('a', "Bibel");
+        _130_field->setContents(_130_subfields, _130_field->getIndicator1(), _130_field->getIndicator2());
+    }
+
+    marc_writer->write(*record);
+
+    return true;
+}
+
+
+void ConvertBibleRefs(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
+    unsigned conversion_count(0);
+    while (MARC::Record record = marc_reader->read()) {
+        if (ConvertRecord(&record, marc_writer))
+            ++conversion_count;
+    }
+
+    LOG_INFO("Converted " + std::to_string(conversion_count) + " record(s).");
+}
+
+
+} // unnamed namespace
+
+
+int Main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
     if (marc_input_filename == marc_output_filename)
-        logger->error("input filename can't equal the output filename!");
+        LOG_ERROR("input filename can't equal the output filename!");
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
+    auto marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::FileType::BINARY));
+    auto marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY));
 
-    try {
-        ConvertBibleRefs(marc_reader.get(), marc_writer.get());
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    ConvertBibleRefs(marc_reader.get(), marc_writer.get());
+
+    return EXIT_SUCCESS;
 }
