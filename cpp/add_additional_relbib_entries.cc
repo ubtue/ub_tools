@@ -108,13 +108,8 @@ int Main(int argc, char **argv) {
     auto marc_reader(MARC::Reader::Factory(marc_input_filename));
     auto marc_writer(MARC::Writer::Factory(marc_output_filename));
 
-    try {
-        std::unordered_set<std::string> relbib_relevant_set;
-        SetupRelBibRelevantSet(&relbib_relevant_set);
-        TagRelevantRecords(marc_reader.get(), marc_writer.get(), relbib_relevant_set);
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
-
+    std::unordered_set<std::string> relbib_relevant_set;
+    SetupRelBibRelevantSet(&relbib_relevant_set);
+    TagRelevantRecords(marc_reader.get(), marc_writer.get(), relbib_relevant_set);
     return EXIT_SUCCESS;
 }
