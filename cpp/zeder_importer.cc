@@ -309,13 +309,14 @@ void ParseZederCsv(const std::string &csv_path, ZederConfigData * const zeder_co
                         throw "Non-zotero entry";
                     break;
                 case LRT:
-                    if (zeder_config->getSource() == IXTHEO and element.find("RSS.zotero") != std::string::npos)
+                    if (element.find("RSS.zotero") != std::string::npos)
                         new_entry.has_rss_feed_ = true;
                     break;
                 case P_ZOT1:
+                    if (element.empty())
+                        break;
+
                     if (zeder_config->getSource() == IXTHEO and element == "z-button2")
-                        new_entry.has_multiple_downloads_ = true;
-                    else if (zeder_config->getSource() == KRIMDOK)
                         new_entry.has_multiple_downloads_ = true;
                     break;
                 case P_ZOT2:
@@ -504,6 +505,9 @@ void WriteZederIni(IniFile * const ini, const ZederConfigData &zeder_config) {
                             IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
             break;
         }
+
+        current_section->insert(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT), "", "",
+                            IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
     }
 }
 
@@ -554,8 +558,6 @@ bool DiffZederEntries(const ZederConfigData &old_config, const ZederConfigData &
 
 
 int Main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
     if (argc < 5)
         Usage();
 
