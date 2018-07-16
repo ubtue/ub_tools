@@ -85,11 +85,11 @@ void Filter(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
 
 
 int Main(int argc, char **argv) {
-    if (argc < 3)
+    if (argc < 3 or argc > 5)
         Usage();
 
     const MARC::FileType reader_type(MARC::GetOptionalReaderType(&argc, &argv, 1));
-    const MARC::FileType writer_type(MARC::GetOptionalReaderType(&argc, &argv, 2));
+    const MARC::FileType writer_type(MARC::GetOptionalReaderType(&argc, &argv, 1));
 
     if (argc != 4)
         Usage();
