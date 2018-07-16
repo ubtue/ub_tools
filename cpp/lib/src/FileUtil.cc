@@ -1107,10 +1107,22 @@ size_t ConcatFiles(const std::string &target_path, const std::vector<std::string
         struct stat statbuf;
         if (::fstat(source_fd, &statbuf) == -1)
             LOG_ERROR("failed to fstat(2) \"" + filename + "\"!");
-        const ssize_t count(::sendfile(target_fd, source_fd, nullptr, statbuf.st_size));
-        if (count == -1)
-            LOG_ERROR("failed to append \"" + filename + "\" to \"" + target_path + "\"!");
-        total_size += static_cast<size_t>(count);
+        ssize_t count(0);
+        // Get around sendfile limitation of transfering only 2,147,479,552 in one bunch
+        const size_t sendfile_max_chunk(0x7ffff000);
+        ssize_t offset(0);
+
+        while (static_cast<size_t>(offset) != static_cast<size_t>(statbuf.st_size)) {
+            off_t offset_arg(offset); // New variable needed since on first call (i.e. offset == 0) offset would be
+                                      // modified
+            count = ::sendfile(target_fd, source_fd, &offset_arg, std::min(static_cast<size_t>(statbuf.st_size - offset),
+                               sendfile_max_chunk));
+            if (count == -1)
+                LOG_ERROR("failed to append \"" + filename + "\" to \"" + target_path + "\"!");
+            offset += static_cast<size_t>(count);
+            total_size += static_cast<size_t>(count);
+        }
+
     }
 
     return total_size;
