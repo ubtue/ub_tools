@@ -171,14 +171,12 @@ void AddMissingISBNsOrISSNsToArticleEntries(MARC::Reader * const marc_reader,
         marc_writer->write(record);
     }
 
-    if (verbose) {
-        std::cout << ::progname << ": Read " << count << " records.\n";
-        std::cout << ::progname << ": Added ISBN's to " << isbns_added << " article record(s).\n";
-        std::cout << ::progname << ": Added ISSN's to " << issns_added << " article record(s).\n";
-        std::cout << ::progname << ": " << missing_host_record_ctrl_num_count
-                 << " articles had missing host record control number(s).\n";
-        std::cout << ::progname << ": For " << missing_isbn_or_issn_count << " articles no host ISBN nor ISSN was found.\n";
-    }
+    LOG_INFO("Read " + std::to_string(count) + " records.");
+    LOG_INFO("Added ISBN's to " + std::to_string(isbns_added) + " article record(s).");
+    LOG_INFO("Added ISSN's to " + std::to_string(issns_added) + " article record(s).");
+    LOG_INFO(std::to_string(missing_host_record_ctrl_num_count) +
+             " articles had missing host record control number(s).");
+    LOG_INFO("For " + std::to_string(missing_isbn_or_issn_count) + " articles no host ISBN nor ISSN was found.");
 }
 
 
