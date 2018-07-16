@@ -50,8 +50,6 @@ void Split(MARC::Reader * const marc_reader, std::vector<std::unique_ptr<MARC::W
 
 
 int Main(int argc, char* argv[]) {
-    ::progname = argv[0];
-
     if (argc != 4)
         Usage();
 
