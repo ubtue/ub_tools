@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2016-2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -26,9 +26,7 @@
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
@@ -47,15 +45,12 @@ void Usage() {
 static std::unordered_map<std::string, std::string> control_numbers_to_titles_map;
 
 
-bool RecordControlNumberToTitleMapping(MarcRecord * const record, MarcWriter * const /*marc_writer*/,
-                 std::string * const /* err_msg */)
+bool RecordControlNumberToTitleMapping(MARC::Record * const record)
 {
-    size_t _245_index;
-    if (likely((_245_index = record->getFieldIndex("245")) != MarcRecord::FIELD_NOT_FOUND)) {
-        const Subfields _245_subfields(record->getSubfields(_245_index));
-        std::string title(_245_subfields.getFirstSubfieldValue('a'));
-        if (_245_subfields.hasSubfield('b'))
-            title += " " + _245_subfields.getFirstSubfieldValue('b');
+    for (auto &_245_field : record->getTagRange("245")) {
+        std::string title(_245_field.getFirstSubfieldWithCode('a'));
+        if (_245_field.hasSubfield('b'))
+            title += " " + _245_field.getFirstSubfieldWithCode('b');
         StringUtil::RightTrim(" \t/", &title);
         if (likely(not title.empty()))
             control_numbers_to_titles_map[record->getControlNumber()] = title;
@@ -65,14 +60,12 @@ bool RecordControlNumberToTitleMapping(MarcRecord * const record, MarcWriter * c
 }
 
 
-void CollectControlNumberToTitleMappings(const bool verbose, MarcReader * const marc_reader) {
+void CollectControlNumberToTitleMappings(const bool verbose, MARC::Reader * const marc_reader) {
     if (verbose)
         std::cout << "Extracting control numbers to title mappings from \"" << marc_reader->getPath() << "\".\n";
 
-    std::string err_msg;
-    if (not MarcRecord::ProcessRecords(marc_reader, RecordControlNumberToTitleMapping,
-                                       /* marc_writer = */nullptr, &err_msg))
-        logger->error("error while looking for control numbers to title mappings: " + err_msg);
+    while (auto record = marc_reader->read())
+        RecordControlNumberToTitleMapping(&record);
 
     if (verbose)
         std::cout << "Found " << control_numbers_to_titles_map.size() << " control number to title mappings.\n";
@@ -83,18 +76,15 @@ static unsigned patch_count;
 
 
 // Looks for the existence of a 773 field.  Iff such a field exists and 773$a is missing, we try to add it.
-bool PatchUpOne773a(MarcRecord * const record, MarcWriter * const marc_writer, std::string * const /*err_msg*/) {
-    size_t _773_index;
-    if ((_773_index = record->getFieldIndex("773")) != MarcRecord::FIELD_NOT_FOUND) {
-        Subfields _773_subfields(record->getSubfields(_773_index));
-        if (not _773_subfields.hasSubfield('a') and _773_subfields.hasSubfield('w')) {
-            const std::string w_subfield(_773_subfields.getFirstSubfieldValue('w'));
+bool PatchUpOne773a(MARC::Record * const record, MARC::Writer * const marc_writer) {
+    for (auto &_773_field : record->getTagRange("773")) {
+        if (not _773_field.hasSubfield('a') and _773_field.hasSubfield('w')) {
+            const std::string w_subfield(_773_field.getFirstSubfieldWithCode('w'));
             if (StringUtil::StartsWith(w_subfield, "(DE-576)")) {
                 const std::string parent_control_number(w_subfield.substr(8));
                 const auto control_number_and_title(control_numbers_to_titles_map.find(parent_control_number));
                 if (control_number_and_title != control_numbers_to_titles_map.end()) {
-                    _773_subfields.addSubfield('a', control_number_and_title->second);
-                    record->updateField(_773_index, _773_subfields.toString());
+                    _773_field.insertOrReplaceSubfield('a', control_number_and_title->second);
                     ++patch_count;
                 }
             }
@@ -108,17 +98,16 @@ bool PatchUpOne773a(MarcRecord * const record, MarcWriter * const marc_writer, s
 
 
 // Iterates over all records in a collection and attempts to in 773$a subfields were they are missing.
-void PatchUp773aSubfields(const bool verbose, MarcReader * const marc_reader, MarcWriter * const marc_writer) {
-    std::string err_msg;
-    if (not MarcRecord::ProcessRecords(marc_reader, PatchUpOne773a, marc_writer, &err_msg))
-        logger->error("error while adding 773$a subfields to some records: " + err_msg);
+void PatchUp773aSubfields(const bool verbose, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
+    while (auto record = marc_reader->read())
+        PatchUpOne773a(&record, marc_writer);
 
     if (verbose)
         std::cout << "Added 773$a subfields to " << patch_count << " records.\n";
 }
 
 
-int main(int argc, char **argv) {
+int Main(int argc, char **argv) {
     ::progname = argv[0];
 
     if (argc < 2)
@@ -134,15 +123,11 @@ int main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], MarcWriter::BINARY));
+    auto marc_reader(MARC::Reader::Factory(argv[1]));
+    auto marc_writer(MARC::Writer::Factory(argv[2]));
 
-    try {
-        CollectControlNumberToTitleMappings(verbose, marc_reader.get());
-
-        marc_reader->rewind();
-        PatchUp773aSubfields(verbose, marc_reader.get(), marc_writer.get());
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    CollectControlNumberToTitleMappings(verbose, marc_reader.get());
+    marc_reader->rewind();
+    PatchUp773aSubfields(verbose, marc_reader.get(), marc_writer.get());
+    return EXIT_SUCCESS;
 }
