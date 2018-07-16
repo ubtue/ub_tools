@@ -133,7 +133,7 @@ int main(int argc, char **argv) {
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
 
-    const std::string TITLE_DATA_UNUSED_FIELD_FOR_SYNONYMS("187a");
+    const std::string TITLE_DATA_UNUSED_FIELD_FOR_SYNONYMS("960a");
 
     try {
         std::map<std::string, std::string> synonym_map;
