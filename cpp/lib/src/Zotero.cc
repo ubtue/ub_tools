@@ -926,6 +926,10 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     if (not download_succeeded) {
         LOG_WARNING("Zotero conversion failed: " + error_message);
         return std::make_pair(0, 0);
+    } else if (response_body.empty()) {
+        LOG_WARNING("Zotero translation server returned an empty response! Response code = "
+                    + std::to_string(response_code));
+        return std::make_pair(0, 0);
     }
 
     std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
