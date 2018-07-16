@@ -199,6 +199,29 @@ bool Record::Field::hasSubfieldWithValue(const char subfield_code, const std::st
 }
 
 
+bool Record::Field::extractSubfieldWithPattern(const char subfield_code, RegexMatcher &regex, std::string * const value) const {
+    value->clear();
+
+    bool subfield_delimiter_seen(false), collecting(false);
+    for (auto ch : contents_) {
+        if (subfield_delimiter_seen) {
+            if (not value->empty() and regex.matched(*value))
+                return true;
+            subfield_delimiter_seen = false;
+            value->clear();
+            collecting = ch == subfield_code;
+        } else if (ch == '\x1F') {
+            subfield_delimiter_seen = true;
+        } else if (collecting)
+            *value += ch;
+    }
+
+    if (value->empty())
+        return false;
+    return regex.matched(*value);
+}
+
+
 void Record::Field::insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents) {
     Subfields subfields(contents_);
     if (not subfields.replaceFirstSubfield(subfield_code, subfield_contents))

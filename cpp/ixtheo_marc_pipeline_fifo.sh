@@ -249,7 +249,7 @@ EndPhase || Abort) &
 
 StartPhase "Tag further potential relbib entries"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(add_additional_relbib_entries GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_additional_relbib_entries --input-format=marc-21 --output-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 

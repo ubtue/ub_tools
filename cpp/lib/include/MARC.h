@@ -34,6 +34,10 @@
 #include "XMLSubsetParser.h"
 
 
+// Forward declaration:
+class RegexMatcher;
+
+
 namespace MARC {
 
 
@@ -261,6 +265,15 @@ public:
         return replaced_at_least_one_code;
     }
 
+    /** \brief Moves the contents from the subfield with subfield code "from_subfield_code" to the
+     *         subfield with the subfield code "to_subfield_code".
+     *  \note  Pre-existing entries w/ subfield code "to_subfield_code" will be deleted.
+     */
+    inline void moveSubfield(const char from_subfield_code, const char to_subfield_code) {
+        deleteAllSubfieldsWithCode(to_subfield_code);
+        replaceSubfieldCode(from_subfield_code, to_subfield_code);
+    }
+
     inline std::string toString() const {
         std::string as_string;
         for (const auto &subfield : subfields_)
@@ -339,6 +352,11 @@ public:
 
         bool hasSubfield(const char subfield_code) const;
         bool hasSubfieldWithValue(const char subfield_code, const std::string &value) const;
+
+        /** \param value  Where to store the extracted data, if we have a match.
+         *  \return True, if a subfield with subfield code "subfield_code" matching "regex" exists, else false.
+         */
+        bool extractSubfieldWithPattern(const char subfield_code, RegexMatcher &regex, std::string * const value) const;
 
         inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
             { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
