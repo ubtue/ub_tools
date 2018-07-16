@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015-2017, Library of the University of Tübingen
+    Copyright (C) 2015-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -51,7 +51,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MARC::
 
     unsigned count(0), kept_or_deleted_count(0);
 
-    while (MARC::Record record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++count;
 
         const bool matched(matcher->matched(record.getControlNumber(), &err_msg));
@@ -67,8 +67,8 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MARC::
     if (not err_msg.empty())
         LOG_ERROR(err_msg);
 
-    std::cerr << "Read " << count << " records.\n";
-    std::cerr << (keep ? "Kept " : "Deleted ") << kept_or_deleted_count << " record(s).\n";
+    LOG_INFO("Read " + std::to_string(count) + " records.");
+    LOG_INFO((keep ? "Kept " : "Deleted ") + std::to_string(kept_or_deleted_count) + " record(s).");
 }
 
 
@@ -89,8 +89,8 @@ int Main(int argc, char **argv) {
     if (unlikely(marc_input_filename == marc_output_filename))
         LOG_ERROR("Master input file name equals output file name!");
 
-    auto marc_reader(MARC::Reader::Factory(marc_input_filename));
-    auto marc_writer(MARC::Writer::Factory(marc_output_filename));
+    auto marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::FileType::BINARY));
+    auto marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY));
     FilterMarcRecords(keep, regex_pattern, marc_reader.get(), marc_writer.get());
 
     return EXIT_SUCCESS;

@@ -26,9 +26,7 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
-#include "MarcRecord.h"
-#include "MarcReader.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "util.h"
 #include "VuFind.h"
 
@@ -36,7 +34,7 @@
 namespace {
 
 
-void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--input-format=(marc-21|marc-xml)] marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
@@ -90,13 +88,13 @@ void ExtractTags(DbConnection * const connection,
 
         const auto tag_id_and_resource_id(tag_id_to_resource_id_map.find(db_row["id"]));
         if (unlikely(tag_id_and_resource_id == tag_id_to_resource_id_map.end())) {
-            logger->warning("no resource ID for tag ID \"" + db_row["id"] + "\" found!");
+            LOG_WARNING("no resource ID for tag ID \"" + db_row["id"] + "\" found!");
             continue;
         }
 
         const auto resource_id_and_record_id(resource_id_to_record_id_map.find(tag_id_and_resource_id->second));
         if (unlikely(resource_id_and_record_id == resource_id_to_record_id_map.end())) {
-            logger->warning("no record ID for resource ID \"" + tag_id_and_resource_id->second + "\" found!");
+            LOG_WARNING("no record ID for resource ID \"" + tag_id_and_resource_id->second + "\" found!");
             continue;
         }
 
@@ -111,17 +109,17 @@ void ExtractTags(DbConnection * const connection,
 }
 
 
-void AddTagsToRecords(MarcReader * const reader, MarcWriter * const writer,
+void AddTagsToRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                       const std::unordered_map<std::string, std::set<std::string>> &record_id_to_tags_map)
 {
     unsigned total_count(0), modified_count(0);
-    while (MarcRecord record = reader->read()) {
+    while (MARC::Record record = reader->read()) {
         ++total_count;
 
         const auto record_id_and_tags(record_id_to_tags_map.find(record.getControlNumber()));
         if (record_id_and_tags != record_id_to_tags_map.end()) {
             for (const auto &tag : record_id_and_tags->second)
-                record.insertSubfield("653", 'a', tag);
+                record.insertField("653", { { 'a', tag } });
             ++modified_count;
         }
         writer->write(record);
@@ -135,42 +133,27 @@ void AddTagsToRecords(MarcReader * const reader, MarcWriter * const writer,
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     if (argc != 3 and argc != 4)
         Usage();
 
-    MarcReader::ReaderType reader_type(MarcReader::AUTO);
-    if (argc == 4) {
-        if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
-            reader_type = MarcReader::BINARY;
-        else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
-            reader_type = MarcReader::XML;
-        else
-            Usage();
-        ++argv, --argc;
-    }
+    auto reader(MARC::Reader::Factory(argv[1], MARC::GetOptionalReaderType(&argc, &argv, 1)));
+    auto writer(MARC::Writer::Factory(argv[2]));
 
-    try {
-        std::unique_ptr<MarcReader> reader(MarcReader::Factory(argv[1], reader_type));
-        std::unique_ptr<MarcWriter> writer(MarcWriter::Factory(argv[2]));
+    std::string mysql_url;
+    VuFind::GetMysqlURL(&mysql_url);
+    DbConnection db_connection(mysql_url);
 
-        std::string mysql_url;
-        VuFind::GetMysqlURL(&mysql_url);
-        DbConnection db_connection(mysql_url);
+    std::unordered_map<std::string, std::string> resource_id_to_record_id_map;
+    PopulateResourceIdToRecordIdMap(&db_connection, &resource_id_to_record_id_map);
 
-        std::unordered_map<std::string, std::string> resource_id_to_record_id_map;
-        PopulateResourceIdToRecordIdMap(&db_connection, &resource_id_to_record_id_map);
+    std::unordered_map<std::string, std::string> tag_id_to_resource_id_map;
+    PopulateTagIdToResourceIdMap(&db_connection, &tag_id_to_resource_id_map);
 
-        std::unordered_map<std::string, std::string> tag_id_to_resource_id_map;
-        PopulateTagIdToResourceIdMap(&db_connection, &tag_id_to_resource_id_map);
+    std::unordered_map<std::string, std::set<std::string>> record_id_to_tags_map;
+    ExtractTags(&db_connection, tag_id_to_resource_id_map, resource_id_to_record_id_map, &record_id_to_tags_map);
 
-        std::unordered_map<std::string, std::set<std::string>> record_id_to_tags_map;
-        ExtractTags(&db_connection, tag_id_to_resource_id_map, resource_id_to_record_id_map, &record_id_to_tags_map);
+    AddTagsToRecords(reader.get(), writer.get(), record_id_to_tags_map);
 
-        AddTagsToRecords(reader.get(), writer.get(), record_id_to_tags_map);
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
+    return EXIT_SUCCESS;
 }
