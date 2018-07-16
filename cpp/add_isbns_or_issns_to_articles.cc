@@ -27,18 +27,17 @@
 #include <unordered_map>
 #include <cstdlib>
 #include <cstring>
-#include "Leader.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
-#include "Subfields.h"
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "Usage: " << progname << " [-v|--verbose] master_marc_input marc_output\n";
+namespace {
+
+
+[[noreturn]] void Usage() {
+    std::cerr << "Usage: " << progname << " master_marc_input marc_output\n";
     std::cerr << "  Adds host/parent/journal ISBNs and ISSNs to article entries found in the\n";
     std::cerr << "  master_marc_input and writes this augmented file as marc_output.  The ISBNs and ISSNs are\n";
     std::cerr << "  extracted from superior entries found in master_marc_input.\n";
@@ -47,43 +46,42 @@ void Usage() {
 
 
 void PopulateParentIdToISBNAndISSNMap(
-    const bool verbose, MarcReader * const marc_reader,
+    MARC::Reader * const marc_reader,
     std::unordered_map<std::string, std::string> * const parent_id_to_isbn_and_issn_map)
 {
-    if (verbose)
-        std::cout << "Starting extraction of ISBN's and ISSN's.\n";
+    LOG_INFO("Starting extraction of ISBN's and ISSN's.");
 
     unsigned count(0), extracted_isbn_count(0), extracted_issn_count(0);
     std::string err_msg;
-    while (const MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++count;
 
-        const Leader &leader(record.getLeader());
-        if (not leader.isSerial() and not leader.isMonograph())
+        if (not record.isSerial() and not record.isMonograph())
             continue;
 
         // Try to see if we have an ISBN:
-        const std::string isbn(record.extractFirstSubfield("020", 'a'));
-        if (not isbn.empty()) {
-            (*parent_id_to_isbn_and_issn_map)[record.getControlNumber()] = isbn;
-            ++extracted_isbn_count;
+        const auto field_020(record.findTag("020"));
+        if (field_020 != record.end()) {
+            const std::string isbn(field_020->getFirstSubfieldWithCode('a'));
+            if (not isbn.empty()) {
+                (*parent_id_to_isbn_and_issn_map)[record.getControlNumber()] = isbn;
+                ++extracted_isbn_count;
+                continue;
+            }
+        } else
             continue;
-        }
 
         std::string issn;
-
         // 1. First try to get an ISSN from 029$a, (according to the BSZ's PICA-to-MARC mapping
         // documentation this contains the "authorised" ISSN) but only if the indicators are correct:
-        std::vector<size_t> _029_field_indices;
-        record.getFieldIndices("029", &_029_field_indices);
-        for (const auto &_029_field_index : _029_field_indices) {
-            const Subfields subfields(record.getSubfields(_029_field_index));
+        for (const auto &_029_field : record.getTagRange("029")) {
+            const auto subfields(_029_field.getSubfields());
 
             // We only want fields with indicators 'x' and 'a':
-            if (subfields.getIndicator1() != 'x' or subfields.getIndicator2() != 'a')
+            if (_029_field.getIndicator1() != 'x' or _029_field.getIndicator2() != 'a')
                 continue;
 
-            issn = subfields.getFirstSubfieldValue('a');
+            issn = subfields.getFirstSubfieldWithCode('a');
             if (not issn.empty()) {
                 (*parent_id_to_isbn_and_issn_map)[record.getControlNumber()] = issn;
                 ++extracted_issn_count;
@@ -92,63 +90,61 @@ void PopulateParentIdToISBNAndISSNMap(
 
         // 2. If we don't already have an ISSN check 022$a as a last resort:
         if (issn.empty()) {
-            issn = record.extractFirstSubfield("022", 'a');
-            if (not issn.empty()) {
-                (*parent_id_to_isbn_and_issn_map)[record.getControlNumber()] = issn;
-                ++extracted_issn_count;
+            const auto field_022(record.findTag("022"));
+            if (field_022 != record.end()) {
+                issn = field_022->getFirstSubfieldWithCode('a');
+                if (not issn.empty()) {
+                    (*parent_id_to_isbn_and_issn_map)[record.getControlNumber()] = issn;
+                    ++extracted_issn_count;
+                }
             }
         }
     }
 
     if (not err_msg.empty())
-        logger->error(err_msg);
+        LOG_ERROR(err_msg);
 
-    if (verbose) {
-        std::cerr << "Read " << count << " records.\n";
-        std::cerr << "Extracted " << extracted_isbn_count << " ISBNs.\n";
-        std::cerr << "Extracted " << extracted_issn_count << " ISSNs.\n";
-    }
+    LOG_INFO("Read " + std::to_string(count) + " records.");
+    LOG_INFO("Extracted " + std::to_string(extracted_isbn_count) + " ISBNs.");
+    LOG_INFO("Extracted " + std::to_string(extracted_issn_count) + " ISSNs.");
 }
 
 
-void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, MarcReader * const marc_reader,
-                                            MarcWriter * const marc_writer, const std::unordered_map<std::string,
+void AddMissingISBNsOrISSNsToArticleEntries(MARC::Reader * const marc_reader,
+                                            MARC::Writer * const marc_writer, const std::unordered_map<std::string,
                                             std::string> &parent_id_to_isbn_and_issn_map)
 {
-    if (verbose)
-        std::cout << "Starting augmentation of article entries.\n";
+    LOG_INFO("Starting augmentation of article entries.");
 
     unsigned count(0), isbns_added(0), issns_added(0), missing_host_record_ctrl_num_count(0),
              missing_isbn_or_issn_count(0);
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         ++count;
 
-        const Leader &leader(record.getLeader());
-        if (not leader.isArticle()) {
+        if (not record.isArticle()) {
             marc_writer->write(record);
             continue;
         }
 
-        const size_t _773_index(record.getFieldIndex("773"));
-        if (_773_index == MarcRecord::FIELD_NOT_FOUND) {
+        const auto _773_field(record.findTag("773"));
+        if (_773_field == record.end()) {
             marc_writer->write(record);
             continue;
         }
 
-        Subfields subfields(record.getSubfields(_773_index));
+        auto subfields(_773_field->getSubfields());
         if (subfields.hasSubfield('x')) {
             marc_writer->write(record);
             continue;
         }
 
-        const auto &begin_end(subfields.getIterators('w')); // Record control number of Host Item Entry.
-        if (begin_end.first == begin_end.second) {
+        if (not subfields.hasSubfield('w')) {       // Record control number of Host Item Entry.
             marc_writer->write(record);
             ++missing_host_record_ctrl_num_count;
             continue;
         }
 
-        std::string host_id(begin_end.first->value_);
+        std::string host_id(subfields.getFirstSubfieldWithCode('w'));
         if (StringUtil::StartsWith(host_id, "(DE-576)"))
             host_id = host_id.substr(8);
         const auto &parent_isbn_or_issn_iter(parent_id_to_isbn_and_issn_map.find(host_id));
@@ -160,16 +156,17 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, MarcReader * con
 
         if (MiscUtil::IsPossibleISSN(parent_isbn_or_issn_iter->second)) {
             subfields.addSubfield('x', parent_isbn_or_issn_iter->second);
-            record.updateField(_773_index, subfields.toString());
+            _773_field->setContents(subfields, _773_field->getIndicator1(), _773_field->getIndicator2());
             ++issns_added;
         } else { // Deal with ISBNs.
-            if (not record.extractFirstSubfield("020", 'a').empty()) {
-                marc_writer->write(record);
-                continue; // We already have an ISBN.
+            auto _020_field(record.findTag("020"));
+            if (_020_field == record.end()) {
+                record.insertField("020", { { 'a', parent_isbn_or_issn_iter->second } });
+                ++isbns_added;
+            } else if (_020_field->getFirstSubfieldWithCode('a').empty()) {
+                _020_field->appendSubfield('a', parent_isbn_or_issn_iter->second);
+                ++isbns_added;
             }
-
-            record.insertSubfield("020", 'a', parent_isbn_or_issn_iter->second);
-            ++isbns_added;
         }
         marc_writer->write(record);
     }
@@ -185,30 +182,27 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, MarcReader * con
 }
 
 
-int main(int argc, char **argv) {
-    progname = argv[0];
+} // unnamed namespace
 
-    if ((argc != 3 and argc != 4)
-        or (argc == 4 and std::strcmp(argv[1], "-v") != 0 and std::strcmp(argv[1], "--verbose") != 0))
+
+int Main(int argc, char **argv) {
+    if (argc < 3)
         Usage();
-    const bool verbose(argc == 4);
 
-    const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
-    const std::string marc_output_filename(argv[argc == 3 ? 2 : 3]);
+    const std::string marc_input_filename(argv[1]);
+    const std::string marc_output_filename(argv[2]);
     if (unlikely(marc_input_filename == marc_output_filename))
-        logger->error("Master input file name equals output file name!");
+        LOG_ERROR("Master input file name equals output file name!");
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
+    auto marc_reader(MARC::Reader::Factory(marc_input_filename));
+    auto marc_writer(MARC::Writer::Factory(marc_output_filename));
 
-    try {
-        std::unordered_map<std::string, std::string> parent_id_to_isbn_and_issn_map;
-        PopulateParentIdToISBNAndISSNMap(verbose, marc_reader.get(), &parent_id_to_isbn_and_issn_map);
-        marc_reader->rewind();
-        
-        AddMissingISBNsOrISSNsToArticleEntries(verbose, marc_reader.get(), marc_writer.get(),
-                                               parent_id_to_isbn_and_issn_map);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    std::unordered_map<std::string, std::string> parent_id_to_isbn_and_issn_map;
+    PopulateParentIdToISBNAndISSNMap(marc_reader.get(), &parent_id_to_isbn_and_issn_map);
+    marc_reader->rewind();
+
+    AddMissingISBNsOrISSNsToArticleEntries(marc_reader.get(), marc_writer.get(),
+                                           parent_id_to_isbn_and_issn_map);
+
+    return EXIT_SUCCESS;
 }

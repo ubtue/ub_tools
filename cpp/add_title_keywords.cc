@@ -26,16 +26,16 @@
 #include <unordered_set>
 #include <cstdlib>
 #include <cstring>
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "StringUtil.h"
-#include "Subfields.h"
 #include "TextUtil.h"
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbose] master_marc_input marc_output [stopwords_files]\n";
     std::cerr << "       Stopword files must be named \"stopwords.xxx\" where xxx has to be a 3-letter\n";
     std::cerr << "       language code.\n";
@@ -82,18 +82,10 @@ void FilterOutStopwords(const std::unordered_set<std::string> &stopwords,
 }
 
 
-std::string ConcatSet(const std::unordered_set<std::string> &words) {
-    std::string retval;
-    for (const auto &word : words)
-        retval += word + " ";
-    return retval;
-}
-
-
-bool HasExpertAssignedKeywords(const MarcRecord &record) {
+bool HasExpertAssignedKeywords(const MARC::Record &record) {
     const std::vector<std::string> keyword_fields{ "600", "610", "611", "630", "648", "650", "651", "653", "655", "656", "689" };
     for (const auto &keyword_field : keyword_fields) {
-        if (record.getFieldIndex(keyword_field) != MarcRecord::FIELD_NOT_FOUND)
+        if (record.hasFieldWithTag(keyword_field))
             return true;
     }
 
@@ -101,15 +93,15 @@ bool HasExpertAssignedKeywords(const MarcRecord &record) {
 }
 
 
-void AugmentKeywordsWithTitleWords(const bool verbose, MarcReader * const marc_reader,
-    MarcWriter * const marc_writer,
+void AugmentKeywordsWithTitleWords(const bool verbose, MARC::Reader * const marc_reader,
+    MARC::Writer * const marc_writer,
     const std::map<std::string, std::unordered_set<std::string>> &language_codes_to_stopword_sets)
 {
     if (verbose)
         std::cerr << "Starting augmentation of stopwords.\n";
 
     unsigned total_count(0), augment_count(0), title_count(0);
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         ++total_count;
 
         // Do not attempt to generate title keywords if we have expert-assigned keywords:
@@ -118,24 +110,22 @@ void AugmentKeywordsWithTitleWords(const bool verbose, MarcReader * const marc_r
             continue;
         }
 
-        const size_t title_index(record.getFieldIndex("245"));
-        if (title_index == MarcRecord::FIELD_NOT_FOUND) {
+        auto field_245(record.findTag("245"));
+        if (field_245 == record.end()) {
             marc_writer->write(record);
             continue;
         }
 
-        const Subfields subfields(record.getSubfields(title_index));
+        const auto subfields(field_245->getSubfields());
         if (not subfields.hasSubfield('a')) {
             marc_writer->write(record);
             continue;
         }
 
-        const auto begin_end_a = subfields.getIterators('a');
-        std::string title(begin_end_a.first->value_);
-        const auto begin_end_b = subfields.getIterators('b');
-        if (begin_end_b.first != begin_end_b.second) {
-            title += " " + begin_end_b.first->value_;
-        }
+        auto title(subfields.getFirstSubfieldWithCode('a'));
+        const auto subfield_b(subfields.getFirstSubfieldWithCode('b'));
+        if (not subfield_b.empty())
+            title += " " + subfield_b;
 
         ++title_count;
 
@@ -143,7 +133,7 @@ void AugmentKeywordsWithTitleWords(const bool verbose, MarcReader * const marc_r
         TextUtil::ChopIntoWords(title, &title_words, /* min_word_length = */ 3);
         LowercaseSet(&title_words);
 
-        const std::string &language_code(record.getLanguage());
+        const std::string &language_code(MARC::GetLanguageCode(record));
         const auto code_and_stopwords(language_codes_to_stopword_sets.find(language_code));
         if (code_and_stopwords != language_codes_to_stopword_sets.end())
             FilterOutStopwords(code_and_stopwords->second, &title_words);
@@ -169,9 +159,10 @@ void AugmentKeywordsWithTitleWords(const bool verbose, MarcReader * const marc_r
 }
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
+} // named namespace
 
+
+int Main(int argc, char **argv) {
     if (argc < 3)
         Usage();
 
@@ -182,10 +173,10 @@ int main(int argc, char **argv) {
     const std::string marc_input_filename(argv[verbose ? 2 : 1]);
     const std::string marc_output_filename(argv[verbose ? 3 : 2]);
     if (unlikely(marc_input_filename == marc_output_filename))
-        logger->error("MARC input file name equals MARC output file name!");
+        LOG_ERROR("MARC input file name equals MARC output file name!");
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
+    auto marc_reader(MARC::Reader::Factory(marc_input_filename));
+    auto marc_writer(MARC::Writer::Factory(marc_output_filename));
 
     // Read optional stopword lists:
     std::map<std::string, std::unordered_set<std::string>> language_codes_to_stopword_sets;
@@ -193,11 +184,11 @@ int main(int argc, char **argv) {
         const std::string stopwords_filename(argv[arg_no]);
         if (stopwords_filename.length() != 13 or
             not StringUtil::StartsWith(stopwords_filename, "stopwords."))
-            logger->error("Invalid stopwords filename \"" + stopwords_filename + "\"!");
+            LOG_ERROR("Invalid stopwords filename \"" + stopwords_filename + "\"!");
         const std::string language_code(stopwords_filename.substr(10));
         File stopwords(stopwords_filename, "r");
         if (not stopwords)
-            logger->error("can't open \"" + stopwords_filename + "\" for reading!");
+            LOG_ERROR("can't open \"" + stopwords_filename + "\" for reading!");
         std::unordered_set<std::string> stopwords_set;
         LoadStopwords(verbose, &stopwords, &stopwords_set);
         language_codes_to_stopword_sets[language_code] = stopwords_set;
@@ -205,7 +196,8 @@ int main(int argc, char **argv) {
 
     // We always need English because librarians suck at specifying English:
     if (language_codes_to_stopword_sets.find("eng") == language_codes_to_stopword_sets.end())
-        logger->error("You always need to provide \"stopwords.eng\"!");
+        LOG_ERROR("You always need to provide \"stopwords.eng\"!");
 
     AugmentKeywordsWithTitleWords(verbose, marc_reader.get(), marc_writer.get(), language_codes_to_stopword_sets);
+    return EXIT_SUCCESS;
 }

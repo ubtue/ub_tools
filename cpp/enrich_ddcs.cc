@@ -23,12 +23,18 @@
 #include <unordered_map>
 #include <cstdlib>
 #include <cstring>
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "RegexMatcher.h"
-#include "Subfields.h"
 #include "util.h"
+
+
+namespace {
+
+
+[[noreturn]] void Usage() {
+    std::cerr << "usage: " << ::progname << " input_title_data norm_data output_title_data\n";
+    std::exit(EXIT_FAILURE);
+}
 
 
 bool IsPossibleDDC(const std::string &ddc_candidate) {
@@ -37,44 +43,40 @@ bool IsPossibleDDC(const std::string &ddc_candidate) {
     if (not matcher->matched(ddc_candidate, &err_msg)) {
         if (err_msg.empty())
             return false;
-        logger->error("unexpected regex error while trying to match \"" + ddc_candidate + "\": " + err_msg);
+        LOG_ERROR("unexpected regex error while trying to match \"" + ddc_candidate + "\": " + err_msg);
     }
 
     return true;
 }
 
 
-void ExtractDDCsFromField(const std::string &tag, const MarcRecord &record, std::set<std::string> * const ddcs) {
-    for (size_t index = record.getFieldIndex(tag); index < record.getNumberOfFields() and record.getTag(index) == tag;
-         ++index)
-    {
-        const Subfields subfields(record.getSubfields(index));
+void ExtractDDCsFromField(const std::string &tag, const MARC::Record &record, std::set<std::string> * const ddcs) {
+    for (const auto &field : record.getTagRange(tag)) {
+        const auto subfields(field.getSubfields());
         if (subfields.hasSubfield('z')) // Auxillary table number => not a regular DDC in $a!
             continue;
 
-        const auto subfield_a_begin_end(subfields.getIterators('a'));
-        for (auto ddc(subfield_a_begin_end.first); ddc != subfield_a_begin_end.second; ++ddc) {
-            if (IsPossibleDDC(ddc->value_))
-                ddcs->insert(ddc->value_);
+        for (auto ddc : subfields.extractSubfields('a')) {
+            if (IsPossibleDDC(ddc))
+                ddcs->insert(ddc);
         }
     }
 }
 
 
-void ExtractDDCsFromAuthorityData(const bool verbose, MarcReader * const authority_reader,
+void ExtractDDCsFromAuthorityData(MARC::Reader * const authority_reader,
                                   std::unordered_map<std::string, std::set<std::string>> * const norm_ids_to_ddcs_map)
 {
     norm_ids_to_ddcs_map->clear();
-    if (verbose)
-        std::cerr << "Starting loading of norm data.\n";
+    LOG_INFO("Starting loading of norm data.");
 
     unsigned count(0), ddc_record_count(0);
-    while (const MarcRecord record = authority_reader->read()) {
+    while (const MARC::Record record = authority_reader->read()) {
         ++count;
 
-        const size_t _001_index = record.getFieldIndex("001");
-        if (_001_index == MarcRecord::FIELD_NOT_FOUND)
+        if (not record.hasTag("001"))
             continue;
+
         std::set<std::string> ddcs;
         ExtractDDCsFromField("083", record, &ddcs);
         ExtractDDCsFromField("089", record, &ddcs);
@@ -85,14 +87,12 @@ void ExtractDDCsFromAuthorityData(const bool verbose, MarcReader * const authori
         }
     }
 
-    if (verbose) {
-        std::cerr << "Read " << count << " norm data records.\n";
-        std::cerr << ddc_record_count << " records had DDC entries.\n";
-    }
+    LOG_INFO("Read " + std::to_string(count) + " norm data records.");
+    LOG_INFO(std::to_string(ddc_record_count) + " records had DDC entries.");
 }
 
 
-void ExtractTopicIDs(const std::string &tags, const MarcRecord &record, const std::set<std::string> &existing_ddcs,
+void ExtractTopicIDs(const std::string &tags, const MARC::Record &record, const std::set<std::string> &existing_ddcs,
                      std::set<std::string> * const topic_ids)
 {
     topic_ids->clear();
@@ -101,16 +101,12 @@ void ExtractTopicIDs(const std::string &tags, const MarcRecord &record, const st
     StringUtil::Split(tags, ':', &individual_tags);
 
     for (const auto &tag : individual_tags) {
-        for (size_t index(record.getFieldIndex(tag));
-             index < record.getNumberOfFields() and record.getTag(index) == tag; ++index)
-        {
-            const Subfields subfields(record.getSubfields(index));
-            const auto begin_end(subfields.getIterators('0'));
-            for (auto subfield0(begin_end.first); subfield0 != begin_end.second; ++subfield0) {
-                if (not StringUtil::StartsWith(subfield0->value_, "(DE-576)"))
+        for (const auto &field : record.getTagRange(tag)) {
+            for (const auto &subfield_value : field.getSubfields().extractSubfields('0')) {
+                if (not StringUtil::StartsWith(subfield_value, "(DE-576)"))
                     continue;
 
-                const std::string topic_id(subfield0->value_.substr(8));
+                const std::string topic_id(subfield_value.substr(8));
                 if (existing_ddcs.find(topic_id) == existing_ddcs.end()) // This one is new!
                     topic_ids->insert(topic_id);
             }
@@ -119,14 +115,13 @@ void ExtractTopicIDs(const std::string &tags, const MarcRecord &record, const st
 }
 
 
-void AugmentRecordsWithDDCs(const bool verbose, MarcReader * const title_reader, MarcWriter * const title_writer,
+void AugmentRecordsWithDDCs(MARC::Reader * const title_reader, MARC::Writer * const title_writer,
                             const std::unordered_map<std::string, std::set<std::string>> &norm_ids_to_ddcs_map)
 {
-    if (verbose)
-        std::cerr << "Starting augmenting of data.\n";
+    LOG_INFO("Starting augmenting of data.");
 
     unsigned count(0), augmented_count(0), already_had_ddcs(0), never_had_ddcs_and_now_have_ddcs(0);
-    while (MarcRecord record = title_reader->read()) {
+    while (MARC::Record record = title_reader->read()) {
         ++count;
 
         // Extract already existing DDCs:
@@ -163,52 +158,37 @@ void AugmentRecordsWithDDCs(const bool verbose, MarcReader * const title_reader,
         title_writer->write(record);
     }
 
-    if (verbose) {
-        std::cerr << "Read " << count << " title data records.\n";
-        std::cerr << already_had_ddcs << " already had DDCs.\n";
-        std::cerr << "Augmented " << augmented_count << " records.\n";
-        std::cerr << never_had_ddcs_and_now_have_ddcs << " now have DDCs but didn't before.\n";
-    }
+    LOG_INFO("Read " + std::to_string(count) + " title data records.");
+    LOG_INFO(std::to_string(already_had_ddcs) + " already had DDCs.");
+    LOG_INFO("Augmented " + std::to_string(augmented_count) + " records.");
+    LOG_INFO(std::to_string(never_had_ddcs_and_now_have_ddcs) + " now have DDCs but didn't before.");
 }
 
 
-void Usage() {
-    std::cerr << "usage: " << ::progname << " [--verbose] input_title_data norm_data output_title_data\n";
-    std::exit(EXIT_FAILURE);
-}
+} // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
-    if (argc != 4 and argc != 5)
+int Main(int argc, char *argv[]) {
+    if (argc < 4)
         Usage();
-    bool verbose(false);
-    if (argc == 5) {
-        if (std::strcmp(argv[1], "--verbose") == 0)
-            verbose = true;
-        else
-            Usage();
-    }
 
-    const std::string title_input_filename(argv[verbose ? 2 : 1]);
-    const std::string authority_input_filename(argv[verbose ? 3 : 2]);
-    const std::string title_output_filename(argv[verbose ? 4 : 3]);
+    const std::string title_input_filename(argv[1]);
+    const std::string authority_input_filename(argv[2]);
+    const std::string title_output_filename(argv[3]);
 
     if (unlikely(title_input_filename == title_output_filename))
-        logger->error("Title input file name equals title output file name!");
+        LOG_ERROR("Title input file name equals title output file name!");
 
     if (unlikely(authority_input_filename == title_output_filename))
-        logger->error("Authority data input file name equals title output file name!");
+        LOG_ERROR("Authority data input file name equals title output file name!");
 
-    std::unique_ptr<MarcReader> title_reader(MarcReader::Factory(title_input_filename, MarcReader::BINARY));
-    std::unique_ptr<MarcReader> authority_reader(MarcReader::Factory(authority_input_filename, MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> title_writer(MarcWriter::Factory(title_output_filename, MarcWriter::BINARY));
-    try {
-        std::unordered_map<std::string, std::set<std::string>> authority_ids_to_ddcs_map;
-        ExtractDDCsFromAuthorityData(verbose, authority_reader.get(), &authority_ids_to_ddcs_map);
-        AugmentRecordsWithDDCs(verbose, title_reader.get(), title_writer.get(), authority_ids_to_ddcs_map);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    auto title_reader(MARC::Reader::Factory(title_input_filename));
+    auto authority_reader(MARC::Reader::Factory(authority_input_filename));
+    auto title_writer(MARC::Writer::Factory(title_output_filename));
+
+    std::unordered_map<std::string, std::set<std::string>> authority_ids_to_ddcs_map;
+    ExtractDDCsFromAuthorityData(authority_reader.get(), &authority_ids_to_ddcs_map);
+    AugmentRecordsWithDDCs(title_reader.get(), title_writer.get(), authority_ids_to_ddcs_map);
+
+    return EXIT_SUCCESS;
 }

@@ -25,27 +25,23 @@
 */
 
 #include <iostream>
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "util.h"
 
 
-static ssize_t count(0), before_count(0), after_count(0);
+namespace {
 
 
-void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-bool IsUnusedLocalBlock(const MarcRecord * const record, const std::pair<size_t, size_t> &block_start_and_end) {
-    std::vector<size_t> field_indices;
-    record->findFieldsInLocalBlock("852", "??", block_start_and_end, &field_indices);
-
-    for (size_t field_index : field_indices) {
-        const std::string field_data(record->getFieldData(field_index));
+bool IsUnusedLocalBlock(const MARC::Record &record,
+                        const MARC::Record::const_iterator &block_start) {
+    for (const auto &field : record.findFieldsInLocalBlock("852", block_start)) {
+        const std::string field_data(field.getContents());
         if (field_data.find("aTü 135") != std::string::npos)
             return false;
         const size_t index = field_data.find("aDE-21");
@@ -56,30 +52,28 @@ bool IsUnusedLocalBlock(const MarcRecord * const record, const std::pair<size_t,
 }
 
 
-void ProcessRecord(MarcRecord * const record) {
-    std::vector<std::pair<size_t, size_t>> local_block_boundaries;
-    std::vector<std::pair<size_t, size_t>> local_blocks_to_delete;
-    ssize_t local_data_count = record->findAllLocalDataBlocks(&local_block_boundaries);
-    if (local_data_count == 0)
-        return;
+void DeleteUnusedLocalData(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
+    ssize_t count(0), before_count(0), after_count(0);
 
-    before_count += local_data_count;
-    for (const auto &block_start_and_end : local_block_boundaries) {
-        if (IsUnusedLocalBlock(record, block_start_and_end)) {
-            local_blocks_to_delete.emplace_back(block_start_and_end);
-            --local_data_count;
-        }
-    }
-    record->deleteFields(local_blocks_to_delete);
-
-    after_count += local_data_count;
-}
-
-
-void DeleteUnusedLocalData(MarcReader * const marc_reader, MarcWriter * const marc_writer) {
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         ++count;
-        ProcessRecord(&record);
+
+        std::vector<MARC::Record::iterator> local_block_heads(record.findStartOfAllLocalDataBlocks()),                                                    local_blocks_to_delete;
+        size_t local_data_count(local_block_heads.size());
+        if (local_data_count == 0)
+            return;
+
+        before_count += local_data_count;
+        for (const auto &local_block_start : local_block_heads) {
+            if (IsUnusedLocalBlock(record, local_block_start)) {
+                local_blocks_to_delete.emplace_back(local_block_start);
+                --local_data_count;
+            }
+        }
+
+        record.deleteLocalBlocks(local_blocks_to_delete);
+
+        after_count += local_data_count;
         marc_writer->write(record);
     }
     std::cerr << ::progname << ": Deleted " << (before_count - after_count) << " of " << before_count
@@ -87,18 +81,17 @@ void DeleteUnusedLocalData(MarcReader * const marc_reader, MarcWriter * const ma
 }
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
+} // unnamed namespace
 
+
+int Main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
 
-    try {
-        DeleteUnusedLocalData(marc_reader.get(), marc_writer.get());
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    DeleteUnusedLocalData(marc_reader.get(), marc_writer.get());
+
+    return EXIT_SUCCESS;
 }

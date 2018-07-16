@@ -47,7 +47,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MARC::
     std::string err_msg;
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
     if (matcher == nullptr)
-        logger->error("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
+        LOG_ERROR("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
 
     unsigned count(0), kept_or_deleted_count(0);
 
@@ -56,7 +56,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MARC::
 
         const bool matched(matcher->matched(record.getControlNumber(), &err_msg));
         if (not err_msg.empty())
-            logger->error("regex matching error: " + err_msg);
+            LOG_ERROR("regex matching error: " + err_msg);
 
         if ((keep and matched) or (not keep and not matched)) {
             ++kept_or_deleted_count;
@@ -80,6 +80,7 @@ int Main(int argc, char **argv) {
         Usage();
     if (std::strcmp(argv[1], "--keep") != 0 and std::strcmp(argv[1], "--delete") != 0)
         Usage();
+
     const bool keep(std::strcmp(argv[1], "--keep") == 0);
     const std::string regex_pattern(argv[2]);
 
