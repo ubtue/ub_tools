@@ -86,15 +86,13 @@ void ConvertBibleRefs(MARC::Reader * const marc_reader, MARC::Writer * const mar
 
 
 int Main(int argc, char **argv) {
-    ::progname = argv[0];
-
     if (argc != 3)
         Usage();
 
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
     if (marc_input_filename == marc_output_filename)
-        logger->error("input filename can't equal the output filename!");
+        LOG_ERROR("input filename can't equal the output filename!");
 
     auto marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::FileType::BINARY));
     auto marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY));
