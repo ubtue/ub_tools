@@ -88,13 +88,13 @@ void ExtractTags(DbConnection * const connection,
 
         const auto tag_id_and_resource_id(tag_id_to_resource_id_map.find(db_row["id"]));
         if (unlikely(tag_id_and_resource_id == tag_id_to_resource_id_map.end())) {
-            logger->warning("no resource ID for tag ID \"" + db_row["id"] + "\" found!");
+            LOG_WARNING("no resource ID for tag ID \"" + db_row["id"] + "\" found!");
             continue;
         }
 
         const auto resource_id_and_record_id(resource_id_to_record_id_map.find(tag_id_and_resource_id->second));
         if (unlikely(resource_id_and_record_id == resource_id_to_record_id_map.end())) {
-            logger->warning("no record ID for resource ID \"" + tag_id_and_resource_id->second + "\" found!");
+            LOG_WARNING("no record ID for resource ID \"" + tag_id_and_resource_id->second + "\" found!");
             continue;
         }
 
@@ -133,24 +133,11 @@ void AddTagsToRecords(MARC::Reader * const reader, MARC::Writer * const writer,
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     if (argc != 3 and argc != 4)
         Usage();
 
-    auto reader_type(MARC::FileType::AUTO);
-    if (argc == 4) {
-        if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
-            reader_type = MARC::FileType::BINARY;
-        else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
-            reader_type = MARC::FileType::XML;
-        else
-            Usage();
-        ++argv, --argc;
-    }
-
-    auto reader(MARC::Reader::Factory(argv[1], reader_type));
+    auto reader(MARC::Reader::Factory(argv[1], MARC::GetOptionalReaderType(&argc, &argv, 1)));
     auto writer(MARC::Writer::Factory(argv[2]));
 
     std::string mysql_url;
