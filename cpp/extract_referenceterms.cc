@@ -70,8 +70,10 @@ void ExtractSynonyms(MARC::Reader * const marc_reader, const std::set<std::strin
             // Partly, a very specific term has a very specific one term circumscription (e.g. Wilhelminische
             // Epoche => Deutschland).  Thus, we only insert terms we the synonym vector contains two elements to
             // prevent inappropriate additions
-            const auto primary_values(record.getSubfieldValues(GetTag(*primary), GetSubfieldCodes(*primary)));
-            const auto synonym_values(record.getSubfieldValues(GetTag(*synonym), GetSubfieldCodes(*synonym)));
+            const auto primary_values(record.getSubfieldValues(primary->substr(0, 3),
+                                      GetSubfieldCodes(primary->substr(3))));
+            const auto synonym_values(record.getSubfieldValues(synonym->substr(0, 3),
+                                      GetSubfieldCodes(synonym->substr(3))));
 
             if (not primary_values.empty() and synonym_values.size() > 1) {
                 (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','), StringUtil::Join(synonym_values,

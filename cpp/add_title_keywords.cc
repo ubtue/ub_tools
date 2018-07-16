@@ -159,7 +159,7 @@ void AugmentKeywordsWithTitleWords(const bool verbose, MARC::Reader * const marc
 }
 
 
-} // nnamed namespace
+} // named namespace
 
 
 int Main(int argc, char **argv) {
