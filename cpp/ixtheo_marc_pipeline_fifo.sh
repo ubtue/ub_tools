@@ -88,8 +88,6 @@ StartPhase "Drop Records Containing mtex in 935" \
            "\n\tFix Local Keyword Capitalisations"
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-    --input-format=marc-21 \
-    --output-format=marc-21 \
     --drop 935a:mtex \
     --remove-fields '856u:ixtheo\.de' \
     --filter-chars 130a:240a:245a '@' \
@@ -103,7 +101,7 @@ wait
 
 
 StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
-(rewrite_keywords_and_authors_from_authority_data --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(rewrite_keywords_and_authors_from_authority_data GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                                   Normdaten-"${date}".mrc \
                                                   GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
@@ -133,7 +131,7 @@ wait
 
 
 StartPhase "Normalise URL's"
-(normalise_urls --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -154,7 +152,7 @@ wait
 
 StartPhase "Add Author Synonyms from Authority Data"
 (add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc Normdaten-"${date}".mrc \
-                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
@@ -168,7 +166,7 @@ wait
 
 StartPhase "Adding of ISBN's and ISSN's to Component Parts"
 (add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                               GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
@@ -182,11 +180,11 @@ EndPhase || Abort) &
 
 
 StartPhase "Flag Electronic Records"
-(flag_electronic_records --input-format=marc-21 \
-                         GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(flag_electronic_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
+
 
 StartPhase "Augment Bible References"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
@@ -208,10 +206,9 @@ EndPhase || Abort) &
 
 StartPhase "Replace 689\$A with 689\$q"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(subfield_code_replacer --input-format=marc-21 \
-    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-    "689A=q" >> "${log}" 2>&1 && \
+(subfield_code_replacer GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                        GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                        "689A=q" >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -242,14 +239,14 @@ EndPhase || Abort) &
 
 StartPhase "Extract Tags From MySql Tables and Insert Them Into MARC Records"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(convert_tags_to_keywords --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(convert_tags_to_keywords GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
 StartPhase "Tag further potential relbib entries"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(add_additional_relbib_entries --input-format=marc-21 --output-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_additional_relbib_entries GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
@@ -279,7 +276,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Add Tags for subsystems"
-(add_subsystem_tags --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_subsystem_tags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -295,7 +292,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Export Subsystem Tags to VuFind SQL Database"
-(export_subsystem_ids_to_db --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+(export_subsystem_ids_to_db GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
      >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait

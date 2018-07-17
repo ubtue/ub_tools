@@ -86,8 +86,8 @@ EndPhase || Abort) &
 
 
 StartPhase "Normalise URL's"
-(normalise_urls --input-format=marc-21 GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-               GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
+(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -107,8 +107,7 @@ EndPhase
 
 
 StartPhase "Flag Electronic Records"
-flag_electronic_records --input-format=marc-21 \
-                        GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+flag_electronic_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 EndPhase
 
@@ -158,7 +157,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Check Record Integity at the End of the Pipeline"
-(marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields --input-format=marc-21 \
+(marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
             GesamtTiteldaten-post-pipeline-"${date}".mrc \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &

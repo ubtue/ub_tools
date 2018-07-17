@@ -29,7 +29,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--input-format=(marc-21|marc-xml)] marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -56,29 +56,14 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
-    if (argc != 3 and argc != 4)
+int Main(int argc, char *argv[]) {
+    if (argc != 3)
         Usage();
 
-    MARC::FileType reader_type(MARC::FileType::AUTO);
-    if (argc == 4) {
-        if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
-            reader_type = MARC::FileType::BINARY;
-        else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
-            reader_type = MARC::FileType::XML;
-        else
-            Usage();
-        ++argv, --argc;
-    }
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
 
-    try {
-        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1], reader_type));
-        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
+    ProcessRecords(marc_reader.get(), marc_writer.get());
 
-        ProcessRecords(marc_reader.get(), marc_writer.get());
-    } catch (const std::exception &e) {
-        LOG_ERROR("Caught exception: " + std::string(e.what()));
-    }
+    return EXIT_SUCCESS;
 }
