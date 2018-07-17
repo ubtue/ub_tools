@@ -1956,6 +1956,16 @@ bool IsRepeatableField(const Tag &tag) {
 }
 
 
+bool IsStandardTag(const Tag &tag) {
+    // 1. Handle all local fields.
+    if (tag.toString().find('9') != std::string::npos or StringUtil::IsAsciiLetter(tag.toString()[0]))
+        return false;
+
+    // 2. Handle all other fields.
+    return tag_to_repeatable_map.find(tag) != tag_to_repeatable_map.end();
+}
+
+
 bool UBTueIsElectronicResource(const Record &marc_record) {
     if (std::toupper(marc_record.leader_[6]) == 'M')
         return true;

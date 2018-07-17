@@ -299,7 +299,7 @@ wait
 
 
 StartPhase "Check Record Integity at the End of the Pipeline"
-(marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields --input-format=marc-21 \
+(marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
             GesamtTiteldaten-post-pipeline-"${date}".mrc \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
