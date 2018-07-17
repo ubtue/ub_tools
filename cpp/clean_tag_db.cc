@@ -37,7 +37,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--input-format=(marc-21|marc-xml)] marc_input\n";
+    std::cerr << "Usage: " << ::progname << " marc_input\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -112,38 +112,23 @@ void RemoveUnreferencedEntries(DbConnection * const db_connection) {
 } // unnamed namespace
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
-
-    if (argc != 2 and argc != 3)
+int Main(int argc, char **argv) {
+    if (argc != 2)
         Usage();
-
-    MARC::FileType reader_type(MARC::FileType::AUTO);
-    if (argc == 3) {
-        if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
-            reader_type = MARC::FileType::BINARY;
-        else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
-            reader_type = MARC::FileType::XML;
-        else
-            Usage();
-        ++argv, --argc;
-    }
 
     const std::string marc_input_filename(argv[1]);
 
-    try {
-        std::string mysql_url;
-        VuFind::GetMysqlURL(&mysql_url);
-        DbConnection db_connection(mysql_url);
-        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, reader_type));
-        std::unordered_set<std::string> all_record_ids;
-        ExtractAllRecordIDs(marc_reader.get(), &all_record_ids);
-        std::vector<std::string> unreferenced_ppns;
-        GetUnreferencedPPNsFromDB(&db_connection, all_record_ids, &unreferenced_ppns);
-        CreateTemporaryUnreferencedPPNTable(&db_connection, unreferenced_ppns);
-        RemoveUnreferencedEntries(&db_connection);
-        LOG_INFO("Removed superfluous references for " + std::to_string(unreferenced_ppns.size()) +  " PPN(s)");
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
+    std::string mysql_url;
+    VuFind::GetMysqlURL(&mysql_url);
+    DbConnection db_connection(mysql_url);
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
+    std::unordered_set<std::string> all_record_ids;
+    ExtractAllRecordIDs(marc_reader.get(), &all_record_ids);
+    std::vector<std::string> unreferenced_ppns;
+    GetUnreferencedPPNsFromDB(&db_connection, all_record_ids, &unreferenced_ppns);
+    CreateTemporaryUnreferencedPPNTable(&db_connection, unreferenced_ppns);
+    RemoveUnreferencedEntries(&db_connection);
+    LOG_INFO("Removed superfluous references for " + std::to_string(unreferenced_ppns.size()) +  " PPN(s)");
+
+    return EXIT_SUCCESS;
 }

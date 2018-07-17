@@ -38,7 +38,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--input-format=(marc-21|marc-xml)] marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -258,18 +258,6 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 
 
 int Main(int argc, char **argv) {
-    ::progname = argv[0];
-    MARC::FileType reader_type(MARC::FileType::AUTO);
-    if (argc == 4) {
-        if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
-            reader_type = MARC::FileType::BINARY;
-        else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
-            reader_type = MARC::FileType::XML;
-        else
-            Usage();
-        ++argv, --argc;
-    }
-
     if (argc != 3)
         Usage();
 
@@ -277,8 +265,9 @@ int Main(int argc, char **argv) {
     const std::string marc_output_filename(argv[2]);
     if (unlikely(marc_input_filename == marc_output_filename))
         LOG_ERROR("Title data input file name equals output file name!");
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, reader_type));
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
+    auto marc_reader(MARC::Reader::Factory(marc_input_filename));
+    auto marc_writer(MARC::Writer::Factory(marc_output_filename));
     ProcessRecords(marc_reader.get() , marc_writer.get());
+
     return EXIT_SUCCESS;
 }

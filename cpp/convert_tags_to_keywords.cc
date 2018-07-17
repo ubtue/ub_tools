@@ -35,7 +35,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--input-format=(marc-21|marc-xml)] marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -134,11 +134,10 @@ void AddTagsToRecords(MARC::Reader * const reader, MARC::Writer * const writer,
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3 and argc != 4)
+    if (argc != 3)
         Usage();
 
-    const auto marc_reader_type(MARC::GetOptionalReaderType(&argc, &argv, 1));
-    auto reader(MARC::Reader::Factory(argv[1], marc_reader_type));
+    auto reader(MARC::Reader::Factory(argv[1]));
     auto writer(MARC::Writer::Factory(argv[2]));
 
     std::string mysql_url;

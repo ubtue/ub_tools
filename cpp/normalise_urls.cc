@@ -26,8 +26,11 @@
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " [-v|--verbose] [--input-format=(marc-xml|marc-21)] marc_input marc_output\n";
+namespace {
+
+
+[[noreturn]] void Usage() {
+    std::cerr << "Usage: " << ::progname << " [-v|--verbose] marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -149,9 +152,10 @@ void NormaliseURLs(const bool verbose, MARC::Reader * const reader, MARC::Writer
 }
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
+} // unnamed namespace
 
+
+int Main(int argc, char **argv) {
     if (argc < 2)
         Usage();
 
@@ -162,26 +166,12 @@ int main(int argc, char **argv) {
     if (argc < 2)
         Usage();
 
-    MARC::FileType reader_type(MARC::FileType::AUTO);
-    if (StringUtil::StartsWith(argv[1], "--input-format=")) {
-        if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
-            reader_type = MARC::FileType::BINARY;
-        else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
-            reader_type = MARC::FileType::XML;
-        else
-            LOG_ERROR("invalid reader type \"" + std::string(argv[1] + std::strlen("--input-format=")) + "\"!");
-        ++argv;
-        --argc;
-    }
-
     if (argc != 3)
         Usage();
 
-    std::unique_ptr <MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1], reader_type));
-    std::unique_ptr <MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
-    try {
-        NormaliseURLs(verbose, marc_reader.get(), marc_writer.get());
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    auto marc_reader(MARC::Reader::Factory(argv[1]));
+    auto marc_writer(MARC::Writer::Factory(argv[2]));
+    NormaliseURLs(verbose, marc_reader.get(), marc_writer.get());
+
+    return EXIT_SUCCESS;
 }
