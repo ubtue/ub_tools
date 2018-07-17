@@ -672,25 +672,44 @@ size_t Record::findAllLocalDataBlocks(
 }
 
 
+static inline bool LocalIndicators1Match(const Record::Field &field, const char indicator) {
+    if (indicator == '?')
+        return true;
+    return indicator == field.getLocalIndicator1();
+}
+
+
+static inline bool LocalIndicators2Match(const Record::Field &field, const char indicator) {
+    if (indicator == '?')
+        return true;
+    return indicator == field.getLocalIndicator2();
+}
+
+
+static inline bool LocalIndicatorsMatch(const Record::Field &field, const char indicator1, const char indicator2) {
+    return field.getLocalTag().isTagOfControlField()
+           or (LocalIndicators1Match(field, indicator1) and LocalIndicators2Match(field, indicator2));
+}
+
+
 Record::ConstantRange Record::getLocalTagRange(const Tag &field_tag, const const_iterator &block_start, const char indicator1,
                                                const char indicator2) const
 {
     const_iterator tag_range_start(block_start);
-    Tag last_tag(tag_range_start->getTag());
+    Tag last_tag(tag_range_start->getLocalTag());
     for (;;) {
-        if (tag_range_start->getTag() == field_tag and (indicator1 == '?' or tag_range_start->getIndicator1() == indicator1)
-            and (indicator2 == '?' or tag_range_start->getIndicator2() == indicator2))
+        const Tag tag(tag_range_start->getLocalTag());
+        if (tag == field_tag and LocalIndicatorsMatch(*tag_range_start, indicator1, indicator2))
             break;
         ++tag_range_start;
-        if (tag_range_start == fields_.cend() or tag_range_start->getTag() < last_tag)
+        if (tag_range_start == fields_.cend() or tag_range_start->getLocalTag() < last_tag)
             return ConstantRange(fields_.cend(), fields_.cend());
-        last_tag = tag_range_start->getTag();
+        last_tag = tag_range_start->getLocalTag();
     }
 
     const_iterator tag_range_end(tag_range_start + 1);
-    while (tag_range_end != fields_.cend() and tag_range_end->getTag() == field_tag
-           and (indicator1 == '?' or tag_range_end->getIndicator1() == indicator1)
-           and (indicator2 == '?' or tag_range_end->getIndicator2() == indicator2))
+    while (tag_range_end != fields_.cend() and tag_range_end->getLocalTag() == field_tag
+           and LocalIndicatorsMatch(*tag_range_end, indicator1, indicator2))
         ++tag_range_end;
 
     return ConstantRange(tag_range_start, tag_range_end);

@@ -340,11 +340,17 @@ public:
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
 
-        inline std::string getLocalTag() const {
+        inline Tag getLocalTag() const {
             if (contents_.length() < 2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/
                 or contents_[2] != '\x1F' or contents_[3] != '0')
                 return "";
             return contents_.substr(2 /*indicators*/ + 2/*delimiter and subfield code*/, 3 /*tag length*/);
+        }
+
+        /** \warning Do not call the following two functions on local control fields! */
+        inline char getLocalIndicator1() const { return contents_[2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/]; }
+        inline char getLocalIndicator2() const {
+            return contents_[2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/] + 1;
         }
 
         /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
