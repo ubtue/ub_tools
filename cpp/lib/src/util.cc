@@ -27,7 +27,6 @@
 #include <execinfo.h>
 #include <signal.h>
 #include "Compiler.h"
-#include "FileLocker.h"
 #include "MiscUtil.h"
 #include "TimeUtil.h"
 
@@ -154,7 +153,6 @@ void Logger::writeString(const std::string &level, std::string msg) {
 
     msg += '\n';
 
-    FileLocker write_locker(fd_, FileLocker::WRITE_ONLY);
     if (unlikely(::write(fd_, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
         const std::string error_message("in Logger::writeString(util.cc): write to file descriptor " + std::to_string(fd_)
                                         + " failed! (errno = " + std::to_string(errno) + ")");
