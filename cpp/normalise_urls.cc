@@ -80,10 +80,23 @@ bool IsSuffixOfAnyURL(const std::vector<std::string> &urls, const std::string &t
 }
 
 
+void CreateUrlsFrom024(MARC::Record * const record) {
+    for (const auto &_024_field : record->getTagRange("024")) {
+        if (_024_field.getFirstSubfieldWithCode('2') == "doi") {
+            const std::string doi(_024_field.getFirstSubfieldWithCode('a'));
+            if (not doi.empty())
+                record->insertField("856", { { 'u', "https://doi.org/" + doi }, { 'x', "doi" } });
+        }
+    }
+}
+
+
 void NormaliseURLs(const bool verbose, MARC::Reader * const reader, MARC::Writer * const writer) {
     unsigned count(0), modified_count(0), duplicate_skip_count(0);
     while (MARC::Record record = reader->read()) {
         ++count;
+
+        CreateUrlsFrom024(&record);
 
         std::vector<std::string> _856u_urls;
         ExtractAllHttpOrHttps856uSubfields(record, &_856u_urls);
