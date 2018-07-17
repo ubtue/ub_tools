@@ -953,6 +953,7 @@ std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fie
 
 
 bool IsRepeatableField(const Tag &tag);
+bool IsStandardTag(const Tag &tag);
 
 
 // Takes local UB Tübingen criteria into account.
