@@ -39,6 +39,7 @@
 /edit_ini_file
 /enrich_ddcs
 /enrich_keywords_with_title_words
+/non_standard_tags
 /es_store_document
 /export_subsystem_ids_to_db
 /extract_authority_data_translations
@@ -80,7 +81,6 @@
 /krimdok_flag_pda_records
 /lcsh_filter
 /lcsh_stats
-/list_non_standard_tags
 /log_rotate
 /make_marc_xml
 /map_ddc_and_rvk_to_ixtheo_notations
