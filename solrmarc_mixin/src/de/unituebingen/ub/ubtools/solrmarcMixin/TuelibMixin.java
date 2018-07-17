@@ -436,19 +436,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        // Handle DOI's:
-        for (final VariableField variableField : record.getVariableFields("024")) {
-            final DataField field = (DataField) variableField;
-            final Subfield subfield_2 = field.getSubfield('2');
-            if (subfield_2 != null && subfield_2.getData().equals("doi")) {
-                final Subfield subfield_a = field.getSubfield('a');
-                if (subfield_a != null) {
-                    final String url = "https://doi.org/" + subfield_a.getData();
-                    urls_and_material_types.add(url + ":DOI");
-                }
-            }
-        }
-
         return urls_and_material_types;
     }
 
