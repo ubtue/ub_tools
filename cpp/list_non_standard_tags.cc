@@ -49,7 +49,7 @@ void ProcessRecords(MARC::Reader * const marc_reader) {
     }
 
     std::cout << "Data set contains " << record_count << " MARC record(s) w/ the following " << non_standard_tags.size()
-              << "non-standard tags:\n";
+              << " non-standard tags:\n";
 
     for (const auto &non_standard_tag : non_standard_tags)
         std::cout << non_standard_tag << '\n';
