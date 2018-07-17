@@ -19,7 +19,6 @@
  */
 #include <iostream>
 #include <string.h>
-#include <sys/sendfile.h>
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "util.h"

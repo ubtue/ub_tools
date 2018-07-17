@@ -36,13 +36,9 @@
 namespace {
 
 
-unsigned int record_count;
-unsigned int modified_count;
-
-
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--input-format=(marc-21|marc-xml)] master_marc_input authority_data_marc_input.mrc marc_output\n"
-                           << "The Authority data must be in the MARC-21 format.\n";
+    std::cerr << "Usage: " << ::progname << " master_marc_input authority_data_marc_input.mrc marc_output\n"
+                           << "The Authority data must be in the MARC-21 binary format.\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -71,8 +67,8 @@ MARC::Record::const_iterator GetFirstPrimaryField(const MARC::Record& authority_
 }
 
 
-bool GetAuthorityRecordFromPPN(const std::string &bsz_authority_ppn, MARC::Record * const authority_record, MARC::Reader * const authority_reader,
-                               const std::map<std::string, off_t> &authority_offsets)
+bool GetAuthorityRecordFromPPN(const std::string &bsz_authority_ppn, MARC::Record * const authority_record,
+                               MARC::Reader * const authority_reader, const std::map<std::string, off_t> &authority_offsets)
 {
     auto authority_offset(authority_offsets.find(bsz_authority_ppn));
     if (authority_offset != authority_offsets.end()) {
@@ -124,7 +120,8 @@ void UpdateTitleDataField(MARC::Record::Field * const field, const MARC::Record 
 }
 
 
-void AugmentAuthors(MARC::Record * const record, MARC::Reader * const authority_reader, const std::map<std::string, off_t> &authority_offsets,
+void AugmentAuthors(MARC::Record * const record, MARC::Reader * const authority_reader,
+                    const std::map<std::string, off_t> &authority_offsets,
                     RegexMatcher * const matcher, bool * const modified_record)
 {
     std::vector<std::string> tags_to_check({"100", "110", "111", "700", "710", "711"});
@@ -143,8 +140,9 @@ void AugmentAuthors(MARC::Record * const record, MARC::Reader * const authority_
 }
 
 
-void AugmentKeywords(MARC::Record * const record, MARC::Reader * const authority_reader, const std::map<std::string, off_t> &authority_offsets,
-                    RegexMatcher * const matcher, bool * const modified_record)
+void AugmentKeywords(MARC::Record * const record, MARC::Reader * const authority_reader,
+                     const std::map<std::string, off_t> &authority_offsets,
+                     RegexMatcher * const matcher, bool * const modified_record)
 {
     for (auto &field : record->getTagRange("689")) {
         std::string _689_content(field.getContents());
@@ -168,6 +166,8 @@ void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * 
     if (matcher == nullptr)
         LOG_ERROR("Failed to compile standardized keywords regex matcher: " + err_msg);
 
+
+    unsigned record_count(0), modified_count(0);
     while (MARC::Record record = marc_reader->read()) {
        ++record_count;
        bool modified_record(false);
@@ -177,28 +177,17 @@ void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * 
            ++modified_count;
        marc_writer->write(record);
     }
+
+    LOG_INFO("Modified " + std::to_string(modified_count) + " of " + std::to_string(record_count) + " records.");
 }
 
 
 } // unnamed namespace
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
-
-    if (argc != 4 and argc != 5)
+int Main(int argc, char **argv) {
+    if (argc != 4)
         Usage();
-
-    MARC::FileType reader_type(MARC::FileType::AUTO);
-    if (argc == 5) {
-        if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
-            reader_type = MARC::FileType::BINARY;
-        else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
-            reader_type = MARC::FileType::XML;
-        else
-            Usage();
-        ++argv, --argc;
-    }
 
     const std::string marc_input_filename(argv[1]);
     const std::string authority_data_marc_input_filename(argv[2]);
@@ -208,21 +197,14 @@ int main(int argc, char **argv) {
     if (unlikely(authority_data_marc_input_filename == marc_output_filename))
         LOG_ERROR("Authority data input file name equals output file name!");
 
-    try {
-        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, reader_type));
-        std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_data_marc_input_filename,
-                                                                             MARC::FileType::BINARY));
-        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
-        std::map<std::string, off_t> authority_offsets;
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
+    std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_data_marc_input_filename,
+                                                                         MARC::FileType::BINARY));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
+    std::map<std::string, off_t> authority_offsets;
 
-        CreateAuthorityOffsets(authority_reader.get(), &authority_offsets);
-        AugmentKeywordsAndAuthors(marc_reader.get(), authority_reader.get(), marc_writer.get(), authority_offsets);
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
+    CreateAuthorityOffsets(authority_reader.get(), &authority_offsets);
+    AugmentKeywordsAndAuthors(marc_reader.get(), authority_reader.get(), marc_writer.get(), authority_offsets);
 
-    std::cerr << "Modified " << modified_count << " of " << record_count << " records\n";
-
-    return 0;
+    return EXIT_SUCCESS;
 }
-
