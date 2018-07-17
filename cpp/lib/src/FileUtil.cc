@@ -1189,4 +1189,20 @@ std::string StripLastPathComponent(const std::string &path) {
 }
 
 
+bool IsEmpty(const std::string &path) {
+    struct stat buf;
+    if (::stat(path.c_str(), &buf) != 0)
+        LOG_ERROR("stat(2) on \"" + path + "\" failed!");
+    return buf.st_size == 0;
+}
+
+
+bool IsPipeOrFIFO(const std::string &path) {
+    struct stat buf;
+    if (::stat(path.c_str(), &buf) != 0)
+        LOG_ERROR("stat(2) on \"" + path + "\" failed!");
+    return S_ISFIFO(buf.st_mode);
+}
+
+
 } // namespace FileUtil

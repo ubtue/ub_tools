@@ -472,4 +472,8 @@ std::string GetExtension(const std::string &filename, const bool to_lowercase = 
 std::string StripLastPathComponent(const std::string &path);
 
 
+bool IsEmpty(const std::string &path);
+bool IsPipeOrFIFO(const std::string &path);
+
+
 } // namespace FileUtil

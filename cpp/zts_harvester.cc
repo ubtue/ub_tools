@@ -138,7 +138,7 @@ UnsignedPair ProcessDirectHarvest(const IniFile::Section &section, const std::sh
 
 
 std::string GetMarcFormat(const std::string &output_filename) {
-    switch (MARC::GuessFileType(output_filename, /* read_file = */ false)) {
+    switch (MARC::GuessFileType(output_filename)) {
     case MARC::FileType::BINARY:
         return "marc21";
     case MARC::FileType::XML:

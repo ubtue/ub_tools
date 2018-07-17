@@ -308,7 +308,7 @@ std::pair<unsigned, unsigned> ZoteroFormatHandler::processRecord(const std::shar
 
 
 std::string GuessOutputFormat(const std::string &output_file) {
-    switch (MARC::GuessFileType(output_file, /* read_file = */ false)) {
+    switch (MARC::GuessFileType(output_file)) {
     case MARC::FileType::BINARY:
         return "marc21";
     case MARC::FileType::XML:
