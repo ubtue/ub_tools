@@ -459,9 +459,7 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     MARC::FileType reader_type(MARC::FileType::AUTO);
     if (argc > 1 and std::strncmp(argv[1], "--input-format=", __builtin_strlen("--input-format=")) == 0) {
         if (std::strcmp(argv[1] +  __builtin_strlen("--input-format="), "marc-xml") == 0)
@@ -509,22 +507,20 @@ int main(int argc, char *argv[]) {
     if (argc < 3 or argc > 4)
         Usage();
 
-    try {
-        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1], reader_type));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1], reader_type));
 
-        std::unordered_set<std::string> control_numbers;
-        if (not control_numbers_filename.empty())
-            LoadControlNumbers(control_numbers_filename, &control_numbers);
+    std::unordered_set<std::string> control_numbers;
+    if (not control_numbers_filename.empty())
+        LoadControlNumbers(control_numbers_filename, &control_numbers);
 
-        QueryDescriptor query_desc;
-        std::string err_msg;
-        if (not ParseQuery(argv[2], &query_desc, &err_msg))
-            logger->error("Query parsing failed: " + err_msg);
+    QueryDescriptor query_desc;
+    std::string err_msg;
+    if (not ParseQuery(argv[2], &query_desc, &err_msg))
+        logger->error("Query parsing failed: " + err_msg);
 
-        const OutputLabel output_label = (argc == 4) ? ParseOutputLabel(argv[3])
-            : CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD;
-        FieldGrep(max_records, sampling_rate, control_numbers, marc_reader.get(), query_desc, output_label);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    const OutputLabel output_label = (argc == 4) ? ParseOutputLabel(argv[3])
+        : CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD;
+    FieldGrep(max_records, sampling_rate, control_numbers, marc_reader.get(), query_desc, output_label);
+
+    return EXIT_SUCCESS;
 }
