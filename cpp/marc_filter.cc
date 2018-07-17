@@ -37,8 +37,7 @@ namespace {
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input marc_output [--input-format=(marc-xml|marc-21)]\n"
-              << "       [--output-format=(marc-xml|marc-21)] op1 [op2 .. opN]\n"
+    std::cerr << "Usage: " << ::progname << " marc_input marc_output op1 [op2 .. opN]\n"
               << "       where each operation must start with the operation type. Operation-type flags are\n"
               << "           --drop field_or_subfield_specs\n"
               << "               where field_or_subfield_specs is a list of one or more arguments where a field or\n"
@@ -853,8 +852,7 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
 } // unnamed namespace
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
+int Main(int argc, char **argv) {
     ++argv;
 
     if (argc < 5)
@@ -862,41 +860,12 @@ int main(int argc, char **argv) {
 
     const std::string input_filename(*argv++);
     const std::string output_filename(*argv++);
+    auto marc_reader(MARC::Reader::Factory(input_filename));
+    auto marc_writer(MARC::Writer::Factory(output_filename));
 
-    MARC::FileType reader_type;
-    if (std::strcmp("--input-format=marc-xml", *argv) == 0) {
-        reader_type = MARC::FileType::XML;
-        ++argv;
-    } else if (std::strcmp("--input-format=marc-21", *argv) == 0) {
-        reader_type = MARC::FileType::BINARY;
-        ++argv;
-    } else if (StringUtil::StartsWith(*argv, "--input-format="))
-        LOG_ERROR("unknown input format \"" + std::string(*argv + __builtin_strlen("--input-format="))
-                  + "\" use \"marc-xml\" or \"marc-21\"!");
-    else
-        reader_type = MARC::FileType::AUTO;
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename, reader_type));
+    std::vector<FilterDescriptor> filters;
+    ProcessFilterArgs(argv, &filters);
+    Filter(filters, marc_reader.get(), marc_writer.get());
 
-    MARC::FileType writer_type;
-    if (std::strcmp("--output-format=marc-xml", *argv) == 0) {
-        writer_type = MARC::FileType::XML;
-        ++argv;
-    } else if (std::strcmp("--output-format=marc-21", *argv) == 0) {
-        writer_type = MARC::FileType::BINARY;
-        ++argv;
-    } else if (StringUtil::StartsWith(*argv, "--output-format="))
-        LOG_ERROR("unknown output format \"" + std::string(*argv + __builtin_strlen("--output-format="))
-                  + "\" use \"marc-xml\" or \"marc-21\"!");
-    else
-        writer_type = MARC::FileType::AUTO;
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(output_filename, writer_type));
-
-    try {
-        std::vector<FilterDescriptor> filters;
-        ProcessFilterArgs(argv, &filters);
-
-        Filter(filters, marc_reader.get(), marc_writer.get());
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
+    return EXIT_SUCCESS;
 }

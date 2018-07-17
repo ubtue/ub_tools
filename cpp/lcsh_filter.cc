@@ -32,8 +32,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "usage: " << ::progname << " [[--input-format=(marc-xml|marc-21)]\n"
-              << "       [--output-format=(marc-xml|marc-21)] marc_input marc_output subject_list\n\n"
+    std::cerr << "usage: " << ::progname << " marc_input marc_output subject_list\n\n"
               << "       where \"subject_list\" must contain LCSH's, one per line.\n";
     std::exit(EXIT_FAILURE);
 }
@@ -85,22 +84,17 @@ void Filter(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
 
 
 int Main(int argc, char **argv) {
-    if (argc < 3 or argc > 5)
-        Usage();
-
-    const MARC::FileType reader_type(MARC::GetOptionalReaderType(&argc, &argv, 1));
-    const MARC::FileType writer_type(MARC::GetOptionalReaderType(&argc, &argv, 1));
-
     if (argc != 4)
         Usage();
 
-    auto marc_reader(MARC::Reader::Factory(argv[1], reader_type));
-    auto marc_writer(MARC::Writer::Factory(argv[2], writer_type));
+    auto marc_reader(MARC::Reader::Factory(argv[1]));
+    auto marc_writer(MARC::Writer::Factory(argv[2]));
     auto subject_headings_file(FileUtil::OpenInputFileOrDie(argv[3]));
 
     std::unordered_set<std::string> loc_subject_headings;
     LoadSubjectHeadings(subject_headings_file.get(), &loc_subject_headings);
 
     Filter(marc_reader.get(), marc_writer.get(), loc_subject_headings);
+
     return EXIT_SUCCESS;
 }

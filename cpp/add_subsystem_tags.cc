@@ -33,16 +33,16 @@
 #include "StringUtil.h"
 #include "util.h"
 
+
 namespace {
 
-unsigned int record_count;
-unsigned int modified_count;
+    
 const std::string RELBIB_TAG("REL");
 const std::string BIBSTUDIES_TAG("BIB");
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--input-format=(marc-21|marc-xml)] marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -189,6 +189,7 @@ void AddSubsystemTag(MARC::Record * const record, const std::string &tag) {
 
 
 void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
+    unsigned int record_count(0), modified_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
         bool modified_record(false);
@@ -205,31 +206,25 @@ void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const mar
             ++modified_count;
     }
 
-    std::cerr << "Modified " << modified_count << " of " << record_count << " records\n";
+    LOG_INFO("Modified " + std::to_string(modified_count) + " of " + std::to_string(record_count) + " records.");
 }
 
 
 } //unnamed namespace
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
-
-    if (argc != 3 and argc != 4)
+int Main(int argc, char **argv) {
+    if (argc != 3)
         Usage();
-
-    const MARC::FileType reader_type(MARC::GetOptionalReaderType(&argc, &argv, 1));
 
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
     if (unlikely(marc_input_filename == marc_output_filename))
         LOG_ERROR("Title data input file name equals output file name!");
-    try {
-        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, reader_type));
-        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
-        AddSubsystemTags(marc_reader.get() , marc_writer.get());
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
-    std::cerr << "Modified " << modified_count << " of " << record_count << " records\n";
+
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
+    AddSubsystemTags(marc_reader.get() , marc_writer.get());
+
+    return EXIT_SUCCESS;
 }

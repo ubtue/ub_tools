@@ -36,7 +36,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--do-not-abort-on-empty-subfields] [--do-not-abort-on-invalid-repeated-fields] [--input-format=(marc-21|marc-xml)] "
+              << " [--do-not-abort-on-empty-subfields] [--do-not-abort-on-invalid-repeated-fields] "
               << "[--write-data=output_filename] marc_data\n"
               << "       If \"--write-data\" has been specified, the read records will be written out again.\n\n";
     std::exit(EXIT_FAILURE);
@@ -171,8 +171,6 @@ void ProcessRecords(const bool do_not_abort_on_empty_subfields, const bool do_no
 
 
 int Main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
     if (argc < 2)
         Usage();
 
@@ -194,11 +192,6 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
-    const MARC::FileType input_format(MARC::GetOptionalReaderType(&argc, &argv, 1));
-
-    if (argc < 2)
-        Usage();
-
     std::string output_filename;
     if (StringUtil::StartsWith(argv[1], "--write-data=")) {
         output_filename = argv[1] + __builtin_strlen("--write-data=");
@@ -208,7 +201,7 @@ int Main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1], input_format));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
 
     std::unique_ptr<MARC::Writer> marc_writer;
     if (not output_filename.empty())
