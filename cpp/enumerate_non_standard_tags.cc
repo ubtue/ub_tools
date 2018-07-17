@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <iostream>
 #include <unordered_set>
+#include <vector>
 #include <cstdio>
 #include <cstdlib>
 #include "MARC.h"
@@ -30,7 +31,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] marc_data\n";
+    std::cerr << "Usage: " << ::progname << " marc_data\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -51,8 +52,15 @@ void ProcessRecords(MARC::Reader * const marc_reader) {
     std::cout << "Data set contains " << record_count << " MARC record(s) w/ the following " << non_standard_tags.size()
               << " non-standard tags:\n";
 
+    std::vector<std::string> sorted_non_standard_tag;
+    sorted_non_standard_tag.reserve(non_standard_tags.size());
+
     for (const auto &non_standard_tag : non_standard_tags)
-        std::cout << non_standard_tag << '\n';
+        sorted_non_standard_tag.emplace_back(non_standard_tag);
+
+    std::sort(sorted_non_standard_tag.begin(), sorted_non_standard_tag.end());
+    for (const auto &tag : sorted_non_standard_tag)
+        std::cout << tag << '\n';
 }
 
 
