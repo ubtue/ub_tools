@@ -77,9 +77,8 @@ void LoadDE21PPNs(MARC::Reader * const marc_reader, RegexMatcher * const tue_sig
 
 void CollectSuperiorPPNs(const MARC::Record &record, std::unordered_set<std::string> * const superior_ppn_set) {
     static RegexMatcher * const superior_ppn_matcher(RegexMatcher::RegexMatcherFactory(".DE-576.(.*)"));
+    static const std::vector<std::string> tags{ "800", "810", "830", "773", "776" };
 
-    // Determine superior PPNs from 800w:810w:830w:773w:776w
-    const std::vector<std::string> tags({ "800", "810", "830", "773", "776" });
     for (const auto &tag : tags) {
         std::vector<std::string> superior_ppn_vector;
         const auto field(record.findTag(tag));
