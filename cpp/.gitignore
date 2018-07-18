@@ -114,6 +114,7 @@
 /remove_unused_authority_records
 /replace_marc_records
 /rewrite_keywords_and_authors_from_authority_data
+/rewrite_ssoar
 /rss_aggregator
 /rss_harvester
 /rss_feed_generator
