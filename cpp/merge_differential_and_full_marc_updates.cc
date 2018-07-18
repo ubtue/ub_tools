@@ -62,15 +62,32 @@ incremental_authority_dump = (?:WA-MARCcomb-sekkor)-(\d{6}).tar.gz
 namespace {
 
 
+[[noreturn]] void Usage() {
+    std::cerr << "Usage: " << ::progname << " [--keep-intermediate-files] default_email_recipient\n";
+    std::exit(EXIT_FAILURE);
+}
+
+
 std::string default_email_recipient;
 std::string email_server_address;
 std::string email_server_user;
 std::string email_server_password;
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--keep-intermediate-files] default_email_recipient\n";
-    std::exit(EXIT_FAILURE);
+const std::string EMAIL_CONF_FILE_PATH("/usr/local/var/lib/tuelib/cronjobs/smtp_server.conf");
+const std::string CONF_FILE_PATH(
+    "/usr/local/var/lib/tuelib/cronjobs/merge_differential_and_full_marc_updates.conf");
+
+
+void ProcessIniFiles(std::string * const deletion_list_pattern, std::string * const incremental_authority_dump_pattern) {
+    const IniFile email_ini_file(EMAIL_CONF_FILE_PATH);
+    ::email_server_address  = email_ini_file.getString("SMTPServer", "server_address");
+    ::email_server_user     = email_ini_file.getString("SMTPServer", "server_user");
+    ::email_server_password = email_ini_file.getString("SMTPServer", "server_password");
+
+    const IniFile ini_file(CONF_FILE_PATH);
+    *deletion_list_pattern = ini_file.getString("Files", "deletion_list");
+    *incremental_authority_dump_pattern = ini_file.getString("Files", "incremental_authority_dump");
 }
 
 
@@ -861,11 +878,6 @@ std::string ShiftDateToTenDaysBefore(const std::string &cutoff_date) {
 }
 
 
-const std::string EMAIL_CONF_FILE_PATH("/usr/local/var/lib/tuelib/cronjobs/smtp_server.conf");
-const std::string CONF_FILE_PATH(
-    "/usr/local/var/lib/tuelib/cronjobs/merge_differential_and_full_marc_updates.conf");
-
-
 } // unnamed namespace
 
 
@@ -881,17 +893,10 @@ int Main(int argc, char *argv[]) {
 
     ::default_email_recipient = argv[1];
 
-    const IniFile email_ini_file(EMAIL_CONF_FILE_PATH);
-    ::email_server_address  = email_ini_file.getString("SMTPServer", "server_address");
-    ::email_server_user     = email_ini_file.getString("SMTPServer", "server_user");
-    ::email_server_password = email_ini_file.getString("SMTPServer", "server_password");
-
     const std::string tuefind_flavour(MiscUtil::GetEnv("TUEFIND_FLAVOUR"));
 
-    const IniFile ini_file(CONF_FILE_PATH);
-    const std::string deletion_list_pattern(ini_file.getString("Files", "deletion_list"));
-    const std::string incremental_authority_dump_pattern(
-        ini_file.getString("Files", "incremental_authority_dump"));
+    std::string deletion_list_pattern,  incremental_authority_dump_pattern;
+    ProcessIniFiles(&deletion_list_pattern, &incremental_authority_dump_pattern);
 
     const std::string complete_dump_filename(GetOrGenerateCompleteDumpFile(tuefind_flavour));
     const std::string complete_dump_filename_date(BSZUtil::ExtractDateFromFilenameOrDie(complete_dump_filename));
