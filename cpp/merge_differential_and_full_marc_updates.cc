@@ -711,8 +711,10 @@ std::string CreateNewCompleteMarcArchive(const std::string &old_date, const std:
     for (const auto &updated_marc_file : updated_marc_files) {
         std::string archive_member_name(RemoveFileNameSuffix(updated_marc_file, individual_file_suffix));
         const std::string archive_member_prefix("SA-MARC-" + tuefind_flavour);
-        if (not StringUtil::StartsWith(archive_member_name, archive_member_prefix))
-            archive_member_name = archive_member_prefix + archive_member_name;
+        if (not StringUtil::StartsWith(archive_member_name, archive_member_prefix)) {
+            archive_member_name = archive_member_prefix
+                + archive_member_name.substr(archive_member_name.length() - 8 /* [abc] + 3 digits + period + "raw" */);
+        }
         LOG_DEBUG("Storing \"" + updated_marc_file + "\" as \"" + archive_member_name + "\" in \"" + new_complete_dump_filename + "\".");
         archive_writer.add(updated_marc_file, archive_member_name);
     }
