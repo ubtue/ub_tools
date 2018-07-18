@@ -62,7 +62,7 @@ incremental_authority_dump = (?:WA-MARCcomb-sekkor)-(\d{6}).tar.gz
 namespace {
 
 
-void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--keep-intermediate-files] default_email_recipient\n";
     std::exit(EXIT_FAILURE);
 }
