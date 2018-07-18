@@ -36,7 +36,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [-v|--verbose] spr_augmented_marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " spr_augmented_marc_input marc_output\n";
     std::cerr << "  Notice that this program requires the SPR tag for superior works\n";
     std::cerr << "  to be set for appropriate results\n\n";
     std::exit(EXIT_FAILURE);
