@@ -32,7 +32,6 @@
 #include "MARC.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
-#include "Subfields.h"
 #include "util.h"
 
 
@@ -1071,13 +1070,13 @@ bool ElectronicArticleIsAvailableInTuebingen(const MARC::Record &record) {
 bool Get856URLAndAnchor(const std::string &_856_field_contents, std::string * const url, std::string * const anchor) {
     url->clear(), anchor->clear();
 
-    const Subfields subfields(_856_field_contents);
+    const MARC::Subfields subfields(_856_field_contents);
     if (subfields.hasSubfield('u')) {
-        *url = subfields.getFirstSubfieldValue('u');
+        *url = subfields.getFirstSubfieldWithCode('u');
         if (url->empty())
             return false;
 
-        const std::string x_subfield(subfields.getFirstSubfieldValue('x'));
+        const std::string x_subfield(subfields.getFirstSubfieldWithCode('x'));
         if (x_subfield.empty())
             *anchor = "Tübingen Online Resource";
         else
@@ -1218,8 +1217,6 @@ void PopulateTheInTuebingenAvailableField(const bool verbose, MARC::Reader * con
 
 
 int Main(int argc, char **argv) {
-    ::progname = argv[0];
-
     if (argc != 3 and argc != 4)
         Usage();
 
