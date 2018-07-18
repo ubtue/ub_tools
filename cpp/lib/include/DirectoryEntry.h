@@ -25,7 +25,7 @@
 #include <vector>
 #include "Compiler.h"
 #include "StringUtil.h"
-#include "MarcTag.h"
+#include "MARC.h"
 
 
 /** \class DirectoryEntry
@@ -37,7 +37,7 @@ public:
                                                      //  standard.
     static const size_t TAG_LENGTH             =  3; //< The fixed length of a field tag according to the standard.
 private:
-    MarcTag tag_;
+    MARC::Tag tag_;
     unsigned field_length_;
     unsigned field_offset_;
 public:
@@ -50,7 +50,7 @@ public:
 
         if (unlikely(std::sscanf(raw_entry.data() + TAG_LENGTH, "%4u", &field_length_) != 1))
             logger->error("DirectoryEntry::DirectoryEntry: can't scan field length ("
-                          + raw_entry.substr(TAG_LENGTH, 4) + ") in directory entry! (Tag was " + tag_.to_string()
+                          + raw_entry.substr(TAG_LENGTH, 4) + ") in directory entry! (Tag was " + tag_.toString()
                           + ")");
 
         if (unlikely(std::sscanf(raw_entry.data() + 7, "%5u", &field_offset_) != 1))
@@ -71,7 +71,7 @@ public:
      *  \param field_length  Must be less than 10,000.
      *  \param field_offset  Must be less than 10,000.
      */
-    DirectoryEntry(const MarcTag &tag, const unsigned field_length, const unsigned field_offset)
+    DirectoryEntry(const MARC::Tag &tag, const unsigned field_length, const unsigned field_offset)
         : tag_(tag), field_length_(field_length), field_offset_(field_offset) {}
 
     inline DirectoryEntry &operator=(DirectoryEntry &&other) {
@@ -98,7 +98,7 @@ public:
         std::swap(field_offset_, other.field_offset_);
     }
 
-    const MarcTag &getTag() const { return tag_; }
+    const MARC::Tag &getTag() const { return tag_; }
 
     /** Includes the field terminator. */
     unsigned getFieldLength() const { return field_length_; }
@@ -119,7 +119,7 @@ public:
         std::string field_as_string;
         field_as_string.reserve(DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
 
-        field_as_string += tag_.to_string();
+        field_as_string += tag_.toString();
         field_as_string += StringUtil::PadLeading(std::to_string(field_length_), 4, '0');
         field_as_string += StringUtil::PadLeading(std::to_string(field_offset_), 5, '0');
 
