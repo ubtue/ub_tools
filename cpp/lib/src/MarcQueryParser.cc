@@ -24,7 +24,7 @@
 #include <vector>
 #include <cstring>
 #include "DirectoryEntry.h"
-#include "Leader.h"
+#include "MARC.h"
 #include "MarcGrepTokenizer.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -128,8 +128,8 @@ void ParseLeaderCondition(Tokenizer * const tokenizer, QueryDescriptor * const q
     if (token != UNSIGNED_CONSTANT)
         throw std::runtime_error("Expected a numeric offset after \"leader[\"! (1)");
     const unsigned start_offset(tokenizer->getLastUnsignedConstant());
-    if (start_offset >= Leader::LEADER_LENGTH)
-        throw std::runtime_error("Leader start offset >= leader length (" + std::to_string(Leader::LEADER_LENGTH)
+    if (start_offset >= MARC::Record::LEADER_LENGTH)
+        throw std::runtime_error("Leader start offset >= leader length (" + std::to_string(MARC::Record::LEADER_LENGTH)
                                  + ")!");
 
     unsigned end_offset(start_offset);
@@ -142,8 +142,8 @@ void ParseLeaderCondition(Tokenizer * const tokenizer, QueryDescriptor * const q
         end_offset = tokenizer->getLastUnsignedConstant();
         if (end_offset < start_offset)
             throw std::runtime_error("2nd numeric offset of the leader offset range must be >= first offset!");
-        if (end_offset >= Leader::LEADER_LENGTH)
-            throw std::runtime_error("Leader end offset >= leader length (" + std::to_string(Leader::LEADER_LENGTH)
+        if (end_offset >= MARC::Record::LEADER_LENGTH)
+            throw std::runtime_error("Leader end offset >= leader length (" + std::to_string(MARC::Record::LEADER_LENGTH)
                                      + ")!");
         token = tokenizer->getToken();
     }

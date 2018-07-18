@@ -18,7 +18,6 @@
  */
 #include <iostream>
 #include "Marc21OaiPmhClient.h"
-#include "MarcWriter.h"
 #include "util.h"
 
 
@@ -43,7 +42,7 @@ int main(int argc, char **argv) {
 
     try {
         const IniFile ini_file(ini_filename);
-        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory("/dev/null", MarcWriter::BINARY));
+        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory("/dev/null"));
         Marc21OaiPmhClient oai_pmh_client(ini_file, ini_section_name, marc_writer.get());
 
         std::vector<OaiPmh::Client::MetadataFormatDescriptor> metadata_format_list;
