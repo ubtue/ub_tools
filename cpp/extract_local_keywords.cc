@@ -1,7 +1,7 @@
 /** \brief Generates a list of values from LOK $a where $0=689.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -22,48 +22,44 @@
 #include <unordered_set>
 #include <vector>
 #include <cstdlib>
-#include "MarcRecord.h"
-#include "MarcReader.h"
-#include "Subfields.h"
+#include "MARC.h"
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "usage: " << ::progname << " marc_input\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-void ExtractLocalKeywords(MarcReader * const marc_reader, std::unordered_set<std::string> * const local_keywords) {
+void ExtractLocalKeywords(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const local_keywords) {
     unsigned total_count(0), matched_count(0), records_with_local_data_count(0);
-    while (const MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++total_count;
 
-        std::vector<size_t> field_indices;
-        if (not record.getFieldIndices("LOK", &field_indices))
-            continue;
-        ++records_with_local_data_count;
-
         bool matched(false);
-        for (size_t field_index : field_indices) {
-            const Subfields subfields(record.getFieldData(field_index));
-            const std::string subfield0(subfields.getFirstSubfieldValue('0'));
-            if (subfield0.empty() or subfield0 != "689  ")
+        for (const auto &local_field : record.getTagRange("LOK")) {
+            if (local_field.getLocalTag() != "689" or local_field.getLocalIndicator1() != ' ' or local_field.getLocalIndicator2() != ' ')
                 continue;
-            std::vector<std::string> subfield_a_values;
-            subfields.extractSubfields('a', &subfield_a_values);
-            for (const auto &subfield_a_value : subfield_a_values) {
-                local_keywords->insert(subfield_a_value);
-                matched = true;
+
+            const MARC::Subfields subfields(local_field.getSubfields());
+            for (const auto &subfield : subfields) {
+                if (subfield.code_ == 'a') {
+                    local_keywords->insert(subfield.value_);
+                    matched = true;
+                }
             }
         }
         if (matched)
             ++matched_count;
     }
 
-    std::cerr << "Processed a total of " << total_count << " record(s) of which " << records_with_local_data_count
-              << " had local data.\n";
-    std::cerr << "Found " << matched_count << " record(s) w/ local keywords.\n";
+    LOG_INFO("Processed a total of " + std::to_string(total_count) + " record(s) of which " + std::to_string(records_with_local_data_count)
+             + " had local data.");
+    LOG_INFO("Found " + std::to_string(matched_count) + " record(s) w/ local keywords.");
 }
 
 
@@ -79,18 +75,18 @@ void DisplayKeywords(const std::unordered_set<std::string> &local_keywords) {
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
+} // unnamed namespace
+
+
+int Main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
+    auto marc_reader(MARC::Reader::Factory(argv[1]));
 
-    try {
-        std::unordered_set<std::string> local_keywords;
-        ExtractLocalKeywords(marc_reader.get(), &local_keywords);
-        DisplayKeywords(local_keywords);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    std::unordered_set<std::string> local_keywords;
+    ExtractLocalKeywords(marc_reader.get(), &local_keywords);
+    DisplayKeywords(local_keywords);
+
+    return EXIT_SUCCESS;
 }
