@@ -37,7 +37,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] marc_input1 [marc_input2 ... marc_inputN] marc_output\n"
+    std::cerr << "Usage: " << ::progname << " marc_input1 [marc_input2 ... marc_inputN] marc_output\n"
               << "       Collects information about which superior/collective works are serials from the various\n"
               << "       MARC inputs and then patches up records in \"marc_input1\" which have been marked as a book\n"
               << "       component and changes them to be flagged as an article instead.  The patched up version is\n"
