@@ -33,7 +33,6 @@
 #include <cstring>
 #include <unistd.h>
 #include "Compiler.h"
-#include "DirectoryEntry.h"
 #include "FileUtil.h"
 #include "MarcQueryParser.h"
 #include "MARC.h"
@@ -338,7 +337,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc,
         }
 
         bool emitted_at_least_one(false);
-        const char test_subfield_code(cond_desc.getFieldOrSubfieldReference()[DirectoryEntry::TAG_LENGTH]);
+        const char test_subfield_code(cond_desc.getFieldOrSubfieldReference()[MARC::Record::TAG_LENGTH]);
         const char extract_subfield_code(field_or_subfield_desc.getSubfieldCodes()[0]);
         for (auto tag_and_field_contents(begin_end.first); tag_and_field_contents != begin_end.second;
              ++tag_and_field_contents)
