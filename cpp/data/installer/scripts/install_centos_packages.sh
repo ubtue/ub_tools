@@ -50,7 +50,7 @@ if [[ $1 == "tuefind" ]]; then
         ColorEcho "replacing standard PHP with PHP 7.1"
         rpm -Uvh https://mirror.webtatic.com/yum/el7/webtatic-release.rpm
         yum --assumeyes remove 'php-*'
-        yum --assumeyes install php71w-cli php71w-common php71w-gd php71w-intl php71w-ldap php71w-mbstring php71w-mysqlnd php71w-xml mod_php71w
+        yum --assumeyes install php71w-cli php71w-common php71w-gd php71w-intl php71w-ldap php71w-mbstring php71w-mysqlnd php71w-soap php71w-xml mod_php71w
         systemctl restart httpd
     fi
 
