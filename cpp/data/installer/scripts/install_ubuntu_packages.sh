@@ -41,7 +41,7 @@ if [[ $1 == "tuefind" ]]; then
     apt-get --quiet --yes install \
         composer unzip openjdk-8-jdk \
         apache2 mysql-server \
-        php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-xsl php-pear \
+        php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-soap php-xsl php-pear \
         libapache2-mod-php
 
     # From 18.04 on, Java 8 needs to be enabled as well for Solr + mixins (18.04 ships with 10)
