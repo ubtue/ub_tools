@@ -856,9 +856,7 @@ const std::string CONF_FILE_PATH(
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     bool keep_intermediate_files(false);
     if (argc == 3) {
         if (std::strcmp(argv[1], "--keep-intermediate-files") != 0)
@@ -870,77 +868,75 @@ int main(int argc, char *argv[]) {
 
     ::default_email_recipient = argv[1];
 
-    try {
-        const IniFile email_ini_file(EMAIL_CONF_FILE_PATH);
-        ::email_server_address  = email_ini_file.getString("SMTPServer", "server_address");
-        ::email_server_user     = email_ini_file.getString("SMTPServer", "server_user");
-        ::email_server_password = email_ini_file.getString("SMTPServer", "server_password");
+    const IniFile email_ini_file(EMAIL_CONF_FILE_PATH);
+    ::email_server_address  = email_ini_file.getString("SMTPServer", "server_address");
+    ::email_server_user     = email_ini_file.getString("SMTPServer", "server_user");
+    ::email_server_password = email_ini_file.getString("SMTPServer", "server_password");
 
-        const std::string tuefind_flavour(MiscUtil::GetEnv("TUEFIND_FLAVOUR"));
+    const std::string tuefind_flavour(MiscUtil::GetEnv("TUEFIND_FLAVOUR"));
 
-        const IniFile ini_file(CONF_FILE_PATH);
-        const std::string deletion_list_pattern(ini_file.getString("Files", "deletion_list"));
-        const std::string incremental_authority_dump_pattern(
-            ini_file.getString("Files", "incremental_authority_dump"));
+    const IniFile ini_file(CONF_FILE_PATH);
+    const std::string deletion_list_pattern(ini_file.getString("Files", "deletion_list"));
+    const std::string incremental_authority_dump_pattern(
+        ini_file.getString("Files", "incremental_authority_dump"));
 
-        const std::string complete_dump_filename(GetOrGenerateCompleteDumpFile(tuefind_flavour));
-        const std::string complete_dump_filename_date(BSZUtil::ExtractDateFromFilenameOrDie(complete_dump_filename));
+    const std::string complete_dump_filename(GetOrGenerateCompleteDumpFile(tuefind_flavour));
+    const std::string complete_dump_filename_date(BSZUtil::ExtractDateFromFilenameOrDie(complete_dump_filename));
 
-        std::vector<std::string> deletion_list_filenames;
-        GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, deletion_list_pattern, &deletion_list_filenames);
-        if (not deletion_list_filenames.empty())
-            logger->info("identified " + std::to_string(deletion_list_filenames.size())
-                         + " deletion list filenames for application.");
+    std::vector<std::string> deletion_list_filenames;
+    GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, deletion_list_pattern, &deletion_list_filenames);
+    if (not deletion_list_filenames.empty())
+        logger->info("identified " + std::to_string(deletion_list_filenames.size())
+                     + " deletion list filenames for application.");
 
-        const std::string incremental_dump_pattern("(T|W)A-MARC-" + tuefind_flavour + "(_o)?-\\d{6}\\.tar\\.gz");
-        std::vector<std::string> incremental_dump_filenames;
-        GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, incremental_dump_pattern, &incremental_dump_filenames);
-        if (not incremental_dump_filenames.empty())
-            logger->info("identified " + std::to_string(incremental_dump_filenames.size())
-                         + " incremental dump filenames for application.");
-        std::vector<std::string> merged_incremental_dump_filenames;
-        MergeIncrementalDumpFiles(incremental_dump_filenames, &merged_incremental_dump_filenames);
+    const std::string incremental_dump_pattern("(T|W)A-MARC-" + tuefind_flavour + "(_o)?-\\d{6}\\.tar\\.gz");
+    std::vector<std::string> incremental_dump_filenames;
+    GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, incremental_dump_pattern, &incremental_dump_filenames);
+    if (not incremental_dump_filenames.empty())
+        logger->info("identified " + std::to_string(incremental_dump_filenames.size())
+                     + " incremental dump filenames for application.");
+    std::vector<std::string> merged_incremental_dump_filenames;
+    MergeIncrementalDumpFiles(incremental_dump_filenames, &merged_incremental_dump_filenames);
 
-        std::vector<std::string> incremental_authority_dump_filenames;
-        // incremental authority dumps are only delivered once a week and a longer span of time must
-        // be taken into account
-        GetFilesMoreRecentThanOrEqual(ShiftDateToTenDaysBefore(complete_dump_filename_date),
-                                      incremental_authority_dump_pattern, &incremental_authority_dump_filenames);
-        if (not incremental_authority_dump_filenames.empty())
-            logger->info("identified " + std::to_string(incremental_authority_dump_filenames.size())
-                         + " authority dump filenames for application.");
+    std::vector<std::string> incremental_authority_dump_filenames;
+    // incremental authority dumps are only delivered once a week and a longer span of time must
+    // be taken into account
+    GetFilesMoreRecentThanOrEqual(ShiftDateToTenDaysBefore(complete_dump_filename_date),
+                                  incremental_authority_dump_pattern, &incremental_authority_dump_filenames);
+    if (not incremental_authority_dump_filenames.empty())
+        logger->info("identified " + std::to_string(incremental_authority_dump_filenames.size())
+                     + " authority dump filenames for application.");
 
-        if (deletion_list_filenames.empty() and merged_incremental_dump_filenames.empty()
-            and incremental_authority_dump_filenames.empty())
-        {
-            SendEmail(::progname,
-                      "No recent deletion lists, incremental dump filenames and authority dump filenames.\n"
-                      "Therefore we have nothing to do!\n", EmailSender::VERY_LOW);
-            return EXIT_SUCCESS;
-        }
-
-        MergeAuthorityAndIncrementalDumpLists(incremental_authority_dump_filenames, &merged_incremental_dump_filenames);
-
-        CreateAndChangeIntoTheWorkingDirectory();
-        const std::string new_complete_dump_filename(
-            ExtractAndCombineMarcFilesFromArchives(keep_intermediate_files, complete_dump_filename,
-                                                   deletion_list_filenames, merged_incremental_dump_filenames));
-        ChangeDirectoryOrDie(".."); // Leave the working directory again.
-
-        if (not keep_intermediate_files) {
-            RemoveDirectoryOrDie(GetWorkingDirectoryName());
-            DeleteFilesOrDie(incremental_dump_pattern);
-            DeleteFilesOrDie("^Merged-\\d{6}\\.tar\\.gz$");
-            DeleteFilesOrDie(incremental_authority_dump_pattern);
-            DeleteFilesOrDie(deletion_list_pattern);
-        }
-
-        CreateSymlink(new_complete_dump_filename, "Complete-MARC-" + tuefind_flavour + "-current.tar.gz");
-
-        SendEmail(std::string(::progname) + " (" + GetHostname() + ")",
-                  "Succeeded in creating the new complete archive \"" + new_complete_dump_filename + "\".\n",
-                  EmailSender::VERY_LOW);
-    } catch (const std::exception &x) {
-        LogSendEmailAndDie("caught exception: " + std::string(x.what()));
+    if (deletion_list_filenames.empty() and merged_incremental_dump_filenames.empty()
+        and incremental_authority_dump_filenames.empty())
+    {
+        SendEmail(::progname,
+                  "No recent deletion lists, incremental dump filenames and authority dump filenames.\n"
+                  "Therefore we have nothing to do!\n", EmailSender::VERY_LOW);
+        return EXIT_SUCCESS;
     }
+
+    MergeAuthorityAndIncrementalDumpLists(incremental_authority_dump_filenames, &merged_incremental_dump_filenames);
+
+    CreateAndChangeIntoTheWorkingDirectory();
+    const std::string new_complete_dump_filename(
+        ExtractAndCombineMarcFilesFromArchives(keep_intermediate_files, complete_dump_filename,
+                                               deletion_list_filenames, merged_incremental_dump_filenames));
+    ChangeDirectoryOrDie(".."); // Leave the working directory again.
+
+    if (not keep_intermediate_files) {
+        RemoveDirectoryOrDie(GetWorkingDirectoryName());
+        DeleteFilesOrDie(incremental_dump_pattern);
+        DeleteFilesOrDie("^Merged-\\d{6}\\.tar\\.gz$");
+        DeleteFilesOrDie(incremental_authority_dump_pattern);
+        DeleteFilesOrDie(deletion_list_pattern);
+    }
+
+    CreateSymlink(new_complete_dump_filename, "Complete-MARC-" + tuefind_flavour + "-current.tar.gz");
+
+    SendEmail(std::string(::progname) + " (" + GetHostname() + ")",
+              "Succeeded in creating the new complete archive \"" + new_complete_dump_filename + "\".\n",
+              EmailSender::VERY_LOW);
+
+    return EXIT_SUCCESS;
 }
