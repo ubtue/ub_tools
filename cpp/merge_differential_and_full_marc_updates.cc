@@ -696,7 +696,7 @@ void CreateSymlink(const std::string &target_filename, const std::string &link_f
  *  \return The name of the new complete dump file.
  */
 std::string CreateNewCompleteMarcArchive(const std::string &old_date, const std::string &old_complete_dump_filename,
-                                         const std::string &individual_file_suffix)
+                                         const std::string &individual_file_suffix, const std::string &tuefind_flavour)
 {
     LOG_DEBUG("Entering CreateNewCompleteMarcArchive w/ old_complete_dump_filename=\"" + old_complete_dump_filename + "\".");
 
@@ -709,7 +709,10 @@ std::string CreateNewCompleteMarcArchive(const std::string &old_date, const std:
     FileUtil::GetFileNameList("[abc]00.\\.raw\\" + individual_file_suffix, &updated_marc_files);
     ArchiveWriter archive_writer("../" + new_complete_dump_filename);
     for (const auto &updated_marc_file : updated_marc_files) {
-        const std::string archive_member_name(RemoveFileNameSuffix(updated_marc_file, individual_file_suffix));
+        std::string archive_member_name(RemoveFileNameSuffix(updated_marc_file, individual_file_suffix));
+        const std::string archive_member_prefix("SA-MARC-" + tuefind_flavour);
+        if (not StringUtil::StartsWith(archive_member_name, archive_member_prefix))
+            archive_member_name = archive_member_prefix + archive_member_name;
         LOG_DEBUG("Storing \"" + updated_marc_file + "\" as \"" + archive_member_name + "\" in \"" + new_complete_dump_filename + "\".");
         archive_writer.add(updated_marc_file, archive_member_name);
     }
@@ -720,7 +723,7 @@ std::string CreateNewCompleteMarcArchive(const std::string &old_date, const std:
 
 
 // Creates a new full MARC archive from an old full archive as well as deletion lists and differential updates.
-std::string ExtractAndCombineMarcFilesFromArchives(const bool keep_intermediate_files,
+std::string ExtractAndCombineMarcFilesFromArchives(const bool keep_intermediate_files, const std::string &tuefind_flavour,
                                                    const std::string &old_complete_dump_filename,
                                                    const std::vector<std::string> &deletion_list_filenames,
                                                    const std::vector<std::string> &incremental_dump_filenames)
@@ -772,7 +775,7 @@ std::string ExtractAndCombineMarcFilesFromArchives(const bool keep_intermediate_
     }
 
     LOG_DEBUG("About to exit ExtractAndCombineMarcFilesFromArchives.");
-    return CreateNewCompleteMarcArchive(old_date, old_complete_dump_filename, "." + std::to_string(apply_count));
+    return CreateNewCompleteMarcArchive(old_date, old_complete_dump_filename, "." + std::to_string(apply_count), tuefind_flavour);
 }
 
 
@@ -936,7 +939,7 @@ int Main(int argc, char *argv[]) {
 
     CreateAndChangeIntoTheWorkingDirectory();
     const std::string new_complete_dump_filename(
-        ExtractAndCombineMarcFilesFromArchives(keep_intermediate_files, complete_dump_filename,
+        ExtractAndCombineMarcFilesFromArchives(keep_intermediate_files, tuefind_flavour, complete_dump_filename,
                                                deletion_list_filenames, merged_incremental_dump_filenames));
     ChangeDirectoryOrDie(".."); // Leave the working directory again.
 
