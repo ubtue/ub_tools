@@ -34,8 +34,8 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     Logger::LogLevel log_level(Logger::LL_WARNING);
-    if (argc > 1 and StringUtil::StartsWith(argv[1], "--verbosity=")) {
-        const std::string level(argv[1] + __builtin_strlen("--verbosity="));
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--min-log-level=")) {
+        const std::string level(argv[1] + __builtin_strlen("--min-log-level="));
         if (level == "ERROR")
             log_level = Logger::LL_ERROR;
         else if (level == "WARNING")
