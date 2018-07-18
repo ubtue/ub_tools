@@ -97,7 +97,7 @@ bool HasAtLeastOneMonographParent(const std::string &subfield_list, const MARC::
 }
 
 
-// Iterates over all records in a collection and retags all book component parts as artcles
+// Iterates over all records in a collection and retags all book component parts as articles
 // unless the object has a monograph as a parent.
 // Changes the bibliographic level of a record from 'a' to 'b' (= serial component part) if the parent is not a
 // monograph.  Also writes all records to "output_ptr".
