@@ -181,6 +181,11 @@ void ChangeDirectoryOrDie(const std::string &directory) {
 
 void CreateAndChangeIntoTheWorkingDirectory() {
     const std::string working_directory(GetWorkingDirectoryName());
+    if (FileUtil::Exists(working_directory)) {
+        if (not FileUtil::RemoveDirectory(working_directory))
+            LogSendEmailAndDie("in CreateAndChangeIntoTheWorkingDirectory failed to remove stale \""
+                               + working_directory + "\"!");
+    }
     if (not FileUtil::MakeDirectory(working_directory))
         LogSendEmailAndDie("in CreateAndChangeIntoTheWorkingDirectory failed to create \"" + working_directory
                            + "\"!");
