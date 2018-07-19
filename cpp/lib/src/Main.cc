@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) __attribute__((weak));
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    Logger::LogLevel log_level(Logger::LL_WARNING);
+    Logger::LogLevel log_level(Logger::LL_INFO);
     if (argc > 1 and StringUtil::StartsWith(argv[1], "--min-log-level=")) {
         const std::string level(argv[1] + __builtin_strlen("--min-log-level="));
         if (level == "ERROR")
