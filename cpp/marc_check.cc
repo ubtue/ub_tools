@@ -51,10 +51,10 @@ void CheckFieldOrder(const bool do_not_abort_on_invalid_repeated_fields, const M
             LOG_ERROR("invalid tag order in the record with control number \"" + record.getControlNumber() + "\"!");
         if (unlikely(not MARC::IsRepeatableField(current_tag) and current_tag == last_tag)) {
             if (do_not_abort_on_invalid_repeated_fields)
-                LOG_WARNING("non-repeatable tag \"" + current_tag.toString() + "\" found in the record with control number \""
+                LOG_WARNING("repeated non-repeatable tag \"" + current_tag.toString() + "\" found in the record with control number \""
                             + record.getControlNumber() + "\"!");
             else
-                LOG_ERROR("non-repeatable tag \"" + current_tag.toString() + "\" found in the record with control number \""
+                LOG_ERROR("repeated non-repeatable tag \"" + current_tag.toString() + "\" found in the record with control number \""
                           + record.getControlNumber() + "\"!");
         }
         last_tag = current_tag;
@@ -122,7 +122,7 @@ void CheckLocalBlockConsistency(const MARC::Record &record) {
                       + record.getControlNumber() + "\"!!");
 
         MARC::Tag last_local_tag;
-        while (field != record.end() and field->getLocalTag() != "000" and field->getTag().toString() == "LOK") {
+        while (field != record.end() and field->getTag().toString() == "LOK" and field->getLocalTag() != "000") {
             const MARC::Tag current_local_tag(field->getLocalTag());
             if (unlikely(current_local_tag < last_local_tag))
                 LOG_ERROR("invalid tag order in a local block in the record with control number \"" + record.getControlNumber() + "\"!");
