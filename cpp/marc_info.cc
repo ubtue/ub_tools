@@ -100,8 +100,8 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
               << " local blocks.\n";
     std::cout << "Counted " << record_types_and_counts[MARC::Record::RecordType::BIBLIOGRAPHIC]
               << " bibliographic record(s), " << record_types_and_counts[MARC::Record::RecordType::AUTHORITY]
-              << " classification record(s), " << record_types_and_counts[MARC::Record::RecordType::CLASSIFICATION]
-              << " authority record(s), and " << record_types_and_counts[MARC::Record::RecordType::UNKNOWN]
+              << " authority record(s), " << record_types_and_counts[MARC::Record::RecordType::CLASSIFICATION]
+              << " classification record(s), and " << record_types_and_counts[MARC::Record::RecordType::UNKNOWN]
               << " record(s) of unknown record type.\n";
     std::cout << "Found " << oversized_record_count << " oversized records.\n";
     std::cout << "The field with the most subfields has " << max_subfield_count << " subfield(s).\n";
