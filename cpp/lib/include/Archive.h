@@ -21,7 +21,9 @@
 
 
 #include <archive.h>
+#include <unordered_set>
 #include <string>
+#include <unordered_set>
 
 
 class ArchiveReader {
@@ -66,11 +68,12 @@ public:
 class ArchiveWriter {
     archive *archive_handle_;
     archive_entry *archive_entry_;
+    std::unordered_set<std::string> already_seen_archive_names_;
 public:
     enum class FileType { AUTO, TAR, GZIPPED_TAR };
 public:
     explicit ArchiveWriter(const std::string &archive_file_name, const FileType file_type = FileType::AUTO);
     ~ArchiveWriter();
 
-    void add(const std::string &filename, const std::string &archive_name = "");
+    void add(const std::string &filename, std::string archive_name = "");
 };
