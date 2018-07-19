@@ -52,6 +52,12 @@ size_t ExtractAllHttpOrHttps856uSubfields(const MARC::Record &record, std::vecto
 }
 
 
+inline std::string StripSchema(const std::string &url) {
+    const auto colon_and_double_slash_start(url.find("://"));
+    return (colon_and_double_slash_start == std::string::npos) ? url : url.substr(colon_and_double_slash_start + 3);
+}
+
+    
 // Returns true if "test_string" is the suffix of "url" after stripping off the schema and domain name as well as
 // a single slash after the domain name.
 bool IsSuffixOfURL(const std::string &url, const std::string &test_string) {
@@ -59,20 +65,17 @@ bool IsSuffixOfURL(const std::string &url, const std::string &test_string) {
     if (not starts_with_http and not StringUtil::StartsWith(url, "https://"))
         return false;
 
-    const size_t next_slash_pos(url.find('/', starts_with_http ? std::strlen("http://") : std::strlen("https://")));
-    if (unlikely(next_slash_pos == std::string::npos))
-        return false;
-    if (unlikely(next_slash_pos + 1 >= url.size()))
-        return false; // We have no path component in our URL.
+    const std::string stripped_url(StripSchema(url));
+    const std::string stripped_test_string(StripSchema(test_string));
 
-    return url.substr(next_slash_pos + 1) == test_string;
+    return StringUtil::EndsWith(stripped_url, stripped_test_string) or StringUtil::EndsWith(stripped_test_string, stripped_url);
 }
 
 
-// Returns true if "test_string" is a proper suffix of any of the URLs contained in "urls".
-bool IsSuffixOfAnyURL(const std::vector<std::string> &urls, const std::string &test_string) {
+// Returns true if "test_string" is a proper suffix of any of the URL's contained in "urls or vice versa".
+bool IsSuffixOfAnyURL(const std::unordered_set<std::string> &urls, const std::string &test_string) {
     for (const auto &url : urls) {
-        if (IsSuffixOfURL(url, test_string))
+        if (IsSuffixOfURL(url, test_string) or IsSuffixOfURL(test_string, url))
             return true;
     }
 
@@ -116,25 +119,24 @@ void NormaliseURLs(const bool verbose, MARC::Reader * const reader, MARC::Writer
             MARC::Subfields _856_subfields(_856_field->getSubfields());
             bool duplicate_link(false);
             if (_856_subfields.hasSubfield('u')) {
-                const std::string u_subfield(StringUtil::Trim(_856_subfields.getFirstSubfieldWithCode('u')));
-
-                if (IsHttpOrHttpsURL(u_subfield)) {
-                    if (already_seen_links.find(u_subfield) == already_seen_links.cend())
-                        already_seen_links.insert(u_subfield);
-                    else
-                        duplicate_link = true;
-                } else if (IsSuffixOfAnyURL(_856u_urls, u_subfield)) {
+                std::string u_subfield(StringUtil::Trim(_856_subfields.getFirstSubfieldWithCode('u')));
+                if (already_seen_links.find(u_subfield) != already_seen_links.end()) {
                     if (verbose)
-                        std::cout << "Dropped field w/ duplicate URL suffix. (" << u_subfield << ")";
-                    _856_field = record.erase(_856_field);
-                    continue;
-                } else {
+                        std::cout << "Found duplicate URL \"" << u_subfield << "\".\n";
+                    duplicate_link = true;
+                } else if (IsSuffixOfAnyURL(already_seen_links, u_subfield)) {
+                    if (verbose)
+                        std::cout << "Dropped field w/ duplicate URL suffix. (" << u_subfield << ")\n";
+                    duplicate_link = true;
+                    already_seen_links.emplace(u_subfield);
+                } else if (IsHttpOrHttpsURL(u_subfield))
+                    already_seen_links.emplace(u_subfield);
+                else {
                     std::string new_http_replacement_link;
                     if (StringUtil::StartsWith(u_subfield, "urn:"))
                         new_http_replacement_link = "https://nbn-resolving.org/" + u_subfield;
                     else if (StringUtil::StartsWith(u_subfield, "10900/"))
-                        new_http_replacement_link = "https://publikationen.uni-tuebingen.de/xmlui/handle/"
-                                                    + u_subfield;
+                        new_http_replacement_link = "https://publikationen.uni-tuebingen.de/xmlui/handle/" + u_subfield;
                     else
                         new_http_replacement_link = "http://" + u_subfield;
                     if (already_seen_links.find(new_http_replacement_link) == already_seen_links.cend()) {
