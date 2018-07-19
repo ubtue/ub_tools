@@ -171,7 +171,14 @@ ArchiveWriter::~ArchiveWriter() {
 }
 
 
-void ArchiveWriter::add(const std::string &filename, const std::string &archive_name) {
+void ArchiveWriter::add(const std::string &filename, std::string archive_name) {
+    if (archive_name.empty())
+        archive_name = filename;
+    if (unlikely(already_seen_archive_names_.find(archive_name) != already_seen_archive_names_.end()))
+        LOG_ERROR("attempt to store a duplicate archive entry name \"" + archive_name + "\"!");
+    else
+        already_seen_archive_names_.emplace(archive_name);
+
     struct stat stat_buf;
     if (unlikely(::stat(filename.c_str(), &stat_buf) != 0))
         throw std::runtime_error("in ArchiveWriter::add: stat(2) on \"" + filename + "\" failed: "
@@ -181,7 +188,7 @@ void ArchiveWriter::add(const std::string &filename, const std::string &archive_
         archive_entry_ = archive_entry_new();
     else
         ::archive_entry_clear(archive_entry_);
-    ::archive_entry_set_pathname(archive_entry_, archive_name.empty() ? filename.c_str() : archive_name.c_str());
+    ::archive_entry_set_pathname(archive_entry_, archive_name.c_str());
     ::archive_entry_copy_stat(archive_entry_, &stat_buf);
 
     int status;
@@ -191,8 +198,7 @@ void ArchiveWriter::add(const std::string &filename, const std::string &archive_
         throw std::runtime_error("in ArchiveWriter::add: archive_write_header(3) failed! ("
                                  + std::string(::archive_error_string(archive_handle_)));
 
-
-    File input(filename, "r");
+    File input(filename, "r", File::THROW_ON_ERROR);
     char buffer[DEFAULT_BLOCKSIZE];
     size_t count;
     while ((count = input.read(buffer, DEFAULT_BLOCKSIZE)) > 0) {
