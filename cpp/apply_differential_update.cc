@@ -51,7 +51,7 @@ namespace {
 
 // Hopefully returns 'a', 'b' or 'c'.
 char GetTypeChar(const std::string &member_name) {
-    static auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("([abc])00\\d.raw"));
+    static auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("([abc])\\d\\d\\d.raw"));
     if (not matcher->matched(member_name))
         LOG_ERROR("bad member type for archive member \"" + member_name + "\"!");
 
@@ -59,10 +59,12 @@ char GetTypeChar(const std::string &member_name) {
 }
 
 
-// Maps ".*[abc]00?.raw" to ".*[abc]001.raw"
+// Maps ".*[abc]???.raw" to ".*[abc]001.raw"
 inline std::string GenerateOutputMemberName(std::string member_name) {
     if (unlikely(member_name.length() < 8))
         LOG_ERROR("short archive member name \"" + member_name + "\"!");
+    member_name[member_name.length() - 7 - 1] = '0';
+    member_name[member_name.length() - 6 - 1] = '0';
     member_name[member_name.length() - 5 - 1] = '1';
     return member_name;
 }
@@ -71,11 +73,11 @@ inline std::string GenerateOutputMemberName(std::string member_name) {
 // Extracts members from "archive_name" combining those of the same type, e.g. members ending in "a001.raw" and "a002.raw" would
 // be extracted as a single concatenated file whose name ends in "a001.raw".  If "optional_suffix" is not empty it will be appended
 // to each filename.
-// An enforced precondition is that all members must end in "[abc]00\\d.raw$".
+// An enforced precondition is that all members must end in "[abc]\\d\\d\\d.raw$".
 void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::string> * const archive_members,
                            const std::string &optional_suffix = "")
 {
-    static auto member_matcher(RegexMatcher::RegexMatcherFactoryOrDie("[abc]00\\d.raw$"));
+    static auto member_matcher(RegexMatcher::RegexMatcherFactoryOrDie("[abc]\\d\\d\\d.raw$"));
 
     std::map<char, std::shared_ptr<File>> member_type_to_file_map;
     ArchiveReader reader(archive_name);
@@ -199,7 +201,7 @@ void PatchArchiveMembersAndCreateOutputArchive(std::vector<std::string> input_ar
     //
 
     std::vector<std::string> output_archive_members;
-    if (FileUtil::GetFileNameList(".*[abc]00\\d.raw", &output_archive_members) == 0)
+    if (FileUtil::GetFileNameList(".*[abc]001.raw", &output_archive_members) == 0)
         LOG_ERROR("missing output archive members!");
 
     ArchiveWriter archive_writer("../" + output_archive);
