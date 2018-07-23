@@ -202,10 +202,10 @@ void PatchArchiveMembersAndCreateOutputArchive(std::vector<std::string> input_ar
     //
 
     std::vector<std::string> output_archive_members;
-    if (FileUtil::GetFileNameList(".*[abc]001.raw", &output_archive_members) == 0)
+    if (FileUtil::GetFileNameList(".*[abc]001.raw$", &output_archive_members) == 0)
         LOG_ERROR("missing output archive members!");
 
-    ArchiveWriter archive_writer("../" + output_archive);
+    ArchiveWriter archive_writer(output_archive);
     for (const auto &output_archive_member : output_archive_members)
         archive_writer.add(output_archive_member);
 }
