@@ -56,7 +56,7 @@ void SigHupHandler(int /* signum */) {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--verbosity=min_verbosity] [--test]  [--strptime-format=format] xml_output_path\n"
+              << " [--min-log-level=min_verbosity] [--test]  [--strptime-format=format] xml_output_path\n"
               << "       When --test has been specified no data will be stored.\n";
     std::exit(EXIT_FAILURE);
 }
@@ -198,7 +198,7 @@ int Main(int argc, char *argv[]) {
         } else
             Usage();
     }
-    
+
     if (argc != 2)
         Usage();
 
