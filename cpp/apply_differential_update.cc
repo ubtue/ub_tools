@@ -63,9 +63,9 @@ char GetTypeChar(const std::string &member_name) {
 inline std::string GenerateOutputMemberName(std::string member_name) {
     if (unlikely(member_name.length() < 8))
         LOG_ERROR("short archive member name \"" + member_name + "\"!");
-    member_name[member_name.length() - 7 - 1] = '0';
-    member_name[member_name.length() - 6 - 1] = '0';
-    member_name[member_name.length() - 5 - 1] = '1';
+    member_name[member_name.length() - 7] = '0';
+    member_name[member_name.length() - 6] = '0';
+    member_name[member_name.length() - 5] = '1';
     return member_name;
 }
 
