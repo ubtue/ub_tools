@@ -84,9 +84,9 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
         return false;
 
     // Sekkor updates come before anything else:
-    if (StringUtil::StartsWith(filename1, "WA-") and not StringUtil::StartsWith(filename2, "WA-"))
+    if (Contains(filename1, "sekkor") and not Contains(filename2, "sekkor"))
         return true;
-    if (StringUtil::StartsWith(filename2, "WA-") and not StringUtil::StartsWith(filename1, "WA-"))
+    if (Contains(filename2, "sekkor") and not Contains(filename1, "sekkor"))
         return false;
 
     // Files w/o local data come before those w/ local data:
