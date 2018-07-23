@@ -317,7 +317,7 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
     out_path_ = auto_temp_dir_.getDirectoryPath() + "/output." + file_extension;
 
     std::vector<std::string> args;
-    args.emplace_back("--verbosity=DEBUG");
+    args.emplace_back("--min-log-level=DEBUG");
     args.emplace_back("--test");
     args.emplace_back("--map-directory=" + local_maps_directory);
     args.emplace_back("--previous-downloads-db-file=" + local_maps_directory + "/zotero_download_tracker.db");
