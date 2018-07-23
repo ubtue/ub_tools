@@ -151,6 +151,7 @@ void PatchMember(const std::string &input_member, const std::string &difference_
     while (const auto difference_record = difference_reader->read())
         temp_writer->write(difference_record);
 
+    ::unlink(input_member.c_str());
     FileUtil::RenameFileOrDie(temp_filename, input_member);
 }
 
