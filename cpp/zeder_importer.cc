@@ -39,7 +39,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--verbosity=min_verbosity] --mode=tool_mode [--skip-timestamp-check] flavour first_path second_path\n"
+              << " [--min-log-level=min_verbosity] --mode=tool_mode [--skip-timestamp-check] flavour first_path second_path\n"
               << "Modes:\n"
               << "\t" << "generate:" << "\t"    << "Converts the .csv file exported from Zeder into a zeder_tools generated .conf "                                                  "file. The first path points to the .csv file and the second to the output .conf "                                                "file.\n"
               << "\t" << "diff:"     << "\t\t"  << "Compares the last modified time stamps of entries in a pair of zeder_tools generated "                                           ".conf files. The first path points to the source/updated .conf file and "

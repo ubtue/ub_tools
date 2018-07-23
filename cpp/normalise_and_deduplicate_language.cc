@@ -33,7 +33,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbosity=min_verbosity] marc_input marc_output\n"
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] marc_input marc_output\n"
               << "      Normalises language codes and removes their duplicates from specific MARC "
                  "record fields (008 and 041).\n";
     std::exit(EXIT_FAILURE);

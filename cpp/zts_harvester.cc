@@ -51,7 +51,7 @@ const std::unordered_map<std::string, std::string> group_to_user_agent_map = {
     std::cerr << "Usage: " << ::progname << " [options] config_file_path [section1 section2 .. sectionN]\n"
               << "\n"
               << "\tOptions:\n"
-              << "\t[--verbosity=log_level]        Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
+              << "\t[--min-log-level=log_level]        Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
               << "\t[--test]                       No download information will be stored for further downloads.\n"
               << "\t[--live-only]                  Only sections that have \"live=true\" set will be processed.\n"
               << "\t[--groups=my_groups            Where groups are a comma-separated list of goups.\n"
