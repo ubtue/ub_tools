@@ -80,11 +80,11 @@ void Has190358467(const std::string &filename) {
 }
 
 
-void ArchiveHas190358467(const std::string &filename) {
+void ArchiveHas190358467(const std::string &filename, const std::string &where = "") {
     if (::system(("/usr/local/bin/marc_grep_multiple.sh  'if \"001\"==\"190358467\" extract \"001\"' " + filename).c_str()) == 0)
-        LOG_WARNING(filename + " contains 190358467.");
+        LOG_WARNING(filename + " contains 190358467." + std::string(where.empty() ? "" : "(" + where + ")"));
     else
-        LOG_WARNING(filename + " does not contain 190358467.");
+        LOG_WARNING(filename + " does not contain 190358467." + std::string(where.empty() ? "" : "(" + where + ")"));
 }
 
 
@@ -460,16 +460,18 @@ std::string CombineMarcBiblioArchives(const std::string &filename_prefix, const 
 
     FileUtil::AutoTempDirectory auto_temp_marc_local_data_dir(".", /* cleanup_if_exception_is_active = */false);
     std::vector<std::string> local_archive_member_filenames;
+ArchiveHas190358467(local_data_archive_name, "in CombineMarcBiblioArchives 1");
     ExtractArchiveMembersAndCheckNamingConventions(local_data_archive_name, auto_temp_marc_local_data_dir.getDirectoryPath(),
                                                    &local_archive_member_filenames);
 
     FileUtil::AutoTempDirectory auto_temp_marc_no_local_data_dir(".", /* cleanup_if_exception_is_active = */false);
     std::vector<std::string> no_local_archive_member_filenames;
+ArchiveHas190358467(no_local_data_archive_name, "in CombineMarcBiblioArchives 2");
     ExtractArchiveMembersAndCheckNamingConventions(no_local_data_archive_name, auto_temp_marc_no_local_data_dir.getDirectoryPath(),
                                                    &no_local_archive_member_filenames);
 
     MergeAndDedupArchiveFiles(local_archive_member_filenames, no_local_archive_member_filenames, combined_archive_name);
-ArchiveHas190358467(combined_archive_name);
+ArchiveHas190358467(combined_archive_name, "in CombineMarcBiblioArchives 3");
     return combined_archive_name;
 }
 
@@ -645,18 +647,20 @@ void IfNotExistsMakeEmptyOrDie(const std::string &pathname) {
 }
 
 
-void ApplyUpdate(const bool keep_intermediate_files, const unsigned apply_count,
-                 const std::string &deletion_list_filename, const std::string &differential_archive)
-{
+// Creates LOCAL_DELETION_LIST_FILENAME
+void CreateDeletionListForSingleUpdate(const std::string &deletion_list_filename, const std::string &differential_archive) {
     if (not deletion_list_filename.empty())
         CopyFileOrDie("../" + deletion_list_filename, LOCAL_DELETION_LIST_FILENAME);
-    else if (differential_archive.empty())
-        LogSendEmailAndDie("in ApplyUpdate: both, \"deletion_list_filename\" and \"differential_archive\" are "
+    else if (not differential_archive.empty())
+        ::unlink(LOCAL_DELETION_LIST_FILENAME.c_str());
+    else
+        LogSendEmailAndDie("in CreateDeletionListForSingleUpdate: both, \"deletion_list_filename\" and \"differential_archive\" are "
                            "empty strings.  This should never happen!");
 
     // Unpack the differential archive and extract control numbers from its members appending them to the
     // deletion list file:
     if (not differential_archive.empty()) {
+ArchiveHas190358467(differential_archive, "in ApplyUpdate");
         LOG_DEBUG("updating the deletion list based on control numbers found in the files contained in the differential MARC archive.");
         std::vector<std::string> extracted_names;
         ExtractMarcFilesFromArchive("../" + differential_archive, &extracted_names, "diff_");
@@ -667,9 +671,16 @@ void ApplyUpdate(const bool keep_intermediate_files, const unsigned apply_count,
 
         LogLineCount(LOCAL_DELETION_LIST_FILENAME);
     }
-
+ 
     // If we extracted empty MARC files we might not have a deletion list, thus...
     IfNotExistsMakeEmptyOrDie(LOCAL_DELETION_LIST_FILENAME);
+}
+
+
+void ApplyUpdate(const bool keep_intermediate_files, const unsigned apply_count,
+                 const std::string &deletion_list_filename, const std::string &differential_archive)
+{
+    CreateDeletionListForSingleUpdate(deletion_list_filename, differential_archive);
 
     const std::string old_name_suffix("." + std::to_string(apply_count - 1));
     std::string title_marc_basename, superior_marc_basename, authority_marc_basename;
@@ -734,7 +745,7 @@ void CreateSymlink(const std::string &target_filename, const std::string &link_f
  *  \return The name of the new complete dump file.
  */
 std::string CreateNewCompleteMarcArchive(const std::string &old_date, const std::string &old_complete_dump_filename,
-                                         const std::string &individual_file_suffix, const std::string &tuefind_flavour)
+                                         const std::string &individual_file_suffix, const std::string &/*tuefind_flavour*/)
 {
     LOG_DEBUG("Entering CreateNewCompleteMarcArchive w/ old_complete_dump_filename=\"" + old_complete_dump_filename + "\".");
 
@@ -748,11 +759,14 @@ std::string CreateNewCompleteMarcArchive(const std::string &old_date, const std:
     ArchiveWriter archive_writer("../" + new_complete_dump_filename);
     for (const auto &updated_marc_file : updated_marc_files) {
         std::string archive_member_name(RemoveFileNameSuffix(updated_marc_file, individual_file_suffix));
+/*
+        std::string archive_member_name(RemoveFileNameSuffix(updated_marc_file, individual_file_suffix));
         const std::string archive_member_prefix("SA-MARC-" + tuefind_flavour);
         if (not StringUtil::StartsWith(archive_member_name, archive_member_prefix)) {
             archive_member_name = archive_member_prefix
-                + archive_member_name.substr(archive_member_name.length() - 8 /* [abc] + 3 digits + period + "raw" */);
+            + archive_member_name.substr(archive_member_name.length() - 8 / * [abc] + 3 digits + period + "raw" * /);
         }
+       */
         LOG_DEBUG("Storing \"" + updated_marc_file + "\" as \"" + archive_member_name + "\" in \"" + new_complete_dump_filename + "\".");
         archive_writer.add(updated_marc_file, archive_member_name);
     }
@@ -843,9 +857,11 @@ void MergeAuthorityAndIncrementalDumpLists(const std::vector<std::string> &incre
             merged_list.emplace_back(*incremental_dump_filename);
             ++incremental_dump_filename;
         } else if (incremental_dump_filename == incremental_dump_filenames->end()) {
+ArchiveHas190358467(*incremental_authority_dump_filename, "in MergeAuthorityAndIncrementalDumpLists 1");
             merged_list.emplace_back(*incremental_authority_dump_filename);
             ++incremental_authority_dump_filename;
         } else {
+ArchiveHas190358467(*incremental_authority_dump_filename, "in MergeAuthorityAndIncrementalDumpLists 2");
             const std::string incremental_authority_dump_date(
                 BSZUtil::ExtractDateFromFilenameOrDie(*incremental_authority_dump_filename));
             const std::string incremental_dump_date(
@@ -960,7 +976,6 @@ int Main(int argc, char *argv[]) {
     const std::string incremental_dump_pattern("(T|W)A-MARC-" + tuefind_flavour + "(_o)?-\\d{6}\\.tar\\.gz");
     std::vector<std::string> merged_incremental_dump_filenames;
     MergeIncrementalDumpFiles(complete_dump_filename_date, incremental_dump_pattern, &merged_incremental_dump_filenames);
-exit(1);
 
     std::vector<std::string> incremental_authority_dump_filenames;
     // incremental authority dumps are only delivered once a week and a longer span of time must
