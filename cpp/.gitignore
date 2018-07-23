@@ -13,6 +13,7 @@
 /add_synonyms
 /add_title_keywords
 /append_marc_xml
+/apply_differential_update
 /augment_773a
 /augment_authority_data_with_translations
 /augment_bible_references
