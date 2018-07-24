@@ -1,10 +1,11 @@
 /** \file    convert_dakar.cc
- *  \brief   Augment the DAKAR database aith authority data refereces
+ *  \brief   Augment the DAKAR database with authority data references for authors, keywords and
+             CIC (Codex Iuris Canonici) references
  *  \author  Johannes Riedl
  */
 
 /*
-    Copyright (C) 2016-2018, Library of the University of Tübingen
+    Copyright (C) 2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -80,12 +81,25 @@ void GetKeywordsFromDB(DbConnection &db_connection, std::set<std::string> * cons
 }
 
 
+void GetCICFromDB(DbConnection &db_connection, std::set<std::string> * const cic_numbers) {
+    std::string distinct_cic_query("SELECT DISTINCT cicbezug FROM ikr");
+    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(distinct_cic_query, &db_connection));
+    while (const DbRow db_row = result_set.getNextRow()) {
+        const std::string cic_row(db_row["cicbezug"]);
+        std::vector<std::string> cics_in_row;
+        StringUtil::Split(cic_row, ';', &cics_in_row);
+        for (const auto &cic : cics_in_row) {
+            cic_numbers->emplace(StringUtil::TrimWhite(cic));
+        }
+    }
+}
+
+
 void ExtractAuthorityData(const std::string &authority_file,
                           std::unordered_multimap<std::string,std::string> * const author_to_gnd_map,
                           std::unordered_multimap<std::string,std::string> * const keyword_to_gnd_map,
-                          std::unordered_multimap<std::string,std::string> * const cic_to_gnd_map)
+                          std::unordered_map<std::string,std::string> * const cic_to_gnd_map)
 {
-(void)cic_to_gnd_map;
     auto marc_reader(MARC::Reader::Factory(authority_file));
     auto authority_reader(marc_reader.get());
     while (const auto &record = authority_reader->read()) {
@@ -100,6 +114,21 @@ void ExtractAuthorityData(const std::string &authority_file,
             author_to_gnd_map->emplace(author, gnd_number);
         }
 
+        // CIC
+        // Possible contents: number; number-number; number,number; number,number,number
+        const std::string cic_110_field(StringUtil::Join(record.getSubfieldValues("110", "atf"), ","));
+        if (cic_110_field == "Katholische Kirche,Codex iuris canonici,1983") {
+            const std::string cic_code(StringUtil::Join(record.getSubfieldValues("110", 'p'), " "));
+std::cerr << "Found CIC PPN " << record.getControlNumber() << " for CIC: " << cic_code << '\n';
+            if (not cic_code.empty()) {
+                // Dakar uses '.' instead of ',' as a separator
+                cic_to_gnd_map->emplace(StringUtil::Map(cic_code, ',', '.'), gnd_number);
+                // We will not find reasonable keywords in this iteration
+                continue;
+            }
+        }
+
+
         // Keywords
         const std::string keyword_110(StringUtil::Join(record.getSubfieldValues("110", "abcdnpt"), " "));
         const std::string keyword_111(StringUtil::Join(record.getSubfieldValues("111", "abcdnpt"), " "));
@@ -113,9 +142,6 @@ void ExtractAuthorityData(const std::string &authority_file,
            keyword_to_gnd_map->emplace(keyword_130, gnd_number);
         if (not keyword_150.empty())
            keyword_to_gnd_map->emplace(keyword_150, gnd_number);
-
-        // CIC
-        //...
     }
 }
 
@@ -140,13 +166,28 @@ void GetKeywordGNDResultMap(DbConnection &db_connection,
 {
     std::set<std::string> keywords;
     GetKeywordsFromDB(db_connection, &keywords);
-    for (auto &keyword: keywords) {
-        auto keyword_and_gnds(all_keywords_to_gnd_map.equal_range(keyword));
+    for (auto &keyword : keywords) {
+        const auto keyword_and_gnds(all_keywords_to_gnd_map.equal_range(keyword));
         for (auto gnd(keyword_and_gnds.first); gnd != keyword_and_gnds.second; ++gnd) {
             keyword_to_gnds_result_map->emplace(keyword, StringUtil::TrimWhite(gnd->second));
         }
     }
 }
+
+
+void GetCICGNDResultMap(DbConnection &db_connection,
+                        const std::unordered_map<std::string, std::string> &all_cics_to_gnd_map,
+                        std::unordered_map<std::string,std::string> * cic_to_gnd_result_map)
+{
+    std::set<std::string> cics;
+    GetCICFromDB(db_connection, &cics);
+    for (const auto &cic : cics) {
+        const auto cic_and_gnd(all_cics_to_gnd_map.find(cic));
+        if (cic_and_gnd != all_cics_to_gnd_map.cend())
+           cic_to_gnd_result_map->emplace(cic, StringUtil::TrimWhite((*cic_and_gnd).second));
+    }
+}
+
 
 
 } //unnamed namespace
@@ -167,8 +208,8 @@ int Main(int argc, char **argv) {
 
      std::unordered_multimap<std::string, std::string> all_authors_to_gnd_map;
      std::unordered_multimap<std::string, std::string> all_keywords_to_gnds_map;
-     std::unordered_multimap<std::string, std::string> all_cic_to_gnds_map;
-     ExtractAuthorityData(authority_file, &all_authors_to_gnd_map, &all_keywords_to_gnds_map, &all_cic_to_gnds_map);
+     std::unordered_map<std::string, std::string> all_cics_to_gnd_map;
+     ExtractAuthorityData(authority_file, &all_authors_to_gnd_map, &all_keywords_to_gnds_map, &all_cics_to_gnd_map);
 
      std::unordered_multimap<std::string,std::string> author_to_gnds_result_map;
      GetAuthorGNDResultMap(db_connection, all_authors_to_gnd_map, &author_to_gnds_result_map);
@@ -181,6 +222,11 @@ int Main(int argc, char **argv) {
      for (const auto &keyword_and_gnds : keyword_to_gnds_result_map)
          std::cerr << keyword_and_gnds.first << "++++" << keyword_and_gnds.second << '\n';
      std::cerr << "\n\n";
+
+     std::unordered_map<std::string,std::string> cic_to_gnd_result_map;
+     GetCICGNDResultMap(db_connection, all_cics_to_gnd_map, &cic_to_gnd_result_map);
+     for (const auto &cic_and_gnds : cic_to_gnd_result_map)
+         std::cerr << cic_and_gnds.first << "****" << cic_and_gnds.second << '\n';
 
      return EXIT_SUCCESS;
 
