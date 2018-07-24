@@ -1205,4 +1205,10 @@ bool IsPipeOrFIFO(const std::string &path) {
 }
 
 
+void ChangeDirectoryOrDie(const std::string &directory) {
+    if (unlikely(::chdir(directory.c_str()) != 0))
+        LOG_ERROR("failed to change directory to \"" + directory + "\"!");
+}
+
+
 } // namespace FileUtil
