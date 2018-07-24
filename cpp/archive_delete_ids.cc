@@ -88,12 +88,13 @@ int Main(int argc, char *argv[]) {
     if (old_archive == deletion_list or old_archive == new_archive or new_archive == deletion_list)
         LOG_ERROR("all filename parameters must be distinct!");
 
-    FileUtil::AutoTempDirectory working_directory(std::string(::progname) + "-working-dir-" + std::to_string(::getpid()),
+    FileUtil::AutoTempDirectory working_directory(FileUtil::GetLastPathComponent(::progname) + "-working-dir-" + std::to_string(::getpid()),
                                                   /* cleanup_if_exception_is_active = */ false,
                                                   /* remove_when_out_of_scope = */ not keep_intermediate_files);
     FileUtil::ChangeDirectoryOrDie(working_directory.getDirectoryPath());
 
-    UpdateArchive("../" + old_archive, "../" + deletion_list, "../" + new_archive);
+    UpdateArchive(FileUtil::MakeAbsolutePath(old_archive), FileUtil::MakeAbsolutePath(deletion_list),
+                  FileUtil::MakeAbsolutePath(new_archive));
 
     FileUtil::ChangeDirectoryOrDie("..");
 
