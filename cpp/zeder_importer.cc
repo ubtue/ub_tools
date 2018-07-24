@@ -39,7 +39,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--verbosity=min_verbosity] --mode=tool_mode flavour first_path second_path\n"
+              << " [--min-log-level=min_verbosity] --mode=tool_mode [--skip-timestamp-check] flavour first_path second_path\n"
               << "Modes:\n"
               << "\t" << "generate:" << "\t"    << "Converts the .csv file exported from Zeder into a zeder_tools generated .conf "                                                  "file. The first path points to the .csv file and the second to the output .conf "                                                "file.\n"
               << "\t" << "diff:"     << "\t\t"  << "Compares the last modified time stamps of entries in a pair of zeder_tools generated "                                           ".conf files. The first path points to the source/updated .conf file and "
@@ -127,7 +127,7 @@ public:
 
        Returns true if an exisiting entry was modified or a new entry was added.
     */
-    bool mergeEntry(const ZederEntry &diff, const bool add_if_absent = true);
+    bool mergeEntry(const ZederEntry &diff, const bool skip_timestamp_check = false, const bool add_if_absent = true);
 
     iterator find(const ZederEntry::Id id);
     const_iterator find(const ZederEntry::Id id) const;
@@ -155,7 +155,7 @@ void ZederConfigData::addEntry(const ZederEntry &new_entry, const bool sort_afte
 }
 
 
-bool ZederConfigData::mergeEntry(const ZederEntry &diff, const bool add_if_absent) {
+bool ZederConfigData::mergeEntry(const ZederEntry &diff, const bool skip_timestamp_check, const bool add_if_absent) {
     const iterator into(find(diff.id_));
     bool modified(false);
 
@@ -167,10 +167,12 @@ bool ZederConfigData::mergeEntry(const ZederEntry &diff, const bool add_if_absen
         } else
             LOG_INFO("New entry " + std::to_string(diff.id_) + " not merged into config data");
     } else {
-        const auto time_difference(TimeUtil::DiffStructTm(diff.last_modified_timestamp_, into->last_modified_timestamp_));
-        if (time_difference <= 0) {
-            LOG_ERROR("The existing entry " + std::to_string(diff.id_) + " is newer than the diff by "
-                      + std::to_string(time_difference) + " seconds");
+        if (not skip_timestamp_check) {
+            const auto time_difference(TimeUtil::DiffStructTm(diff.last_modified_timestamp_, into->last_modified_timestamp_));
+            if (time_difference <= 0) {
+                LOG_ERROR("The existing entry " + std::to_string(diff.id_) + " is newer than the diff by "
+                        + std::to_string(time_difference) + " seconds");
+            }
         }
 
         into->setModifiedTimestamp(diff.last_modified_timestamp_);
@@ -197,6 +199,18 @@ bool ZederConfigData::mergeEntry(const ZederEntry &diff, const bool add_if_absen
             into->primary_url_ = diff.primary_url_;
             modified = true;
         }
+
+        if (not diff.auxiliary_url_.empty()) {
+            LOG_INFO("Updating auxiliary URL: '" + into->auxiliary_url_ + "' => '" + diff.auxiliary_url_ + "'");
+            into->auxiliary_url_ = diff.auxiliary_url_;
+            modified = true;
+        }
+
+        if (not diff.comment_.empty()) {
+            LOG_INFO("Updating comment: '" + into->comment_ + "' => '" + diff.comment_ + "'");
+            into->comment_ = diff.comment_;
+            modified = true;
+        }
     }
 
     return modified;
@@ -217,7 +231,7 @@ inline ZederConfigData::const_iterator ZederConfigData::find(const ZederEntry::I
 enum Mode { GENERATE, DIFF, MERGE };
 
 enum ZederColumn { Z, PPPN, EPPN, ISSN, ESSN, TIT, KAT, PRODF, LRT, P_ZOT1, P_ZOT2, B_ZOT, URL1, URL2, MTIME };
-enum ZederSpecificConfigKey { ID, MODIFIED_TIME };
+enum ZederSpecificConfigKey { ID, MODIFIED_TIME, COMMENT };
 
 
 const std::map<ZederColumn, std::string> ZEDER_COLUMN_TO_STRING_MAP {
@@ -239,8 +253,17 @@ const std::map<ZederColumn, std::string> ZEDER_COLUMN_TO_STRING_MAP {
 };
 const std::map<ZederSpecificConfigKey, std::string> ZEDER_CONFIG_KEY_TO_STRING_MAP {
     { ID,            "zeder_id"            },
-    { MODIFIED_TIME, "zeder_modified_time" }
+    { MODIFIED_TIME, "zeder_modified_time" },
+    { COMMENT,       "zeder_comment"       }
 };
+
+
+void GetCurrentTimeGMT(struct tm * const tm) {
+    struct tm *current_time(nullptr);
+    time_t now(time(0));
+    current_time = ::gmtime(&now);
+    std::memcpy(tm, current_time, sizeof(struct tm));
+}
 
 
 void ParseZederCsv(const std::string &csv_path, ZederConfigData * const zeder_config, const bool break_on_error = false) {
@@ -392,12 +415,17 @@ void ParseZederIni(const IniFile &ini, ZederConfigData * const zeder_config) {
             continue;
         else if (std::find(groups.begin(), groups.end(), section_name) != groups.end())
             continue;   // skip the sections pertain to groups
+        else if (section.getString(ZEDER_CONFIG_KEY_TO_STRING_MAP.at(ZederSpecificConfigKey::ID), "").empty()) {
+            LOG_WARNING("Entry '" + section_name + "' has no Zeder ID. Skipping...");
+            continue;
+        }
 
         ZederEntry new_entry;
 
         new_entry.id_ = section.getUnsigned(ZEDER_CONFIG_KEY_TO_STRING_MAP.at(ZederSpecificConfigKey::ID));
         new_entry.last_modified_timestamp_ = TimeUtil::StringToStructTm(section.getString(ZEDER_CONFIG_KEY_TO_STRING_MAP.at(ZederSpecificConfigKey::MODIFIED_TIME)),
                                                                         ZederEntry::MODIFIED_TIMESTAMP_FORMAT_STRING);
+        new_entry.comment_ = section.getString(section.getString(ZEDER_CONFIG_KEY_TO_STRING_MAP.at(ZederSpecificConfigKey::COMMENT)));
         new_entry.title_ = section_name;
         new_entry.parent_issn_print_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_PRINT), "");
         new_entry.parent_issn_online_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_ONLINE), "");
@@ -444,6 +472,10 @@ void WriteZederIni(IniFile * const ini, const ZederConfigData &zeder_config) {
         std::strftime(time_buffer, sizeof(time_buffer), ZederEntry::MODIFIED_TIMESTAMP_FORMAT_STRING, &entry.last_modified_timestamp_);
         current_section->insert(ZEDER_CONFIG_KEY_TO_STRING_MAP.at(ZederSpecificConfigKey::MODIFIED_TIME), time_buffer, "",
                                 IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+        if (not entry.comment_.empty()) {
+            current_section->insert(ZEDER_CONFIG_KEY_TO_STRING_MAP.at(ZederSpecificConfigKey::COMMENT), entry.comment_, "",
+                                IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+        }
 
         Zotero::HarvesterType type;
         if (entry.has_rss_feed_)
@@ -513,22 +545,28 @@ void WriteZederIni(IniFile * const ini, const ZederConfigData &zeder_config) {
 
 
 bool DiffZederEntries(const ZederConfigData &old_config, const ZederConfigData &new_config,
-                      std::map<ZederEntry::Id, ZederEntry> * const diffs, const bool skip_global_timestamp_check = false)
+                      std::map<ZederEntry::Id, ZederEntry> * const diffs,
+                      const struct tm &current_time,
+                      const bool skip_timestamp_check = false)
 {
-    if (not skip_global_timestamp_check) {
-        if (TimeUtil::DiffStructTm(new_config.getModifiedTimestamp(), old_config.getModifiedTimestamp()) <= 0)
-            return false;
+    if (not skip_timestamp_check and TimeUtil::DiffStructTm(new_config.getModifiedTimestamp(),
+        old_config.getModifiedTimestamp()) <= 0)
+    {
+        return false;
     }
 
     for (const auto &new_entry : new_config) {
         const auto old_entry(old_config.find(new_entry.id_));
         if (old_entry != old_config.end()) {
-            if (TimeUtil::DiffStructTm(new_entry.last_modified_timestamp_, old_entry->last_modified_timestamp_) <= 0)
+            if (not skip_timestamp_check and TimeUtil::DiffStructTm(new_entry.last_modified_timestamp_,
+                old_entry->last_modified_timestamp_) <= 0)
+            {
                 continue;
+            }
 
             // copy immutable fields from the older entry
             ZederEntry diff = *old_entry;
-            diff.setModifiedTimestamp(new_entry.last_modified_timestamp_);
+            diff.setModifiedTimestamp(skip_timestamp_check ? current_time : new_entry.last_modified_timestamp_);
             diff.parent_ppn_ = diff.parent_issn_print_ = diff.parent_issn_online_ = diff.primary_url_ = "";
 
             if (old_entry->title_ != new_entry.title_) {
@@ -577,15 +615,23 @@ int Main(int argc, char *argv[]) {
     } else
         Usage();
 
+    bool skip_timestamp_check(false);
+    if (std::strcmp(argv[1], "--skip-timestamp-check") == 0) {
+        skip_timestamp_check = true;
+        --argc, ++argv;
+    }
+
+    if (argc != 4)
+        Usage();
+
     const std::string flavour(argv[1]), first_path(argv[2]), second_path(argv[3]);
     Flavour source(IXTHEO);
     if (flavour == "krimdok")
         source = KRIMDOK;
 
     // is the Zeder last modified timestamp in UTC? let's hope so...
-    struct tm *current_time(nullptr);
-    time_t now(time(0));
-    current_time = ::gmtime(&now);
+    struct tm current_time{};
+    GetCurrentTimeGMT(&current_time);
 
     switch (current_mode) {
     case Mode::GENERATE: {
@@ -593,7 +639,7 @@ int Main(int argc, char *argv[]) {
         IniFile ini(second_path, true, true);
 
         ParseZederCsv(first_path, &parsed_config);
-        parsed_config.setModifiedTimestamp(*current_time);
+        parsed_config.setModifiedTimestamp(current_time);
         WriteZederIni(&ini, parsed_config);
         ini.write(second_path);
 
@@ -610,15 +656,15 @@ int Main(int argc, char *argv[]) {
         ParseZederIni(updated_ini, &new_data);
 
         std::map<ZederEntry::Id, ZederEntry> diffs;
-        if (DiffZederEntries(old_data, new_data, &diffs)) {
+        if (DiffZederEntries(old_data, new_data, &diffs, current_time, skip_timestamp_check)) {
             for (const auto &entry : diffs) {
-                LOG_INFO("Modifying entry " + std::to_string(entry.first) + "...");
-                old_data.mergeEntry(entry.second);
+                LOG_INFO("Differing entry " + std::to_string(entry.first) + "...");
+                old_data.mergeEntry(entry.second, skip_timestamp_check);
             }
 
             if (current_mode == Mode::MERGE) {
                 old_data.sortEntries();
-                old_data.setModifiedTimestamp(*current_time);
+                old_data.setModifiedTimestamp(current_time);
                 WriteZederIni(&old_ini, old_data);
                 old_ini.write(second_path);
             }
