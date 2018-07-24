@@ -33,7 +33,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbosity=min_log_level] marc_input [issn_to_ppn_map]\n"
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_log_level] marc_input [issn_to_ppn_map]\n"
               << "       If you omit the output filename, \"" << Zotero::ISSN_TO_MISC_BITS_MAP_PATH << "\" will be used.\n\n";
     std::exit(EXIT_FAILURE);
 }
