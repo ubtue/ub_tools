@@ -93,7 +93,7 @@ top_loop:
 
 
 std::string ExtractDateFromFilenameOrDie(const std::string &filename) {
-    static const std::string DATE_EXTRACTION_REGEX(".*(\\d{6}).*");
+    static const std::string DATE_EXTRACTION_REGEX("(\\d\\d[01]\\d[0123]\\d)");
     static RegexMatcher *matcher;
     if (matcher == nullptr) {
         std::string err_msg;
