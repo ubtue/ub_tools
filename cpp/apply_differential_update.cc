@@ -156,12 +156,6 @@ void PatchMember(const std::string &input_member, const std::string &difference_
 }
 
 
-void ChangeDirectoryOrDie(const std::string &directory) {
-    if (unlikely(::chdir(directory.c_str()) != 0))
-        LOG_ERROR("failed to change directory to \"" + directory + "\"!");
-}
-
-
 void PatchArchiveMembersAndCreateOutputArchive(std::vector<std::string> input_archive_members,
                                                std::vector<std::string> difference_archive_members, const std::string &output_archive)
 {
@@ -235,7 +229,7 @@ int Main(int argc, char *argv[]) {
         LOG_ERROR("all archive names must be distinct!");
 
     FileUtil::AutoTempDirectory working_directory(std::string(::progname) + "-working-dir");
-    ChangeDirectoryOrDie(working_directory.getDirectoryPath());
+    FileUtil::ChangeDirectoryOrDie(working_directory.getDirectoryPath());
 
     std::vector<std::string> input_archive_members;
     ExtractArchiveMembers("../" + input_archive, &input_archive_members);
@@ -245,7 +239,7 @@ int Main(int argc, char *argv[]) {
 
     PatchArchiveMembersAndCreateOutputArchive(input_archive_members, difference_archive_members, "../" + output_archive);
 
-    ChangeDirectoryOrDie("..");
+    FileUtil::ChangeDirectoryOrDie("..");
 
     if (not keep_intermediate_files) {
         if (not FileUtil::RemoveDirectory(working_directory.getDirectoryPath()))
