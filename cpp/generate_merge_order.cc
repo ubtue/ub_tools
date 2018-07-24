@@ -47,6 +47,7 @@ void LoadFilePCRE(std::string * const file_pcre) {
     *file_pcre += "|" + ini_file.getString("Files", "complete_dump");
     *file_pcre += "|" + ini_file.getString("Files", "incremental_dump");
     *file_pcre += "|" + ini_file.getString("Files", "incremental_authority_dump");
+    *file_pcre += "|Complete-MARC-.*-\\d\\d\\d\\d\\d\\d.tar.gz";
 }
 
 
@@ -83,6 +84,12 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
     if (StringUtil::StartsWith(filename2, "SA-") and not StringUtil::StartsWith(filename1, "SA-"))
         return false;
 
+    // Pseudo complete dumps come before anything else:
+    if (StringUtil::StartsWith(filename1, "Complete-MARC-") and not StringUtil::StartsWith(filename2, "Complete-MARC-"))
+        return true;
+    if (StringUtil::StartsWith(filename2, "Complete-MARC-") and not StringUtil::StartsWith(filename1, "Complete-MARC-"))
+        return false;
+
     // Sekkor updates come before anything else:
     if (Contains(filename1, "sekkor") and not Contains(filename2, "sekkor"))
         return true;
@@ -96,6 +103,69 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
         return false;
 
     LOG_ERROR("don't know how to compare \"" + filename1 + "\" with \"" + filename2 + "\"!");
+}
+
+
+// Returns file_list.end() if neither a complete dump file name nor a pseudo complete dump file name were found.
+std::vector<std::string>::const_iterator FindMostRecentCompleteOrPseudoCompleteDump(const std::vector<std::string> &file_list) {
+    auto file(file_list.cbegin());
+    while (file != file_list.cend()) {
+        if (StringUtil::StartsWith(*file, "SA-") or StringUtil::StartsWith(*file, "Complete-MARC-"))
+            return file;
+    }
+
+    return file_list.cend();
+}
+
+
+// Shift a given YYMMDD to ten days before
+std::string ShiftDateToTenDaysBefore(const std::string &cutoff_date) {
+    struct tm cutoff_date_tm(TimeUtil::StringToStructTm(cutoff_date, "%y%m%d"));
+    const time_t cutoff_date_time_t(TimeUtil::TimeGm(cutoff_date_tm));
+    if (unlikely(cutoff_date_time_t == TimeUtil::BAD_TIME_T))
+        LOG_ERROR("in ShiftDateToTenDaysBefore: bad time conversion! (1)");
+    const time_t new_cutoff_date(TimeUtil::AddDays(cutoff_date_time_t, -10));
+    if (unlikely(new_cutoff_date == TimeUtil::BAD_TIME_T))
+        LOG_ERROR("in ShiftDateToTenDaysBefore: bad time conversion! (2)");
+    return TimeUtil::TimeTToString(new_cutoff_date, "%y%m%d");
+}
+
+
+void DetermineProcessingOrder(std::vector<std::string> * const file_list) {
+    std::sort(file_list->begin(), file_list->end(), FileComparator);
+    const auto complete_or_pseudo_complete_dump(FindMostRecentCompleteOrPseudoCompleteDump(*file_list));
+    if (complete_or_pseudo_complete_dump == file_list->end())
+        LOG_ERROR("found neither a complete nor a pseudo complete dump file!");
+
+    auto post_most_recent_complete_dump_start(complete_or_pseudo_complete_dump + 1);
+
+    // If we have found an SA- file we likely have two, one w/ and one w/o local data:
+    if (StringUtil::StartsWith(*complete_or_pseudo_complete_dump, "SA-")) {
+        if (complete_or_pseudo_complete_dump + 1 == file_list->end()
+            or not StringUtil::StartsWith(*(complete_or_pseudo_complete_dump + 1), "SA-")
+            or not (ExtractDate(*complete_or_pseudo_complete_dump) == ExtractDate(*(complete_or_pseudo_complete_dump + 1))))
+            LOG_WARNING("expected a pair of SA- files w/ the same date!");
+        else
+            ++post_most_recent_complete_dump_start;
+    }
+
+    auto sekkor_insertion_pos(complete_or_pseudo_complete_dump);
+    const auto cutoff_date(ShiftDateToTenDaysBefore(ExtractDate(*complete_or_pseudo_complete_dump)));
+
+    while (post_most_recent_complete_dump_start != file_list->end()
+           and ExtractDate(*post_most_recent_complete_dump_start) > cutoff_date)
+    {
+        if (Contains(*post_most_recent_complete_dump_start, "sekkor")) {
+            const size_t saved_index(post_most_recent_complete_dump_start - file_list->begin());
+            const auto sekkor_filename(*post_most_recent_complete_dump_start);
+            file_list->erase(post_most_recent_complete_dump_start);
+            file_list->insert(sekkor_insertion_pos, sekkor_filename);
+            ++sekkor_insertion_pos;
+            ++post_most_recent_complete_dump_start = file_list->begin() + saved_index;
+        }
+
+        ++post_most_recent_complete_dump_start;
+    }
 }
 
 
@@ -113,7 +183,7 @@ int Main(int argc, char */*argv*/[]) {
     if (FileUtil::GetFileNameList(file_pcre, &file_list) == 0)
         LOG_ERROR("no matches found for \"" + file_pcre + "\"!");
 
-    std::sort(file_list.begin(), file_list.end(), FileComparator);
+    DetermineProcessingOrder(&file_list);
 
     for (const auto &filename : file_list)
         std::cout << filename << '\n';
