@@ -99,6 +99,30 @@ void GetCICFromDB(DbConnection &db_connection, std::set<std::string> * const cic
 }
 
 
+void AssemblePrimaryAndSynonymKeywordEntry(const MARC::Record &record,
+                                   const std::string gnd_number,
+                                   std::unordered_multimap<std::string,std::string> * const keyword_to_gnd_map,
+                                   const std::string primary_tag,
+                                   const std::string subfield_spec,
+                                   const std::string synonym_tag)
+{
+    const std::string primary(StringUtil::Join(record.getSubfieldValues(primary_tag, subfield_spec), " "));
+    if (not primary.empty()) {
+        keyword_to_gnd_map->emplace(primary, gnd_number);
+        // Also get "Verweisungsformen"
+        for (const auto &field : record.getTagRange(synonym_tag)) {
+             const MARC::Subfields subfields(field.getContents());
+             const std::string synonym(StringUtil::Join(subfields.extractSubfields(subfield_spec), " "));
+             if (not synonym.empty()) {
+std::cerr << "ADDING SYONYM: \"" << synonym << "\" for PRIMARY \"" << primary << '\n';
+                 keyword_to_gnd_map->emplace(synonym, gnd_number);
+             }
+        }
+    }
+
+}
+
+
 void ExtractAuthorityData(const std::string &authority_file,
                           std::unordered_multimap<std::string,std::string> * const author_to_gnd_map,
                           std::unordered_multimap<std::string,std::string> * const keyword_to_gnd_map,
@@ -113,9 +137,19 @@ void ExtractAuthorityData(const std::string &authority_file,
             continue;
 
         // Authors
-        const std::string author(StringUtil::Join(record.getSubfieldValues("100", "a"), " "));
+        const std::string author(StringUtil::Join(record.getSubfieldValues("100", "abcpnt"), " "));
         if (not author.empty()) {
             author_to_gnd_map->emplace(author, gnd_number);
+            // Also add "Verweisungsform"
+            for (const auto &field : record.getTagRange("400")) {
+                const MARC::Subfields subfields(field.getContents());
+                const std::string synonym(StringUtil::Join(subfields.extractSubfields("abcpnt"), " "));
+                if (not synonym.empty()) {
+std::cerr << "ADDING AUTHOR SYONYM: \"" << synonym << "\" for PRIMARY \"" << author << '\n';
+                    author_to_gnd_map->emplace(synonym, gnd_number);
+                }
+            }
+            continue; // next entry
         }
 
         // CIC
@@ -133,18 +167,11 @@ std::cerr << "Found CIC PPN " << record.getControlNumber() << " for CIC: " << ci
         }
 
         // Keywords
-        const std::string keyword_110(StringUtil::Join(record.getSubfieldValues("110", "abcdnpt"), " "));
-        const std::string keyword_111(StringUtil::Join(record.getSubfieldValues("111", "abcdnpt"), " "));
-        const std::string keyword_130(StringUtil::Join(record.getSubfieldValues("130", "abcdnpt"), " "));
-        const std::string keyword_150(StringUtil::Join(record.getSubfieldValues("150", "abcdnpt"), " "));
-        if (not keyword_110.empty())
-           keyword_to_gnd_map->emplace(keyword_110, gnd_number);
-        if (not keyword_111.empty())
-           keyword_to_gnd_map->emplace(keyword_111, gnd_number);
-        if (not keyword_130.empty())
-           keyword_to_gnd_map->emplace(keyword_130, gnd_number);
-        if (not keyword_150.empty())
-           keyword_to_gnd_map->emplace(keyword_150, gnd_number);
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "110", "abcdnpt", "410");
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "111", "abcdnpt", "411");
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "130", "abcdnpt", "430");
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "150", "abcdnpt", "450");
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "151", "abcdnpt", "451");
     }
 }
 
