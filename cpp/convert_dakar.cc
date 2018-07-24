@@ -147,30 +147,32 @@ std::cerr << "Found CIC PPN " << record.getControlNumber() << " for CIC: " << ci
 
 void GetAuthorGNDResultMap(DbConnection &db_connection,
                            const std::unordered_multimap<std::string, std::string> &all_authors_to_gnd_map,
-                           std::unordered_multimap<std::string,std::string> * const author_to_gnds_result_map)
+                           std::unordered_map<std::string,std::string> * const author_to_gnds_result_map)
 {
      std::set<std::string> authors;
      GetAuthorsFromDB(db_connection, &authors);
      for (auto &author: authors) {
           auto author_and_gnds(all_authors_to_gnd_map.equal_range(author));
-          for (auto gnd(author_and_gnds.first); gnd != author_and_gnds.second; ++gnd) {
-              author_to_gnds_result_map->emplace(author, StringUtil::TrimWhite(gnd->second));
-          }
+          std::vector<std::string> gnds;
+          for (auto gnd(author_and_gnds.first); gnd != author_and_gnds.second; ++gnd)
+              gnds.emplace_back(StringUtil::TrimWhite(gnd->second));
+          author_to_gnds_result_map->emplace(author, StringUtil::Join(gnds, ","));
      }
 }
 
 
 void GetKeywordGNDResultMap(DbConnection &db_connection,
                      const std::unordered_multimap<std::string, std::string> &all_keywords_to_gnd_map,
-                     std::unordered_multimap<std::string,std::string> * keyword_to_gnds_result_map)
+                     std::unordered_map<std::string,std::string> * keyword_to_gnds_result_map)
 {
     std::set<std::string> keywords;
     GetKeywordsFromDB(db_connection, &keywords);
     for (auto &keyword : keywords) {
         const auto keyword_and_gnds(all_keywords_to_gnd_map.equal_range(keyword));
-        for (auto gnd(keyword_and_gnds.first); gnd != keyword_and_gnds.second; ++gnd) {
-            keyword_to_gnds_result_map->emplace(keyword, StringUtil::TrimWhite(gnd->second));
-        }
+        std::vector<std::string> gnds;
+        for (auto gnd(keyword_and_gnds.first); gnd != keyword_and_gnds.second; ++gnd)
+            gnds.emplace_back(StringUtil::TrimWhite(gnd->second));
+        keyword_to_gnds_result_map->emplace(keyword, StringUtil::Join(gnds, ","));
     }
 }
 
@@ -187,7 +189,6 @@ void GetCICGNDResultMap(DbConnection &db_connection,
            cic_to_gnd_result_map->emplace(cic, StringUtil::TrimWhite((*cic_and_gnd).second));
     }
 }
-
 
 
 } //unnamed namespace
@@ -211,13 +212,13 @@ int Main(int argc, char **argv) {
      std::unordered_map<std::string, std::string> all_cics_to_gnd_map;
      ExtractAuthorityData(authority_file, &all_authors_to_gnd_map, &all_keywords_to_gnds_map, &all_cics_to_gnd_map);
 
-     std::unordered_multimap<std::string,std::string> author_to_gnds_result_map;
+     std::unordered_map<std::string,std::string> author_to_gnds_result_map;
      GetAuthorGNDResultMap(db_connection, all_authors_to_gnd_map, &author_to_gnds_result_map);
      for (const auto &author_and_gnds : author_to_gnds_result_map)
          std::cerr << author_and_gnds.first << "||||" << author_and_gnds.second << '\n';
      std::cerr << "\n\n";
 
-     std::unordered_multimap<std::string,std::string> keyword_to_gnds_result_map;
+     std::unordered_map<std::string,std::string> keyword_to_gnds_result_map;
      GetKeywordGNDResultMap(db_connection, all_keywords_to_gnds_map, &keyword_to_gnds_result_map);
      for (const auto &keyword_and_gnds : keyword_to_gnds_result_map)
          std::cerr << keyword_and_gnds.first << "++++" << keyword_and_gnds.second << '\n';
