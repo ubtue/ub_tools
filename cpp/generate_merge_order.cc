@@ -21,6 +21,7 @@
 #include <iostream>
 #include <cstdio>
 #include <cstdlib>
+#include "BSZUtil.h"
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "RegexMatcher.h"
@@ -51,15 +52,6 @@ void LoadFilePCRE(std::string * const file_pcre) {
 }
 
 
-// Assumes that part of "filename" matches YYMMDD.
-std::string ExtractDate(const std::string &filename) {
-    static auto date_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d\\d[01]\\d[0123]\\d)"));
-    if (date_matcher->matched(filename))
-        return (*date_matcher)[1];
-    LOG_ERROR("filename \"" + filename + "\" does not contain YYMMDD!");
-}
-
-
 inline bool Contains(const std::string &haystack, const std::string &needle) {
     return haystack.find(needle) != std::string::npos;
 }
@@ -79,11 +71,11 @@ std::string ShiftDateToTenDaysBefore(const std::string &cutoff_date) {
 
 
 bool FileComparator(const std::string &filename1, const std::string &filename2) {
-    auto date1(ExtractDate(filename1));
+    auto date1(BSZUtil::ExtractDateFromFilenameOrDie(filename1));
     if (Contains(filename1, "sekkor"))
         date1 = ShiftDateToTenDaysBefore(date1);
 
-    auto date2(ExtractDate(filename2));
+    auto date2(BSZUtil::ExtractDateFromFilenameOrDie(filename2));
     if (Contains(filename2, "sekkor"))
         date2 = ShiftDateToTenDaysBefore(date2);
 
@@ -145,7 +137,8 @@ std::vector<std::string>::const_iterator EarliestReferenceDump(std::vector<std::
     if (StringUtil::StartsWith(*complete_or_pseudo_complete_dump, "SA-")) {
         if (complete_or_pseudo_complete_dump == file_list.begin()
             or not StringUtil::StartsWith(*(complete_or_pseudo_complete_dump - 1), "SA-")
-            or not (ExtractDate(*complete_or_pseudo_complete_dump) == ExtractDate(*(complete_or_pseudo_complete_dump - 1))))
+            or not (BSZUtil::ExtractDateFromFilenameOrDie(*complete_or_pseudo_complete_dump)
+                    == BSZUtil::ExtractDateFromFilenameOrDie(*(complete_or_pseudo_complete_dump - 1))))
             LOG_WARNING("expected a pair of SA- files w/ the same date!");
         else
             return complete_or_pseudo_complete_dump - 1;
