@@ -162,23 +162,23 @@ int Main(int argc, char *argv[]) {
     if (argc != 4)
         Usage();
 
-    const std::string input_archive(argv[1]);
-    const std::string difference_archive(argv[2]);
-    const std::string output_archive(argv[3]);
+    const std::string input_archive(FileUtil::MakeAbsolutePath(argv[1]));
+    const std::string difference_archive(FileUtil::MakeAbsolutePath(argv[2]));
+    const std::string output_archive(FileUtil::MakeAbsolutePath(argv[3]));
 
     if (input_archive == difference_archive or input_archive == output_archive or difference_archive == output_archive)
         LOG_ERROR("all archive names must be distinct!");
 
-    FileUtil::AutoTempDirectory working_directory(std::string(::progname) + "-working-dir");
+    FileUtil::AutoTempDirectory working_directory(FileUtil::GetLastPathComponent(::progname) + "-working-dir");
     FileUtil::ChangeDirectoryOrDie(working_directory.getDirectoryPath());
 
     std::vector<std::string> input_archive_members;
-    BSZUtil::ExtractArchiveMembers("../" + input_archive, &input_archive_members);
+    BSZUtil::ExtractArchiveMembers(input_archive, &input_archive_members);
 
     std::vector<std::string> difference_archive_members;
-    BSZUtil::ExtractArchiveMembers("../" + difference_archive, &difference_archive_members, "-" + std::to_string(::getpid()));
+    BSZUtil::ExtractArchiveMembers(difference_archive, &difference_archive_members, "-" + std::to_string(::getpid()));
 
-    PatchArchiveMembersAndCreateOutputArchive(input_archive_members, difference_archive_members, "../" + output_archive);
+    PatchArchiveMembersAndCreateOutputArchive(input_archive_members, difference_archive_members, output_archive);
 
     FileUtil::ChangeDirectoryOrDie("..");
 
