@@ -39,11 +39,12 @@
 
 
 const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/dakar.conf");
+const std::string NOT_AVAILABLE("N/A");
 
 namespace {
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " authority_data output_file" << '\n';
+    std::cerr << "Usage: " << ::progname << " authority_data" << '\n';
     std::exit(EXIT_FAILURE);
 }
 
@@ -114,7 +115,7 @@ void AssemblePrimaryAndSynonymKeywordEntry(const MARC::Record &record,
              const MARC::Subfields subfields(field.getContents());
              const std::string synonym(StringUtil::Join(subfields.extractSubfields(subfield_spec), " "));
              if (not synonym.empty()) {
-std::cerr << "ADDING SYONYM: \"" << synonym << "\" for PRIMARY \"" << primary << '\n';
+//std::cerr << "ADDING SYONYM: \"" << synonym << "\" for PRIMARY \"" << primary << '\n';
                  keyword_to_gnd_map->emplace(synonym, gnd_number);
              }
         }
@@ -145,7 +146,7 @@ void ExtractAuthorityData(const std::string &authority_file,
                 const MARC::Subfields subfields(field.getContents());
                 const std::string synonym(StringUtil::Join(subfields.extractSubfields("abcpnt"), " "));
                 if (not synonym.empty()) {
-std::cerr << "ADDING AUTHOR SYONYM: \"" << synonym << "\" for PRIMARY \"" << author << '\n';
+//std::cerr << "ADDING AUTHOR SYONYM: \"" << synonym << "\" for PRIMARY \"" << author << '\n';
                     author_to_gnd_map->emplace(synonym, gnd_number);
                 }
             }
@@ -157,7 +158,7 @@ std::cerr << "ADDING AUTHOR SYONYM: \"" << synonym << "\" for PRIMARY \"" << aut
         const std::string cic_110_field(StringUtil::Join(record.getSubfieldValues("110", "atf"), ","));
         if (cic_110_field == "Katholische Kirche,Codex iuris canonici,1983") {
             const std::string cic_code(StringUtil::Join(record.getSubfieldValues("110", 'p'), " "));
-std::cerr << "Found CIC PPN " << record.getControlNumber() << " for CIC: " << cic_code << '\n';
+//std::cerr << "Found CIC PPN " << record.getControlNumber() << " for CIC: " << cic_code << '\n';
             if (not cic_code.empty()) {
                 // Dakar uses '.' instead of ',' as a separator
                 cic_to_gnd_map->emplace(StringUtil::Map(cic_code, ',', '.'), gnd_number);
@@ -221,14 +222,82 @@ void GetCICGNDResultMap(DbConnection &db_connection,
 }
 
 
+void AugmentDBEntries(DbConnection &db_connection,
+                      const std::unordered_map<std::string,std::string> &author_to_gnds_result_map,
+                      const std::unordered_map<std::string,std::string> &keyword_to_gnds_result_map,
+                      const std::unordered_map<std::string,std::string> &cic_to_gnd_result_map) {
+    // Iterate over Database
+    const std::string ikr_query("SELECT id,autor,stichwort,cicbezug FROM ikr");
+    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(ikr_query, &db_connection));
+    while (const DbRow db_row = result_set.getNextRow()) {
+        // Authors
+        const std::string author_row(db_row["autor"]);
+        std::vector<std::string> authors_in_row;
+        std::vector<std::string> author_gnd_numbers;
+        bool author_gnd_seen(false);
+        StringUtil::Split(author_row, ';', &authors_in_row);
+        for (const auto &one_author : authors_in_row) {
+             const auto author_gnds(author_to_gnds_result_map.find(one_author));
+             if (author_gnds != author_to_gnds_result_map.cend()) {
+                 author_gnd_numbers.emplace_back(author_gnds->second);
+                 author_gnd_seen = true;
+             } else
+                 author_gnd_numbers.emplace_back(NOT_AVAILABLE);
+        }
+        // Only write back non-empty string if we have at least one reasonable entry
+        const std::string a_gnd_content(author_gnd_seen ? StringUtil::Join(author_gnd_numbers, ";") : "");
+
+        // Keywords
+        const std::string keyword_row(db_row["stichwort"]);
+        std::vector<std::string> keywords_in_row;
+        std::vector<std::string> keyword_gnd_numbers;
+        bool keyword_gnd_seen(false);
+        StringUtil::Split(keyword_row, ';', &keywords_in_row);
+        for (const auto one_keyword : keywords_in_row) {
+            const auto keyword_gnds(keyword_to_gnds_result_map.find(one_keyword));
+            if (keyword_gnds != keyword_to_gnds_result_map.cend()) {
+                keyword_gnd_numbers.emplace_back(keyword_gnds->second);
+                keyword_gnd_seen = true;
+            } else
+                keyword_gnd_numbers.emplace_back(NOT_AVAILABLE);
+        }
+        // Only write back non-empty string if we have at least one reasonable entry
+        const std::string s_gnd_content(keyword_gnd_seen ? StringUtil::Join(keyword_gnd_numbers, ";") : "");
+
+        //CIC
+        const std::string cic_row(db_row["cicbezug"]);
+        std::vector<std::string> cics_in_row;
+        std::vector<std::string> cic_gnd_numbers;
+        bool cic_gnd_seen(false);
+        StringUtil::Split(cic_row, ';', &cics_in_row);
+        for (const auto one_cic : cics_in_row) {
+            const auto cic_gnd(cic_to_gnd_result_map.find(one_cic));
+            if (cic_gnd != cic_to_gnd_result_map.cend()) {
+               cic_gnd_numbers.emplace_back(cic_gnd->second);
+               cic_gnd_seen = true;
+            } else
+               cic_gnd_numbers.emplace_back(NOT_AVAILABLE);
+        }
+        // Only write back non-empty string if we have at least one reasonable entry
+        const std::string c_gnd_content(cic_gnd_seen ? StringUtil::Join(cic_gnd_numbers, ";") : "");
+
+        // Write back the new entries
+        const std::string id(db_row["id"]);
+        const std::string update_row_query("UPDATE ikr SET a_gnd=\"" +  a_gnd_content + "\", s_gnd=\""
+                                       + s_gnd_content + "\",c_gnd=\"" + c_gnd_content + "\""
+                                       + " WHERE id=" + id);
+        db_connection.queryOrDie(update_row_query);
+
+    }
+}
+
 } //unnamed namespace
 
 int Main(int argc, char **argv) {
-     if (argc != 3)
+     if (argc != 2)
          Usage();
 
      const std::string authority_file(argv[1]);
-     const std::string output_file(argv[2]);
 
      const IniFile ini_file(CONF_FILE_PATH);
      const std::string sql_database(ini_file.getString("Database", "sql_database"));
@@ -244,21 +313,22 @@ int Main(int argc, char **argv) {
 
      std::unordered_map<std::string,std::string> author_to_gnds_result_map;
      GetAuthorGNDResultMap(db_connection, all_authors_to_gnd_map, &author_to_gnds_result_map);
-     for (const auto &author_and_gnds : author_to_gnds_result_map)
-         std::cerr << author_and_gnds.first << "||||" << author_and_gnds.second << '\n';
-     std::cerr << "\n\n";
+//     for (const auto &author_and_gnds : author_to_gnds_result_map)
+//         std::cerr << author_and_gnds.first << "||||" << author_and_gnds.second << '\n';
+//     std::cerr << "\n\n";
 
      std::unordered_map<std::string,std::string> keyword_to_gnds_result_map;
      GetKeywordGNDResultMap(db_connection, all_keywords_to_gnds_map, &keyword_to_gnds_result_map);
-     for (const auto &keyword_and_gnds : keyword_to_gnds_result_map)
-         std::cerr << keyword_and_gnds.first << "++++" << keyword_and_gnds.second << '\n';
-     std::cerr << "\n\n";
+//     for (const auto &keyword_and_gnds : keyword_to_gnds_result_map)
+//         std::cerr << keyword_and_gnds.first << "++++" << keyword_and_gnds.second << '\n';
+//     std::cerr << "\n\n";
 
      std::unordered_map<std::string,std::string> cic_to_gnd_result_map;
      GetCICGNDResultMap(db_connection, all_cics_to_gnd_map, &cic_to_gnd_result_map);
-     for (const auto &cic_and_gnds : cic_to_gnd_result_map)
-         std::cerr << cic_and_gnds.first << "****" << cic_and_gnds.second << '\n';
+//     for (const auto &cic_and_gnds : cic_to_gnd_result_map)
+//         std::cerr << cic_and_gnds.first << "****" << cic_and_gnds.second << '\n';
 
+     AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map);
      return EXIT_SUCCESS;
 
 }
