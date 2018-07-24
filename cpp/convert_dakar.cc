@@ -24,6 +24,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <regex>
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
@@ -60,7 +61,10 @@ void GetAuthorsFromDB(DbConnection &db_connection, std::set<std::string> * const
         const std::string author_row(db_row["autor"]);
         std::vector<std::string> authors_in_row;
         StringUtil::Split(author_row, ';', &authors_in_row);
-        for (const auto &author : authors_in_row) {
+        for (auto &author : authors_in_row) {
+            // Remove superfluous additions
+            static std::regex to_strip("\\(Hrsg[\\.]\\)");
+            author = std::regex_replace(author, to_strip , "");
             authors->emplace(StringUtil::TrimWhite(author));
         }
     }
@@ -127,7 +131,6 @@ std::cerr << "Found CIC PPN " << record.getControlNumber() << " for CIC: " << ci
                 continue;
             }
         }
-
 
         // Keywords
         const std::string keyword_110(StringUtil::Join(record.getSubfieldValues("110", "abcdnpt"), " "));
