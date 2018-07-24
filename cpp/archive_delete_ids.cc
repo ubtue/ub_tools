@@ -81,9 +81,9 @@ int Main(int argc, char *argv[]) {
     if (argc != 4)
         Usage();
 
-    const std::string old_archive(argv[1]);
-    const std::string deletion_list(argv[2]);
-    const std::string new_archive(argv[3]);
+    const std::string old_archive(FileUtil::MakeAbsolutePath(argv[1]));
+    const std::string deletion_list(FileUtil::MakeAbsolutePath(argv[2]));
+    const std::string new_archive(FileUtil::MakeAbsolutePath(argv[3]));
 
     if (old_archive == deletion_list or old_archive == new_archive or new_archive == deletion_list)
         LOG_ERROR("all filename parameters must be distinct!");
@@ -93,8 +93,7 @@ int Main(int argc, char *argv[]) {
                                                   /* remove_when_out_of_scope = */ not keep_intermediate_files);
     FileUtil::ChangeDirectoryOrDie(working_directory.getDirectoryPath());
 
-    UpdateArchive(FileUtil::MakeAbsolutePath(old_archive), FileUtil::MakeAbsolutePath(deletion_list),
-                  FileUtil::MakeAbsolutePath(new_archive));
+    UpdateArchive(old_archive, deletion_list, new_archive);
 
     FileUtil::ChangeDirectoryOrDie("..");
 
