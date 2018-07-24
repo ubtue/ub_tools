@@ -14,6 +14,7 @@
 /add_title_keywords
 /append_marc_xml
 /apply_differential_update
+/archive_delete_ids
 /augment_773a
 /augment_authority_data_with_translations
 /augment_bible_references
@@ -100,7 +101,7 @@
 /marc_split
 /marc_tag_grep
 /marc21_size
-/merge_differential_and_full_marc_updates
+/merge_differential_and_full_marc_updates.sh
 /merge_print_and_online
 /mpi_stats
 /new_journal_alert
