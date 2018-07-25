@@ -116,6 +116,22 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
 }
 
 
+inline bool IsMtextDeletionList(const std::string &filename) {
+    return StringUtil::StartsWith(filename, "LOEPPN_m-");
+}
+
+
+bool MtexComparator(const std::string &filename1, const std::string &filename2) {
+    if (IsMtextDeletionList(filename1) and IsMtextDeletionList(filename2))
+        return BSZUtil::ExtractDateFromFilenameOrDie(filename1) < BSZUtil::ExtractDateFromFilenameOrDie(filename2);
+    if (IsMtextDeletionList(filename1))
+        return false;
+    if (IsMtextDeletionList(filename2))
+        return true;
+    return FileComparator(filename1, filename2);
+}
+
+
 // Returns file_list.end() if neither a complete dump file name nor a pseudo complete dump file name were found.
 std::vector<std::string>::const_iterator FindMostRecentCompleteOrPseudoCompleteDump(const std::vector<std::string> &file_list) {
     auto file(file_list.cend());
@@ -163,6 +179,7 @@ int Main(int argc, char */*argv*/[]) {
         LOG_ERROR("no matches found for \"" + file_pcre + "\"!");
 
     std::sort(file_list.begin(), file_list.end(), FileComparator);
+    std::stable_sort(file_list.begin(), file_list.end(), MtexComparator); // mtex deletion list must go last
 
     // Throw away older files before our "reference" complete dump or pseudo complete dump:
     const auto reference_dump(FindMostRecentCompleteOrPseudoCompleteDump(file_list));
