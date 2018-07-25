@@ -115,7 +115,6 @@ void AssemblePrimaryAndSynonymKeywordEntry(const MARC::Record &record,
              const MARC::Subfields subfields(field.getContents());
              const std::string synonym(StringUtil::Join(subfields.extractSubfieldsAndNumericSubfields(subfield_spec), " "));
              if (not synonym.empty()) {
-//std::cerr << "ADDING SYONYM: \"" << synonym << "\" for PRIMARY \"" << primary << '\n';
                  keyword_to_gnd_map->emplace(synonym, gnd_number);
              }
         }
@@ -146,7 +145,6 @@ void ExtractAuthorityData(const std::string &authority_file,
                 const MARC::Subfields subfields(field.getContents());
                 const std::string synonym(StringUtil::Join(subfields.extractSubfieldsAndNumericSubfields("abcpnt9v"), " "));
                 if (not synonym.empty()) {
-//std::cerr << "ADDING AUTHOR SYONYM: \"" << synonym << "\" for PRIMARY \"" << author << '\n';
                     author_to_gnd_map->emplace(synonym, gnd_number);
                 }
             }
@@ -158,7 +156,6 @@ void ExtractAuthorityData(const std::string &authority_file,
         const std::string cic_110_field(StringUtil::Join(record.getSubfieldValues("110", "atf"), ","));
         if (cic_110_field == "Katholische Kirche,Codex iuris canonici,1983") {
             const std::string cic_code(StringUtil::Join(record.getSubfieldValues("110", 'p'), " "));
-//std::cerr << "Found CIC PPN " << record.getControlNumber() << " for CIC: " << cic_code << '\n';
             if (not cic_code.empty()) {
                 // Dakar uses '.' instead of ',' as a separator
                 cic_to_gnd_map->emplace(StringUtil::Map(cic_code, ',', '.'), gnd_number);
@@ -168,11 +165,11 @@ void ExtractAuthorityData(const std::string &authority_file,
         }
 
         // Keywords
-        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "110", "abcdnpt9v", "410");
-        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "111", "abcdnpt9v", "411");
-        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "130", "abcdnpt9v", "430");
-        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "150", "abcdnpt9v", "450");
-        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "151", "abcdnpt9v", "451");
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "110", "abcdnptx9v9g", "410");
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "111", "abcdnptx9v9g", "411");
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "130", "abcdnptx9v9g", "430");
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "150", "abcdnptx9v9g", "450");
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "151", "abcdnptx9v9g", "451");
     }
 }
 
@@ -187,7 +184,8 @@ void GetAuthorGNDResultMap(DbConnection &db_connection,
           std::vector<std::string> gnds;
           for (auto gnd(author_and_gnds.first); gnd != author_and_gnds.second; ++gnd)
               gnds.emplace_back(StringUtil::TrimWhite(gnd->second));
-          author_to_gnds_result_map->emplace(author, StringUtil::Join(gnds, ","));
+          if (not gnds.empty())
+              author_to_gnds_result_map->emplace(author, StringUtil::Join(gnds, ","));
      }
 }
 
@@ -203,7 +201,8 @@ void GetKeywordGNDResultMap(DbConnection &db_connection,
         std::vector<std::string> gnds;
         for (auto gnd(keyword_and_gnds.first); gnd != keyword_and_gnds.second; ++gnd)
             gnds.emplace_back(StringUtil::TrimWhite(gnd->second));
-        keyword_to_gnds_result_map->emplace(keyword, StringUtil::Join(gnds, ","));
+        if (not gnds.empty())
+            keyword_to_gnds_result_map->emplace(keyword, StringUtil::Join(gnds, ","));
     }
 }
 
@@ -258,8 +257,9 @@ void AugmentDBEntries(DbConnection &db_connection,
             if (keyword_gnds != keyword_to_gnds_result_map.cend()) {
                 keyword_gnd_numbers.emplace_back(keyword_gnds->second);
                 keyword_gnd_seen = true;
-            } else
+            } else {
                 keyword_gnd_numbers.emplace_back(NOT_AVAILABLE);
+            }
         }
         // Only write back non-empty string if we have at least one reasonable entry
         const std::string s_gnd_content(keyword_gnd_seen ? StringUtil::Join(keyword_gnd_numbers, ";") : "");
@@ -270,20 +270,13 @@ void AugmentDBEntries(DbConnection &db_connection,
         std::vector<std::string> cic_gnd_numbers;
         bool cic_gnd_seen(false);
         StringUtil::Split(cic_row, ';', &cics_in_row);
-//std::cerr << "----------------------------\n";
-//std::cerr << cic_row << '\n';
-//std::cerr << "++++++++++++++++++++++++++++\n";
         for (const auto one_cic : cics_in_row) {
-//std::cerr << "CIC: \"" << one_cic << "\"";
             const auto cic_gnd(cic_to_gnd_result_map.find(StringUtil::TrimWhite(one_cic)));
             if (cic_gnd != cic_to_gnd_result_map.cend()) {
                cic_gnd_numbers.emplace_back(cic_gnd->second);
                cic_gnd_seen = true;
-std::cerr << " FOUND: " << cic_gnd->second << '\n';
-            } else {
+            } else
                cic_gnd_numbers.emplace_back(NOT_AVAILABLE);
-std::cerr << " NOT FOUND\n";
-            }
         }
         // Only write back non-empty string if we have at least one reasonable entry
         const std::string c_gnd_content(cic_gnd_seen ? StringUtil::Join(cic_gnd_numbers, ";") : "");
@@ -331,9 +324,9 @@ int Main(int argc, char **argv) {
 
      std::unordered_map<std::string,std::string> cic_to_gnd_result_map;
      GetCICGNDResultMap(db_connection, all_cics_to_gnd_map, &cic_to_gnd_result_map);
-     for (const auto &cic_and_gnds : cic_to_gnd_result_map)
-         std::cerr << cic_and_gnds.first << "****" << cic_and_gnds.second << '\n';
-
+//     for (const auto &cic_and_gnds : cic_to_gnd_result_map)
+//         std::cerr << cic_and_gnds.first << "****" << cic_and_gnds.second << '\n';
+//     std::cerr << "\n\n";
      AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map);
      return EXIT_SUCCESS;
 
