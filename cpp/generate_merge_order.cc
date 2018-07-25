@@ -166,6 +166,8 @@ int Main(int argc, char */*argv*/[]) {
 
     // Throw away older files before our "reference" complete dump or pseudo complete dump:
     const auto reference_dump(FindMostRecentCompleteOrPseudoCompleteDump(file_list));
+    if (reference_dump == file_list.end())
+        LOG_ERROR("no reference dump file found!");
     file_list.erase(file_list.begin(), EarliestReferenceDump(reference_dump, file_list));
 
     for (const auto &filename : file_list)
