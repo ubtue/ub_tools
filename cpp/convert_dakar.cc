@@ -107,13 +107,13 @@ void AssemblePrimaryAndSynonymKeywordEntry(const MARC::Record &record,
                                    const std::string subfield_spec,
                                    const std::string synonym_tag)
 {
-    const std::string primary(StringUtil::Join(record.getSubfieldValues(primary_tag, subfield_spec), " "));
+    const std::string primary(StringUtil::Join(record.getSubfieldAndNumericSubfieldValues(primary_tag, subfield_spec), " "));
     if (not primary.empty()) {
         keyword_to_gnd_map->emplace(primary, gnd_number);
         // Also get "Verweisungsformen"
         for (const auto &field : record.getTagRange(synonym_tag)) {
              const MARC::Subfields subfields(field.getContents());
-             const std::string synonym(StringUtil::Join(subfields.extractSubfields(subfield_spec), " "));
+             const std::string synonym(StringUtil::Join(subfields.extractSubfieldsAndNumericSubfields(subfield_spec), " "));
              if (not synonym.empty()) {
 //std::cerr << "ADDING SYONYM: \"" << synonym << "\" for PRIMARY \"" << primary << '\n';
                  keyword_to_gnd_map->emplace(synonym, gnd_number);
@@ -138,13 +138,13 @@ void ExtractAuthorityData(const std::string &authority_file,
             continue;
 
         // Authors
-        const std::string author(StringUtil::Join(record.getSubfieldValues("100", "abcpnt"), " "));
+        const std::string author(StringUtil::Join(record.getSubfieldAndNumericSubfieldValues("100", "abcpnt9v"), " "));
         if (not author.empty()) {
             author_to_gnd_map->emplace(author, gnd_number);
             // Also add "Verweisungsform"
             for (const auto &field : record.getTagRange("400")) {
                 const MARC::Subfields subfields(field.getContents());
-                const std::string synonym(StringUtil::Join(subfields.extractSubfields("abcpnt"), " "));
+                const std::string synonym(StringUtil::Join(subfields.extractSubfieldsAndNumericSubfields("abcpnt9v"), " "));
                 if (not synonym.empty()) {
 //std::cerr << "ADDING AUTHOR SYONYM: \"" << synonym << "\" for PRIMARY \"" << author << '\n';
                     author_to_gnd_map->emplace(synonym, gnd_number);
@@ -168,11 +168,11 @@ void ExtractAuthorityData(const std::string &authority_file,
         }
 
         // Keywords
-        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "110", "abcdnpt", "410");
-        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "111", "abcdnpt", "411");
-        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "130", "abcdnpt", "430");
-        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "150", "abcdnpt", "450");
-        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "151", "abcdnpt", "451");
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "110", "abcdnpt9v", "410");
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "111", "abcdnpt9v", "411");
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "130", "abcdnpt9v", "430");
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "150", "abcdnpt9v", "450");
+        AssemblePrimaryAndSynonymKeywordEntry(record, gnd_number, keyword_to_gnd_map, "151", "abcdnpt9v", "451");
     }
 }
 
