@@ -69,7 +69,7 @@ mv $output_file $target_filename
 
 
 if [[ ! keep_itermediate_files ]]; then
-    rm temp_file.$BASHPID.*.tar.gz
+    rm temp_file.$BASHPID.*.tar.gz TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
 fi
 
 
