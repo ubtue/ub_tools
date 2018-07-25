@@ -23,6 +23,7 @@
 
 #include <string>
 #include <unordered_set>
+#include <vector>
 #include "File.h"
 
 
@@ -40,6 +41,17 @@ void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::str
 
 /** Extracts a date in the form of YYMMDD from "filename". */
 std::string ExtractDateFromFilenameOrDie(const std::string &filename);
+
+
+// Assumes that "member_name" matches "([abc])\\d\\d\\d.raw" and, if it does, returns 'a', 'b' or 'c'.
+char GetTypeCharOrDie(const std::string &member_name);
+
+// Extracts members from "archive_name" combining those of the same type, e.g. members ending in "a001.raw" and "a002.raw" would
+// be extracted as a single concatenated file whose name ends in "a001.raw".  If "optional_suffix" is not empty it will be appended
+// to each filename.
+// An enforced precondition is that all members must end in "[abc]\\d\\d\\d.raw$".
+void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::string> * const archive_members,
+                           const std::string &optional_suffix = "");
 
 
 } // namespace BSZUtil

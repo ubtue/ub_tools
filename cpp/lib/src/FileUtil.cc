@@ -507,6 +507,12 @@ void DirnameAndBasename(const std::string &path, std::string * const dirname, st
 }
 
 
+std::string GetLastPathComponent(const std::string &path) {
+    const auto last_slash_pos(path.find('/'));
+    return (last_slash_pos == std::string::npos) ? path : path.substr(last_slash_pos + 1);
+}
+
+
 // IsDirectory -- Is the specified file a directory?
 //
 bool IsDirectory(const std::string &dir_name) {
@@ -1202,6 +1208,12 @@ bool IsPipeOrFIFO(const std::string &path) {
     if (::stat(path.c_str(), &buf) != 0)
         LOG_ERROR("stat(2) on \"" + path + "\" failed!");
     return S_ISFIFO(buf.st_mode);
+}
+
+
+void ChangeDirectoryOrDie(const std::string &directory) {
+    if (unlikely(::chdir(directory.c_str()) != 0))
+        LOG_ERROR("failed to change directory to \"" + directory + "\"!");
 }
 
 

@@ -1,0 +1,175 @@
+/** \brief Utility for displaying various bits of info about a collection of MARC records.
+ *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *
+ *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#include <algorithm>
+#include <iostream>
+#include <cstdio>
+#include <cstdlib>
+#include "BSZUtil.h"
+#include "FileUtil.h"
+#include "IniFile.h"
+#include "RegexMatcher.h"
+#include "StringUtil.h"
+#include "util.h"
+
+
+namespace {
+
+
+[[noreturn]] void Usage() {
+    std::cerr << "Usage: " << ::progname << "\n";
+    std::exit(EXIT_FAILURE);
+}
+
+
+const std::string CONF_FILE_PATH(
+    "/usr/local/var/lib/tuelib/cronjobs/merge_differential_and_full_marc_updates.conf");
+
+
+void LoadFilePCRE(std::string * const file_pcre) {
+    IniFile ini_file(CONF_FILE_PATH);
+    *file_pcre = ini_file.getString("Files", "deletion_list");
+    *file_pcre += "|" + ini_file.getString("Files", "complete_dump");
+    *file_pcre += "|" + ini_file.getString("Files", "incremental_dump");
+    *file_pcre += "|" + ini_file.getString("Files", "incremental_authority_dump");
+    *file_pcre += "|Complete-MARC-.*-\\d\\d\\d\\d\\d\\d.tar.gz";
+}
+
+
+inline bool Contains(const std::string &haystack, const std::string &needle) {
+    return haystack.find(needle) != std::string::npos;
+}
+
+
+// Shift a given YYMMDD to ten days before
+std::string ShiftDateToTenDaysBefore(const std::string &cutoff_date) {
+    struct tm cutoff_date_tm(TimeUtil::StringToStructTm(cutoff_date, "%y%m%d"));
+    const time_t cutoff_date_time_t(TimeUtil::TimeGm(cutoff_date_tm));
+    if (unlikely(cutoff_date_time_t == TimeUtil::BAD_TIME_T))
+        LOG_ERROR("in ShiftDateToTenDaysBefore: bad time conversion! (1)");
+    const time_t new_cutoff_date(TimeUtil::AddDays(cutoff_date_time_t, -10));
+    if (unlikely(new_cutoff_date == TimeUtil::BAD_TIME_T))
+        LOG_ERROR("in ShiftDateToTenDaysBefore: bad time conversion! (2)");
+    return TimeUtil::TimeTToString(new_cutoff_date, "%y%m%d");
+}
+
+
+bool FileComparator(const std::string &filename1, const std::string &filename2) {
+    auto date1(BSZUtil::ExtractDateFromFilenameOrDie(filename1));
+    if (Contains(filename1, "sekkor"))
+        date1 = ShiftDateToTenDaysBefore(date1);
+
+    auto date2(BSZUtil::ExtractDateFromFilenameOrDie(filename2));
+    if (Contains(filename2, "sekkor"))
+        date2 = ShiftDateToTenDaysBefore(date2);
+
+    if (date1 != date2)
+        return date1 < date2;
+
+    // Deletion lists come first:
+    if (filename1[0] == 'L' and filename2[0] != 'L')
+        return true;
+    if (filename2[0] == 'L' and filename1[0] != 'L')
+        return false;
+
+    // Complete dumps come before anything else:
+    if (StringUtil::StartsWith(filename1, "SA-") and not StringUtil::StartsWith(filename2, "SA-"))
+        return true;
+    if (StringUtil::StartsWith(filename2, "SA-") and not StringUtil::StartsWith(filename1, "SA-"))
+        return false;
+
+    // Pseudo complete dumps come before anything else:
+    if (StringUtil::StartsWith(filename1, "Complete-MARC-") and not StringUtil::StartsWith(filename2, "Complete-MARC-"))
+        return true;
+    if (StringUtil::StartsWith(filename2, "Complete-MARC-") and not StringUtil::StartsWith(filename1, "Complete-MARC-"))
+        return false;
+
+    // Sekkor updates come before anything else:
+    if (Contains(filename1, "sekkor") and not Contains(filename2, "sekkor"))
+        return true;
+    if (Contains(filename2, "sekkor") and not Contains(filename1, "sekkor"))
+        return false;
+
+    // Files w/o local data come before those w/ local data:
+    if (Contains(filename1, "_o") and not Contains(filename2, "_o"))
+        return true;
+    if (Contains(filename2, "_o") and not Contains(filename1, "_o"))
+        return false;
+
+    LOG_ERROR("don't know how to compare \"" + filename1 + "\" with \"" + filename2 + "\"!");
+}
+
+
+// Returns file_list.end() if neither a complete dump file name nor a pseudo complete dump file name were found.
+std::vector<std::string>::const_iterator FindMostRecentCompleteOrPseudoCompleteDump(const std::vector<std::string> &file_list) {
+    auto file(file_list.cend());
+    do {
+        --file;
+        if (StringUtil::StartsWith(*file, "SA-") or StringUtil::StartsWith(*file, "Complete-MARC-"))
+            return file;
+    } while (file != file_list.begin());
+
+    return file_list.cend();
+}
+
+
+// If our complete dump is an SA- file, we should have a "partner" w/o local data.  In that case we should return the partner.
+std::vector<std::string>::const_iterator EarliestReferenceDump(std::vector<std::string>::const_iterator complete_or_pseudo_complete_dump,
+                                                               const std::vector<std::string> &file_list)
+{
+    /* If we have found an SA- file we likely have two, one w/ and one w/o local data: */
+    if (StringUtil::StartsWith(*complete_or_pseudo_complete_dump, "SA-")) {
+        if (complete_or_pseudo_complete_dump == file_list.begin()
+            or not StringUtil::StartsWith(*(complete_or_pseudo_complete_dump - 1), "SA-")
+            or not (BSZUtil::ExtractDateFromFilenameOrDie(*complete_or_pseudo_complete_dump)
+                    == BSZUtil::ExtractDateFromFilenameOrDie(*(complete_or_pseudo_complete_dump - 1))))
+            LOG_WARNING("expected a pair of SA- files w/ the same date!");
+        else
+            return complete_or_pseudo_complete_dump - 1;
+    }
+
+    return complete_or_pseudo_complete_dump;
+}
+
+
+} // unnamed namespace
+
+
+int Main(int argc, char */*argv*/[]) {
+    if (argc != 1)
+        Usage();
+
+    std::string file_pcre;
+    LoadFilePCRE(&file_pcre);
+
+    std::vector<std::string> file_list;
+    if (FileUtil::GetFileNameList(file_pcre, &file_list) == 0)
+        LOG_ERROR("no matches found for \"" + file_pcre + "\"!");
+
+    std::sort(file_list.begin(), file_list.end(), FileComparator);
+
+    // Throw away older files before our "reference" complete dump or pseudo complete dump:
+    const auto reference_dump(FindMostRecentCompleteOrPseudoCompleteDump(file_list));
+    file_list.erase(file_list.begin(), EarliestReferenceDump(reference_dump, file_list));
+
+    for (const auto &filename : file_list)
+        std::cout << filename << '\n';
+
+    return EXIT_SUCCESS;
+}

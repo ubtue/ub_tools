@@ -35,7 +35,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbosity=min_verbosity] time_window [xml_output_path]\n"
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] time_window [xml_output_path]\n"
               << "       \"time_window\", which is in hours, specifies how far back we go in secting items from the database.\n"
               << "       If \"xml_output_path\" has not been specified an HTTP header will be written and the\n"
               << "       generated XML will be written to stdout using CR\\LF line ends.\n\n";

@@ -172,13 +172,6 @@ std::string GetWorkingDirectoryName() {
 }
 
 
-void ChangeDirectoryOrDie(const std::string &directory) {
-    if (unlikely(::chdir(directory.c_str()) != 0))
-        LogSendEmailAndDie("failed to change directory to \"" + directory + "\"! " + std::string(::strerror(errno))
-                           + ")");
-}
-
-
 void CreateAndChangeIntoTheWorkingDirectory() {
     const std::string working_directory(GetWorkingDirectoryName());
     if (FileUtil::Exists(working_directory)) {
@@ -190,7 +183,7 @@ void CreateAndChangeIntoTheWorkingDirectory() {
         LogSendEmailAndDie("in CreateAndChangeIntoTheWorkingDirectory failed to create \"" + working_directory
                            + "\"!");
 
-    ChangeDirectoryOrDie(working_directory);
+    FileUtil::ChangeDirectoryOrDie(working_directory);
 }
 
 
@@ -340,7 +333,7 @@ void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filena
 {
     LOG_DEBUG("merging and deduping archive files to create \"" + target_archive_name + "\".");
     FileUtil::AutoTempDirectory working_dir(".", /* cleanup_if_exception_is_active = */false);
-    ChangeDirectoryOrDie(working_dir.getDirectoryPath());
+    FileUtil::ChangeDirectoryOrDie(working_dir.getDirectoryPath());
 
     auto local_data_filename(local_data_filenames.cbegin());
     auto no_local_data_filename(no_local_data_filenames.cbegin());
@@ -386,7 +379,7 @@ void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filena
     for (const auto &combined_entry : combined_entries)
         archive_writer.add(combined_entry);
 
-    ChangeDirectoryOrDie("..");
+    FileUtil::ChangeDirectoryOrDie("..");
 }
 
 
@@ -948,7 +941,7 @@ int Main(int argc, char *argv[]) {
     const std::string new_complete_dump_filename(
         ExtractAndCombineMarcFilesFromArchives(keep_intermediate_files, tuefind_flavour, complete_dump_filename,
                                                deletion_list_filenames, merged_incremental_dump_filenames));
-    ChangeDirectoryOrDie(".."); // Leave the working directory again.
+    FileUtil::ChangeDirectoryOrDie(".."); // Leave the working directory again.
 
     if (not keep_intermediate_files) {
         RemoveDirectoryOrDie(GetWorkingDirectoryName());
