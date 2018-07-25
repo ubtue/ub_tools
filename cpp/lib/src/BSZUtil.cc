@@ -139,7 +139,7 @@ static inline std::string GenerateOutputMemberName(std::string member_name) {
 void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::string> * const archive_members,
                            const std::string &optional_suffix)
 {
-    static auto member_matcher(RegexMatcher::RegexMatcherFactoryOrDie("[abc]\\d\\d\\d.raw$"));
+    static auto member_matcher(RegexMatcher::RegexMatcherFactoryOrDie("([abc]\\d\\d\\d\\.raw|sekkor-...\\.mrc)$"));
 
     std::map<char, std::shared_ptr<File>> member_type_to_file_map;
     ArchiveReader reader(archive_name);
