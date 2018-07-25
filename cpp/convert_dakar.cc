@@ -44,7 +44,8 @@ const std::string NOT_AVAILABLE("N/A");
 namespace {
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " authority_data" << '\n';
+    std::cerr << "Usage: " << ::progname << " [--generate-list|--augment-db] authority_data" << '\n';
+    std::cerr << "       no operation mode means --augment-db\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -173,9 +174,27 @@ void ExtractAuthorityData(const std::string &authority_file,
     }
 }
 
+
+auto GenerateGNDLink = [](const std::string gnd) { return "XXX" + gnd + "XXX"; };
+
+void MakeGNDLink(std::vector<std::string> * const gnds) {
+    std::vector<std::string> formatted_values;
+    std::transform(gnds->begin(), gnds->end(), std::back_inserter(formatted_values), GenerateGNDLink);
+    gnds->swap(formatted_values);
+}
+
+
+// Wrapper for a single string to guarantee that the generation function is not implemented at two different places in the code
+void MakeGNDLink(std::string * const gnd) {
+     std::vector<std::string> temp({ *gnd });
+     MakeGNDLink(&temp);
+     *gnd = temp[0];
+}
+
+
 void GetAuthorGNDResultMap(DbConnection &db_connection,
                            const std::unordered_multimap<std::string, std::string> &all_authors_to_gnd_map,
-                           std::unordered_map<std::string,std::string> * const author_to_gnds_result_map)
+                           std::unordered_map<std::string,std::string> * const author_to_gnds_result_map, const bool skip_empty=true, const bool generate_gnd_link=false)
 {
      std::set<std::string> authors;
      GetAuthorsFromDB(db_connection, &authors);
@@ -184,15 +203,18 @@ void GetAuthorGNDResultMap(DbConnection &db_connection,
           std::vector<std::string> gnds;
           for (auto gnd(author_and_gnds.first); gnd != author_and_gnds.second; ++gnd)
               gnds.emplace_back(StringUtil::TrimWhite(gnd->second));
-          if (not gnds.empty())
+          if (not gnds.empty() or not skip_empty) {
+              if (generate_gnd_link)
+                  MakeGNDLink(&gnds);
               author_to_gnds_result_map->emplace(author, StringUtil::Join(gnds, ","));
+          }
      }
 }
 
 
 void GetKeywordGNDResultMap(DbConnection &db_connection,
                      const std::unordered_multimap<std::string, std::string> &all_keywords_to_gnd_map,
-                     std::unordered_map<std::string,std::string> * keyword_to_gnds_result_map)
+                     std::unordered_map<std::string,std::string> * keyword_to_gnds_result_map, const bool skip_empty=true, const bool generate_gnd_link=false)
 {
     std::set<std::string> keywords;
     GetKeywordsFromDB(db_connection, &keywords);
@@ -201,22 +223,31 @@ void GetKeywordGNDResultMap(DbConnection &db_connection,
         std::vector<std::string> gnds;
         for (auto gnd(keyword_and_gnds.first); gnd != keyword_and_gnds.second; ++gnd)
             gnds.emplace_back(StringUtil::TrimWhite(gnd->second));
-        if (not gnds.empty())
+        if (not gnds.empty() or not skip_empty) {
+            if (generate_gnd_link)
+                MakeGNDLink(&gnds);
             keyword_to_gnds_result_map->emplace(keyword, StringUtil::Join(gnds, ","));
+        }
     }
 }
 
 
 void GetCICGNDResultMap(DbConnection &db_connection,
                         const std::unordered_map<std::string, std::string> &all_cics_to_gnd_map,
-                        std::unordered_map<std::string,std::string> * cic_to_gnd_result_map)
+                        std::unordered_map<std::string,std::string> * cic_to_gnd_result_map, const bool skip_empty=true, const bool generate_gnd_link=false)
 {
     std::set<std::string> cics;
     GetCICFromDB(db_connection, &cics);
     for (const auto &cic : cics) {
         const auto cic_and_gnd(all_cics_to_gnd_map.find(cic));
-        if (cic_and_gnd != all_cics_to_gnd_map.cend())
-           cic_to_gnd_result_map->emplace(cic, StringUtil::TrimWhite((*cic_and_gnd).second));
+        if (cic_and_gnd != all_cics_to_gnd_map.cend()) {
+            std::string cic_gnd(StringUtil::TrimWhite((*cic_and_gnd).second));
+            if (generate_gnd_link)
+                MakeGNDLink(&cic_gnd);
+            cic_to_gnd_result_map->emplace(cic, cic_gnd);
+        }
+        else if (not skip_empty)
+           cic_to_gnd_result_map->emplace(cic, "");
     }
 }
 
@@ -290,13 +321,30 @@ void AugmentDBEntries(DbConnection &db_connection,
     }
 }
 
+
 } //unnamed namespace
 
+
 int Main(int argc, char **argv) {
-     if (argc != 2)
+     if (argc < 2)
+         Usage();
+     bool generate_list(false);
+     bool skip_empty(true); //Do no insert entries without matches the final lookup lists
+     bool generate_gnd_link(false); // Export GND numbers as links
+
+     if (argc == 3 and (std::strcmp(argv[1], "--generate-list") != 0 and std::strcmp(argv[1], "--augment-db") != 0))
          Usage();
 
+     if (std::strcmp(argv[1], "--generate-list") == 0) {
+        generate_list=true;
+        skip_empty=false;
+        generate_gnd_link=true;
+        ++argc, ++argv;
+     }
+
+
      const std::string authority_file(argv[1]);
+
 
      const IniFile ini_file(CONF_FILE_PATH);
      const std::string sql_database(ini_file.getString("Database", "sql_database"));
@@ -311,24 +359,25 @@ int Main(int argc, char **argv) {
      ExtractAuthorityData(authority_file, &all_authors_to_gnd_map, &all_keywords_to_gnds_map, &all_cics_to_gnd_map);
 
      std::unordered_map<std::string,std::string> author_to_gnds_result_map;
-     GetAuthorGNDResultMap(db_connection, all_authors_to_gnd_map, &author_to_gnds_result_map);
-//     for (const auto &author_and_gnds : author_to_gnds_result_map)
-//         std::cerr << author_and_gnds.first << "||||" << author_and_gnds.second << '\n';
-//     std::cerr << "\n\n";
+     GetAuthorGNDResultMap(db_connection, all_authors_to_gnd_map, &author_to_gnds_result_map, skip_empty, generate_gnd_link);
 
      std::unordered_map<std::string,std::string> keyword_to_gnds_result_map;
-     GetKeywordGNDResultMap(db_connection, all_keywords_to_gnds_map, &keyword_to_gnds_result_map);
-//     for (const auto &keyword_and_gnds : keyword_to_gnds_result_map)
-//         std::cerr << keyword_and_gnds.first << "++++" << keyword_and_gnds.second << '\n';
-//     std::cerr << "\n\n";
+     GetKeywordGNDResultMap(db_connection, all_keywords_to_gnds_map, &keyword_to_gnds_result_map, skip_empty, generate_gnd_link);
 
      std::unordered_map<std::string,std::string> cic_to_gnd_result_map;
-     GetCICGNDResultMap(db_connection, all_cics_to_gnd_map, &cic_to_gnd_result_map);
-//     for (const auto &cic_and_gnds : cic_to_gnd_result_map)
-//         std::cerr << cic_and_gnds.first << "****" << cic_and_gnds.second << '\n';
-//     std::cerr << "\n\n";
-     AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map);
+     GetCICGNDResultMap(db_connection, all_cics_to_gnd_map, &cic_to_gnd_result_map, skip_empty, generate_gnd_link);
+     if (generate_list) {
+         std::ofstream author_out("/tmp/author_list.txt");
+         for (const auto &author_and_gnds : author_to_gnds_result_map)
+             author_out << author_and_gnds.first << "|" << author_and_gnds.second << '\n';
+         std::ofstream keyword_out("/tmp/keyword_list.txt");
+         for (const auto &keyword_and_gnds : keyword_to_gnds_result_map)
+             keyword_out << keyword_and_gnds.first << "|" << keyword_and_gnds.second << '\n';
+         std::ofstream cic_out("/tmp/cic_list.txt");
+         for (const auto &cic_and_gnds : cic_to_gnd_result_map)
+             cic_out << cic_and_gnds.first << "|" << cic_and_gnds.second << '\n';
+     } else
+         AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map);
      return EXIT_SUCCESS;
-
 }
 
