@@ -57,13 +57,13 @@ inline bool Contains(const std::string &haystack, const std::string &needle) {
 }
 
 
-// Shift a given YYMMDD to ten days before
-std::string ShiftDateToTenDaysBefore(const std::string &cutoff_date) {
+// Shift a given YYMMDD to ten days after
+std::string ShiftDateToTenDaysAfter(const std::string &cutoff_date) {
     struct tm cutoff_date_tm(TimeUtil::StringToStructTm(cutoff_date, "%y%m%d"));
     const time_t cutoff_date_time_t(TimeUtil::TimeGm(cutoff_date_tm));
     if (unlikely(cutoff_date_time_t == TimeUtil::BAD_TIME_T))
         LOG_ERROR("in ShiftDateToTenDaysBefore: bad time conversion! (1)");
-    const time_t new_cutoff_date(TimeUtil::AddDays(cutoff_date_time_t, -10));
+    const time_t new_cutoff_date(TimeUtil::AddDays(cutoff_date_time_t, +10));
     if (unlikely(new_cutoff_date == TimeUtil::BAD_TIME_T))
         LOG_ERROR("in ShiftDateToTenDaysBefore: bad time conversion! (2)");
     return TimeUtil::TimeTToString(new_cutoff_date, "%y%m%d");
@@ -73,11 +73,11 @@ std::string ShiftDateToTenDaysBefore(const std::string &cutoff_date) {
 bool FileComparator(const std::string &filename1, const std::string &filename2) {
     auto date1(BSZUtil::ExtractDateFromFilenameOrDie(filename1));
     if (Contains(filename1, "sekkor"))
-        date1 = ShiftDateToTenDaysBefore(date1);
+        date1 = ShiftDateToTenDaysAfter(date1);
 
     auto date2(BSZUtil::ExtractDateFromFilenameOrDie(filename2));
     if (Contains(filename2, "sekkor"))
-        date2 = ShiftDateToTenDaysBefore(date2);
+        date2 = ShiftDateToTenDaysAfter(date2);
 
     if (date1 != date2)
         return date1 < date2;
