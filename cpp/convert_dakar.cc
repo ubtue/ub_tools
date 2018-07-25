@@ -237,7 +237,7 @@ void AugmentDBEntries(DbConnection &db_connection,
         bool author_gnd_seen(false);
         StringUtil::Split(author_row, ';', &authors_in_row);
         for (const auto &one_author : authors_in_row) {
-             const auto author_gnds(author_to_gnds_result_map.find(one_author));
+             const auto author_gnds(author_to_gnds_result_map.find(StringUtil::TrimWhite(one_author)));
              if (author_gnds != author_to_gnds_result_map.cend()) {
                  author_gnd_numbers.emplace_back(author_gnds->second);
                  author_gnd_seen = true;
@@ -254,7 +254,7 @@ void AugmentDBEntries(DbConnection &db_connection,
         bool keyword_gnd_seen(false);
         StringUtil::Split(keyword_row, ';', &keywords_in_row);
         for (const auto one_keyword : keywords_in_row) {
-            const auto keyword_gnds(keyword_to_gnds_result_map.find(one_keyword));
+            const auto keyword_gnds(keyword_to_gnds_result_map.find(StringUtil::TrimWhite(one_keyword)));
             if (keyword_gnds != keyword_to_gnds_result_map.cend()) {
                 keyword_gnd_numbers.emplace_back(keyword_gnds->second);
                 keyword_gnd_seen = true;
@@ -270,13 +270,20 @@ void AugmentDBEntries(DbConnection &db_connection,
         std::vector<std::string> cic_gnd_numbers;
         bool cic_gnd_seen(false);
         StringUtil::Split(cic_row, ';', &cics_in_row);
+//std::cerr << "----------------------------\n";
+//std::cerr << cic_row << '\n';
+//std::cerr << "++++++++++++++++++++++++++++\n";
         for (const auto one_cic : cics_in_row) {
-            const auto cic_gnd(cic_to_gnd_result_map.find(one_cic));
+//std::cerr << "CIC: \"" << one_cic << "\"";
+            const auto cic_gnd(cic_to_gnd_result_map.find(StringUtil::TrimWhite(one_cic)));
             if (cic_gnd != cic_to_gnd_result_map.cend()) {
                cic_gnd_numbers.emplace_back(cic_gnd->second);
                cic_gnd_seen = true;
-            } else
+std::cerr << " FOUND: " << cic_gnd->second << '\n';
+            } else {
                cic_gnd_numbers.emplace_back(NOT_AVAILABLE);
+std::cerr << " NOT FOUND\n";
+            }
         }
         // Only write back non-empty string if we have at least one reasonable entry
         const std::string c_gnd_content(cic_gnd_seen ? StringUtil::Join(cic_gnd_numbers, ";") : "");
@@ -287,7 +294,6 @@ void AugmentDBEntries(DbConnection &db_connection,
                                        + s_gnd_content + "\",c_gnd=\"" + c_gnd_content + "\""
                                        + " WHERE id=" + id);
         db_connection.queryOrDie(update_row_query);
-
     }
 }
 
@@ -325,8 +331,8 @@ int Main(int argc, char **argv) {
 
      std::unordered_map<std::string,std::string> cic_to_gnd_result_map;
      GetCICGNDResultMap(db_connection, all_cics_to_gnd_map, &cic_to_gnd_result_map);
-//     for (const auto &cic_and_gnds : cic_to_gnd_result_map)
-//         std::cerr << cic_and_gnds.first << "****" << cic_and_gnds.second << '\n';
+     for (const auto &cic_and_gnds : cic_to_gnd_result_map)
+         std::cerr << cic_and_gnds.first << "****" << cic_and_gnds.second << '\n';
 
      AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map);
      return EXIT_SUCCESS;
