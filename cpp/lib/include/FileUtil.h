@@ -241,6 +241,10 @@ bool SetBlocking(const int fd);
 void DirnameAndBasename(const std::string &path, std::string * const dirname, std::string * const basename);
 
 
+/** \return the part of "path" after the last slash or "path" if there is no slash. */
+std::string GetLastPathComponent(const std::string &path);
+
+
 /** \brief  Is the given path the name of a directory?
  *  \param  dir_name  The path to test.
  *  \return True if the path is a directory and can be accessed.
@@ -474,6 +478,7 @@ std::string StripLastPathComponent(const std::string &path);
 
 bool IsEmpty(const std::string &path);
 bool IsPipeOrFIFO(const std::string &path);
+void ChangeDirectoryOrDie(const std::string &directory);
 
 
 } // namespace FileUtil
