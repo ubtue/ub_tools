@@ -175,7 +175,7 @@ void ExtractAuthorityData(const std::string &authority_file,
 }
 
 
-auto GenerateGNDLink = [](const std::string gnd) { return "XXX" + gnd + "XXX"; };
+auto GenerateGNDLink = [](const std::string gnd) { return "http://d-nb.info/gnd/" + gnd; };
 
 void MakeGNDLink(std::vector<std::string> * const gnds) {
     std::vector<std::string> formatted_values;
