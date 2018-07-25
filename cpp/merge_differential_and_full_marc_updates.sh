@@ -33,7 +33,7 @@ function KeepIntermediateFiles() {
 declare -i counter=0
 function GetNextTempFilename() {
     ((++counter))
-    echo temp_file.{$$}.$counter
+    echo temp_file.$$.$counter.tar.gz
 }
 
 
@@ -69,5 +69,5 @@ echo mv $output_file $target_filename
 
 
 if [[ ! keep_itermediate_files ]]; then
-    rm temp_file.{$$}.*
+    rm temp_file.$$.*.tar.gz
 fi
