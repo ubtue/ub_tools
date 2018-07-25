@@ -116,17 +116,17 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
 }
 
 
-inline bool IsMtextDeletionList(const std::string &filename) {
+inline bool IsMtexDeletionList(const std::string &filename) {
     return StringUtil::StartsWith(filename, "LOEPPN_m-");
 }
 
 
 bool MtexComparator(const std::string &filename1, const std::string &filename2) {
-    if (IsMtextDeletionList(filename1) and IsMtextDeletionList(filename2))
+    if (IsMtexDeletionList(filename1) and IsMtexDeletionList(filename2))
         return BSZUtil::ExtractDateFromFilenameOrDie(filename1) < BSZUtil::ExtractDateFromFilenameOrDie(filename2);
-    if (IsMtextDeletionList(filename1))
+    if (IsMtexDeletionList(filename1))
         return false;
-    if (IsMtextDeletionList(filename2))
+    if (IsMtexDeletionList(filename2))
         return true;
     return FileComparator(filename1, filename2);
 }
