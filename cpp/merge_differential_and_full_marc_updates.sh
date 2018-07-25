@@ -65,7 +65,7 @@ for update in $(generate_merge_order | tail --lines=+2); do
 done
 
 
-echo mv $output_file $target_filename
+mv $output_file $target_filename
 
 
 if [[ ! keep_itermediate_files ]]; then
