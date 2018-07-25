@@ -169,7 +169,9 @@ int Main(int argc, char *argv[]) {
     if (input_archive == difference_archive or input_archive == output_archive or difference_archive == output_archive)
         LOG_ERROR("all archive names must be distinct!");
 
-    FileUtil::AutoTempDirectory working_directory(FileUtil::GetLastPathComponent(::progname) + "-working-dir");
+    FileUtil::AutoTempDirectory working_directory(FileUtil::GetLastPathComponent(::progname) + "-working-dir",
+                                                  /* cleanup_if_exception_is_active = */false,
+                                                  /* remove_when_out_of_scope = */ not keep_intermediate_files);
     FileUtil::ChangeDirectoryOrDie(working_directory.getDirectoryPath());
 
     std::vector<std::string> input_archive_members;
@@ -181,11 +183,6 @@ int Main(int argc, char *argv[]) {
     PatchArchiveMembersAndCreateOutputArchive(input_archive_members, difference_archive_members, output_archive);
 
     FileUtil::ChangeDirectoryOrDie("..");
-
-    if (not keep_intermediate_files) {
-        if (not FileUtil::RemoveDirectory(working_directory.getDirectoryPath()))
-            LOG_ERROR("failed to delete working directory: \"" + working_directory.getDirectoryPath() + "\"!");
-    }
 
     return EXIT_SUCCESS;
 }
