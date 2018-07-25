@@ -131,6 +131,10 @@ char GetTypeCharOrDie(const std::string &member_name) {
 
 // Maps ".*[abc]???.raw" to ".*[abc]001.raw"
 static inline std::string GenerateOutputMemberName(std::string member_name) {
+    if (member_name == "sekkor-aut.mrc")
+        return "sekkor-c001.raw";
+    if (member_name == "sekkor-tit.mrc")
+        return "sekkor-a001.raw";
     if (unlikely(member_name.length() < 8))
         LOG_ERROR("short archive member name \"" + member_name + "\"!");
     member_name[member_name.length() - 7] = '0';
