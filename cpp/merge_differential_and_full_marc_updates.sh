@@ -71,3 +71,8 @@ echo mv $output_file $target_filename
 if [[ ! keep_itermediate_files ]]; then
     rm temp_file.$BASHPID.*.tar.gz
 fi
+
+
+# Create symlink to newest complete dump:
+rm --force Complete-MARC-ixtheo-current.tar.gz
+ln --symbolic $target_filename Complete-MARC-ixtheo-current.tar.gz
