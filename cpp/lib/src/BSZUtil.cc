@@ -117,6 +117,10 @@ std::string ExtractDateFromFilenameOrDie(const std::string &filename) {
 
 // Hopefully returns 'a', 'b' or 'c'.
 char GetTypeCharOrDie(const std::string &member_name) {
+    if (member_name == "sekkor-aut.mrc")
+        return 'a';
+    if (member_name == "sekkor-tit.mrc")
+        return 'c';
     static auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("([abc])\\d\\d\\d.raw"));
     if (not matcher->matched(member_name))
         LOG_ERROR("bad member type for archive member \"" + member_name + "\"!");
@@ -127,6 +131,10 @@ char GetTypeCharOrDie(const std::string &member_name) {
 
 // Maps ".*[abc]???.raw" to ".*[abc]001.raw"
 static inline std::string GenerateOutputMemberName(std::string member_name) {
+    if (member_name == "sekkor-aut.mrc")
+        return "sekkor-c001.raw";
+    if (member_name == "sekkor-tit.mrc")
+        return "sekkor-a001.raw";
     if (unlikely(member_name.length() < 8))
         LOG_ERROR("short archive member name \"" + member_name + "\"!");
     member_name[member_name.length() - 7] = '0';
@@ -139,12 +147,15 @@ static inline std::string GenerateOutputMemberName(std::string member_name) {
 void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::string> * const archive_members,
                            const std::string &optional_suffix)
 {
-    static auto member_matcher(RegexMatcher::RegexMatcherFactoryOrDie("[abc]\\d\\d\\d.raw$"));
+    static auto member_matcher(RegexMatcher::RegexMatcherFactoryOrDie("([abc]\\d\\d\\d\\.raw|sekkor-...\\.mrc)$"));
 
     std::map<char, std::shared_ptr<File>> member_type_to_file_map;
     ArchiveReader reader(archive_name);
     ArchiveReader::EntryInfo file_info;
     while (reader.getNext(&file_info)) {
+        if (file_info.empty())
+            continue;
+
         const std::string member_name(file_info.getFilename());
         if (unlikely(not file_info.isRegularFile()))
             LOG_ERROR("unexpectedly, the entry \"" + member_name + "\" in \"" + archive_name + "\" is not a regular file!");
