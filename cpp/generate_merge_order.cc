@@ -133,21 +133,21 @@ bool MtexComparator(const std::string &filename1, const std::string &filename2) 
 
 
 // Returns file_list.end() if neither a complete dump file name nor a pseudo complete dump file name were found.
-std::vector<std::string>::const_iterator FindMostRecentCompleteOrPseudoCompleteDump(const std::vector<std::string> &file_list) {
-    auto file(file_list.cend());
+std::vector<std::string>::iterator FindMostRecentCompleteOrPseudoCompleteDump(std::vector<std::string> &file_list) {
+    auto file(file_list.end());
     do {
         --file;
         if (StringUtil::StartsWith(*file, "SA-") or StringUtil::StartsWith(*file, "Complete-MARC-"))
             return file;
     } while (file != file_list.begin());
 
-    return file_list.cend();
+    return file_list.end();
 }
 
 
 // If our complete dump is an SA- file, we should have a "partner" w/o local data.  In that case we should return the partner.
-std::vector<std::string>::const_iterator EarliestReferenceDump(std::vector<std::string>::const_iterator complete_or_pseudo_complete_dump,
-                                                               const std::vector<std::string> &file_list)
+std::vector<std::string>::iterator EarliestReferenceDump(std::vector<std::string>::iterator complete_or_pseudo_complete_dump,
+                                                         std::vector<std::string> &file_list)
 {
     /* If we have found an SA- file we likely have two, one w/ and one w/o local data: */
     if (StringUtil::StartsWith(*complete_or_pseudo_complete_dump, "SA-")) {
