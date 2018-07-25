@@ -81,7 +81,11 @@ void GetKeywordsFromDB(DbConnection &db_connection, std::set<std::string> * cons
         std::vector<std::string> keywords_in_row;
         StringUtil::Split(keyword_row, ';', &keywords_in_row);
         for (const auto &keyword : keywords_in_row) {
-            keywords->emplace(StringUtil::TrimWhite(keyword));
+            // Special Handling: He have entries that are erroneously separated by commas instead of semicolon
+            std::vector<std::string> comma_separated_keywords;
+            StringUtil::Split(keyword, ',', &comma_separated_keywords);
+            for (const auto comma_separated_keyword : comma_separated_keywords)
+                keywords->emplace(StringUtil::TrimWhite(comma_separated_keyword));
         }
     }
 }
