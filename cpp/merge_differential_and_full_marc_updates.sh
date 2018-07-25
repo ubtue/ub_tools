@@ -22,7 +22,7 @@ fi
 
 
 function KeepIntermediateFiles() {
-    if [[ keep_itermediate_files ]]; then
+    if [[ $keep_itermediate_files = 0 ]]; then
         echo "--keep-intermediate-files"
     else
         echo ""
@@ -53,13 +53,13 @@ echo "Creating ${target_filename}"
 
 input_file=$(generate_merge_order | head --lines=1)
 for update in $(generate_merge_order | tail --lines=+2); do
-    $output_file=$(GetNextTempFilename)
+    output_file=$(GetNextTempFilename)
     if [[ ${update:0:6} == "LOEPPN" ]]; then
-        echo "Processing deletion list: $f"
-        echo "archive_delete_ids $(KeepIntermediateFiles) $input_file $update $output_file"
+        echo "Processing deletion list: $update"
+        archive_delete_ids $(KeepIntermediateFiles) $input_file $update $output_file
     else
-        echo "Processing differential dump: $f"
-        echo "apply_differential_update $(KeepIntermediateFiles) $input_file $update $output_file"
+        echo "Processing differential dump: $update"
+        apply_differential_update $(KeepIntermediateFiles) $input_file $update $output_file
     fi
     input_file=$output_file
 done
