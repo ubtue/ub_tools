@@ -88,3 +88,4 @@ function SendEmail {
         send_email --recipients="$email_address" --subject="$0 failed" --message-body="Check the log file for details."
     fi 
 }
+trap SendEmail EXIT
