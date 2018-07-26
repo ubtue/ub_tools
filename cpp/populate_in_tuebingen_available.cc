@@ -1090,8 +1090,8 @@ bool Get856URLAndAnchor(const std::string &_856_field_contents, std::string * co
 
 
 bool ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer, std::string * const /*err_msg*/) {
-    bool modified_record(false);
     std::set<std::string> alread_seen_urls;
+    std::vector<std::string> signature_field_contents;
     for (const auto &block_start : record->findStartOfAllLocalDataBlocks()) {
         auto _852_field(record->getFirstLocalField("852", block_start));
         if (_852_field == record->end())
@@ -1134,11 +1134,10 @@ bool ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer
             if (not call_number_subfield.empty()) {
                 const std::string institution_and_call_number(institution + call_number_subfield);
                 ++add_sig_count;
-                modified_record = true;
-                record->insertField("SIG",
+                signature_field_contents.emplace_back(MARC::Subfields(
                                     { { 'a', institution_and_call_number + (detailed_availability.empty()
                                                                             ? ""
-                                                                            : "(" + detailed_availability + ")") } });
+                                                                            : "(" + detailed_availability + ")") } }).toString());
             } else { // Look for URL's.
                 for (const auto &_856_field : record->getLocalTagRange("856", block_start, /*indicator1*/'4', /*indicator2*/' ')) {
                     std::string url, anchor;
@@ -1146,8 +1145,8 @@ bool ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer
                         and alread_seen_urls.find(url) == alread_seen_urls.cend())
                     {
                         alread_seen_urls.insert(url);
-                        record->insertField("SIG", { { 'a', "<a href=\"" + url + "\">" + anchor + "</a>" } });
-                        modified_record = true;
+                        signature_field_contents.emplace_back(
+                            MARC::Subfields({ { 'a', "<a href=\"" + url + "\">" + anchor + "</a>" } }).toString());
                     }
                 }
             }
@@ -1155,9 +1154,11 @@ bool ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer
     }
 
 final_processing:
-    if (modified_record)
+    if (not signature_field_contents.empty()) {
+        for (const auto &signature_field_content : signature_field_contents)
+            record->insertField("SIG", /* indicators */"  " + signature_field_content);
         ++modified_record_count;
-    else if (ElectronicArticleIsAvailableInTuebingen(*record)) {
+    } else if (ElectronicArticleIsAvailableInTuebingen(*record)) {
         std::string url, anchor;
         const auto _856_field(record->getFirstField("856"));
         if (_856_field != record->end() and Get856URLAndAnchor(_856_field->getContents(), &url, &anchor)) {
