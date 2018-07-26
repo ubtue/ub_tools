@@ -6,9 +6,12 @@ CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=nat
                  -DETC_DIR='"/usr/local/var/lib/tuelib"'
 
 ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
+  LD_FLAGS =
   CCCFLAGS += -O3
   OPTIMISATIONS_STATE =
 else
+  LD_FLAGS = -fsanitize=address
+  CCCFLAGS += -fsanitize=address
   OPTIMISATIONS_STATE = (unoptimised)
 endif
 
@@ -43,7 +46,7 @@ all: .deps $(PROGS)
 
 $(PROGS): % : %.o lib/libubtue.a Makefile
 	@echo "Linking $@..."
-	@$(CCC) -rdynamic $< -o $@ $(LIBS)
+	@$(CCC) -rdynamic $(LD_FLAGS) $< -o $@ $(LIBS)
 
 -include .deps
 .deps: *.cc $(INC)/*.h

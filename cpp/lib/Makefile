@@ -13,6 +13,7 @@ ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
   CCCFLAGS += -O3
   OPTIMISATIONS_STATE =
 else
+  CCCFLAGS += -fsanitize=address
   OPTIMISATIONS_STATE = (unoptimised)
 endif
 
