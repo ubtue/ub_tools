@@ -218,6 +218,7 @@ void RewriteSuperiorReference(MARC::Record * const record, bool * const modified
     const std::string superior_string("^In:[\\s]*(.*)");
     RegexMatcher * const superior_matcher(RegexMatcher::RegexMatcherFactory(superior_string));
 
+    std::vector<std::string> new_773_fields;
     for (auto &field : record->getTagRange("500")) {
         const auto subfields(field.getSubfields());
         for (const auto &subfield : subfields) {
@@ -225,14 +226,15 @@ void RewriteSuperiorReference(MARC::Record * const record, bool * const modified
                 MARC::Subfields new_773_Subfields;
                 // Parse Field Contents
                 ParseSuperior((*superior_matcher)[1], &new_773_Subfields);
-                // Write 773 Field
-                if (not new_773_Subfields.empty()) {
-                    record->insertField("773", new_773_Subfields, '0', '8');
-                    *modified_record = true;
-                }
+                if (not new_773_Subfields.empty())
+                    new_773_fields.emplace_back(new_773_Subfields.toString());
             }
         }
     }
+
+    for (const auto &new_773_field : new_773_fields)
+        record->insertField("773", "08" + new_773_field);
+    *modified_record = not new_773_fields.empty();
 }
 
 

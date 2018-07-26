@@ -173,7 +173,7 @@ int Main(int argc, char *argv[]) {
             std::unordered_set<std::string> unique_language_codes;
             const auto indicator1(modified_tag_041.getIndicator1()), indicator2(modified_tag_041.getIndicator2());
 
-            for (auto& subfield : tag_041->getSubfields()) {
+            for (auto &subfield : tag_041->getSubfields()) {
                 if (unique_language_codes.find(subfield.value_) != unique_language_codes.end()) {
                     LogOutput("Removing duplicate subfield entry 041$" + std::string(1, subfield.code_) +
                               " '" + subfield.value_ + "'");
