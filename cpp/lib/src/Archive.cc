@@ -2,7 +2,7 @@
  *  \brief  Implementations of the ArchiveReader and ArchiveWriter classes which are wrappers around libtar.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -18,9 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Archive.h"
-#include <stdexcept>
 #include <cstring>
-#include <archive_entry.h>
 #include <fcntl.h>
 #include "Compiler.h"
 #include "File.h"
@@ -52,14 +50,13 @@ ArchiveReader::ArchiveReader(const std::string &archive_file_name) {
     ::archive_read_support_format_all(archive_handle_);
     if (unlikely(::archive_read_open_filename(archive_handle_, archive_file_name.c_str(), DEFAULT_BLOCKSIZE)
                  != ARCHIVE_OK))
-        throw std::runtime_error("in ArchiveReader::ArchiveReader: archive_read_open_filename(3) failed: "
-                                 + std::string(::archive_error_string(archive_handle_)));
+        LOG_ERROR("archive_read_open_filename(3) failed: " + std::string(::archive_error_string(archive_handle_)));
 }
 
 
 ArchiveReader::~ArchiveReader() {
     if (unlikely(::archive_read_free(archive_handle_) != ARCHIVE_OK))
-        logger->error("in ArchiveReader::~ArchiveReader: archive_read_free(3) failed!");
+        LOG_ERROR("archive_read_free(3) failed!");
 }
 
 
@@ -73,8 +70,7 @@ bool ArchiveReader::getNext(EntryInfo * const info) {
     if (status == ARCHIVE_EOF)
         return false;
 
-    throw std::runtime_error("in ArchiveReader::getNext: something went wrong! ("
-                             + std::string(::archive_error_string(archive_handle_)) + ")");
+    LOG_ERROR("something went wrong! (" + std::string(::archive_error_string(archive_handle_)) + ")");
 }
 
 
@@ -98,11 +94,11 @@ bool ArchiveReader::extractEntry(const std::string &member_name, std::string out
             continue;
 
         if (entry_info.isDirectory())
-            logger->error("in ArchiveReader::extractEntry: can't extract a directory!");
+            LOG_ERROR("an't extract a directory!");
 
         const int to_fd(::open(output_filename.c_str(), O_WRONLY | O_CREAT, 0600));
         if (unlikely(to_fd == -1))
-            logger->error("in  ArchiveReader::extractEntry: failed to open \"" + output_filename  + "\" for writing!");
+            LOG_ERROR("failed to open \"" + output_filename  + "\" for writing!");
 
         char buf[BUFSIZ];
         for (;;) {
@@ -113,10 +109,10 @@ bool ArchiveReader::extractEntry(const std::string &member_name, std::string out
             }
 
             if (unlikely(no_of_bytes < 0))
-                logger->error("in ArchiveReader::extractEntry: " + getLastErrorMessage());
+                LOG_ERROR(getLastErrorMessage());
 
             if (unlikely(::write(to_fd, &buf[0], no_of_bytes) != no_of_bytes))
-                logger->error("in ArchiveReader::extractEntry: write(2) failed!");
+                LOG_ERROR("write(2) failed!");
         }
 
         ::close(to_fd);
@@ -139,9 +135,7 @@ ArchiveWriter::ArchiveWriter(const std::string &archive_file_name, const FileTyp
             ::archive_write_add_filter_gzip(archive_handle_);
             ::archive_write_set_format_pax_restricted(archive_handle_);
         } else
-            throw std::runtime_error("in ArchiveWriter::ArchiveWriter: FileType::AUTO selected but,"
-                                     " can't guess the file type from the given filename \"" + archive_file_name
-                                     + "\"!");
+            LOG_ERROR("FileType::AUTO selected but," " can't guess the file type from the given filename \"" + archive_file_name + "\"!");
         break;
     case FileType::TAR:
         ::archive_write_set_format_pax_restricted(archive_handle_);
@@ -153,8 +147,7 @@ ArchiveWriter::ArchiveWriter(const std::string &archive_file_name, const FileTyp
     }
 
     if (unlikely(::archive_write_open_filename(archive_handle_, archive_file_name.c_str()) != ARCHIVE_OK))
-        throw std::runtime_error("in ArchiveWriter::ArchiveWriter: archive_write_open_filename(3) failed: "
-                                 + std::string(::archive_error_string(archive_handle_)));
+        LOG_ERROR("archive_write_open_filename(3) failed: " + std::string(::archive_error_string(archive_handle_)));
 }
 
 
@@ -163,11 +156,9 @@ ArchiveWriter::~ArchiveWriter() {
         ::archive_entry_free(archive_entry_);
 
     if (unlikely(::archive_write_close(archive_handle_) != ARCHIVE_OK))
-        logger->error("in ArchiveWriter::~Archive!Writer: archive_write_close(3) failed: "
-                      + std::string(::archive_error_string(archive_handle_)));
+        LOG_ERROR("archive_write_close(3) failed: " + std::string(::archive_error_string(archive_handle_)));
     if (unlikely(::archive_write_free(archive_handle_) != ARCHIVE_OK))
-        logger->error("in ArchiveWriter::~Archive!Writer: archive_write_free(3) failed: "
-                      + std::string(::archive_error_string(archive_handle_)));
+        LOG_ERROR("archive_write_free(3) failed: " + std::string(::archive_error_string(archive_handle_)));
 }
 
 
@@ -181,8 +172,7 @@ void ArchiveWriter::add(const std::string &filename, std::string archive_name) {
 
     struct stat stat_buf;
     if (unlikely(::stat(filename.c_str(), &stat_buf) != 0))
-        throw std::runtime_error("in ArchiveWriter::add: stat(2) on \"" + filename + "\" failed: "
-                                 + std::string(::strerror(errno)));
+        LOG_ERROR("stat(2) on \"" + filename + "\" failed: " + std::string(::strerror(errno)));
 
     if (archive_entry_ == nullptr)
         archive_entry_ = archive_entry_new();
@@ -195,17 +185,15 @@ void ArchiveWriter::add(const std::string &filename, std::string archive_name) {
     while ((status = ::archive_write_header(archive_handle_, archive_entry_)) == ARCHIVE_RETRY)
         /* Intentionally empty! */;
     if (unlikely(status != ARCHIVE_OK))
-        throw std::runtime_error("in ArchiveWriter::add: archive_write_header(3) failed! ("
-                                 + std::string(::archive_error_string(archive_handle_)));
+        LOG_ERROR("archive_write_header(3) failed! (" + std::string(::archive_error_string(archive_handle_)));
 
     File input(filename, "r", File::THROW_ON_ERROR);
     char buffer[DEFAULT_BLOCKSIZE];
     size_t count;
     while ((count = input.read(buffer, DEFAULT_BLOCKSIZE)) > 0) {
         if (count < DEFAULT_BLOCKSIZE and input.anErrorOccurred())
-            throw std::runtime_error("in ArchiveWriter::add: error reading \"" + filename + "\" !");
+            LOG_ERROR("error reading \"" + filename + "\" !");
         if (unlikely(::archive_write_data(archive_handle_, buffer, count) != static_cast<const ssize_t>(count)))
-            throw std::runtime_error("in ArchiveWriter::add: archive_write_data(3) failed: "
-                                     + std::string(::archive_error_string(archive_handle_)));
+            LOG_ERROR("archive_write_data(3) failed: " + std::string(::archive_error_string(archive_handle_)));
     }
 }

@@ -57,7 +57,7 @@ inline std::string StripSchema(const std::string &url) {
     return (colon_and_double_slash_start == std::string::npos) ? url : url.substr(colon_and_double_slash_start + 3);
 }
 
-    
+
 // Returns true if "test_string" is the suffix of "url" after stripping off the schema and domain name as well as
 // a single slash after the domain name.
 bool IsSuffixOfURL(const std::string &url, const std::string &test_string) {
@@ -84,19 +84,19 @@ bool IsSuffixOfAnyURL(const std::unordered_set<std::string> &urls, const std::st
 
 
 bool CreateUrlsFrom024(MARC::Record * const record) {
-    bool added_at_least_one_url(false);
-
+    std::vector<std::string> _024_dois;
     for (const auto &_024_field : record->getTagRange("024")) {
         if (_024_field.getFirstSubfieldWithCode('2') == "doi") {
             const std::string doi(_024_field.getFirstSubfieldWithCode('a'));
-            if (not doi.empty()) {
-                record->insertField("856", { { 'u', "https://doi.org/" + doi }, { 'x', "doi" } });
-                added_at_least_one_url = true;
-            }
+            if (not doi.empty())
+                _024_dois.emplace_back(doi);
         }
     }
 
-    return added_at_least_one_url;
+    for (const auto &_024_doi : _024_dois)
+        record->insertField("856", { { 'u', "https://doi.org/" + _024_doi }, { 'x', "doi" } });
+
+    return not _024_dois.empty();
 }
 
 
