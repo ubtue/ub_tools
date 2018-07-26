@@ -1154,9 +1154,11 @@ bool ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer
     }
 
 final_processing:
-    if (not signature_field_contents.empty())
+    if (not signature_field_contents.empty()) {
+        for (const auto &signature_field_content : signature_field_contents)
+            record->insertField("SIG", /* indicators */"  " + signature_field_content);
         ++modified_record_count;
-    else if (ElectronicArticleIsAvailableInTuebingen(*record)) {
+    } else if (ElectronicArticleIsAvailableInTuebingen(*record)) {
         std::string url, anchor;
         const auto _856_field(record->getFirstField("856"));
         if (_856_field != record->end() and Get856URLAndAnchor(_856_field->getContents(), &url, &anchor)) {
