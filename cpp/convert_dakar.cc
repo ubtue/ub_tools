@@ -66,7 +66,7 @@ void GetAuthorsFromDB(DbConnection &db_connection, std::set<std::string> * const
         for (auto &author : authors_in_row) {
             // Remove superfluous additions
             static std::regex to_strip("\\(Hrsg[\\.]\\)");
-            author = std::regex_replace(author, to_strip , "");
+            author = std::regex_replace(author, to_strip , std::string(""));
             authors->emplace(StringUtil::TrimWhite(author));
         }
     }
