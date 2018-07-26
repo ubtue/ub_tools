@@ -60,17 +60,6 @@ void Usage() {
               << "           --add-subfield-if field_or_subfield_spec field_or_subfield_spec_and_pcre_regex"
               << " new_field_or_subfield_data\n"
               << "               Any field with a matching tag will have a new subfield inserted if the regex matched.\n"
-              << "           --map-insert field_or_subfield_spec_pair map_filename\n"
-              << "               Insert a value from map_filename in the 2nd field or subfield reference of\n"
-              << "               field_or_subfield_spec_pair if the key can be found found in th 1st field or subfield\n"
-              << "               reference of field_or_subfield_spec_pair.\n"
-              << "           --map-replace field_or_subfield_spec_pair map_filename\n"
-              << "               Replaces a value from map_filename in the 2nd field or subfield reference of\n"
-              << "               field_or_subfield_spec_pair if the key can be found found in th 1st field or subfield\n"
-              << "               reference of field_or_subfield_spec_pair.\n"
-              << "           --map-insert-or-replace field_or_subfield_spec_pair map_filename\n"
-              << "               Behaves like \"--map-insert\" if the 2nd field or subfield reference does not exist.\n"
-              << "               Otherwise behaves like \"--map-replace\".\n"
               << "           --config-path filename\n"
               << "               If --config-path has been specified, no other operation may be used.\n"
               << "       Field or subfield data may contain any of the following escapes:\n"
@@ -125,8 +114,7 @@ bool CompiledPattern::matched(const MARC::Record &record) {
 
 
 enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
-enum class AugmentorType { INSERT_FIELD, REPLACE_FIELD, ADD_SUBFIELD, INSERT_FIELD_IF, REPLACE_FIELD_IF, ADD_SUBFIELD_IF,
-                           MAP_INSERT, MAP_REPLACE, MAP_INSERT_OR_REPLACE };
+enum class AugmentorType { INSERT_FIELD, REPLACE_FIELD, ADD_SUBFIELD, INSERT_FIELD_IF, REPLACE_FIELD_IF, ADD_SUBFIELD_IF };
 
 
 class AugmentorDescriptor {
@@ -136,7 +124,6 @@ private:
     char subfield_code_, subfield_code2_;
     std::string text_to_insert_;
     CompiledPattern *compiled_pattern_;
-    std::unordered_map<std::string, std::string> map_;
 public:
     inline AugmentorType getAugmentorType() const { return augmentor_type_; }
 
@@ -146,7 +133,6 @@ public:
     inline char getSubfieldCode2() const { return subfield_code2_; }
     inline const std::string &getInsertionText() const { return text_to_insert_; }
     inline CompiledPattern *getCompiledPattern() { return compiled_pattern_; }
-    inline const std::unordered_map<std::string, std::string> &getMap() const { return map_; }
 
     inline static AugmentorDescriptor MakeInsertFieldAugmentor(const MARC::Tag &tag, const char subfield_code,
                                                                const std::string &text_to_insert)
@@ -198,27 +184,6 @@ public:
         descriptor.text_to_insert_ = TextUtil::CStyleUnescape(text_to_insert);
         return descriptor;
     }
-
-    inline static AugmentorDescriptor MakeMapInsertAugmentor(const MARC::Tag &tag, const char subfield_code,
-                                                             const MARC::Tag &tag2, const char subfield_code2,
-                                                             const std::string &map_filename)
-    {
-        return AugmentorDescriptor(AugmentorType::MAP_INSERT, tag, subfield_code, tag2, subfield_code2, map_filename);
-    }
-
-    inline static AugmentorDescriptor MakeMapReplaceAugmentor(const MARC::Tag &tag, const char subfield_code,
-                                                              const MARC::Tag &tag2, const char subfield_code2,
-                                                              const std::string &map_filename)
-    {
-        return AugmentorDescriptor(AugmentorType::MAP_REPLACE, tag, subfield_code, tag2, subfield_code2, map_filename);
-    }
-
-    inline static AugmentorDescriptor MakeMapInsertOrReplaceAugmentor(const MARC::Tag &tag, const char subfield_code,
-                                                                      const MARC::Tag &tag2, const char subfield_code2,
-                                                                      const std::string &map_filename)
-    {
-        return AugmentorDescriptor(AugmentorType::MAP_INSERT_OR_REPLACE, tag, subfield_code, tag2, subfield_code2, map_filename);
-    }
 private:
     AugmentorDescriptor(const AugmentorType augmentor_type, const MARC::Tag &tag, const char subfield_code,
                         CompiledPattern * const compiled_pattern = nullptr)
@@ -226,16 +191,6 @@ private:
     AugmentorDescriptor(const AugmentorType augmentor_type, const MARC::Tag &tag, const char subfield_code,
                         const MARC::Tag &tag2, const char subfield_code2, const std::string &map_filename);
 };
-
-
-AugmentorDescriptor::AugmentorDescriptor(const AugmentorType augmentor_type, const MARC::Tag &tag, const char subfield_code,
-                                         const MARC::Tag &tag2, const char subfield_code2, const std::string &map_filename)
-    : augmentor_type_(augmentor_type), tag_(tag), tag2_(tag2), subfield_code_(subfield_code), subfield_code2_(subfield_code2)
-{
-
-    if (MiscUtil::LoadMapFile(map_filename, &map_) == 0)
-        LOG_ERROR("empty map file: \"" + map_filename + "\"!");
-}
 
 
 // Returns true, if we modified the record, else false.
@@ -318,105 +273,6 @@ bool AddSubfield(MARC::Record * const record, const MARC::Tag &tag, const char s
 }
 
 
-// Depending on "augmentor_type", this function either inserts or replaces a value into the fields with tag "tag" and
-// subfield code "subfield_code".  We return true if we inserted or replaced at least one value.  If an error occurred we
-// return false and set *error_message.
-bool InsertOrReplace(MARC::Record * const record, const MARC::Tag &tag, const char subfield_code, const std::string &value,
-                     const AugmentorType augmentor_type, std::string * const error_message)
-{
-    if (augmentor_type == AugmentorType::MAP_INSERT) {
-insert:
-        if (subfield_code == CompiledPattern::NO_SUBFIELD_CODE) {
-            if (not record->insertField(tag, value)) {
-                *error_message = "map field insertion into field " + tag.toString()
-                                 + " failed probably due to a non-repeatable field!";
-                return false;
-            }
-        } else {
-            if (not record->insertField(tag, { { subfield_code, value } })) {
-                *error_message = "map field insertion into subfield " + tag.toString() + std::string(1, subfield_code)
-                                 + " failed probably due to a non-repeatable field!";
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    bool replaced(false);
-    for (auto &field : record->getTagRange(tag)) {
-        MARC::Subfields subfields(field.getSubfields());
-        for (auto &subfield : subfields) {
-            if (subfield.code_ == subfield_code) {
-                subfield.value_ = value;
-                replaced = true;
-            }
-        }
-    }
-
-    if (not replaced and augmentor_type == AugmentorType::MAP_INSERT_OR_REPLACE)
-        goto insert;
-
-    return replaced;
-}
-
-
-// If we find key of "map" in the field or subfield with tag "tag1" and optional subfield code "subfield_code1" we either insert
-// or either create or replace a value in the field or subfield with tag "tag2" and optional subfield code "subfield_code2".
-// We return true if we inserted or replaced at least one value.  If an error occurred we return false and set *error_message.
-bool MapInsertOrReplace(MARC::Record * const record, const MARC::Tag &tag1, const char subfield_code1, const MARC::Tag &tag2,
-                        const char subfield_code2, const std::unordered_map<std::string, std::string> &map,
-                        const AugmentorType augmentor_type, std::string * const error_message)
-{
-    error_message->clear();
-
-    bool modified_at_least_one(false);
-    for (auto &field : *record) {
-        if (field.getTag() != tag1)
-            continue;
-
-        std::string value;
-        if (subfield_code1 == CompiledPattern::NO_SUBFIELD_CODE) {
-            const auto key_and_value(map.find(field.getContents()));
-            if (key_and_value != map.cend())
-                value = key_and_value->second;
-        } else {
-            const MARC::Subfields subfields(field.getSubfields());
-            for (const auto &subfield : subfields) {
-                if (subfield.code_ == subfield_code1) {
-                    const auto key_and_value(map.find(subfield.value_));
-                    if (key_and_value != map.cend()) {
-                        value = key_and_value->second;
-                        break;
-                    }
-                }
-            }
-        }
-        if (value.empty())
-            continue;
-
-        const bool replaced(InsertOrReplace(record, tag2, subfield_code2, value, augmentor_type, error_message));
-        if (not replaced and not error_message->empty())
-            return false;
-
-        if (not replaced
-            and (augmentor_type == AugmentorType::MAP_INSERT or augmentor_type == AugmentorType::MAP_INSERT_OR_REPLACE))
-        {
-            if (not record->insertField(tag2, { { subfield_code2, value } })) {
-                *error_message = "failed to insert mapped value into a " + tag2.toString()
-                                 + " field! (Probably due to a duplicate non-repeatable field.)";
-                return false;
-            } else {
-                modified_at_least_one = true;
-                break;
-            }
-        }
-    }
-
-    return modified_at_least_one;
-}
-
-
 void Augment(std::vector<AugmentorDescriptor> &augmentors, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     unsigned total_count(0), modified_count(0);
     std::string error_message;
@@ -450,16 +306,6 @@ void Augment(std::vector<AugmentorDescriptor> &augmentors, MARC::Reader * const 
                 if (AddSubfield(&record, augmentor.getTag(), augmentor.getSubfieldCode(), augmentor.getInsertionText(),
                                 augmentor.getCompiledPattern()))
                     modified_record = true;
-            } else if (augmentor.getAugmentorType() == AugmentorType::MAP_INSERT
-                       or augmentor.getAugmentorType() == AugmentorType::MAP_REPLACE
-                       or augmentor.getAugmentorType() == AugmentorType::MAP_INSERT_OR_REPLACE)
-            {
-                if (MapInsertOrReplace(&record, augmentor.getTag(), augmentor.getSubfieldCode(), augmentor.getTag2(),
-                                       augmentor.getSubfieldCode2(), augmentor.getMap(), augmentor.getAugmentorType(),
-                                       &error_message))
-                    modified_record = true;
-                else if (not error_message.empty())
-                    LOG_WARNING(error_message);
             } else
                 LOG_ERROR("unhandled Augmentor type!");
         }
@@ -531,37 +377,9 @@ void ExtractCommandArgs(char ***argvp, MARC::Tag * const tag, char * const subfi
 }
 
 
-void ExtractCommandArgs(char ***argvp, MARC::Tag * const tag1, char * const subfield_code1, MARC::Tag * const tag2,
-                        char * const subfield_code2, std::string * const map_filename)
-{
-    const std::string command(**argvp);
-    ++*argvp;
-
-    const std::string tags_and_optional_subfield_codes(**argvp);
-    const auto first_colon_pos(tags_and_optional_subfield_codes.find(':'));
-    if (first_colon_pos != MARC::Record::TAG_LENGTH and first_colon_pos != MARC::Record::TAG_LENGTH + 1)
-        LOG_ERROR("invalid tag and optional subfield code after \"" + command + "\": \"" + tags_and_optional_subfield_codes + "\"!");
-    *tag1 = MARC::Tag(tags_and_optional_subfield_codes.substr(0, MARC::Record::TAG_LENGTH));
-    *subfield_code1 = (first_colon_pos > MARC::Record::TAG_LENGTH)
-                      ? tags_and_optional_subfield_codes[MARC::Record::TAG_LENGTH] : CompiledPattern::NO_SUBFIELD_CODE;
-    if (tags_and_optional_subfield_codes.length() - first_colon_pos - 1 != MARC::Record::TAG_LENGTH
-        and tags_and_optional_subfield_codes.length() - first_colon_pos - 1 != MARC::Record::TAG_LENGTH + 1)
-        LOG_ERROR("invalid 2nd tag and optional subfield code after \"" + command + "\": \"" + tags_and_optional_subfield_codes
-              + "\"!");
-    *tag2 = MARC::Tag(tags_and_optional_subfield_codes.substr(first_colon_pos + 1, MARC::Record::TAG_LENGTH));
-    *subfield_code2 = (tags_and_optional_subfield_codes.length()  - first_colon_pos - 1 == MARC::Record::TAG_LENGTH + 1)
-                      ? tags_and_optional_subfield_codes[tags_and_optional_subfield_codes.length() - 1]
-                      : CompiledPattern::NO_SUBFIELD_CODE;
-    ++*argvp;
-
-    *map_filename = **argvp;
-    ++*argvp;
-}
-
-
 void ProcessAugmentorArgs(char **argv, std::vector<AugmentorDescriptor> * const augmentors) {
     MARC::Tag tag, tag2;
-    char subfield_code, subfield_code2;
+    char subfield_code;
     CompiledPattern *compiled_pattern;
     std::string field_or_subfield_contents, map_filename;
 
@@ -594,18 +412,6 @@ void ProcessAugmentorArgs(char **argv, std::vector<AugmentorDescriptor> * const 
                 LOG_ERROR("missing subfield code for --add-subfield-if operation!");
             augmentors->emplace_back(AugmentorDescriptor::MakeAddSubfieldIfAugmentor(tag, subfield_code, compiled_pattern,
                                                                                      field_or_subfield_contents));
-        } else if (std::strcmp(*argv, "--map-insert") == 0) {
-            ExtractCommandArgs(&argv, &tag, &subfield_code, &tag2, &subfield_code2, &map_filename);
-            augmentors->emplace_back(AugmentorDescriptor::MakeMapInsertAugmentor(tag, subfield_code, tag2, subfield_code2,
-                                                                                 map_filename));
-        } else if (std::strcmp(*argv, "--map-replace") == 0) {
-            ExtractCommandArgs(&argv, &tag, &subfield_code, &tag2, &subfield_code2, &map_filename);
-            augmentors->emplace_back(AugmentorDescriptor::MakeMapReplaceAugmentor(tag, subfield_code, tag2, subfield_code2,
-                                                                                 map_filename));
-        } else if (std::strcmp(*argv, "--map-insert-or-replace") == 0) {
-            ExtractCommandArgs(&argv, &tag, &subfield_code, &tag2, &subfield_code2, &map_filename);
-            augmentors->emplace_back(AugmentorDescriptor::MakeMapInsertOrReplaceAugmentor(tag, subfield_code, tag2,
-                                                                                          subfield_code2, map_filename));
         } else
             LOG_ERROR("unknown operation type \"" + std::string(*argv) + "\"!");
     }
