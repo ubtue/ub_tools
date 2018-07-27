@@ -11,15 +11,17 @@ function Usage() {
 # Argument processing
 keep_itermediate_files=1
 if [[ $# == 2 ]]; then
-    if [[ $2 == "--keep-intermediate-files" ]]; then
+    if [[ $1 == "--keep-intermediate-files" ]]; then
         keep_itermediate_files=0
+        email_address=$2
     else
         Usage
     fi
 elif [[ $# != 1 ]]; then
     Usage
+else
+    email_address=$1
 fi
-email_address=$1
 
 
 function KeepIntermediateFiles() {
