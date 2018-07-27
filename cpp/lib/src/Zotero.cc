@@ -515,7 +515,7 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
     }
 
     new_record.insertField("001", augment_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
-                                  + "#" + StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
+                           + "#" + StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
     return new_record;
 }
 
