@@ -21,6 +21,7 @@
 
 
 #include <archive.h>
+#include <archive_entry.h>
 #include <unordered_set>
 #include <string>
 #include <unordered_set>
@@ -36,6 +37,8 @@ public:
         EntryInfo(): archive_entry_(nullptr) { }
 
         const std::string getFilename() const;
+        inline int64_t size() const { return ::archive_entry_size(archive_entry_); }
+        inline bool empty() const { return ::archive_entry_size(archive_entry_) == 0; }
         bool isRegularFile() const;
         bool isDirectory() const;
     };
