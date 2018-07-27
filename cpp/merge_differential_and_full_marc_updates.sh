@@ -3,21 +3,24 @@ set -o errexit -o nounset
 
 
 function Usage() {
-    echo "Usage: $0 [--keep-intermediate-files]"
+    echo "Usage: $0 [--keep-intermediate-files] email_address"
     exit 1
 }
 
 
 # Argument processing
 keep_itermediate_files=1
-if [[ $# == 1 ]]; then
+if [[ $# == 2 ]]; then
     if [[ $1 == "--keep-intermediate-files" ]]; then
         keep_itermediate_files=0
+        email_address=$2
     else
         Usage
     fi
-elif [[ $# != 0 ]]; then
+elif [[ $# != 1 ]]; then
     Usage
+else
+    email_address=$1
 fi
 
 
@@ -76,3 +79,15 @@ fi
 # Create symlink to newest complete dump:
 rm --force Complete-MARC-ixtheo-current.tar.gz
 ln --symbolic $target_filename Complete-MARC-ixtheo-current.tar.gz
+
+no_problems_found=0
+
+
+function SendEmail {
+    if [[ -n $no_problems_found ]]; then
+        exit 0
+    else
+        send_email --recipients="$email_address" --subject="$0 failed" --message-body="Check the log file for details."
+    fi 
+}
+trap SendEmail EXIT
