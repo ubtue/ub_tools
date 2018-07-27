@@ -44,6 +44,8 @@ const std::string DELETE_IDS_COMMAND("/usr/local/bin/delete_ids");
 // Applies a deletion list to a single file.
 void UpdateOneFile(const std::string &marc_filename, const std::string &deletion_list_file) {
     const std::string temp_output_filename(marc_filename + "-" + std::to_string(::getpid()));
+    LOG_INFO("applying \"" + deletion_list_file + "\" to \"" + marc_filename + "\" to generate \"" + temp_output_filename + "\"!");
+
     if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND, { deletion_list_file, marc_filename, temp_output_filename }) != 0))
         LOG_ERROR("\"" + DELETE_IDS_COMMAND + "\" failed!");
 
