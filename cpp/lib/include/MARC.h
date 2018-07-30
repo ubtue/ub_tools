@@ -703,15 +703,6 @@ public:
 
     void deleteLocalBlocks(std::vector<iterator> &local_block_starts);
 
-    /** \brief Finds local ("LOK") block boundaries.
-     *  \param local_block_boundaries  Each entry contains the iterator pointing to the first field of a local block
-     *                                 in "first" and the iterator pointing past the last field of a local block in
-     *                                 "second".
-     */
-    size_t findAllLocalDataBlocks(
-        std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const;
-
-
     /** \param indicator1  The returned range only includes fields matching this indicator. A question mark is the wildcard character here.
      *  \param indicator2  The returned range only includes fields matching this indicator. A question mark is the wildcard character here.
      *  \return Iterators pointing to the half-open interval of the first range of fields corresponding to the tag "tag" in a local block
@@ -730,20 +721,6 @@ public:
      */
     ConstantRange getLocalTagRange(const Tag &field_tag, const const_iterator &block_start, const char indicator1 = '?',
                                    const char indicator2 = '?') const;
-
-    /** \brief Locate a field in a local block.
-     *  \param indicators           The two 1-character indicators that we're looking for. A question mark here
-     *                              means: don't care.  So, if you want to match any indicators you should pass "??"
-     *                              here.
-     *  \param field_tag            The 3 character tag that we're looking for.
-     *  \param block_start_and_end  "first" must point to the first entry in "field_data" that belongs to the local
-     *                              block that we're scanning and "second" one past the last entry.
-     *  \param fields               The iterators pointing at the matched fields.
-     *  \return The number of times the field was found in the block.
-     */
-    size_t findFieldsInLocalBlock(const Tag &field_tag, const std::string &indicators,
-                                  const std::pair<const_iterator, const_iterator> &block_start_and_end,
-                                  std::vector<const_iterator> * const fields) const;
 
     /** \return An iterator pointing to the first field w/ local tag "local_field_tag" or end() if no such field was found. */
     const_iterator getFirstLocalField(const Tag &local_field_tag, const const_iterator &block_start) const;

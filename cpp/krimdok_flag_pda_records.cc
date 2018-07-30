@@ -27,41 +27,46 @@
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " no_of_years marc_input_file marc_output_file\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-bool IsMatchingRecord(const MARC::Record &record, const std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> &local_block_boundaries,
+bool IsMatchingRecord(const MARC::Record &record, const std::vector<MARC::Record::iterator> &local_block_starts,
                       std::vector<std::string> &matching_subfield_a_values)
 {
-    for (const auto local_block_boundary : local_block_boundaries) {
-        std::vector<MARC::Record::const_iterator> fields;
-        if (record.findFieldsInLocalBlock("852", "??", local_block_boundary, &fields) == 0)
-            return false;
+    for (const auto local_block_start : local_block_starts) {
+        auto _852_fields(record.findFieldsInLocalBlock("852", local_block_start));
+            if (_852_fields.empty())
+                return false;
 
-        for (const auto &field : fields) {
-            std::vector<std::string> subfield_a_values(field->getSubfields().extractSubfields('a'));
-                for (const auto &subfield_a_value : subfield_a_values)
-                    for (const auto &matching_subfield_a_value : matching_subfield_a_values)
-                        if (subfield_a_value == matching_subfield_a_value)
-                            return true;
+        for (const auto &_852_field : _852_fields) {
+            std::vector<std::string> subfield_a_values(_852_field.getSubfields().extractSubfields('a'));
+            for (const auto &subfield_a_value : subfield_a_values) {
+                for (const auto &matching_subfield_a_value : matching_subfield_a_values) {
+                    if (subfield_a_value == matching_subfield_a_value)
+                        return true;
+                }
+            }
         }
     }
     return false;
 }
 
 
-bool IsMPIRecord(const MARC::Record &record, const std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> &local_block_boundaries) {
+bool IsMPIRecord(const MARC::Record &record, const std::vector<MARC::Record::iterator> &local_block_starts) {
     static std::vector<std::string> subfield_a_values{ "DE-Frei85" };
-    return IsMatchingRecord(record, local_block_boundaries, subfield_a_values);
+    return IsMatchingRecord(record, local_block_starts, subfield_a_values);
 }
 
 
-bool IsUBOrIFKRecord(const MARC::Record &record, const std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> &local_block_boundaries) {
+bool IsUBOrIFKRecord(const MARC::Record &record, const std::vector<MARC::Record::iterator> &local_block_starts) {
     static std::vector<std::string> subfield_a_values{ "DE-21", "DE-21-110" };
-    return IsMatchingRecord(record, local_block_boundaries, subfield_a_values);
+    return IsMatchingRecord(record, local_block_starts, subfield_a_values);
 }
 
 
@@ -89,19 +94,18 @@ std::string GetPublicationYear(const MARC::Record &record) {
 }
 
 
-void FindNonMPIInstitutions(const MARC::Record &record,
-                            const std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> &local_block_boundaries,
+void FindNonMPIInstitutions(const MARC::Record &record, const std::vector<MARC::Record::iterator> &local_block_starts,
                             std::vector<std::string> * const non_mpi_institutions)
 {
     non_mpi_institutions->clear();
 
-    for (const auto &local_block_boundary : local_block_boundaries) {
-        std::vector<MARC::Record::const_iterator> fields;
-        if (record.findFieldsInLocalBlock("852", "??", local_block_boundary, &fields) == 0)
+    for (const auto &local_block_start : local_block_starts) {
+        const auto _852_fields(record.findFieldsInLocalBlock("852", local_block_start));
+        if (_852_fields.empty())
             return;
 
-        for (const auto &field : fields) {
-            std::vector<std::string> subfield_a_values(field->getSubfields().extractSubfields('a'));
+        for (const auto &_852_field : _852_fields) {
+            std::vector<std::string> subfield_a_values(_852_field.getSubfields().extractSubfields('a'));
             for (const auto &subfield_a_value : subfield_a_values)
                 if (subfield_a_value != "DE-Frei85")
                     non_mpi_institutions->emplace_back(subfield_a_value);
@@ -120,13 +124,12 @@ void AddPDAFieldToRecords(const std::string &cutoff_year, MARC::Reader * const m
             continue;
         }
 
-        std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> local_block_boundaries;
-        record.findAllLocalDataBlocks(&local_block_boundaries);
-        if (IsMPIRecord(record, local_block_boundaries) and not IsUBOrIFKRecord(record, local_block_boundaries)) {
+        auto local_block_starts(record.findStartOfAllLocalDataBlocks());
+        if (IsMPIRecord(record, local_block_starts) and not IsUBOrIFKRecord(record, local_block_starts)) {
             const std::string publication_year(GetPublicationYear(record));
             if (publication_year >= cutoff_year) {
                 std::vector<std::string> non_mpi_institutions;
-                FindNonMPIInstitutions(record, local_block_boundaries, &non_mpi_institutions);
+                FindNonMPIInstitutions(record, local_block_starts, &non_mpi_institutions);
                 if (non_mpi_institutions.empty()) {
                     ++pda_field_added_count;
                     record.insertField("PDA", { { 'a', "yes" } });
@@ -139,7 +142,7 @@ void AddPDAFieldToRecords(const std::string &cutoff_year, MARC::Reader * const m
         marc_writer->write(record);
     }
 
-    std::cout << "Added a PDA field to " << pda_field_added_count << " record(s).\n";
+    LOG_INFO("Added a PDA field to " + std::to_string(pda_field_added_count) + " record(s).");
 }
 
 
@@ -149,18 +152,17 @@ std::string GetCutoffYear(const unsigned no_of_years) {
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
+} // unnamed namespace
 
-    try {
-        if (argc != 4)
-            Usage();
 
-        const unsigned no_of_years(StringUtil::ToUnsigned(argv[1]));
-        const std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
-        const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
-        AddPDAFieldToRecords(GetCutoffYear(no_of_years), marc_reader.get(), marc_writer.get());
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+int Main(int argc, char *argv[]) {
+    if (argc != 4)
+        Usage();
+
+    const unsigned no_of_years(StringUtil::ToUnsigned(argv[1]));
+    const std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
+    const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
+    AddPDAFieldToRecords(GetCutoffYear(no_of_years), marc_reader.get(), marc_writer.get());
+
+    return EXIT_SUCCESS;
 }

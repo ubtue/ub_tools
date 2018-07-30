@@ -30,10 +30,10 @@
 #include "util.h"
 
 
-static void Usage() __attribute__((noreturn));
+namespace {
 
 
-static void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbose] marc_data\n";
     std::exit(EXIT_FAILURE);
 }
@@ -80,17 +80,15 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
                 max_subfield_count = subfield_count;
         }
 
-        std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> local_block_boundaries;
-        const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
+        const auto local_block_starts(record.findStartOfAllLocalDataBlocks());
+        const size_t local_block_count(local_block_starts.size());
         if (local_block_count > max_local_block_count)
             max_local_block_count = local_block_count;
-        for (const auto local_block_boundary : local_block_boundaries) {
-            std::vector<MARC::Record::const_iterator> fields;
-            if (record.findFieldsInLocalBlock("001", "??", local_block_boundary, &fields) != 1)
-                logger->error("Every local data block has to have exactly one 001 field. (Record: "
-                              + record.getControlNumber() + ", Local data block: "
-                              + std::to_string(local_block_boundary.first - record.begin()) + " - "
-                              + std::to_string(local_block_boundary.second - record.begin()) + ")");
+        for (const auto local_block_start : local_block_starts) {
+            if (record.findFieldsInLocalBlock("001", local_block_start).size() != 1)
+                LOG_ERROR("Every local data block has to have exactly one 001 field. (Record: "
+                          + record.getControlNumber() + ", Local data block starts at field: "
+                          + std::to_string(local_block_start - record.begin()) + ")");
         }
     }
 
@@ -112,9 +110,10 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
+} // unnamed namespace
 
+
+int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
@@ -125,11 +124,8 @@ int main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
+    auto marc_reader(MARC::Reader::Factory(argv[1]));
+    ProcessRecords(verbose, marc_reader.get());
 
-    try {
-        ProcessRecords(verbose, marc_reader.get());
-    } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
-    }
+    return EXIT_SUCCESS;
 }
