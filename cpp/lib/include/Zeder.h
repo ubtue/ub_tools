@@ -41,6 +41,7 @@ static constexpr auto MODIFIED_TIMESTAMP_FORMAT_STRING = "%Y-%m-%d %H:%M:%S";
 class Entry {
 protected:
     using AttributeMap = std::unordered_map<std::string, std::string>;
+
     unsigned id_;
     tm last_modified_timestamp_;
     AttributeMap attributes_;     // column name => content
@@ -57,25 +58,38 @@ public:
     const std::string &getAttribute(const std::string &name) const;
     void setAttribute(const std::string &name, const std::string &value, bool overwrite = false);
     bool hasAttribute(const std::string &name) const { return attributes_.find(name) != attributes_.end(); }
+    void removeAttribute(const std::string &name);
+    unsigned keepAttributes(const std::vector<std::string> &names_to_keep);
 
     const_iterator begin() const { return attributes_.begin(); }
     const_iterator end() const { return attributes_.end(); }
     size_t size() const { return attributes_.size(); }
+
+    struct DiffResult {
+        // True if the modified revision's timestamp is newer than the source revision's
+        bool is_timestamp_newer;
+        // ID of the corresponding entry
+        unsigned id_;
+        // Last modified timestamp of the modified/newer revision
+        tm last_modified_timestamp_;
+        // Attribute => (old value, new value)
+        // If the attribute was not present in the source revision, the old value is an empty string
+        std::unordered_map<std::string, std::pair<std::string, std::string>> modified_attributes_;
+    };
+
+    // Compares the LHS (old revision) with the RHS (new revision) and returns the differences
+    static DiffResult Diff(const Entry &lhs, const Entry &rhs, const bool skip_timestamp_check = false);
+    // Merges the delta into an entry, overwritting any previous values
+    static void Merge(const DiffResult &delta, Entry * const merge_into);
 };
 
 
 // A collection of related entries
 class EntryCollection {
-    tm last_modified_timestamp_;    // when the config, as a whole, was modified
     std::vector<Entry> entries_;
 public:
     using iterator = std::vector<Entry>::iterator;
     using const_iterator = std::vector<Entry>::const_iterator;
-
-    EntryCollection(): last_modified_timestamp_{}, entries_() {}
-
-    const struct tm &getModifiedTimestamp() const { return last_modified_timestamp_; }
-    void setModifiedTimestamp(const struct tm &new_timestamp);
 
     /* Sorts entries by their Zeder ID */
     void sortEntries();
@@ -98,16 +112,18 @@ public:
     const_iterator begin() const { return entries_.begin(); }
     const_iterator end() const { return entries_.end(); }
     size_t size() const { return entries_.size(); }
+    void clear() { entries_.clear(); }
 };
 
+enum FileType { CSV, JSON, INI };
 
-class ExportedDataReader {
-    enum FileType { CSV, JSON, INI };
+FileType GetFileTypeFromPath(const std::string &path);
 
-    static FileType GetFileTypeFromPath(const std::string &path);
+
+class Importer {
 public:
-    class InputParams {
-        friend class ExportedDataReader;
+    class Params {
+        friend class Importer;
         friend class CsvReader;
         friend class IniReader;
     protected:
@@ -118,8 +134,8 @@ public:
         */
         std::function<bool(Entry * const)> postprocessor_;
     public:
-        InputParams(const std::string &file_path, const std::function<bool(Entry * const)> &postprocessor): file_path_(file_path), postprocessor_(postprocessor) {}
-        virtual ~InputParams() = default;
+        Params(const std::string &file_path, const std::function<bool(Entry * const)> &postprocessor): file_path_(file_path), postprocessor_(postprocessor) {}
+        virtual ~Params() = default;
     };
 protected:
     enum MandatoryField { Z, MTIME };
@@ -129,24 +145,24 @@ protected:
         { MTIME,    "Mtime"  }
     };
 
-    std::unique_ptr<InputParams> input_params_;
+    std::unique_ptr<Params> input_params_;
 
-    ExportedDataReader(std::unique_ptr<InputParams> params): input_params_(std::move(params)) {}
+    Importer(std::unique_ptr<Params> params): input_params_(std::move(params)) {}
 public:
-    virtual ~ExportedDataReader() = default;
+    virtual ~Importer() = default;
 
     virtual void parse(EntryCollection * const collection) = 0;
 
-    static std::unique_ptr<ExportedDataReader> Factory(std::unique_ptr<InputParams> &&params);
+    static std::unique_ptr<Importer> Factory(std::unique_ptr<Params> &&params);
 };
 
 
-class CsvReader : public ExportedDataReader {
-    friend class ExportedDataReader;
+class CsvReader : public Importer {
+    friend class Importer;
 
     DSVReader reader_;
 
-    CsvReader(std::unique_ptr<InputParams> &&params): ExportedDataReader(std::forward<std::unique_ptr<InputParams>>(params)), reader_(params->file_path_, ',') {}
+    CsvReader(std::unique_ptr<Params> &&params): Importer(std::forward<std::unique_ptr<Params>>(params)), reader_(params->file_path_, ',') {}
 public:
     virtual ~CsvReader() override = default;
 
@@ -154,29 +170,78 @@ public:
 };
 
 
-class IniReader : public ExportedDataReader {
-    friend class ExportedDataReader;
+class IniReader : public Importer {
+    friend class Importer;
 
     IniFile config_;
 
-    IniReader(std::unique_ptr<InputParams> &&params): ExportedDataReader(std::forward<std::unique_ptr<ExportedDataReader::InputParams>>(params)), config_(params->file_path_) {}
+    IniReader(std::unique_ptr<Params> &&params): Importer(std::forward<std::unique_ptr<Importer::Params>>(params)), config_(params->file_path_) {}
 public:
-    class InputParams : public ExportedDataReader::InputParams {
+    class Params : public Importer::Params {
         friend class IniReader;
     protected:
-        std::string
         std::vector<std::string> valid_section_names_;
-        std::unordered_map<std::string, std::string> key_to_column_map_;
+        std::string section_name_attribute_;
+        std::unordered_map<std::string, std::string> key_to_attribute_map_;
     public:
-        InputParams(const std::string &file_path, const std::function<bool(Entry * const)> &postprocessor,
-                    const std::vector<std::string> &valid_section_names, std::unordered_map<std::string, std::string> &key_to_column_map):
-                    ExportedDataReader::InputParams(file_path, postprocessor), valid_section_names_(valid_section_names), key_to_column_map_(key_to_column_map) {}
-        virtual ~InputParams() = default;
+        Params(const std::string &file_path, const std::function<bool(Entry * const)> &postprocessor,
+                    const std::vector<std::string> &valid_section_names, const std::string &section_name_attribute,
+                    const std::unordered_map<std::string, std::string> &key_to_attribute_map):
+                    Importer::Params(file_path, postprocessor),
+                    valid_section_names_(valid_section_names), section_name_attribute_(section_name_attribute),
+                    key_to_attribute_map_(key_to_attribute_map) {}
+        virtual ~Params() = default;
     };
 public:
     virtual ~IniReader() override = default;
 
     virtual void parse(EntryCollection * const collection) override;
+};
+
+
+class Exporter {
+public:
+    class Params {
+        friend class Exporter;
+        friend class IniWriter;
+    protected:
+        const std::string file_path_;
+    public:
+        Params(const std::string &file_path): file_path_(file_path) {}
+        virtual ~Params() = default;
+    };
+protected:
+    std::unique_ptr<Params> input_params_;
+
+    Exporter(std::unique_ptr<Params> params): input_params_(std::move(params)) {}
+public:
+    virtual ~Exporter() = default;
+
+    virtual void write(EntryCollection * const collection) = 0;
+
+    static std::unique_ptr<Exporter> Factory(std::unique_ptr<Params> &&params);
+};
+
+
+class IniWriter : public Exporter {
+    friend class Exporter;
+
+    IniFile config_;
+
+    IniWriter(std::unique_ptr<Params> &&params): Exporter(std::forward<std::unique_ptr<Exporter::Params>>(params)), config_(params->file_path_) {}
+public:
+    class Params : public Exporter::Params {
+        friend class IniWriter;
+    protected:
+
+    public:
+        Params(const std::string &file_path): Exporter::Params(file_path) {}
+        virtual ~Params() = default;
+    };
+public:
+    virtual ~IniWriter() override = default;
+
+    virtual void write(EntryCollection * const collection) override;
 };
 
 

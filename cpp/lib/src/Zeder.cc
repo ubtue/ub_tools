@@ -26,9 +26,69 @@ void Entry::setAttribute(const std::string &name, const std::string &value, bool
 }
 
 
-inline void EntryCollection::setModifiedTimestamp(const tm &new_timestamp) {
-    std::memcpy(&last_modified_timestamp_, &new_timestamp, sizeof(new_timestamp));
+void Entry::removeAttribute(const std::string &name) {
+    if (not hasAttribute(name))
+        LOG_ERROR("Couldn't find attribute '" + name + "'! in entry " + std::to_string(id_));
+    else
+        attributes_.erase(attributes_.find(name));
 }
+
+
+unsigned Entry::keepAttributes(const std::vector<std::string> &names_to_keep) {
+    std::vector<std::string> names_to_remove;
+    for (const auto &key_value : attributes_) {
+        if (std::find(names_to_keep.begin(), names_to_keep.end(), key_value.first) == names_to_keep.end())
+            names_to_remove.push_back(key_value.first);
+    }
+
+    for (const auto &name : names_to_remove)
+        attributes_.erase(attributes_.find(name));
+    return names_to_remove.size();
+}
+
+
+Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool skip_timestamp_check) {
+    if (lhs.getId() != rhs.getId())
+        LOG_ERROR("Can only diff revisions of the same entry! LHS = " + std::to_string(lhs.getId()) + ", RHS = " + std::to_string(rhs.getId()));
+
+    DiffResult delta{ false, rhs.getId(), rhs.getLastModifiedTimestamp(), {} };
+    if (not skip_timestamp_check) {
+        const auto time_difference(TimeUtil::DiffStructTm(rhs.getLastModifiedTimestamp(), lhs.getLastModifiedTimestamp()));
+        if (time_difference <= 0) {
+            LOG_WARNING("The existing entry " + std::to_string(rhs.getId()) + " is newer than the diff by "
+                    + std::to_string(time_difference) + " seconds");
+        } else
+            delta.is_timestamp_newer = true;
+    }
+
+    for (const auto &key_value : rhs) {
+        const auto &attribute_name(key_value.first), &attribute_value(key_value.second);
+
+        if (lhs.hasAttribute(attribute_name)) {
+            const auto value(lhs.getAttribute(attribute_name));
+            if (value != attribute_value) {
+                // copy the old value before updating it (since it's a reference)
+                delta.modified_attributes_[attribute_name] = std::make_pair(value, attribute_value);
+            }
+        } else
+            delta.modified_attributes_[attribute_name] = std::make_pair("", attribute_value);
+    }
+
+    return delta;
+}
+
+
+void Entry::Merge(const DiffResult &delta, Entry * const merge_into) {
+    if (delta.id_ != merge_into->getId()) {
+        LOG_ERROR("ID mismatch between diff and entry. Diff  = " + std::to_string(delta.id_) +
+                  ", Entry = " + std::to_string(merge_into->getId()));
+    }
+
+    merge_into->setModifiedTimestamp(delta.last_modified_timestamp_);
+    for (const auto &key_value : delta.modified_attributes_)
+        merge_into->setAttribute(key_value.first, key_value.second.second, true);
+}
+
 
 
 inline void EntryCollection::sortEntries() {
@@ -110,7 +170,7 @@ inline EntryCollection::const_iterator EntryCollection::find(const unsigned id) 
 }
 
 
-ExportedDataReader::FileType ExportedDataReader::GetFileTypeFromPath(const std::string &path) {
+FileType GetFileTypeFromPath(const std::string &path) {
     if (FileUtil::Exists(path)) {
         if (StringUtil::EndsWith(path, ".csv", /* ignore_case = */true))
             return FileType::CSV;
@@ -124,11 +184,11 @@ ExportedDataReader::FileType ExportedDataReader::GetFileTypeFromPath(const std::
 }
 
 
-std::unique_ptr<ExportedDataReader> ExportedDataReader::Factory(std::unique_ptr<InputParams> &&params) {
+std::unique_ptr<Importer> Importer::Factory(std::unique_ptr<Params> &&params) {
     auto file_type(GetFileTypeFromPath(params->file_path_));
     switch (file_type) {
     case FileType::CSV:
-        return std::unique_ptr<CsvReader>(new CsvReader(std::forward<std::unique_ptr<InputParams>>(params)));
+        return std::unique_ptr<CsvReader>(new CsvReader(std::forward<std::unique_ptr<Params>>(params)));
     default:
         LOG_ERROR("Reader not implemented for file '" + params->file_path_ + "'");
     };
@@ -170,11 +230,13 @@ void CsvReader::parse(EntryCollection * const collection) {
         if (input_params_->postprocessor_(&new_entry))
             collection->addEntry(new_entry);
     }
+
+    collection->sortEntries();
 }
 
 
 void IniReader::parse(EntryCollection * const collection) {
-    IniReader::InputParams * const params(dynamic_cast<IniReader::InputParams * const>(input_params_.get()));
+    IniReader::Params * const params(dynamic_cast<IniReader::Params * const>(input_params_.get()));
     if (not params)
         LOG_ERROR("Invalid input parameters passed to IniReader!");
 
@@ -182,28 +244,44 @@ void IniReader::parse(EntryCollection * const collection) {
         const auto &section(*config_.getSection(section_name));
         Entry new_entry;
 
+        new_entry.setAttribute(params->section_name_attribute_, section_name);
         for (const auto &entry : section) {
-            const auto column_name(params->key_to_column_map_.find(entry.name_));
-            if (column_name == params->key_to_column_map_.end())
-                LOG_WARNING("Key '" + entry.name_ + "' has no corresponding Zeder column.");
+            const auto attribute_name(params->key_to_attribute_map_.find(entry.name_));
+            if (attribute_name == params->key_to_attribute_map_.end())
+                LOG_DEBUG("Key '" + entry.name_ + "' has no corresponding Zeder attribute.");
             else {
-                if (column_name->second == MANDATORY_FIELD_TO_STRING_MAP.at(Z)) {
+                if (attribute_name->second == MANDATORY_FIELD_TO_STRING_MAP.at(Z)) {
                     unsigned id(0);
-                    if (not StringUtil::ToUnsigned(column_name->second, &id))
+                    if (not StringUtil::ToUnsigned(attribute_name->second, &id))
                         LOG_WARNING("Couldn't parse Zeder ID in section '" + section_name + "'");
                     else
                         new_entry.setId(id);
-                } else if (column_name->second == MANDATORY_FIELD_TO_STRING_MAP.at(MTIME))
-                new_entry.setAttribute(column_name->second, entry.value_);
+                } else if (attribute_name->second == MANDATORY_FIELD_TO_STRING_MAP.at(MTIME))
+                    new_entry.setModifiedTimestamp(TimeUtil::StringToStructTm(entry.value_, MODIFIED_TIMESTAMP_FORMAT_STRING));
+                else
+                    new_entry.setAttribute(attribute_name->second, entry.value_);
             }
         }
 
-        if (not new_entry.hasAttribute(MANDATORY_FIELD_TO_STRING_MAP.at(Z)) or
-            not new_entry.hasAttribute(MANDATORY_FIELD_TO_STRING_MAP.at(MTIME)))
-        {
+        struct tm last_modified(new_entry.getLastModifiedTimestamp());
+        if (not(new_entry.getId() == 0) or std::mktime(&last_modified) == -1)
             LOG_WARNING("Mandatory fields were not found in section '" + section_name + "'");
-        }
+        else if (input_params_->postprocessor_(&new_entry))
+            collection->addEntry(new_entry);
     }
+
+    collection->sortEntries();
+}
+
+
+std::unique_ptr<Exporter> Exporter::Factory(std::unique_ptr<Params> &&params) {
+    auto file_type(GetFileTypeFromPath(params->file_path_));
+    switch (file_type) {
+    case FileType::INI:
+        return std::unique_ptr<IniWriter>(new IniWriter(std::forward<std::unique_ptr<Params>>(params)));
+    default:
+        LOG_ERROR("Reader not implemented for file '" + params->file_path_ + "'");
+    };
 }
 
 
