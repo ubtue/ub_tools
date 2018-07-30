@@ -649,29 +649,6 @@ coalescing_done:
 }
 
 
-size_t Record::findAllLocalDataBlocks(
-    std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const
-{
-    local_block_boundaries->clear();
-
-    auto local_block_start(getFirstField("LOK"));
-    if (local_block_start == fields_.end())
-        return 0;
-
-    auto local_block_end(local_block_start + 1);
-    while (local_block_end < fields_.end()) {
-        if (StringUtil::StartsWith(local_block_end->getContents(), "  ""\x1F""0000")) {
-            local_block_boundaries->emplace_back(std::make_pair(local_block_start, local_block_end));
-            local_block_start = local_block_end;
-        }
-        ++local_block_end;
-    }
-    local_block_boundaries->emplace_back(std::make_pair(local_block_start, local_block_end));
-
-    return local_block_boundaries->size();
-}
-
-
 static inline bool LocalIndicators1Match(const Record::Field &field, const char indicator) {
     if (indicator == '?')
         return true;
@@ -713,34 +690,6 @@ Record::ConstantRange Record::getLocalTagRange(const Tag &field_tag, const const
         ++tag_range_end;
 
     return ConstantRange(tag_range_start, tag_range_end);
-}
-
-
-static inline bool IndicatorsMatch(const std::string &indicator_pattern, const std::string &indicators) {
-    if (indicator_pattern[0] != '?' and indicator_pattern[0] != indicators[0])
-        return false;
-    if (indicator_pattern[1] != '?' and indicator_pattern[1] != indicators[1])
-        return false;
-    return true;
-}
-
-
-size_t Record::findFieldsInLocalBlock(const Tag &field_tag, const std::string &indicators,
-                                      const std::pair<const_iterator, const_iterator> &block_start_and_end,
-                                      std::vector<const_iterator> * const fields) const
-{
-    fields->clear();
-    if (unlikely(indicators.length() != 2))
-        LOG_ERROR("indicators must be precisely 2 characters long!");
-
-    const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag.toString());
-    for (auto field(block_start_and_end.first); field < block_start_and_end.second; ++field) {
-        const std::string &field_contents(field->getContents());
-        if (StringUtil::StartsWith(field_contents, FIELD_PREFIX)
-            and IndicatorsMatch(indicators, field_contents.substr(7, 2)))
-            fields->emplace_back(field);
-    }
-    return fields->size();
 }
 
 
