@@ -15,7 +15,6 @@ import org.marc4j.marc.*;
  * @author root
  */
 public class Main {
-
     private static void usage() {
         System.err.println("Usage: marc4j_check.jar <filename>");
         System.exit(1);
@@ -48,5 +47,4 @@ public class Main {
 
         System.exit(1);
     }
-
 }
