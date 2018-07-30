@@ -109,25 +109,6 @@ TEST(deleteFields) {
 }
 
 
-TEST(findAllLocalDataBlocks) {
-    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
-    MARC::Record record(reader->read());
-
-    std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> local_blocks;
-    size_t count(record.findAllLocalDataBlocks(&local_blocks));
-
-    CHECK_EQ(count, 2);
-    CHECK_EQ(local_blocks.size(), count);
-
-    const auto first_block_length(local_blocks[0].second - local_blocks[0].first);
-    CHECK_EQ(first_block_length, 2);
-
-    const auto second_block_length(local_blocks[1].second - local_blocks[1].first);
-    CHECK_EQ(second_block_length, 3);
-
-}
-
-
 TEST(hasSubfield) {
     std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory("data/marc_record_test.mrc"));
     MARC::Record record(reader->read());
@@ -157,8 +138,7 @@ TEST(filterTags) {
         field_iter = record.erase(field_iter);
 
     std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> local_blocks;
-    const size_t count(record.findAllLocalDataBlocks(&local_blocks));
-    CHECK_EQ(count, 0);
+    CHECK_TRUE(record.findStartOfAllLocalDataBlocks().empty());
 }
 
 
