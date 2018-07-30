@@ -50,13 +50,12 @@ void ProcessSuperiorRecord(const MARC::Record &record, RegexMatcher * const tue_
     if (not record.hasFieldWithTag("SPR"))
         return;
 
-    std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> local_block_boundaries;
-    record.findAllLocalDataBlocks(&local_block_boundaries);
+    auto local_block_starts(record.findStartOfAllLocalDataBlocks());
 
-    for (const auto &block_start_and_end : local_block_boundaries) {
-        for (const auto &field : record.findFieldsInLocalBlock("852", block_start_and_end.first)) {
+    for (const auto &local_block_start : local_block_starts) {
+        for (const auto &_852_field : record.findFieldsInLocalBlock("852", local_block_start)) {
             std::string sigil;
-            if (field.extractSubfieldWithPattern('a', *tue_sigil_matcher, &sigil)) {
+            if (_852_field.extractSubfieldWithPattern('a', *tue_sigil_matcher, &sigil)) {
                 de21_superior_ppns->insert(record.getControlNumber());
                 ++*extracted_count;
             }
@@ -107,16 +106,15 @@ void FlagRecordAsInTuebingenAvailable(MARC::Record * const record, unsigned * co
 
 
 bool AlreadyHasLOK852DE21(const MARC::Record &record, RegexMatcher * const tue_sigil_matcher) {
-    std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> local_block_boundaries;
-    if (record.findAllLocalDataBlocks(&local_block_boundaries) == 0)
+    const auto local_block_starts(record.findStartOfAllLocalDataBlocks());
+    if (local_block_starts.empty())
         return false;
 
-    for (const auto &block_start_and_end : local_block_boundaries) {
-        for (const auto &field : record.findFieldsInLocalBlock("852", block_start_and_end.first)) {
+    for (const auto local_block_start : local_block_starts) {
+        for (const auto &_852_field : record.findFieldsInLocalBlock("852", local_block_start)) {
             std::string sigil;
-            if (field.extractSubfieldWithPattern('a', *tue_sigil_matcher, &sigil)) {
+            if (_852_field.extractSubfieldWithPattern('a', *tue_sigil_matcher, &sigil))
                  return true;
-            }
         }
     }
     return false;
