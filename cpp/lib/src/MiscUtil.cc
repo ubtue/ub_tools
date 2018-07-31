@@ -513,4 +513,15 @@ size_t LoadMapFile(const std::string &filename, std::unordered_map<std::string, 
 }
 
 
+std::string MakeOrdinal(const unsigned number) {
+    if (number % 10 == 1)
+        return StringUtil::ToString(number) + "st";
+    if (number % 10 == 2)
+        return StringUtil::ToString(number) + "nd";
+    if (number % 10 == 3)
+        return StringUtil::ToString(number) + "rd";
+    return StringUtil::ToString(number) + "th";    
+}
+
+
 } // namespace MiscUtil
