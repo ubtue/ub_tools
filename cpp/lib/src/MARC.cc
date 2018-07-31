@@ -581,7 +581,7 @@ std::vector<Record::const_iterator> Record::findStartOfAllLocalDataBlocks() cons
         return block_start_iterators;
 
     block_start_iterators.emplace_back(local_field);
-    while (local_field != end()) {
+    while (local_field != end() and local_field->getTag() == "LOK") {
         if (GetLocalTag(*local_field) < last_local_tag)
             block_start_iterators.emplace_back(local_field);
         last_local_tag = GetLocalTag(*local_field);

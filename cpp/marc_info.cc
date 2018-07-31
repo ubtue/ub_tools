@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include "FileUtil.h"
 #include "MARC.h"
+#include "MiscUtil.h"
 #include "util.h"
 
 
@@ -38,7 +39,7 @@ namespace {
     std::exit(EXIT_FAILURE);
 }
 
-
+    
 void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
     std::string raw_record;
     unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0),
@@ -84,11 +85,12 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
         const size_t local_block_count(local_block_starts.size());
         if (local_block_count > max_local_block_count)
             max_local_block_count = local_block_count;
+        unsigned local_block_number(0);
         for (const auto local_block_start : local_block_starts) {
+            ++local_block_number;
             if (record.findFieldsInLocalBlock("001", local_block_start).size() != 1)
-                LOG_ERROR("Every local data block has to have exactly one 001 field. (Record: "
-                          + record.getControlNumber() + ", Local data block starts at field: "
-                          + std::to_string(local_block_start - record.begin()) + ")");
+                LOG_ERROR("The " + MiscUtil::MakeOrdinal(local_block_number) + " local data block is missing a  001 field. (Record: "
+                          + record.getControlNumber() + ")");
         }
     }
 
