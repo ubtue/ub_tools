@@ -77,11 +77,15 @@ void CollectSuperiorPPNs(MARC::Reader * const marc_reader, std::unordered_set<st
 
 
 // Returns a partner PPN or the empty string if none was found.
-std::string ExtractCrossReferencePPN(const MARC::Record &record) {
-    for (const auto &field : record.getTagRange("776")) {
-        const MARC::Subfields _776_subfields(field.getSubfields());
-        if (_776_subfields.getFirstSubfieldWithCode('i') == "Erscheint auch als") {
-            for (const auto &w_subfield : _776_subfields.extractSubfields('w')) {
+std::string ExtractCrossReferencePPNFromTag(const MARC::Record &record, const std::string &tag) {
+    for (const auto &field : record.getTagRange(tag)) {
+        const MARC::Subfields subfields(field.getSubfields());
+        const auto subfield_i(subfields.getFirstSubfieldWithCode('i'));
+        if (not subfield_i.empty()
+            and (subfield_i == "Erscheint auch als" or subfield_i == "Online-Ausg." or subfield_i == "Digital. Ausg."
+                 or subfield_i == "Druckausg."))
+        {
+            for (const auto &w_subfield : subfields.extractSubfields('w')) {
                 if (StringUtil::StartsWith(w_subfield, "(DE-576)"))
                     return w_subfield.substr(__builtin_strlen("(DE-576)"));
             }
@@ -89,6 +93,16 @@ std::string ExtractCrossReferencePPN(const MARC::Record &record) {
     }
 
     return "";
+}
+
+
+// Returns a partner PPN or the empty string if none was found.
+std::string ExtractCrossReferencePPN(const MARC::Record &record) {
+    const std::string partner_ppn(ExtractCrossReferencePPNFromTag(record, "775"));
+    if (not partner_ppn.empty())
+        return partner_ppn;
+
+    return ExtractCrossReferencePPNFromTag(record, "776");
 }
 
 
@@ -430,8 +444,15 @@ void ProcessRecords(const bool /*debug*/, MARC::Reader * const marc_reader, MARC
         const auto control_number_and_offset(ppn_to_offset_map.find(record.getControlNumber()));
         if (control_number_and_offset != ppn_to_offset_map.end()) {
             MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, control_number_and_offset->second));
-            record = MergeRecords(Patch246i(&record), Patch246i(&record2));
-            ++merged_count;
+
+            // Only merge records if one is print and the other one online:
+            const bool record_is_electronic(record.isElectronicResource());
+            const bool record2_is_electronic(record2.isElectronicResource());
+            if (record_is_electronic != record2_is_electronic) {
+                record = MergeRecords(Patch246i(&record), Patch246i(&record2));
+                ++merged_count;
+            } else
+                marc_writer->write(record2);
         } else if (PatchUplink(&record, ppn_to_ppn_map))
             ++patched_uplink_count;
 
