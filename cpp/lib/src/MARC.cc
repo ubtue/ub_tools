@@ -149,6 +149,17 @@ bool Record::Field::operator<(const Record::Field &rhs) const {
 }
 
 
+
+Tag Record::Field::getLocalTag() const {
+    if (unlikely(tag_ != "LOK"))
+        LOG_ERROR("you must not call getLocalTag() on a \"" + tag_.toString() + "\" tag!");
+    if (contents_.length() < 2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/
+        or contents_[2] != '\x1F' or contents_[3] != '0')
+        return "";
+    return contents_.substr(2 /*indicators*/ + 2/*delimiter and subfield code*/, 3 /*tag length*/);
+}
+
+
 std::string Record::Field::getFirstSubfieldWithCode(const char subfield_code) const {
     if (unlikely(contents_.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
         return "";
@@ -621,16 +632,16 @@ void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
     auto block_start(local_block_starts.begin());
     while (block_start != local_block_starts.end()) {
         iterator range_start(*block_start);
-        Tag last_tag(range_start->getTag());
+        Tag last_local_tag(range_start->getLocalTag());
         iterator range_end(range_start + 1);
         for (;;) {
-            if (range_end == fields_.end()) {
+            if (range_end == fields_.end() or range_end->getTag() != "LOK") {
                 deletion_ranges.emplace_back(range_start, range_end);
                 goto coalescing_done;
             }
 
             // Start of a new block?
-            if (range_end->getTag() < last_tag) {
+            if (range_end->getLocalTag() < last_local_tag) {
                 ++block_start;
                 if (range_end != *block_start) {
                     deletion_ranges.emplace_back(range_start, range_end);
@@ -638,7 +649,7 @@ void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
                 }
             }
 
-            last_tag = range_end->getTag();
+            last_local_tag = range_end->getLocalTag();
             ++range_end;
         }
     }
@@ -669,23 +680,23 @@ static inline bool LocalIndicatorsMatch(const Record::Field &field, const char i
 }
 
 
-Record::ConstantRange Record::getLocalTagRange(const Tag &field_tag, const const_iterator &block_start, const char indicator1,
+Record::ConstantRange Record::getLocalTagRange(const Tag &local_field_tag, const const_iterator &block_start, const char indicator1,
                                                const char indicator2) const
 {
     const_iterator tag_range_start(block_start);
-    Tag last_tag(tag_range_start->getLocalTag());
+    Tag last_local_tag(tag_range_start->getLocalTag());
     for (;;) {
         const Tag tag(tag_range_start->getLocalTag());
-        if (tag == field_tag and LocalIndicatorsMatch(*tag_range_start, indicator1, indicator2))
+        if (tag == local_field_tag and LocalIndicatorsMatch(*tag_range_start, indicator1, indicator2))
             break;
         ++tag_range_start;
-        if (tag_range_start == fields_.cend() or tag_range_start->getLocalTag() < last_tag)
+        if (tag_range_start == fields_.cend() or tag_range_start->getLocalTag() < last_local_tag or tag_range_start->getTag() != "LOK")
             return ConstantRange(fields_.cend(), fields_.cend());
-        last_tag = tag_range_start->getLocalTag();
+        last_local_tag = tag_range_start->getLocalTag();
     }
 
     const_iterator tag_range_end(tag_range_start + 1);
-    while (tag_range_end != fields_.cend() and tag_range_end->getLocalTag() == field_tag
+    while (tag_range_end != fields_.cend() and tag_range_end->getTag() == "LOK" and tag_range_end->getLocalTag() == local_field_tag
            and LocalIndicatorsMatch(*tag_range_end, indicator1, indicator2))
         ++tag_range_end;
 
