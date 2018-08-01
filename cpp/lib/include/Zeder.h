@@ -21,6 +21,7 @@
 #include <functional>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include "IniFile.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
@@ -28,10 +29,6 @@
 
 
 namespace Zeder {
-
-
-class CsvReader;
-class IniReader;
 
 
 static constexpr auto MODIFIED_TIMESTAMP_FORMAT_STRING = "%Y-%m-%d %H:%M:%S";
@@ -96,17 +93,6 @@ public:
 
     /* Adds an entry to the config if it's not already present */
     void addEntry(const Entry &new_entry, const bool sort_after_add = false);
-
-    /* Attempts to merge the changes specified in the diff into the config.
-       The ID field of the diff specifies the entry to merge into. If the
-       entry doesn't exist and 'add_if_absent' is true, a new entry is created for the ID.
-       'modified_attributes' contains pairs of old and new values for each modified attribute.
-
-       Returns true if the entry was modified, or if a new one was created.
-    */
-    bool mergeEntry(const Entry &diff, std::unordered_map<std::string, std::pair<std::string, std::string>> * const modified_attributes = nullptr,
-                    const bool skip_timestamp_check = false, const bool add_if_absent = true);
-
     iterator find(const unsigned id);
     const_iterator find(const unsigned id) const;
     const_iterator begin() const { return entries_.begin(); }
@@ -129,9 +115,8 @@ public:
     protected:
         const std::string file_path_;
 
-        /* Callback to modify and/or validate entries after they are parsed.
-           If the callback returns true, the entry is added to the collection. If not, it's discarded.
-        */
+        // Callback to modify and/or validate entries after they are parsed.
+        // If the callback returns true, the entry is added to the collection. If not, it's discarded.
         std::function<bool(Entry * const)> postprocessor_;
     public:
         Params(const std::string &file_path, const std::function<bool(Entry * const)> &postprocessor): file_path_(file_path), postprocessor_(postprocessor) {}
@@ -182,13 +167,17 @@ public:
     protected:
         std::vector<std::string> valid_section_names_;
         std::string section_name_attribute_;
+        std::string zeder_id_key_;
+        std::string zeder_last_modified_timestamp_key_;
         std::unordered_map<std::string, std::string> key_to_attribute_map_;
     public:
         Params(const std::string &file_path, const std::function<bool(Entry * const)> &postprocessor,
                     const std::vector<std::string> &valid_section_names, const std::string &section_name_attribute,
+                    const std::string &zeder_id_key, const std::string &zeder_last_modified_timestamp_key,
                     const std::unordered_map<std::string, std::string> &key_to_attribute_map):
                     Importer::Params(file_path, postprocessor),
                     valid_section_names_(valid_section_names), section_name_attribute_(section_name_attribute),
+                    zeder_id_key_(zeder_id_key), zeder_last_modified_timestamp_key_(zeder_last_modified_timestamp_key),
                     key_to_attribute_map_(key_to_attribute_map) {}
         virtual ~Params() = default;
     };
@@ -217,7 +206,7 @@ protected:
 public:
     virtual ~Exporter() = default;
 
-    virtual void write(EntryCollection * const collection) = 0;
+    virtual void write(const EntryCollection &collection) = 0;
 
     static std::unique_ptr<Exporter> Factory(std::unique_ptr<Params> &&params);
 };
@@ -233,15 +222,29 @@ public:
     class Params : public Exporter::Params {
         friend class IniWriter;
     protected:
+        // Ordered list. The ID and the timestamp always go first.
+        std::vector<std::string> attributes_to_export_;
+        std::string section_name_attribute_;
+        std::string zeder_id_key_;
+        std::string zeder_last_modified_timestamp_key_;
+        std::unordered_map<std::string, std::string> attribute_to_key_map_;
 
+        // Callback to append extra data. Invoked after all the (exportable) attributes have been exported.
+        std::function<void(IniFile::Section * const, const Entry &)> extra_keys_appender_;
     public:
-        Params(const std::string &file_path): Exporter::Params(file_path) {}
+        Params(const std::string &file_path, const std::vector<std::string> &attributes_to_export,
+               const std::string &section_name_attribute, const std::string &zeder_id_key, const std::string &zeder_last_modified_timestamp_key,
+               const std::unordered_map<std::string, std::string> &attribute_name_to_key_map,
+               const std::function<void(IniFile::Section * const, const Entry &)> &extra_keys_appender):
+               Exporter::Params(file_path), attributes_to_export_(attributes_to_export), section_name_attribute_(section_name_attribute),
+               zeder_id_key_(zeder_id_key), zeder_last_modified_timestamp_key_(zeder_last_modified_timestamp_key),
+               attribute_to_key_map_(attribute_name_to_key_map), extra_keys_appender_(extra_keys_appender) {}
         virtual ~Params() = default;
     };
 public:
     virtual ~IniWriter() override = default;
 
-    virtual void write(EntryCollection * const collection) override;
+    virtual void write(const EntryCollection &collection) override;
 };
 
 
