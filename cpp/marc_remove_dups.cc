@@ -83,6 +83,7 @@ void DropDups(const bool use_checksums, MARC::Reader * const marc_reader, MARC::
 
         ChecksumAndControlNumber new_checksum_and_control_number(checksum, record.getControlNumber());
         const auto iter(previously_seen.find(new_checksum_and_control_number));
+        previously_seen.emplace(new_checksum_and_control_number);
         if (iter != previously_seen.cend()) {
             if (use_checksums) {
                 if (iter->checksum_ == new_checksum_and_control_number.checksum_) {
@@ -95,6 +96,7 @@ void DropDups(const bool use_checksums, MARC::Reader * const marc_reader, MARC::
             }
         }
 
+        previously_seen.emplace(new_checksum_and_control_number);
         marc_writer->write(record);
     }
 
