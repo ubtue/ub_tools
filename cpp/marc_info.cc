@@ -43,7 +43,7 @@ namespace {
 void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
     std::string raw_record;
     unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0),
-        max_subfield_count(0), cumulative_field_count(0);
+             max_subfield_count(0), cumulative_field_count(0), duplicate_control_number_count(0);
     std::unordered_set<std::string> control_numbers;
     std::map<MARC::Record::RecordType, unsigned> record_types_and_counts;
 
@@ -55,8 +55,10 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
             logger->error("record #" + std::to_string(record_count) + " has zero fields!");
         const std::string &control_number(record.getControlNumber());
 
-        if (control_numbers.find(control_number) != control_numbers.end())
+        if (control_numbers.find(control_number) != control_numbers.end()) {
+            ++duplicate_control_number_count;
             logger->warning("found at least one duplicate control number: " + control_number);
+        }
         control_numbers.insert(control_number);
 
         const MARC::Record::RecordType record_type(record.getRecordType());
@@ -94,7 +96,8 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
         }
     }
 
-    std::cout << "Data set contains " << record_count << " MARC record(s).\n";
+    std::cout << "Data set contains " << record_count << " MARC record(s) of which " << duplicate_control_number_count
+              << " record(s) is a/are duplicate(s).\n";
     std::cout << "Largest record contains " << max_record_length << " bytes.\n";
     std::cout << "The record with the largest number of \"local\" blocks has " << max_local_block_count
               << " local blocks.\n";
