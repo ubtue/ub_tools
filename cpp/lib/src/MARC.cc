@@ -621,16 +621,16 @@ void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
     auto block_start(local_block_starts.begin());
     while (block_start != local_block_starts.end()) {
         iterator range_start(*block_start);
-        Tag last_tag(range_start->getTag());
+        Tag last_local_tag(range_start->getLocalTag());
         iterator range_end(range_start + 1);
         for (;;) {
-            if (range_end == fields_.end()) {
+            if (range_end == fields_.end() or range_end->getTag() != "LOK") {
                 deletion_ranges.emplace_back(range_start, range_end);
                 goto coalescing_done;
             }
 
             // Start of a new block?
-            if (range_end->getTag() < last_tag) {
+            if (range_end->getLocalTag() < last_local_tag) {
                 ++block_start;
                 if (range_end != *block_start) {
                     deletion_ranges.emplace_back(range_start, range_end);
@@ -638,7 +638,7 @@ void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
                 }
             }
 
-            last_tag = range_end->getTag();
+            last_local_tag = range_end->getLocalTag();
             ++range_end;
         }
     }
@@ -673,19 +673,19 @@ Record::ConstantRange Record::getLocalTagRange(const Tag &field_tag, const const
                                                const char indicator2) const
 {
     const_iterator tag_range_start(block_start);
-    Tag last_tag(tag_range_start->getLocalTag());
+    Tag last_local_tag(tag_range_start->getLocalTag());
     for (;;) {
         const Tag tag(tag_range_start->getLocalTag());
         if (tag == field_tag and LocalIndicatorsMatch(*tag_range_start, indicator1, indicator2))
             break;
         ++tag_range_start;
-        if (tag_range_start == fields_.cend() or tag_range_start->getLocalTag() < last_tag)
+        if (tag_range_start == fields_.cend() or tag_range_start->getLocalTag() < last_local_tag or tag_range_start->getTag() != "LOK")
             return ConstantRange(fields_.cend(), fields_.cend());
-        last_tag = tag_range_start->getLocalTag();
+        last_local_tag = tag_range_start->getLocalTag();
     }
 
     const_iterator tag_range_end(tag_range_start + 1);
-    while (tag_range_end != fields_.cend() and tag_range_end->getLocalTag() == field_tag
+    while (tag_range_end != fields_.cend() and tag_range_end->getTag() == "LOK" and tag_range_end->getLocalTag() == field_tag
            and LocalIndicatorsMatch(*tag_range_end, indicator1, indicator2))
         ++tag_range_end;
 
