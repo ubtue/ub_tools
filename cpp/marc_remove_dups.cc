@@ -56,12 +56,15 @@ public:
 
 
 namespace std {
-    template <>
-    struct hash<ChecksumAndControlNumber> {
-        inline size_t operator()(const ChecksumAndControlNumber &checksum_and_control_number) const {
-            return hash<std::string>()(checksum_and_control_number.control_number_);
-        }
-    };
+
+
+template <> struct hash<ChecksumAndControlNumber> {
+    inline size_t operator()(const ChecksumAndControlNumber &checksum_and_control_number) const {
+        return hash<std::string>()(checksum_and_control_number.control_number_);
+    }
+};
+
+
 } // namespace std
 
 
