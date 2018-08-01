@@ -339,13 +339,7 @@ public:
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
-
-        inline Tag getLocalTag() const {
-            if (contents_.length() < 2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/
-                or contents_[2] != '\x1F' or contents_[3] != '0')
-                return "";
-            return contents_.substr(2 /*indicators*/ + 2/*delimiter and subfield code*/, 3 /*tag length*/);
-        }
+        Tag getLocalTag() const;
 
         /** \warning Do not call the following two functions on local control fields! */
         inline char getLocalIndicator1() const { return contents_[2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/]; }

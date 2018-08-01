@@ -149,6 +149,17 @@ bool Record::Field::operator<(const Record::Field &rhs) const {
 }
 
 
+
+Tag Record::Field::getLocalTag() const {
+    if (unlikely(tag_ != "LOK"))
+        LOG_ERROR("you must not call getLocalTag() on a \"" + tag_.toString() + "\" tag!");
+    if (contents_.length() < 2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/
+        or contents_[2] != '\x1F' or contents_[3] != '0')
+        return "";
+    return contents_.substr(2 /*indicators*/ + 2/*delimiter and subfield code*/, 3 /*tag length*/);
+}
+
+
 std::string Record::Field::getFirstSubfieldWithCode(const char subfield_code) const {
     if (unlikely(contents_.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
         return "";
