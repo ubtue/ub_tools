@@ -33,13 +33,6 @@ function KeepIntermediateFiles() {
 }
 
 
-declare -i counter=0
-function GetNextTempFilename() {
-    ((++counter))
-    echo temp_file.$BASHPID.$counter.tar.gz
-}
-
-
 if [[ -z $(printenv TUEFIND_FLAVOUR) ]]; then
     echo "You need to set the environment variable TUEFIND_FLAVOUR in order to run this script!"
     exit 1
@@ -55,8 +48,10 @@ echo "Creating ${target_filename}"
 
 
 input_file=$(generate_merge_order | head --lines=1)
+declare -i counter=0
 for update in $(generate_merge_order | tail --lines=+2); do
-    output_file=$(GetNextTempFilename)
+    ((++counter))
+    output_file=temp_file.$BASHPID.$counter.tar.gz
     if [[ ${update:0:6} == "LOEPPN" ]]; then
         echo "Processing deletion list: $update"
         archive_delete_ids $(KeepIntermediateFiles) $input_file $update $output_file

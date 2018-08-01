@@ -84,10 +84,8 @@ void GenerateAuthortyRecords(DbConnection * const db_connection, MARC::Writer * 
             subfields.addSubfield('a', main_translation);
             if (not additional_translation.empty())
                 subfields.addSubfield('9', "g:" + additional_translation);
-            subfields.addSubfield(
-                '9',
-                "L:"
-                + TranslationUtil::MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(row["language_code"]));
+            subfields.addSubfield('9',
+                                  "L:" + TranslationUtil::MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(row["language_code"]));
             subfields.addSubfield('9', "Z:" + std::string(IsSynonym(status) ? "VW" : "AF"));
             subfields.addSubfield('2', "IxTheo");
             new_record.insertField("750", subfields);
@@ -105,8 +103,6 @@ const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
 
 
 int Main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
     if (argc != 2)
         Usage();
     const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[1]));
