@@ -713,7 +713,7 @@ public:
      *     \endcode
      *  }
      */
-    ConstantRange getLocalTagRange(const Tag &field_tag, const const_iterator &block_start, const char indicator1 = '?',
+    ConstantRange getLocalTagRange(const Tag &local_field_tag, const const_iterator &block_start, const char indicator1 = '?',
                                    const char indicator2 = '?') const;
 
     /** \return An iterator pointing to the first field w/ local tag "local_field_tag" or end() if no such field was found. */

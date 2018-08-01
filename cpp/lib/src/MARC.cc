@@ -680,14 +680,14 @@ static inline bool LocalIndicatorsMatch(const Record::Field &field, const char i
 }
 
 
-Record::ConstantRange Record::getLocalTagRange(const Tag &field_tag, const const_iterator &block_start, const char indicator1,
+Record::ConstantRange Record::getLocalTagRange(const Tag &local_field_tag, const const_iterator &block_start, const char indicator1,
                                                const char indicator2) const
 {
     const_iterator tag_range_start(block_start);
     Tag last_local_tag(tag_range_start->getLocalTag());
     for (;;) {
         const Tag tag(tag_range_start->getLocalTag());
-        if (tag == field_tag and LocalIndicatorsMatch(*tag_range_start, indicator1, indicator2))
+        if (tag == local_field_tag and LocalIndicatorsMatch(*tag_range_start, indicator1, indicator2))
             break;
         ++tag_range_start;
         if (tag_range_start == fields_.cend() or tag_range_start->getLocalTag() < last_local_tag or tag_range_start->getTag() != "LOK")
@@ -696,7 +696,7 @@ Record::ConstantRange Record::getLocalTagRange(const Tag &field_tag, const const
     }
 
     const_iterator tag_range_end(tag_range_start + 1);
-    while (tag_range_end != fields_.cend() and tag_range_end->getTag() == "LOK" and tag_range_end->getLocalTag() == field_tag
+    while (tag_range_end != fields_.cend() and tag_range_end->getTag() == "LOK" and tag_range_end->getLocalTag() == local_field_tag
            and LocalIndicatorsMatch(*tag_range_end, indicator1, indicator2))
         ++tag_range_end;
 
