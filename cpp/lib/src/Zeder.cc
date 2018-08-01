@@ -38,7 +38,7 @@ unsigned Entry::keepAttributes(const std::vector<std::string> &names_to_keep) {
     std::vector<std::string> names_to_remove;
     for (const auto &key_value : attributes_) {
         if (std::find(names_to_keep.begin(), names_to_keep.end(), key_value.first) == names_to_keep.end())
-            names_to_remove.push_back(key_value.first);
+            names_to_remove.emplace_back(key_value.first);
     }
 
     for (const auto &name : names_to_remove)
@@ -59,7 +59,8 @@ Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool ski
                     + std::to_string(time_difference) + " seconds");
         } else
             delta.is_timestamp_newer = true;
-    }
+    } else
+        delta.last_modified_timestamp_ = TimeUtil::GetCurrentTimeGMT();
 
     for (const auto &key_value : rhs) {
         const auto &attribute_name(key_value.first), &attribute_value(key_value.second);
@@ -106,56 +107,6 @@ void EntryCollection::addEntry(const Entry &new_entry, const bool sort_after_add
 
     if (sort_after_add)
         sortEntries();
-}
-
-
-bool EntryCollection::mergeEntry(const Entry &diff, std::unordered_map<std::string, std::pair<std::string, std::string>> * const modified_attributes,
-                                 const bool skip_timestamp_check, const bool add_if_absent)
-{
-    const iterator into(find(diff.getId()));
-    std::unordered_map<std::string, std::pair<std::string, std::string>> modified_attributes_buffer;
-    modified_attributes_buffer.reserve(diff.size());
-
-    if (into == end()) {
-        if (add_if_absent) {
-            LOG_INFO("New entry " + std::to_string(diff.getId()) + " merged into config data");
-
-            addEntry(diff);
-            for (const auto &key_value : diff)
-                modified_attributes_buffer[key_value.first] = std::make_pair("", key_value.second);
-        } else
-            LOG_INFO("New entry " + std::to_string(diff.getId()) + " not merged into config data");
-    } else {
-        if (not skip_timestamp_check) {
-            const auto time_difference(TimeUtil::DiffStructTm(diff.getLastModifiedTimestamp(), into->getLastModifiedTimestamp()));
-            if (time_difference <= 0) {
-                LOG_ERROR("The existing entry " + std::to_string(diff.getId()) + " is newer than the diff by "
-                        + std::to_string(time_difference) + " seconds");
-            }
-        }
-
-        into->setModifiedTimestamp(diff.getLastModifiedTimestamp());
-        for (const auto &key_value : diff) {
-            const auto &attribute_name(key_value.first), &attribute_value(key_value.second);
-
-            if (into->hasAttribute(attribute_name)) {
-                const auto value(into->getAttribute(attribute_name));
-                if (value != attribute_value) {
-                    // copy the old value before updating it (since it's a reference)
-                    modified_attributes_buffer[attribute_name] = std::make_pair(value, attribute_value);
-                    into->setAttribute(attribute_name, attribute_value, true);
-                }
-            } else {
-                modified_attributes_buffer[attribute_name] = std::make_pair("", attribute_value);
-                into->setAttribute(attribute_name, attribute_value, true);
-            }
-        }
-    }
-
-    bool modified(not modified_attributes_buffer.empty());
-    if (modified_attributes)
-        modified_attributes->swap(modified_attributes_buffer);
-    return modified;
 }
 
 
@@ -246,18 +197,18 @@ void IniReader::parse(EntryCollection * const collection) {
 
         new_entry.setAttribute(params->section_name_attribute_, section_name);
         for (const auto &entry : section) {
-            const auto attribute_name(params->key_to_attribute_map_.find(entry.name_));
-            if (attribute_name == params->key_to_attribute_map_.end())
-                LOG_DEBUG("Key '" + entry.name_ + "' has no corresponding Zeder attribute.");
+            if (entry.name_ == params->zeder_id_key_) {
+                unsigned id(0);
+                if (not StringUtil::ToUnsigned(entry.value_, &id))
+                    LOG_WARNING("Couldn't parse Zeder ID in section '" + section_name + "'");
+                else
+                    new_entry.setId(id);
+            } else if (entry.name_ == params->zeder_last_modified_timestamp_key_)
+                new_entry.setModifiedTimestamp(TimeUtil::StringToStructTm(entry.value_, MODIFIED_TIMESTAMP_FORMAT_STRING));
             else {
-                if (attribute_name->second == MANDATORY_FIELD_TO_STRING_MAP.at(Z)) {
-                    unsigned id(0);
-                    if (not StringUtil::ToUnsigned(attribute_name->second, &id))
-                        LOG_WARNING("Couldn't parse Zeder ID in section '" + section_name + "'");
-                    else
-                        new_entry.setId(id);
-                } else if (attribute_name->second == MANDATORY_FIELD_TO_STRING_MAP.at(MTIME))
-                    new_entry.setModifiedTimestamp(TimeUtil::StringToStructTm(entry.value_, MODIFIED_TIMESTAMP_FORMAT_STRING));
+                const auto attribute_name(params->key_to_attribute_map_.find(entry.name_));
+                if (attribute_name == params->key_to_attribute_map_.end())
+                    LOG_DEBUG("Key '" + entry.name_ + "' has no corresponding Zeder attribute.");
                 else
                     new_entry.setAttribute(attribute_name->second, entry.value_);
             }
@@ -282,6 +233,38 @@ std::unique_ptr<Exporter> Exporter::Factory(std::unique_ptr<Params> &&params) {
     default:
         LOG_ERROR("Reader not implemented for file '" + params->file_path_ + "'");
     };
+}
+
+
+void IniWriter::write(const EntryCollection &collection) {
+    IniWriter::Params * const params(dynamic_cast<IniWriter::Params * const>(input_params_.get()));
+    char time_buffer[0x50]{};
+
+    // we assume that the entries are sorted at this point
+    for (const auto &entry : collection) {
+        config_.appendSection(entry.getAttribute(params->section_name_attribute_));
+        auto current_section(config_.getSection(entry.getAttribute(params->section_name_attribute_)));
+
+        current_section->insert(params->zeder_id_key_, std::to_string(entry.getId()), "", IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+
+        std::strftime(time_buffer, sizeof(time_buffer), MODIFIED_TIMESTAMP_FORMAT_STRING, &entry.getLastModifiedTimestamp());
+        current_section->insert(params->zeder_last_modified_timestamp_key_, time_buffer, "", IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+
+        for (const auto &attribute_name : params->attributes_to_export_) {
+            if (entry.hasAttribute(attribute_name)) {
+                const auto &attribute_value(entry.getAttribute(attribute_name));
+                if (not attribute_value.empty()) {
+                    current_section->insert(params->attribute_to_key_map_.at(attribute_name), attribute_value,
+                                            "", IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+                }
+            } else
+                LOG_DEBUG("Attribute '" + attribute_name + "' not found for exporting in entry " + std::to_string(entry.getId()));
+        }
+
+        params->extra_keys_appender_(&*current_section, entry);
+    }
+
+    config_.write(params->file_path_);
 }
 
 
