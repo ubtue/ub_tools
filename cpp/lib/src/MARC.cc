@@ -149,6 +149,17 @@ bool Record::Field::operator<(const Record::Field &rhs) const {
 }
 
 
+
+Tag Record::Field::getLocalTag() const {
+    if (unlikely(tag_ != "LOK"))
+        LOG_ERROR("you must not call getLocalTag() on a \"" + tag_.toString() + "\" tag!");
+    if (contents_.length() < 2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/
+        or contents_[2] != '\x1F' or contents_[3] != '0')
+        return "";
+    return contents_.substr(2 /*indicators*/ + 2/*delimiter and subfield code*/, 3 /*tag length*/);
+}
+
+
 std::string Record::Field::getFirstSubfieldWithCode(const char subfield_code) const {
     if (unlikely(contents_.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
         return "";
@@ -581,7 +592,7 @@ std::vector<Record::const_iterator> Record::findStartOfAllLocalDataBlocks() cons
         return block_start_iterators;
 
     block_start_iterators.emplace_back(local_field);
-    while (local_field != end()) {
+    while (local_field != end() and local_field->getTag() == "LOK") {
         if (GetLocalTag(*local_field) < last_local_tag)
             block_start_iterators.emplace_back(local_field);
         last_local_tag = GetLocalTag(*local_field);
@@ -601,7 +612,7 @@ std::vector<Record::iterator> Record::findStartOfAllLocalDataBlocks() {
         return block_start_iterators;
 
     block_start_iterators.emplace_back(local_field);
-    while (local_field != end()) {
+    while (local_field != end() and local_field->getTag() == "LOK") {
         if (GetLocalTag(*local_field) < last_local_tag)
             block_start_iterators.emplace_back(local_field);
         last_local_tag = GetLocalTag(*local_field);
@@ -621,16 +632,16 @@ void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
     auto block_start(local_block_starts.begin());
     while (block_start != local_block_starts.end()) {
         iterator range_start(*block_start);
-        Tag last_tag(range_start->getTag());
+        Tag last_local_tag(range_start->getLocalTag());
         iterator range_end(range_start + 1);
         for (;;) {
-            if (range_end == fields_.end()) {
+            if (range_end == fields_.end() or range_end->getTag() != "LOK") {
                 deletion_ranges.emplace_back(range_start, range_end);
                 goto coalescing_done;
             }
 
             // Start of a new block?
-            if (range_end->getTag() < last_tag) {
+            if (range_end->getLocalTag() < last_local_tag) {
                 ++block_start;
                 if (range_end != *block_start) {
                     deletion_ranges.emplace_back(range_start, range_end);
@@ -638,7 +649,7 @@ void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
                 }
             }
 
-            last_tag = range_end->getTag();
+            last_local_tag = range_end->getLocalTag();
             ++range_end;
         }
     }
@@ -646,29 +657,6 @@ void Record::deleteLocalBlocks(std::vector<iterator> &local_block_starts) {
 coalescing_done:
     for (auto deletion_range(deletion_ranges.rbegin()); deletion_range != deletion_ranges.rend(); ++deletion_range)
         fields_.erase(deletion_range->first, deletion_range->second);
-}
-
-
-size_t Record::findAllLocalDataBlocks(
-    std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const
-{
-    local_block_boundaries->clear();
-
-    auto local_block_start(getFirstField("LOK"));
-    if (local_block_start == fields_.end())
-        return 0;
-
-    auto local_block_end(local_block_start + 1);
-    while (local_block_end < fields_.end()) {
-        if (StringUtil::StartsWith(local_block_end->getContents(), "  ""\x1F""0000")) {
-            local_block_boundaries->emplace_back(std::make_pair(local_block_start, local_block_end));
-            local_block_start = local_block_end;
-        }
-        ++local_block_end;
-    }
-    local_block_boundaries->emplace_back(std::make_pair(local_block_start, local_block_end));
-
-    return local_block_boundaries->size();
 }
 
 
@@ -692,55 +680,27 @@ static inline bool LocalIndicatorsMatch(const Record::Field &field, const char i
 }
 
 
-Record::ConstantRange Record::getLocalTagRange(const Tag &field_tag, const const_iterator &block_start, const char indicator1,
+Record::ConstantRange Record::getLocalTagRange(const Tag &local_field_tag, const const_iterator &block_start, const char indicator1,
                                                const char indicator2) const
 {
     const_iterator tag_range_start(block_start);
-    Tag last_tag(tag_range_start->getLocalTag());
+    Tag last_local_tag(tag_range_start->getLocalTag());
     for (;;) {
         const Tag tag(tag_range_start->getLocalTag());
-        if (tag == field_tag and LocalIndicatorsMatch(*tag_range_start, indicator1, indicator2))
+        if (tag == local_field_tag and LocalIndicatorsMatch(*tag_range_start, indicator1, indicator2))
             break;
         ++tag_range_start;
-        if (tag_range_start == fields_.cend() or tag_range_start->getLocalTag() < last_tag)
+        if (tag_range_start == fields_.cend() or tag_range_start->getLocalTag() < last_local_tag or tag_range_start->getTag() != "LOK")
             return ConstantRange(fields_.cend(), fields_.cend());
-        last_tag = tag_range_start->getLocalTag();
+        last_local_tag = tag_range_start->getLocalTag();
     }
 
     const_iterator tag_range_end(tag_range_start + 1);
-    while (tag_range_end != fields_.cend() and tag_range_end->getLocalTag() == field_tag
+    while (tag_range_end != fields_.cend() and tag_range_end->getTag() == "LOK" and tag_range_end->getLocalTag() == local_field_tag
            and LocalIndicatorsMatch(*tag_range_end, indicator1, indicator2))
         ++tag_range_end;
 
     return ConstantRange(tag_range_start, tag_range_end);
-}
-
-
-static inline bool IndicatorsMatch(const std::string &indicator_pattern, const std::string &indicators) {
-    if (indicator_pattern[0] != '?' and indicator_pattern[0] != indicators[0])
-        return false;
-    if (indicator_pattern[1] != '?' and indicator_pattern[1] != indicators[1])
-        return false;
-    return true;
-}
-
-
-size_t Record::findFieldsInLocalBlock(const Tag &field_tag, const std::string &indicators,
-                                      const std::pair<const_iterator, const_iterator> &block_start_and_end,
-                                      std::vector<const_iterator> * const fields) const
-{
-    fields->clear();
-    if (unlikely(indicators.length() != 2))
-        LOG_ERROR("indicators must be precisely 2 characters long!");
-
-    const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag.toString());
-    for (auto field(block_start_and_end.first); field < block_start_and_end.second; ++field) {
-        const std::string &field_contents(field->getContents());
-        if (StringUtil::StartsWith(field_contents, FIELD_PREFIX)
-            and IndicatorsMatch(indicators, field_contents.substr(7, 2)))
-            fields->emplace_back(field);
-    }
-    return fields->size();
 }
 
 

@@ -27,22 +27,23 @@
 #include <cstdlib>
 #include "FileUtil.h"
 #include "MARC.h"
+#include "MiscUtil.h"
 #include "util.h"
 
 
-static void Usage() __attribute__((noreturn));
+namespace {
 
 
-static void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbose] marc_data\n";
     std::exit(EXIT_FAILURE);
 }
 
-
+    
 void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
     std::string raw_record;
     unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0),
-        max_subfield_count(0), cumulative_field_count(0);
+             max_subfield_count(0), cumulative_field_count(0), duplicate_control_number_count(0);
     std::unordered_set<std::string> control_numbers;
     std::map<MARC::Record::RecordType, unsigned> record_types_and_counts;
 
@@ -54,8 +55,10 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
             logger->error("record #" + std::to_string(record_count) + " has zero fields!");
         const std::string &control_number(record.getControlNumber());
 
-        if (control_numbers.find(control_number) != control_numbers.end())
+        if (control_numbers.find(control_number) != control_numbers.end()) {
+            ++duplicate_control_number_count;
             logger->warning("found at least one duplicate control number: " + control_number);
+        }
         control_numbers.insert(control_number);
 
         const MARC::Record::RecordType record_type(record.getRecordType());
@@ -80,21 +83,21 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
                 max_subfield_count = subfield_count;
         }
 
-        std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> local_block_boundaries;
-        const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
+        const auto local_block_starts(record.findStartOfAllLocalDataBlocks());
+        const size_t local_block_count(local_block_starts.size());
         if (local_block_count > max_local_block_count)
             max_local_block_count = local_block_count;
-        for (const auto local_block_boundary : local_block_boundaries) {
-            std::vector<MARC::Record::const_iterator> fields;
-            if (record.findFieldsInLocalBlock("001", "??", local_block_boundary, &fields) != 1)
-                logger->error("Every local data block has to have exactly one 001 field. (Record: "
-                              + record.getControlNumber() + ", Local data block: "
-                              + std::to_string(local_block_boundary.first - record.begin()) + " - "
-                              + std::to_string(local_block_boundary.second - record.begin()) + ")");
+        unsigned local_block_number(0);
+        for (const auto local_block_start : local_block_starts) {
+            ++local_block_number;
+            if (record.findFieldsInLocalBlock("001", local_block_start).size() != 1)
+                LOG_ERROR("The " + MiscUtil::MakeOrdinal(local_block_number) + " local data block is missing a  001 field. (Record: "
+                          + record.getControlNumber() + ")");
         }
     }
 
-    std::cout << "Data set contains " << record_count << " MARC record(s).\n";
+    std::cout << "Data set contains " << record_count << " MARC record(s) of which " << duplicate_control_number_count
+              << " record(s) is a/are duplicate(s).\n";
     std::cout << "Largest record contains " << max_record_length << " bytes.\n";
     std::cout << "The record with the largest number of \"local\" blocks has " << max_local_block_count
               << " local blocks.\n";
@@ -112,9 +115,10 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
+} // unnamed namespace
 
+
+int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
@@ -125,11 +129,8 @@ int main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
+    auto marc_reader(MARC::Reader::Factory(argv[1]));
+    ProcessRecords(verbose, marc_reader.get());
 
-    try {
-        ProcessRecords(verbose, marc_reader.get());
-    } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
-    }
+    return EXIT_SUCCESS;
 }

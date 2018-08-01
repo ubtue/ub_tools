@@ -156,4 +156,8 @@ std::vector<std::string> GetCallStack();
 size_t LoadMapFile(const std::string &filename, std::unordered_map<std::string, std::string> * const from_to_map);
 
 
+/** \return "1st" for 1, "2nd" for 2 etc. */
+std::string MakeOrdinal(const unsigned number);
+
+
 } // namespace MiscUtil
