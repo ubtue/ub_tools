@@ -42,8 +42,8 @@ namespace {
     std::cerr << "Usage: " << ::progname
               << " [--min-log-level=min_verbosity] --mode=tool_mode [--skip-timestamp-check] flavour config_file first_path second_path\n"
               << "Modes:\n"
-              << "\t" << "generate:" << "\t"    << "Converts the .csv file exported from Zeder into a zeder_tools generated .conf "                                                  "file. The first path points to the .csv file and the second to the output .conf "                                                "file.\n"
-              << "\t" << "diff:"     << "\t\t"  << "Compares the last modified time stamps of entries in a pair of zeder_tools generated "                                           ".conf files. The first path points to the source/updated .conf file and "
+              << "\t" << "generate:" << "\t"    << "Converts the .csv file exported from Zeder into a zeder_to_zotero_importer generated .conf"                                      "file. The first path points to the .csv file and the second to the output .conf file.\n"
+              << "\t" << "diff:"     << "\t\t"  << "Compares the last modified time stamps of entries in a pair of zeder_to_zotero_importer"                                         "generated .conf files. The first path points to the source/updated .conf file and "
                                                    " file and the second to the destination/old .conf.\n"
               << "\t" << "merge:"    << "\t\t"  << "Same as above but additionally merges any changes into the destination/old .conf.\n\n"
               << "Flavour: Either 'ixtheo' or 'krimdok'.\n\n";
@@ -284,7 +284,7 @@ unsigned DiffZederEntries(const Zeder::EntryCollection &old_entries, const Zeder
                           std::unordered_set<unsigned> * const new_entry_ids, const bool skip_timestamp_check = false)
 {
     for (const auto &new_entry : new_entries) {
-        const auto &old_entry(old_entries.find(new_entry.getId()));
+        const auto old_entry(old_entries.find(new_entry.getId()));
         if (old_entry == old_entries.end()) {
             // it's a new entry altogether
             diff_results->push_back({ true, new_entry.getId(), new_entry.getLastModifiedTimestamp(), {} });
@@ -298,16 +298,23 @@ unsigned DiffZederEntries(const Zeder::EntryCollection &old_entries, const Zeder
         auto diff(Zeder::Entry::Diff(*old_entry, new_entry, skip_timestamp_check));
         static const std::vector<std::string> immutable_fields{ name_resolver.getAttributeName(TYPE) };
 
-        bool illegal_modification(false);
+        bool unexpected_modifications(false);
         for (const auto &immutable_field : immutable_fields) {
-            if (diff.modified_attributes_.find(immutable_field) != diff.modified_attributes_.end()) {
-                LOG_WARNING("Entry " + std::to_string(diff.id_) + " | Immutable field '" + immutable_field +
-                            "' was modified!");
-                illegal_modification = true;
+            const auto modified_immutable_field(diff.modified_attributes_.find(immutable_field));
+
+            if (modified_immutable_field != diff.modified_attributes_.end()) {
+                LOG_WARNING("Entry " + std::to_string(diff.id_) + " | Field '" + immutable_field +
+                            "' was unexpectedly modified from '" + modified_immutable_field->second.first + "' to '" +
+                            modified_immutable_field->second.second + "'");
+                unexpected_modifications = true;
+
+                std::string debug_print_buffer;
+                diff.prettyPrint(&debug_print_buffer);
+                LOG_DEBUG(debug_print_buffer);
             }
         }
 
-        if (not illegal_modification and not diff.modified_attributes_.empty())
+        if (not unexpected_modifications and not diff.modified_attributes_.empty())
             diff_results->push_back(diff);
     }
 
@@ -317,6 +324,11 @@ unsigned DiffZederEntries(const Zeder::EntryCollection &old_entries, const Zeder
 
 void MergeZederEntries(Zeder::EntryCollection * const merge_into, const std::vector<Zeder::Entry::DiffResult> &diff_results) {
     for (const auto &diff : diff_results) {
+        if (not diff.is_timestamp_newer) {
+            LOG_DEBUG("Skiping diff for entry " + std::to_string(diff.id_));
+            continue;
+        }
+
         auto entry(merge_into->find(diff.id_));
         if (entry == merge_into->end()) {
             // add a new entry
@@ -328,6 +340,8 @@ void MergeZederEntries(Zeder::EntryCollection * const merge_into, const std::vec
         } else
             Zeder::Entry::Merge(diff, &*entry);
     }
+
+    merge_into->sortEntries();
 }
 
 
@@ -353,6 +367,11 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
         name_resolver.getIniKeyAttributeNamePair(PARENT_PPN),
         name_resolver.getIniKeyAttributeNamePair(PARENT_ISSN_PRINT),
         name_resolver.getIniKeyAttributeNamePair(PARENT_ISSN_ONLINE),
+        name_resolver.getIniKeyAttributeNamePair(PARENT_ISSN_ONLINE),
+
+        { name_resolver.getIniKey(ENTRY_POINT_URL, Zotero::HarvesterType::DIRECT), name_resolver.getAttributeName(ENTRY_POINT_URL) },
+        { name_resolver.getIniKey(ENTRY_POINT_URL, Zotero::HarvesterType::CRAWL), name_resolver.getAttributeName(ENTRY_POINT_URL) },
+        { name_resolver.getIniKey(ENTRY_POINT_URL, Zotero::HarvesterType::RSS), name_resolver.getAttributeName(ENTRY_POINT_URL) },
     };
 
     IniFile ini(file_path);
@@ -371,7 +390,7 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
         else if (std::find(groups.begin(), groups.end(), section_name) != groups.end())
             continue;   // skip the sections pertain to groups
         else if (section.getString(name_resolver.getIniKey(ZEDER_ID), "").empty()) {
-            LOG_WARNING("Entry '" + section_name + "' has no Zeder ID. Skipping...");
+            LOG_DEBUG("Entry '" + section_name + "' has no Zeder ID. Skipping...");
             continue;
         }
 
@@ -420,7 +439,7 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
             LOG_ERROR("Entry " + std::to_string(entry.getId()) + " | Invalid harvester type");
 
         // we need to manually resolve the key names for the entry point URL as they are dependent on the harvester type
-        section->insert(name_resolver.getIniKey(ENTRY_POINT_URL), entry.getAttribute(name_resolver.getAttributeName(ENTRY_POINT_URL)),
+        section->insert(name_resolver.getIniKey(ENTRY_POINT_URL, harvester_type), entry.getAttribute(name_resolver.getAttributeName(ENTRY_POINT_URL)),
                         "", IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
 
         if (harvester_type == Zotero::HarvesterType::CRAWL) {
@@ -446,6 +465,24 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
                                                                                          attribute_to_ini_key_map, extra_keys_appender));
     auto writer(Zeder::Exporter::Factory(std::move(writer_params)));
     writer->write(zeder_config);
+}
+
+
+void PrintZederDiffs(const std::vector<Zeder::Entry::DiffResult> &diff_results, const std::unordered_set<unsigned> &new_entry_ids) {
+    LOG_INFO("\nDifferences ========================>");
+
+    for (const auto &diff : diff_results) {
+        std::string attribute_print_buffer;
+        bool is_new_entry(new_entry_ids.find(diff.id_) != new_entry_ids.end());
+        diff.prettyPrint(&attribute_print_buffer);
+
+        if (is_new_entry)
+            LOG_INFO("[NEW] " + attribute_print_buffer);
+        else
+            LOG_INFO("[MOD] " + attribute_print_buffer);
+    }
+
+    LOG_INFO("\n");
 }
 
 
@@ -498,6 +535,7 @@ int Main(int argc, char *argv[]) {
 
         ParseZederCsv(zeder_export_path, name_resolver, flavour, importer_params, &parsed_config);
         WriteZederIni(output_ini_path, name_resolver, parsed_config);
+
         LOG_INFO("Created " + std::to_string(parsed_config.size()) + " entries");
 
         break;
@@ -516,30 +554,14 @@ int Main(int argc, char *argv[]) {
                                                          &diff_results, &new_entry_ids, skip_timestamp_check));
 
         if (num_modified_entries > 0) {
-            for (const auto &diff : diff_results) {
-                bool is_new_entry(new_entry_ids.find(diff.id_) != new_entry_ids.end());
-                if (is_new_entry)
-                    LOG_INFO("[NEW] Entry " + std::to_string(diff.id_) + "...");
-                else
-                    LOG_INFO("[MOD] Entry " + std::to_string(diff.id_) + "...");
-
-                for (const auto &attribute_diff : diff.modified_attributes_) {
-                    if (is_new_entry)
-                        LOG_INFO("\t{" + attribute_diff.first + "} \t\t :='" + attribute_diff.second.second + "'");
-                    else {
-                        LOG_INFO("\t{" + attribute_diff.first + "} \t\t '" + attribute_diff.second.first +
-                                "' => '" + attribute_diff.second.second + "'");
-                    }
-                }
-            }
+            PrintZederDiffs(diff_results, new_entry_ids);
 
             if (current_mode == Mode::MERGE) {
                 MergeZederEntries(&old_data, diff_results);
-                old_data.sortEntries();
                 WriteZederIni(old_ini_path, name_resolver, old_data);
             }
 
-            LOG_INFO("Modified entries: " + std::to_string(diff_results.size()));
+            LOG_INFO("Modified entries: " + std::to_string(diff_results.size() - new_entry_ids.size()));
             LOG_INFO("New entries: " + std::to_string(new_entry_ids.size()));
         } else
             LOG_INFO("No modified/new entries.");

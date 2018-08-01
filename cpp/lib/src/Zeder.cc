@@ -5,11 +5,6 @@
 namespace Zeder {
 
 
-inline void Entry::setModifiedTimestamp(const tm &timestamp) {
-    std::memcpy(&last_modified_timestamp_, &timestamp, sizeof(timestamp));
-}
-
-
 const std::string &Entry::getAttribute(const std::string &name) const {
     if (not hasAttribute(name))
         LOG_ERROR("Couldn't find attribute '" + name + "'! in entry " + std::to_string(id_));
@@ -47,6 +42,25 @@ unsigned Entry::keepAttributes(const std::vector<std::string> &names_to_keep) {
 }
 
 
+void Entry::prettyPrint(std::string * const print_buffer) const {
+    *print_buffer = std::string("Entry ") + std::to_string(id_) + ":\n";
+    for (const auto &attribute : attributes_)
+        print_buffer->append("\t{").append(attribute.first).append("} -> '").append(attribute.second).append("'\n");
+}
+
+
+void Entry::DiffResult::prettyPrint(std::string * const print_buffer) const {
+    *print_buffer = std::string("Diff ") + std::to_string(id_) + ":\n";
+    for (const auto &attribute : modified_attributes_) {
+        if (not attribute.second.first.empty()) {
+            print_buffer->append("\t{").append(attribute.first).append("} -> '").append(attribute.second.first)
+                                       .append("' => '").append(attribute.second.second).append("'\n");
+        } else
+            print_buffer->append("\t{").append(attribute.first).append("} -> '").append(attribute.second.second).append("'\n");
+    }
+}
+
+
 Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool skip_timestamp_check) {
     if (lhs.getId() != rhs.getId())
         LOG_ERROR("Can only diff revisions of the same entry! LHS = " + std::to_string(lhs.getId()) + ", RHS = " + std::to_string(rhs.getId()));
@@ -54,13 +68,15 @@ Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool ski
     DiffResult delta{ false, rhs.getId(), rhs.getLastModifiedTimestamp(), {} };
     if (not skip_timestamp_check) {
         const auto time_difference(TimeUtil::DiffStructTm(rhs.getLastModifiedTimestamp(), lhs.getLastModifiedTimestamp()));
-        if (time_difference <= 0) {
+        if (time_difference < 0) {
             LOG_WARNING("The existing entry " + std::to_string(rhs.getId()) + " is newer than the diff by "
                     + std::to_string(time_difference) + " seconds");
         } else
             delta.is_timestamp_newer = true;
-    } else
+    } else {
+        delta.is_timestamp_newer = true;
         delta.last_modified_timestamp_ = TimeUtil::GetCurrentTimeGMT();
+    }
 
     for (const auto &key_value : rhs) {
         const auto &attribute_name(key_value.first), &attribute_value(key_value.second);
@@ -85,16 +101,15 @@ void Entry::Merge(const DiffResult &delta, Entry * const merge_into) {
                   ", Entry = " + std::to_string(merge_into->getId()));
     }
 
+    if (not delta.is_timestamp_newer) {
+        const auto time_difference(TimeUtil::DiffStructTm(delta.last_modified_timestamp_, merge_into->getLastModifiedTimestamp()));
+        LOG_WARNING("Diff of entry " + std::to_string(delta.id_) + " is not newer than the source revision. " +
+                    "Timestamp difference: " + std::to_string(time_difference) + " seconds");
+    }
+
     merge_into->setModifiedTimestamp(delta.last_modified_timestamp_);
     for (const auto &key_value : delta.modified_attributes_)
         merge_into->setAttribute(key_value.first, key_value.second.second, true);
-}
-
-
-
-inline void EntryCollection::sortEntries() {
-    std::sort(entries_.begin(), entries_.end(),
-              [](const Entry &a, const Entry &b) { return a.getId() < b.getId(); });
 }
 
 
@@ -110,36 +125,28 @@ void EntryCollection::addEntry(const Entry &new_entry, const bool sort_after_add
 }
 
 
-inline EntryCollection::iterator EntryCollection::find(const unsigned id) {
-    return std::find_if(entries_.begin(), entries_.end(),
-                        [id] (const Entry &entry) { return entry.getId() == id; });
-}
+FileType GetFileTypeFromPath(const std::string &path, bool check_if_file_exists) {
+    if (check_if_file_exists and not FileUtil::Exists(path))
+        LOG_ERROR("file '" + path + "' not found");
 
-inline EntryCollection::const_iterator EntryCollection::find(const unsigned id) const {
-    return std::find_if(entries_.begin(), entries_.end(),
-                        [id] (const Entry &entry) { return entry.getId() == id; });
-}
-
-
-FileType GetFileTypeFromPath(const std::string &path) {
-    if (FileUtil::Exists(path)) {
-        if (StringUtil::EndsWith(path, ".csv", /* ignore_case = */true))
-            return FileType::CSV;
-        if (StringUtil::EndsWith(path, ".json", /* ignore_case = */true))
-            return FileType::JSON;
-        if (StringUtil::EndsWith(path, ".conf", /* ignore_case = */true) or StringUtil::EndsWith(path, ".ini", /* ignore_case = */true) )
-            return FileType::INI;
-    }
+    if (StringUtil::EndsWith(path, ".csv", /* ignore_case = */true))
+        return FileType::CSV;
+    if (StringUtil::EndsWith(path, ".json", /* ignore_case = */true))
+        return FileType::JSON;
+    if (StringUtil::EndsWith(path, ".conf", /* ignore_case = */true) or StringUtil::EndsWith(path, ".ini", /* ignore_case = */true) )
+        return FileType::INI;
 
     LOG_ERROR("can't guess the file type of \"" + path + "\"!");
 }
 
 
-std::unique_ptr<Importer> Importer::Factory(std::unique_ptr<Params> &&params) {
+std::unique_ptr<Importer> Importer::Factory(std::unique_ptr<Params> params) {
     auto file_type(GetFileTypeFromPath(params->file_path_));
     switch (file_type) {
     case FileType::CSV:
-        return std::unique_ptr<CsvReader>(new CsvReader(std::forward<std::unique_ptr<Params>>(params)));
+        return std::unique_ptr<Importer>(new CsvReader(std::move(params)));
+    case FileType::INI:
+        return std::unique_ptr<Importer>(new IniReader(std::move(params)));
     default:
         LOG_ERROR("Reader not implemented for file '" + params->file_path_ + "'");
     };
@@ -187,7 +194,7 @@ void CsvReader::parse(EntryCollection * const collection) {
 
 
 void IniReader::parse(EntryCollection * const collection) {
-    IniReader::Params * const params(dynamic_cast<IniReader::Params * const>(input_params_.get()));
+    const auto params(dynamic_cast<IniReader::Params * const>(input_params_.get()));
     if (not params)
         LOG_ERROR("Invalid input parameters passed to IniReader!");
 
@@ -197,6 +204,10 @@ void IniReader::parse(EntryCollection * const collection) {
 
         new_entry.setAttribute(params->section_name_attribute_, section_name);
         for (const auto &entry : section) {
+            // skip empty lines
+            if (entry.name_.empty())
+                continue;
+
             if (entry.name_ == params->zeder_id_key_) {
                 unsigned id(0);
                 if (not StringUtil::ToUnsigned(entry.value_, &id))
@@ -207,17 +218,22 @@ void IniReader::parse(EntryCollection * const collection) {
                 new_entry.setModifiedTimestamp(TimeUtil::StringToStructTm(entry.value_, MODIFIED_TIMESTAMP_FORMAT_STRING));
             else {
                 const auto attribute_name(params->key_to_attribute_map_.find(entry.name_));
-                if (attribute_name == params->key_to_attribute_map_.end())
-                    LOG_DEBUG("Key '" + entry.name_ + "' has no corresponding Zeder attribute.");
-                else
+                if (attribute_name == params->key_to_attribute_map_.end()) {
+                    LOG_DEBUG("Key '" + entry.name_ + "' has no corresponding Zeder attribute. Section: '" +
+                              section_name + "', value: '" + entry.value_ + "'");
+                } else
                     new_entry.setAttribute(attribute_name->second, entry.value_);
             }
         }
 
         struct tm last_modified(new_entry.getLastModifiedTimestamp());
-        if (not(new_entry.getId() == 0) or std::mktime(&last_modified) == -1)
+        if (new_entry.getId() == 0 or std::mktime(&last_modified) == -1) {
             LOG_WARNING("Mandatory fields were not found in section '" + section_name + "'");
-        else if (input_params_->postprocessor_(&new_entry))
+
+            std::string debug_print_buffer;
+            new_entry.prettyPrint(&debug_print_buffer);
+            LOG_DEBUG(debug_print_buffer);
+        } else if (input_params_->postprocessor_(&new_entry))
             collection->addEntry(new_entry);
     }
 
@@ -225,25 +241,33 @@ void IniReader::parse(EntryCollection * const collection) {
 }
 
 
-std::unique_ptr<Exporter> Exporter::Factory(std::unique_ptr<Params> &&params) {
-    auto file_type(GetFileTypeFromPath(params->file_path_));
+std::unique_ptr<Exporter> Exporter::Factory(std::unique_ptr<Params> params) {
+    auto file_type(GetFileTypeFromPath(params->file_path_, /* check_if_file_exists = */ false));
     switch (file_type) {
     case FileType::INI:
-        return std::unique_ptr<IniWriter>(new IniWriter(std::forward<std::unique_ptr<Params>>(params)));
+        return std::unique_ptr<Exporter>(new IniWriter(std::move(params)));
     default:
         LOG_ERROR("Reader not implemented for file '" + params->file_path_ + "'");
     };
 }
 
 
+IniWriter::IniWriter(std::unique_ptr<Exporter::Params> params): Exporter(std::move(params)) {
+    if (FileUtil::Exists(input_params_->file_path_))
+        config_.reset(new IniFile(input_params_->file_path_));
+    else
+        config_.reset(new IniFile(input_params_->file_path_, /* ignore_failed_includes = */ true, /* create_empty = */ true));
+}
+
+
 void IniWriter::write(const EntryCollection &collection) {
-    IniWriter::Params * const params(dynamic_cast<IniWriter::Params * const>(input_params_.get()));
+    const auto params(dynamic_cast<IniWriter::Params * const>(input_params_.get()));
     char time_buffer[0x50]{};
 
     // we assume that the entries are sorted at this point
     for (const auto &entry : collection) {
-        config_.appendSection(entry.getAttribute(params->section_name_attribute_));
-        auto current_section(config_.getSection(entry.getAttribute(params->section_name_attribute_)));
+        config_->appendSection(entry.getAttribute(params->section_name_attribute_));
+        auto current_section(config_->getSection(entry.getAttribute(params->section_name_attribute_)));
 
         current_section->insert(params->zeder_id_key_, std::to_string(entry.getId()), "", IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
 
@@ -264,7 +288,7 @@ void IniWriter::write(const EntryCollection &collection) {
         params->extra_keys_appender_(&*current_section, entry);
     }
 
-    config_.write(params->file_path_);
+    config_->write(params->file_path_);
 }
 
 

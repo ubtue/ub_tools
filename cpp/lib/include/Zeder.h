@@ -57,6 +57,7 @@ public:
     bool hasAttribute(const std::string &name) const { return attributes_.find(name) != attributes_.end(); }
     void removeAttribute(const std::string &name);
     unsigned keepAttributes(const std::vector<std::string> &names_to_keep);
+    void prettyPrint(std::string * const print_buffer) const;
 
     const_iterator begin() const { return attributes_.begin(); }
     const_iterator end() const { return attributes_.end(); }
@@ -72,6 +73,8 @@ public:
         // Attribute => (old value, new value)
         // If the attribute was not present in the source revision, the old value is an empty string
         std::unordered_map<std::string, std::pair<std::string, std::string>> modified_attributes_;
+
+        void prettyPrint(std::string * const print_buffer) const;
     };
 
     // Compares the LHS (old revision) with the RHS (new revision) and returns the differences
@@ -79,6 +82,11 @@ public:
     // Merges the delta into an entry, overwritting any previous values
     static void Merge(const DiffResult &delta, Entry * const merge_into);
 };
+
+
+inline void Entry::setModifiedTimestamp(const tm &timestamp) {
+    std::memcpy(&last_modified_timestamp_, &timestamp, sizeof(timestamp));
+}
 
 
 // A collection of related entries
@@ -101,9 +109,28 @@ public:
     void clear() { entries_.clear(); }
 };
 
+
+inline void EntryCollection::sortEntries() {
+    std::sort(entries_.begin(), entries_.end(),
+              [](const Entry &a, const Entry &b) { return a.getId() < b.getId(); });
+}
+
+
+inline EntryCollection::iterator EntryCollection::find(const unsigned id) {
+    return std::find_if(entries_.begin(), entries_.end(),
+                        [id] (const Entry &entry) { return entry.getId() == id; });
+}
+
+
+inline EntryCollection::const_iterator EntryCollection::find(const unsigned id) const {
+    return std::find_if(entries_.begin(), entries_.end(),
+                        [id] (const Entry &entry) { return entry.getId() == id; });
+}
+
 enum FileType { CSV, JSON, INI };
 
-FileType GetFileTypeFromPath(const std::string &path);
+
+FileType GetFileTypeFromPath(const std::string &path, bool check_if_file_exists = true);
 
 
 class Importer {
@@ -138,7 +165,7 @@ public:
 
     virtual void parse(EntryCollection * const collection) = 0;
 
-    static std::unique_ptr<Importer> Factory(std::unique_ptr<Params> &&params);
+    static std::unique_ptr<Importer> Factory(std::unique_ptr<Params> params);
 };
 
 
@@ -147,7 +174,7 @@ class CsvReader : public Importer {
 
     DSVReader reader_;
 
-    CsvReader(std::unique_ptr<Params> &&params): Importer(std::forward<std::unique_ptr<Params>>(params)), reader_(params->file_path_, ',') {}
+    CsvReader(std::unique_ptr<Params> params): Importer(std::move(params)), reader_(input_params_->file_path_, ',') {}
 public:
     virtual ~CsvReader() override = default;
 
@@ -160,7 +187,7 @@ class IniReader : public Importer {
 
     IniFile config_;
 
-    IniReader(std::unique_ptr<Params> &&params): Importer(std::forward<std::unique_ptr<Importer::Params>>(params)), config_(params->file_path_) {}
+    IniReader(std::unique_ptr<Params> params): Importer(std::move(params)), config_(input_params_->file_path_) {}
 public:
     class Params : public Importer::Params {
         friend class IniReader;
@@ -208,16 +235,16 @@ public:
 
     virtual void write(const EntryCollection &collection) = 0;
 
-    static std::unique_ptr<Exporter> Factory(std::unique_ptr<Params> &&params);
+    static std::unique_ptr<Exporter> Factory(std::unique_ptr<Params> params);
 };
 
 
 class IniWriter : public Exporter {
     friend class Exporter;
 
-    IniFile config_;
+    std::unique_ptr<IniFile> config_;
 
-    IniWriter(std::unique_ptr<Params> &&params): Exporter(std::forward<std::unique_ptr<Exporter::Params>>(params)), config_(params->file_path_) {}
+    IniWriter(std::unique_ptr<Params> params);
 public:
     class Params : public Exporter::Params {
         friend class IniWriter;
