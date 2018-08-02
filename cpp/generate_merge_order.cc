@@ -149,14 +149,12 @@ std::vector<std::string>::iterator FindMostRecentCompleteOrPseudoCompleteDump(st
 std::vector<std::string>::iterator EarliestReferenceDump(std::vector<std::string>::iterator complete_or_pseudo_complete_dump,
                                                          std::vector<std::string> &file_list)
 {
-    /* If we have found an SA- file we likely have two, one w/ and one w/o local data: */
+    /* If we have found an SA- file we may have two, one w/ and one w/o local data: */
     if (StringUtil::StartsWith(*complete_or_pseudo_complete_dump, "SA-")) {
-        if (complete_or_pseudo_complete_dump == file_list.begin()
-            or not StringUtil::StartsWith(*(complete_or_pseudo_complete_dump - 1), "SA-")
-            or not (BSZUtil::ExtractDateFromFilenameOrDie(*complete_or_pseudo_complete_dump)
-                    == BSZUtil::ExtractDateFromFilenameOrDie(*(complete_or_pseudo_complete_dump - 1))))
-            LOG_WARNING("expected a pair of SA- files w/ the same date!");
-        else
+        if (complete_or_pseudo_complete_dump != file_list.begin()
+            and StringUtil::StartsWith(*(complete_or_pseudo_complete_dump - 1), "SA-")
+            and (BSZUtil::ExtractDateFromFilenameOrDie(*complete_or_pseudo_complete_dump)
+                 == BSZUtil::ExtractDateFromFilenameOrDie(*(complete_or_pseudo_complete_dump - 1))))
             return complete_or_pseudo_complete_dump - 1;
     }
 
