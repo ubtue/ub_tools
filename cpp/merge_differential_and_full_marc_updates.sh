@@ -41,37 +41,38 @@ fi
 echo "Creating ${target_filename}"
 
 
-input_file=$(generate_merge_order | head --lines=1)
+input_filename=$(generate_merge_order | head --lines=1)
 declare -i counter=0
 for update in $(generate_merge_order | tail --lines=+2); do
     ((++counter))
-    output_file=temp_file.$BASHPID.$counter.tar.gz
+    temp_filename=temp_filename.$BASHPID.$counter.tar.gz
     if [[ ${update:0:6} == "LOEPPN" ]]; then
         echo "Processing deletion list: $update"
-        archive_delete_ids $(KeepIntermediateFiles) $input_file $update $output_file
+        archive_delete_ids $(KeepIntermediateFiles) $input_filename $update $temp_filename
     else
         echo "Processing differential dump: $update"
-        apply_differential_update $(KeepIntermediateFiles) $input_file $update $output_file
+        apply_differential_update $(KeepIntermediateFiles) $input_filename $update $temp_filename
     fi
-    input_file=$output_file
+    input_filename=$temp_filename
 done
 
 
-output_file=${output_file:-}
+# If we did not execute the for-loop at all, $temp_filename is unset and we need to set it to the empty string:
+temp_filename=${temp_filename:-}
 
-if [ -z ${output_file} ]; then
+if [ -z ${temp_filename} ]; then
     ln --symbolic $input_filename Complete-MARC-current.tar.gz
 else
-    mv $output_file $target_filename
+    mv $temp_filename $target_filenamename
 
-    if [[ ! keep_itermediate_files ]]; then
-        rm temp_file.$BASHPID.*.tar.gz TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
+    if [[ ! keep_itermediate_filenames ]]; then
+        rm temp_filename.$BASHPID.*.tar.gz TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
     fi
 
 
     # Create symlink to newest complete dump:
     rm --force Complete-MARC-current.tar.gz
-    ln --symbolic $target_filename Complete-MARC-current.tar.gz
+    ln --symbolic $target_filenamename Complete-MARC-current.tar.gz
 
     no_problems_found=0
 fi
