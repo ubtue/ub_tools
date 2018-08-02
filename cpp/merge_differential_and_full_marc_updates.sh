@@ -57,19 +57,24 @@ for update in $(generate_merge_order | tail --lines=+2); do
 done
 
 
-mv $output_file $target_filename
+output_file=${output_file:-}
+
+if [ -z ${output_file} ]; then
+    ln --symbolic $input_filename Complete-MARC-current.tar.gz
+else
+    mv $output_file $target_filename
+
+    if [[ ! keep_itermediate_files ]]; then
+        rm temp_file.$BASHPID.*.tar.gz TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
+    fi
 
 
-if [[ ! keep_itermediate_files ]]; then
-    rm temp_file.$BASHPID.*.tar.gz TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
+    # Create symlink to newest complete dump:
+    rm --force Complete-MARC-current.tar.gz
+    ln --symbolic $target_filename Complete-MARC-current.tar.gz
+
+    no_problems_found=0
 fi
-
-
-# Create symlink to newest complete dump:
-rm --force Complete-MARC-current.tar.gz
-ln --symbolic $target_filename Complete-MARC-current.tar.gz
-
-no_problems_found=0
 
 
 function SendEmail {
