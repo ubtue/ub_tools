@@ -173,6 +173,7 @@ int Main(int argc, char */*argv*/[]) {
 
     std::string file_pcre;
     LoadFilePCRE(&file_pcre);
+    LOG_DEBUG("file PCRE: \"" + file_pcre + "\".");
 
     std::vector<std::string> file_list;
     if (FileUtil::GetFileNameList(file_pcre, &file_list) == 0)
