@@ -64,7 +64,7 @@ done
 temp_filename=${temp_filename:-}
 
 if [ -z ${temp_filename} ]; then
-    ln --symbolic $input_filename Complete-MARC-current.tar.gz
+    ln --symbolic --force $input_filename Complete-MARC-current.tar.gz
 else
     mv $temp_filename $target_filenamename
 
@@ -74,8 +74,7 @@ else
 
 
     # Create symlink to newest complete dump:
-    rm --force Complete-MARC-current.tar.gz
-    ln --symbolic $target_filenamename Complete-MARC-current.tar.gz
+    ln --symbolic --force $target_filenamename Complete-MARC-current.tar.gz
 fi
 
 
