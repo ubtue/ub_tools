@@ -1126,10 +1126,10 @@ bool ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer
         const std::string institution(isil_subfield == "DE-21" ? "UB: " : "IFK: ");
 
         // Process item locations:
-        while (_852_field + 1 != record->end() and (_852_field + 1)->getTag() >= _852_field->getTag()) {
-            ++_852_field;
-
-            const MARC::Subfields subfields2((_852_field + 1)->getSubfields());
+        for (++_852_field; _852_field != record->end() and _852_field->getTag() == "LOK" and _852_field->getLocalTag() == "852";
+             ++_852_field)
+        {
+            const MARC::Subfields subfields2(_852_field->getSubfields());
             const std::string call_number_subfield(subfields2.getFirstSubfieldWithCode('c'));
             if (not call_number_subfield.empty()) {
                 const std::string institution_and_call_number(institution + call_number_subfield);
@@ -1149,6 +1149,7 @@ bool ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer
                             MARC::Subfields({ { 'a', "<a href=\"" + url + "\">" + anchor + "</a>" } }).toString());
                     }
                 }
+                break;
             }
         }
     }
