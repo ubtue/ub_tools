@@ -33,12 +33,12 @@ function KeepIntermediateFiles() {
 }
 
 
-target_file=Complete-MARC-$(date +%y%m%d).tar.gz
-if [[ -e $target_file ]]; then
-    echo "Nothing to do: ${target_file} already exists."
+target_filename=Complete-MARC-$(date +%y%m%d).tar.gz
+if [[ -e $target_filename ]]; then
+    echo "Nothing to do: ${target_filename} already exists."
     exit 0
 fi
-echo "Creating ${target_file}"
+echo "Creating ${target_filename}"
 
 
 input_filename=$(generate_merge_order | head --lines=1)
@@ -63,7 +63,7 @@ temp_filename=${temp_filename:-}
 if [ -z ${temp_filename} ]; then
     ln --symbolic $input_filename Complete-MARC-current.tar.gz
 else
-    mv $temp_filename $target_filename
+    mv $temp_filename $target_filenamename
 
     if [[ ! keep_itermediate_filenames ]]; then
         rm temp_filename.$BASHPID.*.tar.gz TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
@@ -72,7 +72,7 @@ else
 
     # Create symlink to newest complete dump:
     rm --force Complete-MARC-current.tar.gz
-    ln --symbolic $target_filename Complete-MARC-current.tar.gz
+    ln --symbolic $target_filenamename Complete-MARC-current.tar.gz
 
     no_problems_found=0
 fi
