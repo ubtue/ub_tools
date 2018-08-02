@@ -2,6 +2,9 @@
 set -o errexit -o nounset
 
 
+no_problems_found=1
+
+
 function Usage() {
     echo "Usage: $0 [--keep-intermediate-files] email_address"
     exit 1
@@ -73,13 +76,12 @@ else
     # Create symlink to newest complete dump:
     rm --force Complete-MARC-current.tar.gz
     ln --symbolic $target_filenamename Complete-MARC-current.tar.gz
-
-    no_problems_found=0
 fi
 
 
+no_problems_found=0
 function SendEmail {
-    if [[ -n $no_problems_found ]]; then
+    if [[ $no_problems_found -eq 0 ]]; then
         exit 0
     else
         send_email --recipients="$email_address" --subject="$0 failed" --message-body="Check the log file for details."
