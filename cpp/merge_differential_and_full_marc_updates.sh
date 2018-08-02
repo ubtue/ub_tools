@@ -3,6 +3,14 @@ set -o errexit -o nounset
 
 
 no_problems_found=1
+function SendEmail {
+    if [[ $no_problems_found -eq 0 ]]; then
+        exit 0
+    else
+        send_email --recipients="$email_address" --subject="$0 failed" --message-body="Check the log file for details."
+    fi 
+}
+trap SendEmail EXIT
 
 
 function Usage() {
@@ -79,11 +87,3 @@ fi
 
 
 no_problems_found=0
-function SendEmail {
-    if [[ $no_problems_found -eq 0 ]]; then
-        exit 0
-    else
-        send_email --recipients="$email_address" --subject="$0 failed" --message-body="Check the log file for details."
-    fi 
-}
-trap SendEmail EXIT
