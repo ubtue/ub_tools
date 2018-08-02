@@ -72,8 +72,8 @@ fi
 
 
 # Create symlink to newest complete dump:
-rm --force Complete-MARC-ixtheo-current.tar.gz
-ln --symbolic $target_filename Complete-MARC-ixtheo-current.tar.gz
+rm --force Complete-MARC-"${TUEFIND_FLAVOUR}"-current.tar.gz
+ln --symbolic $target_filename Complete-MARC-"${TUEFIND_FLAVOUR}"-current.tar.gz
 
 no_problems_found=0
 
