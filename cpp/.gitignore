@@ -101,7 +101,6 @@
 /marc_split
 /marc_tag_grep
 /marc21_size
-/merge_differential_and_full_marc_updates.sh
 /merge_print_and_online
 /mpi_stats
 /new_journal_alert
