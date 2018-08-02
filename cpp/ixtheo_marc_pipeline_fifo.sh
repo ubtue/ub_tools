@@ -73,7 +73,7 @@ CleanUp
 OVERALL_START=$(date +%s.%N)
 
 
-StartPhase "Check Record Integity at the Beginning of the Pipeline"
+StartPhase "Check Record Integrity at the Beginning of the Pipeline"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
             --write-data=GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc GesamtTiteldaten-"${date}".mrc \
@@ -298,7 +298,7 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Check Record Integity at the End of the Pipeline"
+StartPhase "Check Record Integrity at the End of the Pipeline"
 (marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
             GesamtTiteldaten-post-pipeline-"${date}".mrc \
     >> "${log}" 2>&1 && \
