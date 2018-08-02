@@ -33,13 +33,7 @@ function KeepIntermediateFiles() {
 }
 
 
-if [[ -z $(printenv TUEFIND_FLAVOUR) ]]; then
-    echo "You need to set the environment variable TUEFIND_FLAVOUR in order to run this script!"
-    exit 1
-fi
-
-
-target_filename=Complete-MARC-${TUEFIND_FLAVOUR}-$(date +%y%m%d).tar.gz
+target_filename=Complete-MARC-$(date +%y%m%d).tar.gz
 if [[ -e $target_filename ]]; then
     echo "Nothing to do: ${target_filename} already exists."
     exit 0
