@@ -164,7 +164,7 @@ void CsvReader::parse(EntryCollection * const collection) {
         else if (line == 1) {
             columns.swap(splits);
             if (columns[0] != MANDATORY_FIELD_TO_STRING_MAP.at(Z) or columns[columns.size() - 1] != MANDATORY_FIELD_TO_STRING_MAP.at(MTIME))
-                LOG_ERROR("Mandatory fields were not found!");
+                LOG_ERROR("Mandatory fields were not found in the first and last columns!");
 
             continue;
         }

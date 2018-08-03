@@ -31,6 +31,15 @@
 namespace Zeder {
 
 
+enum Flavour { IXTHEO, KRIMDOK };
+
+
+const std::unordered_map<Flavour, std::string> FLAVOUR_TO_STRING_MAP{
+    { IXTHEO,   "IxTheo"    },
+    { KRIMDOK,  "KrimDok"   }
+};
+
+
 static constexpr auto MODIFIED_TIMESTAMP_FORMAT_STRING = "%Y-%m-%d %H:%M:%S";
 
 

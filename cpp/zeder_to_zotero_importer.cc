@@ -40,25 +40,21 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--min-log-level=min_verbosity] --mode=tool_mode [--skip-timestamp-check] flavour config_file first_path second_path\n"
+              << " [--min-log-level=min_verbosity] --mode=tool_mode [--skip-timestamp-check] flavour config_file first_path second_path"
+                 " [entry_ids]\n"
               << "Modes:\n"
               << "\t" << "generate:" << "\t"    << "Converts the .csv file exported from Zeder into a zeder_to_zotero_importer generated .conf"                                      "file. The first path points to the .csv file and the second to the output .conf file.\n"
               << "\t" << "diff:"     << "\t\t"  << "Compares the last modified time stamps of entries in a pair of zeder_to_zotero_importer"                                         "generated .conf files. The first path points to the source/updated .conf file and "
                                                    " file and the second to the destination/old .conf.\n"
               << "\t" << "merge:"    << "\t\t"  << "Same as above but additionally merges any changes into the destination/old .conf.\n\n"
-              << "Flavour: Either 'ixtheo' or 'krimdok'.\n\n";
+              << "Flavour: Either 'ixtheo' or 'krimdok'.\n"
+              << "Entry IDs: Comma-seperated list of entries IDs to process. All other entries will be ignored.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-enum Flavour { IXTHEO, KRIMDOK };
-
-const std::unordered_map<Flavour, std::string> FLAVOUR_TO_STRING_MAP{
-    { IXTHEO,   "IxTheo"    },
-    { KRIMDOK,  "KrimDok"   }
-};
-
 enum Mode { GENERATE, DIFF, MERGE };
+
 
 // Fields exported to the zts_harvester config file.
 enum ExportField {
@@ -164,18 +160,43 @@ std::pair<std::string, std::string> ExportFieldNameResolver::getAttributeNameIni
 
 
 struct ImporterParams {
+    Zeder::Flavour flavour_;
     std::vector<std::string> url_field_priority_;   // highest to lowest
-
-    static void Load(Flavour flavour, const IniFile &config, ImporterParams * const params);
+    std::unordered_set<unsigned> entries_to_process_;
+public:
+    ImporterParams(const std::string &config_file_path, const std::string &flavour_string, const std::string &entry_ids_string = "");
 };
 
 
-void ImporterParams::Load(Flavour flavour, const IniFile &config, ImporterParams * const params) {
-    const auto section(config.getSection(FLAVOUR_TO_STRING_MAP.at(flavour)));
+ImporterParams::ImporterParams(const std::string &config_file_path, const std::string &flavour_string, const std::string &entry_ids_string)
+    : url_field_priority_(), entries_to_process_()
+{
+    if (flavour_string == "krimdok")
+        flavour_ = Zeder::KRIMDOK;
+    else if (flavour_string == "ixtheo")
+        flavour_ = Zeder::IXTHEO;
+    else
+        LOG_ERROR("Unknown Zeder flavour '" + flavour_string + "'");
+
+    const IniFile config(config_file_path);
+    const auto section(config.getSection(Zeder::FLAVOUR_TO_STRING_MAP.at(flavour_)));
 
     const auto url_field_priority(section->getString("url_field_priority"));
-    if (StringUtil::Split(url_field_priority, ",", &params->url_field_priority_) == 0)
-        LOG_ERROR("Invalid URL field priority for flavour " + std::to_string(flavour) + " in '" + config.getFilename() + "'");
+    if (StringUtil::Split(url_field_priority, ",", &url_field_priority_) == 0)
+        LOG_ERROR("Invalid URL field priority for flavour " + std::to_string(flavour_) + " in '" + config.getFilename() + "'");
+
+    if (not entry_ids_string.empty()) {
+        std::unordered_set<std::string> id_strings;
+        StringUtil::Split(entry_ids_string, ',', &id_strings);
+        for (const auto &id_string : id_strings) {
+            unsigned converted_id(0);
+            if (not StringUtil::ToUnsigned(id_string, &converted_id))
+                LOG_ERROR("Couldn't convert Zeder ID '" + id_string + "'");
+
+            entries_to_process_.insert(converted_id);
+        }
+    }
+
 }
 
 
@@ -196,9 +217,16 @@ bool GetHarvesterTypeFromEntry(const Zeder::Entry &entry, const ExportFieldNameR
 }
 
 
-bool PostProcessZederImportedEntry(Flavour flavour, const ImporterParams &params, const ExportFieldNameResolver &name_resolver,
+bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFieldNameResolver &name_resolver,
                                    Zeder::Entry * const entry, bool ignore_invalid_ppn_issn = true)
 {
+    if (not params.entries_to_process_.empty() and
+        params.entries_to_process_.find(entry->getId()) == params.entries_to_process_.end())
+    {
+        LOG_DEBUG("Entry " + std::to_string(entry->getId()) + " ignored");
+        return false;
+    }
+
     bool valid(true);
 
     const auto &pppn(entry->getAttribute("pppn")), &eppn(entry->getAttribute("eppn"));
@@ -233,7 +261,7 @@ bool PostProcessZederImportedEntry(Flavour flavour, const ImporterParams &params
     entry->setAttribute(name_resolver.getAttributeName(TITLE), title);
 
     Zotero::HarvesterType harvester_type(Zotero::HarvesterType::CRAWL);
-    if (flavour == IXTHEO and entry->getAttribute("prodf") != "zot") {
+    if (params.flavour_ == Zeder::IXTHEO and entry->getAttribute("prodf") != "zot") {
         LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | Not a Zotero entry");
         valid = false;
     }
@@ -242,7 +270,7 @@ bool PostProcessZederImportedEntry(Flavour flavour, const ImporterParams &params
         harvester_type = Zotero::HarvesterType::RSS;
 
     entry->setAttribute(name_resolver.getAttributeName(TYPE), Zotero::HARVESTER_TYPE_TO_STRING_MAP.at(harvester_type));
-    entry->setAttribute(name_resolver.getAttributeName(GROUP), FLAVOUR_TO_STRING_MAP.at(flavour));
+    entry->setAttribute(name_resolver.getAttributeName(GROUP), Zeder::FLAVOUR_TO_STRING_MAP.at(params.flavour_));
     entry->setAttribute(name_resolver.getAttributeName(ZEDER_COMMENT), entry->getAttribute("b_zot"));
 
     // resolve URL based on the importer's config
@@ -270,7 +298,14 @@ bool PostProcessZederImportedEntry(Flavour flavour, const ImporterParams &params
     return valid;
 }
 
-bool PostProcessIniImportedEntry(const ExportFieldNameResolver &name_resolver, Zeder::Entry * const entry) {
+bool PostProcessIniImportedEntry(const ImporterParams &params, const ExportFieldNameResolver &name_resolver, Zeder::Entry * const entry) {
+    if (not params.entries_to_process_.empty() and
+        params.entries_to_process_.find(entry->getId()) == params.entries_to_process_.end())
+    {
+        LOG_DEBUG("Entry " + std::to_string(entry->getId()) + " ignored");
+        return false;
+    }
+
     Zotero::HarvesterType harvester_type;
     if (not GetHarvesterTypeFromEntry(*entry, name_resolver, &harvester_type))
          LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | Invalid harvester type");
@@ -280,8 +315,9 @@ bool PostProcessIniImportedEntry(const ExportFieldNameResolver &name_resolver, Z
 
 
 unsigned DiffZederEntries(const Zeder::EntryCollection &old_entries, const Zeder::EntryCollection &new_entries,
-                          const ExportFieldNameResolver &name_resolver, std::vector<Zeder::Entry::DiffResult> * const diff_results,
-                          std::unordered_set<unsigned> * const new_entry_ids, const bool skip_timestamp_check = false)
+                          const ExportFieldNameResolver &name_resolver,
+                          std::vector<Zeder::Entry::DiffResult> * const diff_results, std::unordered_set<unsigned> * const new_entry_ids,
+                          const bool skip_timestamp_check = false)
 {
     static const std::vector<std::string> immutable_fields{
         name_resolver.getAttributeName(TYPE),
@@ -325,7 +361,9 @@ unsigned DiffZederEntries(const Zeder::EntryCollection &old_entries, const Zeder
 }
 
 
-void MergeZederEntries(Zeder::EntryCollection * const merge_into, const std::vector<Zeder::Entry::DiffResult> &diff_results) {
+void MergeZederEntries(Zeder::EntryCollection * const merge_into,
+                       const std::vector<Zeder::Entry::DiffResult> &diff_results)
+{
     for (const auto &diff : diff_results) {
         if (not diff.is_timestamp_newer) {
             LOG_DEBUG("Skiping diff for entry " + std::to_string(diff.id_));
@@ -348,11 +386,11 @@ void MergeZederEntries(Zeder::EntryCollection * const merge_into, const std::vec
 }
 
 
-void ParseZederCsv(const std::string &file_path, const ExportFieldNameResolver &name_resolver, Flavour flavour,
+void ParseZederCsv(const std::string &file_path, const ExportFieldNameResolver &name_resolver,
                    const ImporterParams &importer_params, Zeder::EntryCollection * const zeder_config)
 {
-    auto postprocessor([flavour, importer_params, name_resolver](Zeder::Entry * const entry) -> bool {
-        return PostProcessZederImportedEntry(flavour, importer_params, name_resolver, entry);
+    auto postprocessor([importer_params, name_resolver](Zeder::Entry * const entry) -> bool {
+        return PostProcessZederImportedEntry(importer_params, name_resolver, entry);
     });
     std::unique_ptr<Zeder::Importer::Params> parser_params(new Zeder::Importer::Params(file_path, postprocessor));
     auto parser(Zeder::Importer::Factory(std::move(parser_params)));
@@ -361,7 +399,7 @@ void ParseZederCsv(const std::string &file_path, const ExportFieldNameResolver &
 
 
 void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &name_resolver,
-                   Zeder::EntryCollection * const zeder_config)
+                   const ImporterParams &params, Zeder::EntryCollection * const zeder_config)
 {
     static const std::unordered_map<std::string, std::string> ini_key_to_attribute_map{
         name_resolver.getIniKeyAttributeNamePair(ZEDER_COMMENT),
@@ -400,9 +438,8 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
         valid_section_names.emplace_back(section_name);
     }
 
-    // we don't need to peform any validation on the entries read-in from an INI file
-    auto postprocessor([name_resolver](Zeder::Entry * const entry) -> bool {
-        return PostProcessIniImportedEntry(name_resolver, entry);
+    auto postprocessor([params, name_resolver](Zeder::Entry * const entry) -> bool {
+        return PostProcessIniImportedEntry(params, name_resolver, entry);
     });
     std::unique_ptr<Zeder::IniReader::Params> parser_params(new Zeder::IniReader::Params(ini.getFilename(), postprocessor, valid_section_names,
                                                                                          name_resolver.getAttributeName(TITLE),
@@ -518,25 +555,18 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
-    if (argc != 5)
+    if (argc != 5 and argc != 6)
         Usage();
 
-    const std::string flavour_string(argv[1]), config_path(argv[2]);
-    Flavour flavour(IXTHEO);
-    if (flavour_string == "krimdok")
-        flavour = KRIMDOK;
-
+    ImporterParams importer_params(argv[2], argv[1], argc == 6 ? argv[5] : "");
     ExportFieldNameResolver name_resolver;
-    IniFile config(config_path);
-    ImporterParams importer_params;
-    ImporterParams::Load(flavour, config, &importer_params);
 
     switch (current_mode) {
     case Mode::GENERATE: {
         const std::string zeder_export_path(argv[3]), output_ini_path(argv[4]);
         Zeder::EntryCollection parsed_config;
 
-        ParseZederCsv(zeder_export_path, name_resolver, flavour, importer_params, &parsed_config);
+        ParseZederCsv(zeder_export_path, name_resolver, importer_params, &parsed_config);
         WriteZederIni(output_ini_path, name_resolver, parsed_config);
 
         LOG_INFO("Created " + std::to_string(parsed_config.size()) + " entries");
@@ -548,8 +578,8 @@ int Main(int argc, char *argv[]) {
         const std::string new_ini_path(argv[3]), old_ini_path(argv[4]);
         Zeder::EntryCollection old_data, new_data;
 
-        ParseZederIni(old_ini_path, name_resolver, &old_data);
-        ParseZederIni(new_ini_path, name_resolver, &new_data);
+        ParseZederIni(old_ini_path, name_resolver, importer_params, &old_data);
+        ParseZederIni(new_ini_path, name_resolver, importer_params, &new_data);
 
         std::vector<Zeder::Entry::DiffResult> diff_results;
         std::unordered_set<unsigned> new_entry_ids;
