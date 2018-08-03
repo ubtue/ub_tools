@@ -136,26 +136,7 @@ public:
     Subfields() = default;
     inline Subfields(std::vector<Subfield> &&subfields): subfields_(subfields) { }
     Subfields(const Subfields &other) = default;
-    inline explicit Subfields(const std::string &field_contents) {
-        if (unlikely(field_contents.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
-            return;
-
-        std::string value;
-        char subfield_code(field_contents[3]);
-        for (auto ch(field_contents.cbegin() + 4 /* 2 indicators + delimiter + subfield code */);
-             ch != field_contents.cend(); ++ch)
-        {
-            if (unlikely(*ch == '\x1F')) {
-                subfields_.emplace_back(subfield_code, value);
-                value.clear();
-                ++ch; // Skip over the delimiter.
-                subfield_code = *ch;
-            } else
-                value += *ch;
-        }
-
-        subfields_.emplace_back(subfield_code, value);
-    }
+    explicit Subfields(const std::string &field_contents);
     Subfields(Subfields &&other) = default;
 
     inline const_iterator begin() const { return subfields_.cbegin(); }

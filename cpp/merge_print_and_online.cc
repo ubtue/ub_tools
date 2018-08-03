@@ -432,18 +432,25 @@ void ProcessRecords(const bool /*debug*/, MARC::Reader * const marc_reader, MARC
     for (const auto &from_ppn_and_to_ppn : ppn_to_ppn_map)
         skip_ppns.emplace(from_ppn_and_to_ppn.second);
 
-    unsigned record_count(0), merged_count(0), patched_uplink_count(0);
+    unsigned record_count(0), merged_count(0), patched_uplink_count(0), skipped_count(0);
+    off_t last_offset(marc_reader->tell());
+    std::unordered_map<std::string, off_t> orphan_ppns_to_offsets_map;
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
 
         if (skip_ppns.find(record.getControlNumber()) != skip_ppns.end()) {
+            ++skipped_count;
             LOG_DEBUG("skipping record w/ PPN " + record.getControlNumber());
+            orphan_ppns_to_offsets_map[record.getControlNumber()] = last_offset;
+            last_offset = marc_reader->tell();
             continue;
         }
 
         const auto control_number_and_offset(ppn_to_offset_map.find(record.getControlNumber()));
         if (control_number_and_offset != ppn_to_offset_map.end()) {
             MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, control_number_and_offset->second));
+            orphan_ppns_to_offsets_map.erase(record2.getControlNumber());
+            orphan_ppns_to_offsets_map.erase(record.getControlNumber());
 
             // Only merge records if one is print and the other one online:
             const bool record_is_electronic(record.isElectronicResource());
@@ -457,8 +464,17 @@ void ProcessRecords(const bool /*debug*/, MARC::Reader * const marc_reader, MARC
             ++patched_uplink_count;
 
         marc_writer->write(record);
+        last_offset = marc_reader->tell();
     }
 
+    // Write out the orphans:
+    for (const auto &orphaned_ppn_and_offset : orphan_ppns_to_offsets_map) {
+        const auto orphaned_record(ReadRecordFromOffsetOrDie(marc_reader, orphaned_ppn_and_offset.second));
+        marc_writer->write(orphaned_record);
+    }
+    LOG_INFO("Wrote " + std::to_string(orphan_ppns_to_offsets_map.size()) + " orphans.");
+
+    LOG_INFO("Skipped " + std::to_string(skipped_count) + " records.");
     LOG_INFO("Data set contained " + std::to_string(record_count) + " MARC record(s).");
     LOG_INFO("Merged " + std::to_string(merged_count) + " MARC record(s).");
     LOG_INFO("Patched uplinks of " + std::to_string(patched_uplink_count) + " MARC record(s).");
