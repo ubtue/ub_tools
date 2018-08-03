@@ -223,10 +223,7 @@ void GenerateValidatedOutput(kyotocabinet::HashDB * const dups_db, MARC::Reader 
 }
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
-
-
+int Main(int argc, char **argv) {
     std::unique_ptr<kyotocabinet::HashDB> dups_db;
     if (argc > 1 and std::strcmp(argv[1], "--skip-dups") == 0) {
         dups_db = CreateOrOpenKeyValueDB();
@@ -254,34 +251,32 @@ int main(int argc, char **argv) {
     if (not StringUtil::ToUnsigned(time_limit_per_request_as_string, &time_limit_per_request_in_seconds))
         LOG_ERROR("\"" + time_limit_per_request_as_string + "\" is not a valid time limit!");
 
-    try {
-        const std::string TEMP_FILENAME("/tmp/oai_pmh_harvester.temp.xml");
-        std::unique_ptr<File> temp_output(FileUtil::OpenOutputFileOrDie(TEMP_FILENAME));
+    const std::string TEMP_FILENAME("/tmp/oai_pmh_harvester.temp.xml");
+    std::unique_ptr<File> temp_output(FileUtil::OpenOutputFileOrDie(TEMP_FILENAME));
 
-        const std::string COLLECTION_OPEN(
-            "<collection xmlns=\"http://www.loc.gov/MARC21/slim\" "
-            "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
-            "xsi:schemaLocation=\"http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd\">");
-        temp_output->write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + COLLECTION_OPEN + "\n");
+    const std::string COLLECTION_OPEN(
+                                      "<collection xmlns=\"http://www.loc.gov/MARC21/slim\" "
+                                      "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+                                      "xsi:schemaLocation=\"http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd\">");
+    temp_output->write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + COLLECTION_OPEN + "\n");
 
-        std::string resumption_token, cursor, complete_list_size;
-        unsigned total_record_count(0);
-        while (ListRecords(MakeRequestURL(base_url, metadata_prefix, harvest_set, resumption_token),
-                           time_limit_per_request_in_seconds, ignore_ssl_certificates, temp_output.get(),
-                           &resumption_token, &cursor, &complete_list_size, &total_record_count))
-            LOG_INFO("Continuing download, resumption token was: \"" + resumption_token + "\" (cursor=" + cursor
+    std::string resumption_token, cursor, complete_list_size;
+    unsigned total_record_count(0);
+    while (ListRecords(MakeRequestURL(base_url, metadata_prefix, harvest_set, resumption_token),
+                       time_limit_per_request_in_seconds, ignore_ssl_certificates, temp_output.get(),
+                       &resumption_token, &cursor, &complete_list_size, &total_record_count))
+        LOG_INFO("Continuing download, resumption token was: \"" + resumption_token + "\" (cursor=" + cursor
                  + ", completeListSize=" + complete_list_size + ").");
 
-        const std::string COLLECTION_CLOSE("</collection>");
-        temp_output->write(COLLECTION_CLOSE + "\n");
-        temp_output->close();
-        LOG_INFO("Downloaded " + std::to_string(total_record_count) + " record(s).");
+    const std::string COLLECTION_CLOSE("</collection>");
+    temp_output->write(COLLECTION_CLOSE + "\n");
+    temp_output->close();
+    LOG_INFO("Downloaded " + std::to_string(total_record_count) + " record(s).");
 
-        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(TEMP_FILENAME, MARC::FileType::XML));
-        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(output_filename));
-        GenerateValidatedOutput(dups_db.get(), marc_reader.get(), control_number_prefix, marc_writer.get());
-        ::unlink(TEMP_FILENAME.c_str());
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(TEMP_FILENAME, MARC::FileType::XML));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(output_filename));
+    GenerateValidatedOutput(dups_db.get(), marc_reader.get(), control_number_prefix, marc_writer.get());
+    ::unlink(TEMP_FILENAME.c_str());
+
+    return EXIT_SUCCESS;
 }
