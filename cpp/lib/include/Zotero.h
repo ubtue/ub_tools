@@ -24,6 +24,7 @@
 #include <memory>
 #include <ctime>
 #include <kchashdb.h>
+#include "DbConnection.h"
 #include "Downloader.h"
 #include "IniFile.h"
 #include "JSON.h"
@@ -34,10 +35,6 @@
 #include "TimeUtil.h"
 #include "UnsignedPair.h"
 #include "Url.h"
-
-
-// Forward declarations:
-class DbConnection;
 
 
 namespace Zotero {
@@ -154,6 +151,7 @@ struct SiteAugmentParams {
     GobalAugmentParams *global_params_;
     GroupParams *group_params_;
 
+    std::string parent_journal_name_;
     std::string parent_ISSN_print_;
     std::string parent_ISSN_online_;
     std::string parent_PPN_;
@@ -184,36 +182,28 @@ struct HarvestParams {
 
 
 /** \class DownloadTracker
- *  \brief Loads manages and stores the timestamps, hashes of previously downloaded metadata records.
- *  \note  Each entry in the database has the following structure: a time_t timestamp, followed by a NUL-terminated error message
- *         followed by an optional hash.  Either the hash is missing or the error message is the empty string.
+ *  \brief Loads, manages and stores the timestamps, hashes of previously downloaded metadata records.
  */
 class DownloadTracker {
-    mutable kyotocabinet::HashDB db_;
-    std::unordered_set<std::string> previously_downloaded_;
+    mutable DbConnection * db_connection_;
 public:
     struct Entry {
         std::string url_;
-        time_t creation_time_;
+        std::string journal_name_;
+        time_t last_harvest_time_;
         std::string error_message_;
         std::string hash_;
-    public:
-        Entry(const std::string &url, const time_t &creation_time, const std::string &error_message, const std::string &hash)
-            : url_(url), creation_time_(creation_time), error_message_(error_message), hash_(hash) { }
     };
 public:
-    static const std::string DEFAULT_ZOTERO_DOWNLOADS_DB_PATH;
-public:
-    explicit DownloadTracker(const std::string &previous_downloads_db_path = DEFAULT_ZOTERO_DOWNLOADS_DB_PATH);
+    explicit DownloadTracker(DbConnection * const db): db_connection_(db) {}
     ~DownloadTracker() = default;
 
     /** \brief Checks if "url" or ("url", "hash") have already been downloaded.
      *  \return True if we have find an entry for "url" or ("url", "hash"), else false.
      */
-    bool hasAlreadyBeenDownloaded(const std::string &url, time_t * const creation_time, std::string * const error_message,
-                                  const std::string &hash = "") const;
+    bool hasAlreadyBeenDownloaded(const std::string &url, const std::string &hash = "", Entry * const entry = nullptr) const;
 
-    void addOrReplace(const std::string &url, const std::string &hash, const std::string &error_message);
+    void addOrReplace(const std::string &url, const std::string &journal_name, const std::string &hash, const std::string &error_message);
     size_t listMatches(const std::string &url_regex, std::vector<Entry> * const entries) const;
     size_t deleteMatches(const std::string &url_regex);
 
@@ -228,10 +218,9 @@ public:
     /** \brief Deletes all entries in the database.
      *  \return The number of deleted entries.
      */
-    inline size_t clear() { return deleteOldEntries(0); }
+    size_t clear();
 
     size_t size() const;
-    inline std::string getPath() const { return db_.path(); }
 };
 
 
@@ -243,9 +232,9 @@ protected:
     SiteAugmentParams *augment_params_;
     const std::shared_ptr<const HarvestParams> &harvest_params_;
 protected:
-    FormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format, const std::string &output_file,
+    FormatHandler(DbConnection * const db_connection, const std::string &output_format, const std::string &output_file,
                   const std::shared_ptr<const HarvestParams> &harvest_params)
-        : download_tracker_(previous_downloads_db_path), output_format_(output_format), output_file_(output_file),
+        : download_tracker_(db_connection), output_format_(output_format), output_file_(output_file),
           augment_params_(nullptr), harvest_params_(harvest_params)
         { }
 public:
@@ -259,7 +248,7 @@ public:
 
     // The output format must be one of "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
     // "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei", "json", "marc21", or "marcxml".
-    static std::unique_ptr<FormatHandler> Factory(const std::string &previous_downloads_db_path, const std::string &output_format,
+    static std::unique_ptr<FormatHandler> Factory(DbConnection * const db_connection, const std::string &output_format,
                                                   const std::string &output_file,
                                                   const std::shared_ptr<const HarvestParams> &harvest_params);
 };
@@ -269,7 +258,7 @@ class JsonFormatHandler final : public FormatHandler {
     unsigned record_count_;
     File *output_file_object_;
 public:
-    JsonFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format, const std::string &output_file,
+    JsonFormatHandler(DbConnection * const db_connection, const std::string &output_format, const std::string &output_file,
                       const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~JsonFormatHandler();
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
@@ -280,7 +269,7 @@ class ZoteroFormatHandler final : public FormatHandler {
     unsigned record_count_;
     std::string json_buffer_;
 public:
-    ZoteroFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format, const std::string &output_file,
+    ZoteroFormatHandler(DbConnection * const db_connection, const std::string &output_format, const std::string &output_file,
                         const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~ZoteroFormatHandler();
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
@@ -290,7 +279,7 @@ public:
 class MarcFormatHandler final : public FormatHandler {
     std::unique_ptr<MARC::Writer> marc_writer_;
 public:
-    MarcFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_file,
+    MarcFormatHandler(DbConnection * const db_connection, const std::string &output_file,
                       const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~MarcFormatHandler() = default;
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
@@ -329,7 +318,7 @@ private:
                              std::string * const website_title);
 
     void populateCustomNode(std::shared_ptr<const JSON::JSONNode> custom_node, std::string * const issn_normalized,
-                            MARC::Record * const new_record);
+                            std::string * const parent_journal_name, MARC::Record * const new_record);
 };
 
 
@@ -376,7 +365,7 @@ enum class RSSHarvestMode { VERBOSE, TEST, NORMAL };
 
 /** \brief Harvest metadata from URL's referenced in an RSS or Atom feed.
  *  \param feed_url       Where to download the RSS feed.
- *  \param db_connection  A connection to a database w/ the structure as specified by .../cpp/data/rss.sql. Not used when "mode"
+ *  \param db_connection  A connection to a database w/ the structure as specified by .../cpp/data/ub_tools.sql. Not used when "mode"
  *                        is set to TEST.
  *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
  *          difference (first - second).
