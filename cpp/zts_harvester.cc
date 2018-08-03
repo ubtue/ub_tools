@@ -51,10 +51,10 @@ const std::unordered_map<std::string, std::string> group_to_user_agent_map = {
     std::cerr << "Usage: " << ::progname << " [options] config_file_path [section1 section2 .. sectionN]\n"
               << "\n"
               << "\tOptions:\n"
-              << "\t[--min-log-level=log_level]         Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
-              << "\t[--test]                            No download information will be stored for further downloads.\n"
-              << "\t[--live-only]                       Only sections that have \"live=true\" set will be processed.\n"
-              << "\t[--groups=my_groups                 Where groups are a comma-separated list of goups.\n"
+              << "\t[--min-log-level=log_level]    Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
+              << "\t[--test]                       No download information will be stored for further downloads.\n"
+              << "\t[--live-only]                  Only sections that have \"delivery_mode=test|live\" set will be processed.\n"
+              << "\t[--groups=my_groups            Where groups are a comma-separated list of goups.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
               << "\t[--output-file=output_file]\n"
@@ -245,7 +245,8 @@ int Main(int argc, char *argv[]) {
             continue;
         }
 
-        if (live_only and section.getBool("live", false) != true)
+        const Zotero::DeliveryMode delivery_mode(static_cast<Zotero::DeliveryMode>(section.getEnum("delivery_mode", Zotero::STRING_TO_DELIVERY_MODE_MAP, Zotero::DeliveryMode::NONE)));
+        if (live_only and delivery_mode == Zotero::DeliveryMode::NONE)
             continue;
 
         const std::string group_name(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::GROUP)));

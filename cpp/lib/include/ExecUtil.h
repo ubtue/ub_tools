@@ -28,6 +28,7 @@
 #pragma once
 
 
+#include <unordered_set>
 #include <string>
 #include <vector>
 #include <signal.h>
@@ -76,7 +77,7 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &args 
  *  \return The PID of the child.
  */
 pid_t Spawn(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
-          const std::string &new_stdout = "", const std::string &new_stderr = "");
+            const std::string &new_stdout = "", const std::string &new_stderr = "");
 
 
 /** \brief Tries to find a path, with the help of the environment variable PATH, to "executable_candidate".
@@ -113,6 +114,15 @@ bool ExecSubcommandAndCaptureStdoutAndStderr(const std::string &command, const s
 // Based on CPU load and number of cores, tells us if it would be prudent to spawn a new process at this time or not.
 // \return false if the CPU is too buasy, o/w true.
 bool ShouldScheduleNewProcess();
+
+
+/** \brief Finds the list of PID's given a program's name
+ *  \param programe_name  If this starts w/ a slash we look for exact matches o/w we only comparte the last path component.
+ */
+void FindActivePrograms(const std::string &program_name, std::unordered_set<unsigned> * const pids);
+
+
+std::unordered_set<unsigned> FindActivePrograms(const std::string &program_name);
 
 
 } // namespace ExecUtil
