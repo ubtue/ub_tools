@@ -43,7 +43,16 @@ class DbConnection;
 namespace Zotero {
 
 
+enum DeliveryMode { NONE, TEST, LIVE };
+const std::map<std::string, int> STRING_TO_DELIVERY_MODE_MAP { { "NONE", static_cast<int>(Zotero::DeliveryMode::NONE) },
+                                                              { "TEST", static_cast<int>(Zotero::DeliveryMode::TEST) },
+                                                              { "LIVE", static_cast<int>(Zotero::DeliveryMode::LIVE) } };
+
 enum HarvesterType { RSS, CRAWL, DIRECT };
+const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP { { "RSS", static_cast<int>(Zotero::HarvesterType::RSS) },
+                                                              { "DIRECT", static_cast<int>(Zotero::HarvesterType::DIRECT) },
+                                                              { "CRAWL", static_cast<int>(Zotero::HarvesterType::CRAWL) } };
+
 enum HarvesterConfigEntry {
     TYPE, GROUP,
     PARENT_PPN, PARENT_ISSN_PRINT, PARENT_ISSN_ONLINE, STRPTIME_FORMAT,

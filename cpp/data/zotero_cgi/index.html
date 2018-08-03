@@ -62,7 +62,11 @@
 <p><i>Zotero Translation Server: {zotero_translation_server_url}</i></p>
 
 <p>
-    Zeder: <a target="_blank" href="http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo">ixtheo</a> | <a target="_blank" href="http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=krim">krim</a>
+    Zeder: <a target="_blank" href="http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo">ixtheo</a> | <a target="_blank" href="http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=krim">krim</a>, 
+    Help/Manual: <a target="_blank" href="https://github.com/ubtue/ub_tools/wiki/Zotero-Harvesting">see Wiki</a>
+</p>
+<p data-toggle="tooltip" title="If this is &gt; 0, somebody else is doing tests. Might be slow.">
+    Number of running processes: {running_processes_count}
 </p>
 
 <!-- tab navigation -->
@@ -85,12 +89,12 @@
                     <th>issn override (online)</th>
                     <th>parent ppn override</th>
                     <th>method</th>
-                    <th>live</th>
+                    <th>delivery mode</th>
                     <th>actions</th>
                 </tr>
             </thead>
             <tbody>
-                {LOOP all_journal_titles, all_journal_groups, all_journal_print_issns, all_journal_online_issns, all_journal_parent_ppns, all_journal_methods, all_journal_live, all_urls}
+                {LOOP all_journal_titles, all_journal_groups, all_journal_print_issns, all_journal_online_issns, all_journal_parent_ppns, all_journal_methods, all_journal_delivery_modes, all_urls}
                     <tr>
                         <td>{all_journal_groups}</td>
                         <td><a target="_blank" href="{all_urls}">{all_journal_titles}</a></td>
@@ -98,7 +102,7 @@
                         <td class="issn_generate_link">{all_journal_online_issns}</td>
                         <td>{all_journal_parent_ppns}</td>
                         <td>{all_journal_methods}</td>
-                        <td>{all_journal_live}</td>
+                        <td>{all_journal_delivery_modes}</td>
                         <td>
                             {IF all_journal_methods == "RSS"}<a href="#rss" onclick="TryRss('{all_journal_titles}')">try rss</a>{ENDIF}
                             {IF all_journal_methods == "DIRECT"}<a href="#rss" onclick="TryDirect('{all_journal_titles}')">try direct</a>{ENDIF}
