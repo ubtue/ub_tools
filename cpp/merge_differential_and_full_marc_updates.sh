@@ -74,7 +74,7 @@ temp_filename=${temp_filename:-}
 if [ -z ${temp_filename} ]; then
     ln --symbolic --force $input_filename Complete-MARC-current.tar.gz
 else
-    mv $temp_filename $target_filenamename
+    mv $temp_filename $target_filename
 
     if [[ ! keep_itermediate_filenames ]]; then
         rm temp_filename.$BASHPID.*.tar.gz TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
