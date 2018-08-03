@@ -2,6 +2,17 @@
 set -o errexit -o nounset
 
 
+no_problems_found=1
+function SendEmail {
+    if [[ $no_problems_found -eq 0 ]]; then
+        exit 0
+    else
+        send_email --recipients="$email_address" --subject="$0 failed" --message-body="Check the log file for details."
+    fi 
+}
+trap SendEmail EXIT
+
+
 function Usage() {
     echo "Usage: $0 [--keep-intermediate-files] email_address"
     exit 1
@@ -33,13 +44,7 @@ function KeepIntermediateFiles() {
 }
 
 
-if [[ -z $(printenv TUEFIND_FLAVOUR) ]]; then
-    echo "You need to set the environment variable TUEFIND_FLAVOUR in order to run this script!"
-    exit 1
-fi
-
-
-target_filename=Complete-MARC-${TUEFIND_FLAVOUR}-$(date +%y%m%d).tar.gz
+target_filename=Complete-MARC-$(date +%y%m%d).tar.gz
 if [[ -e $target_filename ]]; then
     echo "Nothing to do: ${target_filename} already exists."
     exit 0
@@ -47,42 +52,38 @@ fi
 echo "Creating ${target_filename}"
 
 
-input_file=$(generate_merge_order | head --lines=1)
+input_filename=$(generate_merge_order | head --lines=1)
 declare -i counter=0
 for update in $(generate_merge_order | tail --lines=+2); do
     ((++counter))
-    output_file=temp_file.$BASHPID.$counter.tar.gz
+    temp_filename=temp_filename.$BASHPID.$counter.tar.gz
     if [[ ${update:0:6} == "LOEPPN" ]]; then
         echo "Processing deletion list: $update"
-        archive_delete_ids $(KeepIntermediateFiles) $input_file $update $output_file
+        archive_delete_ids $(KeepIntermediateFiles) $input_filename $update $temp_filename
     else
         echo "Processing differential dump: $update"
-        apply_differential_update $(KeepIntermediateFiles) $input_file $update $output_file
+        apply_differential_update $(KeepIntermediateFiles) $input_filename $update $temp_filename
     fi
-    input_file=$output_file
+    input_filename=$temp_filename
 done
 
 
-mv $output_file $target_filename
+# If we did not execute the for-loop at all, $temp_filename is unset and we need to set it to the empty string:
+temp_filename=${temp_filename:-}
+
+if [ -z ${temp_filename} ]; then
+    ln --symbolic --force $input_filename Complete-MARC-current.tar.gz
+else
+    mv $temp_filename $target_filename
+
+    if [[ ! keep_itermediate_filenames ]]; then
+        rm temp_filename.$BASHPID.*.tar.gz TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
+    fi
 
 
-if [[ ! keep_itermediate_files ]]; then
-    rm temp_file.$BASHPID.*.tar.gz TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
+    # Create symlink to newest complete dump:
+    ln --symbolic --force $target_filename Complete-MARC-current.tar.gz
 fi
 
 
-# Create symlink to newest complete dump:
-rm --force Complete-MARC-ixtheo-current.tar.gz
-ln --symbolic $target_filename Complete-MARC-ixtheo-current.tar.gz
-
 no_problems_found=0
-
-
-function SendEmail {
-    if [[ -n $no_problems_found ]]; then
-        exit 0
-    else
-        send_email --recipients="$email_address" --subject="$0 failed" --message-body="Check the log file for details."
-    fi 
-}
-trap SendEmail EXIT

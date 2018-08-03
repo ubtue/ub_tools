@@ -1,6 +1,7 @@
 // \brief Command-line utility to send email messages.
 #include <iostream>
 #include <cstdlib>
+#include "IniFile.h"
 #include "EmailSender.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -10,7 +11,7 @@
 namespace {
 
 
-__attribute__((noreturn)) void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--sender=sender] [-reply-to=reply_to] --recipients=recipients\n"
               << "  [--cc-recipients=cc_recipients] [--bcc-recipients=bcc_recipients] [--expand-newline-escapes]\n"
               << "  --subject=subject --message-body=message_body [--priority=priority] [--format=format]\n\n"
@@ -80,8 +81,6 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
             LOG_ERROR("unknown argument: " + std::string(*argv));
     }
 
-    if (sender->empty() and reply_to->empty())
-        LOG_ERROR("you must specify --sender and/or --reply-to!");
     if (recipients->empty() and cc_recipients->empty() and bcc_recipients->empty())
         LOG_ERROR("you must specify a recipient!");
     if (subject->empty())
@@ -135,32 +134,34 @@ std::string ExpandNewlineEscapes(const std::string &text) {
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
+int Main(int argc, char *argv[]) {
     if (argc == 1)
         Usage();
 
     EmailSender::Priority priority(EmailSender::DO_NOT_SET_PRIORITY);
     EmailSender::Format format(EmailSender::PLAIN_TEXT);
 
-    try {
-        std::string sender, reply_to, recipients, cc_recipients, bcc_recipients, subject, message_body, priority_as_string,
-                    format_as_string;
-        bool expand_newline_escapes;
-        ParseCommandLine(++argv, &sender, &reply_to, &recipients, &cc_recipients, &bcc_recipients, &subject, &message_body,
-                         &priority_as_string, &format_as_string, &expand_newline_escapes);
+    std::string sender, reply_to, recipients, cc_recipients, bcc_recipients, subject, message_body, priority_as_string,
+        format_as_string;
+    bool expand_newline_escapes;
+    ParseCommandLine(++argv, &sender, &reply_to, &recipients, &cc_recipients, &bcc_recipients, &subject, &message_body,
+                     &priority_as_string, &format_as_string, &expand_newline_escapes);
 
-        if (not priority_as_string.empty())
-            priority = StringToPriority(priority_as_string);
-        if (not format_as_string.empty())
-            format = StringToFormat(format_as_string);
-
-        if (expand_newline_escapes)
-            message_body = ExpandNewlineEscapes(message_body);
-        if (not EmailSender::SendEmail(sender, SplitRecipients(recipients), SplitRecipients(cc_recipients),
-                                       SplitRecipients(bcc_recipients), subject, message_body, priority, format, reply_to))
-            LOG_ERROR("failed to send your email!");
-    } catch (const std::exception &e) {
-        LOG_ERROR("Caught exception: " + std::string(e.what()));
+    if (sender.empty() and reply_to.empty()) {
+        IniFile ini_file("/usr/local/var/lib/tuelib/cronjobs/smtp_server.conf");
+        sender = ini_file.getString("SMTPServer", "server_user") + "@uni-tuebingen.de";
     }
+
+    if (not priority_as_string.empty())
+        priority = StringToPriority(priority_as_string);
+    if (not format_as_string.empty())
+        format = StringToFormat(format_as_string);
+
+    if (expand_newline_escapes)
+        message_body = ExpandNewlineEscapes(message_body);
+    if (not EmailSender::SendEmail(sender, SplitRecipients(recipients), SplitRecipients(cc_recipients),
+                                   SplitRecipients(bcc_recipients), subject, message_body, priority, format, reply_to))
+        LOG_ERROR("failed to send your email!");
+
+    return EXIT_SUCCESS;
 }
