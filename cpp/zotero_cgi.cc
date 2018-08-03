@@ -98,6 +98,8 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> all_journal_methods;
     std::vector<std::string> all_journal_groups;
     std::vector<std::string> all_journal_delivery_modes;
+    std::vector<std::string> all_journal_zeder_ids;
+    std::vector<std::string> all_journal_zeder_comments;
     std::vector<std::string> all_urls;
 
     std::vector<std::string> rss_journal_titles;
@@ -141,6 +143,8 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             const std::string issn_online(section.getString("issn_online", ""));
             const std::string parent_ppn(section.getString("parent_ppn", ""));
             const std::string group(section.getString("group"));
+            const std::string zeder_id(section.getString("zeder_id", ""));
+            const std::string zeder_comment(section.getString("zeder_comment", ""));
 
             all_journal_titles.emplace_back(title);
             all_journal_print_issns.emplace_back(issn_print);
@@ -148,6 +152,8 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             all_journal_parent_ppns.emplace_back(parent_ppn);
             all_journal_groups.emplace_back(group);
             all_journal_methods.emplace_back(harvest_type_raw);
+            all_journal_zeder_ids.emplace_back(zeder_id);
+            all_journal_zeder_comments.emplace_back(zeder_comment);
 
             const auto delivery_mode_string(std::find_if(Zotero::STRING_TO_DELIVERY_MODE_MAP.begin(), Zotero::STRING_TO_DELIVERY_MODE_MAP.end(), [delivery_mode](const std::pair<std::string, int> &map_entry) {return map_entry.second == delivery_mode; })->first);
             all_journal_delivery_modes.emplace_back(delivery_mode_string);
@@ -198,6 +204,8 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("all_journal_methods", all_journal_methods);
     names_to_values_map->insertArray("all_journal_groups", all_journal_groups);
     names_to_values_map->insertArray("all_journal_delivery_modes", all_journal_delivery_modes);
+    names_to_values_map->insertArray("all_journal_zeder_ids", all_journal_zeder_ids);
+    names_to_values_map->insertArray("all_journal_zeder_comments", all_journal_zeder_comments);
     names_to_values_map->insertArray("all_urls", all_urls);
 
     names_to_values_map->insertArray("rss_journal_titles", rss_journal_titles);

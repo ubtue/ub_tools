@@ -62,7 +62,7 @@
 <p><i>Zotero Translation Server: {zotero_translation_server_url}</i></p>
 
 <p>
-    Zeder: <a target="_blank" href="http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo">ixtheo</a> | <a target="_blank" href="http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=krim">krim</a>, 
+    Zeder: <a target="_blank" href="http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo">ixtheo</a> | <a target="_blank" href="http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=krim">krim</a>,
     Help/Manual: <a target="_blank" href="https://github.com/ubtue/ub_tools/wiki/Zotero-Harvesting">see Wiki</a>
 </p>
 <p data-toggle="tooltip" title="If this is &gt; 0, somebody else is doing tests. Might be slow.">
@@ -83,18 +83,20 @@
         <table id="all_journals">
             <thead>
                 <tr>
-                    <th>group</th>
-                    <th>title</th>
-                    <th>issn override (print)</th>
-                    <th>issn override (online)</th>
-                    <th>parent ppn override</th>
-                    <th>method</th>
-                    <th>delivery mode</th>
-                    <th>actions</th>
+                    <th>Group</th>
+                    <th>Title</th>
+                    <th>Parent ISSN override (print)</th>
+                    <th>Parent ISSN override (online)</th>
+                    <th>Parent PPN override</th>
+                    <th>Method</th>
+                    <th>Delivery Mode</th>
+                    <th>Actions</th>
+                    <th>Zeder ID</th>
+                    <th>Zeder Comment</th>
                 </tr>
             </thead>
             <tbody>
-                {LOOP all_journal_titles, all_journal_groups, all_journal_print_issns, all_journal_online_issns, all_journal_parent_ppns, all_journal_methods, all_journal_delivery_modes, all_urls}
+                {LOOP all_journal_titles, all_journal_groups, all_journal_print_issns, all_journal_online_issns, all_journal_parent_ppns, all_journal_methods, all_journal_delivery_modes, all_journal_zeder_ids, all_journal_zeder_comments, all_urls}
                     <tr>
                         <td>{all_journal_groups}</td>
                         <td><a target="_blank" href="{all_urls}">{all_journal_titles}</a></td>
@@ -108,6 +110,8 @@
                             {IF all_journal_methods == "DIRECT"}<a href="#rss" onclick="TryDirect('{all_journal_titles}')">try direct</a>{ENDIF}
                             {IF all_journal_methods == "CRAWL"}<a href="#crawling" onclick="TryCrawling('{all_journal_titles}')" disabled class="disabled" title="Crawling disabled as discussed in meeting 2018-06-12">try crawl</a>{ENDIF}
                         </td>
+                        <td>{all_journal_zeder_ids}</td>
+                        <td>{all_journal_zeder_comments}</td>
                     </tr>
                 {ENDLOOP}
             </tbody>
@@ -127,11 +131,11 @@
                     </td>
                 </tr>
                 <tr>
-                    <td>ISSN override (print)</td>
+                    <td>Parent ISSN override (print)</td>
                     <td id="rss_journal_print_issn"></td>
                 </tr>
                 <tr>
-                    <td>ISSN override (online)</td>
+                    <td>Parent ISSN override (online)</td>
                     <td id="rss_journal_online_issn"></td>
                 </tr>
                 <tr>
@@ -172,11 +176,11 @@
                     </td>
                 </tr>
                 <tr>
-                    <td>ISSN override (print)</td>
+                    <td>Parent ISSN override (print)</td>
                     <td id="direct_journal_print_issn"></td>
                 </tr>
                 <tr>
-                    <td>ISSN override (online)</td>
+                    <td>Parent ISSN override (online)</td>
                     <td id="direct_journal_online_issn"></td>
                 </tr>
                 <tr>
@@ -217,11 +221,11 @@
                     </td>
                 </tr>
                 <tr>
-                    <td>ISSN override (print)</td>
+                    <td>Parent ISSN override (print)</td>
                     <td id="crawling_journal_print_issn"></td>
                 </tr>
                 <tr>
-                    <td>ISSN override (online)</td>
+                    <td>Parent ISSN override (online)</td>
                     <td id="crawling_journal_online_issn"></td>
                 </tr>
                 <tr>
