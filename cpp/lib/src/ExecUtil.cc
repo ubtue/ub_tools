@@ -344,4 +344,42 @@ bool ShouldScheduleNewProcess() {
 }
 
 
+static bool ConsistsOnlyOfDigits(const std::string &s) {
+    for (const char ch : s) {
+        if (not StringUtil::IsDigit(ch))
+            return false;
+    }
+
+    return true;
+}
+
+
+void FindActivePrograms(const std::string &programe_name, std::unordered_set<unsigned> * const pids) {
+    if (unlikely(programe_name.empty()))
+        LOG_ERROR("program name must not be empty!");
+    pids->clear();
+
+    const bool absolute(programe_name[0] == '/');
+    FileUtil::Directory proc("/proc");
+    for (const auto &entry : proc) {
+        if (not ConsistsOnlyOfDigits(entry.getName()))
+            continue; // Not a process!
+
+        const auto pid(entry.getName());
+        const auto cmdline(FileUtil::ReadStringOrDie("/proc/" + pid + "/cmdline"));
+        std::string path(cmdline.c_str()); // Works because cmdline has NUL_separated strings.
+
+        if (absolute) {
+            if (path == programe_name)
+                pids->emplace(StringUtil::ToUnsigned(pid));
+        } else {
+            std::string dirname, basename;
+            FileUtil::DirnameAndBasename(path, &dirname, &basename);
+            if (basename == programe_name)
+                pids->emplace(StringUtil::ToUnsigned(pid));
+        }
+    }
+}
+
+
 } // namespace ExecUtil
