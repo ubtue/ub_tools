@@ -82,7 +82,7 @@ else
 
 
     # Create symlink to newest complete dump:
-    ln --symbolic --force $target_filenamename Complete-MARC-current.tar.gz
+    ln --symbolic --force $target_filename Complete-MARC-current.tar.gz
 fi
 
 
