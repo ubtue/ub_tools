@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <iostream>
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -33,6 +34,7 @@
 #include "TextUtil.h"
 #include "WallClockTimer.h"
 #include "WebUtil.h"
+#include "Zotero.h"
 #include "util.h"
 
 
@@ -41,10 +43,6 @@ namespace {
 
 std::string zts_client_maps_directory;
 std::string zts_url;
-enum HarvestType { RSS, DIRECT, CRAWLING };
-const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP { { "RSS", static_cast<int>(RSS) },
-                                                              { "DIRECT", static_cast<int>(DIRECT) },
-                                                              { "CRAWL", static_cast<int>(CRAWLING) } };
 const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
 const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS {
     // custom formats
@@ -99,7 +97,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> all_journal_parent_ppns;
     std::vector<std::string> all_journal_methods;
     std::vector<std::string> all_journal_groups;
-    std::vector<std::string> all_journal_live;
+    std::vector<std::string> all_journal_delivery_modes;
     std::vector<std::string> all_urls;
 
     std::vector<std::string> rss_journal_titles;
@@ -136,13 +134,13 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             if (group_names.find(title) != group_names.cend())
                 continue;
 
-            const HarvestType harvest_type(static_cast<HarvestType>(section.getEnum("type", STRING_TO_HARVEST_TYPE_MAP)));
+            const Zotero::HarvesterType harvest_type(static_cast<Zotero::HarvesterType>(section.getEnum("type", Zotero::STRING_TO_HARVEST_TYPE_MAP)));
+            const Zotero::DeliveryMode delivery_mode(static_cast<Zotero::DeliveryMode>(section.getEnum("delivery_mode", Zotero::STRING_TO_DELIVERY_MODE_MAP, Zotero::DeliveryMode::NONE)));
             const std::string harvest_type_raw(section.getString("type"));
             const std::string issn_print(section.getString("issn_print", ""));
             const std::string issn_online(section.getString("issn_online", ""));
             const std::string parent_ppn(section.getString("parent_ppn", ""));
             const std::string group(section.getString("group"));
-            const bool live(section.getBool("live", false));
 
             all_journal_titles.emplace_back(title);
             all_journal_print_issns.emplace_back(issn_print);
@@ -151,12 +149,10 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             all_journal_groups.emplace_back(group);
             all_journal_methods.emplace_back(harvest_type_raw);
 
-            if (live)
-                all_journal_live.emplace_back("true");
-            else
-                all_journal_live.emplace_back("false");
+            const auto delivery_mode_string(std::find_if(Zotero::STRING_TO_DELIVERY_MODE_MAP.begin(), Zotero::STRING_TO_DELIVERY_MODE_MAP.end(), [delivery_mode](const std::pair<std::string, int> &map_entry) {return map_entry.second == delivery_mode; })->first);
+            all_journal_delivery_modes.emplace_back(delivery_mode_string);
 
-            if (harvest_type == RSS) {
+            if (harvest_type == Zotero::HarvesterType::RSS) {
                 all_urls.emplace_back(section.getString("feed"));
 
                 rss_journal_titles.emplace_back(title);
@@ -165,7 +161,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
                 rss_journal_parent_ppns.emplace_back(parent_ppn);
                 rss_feed_urls.emplace_back(section.getString("feed"));
                 rss_strptime_formats.emplace_back(section.getString("strptime_format", ""));
-            } else if (harvest_type == DIRECT) {
+            } else if (harvest_type == Zotero::HarvesterType::DIRECT) {
                 all_urls.emplace_back(section.getString("url"));
 
                 direct_journal_titles.emplace_back(title);
@@ -174,7 +170,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
                 direct_journal_parent_ppns.emplace_back(parent_ppn);
                 direct_urls.emplace_back(section.getString("url"));
                 direct_strptime_formats.emplace_back(section.getString("strptime_format", ""));
-            } else if (harvest_type == CRAWLING) {
+            } else if (harvest_type == Zotero::HarvesterType::CRAWL) {
                 all_urls.emplace_back(section.getString("base_url"));
 
                 crawling_journal_titles.emplace_back(title);
@@ -201,7 +197,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("all_journal_parent_ppns", all_journal_parent_ppns);
     names_to_values_map->insertArray("all_journal_methods", all_journal_methods);
     names_to_values_map->insertArray("all_journal_groups", all_journal_groups);
-    names_to_values_map->insertArray("all_journal_live", all_journal_live);
+    names_to_values_map->insertArray("all_journal_delivery_modes", all_journal_delivery_modes);
     names_to_values_map->insertArray("all_urls", all_urls);
 
     names_to_values_map->insertArray("rss_journal_titles", rss_journal_titles);
@@ -426,6 +422,8 @@ int Main(int argc, char *argv[]) {
         std::string error_message;
         if (not FileUtil::IsReadable(TEMPLATE_FILENAME, &error_message))
             LOG_ERROR(error_message);
+
+        names_to_values_map.insertScalar("running_processes_count", std::to_string(ExecUtil::FindActivePrograms("zts_harvester").size()));
 
         std::ifstream template_html(TEMPLATE_FILENAME);
         ParseConfigFile(cgi_args, &names_to_values_map);
