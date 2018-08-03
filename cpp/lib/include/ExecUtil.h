@@ -120,6 +120,8 @@ bool ShouldScheduleNewProcess();
  *  \param programe_name  If this starts w/ a slash we look for exact matches o/w we only comparte the last path component.
  */
 void FindActivePrograms(const std::string &program_name, std::unordered_set<unsigned> * const pids);
+
+
 std::unordered_set<unsigned> FindActivePrograms(const std::string &program_name);
 
 
