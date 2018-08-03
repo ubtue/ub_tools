@@ -236,25 +236,25 @@ void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParam
 }
 
 
-std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &previous_downloads_db_path, const std::string &output_format,
+std::unique_ptr<FormatHandler> FormatHandler::Factory(DbConnection * const db_connection, const std::string &output_format,
                                                       const std::string &output_file,
                                                       const std::shared_ptr<const HarvestParams> &harvest_params)
 {
     if (output_format == "marcxml" or output_format == "marc21")
-        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(previous_downloads_db_path, output_file, harvest_params));
+        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(db_connection, output_file, harvest_params));
     else if (output_format == "json")
-        return std::unique_ptr<FormatHandler>(new JsonFormatHandler(previous_downloads_db_path, output_format, output_file, harvest_params));
+        return std::unique_ptr<FormatHandler>(new JsonFormatHandler(db_connection, output_format, output_file, harvest_params));
     else if (std::find(EXPORT_FORMATS.begin(), EXPORT_FORMATS.end(), output_format) != EXPORT_FORMATS.end())
-        return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(previous_downloads_db_path, output_format, output_file,
+        return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(db_connection, output_format, output_file,
                                                                       harvest_params));
     else
         LOG_ERROR("invalid output-format: " + output_format);
 }
 
 
-JsonFormatHandler::JsonFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format,
+JsonFormatHandler::JsonFormatHandler(DbConnection * const db_connection, const std::string &output_format,
                                      const std::string &output_file, const std::shared_ptr<const HarvestParams> &harvest_params)
-    : FormatHandler(previous_downloads_db_path, output_format, output_file, harvest_params), record_count_(0),
+    : FormatHandler(db_connection, output_format, output_file, harvest_params), record_count_(0),
       output_file_object_(new File(output_file_, "w"))
 {
     output_file_object_->write("[");
@@ -276,9 +276,9 @@ std::pair<unsigned, unsigned> JsonFormatHandler::processRecord(const std::shared
 }
 
 
-ZoteroFormatHandler::ZoteroFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_format,
+ZoteroFormatHandler::ZoteroFormatHandler(DbConnection * const db_connection, const std::string &output_format,
                                          const std::string &output_file, const std::shared_ptr<const HarvestParams> &harvest_params)
-    : FormatHandler(previous_downloads_db_path, output_format, output_file, harvest_params), record_count_(0),
+    : FormatHandler(db_connection, output_format, output_file, harvest_params), record_count_(0),
       json_buffer_("[")
 {
 }
@@ -319,9 +319,9 @@ std::string GuessOutputFormat(const std::string &output_file) {
 }
 
 
-MarcFormatHandler::MarcFormatHandler(const std::string &previous_downloads_db_path, const std::string &output_file,
+MarcFormatHandler::MarcFormatHandler(DbConnection * const db_connection, const std::string &output_file,
                                      const std::shared_ptr<const HarvestParams> &harvest_params)
-    : FormatHandler(previous_downloads_db_path, GuessOutputFormat(output_file), output_file, harvest_params),
+    : FormatHandler(db_connection, GuessOutputFormat(output_file), output_file, harvest_params),
       marc_writer_(MARC::Writer::Factory(output_file_))
 {
 }
@@ -522,7 +522,7 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
 
 // Populates the "ubtue" node.
 void MarcFormatHandler::populateCustomNode(std::shared_ptr<const JSON::JSONNode> custom_node, std::string * const issn_normalized,
-                                           MARC::Record * const new_record)
+                                           std::string * const parent_journal_name, MARC::Record * const new_record)
 {
     const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
     if (custom_object->getOptionalStringNode("ISSN_untagged"))
@@ -533,6 +533,9 @@ void MarcFormatHandler::populateCustomNode(std::shared_ptr<const JSON::JSONNode>
         *issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
     else
         LOG_WARNING("No ISSN found for article.");
+
+    if (custom_object->getOptionalStringNode("parent_journal_name"))
+        *parent_journal_name = custom_object->getOptionalStringValue("parent_journal_name");
 
     // physical form
     const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
@@ -574,12 +577,12 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     std::string publication_title, abbreviated_publication_title, url, website_title;
     MARC::Record new_record(processJSON(object_node, &url, &publication_title, &abbreviated_publication_title, &website_title));
 
-    std::string issn_normalized;
+    std::string issn_normalized, parent_journal_name;
     unsigned previously_downloaded_count(0);
 
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
     if (custom_node != nullptr)
-        populateCustomNode(custom_node, &issn_normalized, &new_record);
+        populateCustomNode(custom_node, &issn_normalized, &parent_journal_name, &new_record);
 
     // title:
     if (not website_title.empty() and not new_record.hasTag("245"))
@@ -623,14 +626,14 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
         LOG_ERROR("editing the new MARC record failed: " + error_message);
 
     // previously downloaded?
-    const std::string checksum(MARC::CalcChecksum(new_record));
+    const std::string checksum(StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
     if (unlikely(url.empty()))
         LOG_ERROR("\"url\" has not been set!");
-    time_t creation_time;
 
-    if (not download_tracker_.hasAlreadyBeenDownloaded(url, &creation_time, &error_message, checksum) or not error_message.empty()) {
+    DownloadTracker::Entry tracked_entry;
+    if (not download_tracker_.hasAlreadyBeenDownloaded(url, checksum, &tracked_entry) or not tracked_entry.error_message_.empty()) {
         marc_writer_->write(new_record);
-        download_tracker_.addOrReplace(url, checksum, /* error_message = */"");
+        download_tracker_.addOrReplace(url, parent_journal_name, checksum, /* error_message = */"");
     } else
         ++previously_downloaded_count;
 
@@ -852,6 +855,9 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node, const Sit
     } else
         LOG_WARNING("No suitable ISSN was found!");
 
+    // Add the parent journal name for tracking changes to the harvested URL
+    custom_fields.emplace(std::make_pair("parent_journal_name", augment_params.parent_journal_name_));
+
     // Insert custom node with fields and comments
     if (comments.size() > 0 or custom_fields.size() > 0) {
         std::shared_ptr<JSON::ObjectNode> custom_object(new JSON::ObjectNode);
@@ -982,53 +988,61 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 }
 
 
-const std::string DownloadTracker::DEFAULT_ZOTERO_DOWNLOADS_DB_PATH("/usr/local/var/lib/tuelib/zotero_downloads.db");
+inline static void UpdateDownloadTrackerEntryFromDbRow(const DbRow &row, DownloadTracker::Entry * const entry) {
+    if (row.empty())
+        LOG_ERROR("Couldn't extract DownloadTracker entry from empty DbRow");
 
-
-DownloadTracker::DownloadTracker(const std::string &previous_downloads_db_path) {
-    if (not db_.open(previous_downloads_db_path.c_str(),
-                     kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE
-                     | kyotocabinet::HashDB::OAUTOTRAN | kyotocabinet::HashDB::OAUTOSYNC))
-        LOG_ERROR("Failed to open or create the KyotoCabinet database \"" + previous_downloads_db_path + "\" ("
-                  + std::string(db_.error().message()) + ")!");
+    entry->url_ = row["url"];
+    entry->last_harvest_time_ = SqlUtil::DatetimeToTimeT(row["last_harvest_time"]);
+    entry->journal_name_ = row["journal_name"];
+    entry->error_message_ = row["error_message"];
+    entry->hash_ = row["checksum"];
 }
 
 
-inline static void SplitTimestampErrorMessageAndHash(const std::string &raw_value, time_t * const creation_time,
-                                                     std::string * const error_message, std::string * const hash)
+bool DownloadTracker::hasAlreadyBeenDownloaded(const std::string &url, const std::string &hash, Entry * const entry) const
 {
-    if (unlikely(raw_value.size() <= sizeof(time_t)))
-        LOG_ERROR("raw value is too small!");
-    *creation_time = *reinterpret_cast<const time_t * const>(raw_value.data());
-    *error_message = raw_value.substr(sizeof(time_t)).c_str();
-    *hash = raw_value.substr(sizeof(time_t) + error_message->length() + 1 /* for the terminating NUL */);
-}
-
-
-bool DownloadTracker::hasAlreadyBeenDownloaded(const std::string &url, time_t * const creation_time,
-                                                       std::string * const error_message, const std::string &hash) const
-{
-    std::string value;
-    if (not db_.get(url, &value))
+    db_connection_->queryOrDie("SELECT * FROM harvested_urls WHERE url='" + db_connection_->escapeString(url) + "'");
+    auto result_set(db_connection_->getLastResultSet());
+    if (result_set.empty())
         return false;
 
-    if (hash.empty())
-        return true;
+    const auto first_row(result_set.getNextRow());
+    Entry temp_entry;
+    UpdateDownloadTrackerEntryFromDbRow(first_row, &temp_entry);
 
-    std::string stored_hash;
-    SplitTimestampErrorMessageAndHash(value, creation_time, error_message, &stored_hash);
-    return hash == stored_hash;
+    if (hash != "" and hash != temp_entry.hash_)
+        return false;
+
+    UpdateDownloadTrackerEntryFromDbRow(first_row, entry);
+    return true;
 }
 
 
-void DownloadTracker::addOrReplace(const std::string &url, const std::string &hash, const std::string &error_message) {
+void DownloadTracker::addOrReplace(const std::string &url, const std::string &journal_name, const std::string &hash,
+                                   const std::string &error_message)
+{
     if (unlikely((hash.empty() and error_message.empty()) or (not hash.empty() and not error_message.empty())))
         LOG_ERROR("exactly one of \"hash\" and \"error_message\" must be non-empty!");
 
     const time_t now(std::time(nullptr));
-    const std::string timestamp(reinterpret_cast<const char * const>(&now), sizeof(now));
-    if (unlikely(not db_.set(url, timestamp + std::string(1, '\0') + hash)))
-        LOG_ERROR("failed to insert a value into \"" + getPath() + "\":" + std::string(db_.error().message()));
+    const auto timestamp(SqlUtil::TimeTToDatetime(now));
+
+    db_connection_->queryOrDie("SELECT * FROM harvested_urls WHERE url='" + db_connection_->escapeString(url) + "'");
+    auto result_set(db_connection_->getLastResultSet());
+
+    if (result_set.empty()) {
+        db_connection_->queryOrDie("INSERT INTO harvested_urls SET url='" + db_connection_->escapeString(url) + "',"
+                                   "last_harvest_time='" + timestamp + "'," +
+                                   "journal_name='" + db_connection_->escapeString(journal_name) + "'," +
+                                   "checksum='" + hash + "'," +
+                                   "error_message='" + db_connection_->escapeString(error_message) + "'");
+    } else {
+        db_connection_->queryOrDie("UPDATE harvested_urls SET last_harvest_time='" + timestamp + "'," +
+                                   "checksum='" + hash + "'," +
+                                   "error_message='" + db_connection_->escapeString(error_message) + "' " +
+                                   "WHERE id=" + result_set.getNextRow()["id"]);
+    }
 }
 
 
@@ -1036,21 +1050,14 @@ size_t DownloadTracker::listMatches(const std::string &url_regex, std::vector<En
     std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(url_regex));
 
     entries->clear();
+    db_connection_->queryOrDie("SELECT * FROM harvested_urls");
+    auto result_set(db_connection_->getLastResultSet());
 
-    std::unique_ptr<kyotocabinet::DB::Cursor> cursor(db_.cursor());
-    if (unlikely(cursor == nullptr))
-        LOG_ERROR("failed to create a cursor for \"" + getPath() + "\":" + std::string(db_.error().message()));
-    if (not cursor->jump())
-        LOG_ERROR("failed to position a cursor at the first record for \"" + getPath() + "\":" + std::string(db_.error().message()));
-
-    std::string url, value;
-    while (cursor->get(&url, &value, true /* = move the cursor to the next record */)) {
-        if (matcher->matched(url)) {
-            time_t creation_time;
-            std::string error_message, hash;
-            SplitTimestampErrorMessageAndHash(value, &creation_time, &error_message, &hash);
-            entries->emplace_back(url, creation_time, error_message, hash);
-        }
+    while (const DbRow row = result_set.getNextRow()) {
+        Entry retrieved_entry;
+        UpdateDownloadTrackerEntryFromDbRow(row, &retrieved_entry);
+        if (matcher->matched(retrieved_entry.url_))
+            entries->push_back(retrieved_entry);
     }
 
     return entries->size();
@@ -1058,58 +1065,60 @@ size_t DownloadTracker::listMatches(const std::string &url_regex, std::vector<En
 
 
 // Helper function for DownloadTracker::deleteMatches and DownloadTracker::deleteOldEntries.
-template<typename Predicate> static size_t DeleteEntries(kyotocabinet::HashDB * const db, const std::string &db_path,
-                                                         const Predicate &deletion_predicate)
-{
-    std::unique_ptr<kyotocabinet::DB::Cursor> cursor(db->cursor());
-    if (unlikely(cursor == nullptr))
-        LOG_ERROR("failed to create a cursor for \"" + db_path + "\":" + std::string(db->error().message()));
-    if (not cursor->jump())
-        LOG_ERROR("failed to position a cursor at the first record for \"" + db_path + "\":" + std::string(db->error().message()));
+template<typename Predicate> static size_t DeleteEntries(DbConnection * const db_connection, const Predicate &deletion_predicate) {
+    db_connection->queryOrDie("SELECT id FROM harvested_urls");
+    auto result_set(db_connection->getLastResultSet());
 
-    size_t deleted_count(0);
-    std::string url, value;
-    while (cursor->get(&url, &value, true /* = move the cursor to the next record */)) {
-        time_t creation_time;
-        std::string hash, error_message;
-        SplitTimestampErrorMessageAndHash(value, &creation_time, &error_message, &hash);
-        if (deletion_predicate(url, creation_time)) {
-            if (unlikely(not db->remove(url)))
-                LOG_ERROR("can't remove entry with key \"" + url + "\" from \"" + db_path + "\"! (This should *never* happen!");
-            ++deleted_count;
-        }
+    std::vector<std::string> deleted_ids;
+    while (const DbRow row = result_set.getNextRow()) {
+        DownloadTracker::Entry retrieved_entry;
+        UpdateDownloadTrackerEntryFromDbRow(row, &retrieved_entry);
+        if (deletion_predicate(retrieved_entry.url_, retrieved_entry.last_harvest_time_))
+            deleted_ids.emplace_back(row["id"]);
     }
 
-    return deleted_count;
+    for (const auto &deleted_id : deleted_ids)
+        db_connection->queryOrDie("DELETE FROM harvested_urls where id=" + deleted_id);
+
+    return deleted_ids.size();
 }
 
 
 size_t DownloadTracker::deleteMatches(const std::string &url_regex) {
     std::shared_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(url_regex));
 
-    return DeleteEntries(&db_, getPath(),
-                         [matcher](const std::string &url, const time_t /*creation_timestamp*/){ return matcher->matched(url); });
+    return DeleteEntries(db_connection_,
+                         [matcher](const std::string &url, const time_t /*last_harvest_time*/){ return matcher->matched(url); });
 }
 
 
 size_t DownloadTracker::deleteSingleEntry(const std::string &url) {
-    return db_.remove(url) ? 1 : 0;
+    db_connection_->queryOrDie("SELECT * FROM harvested_urls WHERE url='" + db_connection_->escapeString(url) + "'");
+    auto result_set(db_connection_->getLastResultSet());
+    if (result_set.empty())
+        return 0;
+    else
+        return 1;
 }
 
 
 size_t DownloadTracker::deleteOldEntries(const time_t cutoff_timestamp) {
-    return DeleteEntries(&db_, getPath(),
-                         [cutoff_timestamp](const std::string &/*url*/, const time_t creation_timestamp)
-                             { return creation_timestamp <= cutoff_timestamp; });
+    return DeleteEntries(db_connection_,
+                         [cutoff_timestamp](const std::string &/*url*/, const time_t last_harvest_time)
+                             { return last_harvest_time <= cutoff_timestamp; });
+}
+
+
+size_t DownloadTracker::clear() {
+    const auto count(size());
+    db_connection_->queryOrDie("DELETE * FROM harvested_urls");
+    return count;
 }
 
 
 size_t DownloadTracker::size() const {
-    const int64_t no_of_db_entries(db_.count());
-    if (unlikely(no_of_db_entries == -1))
-        LOG_ERROR("unable to determine the number of entries in the database \"" + getPath() + "\"!");
-
-    return static_cast<size_t>(no_of_db_entries);
+    db_connection_->queryOrDie("SELECT id FROM harvested_urls");
+    return db_connection_->getLastResultSet().size();
 }
 
 
