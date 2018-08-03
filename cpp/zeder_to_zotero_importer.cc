@@ -378,6 +378,8 @@ void MergeZederEntries(Zeder::EntryCollection * const merge_into,
             new_entry.setModifiedTimestamp(diff.last_modified_timestamp_);
             for (const auto &modified_attribute : diff.modified_attributes_)
                 new_entry.setAttribute(modified_attribute.first, modified_attribute.second.second);
+
+            merge_into->addEntry(new_entry);
         } else
             Zeder::Entry::Merge(diff, &*entry);
     }
