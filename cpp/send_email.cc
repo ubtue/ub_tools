@@ -149,7 +149,7 @@ int Main(int argc, char *argv[]) {
 
     if (sender.empty() and reply_to.empty()) {
         IniFile ini_file("/usr/local/var/lib/tuelib/cronjobs/smtp_server.conf");
-        sender = ini_file.getString("SMTPServer", "server_user");
+        sender = ini_file.getString("SMTPServer", "server_user") + "@uni-tuebingen.de";
     }
 
     if (not priority_as_string.empty())
