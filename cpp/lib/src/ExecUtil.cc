@@ -25,7 +25,6 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
 #include "ExecUtil.h"
 #include <stdexcept>
 #include <cassert>
@@ -341,6 +340,27 @@ bool ShouldScheduleNewProcess() {
     if (unlikely(::getloadavg(&loadavg, 1) == -1))
         LOG_ERROR("getloadavg(3) failed!");
     return loadavg < NO_OF_CORES - 0.5;
+}
+
+
+void FindActivePrograms(const std::string &program_name, std::unordered_set<unsigned> * const pids) {
+    pids->clear();
+
+    std::string stdout;
+    ExecSubcommandAndCaptureStdout("pgrep " + program_name, &stdout);
+
+    std::unordered_set<std::string> pids_strings;
+    StringUtil::Split(stdout, '\n', &pids_strings);
+
+    for (const auto pid : pids_strings)
+        pids->emplace(StringUtil::ToUnsigned(pid));
+}
+
+
+std::unordered_set<unsigned> FindActivePrograms(const std::string &program_name) {
+    std::unordered_set<unsigned> pids;
+    FindActivePrograms(program_name, &pids);
+    return pids;
 }
 
 
