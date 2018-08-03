@@ -202,8 +202,8 @@ bool PostProcessZederImportedEntry(Flavour flavour, const ImporterParams &params
     bool valid(true);
 
     const auto &pppn(entry->getAttribute("pppn")), &eppn(entry->getAttribute("eppn"));
-    if (pppn.empty() or pppn == "NV" or not MiscUtil::IsValidPPN(pppn)) {
-        if (eppn.empty() or eppn == "NV" or not MiscUtil::IsValidPPN(eppn)) {
+    if (eppn.empty() or eppn == "NV" or not MiscUtil::IsValidPPN(eppn)) {
+        if (pppn.empty() or pppn == "NV" or not MiscUtil::IsValidPPN(pppn)) {
             LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | No valid PPPN found");
             valid = ignore_invalid_ppn_issn ? valid : false;
         } else
@@ -283,6 +283,11 @@ unsigned DiffZederEntries(const Zeder::EntryCollection &old_entries, const Zeder
                           const ExportFieldNameResolver &name_resolver, std::vector<Zeder::Entry::DiffResult> * const diff_results,
                           std::unordered_set<unsigned> * const new_entry_ids, const bool skip_timestamp_check = false)
 {
+    static const std::vector<std::string> immutable_fields{
+        name_resolver.getAttributeName(TYPE),
+        name_resolver.getAttributeName(TITLE)
+    };
+
     for (const auto &new_entry : new_entries) {
         const auto old_entry(old_entries.find(new_entry.getId()));
         if (old_entry == old_entries.end()) {
@@ -296,8 +301,6 @@ unsigned DiffZederEntries(const Zeder::EntryCollection &old_entries, const Zeder
         }
 
         auto diff(Zeder::Entry::Diff(*old_entry, new_entry, skip_timestamp_check));
-        static const std::vector<std::string> immutable_fields{ name_resolver.getAttributeName(TYPE) };
-
         bool unexpected_modifications(false);
         for (const auto &immutable_field : immutable_fields) {
             const auto modified_immutable_field(diff.modified_attributes_.find(immutable_field));
