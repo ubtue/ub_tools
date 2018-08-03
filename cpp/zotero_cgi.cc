@@ -100,6 +100,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> all_journal_delivery_modes;
     std::vector<std::string> all_journal_zeder_ids;
     std::vector<std::string> all_journal_zeder_comments;
+    std::vector<std::string> all_journal_zeder_urls;
     std::vector<std::string> all_urls;
 
     std::vector<std::string> rss_journal_titles;
@@ -146,6 +147,14 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             const std::string zeder_id(section.getString("zeder_id", ""));
             const std::string zeder_comment(section.getString("zeder_comment", ""));
 
+            std::string zeder_url;
+            if (not zeder_id.empty()) {
+                if (group == "KrimDok")
+                    zeder_url = "http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo#suche=Z%3D" + zeder_id;
+                else if (group == "IxTheo")
+                    zeder_url = "http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=krim#suche=Z%3D" + zeder_id;
+            }
+
             all_journal_titles.emplace_back(title);
             all_journal_print_issns.emplace_back(issn_print);
             all_journal_online_issns.emplace_back(issn_online);
@@ -154,6 +163,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             all_journal_methods.emplace_back(harvest_type_raw);
             all_journal_zeder_ids.emplace_back(zeder_id);
             all_journal_zeder_comments.emplace_back(zeder_comment);
+            all_journal_zeder_urls.emplace_back(zeder_url);
 
             const auto delivery_mode_string(std::find_if(Zotero::STRING_TO_DELIVERY_MODE_MAP.begin(), Zotero::STRING_TO_DELIVERY_MODE_MAP.end(), [delivery_mode](const std::pair<std::string, int> &map_entry) {return map_entry.second == delivery_mode; })->first);
             all_journal_delivery_modes.emplace_back(delivery_mode_string);
@@ -206,6 +216,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("all_journal_delivery_modes", all_journal_delivery_modes);
     names_to_values_map->insertArray("all_journal_zeder_ids", all_journal_zeder_ids);
     names_to_values_map->insertArray("all_journal_zeder_comments", all_journal_zeder_comments);
+    names_to_values_map->insertArray("all_journal_zeder_urls", all_journal_zeder_urls);
     names_to_values_map->insertArray("all_urls", all_urls);
 
     names_to_values_map->insertArray("rss_journal_titles", rss_journal_titles);
