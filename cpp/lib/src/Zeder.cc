@@ -74,9 +74,9 @@ Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool ski
             LOG_WARNING("The existing entry " + std::to_string(rhs.getId()) + " is newer than the diff by "
                         + std::to_string(time_difference) + " seconds");
         } else
-            delta.timestamp_newer = true;
+            delta.timestamp_is_newer = true;
     } else {
-        delta.timestamp_newer = true;
+        delta.timestamp_is_newer = true;
         delta.last_modified_timestamp_ = TimeUtil::GetCurrentTimeGMT();
     }
 
@@ -103,7 +103,7 @@ void Entry::Merge(const DiffResult &delta, Entry * const merge_into) {
                   ", Entry = " + std::to_string(merge_into->getId()));
     }
 
-    if (not delta.timestamp_newer) {
+    if (not delta.timestamp_is_newer) {
         const auto time_difference(TimeUtil::DiffStructTm(delta.last_modified_timestamp_, merge_into->getLastModifiedTimestamp()));
         LOG_WARNING("Diff of entry " + std::to_string(delta.id_) + " is not newer than the source revision. " +
                     "Timestamp difference: " + std::to_string(time_difference) + " seconds");

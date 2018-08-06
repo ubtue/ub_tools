@@ -74,7 +74,7 @@ public:
 
     struct DiffResult {
         // True if the modified revision's timestamp is newer than the source revision's
-        bool timestamp_newer;
+        bool timestamp_is_newer;
         // ID of the corresponding entry
         unsigned id_;
         // Last modified timestamp of the modified/newer revision
@@ -165,7 +165,7 @@ protected:
 
     std::unique_ptr<Params> input_params_;
 protected:
-    Importer(std::unique_ptr<Params> params): input_params_(std::move(params)) {}
+    explicit Importer(std::unique_ptr<Params> params): input_params_(std::move(params)) {}
 public:
     virtual ~Importer() = default;
 public:
@@ -180,7 +180,7 @@ class CsvReader : public Importer {
 
     DSVReader reader_;
 private:
-    CsvReader(std::unique_ptr<Params> params): Importer(std::move(params)), reader_(input_params_->file_path_, ',') {}
+    explicit CsvReader(std::unique_ptr<Params> params): Importer(std::move(params)), reader_(input_params_->file_path_, ',') {}
 public:
     virtual ~CsvReader() override = default;
 public:
@@ -193,7 +193,7 @@ class IniReader : public Importer {
 
     IniFile config_;
 private:
-    IniReader(std::unique_ptr<Params> params): Importer(std::move(params)), config_(input_params_->file_path_) {}
+    explicit IniReader(std::unique_ptr<Params> params): Importer(std::move(params)), config_(input_params_->file_path_) {}
 public:
     class Params : public Importer::Params {
         friend class IniReader;
@@ -235,7 +235,7 @@ public:
 protected:
     std::unique_ptr<Params> input_params_;
 protected:
-    Exporter(std::unique_ptr<Params> params): input_params_(std::move(params)) {}
+    explicit Exporter(std::unique_ptr<Params> params): input_params_(std::move(params)) {}
 public:
     virtual ~Exporter() = default;
 public:
@@ -250,7 +250,7 @@ class IniWriter : public Exporter {
 
     std::unique_ptr<IniFile> config_;
 private:
-    IniWriter(std::unique_ptr<Params> params);
+    explicit IniWriter(std::unique_ptr<Params> params);
 public:
     class Params : public Exporter::Params {
         friend class IniWriter;
