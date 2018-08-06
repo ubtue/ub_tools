@@ -6,10 +6,11 @@ namespace Zeder {
 
 
 const std::string &Entry::getAttribute(const std::string &name) const {
-    if (not hasAttribute(name))
+    const auto match(attributes_.find(name));
+    if (match == attributes_.end())
         LOG_ERROR("Couldn't find attribute '" + name + "'! in entry " + std::to_string(id_));
     else
-        return attributes_.at(name);
+        return match->second;
 }
 
 
@@ -22,10 +23,11 @@ void Entry::setAttribute(const std::string &name, const std::string &value, bool
 
 
 void Entry::removeAttribute(const std::string &name) {
-    if (not hasAttribute(name))
+    const auto match(attributes_.find(name));
+    if (match == attributes_.end())
         LOG_ERROR("Couldn't find attribute '" + name + "'! in entry " + std::to_string(id_));
     else
-        attributes_.erase(attributes_.find(name));
+        attributes_.erase(match);
 }
 
 
@@ -43,14 +45,14 @@ unsigned Entry::keepAttributes(const std::vector<std::string> &names_to_keep) {
 
 
 void Entry::prettyPrint(std::string * const print_buffer) const {
-    *print_buffer = std::string("Entry ") + std::to_string(id_) + ":\n";
+    *print_buffer = "Entry " + std::to_string(id_) + ":\n";
     for (const auto &attribute : attributes_)
         print_buffer->append("\t{").append(attribute.first).append("} -> '").append(attribute.second).append("'\n");
 }
 
 
 void Entry::DiffResult::prettyPrint(std::string * const print_buffer) const {
-    *print_buffer = std::string("Diff ") + std::to_string(id_) + ":\n";
+    *print_buffer = "Diff " + std::to_string(id_) + ":\n";
     for (const auto &attribute : modified_attributes_) {
         if (not attribute.second.first.empty()) {
             print_buffer->append("\t{").append(attribute.first).append("} -> '").append(attribute.second.first)
@@ -70,11 +72,11 @@ Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool ski
         const auto time_difference(TimeUtil::DiffStructTm(rhs.getLastModifiedTimestamp(), lhs.getLastModifiedTimestamp()));
         if (time_difference < 0) {
             LOG_WARNING("The existing entry " + std::to_string(rhs.getId()) + " is newer than the diff by "
-                    + std::to_string(time_difference) + " seconds");
+                        + std::to_string(time_difference) + " seconds");
         } else
-            delta.is_timestamp_newer = true;
+            delta.timestamp_newer = true;
     } else {
-        delta.is_timestamp_newer = true;
+        delta.timestamp_newer = true;
         delta.last_modified_timestamp_ = TimeUtil::GetCurrentTimeGMT();
     }
 
@@ -101,7 +103,7 @@ void Entry::Merge(const DiffResult &delta, Entry * const merge_into) {
                   ", Entry = " + std::to_string(merge_into->getId()));
     }
 
-    if (not delta.is_timestamp_newer) {
+    if (not delta.timestamp_newer) {
         const auto time_difference(TimeUtil::DiffStructTm(delta.last_modified_timestamp_, merge_into->getLastModifiedTimestamp()));
         LOG_WARNING("Diff of entry " + std::to_string(delta.id_) + " is not newer than the source revision. " +
                     "Timestamp difference: " + std::to_string(time_difference) + " seconds");
@@ -262,7 +264,7 @@ IniWriter::IniWriter(std::unique_ptr<Exporter::Params> params): Exporter(std::mo
 
 void IniWriter::write(const EntryCollection &collection) {
     const auto params(dynamic_cast<IniWriter::Params * const>(input_params_.get()));
-    char time_buffer[0x50]{};
+    char time_buffer[100]{};
 
     // we assume that the entries are sorted at this point
     for (const auto &entry : collection) {
@@ -292,4 +294,4 @@ void IniWriter::write(const EntryCollection &collection) {
 }
 
 
-}
+} // namespace Zeder

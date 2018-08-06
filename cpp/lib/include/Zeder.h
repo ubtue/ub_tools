@@ -18,6 +18,7 @@
 */
 #pragma once
 
+
 #include <functional>
 #include <memory>
 #include <unordered_map>
@@ -35,8 +36,8 @@ enum Flavour { IXTHEO, KRIMDOK };
 
 
 const std::unordered_map<Flavour, std::string> FLAVOUR_TO_STRING_MAP{
-    { IXTHEO,   "IxTheo"    },
-    { KRIMDOK,  "KrimDok"   }
+    { IXTHEO,   "IxTheo"  },
+    { KRIMDOK,  "KrimDok" }
 };
 
 
@@ -45,7 +46,6 @@ static constexpr auto MODIFIED_TIMESTAMP_FORMAT_STRING = "%Y-%m-%d %H:%M:%S";
 
 // A basic entry in a Zeder spreadsheet
 class Entry {
-protected:
     using AttributeMap = std::unordered_map<std::string, std::string>;
 
     unsigned id_;
@@ -54,13 +54,13 @@ protected:
 public:
     using iterator = AttributeMap::iterator;
     using const_iterator = AttributeMap::const_iterator;
-
-    Entry(const unsigned id = 0): id_(id), last_modified_timestamp_{}, attributes_() {};
+public:
+    explicit Entry(const unsigned id = 0): id_(id), last_modified_timestamp_{}, attributes_() {}
 
     unsigned getId() const { return id_; }
     void setId(unsigned id) { id_ = id; }
     const tm &getLastModifiedTimestamp() const { return last_modified_timestamp_; }
-    void setModifiedTimestamp(const tm &timestamp);
+    void setModifiedTimestamp(const tm &timestamp) { std::memcpy(&last_modified_timestamp_, &timestamp, sizeof(timestamp)); }
     const std::string &getAttribute(const std::string &name) const;
     void setAttribute(const std::string &name, const std::string &value, bool overwrite = false);
     bool hasAttribute(const std::string &name) const { return attributes_.find(name) != attributes_.end(); }
@@ -74,7 +74,7 @@ public:
 
     struct DiffResult {
         // True if the modified revision's timestamp is newer than the source revision's
-        bool is_timestamp_newer;
+        bool timestamp_newer;
         // ID of the corresponding entry
         unsigned id_;
         // Last modified timestamp of the modified/newer revision
@@ -93,11 +93,6 @@ public:
 };
 
 
-inline void Entry::setModifiedTimestamp(const tm &timestamp) {
-    std::memcpy(&last_modified_timestamp_, &timestamp, sizeof(timestamp));
-}
-
-
 // A collection of related entries
 class EntryCollection {
     std::vector<Entry> entries_;
@@ -110,6 +105,7 @@ public:
 
     /* Adds an entry to the config if it's not already present */
     void addEntry(const Entry &new_entry, const bool sort_after_add = false);
+
     iterator find(const unsigned id);
     const_iterator find(const unsigned id) const;
     const_iterator begin() const { return entries_.begin(); }
@@ -135,6 +131,7 @@ inline EntryCollection::const_iterator EntryCollection::find(const unsigned id) 
     return std::find_if(entries_.begin(), entries_.end(),
                         [id] (const Entry &entry) { return entry.getId() == id; });
 }
+
 
 enum FileType { CSV, JSON, INI };
 
@@ -167,11 +164,11 @@ protected:
     };
 
     std::unique_ptr<Params> input_params_;
-
+protected:
     Importer(std::unique_ptr<Params> params): input_params_(std::move(params)) {}
 public:
     virtual ~Importer() = default;
-
+public:
     virtual void parse(EntryCollection * const collection) = 0;
 
     static std::unique_ptr<Importer> Factory(std::unique_ptr<Params> params);
@@ -182,11 +179,11 @@ class CsvReader : public Importer {
     friend class Importer;
 
     DSVReader reader_;
-
+private:
     CsvReader(std::unique_ptr<Params> params): Importer(std::move(params)), reader_(input_params_->file_path_, ',') {}
 public:
     virtual ~CsvReader() override = default;
-
+public:
     virtual void parse(EntryCollection * const collection) override;
 };
 
@@ -195,7 +192,7 @@ class IniReader : public Importer {
     friend class Importer;
 
     IniFile config_;
-
+private:
     IniReader(std::unique_ptr<Params> params): Importer(std::move(params)), config_(input_params_->file_path_) {}
 public:
     class Params : public Importer::Params {
@@ -219,7 +216,7 @@ public:
     };
 public:
     virtual ~IniReader() override = default;
-
+public:
     virtual void parse(EntryCollection * const collection) override;
 };
 
@@ -237,11 +234,11 @@ public:
     };
 protected:
     std::unique_ptr<Params> input_params_;
-
+protected:
     Exporter(std::unique_ptr<Params> params): input_params_(std::move(params)) {}
 public:
     virtual ~Exporter() = default;
-
+public:
     virtual void write(const EntryCollection &collection) = 0;
 
     static std::unique_ptr<Exporter> Factory(std::unique_ptr<Params> params);
@@ -252,7 +249,7 @@ class IniWriter : public Exporter {
     friend class Exporter;
 
     std::unique_ptr<IniFile> config_;
-
+private:
     IniWriter(std::unique_ptr<Params> params);
 public:
     class Params : public Exporter::Params {
@@ -279,9 +276,9 @@ public:
     };
 public:
     virtual ~IniWriter() override = default;
-
+public:
     virtual void write(const EntryCollection &collection) override;
 };
 
 
-}
+} // namespace Zeder

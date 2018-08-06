@@ -39,11 +39,11 @@ CREATE INDEX rss_items_creation_datetime_index ON rss_items(creation_datetime);
 
 CREATE TABLE harvested_urls (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    url VARCHAR(512) NOT NULL,
+    url VARCHAR(191) NOT NULL,
     last_harvest_time DATETIME NOT NULL,
-    journal_name VARCHAR(512) NOT NULL,
+    journal_name VARCHAR(191) NOT NULL,
     checksum CHAR(40),
-    error_message VARCHAR(512),
+    error_message VARCHAR(191),
     UNIQUE (url)
 ) CHARACTER SET utf8mb4;
 CREATE INDEX harvested_urls_id_and_journal_name_index on harvested_urls(id, journal_name);
