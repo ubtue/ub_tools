@@ -25,7 +25,6 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
 #include "ExecUtil.h"
 #include <stdexcept>
 #include <cassert>
@@ -344,41 +343,24 @@ bool ShouldScheduleNewProcess() {
 }
 
 
-static bool ConsistsOnlyOfDigits(const std::string &s) {
-    for (const char ch : s) {
-        if (not StringUtil::IsDigit(ch))
-            return false;
-    }
+void FindActivePrograms(const std::string &program_name, std::unordered_set<unsigned> * const pids) {
+    pids->clear();
 
-    return true;
+    std::string stdout;
+    ExecSubcommandAndCaptureStdout("pgrep " + program_name, &stdout);
+
+    std::unordered_set<std::string> pids_strings;
+    StringUtil::Split(stdout, '\n', &pids_strings);
+
+    for (const auto pid : pids_strings)
+        pids->emplace(StringUtil::ToUnsigned(pid));
 }
 
 
-void FindActivePrograms(const std::string &programe_name, std::unordered_set<unsigned> * const pids) {
-    if (unlikely(programe_name.empty()))
-        LOG_ERROR("program name must not be empty!");
-    pids->clear();
-
-    const bool absolute(programe_name[0] == '/');
-    FileUtil::Directory proc("/proc");
-    for (const auto &entry : proc) {
-        if (not ConsistsOnlyOfDigits(entry.getName()))
-            continue; // Not a process!
-
-        const auto pid(entry.getName());
-        const auto cmdline(FileUtil::ReadStringOrDie("/proc/" + pid + "/cmdline"));
-        std::string path(cmdline.c_str()); // Works because cmdline has NUL_separated strings.
-
-        if (absolute) {
-            if (path == programe_name)
-                pids->emplace(StringUtil::ToUnsigned(pid));
-        } else {
-            std::string dirname, basename;
-            FileUtil::DirnameAndBasename(path, &dirname, &basename);
-            if (basename == programe_name)
-                pids->emplace(StringUtil::ToUnsigned(pid));
-        }
-    }
+std::unordered_set<unsigned> FindActivePrograms(const std::string &program_name) {
+    std::unordered_set<unsigned> pids;
+    FindActivePrograms(program_name, &pids);
+    return pids;
 }
 
 
