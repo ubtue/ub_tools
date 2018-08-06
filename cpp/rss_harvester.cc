@@ -111,7 +111,7 @@ int main(int argc, char *argv[]) {
 
         Zotero::AugmentMaps augment_maps(map_directory_path);
         Zotero::GobalAugmentParams global_augment_params(&augment_maps);
-        Zotero::SiteAugmentParams augment_params;
+        Zotero::SiteParams augment_params;
         augment_params.global_params_ = &global_augment_params;
         augment_params.strptime_format_ = strptime_format;
         const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
