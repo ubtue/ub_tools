@@ -132,6 +132,7 @@ bool SimpleCrawler::continueCrawling() {
 
 
 bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
+    page_details->error_message_.clear();
     // get next URL and check if it can be processed
     const std::string url(url_queue_current_depth_.front());
     url_queue_current_depth_.pop();
@@ -180,7 +181,7 @@ bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
         WebUtil::ExtractURLs(message_body, url, WebUtil::ABSOLUTE_URLS, &urls_and_anchor_texts, EXTRACT_URL_FLAGS);
         for (const auto &url_and_anchor_texts : urls_and_anchor_texts) {
             const std::string extracted_url(url_and_anchor_texts.getUrl());
-            if (url_regex_matcher_->matched(extracted_url))
+            if (not url_regex_matcher_ or url_regex_matcher_->matched(extracted_url))
                 url_queue_next_depth_.push(extracted_url);
         }
     }
