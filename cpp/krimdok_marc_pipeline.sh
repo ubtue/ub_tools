@@ -149,7 +149,7 @@ EndPhase
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
-(mkfifo GesamtTiteldaten-post-pipeline-"${date}".mrc
+(mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
  add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                   GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" \
     >> "${log}" 2>&1 && \
@@ -158,7 +158,7 @@ EndPhase || Abort) &
 
 StartPhase "Check Record Integity at the End of the Pipeline"
 (marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
-            GesamtTiteldaten-post-pipeline-"${date}".mrc \
+            --write-data=GesamtTiteldaten-post-pipeline-"${date}".mrc GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
