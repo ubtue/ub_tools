@@ -286,7 +286,7 @@ struct tm StringToStructTm(std::string date_str, std::string optional_strptime_f
 double DiffStructTm(struct tm end, struct tm beginning);
 
 
-/* Returns the current time in GMT/UTC format. */
+/* Returns the current time in the GMT/UTC timezone. */
 struct tm GetCurrentTimeGMT();
 
 
