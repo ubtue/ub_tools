@@ -5,6 +5,7 @@
 /add_child_refs
 /add_isbns_or_issns_to_articles
 /add_journal_subscription
+/missing_metadata_db_tool
 /add_publication_year_to_serials
 /add_referenceterms
 /add_subsystem_tags
