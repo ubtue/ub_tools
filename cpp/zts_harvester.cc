@@ -221,9 +221,7 @@ int Main(int argc, char *argv[]) {
     Zotero::AugmentMaps augment_maps(map_directory_path);
     const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
-    std::unique_ptr<DbConnection> db_connection;
-    const IniFile rss_ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
-    db_connection.reset(new DbConnection(rss_ini_file));
+    std::unique_ptr<DbConnection> db_connection(new DbConnection);
 
     if (output_file.empty())
         output_file = ini_file.getString("", "marc_output_file");

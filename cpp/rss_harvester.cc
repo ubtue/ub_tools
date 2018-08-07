@@ -121,10 +121,8 @@ int main(int argc, char *argv[]) {
         harvest_params->format_handler_->setAugmentParams(&augment_params);
 
         std::unique_ptr<DbConnection> db_connection;
-        if (mode != Zotero::RSSHarvestMode::TEST) {
-            const IniFile ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
-            db_connection.reset(new DbConnection(ini_file));
-        }
+        if (mode != Zotero::RSSHarvestMode::TEST)
+            db_connection.reset(new DbConnection);
 
         Zotero::MarcFormatHandler * const marc_format_handler(reinterpret_cast<Zotero::MarcFormatHandler *>(
             harvest_params->format_handler_.get()));
