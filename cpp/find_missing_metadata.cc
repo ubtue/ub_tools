@@ -64,6 +64,7 @@ public:
     JournalInfo() = default;
     JournalInfo(const JournalInfo &rhs) = default;
 
+    size_t size() const { return field_infos_.size(); }
     bool isInDatabase() const { return not not_in_database_yet_; }
     void addField(const std::string &field_name, const FieldPresence field_presence)
         { field_infos_.emplace_back(field_name, field_presence); }
@@ -121,6 +122,7 @@ void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, con
                               + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty()) {
+        LOG_INFO("\"" + journal_name + "\" was not yet in the database.");
         *journal_info = JournalInfo(/* not_in_database_yet = */true);
         return;
     }
@@ -128,6 +130,7 @@ void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, con
     *journal_info = JournalInfo(/* not_in_database_yet = */false);
     while (auto row = result_set.getNextRow())
         journal_info->addField(row["metadata_field_name"], StringToFieldPresence(row["field_presence"]));
+    LOG_INFO("Loadad " + std::to_string(journal_info->size()) + " entries for \"" + journal_name + "\" from the database.");
 }
 
 
@@ -168,7 +171,7 @@ bool RecordMeetsExpectations(const MARC::Record &record, File * const output, co
 
     bool missed_at_least_one_expectation(false);
     for (const auto &field_info : journal_info) {
-        if (seen_tags.find(field_info.name_) != seen_tags.end() and field_info.presence_ == ALWAYS) {
+        if (seen_tags.find(field_info.name_) == seen_tags.end() and field_info.presence_ == ALWAYS) {
             (*output) << "Record w/ control number " + record.getControlNumber() + " is missing the always expected "
                       << field_info.name_ << " field.\n";
             missed_at_least_one_expectation = true;
@@ -182,8 +185,8 @@ bool RecordMeetsExpectations(const MARC::Record &record, File * const output, co
 void WriteToDatabase(DbConnection * const db_connection, const std::string &journal_name, const JournalInfo &journal_info) {
     for (const auto &field_info : journal_info)
         db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET journal_name='" + journal_name
-                                  + ", metadata_field_name='" + db_connection->escapeString(field_info.name_)
-                                  + ", field_presence='" + FieldPresenceToString(field_info.presence_) + "'");
+                                  + "', metadata_field_name='" + db_connection->escapeString(field_info.name_)
+                                  + "', field_presence='" + FieldPresenceToString(field_info.presence_) + "'");
 }
 
 
@@ -228,8 +231,9 @@ int Main(int argc, char *argv[]) {
             WriteToDatabase(&db_connection, journal_name_and_info.first, journal_name_and_info.second);
     }
 
-    LOG_INFO("Processed " + std::to_string(total_record_count) + " of which " + std::to_string(new_record_count)
-             + " were records of new journals and " + std::to_string(missed_expectation_count) + " records missed expectations.");
+    LOG_INFO("Processed " + std::to_string(total_record_count) + " reocrd(s) of which " + std::to_string(new_record_count)
+             + " was/were (a) record(s) of new journals and " + std::to_string(missed_expectation_count)
+             + " record(s) missed expectations.");
 
     return EXIT_SUCCESS;
 }
