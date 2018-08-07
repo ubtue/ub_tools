@@ -158,7 +158,9 @@ void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record
 }
 
 
-bool RecordMeetsExpectations(const MARC::Record &record, File * const output, const JournalInfo &journal_info) {
+bool RecordMeetsExpectations(const MARC::Record &record, File * const output, const std::string &journal_name,
+                             const JournalInfo &journal_info)
+{
     std::unordered_set<std::string> seen_tags;
     MARC::Tag last_tag;
     for (const auto &field : record) {
@@ -172,8 +174,8 @@ bool RecordMeetsExpectations(const MARC::Record &record, File * const output, co
     bool missed_at_least_one_expectation(false);
     for (const auto &field_info : journal_info) {
         if (seen_tags.find(field_info.name_) == seen_tags.end() and field_info.presence_ == ALWAYS) {
-            (*output) << "Record w/ control number " + record.getControlNumber() + " is missing the always expected "
-                      << field_info.name_ << " field.\n";
+            (*output) << "Record w/ control number " + record.getControlNumber() + " in \"" << journal_name
+                      << "\" is missing the always expected " << field_info.name_ << " field.\n";
             missed_at_least_one_expectation = true;
         }
     }
@@ -218,7 +220,8 @@ int Main(int argc, char *argv[]) {
         }
 
         if (journal_name_and_info->second.isInDatabase()) {
-            if (not RecordMeetsExpectations(record, missed_expectations_list.get(), journal_name_and_info->second))
+            if (not RecordMeetsExpectations(record, missed_expectations_list.get(), journal_name_and_info->first,
+                                            journal_name_and_info->second))
                 ++missed_expectation_count;
         } else {
             AnalyseNewJournalRecord(record, first_record, &journal_name_and_info->second);

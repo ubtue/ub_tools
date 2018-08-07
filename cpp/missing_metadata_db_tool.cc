@@ -86,9 +86,9 @@ void SetFieldsToIgnore(DbConnection * const db_connection, const std::string &jo
     UnescapeList(escaped_field_list, &field_names);
 
     for (const auto &field_name : field_names) {
-        db_connection->queryOrDie("UPDATE metadata_presence_tracer WHERE journal_name='"
-                                  + db_connection->escapeString(journal_name) + "', SET field_presence='" + field_presence
-                                  + "' WHERE metadata_field_name='" + db_connection->escapeString(field_name) + "'");
+        db_connection->queryOrDie("UPDATE metadata_presence_tracer SET field_presence='" + field_presence + "' WHERE journal_name='"
+                                  + db_connection->escapeString(journal_name) + "' AND metadata_field_name='"
+                                  + db_connection->escapeString(field_name) + "'");
         if (db_connection->getNoOfAffectedRows() != 1)
             LOG_WARNING("failed to find a \"" + field_name + "\" for the \"" + journal_name +"\" journal in the database!");
     }
