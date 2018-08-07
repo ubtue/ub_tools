@@ -194,7 +194,7 @@ int Main(int argc, char *argv[]) {
     if (argc != 3)
         Usage();
 
-    DbConnection db_connection("/usr/local/var/lib/tuelib/find_missing_metadata.conf");
+    DbConnection db_connection;
     auto reader (MARC::Reader::Factory(argv[1]));
     auto missed_expectations_list(FileUtil::OpenOutputFileOrDie(argv[2]));
     std::map<std::string, JournalInfo> journal_name_to_info_map;

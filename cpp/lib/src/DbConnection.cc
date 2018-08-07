@@ -53,6 +53,10 @@ DbConnection::DbConnection(const std::string &mysql_url, const Charset charset):
 }
 
 
+DbConnection::DbConnection(): DbConnection(IniFile(DEFAULT_CONFIG_FILE_PATH), "Database") {
+}
+
+
 DbConnection::DbConnection(const IniFile &ini_file, const std::string &ini_file_section) {
     const auto db_section(ini_file.getSection(ini_file_section));
     if (db_section == ini_file.end())
