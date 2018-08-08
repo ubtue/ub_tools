@@ -92,48 +92,48 @@ void LoadMARCEditInstructions(const IniFile::Section &section, std::vector<MARC:
 }
 
 
-void ReadGenericSiteAugmentParams(const IniFile::Section &section, Zotero::SiteAugmentParams * const augment_params) {
-    augment_params->parent_journal_name_ = section.getSectionName();
-    augment_params->parent_ISSN_print_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_PRINT), "");
-    augment_params->parent_ISSN_online_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_ONLINE), "");
-    augment_params->strptime_format_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT), "");
-    augment_params->parent_PPN_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_PPN), "");
+void ReadGenericSiteAugmentParams(const IniFile::Section &section, Zotero::SiteParams * const site_params) {
+    site_params->parent_journal_name_ = section.getSectionName();
+    site_params->parent_ISSN_print_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_PRINT), "");
+    site_params->parent_ISSN_online_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_ONLINE), "");
+    site_params->strptime_format_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT), "");
+    site_params->parent_PPN_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_PPN), "");
+    site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), "")));
 }
 
 
 UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                            const Zotero::SiteAugmentParams &augment_params, DbConnection * const db_connection, const bool &test)
+                            const Zotero::SiteParams &site_params, DbConnection * const db_connection, const bool &test)
 {
     const std::string feed_url(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::FEED)));
     LOG_DEBUG("feed_url: " + feed_url);
     Zotero::RSSHarvestMode rss_harvest_mode(Zotero::RSSHarvestMode::NORMAL);
     if (test)
         rss_harvest_mode = Zotero::RSSHarvestMode::TEST;
-    return Zotero::HarvestSyndicationURL(rss_harvest_mode, feed_url, harvest_params, augment_params, db_connection);
+    return Zotero::HarvestSyndicationURL(rss_harvest_mode, feed_url, harvest_params, site_params, db_connection);
 }
 
 
 void ReadCrawlerSiteDesc(const IniFile::Section &section, SimpleCrawler::SiteDesc * const site_desc) {
     site_desc->start_url_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::BASE_URL));
     site_desc->max_crawl_depth_ = section.getUnsigned(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::MAX_CRAWL_DEPTH));
-    site_desc->url_regex_matcher_.reset(RegexMatcher::RegexMatcherFactoryOrDie(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX))));
 }
 
 
 UnsignedPair ProcessCrawl(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                          const Zotero::SiteAugmentParams &augment_params, const SimpleCrawler::Params &crawler_params,
+                          const Zotero::SiteParams &site_params, const SimpleCrawler::Params &crawler_params,
                           const std::shared_ptr<RegexMatcher> &supported_urls_regex)
 {
     SimpleCrawler::SiteDesc site_desc;
     ReadCrawlerSiteDesc(section, &site_desc);
-    return Zotero::HarvestSite(site_desc, crawler_params, supported_urls_regex, harvest_params, augment_params);
+    return Zotero::HarvestSite(site_desc, crawler_params, supported_urls_regex, harvest_params, site_params);
 }
 
 
 UnsignedPair ProcessDirectHarvest(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                                  const Zotero::SiteAugmentParams &augment_params)
+                                  const Zotero::SiteParams &site_params)
 {
-    return Zotero::HarvestURL(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::URL)), harvest_params, augment_params);
+    return Zotero::HarvestURL(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::URL)), harvest_params, site_params);
 }
 
 
@@ -257,13 +257,13 @@ int Main(int argc, char *argv[]) {
 
         Zotero::GobalAugmentParams global_augment_params(&augment_maps);
 
-        Zotero::SiteAugmentParams site_augment_params;
-        site_augment_params.global_params_          = &global_augment_params;
-        site_augment_params.group_params_           = &group_name_and_params->second;
-        site_augment_params.marc_edit_instructions_ = edit_instructions;
-        ReadGenericSiteAugmentParams(section, &site_augment_params);
+        Zotero::SiteParams site_params;
+        site_params.global_params_          = &global_augment_params;
+        site_params.group_params_           = &group_name_and_params->second;
+        site_params.marc_edit_instructions_ = edit_instructions;
+        ReadGenericSiteAugmentParams(section, &site_params);
 
-        harvest_params->format_handler_->setAugmentParams(&site_augment_params);
+        harvest_params->format_handler_->setAugmentParams(&site_params);
 
         if (not section_name_to_found_flag_map.empty()) {
             const auto section_name_and_found_flag(section_name_to_found_flag_map.find(section.getSectionName()));
@@ -280,7 +280,7 @@ int Main(int argc, char *argv[]) {
         const Zotero::HarvesterType type(static_cast<Zotero::HarvesterType>(section.getEnum(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::TYPE),
                                                                                             type_string_to_value_map)));
         if (type == Zotero::HarvesterType::RSS)
-            total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section, harvest_params, site_augment_params,
+            total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section, harvest_params, site_params,
                                                                                         db_connection.get(), test);
         else if (type == Zotero::HarvesterType::CRAWL) {
             SimpleCrawler::Params crawler_params;
@@ -290,10 +290,10 @@ int Main(int argc, char *argv[]) {
             crawler_params.user_agent_ = harvest_params->user_agent_;
 
             total_record_count_and_previously_downloaded_record_count +=
-                ProcessCrawl(section, harvest_params, site_augment_params, crawler_params, supported_urls_regex);
+                ProcessCrawl(section, harvest_params, site_params, crawler_params, supported_urls_regex);
         } else
             total_record_count_and_previously_downloaded_record_count +=
-                ProcessDirectHarvest(section, harvest_params, site_augment_params);
+                ProcessDirectHarvest(section, harvest_params, site_params);
     }
 
     LOG_INFO("Extracted metadata from "

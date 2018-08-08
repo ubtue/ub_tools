@@ -111,18 +111,18 @@ int main(int argc, char *argv[]) {
 
         Zotero::AugmentMaps augment_maps(map_directory_path);
         Zotero::GobalAugmentParams global_augment_params(&augment_maps);
-        Zotero::SiteAugmentParams augment_params;
+        Zotero::SiteParams augment_params;
+        DbConnection db_connection;
+
         augment_params.global_params_ = &global_augment_params;
         augment_params.strptime_format_ = strptime_format;
         const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
         const std::string MARC_OUTPUT_FILE(argv[4]);
-        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(map_directory_path + "previously_downloaded.hashes",
+        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(&db_connection,
                                                                          GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE, harvest_params);
         harvest_params->format_handler_->setAugmentParams(&augment_params);
 
-        std::unique_ptr<DbConnection> db_connection;
-        if (mode != Zotero::RSSHarvestMode::TEST)
-            db_connection.reset(new DbConnection);
+
 
         Zotero::MarcFormatHandler * const marc_format_handler(reinterpret_cast<Zotero::MarcFormatHandler *>(
             harvest_params->format_handler_.get()));
@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
         UnsignedPair total_record_count_and_previously_downloaded_record_count;
         for (const auto &server_url : server_urls)
             total_record_count_and_previously_downloaded_record_count +=
-                Zotero::HarvestSyndicationURL(mode, server_url, harvest_params, augment_params, db_connection.get());
+                Zotero::HarvestSyndicationURL(mode, server_url, harvest_params, augment_params, &db_connection);
 
         LOG_INFO("Extracted metadata from "
                  + std::to_string(total_record_count_and_previously_downloaded_record_count.first
