@@ -32,9 +32,18 @@ CREATE TABLE rss_items (
     UNIQUE KEY feed_url_and_item_id(feed_id,item_id),
     CONSTRAINT feed_id FOREIGN KEY (feed_id) REFERENCES rss_feeds (id) ON DELETE CASCADE
 ) CHARACTER SET utf8mb4;
-
 CREATE INDEX rss_items_feed_id_and_item_id_index ON rss_items(feed_id,item_id);
 CREATE INDEX rss_items_creation_datetime_index ON rss_items(creation_datetime);
+
+
+-- Table to be used w/ our find_missing_metadata tool:
+CREATE TABLE metadata_presence_tracer (
+       journal_name VARCHAR(191) NOT NULL,
+       metadata_field_name VARCHAR(191) NOT NULL,
+       field_presence ENUM('always', 'sometimes', 'ignore') NOT NULL,
+       UNIQUE(journal_name, metadata_field_name)
+) CHARACTER SET utf8mb4;
+CREATE INDEX journal_name_and_metadata_field_name_index ON metadata_presence_tracer(journal_name, metadata_field_name);
 
 
 CREATE TABLE harvested_urls (
@@ -47,3 +56,4 @@ CREATE TABLE harvested_urls (
     UNIQUE (url)
 ) CHARACTER SET utf8mb4;
 CREATE INDEX harvested_urls_id_and_journal_name_index on harvested_urls(id, journal_name);
+

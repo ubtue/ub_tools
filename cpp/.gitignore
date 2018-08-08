@@ -5,6 +5,7 @@
 /add_child_refs
 /add_isbns_or_issns_to_articles
 /add_journal_subscription
+/missing_metadata_db_tool
 /add_publication_year_to_serials
 /add_referenceterms
 /add_subsystem_tags
@@ -59,6 +60,7 @@
 /flag_records_as_available_in_tuebingen
 /test_chop_into_words
 /find_latest_journal_year
+/find_missing_metadata
 /fix_article_biblio_levels
 /fix_iso_8859_1_garbage
 /flag_article_collections

@@ -29,16 +29,16 @@ namespace {
 void Usage() {
     std::cerr << "Usage: " << ::progname << " [--tracker-db-path path] command\n"
               << "       Possible commands are:\n"
-              << "       clear [url|zulu_timestamp]    => if no arguments are provided, this empties the entire database\n"
-              << "                                        if a URL has been provided, just the entry with key \"url\"\n"
-              << "                                        will be erased, and if a Zulu (ISO 8601) timestamp has been\n"
-              << "                                        provided, all entries that are not newer are erased.\n"
-              << "       insert url [error_message]    => inserts or replaces the entry for \"url\".\n"
-              << "       lookup url                    => displays the timestamp and, if found, the optional message\n"
-              << "                                        for this URL.\n"
-              << "       list [pcre]                   => list either all entries in the database or, if the PCRE has\n"
-              << "                                        been provided, ony the ones with matching URL\'s.\n"
-              << "       is_present url                => prints either \"true\" or \"false\".\n\n";
+              << "       clear [url|zulu_timestamp]        => if no arguments are provided, this empties the entire database\n"
+              << "                                            if a URL has been provided, just the entry with key \"url\"\n"
+              << "                                            will be erased, and if a Zulu (ISO 8601) timestamp has been\n"
+              << "                                            provided, all entries that are not newer are erased.\n"
+              << "       insert url journal [error_message] => inserts or replaces the entry for \"url\".\n"
+              << "       lookup url                         => displays the timestamp and, if found, the optional message\n"
+              << "                                             for this URL.\n"
+              << "       list [pcre]                        => list either all entries in the database or, if the PCRE has\n"
+              << "                                             been provided, ony the ones with matching URL\'s.\n"
+              << "       is_present url                     => prints either \"true\" or \"false\".\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -60,23 +60,23 @@ void Clear(Zotero::DownloadTracker * const download_tracker, const std::string &
 }
 
 
-void Insert(Zotero::DownloadTracker * const download_tracker, const std::string &url, const std::string &optional_message) {
-    download_tracker->addOrReplace(url, optional_message, (optional_message.empty() ? "*bogus hash*" : ""));
+void Insert(Zotero::DownloadTracker * const download_tracker, const std::string &url, const std::string &journal_name,
+            const std::string &optional_message)
+{
+    download_tracker->addOrReplace(url, journal_name, optional_message, (optional_message.empty() ? "*bogus hash*" : ""));
     std::cout << "Created an entry for the URL \"" << url << "\".\n";
 }
 
 
 void Lookup(Zotero::DownloadTracker * const download_tracker, const std::string &url) {
-    time_t timestamp;
-    std::string error_message;
-
-    if (not download_tracker->hasAlreadyBeenDownloaded(url, &timestamp, &error_message))
+    Zotero::DownloadTracker::Entry entry;
+    if (not download_tracker->hasAlreadyBeenDownloaded(url, /* hash = */"", &entry))
         std::cerr << "Entry for URL \"" << url << "\" could not be found!\n";
     else {
-        if (error_message.empty())
-            std::cout << url << ": " << TimeUtil::TimeTToLocalTimeString(timestamp) << '\n';
+        if (entry.error_message_.empty())
+            std::cout << url << ": " << TimeUtil::TimeTToLocalTimeString(entry.last_harvest_time_) << '\n';
         else
-            std::cout << url << ": " << TimeUtil::TimeTToLocalTimeString(timestamp) << " (" << error_message << ")\n";
+            std::cout << url << ": " << TimeUtil::TimeTToLocalTimeString(entry.last_harvest_time_) << " (" << entry.error_message_ << ")\n";
     }
 }
 
@@ -129,9 +129,9 @@ int main(int argc, char *argv[]) {
                 LOG_ERROR("clear takes 0 or 1 arguments!");
             Clear(&download_tracker, argc == 2 ? "" : argv[2]);
         } else if (std::strcmp(argv[1], "insert") == 0) {
-            if (argc < 3 or argc > 4)
-                LOG_ERROR("insert takes 1 or 2 arguments!");
-            Insert(&download_tracker, argv[2], argc == 3 ? "" : argv[3]);
+            if (argc < 4 or argc > 5)
+                LOG_ERROR("insert takes 2 or 3 arguments!");
+            Insert(&download_tracker, argv[2], argv[3], argc == 4 ? "" : argv[4]);
         } else if (std::strcmp(argv[1], "lookup") == 0) {
             if (argc != 3)
                 LOG_ERROR("lookup takes 1 argument!");
