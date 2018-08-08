@@ -5,11 +5,13 @@ set -o errexit -o nounset
 no_problems_found=1
 function SendEmail {
     if [[ $no_problems_found -eq 0 ]]; then
+        send_email --recipients="$email_address" --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
         exit 0
     else
         send_email --recipients="$email_address" --subject="$0 failed on $(hostname)" \
                    --message-body="Check /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log for details."
-    fi 
+        exit 1
+    fi
 }
 trap SendEmail EXIT
 
