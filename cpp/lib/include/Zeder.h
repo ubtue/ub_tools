@@ -35,6 +35,23 @@ namespace Zeder {
 enum Flavour { IXTHEO, KRIMDOK };
 
 
+} // unnamed namespace
+
+
+namespace std {
+    template <>
+    struct hash<Zeder::Flavour> {
+        size_t operator()(const Zeder::Flavour &flavour) const {
+            // hash method here.
+            return hash<int>()(flavour);
+        }
+    };
+} // namespace std
+
+
+namespace Zeder {
+
+
 const std::unordered_map<Flavour, std::string> FLAVOUR_TO_STRING_MAP{
     { IXTHEO,   "IxTheo"  },
     { KRIMDOK,  "KrimDok" }
@@ -74,7 +91,7 @@ public:
 
     struct DiffResult {
         // True if the modified revision's timestamp is newer than the source revision's
-        bool timestamp_is_newer;
+        bool timestamp_is_newer_;
         // ID of the corresponding entry
         unsigned id_;
         // Last modified timestamp of the modified/newer revision
