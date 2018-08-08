@@ -44,3 +44,16 @@ CREATE TABLE metadata_presence_tracer (
        UNIQUE(journal_name, metadata_field_name)
 ) CHARACTER SET utf8mb4;
 CREATE INDEX journal_name_and_metadata_field_name_index ON metadata_presence_tracer(journal_name, metadata_field_name);
+
+
+CREATE TABLE harvested_urls (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    url VARCHAR(191) NOT NULL,
+    last_harvest_time DATETIME NOT NULL,
+    journal_name VARCHAR(191) NOT NULL,
+    checksum CHAR(40),
+    error_message VARCHAR(191),
+    UNIQUE (url)
+) CHARACTER SET utf8mb4;
+CREATE INDEX harvested_urls_id_and_journal_name_index on harvested_urls(id, journal_name);
+
