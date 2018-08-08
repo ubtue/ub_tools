@@ -5,10 +5,12 @@ set -o errexit -o nounset
 no_problems_found=1
 function SendEmail {
     if [[ $no_problems_found -eq 0 ]]; then
+        send_email --recipients="$email_address" --subject="$0 passed" --message-body="No problems were encountered."
         exit 0
     else
         send_email --recipients="$email_address" --subject="$0 failed" --message-body="Check the log file for details."
-    fi 
+        exit 1
+    fi
 }
 trap SendEmail EXIT
 
