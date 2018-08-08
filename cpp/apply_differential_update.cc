@@ -103,7 +103,7 @@ void PatchArchiveMembersAndCreateOutputArchive(std::vector<std::string> input_ar
     if (input_archive_members.empty())
         LOG_ERROR("no input archive members!");
     if (difference_archive_members.empty())
-        LOG_ERROR("no difference archive members!");
+        LOG_WARNING("no difference archive members!");
 
     std::sort(input_archive_members.begin(), input_archive_members.end(), ArchiveMemberComparator);
     std::sort(difference_archive_members.begin(), difference_archive_members.end(), ArchiveMemberComparator);

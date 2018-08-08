@@ -45,9 +45,11 @@ public:
     enum OpenMode { READONLY, READWRITE, CREATE };
     enum Charset { UTF8MB3, UTF8MB4 };
 public:
+    DbConnection(); // Uses the ub_tools database.
+
     DbConnection(const std::string &database_name, const std::string &user, const std::string &passwd = "",
                  const std::string &host = "localhost", const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4)
-    { type_ = T_MYSQL; init(database_name, user, passwd, host, port, charset); }
+        { type_ = T_MYSQL; init(database_name, user, passwd, host, port, charset); }
 
     // Expects to find entries named "sql_database", "sql_username" and "sql_password".  Optionally there may also
     // be an entry named "sql_host".  If this entry is missing a default value of "localhost" will be assumed.
