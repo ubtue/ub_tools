@@ -35,7 +35,7 @@ namespace Zeder {
 enum Flavour { IXTHEO, KRIMDOK };
 
 
-} // unnamed namespace
+} // Zeder namespace
 
 
 namespace std {
@@ -99,6 +99,9 @@ public:
         // Attribute => (old value, new value)
         // If the attribute was not present in the source revision, the old value is an empty string
         std::unordered_map<std::string, std::pair<std::string, std::string>> modified_attributes_;
+    public:
+        DiffResult(bool timestamp_is_newer, unsigned id, tm last_modified_timestamp)
+            : timestamp_is_newer_(timestamp_is_newer), id_(id), last_modified_timestamp_(last_modified_timestamp), modified_attributes_() {}
 
         void prettyPrint(std::string * const print_buffer) const;
     };
