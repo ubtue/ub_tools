@@ -278,7 +278,7 @@ bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFie
     for (const auto &url_field : params.url_field_priority_) {
         if (entry->hasAttribute(url_field)) {
             const auto &imported_url(entry->getAttribute(url_field));
-            if (not resolved_url.empty()) {
+            if (not resolved_url.empty() and not imported_url.empty()) {
                 LOG_INFO("Entry " + std::to_string(entry->getId()) + " | Discarding URL '" +
                          imported_url + "' in field '" + url_field + "'");
             } else if (not imported_url.empty())
@@ -349,7 +349,7 @@ unsigned DiffZederEntries(const Zeder::EntryCollection &old_entries, const Zeder
 
                 std::string debug_print_buffer;
                 diff.prettyPrint(&debug_print_buffer);
-                LOG_DEBUG(debug_print_buffer);
+                LOG_WARNING(debug_print_buffer);
             }
         }
 

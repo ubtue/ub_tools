@@ -155,7 +155,7 @@ public:
 
 
 /** \brief Parameters that apply to single sites only. */
-struct SiteAugmentParams {
+struct SiteParams {
     // So that we don't have to pass through two arguments everywhere.
     GobalAugmentParams *global_params_;
     GroupParams *group_params_;
@@ -166,6 +166,7 @@ struct SiteAugmentParams {
     std::string parent_PPN_;
     std::string strptime_format_;
     std::vector<MARC::EditInstruction> marc_edit_instructions_;
+    std::unique_ptr<RegexMatcher> extraction_regex_;
 public:
 };
 
@@ -174,7 +175,7 @@ public:
  *  \param  object_node     The JSON ObjectNode with Zotero JSON structure of a single dataset
  *  \param  harvest_maps    The map files to apply.
  */
-void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node, const SiteAugmentParams &site_augment_params);
+void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node, const SiteParams &site_params);
 
 
 // forward declaration
@@ -194,7 +195,7 @@ struct HarvestParams {
  *  \brief Loads, manages and stores the timestamps, hashes of previously downloaded metadata records.
  */
 class DownloadTracker {
-    mutable DbConnection * db_connection_;
+    DbConnection * db_connection_;
 public:
     struct Entry {
         std::string url_;
@@ -238,18 +239,18 @@ protected:
     DownloadTracker download_tracker_;
     std::string output_format_;
     std::string output_file_;
-    SiteAugmentParams *augment_params_;
+    SiteParams *site_params_;
     const std::shared_ptr<const HarvestParams> &harvest_params_;
 protected:
     FormatHandler(DbConnection * const db_connection, const std::string &output_format, const std::string &output_file,
                   const std::shared_ptr<const HarvestParams> &harvest_params)
         : download_tracker_(db_connection), output_format_(output_format), output_file_(output_file),
-          augment_params_(nullptr), harvest_params_(harvest_params)
+          site_params_(nullptr), harvest_params_(harvest_params)
         { }
 public:
     virtual ~FormatHandler() = default;
 
-    inline void setAugmentParams(SiteAugmentParams * const new_augment_params) { augment_params_ = new_augment_params; }
+    inline void setAugmentParams(SiteParams * const new_site_params) { site_params_ = new_site_params; }
     inline DownloadTracker &getDownloadTracker() { return download_tracker_; }
 
     /** \brief Convert & write single record to output file */
@@ -335,21 +336,21 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
 
 
 /** \brief  Harvest a single URL.
- *  \param  harvest_url     The URL to harvest.
- *  \param  harvest_params  The parameters for downloading.
- *  \param  augment_params  Parameter for augmenting the Zotero JSON result.
- *  \param  harvested_html  If not empty, the HTML will be used for harvesting
- *                          instead of downloading the URL again.
- *                          However, if the page contains a list of multiple
- *                          items (e.g. HTML page with a search result),
- *                          all results will be downloaded.
- *  \param  log             If true, additional statistics will be logged.
+ *  \param  harvest_url         The URL to harvest.
+ *  \param  extraction_regex    Regex matcher for URLs that can be harvested.
+ *  \param  harvest_params      The parameters for downloading.
+ *  \param  site_params      Parameter for augmenting the Zotero JSON result.
+ *  \param  harvested_html      If not empty, the HTML will be used for harvesting
+ *                              instead of downloading the URL again.
+ *                              However, if the page contains a list of multiple
+ *                              items (e.g. HTML page with a search result),
+ *                              all results will be downloaded.
+ *  \param  log                 If true, additional statistics will be logged.
  *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
  *          difference (first - second).
  */
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
-                                      const SiteAugmentParams &augment_params, const std::string &harvested_html = "",
-                                      const bool log = true);
+                                      const SiteParams &site_params, const std::string &harvested_html = "", const bool log = true);
 
 
 /** \brief Harvest metadate from a single site.
@@ -358,7 +359,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
  */
 UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
                          const std::shared_ptr<RegexMatcher> &supported_urls_regex, const std::shared_ptr<HarvestParams> &harvest_params,
-                         const SiteAugmentParams &augment_params, File * const progress_file = nullptr);
+                         const SiteParams &site_params, File * const progress_file = nullptr);
 
 
 /** \brief Harvest metadate from a single Web page.
@@ -366,7 +367,7 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
  *          difference (first - second).
  */
 UnsignedPair HarvestURL(const std::string &url, const std::shared_ptr<HarvestParams> &harvest_params,
-                        const SiteAugmentParams &augment_params);
+                        const SiteParams &site_params);
 
 
 enum class RSSHarvestMode { VERBOSE, TEST, NORMAL };
@@ -381,7 +382,7 @@ enum class RSSHarvestMode { VERBOSE, TEST, NORMAL };
  */
 UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string &feed_url,
                                    const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                                   const SiteAugmentParams &augment_params, DbConnection * const db_connection);
+                                   const SiteParams &site_params, DbConnection * const db_connection);
 
 
 } // namespace Zotero
