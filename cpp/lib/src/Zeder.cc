@@ -65,7 +65,8 @@ void Entry::DiffResult::prettyPrint(std::string * const print_buffer) const {
 
 Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool skip_timestamp_check) {
     if (lhs.getId() != rhs.getId())
-        LOG_ERROR("Can only diff revisions of the same entry! LHS = " + std::to_string(lhs.getId()) + ", RHS = " + std::to_string(rhs.getId()));
+        LOG_ERROR("Can only diff revisions of the same entry! LHS = " + std::to_string(lhs.getId()) + ", RHS = "
+                  + std::to_string(rhs.getId()));
 
     DiffResult delta{ false, rhs.getId(), rhs.getLastModifiedTimestamp(), {} };
     if (not skip_timestamp_check) {
@@ -74,9 +75,9 @@ Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool ski
             LOG_WARNING("The existing entry " + std::to_string(rhs.getId()) + " is newer than the diff by "
                         + std::to_string(time_difference) + " seconds");
         } else
-            delta.timestamp_is_newer = true;
+            delta.timestamp_is_newer_ = true;
     } else {
-        delta.timestamp_is_newer = true;
+        delta.timestamp_is_newer_ = true;
         delta.last_modified_timestamp_ = TimeUtil::GetCurrentTimeGMT();
     }
 
@@ -103,7 +104,7 @@ void Entry::Merge(const DiffResult &delta, Entry * const merge_into) {
                   ", Entry = " + std::to_string(merge_into->getId()));
     }
 
-    if (not delta.timestamp_is_newer) {
+    if (not delta.timestamp_is_newer_) {
         const auto time_difference(TimeUtil::DiffStructTm(delta.last_modified_timestamp_, merge_into->getLastModifiedTimestamp()));
         LOG_WARNING("Diff of entry " + std::to_string(delta.id_) + " is not newer than the source revision. " +
                     "Timestamp difference: " + std::to_string(time_difference) + " seconds");

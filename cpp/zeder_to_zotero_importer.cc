@@ -365,7 +365,7 @@ void MergeZederEntries(Zeder::EntryCollection * const merge_into,
                        const std::vector<Zeder::Entry::DiffResult> &diff_results)
 {
     for (const auto &diff : diff_results) {
-        if (not diff.timestamp_is_newer) {
+        if (not diff.timestamp_is_newer_) {
             LOG_DEBUG("Skiping diff for entry " + std::to_string(diff.id_));
             continue;
         }
