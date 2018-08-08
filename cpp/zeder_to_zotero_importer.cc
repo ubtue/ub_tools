@@ -67,6 +67,21 @@ enum ExportField {
 };
 
 
+} // unnamed namespace
+namespace std {
+    template <>
+    struct hash<::ExportField> {
+        size_t operator()(const ::ExportField &flavour) const {
+            // hash method here.
+            return hash<int>()(flavour);
+        }
+    };
+} // namespace std
+
+
+namespace {
+
+
 class ExportFieldNameResolver {
     std::unordered_map<ExportField, std::string> attribute_names_;
     std::unordered_map<ExportField, std::string> ini_keys_;
@@ -328,7 +343,7 @@ unsigned DiffZederEntries(const Zeder::EntryCollection &old_entries, const Zeder
         const auto old_entry(old_entries.find(new_entry.getId()));
         if (old_entry == old_entries.end()) {
             // it's a new entry altogether
-            diff_results->push_back({ true, new_entry.getId(), new_entry.getLastModifiedTimestamp(), {} });
+            diff_results->emplace_back(true, new_entry.getId(), new_entry.getLastModifiedTimestamp());
             for (const auto &key_value : new_entry)
                 diff_results->back().modified_attributes_[key_value.first] = std::make_pair("", key_value.second);
 
