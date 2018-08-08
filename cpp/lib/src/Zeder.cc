@@ -68,7 +68,7 @@ Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool ski
         LOG_ERROR("Can only diff revisions of the same entry! LHS = " + std::to_string(lhs.getId()) + ", RHS = "
                   + std::to_string(rhs.getId()));
 
-    DiffResult delta{ false, rhs.getId(), rhs.getLastModifiedTimestamp(), {} };
+    DiffResult delta{ false, rhs.getId(), rhs.getLastModifiedTimestamp() };
     if (not skip_timestamp_check) {
         const auto time_difference(TimeUtil::DiffStructTm(rhs.getLastModifiedTimestamp(), lhs.getLastModifiedTimestamp()));
         if (time_difference < 0) {
