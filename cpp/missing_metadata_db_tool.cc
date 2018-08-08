@@ -75,7 +75,7 @@ void ClearJournals(DbConnection * const db_connection, const std::string &escape
 
     for (const auto &journal_name : journal_names)
         db_connection->queryOrDie("DELETE FROM metadata_presence_tracer WHERE journal_name='"
-                              + db_connection->escapeString(journal_name) + "'");
+                                  + db_connection->escapeString(journal_name) + "'");
 }
 
 
