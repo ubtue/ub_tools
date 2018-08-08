@@ -7,7 +7,7 @@ function SendEmail {
     if [[ $no_problems_found -eq 0 ]]; then
         exit 0
     else
-        send_email --recipients="$email_address" --subject="$0 failed" --message-body="Check the log file for details."
+        send_email --recipients="$email_address" --subject="$0 failed on $(hostname)" --message-body="Check the log file for details."
     fi 
 }
 trap SendEmail EXIT
