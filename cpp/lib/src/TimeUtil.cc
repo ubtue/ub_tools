@@ -797,4 +797,10 @@ double DiffStructTm(struct tm end, struct tm beginning) {
 }
 
 
+struct tm GetCurrentTimeGMT() {
+    time_t now(time(nullptr));
+    return *std::gmtime(&now);
+}
+
+
 } // namespace TimeUtil

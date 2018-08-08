@@ -57,7 +57,6 @@ const std::unordered_map<std::string, std::string> group_to_user_agent_map = {
               << "\t[--groups=my_groups            Where groups are a comma-separated list of goups.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
-              << "\t[--previous-downloads-db-file=previous_downloads_db_file]\n"
               << "\t[--output-file=output_file]\n"
               << "\n"
               << "\tIf any section names have been provided, only those will be processed o/w all sections will be processed.\n\n";
@@ -94,6 +93,7 @@ void LoadMARCEditInstructions(const IniFile::Section &section, std::vector<MARC:
 
 
 void ReadGenericSiteAugmentParams(const IniFile::Section &section, Zotero::SiteAugmentParams * const augment_params) {
+    augment_params->parent_journal_name_ = section.getSectionName();
     augment_params->parent_ISSN_print_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_PRINT), "");
     augment_params->parent_ISSN_online_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_ONLINE), "");
     augment_params->strptime_format_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT), "");
@@ -187,13 +187,6 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
-    std::string previous_downloads_db_path;
-    const std::string PREVIOUS_DOWNLOADS_DB_FLAG_PREFIX("--previous-downloads-db-file=");
-    if (StringUtil::StartsWith(argv[1], PREVIOUS_DOWNLOADS_DB_FLAG_PREFIX)) {
-        previous_downloads_db_path = argv[1] + PREVIOUS_DOWNLOADS_DB_FLAG_PREFIX.length();
-        --argc, ++argv;
-    }
-
     std::string output_file;
     const std::string OUTPUT_FILE_FLAG_PREFIX("--output-file=");
     if (StringUtil::StartsWith(argv[1], OUTPUT_FILE_FLAG_PREFIX)) {
@@ -211,8 +204,6 @@ int Main(int argc, char *argv[]) {
 
     if (map_directory_path.empty())
         map_directory_path = ini_file.getString("", "map_directory_path");
-    if (previous_downloads_db_path.empty())
-        previous_downloads_db_path = ini_file.getString("", "previous_downloads_db_path");
 
     // ZoteroFormatHandler expects a directory path with a trailing /
     if (not StringUtil::EndsWith(map_directory_path, '/'))
@@ -225,7 +216,7 @@ int Main(int argc, char *argv[]) {
 
     if (output_file.empty())
         output_file = ini_file.getString("", "marc_output_file");
-    harvest_params->format_handler_ = Zotero::FormatHandler::Factory(previous_downloads_db_path, GetMarcFormat(output_file),
+    harvest_params->format_handler_ = Zotero::FormatHandler::Factory(db_connection.get(), GetMarcFormat(output_file),
                                                                      output_file, harvest_params);
 
     std::unordered_map<std::string, bool> section_name_to_found_flag_map;
