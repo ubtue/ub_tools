@@ -18,6 +18,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <iostream>
+#include "DbConnection.h"
 #include "TimeUtil.h"
 #include "util.h"
 #include "Zotero.h"
@@ -26,8 +27,8 @@
 namespace {
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--tracker-db-path path] command\n"
+[[noreturn]] void Usage() {
+    std::cerr << "Usage: " << ::progname << " command\n"
               << "       Possible commands are:\n"
               << "       clear [url|zulu_timestamp]        => if no arguments are provided, this empties the entire database\n"
               << "                                            if a URL has been provided, just the entry with key \"url\"\n"
@@ -86,7 +87,7 @@ void List(Zotero::DownloadTracker * const download_tracker, const std::string &p
     download_tracker->listMatches(pcre, &entries);
 
     for (const auto &entry : entries) {
-        std::cout << entry.url_ << ": " << TimeUtil::TimeTToLocalTimeString(entry.creation_time_);
+        std::cout << entry.url_ << ": " << TimeUtil::TimeTToLocalTimeString(entry.last_harvest_time_);
         if (not entry.error_message_.empty())
             std::cout << ", " << entry.error_message_;
         std::cout << '\n';
@@ -95,58 +96,45 @@ void List(Zotero::DownloadTracker * const download_tracker, const std::string &p
 
 
 void IsPresent(Zotero::DownloadTracker * const download_tracker, const std::string &url) {
-    time_t creation_time;
-    std::string error_message;
-    std::cout << (download_tracker->hasAlreadyBeenDownloaded(url, &creation_time, &error_message) ? "true\n" : "false\n");
+    std::cout << (download_tracker->hasAlreadyBeenDownloaded(url) ? "true\n" : "false\n");
 }
 
 
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
-    try {
-        std::string tracker_db_path(Zotero::DownloadTracker::DEFAULT_ZOTERO_DOWNLOADS_DB_PATH);
-        if (std::strcmp(argv[1], "--tracker-db-path") == 0) {
-            if (argc < 3)
-                Usage();
-            tracker_db_path = argv[2];
-            argc -= 2;
-            argv += 2;
-        }
-        Zotero::DownloadTracker download_tracker(tracker_db_path);
+    std::unique_ptr<DbConnection> db_connection(new DbConnection);
+    Zotero::DownloadTracker download_tracker(db_connection.get());
 
-        if (argc < 2 or argc > 4)
-            Usage();
+    if (argc < 2 or argc > 4)
+        Usage();
 
-        if (std::strcmp(argv[1], "clear") == 0) {
-            if (argc > 3)
-                LOG_ERROR("clear takes 0 or 1 arguments!");
-            Clear(&download_tracker, argc == 2 ? "" : argv[2]);
-        } else if (std::strcmp(argv[1], "insert") == 0) {
-            if (argc < 4 or argc > 5)
-                LOG_ERROR("insert takes 2 or 3 arguments!");
-            Insert(&download_tracker, argv[2], argv[3], argc == 4 ? "" : argv[4]);
-        } else if (std::strcmp(argv[1], "lookup") == 0) {
-            if (argc != 3)
-                LOG_ERROR("lookup takes 1 argument!");
-            Lookup(&download_tracker, argv[2]);
-        } else if (std::strcmp(argv[1], "list") == 0) {
-            if (argc > 3)
-                LOG_ERROR("list takes 0 or 1 arguments!");
-            List(&download_tracker, argc == 2 ? ".*" : argv[2]);
-        } else if (std::strcmp(argv[1], "is_present") == 0) {
-            if (argc != 3)
-                LOG_ERROR("is_present takes 1 argument!");
-            IsPresent(&download_tracker, argv[2]);
-        } else
-            LOG_ERROR("unknown command: \"" + std::string(argv[1]) + "\"!");
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
+    if (std::strcmp(argv[1], "clear") == 0) {
+        if (argc > 3)
+            LOG_ERROR("clear takes 0 or 1 arguments!");
+        Clear(&download_tracker, argc == 2 ? "" : argv[2]);
+    } else if (std::strcmp(argv[1], "insert") == 0) {
+        if (argc < 4 or argc > 5)
+            LOG_ERROR("insert takes 2 or 3 arguments!");
+        Insert(&download_tracker, argv[2], argv[3], argc == 4 ? "" : argv[4]);
+    } else if (std::strcmp(argv[1], "lookup") == 0) {
+        if (argc != 3)
+            LOG_ERROR("lookup takes 1 argument!");
+        Lookup(&download_tracker, argv[2]);
+    } else if (std::strcmp(argv[1], "list") == 0) {
+        if (argc > 3)
+            LOG_ERROR("list takes 0 or 1 arguments!");
+        List(&download_tracker, argc == 2 ? ".*" : argv[2]);
+    } else if (std::strcmp(argv[1], "is_present") == 0) {
+        if (argc != 3)
+            LOG_ERROR("is_present takes 1 argument!");
+        IsPresent(&download_tracker, argv[2]);
+    } else
+        LOG_ERROR("unknown command: \"" + std::string(argv[1]) + "\"!");
+
+    return EXIT_SUCCESS;
 }
