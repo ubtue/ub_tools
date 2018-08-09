@@ -17,4 +17,5 @@ fi
 archive_filename="$1"
 output_filename="$2"
 
+# Extract only authority records and concatenate them:
 tar --gzip --extract --to-stdout --wildcards '*c???.raw' --file "$archive_filename" > "$output_filename"
