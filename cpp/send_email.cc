@@ -1,8 +1,27 @@
-// \brief Command-line utility to send email messages.
+/** \brief Command-line utility to send email messages.
+ *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *
+ *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include <iostream>
 #include <cstdlib>
 #include "IniFile.h"
 #include "EmailSender.h"
+#include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "util.h"
@@ -161,7 +180,13 @@ int Main(int argc, char *argv[]) {
         message_body = ExpandNewlineEscapes(message_body);
     if (not EmailSender::SendEmail(sender, SplitRecipients(recipients), SplitRecipients(cc_recipients),
                                    SplitRecipients(bcc_recipients), subject, message_body, priority, format, reply_to))
-        LOG_ERROR("failed to send your email!");
+    {
+        if (not MiscUtil::EnvironmentVariableExists("ENABLE_SMPT_CLIENT_PERFORM_LOGGING"))
+            LOG_ERROR("failed to send your email! (You may want to set the ENABLE_SMPT_CLIENT_PERFORM_LOGGING to debug the problem.)");
+        else
+            LOG_ERROR("failed to send your email!");
+    }
+    
 
     return EXIT_SUCCESS;
 }
