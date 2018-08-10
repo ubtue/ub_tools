@@ -281,8 +281,11 @@ bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFie
         valid = false;
     }
 
-    if (entry->hasAttribute("rss") or entry->getAttribute("lrt").find("RSS.zotero") != std::string::npos)
+    if ((entry->hasAttribute("rss") and not entry->getAttribute("rss").empty()) or
+        entry->getAttribute("lrt").find("RSS.zotero") != std::string::npos)
+    {
         harvester_type = Zotero::HarvesterType::RSS;
+    }
 
     entry->setAttribute(name_resolver.getAttributeName(TYPE), Zotero::HARVESTER_TYPE_TO_STRING_MAP.at(harvester_type));
     entry->setAttribute(name_resolver.getAttributeName(GROUP), Zeder::FLAVOUR_TO_STRING_MAP.at(params.flavour_));
@@ -294,8 +297,8 @@ bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFie
         if (entry->hasAttribute(url_field)) {
             const auto &imported_url(entry->getAttribute(url_field));
             if (not resolved_url.empty() and not imported_url.empty()) {
-                LOG_INFO("Entry " + std::to_string(entry->getId()) + " | Discarding URL '" +
-                         imported_url + "' in field '" + url_field + "'");
+                LOG_INFO("Entry " + std::to_string(entry->getId()) + " | Discarding '" + url_field + "' URL '" +
+                         imported_url + "'");
             } else if (not imported_url.empty())
                 resolved_url = imported_url;
         }

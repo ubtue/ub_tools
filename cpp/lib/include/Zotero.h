@@ -328,7 +328,7 @@ private:
                              std::string * const website_title);
 
     void populateCustomNode(std::shared_ptr<const JSON::JSONNode> custom_node, std::string * const issn_normalized,
-                            std::string * const parent_journal_name, MARC::Record * const new_record);
+                            std::string * const parent_journal_name, std::string * const harvest_url, MARC::Record * const new_record);
 };
 
 
