@@ -63,12 +63,11 @@ void Rand::init(const unsigned * const seed) {
 }
 
 
-bool ApproximatelyEqual(const double &x1, const double &x2, const double &epsilon = 1e-3)
-{
-	if (x1 != 0.0 and x2 != 0.0)
-		return std::fabs(1.0 - std::fabs(x1 / x2)) < epsilon;
-	else
-		return std::fabs(x1 - x2) < epsilon;
+bool ApproximatelyEqual(const double &x1, const double &x2, const double &epsilon = 1e-3) {
+    if (x1 != 0.0 and x2 != 0.0)
+        return std::fabs(1.0 - std::fabs(x1 / x2)) < epsilon;
+    else
+        return std::fabs(x1 - x2) < epsilon;
 }
 
 
