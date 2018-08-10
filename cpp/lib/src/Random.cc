@@ -29,7 +29,6 @@
 #include <Random.h>
 #include <algorithm>
 #include <stdexcept>
-#include <MathUtil.h>
 #include <StringUtil.h>
 #include <TimeUtil.h>
 
@@ -64,6 +63,14 @@ void Rand::init(const unsigned * const seed) {
 }
 
 
+bool ApproximatelyEqual(const double &x1, const double &x2, const double &epsilon = 1e-3) {
+    if (x1 != 0.0 and x2 != 0.0)
+        return std::fabs(1.0 - std::fabs(x1 / x2)) < epsilon;
+    else
+        return std::fabs(x1 - x2) < epsilon;
+}
+
+
 void NonUniformRandom::init(const std::vector<double> &distribution) {
     cumulative_distribution_.reserve(distribution.size());
     double cdf(0.0);
@@ -77,7 +84,7 @@ void NonUniformRandom::init(const std::vector<double> &distribution) {
         cumulative_distribution_.push_back(cdf);
     }
 
-    if (not MathUtil::ApproximatelyEqual(cdf, 1.0))
+    if (not ApproximatelyEqual(cdf, 1.0))
         throw std::runtime_error("in Random::NonUniformRandom::NonUniformRandom: invalid distribution argument "
                                  "(probabilities must add up to 1.0).(cdf: " + StringUtil::ToString(cdf) + ")!");
 
