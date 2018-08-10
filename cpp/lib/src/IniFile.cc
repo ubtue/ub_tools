@@ -480,18 +480,23 @@ static std::string StripComment(std::string * const line, std::string * const co
     comment->clear();
 
     size_t comment_start_pos(0);
-    while ((comment_start_pos = line->find('#', comment_start_pos)) != std::string::npos) {
-        if (comment_start_pos == 0) {
-            line->swap(*comment);
-            return *line;
-        } else if ((*line)[comment_start_pos - 1] == '\\')
-            comment_start_pos = line->find('#', comment_start_pos + 1);
-        else {
-            while (comment_start_pos > 0 and (*line)[comment_start_pos - 1] == ' ')
-                --comment_start_pos;
-            *comment = line->substr(comment_start_pos);
-            line->resize(comment_start_pos);
-            return *line;
+    bool inside_string_literal(false);
+    for (auto character(line->begin()); character != line->end(); ++character) {
+        if (*character == '\"')
+            inside_string_literal = inside_string_literal == false;
+        else if (*character == '#') {
+            if (character != line->begin() and *(character - 1) == '\\')
+                continue;       // skip escaped hash characters
+            else if (inside_string_literal)
+                continue;
+            else {
+                comment_start_pos = std::distance(line->begin(), character);
+                while (comment_start_pos > 0 and (*line)[comment_start_pos - 1] == ' ')
+                    --comment_start_pos;
+                *comment = line->substr(comment_start_pos);
+                line->resize(comment_start_pos);
+                return *line;
+            }
         }
     }
 
