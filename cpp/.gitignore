@@ -28,6 +28,7 @@
 /collect_solr_stats_data
 /control_number_filter
 /convert_bible_references
+/convert_dakar
 /convert_oai_pmh_dc_to_marc21
 /convert_tags_to_keywords
 /count_gnd_refs
@@ -98,6 +99,7 @@
 /marc_filter
 /marc_grep
 /marc_info
+/marc_remove_dups
 /marc21_scramble
 /marc_size
 /marc_split
