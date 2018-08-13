@@ -34,10 +34,10 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_log_level] [--remote] marc_input [issn_to_ppn_map]\n"
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_log_level] [--process-remote-files] marc_input [issn_to_ppn_map]\n"
               << "       If you omit the output filename, the file will be stored in \"" << Zotero::ISSN_TO_MISC_BITS_MAP_PATH_LOCAL << "\".\n\n"
-              << "       If --remote is given, the result will also be stored in \"" << Zotero::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE << "\".\n"
-              << "          and other systems' files will be added.\n\n";
+              << "       If --process-remote-files is given, the result will also be stored in \"" << Zotero::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE << "\".\n"
+              << "          and other systems' files will be added to the regular output filename.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -107,7 +107,7 @@ void ProcessRemoteMapFiles(const std::string &output_path) {
     FileUtil::CopyOrDie(output_path, remote_write_path);
 
     std::vector<std::string> remote_read_paths;
-    FileUtil::GetFileNameList("(?<!"+TUEFIND_FLAVOUR+")\\.map$", &remote_read_paths, Zotero::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE);
+    FileUtil::GetFileNameList("(?<!" + TUEFIND_FLAVOUR + ")\\.map$", &remote_read_paths, Zotero::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE);
     std::vector<std::string> concat_paths({ remote_write_path });
     for (const auto &remote_file : remote_read_paths) {
         const std::string remote_path(Zotero::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE + "/" + remote_file);
@@ -126,9 +126,9 @@ int Main(int argc, char *argv[]) {
     if (argc < 2 or argc > 4)
         Usage();
 
-    bool remote(false);
-    if (std::strcmp(argv[1], "--remote") == 0) {
-        remote = true;
+    bool process_remote_files(false);
+    if (std::strcmp(argv[1], "--process-remote-files") == 0) {
+        process_remote_files = true;
         --argc;++argv;
     }
 
@@ -139,7 +139,7 @@ int Main(int argc, char *argv[]) {
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(output_path));
     PopulateISSNtoControlNumberMapFile(marc_reader.get(), output.get());
 
-    if (remote) {
+    if (process_remote_files) {
         output->close();
         ProcessRemoteMapFiles(output_path);
     }
