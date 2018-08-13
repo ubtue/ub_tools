@@ -48,6 +48,7 @@
 #include "SELinuxUtil.h"
 #include "StringUtil.h"
 #include "Template.h"
+#include "VuFind.h"
 #include "util.h"
 
 
@@ -190,17 +191,6 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
                                         "gid=root,vers=1.0,auto 0 0");
         ExecUtil::ExecOrDie("/bin/mount", { MOUNT_POINT });
         Echo("Successfully mounted the department drive.");
-    }
-}
-
-
-const std::string GetTueFindFlavour() {
-    const char * const flavour(::secure_getenv("TUEFIND_FLAVOUR"));
-    if (flavour == nullptr)
-        return "";
-    else {
-        const std::string flavour_str(flavour);
-        return flavour_str;
     }
 }
 
@@ -558,7 +548,7 @@ int main(int argc, char **argv) {
     } else {
         std::string type(argv[1]);
         if (::strcasecmp(type.c_str(), "auto") == 0) {
-            type = GetTueFindFlavour();
+            type = VuFind::GetTueFindFlavour();
             if (not type.empty())
                 std::cout << "using auto-detected tuefind installation type \"" + type + "\"\n";
             else

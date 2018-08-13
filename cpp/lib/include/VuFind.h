@@ -33,4 +33,8 @@ namespace VuFind {
 void GetMysqlURL(std::string * const mysql_url, const std::string &vufind_config_file_path = "");
 
 
+/** \brief Get TueFind Flavour from ENV variable or empty string if not set. */
+const std::string GetTueFindFlavour();
+
+
 } // namespace VuFind
