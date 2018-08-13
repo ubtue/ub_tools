@@ -57,6 +57,7 @@ echo "Creating ${target_filename}"
 
 input_filename=$(generate_merge_order | head --lines=1)
 declare -i counter=0
+last_temp_filename=
 for update in $(generate_merge_order | tail --lines=+2); do
     ((++counter))
     temp_filename=temp_filename.$BASHPID.$counter.tar.gz
@@ -67,7 +68,11 @@ for update in $(generate_merge_order | tail --lines=+2); do
         echo "Processing differential dump: $update"
         apply_differential_update $(KeepIntermediateFiles) $input_filename $update $temp_filename
     fi
+    if [[ -n "$last_temp_filename" ]]; then
+        rm "$last_temp_filename"
+    fi
     input_filename=$temp_filename
+    last_temp_filename=$temp_filename
 done
 
 
