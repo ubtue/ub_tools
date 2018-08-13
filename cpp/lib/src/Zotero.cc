@@ -509,7 +509,7 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
         } else if (key_and_node.first == "websiteTitle")
             *website_title = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
         else
-            LOG_ERROR("unknown key \"" + key_and_node.first + "\" with node type "
+            LOG_WARNING("unknown key \"" + key_and_node.first + "\" with node type "
                       + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
                       + key_and_node.second->toString() + "), whole record: " + object_node->toString());
     }
@@ -522,7 +522,8 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
 
 // Populates the "ubtue" node.
 void MarcFormatHandler::populateCustomNode(std::shared_ptr<const JSON::JSONNode> custom_node, std::string * const issn_normalized,
-                                           std::string * const parent_journal_name, MARC::Record * const new_record)
+                                           std::string * const parent_journal_name, std::string * const harvest_url,
+                                           MARC::Record * const new_record)
 {
     const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
     if (custom_object->getOptionalStringNode("ISSN_untagged"))
@@ -536,6 +537,9 @@ void MarcFormatHandler::populateCustomNode(std::shared_ptr<const JSON::JSONNode>
 
     if (custom_object->getOptionalStringNode("parent_journal_name"))
         *parent_journal_name = custom_object->getOptionalStringValue("parent_journal_name");
+
+    if (custom_object->getOptionalStringNode("harvest_url"))
+        *harvest_url = custom_object->getOptionalStringValue("harvest_url");
 
     // physical form
     const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
@@ -577,12 +581,12 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     std::string publication_title, abbreviated_publication_title, url, website_title;
     MARC::Record new_record(processJSON(object_node, &url, &publication_title, &abbreviated_publication_title, &website_title));
 
-    std::string issn_normalized, parent_journal_name;
+    std::string issn_normalized, parent_journal_name, harvest_url;
     unsigned previously_downloaded_count(0);
 
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
     if (custom_node != nullptr)
-        populateCustomNode(custom_node, &issn_normalized, &parent_journal_name, &new_record);
+        populateCustomNode(custom_node, &issn_normalized, &parent_journal_name, &harvest_url, &new_record);
 
     // title:
     if (not website_title.empty() and not new_record.hasTag("245"))
@@ -627,8 +631,12 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 
     // previously downloaded?
     const std::string checksum(StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
-    if (unlikely(url.empty()))
-        LOG_ERROR("\"url\" has not been set!");
+    if (unlikely(url.empty())) {
+        if (not harvest_url.empty())
+            url = harvest_url;
+        else
+            LOG_ERROR("\"url\" has not been set!");
+    }
 
     DownloadTracker::Entry tracked_entry;
     if (not download_tracker_.hasAlreadyBeenDownloaded(url, checksum, &tracked_entry) or not tracked_entry.error_message_.empty()) {
@@ -737,7 +745,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
  * Note on ISSN's: Some pages might contain multiple ISSN's (for each publication medium and/or a linking ISSN).
  *                In such cases, the Zotero translator must return tags to distinguish between them.
  */
-void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node, const SiteParams &site_params) {
+void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::ObjectNode> &object_node, const SiteParams &site_params) {
     LOG_INFO("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
@@ -857,6 +865,8 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node, const Sit
 
     // Add the parent journal name for tracking changes to the harvested URL
     custom_fields.emplace(std::make_pair("parent_journal_name", site_params.parent_journal_name_));
+    // save harvest URL in case of a faulty translator that doesn't correctly retrieve it
+    custom_fields.emplace(std::make_pair("harvest_url", harvest_url));
 
     // Insert custom node with fields and comments
     if (comments.size() > 0 or custom_fields.size() > 0) {
@@ -936,10 +946,6 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     if (not download_succeeded) {
         LOG_WARNING("Zotero conversion failed: " + error_message);
         return std::make_pair(0, 0);
-    } else if (response_body.empty()) {
-        LOG_WARNING("Zotero translation server returned an empty response! Response code = "
-                    + std::to_string(response_code));
-        return std::make_pair(0, 0);
     }
 
     std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
@@ -968,15 +974,23 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         }
     } else {
         const std::shared_ptr<const JSON::ArrayNode>json_array(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
+        int processed_json_entries(0);
         for (const auto entry : *json_array) {
             const std::shared_ptr<JSON::ObjectNode> json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
+            ++processed_json_entries;
+
             try {
-                AugmentJson(json_object, site_params);
+                AugmentJson(harvest_url, json_object, site_params);
                 record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
             } catch (const std::exception &x) {
                 LOG_WARNING("Couldn't process record! Error: " + std::string(x.what()));
                 return record_count_and_previously_downloaded_count;
             }
+        }
+
+        if (processed_json_entries == 0) {
+            LOG_WARNING("Zotero translation server returned an empty response! Response code = "
+                        + std::to_string(response_code));
         }
     }
     ++harvest_params->harvested_url_count_;
