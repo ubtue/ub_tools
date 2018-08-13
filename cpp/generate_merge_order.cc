@@ -48,7 +48,7 @@ void LoadFilePCRE(std::string * const file_pcre) {
     *file_pcre += "|" + ini_file.getString("Files", "complete_dump");
     *file_pcre += "|" + ini_file.getString("Files", "incremental_dump");
     *file_pcre += "|" + ini_file.getString("Files", "incremental_authority_dump");
-    *file_pcre += "|Complete-MARC-.*-\\d\\d\\d\\d\\d\\d.tar.gz";
+    *file_pcre += "|Complete-MARC-\\d\\d\\d\\d\\d\\d.tar.gz";
 }
 
 
