@@ -52,4 +52,15 @@ void GetMysqlURL(std::string * const mysql_url, const std::string &vufind_config
 }
 
 
+const std::string GetTueFindFlavour() {
+    const char * const flavour(::secure_getenv("TUEFIND_FLAVOUR"));
+    if (flavour == nullptr)
+        return "";
+    else {
+        const std::string flavour_str(flavour);
+        return flavour_str;
+    }
+}
+
+
 } // namespace VuFind
