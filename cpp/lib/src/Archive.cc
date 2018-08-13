@@ -134,9 +134,9 @@ ArchiveWriter::ArchiveWriter(const std::string &archive_file_name, const std::st
                 LOG_ERROR("no write options are currently supported for the uncompressed tar format!");
             ::archive_write_set_format_pax_restricted(archive_handle_);
         } else if (StringUtil::EndsWith(archive_file_name, ".tar.gz")) {
+            ::archive_write_add_filter_gzip(archive_handle_);
             if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
                 LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"!");
-            ::archive_write_add_filter_gzip(archive_handle_);
             ::archive_write_set_format_pax_restricted(archive_handle_);
         } else
             LOG_ERROR("FileType::AUTO selected but," " can't guess the file type from the given filename \"" + archive_file_name + "\"!");
@@ -147,9 +147,9 @@ ArchiveWriter::ArchiveWriter(const std::string &archive_file_name, const std::st
         ::archive_write_set_format_pax_restricted(archive_handle_);
         break;
     case FileType::GZIPPED_TAR:
+        ::archive_write_add_filter_gzip(archive_handle_);
         if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
             LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"! (2)");
-        ::archive_write_add_filter_gzip(archive_handle_);
         ::archive_write_set_format_pax_restricted(archive_handle_);
         break;
     }
