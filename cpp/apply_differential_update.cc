@@ -140,7 +140,12 @@ void PatchArchiveMembersAndCreateOutputArchive(std::vector<std::string> input_ar
     if (FileUtil::GetFileNameList(".*[abc]001.raw$", &output_archive_members) == 0)
         LOG_ERROR("missing output archive members!");
 
-    ArchiveWriter archive_writer(output_archive);
+    std::string archive_write_options;
+    if (StringUtil::EndsWith(output_archive, ".gz"))
+        archive_write_options = "compression-level=1"; // lowest compression level => fastet
+    else
+        LOG_WARNING("output archive name \"" + output_archive + "\" does not end w/ \".gz\"!");
+    ArchiveWriter archive_writer(output_archive, archive_write_options);
     for (const auto &output_archive_member : output_archive_members)
         archive_writer.add(output_archive_member);
 }
