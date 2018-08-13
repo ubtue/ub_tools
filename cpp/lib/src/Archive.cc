@@ -122,25 +122,33 @@ bool ArchiveReader::extractEntry(const std::string &member_name, std::string out
 }
 
 
-ArchiveWriter::ArchiveWriter(const std::string &archive_file_name, const FileType file_type)
+ArchiveWriter::ArchiveWriter(const std::string &archive_file_name, const std::string &archive_write_options, const FileType file_type)
     : archive_entry_(nullptr)
 {
     archive_handle_ = ::archive_write_new();
 
     switch (file_type) {
     case FileType::AUTO:
-        if (StringUtil::EndsWith(archive_file_name, ".tar"))
+        if (StringUtil::EndsWith(archive_file_name, ".tar")) {
+            if (unlikely(not archive_write_options.empty()))
+                LOG_ERROR("no write options are currently supported for the uncompressed tar format!");
             ::archive_write_set_format_pax_restricted(archive_handle_);
-        else if (StringUtil::EndsWith(archive_file_name, ".tar.gz")) {
+        } else if (StringUtil::EndsWith(archive_file_name, ".tar.gz")) {
+            if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
+                LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"!");
             ::archive_write_add_filter_gzip(archive_handle_);
             ::archive_write_set_format_pax_restricted(archive_handle_);
         } else
             LOG_ERROR("FileType::AUTO selected but," " can't guess the file type from the given filename \"" + archive_file_name + "\"!");
         break;
     case FileType::TAR:
+        if (unlikely(not archive_write_options.empty()))
+            LOG_ERROR("no write options are currently supported for the uncompressed tar format! (2)");
         ::archive_write_set_format_pax_restricted(archive_handle_);
         break;
     case FileType::GZIPPED_TAR:
+        if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
+            LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"! (2)");
         ::archive_write_add_filter_gzip(archive_handle_);
         ::archive_write_set_format_pax_restricted(archive_handle_);
         break;

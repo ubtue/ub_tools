@@ -75,7 +75,12 @@ class ArchiveWriter {
 public:
     enum class FileType { AUTO, TAR, GZIPPED_TAR };
 public:
-    explicit ArchiveWriter(const std::string &archive_file_name, const FileType file_type = FileType::AUTO);
+    // \param archive_write_options  Currently supported is only "compression-level" for gzipped archives!
+    explicit ArchiveWriter(const std::string &archive_file_name, const std::string &archive_write_options,
+			   const FileType file_type = FileType::AUTO);
+
+    explicit ArchiveWriter(const std::string &archive_file_name, const FileType file_type = FileType::AUTO)
+        : ArchiveWriter(archive_file_name, "", file_type) { }
     ~ArchiveWriter();
 
     void add(const std::string &filename, std::string archive_name = "");
