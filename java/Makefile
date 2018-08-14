@@ -1,4 +1,4 @@
-SUBDIRS = marc4j_check 
+SUBDIRS = marc4j_check solrmarc_mixin
 
 all: 
 	for dir in $(SUBDIRS); do \
