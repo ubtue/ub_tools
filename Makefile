@@ -5,7 +5,6 @@ all:
 	$(MAKE) -C cpp/lib/mkdep;
 	$(MAKE) -C cpp;
 	if [ $(TUEFIND_FLAVOUR) != "unknown" ]; then\
-	    $(MAKE) -C solr_plugins;\
 	    $(MAKE) -C java;\
 	    $(MAKE) -C cronjobs;\
 	fi
@@ -14,7 +13,6 @@ install: install_configs Makefile
 	$(MAKE) -C cpp/lib/mkdep install;
 	$(MAKE) -C cpp install;
 	if [ $(TUEFIND_FLAVOUR) != "unknown" ]; then\
-	    $(MAKE) -C solr_plugins install;\
 	    $(MAKE) -C java install;\
 	    $(MAKE) -C cronjobs install;\
 	fi
@@ -23,7 +21,6 @@ clean:
 	$(MAKE) -C cpp/lib/mkdep clean;
 	$(MAKE) -C cpp clean;
 	$(MAKE) -C cronjobs clean;
-	$(MAKE) -C solr_plugins clean;
 	$(MAKE) -C java clean;
 
 test:
