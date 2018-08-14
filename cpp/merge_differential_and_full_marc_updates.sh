@@ -58,6 +58,12 @@ echo "Creating ${target_filename}"
 
 
 input_filename=$(generate_merge_order | head --lines=1)
+if [[ -n ${USE_SUBDIRECTORIES} ]]; then
+    extraction_directory=${input_filename%.tar.gz}
+    cd $extraction_directory
+    tar xzf ../$input_filename
+    cd -
+fi
 declare -i counter=0
 last_temp_filename=
 for update in $(generate_merge_order | tail --lines=+2); do
@@ -71,7 +77,11 @@ for update in $(generate_merge_order | tail --lines=+2); do
         apply_differential_update $KEEP_ITERMEDIATE_FILES $USE_SUBDIRECTORIES $input_filename $update $temp_filename
     fi
     if [[ -n "$last_temp_filename" ]]; then
-        rm "$last_temp_filename"
+        if [[ -z ${USE_SUBDIRECTORIES} ]]; then
+            rm "$last_temp_filename"
+        else
+            rm -r ${last_temp_filename%.tar.gz}
+        fi
     fi
     input_filename=$temp_filename
     last_temp_filename=$temp_filename
@@ -84,7 +94,12 @@ temp_filename=${temp_filename:-}
 if [ -z ${temp_filename} ]; then
     ln --symbolic --force $input_filename Complete-MARC-current.tar.gz
 else
-    mv $temp_filename $target_filename
+    if [[ -z ${USE_SUBDIRECTORIES} ]]; then
+        mv $temp_filename $target_filename
+    else
+        tar czf $target_filename ${temp_filename%.tar.gz}/*raw
+        rm -r ${temp_filename%.tar.gz}
+    fi
 
     if [[ ! keep_itermediate_filenames ]]; then
         rm temp_filename.$BASHPID.*.tar.gz TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
