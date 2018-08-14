@@ -24,8 +24,10 @@
 #include <unistd.h>
 #include "Archive.h"
 #include "BSZUtil.h"
+#include "Compiler.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -33,7 +35,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--keep-intermediate-files] old_archive deletion_list new_archive\n";
+    std::cerr << "Usage: " << ::progname << " [--keep-intermediate-files] [--use-subdirectories] old_archive deletion_list new_archive\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -54,7 +56,33 @@ void UpdateOneFile(const std::string &marc_filename, const std::string &deletion
 }
 
 
-void UpdateArchive(const std::string &old_archive, const std::string &deletion_list, const std::string &new_archive) {
+std::string StripTarGz(const std::string &archive_filename) {
+    if (unlikely(not StringUtil::EndsWith(archive_filename, ".tar.gz")))
+        LOG_ERROR("\"" + archive_filename + "\" does not end w/ .tar.gz!");
+    return archive_filename.substr(0, archive_filename.length() - 7);
+}
+
+    
+void UpdateSubdirectory(const std::string &old_archive, const std::string &deletion_list, const std::string &new_archive) {
+    const std::string old_directory(StripTarGz(old_archive));
+    std::vector<std::string> archive_members;
+    FileUtil::GetFileNameList(".raw$", &archive_members, old_directory);
+
+    const std::string new_directory(StripTarGz(new_archive));
+    if (not FileUtil::MakeDirectory(new_directory))
+        LOG_ERROR("failed to create subdirectory: \"" + new_directory + "\"!");
+
+    for (const auto &archive_member : archive_members) {
+        if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND,
+                                    { deletion_list, old_directory + "/" + archive_member, new_directory + "/" + archive_member }) != 0))
+            LOG_ERROR("\"" + DELETE_IDS_COMMAND + "\" failed!");
+    }
+}
+
+    
+void UpdateArchive(const std::string &old_archive, const std::string &deletion_list,
+                   const std::string &new_archive)
+{
     std::vector<std::string> archive_members;
     BSZUtil::ExtractArchiveMembers(old_archive, &archive_members);
 
@@ -80,6 +108,12 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
+    bool use_subdirectories(false);
+    if (std::strcmp(argv[1], "--use-subdirectories") == 0) {
+        use_subdirectories = true;
+        --argc, ++argv;
+    }
+
     if (argc != 4)
         Usage();
 
@@ -95,7 +129,10 @@ int Main(int argc, char *argv[]) {
                                                   /* remove_when_out_of_scope = */ not keep_intermediate_files);
     FileUtil::ChangeDirectoryOrDie(working_directory.getDirectoryPath());
 
-    UpdateArchive(old_archive, deletion_list, new_archive);
+    if (use_subdirectories)
+        UpdateSubdirectory(old_archive, deletion_list, new_archive);
+    else
+        UpdateArchive(old_archive, deletion_list, new_archive);
 
     FileUtil::ChangeDirectoryOrDie("..");
 
