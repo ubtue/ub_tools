@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <memory>
+#include <vector>
 #include <cstdlib>
 #include "BSZUtil.h"
 #include "FileUtil.h"
@@ -37,7 +38,8 @@ namespace {
 
 
 void ProcessTag(MARC::Record * const record, const std::string &tag, const std::unordered_set <std::string> &title_deletion_ids,
-                unsigned * const deleted_reference_count) {
+                unsigned * const deleted_reference_count)
+{
     for (auto &field : record->getTagRange(tag)) {
         auto subfields(field.getSubfields());
 
@@ -70,18 +72,16 @@ void ProcessTag(MARC::Record * const record, const std::string &tag, const std::
 
 
 void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
-                    const std::unordered_set <std::string> &/*local_deletion_ids*/, MARC::Reader * const marc_reader,
-                    MARC::Writer * const marc_writer)
+                    MARC::Reader * const marc_reader, MARC::Writer * const marc_writer)
 {
     unsigned total_record_count(0), deleted_reference_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++total_record_count;
-        ProcessTag(&record, "100", title_deletion_ids, &deleted_reference_count);
-        ProcessTag(&record, "110", title_deletion_ids, &deleted_reference_count);
-        ProcessTag(&record, "111", title_deletion_ids, &deleted_reference_count);
-        ProcessTag(&record, "700", title_deletion_ids, &deleted_reference_count);
-        ProcessTag(&record, "710", title_deletion_ids, &deleted_reference_count);
-        ProcessTag(&record, "711", title_deletion_ids, &deleted_reference_count);
+
+        const std::vector<std::string> tags{ "100", "110", "111", "700", "710", "711"};
+        for (const std::string &tag : tags)
+            ProcessTag(&record, tag, title_deletion_ids, &deleted_reference_count);
+
         marc_writer->write(record);
     }
 
@@ -106,7 +106,7 @@ int Main(int argc, char *argv[]) {
     const auto marc_reader(MARC::Reader::Factory(argv[2]));
     const auto marc_writer(MARC::Writer::Factory(argv[3]));
 
-    ProcessRecords(title_deletion_ids, local_deletion_ids, marc_reader.get(), marc_writer.get());
+    ProcessRecords(title_deletion_ids, marc_reader.get(), marc_writer.get());
 
     return EXIT_SUCCESS;
 }
