@@ -967,6 +967,20 @@ static MediaType GetMediaType(const std::string &input_filename) {
 }
 
 
+std::string FileTypeToString(const FileType file_type) {
+    switch (file_type) {
+    case FileType::AUTO:
+        return "AUTO";
+    case FileType::BINARY:
+        return "BINARY";
+    case FileType::XML:
+        return "XML";
+    default:
+        LOG_ERROR("unknown file type " + std::to_string(static_cast<int>(file_type)) + "!");
+    }
+}
+
+
 FileType GuessFileType(const std::string &filename) {
     if (FileUtil::Exists(filename) and not FileUtil::IsPipeOrFIFO(filename)) {
         switch (GetMediaType(filename)) {

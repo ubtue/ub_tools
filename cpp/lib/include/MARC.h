@@ -717,6 +717,9 @@ public:
 enum class FileType { AUTO, BINARY, XML };
 
 
+std::string FileTypeToString(const FileType file_type);
+
+
 /** \brief  Determines the file type of "filename".
  *  \return FileType::BINARY or FileType::XML.
  *  \note   Aborts if we can't determine the file type or if it is not FileType::BINARY nor FileType::XML.
