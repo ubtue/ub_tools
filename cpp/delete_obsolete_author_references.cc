@@ -20,11 +20,10 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
-#include <stdexcept>
-#include <vector>
 #include <cstdio>
 #include <cstdlib>
 #include "BSZUtil.h"
+#include "FileUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -93,16 +92,12 @@ int Main(int argc, char *argv[]) {
     if (argc != 4)
         Usage();
 
-    const std::string deletion_list_filename(argv[1]);
-    File deletion_list(deletion_list_filename, "r");
-    if (not deletion_list)
-        logger->error("can't open \"" + deletion_list_filename + "\" for reading!");
+    const auto deletion_list(FileUtil::OpenInputFileOrDie(argv[1]));
+    std::unordered_set<std::string> title_deletion_ids, local_deletion_ids;
+    BSZUtil::ExtractDeletionIds(deletion_list.get(), &title_deletion_ids, &local_deletion_ids);
 
-    std::unordered_set <std::string> title_deletion_ids, local_deletion_ids;
-    BSZUtil::ExtractDeletionIds(&deletion_list, &title_deletion_ids, &local_deletion_ids);
-
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2], MARC::FileType::BINARY));
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3], MARC::FileType::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
 
     ProcessRecords(title_deletion_ids, local_deletion_ids, marc_reader.get(), marc_writer.get());
 
