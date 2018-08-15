@@ -96,8 +96,8 @@ int Main(int argc, char *argv[]) {
     std::unordered_set<std::string> title_deletion_ids, local_deletion_ids;
     BSZUtil::ExtractDeletionIds(deletion_list.get(), &title_deletion_ids, &local_deletion_ids);
 
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
+    const auto marc_reader(MARC::Reader::Factory(argv[2]));
+    const auto marc_writer(MARC::Writer::Factory(argv[3]));
 
     ProcessRecords(title_deletion_ids, local_deletion_ids, marc_reader.get(), marc_writer.get());
 
