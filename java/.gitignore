@@ -1,3 +1,16 @@
 build
 dist
 test
+
+BibleRangeParser-*.jar
+FacetPrefixSortComponent-*.jar
+KeywordChainParser-*.jar
+MultiLanguageDocTransformerFactory-0.0.1.jar
+MultiLanguageQueryParser-0.0.1.jar
+SolrmarcMixin-*.jar
+solr_plugins/build.xml
+solr_plugins/Bibelstellensuche/bin/
+solr_plugins/Schlagwortfolgensuche/bin/
+solr_plugins/PrefixSortFacetten/bin/
+solrmarc_mixin/bin/
+solrmarc_mixin/src/build.xml
