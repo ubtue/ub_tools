@@ -56,12 +56,12 @@ bool ConvertRecord(MARC::Record * const record, MARC::Writer * const marc_writer
         return false; // Nothing to do!
 
     _040_subfields.addSubfield('e', "rda");
-    _040_field->setContents(_040_subfields, _040_field->getIndicator1(), _040_field->getIndicator2());
+    _040_field->setSubfields(_040_subfields);
 
     if (not _130_subfields.hasSubfield('p') and _130_subfields.getFirstSubfieldWithCode('a') != "Bibel") {
         _130_subfields.moveSubfield('a', 'p');
         _130_subfields.addSubfield('a', "Bibel");
-        _130_field->setContents(_130_subfields, _130_field->getIndicator1(), _130_field->getIndicator2());
+        _130_field->setSubfields(_130_subfields);
     }
 
     marc_writer->write(*record);

@@ -417,7 +417,7 @@ MARC::Record &Patch246i(MARC::Record * const record) {
     for (auto &_246_field : record->getTagRange("246")) {
         MARC::Subfields _246_subfields(_246_field.getSubfields());
         if (_246_subfields.replaceAllSubfields('i', "Nebentitel:", "Abweichender Titel"))
-            _246_field.setContents(_246_subfields, _246_field.getIndicator1(), _246_field.getIndicator2());
+            _246_field.setSubfields(_246_subfields);
     }
 
     return *record;
