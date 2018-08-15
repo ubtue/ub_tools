@@ -161,7 +161,6 @@ void ParseSuperior(const std::string &_500a_content, MARC::Subfields * const _77
        LOG_WARNING("No matching regex for " + _500a_content);
 }
 
-//https://github.com/ubtue/DatenProbleme/issues/20
 void InsertSigilInto003And852(MARC::Record * const record, bool * const modified_record) {
     static const std::string ISIL_KRIMDOK("DE-2619");
 
@@ -249,7 +248,6 @@ void RewriteSuperiorReference(MARC::Record * const record, bool * const modified
 }
 
 
-// https://github.com/ubtue/DatenProbleme/issues/19
 void RemoveExtraneousHyphensFrom653(MARC::Record * const record, bool * const modified_record) {
     for (auto &field : record->getTagRange("653")) {
         const auto subfields(field.getSubfields());
@@ -264,7 +262,6 @@ void RemoveExtraneousHyphensFrom653(MARC::Record * const record, bool * const mo
 }
 
 
-// https://github.com/ubtue/DatenProbleme/issues/27
 void RemoveExtraneousPublisherNames(MARC::Record * const record, bool * const modified_record) {
     static const std::vector<std::string> tags_to_clean{ "700", "710" };
 
@@ -285,7 +282,6 @@ void RemoveExtraneousPublisherNames(MARC::Record * const record, bool * const mo
         *modified_record = true;
 }
 
-// https://github.com/ubtue/DatenProbleme/issues/25
 void MovePageNumbersFrom300(MARC::Record * const record, bool * const modified_record) {
     static RegexMatcher * const page_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(.*)\\.S\\b"));
 
