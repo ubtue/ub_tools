@@ -326,6 +326,7 @@ public:
         inline void setSubfields(const Subfields &subfields) {
             setContents(subfields, getIndicator1(), getIndicator2());
         }
+        inline bool isLocal() const { return tag_.isLocal(); }
         Tag getLocalTag() const;
 
         /** \warning Do not call the following two functions on local control fields! */

@@ -682,29 +682,28 @@ coalescing_done:
 }
 
 
-static inline bool LocalIndicators1Match(const Record::Field &field, const char indicator) {
-    if (indicator == '?')
-        return true;
-    return indicator == field.getLocalIndicator1();
+static inline bool LocalIndicator1Matches(const Record::Field &field, const char indicator) {
+    return indicator == '?' or indicator == field.getLocalIndicator1();
 }
 
 
-static inline bool LocalIndicators2Match(const Record::Field &field, const char indicator) {
-    if (indicator == '?')
-        return true;
-    return indicator == field.getLocalIndicator2();
+static inline bool LocalIndicator2Matches(const Record::Field &field, const char indicator) {
+    return indicator == '?' or indicator == field.getLocalIndicator2();
 }
 
 
 static inline bool LocalIndicatorsMatch(const Record::Field &field, const char indicator1, const char indicator2) {
     return field.getLocalTag().isTagOfControlField()
-           or (LocalIndicators1Match(field, indicator1) and LocalIndicators2Match(field, indicator2));
+           or (LocalIndicator1Matches(field, indicator1) and LocalIndicator2Matches(field, indicator2));
 }
 
 
 Record::ConstantRange Record::getLocalTagRange(const Tag &local_field_tag, const const_iterator &block_start, const char indicator1,
                                                const char indicator2) const
 {
+    if (unlikely(not block_start->isLocal()))
+        LOG_ERROR("you must call this function w/ a local \"block_start\"!");
+
     const_iterator tag_range_start(block_start);
     Tag last_local_tag(tag_range_start->getLocalTag());
     for (;;) {
@@ -712,7 +711,7 @@ Record::ConstantRange Record::getLocalTagRange(const Tag &local_field_tag, const
         if (tag == local_field_tag and LocalIndicatorsMatch(*tag_range_start, indicator1, indicator2))
             break;
         ++tag_range_start;
-        if (tag_range_start == fields_.cend() or tag_range_start->getLocalTag() < last_local_tag or tag_range_start->getTag() != "LOK")
+        if (tag_range_start == fields_.cend() or tag_range_start->getTag() != "LOK" or tag_range_start->getLocalTag() < last_local_tag)
             return ConstantRange(fields_.cend(), fields_.cend());
         last_local_tag = tag_range_start->getLocalTag();
     }
