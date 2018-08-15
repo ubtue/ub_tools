@@ -74,11 +74,12 @@ void ProcessTag(MARC::Record * const record, const std::string &tag, const std::
 void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
                     MARC::Reader * const marc_reader, MARC::Writer * const marc_writer)
 {
+    const std::vector<std::string> tags{ "100", "110", "111", "700", "710", "711" };
+    
     unsigned total_record_count(0), deleted_reference_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++total_record_count;
 
-        const std::vector<std::string> tags{ "100", "110", "111", "700", "710", "711" };
         for (const std::string &tag : tags)
             ProcessTag(&record, tag, title_deletion_ids, &deleted_reference_count);
 
