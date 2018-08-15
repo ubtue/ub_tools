@@ -128,8 +128,12 @@ void SummarizeLog(File * const log_file, File * const summary_file) {
     std::sort(lines_and_frequencies_as_vector.begin(), lines_and_frequencies_as_vector.end(),
               LineAndFrequencyCompare);
 
-    *summary_file << "Summary of " << log_file->getPath() << " between " << min_datetime << " and "
-                  << max_datetime << ".\n";
+    *summary_file << "Summary of " << log_file->getPath();
+    if (max_datetime != SqlUtil::DATETIME_RANGE_MIN or min_datetime != SqlUtil::DATETIME_RANGE_MAX)     // intentionally swapped
+        *summary_file << " between " << min_datetime << " and " << max_datetime;
+    *summary_file << ":\n";
+
+
     for (const auto &line_and_frequency : lines_and_frequencies_as_vector)
         *summary_file << line_and_frequency.first << ": " << line_and_frequency.second << '\n';
 }
