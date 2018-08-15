@@ -17,11 +17,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <vector>
-#include <cstdio>
 #include <cstdlib>
 #include "BSZUtil.h"
 #include "FileUtil.h"
