@@ -46,7 +46,7 @@ namespace {
 // Return the first matching primary field (Vorzugsbenennung) from authority data
 // This implicitly assumes that the correct tag can be uniquely identified from the PPN
 MARC::Record::const_iterator GetFirstPrimaryField(const MARC::Record& authority_record) {
-     static const std::vector<std::string> tags_to_check {"100", "151", "150", "110", "111", "130", "153"} ;
+     static const std::vector<std::string> tags_to_check{"100", "151", "150", "110", "111", "130", "153"};
      for (const auto &tag_to_check : tags_to_check) {
          MARC::Record::const_iterator primary_field(authority_record.findTag(tag_to_check));
          if (primary_field != authority_record.end())
@@ -113,7 +113,7 @@ void AugmentAuthors(MARC::Record * const record, MARC::Reader * const authority_
                     const std::unordered_map<std::string, off_t> &authority_offsets,
                     RegexMatcher * const matcher, bool * const modified_record)
 {
-    static std::vector<std::string> tags_to_check({"100", "110", "111", "700", "710", "711"});
+    static std::vector<std::string> tags_to_check{"100", "110", "111", "700", "710", "711"};
     for (auto tag_to_check : tags_to_check) {
         for (auto &field : record->getTagRange(tag_to_check)) {
             std::string _author_content(field.getContents());
