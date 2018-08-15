@@ -32,7 +32,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " deletion_list input_marc21 output_marc21\n";
+    std::cerr << "Usage: " << ::progname
+              << " [--input-format=(marc-21|marc-xml)] [--output-format=(marc-21|marc-xml)] deletion_list input_marc21 output_marc21\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -96,6 +97,12 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
 int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
+    if (argc < 4)
+        Usage();
+
+    const auto reader_type(MARC::GetOptionalReaderType(&argc, &argv, 1));
+    const auto writer_type(MARC::GetOptionalWriterType(&argc, &argv, 1));
+
     if (argc != 4)
         Usage();
 
@@ -103,8 +110,8 @@ int Main(int argc, char *argv[]) {
     std::unordered_set<std::string> title_deletion_ids, local_deletion_ids;
     BSZUtil::ExtractDeletionIds(deletion_list.get(), &title_deletion_ids, &local_deletion_ids);
 
-    const auto marc_reader(MARC::Reader::Factory(argv[2]));
-    const auto marc_writer(MARC::Writer::Factory(argv[3]));
+    const auto marc_reader(MARC::Reader::Factory(argv[2], reader_type));
+    const auto marc_writer(MARC::Writer::Factory(argv[3], writer_type));
 
     ProcessRecords(title_deletion_ids, local_deletion_ids, marc_reader.get(), marc_writer.get());
 

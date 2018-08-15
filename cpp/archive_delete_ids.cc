@@ -74,7 +74,8 @@ void UpdateSubdirectory(const std::string &old_archive, const std::string &delet
 
     for (const auto &archive_member : archive_members) {
         if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND,
-                                    { deletion_list, old_directory + "/" + archive_member, new_directory + "/" + archive_member }) != 0))
+                                    { "--input-format=marc-21", "--output-format=marc-21", deletion_list,
+                                      old_directory + "/" + archive_member, new_directory + "/" + archive_member }) != 0))
             LOG_ERROR("\"" + DELETE_IDS_COMMAND + "\" failed!");
     }
 }
