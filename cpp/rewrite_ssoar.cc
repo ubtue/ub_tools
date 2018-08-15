@@ -269,8 +269,8 @@ void RemoveExtraneousPublisherNames(MARC::Record * const record, bool * const mo
     for (const auto &tag : tags_to_clean) {
         const auto tag_range(record->getTagRange(tag));
         for (auto field(tag_range.begin()); field != tag_range.end(); ++field) {
-            bool publisher(field->getFirstSubfieldWithCode('4') == "edt");
-            if (record->isArticle() and publisher)
+            bool is_publisher(field->getFirstSubfieldWithCode('4') == "edt");
+            if (record->isArticle() and is_publisher)
                 fields_to_remove.push_back(field);
         }
     }
@@ -282,41 +282,43 @@ void RemoveExtraneousPublisherNames(MARC::Record * const record, bool * const mo
         *modified_record = true;
 }
 
+
 void MovePageNumbersFrom300(MARC::Record * const record, bool * const modified_record) {
     static RegexMatcher * const page_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(.*)\\.S\\b"));
 
     auto field_300(record->findTag("300"));
-    if (field_300 != record->end()) {
-        const auto first_subfield(field_300->getFirstSubfieldWithCode('a'));
-        if (page_range_matcher->matched(first_subfield)) {
-            *modified_record = true;
-            // move to 936$h and 773$g, if not already present
-            auto page_string((*page_range_matcher)[1]);
-            page_string = StringUtil::Trim(page_string);
+    if (field_300 == record->end())
+        return;
 
-            auto field_936(record->findTag("936")), field_773(record->findTag("773"));
-            if (field_936 == record->end())
-                record->insertField( "936" , { { 'h', page_string } });
-            else if (not field_936->hasSubfield('h'))
-                field_936->insertOrReplaceSubfield('h', page_string);
+    const auto first_subfield(field_300->getFirstSubfieldWithCode('a'));
+    if (page_range_matcher->matched(first_subfield)) {
+        *modified_record = true;
+        // move to 936$h and 773$g, if not already present
+        auto page_string((*page_range_matcher)[1]);
+        page_string = StringUtil::Trim(page_string);
 
-            if (field_773 == record->end())
-                record->insertField( "773" , { { 'g', page_string } });
-            else {
-                bool page_number_present(false);
-                for (const auto &subfield : field_773->getSubfields()) {
-                    if (subfield.code_ == 'g' and subfield.value_.find(page_string) != std::string::npos) {
-                        page_number_present = true;
-                        break;
-                    }
+        auto field_936(record->findTag("936")), field_773(record->findTag("773"));
+        if (field_936 == record->end())
+            record->insertField( "936" , { { 'h', page_string } });
+        else if (not field_936->hasSubfield('h'))
+            field_936->insertOrReplaceSubfield('h', page_string);
+
+        if (field_773 == record->end())
+            record->insertField( "773" , { { 'g', page_string } });
+        else {
+            bool page_number_present(false);
+            for (const auto &subfield : field_773->getSubfields()) {
+                if (subfield.code_ == 'g' and subfield.value_.find(page_string) != std::string::npos) {
+                    page_number_present = true;
+                    break;
                 }
-
-                if (not page_number_present)
-                    field_773->insertOrReplaceSubfield('g', page_string + " .S");
             }
 
-            record->erase(field_300);
+            if (not page_number_present)
+                field_773->insertOrReplaceSubfield('g', page_string + " .S");
         }
+
+        record->erase(field_300);
     }
 }
 
