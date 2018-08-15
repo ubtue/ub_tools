@@ -169,7 +169,7 @@ void InsertSigilInto003And852(MARC::Record * const record, bool * const modified
     if (field_852 != record->end()) {
         auto subfields(field_852->getSubfields());
         subfields.replaceFirstSubfield('a', ISIL_KRIMDOK);
-        field_852->setContents(subfields, field_852->getIndicator1(), field_852->getIndicator2());
+        field_852->setSubfields(subfields);
     }
 
     *modified_record = true;
@@ -257,7 +257,7 @@ void RemoveExtraneousHyphensFrom653(MARC::Record * const record, bool * const mo
                 *modified_record = true;
             }
         }
-        field.setContents(subfields, field.getIndicator1(), field.getIndicator2());
+        field.setSubfields(subfields);
     }
 }
 
