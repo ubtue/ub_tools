@@ -36,6 +36,39 @@ namespace {
 }
 
 
+void ProcessTag(MARC::Record * const record, const std::string &tag, const std::unordered_set <std::string> &title_deletion_ids,
+                unsigned * const deleted_reference_count) {
+    for (auto &field : record->getTagRange(tag)) {
+        auto subfields(field.getSubfields());
+
+        MARC::Subfields new_subfields;
+        bool subfields_changed(false);
+        for (auto &subfield : subfields) {
+            bool remove_subfield(false);
+            if (subfield.code_ == '0') {
+                const std::string author_reference(subfield.value_);
+                if (StringUtil::StartsWith(author_reference, "(DE-576)")) {
+                    const std::string ppn(author_reference.substr(8));
+                    if (title_deletion_ids.find(ppn) != title_deletion_ids.end()) {
+                        LOG_INFO("deleting author " + ppn + " from title " + record->getControlNumber());
+                        remove_subfield = true;
+                    }
+                }
+            }
+
+            if (remove_subfield) {
+                ++*deleted_reference_count;
+                subfields_changed = true;
+            } else
+                new_subfields.appendSubfield(subfield);
+        }
+
+        if (subfields_changed)
+            field.setSubfields(new_subfields);
+    }
+}
+
+
 void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
                     const std::unordered_set <std::string> &/*local_deletion_ids*/, MARC::Reader * const marc_reader,
                     MARC::Writer * const marc_writer)
@@ -43,36 +76,12 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
     unsigned total_record_count(0), deleted_reference_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++total_record_count;
-
-        for (auto &field : record.getTagRange("100")) {
-            auto subfields(field.getSubfields());
-
-            MARC::Subfields new_subfields;
-            bool subfields_changed(false);
-            for (auto &subfield : subfields) {
-                bool remove_subfield(false);
-                if (subfield.code_ == '0') {
-                    const std::string author_reference(subfield.value_);
-                    if (StringUtil::StartsWith(author_reference, "(DE-576)")) {
-                        const std::string ppn(author_reference.substr(8));
-                        if (title_deletion_ids.find(ppn) != title_deletion_ids.end()) {
-                            LOG_INFO("deleting author " + ppn + " from title " + record.getControlNumber());
-                            remove_subfield = true;
-                        }
-                    }
-                }
-
-                if (remove_subfield) {
-                    ++deleted_reference_count;
-                    subfields_changed = true;
-                } else
-                    new_subfields.appendSubfield(subfield);
-            }
-
-            if (subfields_changed)
-                field.setSubfields(new_subfields);
-        }
-
+        ProcessTag(&record, "100", title_deletion_ids, &deleted_reference_count);
+        ProcessTag(&record, "110", title_deletion_ids, &deleted_reference_count);
+        ProcessTag(&record, "111", title_deletion_ids, &deleted_reference_count);
+        ProcessTag(&record, "700", title_deletion_ids, &deleted_reference_count);
+        ProcessTag(&record, "710", title_deletion_ids, &deleted_reference_count);
+        ProcessTag(&record, "711", title_deletion_ids, &deleted_reference_count);
         marc_writer->write(record);
     }
 
