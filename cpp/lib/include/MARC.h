@@ -167,6 +167,9 @@ public:
     inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
         { subfields_.emplace_back(subfield_code, subfield_value); }
 
+    inline void appendSubfield(const Subfield &subfield)
+        { subfields_.emplace_back(subfield.code_, subfield.value_); }
+
     /** \brief Replaces the contents of the first subfield w/ the specified subfield code.
      *  \return True if we replaced the subfield contents and false if a subfield w/ the given code was not found.
      */
@@ -320,6 +323,9 @@ public:
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
+        inline void setSubfields(const Subfields &subfields) {
+            setContents(subfields, getIndicator1(), getIndicator2());
+        }
         Tag getLocalTag() const;
 
         /** \warning Do not call the following two functions on local control fields! */
