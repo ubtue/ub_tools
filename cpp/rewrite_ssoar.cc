@@ -250,7 +250,7 @@ void RewriteSuperiorReference(MARC::Record * const record, bool * const modified
 
 void RemoveExtraneousHyphensFrom653(MARC::Record * const record, bool * const modified_record) {
     for (auto &field : record->getTagRange("653")) {
-        const auto subfields(field.getSubfields());
+        auto subfields(field.getSubfields());
         for (auto &subfield : subfields) {
             if (subfield.value_.find('-') != std::string::npos) {
                 std::remove(subfield.value_.begin(), subfield.value_.end(), '-');
