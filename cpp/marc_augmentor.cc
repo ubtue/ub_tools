@@ -240,7 +240,7 @@ bool ReplaceField(MARC::Record * const record, const MARC::Tag &tag, const char 
         } else {
             MARC::Subfields subfields(field.getContents());
             if (subfields.replaceFirstSubfield(subfield_code, replacement_text)) {
-                field.setContents(subfields, field.getIndicator1(), field.getIndicator2());
+                field.setSubfields(subfields);
                 replaced_at_least_one = true;
             }
         }
@@ -264,7 +264,7 @@ bool AddSubfield(MARC::Record * const record, const MARC::Tag &tag, const char s
         if (field.getTag() == tag) {
             MARC::Subfields subfields(field.getSubfields());
             subfields.addSubfield(subfield_code, insertion_text);
-            field.setContents(subfields, field.getIndicator1(), field.getIndicator2());
+            field.setSubfields(subfields);
             modified_at_least_one = true;
         }
     }
