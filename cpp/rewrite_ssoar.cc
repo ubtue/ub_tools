@@ -161,9 +161,18 @@ void ParseSuperior(const std::string &_500a_content, MARC::Subfields * const _77
        LOG_WARNING("No matching regex for " + _500a_content);
 }
 
+//https://github.com/ubtue/DatenProbleme/issues/20
+void InsertSigilInto003And852(MARC::Record * const record, bool * const modified_record) {
+    static const std::string ISIL_KRIMDOK("DE-2619");
 
-void InsertSigilInto003(MARC::Record * const record, bool * const modified_record) {
-    record->insertField("003", "INSERT_VALID_SIGEL_HERE");
+    record->insertField("003", ISIL_KRIMDOK);
+    auto field_852(record->findTag("852"));
+    if (field_852 != record->end()) {
+        auto subfields(field_852->getSubfields());
+        subfields.replaceFirstSubfield('a', ISIL_KRIMDOK);
+        field_852->setContents(subfields, field_852->getIndicator1(), field_852->getIndicator2());
+    }
+
     *modified_record = true;
 }
 
@@ -234,7 +243,85 @@ void RewriteSuperiorReference(MARC::Record * const record, bool * const modified
 
     for (const auto &new_773_field : new_773_fields)
         record->insertField("773", "08" + new_773_field);
-    *modified_record = not new_773_fields.empty();
+
+    if (not new_773_fields.empty())
+        *modified_record = true;
+}
+
+
+// https://github.com/ubtue/DatenProbleme/issues/19
+void RemoveExtraneousHyphensFrom653(MARC::Record * const record, bool * const modified_record) {
+    for (auto &field : record->getTagRange("653")) {
+        const auto subfields(field.getSubfields());
+        for (auto &subfield : subfields) {
+            if (subfield.value_.find('-') != std::string::npos) {
+                std::remove(subfield.value_.begin(), subfield.value_.end(), '-');
+                *modified_record = true;
+            }
+        }
+        field.setContents(subfields, field.getIndicator1(), field.getIndicator2());
+    }
+}
+
+
+// https://github.com/ubtue/DatenProbleme/issues/27
+void RemoveExtraneousPublisherNames(MARC::Record * const record, bool * const modified_record) {
+    static const std::vector<std::string> tags_to_clean{ "700", "710" };
+
+    std::vector<MARC::Record::iterator> fields_to_remove;
+    for (const auto &tag : tags_to_clean) {
+        const auto tag_range(record->getTagRange(tag));
+        for (auto field(tag_range.begin()); field != tag_range.end(); ++field) {
+            bool publisher(field->getFirstSubfieldWithCode('4') == "edt");
+            if (record->isArticle() and publisher)
+                fields_to_remove.push_back(field);
+        }
+    }
+
+    for (auto &field_to_remove : fields_to_remove)
+        record->erase(field_to_remove);
+
+    if (not fields_to_remove.empty())
+        *modified_record = true;
+}
+
+// https://github.com/ubtue/DatenProbleme/issues/25
+void MovePageNumbersFrom300(MARC::Record * const record, bool * const modified_record) {
+    static RegexMatcher * const page_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(.*)\\.S\\b"));
+
+    auto field_300(record->findTag("300"));
+    if (field_300 != record->end()) {
+        const auto first_subfield(field_300->getFirstSubfieldWithCode('a'));
+        if (page_range_matcher->matched(first_subfield)) {
+            *modified_record = true;
+            // move to 936$h and 773$g, if not already present
+            auto page_string((*page_range_matcher)[1]);
+            page_string = StringUtil::Trim(page_string);
+
+            auto field_936(record->findTag("936")), field_773(record->findTag("773"));
+            if (field_936 == record->end())
+                record->insertField( "936" , { { 'h', page_string } });
+            else if (not field_936->hasSubfield('h'))
+                field_936->insertOrReplaceSubfield('h', page_string);
+
+            if (field_773 == record->end())
+                record->insertField( "773" , { { 'g', page_string } });
+            else {
+                bool page_number_present(false);
+                for (const auto &subfield : field_773->getSubfields()) {
+                    if (subfield.code_ == 'g' and subfield.value_.find(page_string) != std::string::npos) {
+                        page_number_present = true;
+                        break;
+                    }
+                }
+
+                if (not page_number_present)
+                    field_773->insertOrReplaceSubfield('g', page_string + " .S");
+            }
+
+            record->erase(field_300);
+        }
+    }
 }
 
 
@@ -243,10 +330,15 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
         bool modified_record(false);
-        InsertSigilInto003(&record, &modified_record);
+
+        InsertSigilInto003And852(&record, &modified_record);
         InsertLanguageInto041(&record, &modified_record);
         InsertYearInto264c(&record, &modified_record);
         RewriteSuperiorReference(&record, &modified_record);
+        RemoveExtraneousHyphensFrom653(&record, &modified_record);
+        RemoveExtraneousPublisherNames(&record, &modified_record);
+        MovePageNumbersFrom300(&record, &modified_record);
+
         marc_writer->write(record);
         if (modified_record)
             ++modified_count;
