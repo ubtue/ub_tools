@@ -144,8 +144,8 @@ void PatchArchiveMembersAndCreateOutputArchive(const bool use_subdirectories, st
                 FileUtil::CopyOrDie(*input_member, StripTarGz(output_archive) + "/" + FileUtil::GetLastPathComponent(*input_member));
             ++input_member;
         } else {
-            const char input_type(BSZUtil::GetTypeCharOrDie(*input_member));
-            const char difference_type(BSZUtil::GetTypeCharOrDie(*difference_member));
+            const char input_type(BSZUtil::GetTypeCharOrDie(FileUtil::GetLastPathComponent(*input_member)));
+            const char difference_type(BSZUtil::GetTypeCharOrDie(FileUtil::GetLastPathComponent(*difference_member)));
             if (input_type == difference_type) {
                 PatchMember(use_subdirectories, *input_member, *difference_member, output_archive);
                 ++input_member;
@@ -187,7 +187,7 @@ void PatchArchiveMembersAndCreateOutputArchive(const bool use_subdirectories, st
 
 void GetDirectoryContentsWithRelativepath(const std::string &archive_name, std::vector<std::string> * const archive_members) {
     const std::string directory_name(StripTarGz(archive_name));
-    FileUtil::GetFileNameList(".raw$", archive_members, directory_name);
+    FileUtil::GetFileNameList(".(raw|mrc)$", archive_members, directory_name);
     for (auto &archive_member : *archive_members)
         archive_member = directory_name + "/" + archive_member;
 }
