@@ -1,5 +1,5 @@
 /** \file   Archive.h
- *  \brief  Interfaces for the ArchiveReader and ArchiveWriter classes which are wrappers around libtar.
+ *  \brief  Declarations of the archive processing functions and classes.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -27,11 +27,14 @@
 #include <unordered_set>
 
 
-class ArchiveReader {
+namespace Archive {
+
+
+class Reader {
     archive *archive_handle_;
 public:
     class EntryInfo {
-        friend class ArchiveReader;
+        friend class Reader;
         archive_entry *archive_entry_;
     public:
         EntryInfo(): archive_entry_(nullptr) { }
@@ -43,8 +46,8 @@ public:
         bool isDirectory() const;
     };
 public:
-    explicit ArchiveReader(const std::string &archive_file_name);
-    ~ArchiveReader();
+    explicit Reader(const std::string &archive_file_name);
+    ~Reader();
 
     bool getNext(EntryInfo * const info);
 
@@ -68,7 +71,7 @@ public:
 };
 
 
-class ArchiveWriter {
+class Writer {
     archive *archive_handle_;
     archive_entry *archive_entry_;
     std::unordered_set<std::string> already_seen_archive_names_;
@@ -76,12 +79,21 @@ public:
     enum class FileType { AUTO, TAR, GZIPPED_TAR };
 public:
     // \param archive_write_options  Currently supported is only "compression-level" for gzipped archives!
-    explicit ArchiveWriter(const std::string &archive_file_name, const std::string &archive_write_options,
+    explicit Writer(const std::string &archive_file_name, const std::string &archive_write_options,
 			   const FileType file_type = FileType::AUTO);
 
-    explicit ArchiveWriter(const std::string &archive_file_name, const FileType file_type = FileType::AUTO)
-        : ArchiveWriter(archive_file_name, "", file_type) { }
-    ~ArchiveWriter();
+    explicit Writer(const std::string &archive_file_name, const FileType file_type = FileType::AUTO)
+        : Writer(archive_file_name, "", file_type) { }
+    ~Writer();
 
     void add(const std::string &filename, std::string archive_name = "");
 };
+
+
+/** \brief Extracts the members of "archive_name" into directory "directory".
+ *  \note  We only support regular file members here.
+ */
+void UnpackArchive(const std::string &archive_name, const std::string &directory);
+
+
+} // namespace Archive

@@ -179,7 +179,7 @@ void PatchArchiveMembersAndCreateOutputArchive(const bool use_subdirectories, st
         archive_write_options = "compression-level=1"; // lowest compression level => fastet
     else
         LOG_WARNING("output archive name \"" + output_archive + "\" does not end w/ \".gz\"!");
-    ArchiveWriter archive_writer(output_archive, archive_write_options);
+    Archive::Writer archive_writer(output_archive, archive_write_options);
     for (const auto &output_archive_member : output_archive_members)
         archive_writer.add(output_archive_member);
 }

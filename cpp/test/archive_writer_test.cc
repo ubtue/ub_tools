@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
         Usage();
 
     try {
-        ArchiveWriter writer(argv[1]);
+        Archive::Writer writer(argv[1]);
         for (int arg_no(2); arg_no < argc; ++arg_no) {
             const std::string member_filename(argv[arg_no]);
             std::cout << "About to add \"" + member_filename + "\".\n";

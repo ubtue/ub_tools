@@ -150,8 +150,8 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
     static auto member_matcher(RegexMatcher::RegexMatcherFactoryOrDie("([abc]\\d\\d\\d\\.raw|sekkor-...\\.mrc)$"));
 
     std::map<char, std::shared_ptr<File>> member_type_to_file_map;
-    ArchiveReader reader(archive_name);
-    ArchiveReader::EntryInfo file_info;
+    Archive::Reader reader(archive_name);
+    Archive::Reader::EntryInfo file_info;
     while (reader.getNext(&file_info)) {
         if (file_info.empty())
             continue;

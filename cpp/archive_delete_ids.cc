@@ -92,7 +92,7 @@ void UpdateArchive(const std::string &old_archive, const std::string &deletion_l
     for (const auto &archive_member : archive_members)
         UpdateOneFile(archive_member, deletion_list);
 
-    ArchiveWriter archive_writer(new_archive);
+    Archive::Writer archive_writer(new_archive);
     for (const auto &archive_member : archive_members)
         archive_writer.add(archive_member);
 }
