@@ -43,7 +43,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=log_level] [--keep-intermediate-files] input_archive "
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=log_level] [--keep-intermediate-files] [--use-subdirectories] input_archive "
               << "difference_archive output_archive\n"
               << "       Log levels are DEBUG, INFO, WARNING and ERROR with INFO being the default.\n\n";
     std::exit(EXIT_FAILURE);
@@ -56,12 +56,26 @@ bool ArchiveMemberComparator(const std::string &member_name1, const std::string 
 }
 
 
-// Assumes that member_name ends in "-PID" and renames it to a new name w/o the "-PID".
-void RemoveSuffixFromDifferentialArchiveMember(const std::string &member_name) {
+std::string RemoveSuffix(const std::string &s, const std::string &suffix) {
+    if (unlikely(not StringUtil::EndsWith(s, suffix)))
+        LOG_ERROR("\"" + s + "\" does not end w/ \"" + suffix + "\"!");
+    return s.substr(0, s.length() - suffix.length());
+}
+
+
+inline std::string StripTarGz(const std::string &archive_filename) {
+    return RemoveSuffix(archive_filename, ".tar.gz");
+}
+
+
+inline std::string RemovePIDSuffix(const std::string &s) {
     const std::string SUFFIX("-" + std::to_string(::getpid()));
-    if (unlikely(not StringUtil::EndsWith(member_name, SUFFIX)))
-        LOG_ERROR("differential member name \"" + member_name + "\" is missing suffix \"" + SUFFIX + "\"!");
-    FileUtil::RenameFileOrDie(member_name, member_name.substr(member_name.length() - SUFFIX.length()));
+    return RemoveSuffix(s, SUFFIX);
+}
+
+// Assumes that member_name ends in "-PID" and renames it to a new name w/o the "-PID".
+inline void RemoveSuffixFromDifferentialArchiveMember(const std::string &member_name) {
+    FileUtil::RenameFileOrDie(member_name, RemovePIDSuffix(member_name));
 }
 
 
@@ -73,31 +87,39 @@ void CollectPPNs(const std::string &marc_filename, std::unordered_set<std::strin
 
 
 // Patches "input_member" w/ "difference_member".  The result is the patched "input_member".
-void PatchMember(const std::string &input_member, const std::string &difference_member) {
+void PatchMember(const bool use_subdirectories, const std::string &input_member, const std::string &difference_member,
+                 const std::string &output_archive)
+{
+    LOG_DEBUG("Entering PatchMember: input_member=\"" + input_member + "\", difference_member=\"" + difference_member
+              + ", and output_archive=\"" + output_archive + "\".");
     std::unordered_set<std::string> difference_ppns;
     CollectPPNs(difference_member, &difference_ppns);
 
     const auto input_reader(MARC::Reader::Factory(input_member, MARC::FileType::BINARY));
-    const std::string temp_filename("patch-" + std::to_string(::getpid()));
-    const auto temp_writer(MARC::Writer::Factory(temp_filename, MARC::FileType::BINARY));
+    const std::string output_filename(use_subdirectories ? StripTarGz(output_archive) + "/" + FileUtil::GetLastPathComponent(input_member)
+                                                         : "patch-" + std::to_string(::getpid()));
+    LOG_DEBUG("In PatchMember: output_filename=\"" + output_filename + "\".");
+    const auto output_writer(MARC::Writer::Factory(output_filename, MARC::FileType::BINARY));
 
     // 1. Filter out the PPN's that are in "difference_member".
     while (const auto record = input_reader->read()) {
         if (difference_ppns.find(record.getControlNumber()) == difference_ppns.end())
-            temp_writer->write(record);
+            output_writer->write(record);
     }
 
     // 2. Append the records that are in "difference_member".
     const auto difference_reader(MARC::Reader::Factory(difference_member, MARC::FileType::BINARY));
     while (const auto difference_record = difference_reader->read())
-        temp_writer->write(difference_record);
+        output_writer->write(difference_record);
 
-    ::unlink(input_member.c_str());
-    FileUtil::RenameFileOrDie(temp_filename, input_member);
+    if (not use_subdirectories) {
+        ::unlink(input_member.c_str());
+        FileUtil::RenameFileOrDie(output_filename, input_member);
+    }
 }
 
 
-void PatchArchiveMembersAndCreateOutputArchive(std::vector<std::string> input_archive_members,
+void PatchArchiveMembersAndCreateOutputArchive(const bool use_subdirectories, std::vector<std::string> input_archive_members,
                                                std::vector<std::string> difference_archive_members, const std::string &output_archive)
 {
     if (input_archive_members.empty())
@@ -112,25 +134,37 @@ void PatchArchiveMembersAndCreateOutputArchive(std::vector<std::string> input_ar
     auto difference_member(difference_archive_members.cbegin());
     while (input_member != input_archive_members.cend() and difference_member != difference_archive_members.cend()) {
         if (input_member == input_archive_members.cend()) {
-            RemoveSuffixFromDifferentialArchiveMember(*difference_member);
+            if (use_subdirectories)
+                FileUtil::CopyOrDie(*difference_member, RemovePIDSuffix(*difference_member));
+            else
+                RemoveSuffixFromDifferentialArchiveMember(*difference_member);
             ++difference_member;
-        } else if (difference_member == difference_archive_members.cend())
+        } else if (difference_member == difference_archive_members.cend()) {
+            if (use_subdirectories)
+                FileUtil::CopyOrDie(*input_member, StripTarGz(output_archive) + "/" + FileUtil::GetLastPathComponent(*input_member));
             ++input_member;
-        else {
+        } else {
             const char input_type(BSZUtil::GetTypeCharOrDie(*input_member));
             const char difference_type(BSZUtil::GetTypeCharOrDie(*difference_member));
             if (input_type == difference_type) {
-                PatchMember(*input_member, *difference_member);
+                PatchMember(use_subdirectories, *input_member, *difference_member, output_archive);
                 ++input_member;
                 ++difference_member;
-            } else if (input_type < difference_type)
+            } else if (input_type < difference_type) {
+                if (use_subdirectories)
+                    FileUtil::CopyOrDie(*input_member, StripTarGz(output_archive) + "/" + FileUtil::GetLastPathComponent(*input_member));
                 ++input_member;
-            else {
-                RemoveSuffixFromDifferentialArchiveMember(*difference_member);
+            } else {
+                if (use_subdirectories)
+                    FileUtil::CopyOrDie(*difference_member, RemovePIDSuffix(*difference_member));
+                else
+                    RemoveSuffixFromDifferentialArchiveMember(*difference_member);
                 ++difference_member;
             }
         }
     }
+    if (use_subdirectories)
+        return; // No need to create an archive file.
 
     //
     // Recreate archive
@@ -145,9 +179,17 @@ void PatchArchiveMembersAndCreateOutputArchive(std::vector<std::string> input_ar
         archive_write_options = "compression-level=1"; // lowest compression level => fastet
     else
         LOG_WARNING("output archive name \"" + output_archive + "\" does not end w/ \".gz\"!");
-    ArchiveWriter archive_writer(output_archive, archive_write_options);
+    Archive::Writer archive_writer(output_archive, archive_write_options);
     for (const auto &output_archive_member : output_archive_members)
         archive_writer.add(output_archive_member);
+}
+
+
+void GetDirectoryContentsWithRelativepath(const std::string &archive_name, std::vector<std::string> * const archive_members) {
+    const std::string directory_name(StripTarGz(archive_name));
+    FileUtil::GetFileNameList(".raw$", archive_members, directory_name);
+    for (auto &archive_member : *archive_members)
+        archive_member = directory_name + "/" + archive_member;
 }
 
 
@@ -164,6 +206,12 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
+    bool use_subdirectories(false);
+    if (std::strcmp(argv[1], "--use-subdirectories") == 0) {
+        use_subdirectories = true;
+        --argc, ++argv;
+    }
+
     if (argc != 4)
         Usage();
 
@@ -174,20 +222,35 @@ int Main(int argc, char *argv[]) {
     if (input_archive == difference_archive or input_archive == output_archive or difference_archive == output_archive)
         LOG_ERROR("all archive names must be distinct!");
 
-    FileUtil::AutoTempDirectory working_directory(FileUtil::GetLastPathComponent(::progname) + "-working-dir",
-                                                  /* cleanup_if_exception_is_active = */false,
-                                                  /* remove_when_out_of_scope = */ not keep_intermediate_files);
-    FileUtil::ChangeDirectoryOrDie(working_directory.getDirectoryPath());
+    std::unique_ptr<FileUtil::AutoTempDirectory> working_directory;
+    if (use_subdirectories) {
+        Archive::UnpackArchive(difference_archive, StripTarGz(difference_archive));
+        const auto directory_name(StripTarGz(output_archive));
+        if (not FileUtil::MakeDirectory(directory_name))
+            LOG_ERROR("failed to create directory: \"" + directory_name + "\"!");
+    } else {
+        working_directory.reset(new FileUtil::AutoTempDirectory(FileUtil::GetLastPathComponent(::progname) + "-working-dir",
+                                                                /* cleanup_if_exception_is_active = */false,
+                                                                /* remove_when_out_of_scope = */ not keep_intermediate_files));
+        FileUtil::ChangeDirectoryOrDie(working_directory->getDirectoryPath());
+    }
 
-    std::vector<std::string> input_archive_members;
-    BSZUtil::ExtractArchiveMembers(input_archive, &input_archive_members);
+    std::vector<std::string> input_archive_members, difference_archive_members;
+    if (use_subdirectories) {
+        GetDirectoryContentsWithRelativepath(input_archive, &input_archive_members);
+        GetDirectoryContentsWithRelativepath(difference_archive, &difference_archive_members);
+    } else {
+        BSZUtil::ExtractArchiveMembers(input_archive, &input_archive_members);
+        BSZUtil::ExtractArchiveMembers(difference_archive, &difference_archive_members, "-" + std::to_string(::getpid()));
+    }
 
-    std::vector<std::string> difference_archive_members;
-    BSZUtil::ExtractArchiveMembers(difference_archive, &difference_archive_members, "-" + std::to_string(::getpid()));
+    PatchArchiveMembersAndCreateOutputArchive(use_subdirectories, input_archive_members, difference_archive_members, output_archive);
 
-    PatchArchiveMembersAndCreateOutputArchive(input_archive_members, difference_archive_members, output_archive);
-
-    FileUtil::ChangeDirectoryOrDie("..");
+    if (use_subdirectories) {
+        if (not FileUtil::RemoveDirectory(StripTarGz(difference_archive)))
+            LOG_ERROR("failed to remove directory: \"" + StripTarGz(difference_archive) + "\"!");
+    } else
+        FileUtil::ChangeDirectoryOrDie("..");
 
     return EXIT_SUCCESS;
 }
