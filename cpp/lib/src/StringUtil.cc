@@ -47,6 +47,7 @@
 #include <unistd.h>
 #include "Compiler.h"
 #include "TextUtil.h"
+#include "util.h"
 
 
 #ifdef DIM
@@ -969,7 +970,7 @@ std::string &Map(std::string * const s, const char old_char, const char new_char
 //
 std::string &Map(std::string * const s, const std::string &old_set, const std::string &new_set) {
     if (unlikely(old_set.length() != new_set.length()))
-        throw std::runtime_error("in StringUtil::Subst: old_set.length() != new_set.length()");
+        LOG_ERROR("old_set.length() != new_set.length()");
 
     for (std::string::iterator ch(s->begin()); ch != s->end(); ++ch) {
         std::string::size_type pos;
