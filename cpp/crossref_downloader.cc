@@ -38,7 +38,7 @@
 
 namespace {
 
-    
+
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--timeout seconds] journal_list marc_output\n";
     std::exit(EXIT_FAILURE);
@@ -53,7 +53,7 @@ public:
     unsigned getYear() const { return year_; }
     unsigned getMonth() const { return month_; }
     unsigned getDay() const { return day_; }
-    std::string toString() const;
+    std::string toString() const __attribute__((unused));
 };
 
 
@@ -320,7 +320,13 @@ void AddEditors(const JSON::ObjectNode &message_tree, MARC::Record * const marc_
 void AddIssueInfo(const JSON::ObjectNode &message_tree, MARC::Record * const marc_record) {
     std::string field_data;
     const CrossrefDate issued_date(message_tree, "issued");
+    #ifndef __clang__
+    #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+    #endif
     if (issued_date.isValid()) {
+    #ifndef __clang__
+    #pragma GCC diagnostic ignored "+Wmaybe-uninitialized"
+    #endif
         if (issued_date.getDay() != 0)
             field_data += CreateSubfield('b', std::to_string(issued_date.getDay()));
         if (issued_date.getMonth() != 0)
