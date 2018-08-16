@@ -66,6 +66,8 @@ std::string XMLParser::XMLPart::toString() {
         return "</" + data_ + ">";
     case CHARACTERS:
         return XmlUtil::XmlEscape(data_);
+    default:
+        LOG_ERROR("we should *never* get here!");
     }
 }
 
@@ -80,6 +82,8 @@ std::string XMLParser::XMLPart::TypeToString(const Type type) {
         return "CLOSING_TAG";
     case CHARACTERS:
         return "CHARACTERS";
+    default:
+        LOG_ERROR("we should *never* get here!");
     };
 }
 
@@ -204,6 +208,8 @@ off_t XMLParser::getMaxOffset() {
         return FileUtil::GetFileSize(xml_filename_or_string_);
     case XMLParser::XML_STRING:
         return xml_filename_or_string_.length();
+    default:
+        LOG_ERROR("we should *never* get here!");
     }
 }
 

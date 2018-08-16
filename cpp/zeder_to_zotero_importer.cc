@@ -156,6 +156,7 @@ const std::string &ExportFieldNameResolver::getIniKey(ExportField field, Zotero:
         }
     } else
         return ini_keys_.at(field);
+    __builtin_unreachable(); // G++ seems not to be smart enough to figure this out on its own. :-(
 }
 
 

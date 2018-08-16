@@ -124,7 +124,9 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
         // Build the argument list for execve(2):
         #pragma GCC diagnostic ignored "-Wvla"
         char *argv[1 + args.size() + 1];
-        #pragma GCC diagnostic warning "-Wvla"
+        #ifndef __clang__
+        #pragma GCC diagnostic ignored "+Wvla"
+        #endif
         unsigned arg_no(0);
         argv[arg_no++] = ::strdup(command.c_str());
         for (const auto &arg : args)
