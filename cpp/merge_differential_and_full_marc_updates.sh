@@ -17,34 +17,36 @@ trap SendEmail EXIT
 
 
 function Usage() {
-    echo "Usage: $0 [--keep-intermediate-files] email_address"
+    echo "Usage: $0 [--keep-intermediate-files] [--use-subdirectories] email_address"
     exit 1
 }
 
 
 # Argument processing
-keep_itermediate_files=1
-if [[ $# == 2 ]]; then
+KEEP_ITERMEDIATE_FILES=
+USE_SUBDIRECTORIES=
+if [[ $# > 1 ]]; then
     if [[ $1 == "--keep-intermediate-files" ]]; then
-        keep_itermediate_files=0
-        email_address=$2
+        KEEP_ITERMEDIATE_FILES="--keep-intermediate-files"
+    elif [[ $1 == "--use-subdirectories" ]]; then
+        USE_SUBDIRECTORIES="--use-subdirectories"
     else
         Usage
     fi
-elif [[ $# != 1 ]]; then
-    Usage
-else
-    email_address=$1
+    shift
 fi
-
-
-function KeepIntermediateFiles() {
-    if [[ $keep_itermediate_files = 0 ]]; then
-        echo "--keep-intermediate-files"
+if [[ $# > 1 ]]; then
+    if [[ $1 == "--use-subdirectories" ]]; then
+        USE_SUBDIRECTORIES="--use-subdirectories"
     else
-        echo ""
+        Usage
     fi
-}
+    shift
+fi
+if [[ $# != 1 ]]; then
+    Usage
+fi
+email_address=$1
 
 
 target_filename=Complete-MARC-$(date +%y%m%d).tar.gz
@@ -56,6 +58,13 @@ echo "Creating ${target_filename}"
 
 
 input_filename=$(generate_merge_order | head --lines=1)
+if [[ -n ${USE_SUBDIRECTORIES} ]]; then
+    extraction_directory="${input_filename%.tar.gz}"
+    mkdir "$extraction_directory"
+    cd "$extraction_directory"
+    tar xzf ../"$input_filename"
+    cd -
+fi
 declare -i counter=0
 last_temp_filename=
 for update in $(generate_merge_order | tail --lines=+2); do
@@ -63,13 +72,19 @@ for update in $(generate_merge_order | tail --lines=+2); do
     temp_filename=temp_filename.$BASHPID.$counter.tar.gz
     if [[ ${update:0:6} == "LOEPPN" ]]; then
         echo "Processing deletion list: $update"
-        archive_delete_ids $(KeepIntermediateFiles) $input_filename $update $temp_filename
+        echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $USE_SUBDIRECTORIES $input_filename $update $temp_filename
+        archive_delete_ids $KEEP_ITERMEDIATE_FILES $USE_SUBDIRECTORIES $input_filename $update $temp_filename
     else
         echo "Processing differential dump: $update"
-        apply_differential_update $(KeepIntermediateFiles) $input_filename $update $temp_filename
+        echo apply_differential_update $KEEP_ITERMEDIATE_FILES $USE_SUBDIRECTORIES $input_filename $update $temp_filename
+        apply_differential_update $KEEP_ITERMEDIATE_FILES $USE_SUBDIRECTORIES $input_filename $update $temp_filename
     fi
     if [[ -n "$last_temp_filename" ]]; then
-        rm "$last_temp_filename"
+        if [[ -z ${USE_SUBDIRECTORIES} ]]; then
+            rm "$last_temp_filename"
+        else
+            rm -r ${last_temp_filename%.tar.gz}
+        fi
     fi
     input_filename=$temp_filename
     last_temp_filename=$temp_filename
@@ -82,7 +97,13 @@ temp_filename=${temp_filename:-}
 if [ -z ${temp_filename} ]; then
     ln --symbolic --force $input_filename Complete-MARC-current.tar.gz
 else
-    mv $temp_filename $target_filename
+    if [[ -z ${USE_SUBDIRECTORIES} ]]; then
+        mv $temp_filename $target_filename
+    else
+        rm -r "$extraction_directory"
+        tar czf $target_filename ${temp_filename%.tar.gz}/*raw
+        rm -r ${temp_filename%.tar.gz}
+    fi
 
     if [[ ! keep_itermediate_filenames ]]; then
         rm temp_filename.$BASHPID.*.tar.gz TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz

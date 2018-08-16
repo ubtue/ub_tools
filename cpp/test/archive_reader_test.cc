@@ -17,8 +17,8 @@ int main(int argc, char *argv[]) {
         Usage();
 
     try {
-        ArchiveReader reader(argv[1]);
-        ArchiveReader::EntryInfo file_info;
+        Archive::Reader reader(argv[1]);
+        Archive::Reader::EntryInfo file_info;
         while (reader.getNext(&file_info)) {
             std::cout << file_info.getFilename() << ":\n";
             if (file_info.isRegularFile()) {

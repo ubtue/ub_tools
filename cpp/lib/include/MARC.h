@@ -326,6 +326,7 @@ public:
         inline void setSubfields(const Subfields &subfields) {
             setContents(subfields, getIndicator1(), getIndicator2());
         }
+        inline bool isLocal() const { return tag_.isLocal(); }
         Tag getLocalTag() const;
 
         /** \warning Do not call the following two functions on local control fields! */
@@ -715,6 +716,9 @@ public:
 
 
 enum class FileType { AUTO, BINARY, XML };
+
+
+std::string FileTypeToString(const FileType file_type);
 
 
 /** \brief  Determines the file type of "filename".

@@ -1,7 +1,7 @@
 /** \brief Generates a continous decompressed stream of data from a BASE tarball containing gzipped ListRecord files.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -32,10 +32,10 @@ __attribute__((noreturn)) void Usage() {
 
 
 void ProcessTarball(const bool verbose, const std::string &input_filename, File * const output) {
-    ArchiveReader reader(input_filename);
+    Archive::Reader reader(input_filename);
 
     unsigned member_count(0);
-    ArchiveReader::EntryInfo entry_info;
+    Archive::Reader::EntryInfo entry_info;
     while (reader.getNext(&entry_info)) {
         ++member_count;
 
