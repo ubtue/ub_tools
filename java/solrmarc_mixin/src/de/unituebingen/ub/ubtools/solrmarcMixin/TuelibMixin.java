@@ -2454,7 +2454,7 @@ outer:  for (final VariableField _935Field : _935Fields) {
         // 935a
         for (final VariableField _935Field : record.getVariableFields("935")) {
             final DataField field = (DataField)_935Field;
-            for(final Subfield subfield_a : field.getSubfields('a')) {
+            for (final Subfield subfield_a : field.getSubfields('a')) {
                 if (!subfield_a.getData().isEmpty()) {
                     result.add(subfield_a.getData());
                 }
