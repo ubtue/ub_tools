@@ -118,9 +118,9 @@ std::string ExtractDateFromFilenameOrDie(const std::string &filename) {
 // Hopefully returns 'a', 'b' or 'c'.
 char GetTypeCharOrDie(const std::string &member_name) {
     if (member_name == "sekkor-aut.mrc")
-        return 'a';
-    if (member_name == "sekkor-tit.mrc")
         return 'c';
+    if (member_name == "sekkor-tit.mrc")
+        return 'a';
     static auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("([abc])\\d\\d\\d.raw"));
     if (not matcher->matched(member_name))
         LOG_ERROR("bad member type for archive member \"" + member_name + "\"!");
