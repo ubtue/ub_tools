@@ -2451,6 +2451,17 @@ outer:  for (final VariableField _935Field : _935Fields) {
     public Set<String> getRecordSelectors(final Record record) {
         final Set<String> result = new TreeSet<String>();
 
+        // 935a
+        for (final VariableField _935Field : record.getVariableFields("935")) {
+            final DataField field = (DataField)_935Field;
+            for (final Subfield subfield_a : field.getSubfields('a')) {
+                if (!subfield_a.getData().isEmpty()) {
+                    result.add(subfield_a.getData());
+                }
+            }
+        }
+
+        // LOK 935a
         for (final VariableField variableField : record.getVariableFields("LOK")) {
             final DataField lokfield = (DataField) variableField;
             final Subfield subfield_0 = lokfield.getSubfield('0');
