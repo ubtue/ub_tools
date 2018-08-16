@@ -224,9 +224,10 @@ int Main(int argc, char *argv[]) {
 
     std::unique_ptr<FileUtil::AutoTempDirectory> working_directory;
     if (use_subdirectories) {
+        Archive::UnpackArchive(difference_archive, StripTarGz(difference_archive));
         const auto directory_name(StripTarGz(output_archive));
         if (not FileUtil::MakeDirectory(directory_name))
-            LOG_ERROR("failed to create directory \"" + directory_name + "\"!");
+            LOG_ERROR("failed to create directory: \"" + directory_name + "\"!");
     } else {
         working_directory.reset(new FileUtil::AutoTempDirectory(FileUtil::GetLastPathComponent(::progname) + "-working-dir",
                                                                 /* cleanup_if_exception_is_active = */false,
@@ -245,7 +246,10 @@ int Main(int argc, char *argv[]) {
 
     PatchArchiveMembersAndCreateOutputArchive(use_subdirectories, input_archive_members, difference_archive_members, output_archive);
 
-    if (not use_subdirectories)
+    if (use_subdirectories) {
+        if (not FileUtil::RemoveDirectory(StripTarGz(difference_archive)))
+            LOG_ERROR("failed to remove directory: \"" + StripTarGz(difference_archive) + "\"!");
+    } else
         FileUtil::ChangeDirectoryOrDie("..");
 
     return EXIT_SUCCESS;

@@ -59,9 +59,10 @@ echo "Creating ${target_filename}"
 
 input_filename=$(generate_merge_order | head --lines=1)
 if [[ -n ${USE_SUBDIRECTORIES} ]]; then
-    extraction_directory=${input_filename%.tar.gz}
-    cd $extraction_directory
-    tar xzf ../$input_filename
+    extraction_directory="${input_filename%.tar.gz}"
+    mkdir "$extraction_directory"
+    cd "$extraction_directory"
+    tar xzf ../"$input_filename"
     cd -
 fi
 declare -i counter=0
@@ -71,9 +72,11 @@ for update in $(generate_merge_order | tail --lines=+2); do
     temp_filename=temp_filename.$BASHPID.$counter.tar.gz
     if [[ ${update:0:6} == "LOEPPN" ]]; then
         echo "Processing deletion list: $update"
+        echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $USE_SUBDIRECTORIES $input_filename $update $temp_filename
         archive_delete_ids $KEEP_ITERMEDIATE_FILES $USE_SUBDIRECTORIES $input_filename $update $temp_filename
     else
         echo "Processing differential dump: $update"
+        echo apply_differential_update $KEEP_ITERMEDIATE_FILES $USE_SUBDIRECTORIES $input_filename $update $temp_filename
         apply_differential_update $KEEP_ITERMEDIATE_FILES $USE_SUBDIRECTORIES $input_filename $update $temp_filename
     fi
     if [[ -n "$last_temp_filename" ]]; then
@@ -97,6 +100,7 @@ else
     if [[ -z ${USE_SUBDIRECTORIES} ]]; then
         mv $temp_filename $target_filename
     else
+        rm -r "$extraction_directory"
         tar czf $target_filename ${temp_filename%.tar.gz}/*raw
         rm -r ${temp_filename%.tar.gz}
     fi
