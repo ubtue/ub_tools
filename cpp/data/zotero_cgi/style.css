@@ -13,10 +13,6 @@ textarea {
     width: 100%;
 }
 
-.dataTables_wrapper {
-    max-width: 1000px;
-}
-
 a.disabled {
     color: #555555;
 }
