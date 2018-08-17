@@ -101,7 +101,9 @@ else
         mv $temp_filename $target_filename
     else
         rm -r "$extraction_directory"
-        tar czf $target_filename ${temp_filename%.tar.gz}/*raw
+        cd ${temp_filename%.tar.gz}
+        tar czf ../$target_filename *raw
+        cd ..
         rm -r ${temp_filename%.tar.gz}
     fi
 
