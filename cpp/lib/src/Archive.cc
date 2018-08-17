@@ -1,5 +1,5 @@
 /** \file   Archive.cc
- *  \brief  Implementations of the ArchiveReader and ArchiveWriter classes which are wrappers around libtar.
+ *  \brief  Implementations of the archive processing functions and classes.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -22,21 +22,25 @@
 #include <fcntl.h>
 #include "Compiler.h"
 #include "File.h"
+#include "FileUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 
 
-const std::string ArchiveReader::EntryInfo::getFilename() const {
+namespace Archive {
+
+
+const std::string Reader::EntryInfo::getFilename() const {
     return ::archive_entry_pathname(archive_entry_);
 }
 
 
-bool ArchiveReader::EntryInfo::isRegularFile() const {
+bool Reader::EntryInfo::isRegularFile() const {
     return ::archive_entry_filetype(archive_entry_) == AE_IFREG;
 }
 
 
-bool ArchiveReader::EntryInfo::isDirectory() const {
+bool Reader::EntryInfo::isDirectory() const {
     return ::archive_entry_filetype(archive_entry_) == AE_IFDIR;
 }
 
@@ -44,7 +48,7 @@ bool ArchiveReader::EntryInfo::isDirectory() const {
 const unsigned DEFAULT_BLOCKSIZE(10240);
 
 
-ArchiveReader::ArchiveReader(const std::string &archive_file_name) {
+Reader::Reader(const std::string &archive_file_name) {
     archive_handle_ = ::archive_read_new();
     ::archive_read_support_filter_all(archive_handle_);
     ::archive_read_support_format_all(archive_handle_);
@@ -54,13 +58,13 @@ ArchiveReader::ArchiveReader(const std::string &archive_file_name) {
 }
 
 
-ArchiveReader::~ArchiveReader() {
+Reader::~Reader() {
     if (unlikely(::archive_read_free(archive_handle_) != ARCHIVE_OK))
         LOG_ERROR("archive_read_free(3) failed!");
 }
 
 
-bool ArchiveReader::getNext(EntryInfo * const info) {
+bool Reader::getNext(EntryInfo * const info) {
     int status;
     while ((status = ::archive_read_next_header(archive_handle_, &info->archive_entry_)) == ARCHIVE_RETRY)
         /* Intentionally empty! */;
@@ -74,7 +78,7 @@ bool ArchiveReader::getNext(EntryInfo * const info) {
 }
 
 
-ssize_t ArchiveReader::read(char * const buffer, const size_t size) {
+ssize_t Reader::read(char * const buffer, const size_t size) {
     ssize_t retval;
     do
         retval = ::archive_read_data(archive_handle_, reinterpret_cast<void * const>(buffer), size);
@@ -84,7 +88,7 @@ ssize_t ArchiveReader::read(char * const buffer, const size_t size) {
 }
 
 
-bool ArchiveReader::extractEntry(const std::string &member_name, std::string output_filename) {
+bool Reader::extractEntry(const std::string &member_name, std::string output_filename) {
     if (output_filename.empty())
         output_filename = member_name;
 
@@ -122,7 +126,7 @@ bool ArchiveReader::extractEntry(const std::string &member_name, std::string out
 }
 
 
-ArchiveWriter::ArchiveWriter(const std::string &archive_file_name, const std::string &archive_write_options, const FileType file_type)
+Writer::Writer(const std::string &archive_file_name, const std::string &archive_write_options, const FileType file_type)
     : archive_entry_(nullptr)
 {
     archive_handle_ = ::archive_write_new();
@@ -159,7 +163,7 @@ ArchiveWriter::ArchiveWriter(const std::string &archive_file_name, const std::st
 }
 
 
-ArchiveWriter::~ArchiveWriter() {
+Writer::~Writer() {
     if (archive_entry_ != nullptr)
         ::archive_entry_free(archive_entry_);
 
@@ -170,7 +174,7 @@ ArchiveWriter::~ArchiveWriter() {
 }
 
 
-void ArchiveWriter::add(const std::string &filename, std::string archive_name) {
+void Writer::add(const std::string &filename, std::string archive_name) {
     if (archive_name.empty())
         archive_name = filename;
     if (unlikely(already_seen_archive_names_.find(archive_name) != already_seen_archive_names_.end()))
@@ -205,3 +209,33 @@ void ArchiveWriter::add(const std::string &filename, std::string archive_name) {
             LOG_ERROR("archive_write_data(3) failed: " + std::string(::archive_error_string(archive_handle_)));
     }
 }
+
+
+void UnpackArchive(const std::string &archive_name, const std::string &directory) {
+    if (unlikely(not FileUtil::MakeDirectory(directory)))
+        LOG_ERROR("failed to create directory \"" + directory + "\"!");
+
+    Reader reader(archive_name);
+    Reader::EntryInfo file_info;
+    while (reader.getNext(&file_info)) {
+        if (file_info.empty())
+            continue;
+
+        if (unlikely(not file_info.isRegularFile()))
+            LOG_ERROR("unexpectedly, the entry \"" + file_info.getFilename() + "\" in \"" + archive_name + "\" is not a regular file!");
+
+        const std::string output_filename(directory + "/" + file_info.getFilename());
+        const auto output(FileUtil::OpenOutputFileOrDie(output_filename));
+
+        char buf[8192];
+        size_t read_count;
+        while ((read_count = reader.read(buf, sizeof buf)) > 0) {
+            if (unlikely(output->write(buf, read_count) != read_count))
+                LOG_ERROR("failed to write data to \"" + output->getPath() + "\"! (No room?)");
+        }
+    }
+    
+}
+
+
+} // namespace Archive
