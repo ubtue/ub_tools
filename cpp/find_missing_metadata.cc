@@ -110,6 +110,8 @@ std::string FieldPresenceToString(const FieldPresence field_presence) {
         return "sometimes";
     case IGNORE:
         return "ignore";
+    default:
+        LOG_ERROR("we should *never get here!");
     }
 }
 

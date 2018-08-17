@@ -118,9 +118,9 @@ std::string ExtractDateFromFilenameOrDie(const std::string &filename) {
 // Hopefully returns 'a', 'b' or 'c'.
 char GetTypeCharOrDie(const std::string &member_name) {
     if (member_name == "sekkor-aut.mrc")
-        return 'a';
-    if (member_name == "sekkor-tit.mrc")
         return 'c';
+    if (member_name == "sekkor-tit.mrc")
+        return 'a';
     static auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("([abc])\\d\\d\\d.raw"));
     if (not matcher->matched(member_name))
         LOG_ERROR("bad member type for archive member \"" + member_name + "\"!");
@@ -150,8 +150,8 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
     static auto member_matcher(RegexMatcher::RegexMatcherFactoryOrDie("([abc]\\d\\d\\d\\.raw|sekkor-...\\.mrc)$"));
 
     std::map<char, std::shared_ptr<File>> member_type_to_file_map;
-    ArchiveReader reader(archive_name);
-    ArchiveReader::EntryInfo file_info;
+    Archive::Reader reader(archive_name);
+    Archive::Reader::EntryInfo file_info;
     while (reader.getNext(&file_info)) {
         if (file_info.empty())
             continue;

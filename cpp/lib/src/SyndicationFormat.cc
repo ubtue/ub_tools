@@ -193,11 +193,11 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
             title = ExtractText(xml_parser_, "title", " (RSS20::getNextItem)");
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
             description = ExtractText(xml_parser_, "description", " (RSS20::getNextItem)");
-        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link")
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link") {
             link = ExtractText(xml_parser_, "link", " (RSS20::getNextItem)");
             if (link.empty() and part.attributes_.find("href") != part.attributes_.end())
                 link = part.attributes_["href"];
-        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "guid")
+        } else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "guid")
             id = ExtractText(xml_parser_, "guid", " (RSS20::getNextItem)");
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "pubDate") {
             const std::string pub_date_string(ExtractText(xml_parser_, "pubDate"));

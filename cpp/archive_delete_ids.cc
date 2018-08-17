@@ -48,7 +48,9 @@ void UpdateOneFile(const std::string &marc_filename, const std::string &deletion
     const std::string temp_output_filename(marc_filename + "-" + std::to_string(::getpid()));
     LOG_INFO("applying \"" + deletion_list_file + "\" to \"" + marc_filename + "\" to generate \"" + temp_output_filename + "\"!");
 
-    if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND, { deletion_list_file, marc_filename, temp_output_filename }) != 0))
+    if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND,
+                                { "--input-format=marc-21", "--output-format=marc-21", deletion_list_file, marc_filename,
+                                  temp_output_filename }) != 0))
         LOG_ERROR("\"" + DELETE_IDS_COMMAND + "\" failed!");
 
     if (not FileUtil::RenameFile(temp_output_filename, marc_filename, /* remove_target = */true))
@@ -74,7 +76,8 @@ void UpdateSubdirectory(const std::string &old_archive, const std::string &delet
 
     for (const auto &archive_member : archive_members) {
         if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND,
-                                    { deletion_list, old_directory + "/" + archive_member, new_directory + "/" + archive_member }) != 0))
+                                    { "--input-format=marc-21", "--output-format=marc-21", deletion_list,
+                                      old_directory + "/" + archive_member, new_directory + "/" + archive_member }) != 0))
             LOG_ERROR("\"" + DELETE_IDS_COMMAND + "\" failed!");
     }
 }
@@ -89,7 +92,7 @@ void UpdateArchive(const std::string &old_archive, const std::string &deletion_l
     for (const auto &archive_member : archive_members)
         UpdateOneFile(archive_member, deletion_list);
 
-    ArchiveWriter archive_writer(new_archive);
+    Archive::Writer archive_writer(new_archive);
     for (const auto &archive_member : archive_members)
         archive_writer.add(archive_member);
 }

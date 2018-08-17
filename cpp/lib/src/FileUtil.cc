@@ -508,7 +508,7 @@ void DirnameAndBasename(const std::string &path, std::string * const dirname, st
 
 
 std::string GetLastPathComponent(const std::string &path) {
-    const auto last_slash_pos(path.find('/'));
+    const auto last_slash_pos(path.rfind('/'));
     return (last_slash_pos == std::string::npos) ? path : path.substr(last_slash_pos + 1);
 }
 
