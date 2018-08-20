@@ -103,7 +103,7 @@ else
         rm -r "$extraction_directory"
         cd ${temp_filename%.tar.gz}
         tar czf ../$target_filename *raw
-        ..
+        cd ..
         rm -r ${temp_filename%.tar.gz}
     fi
 
