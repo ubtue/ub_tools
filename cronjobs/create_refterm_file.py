@@ -125,6 +125,7 @@ def Main():
         ref_data_archive = None
 
     if FoundNewBSZDataFile(title_data_link_name):
+        start = datetime.datetime.now()
         log_file_name = CreateLogFile()
         title_data_file_orig = ExtractTitleDataMarcFile(title_data_link_name)
         date_string = GetDateFromFilename(title_data_file_orig)
@@ -133,7 +134,9 @@ def Main():
         CreateRefTermFile(ref_data_archive, date_string, conf, log_file_name)
         CreateSerialSortDate(title_data_file, date_string, log_file_name)
         CleanUp(title_data_file, log_file_name)
-        util.SendEmail("Create Refterm File", "Refterm file successfully created.", priority=5)
+        end  = datetime.datetime.now()
+        duration_in_minutes = str((end - start).seconds / 60.0)
+        util.SendEmail("Create Refterm File", "Refterm file successfully created in " + duration_in_minutes + " minutes.", priority=5)
     else:
         util.SendEmail("Create Refterm File", "No new data was found.", priority=5)
 

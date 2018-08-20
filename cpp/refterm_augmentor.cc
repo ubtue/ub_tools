@@ -94,7 +94,7 @@ std::string RemoveOuterBrackets(const std::string &orig_str) {
 
     return StringUtil::TrimWhite(result);
 }
-    
+
 
 // Trying to replicate https://github.com/solrmarc/solrmarc/blob/master/src/org/solrmarc/tools/DataUtil.java
 std::string CleanData(std::string data) {
@@ -103,7 +103,7 @@ std::string CleanData(std::string data) {
     static auto const period_after_word_regex(RegexMatcher::RegexMatcherFactoryOrDie(".*\\w\\w\\.$"));
     static auto const period_after_uppercase_letters_regex(RegexMatcher::RegexMatcherFactoryOrDie(".*\\p{L}\\p{L}\\.$"));
     static auto const puctuation_followed_by_period_regex(RegexMatcher::RegexMatcherFactoryOrDie(".*\\p{P}\\.$"));
-    
+
     std::string last_data;
     do {
         last_data = data;
@@ -127,10 +127,10 @@ std::string CleanData(std::string data) {
     return data;
 }
 
-    
+
 void GetGermanTopics(const MARC::Record &record, std::set<std::string> * const extracted_topics) {
     extracted_topics->clear();
-    
+
     static const std::set<std::string> TAGS{ "600", "610", "630", "648", "650", "651", "655" };
     for (const auto &field : record) {
         if (field.isControlField() or TAGS.find(field.getTag().toString()) == TAGS.cend())
@@ -147,7 +147,102 @@ void GetGermanTopics(const MARC::Record &record, std::set<std::string> * const e
     }
 }
 
-    
+
+// Returns the chain for an ID.  Creates an empty chain if the ID is not in the map and returns that.
+std::vector<std::string> &GetKeyWordChain(const char chain_id, std::map<char, std::vector<std::string>> * const id_to_chain_map) {
+    auto id_and_chain(id_to_chain_map->find(chain_id));
+    if (id_and_chain != id_to_chain_map->end())
+        return id_and_chain->second;
+
+    // ID is not yet in the map, => we must create a new entry:
+    return id_to_chain_map->emplace(chain_id, std::vector<std::string>{}).first->second;
+}
+
+
+bool IsSubfieldPrecededBySubfield(const MARC::Subfields &subfields, const char code1, const char code2) {
+    bool code1_seen(false);
+    for (const auto &subfield : subfields) {
+        if (subfield.code_ == code1)
+            code1_seen = true;
+        else {
+            if (code1_seen and subfield.code_ == code2)
+                return true;
+            code1_seen = false;
+        }
+    }
+
+    return false;
+}
+
+const std::string KEYWORD_SUBFIELD_CODES("abcdtnpzf");
+
+
+void ProcessGermanKeywordField(const MARC::Record::Field &field, std::map<char, std::vector<std::string>> * const id_to_chain_map) {
+    const char chain_id(field.getIndicator1());
+    auto key_word_chain(GetKeyWordChain(chain_id, id_to_chain_map));
+
+    bool gnd_seen(false);
+    std::string keyword;
+    const auto subfields(field.getSubfields());
+    for (const auto &subfield : subfields) {
+        if (not gnd_seen) {
+            if (subfield.code_ == '2' and subfield.value_ == "gnd")
+                gnd_seen = true;
+            continue;
+        }
+
+        if (KEYWORD_SUBFIELD_CODES.find(subfield.code_) != std::string::npos) {
+            if (not keyword.empty()) {
+                if (subfield.code_ == 'z') {
+                    keyword += " (" + subfield.value_ + ")";
+                    continue;
+                }
+                // We need quite a bunch of special logic here to group consecutive d and c fields
+                else if (subfield.code_ == 'c') {
+                    if (IsSubfieldPrecededBySubfield(subfields, 'c', 'd')) {
+                        keyword += " : " + subfield.value_ + ")";
+                        continue;
+                    } else
+                        keyword += ", ";
+                } else if (subfield.code_ == 'd') {
+                    if (IsSubfieldPrecededBySubfield(subfields, 'c', 'd'))
+                        keyword += " (";
+                    else
+                        keyword += ' ';
+
+                } else if (subfield.code_ == 'f') {
+                    keyword += " (" + subfield.value_ + ")";
+                    continue;
+                } else if (subfield.code_ == 'n')
+                    keyword += ' ';
+                else if (subfield.code_ == 'p')
+                    keyword += ". ";
+                else
+                    keyword += ", ";
+
+            }
+        } else if (subfield.code_ == '9' and not keyword.empty() and StringUtil::StartsWith(subfield.value_, "g:")) {
+            // For Ixtheo-translations the specification in the g:-Subfield is appended in angle
+            auto subfield_a_contents(field.getFirstSubfieldWithCode('a'));
+            if (subfield_a_contents.empty())
+                keyword += " (" + subfield.value_.substr(/* skip the "g:" */2) + ")";
+            else
+                LOG_ERROR("missing subfield a!");
+        }
+    }
+}
+
+
+void GetGermanKeyWordChainBag(const MARC::Record &record, std::set<std::string> * const extracted_keywords) {
+    extracted_keywords->clear();
+
+    std::map<char, std::vector<std::string>> id_to_chain_map;
+    for (const auto &field : record.getTagRange("689")) {
+        ProcessGermanKeywordField(field, &id_to_chain_map);
+    }
+}
+
+
 void ProcessRecords(MARC::Reader * const marc_reader) {
     unsigned record_count(0);
 
@@ -156,8 +251,11 @@ void ProcessRecords(MARC::Reader * const marc_reader) {
 
         std::set<std::string> extracted_topics;
         GetGermanTopics(record, &extracted_topics);
-        if (not extracted_topics.empty())
-            std::cout << StringUtil::Join(extracted_topics, ", ") << '\n';
+
+        std::set<std::string> extracted_keywords;
+        GetGermanKeyWordChainBag(record, &extracted_keywords);
+        if (not extracted_keywords.empty())
+            std::cout << StringUtil::Join(extracted_keywords, ", ") << '\n';
     }
 
     LOG_INFO("Processed " + std::to_string(record_count) + " MARC record(s).");
