@@ -3,7 +3,7 @@
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -43,7 +43,8 @@ void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::str
 std::string ExtractDateFromFilenameOrDie(const std::string &filename);
 
 
-// Assumes that "member_name" matches "([abc])\\d\\d\\d.raw" and, if it does, returns 'a', 'b' or 'c'.
+// Assumes that "member_name" matches "([abc])\\d\\d\\d.raw" and, if it does, returns 'a' (title records), 'b' (superior titles),
+// 'c' (authority records) or 'l' (local records).
 char GetTypeCharOrDie(const std::string &member_name);
 
 // Extracts members from "archive_name" combining those of the same type, e.g. members ending in "a001.raw" and "a002.raw" would
