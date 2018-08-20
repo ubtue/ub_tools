@@ -747,7 +747,7 @@ public:
     /** \return The file position of the start of the next record. */
     virtual off_t tell() const = 0;
 
-    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) = 0;
+    virtual bool seek(const off_t offset, const int whence = SEEK_SET) = 0;
 
     /** \return a BinaryMarcReader or an XmlMarcReader. */
     static std::unique_ptr<Reader> Factory(const std::string &input_filename, FileType reader_type = FileType::AUTO);
