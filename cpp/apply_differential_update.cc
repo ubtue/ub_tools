@@ -247,7 +247,7 @@ int Main(int argc, char *argv[]) {
     PatchArchiveMembersAndCreateOutputArchive(use_subdirectories, input_archive_members, difference_archive_members, output_archive);
 
     if (use_subdirectories) {
-        if (not FileUtil::RemoveDirectory(StripTarGz(difference_archive)))
+        if (not keep_intermediate_files and not FileUtil::RemoveDirectory(StripTarGz(difference_archive)))
             LOG_ERROR("failed to remove directory: \"" + StripTarGz(difference_archive) + "\"!");
     } else
         FileUtil::ChangeDirectoryOrDie("..");
