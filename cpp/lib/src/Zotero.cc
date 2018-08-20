@@ -748,7 +748,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
  *                In such cases, the Zotero translator must return tags to distinguish between them.
  */
 void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::ObjectNode> &object_node, const SiteParams &site_params) {
-    LOG_INFO("Augmenting JSON...");
+    LOG_DEBUG("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
     std::string issn_raw, issn_normalized;
@@ -924,7 +924,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
     static std::unordered_set<std::string> already_harvested_urls;
     if (already_harvested_urls.find(harvest_url) != already_harvested_urls.end()) {
-        LOG_INFO("Skipping URL (already harvested): " + harvest_url);
+        LOG_DEBUG("Skipping URL (already harvested): " + harvest_url);
         return record_count_and_previously_downloaded_count;
     } else if (site_params.extraction_regex_ and not site_params.extraction_regex_->matched(harvest_url)) {
         LOG_DEBUG("Skipping URL ('" + harvest_url + "' does not match extraction regex)");
@@ -957,7 +957,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
     // 300 => multiple matches found, try to harvest children
     if (response_code == 300) {
-        LOG_INFO("multiple articles found => trying to harvest children");
+        LOG_DEBUG("multiple articles found => trying to harvest children");
         if (tree_root->getType() == JSON::ArrayNode::OBJECT_NODE) {
             const std::shared_ptr<const JSON::ObjectNode>object_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root",
                                                                                                            tree_root));
@@ -1167,13 +1167,13 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
                          File * const progress_file)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
-    LOG_INFO("Starting crawl at base URL: " +  site_desc.start_url_);
+    LOG_DEBUG("Starting crawl at base URL: " +  site_desc.start_url_);
     SimpleCrawler crawler(site_desc, crawler_params);
     SimpleCrawler::PageDetails page_details;
     unsigned processed_url_count(0);
     while (crawler.getNextPage(&page_details)) {
         if (not supported_urls_regex->matched(page_details.url_))
-            LOG_INFO("Skipping unsupported URL: " + page_details.url_);
+            LOG_DEBUG("Skipping unsupported URL: " + page_details.url_);
         else if (page_details.error_message_.empty()) {
             const auto record_count_and_previously_downloaded_count(
                 Harvest(page_details.url_, harvest_params, site_params, page_details.body_));
@@ -1220,7 +1220,7 @@ bool FeedContainsNoNewItems(const RSSHarvestMode mode, DbConnection * const db_c
             date_string = SqlUtil::TimeTToDatetime(last_build_date);
 
         if (mode == RSSHarvestMode::VERBOSE)
-            LOG_INFO("Creating new feed entry in rss_feeds table for \"" + feed_url + "\".");
+            LOG_DEBUG("Creating new feed entry in rss_feeds table for \"" + feed_url + "\".");
         if (mode != RSSHarvestMode::TEST)
             db_connection->queryOrDie("INSERT INTO rss_feeds SET feed_url='" + db_connection->escapeString(feed_url)
                                       + "',last_build_date='" + date_string + "'");
@@ -1312,13 +1312,13 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
     }
 
     const time_t last_build_date(syndication_format->getLastBuildDate());
-    if (mode != RSSHarvestMode::NORMAL) {
-        std::cout << feed_url << " (" << syndication_format->getFormatName() << "):\n";
-        std::cout << "\tTitle: " << syndication_format->getTitle() << '\n';
+    if (mode == RSSHarvestMode::VERBOSE) {
+        LOG_DEBUG(feed_url + " (" + syndication_format->getFormatName() + "):");
+        LOG_DEBUG("\tTitle: " + syndication_format->getTitle());
         if (last_build_date != TimeUtil::BAD_TIME_T)
-            std::cout << "\tLast build date: " << TimeUtil::TimeTToUtcString(last_build_date) << '\n';
-        std::cout << "\tLink: " << syndication_format->getLink() << '\n';
-        std::cout << "\tDescription: " << syndication_format->getDescription() << '\n';
+            LOG_DEBUG("\tLast build date: " + TimeUtil::TimeTToUtcString(last_build_date));
+        LOG_DEBUG("\tLink: " + syndication_format->getLink());
+        LOG_DEBUG("\tDescription: " + syndication_format->getDescription());
    }
 
     if (mode != RSSHarvestMode::TEST and FeedContainsNoNewItems(mode, db_connection, feed_url, last_build_date))
@@ -1330,8 +1330,8 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
             continue;
 
         const std::string title(item.getTitle());
-        if (not title.empty() and mode != RSSHarvestMode::NORMAL)
-            LOG_INFO("\t\tTitle: " + title);
+        if (not title.empty() and mode == RSSHarvestMode::VERBOSE)
+            LOG_DEBUG("\t\tTitle: " + title);
 
         const auto record_count_and_previously_downloaded_count(
             Harvest(item.getLink(), harvest_params, site_params, "", /* verbose = */ mode != RSSHarvestMode::NORMAL));
