@@ -232,6 +232,11 @@ public:
     size_t clear();
 
     size_t size() const;
+
+    /** \brief Lists all journals that haven't had a single URL harvested for a given number of days.
+     *  \return The number of outdated journals.
+     */
+    size_t listOutdatedJournals(const unsigned cutoff_days, std::vector<const std::pair<const std::string, const time_t>> * const outdated_journals);
 };
 
 

@@ -20,6 +20,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "Zotero.h"
+#include <chrono>
 #include <ctime>
 #include <kchashdb.h>
 #include <uuid/uuid.h>
@@ -945,14 +946,14 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
     harvest_params->min_url_processing_time_.restart();
     if (not download_succeeded) {
-        LOG_WARNING("Zotero conversion failed: " + error_message);
+        LOG_WARNING("[" + harvest_url + "] " + " | Zotero conversion failed: " + error_message);
         return std::make_pair(0, 0);
     }
 
     std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
     JSON::Parser json_parser(response_body);
     if (not (json_parser.parse(&tree_root)))
-        LOG_ERROR("failed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
+        LOG_ERROR("[" + harvest_url + "] " + " | failed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
 
     // 300 => multiple matches found, try to harvest children
     if (response_code == 300) {
@@ -984,13 +985,13 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
                 AugmentJson(harvest_url, json_object, site_params);
                 record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
             } catch (const std::exception &x) {
-                LOG_WARNING("Couldn't process record! Error: " + std::string(x.what()));
+                LOG_WARNING("[" + harvest_url + "] " + " | Couldn't process record! Error: " + std::string(x.what()));
                 return record_count_and_previously_downloaded_count;
             }
         }
 
         if (processed_json_entries == 0) {
-            LOG_WARNING("Zotero translation server returned an empty response! Response code = "
+            LOG_WARNING("[" + harvest_url + "] " + " | Zotero translation server returned an empty response! Response code = "
                         + std::to_string(response_code));
         }
     }
@@ -1138,6 +1139,16 @@ size_t DownloadTracker::clear() {
 size_t DownloadTracker::size() const {
     db_connection_->queryOrDie("SELECT id FROM harvested_urls");
     return db_connection_->getLastResultSet().size();
+}
+
+
+size_t DownloadTracker::listOutdatedJournals(const unsigned cutoff_days, std::vector<const std::pair<const std::string, const time_t>> * const outdated_journals) {
+    db_connection_->queryOrDie("SELECT journal_name, last_harvest_time FROM harvested_urls"
+                               "WHERE last_harvest_time < DATEADD(day, -" + std::to_string(cutoff_days) + ", GETDATE())");
+    auto result_set(db_connection_->getLastResultSet());
+    while (const DbRow row = result_set.getNextRow())
+        outdated_journals->emplace_back(std::make_pair(row["journal_name"], SqlUtil::DatetimeToTimeT(row["last_harvest_time"])));
+    return outdated_journals->size();
 }
 
 
