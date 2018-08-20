@@ -201,16 +201,12 @@ bool Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::
 
 bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
          const Url &harvest_url, std::string * const response_body, unsigned * response_code,
-         std::string * const error_message, const std::string &harvested_html)
+         std::string * const error_message, const std::string &/*harvested_html*/)
 {
     const std::string endpoint_url(Url(zts_server_url.toString() + "/web"));
     downloader_params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json" };
     downloader_params.post_data_ = "{\"url\":\"" + JSON::EscapeString(harvest_url) + "\","
                                    + "\"sessionid\":\"" + JSON::EscapeString(GetNextSessionId()) + "\"";
-    if (not harvested_html.empty()) {
-        //downloader_params.post_data_ += ",\"cachedHTML\":\"" + JSON::EscapeString(harvested_html) + "\"";
-        LOG_INFO("TODO: implement using cached html");
-    }
     downloader_params.post_data_ += "}";
 
     Downloader downloader(endpoint_url, downloader_params, time_limit);
@@ -463,7 +459,6 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
         ExtractVolumeYearIssueAndPages(*object_node, &new_record);
     } else if (item_type == "webpage") {
         // just add the encoding marker
-        LOG_WARNING("TODO: add proper support for webpages");
         new_record.insertField("935", { { 'c', "website" } });
     } else
         LOG_ERROR("unknown item type: \"" + item_type + "\"! JSON node dump: " + object_node->toString());
@@ -946,14 +941,14 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
     harvest_params->min_url_processing_time_.restart();
     if (not download_succeeded) {
-        LOG_WARNING("[" + harvest_url + "] " + " | Zotero conversion failed: " + error_message);
+        LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tZotero conversion failed: " + error_message);
         return std::make_pair(0, 0);
     }
 
     std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
     JSON::Parser json_parser(response_body);
     if (not (json_parser.parse(&tree_root)))
-        LOG_ERROR("[" + harvest_url + "] " + " | failed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
+        LOG_ERROR(site_params.parent_journal_name_ + "\t" + harvest_url + "\tfailed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
 
     // 300 => multiple matches found, try to harvest children
     if (response_code == 300) {
@@ -985,20 +980,20 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
                 AugmentJson(harvest_url, json_object, site_params);
                 record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
             } catch (const std::exception &x) {
-                LOG_WARNING("[" + harvest_url + "] " + " | Couldn't process record! Error: " + std::string(x.what()));
+                LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tCouldn't process record! Error: "
+                            + std::string(x.what()));
                 return record_count_and_previously_downloaded_count;
             }
         }
 
         if (processed_json_entries == 0) {
-            LOG_WARNING("[" + harvest_url + "] " + " | Zotero translation server returned an empty response! Response code = "
-                        + std::to_string(response_code));
+            LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tZotero translation server returned an empty response!"                  "Response code = " + std::to_string(response_code));
         }
     }
     ++harvest_params->harvested_url_count_;
 
     if (log) {
-        LOG_INFO("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
+        LOG_DEBUG("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
                  + harvest_url + '\n' + "of which "
                  + StringUtil::ToString(record_count_and_previously_downloaded_count.first
                                         - record_count_and_previously_downloaded_count.second)
