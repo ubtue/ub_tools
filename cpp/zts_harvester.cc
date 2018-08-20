@@ -92,13 +92,25 @@ void LoadMARCEditInstructions(const IniFile::Section &section, std::vector<MARC:
 }
 
 
-void ReadGenericSiteAugmentParams(const IniFile::Section &section, Zotero::SiteParams * const site_params) {
+void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Section &section, Zotero::SiteParams * const site_params) {
     site_params->parent_journal_name_ = section.getSectionName();
     site_params->parent_ISSN_print_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_PRINT), "");
     site_params->parent_ISSN_online_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_ONLINE), "");
-    site_params->strptime_format_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT), "");
     site_params->parent_PPN_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_PPN), "");
     site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), "")));
+
+    // append the common time format string to the site-specific override
+    site_params->strptime_format_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT), "");
+
+    const auto common_strptime_format(ini_file.getString("", "common_" + Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT), ""));
+    if (not common_strptime_format.empty()) {
+        if (common_strptime_format[0] == '(')
+            LOG_ERROR("Cannot specify locale in common_strptime_format");
+
+        if (site_params->strptime_format_.empty())
+            site_params->strptime_format_.append("|");
+        site_params->strptime_format_.append(common_strptime_format);
+    }
 }
 
 
@@ -270,7 +282,7 @@ int Main(int argc, char *argv[]) {
         site_params.global_params_          = &global_augment_params;
         site_params.group_params_           = &group_name_and_params->second;
         site_params.marc_edit_instructions_ = edit_instructions;
-        ReadGenericSiteAugmentParams(section, &site_params);
+        ReadGenericSiteAugmentParams(ini_file, section, &site_params);
 
         harvest_params->format_handler_->setAugmentParams(&site_params);
 
