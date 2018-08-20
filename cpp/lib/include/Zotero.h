@@ -24,6 +24,7 @@
 #include <memory>
 #include <ctime>
 #include <kchashdb.h>
+#include <unordered_map>
 #include "DbConnection.h"
 #include "Downloader.h"
 #include "IniFile.h"
@@ -232,6 +233,11 @@ public:
     size_t clear();
 
     size_t size() const;
+
+    /** \brief Lists all journals that haven't had a single URL harvested for a given number of days.
+     *  \return The number of outdated journals.
+     */
+    size_t listOutdatedJournals(const unsigned cutoff_days, std::unordered_map<std::string, time_t> * const outdated_journals);
 };
 
 
