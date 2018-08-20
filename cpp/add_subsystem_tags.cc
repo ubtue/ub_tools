@@ -74,6 +74,9 @@ bool HasRelBibIxTheoNotation(const MARC::Record &record) {
 bool HasRelBibExcludeDDC(const MARC::Record &record) {
     if (not record.hasTag("082"))
         return true;
+    // Exclude records that are obviously not DDC
+    static const std::string PLAUSIBLE_DDC_START_PATTERN("^\\d\\d");
+    static RegexMatcher * const plausible_ddc_start_matcher(RegexMatcher::RegexMatcherFactoryOrDie(PLAUSIBLE_DDC_START_PATTERN));
     // Exclude DDC 220-289, i.e. do not include if a DDC code of this range occurs anywhere in the DDC code
     static const std::string RELBIB_EXCLUDE_DDC_RANGE_PATTERN("^2[2-8][0-9][/.]?[^.]*$");
     static RegexMatcher * const relbib_exclude_ddc_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie(RELBIB_EXCLUDE_DDC_RANGE_PATTERN));
@@ -88,7 +91,7 @@ bool HasRelBibExcludeDDC(const MARC::Record &record) {
     static RegexMatcher * const relbib_exclude_ddc_categories_matcher(RegexMatcher::RegexMatcherFactoryOrDie(RELBIB_EXCLUDE_DDC_CATEGORIES_PATTERN));
     for (const auto &field : record.getTagRange("082")) {
         for (const auto &subfieldA : field.getSubfields().extractSubfields('a')) {
-            if (not relbib_exclude_ddc_categories_matcher->matched(subfieldA))
+            if (plausible_ddc_start_matcher->matched(subfieldA) and not relbib_exclude_ddc_categories_matcher->matched(subfieldA))
                 return false;
         }
     }
