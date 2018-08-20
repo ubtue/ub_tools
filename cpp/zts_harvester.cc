@@ -53,7 +53,7 @@ const std::unordered_map<std::string, std::string> group_to_user_agent_map = {
               << "\tOptions:\n"
               << "\t[--min-log-level=log_level]    Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
               << "\t[--test]                       No download information will be stored for further downloads.\n"
-              << "\t[--live-only]                  Only sections that have \"delivery_mode=test|live\" set will be processed.\n"
+              << "\t[--delivery-mode=mode]         Only sections that have the specific delivery mode (either LIVE or TEST) set will be processed.\n"
               << "\t[--groups=my_groups            Where groups are a comma-separated list of goups.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
@@ -162,9 +162,16 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
-    bool live_only(false);
-    if (std::strcmp(argv[1], "--live-only") == 0) {
-        live_only = true;
+    Zotero::DeliveryMode delivery_mode_to_process(Zotero::DeliveryMode::NONE);
+    if (StringUtil::StartsWith(argv[1], "--delivery-mode=")) {
+        const auto mode_string(argv[1] + __builtin_strlen("--delivery-mode="));
+        const auto match(Zotero::STRING_TO_DELIVERY_MODE_MAP.find(mode_string));
+
+        if (match == Zotero::STRING_TO_DELIVERY_MODE_MAP.end())
+            LOG_ERROR("Unknown delivery mode '" + std::string(mode_string) + "");
+        else
+            delivery_mode_to_process = static_cast<Zotero::DeliveryMode>(match->second);
+
         --argc, ++argv;
     }
 
@@ -244,7 +251,7 @@ int Main(int argc, char *argv[]) {
         }
 
         const Zotero::DeliveryMode delivery_mode(static_cast<Zotero::DeliveryMode>(section.getEnum("delivery_mode", Zotero::STRING_TO_DELIVERY_MODE_MAP, Zotero::DeliveryMode::NONE)));
-        if (live_only and delivery_mode == Zotero::DeliveryMode::NONE)
+        if (delivery_mode_to_process != Zotero::DeliveryMode::NONE and delivery_mode != delivery_mode_to_process)
             continue;
 
         const std::string group_name(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::GROUP)));
