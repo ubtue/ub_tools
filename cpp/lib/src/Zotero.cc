@@ -1142,12 +1142,21 @@ size_t DownloadTracker::size() const {
 }
 
 
-size_t DownloadTracker::listOutdatedJournals(const unsigned cutoff_days, std::vector<std::pair<std::string, time_t>> * const outdated_journals) {
+size_t DownloadTracker::listOutdatedJournals(const unsigned cutoff_days, std::unordered_map<std::string, time_t> * const outdated_journals) {
     db_connection_->queryOrDie("SELECT journal_name, last_harvest_time FROM harvested_urls"
                                "WHERE last_harvest_time < DATEADD(day, -" + std::to_string(cutoff_days) + ", GETDATE())");
     auto result_set(db_connection_->getLastResultSet());
-    while (const DbRow row = result_set.getNextRow())
-        outdated_journals->emplace_back(std::make_pair(row["journal_name"], SqlUtil::DatetimeToTimeT(row["last_harvest_time"])));
+    while (const DbRow row = result_set.getNextRow()) {
+        const auto journal_name(row["journal_name"]);
+        const auto last_harvest_time(SqlUtil::DatetimeToTimeT(row["last_harvest_time"]));
+
+        if (outdated_journals->find(journal_name) != outdated_journals->end()) {
+            // save the most recent timestamp
+            if (outdated_journals->at(journal_name) < last_harvest_time)
+                (*outdated_journals)[journal_name] = last_harvest_time;
+        } else
+            outdated_journals->insert(std::make_pair(journal_name, last_harvest_time));
+    }
     return outdated_journals->size();
 }
 
