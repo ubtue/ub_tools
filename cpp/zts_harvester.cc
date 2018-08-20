@@ -175,7 +175,7 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
-    std::set<std::string> groups_filter;
+    std::unordered_set<std::string> groups_filter;
     if (StringUtil::StartsWith(argv[1], "--groups=")) {
         StringUtil::SplitThenTrimWhite(argv[1] + __builtin_strlen("--groups="), ',', &groups_filter);
         --argc, ++argv;
@@ -258,6 +258,8 @@ int Main(int argc, char *argv[]) {
         const auto group_name_and_params(group_name_to_params_map.find(group_name));
         if (group_name_and_params == group_name_to_params_map.cend())
             LOG_ERROR("unknown or undefined group \"" + group_name + "\" in section \"" + section.getSectionName() + "\"!");
+        else if (not groups_filter.empty() and groups_filter.find(group_name) == groups_filter.end())
+            continue;
 
         std::vector<MARC::EditInstruction> edit_instructions;
         LoadMARCEditInstructions(section, &edit_instructions);
