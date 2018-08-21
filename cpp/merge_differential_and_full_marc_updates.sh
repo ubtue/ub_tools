@@ -47,6 +47,14 @@ echo "Creating ${target_filename}"
 
 
 input_filename=$(generate_merge_order | head --lines=1)
+
+# Create a subdirectory from the input archive:
+extraction_directory="${input_filename%.tar.gz}"
+mkdir "$extraction_directory"
+cd "$extraction_directory"
+tar xzf ../"$input_filename"
+cd -
+
 declare -i counter=0
 last_temp_filename=
 for update in $(generate_merge_order | tail --lines=+2); do
