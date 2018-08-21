@@ -56,41 +56,41 @@ tar xzf ../"$input_filename"
 cd -
 
 declare -i counter=0
-last_temp_filename=
+last_temp_directory=
 for update in $(generate_merge_order | tail --lines=+2); do
     ((++counter))
-    temp_filename=temp_filename.$BASHPID.$counter
+    temp_directory=temp_directory.$BASHPID.$counter
     if [[ ${update:0:6} == "LOEPPN" ]]; then
         echo "Processing deletion list: $update"
-        echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_filename
-        archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_filename
+        echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_directory
+        archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_directory
     else
         echo "Processing differential dump: $update"
-        echo apply_differential_update $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_filename
-        apply_differential_update $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_filename
+        echo apply_differential_update $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_directory
+        apply_differential_update $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_directory
     fi
-    if [[ -n "$last_temp_filename" ]]; then
-        rm -r ${last_temp_filename}
+    if [[ -n "$last_temp_directory" ]]; then
+        rm -r ${last_temp_directory}
     fi
-    input_filename=$temp_filename
-    last_temp_filename=$temp_filename
+    input_filename=$temp_directory
+    last_temp_directory=$temp_directory
 done
 
 
-# If we did not execute the for-loop at all, $temp_filename is unset and we need to set it to the empty string:
-temp_filename=${temp_filename:-}
+# If we did not execute the for-loop at all, $temp_directory is unset and we need to set it to the empty string:
+temp_directory=${temp_directory:-}
 
-if [ -z ${temp_filename} ]; then
+if [ -z ${temp_directory} ]; then
     ln --symbolic --force $input_filename Complete-MARC-current.tar.gz
 else
     rm -r "$extraction_directory"
-    cd ${temp_filename}
+    cd ${temp_directory}
     tar czf ../$target_filename *mrc
     cd ..
-    rm -r ${temp_filename}
+    rm -r ${temp_directory}
 
     if [[ ! keep_itermediate_filenames ]]; then
-        rm temp_filename.$BASHPID.* TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
+        rm temp_directory.$BASHPID.* TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
     fi
 
     # Create symlink to newest complete dump:
