@@ -8,7 +8,7 @@ function SendEmail {
         send_email --recipients="$email_address" --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
         exit 0
     else
-        send_email --recipients="$email_address" --subject="$0 failed on $(hostname)" \
+        send_email --priority=high --recipients="$email_address" --subject="$0 failed on $(hostname)" \
                    --message-body="Check /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log for details."
         exit 1
     fi
@@ -54,6 +54,8 @@ mkdir "$extraction_directory"
 cd "$extraction_directory"
 tar xzf ../"$input_filename"
 cd -
+
+input_filename=$extraction_directory
 
 declare -i counter=0
 last_temp_directory=
