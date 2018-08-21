@@ -17,27 +17,16 @@ trap SendEmail EXIT
 
 
 function Usage() {
-    echo "Usage: $0 [--keep-intermediate-files] [--use-subdirectories] email_address"
+    echo "Usage: $0 [--keep-intermediate-files] email_address"
     exit 1
 }
 
 
 # Argument processing
 KEEP_ITERMEDIATE_FILES=
-USE_SUBDIRECTORIES=
 if [[ $# > 1 ]]; then
     if [[ $1 == "--keep-intermediate-files" ]]; then
         KEEP_ITERMEDIATE_FILES="--keep-intermediate-files"
-    elif [[ $1 == "--use-subdirectories" ]]; then
-        USE_SUBDIRECTORIES="--use-subdirectories"
-    else
-        Usage
-    fi
-    shift
-fi
-if [[ $# > 1 ]]; then
-    if [[ $1 == "--use-subdirectories" ]]; then
-        USE_SUBDIRECTORIES="--use-subdirectories"
     else
         Usage
     fi
@@ -58,33 +47,22 @@ echo "Creating ${target_filename}"
 
 
 input_filename=$(generate_merge_order | head --lines=1)
-if [[ -n ${USE_SUBDIRECTORIES} ]]; then
-    extraction_directory="${input_filename%.tar.gz}"
-    mkdir "$extraction_directory"
-    cd "$extraction_directory"
-    tar xzf ../"$input_filename"
-    cd -
-fi
 declare -i counter=0
 last_temp_filename=
 for update in $(generate_merge_order | tail --lines=+2); do
     ((++counter))
-    temp_filename=temp_filename.$BASHPID.$counter.tar.gz
+    temp_filename=temp_filename.$BASHPID.$counter
     if [[ ${update:0:6} == "LOEPPN" ]]; then
         echo "Processing deletion list: $update"
-        echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $USE_SUBDIRECTORIES $input_filename $update $temp_filename
-        archive_delete_ids $KEEP_ITERMEDIATE_FILES $USE_SUBDIRECTORIES $input_filename $update $temp_filename
+        echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_filename
+        archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_filename
     else
         echo "Processing differential dump: $update"
-        echo apply_differential_update $KEEP_ITERMEDIATE_FILES $USE_SUBDIRECTORIES $input_filename $update $temp_filename
-        apply_differential_update $KEEP_ITERMEDIATE_FILES $USE_SUBDIRECTORIES $input_filename $update $temp_filename
+        echo apply_differential_update $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_filename
+        apply_differential_update $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_filename
     fi
     if [[ -n "$last_temp_filename" ]]; then
-        if [[ -z ${USE_SUBDIRECTORIES} ]]; then
-            rm "$last_temp_filename"
-        else
-            rm -r ${last_temp_filename%.tar.gz}
-        fi
+        rm -r ${last_temp_filename}
     fi
     input_filename=$temp_filename
     last_temp_filename=$temp_filename
@@ -97,20 +75,15 @@ temp_filename=${temp_filename:-}
 if [ -z ${temp_filename} ]; then
     ln --symbolic --force $input_filename Complete-MARC-current.tar.gz
 else
-    if [[ -z ${USE_SUBDIRECTORIES} ]]; then
-        mv $temp_filename $target_filename
-    else
-        rm -r "$extraction_directory"
-        cd ${temp_filename%.tar.gz}
-        tar czf ../$target_filename *raw
-        cd ..
-        rm -r ${temp_filename%.tar.gz}
-    fi
+    rm -r "$extraction_directory"
+    cd ${temp_filename}
+    tar czf ../$target_filename *mrc
+    cd ..
+    rm -r ${temp_filename}
 
     if [[ ! keep_itermediate_filenames ]]; then
-        rm temp_filename.$BASHPID.*.tar.gz TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
+        rm temp_filename.$BASHPID.* TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
     fi
-
 
     # Create symlink to newest complete dump:
     ln --symbolic --force $target_filename Complete-MARC-current.tar.gz
