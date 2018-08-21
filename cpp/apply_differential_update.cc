@@ -112,6 +112,18 @@ void GetDirectoryContentsWithRelativepath(const std::string &archive_name, std::
 }
 
 
+std::string RemoveSuffix(const std::string &s, const std::string &suffix) {
+    if (unlikely(not StringUtil::EndsWith(s, suffix)))
+        LOG_ERROR("\"" + s + "\" does not end w/ \"" + suffix + "\"!");
+    return s.substr(0, s.length() - suffix.length());
+}
+
+
+inline std::string StripTarGz(const std::string &archive_filename) {
+    return RemoveSuffix(archive_filename, ".tar.gz");
+}
+
+
 } // unnamed namespace
 
 
@@ -136,14 +148,14 @@ int Main(int argc, char *argv[]) {
         LOG_ERROR("all archive names must be distinct!");
 
     std::unique_ptr<FileUtil::AutoTempDirectory> working_directory;
-    Archive::UnpackArchive(difference_archive, difference_archive);
+    Archive::UnpackArchive(difference_archive, StripTarGz(difference_archive));
     const auto directory_name(output_archive);
     if (not FileUtil::MakeDirectory(directory_name))
         LOG_ERROR("failed to create directory: \"" + directory_name + "\"!");
 
     std::vector<std::string> input_archive_members, difference_archive_members;
     GetDirectoryContentsWithRelativepath(input_archive, &input_archive_members);
-    GetDirectoryContentsWithRelativepath(difference_archive, &difference_archive_members);
+    GetDirectoryContentsWithRelativepath(StripTarGz(difference_archive), &difference_archive_members);
 
     PatchArchiveMembersAndCreateOutputArchive(input_archive_members, difference_archive_members, output_archive);
 
