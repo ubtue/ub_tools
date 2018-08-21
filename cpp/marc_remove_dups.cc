@@ -124,8 +124,8 @@ int Main(int argc, char **argv) {
     auto marc_writer(MARC::Writer::Factory(argv[argc - 1]));
 
     std::unordered_set<ChecksumAndControlNumber> previously_seen;
-    for (int arg_no(2); arg_no < argc - 1; ++arg_no) {
-        auto marc_reader(MARC::Reader::Factory(argv[1]));
+    for (int arg_no(1); arg_no < argc - 1; ++arg_no) {
+        auto marc_reader(MARC::Reader::Factory(argv[arg_no]));
         DropDups(use_checksums, marc_reader.get(), marc_writer.get(), &previously_seen);
     }
 
