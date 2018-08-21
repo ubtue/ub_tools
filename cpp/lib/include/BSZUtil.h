@@ -43,9 +43,12 @@ void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::str
 std::string ExtractDateFromFilenameOrDie(const std::string &filename);
 
 
-// Assumes that "member_name" matches "([abc])\\d\\d\\d.raw" and, if it does, returns 'a' (title records), 'b' (superior titles),
-// 'c' (authority records) or 'l' (local records).
-char GetTypeCharOrDie(const std::string &member_name);
+enum ArchiveType { TITLE_RECORDS, SUPERIOR_TITLES, AUTHORITY_RECORDS, LOCAL_RECORDS };
+
+
+// Assumes that "member_name" matches "([abc])\\d\\d\\d.raw" or "sekkor-(aut|tit|lok).mrc".
+ArchiveType GetArchiveType(const std::string &member_name);
+
 
 // Extracts members from "archive_name" combining those of the same type, e.g. members ending in "a001.raw" and "a002.raw" would
 // be extracted as a single concatenated file whose name ends in "a001.raw".  If "optional_suffix" is not empty it will be appended
