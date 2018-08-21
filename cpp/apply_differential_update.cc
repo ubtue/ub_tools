@@ -50,110 +50,62 @@ namespace {
 }
 
 
-// Compare according to type ('a', 'b', or 'c').
-bool ArchiveMemberComparator(const std::string &member_name1, const std::string &member_name2) {
-    return BSZUtil::GetTypeCharOrDie(member_name1) < BSZUtil::GetTypeCharOrDie(member_name2);
-}
-
-
-std::string RemoveSuffix(const std::string &s, const std::string &suffix) {
-    if (unlikely(not StringUtil::EndsWith(s, suffix)))
-        LOG_ERROR("\"" + s + "\" does not end w/ \"" + suffix + "\"!");
-    return s.substr(0, s.length() - suffix.length());
-}
-
-
-inline std::string StripTarGz(const std::string &archive_filename) {
-    return RemoveSuffix(archive_filename, ".tar.gz");
-}
-
-
-inline std::string RemovePIDSuffix(const std::string &s) {
-    const std::string SUFFIX("-" + std::to_string(::getpid()));
-    return RemoveSuffix(s, SUFFIX);
-}
-
-
-void CollectPPNs(const std::string &marc_filename, std::unordered_set<std::string> * const ppns) {
-    const auto reader(MARC::Reader::Factory(marc_filename, MARC::FileType::BINARY));
-    while (const auto record = reader->read())
-        ppns->emplace(record.getControlNumber());
-}
-
-
-// Patches "input_member" w/ "difference_member".  The result is the patched "input_member".
-void PatchMember(const std::string &input_member, const std::string &difference_member, const std::string &output_archive) {
-    LOG_DEBUG("Entering PatchMember: input_member=\"" + input_member + "\", difference_member=\"" + difference_member
-              + ", and output_archive=\"" + output_archive + "\".");
-    std::unordered_set<std::string> difference_ppns;
-    CollectPPNs(difference_member, &difference_ppns);
-
-    const auto input_reader(MARC::Reader::Factory(input_member, MARC::FileType::BINARY));
-    const std::string output_filename(StripTarGz(output_archive) + "/" + FileUtil::GetLastPathComponent(input_member));
-    LOG_DEBUG("In PatchMember: output_filename=\"" + output_filename + "\".");
-    
-    const auto output_writer(MARC::Writer::Factory(output_filename, MARC::FileType::BINARY));
-
-    // 1. Filter out the PPN's that are in "difference_member".
-    while (auto record = input_reader->read()) {
-        if (difference_ppns.find(record.getControlNumber()) == difference_ppns.end()) {
+void CopyAndCollectPPNs(MARC::Reader * const reader, MARC::Writer * const writer,
+                        std::unordered_set<std::string> * const previously_seen_ppns)
+{
+    while (auto record = reader->read()) {
+        if (previously_seen_ppns->find(record.getControlNumber()) == previously_seen_ppns->end()) {
+            previously_seen_ppns->emplace(record.getControlNumber());
             if (record.getFirstField("ORI") == record.end())
-                record.appendField("ORI", FileUtil::GetLastPathComponent(input_reader->getPath()));
-            output_writer->write(record);
+                record.appendField("ORI", FileUtil::GetLastPathComponent(reader->getPath()));
+            writer->write(record);
         }
     }
-
-    // 2. Append the records that are in "difference_member".
-    const auto difference_reader(MARC::Reader::Factory(difference_member, MARC::FileType::BINARY));
-    while (auto difference_record = difference_reader->read()) {
-        if (difference_record.getFirstField("ORI") == difference_record.end())
-            difference_record.appendField("ORI", FileUtil::GetLastPathComponent(difference_reader->getPath()));
-        output_writer->write(difference_record);
-    }
 }
 
 
-void PatchArchiveMembersAndCreateOutputArchive(std::vector<std::string> input_archive_members,
-                                               std::vector<std::string> difference_archive_members, const std::string &output_archive)
+void CopySelectedTypes(const std::vector<std::string> &archive_members, MARC::Writer * const writer,
+                       const std::set<BSZUtil::ArchiveType> &selected_types, std::unordered_set<std::string> * const previously_seen_ppns)
+{
+    for (const auto &archive_member : archive_members) {
+        if (selected_types.find(BSZUtil::GetArchiveType(archive_member)) != selected_types.cend()) {
+            const auto reader(MARC::Reader::Factory(archive_member, MARC::FileType::BINARY));
+            CopyAndCollectPPNs(reader.get(), writer, previously_seen_ppns);
+        }
+    }
+}
+
+    
+void PatchArchiveMembersAndCreateOutputArchive(const std::vector<std::string> &input_archive_members,
+                                               const std::vector<std::string> &difference_archive_members, const std::string &output_archive)
 {
     if (input_archive_members.empty())
         LOG_ERROR("no input archive members!");
     if (difference_archive_members.empty())
         LOG_WARNING("no difference archive members!");
 
-    std::sort(input_archive_members.begin(), input_archive_members.end(), ArchiveMemberComparator);
-    std::sort(difference_archive_members.begin(), difference_archive_members.end(), ArchiveMemberComparator);
+    //
+    // We process title data first and combine all inferior and superior records.
+    //
 
-    auto input_member(input_archive_members.cbegin());
-    auto difference_member(difference_archive_members.cbegin());
-    while (input_member != input_archive_members.cend() and difference_member != difference_archive_members.cend()) {
-        if (input_member == input_archive_members.cend()) {
-            FileUtil::CopyOrDie(*difference_member, RemovePIDSuffix(*difference_member));
-            ++difference_member;
-        } else if (difference_member == difference_archive_members.cend()) {
-            FileUtil::CopyOrDie(*input_member, StripTarGz(output_archive) + "/" + FileUtil::GetLastPathComponent(*input_member));
-            ++input_member;
-        } else {
-            const char input_type(BSZUtil::GetTypeCharOrDie(FileUtil::GetLastPathComponent(*input_member)));
-            const char difference_type(BSZUtil::GetTypeCharOrDie(FileUtil::GetLastPathComponent(*difference_member)));
-            if (input_type == difference_type) {
-                PatchMember(*input_member, *difference_member, output_archive);
-                ++input_member;
-                ++difference_member;
-            } else if (input_type < difference_type) {
-                FileUtil::CopyOrDie(*input_member, StripTarGz(output_archive) + "/" + FileUtil::GetLastPathComponent(*input_member));
-                ++input_member;
-            } else {
-                FileUtil::CopyOrDie(*difference_member, RemovePIDSuffix(*difference_member));
-                ++difference_member;
-            }
-        }
-    }
+    const auto title_writer(MARC::Writer::Factory(output_archive + "/tit.mrc", MARC::FileType::BINARY));
+    std::unordered_set<std::string> previously_seen_title_ppns;
+    CopySelectedTypes(difference_archive_members, title_writer.get(), { BSZUtil::TITLE_RECORDS, BSZUtil::SUPERIOR_TITLES },
+                      &previously_seen_title_ppns);
+    CopySelectedTypes(input_archive_members, title_writer.get(), { BSZUtil::TITLE_RECORDS, BSZUtil::SUPERIOR_TITLES },
+                      &previously_seen_title_ppns);
+
+    const auto authority_writer(MARC::Writer::Factory(output_archive + "/aut.mrc", MARC::FileType::BINARY));
+    std::unordered_set<std::string> previously_seen_authority_ppns;
+    CopySelectedTypes(difference_archive_members, authority_writer.get(), { BSZUtil::AUTHORITY_RECORDS },
+                      &previously_seen_authority_ppns);
+    CopySelectedTypes(input_archive_members, authority_writer.get(), { BSZUtil::AUTHORITY_RECORDS },
+                      &previously_seen_authority_ppns);
 }
 
 
 void GetDirectoryContentsWithRelativepath(const std::string &archive_name, std::vector<std::string> * const archive_members) {
-    const std::string directory_name(StripTarGz(archive_name));
+    const std::string directory_name(archive_name);
     FileUtil::GetFileNameList(".(raw|mrc)$", archive_members, directory_name);
     for (auto &archive_member : *archive_members)
         archive_member = directory_name + "/" + archive_member;
@@ -184,8 +136,8 @@ int Main(int argc, char *argv[]) {
         LOG_ERROR("all archive names must be distinct!");
 
     std::unique_ptr<FileUtil::AutoTempDirectory> working_directory;
-    Archive::UnpackArchive(difference_archive, StripTarGz(difference_archive));
-    const auto directory_name(StripTarGz(output_archive));
+    Archive::UnpackArchive(difference_archive, difference_archive);
+    const auto directory_name(output_archive);
     if (not FileUtil::MakeDirectory(directory_name))
         LOG_ERROR("failed to create directory: \"" + directory_name + "\"!");
 
@@ -195,8 +147,8 @@ int Main(int argc, char *argv[]) {
 
     PatchArchiveMembersAndCreateOutputArchive(input_archive_members, difference_archive_members, output_archive);
 
-    if (not keep_intermediate_files and not FileUtil::RemoveDirectory(StripTarGz(difference_archive)))
-        LOG_ERROR("failed to remove directory: \"" + StripTarGz(difference_archive) + "\"!");
+    if (not keep_intermediate_files and not FileUtil::RemoveDirectory(difference_archive))
+        LOG_ERROR("failed to remove directory: \"" + difference_archive + "\"!");
 
     return EXIT_SUCCESS;
 }
