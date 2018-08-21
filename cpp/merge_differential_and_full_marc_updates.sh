@@ -55,7 +55,7 @@ cd "$extraction_directory"
 tar xzf ../"$input_filename"
 cd -
 
-input_filename=$extraction_directory
+input_directory=$extraction_directory
 
 declare -i counter=0
 last_temp_directory=
@@ -64,17 +64,17 @@ for update in $(generate_merge_order | tail --lines=+2); do
     temp_directory=temp_directory.$BASHPID.$counter
     if [[ ${update:0:6} == "LOEPPN" ]]; then
         echo "Processing deletion list: $update"
-        echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_directory
-        archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_directory
+        echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
+        archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
     else
         echo "Processing differential dump: $update"
-        echo apply_differential_update $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_directory
-        apply_differential_update $KEEP_ITERMEDIATE_FILES $input_filename $update $temp_directory
+        echo apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
+        apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
     fi
     if [[ -n "$last_temp_directory" ]]; then
         rm -r ${last_temp_directory}
     fi
-    input_filename=$temp_directory
+    input_directory=$temp_directory
     last_temp_directory=$temp_directory
 done
 
