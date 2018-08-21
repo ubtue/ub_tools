@@ -104,7 +104,8 @@ void PatchMember(const bool use_subdirectories, const std::string &input_member,
     // 1. Filter out the PPN's that are in "difference_member".
     while (auto record = input_reader->read()) {
         if (difference_ppns.find(record.getControlNumber()) == difference_ppns.end()) {
-            record.appendField("ORI", FileUtil::GetLastPathComponent(input_reader->getPath()));
+            if (record.getFirstField("ORI") == record.end())
+                record.appendField("ORI", FileUtil::GetLastPathComponent(input_reader->getPath()));
             output_writer->write(record);
         }
     }
@@ -112,7 +113,8 @@ void PatchMember(const bool use_subdirectories, const std::string &input_member,
     // 2. Append the records that are in "difference_member".
     const auto difference_reader(MARC::Reader::Factory(difference_member, MARC::FileType::BINARY));
     while (auto difference_record = difference_reader->read()) {
-        difference_record.appendField("ORI", FileUtil::GetLastPathComponent(difference_reader->getPath()));
+        if (difference_record.getFirstField("ORI") == difference_record.end())
+            difference_record.appendField("ORI", FileUtil::GetLastPathComponent(difference_reader->getPath()));
         output_writer->write(difference_record);
     }
 
