@@ -98,14 +98,14 @@ def Info(*args, **kwargs):
     sys.stdout.flush()
 
 
-# @brief Copy the contents, in order, of "files" into "target" while dropping identical control numbers.
+# @brief Copy the contents, in order, of "files" into "target".
 # @return True if we succeeded, else False.
-def DedupeAndConcatenateFiles(files, target):
+def ConcatenateFiles(files, target):
     if files is None or len(files) == 0:
         Error("\"files\" argument to util.ConcatenateFiles() is empty or None!")
     if target is None or len(target) == 0:
         Error("\"target\" argument to util.ConcatenateFiles() is empty or None!")
-    return process_util.Exec("/usr/local/bin/marc_remove_dups", files + [ target ]) == 0
+    return process_util.Exec("/bin/cat", files, new_stdout=target) == 0
 
 
 # Fails if "source" does not exist or if "link_name" exists and is not a symlink.
@@ -209,7 +209,7 @@ def LoadConfigFile(path=None, no_error=False):
 def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
     # Ensures that all members of "gzipped_tar_archive" match our expectation as to what the BSZ should deliver.
     def TarFileMemberNamesAreOkOrDie(tar_file, archive_name):
-        compiled_pattern = re.compile("[a-z]+00\\d\\.raw$")
+        compiled_pattern = re.compile("(aut|tit).mrc$")
         for member in tar_file.getnames():
             if not compiled_pattern.search(member):
                 Error("unknown tar file member \"" + member + "\" in \"" + archive_name + "\"!")
@@ -225,7 +225,7 @@ def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
                 extracted_files.append(member)
 
         Remove(new_name)
-        DedupeAndConcatenateFiles(extracted_files, new_name)
+        ConcatenateFiles(extracted_files, new_name)
 
         # Clean up:
         for extracted_file in extracted_files:
@@ -237,9 +237,9 @@ def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
     tar_file = tarfile.open(gzipped_tar_archive, "r:gz")
     TarFileMemberNamesAreOkOrDie(tar_file, gzipped_tar_archive)
     current_date_str = datetime.datetime.now().strftime("%y%m%d")
-    ExtractAndRenameMembers(tar_file, ".+[ab]00\\d.raw$",
+    ExtractAndRenameMembers(tar_file, "^tit.mrc$",
                             name_prefix + "GesamtTiteldaten-" + current_date_str + ".mrc")
-    ExtractAndRenameMembers(tar_file, ".+c00\\d.raw$", name_prefix + "Normdaten-" + current_date_str + ".mrc")
+    ExtractAndRenameMembers(tar_file, "^aut.mrc$", name_prefix + "Normdaten-" + current_date_str + ".mrc")
 
     return [name_prefix + "GesamtTiteldaten-" + current_date_str + ".mrc",
             name_prefix + "Normdaten-" + current_date_str + ".mrc"]
