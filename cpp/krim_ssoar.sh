@@ -3,7 +3,7 @@
 set -e
 
 echo "Download the data from SSOAR"
-oai_pmh_harvester --skip-dups https://www.ssoar.info/OAIHandler/request marcxml col_collection_10207 KRIM_SSOAR krim_ssoar.xml 20
+oai_pmh_harvester https://www.ssoar.info/OAIHandler/request marcxml col_collection_10207 KRIM_SSOAR krim_ssoar.xml 20
 
 
 if [[ $(marc_size krim_ssoar.xml) == 0 ]]; then
@@ -13,14 +13,17 @@ fi
 
 
 echo "Add various selection identifiers"
-augmented_file="krim_ssoar-$(date +%Y%m%d).xml"
+augmented_file="krim_ssoar_augmented.xml"
 marc_augmentor krim_ssoar.xml "$augmented_file" \
     --insert-field '084:  \x1FaKRIM\x1FqDE-21\x1F2fid' \
-    --insert-field '852a:DE-21' \
+    --insert-field '852a:DE-2619' \
     --insert-field '935a:mkri'
 
+echo "Rewrite some of the contents"
+rewritten_file=.xml
+rewrite_ssoar $augmented_file $rewritten_file
 
 echo "Uploading to the BSZ File Server"
-upload_to_bsz_ftp_server.sh "$augmented_file" "/pub/UBTuebingen_Import_Test/krimdok_Test"
+upload_to_bsz_ftp_server.sh "$rewritten_file" "/pub/UBTuebingen_Import_Test/krimdok_Test"
 
 echo '*** DONE ***'
