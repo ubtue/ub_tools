@@ -10,16 +10,6 @@ function ExitHandler {
 trap ExitHandler SIGINT SIGTERM
 
 
-function Abort {
-    kill -INT $$
-}
-
-
-if [ -z "$VUFIND_HOME" ]; then
-    VUFIND_HOME=/usr/local/vufind
-fi
-
-
 function Usage {
     echo "usage: $0 flavour mode"
     echo "flavour = IxTheo|KrimDok"
