@@ -12,8 +12,8 @@ trap ExitHandler SIGINT SIGTERM
 
 function Usage {
     echo "usage: $0 flavour mode"
-    echo "flavour = IxTheo|KrimDok"
-    echo "mode = TEST|LIVE"
+    echo "       flavour = IxTheo|KrimDok"
+    echo "       mode = TEST|LIVE"
     exit 1
 }
 
