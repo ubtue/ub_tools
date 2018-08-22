@@ -53,7 +53,7 @@ const std::unordered_map<std::string, std::string> group_to_user_agent_map = {
               << "\tOptions:\n"
               << "\t[--min-log-level=log_level]    Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
               << "\t[--test]                       No download information will be stored for further downloads.\n"
-              << "\t[--live-only]                  Only sections that have \"delivery_mode=test|live\" set will be processed.\n"
+              << "\t[--delivery-mode=mode]         Only sections that have the specific delivery mode (either LIVE or TEST) set will be processed.\n"
               << "\t[--groups=my_groups            Where groups are a comma-separated list of goups.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
@@ -92,13 +92,25 @@ void LoadMARCEditInstructions(const IniFile::Section &section, std::vector<MARC:
 }
 
 
-void ReadGenericSiteAugmentParams(const IniFile::Section &section, Zotero::SiteParams * const site_params) {
+void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Section &section, Zotero::SiteParams * const site_params) {
     site_params->parent_journal_name_ = section.getSectionName();
     site_params->parent_ISSN_print_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_PRINT), "");
     site_params->parent_ISSN_online_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_ONLINE), "");
-    site_params->strptime_format_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT), "");
     site_params->parent_PPN_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_PPN), "");
     site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), "")));
+
+    // append the common time format string to the site-specific override
+    site_params->strptime_format_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT), "");
+
+    const auto common_strptime_format(ini_file.getString("", "common_" + Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT), ""));
+    if (not common_strptime_format.empty()) {
+        if (common_strptime_format[0] == '(')
+            LOG_ERROR("Cannot specify locale in common_strptime_format");
+
+        if (site_params->strptime_format_.empty())
+            site_params->strptime_format_ += '|';
+        site_params->strptime_format_ += common_strptime_format;
+    }
 }
 
 
@@ -162,13 +174,20 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
-    bool live_only(false);
-    if (std::strcmp(argv[1], "--live-only") == 0) {
-        live_only = true;
+    Zotero::DeliveryMode delivery_mode_to_process(Zotero::DeliveryMode::NONE);
+    if (StringUtil::StartsWith(argv[1], "--delivery-mode=")) {
+        const auto mode_string(argv[1] + __builtin_strlen("--delivery-mode="));
+        const auto match(Zotero::STRING_TO_DELIVERY_MODE_MAP.find(mode_string));
+
+        if (match == Zotero::STRING_TO_DELIVERY_MODE_MAP.end())
+            LOG_ERROR("Unknown delivery mode '" + std::string(mode_string) + "");
+        else
+            delivery_mode_to_process = static_cast<Zotero::DeliveryMode>(match->second);
+
         --argc, ++argv;
     }
 
-    std::set<std::string> groups_filter;
+    std::unordered_set<std::string> groups_filter;
     if (StringUtil::StartsWith(argv[1], "--groups=")) {
         StringUtil::SplitThenTrimWhite(argv[1] + __builtin_strlen("--groups="), ',', &groups_filter);
         --argc, ++argv;
@@ -244,13 +263,15 @@ int Main(int argc, char *argv[]) {
         }
 
         const Zotero::DeliveryMode delivery_mode(static_cast<Zotero::DeliveryMode>(section.getEnum("delivery_mode", Zotero::STRING_TO_DELIVERY_MODE_MAP, Zotero::DeliveryMode::NONE)));
-        if (live_only and delivery_mode == Zotero::DeliveryMode::NONE)
+        if (delivery_mode_to_process != Zotero::DeliveryMode::NONE and delivery_mode != delivery_mode_to_process)
             continue;
 
         const std::string group_name(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::GROUP)));
         const auto group_name_and_params(group_name_to_params_map.find(group_name));
         if (group_name_and_params == group_name_to_params_map.cend())
             LOG_ERROR("unknown or undefined group \"" + group_name + "\" in section \"" + section.getSectionName() + "\"!");
+        else if (not groups_filter.empty() and groups_filter.find(group_name) == groups_filter.end())
+            continue;
 
         std::vector<MARC::EditInstruction> edit_instructions;
         LoadMARCEditInstructions(section, &edit_instructions);
@@ -261,7 +282,7 @@ int Main(int argc, char *argv[]) {
         site_params.global_params_          = &global_augment_params;
         site_params.group_params_           = &group_name_and_params->second;
         site_params.marc_edit_instructions_ = edit_instructions;
-        ReadGenericSiteAugmentParams(section, &site_params);
+        ReadGenericSiteAugmentParams(ini_file, section, &site_params);
 
         harvest_params->format_handler_->setAugmentParams(&site_params);
 

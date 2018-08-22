@@ -58,7 +58,7 @@ if [[ -e $target_filename ]]; then
 fi
 
 
-echo "Clean Stale Directories"
+echo "Clean up Stale Directories"
 CleanUpStaleDirectories
 
 
