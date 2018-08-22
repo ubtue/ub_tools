@@ -236,9 +236,12 @@ int Main(int argc, char *argv[]) {
             WriteToDatabase(&db_connection, journal_name_and_info.first, journal_name_and_info.second);
     }
 
-    LOG_INFO("Processed " + std::to_string(total_record_count) + " reocrd(s) of which " + std::to_string(new_record_count)
+    LOG_INFO("Processed " + std::to_string(total_record_count) + " record(s) of which " + std::to_string(new_record_count)
              + " was/were (a) record(s) of new journals and " + std::to_string(missed_expectation_count)
              + " record(s) missed expectations.");
 
-    return EXIT_SUCCESS;
+    if (missed_expectation_count == 0)
+        return EXIT_SUCCESS;
+    else
+        return EXIT_FAILURE;
 }
