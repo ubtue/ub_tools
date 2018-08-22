@@ -428,29 +428,30 @@ void ProcessRecords(const bool /*debug*/, MARC::Reader * const marc_reader, MARC
                     const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
                     const std::unordered_map<std::string, std::string> &ppn_to_ppn_map)
 {
-    std::unordered_set<std::string> skip_ppns;
+    std::unordered_map<std::string, off_t> skip_ppns_and_offsets;
     for (const auto &from_ppn_and_to_ppn : ppn_to_ppn_map)
-        skip_ppns.emplace(from_ppn_and_to_ppn.second);
+        skip_ppns_and_offsets[from_ppn_and_to_ppn.second] = 0;
 
     unsigned record_count(0), merged_count(0), patched_uplink_count(0), skipped_count(0);
     off_t last_offset(marc_reader->tell());
-    std::unordered_map<std::string, off_t> orphan_ppns_to_offsets_map;
+    std::unordered_set<std::string> merged_ppns;
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
 
-        if (skip_ppns.find(record.getControlNumber()) != skip_ppns.end()) {
-            ++skipped_count;
+        auto ppn_and_offset(skip_ppns_and_offsets.find(record.getControlNumber()));
+        if (ppn_and_offset != skip_ppns_and_offsets.cend()) {
+            ppn_and_offset->second = last_offset;
             LOG_DEBUG("skipping record w/ PPN " + record.getControlNumber());
-            orphan_ppns_to_offsets_map[record.getControlNumber()] = last_offset;
             last_offset = marc_reader->tell();
+            ++skipped_count;
             continue;
         }
 
         const auto control_number_and_offset(ppn_to_offset_map.find(record.getControlNumber()));
         if (control_number_and_offset != ppn_to_offset_map.end()) {
             MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, control_number_and_offset->second));
-            orphan_ppns_to_offsets_map.erase(record2.getControlNumber());
-            orphan_ppns_to_offsets_map.erase(record.getControlNumber());
+            merged_ppns.insert(record2.getControlNumber());
+            merged_ppns.insert(record.getControlNumber());
 
             // Only merge records if one is print and the other one online:
             const bool record_is_electronic(record.isElectronicResource());
@@ -468,11 +469,15 @@ void ProcessRecords(const bool /*debug*/, MARC::Reader * const marc_reader, MARC
     }
 
     // Write out the orphans:
-    for (const auto &orphaned_ppn_and_offset : orphan_ppns_to_offsets_map) {
-        const auto orphaned_record(ReadRecordFromOffsetOrDie(marc_reader, orphaned_ppn_and_offset.second));
-        marc_writer->write(orphaned_record);
+    unsigned orphan_count(0);
+    for (const auto &skip_ppn_and_offset : skip_ppns_and_offsets) {
+        if (merged_ppns.find(skip_ppn_and_offset.first) == merged_ppns.cend()) {
+            const auto orphaned_record(ReadRecordFromOffsetOrDie(marc_reader, skip_ppn_and_offset.second));
+            marc_writer->write(orphaned_record);
+            ++orphan_count;
+        }
     }
-    LOG_INFO("Wrote " + std::to_string(orphan_ppns_to_offsets_map.size()) + " orphans.");
+    LOG_INFO("Wrote " + std::to_string(orphan_count) + " orphans.");
 
     LOG_INFO("Skipped " + std::to_string(skipped_count) + " records.");
     LOG_INFO("Data set contained " + std::to_string(record_count) + " MARC record(s).");
