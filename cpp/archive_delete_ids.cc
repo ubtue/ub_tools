@@ -35,42 +35,18 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--keep-intermediate-files] [--use-subdirectories] old_archive deletion_list new_archive\n";
+    std::cerr << "Usage: " << ::progname << " [--keep-intermediate-files] old_directory deletion_list new_directory\n";
     std::exit(EXIT_FAILURE);
 }
 
 
 const std::string DELETE_IDS_COMMAND("/usr/local/bin/delete_ids");
 
-
-// Applies a deletion list to a single file.
-void UpdateOneFile(const std::string &marc_filename, const std::string &deletion_list_file) {
-    const std::string temp_output_filename(marc_filename + "-" + std::to_string(::getpid()));
-    LOG_INFO("applying \"" + deletion_list_file + "\" to \"" + marc_filename + "\" to generate \"" + temp_output_filename + "\"!");
-
-    if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND,
-                                { "--input-format=marc-21", "--output-format=marc-21", deletion_list_file, marc_filename,
-                                  temp_output_filename }) != 0))
-        LOG_ERROR("\"" + DELETE_IDS_COMMAND + "\" failed!");
-
-    if (not FileUtil::RenameFile(temp_output_filename, marc_filename, /* remove_target = */true))
-        LOG_ERROR("failed to rename \"" + temp_output_filename + "\" to \"" + marc_filename + "\"!");
-}
-
-
-std::string StripTarGz(const std::string &archive_filename) {
-    if (unlikely(not StringUtil::EndsWith(archive_filename, ".tar.gz")))
-        LOG_ERROR("\"" + archive_filename + "\" does not end w/ .tar.gz!");
-    return archive_filename.substr(0, archive_filename.length() - 7);
-}
-
     
-void UpdateSubdirectory(const std::string &old_archive, const std::string &deletion_list, const std::string &new_archive) {
-    const std::string old_directory(StripTarGz(old_archive));
+void UpdateSubdirectory(const std::string &old_directory, const std::string &deletion_list, const std::string &new_directory) {
     std::vector<std::string> archive_members;
-    FileUtil::GetFileNameList(".raw$", &archive_members, old_directory);
+    FileUtil::GetFileNameList("\\.(mrc|raw)$", &archive_members, old_directory);
 
-    const std::string new_directory(StripTarGz(new_archive));
     if (not FileUtil::MakeDirectory(new_directory))
         LOG_ERROR("failed to create subdirectory: \"" + new_directory + "\"!");
 
@@ -80,21 +56,6 @@ void UpdateSubdirectory(const std::string &old_archive, const std::string &delet
                                       old_directory + "/" + archive_member, new_directory + "/" + archive_member }) != 0))
             LOG_ERROR("\"" + DELETE_IDS_COMMAND + "\" failed!");
     }
-}
-
-    
-void UpdateArchive(const std::string &old_archive, const std::string &deletion_list,
-                   const std::string &new_archive)
-{
-    std::vector<std::string> archive_members;
-    BSZUtil::ExtractArchiveMembers(old_archive, &archive_members);
-
-    for (const auto &archive_member : archive_members)
-        UpdateOneFile(archive_member, deletion_list);
-
-    Archive::Writer archive_writer(new_archive);
-    for (const auto &archive_member : archive_members)
-        archive_writer.add(archive_member);
 }
 
 
@@ -111,20 +72,14 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
-    bool use_subdirectories(false);
-    if (std::strcmp(argv[1], "--use-subdirectories") == 0) {
-        use_subdirectories = true;
-        --argc, ++argv;
-    }
-
     if (argc != 4)
         Usage();
 
-    const std::string old_archive(FileUtil::MakeAbsolutePath(argv[1]));
+    const std::string old_directory(FileUtil::MakeAbsolutePath(argv[1]));
     const std::string deletion_list(FileUtil::MakeAbsolutePath(argv[2]));
-    const std::string new_archive(FileUtil::MakeAbsolutePath(argv[3]));
+    const std::string new_directory(FileUtil::MakeAbsolutePath(argv[3]));
 
-    if (old_archive == deletion_list or old_archive == new_archive or new_archive == deletion_list)
+    if (old_directory == deletion_list or old_directory == new_directory or new_directory == deletion_list)
         LOG_ERROR("all filename parameters must be distinct!");
 
     FileUtil::AutoTempDirectory working_directory(FileUtil::GetLastPathComponent(::progname) + "-working-dir-" + std::to_string(::getpid()),
@@ -132,10 +87,7 @@ int Main(int argc, char *argv[]) {
                                                   /* remove_when_out_of_scope = */ not keep_intermediate_files);
     FileUtil::ChangeDirectoryOrDie(working_directory.getDirectoryPath());
 
-    if (use_subdirectories)
-        UpdateSubdirectory(old_archive, deletion_list, new_archive);
-    else
-        UpdateArchive(old_archive, deletion_list, new_archive);
+    UpdateSubdirectory(old_directory, deletion_list, new_directory);
 
     FileUtil::ChangeDirectoryOrDie("..");
 

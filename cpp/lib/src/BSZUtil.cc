@@ -115,17 +115,28 @@ std::string ExtractDateFromFilenameOrDie(const std::string &filename) {
 }
 
 
-// Hopefully returns 'a', 'b' or 'c'.
-char GetTypeCharOrDie(const std::string &member_name) {
-    if (member_name == "sekkor-aut.mrc")
-        return 'c';
-    if (member_name == "sekkor-tit.mrc")
-        return 'a';
+ArchiveType GetArchiveType(const std::string &member_name) {
+    if (StringUtil::EndsWith(member_name, "aut.mrc"))
+        return AUTHORITY_RECORDS;
+    if (StringUtil::EndsWith(member_name, "tit.mrc"))
+        return TITLE_RECORDS;
+    if (StringUtil::EndsWith(member_name, "lok.mrc"))
+        return LOCAL_RECORDS;
     static auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("([abc])\\d\\d\\d.raw"));
     if (not matcher->matched(member_name))
         LOG_ERROR("bad member type for archive member \"" + member_name + "\"!");
 
-    return (*matcher)[1][0];
+    const auto type_char((*matcher)[1][0]);
+    switch (type_char) {
+    case 'a':
+        return TITLE_RECORDS;
+    case 'b':
+        return SUPERIOR_TITLES;
+    case 'c':
+        return AUTHORITY_RECORDS;
+    default:
+        LOG_ERROR("Unknown type character '" + std::string(1, type_char) + "'!");
+    }
 }
 
 
@@ -149,7 +160,7 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
 {
     static auto member_matcher(RegexMatcher::RegexMatcherFactoryOrDie("([abc]\\d\\d\\d\\.raw|sekkor-...\\.mrc)$"));
 
-    std::map<char, std::shared_ptr<File>> member_type_to_file_map;
+    std::map<ArchiveType, std::shared_ptr<File>> member_type_to_file_map;
     Archive::Reader reader(archive_name);
     Archive::Reader::EntryInfo file_info;
     while (reader.getNext(&file_info)) {
@@ -162,7 +173,7 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
         if (unlikely(not member_matcher->matched(member_name)))
             LOG_ERROR("unexpected entry name \"" + member_name + "\"!");
 
-        const char member_type(GetTypeCharOrDie(member_name));
+        const auto member_type(GetArchiveType(member_name));
         auto type_and_file(member_type_to_file_map.find(member_type));
         if (type_and_file == member_type_to_file_map.end()) {
             const auto output_filename(GenerateOutputMemberName(member_name) + optional_suffix);

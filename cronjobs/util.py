@@ -209,7 +209,7 @@ def LoadConfigFile(path=None, no_error=False):
 def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
     # Ensures that all members of "gzipped_tar_archive" match our expectation as to what the BSZ should deliver.
     def TarFileMemberNamesAreOkOrDie(tar_file, archive_name):
-        compiled_pattern = re.compile("[a-z]+00\\d\\.raw$")
+        compiled_pattern = re.compile("(aut|tit).mrc$")
         for member in tar_file.getnames():
             if not compiled_pattern.search(member):
                 Error("unknown tar file member \"" + member + "\" in \"" + archive_name + "\"!")
@@ -237,9 +237,9 @@ def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
     tar_file = tarfile.open(gzipped_tar_archive, "r:gz")
     TarFileMemberNamesAreOkOrDie(tar_file, gzipped_tar_archive)
     current_date_str = datetime.datetime.now().strftime("%y%m%d")
-    ExtractAndRenameMembers(tar_file, ".+[ab]00\\d.raw$",
+    ExtractAndRenameMembers(tar_file, "^tit.mrc$",
                             name_prefix + "GesamtTiteldaten-" + current_date_str + ".mrc")
-    ExtractAndRenameMembers(tar_file, ".+c00\\d.raw$", name_prefix + "Normdaten-" + current_date_str + ".mrc")
+    ExtractAndRenameMembers(tar_file, "^aut.mrc$", name_prefix + "Normdaten-" + current_date_str + ".mrc")
 
     return [name_prefix + "GesamtTiteldaten-" + current_date_str + ".mrc",
             name_prefix + "Normdaten-" + current_date_str + ".mrc"]

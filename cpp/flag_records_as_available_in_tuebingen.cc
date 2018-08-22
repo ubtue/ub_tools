@@ -79,7 +79,6 @@ void CollectSuperiorPPNs(const MARC::Record &record, std::unordered_set<std::str
     static const std::vector<std::string> tags{ "800", "810", "830", "773", "776" };
 
     for (const auto &tag : tags) {
-        std::vector<std::string> superior_ppn_vector;
         const auto field(record.findTag(tag));
         if (field != record.end()) {
             // Remove superfluous prefixes
@@ -90,10 +89,8 @@ void CollectSuperiorPPNs(const MARC::Record &record, std::unordered_set<std::str
                         LOG_ERROR("Error with regex für superior works " + err_msg);
                     continue;
                 }
-                superior_ppn = (*superior_ppn_matcher)[1];
+                superior_ppn_set->insert((*superior_ppn_matcher)[1]);
             }
-            std::copy(superior_ppn_vector.begin(), superior_ppn_vector.end(), std::inserter(*superior_ppn_set,
-                                                                                            superior_ppn_set->end()));
         }
     }
 }
