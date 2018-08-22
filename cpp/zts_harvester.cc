@@ -108,8 +108,8 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
             LOG_ERROR("Cannot specify locale in common_strptime_format");
 
         if (site_params->strptime_format_.empty())
-            site_params->strptime_format_.append("|");
-        site_params->strptime_format_.append(common_strptime_format);
+            site_params->strptime_format_ += '|';
+        site_params->strptime_format_ += common_strptime_format;
     }
 }
 
