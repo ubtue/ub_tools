@@ -79,7 +79,8 @@ function EndPhase {
 
 # Set up the log file:
 logdir=/usr/local/var/log/tuefind
-log="${logdir}/zts_harvester_pipeline.log"
+log_filename=$(basename "$0")
+log="${logdir}/${log_filename%.*}.log"
 rm -f "${log}"
 
 
@@ -87,10 +88,10 @@ OVERALL_START=$(date +%s.%N)
 
 
 StartPhase "Harvest URLs"
-(export LOGGER_FORMAT=no_decorations,strip_call_site; \
+LOGGER_FORMAT=no_decorations,strip_call_site \
 zts_harvester --min-log-level=INFO --delivery-mode=$delivery_mode --groups=$harvester_group \
               --output-file=$working_directory/$harvester_output_filename \
-              $harvester_config_file >> "${log}" 2>&1)
+              $harvester_config_file >> "${log}" 2>&1
 EndPhase
 
 
