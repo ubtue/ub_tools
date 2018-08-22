@@ -201,16 +201,12 @@ bool Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::
 
 bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
          const Url &harvest_url, std::string * const response_body, unsigned * response_code,
-         std::string * const error_message, const std::string &harvested_html)
+         std::string * const error_message, const std::string &/*harvested_html*/)
 {
     const std::string endpoint_url(Url(zts_server_url.toString() + "/web"));
     downloader_params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json" };
     downloader_params.post_data_ = "{\"url\":\"" + JSON::EscapeString(harvest_url) + "\","
                                    + "\"sessionid\":\"" + JSON::EscapeString(GetNextSessionId()) + "\"";
-    if (not harvested_html.empty()) {
-        //downloader_params.post_data_ += ",\"cachedHTML\":\"" + JSON::EscapeString(harvested_html) + "\"";
-        LOG_INFO("TODO: implement using cached html");
-    }
     downloader_params.post_data_ += "}";
 
     Downloader downloader(endpoint_url, downloader_params, time_limit);
@@ -463,7 +459,6 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
         ExtractVolumeYearIssueAndPages(*object_node, &new_record);
     } else if (item_type == "webpage") {
         // just add the encoding marker
-        LOG_WARNING("TODO: add proper support for webpages");
         new_record.insertField("935", { { 'c', "website" } });
     } else
         LOG_ERROR("unknown item type: \"" + item_type + "\"! JSON node dump: " + object_node->toString());
@@ -748,7 +743,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
  *                In such cases, the Zotero translator must return tags to distinguish between them.
  */
 void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::ObjectNode> &object_node, const SiteParams &site_params) {
-    LOG_INFO("Augmenting JSON...");
+    LOG_DEBUG("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
     std::string issn_raw, issn_normalized;
@@ -924,7 +919,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
     static std::unordered_set<std::string> already_harvested_urls;
     if (already_harvested_urls.find(harvest_url) != already_harvested_urls.end()) {
-        LOG_INFO("Skipping URL (already harvested): " + harvest_url);
+        LOG_DEBUG("Skipping URL (already harvested): " + harvest_url);
         return record_count_and_previously_downloaded_count;
     } else if (site_params.extraction_regex_ and not site_params.extraction_regex_->matched(harvest_url)) {
         LOG_DEBUG("Skipping URL ('" + harvest_url + "' does not match extraction regex)");
@@ -946,18 +941,18 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
     harvest_params->min_url_processing_time_.restart();
     if (not download_succeeded) {
-        LOG_WARNING("[" + harvest_url + "] " + " | Zotero conversion failed: " + error_message);
+        LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tZotero conversion failed: " + error_message);
         return std::make_pair(0, 0);
     }
 
     std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
     JSON::Parser json_parser(response_body);
     if (not (json_parser.parse(&tree_root)))
-        LOG_ERROR("[" + harvest_url + "] " + " | failed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
+        LOG_ERROR(site_params.parent_journal_name_ + "\t" + harvest_url + "\tfailed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
 
     // 300 => multiple matches found, try to harvest children
     if (response_code == 300) {
-        LOG_INFO("multiple articles found => trying to harvest children");
+        LOG_DEBUG("multiple articles found => trying to harvest children");
         if (tree_root->getType() == JSON::ArrayNode::OBJECT_NODE) {
             const std::shared_ptr<const JSON::ObjectNode>object_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root",
                                                                                                            tree_root));
@@ -985,20 +980,20 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
                 AugmentJson(harvest_url, json_object, site_params);
                 record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
             } catch (const std::exception &x) {
-                LOG_WARNING("[" + harvest_url + "] " + " | Couldn't process record! Error: " + std::string(x.what()));
+                LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tCouldn't process record! Error: "
+                            + std::string(x.what()));
                 return record_count_and_previously_downloaded_count;
             }
         }
 
         if (processed_json_entries == 0) {
-            LOG_WARNING("[" + harvest_url + "] " + " | Zotero translation server returned an empty response! Response code = "
-                        + std::to_string(response_code));
+            LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tZotero translation server returned an empty response!"                  "Response code = " + std::to_string(response_code));
         }
     }
     ++harvest_params->harvested_url_count_;
 
     if (log) {
-        LOG_INFO("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
+        LOG_DEBUG("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
                  + harvest_url + '\n' + "of which "
                  + StringUtil::ToString(record_count_and_previously_downloaded_count.first
                                         - record_count_and_previously_downloaded_count.second)
@@ -1167,13 +1162,13 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
                          File * const progress_file)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
-    LOG_INFO("Starting crawl at base URL: " +  site_desc.start_url_);
+    LOG_DEBUG("Starting crawl at base URL: " +  site_desc.start_url_);
     SimpleCrawler crawler(site_desc, crawler_params);
     SimpleCrawler::PageDetails page_details;
     unsigned processed_url_count(0);
     while (crawler.getNextPage(&page_details)) {
         if (not supported_urls_regex->matched(page_details.url_))
-            LOG_INFO("Skipping unsupported URL: " + page_details.url_);
+            LOG_DEBUG("Skipping unsupported URL: " + page_details.url_);
         else if (page_details.error_message_.empty()) {
             const auto record_count_and_previously_downloaded_count(
                 Harvest(page_details.url_, harvest_params, site_params, page_details.body_));
@@ -1220,7 +1215,7 @@ bool FeedContainsNoNewItems(const RSSHarvestMode mode, DbConnection * const db_c
             date_string = SqlUtil::TimeTToDatetime(last_build_date);
 
         if (mode == RSSHarvestMode::VERBOSE)
-            LOG_INFO("Creating new feed entry in rss_feeds table for \"" + feed_url + "\".");
+            LOG_DEBUG("Creating new feed entry in rss_feeds table for \"" + feed_url + "\".");
         if (mode != RSSHarvestMode::TEST)
             db_connection->queryOrDie("INSERT INTO rss_feeds SET feed_url='" + db_connection->escapeString(feed_url)
                                       + "',last_build_date='" + date_string + "'");
@@ -1312,13 +1307,13 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
     }
 
     const time_t last_build_date(syndication_format->getLastBuildDate());
-    if (mode != RSSHarvestMode::NORMAL) {
-        std::cout << feed_url << " (" << syndication_format->getFormatName() << "):\n";
-        std::cout << "\tTitle: " << syndication_format->getTitle() << '\n';
+    if (mode == RSSHarvestMode::VERBOSE) {
+        LOG_DEBUG(feed_url + " (" + syndication_format->getFormatName() + "):");
+        LOG_DEBUG("\tTitle: " + syndication_format->getTitle());
         if (last_build_date != TimeUtil::BAD_TIME_T)
-            std::cout << "\tLast build date: " << TimeUtil::TimeTToUtcString(last_build_date) << '\n';
-        std::cout << "\tLink: " << syndication_format->getLink() << '\n';
-        std::cout << "\tDescription: " << syndication_format->getDescription() << '\n';
+            LOG_DEBUG("\tLast build date: " + TimeUtil::TimeTToUtcString(last_build_date));
+        LOG_DEBUG("\tLink: " + syndication_format->getLink());
+        LOG_DEBUG("\tDescription: " + syndication_format->getDescription());
    }
 
     if (mode != RSSHarvestMode::TEST and FeedContainsNoNewItems(mode, db_connection, feed_url, last_build_date))
@@ -1330,8 +1325,8 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
             continue;
 
         const std::string title(item.getTitle());
-        if (not title.empty() and mode != RSSHarvestMode::NORMAL)
-            LOG_INFO("\t\tTitle: " + title);
+        if (not title.empty() and mode == RSSHarvestMode::VERBOSE)
+            LOG_DEBUG("\t\tTitle: " + title);
 
         const auto record_count_and_previously_downloaded_count(
             Harvest(item.getLink(), harvest_params, site_params, "", /* verbose = */ mode != RSSHarvestMode::NORMAL));
