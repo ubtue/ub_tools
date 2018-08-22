@@ -105,7 +105,7 @@ void UpdateTitleDataField(MARC::Record::Field * const field, const MARC::Record 
         else
             subfields.appendSubfield(authority_subfield.code_, authority_subfield.value_);
     }
-    field->setContents(subfields, field->getIndicator1(), field->getIndicator2());
+    field->setSubfields(subfields);
 }
 
 

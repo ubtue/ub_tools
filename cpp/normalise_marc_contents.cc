@@ -188,7 +188,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
                 }
 
                 if (replaced_at_least_one_subfield) {
-                    field.setContents(subfields, field.getIndicator1(), field.getIndicator2());
+                    field.setSubfields(subfields);
                     replaced_at_least_one_field = true;
                 }
             }
