@@ -98,14 +98,14 @@ def Info(*args, **kwargs):
     sys.stdout.flush()
 
 
-# @brief Copy the contents, in order, of "files" into "target" while dropping identical control numbers.
+# @brief Copy the contents, in order, of "files" into "target".
 # @return True if we succeeded, else False.
-def DedupeAndConcatenateFiles(files, target):
+def ConcatenateFiles(files, target):
     if files is None or len(files) == 0:
         Error("\"files\" argument to util.ConcatenateFiles() is empty or None!")
     if target is None or len(target) == 0:
         Error("\"target\" argument to util.ConcatenateFiles() is empty or None!")
-    return process_util.Exec("/usr/local/bin/marc_remove_dups", files + [ target ]) == 0
+    return process_util.Exec("/bin/cat", files, new_stdout=target) == 0
 
 
 # Fails if "source" does not exist or if "link_name" exists and is not a symlink.
@@ -225,7 +225,7 @@ def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
                 extracted_files.append(member)
 
         Remove(new_name)
-        DedupeAndConcatenateFiles(extracted_files, new_name)
+        ConcatenateFiles(extracted_files, new_name)
 
         # Clean up:
         for extracted_file in extracted_files:
