@@ -22,6 +22,19 @@ function Usage() {
 }
 
 
+function CleanUpStaleDirectories() {
+    for stale_difference_archive_directory in $(exec 2>/dev/null; ls -1 *.tar.gz | sed -e 's/\.tar\.gz$//'); do
+       if [[ -d $stale_difference_archive_directory ]]; then
+           rm --recursive ${stale_difference_archive_directory}
+       fi
+    done
+
+    for stale_stage_directory in $(exec 2>/dev/null; ls -1 --directory temp_directory*); do
+          rm --recursive ${stale_stage_directory}
+    done
+}
+
+
 # Argument processing
 KEEP_ITERMEDIATE_FILES=
 if [[ $# > 1 ]]; then
@@ -43,6 +56,12 @@ if [[ -e $target_filename ]]; then
     echo "Nothing to do: ${target_filename} already exists."
     exit 0
 fi
+
+
+echo "Clean Stale Directories"
+CleanUpStaleDirectories
+
+
 echo "Creating ${target_filename}"
 
 
@@ -63,11 +82,11 @@ for update in $(generate_merge_order | tail --lines=+2); do
     ((++counter))
     temp_directory=temp_directory.$BASHPID.$counter
     if [[ ${update:0:6} == "LOEPPN" ]]; then
-        echo "Processing deletion list: $update"
+        echo "[$(date +%y%m%d-%R:%S)] Processing deletion list: $update"
         echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
         archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
     else
-        echo "Processing differential dump: $update"
+        echo "[$(date +%y%m%d-%R:%S)] Processing differential dump: $update"
         echo apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
         apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
     fi
