@@ -44,6 +44,13 @@ void Usage() {
 }
 
 
+
+// Needed since no consistent convention was used for brackets
+std::string NormalizeBrackets(const std::string string_to_normalize) {
+    return StringUtil::Map(string_to_normalize, "<>", "()");
+}
+
+
 // Generates a XX.ini output file with entries like the original file.  The XX is a 2-letter language code.
 void ProcessLanguage(const bool verbose, const std::string &output_file_path, const std::string &_3letter_code,
                      DbConnection * const db_connection)
@@ -92,7 +99,7 @@ void ProcessLanguage(const bool verbose, const std::string &output_file_path, co
         const std::string token(std::get<1>(line_no_token_and_translation));
         const std::string translation(std::get<2>(line_no_token_and_translation));
         if (not translation.empty())
-            output << token << " = \"" << StringUtil::TrimWhite(translation) << "\"\n";
+            output << token << " = \"" << StringUtil::TrimWhite(NormalizeBrackets(translation)) << "\"\n";
     }
 
     if (verbose)
