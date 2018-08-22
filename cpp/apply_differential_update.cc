@@ -148,7 +148,8 @@ int Main(int argc, char *argv[]) {
         LOG_ERROR("all archive names must be distinct!");
 
     std::unique_ptr<FileUtil::AutoTempDirectory> working_directory;
-    Archive::UnpackArchive(difference_archive, StripTarGz(difference_archive));
+    const std::string difference_directory(StripTarGz(difference_archive));
+    Archive::UnpackArchive(difference_archive, difference_directory);
     const auto directory_name(output_directory);
     if (not FileUtil::MakeDirectory(directory_name))
         LOG_ERROR("failed to create directory: \"" + directory_name + "\"!");
@@ -159,8 +160,8 @@ int Main(int argc, char *argv[]) {
 
     PatchArchiveMembersAndCreateOutputArchive(input_archive_members, difference_archive_members, output_directory);
 
-    if (not keep_intermediate_files and not FileUtil::DeleteFile(difference_archive))
-        LOG_ERROR("failed to remove directory: \"" + difference_archive + "\"!");
+    if (not keep_intermediate_files and not FileUtil::DeleteDirectory(difference_directory))
+        LOG_ERROR("failed to remove directory: \"" + difference_directory + "\"!");
 
     return EXIT_SUCCESS;
 }
