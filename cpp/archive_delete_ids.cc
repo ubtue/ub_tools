@@ -35,7 +35,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--keep-intermediate-files] old_archive deletion_list new_archive\n";
+    std::cerr << "Usage: " << ::progname << " [--keep-intermediate-files] old_directory deletion_list new_directory\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -43,12 +43,10 @@ namespace {
 const std::string DELETE_IDS_COMMAND("/usr/local/bin/delete_ids");
 
     
-void UpdateSubdirectory(const std::string &old_archive, const std::string &deletion_list, const std::string &new_archive) {
-    const std::string old_directory(old_archive);
+void UpdateSubdirectory(const std::string &old_directory, const std::string &deletion_list, const std::string &new_directory) {
     std::vector<std::string> archive_members;
-    FileUtil::GetFileNameList(".raw$", &archive_members, old_directory);
+    FileUtil::GetFileNameList(".mrc$", &archive_members, old_directory);
 
-    const std::string new_directory(new_archive);
     if (not FileUtil::MakeDirectory(new_directory))
         LOG_ERROR("failed to create subdirectory: \"" + new_directory + "\"!");
 
@@ -77,11 +75,11 @@ int Main(int argc, char *argv[]) {
     if (argc != 4)
         Usage();
 
-    const std::string old_archive(FileUtil::MakeAbsolutePath(argv[1]));
+    const std::string old_directory(FileUtil::MakeAbsolutePath(argv[1]));
     const std::string deletion_list(FileUtil::MakeAbsolutePath(argv[2]));
-    const std::string new_archive(FileUtil::MakeAbsolutePath(argv[3]));
+    const std::string new_directory(FileUtil::MakeAbsolutePath(argv[3]));
 
-    if (old_archive == deletion_list or old_archive == new_archive or new_archive == deletion_list)
+    if (old_directory == deletion_list or old_directory == new_directory or new_directory == deletion_list)
         LOG_ERROR("all filename parameters must be distinct!");
 
     FileUtil::AutoTempDirectory working_directory(FileUtil::GetLastPathComponent(::progname) + "-working-dir-" + std::to_string(::getpid()),
@@ -89,7 +87,7 @@ int Main(int argc, char *argv[]) {
                                                   /* remove_when_out_of_scope = */ not keep_intermediate_files);
     FileUtil::ChangeDirectoryOrDie(working_directory.getDirectoryPath());
 
-    UpdateSubdirectory(old_archive, deletion_list, new_archive);
+    UpdateSubdirectory(old_directory, deletion_list, new_directory);
 
     FileUtil::ChangeDirectoryOrDie("..");
 
