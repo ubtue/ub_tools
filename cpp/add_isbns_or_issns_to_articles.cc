@@ -156,7 +156,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(MARC::Reader * const marc_reader,
 
         if (MiscUtil::IsPossibleISSN(parent_isbn_or_issn_iter->second)) {
             subfields.addSubfield('x', parent_isbn_or_issn_iter->second);
-            _773_field->setContents(subfields, _773_field->getIndicator1(), _773_field->getIndicator2());
+            _773_field->setSubfields(subfields);
             ++issns_added;
         } else { // Deal with ISBNs.
             auto _020_field(record.findTag("020"));

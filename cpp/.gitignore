@@ -5,7 +5,6 @@
 /add_child_refs
 /add_isbns_or_issns_to_articles
 /add_journal_subscription
-/missing_metadata_db_tool
 /add_publication_year_to_serials
 /add_referenceterms
 /add_subsystem_tags
@@ -107,6 +106,7 @@
 /marc_tag_grep
 /marc21_size
 /merge_print_and_online
+/missing_metadata_db_tool
 /mpi_stats
 /new_journal_alert
 /normalise_and_deduplicate_language
@@ -117,6 +117,7 @@
 /oai_pmh_list_formats
 /populate_in_tuebingen_available
 /regex_matcher
+/refterm_augmentor
 /remove_redundant_includes
 /remove_unused_authority_records
 /replace_marc_records
