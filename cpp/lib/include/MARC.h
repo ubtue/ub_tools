@@ -549,21 +549,9 @@ public:
         return insertField(new_field_tag, new_field_value);
     }
 
-    inline void appendField(const Tag &new_field_tag, const std::string &field_contents, const char indicator1 = ' ',
-                            const char indicator2 = ' ')
-    {
-        fields_.emplace_back(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + field_contents);
-    }
-
-    inline void appendField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
-                            const char indicator2 = ' ')
-    {
-        fields_.emplace_back(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString());
-    }
-
-    inline void appendField(const Field &field) {
-        fields_.emplace_back(field);
-    }
+    void appendField(const Tag &new_field_tag, const std::string &field_contents, const char indicator1 = ' ', const char indicator2 = ' ');
+    void appendField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ', const char indicator2 = ' ');
+    void appendField(const Field &field);
 
     /** \brief  Adds a subfield to the first existing field with tag "field_tag".
      *  \return True if a field with field tag "field_tag" existed and false if no such field was found.
@@ -747,7 +735,7 @@ public:
     /** \return The file position of the start of the next record. */
     virtual off_t tell() const = 0;
 
-    virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) = 0;
+    virtual bool seek(const off_t offset, const int whence = SEEK_SET) = 0;
 
     /** \return a BinaryMarcReader or an XmlMarcReader. */
     static std::unique_ptr<Reader> Factory(const std::string &input_filename, FileType reader_type = FileType::AUTO);
