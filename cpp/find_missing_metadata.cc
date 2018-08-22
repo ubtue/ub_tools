@@ -240,8 +240,5 @@ int Main(int argc, char *argv[]) {
              + " was/were (a) record(s) of new journals and " + std::to_string(missed_expectation_count)
              + " record(s) missed expectations.");
 
-    if (missed_expectation_count == 0)
-        return EXIT_SUCCESS;
-    else
-        return EXIT_FAILURE;
+    return missed_expectation_count == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
