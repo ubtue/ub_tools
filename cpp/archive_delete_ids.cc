@@ -45,7 +45,7 @@ const std::string DELETE_IDS_COMMAND("/usr/local/bin/delete_ids");
     
 void UpdateSubdirectory(const std::string &old_directory, const std::string &deletion_list, const std::string &new_directory) {
     std::vector<std::string> archive_members;
-    FileUtil::GetFileNameList(".mrc$", &archive_members, old_directory);
+    FileUtil::GetFileNameList("\\.(mrc|raw)$", &archive_members, old_directory);
 
     if (not FileUtil::MakeDirectory(new_directory))
         LOG_ERROR("failed to create subdirectory: \"" + new_directory + "\"!");
