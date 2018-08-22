@@ -160,7 +160,7 @@ int Main(int argc, char *argv[]) {
 
     PatchArchiveMembersAndCreateOutputArchive(input_archive_members, difference_archive_members, output_directory);
 
-    if (not keep_intermediate_files and not FileUtil::DeleteDirectory(difference_directory))
+    if (not keep_intermediate_files and not FileUtil::RemoveDirectory(difference_directory))
         LOG_ERROR("failed to remove directory: \"" + difference_directory + "\"!");
 
     return EXIT_SUCCESS;
