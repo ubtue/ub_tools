@@ -47,7 +47,7 @@ namespace {
 }
 
 
-const std::set<std::string> UPLINK_TAGS{ "800", "810", "830", "773", "776" };
+const std::set<MARC::Tag> UPLINK_TAGS{ "800", "810", "830", "773", "776" };
 
 
 std::string ExtractUplinkPPN(const MARC::Record::Field &field) {
@@ -60,19 +60,6 @@ std::string ExtractUplinkPPN(const MARC::Record::Field &field) {
     if (not StringUtil::StartsWith(subfield_w->value_, "(DE-576)"))
         return "";
     return subfield_w->value_.substr(__builtin_strlen("(DE-576)"));
-}
-
-
-void CollectSuperiorPPNs(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const superior_ppns) {
-    while (const MARC::Record record = marc_reader->read()) {
-        for (const auto &field : record) {
-            if (UPLINK_TAGS.find(field.getTag().toString()) != UPLINK_TAGS.cend()) {
-                const std::string uplink_ppn(ExtractUplinkPPN(field));
-                if (not uplink_ppn.empty())
-                    superior_ppns->emplace(uplink_ppn);
-            }
-        }
-    }
 }
 
 
@@ -106,48 +93,68 @@ std::string ExtractCrossReferencePPN(const MARC::Record &record) {
 }
 
 
-// Creates a map from the PPN "partners" to the offsets of the original records that had the links to the partners.
-void CollectMappings(const bool debug, MARC::Reader * const marc_reader, File * const missing_partners,
-                     const std::unordered_set<std::string> &superior_ppns,
-                     std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
-                     std::unordered_map<std::string, std::string> * const ppn_to_ppn_map)
+void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * const marc_reader,
+                                                             std::unordered_set<std::string> * const superior_ppns,
+                                                             std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
+                                                             std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map)
 {
-    off_t last_offset(marc_reader->tell());
-    unsigned count(0), no_partner_count(0);
-    while (const MARC::Record record = marc_reader->read()) {
-        ++count;
+    off_t last_offset(0);
+    unsigned record_count(0);
+    while (const auto record = marc_reader->read()) {
+        ++record_count;
 
-        if (superior_ppns.find(record.getControlNumber()) != superior_ppns.end()) {
-            const std::string PARTNER_PPN(ExtractCrossReferencePPN(record));
-            if (not PARTNER_PPN.empty()) {
-                if (superior_ppns.find(PARTNER_PPN) == superior_ppns.end()) {
-                    ++no_partner_count;
-                    missing_partners->write(record.getControlNumber() + "\n");
-                } else {
-                    if (debug)
-                        LOG_INFO("Partner of " + PARTNER_PPN + " is " + record.getControlNumber() + ".");
-                    (*ppn_to_offset_map)[PARTNER_PPN] = last_offset;
+        if (unlikely(ppn_to_offset_map->find(record.getControlNumber()) != ppn_to_offset_map->end()))
+            LOG_ERROR("duplicate PPN \"" + record.getControlNumber() + "\" in input file \"" + marc_reader->getPath() + "\"!");
 
-                    // Consistently use the alphanumerically smaller PPN as the key in our map:
-                    if (PARTNER_PPN < record.getControlNumber())
-                        (*ppn_to_ppn_map)[PARTNER_PPN] = record.getControlNumber();
-                    else
-                        (*ppn_to_ppn_map)[record.getControlNumber()] = PARTNER_PPN;
-                }
+        (*ppn_to_offset_map)[record.getControlNumber()] = last_offset;
+        for (const auto &field : record) {
+            if (UPLINK_TAGS.find(field.getTag()) != UPLINK_TAGS.cend()) {
+                const std::string uplink_ppn(ExtractUplinkPPN(field));
+                if (not uplink_ppn.empty())
+                    superior_ppns->emplace(uplink_ppn);
             }
+        }
+
+        const auto cross_link_ppn(ExtractCrossReferencePPN(record));
+        if (not cross_link_ppn.empty()) {
+            if (cross_link_ppn < record.getControlNumber())
+                (*ppn_to_canonical_ppn_map)[cross_link_ppn] = record.getControlNumber();
+            else
+                (*ppn_to_canonical_ppn_map)[record.getControlNumber()] = cross_link_ppn;
         }
 
         last_offset = marc_reader->tell();
     }
 
-    LOG_INFO("Found " + std::to_string(count) + " record(s).");
-    LOG_INFO("Found " + std::to_string(ppn_to_offset_map->size()) + " superior record(s) that we may be able to merge.");
-    LOG_INFO("Found " + std::to_string(no_partner_count) + " superior record(s) that have missing \"partners\".");
+    LOG_INFO("Found " + std::to_string(record_count) + " record(s).");
+    LOG_INFO("Found " + std::to_string(ppn_to_canonical_ppn_map->size()) + " cross link(s).");
 }
 
 
-// Make inferior works point to the new merged superior parent found in "ppn_to_ppn_map".
-bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::string, std::string> &ppn_to_ppn_map) {
+void EliminateDanglingOrUnreferencedCrossLinks(const std::unordered_set<std::string> &superior_ppns,
+                                               const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
+                                               std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map)
+{
+    unsigned dropped_count(0);
+    for (auto ppn_and_ppn(ppn_to_canonical_ppn_map->begin()); ppn_and_ppn != ppn_to_canonical_ppn_map->end(); /* Intentionally empty! */) {
+        if (ppn_to_offset_map.find(ppn_and_ppn->first) == ppn_to_offset_map.cend()
+            or ppn_to_offset_map.find(ppn_and_ppn->second) == ppn_to_offset_map.cend()
+            or superior_ppns.find(ppn_and_ppn->first) == superior_ppns.cend()
+            or superior_ppns.find(ppn_and_ppn->second) == superior_ppns.cend())
+         {
+             ppn_and_ppn = ppn_to_canonical_ppn_map->erase(ppn_and_ppn);
+             ++dropped_count;
+         } else
+            ++ppn_and_ppn;
+    }
+
+    LOG_INFO("Dropped " + std::to_string(dropped_count) + " cross link(s) because at least one end was not a superior work or missing.");
+}
+
+
+// Make inferior works point to the new merged superior parent found in "ppn_to_canonical_ppn_map".  Links referencing a key in
+// "ppn_to_canonical_ppn_map" will be patched with the corresponding value.
+bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
     bool patched(false);
     for (auto field : *record) {
         if (UPLINK_TAGS.find(field.getTag().toString()) != UPLINK_TAGS.cend()) {
@@ -155,12 +162,12 @@ bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::stri
             if (uplink_ppn.empty())
                 continue;
 
-            const auto uplink_ppn2(ppn_to_ppn_map.find(uplink_ppn));
-            if (uplink_ppn2 == ppn_to_ppn_map.end())
+            const auto ppn_and_ppn(ppn_to_canonical_ppn_map.find(uplink_ppn));
+            if (ppn_and_ppn == ppn_to_canonical_ppn_map.end())
                 continue;
 
             // If we made it here, we need to replace the uplink PPN:
-            field.insertOrReplaceSubfield('w', "(DE-576)" + uplink_ppn2->second);
+            field.insertOrReplaceSubfield('w', "(DE-576)" + ppn_and_ppn->second);
             patched = true;
         }
     }
@@ -185,9 +192,7 @@ MARC::Subfields MergeFieldContents(const MARC::Subfields &subfields1, const bool
         return subfields1;
 
     MARC::Subfields merged_subfields;
-    for (auto subfield1(subfields1.begin()), subfield2(subfields2.begin()); subfield1 != subfields1.end();
-         ++subfield1, ++subfield2)
-    {
+    for (auto subfield1(subfields1.begin()), subfield2(subfields2.begin()); subfield1 != subfields1.end(); ++subfield1, ++subfield2) {
         if (subfield1->value_ == subfield2->value_)
             merged_subfields.addSubfield(subfield1->code_, subfield1->value_);
         else {
@@ -207,9 +212,7 @@ MARC::Subfields MergeFieldContents(const MARC::Subfields &subfields1, const bool
 }
 
 
-MARC::Record::Field MergeControlFields(const MARC::Tag &tag, const std::string &field_contents1,
-                                       const std::string &field_contents2)
-{
+MARC::Record::Field MergeControlFields(const MARC::Tag &tag, const std::string &field_contents1, const std::string &field_contents2) {
     std::string merged_contents;
 
     if (tag == "005") // Date and Time of Latest Transaction
@@ -286,7 +289,7 @@ bool SubfieldPrefixIsIdentical(const MARC::Record::Field &field1, const MARC::Re
 }
 
 
-MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
+MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
     record1.reTag("260", "264");
     record2.reTag("260", "264");
 
@@ -424,64 +427,37 @@ MARC::Record &Patch246i(MARC::Record * const record) {
 }
 
 
-void ProcessRecords(const bool /*debug*/, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
-                    const std::unordered_map<std::string, std::string> &ppn_to_ppn_map)
+// Merges the records in ppn_to_canonical_ppn_map in such a way that for each entry, "second" will be merged into "first".
+// "second" will then be collected in "skip_ppns" for a future copy phase where it will be dropped.  Uplinks that referenced
+// "second" will be replaced with "first".
+void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                                 const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
+                                 const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
+                                 const std::unordered_map<std::string, std::string> &canonical_ppn_to_ppn_map)
 {
-    std::unordered_map<std::string, off_t> skip_ppns_and_offsets;
-    for (const auto &from_ppn_and_to_ppn : ppn_to_ppn_map)
-        skip_ppns_and_offsets[from_ppn_and_to_ppn.second] = 0;
-
-    unsigned record_count(0), merged_count(0), patched_uplink_count(0), skipped_count(0);
-    off_t last_offset(marc_reader->tell());
-    std::unordered_set<std::string> merged_ppns;
+    unsigned merged_count(0), patched_uplink_count(0);
     while (MARC::Record record = marc_reader->read()) {
-        ++record_count;
+        if (ppn_to_canonical_ppn_map.find(record.getControlNumber()) != ppn_to_canonical_ppn_map.cend())
+            continue; // This record will be merged into the one w/ the canonical PPN.
 
-        auto ppn_and_offset(skip_ppns_and_offsets.find(record.getControlNumber()));
-        if (ppn_and_offset != skip_ppns_and_offsets.cend()) {
-            ppn_and_offset->second = last_offset;
-            LOG_DEBUG("skipping record w/ PPN " + record.getControlNumber());
-            last_offset = marc_reader->tell();
-            ++skipped_count;
-            continue;
+        const auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map.find(record.getControlNumber()));
+        if (canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend()) {
+            const auto record2_ppn_and_offset(ppn_to_offset_map.find(canonical_ppn_and_ppn->second));
+            if (unlikely(record2_ppn_and_offset == ppn_to_offset_map.cend()))
+                LOG_ERROR("this should *never* happen!");
+            MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, record2_ppn_and_offset->second));
+            record = MergeRecordPair(Patch246i(&record), Patch246i(&record2));
         }
 
-        const auto control_number_and_offset(ppn_to_offset_map.find(record.getControlNumber()));
-        if (control_number_and_offset != ppn_to_offset_map.end()) {
-            MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, control_number_and_offset->second));
-            merged_ppns.insert(record2.getControlNumber());
-            merged_ppns.insert(record.getControlNumber());
-
-            // Only merge records if one is print and the other one online:
-            const bool record_is_electronic(record.isElectronicResource());
-            const bool record2_is_electronic(record2.isElectronicResource());
-            if (record_is_electronic != record2_is_electronic) {
-                record = MergeRecords(Patch246i(&record), Patch246i(&record2));
-                ++merged_count;
-            } else
-                marc_writer->write(record2);
-        } else if (PatchUplink(&record, ppn_to_ppn_map))
+        if (PatchUplink(&record, ppn_to_canonical_ppn_map))
             ++patched_uplink_count;
 
         marc_writer->write(record);
-        last_offset = marc_reader->tell();
     }
 
-    // Write out the orphans:
-    unsigned orphan_count(0);
-    for (const auto &skip_ppn_and_offset : skip_ppns_and_offsets) {
-        if (merged_ppns.find(skip_ppn_and_offset.first) == merged_ppns.cend()) {
-            const auto orphaned_record(ReadRecordFromOffsetOrDie(marc_reader, skip_ppn_and_offset.second));
-            marc_writer->write(orphaned_record);
-            ++orphan_count;
-        }
-    }
-    LOG_INFO("Wrote " + std::to_string(orphan_count) + " orphans.");
+    if (unlikely(merged_count != ppn_to_canonical_ppn_map.size()))
+        LOG_ERROR("sanity check failed!");
 
-    LOG_INFO("Skipped " + std::to_string(skipped_count) + " records.");
-    LOG_INFO("Data set contained " + std::to_string(record_count) + " MARC record(s).");
-    LOG_INFO("Merged " + std::to_string(merged_count) + " MARC record(s).");
     LOG_INFO("Patched uplinks of " + std::to_string(patched_uplink_count) + " MARC record(s).");
 }
 
@@ -493,8 +469,8 @@ void ProcessRecords(const bool /*debug*/, MARC::Reader * const marc_reader, MARC
 // 3. Subscriptions exist for both, electronic and print PPNs.
 //    Here we have to delete the subscription for the mapped PPN and ensure that the max_last_modification_time of the
 //    remaining subscription is the minimum of the two previously existing subscriptions.
-void PatchSerialSubscriptions(DbConnection * connection, const std::unordered_map<std::string, std::string> &ppn_to_ppn_map) {
-    for (const auto &ppn_and_ppn : ppn_to_ppn_map) {
+void PatchSerialSubscriptions(DbConnection * connection, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
+    for (const auto &ppn_and_ppn : ppn_to_canonical_ppn_map) {
         connection->queryOrDie("SELECT id,max_last_modification_time FROM ixtheo_journal_subscriptions WHERE "
                                "journal_control_number='" + ppn_and_ppn.first + "'");
         DbResultSet ppn_first_result_set(connection->getLastResultSet());
@@ -530,8 +506,8 @@ void PatchSerialSubscriptions(DbConnection * connection, const std::unordered_ma
 }
 
 
-void PatchPDASubscriptions(DbConnection * connection, const std::unordered_map<std::string, std::string> &ppn_to_ppn_map) {
-    for (const auto &ppn_and_ppn : ppn_to_ppn_map) {
+void PatchPDASubscriptions(DbConnection * connection, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
+    for (const auto &ppn_and_ppn : ppn_to_canonical_ppn_map) {
         connection->queryOrDie("SELECT id FROM ixtheo_pda_subscriptions WHERE book_ppn='" + ppn_and_ppn.first + "'");
         DbResultSet result_set(connection->getLastResultSet());
         while (const DbRow row = result_set.getNextRow())
@@ -541,8 +517,8 @@ void PatchPDASubscriptions(DbConnection * connection, const std::unordered_map<s
 }
 
 
-void PatchResourceTable(DbConnection * connection, const std::unordered_map<std::string, std::string> &ppn_to_ppn_map) {
-    for (const auto &ppn_and_ppn : ppn_to_ppn_map) {
+void PatchResourceTable(DbConnection * connection, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
+    for (const auto &ppn_and_ppn : ppn_to_canonical_ppn_map) {
         connection->queryOrDie("SELECT id FROM resource WHERE record_id='" + ppn_and_ppn.first + "'");
         DbResultSet result_set(connection->getLastResultSet());
         while (const DbRow row = result_set.getNextRow())
@@ -574,22 +550,28 @@ int Main(int argc, char *argv[]) {
     std::unique_ptr<File> missing_partners(FileUtil::OpenOutputFileOrDie(argv[3]));
 
     std::unordered_set<std::string> superior_ppns;
-    CollectSuperiorPPNs(marc_reader.get(), &superior_ppns);
-    marc_reader->rewind();
-
     std::unordered_map<std::string, off_t> ppn_to_offset_map;
-    std::unordered_map<std::string, std::string> ppn_to_ppn_map;
-    CollectMappings(debug, marc_reader.get(), missing_partners.get(), superior_ppns, &ppn_to_offset_map, &ppn_to_ppn_map);
+    std::unordered_map<std::string, std::string> ppn_to_canonical_ppn_map;
+    CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(marc_reader.get(), &superior_ppns, &ppn_to_offset_map,
+                                                            &ppn_to_canonical_ppn_map);
+
+    EliminateDanglingOrUnreferencedCrossLinks(superior_ppns, ppn_to_offset_map, &ppn_to_canonical_ppn_map);
+
+    std::unordered_map<std::string, std::string> canonical_ppn_to_ppn_map;
+    for (const auto &ppn_and_ppn : ppn_to_canonical_ppn_map)
+        canonical_ppn_to_ppn_map[ppn_and_ppn.second] = ppn_and_ppn.first;
+
     marc_reader->rewind();
-    ProcessRecords(debug, marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_ppn_map);
+    MergeRecordsAndPatchUplinks(debug, marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
+                                canonical_ppn_to_ppn_map);
 
     if (not debug) {
         std::string mysql_url;
         VuFind::GetMysqlURL(&mysql_url);
         DbConnection db_connection(mysql_url);
-        PatchSerialSubscriptions(&db_connection, ppn_to_ppn_map);
-        PatchPDASubscriptions(&db_connection, ppn_to_ppn_map);
-        PatchResourceTable(&db_connection, ppn_to_ppn_map);
+        PatchSerialSubscriptions(&db_connection, ppn_to_canonical_ppn_map);
+        PatchPDASubscriptions(&db_connection, ppn_to_canonical_ppn_map);
+        PatchResourceTable(&db_connection, ppn_to_canonical_ppn_map);
     }
 
     return EXIT_SUCCESS;
