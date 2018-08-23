@@ -136,7 +136,8 @@ void CheckLocalBlockConsistency(const MARC::Record &record) {
 void ProcessRecords(const bool do_not_abort_on_empty_subfields, const bool do_not_abort_on_invalid_repeated_fields,
                     MARC::Reader * const marc_reader, MARC::Writer * const marc_writer)
 {
-    unsigned record_count(0);
+    unsigned record_count(0), control_number_duplicate_count(0);
+    std::unordered_set<std::string> already_seen_control_numbers;
 
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
@@ -144,6 +145,13 @@ void ProcessRecords(const bool do_not_abort_on_empty_subfields, const bool do_no
         const std::string CONTROL_NUMBER(record.getControlNumber());
         if (unlikely(CONTROL_NUMBER.empty()))
             LOG_ERROR("Record #" + std::to_string(record_count) + " is missing a control number!");
+
+        if (already_seen_control_numbers.find(CONTROL_NUMBER) == already_seen_control_numbers.end())
+            already_seen_control_numbers.emplace(CONTROL_NUMBER);
+        else {
+            ++control_number_duplicate_count;
+            LOG_WARNING("found duplicate control number \"" + CONTROL_NUMBER + "\"!");
+        }
 
         CheckFieldOrder(do_not_abort_on_invalid_repeated_fields, record);
 
@@ -163,6 +171,8 @@ void ProcessRecords(const bool do_not_abort_on_empty_subfields, const bool do_no
             marc_writer->write(record);
     }
 
+    if (control_number_duplicate_count > 0)
+        LOG_ERROR("Found " + std::to_string(control_number_duplicate_count) + " duplicate control numbers!");
     std::cout << "Data set contains " << record_count << " valid MARC record(s).\n";
 }
 
