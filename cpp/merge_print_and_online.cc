@@ -456,19 +456,16 @@ void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc
         if (ppn_to_canonical_ppn_map.find(record.getControlNumber()) != ppn_to_canonical_ppn_map.cend())
             continue; // This record will be merged into the one w/ the canonical PPN.
 
-        auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map.find(record.getControlNumber()));
-        if (canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend()) {
-            for (/* Intentionally empty! */;
-                 canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend() and canonical_ppn_and_ppn->first == record.getControlNumber();
-                 ++canonical_ppn_and_ppn)
-            {
-                const auto record2_ppn_and_offset(ppn_to_offset_map.find(canonical_ppn_and_ppn->second));
-                if (unlikely(record2_ppn_and_offset == ppn_to_offset_map.cend()))
-                    LOG_ERROR("this should *never* happen!");
-                MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, record2_ppn_and_offset->second));
-                record = MergeRecordPair(Patch246i(&record), Patch246i(&record2));
-                ++merged_count;
-            }
+        for (auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map.find(record.getControlNumber()));
+             canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend() and canonical_ppn_and_ppn->first == record.getControlNumber();
+             ++canonical_ppn_and_ppn)
+        {
+            const auto record2_ppn_and_offset(ppn_to_offset_map.find(canonical_ppn_and_ppn->second));
+            if (unlikely(record2_ppn_and_offset == ppn_to_offset_map.cend()))
+                LOG_ERROR("this should *never* happen!");
+            MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, record2_ppn_and_offset->second));
+            record = MergeRecordPair(Patch246i(&record), Patch246i(&record2));
+            ++merged_count;
         }
 
         if (PatchUplink(&record, ppn_to_canonical_ppn_map))
