@@ -241,10 +241,15 @@ void InstallUBTools(const bool make_install) {
         Echo("creating " + TUELIB_CONFIG_DIRECTORY);
         ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", TUELIB_CONFIG_DIRECTORY });
     }
+
     if (not FileUtil::Exists(TUELIB_CONFIG_DIRECTORY + "/zotero-enhancement-maps")) {
         const std::string git_url("https://github.com/ubtue/zotero-enhancement-maps.git");
         ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, TUELIB_CONFIG_DIRECTORY + "/zotero-enhancement-maps" });
     }
+
+    // Add SELinux permissions for files we need to access via web.
+    // Needs to be done exactly for each file, because we might have files with passwords in there!
+    SELinuxUtil::FileContext::AddRecordIfMissing(TUELIB_CONFIG_DIRECTORY, "httpd_sys_content_t", TUELIB_CONFIG_DIRECTORY + "/issn_to_misc_bits.map");
 
     // ...and then install the rest of ub_tools:
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
