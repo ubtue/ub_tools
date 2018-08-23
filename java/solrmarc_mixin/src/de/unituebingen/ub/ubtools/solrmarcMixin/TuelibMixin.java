@@ -2249,7 +2249,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (electronicField != null)
             formats.add("Electronic");
 
-        // Determine whether an article is in fact a review
+        // Evaluate topic fields in some cases
         final List<VariableField> _655Fields = record.getVariableFields("655");
         for (final VariableField _655Field : _655Fields) {
             final DataField dataField = (DataField) _655Field;
@@ -2264,6 +2264,13 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (aSubfield.getData().startsWith("Weblog")) {
                     formats.remove("Journal");
                     formats.add("Blog");
+                    break;
+                }
+                if (aSubfield.getData().startsWith("Forschungsdaten") & dataField.getIndicator1() == ' '
+                    && dataField.getIndicator2() == '7') {
+                    formats.remove("Book");
+                    formats.remove("eBook");
+                    formats.add("ResearchData");
                     break;
                 }
             }
@@ -2347,7 +2354,6 @@ outer:  for (final VariableField _935Field : _935Fields) {
         // Since we now have an additional facet mediatype we remove the
         // electronic label
         formats.remove("Electronic");
-
         return formats;
     }
 
