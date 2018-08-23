@@ -550,22 +550,6 @@ void PatchResourceTable(DbConnection * connection, const std::unordered_map<std:
 }
 
 
-void SanityCheck(const std::string &where, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
-                 const std::unordered_map<std::string, off_t> &ppn_to_offset_map)
-{
-    for (const auto &ppn_pair : ppn_to_canonical_ppn_map) {
-        if (ppn_to_offset_map.find(ppn_pair.first) == ppn_to_offset_map.end()
-            or ppn_to_offset_map.find(ppn_pair.second) == ppn_to_offset_map.end())
-        {
-            std::cerr << "Sanity check at '" << where << "' failed!\n";
-            return;
-        }
-    }
-
-    std::cerr << "Sanity check at '" << where << "' of " << ppn_to_canonical_ppn_map.size() << " pairs passed.\n";
-}
-
-
 } // unnamed namespace
 
 
@@ -593,10 +577,8 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, std::string> ppn_to_canonical_ppn_map;
     CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(marc_reader.get(), &superior_ppns, &ppn_to_offset_map,
                                                             &ppn_to_canonical_ppn_map);
-    SanityCheck("after CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks", ppn_to_canonical_ppn_map, ppn_to_offset_map);
 
     EliminateDanglingOrUnreferencedCrossLinks(superior_ppns, ppn_to_offset_map, &ppn_to_canonical_ppn_map);
-    SanityCheck("after EliminateDanglingOrUnreferencedCrossLinks", ppn_to_canonical_ppn_map, ppn_to_offset_map);
 
     std::unordered_multimap<std::string, std::string> canonical_ppn_to_ppn_map;
     for (const auto &ppn_and_ppn : ppn_to_canonical_ppn_map)
