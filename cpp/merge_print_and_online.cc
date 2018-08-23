@@ -148,7 +148,7 @@ void EliminateDanglingOrUnreferencedCrossLinks(const std::unordered_set<std::str
             ++ppn_and_ppn;
     }
 
-    LOG_INFO("Dropped " + std::to_string(dropped_count) + " cross link(s) because at least one end was not a superior work or missing.");
+    LOG_INFO("Dropped " + std::to_string(dropped_count) + " cross link(s) because at least one end was not a superior work or is missing.");
 }
 
 
@@ -343,7 +343,7 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
             merged_record.appendField(record2_022_field);
 
             ++record1_field, ++record2_field;
-        } else if (record1_field->getTag() == record2_field->getTag() and record1_field->getTag() == "264"
+        } else if (record1_field->getTag() == "264" and record2_field->getTag() == "264"
                    and SubfieldPrefixIsIdentical(*record1_field, *record2_field, {'a', 'b'}))
         {
             std::string merged_c_subfield;
@@ -371,6 +371,19 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
                 merged_record.appendField(merged_field);
             }
             ++record1_field, ++record2_field;
+        } else if (record1_field->getTag() == "936" and record2_field->getTag() == "936") {
+            const auto &contents1(record1_field->getContents());
+            const auto &contents2(record2_field->getContents());
+            if (contents1 == contents2)
+                merged_record.appendField(*record1_field);
+            else if (contents1.find('?') != std::string::npos)
+                merged_record.appendField(*record2_field);
+            else if (contents2.find('?') != std::string::npos)
+                merged_record.appendField(*record1_field);
+            else
+                LOG_ERROR("don't know how to merge 936 fields! (\"" + contents1 + "\",\"" + contents2 + "\")");
+            ++record1_field;
+            ++record2_field;
         } else if (*record1_field < *record2_field) {
             merged_record.appendField(*record1_field);
             ++record1_field;
@@ -447,6 +460,7 @@ void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc
                 LOG_ERROR("this should *never* happen!");
             MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, record2_ppn_and_offset->second));
             record = MergeRecordPair(Patch246i(&record), Patch246i(&record2));
+            ++merged_count;
         }
 
         if (PatchUplink(&record, ppn_to_canonical_ppn_map))
@@ -456,7 +470,8 @@ void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc
     }
 
     if (unlikely(merged_count != ppn_to_canonical_ppn_map.size()))
-        LOG_ERROR("sanity check failed!");
+        LOG_ERROR("sanity check failed! (merged_count=" + std::to_string(merged_count) + ", ppn_to_canonical_ppn_map.size()="
+                  + std::to_string(ppn_to_canonical_ppn_map.size()) + ".");
 
     LOG_INFO("Patched uplinks of " + std::to_string(patched_uplink_count) + " MARC record(s).");
 }
