@@ -62,15 +62,20 @@ std::string ExtractUplinkPPN(const MARC::Record::Field &field) {
 }
 
 
+bool IsCrossLinkField(const MARC::Record::Field &field) {
+    const MARC::Subfields subfields(field.getSubfields());
+    const auto subfield_i(subfields.getFirstSubfieldWithCode('i'));
+    return not subfield_i.empty()
+           and (subfield_i == "Erscheint auch als" or subfield_i == "Online-Ausg." or subfield_i == "Digital. Ausg."
+                or subfield_i == "Druckausg.");
+}
+
+
 // Returns a partner PPN or the empty string if none was found.
 std::string ExtractCrossReferencePPNFromTag(const MARC::Record &record, const std::string &tag) {
     for (const auto &field : record.getTagRange(tag)) {
-        const MARC::Subfields subfields(field.getSubfields());
-        const auto subfield_i(subfields.getFirstSubfieldWithCode('i'));
-        if (not subfield_i.empty()
-            and (subfield_i == "Erscheint auch als" or subfield_i == "Online-Ausg." or subfield_i == "Digital. Ausg."
-                 or subfield_i == "Druckausg."))
-        {
+        if (IsCrossLinkField(field)) {
+            const MARC::Subfields subfields(field.getSubfields());
             for (const auto &w_subfield : subfields.extractSubfields('w')) {
                 if (StringUtil::StartsWith(w_subfield, "(DE-576)"))
                     return w_subfield.substr(__builtin_strlen("(DE-576)"));
@@ -442,6 +447,16 @@ MARC::Record &Patch246i(MARC::Record * const record) {
 }
 
 
+void DeleteCrossLinkFields(MARC::Record * const record) {
+    std::vector<size_t> field_indices_for_deletion;
+    for (auto field(record->begin()); field != record->end(); ++field) {
+        if (IsCrossLinkField(*field))
+            field_indices_for_deletion.emplace_back(field - record->begin());
+    }
+    record->deleteFields(field_indices_for_deletion);
+}
+
+
 // Merges the records in ppn_to_canonical_ppn_map in such a way that for each entry, "second" will be merged into "first".
 // "second" will then be collected in "skip_ppns" for a future copy phase where it will be dropped.  Uplinks that referenced
 // "second" will be replaced with "first".
@@ -455,16 +470,20 @@ void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc
         if (ppn_to_canonical_ppn_map.find(record.getControlNumber()) != ppn_to_canonical_ppn_map.cend())
             continue; // This record will be merged into the one w/ the canonical PPN.
 
-        for (auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map.find(record.getControlNumber()));
-             canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend() and canonical_ppn_and_ppn->first == record.getControlNumber();
-             ++canonical_ppn_and_ppn)
-        {
-            const auto record2_ppn_and_offset(ppn_to_offset_map.find(canonical_ppn_and_ppn->second));
-            if (unlikely(record2_ppn_and_offset == ppn_to_offset_map.cend()))
-                LOG_ERROR("this should *never* happen!");
-            MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, record2_ppn_and_offset->second));
-            record = MergeRecordPair(Patch246i(&record), Patch246i(&record2));
-            ++merged_count;
+        auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map.find(record.getControlNumber()));
+        if (canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend()) {
+            for (/* Intentionally empty! */;
+                 canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend() and canonical_ppn_and_ppn->first == record.getControlNumber();
+                 ++canonical_ppn_and_ppn)
+            {
+                const auto record2_ppn_and_offset(ppn_to_offset_map.find(canonical_ppn_and_ppn->second));
+                if (unlikely(record2_ppn_and_offset == ppn_to_offset_map.cend()))
+                    LOG_ERROR("this should *never* happen!");
+                MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, record2_ppn_and_offset->second));
+                record = MergeRecordPair(Patch246i(&record), Patch246i(&record2));
+                ++merged_count;
+            }
+            DeleteCrossLinkFields(&record);
         }
 
         if (PatchUplink(&record, ppn_to_canonical_ppn_map))
