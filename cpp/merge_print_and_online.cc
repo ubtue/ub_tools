@@ -18,7 +18,7 @@
 */
 
 #include <iostream>
-#include <set>
+#include <map>
 #include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
@@ -45,7 +45,7 @@ namespace {
               << "       the partners missing.  N.B. the input MARC file *must* be in the MARC-21 format!\n\n";
     std::exit(EXIT_FAILURE);
 }
-
+    
 
 const std::set<MARC::Tag> UPLINK_TAGS{ "800", "810", "830", "773", "776" };
 
@@ -374,14 +374,17 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
         } else if (record1_field->getTag() == "936" and record2_field->getTag() == "936") {
             const auto &contents1(record1_field->getContents());
             const auto &contents2(record2_field->getContents());
-            if (contents1 == contents2)
+            if (NormaliseWhitespaceAndLowercase(contents1) == NormaliseWhitespaceAndLowercase(contents2))
                 merged_record.appendField(*record1_field);
             else if (contents1.find('?') != std::string::npos)
                 merged_record.appendField(*record2_field);
             else if (contents2.find('?') != std::string::npos)
                 merged_record.appendField(*record1_field);
-            else
-                LOG_ERROR("don't know how to merge 936 fields! (\"" + contents1 + "\",\"" + contents2 + "\")");
+            else {
+                LOG_WARNING("don't know how to merge 936 fields! (field1=\"" + contents1 + "\",field2=\"" + contents2
+                            + "\"), arbitrarily keeping field1");
+                merged_record.appendField(*record1_field);
+            }
             ++record1_field;
             ++record2_field;
         } else if (*record1_field < *record2_field) {
@@ -446,21 +449,26 @@ MARC::Record &Patch246i(MARC::Record * const record) {
 void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                                  const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
                                  const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
-                                 const std::unordered_map<std::string, std::string> &canonical_ppn_to_ppn_map)
+                                 const std::unordered_multimap<std::string, std::string> &canonical_ppn_to_ppn_map)
 {
     unsigned merged_count(0), patched_uplink_count(0);
     while (MARC::Record record = marc_reader->read()) {
         if (ppn_to_canonical_ppn_map.find(record.getControlNumber()) != ppn_to_canonical_ppn_map.cend())
             continue; // This record will be merged into the one w/ the canonical PPN.
 
-        const auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map.find(record.getControlNumber()));
+        auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map.find(record.getControlNumber()));
         if (canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend()) {
-            const auto record2_ppn_and_offset(ppn_to_offset_map.find(canonical_ppn_and_ppn->second));
-            if (unlikely(record2_ppn_and_offset == ppn_to_offset_map.cend()))
-                LOG_ERROR("this should *never* happen!");
-            MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, record2_ppn_and_offset->second));
-            record = MergeRecordPair(Patch246i(&record), Patch246i(&record2));
-            ++merged_count;
+            for (/* Intentionally empty! */;
+                 canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend() and canonical_ppn_and_ppn->first == record.getControlNumber();
+                 ++canonical_ppn_and_ppn)
+            {
+                const auto record2_ppn_and_offset(ppn_to_offset_map.find(canonical_ppn_and_ppn->second));
+                if (unlikely(record2_ppn_and_offset == ppn_to_offset_map.cend()))
+                    LOG_ERROR("this should *never* happen!");
+                MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, record2_ppn_and_offset->second));
+                record = MergeRecordPair(Patch246i(&record), Patch246i(&record2));
+                ++merged_count;
+            }
         }
 
         if (PatchUplink(&record, ppn_to_canonical_ppn_map))
@@ -542,6 +550,22 @@ void PatchResourceTable(DbConnection * connection, const std::unordered_map<std:
 }
 
 
+void SanityCheck(const std::string &where, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
+                 const std::unordered_map<std::string, off_t> &ppn_to_offset_map)
+{
+    for (const auto &ppn_pair : ppn_to_canonical_ppn_map) {
+        if (ppn_to_offset_map.find(ppn_pair.first) == ppn_to_offset_map.end()
+            or ppn_to_offset_map.find(ppn_pair.second) == ppn_to_offset_map.end())
+        {
+            std::cerr << "Sanity check at '" << where << "' failed!\n";
+            return;
+        }
+    }
+
+    std::cerr << "Sanity check at '" << where << "' of " << ppn_to_canonical_ppn_map.size() << " pairs passed.\n";
+}
+
+
 } // unnamed namespace
 
 
@@ -569,12 +593,14 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, std::string> ppn_to_canonical_ppn_map;
     CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(marc_reader.get(), &superior_ppns, &ppn_to_offset_map,
                                                             &ppn_to_canonical_ppn_map);
+    SanityCheck("after CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks", ppn_to_canonical_ppn_map, ppn_to_offset_map);
 
     EliminateDanglingOrUnreferencedCrossLinks(superior_ppns, ppn_to_offset_map, &ppn_to_canonical_ppn_map);
+    SanityCheck("after EliminateDanglingOrUnreferencedCrossLinks", ppn_to_canonical_ppn_map, ppn_to_offset_map);
 
-    std::unordered_map<std::string, std::string> canonical_ppn_to_ppn_map;
+    std::unordered_multimap<std::string, std::string> canonical_ppn_to_ppn_map;
     for (const auto &ppn_and_ppn : ppn_to_canonical_ppn_map)
-        canonical_ppn_to_ppn_map[ppn_and_ppn.second] = ppn_and_ppn.first;
+        canonical_ppn_to_ppn_map.emplace(ppn_and_ppn.second, ppn_and_ppn.first);
 
     marc_reader->rewind();
     MergeRecordsAndPatchUplinks(debug, marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
