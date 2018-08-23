@@ -63,11 +63,14 @@ std::string ExtractUplinkPPN(const MARC::Record::Field &field) {
 
 
 bool IsCrossLinkField(const MARC::Record::Field &field) {
-    const MARC::Subfields subfields(field.getSubfields());
-    const auto subfield_i(subfields.getFirstSubfieldWithCode('i'));
-    return not subfield_i.empty()
-           and (subfield_i == "Erscheint auch als" or subfield_i == "Online-Ausg." or subfield_i == "Digital. Ausg."
-                or subfield_i == "Druckausg.");
+    for (const auto &subfield : field.getSubfields()) {
+        if (subfield.code_ == 'i'
+            and (subfield.value_ == "Erscheint auch als" or subfield.value_ == "Online-Ausg." or subfield.value_ == "Digital. Ausg."
+                 or subfield.value_ == "Druckausg."))
+            return true;
+    }
+
+    return false;
 }
 
 
