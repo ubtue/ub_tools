@@ -434,6 +434,9 @@ void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc
 {
     unsigned merged_count(0), patched_uplink_count(0);
     while (MARC::Record record = marc_reader->read()) {
+        if (ppn_to_canonical_ppn_map.find(record.getControlNumber()) != ppn_to_canonical_ppn_map.cend())
+            continue; // This record will be merged into the one w/ the canonical PPN.
+
         const auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map.find(record.getControlNumber()));
         if (canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend()) {
             const auto record2_ppn_and_offset(ppn_to_offset_map.find(canonical_ppn_and_ppn->second));
@@ -453,22 +456,6 @@ void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc
         LOG_ERROR("sanity check failed!");
 
     LOG_INFO("Patched uplinks of " + std::to_string(patched_uplink_count) + " MARC record(s).");
-}
-
-
-void DropMergedPartners(const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
-                        MARC::Reader * const marc_reader, MARC::Writer * const marc_writer)
-{
-    unsigned dropped_count(0);
-    while (MARC::Record record = marc_reader->read()) {
-        if (ppn_to_canonical_ppn_map.find(record.getControlNumber()) == ppn_to_canonical_ppn_map.cend())
-            marc_writer->write(record);
-        else
-            ++dropped_count;
-    }
-
-    if (unlikely(dropped_count != ppn_to_canonical_ppn_map.size()))
-        LOG_ERROR("sanity check failed!");
 }
 
 
@@ -572,15 +559,8 @@ int Main(int argc, char *argv[]) {
     for (const auto &ppn_and_ppn : ppn_to_canonical_ppn_map)
         canonical_ppn_to_ppn_map[ppn_and_ppn.second] = ppn_and_ppn.first;
 
-    const std::string intermediate_file_name("/tmp/" + FileUtil::GetLastPathComponent(::progname) + ".temp.mrc");
-    auto intermediate_file_writer(MARC::Writer::Factory(intermediate_file_name));
-    std::unordered_set<std::string> skip_ppns;
-    MergeRecordsAndPatchUplinks(debug, marc_reader.get(), intermediate_file_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
+    MergeRecordsAndPatchUplinks(debug, marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
                                 canonical_ppn_to_ppn_map);
-    intermediate_file_writer.reset();
-
-    const auto intermediate_file_reader(MARC::Reader::Factory(intermediate_file_name));
-    DropMergedPartners(ppn_to_canonical_ppn_map, intermediate_file_reader.get(), marc_writer.get());
 
     if (not debug) {
         std::string mysql_url;
@@ -590,8 +570,6 @@ int Main(int argc, char *argv[]) {
         PatchPDASubscriptions(&db_connection, ppn_to_canonical_ppn_map);
         PatchResourceTable(&db_connection, ppn_to_canonical_ppn_map);
     }
-
-    ::unlink(intermediate_file_name.c_str());
 
     return EXIT_SUCCESS;
 }
