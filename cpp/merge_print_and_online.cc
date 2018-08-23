@@ -103,6 +103,9 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * cons
     while (const auto record = marc_reader->read()) {
         ++record_count;
 
+        if (unlikely(ppn_to_offset_map->find(record.getControlNumber()) != ppn_to_offset_map->end()))
+            LOG_ERROR("duplicate PPN \"" + record.getControlNumber() + "\" in input file \"" + marc_reader->getPath() + "\"!");
+
         (*ppn_to_offset_map)[record.getControlNumber()] = last_offset;
         for (const auto &field : record) {
             if (UPLINK_TAGS.find(field.getTag()) != UPLINK_TAGS.cend()) {
@@ -551,7 +554,6 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, std::string> ppn_to_canonical_ppn_map;
     CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(marc_reader.get(), &superior_ppns, &ppn_to_offset_map,
                                                             &ppn_to_canonical_ppn_map);
-    marc_reader->rewind();
 
     EliminateDanglingOrUnreferencedCrossLinks(superior_ppns, ppn_to_offset_map, &ppn_to_canonical_ppn_map);
 
@@ -559,6 +561,7 @@ int Main(int argc, char *argv[]) {
     for (const auto &ppn_and_ppn : ppn_to_canonical_ppn_map)
         canonical_ppn_to_ppn_map[ppn_and_ppn.second] = ppn_and_ppn.first;
 
+    marc_reader->rewind();
     MergeRecordsAndPatchUplinks(debug, marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
                                 canonical_ppn_to_ppn_map);
 
