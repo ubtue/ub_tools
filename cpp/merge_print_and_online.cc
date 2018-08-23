@@ -18,7 +18,6 @@
 */
 
 #include <iostream>
-#include <map>
 #include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
@@ -45,7 +44,7 @@ namespace {
               << "       the partners missing.  N.B. the input MARC file *must* be in the MARC-21 format!\n\n";
     std::exit(EXIT_FAILURE);
 }
-    
+
 
 const std::set<MARC::Tag> UPLINK_TAGS{ "800", "810", "830", "773", "776" };
 
