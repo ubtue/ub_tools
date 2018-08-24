@@ -129,24 +129,6 @@ const std::map<std::string, MARC::Record::BibliographicLevel> ITEM_TYPE_TO_BIBLI
 const std::string DEFAULT_SUBFIELD_CODE("eng");
 
 
-namespace {
-
-
-// We try to be unique for the machine we're on.  Beyond that we may have a problem.
-std::string GetNextSessionId() {
-    static unsigned counter;
-    static uint32_t uuid[4];
-    if (unlikely(counter == 0))
-        ::uuid_generate(reinterpret_cast<unsigned char *>(uuid));
-    ++counter;
-    return "ub_tools_zts_client_" + StringUtil::ToString(uuid[0]) + StringUtil::ToString(uuid[1])
-           + StringUtil::ToString(uuid[2]) + StringUtil::ToString(uuid[3]) + "_" + StringUtil::ToString(counter);
-}
-
-
-} // unnamed namespace
-
-
 namespace TranslationServer {
 
 
@@ -204,10 +186,28 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
          std::string * const error_message, const std::string &/*harvested_html*/)
 {
     const std::string endpoint_url(Url(zts_server_url.toString() + "/web"));
+    downloader_params.additional_headers_ = { "Accept: application/json", "Content-Type: text/plain" };
+    downloader_params.post_data_ = harvest_url;
+
+    Downloader downloader(endpoint_url, downloader_params, time_limit);
+    if (downloader.anErrorOccurred()) {
+        *error_message = downloader.getLastErrorMessage();
+        return false;
+    } else {
+        *response_code = downloader.getResponseCode();
+        *response_body = downloader.getMessageBody();
+        return ResponseCodeIndicatesSuccess(*response_code, *response_body, error_message);
+    }
+}
+
+
+bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
+         const std::string &request_body, std::string * const response_body, unsigned * response_code,
+         std::string * const error_message)
+{
+    const std::string endpoint_url(Url(zts_server_url.toString() + "/web"));
     downloader_params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json" };
-    downloader_params.post_data_ = "{\"url\":\"" + JSON::EscapeString(harvest_url) + "\","
-                                   + "\"sessionid\":\"" + JSON::EscapeString(GetNextSessionId()) + "\"";
-    downloader_params.post_data_ += "}";
+    downloader_params.post_data_ = request_body;
 
     Downloader downloader(endpoint_url, downloader_params, time_limit);
     if (downloader.anErrorOccurred()) {
@@ -935,9 +935,9 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     harvest_params->min_url_processing_time_.sleepUntilExpired();
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = harvest_params->user_agent_;
-    const bool download_succeeded(TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT,
-                                                         downloader_params, Url(harvest_url), &response_body, &response_code,
-                                                         &error_message, harvested_html));
+    bool download_succeeded(TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT,
+                                                   downloader_params, Url(harvest_url), &response_body, &response_code,
+                                                   &error_message, harvested_html));
 
     harvest_params->min_url_processing_time_.restart();
     if (not download_succeeded) {
@@ -945,51 +945,42 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         return std::make_pair(0, 0);
     }
 
+    // 300 => multiple matches found, try to harvest children (send the response_body right back to the server, to get all of them)
+    if (response_code == 300) {
+        LOG_DEBUG("multiple articles found => trying to harvest children");
+        download_succeeded = TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT,
+                                                    downloader_params, response_body, &response_body, &response_code, &error_message);
+        if (not download_succeeded) {
+            LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tDownload multiple results failed: " + error_message);
+            return std::make_pair(0, 0);
+        }
+    }
+
+    // Process either single or multiple results (response_body is array by now)
     std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
     JSON::Parser json_parser(response_body);
     if (not (json_parser.parse(&tree_root)))
         LOG_ERROR(site_params.parent_journal_name_ + "\t" + harvest_url + "\tfailed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
 
-    // 300 => multiple matches found, try to harvest children
-    if (response_code == 300) {
-        LOG_DEBUG("multiple articles found => trying to harvest children");
-        if (tree_root->getType() == JSON::ArrayNode::OBJECT_NODE) {
-            const std::shared_ptr<const JSON::ObjectNode>object_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root",
-                                                                                                           tree_root));
+    const std::shared_ptr<const JSON::ArrayNode>json_array(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
+    int processed_json_entries(0);
+    for (const auto entry : *json_array) {
+        const std::shared_ptr<JSON::ObjectNode> json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
+        ++processed_json_entries;
 
-            for (const auto &key_and_node : *object_node) {
-                std::string key_and_node_url(key_and_node.first);
-                if (MiscUtil::IsDOI(key_and_node_url))
-                    key_and_node_url = "https://doi.org/" + key_and_node_url;
-
-                std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
-                    Harvest(key_and_node_url, harvest_params, site_params, /* harvested_html = */"", /* log = */false);
-
-                record_count_and_previously_downloaded_count.first += record_count_and_previously_downloaded_count2.first;
-                record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
-            }
-        }
-    } else {
-        const std::shared_ptr<const JSON::ArrayNode>json_array(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
-        int processed_json_entries(0);
-        for (const auto entry : *json_array) {
-            const std::shared_ptr<JSON::ObjectNode> json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
-            ++processed_json_entries;
-
-            try {
-                AugmentJson(harvest_url, json_object, site_params);
-                record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
-            } catch (const std::exception &x) {
-                LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tCouldn't process record! Error: "
-                            + std::string(x.what()));
-                return record_count_and_previously_downloaded_count;
-            }
-        }
-
-        if (processed_json_entries == 0) {
-            LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tZotero translation server returned an empty response!"                  "Response code = " + std::to_string(response_code));
+        try {
+            AugmentJson(harvest_url, json_object, site_params);
+            record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
+        } catch (const std::exception &x) {
+            LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tCouldn't process record! Error: "
+                        + std::string(x.what()));
+            return record_count_and_previously_downloaded_count;
         }
     }
+
+    if (processed_json_entries == 0)
+        LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tZotero translation server returned an empty response!"                  "Response code = " + std::to_string(response_code));
+
     ++harvest_params->harvested_url_count_;
 
     if (log) {
