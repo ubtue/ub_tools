@@ -75,35 +75,33 @@ bool IsCrossLinkField(const MARC::Record::Field &field) {
 
 
 // Returns a partner PPN or the empty string if none was found.
-std::string ExtractCrossReferencePPNFromTag(const MARC::Record &record, const std::string &tag) {
+void ExtractCrossReferencePPNsFromTag(const MARC::Record &record, const std::string &tag, std::set<std::string> * const partner_ppns) {
     for (const auto &field : record.getTagRange(tag)) {
         if (IsCrossLinkField(field)) {
             const MARC::Subfields subfields(field.getSubfields());
             for (const auto &w_subfield : subfields.extractSubfields('w')) {
                 if (StringUtil::StartsWith(w_subfield, "(DE-576)"))
-                    return w_subfield.substr(__builtin_strlen("(DE-576)"));
+                    partner_ppns->emplace(w_subfield.substr(__builtin_strlen("(DE-576)")));
             }
         }
     }
-
-    return "";
 }
 
 
 // Returns a partner PPN or the empty string if none was found.
-std::string ExtractCrossReferencePPN(const MARC::Record &record) {
-    const std::string partner_ppn(ExtractCrossReferencePPNFromTag(record, "775"));
-    if (not partner_ppn.empty())
-        return partner_ppn;
-
-    return ExtractCrossReferencePPNFromTag(record, "776");
+std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record) {
+    std::set<std::string> partner_ppns;
+    ExtractCrossReferencePPNsFromTag(record, "775", &partner_ppns);
+    ExtractCrossReferencePPNsFromTag(record, "776", &partner_ppns);
+    return partner_ppns;
 }
 
 
 void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * const marc_reader,
                                                              std::unordered_set<std::string> * const superior_ppns,
                                                              std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
-                                                             std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map)
+                                                             std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map,
+                                                             std::unordered_multimap<std::string, std::string> * const canonical_ppn_to_ppn_map)
 {
     off_t last_offset(0);
     unsigned record_count(0);
@@ -122,12 +120,39 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * cons
             }
         }
 
-        const auto cross_link_ppn(ExtractCrossReferencePPN(record));
-        if (not cross_link_ppn.empty()) {
-            if (cross_link_ppn < record.getControlNumber())
-                (*ppn_to_canonical_ppn_map)[cross_link_ppn] = record.getControlNumber();
-            else
-                (*ppn_to_canonical_ppn_map)[record.getControlNumber()] = cross_link_ppn;
+        // in the following lines, we get all cross referenced PPNs and check the maps for their references as well.
+        // we then determine the new superior PPN for all cross refences and overwrite all existing mapping entries.
+        auto cross_link_ppns(ExtractCrossReferencePPNs(record));
+        if (not cross_link_ppns.empty()) {
+
+            // check maps for additional referenced ppns
+            for (const auto &ppn : cross_link_ppns) {
+                const auto it(ppn_to_canonical_ppn_map->find(ppn));
+                if (it != ppn_to_canonical_ppn_map->end())
+                    cross_link_ppns.emplace(it->second);
+
+                auto canonical_ppn_and_ppn_range(canonical_ppn_to_ppn_map->equal_range(ppn));
+                for (auto it2 = canonical_ppn_and_ppn_range.first; it2 != canonical_ppn_and_ppn_range.second; ++it2)
+                    cross_link_ppns.emplace(it2->second);
+            }
+            cross_link_ppns.emplace(record.getControlNumber());
+
+            // get new max PPN, which will be winner for merging
+            const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(), [](std::string a, std::string b) -> bool { return a<b; }));
+
+            // remove old references
+            for (const auto &ppn : cross_link_ppns) {
+                ppn_to_canonical_ppn_map->erase(ppn);
+                canonical_ppn_to_ppn_map->erase(ppn);
+            }
+
+            // add new/updated references
+            for (const auto &ppn : cross_link_ppns) {
+                if (ppn != max_ppn) {
+                    ppn_to_canonical_ppn_map->emplace(ppn, max_ppn);
+                    canonical_ppn_to_ppn_map->emplace(max_ppn, ppn);
+                }
+            }
         }
 
         last_offset = marc_reader->tell();
@@ -140,19 +165,51 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * cons
 
 void EliminateDanglingOrUnreferencedCrossLinks(const std::unordered_set<std::string> &superior_ppns,
                                                const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
-                                               std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map)
+                                               std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map,
+                                               std::unordered_multimap<std::string, std::string> * const canonical_ppn_to_ppn_map)
 {
     unsigned dropped_count(0);
-    for (auto ppn_and_ppn(ppn_to_canonical_ppn_map->begin()); ppn_and_ppn != ppn_to_canonical_ppn_map->end(); /* Intentionally empty! */) {
-        if (ppn_to_offset_map.find(ppn_and_ppn->first) == ppn_to_offset_map.cend()
-            or ppn_to_offset_map.find(ppn_and_ppn->second) == ppn_to_offset_map.cend()
-            or superior_ppns.find(ppn_and_ppn->first) == superior_ppns.cend()
-            or superior_ppns.find(ppn_and_ppn->second) == superior_ppns.cend())
-         {
-             ppn_and_ppn = ppn_to_canonical_ppn_map->erase(ppn_and_ppn);
-             ++dropped_count;
-         } else
-            ++ppn_and_ppn;
+    auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map->begin());
+    std::set<std::string> group_ppns;
+    while (canonical_ppn_and_ppn != canonical_ppn_to_ppn_map->end()) {
+        const std::string canonical_ppn(canonical_ppn_and_ppn->first);
+        group_ppns.emplace(canonical_ppn_and_ppn->second);
+        const auto next_canonical_ppn_and_ppn(std::next(canonical_ppn_and_ppn, 1));
+        bool drop_group(false);
+
+        if (next_canonical_ppn_and_ppn == canonical_ppn_to_ppn_map->end()
+            or next_canonical_ppn_and_ppn->first != canonical_ppn)
+        {
+            // Decide to drop group either if PPN for merging is not a superior PPN or doesn't exist...
+            drop_group = (superior_ppns.find(canonical_ppn) == superior_ppns.end()
+                          or ppn_to_offset_map.find(canonical_ppn) == ppn_to_offset_map.end());
+
+            // ... or at least one of the PPN's doesn't exist
+            if (not drop_group) {
+                for (const auto &ppn : group_ppns) {
+                    if (ppn_to_offset_map.find(ppn) == ppn_to_offset_map.end()) {
+                        drop_group = true;
+                        break;
+                    }
+                }
+            }
+
+            // Do drop
+            if (drop_group) {
+                for (const auto &ppn : group_ppns)
+                    ppn_to_canonical_ppn_map->erase(ppn);
+
+                dropped_count += group_ppns.size() + 1;
+                while (canonical_ppn_to_ppn_map->find(canonical_ppn) != canonical_ppn_to_ppn_map->end())
+                    canonical_ppn_and_ppn = canonical_ppn_to_ppn_map->erase(canonical_ppn_to_ppn_map->find(canonical_ppn));
+
+            }
+
+            group_ppns.clear();
+        }
+
+        if (not drop_group)
+            ++canonical_ppn_and_ppn;
     }
 
     LOG_INFO("Dropped " + std::to_string(dropped_count) + " cross link(s) because at least one end was not a superior work or is missing.");
@@ -469,6 +526,10 @@ void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc
                                  const std::unordered_multimap<std::string, std::string> &canonical_ppn_to_ppn_map)
 {
     unsigned merged_count(0), patched_uplink_count(0);
+    std::unordered_set<std::string> unprocessed_ppns;
+    for (const auto &ppn_and_ppn : canonical_ppn_to_ppn_map)
+        unprocessed_ppns.emplace(ppn_and_ppn.second);
+
     while (MARC::Record record = marc_reader->read()) {
         if (ppn_to_canonical_ppn_map.find(record.getControlNumber()) != ppn_to_canonical_ppn_map.cend())
             continue; // This record will be merged into the one w/ the canonical PPN.
@@ -481,10 +542,11 @@ void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc
             {
                 const auto record2_ppn_and_offset(ppn_to_offset_map.find(canonical_ppn_and_ppn->second));
                 if (unlikely(record2_ppn_and_offset == ppn_to_offset_map.cend()))
-                    LOG_ERROR("this should *never* happen!");
+                    LOG_ERROR("this should *never* happen! missing PPN in ppn_to_offset_map: " + canonical_ppn_and_ppn->second);
                 MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, record2_ppn_and_offset->second));
                 record = MergeRecordPair(Patch246i(&record), Patch246i(&record2));
                 ++merged_count;
+                unprocessed_ppns.erase(canonical_ppn_and_ppn->second);
             }
             DeleteCrossLinkFields(&record);
         }
@@ -495,9 +557,10 @@ void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc
         marc_writer->write(record);
     }
 
-    if (unlikely(merged_count != ppn_to_canonical_ppn_map.size()))
-        LOG_ERROR("sanity check failed! (merged_count=" + std::to_string(merged_count) + ", ppn_to_canonical_ppn_map.size()="
-                  + std::to_string(ppn_to_canonical_ppn_map.size()) + ".");
+    if (unlikely(merged_count != canonical_ppn_to_ppn_map.size())) {
+        LOG_ERROR("sanity check failed! (merged_count=" + std::to_string(merged_count) + ", canonical_ppn_to_ppn_map.size()="
+                  + std::to_string(canonical_ppn_to_ppn_map.size()) + ". Missing PPNs: " + StringUtil::Join(unprocessed_ppns, ", "));
+    }
 
     LOG_INFO("Patched uplinks of " + std::to_string(patched_uplink_count) + " MARC record(s).");
 }
@@ -593,14 +656,11 @@ int Main(int argc, char *argv[]) {
     std::unordered_set<std::string> superior_ppns;
     std::unordered_map<std::string, off_t> ppn_to_offset_map;
     std::unordered_map<std::string, std::string> ppn_to_canonical_ppn_map;
-    CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(marc_reader.get(), &superior_ppns, &ppn_to_offset_map,
-                                                            &ppn_to_canonical_ppn_map);
-
-    EliminateDanglingOrUnreferencedCrossLinks(superior_ppns, ppn_to_offset_map, &ppn_to_canonical_ppn_map);
-
     std::unordered_multimap<std::string, std::string> canonical_ppn_to_ppn_map;
-    for (const auto &ppn_and_ppn : ppn_to_canonical_ppn_map)
-        canonical_ppn_to_ppn_map.emplace(ppn_and_ppn.second, ppn_and_ppn.first);
+    CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(marc_reader.get(), &superior_ppns, &ppn_to_offset_map,
+                                                            &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
+
+    EliminateDanglingOrUnreferencedCrossLinks(superior_ppns, ppn_to_offset_map, &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
 
     marc_reader->rewind();
     MergeRecordsAndPatchUplinks(debug, marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
