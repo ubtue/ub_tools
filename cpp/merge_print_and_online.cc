@@ -158,15 +158,6 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * cons
         last_offset = marc_reader->tell();
     }
 
-    std::cout << "ppn_to_canonical_ppn_map\n";
-    for (const auto &ppn_and_ppn : *ppn_to_canonical_ppn_map) {
-        std::cout << ppn_and_ppn.first << " " << ppn_and_ppn.second << "\n";
-    }
-    std::cout << "canonical_ppn_to_ppn_map\n";
-    for (const auto &ppn_and_ppn : *canonical_ppn_to_ppn_map) {
-        std::cout << ppn_and_ppn.first << " " << ppn_and_ppn.second << "\n";
-    }
-
     LOG_INFO("Found " + std::to_string(record_count) + " record(s).");
     LOG_INFO("Found " + std::to_string(ppn_to_canonical_ppn_map->size()) + " cross link(s).");
 }
@@ -566,9 +557,9 @@ void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc
         marc_writer->write(record);
     }
 
-    if (unlikely(merged_count != ppn_to_canonical_ppn_map.size())) {
-        LOG_ERROR("sanity check failed! (merged_count=" + std::to_string(merged_count) + ", ppn_to_canonical_ppn_map.size()="
-                  + std::to_string(ppn_to_canonical_ppn_map.size()) + ". Missing PPNs: " + StringUtil::Join(unprocessed_ppns, ", "));
+    if (unlikely(merged_count != canonical_ppn_to_ppn_map.size())) {
+        LOG_ERROR("sanity check failed! (merged_count=" + std::to_string(merged_count) + ", canonical_ppn_to_ppn_map.size()="
+                  + std::to_string(canonical_ppn_to_ppn_map.size()) + ". Missing PPNs: " + StringUtil::Join(unprocessed_ppns, ", "));
     }
 
     LOG_INFO("Patched uplinks of " + std::to_string(patched_uplink_count) + " MARC record(s).");
