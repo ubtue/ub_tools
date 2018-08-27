@@ -120,6 +120,8 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * cons
             }
         }
 
+        // in the following lines, we get all cross referenced PPNs and check the maps for their references as well.
+        // we then determine the new superior PPN for all cross refences and overwrite all existing mapping entries.
         auto cross_link_ppns(ExtractCrossReferencePPNs(record));
         if (not cross_link_ppns.empty()) {
 
