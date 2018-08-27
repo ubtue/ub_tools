@@ -128,19 +128,17 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * cons
             // check maps for additional referenced ppns
             for (const auto &ppn : cross_link_ppns) {
                 const auto it(ppn_to_canonical_ppn_map->find(ppn));
-                if (it != ppn_to_canonical_ppn_map->end()) {
+                if (it != ppn_to_canonical_ppn_map->end())
                     cross_link_ppns.emplace(it->second);
-                }
-                auto it2(canonical_ppn_to_ppn_map->find(ppn));
-                while (it2 != canonical_ppn_to_ppn_map->end() and it2->first == ppn) {
+
+                auto canonical_ppn_and_ppn_range(canonical_ppn_to_ppn_map->equal_range(ppn));
+                for (auto it2 = canonical_ppn_and_ppn_range.first; it2 != canonical_ppn_and_ppn_range.second; ++it2)
                     cross_link_ppns.emplace(it2->second);
-                    ++it2;
-                }
             }
             cross_link_ppns.emplace(record.getControlNumber());
 
             // get new max PPN, which will be winner for merging
-            const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(), [](std::string a, std::string b)->bool { return a<b; }));
+            const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(), [](std::string a, std::string b) -> bool { return a<b; }));
 
             // remove old references
             for (const auto &ppn : cross_link_ppns) {
