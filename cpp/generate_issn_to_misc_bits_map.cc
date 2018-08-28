@@ -86,6 +86,7 @@ void PopulateISSNtoControlNumberMapFile(MARC::Reader * const marc_reader, File *
                         (*output) << normalised_issn << ',' << record.getControlNumber() << ',' << unique_language_code << ','
                                   << sanitized_856z_contents << ',' << record.getMainTitle() << '\n';
                         ++written_count;
+                        goto skip_to_next_record; // Avoid to write the entry several times
                     } else {
                         ++malformed_count;
                         LOG_WARNING("Weird ISSN: \"" + subfield_value + "\"!");
@@ -93,6 +94,7 @@ void PopulateISSNtoControlNumberMapFile(MARC::Reader * const marc_reader, File *
                 }
             }
         }
+skip_to_next_record:;
     }
 
     LOG_INFO("Found " + std::to_string(written_count) + " ISSN's associated with " + std::to_string(total_count)
