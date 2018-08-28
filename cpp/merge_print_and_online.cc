@@ -218,25 +218,37 @@ void EliminateDanglingOrUnreferencedCrossLinks(const std::unordered_set<std::str
 
 // Make inferior works point to the new merged superior parent found in "ppn_to_canonical_ppn_map".  Links referencing a key in
 // "ppn_to_canonical_ppn_map" will be patched with the corresponding value.
-bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
-    bool patched(false);
-    for (auto field : *record) {
-        if (UPLINK_TAGS.find(field.getTag().toString()) != UPLINK_TAGS.cend()) {
-            const std::string uplink_ppn(ExtractUplinkPPN(field));
+// multiple uplinks of the same tag type will be deleted.
+unsigned PatchUplinks(MARC::Record * const record, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
+    unsigned patched_uplinks(0);
+
+    std::vector<size_t> uplinks_for_deletion;
+    std::set<std::string> uplink_tags_done;
+    for (auto field(record->begin()); field != record->end(); ++field) {
+        const std::string field_tag(field->getTag().toString());
+        if (UPLINK_TAGS.find(field_tag) != UPLINK_TAGS.cend()) {
+            const std::string uplink_ppn(ExtractUplinkPPN(*field));
             if (uplink_ppn.empty())
                 continue;
+
+            if (uplink_tags_done.find(field_tag) != uplink_tags_done.end()) {
+                uplinks_for_deletion.emplace_back(field - record->begin());
+                continue;
+            }
 
             const auto ppn_and_ppn(ppn_to_canonical_ppn_map.find(uplink_ppn));
             if (ppn_and_ppn == ppn_to_canonical_ppn_map.end())
                 continue;
 
             // If we made it here, we need to replace the uplink PPN:
-            field.insertOrReplaceSubfield('w', "(DE-576)" + ppn_and_ppn->second);
-            patched = true;
+            field->insertOrReplaceSubfield('w', "(DE-576)" + ppn_and_ppn->second);
+            uplink_tags_done.emplace(field_tag);
+            ++patched_uplinks;
         }
     }
 
-    return patched;
+    record->deleteFields(uplinks_for_deletion);
+    return patched_uplinks;
 }
 
 
@@ -551,8 +563,7 @@ void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc
             DeleteCrossLinkFields(&record);
         }
 
-        if (PatchUplink(&record, ppn_to_canonical_ppn_map))
-            ++patched_uplink_count;
+        patched_uplink_count += PatchUplinks(&record, ppn_to_canonical_ppn_map);
 
         marc_writer->write(record);
     }
