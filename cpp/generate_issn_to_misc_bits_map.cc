@@ -103,8 +103,10 @@ void PopulateISSNtoControlNumberMapFile(MARC::Reader * const marc_reader, File *
 void ProcessRemoteMapFiles(const std::string &output_path) {
     const std::string TUEFIND_FLAVOUR(VuFind::GetTueFindFlavour());
     const std::string remote_write_path = Zotero::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE + "/" + TUEFIND_FLAVOUR + ".map";
+    const std::string remote_write_path_tmp = remote_write_path + ".tmp";
     LOG_INFO("Updating " + TUEFIND_FLAVOUR + " map at \"" + remote_write_path + "\"...");
-    FileUtil::CopyOrDie(output_path, remote_write_path);
+    FileUtil::CopyOrDie(output_path, remote_write_path_tmp);
+    FileUtil::RenameFileOrDie(remote_write_path_tmp, remote_write_path, true /*remove target if it exists*/);
 
     std::vector<std::string> remote_read_paths;
     FileUtil::GetFileNameList("(?<!" + TUEFIND_FLAVOUR + ")\\.map$", &remote_read_paths, Zotero::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE);
@@ -114,6 +116,10 @@ void ProcessRemoteMapFiles(const std::string &output_path) {
         LOG_INFO("Adding \"" + remote_path + "\" to local map in \"" + output_path + "\"...");
         concat_paths.emplace_back(remote_path);
     }
+
+for (const auto concat_path : concat_paths)
+     std::cerr << "PATH: " << concat_path << '\n';
+
 
     FileUtil::ConcatFiles(output_path, concat_paths);
 }
