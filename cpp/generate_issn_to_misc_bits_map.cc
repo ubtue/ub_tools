@@ -116,11 +116,6 @@ void ProcessRemoteMapFiles(const std::string &output_path) {
         LOG_INFO("Adding \"" + remote_path + "\" to local map in \"" + output_path + "\"...");
         concat_paths.emplace_back(remote_path);
     }
-
-for (const auto concat_path : concat_paths)
-     std::cerr << "PATH: " << concat_path << '\n';
-
-
     FileUtil::ConcatFiles(output_path, concat_paths);
 }
 
