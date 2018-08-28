@@ -86,6 +86,7 @@ void PopulateISSNtoControlNumberMapFile(MARC::Reader * const marc_reader, File *
                         (*output) << normalised_issn << ',' << record.getControlNumber() << ',' << unique_language_code << ','
                                   << sanitized_856z_contents << ',' << record.getMainTitle() << '\n';
                         ++written_count;
+                        goto skip_to_next_record; // Avoid to write the entry several times
                     } else {
                         ++malformed_count;
                         LOG_WARNING("Weird ISSN: \"" + subfield_value + "\"!");
@@ -93,6 +94,7 @@ void PopulateISSNtoControlNumberMapFile(MARC::Reader * const marc_reader, File *
                 }
             }
         }
+skip_to_next_record:;
     }
 
     LOG_INFO("Found " + std::to_string(written_count) + " ISSN's associated with " + std::to_string(total_count)
@@ -103,8 +105,10 @@ void PopulateISSNtoControlNumberMapFile(MARC::Reader * const marc_reader, File *
 void ProcessRemoteMapFiles(const std::string &output_path) {
     const std::string TUEFIND_FLAVOUR(VuFind::GetTueFindFlavour());
     const std::string remote_write_path = Zotero::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE + "/" + TUEFIND_FLAVOUR + ".map";
+    const std::string remote_write_path_tmp = remote_write_path + ".tmp";
     LOG_INFO("Updating " + TUEFIND_FLAVOUR + " map at \"" + remote_write_path + "\"...");
-    FileUtil::CopyOrDie(output_path, remote_write_path);
+    FileUtil::CopyOrDie(output_path, remote_write_path_tmp);
+    FileUtil::RenameFileOrDie(remote_write_path_tmp, remote_write_path, true /*remove target if it exists*/);
 
     std::vector<std::string> remote_read_paths;
     FileUtil::GetFileNameList("(?<!" + TUEFIND_FLAVOUR + ")\\.map$", &remote_read_paths, Zotero::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE);
@@ -114,7 +118,6 @@ void ProcessRemoteMapFiles(const std::string &output_path) {
         LOG_INFO("Adding \"" + remote_path + "\" to local map in \"" + output_path + "\"...");
         concat_paths.emplace_back(remote_path);
     }
-
     FileUtil::ConcatFiles(output_path, concat_paths);
 }
 

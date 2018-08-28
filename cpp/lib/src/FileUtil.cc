@@ -952,7 +952,7 @@ bool Copy(const std::string &from_path, const std::string &to_path) {
     if (unlikely(from_fd == -1))
         return false;
 
-    const int to_fd(::open(to_path.c_str(), O_WRONLY | O_CREAT, 0600));
+    const int to_fd(::open(to_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600));
     if (unlikely(to_fd == -1)) {
         ::close(from_fd);
         return false;
