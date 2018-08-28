@@ -218,11 +218,11 @@ void EliminateDanglingOrUnreferencedCrossLinks(const std::unordered_set<std::str
 
 // Make inferior works point to the new merged superior parent found in "ppn_to_canonical_ppn_map".  Links referencing a key in
 // "ppn_to_canonical_ppn_map" will be patched with the corresponding value.
-// multiple uplinks of the same tag type will be deleted.
+// only 1 uplink of the same tag type will be kept.
 unsigned PatchUplinks(MARC::Record * const record, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
     unsigned patched_uplinks(0);
 
-    std::vector<size_t> uplinks_for_deletion;
+    std::vector<size_t> uplink_indices_for_deletion;
     std::set<std::string> uplink_tags_done;
     for (auto field(record->begin()); field != record->end(); ++field) {
         const std::string field_tag(field->getTag().toString());
@@ -232,7 +232,7 @@ unsigned PatchUplinks(MARC::Record * const record, const std::unordered_map<std:
                 continue;
 
             if (uplink_tags_done.find(field_tag) != uplink_tags_done.end()) {
-                uplinks_for_deletion.emplace_back(field - record->begin());
+                uplink_indices_for_deletion.emplace_back(field - record->begin());
                 continue;
             }
 
@@ -247,7 +247,7 @@ unsigned PatchUplinks(MARC::Record * const record, const std::unordered_map<std:
         }
     }
 
-    record->deleteFields(uplinks_for_deletion);
+    record->deleteFields(uplink_indices_for_deletion);
     return patched_uplinks;
 }
 
