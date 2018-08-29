@@ -49,11 +49,12 @@ CREATE INDEX journal_name_and_metadata_field_name_index ON metadata_presence_tra
 CREATE TABLE harvested_urls (
     id INT AUTO_INCREMENT PRIMARY KEY,
     url VARCHAR(191) NOT NULL,
+    delivery_mode ENUM('test', 'live') NOT NULL,
     last_harvest_time DATETIME NOT NULL,
     journal_name VARCHAR(191) NOT NULL,
     checksum CHAR(40),
     error_message VARCHAR(191),
-    UNIQUE (url)
+    CONSTRAINT url_and_delivery_mode UNIQUE (url, delivery_mode)
 ) CHARACTER SET utf8mb4;
 CREATE INDEX harvested_urls_id_and_journal_name_index on harvested_urls(id, journal_name);
 
