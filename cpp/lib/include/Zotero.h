@@ -219,6 +219,8 @@ public:
     explicit DownloadTracker(DbConnection * const db): db_connection_(db) {}
     ~DownloadTracker() = default;
 
+    // Acceptable delivery modes: TEST, LIVE
+
     /** \brief Checks if "url" or ("url", "hash") have already been downloaded.
      *  \return True if we have find an entry for "url" or ("url", "hash"), else false.
      */

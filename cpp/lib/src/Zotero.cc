@@ -1038,7 +1038,7 @@ inline static void UpdateDownloadTrackerEntryFromDbRow(const DbRow &row, Downloa
 bool DownloadTracker::hasAlreadyBeenDownloaded(DeliveryMode delivery_mode, const std::string &url, const std::string &hash, Entry * const entry) const
 {
     if (unlikely(delivery_mode == DeliveryMode::NONE))
-        LOG_ERROR("invalid delivery mode for url '" + url + "'");
+        LOG_ERROR("delivery mode NONE not allowed for url '" + url + "'");
 
     db_connection_->queryOrDie("SELECT * FROM harvested_urls WHERE url='" + db_connection_->escapeString(url) + "' " +
                                "AND delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
@@ -1064,7 +1064,7 @@ void DownloadTracker::addOrReplace(DeliveryMode delivery_mode, const std::string
     if (unlikely((hash.empty() and error_message.empty()) or (not hash.empty() and not error_message.empty())))
         LOG_ERROR("exactly one of \"hash\" and \"error_message\" must be non-empty!");
     else if (unlikely(delivery_mode == DeliveryMode::NONE))
-        LOG_ERROR("invalid delivery mode for url '" + url + "'");
+        LOG_ERROR("delivery mode NONE not allowed for url '" + url + "'");
 
     const time_t now(std::time(nullptr));
     const auto timestamp(SqlUtil::TimeTToDatetime(now));
@@ -1091,7 +1091,7 @@ void DownloadTracker::addOrReplace(DeliveryMode delivery_mode, const std::string
 
 size_t DownloadTracker::listMatches(DeliveryMode delivery_mode, const std::string &url_regex, std::vector<Entry> * const entries) const {
     if (unlikely(delivery_mode == DeliveryMode::NONE))
-        LOG_ERROR("invalid delivery mode");
+        LOG_ERROR("delivery mode NONE not allowed");
 
     std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(url_regex));
 
@@ -1134,7 +1134,7 @@ template<typename Predicate> static size_t DeleteEntries(DeliveryMode delivery_m
 
 size_t DownloadTracker::deleteMatches(DeliveryMode delivery_mode, const std::string &url_regex) {
     if (unlikely(delivery_mode == DeliveryMode::NONE))
-        LOG_ERROR("invalid delivery mode");
+        LOG_ERROR("delivery mode NONE not allowed");
 
     std::shared_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(url_regex));
     return DeleteEntries(delivery_mode, db_connection_,
@@ -1144,7 +1144,7 @@ size_t DownloadTracker::deleteMatches(DeliveryMode delivery_mode, const std::str
 
 size_t DownloadTracker::deleteSingleEntry(DeliveryMode delivery_mode, const std::string &url) {
     if (unlikely(delivery_mode == DeliveryMode::NONE))
-        LOG_ERROR("invalid delivery mode for url '" + url + "'");
+        LOG_ERROR("delivery mode NONE not allowed for url '" + url + "'");
 
     db_connection_->queryOrDie("SELECT * FROM harvested_urls WHERE url='" + db_connection_->escapeString(url) + "' " +
                                "AND delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
@@ -1158,7 +1158,7 @@ size_t DownloadTracker::deleteSingleEntry(DeliveryMode delivery_mode, const std:
 
 size_t DownloadTracker::deleteOldEntries(DeliveryMode delivery_mode, const time_t cutoff_timestamp) {
     if (unlikely(delivery_mode == DeliveryMode::NONE))
-        LOG_ERROR("invalid delivery mode");
+        LOG_ERROR("delivery mode NONE not allowed");
 
     return DeleteEntries(delivery_mode, db_connection_,
                          [cutoff_timestamp](const std::string &/*url*/, const time_t last_harvest_time)
@@ -1168,7 +1168,7 @@ size_t DownloadTracker::deleteOldEntries(DeliveryMode delivery_mode, const time_
 
 size_t DownloadTracker::clear(DeliveryMode delivery_mode) {
     if (unlikely(delivery_mode == DeliveryMode::NONE))
-        LOG_ERROR("invalid delivery mode");
+        LOG_ERROR("delivery mode NONE not allowed");
 
     const auto count(size(delivery_mode));
     db_connection_->queryOrDie("DELETE * FROM harvested_urls WHERE delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
@@ -1178,7 +1178,7 @@ size_t DownloadTracker::clear(DeliveryMode delivery_mode) {
 
 size_t DownloadTracker::size(DeliveryMode delivery_mode) const {
     if (unlikely(delivery_mode == DeliveryMode::NONE))
-        LOG_ERROR("invalid delivery mode");
+        LOG_ERROR("delivery mode NONE not allowed");
 
     db_connection_->queryOrDie("SELECT id FROM harvested_urls WHERE delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
     return db_connection_->getLastResultSet().size();
