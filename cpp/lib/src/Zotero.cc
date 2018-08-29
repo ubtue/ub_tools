@@ -1037,8 +1037,11 @@ inline static void UpdateDownloadTrackerEntryFromDbRow(const DbRow &row, Downloa
 
 bool DownloadTracker::hasAlreadyBeenDownloaded(DeliveryMode delivery_mode, const std::string &url, const std::string &hash, Entry * const entry) const
 {
+    if (unlikely(delivery_mode == DeliveryMode::NONE))
+        LOG_ERROR("invalid delivery mode for url '" + url + "'");
+
     db_connection_->queryOrDie("SELECT * FROM harvested_urls WHERE url='" + db_connection_->escapeString(url) + "' " +
-                               (delivery_mode != DeliveryMode::NONE ? "AND delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'" : ""));
+                               "AND delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
     auto result_set(db_connection_->getLastResultSet());
     if (result_set.empty())
         return false;
@@ -1087,11 +1090,13 @@ void DownloadTracker::addOrReplace(DeliveryMode delivery_mode, const std::string
 
 
 size_t DownloadTracker::listMatches(DeliveryMode delivery_mode, const std::string &url_regex, std::vector<Entry> * const entries) const {
+    if (unlikely(delivery_mode == DeliveryMode::NONE))
+        LOG_ERROR("invalid delivery mode");
+
     std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(url_regex));
 
     entries->clear();
-    db_connection_->queryOrDie("SELECT * FROM harvested_urls " +
-                              (delivery_mode != DeliveryMode::NONE ? "WHERE delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'" : ""));
+    db_connection_->queryOrDie("SELECT * FROM harvested_urls WHERE delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
     auto result_set(db_connection_->getLastResultSet());
 
     while (const DbRow row = result_set.getNextRow()) {
@@ -1109,8 +1114,7 @@ size_t DownloadTracker::listMatches(DeliveryMode delivery_mode, const std::strin
 template<typename Predicate> static size_t DeleteEntries(DeliveryMode delivery_mode, DbConnection * const db_connection,
                                                          const Predicate &deletion_predicate)
 {
-    db_connection->queryOrDie("SELECT id FROM harvested_urls " +
-                              (delivery_mode != DeliveryMode::NONE ? "WHERE delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'" : ""));
+    db_connection->queryOrDie("SELECT * FROM harvested_urls WHERE delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
     auto result_set(db_connection->getLastResultSet());
 
     std::vector<std::string> deleted_ids;
@@ -1129,8 +1133,10 @@ template<typename Predicate> static size_t DeleteEntries(DeliveryMode delivery_m
 
 
 size_t DownloadTracker::deleteMatches(DeliveryMode delivery_mode, const std::string &url_regex) {
-    std::shared_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(url_regex));
+    if (unlikely(delivery_mode == DeliveryMode::NONE))
+        LOG_ERROR("invalid delivery mode");
 
+    std::shared_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(url_regex));
     return DeleteEntries(delivery_mode, db_connection_,
                          [matcher](const std::string &url, const time_t /*last_harvest_time*/){ return matcher->matched(url); });
 }
@@ -1151,21 +1157,30 @@ size_t DownloadTracker::deleteSingleEntry(DeliveryMode delivery_mode, const std:
 
 
 size_t DownloadTracker::deleteOldEntries(DeliveryMode delivery_mode, const time_t cutoff_timestamp) {
+    if (unlikely(delivery_mode == DeliveryMode::NONE))
+        LOG_ERROR("invalid delivery mode");
+
     return DeleteEntries(delivery_mode, db_connection_,
                          [cutoff_timestamp](const std::string &/*url*/, const time_t last_harvest_time)
                              { return last_harvest_time <= cutoff_timestamp; });
 }
 
 
-size_t DownloadTracker::clear() {
-    const auto count(size());
-    db_connection_->queryOrDie("DELETE * FROM harvested_urls");
+size_t DownloadTracker::clear(DeliveryMode delivery_mode) {
+    if (unlikely(delivery_mode == DeliveryMode::NONE))
+        LOG_ERROR("invalid delivery mode");
+
+    const auto count(size(delivery_mode));
+    db_connection_->queryOrDie("DELETE * FROM harvested_urls WHERE delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
     return count;
 }
 
 
-size_t DownloadTracker::size() const {
-    db_connection_->queryOrDie("SELECT id FROM harvested_urls");
+size_t DownloadTracker::size(DeliveryMode delivery_mode) const {
+    if (unlikely(delivery_mode == DeliveryMode::NONE))
+        LOG_ERROR("invalid delivery mode");
+
+    db_connection_->queryOrDie("SELECT id FROM harvested_urls WHERE delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
     return db_connection_->getLastResultSet().size();
 }
 
@@ -1175,7 +1190,7 @@ size_t DownloadTracker::listOutdatedJournals(DeliveryMode delivery_mode, const u
 {
     db_connection_->queryOrDie("SELECT journal_name, last_harvest_time, delivery_mode FROM harvested_urls"
                                "WHERE last_harvest_time < DATEADD(day, -" + std::to_string(cutoff_days) + ", GETDATE()) " +
-                               (delivery_mode != DeliveryMode::NONE ? "AND delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'" : ""));
+                               "AND delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
     auto result_set(db_connection_->getLastResultSet());
     while (const DbRow row = result_set.getNextRow()) {
         const auto journal_name(row["journal_name"]);
