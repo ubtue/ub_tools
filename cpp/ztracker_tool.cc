@@ -29,6 +29,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " delivery_mode command\n"
+              << "       Possible delivery modes are: TEST, LIVE\n"
               << "       Possible commands are:\n"
               << "       clear [url|zulu_timestamp]        => if no arguments are provided, this empties the entire database\n"
               << "                                            if a URL has been provided, just the entry with key \"url\"\n"
