@@ -1,7 +1,7 @@
 #!/bin/bash
 if [[ $# > 1 ]]; then
     echo "usage: $0 [system_type]"
-    echo "          tuefind: Also install PHP/Apache/MySQL + JDK"
+    echo "          tuefind: Also install tuefind dependencies"
     exit 1
 fi
 
@@ -27,8 +27,8 @@ yum --assumeyes update
 
 # basic dependencies
 yum --assumeyes install \
-    ant cifs-utils clang crontabs gcc-c++.x86_64 git glibc-static make sudo \
-    ca-certificates curl-openssl file-devel kyotocabinet-devel leptonica libarchive-devel libcurl-openssl-devel libsq3-devel libuuid-devel libwebp libxml2-devel.x86_64 libxml2 lsof lz4 mariadb-devel.x86_64 mawk openjpeg-libs openssl-devel pcre-devel policycoreutils-python poppler poppler-utils tokyocabinet-devel unzip xerces-c-devel \
+    ant cifs-utils clang crontabs gcc-c++.x86_64 git glibc-static java-*-openjdk-devel make sudo \
+    ca-certificates curl-openssl file-devel kyotocabinet-devel leptonica libarchive-devel libcurl-openssl-devel libsq3-devel libuuid-devel libwebp libxml2-devel.x86_64 libxml2 lsof lz4 mariadb mariadb-devel.x86_64 mariadb-server mawk mod_ssl openjpeg-libs openssl-devel pcre-devel policycoreutils-python poppler poppler-utils tokyocabinet-devel unzip xerces-c-devel \
     tesseract tesseract-devel tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe
 
 # in CentOS, there is no "tesseract-langpack-eng", it seems to be part of the default installation
@@ -37,10 +37,6 @@ yum --assumeyes install \
 ### TUEFIND ###
 if [[ $1 == "tuefind" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
-
-    yum --assumeyes install \
-        java-*-openjdk-devel \
-        httpd mariadb mariadb-server mod_ssl
 
     # special handling for php+composer: standard php needs to be replaced by php71w
     # (standard is installed as dependancy)
