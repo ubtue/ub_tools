@@ -220,7 +220,6 @@ public:
     ~DownloadTracker() = default;
 
     /** \brief Checks if "url" or ("url", "hash") have already been downloaded.
-     *         If "delivery_mode" is "NONE", both variants are checked.
      *  \return True if we have find an entry for "url" or ("url", "hash"), else false.
      */
     bool hasAlreadyBeenDownloaded(DeliveryMode delivery_mode, const std::string &url, const std::string &hash = "", Entry * const entry = nullptr) const;
@@ -228,7 +227,6 @@ public:
     void addOrReplace(DeliveryMode delivery_mode, const std::string &url, const std::string &journal_name, const std::string &hash, const std::string &error_message);
 
     /** \brief Lists entries that match the URL regex given the delivery mode constraint.
-     *         If "delivery_mode" is "NONE", both variants - if present - are returned.
     */
     size_t listMatches(DeliveryMode delivery_mode, const std::string &url_regex, std::vector<Entry> * const entries) const;
 
@@ -238,7 +236,6 @@ public:
     size_t deleteSingleEntry(DeliveryMode delivery_mode, const std::string &url);
 
     /** \brief Deletes all entries that have timestamps <= "cutoff_timestamp".
-     *         If "delivery_mode" is "NONE", both variants - if present - are deleted.
      *  \return  The number of deleted entries.
      */
     size_t deleteOldEntries(DeliveryMode delivery_mode, const time_t cutoff_timestamp);
@@ -246,12 +243,11 @@ public:
     /** \brief Deletes all entries in the database.
      *  \return The number of deleted entries.
      */
-    size_t clear();
+    size_t clear(DeliveryMode delivery_mode);
 
-    size_t size() const;
+    size_t size(DeliveryMode delivery_mode) const;
 
     /** \brief Lists all journals that haven't had a single URL harvested for a given number of days.
-     *         If "delivery_mode" is "NONE", both variants - if present - are returned.
      *  \return The number of outdated journals.
      */
     size_t listOutdatedJournals(DeliveryMode delivery_mode, const unsigned cutoff_days,
