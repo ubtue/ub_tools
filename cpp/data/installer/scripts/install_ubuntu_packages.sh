@@ -37,8 +37,7 @@ if [[ $DISTRIB_RELEASE > "17.10" ]]; then
 fi
 
 #mysql installation
-## (use "quiet" so mysql hopefully doesnt ask for a root password, geographic area and timezone)
-## set frontend to noninteractive (so mysql-server wont ask for root pw, timezone, and so on)
+## (use "quiet" and set frontend to noninteractive so mysql doesnt ask for a root password, geographic area and timezone)
 DEBIAN_FRONTEND_OLD=($DEBIAN_FRONTEND)
 export DEBIAN_FRONTEND="noninteractive"
 apt-get --quiet --yes --allow-unauthenticated install mysql-server
