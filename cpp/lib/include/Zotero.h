@@ -176,6 +176,7 @@ struct SiteParams {
     std::string strptime_format_;
     std::vector<MARC::EditInstruction> marc_edit_instructions_;
     std::unique_ptr<RegexMatcher> extraction_regex_;
+    DeliveryMode delivery_mode_;
 public:
 };
 
@@ -212,27 +213,35 @@ public:
         time_t last_harvest_time_;
         std::string error_message_;
         std::string hash_;
+        DeliveryMode delivery_mode_;
     };
 public:
     explicit DownloadTracker(DbConnection * const db): db_connection_(db) {}
     ~DownloadTracker() = default;
 
     /** \brief Checks if "url" or ("url", "hash") have already been downloaded.
+     *         If "delivery_mode" is "NONE", both variants are checked.
      *  \return True if we have find an entry for "url" or ("url", "hash"), else false.
      */
-    bool hasAlreadyBeenDownloaded(const std::string &url, const std::string &hash = "", Entry * const entry = nullptr) const;
+    bool hasAlreadyBeenDownloaded(DeliveryMode delivery_mode, const std::string &url, const std::string &hash = "", Entry * const entry = nullptr) const;
 
-    void addOrReplace(const std::string &url, const std::string &journal_name, const std::string &hash, const std::string &error_message);
-    size_t listMatches(const std::string &url_regex, std::vector<Entry> * const entries) const;
-    size_t deleteMatches(const std::string &url_regex);
+    void addOrReplace(DeliveryMode delivery_mode, const std::string &url, const std::string &journal_name, const std::string &hash, const std::string &error_message);
+
+    /** \brief Lists entries that match the URL regex given the delivery mode constraint.
+     *         If "delivery_mode" is "NONE", both variants - if present - are returned.
+    */
+    size_t listMatches(DeliveryMode delivery_mode, const std::string &url_regex, std::vector<Entry> * const entries) const;
+
+    size_t deleteMatches(DeliveryMode delivery_mode, const std::string &url_regex);
 
     /** \return 0 if no matching entry was found, o/w 1. */
-    size_t deleteSingleEntry(const std::string &url);
+    size_t deleteSingleEntry(DeliveryMode delivery_mode, const std::string &url);
 
-    /** \deletes all entries that have timestamps <= "cutoff_timestamp".
+    /** \brief Deletes all entries that have timestamps <= "cutoff_timestamp".
+     *         If "delivery_mode" is "NONE", both variants - if present - are deleted.
      *  \return  The number of deleted entries.
      */
-    size_t deleteOldEntries(const time_t cutoff_timestamp);
+    size_t deleteOldEntries(DeliveryMode delivery_mode, const time_t cutoff_timestamp);
 
     /** \brief Deletes all entries in the database.
      *  \return The number of deleted entries.
@@ -242,9 +251,11 @@ public:
     size_t size() const;
 
     /** \brief Lists all journals that haven't had a single URL harvested for a given number of days.
+     *         If "delivery_mode" is "NONE", both variants - if present - are returned.
      *  \return The number of outdated journals.
      */
-    size_t listOutdatedJournals(const unsigned cutoff_days, std::unordered_map<std::string, time_t> * const outdated_journals);
+    size_t listOutdatedJournals(DeliveryMode delivery_mode, const unsigned cutoff_days,
+                                std::unordered_map<std::string, std::map<DeliveryMode, time_t>> * const outdated_journals);
 };
 
 
@@ -342,7 +353,8 @@ private:
                              std::string * const website_title);
 
     void populateCustomNode(std::shared_ptr<const JSON::JSONNode> custom_node, std::string * const issn_normalized,
-                            std::string * const parent_journal_name, std::string * const harvest_url, MARC::Record * const new_record);
+                            std::string * const parent_journal_name, std::string * const harvest_url,
+                            DeliveryMode * const delivery_mode, MARC::Record * const new_record);
 };
 
 
