@@ -173,7 +173,7 @@ int Main(int argc, char *argv[]) {
         const auto match(Zotero::STRING_TO_DELIVERY_MODE_MAP.find(mode_string));
 
         if (match == Zotero::STRING_TO_DELIVERY_MODE_MAP.end())
-            LOG_ERROR("Unknown delivery mode '" + std::string(mode_string) + "");
+            LOG_ERROR("Unknown delivery mode '" + std::string(mode_string) + "'");
         else
             delivery_mode_to_process = static_cast<Zotero::DeliveryMode>(match->second);
 

@@ -1171,7 +1171,7 @@ size_t DownloadTracker::clear(DeliveryMode delivery_mode) {
         LOG_ERROR("delivery mode NONE not allowed");
 
     const auto count(size(delivery_mode));
-    db_connection_->queryOrDie("DELETE * FROM harvested_urls WHERE delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
+    db_connection_->queryOrDie("DELETE FROM harvested_urls WHERE delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
     return count;
 }
 
