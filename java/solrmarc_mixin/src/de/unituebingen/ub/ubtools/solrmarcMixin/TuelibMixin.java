@@ -2399,7 +2399,7 @@ outer:  for (final VariableField _935Field : _935Fields) {
         for (final VariableField _ZWIField : record.getVariableFields("ZWI")) {
             final DataField field = (DataField)_ZWIField;
             final Subfield subfield_a = field.getSubfield('a');
-            if (subfield_a.getData() == "1") {
+            if (subfield_a.getData().equals("1")) {
                 for (final Subfield subfield_b : field.getSubfields('b')) {
                     if (!subfield_b.getData().isEmpty())
                         merged_ids.add(subfield_b.getData());
