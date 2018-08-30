@@ -305,6 +305,8 @@ public:
         Field(const Field &other) = default;
         Field(const std::string &tag, const std::string &contents): tag_(tag), contents_(contents) { }
         Field(const Tag &tag, const std::string &contents): tag_(tag), contents_(contents) { }
+        Field(const Tag &tag, const char indicator1 = ' ', const char indicator2 = ' ')
+            : Field(tag, std::string(1, indicator1) + std::string(1, indicator2)) { }
         Field(const Tag &tag, const Subfields &subfields, const char indicator1 = ' ', const char indicator2 = ' ')
             : Field(tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString()) { }
         inline bool operator==(const Field &rhs) const { return tag_ == rhs.tag_ and contents_ == rhs.contents_; }
