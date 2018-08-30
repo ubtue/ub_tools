@@ -210,14 +210,14 @@ private:
 /** \brief Downloads a Web document.
  *  \param url              The address.
  *  \param output_filename  Where to store the downloaded document.
- *  \param time_limit          Max. amount of time to try to download a document in seconds.
+ *  \param time_limit       Max. amount of time to try to download a document in milliseconds.
  */
 bool Download(const std::string &url, const std::string &output_filename, const TimeLimit &time_limit);
 
 
 /** \brief Downloads a Web document.
  *  \param url         The address.
- *  \param time_limit  Max. amount of time to try to download a document in seconds.
+ *  \param time_limit  Max. amount of time to try to download a document in milliseconds.
  *  \param output      Where to store the downloaded document.
  */
 bool Download(const std::string &url, const TimeLimit &time_limit, std::string * const output);
