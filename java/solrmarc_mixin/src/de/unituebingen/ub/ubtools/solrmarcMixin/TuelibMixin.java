@@ -2388,6 +2388,29 @@ outer:  for (final VariableField _935Field : _935Fields) {
     }
 
     /**
+     * Get IDs of all other records merged into this record
+     *
+     * @param record
+     * @return all merged ids (not including the own record id)
+     */
+    public Set<String> getMergedIds(final Record record) {
+        Set<String> merged_ids = new HashSet<String>();
+
+        for (final VariableField _ZWIField : record.getVariableFields("ZWI")) {
+            final DataField field = (DataField)_ZWIField;
+            final Subfield subfield_a = field.getSubfield('a');
+            if (subfield_a.getData().equals("1")) {
+                for (final Subfield subfield_b : field.getSubfields('b')) {
+                    if (!subfield_b.getData().isEmpty())
+                        merged_ids.add(subfield_b.getData());
+                }
+            }
+        }
+
+        return merged_ids;
+    }
+
+    /**
      * Helper to calculate the first publication date
      *
      * @param dates
