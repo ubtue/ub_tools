@@ -54,7 +54,7 @@ if [[ $1 == "tuefind" ]]; then
     if [ -e /usr/local/bin/composer ]; then
         ColorEcho "composer already installed"
     else
-        ColorCcho "installing composer"
+        ColorEcho "installing composer"
         wget --output-document=/tmp/composer-setup.php https://getcomposer.org/installer
         php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
     fi
