@@ -657,28 +657,15 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 
 
 void LoadISSNToPPNMap(std::unordered_map<std::string, PPNandTitle> * const ISSN_to_superior_ppn_map) {
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(ISSN_TO_MISC_BITS_MAP_PATH_LOCAL));
-    unsigned line_no(0);
-    while (not input->eof()) {
-        ++line_no;
-
-        std::string line;
-        if (input->getline(&line) < 18 /* ISSN + comma + PPN + comma */)
-            continue;
-
-        const size_t FIRST_COMMA_POS(line.find_first_of(','));
-        if (unlikely(FIRST_COMMA_POS == std::string::npos or FIRST_COMMA_POS == 0))
-            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_MISC_BITS_MAP_PATH_LOCAL + "\"! (1)");
-        const std::string ISSN(line.substr(0, FIRST_COMMA_POS));
-
-        const size_t SECOND_COMMA_POS(line.find_first_of(',', FIRST_COMMA_POS + 1));
-        if (unlikely(SECOND_COMMA_POS == std::string::npos or SECOND_COMMA_POS == FIRST_COMMA_POS + 1))
-            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + ISSN_TO_MISC_BITS_MAP_PATH_LOCAL + "\"! (2)");
-        const std::string PPN(line.substr(FIRST_COMMA_POS + 1, SECOND_COMMA_POS - FIRST_COMMA_POS - 1));
-
-        const std::string title(StringUtil::RightTrim(" \t", line.substr(SECOND_COMMA_POS + 1)));
-        ISSN_to_superior_ppn_map->emplace(ISSN, PPNandTitle(PPN, title));
-    }
+     enum ISSN_TO_PPN_OFFSET {ISSN_OFFSET = 0, PPN_OFFSET = 1, TITLE_OFFSET = 4};
+     std::vector<std::vector<std::string>> parsed_issn_to_superior_content;
+     TextUtil::ParseCSVFileOrDie(ISSN_TO_MISC_BITS_MAP_PATH_LOCAL, &parsed_issn_to_superior_content, ',', (char) 0x00);
+     for (const auto parsed_line : parsed_issn_to_superior_content) {
+         const std::string ISSN(parsed_line[ISSN_OFFSET]);
+         const std::string PPN(parsed_line[PPN_OFFSET]);
+         const std::string title(StringUtil::RightTrim(" \t", parsed_line[TITLE_OFFSET]));
+         ISSN_to_superior_ppn_map->emplace(ISSN, PPNandTitle(PPN, title));
+     }
 }
 
 
