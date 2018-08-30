@@ -365,6 +365,17 @@ bool SubfieldPrefixIsIdentical(const MARC::Record::Field &field1, const MARC::Re
 }
 
 
+// Add new ZWI field or add b subfield with merged PPN if ZWI field exists
+void AddMergedPPN(MARC::Record &record, const std::string merged_ppn) {
+    auto zwi_field(record.getFirstField("ZWI"));
+    if (zwi_field == record.end())
+        record.insertField("ZWI", { { 'a', "1" }, { 'b', merged_ppn } });
+    else
+        zwi_field->appendSubfield('b', merged_ppn);
+
+}
+
+
 MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
     record1.reTag("260", "264");
     record2.reTag("260", "264");
@@ -485,7 +496,7 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
     }
 
     // Mark the record as being both "print" as well as "electronic" and store the PPN of the dropped record:
-    merged_record.insertField("ZWI", { { 'a', "1" }, { 'b', record2.getControlNumber() } });
+    AddMergedPPN(merged_record, record2.getControlNumber());
     LOG_INFO("Merged records with PPN's " + record1.getControlNumber() + " and " + record2.getControlNumber() + ".");
 
     return merged_record;
