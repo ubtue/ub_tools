@@ -52,7 +52,6 @@ const std::unordered_map<std::string, std::string> group_to_user_agent_map = {
               << "\n"
               << "\tOptions:\n"
               << "\t[--min-log-level=log_level]    Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
-              << "\t[--test]                       No download information will be stored for further downloads.\n"
               << "\t[--delivery-mode=mode]         Only sections that have the specific delivery mode (either LIVE or TEST) set will be processed.\n"
               << "\t[--groups=my_groups            Where groups are a comma-separated list of goups.\n"
               << "\t[--ignore-robots-dot-txt]\n"
@@ -115,13 +114,13 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
 
 
 UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                            const Zotero::SiteParams &site_params, DbConnection * const db_connection, const bool &test)
+                            const Zotero::SiteParams &site_params, DbConnection * const db_connection)
 {
     const std::string feed_url(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::FEED)));
     LOG_DEBUG("feed_url: " + feed_url);
-    Zotero::RSSHarvestMode rss_harvest_mode(Zotero::RSSHarvestMode::NORMAL);
-    if (test)
-        rss_harvest_mode = Zotero::RSSHarvestMode::TEST;
+
+    // set to test by default until we figure out how to restructure the RSS related code
+    Zotero::RSSHarvestMode rss_harvest_mode(Zotero::RSSHarvestMode::TEST);
     return Zotero::HarvestSyndicationURL(rss_harvest_mode, feed_url, harvest_params, site_params, db_connection);
 }
 
@@ -168,19 +167,13 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
-    bool test(false);
-    if (std::strcmp(argv[1], "--test") == 0) {
-        test = true;
-        --argc, ++argv;
-    }
-
     Zotero::DeliveryMode delivery_mode_to_process(Zotero::DeliveryMode::NONE);
     if (StringUtil::StartsWith(argv[1], "--delivery-mode=")) {
         const auto mode_string(argv[1] + __builtin_strlen("--delivery-mode="));
         const auto match(Zotero::STRING_TO_DELIVERY_MODE_MAP.find(mode_string));
 
         if (match == Zotero::STRING_TO_DELIVERY_MODE_MAP.end())
-            LOG_ERROR("Unknown delivery mode '" + std::string(mode_string) + "");
+            LOG_ERROR("Unknown delivery mode '" + std::string(mode_string) + "'");
         else
             delivery_mode_to_process = static_cast<Zotero::DeliveryMode>(match->second);
 
@@ -282,6 +275,7 @@ int Main(int argc, char *argv[]) {
         site_params.global_params_          = &global_augment_params;
         site_params.group_params_           = &group_name_and_params->second;
         site_params.marc_edit_instructions_ = edit_instructions;
+        site_params.delivery_mode_          = delivery_mode;
         ReadGenericSiteAugmentParams(ini_file, section, &site_params);
 
         harvest_params->format_handler_->setAugmentParams(&site_params);
@@ -300,10 +294,10 @@ int Main(int argc, char *argv[]) {
 
         const Zotero::HarvesterType type(static_cast<Zotero::HarvesterType>(section.getEnum(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::TYPE),
                                                                                             type_string_to_value_map)));
-        if (type == Zotero::HarvesterType::RSS)
-            total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section, harvest_params, site_params,
-                                                                                        db_connection.get(), test);
-        else if (type == Zotero::HarvesterType::CRAWL) {
+        if (type == Zotero::HarvesterType::RSS) {
+            total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section, harvest_params,
+                                                                                        site_params, db_connection.get());
+        } else if (type == Zotero::HarvesterType::CRAWL) {
             SimpleCrawler::Params crawler_params;
             crawler_params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
             crawler_params.min_url_processing_time_ = Zotero::DEFAULT_MIN_URL_PROCESSING_TIME;
