@@ -188,6 +188,7 @@ void EliminateDanglingOrUnreferencedCrossLinks(const std::unordered_set<std::str
             if (not drop_group) {
                 for (const auto &ppn : group_ppns) {
                     if (ppn_to_offset_map.find(ppn) == ppn_to_offset_map.end()) {
+                        LOG_INFO("Don't merge group around PPN " + ppn + " because the PPN is missing in our data! All PPNs in group: " + StringUtil::Join(group_ppns, ','));
                         drop_group = true;
                         break;
                     }
