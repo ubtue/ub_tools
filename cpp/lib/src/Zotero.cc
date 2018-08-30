@@ -519,7 +519,6 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
 // Populates the "ubtue" node.
 void MarcFormatHandler::extractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node, CustomNodeParameters * const
                                                         custom_node_params)
-
 {
     const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
     if (custom_object->getOptionalStringNode("ISSN_untagged"))
