@@ -817,11 +817,6 @@ void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::str
             last_token = SEPARATOR;
             continue;
         } else if (unlikely(token == END_OF_INPUT)) {
-            if (unlikely(last_token == SEPARATOR))
-                LOG_ERROR("line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath()
-                      + "\" ending in separator!");
-            if (not current_line.empty())
-                lines->emplace_back(current_line);
             return;
         } else if (token == VALUE) {
             current_line.emplace_back(scanner.getValue());
