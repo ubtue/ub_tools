@@ -363,7 +363,7 @@ private:
                              std::string * const website_title);
 
     void extractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node,
-                                 struct CustomNodeParameters * const custom_node_parameters);
+                                     struct CustomNodeParameters * const custom_node_parameters);
 };
 
 
