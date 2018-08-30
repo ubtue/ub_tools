@@ -61,6 +61,17 @@ const std::map<HarvesterConfigEntry, std::string> HARVESTER_CONFIG_ENTRY_TO_STRI
 };
 
 
+/*struct CustomNodeParameters {
+    std::string issn_normalized;
+    std::string parent_journal_name;
+    std::string harvest_url;
+    std::string physical_form;
+    std::string volume;
+    std::string license;
+    std::string ssg_numbers;
+};*/
+
+
 const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
 const std::string ISSN_TO_MISC_BITS_MAP_PATH_LOCAL("/usr/local/var/lib/tuelib/issn_to_misc_bits.map");
 const std::string ISSN_TO_MISC_BITS_MAP_DIR_REMOTE("/mnt/ZE020150/FID-Entwicklung/issn_to_misc_bits");
@@ -516,63 +527,31 @@ MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::Ob
 }
 
 
+
+
+
+
 // Populates the "ubtue" node.
-void MarcFormatHandler::populateCustomNode(std::shared_ptr<const JSON::JSONNode> custom_node, std::string * const issn_normalized,
-                                           std::string * const parent_journal_name, std::string * const harvest_url,
-                                           DeliveryMode * const delivery_mode, MARC::Record * const new_record)
+void MarcFormatHandler::extractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node, CustomNodeParameters * const
+                                                        custom_node_params)
+
 {
     const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
     if (custom_object->getOptionalStringNode("ISSN_untagged"))
-        *issn_normalized = custom_object->getOptionalStringValue("ISSN_untagged");
+        custom_node_params->issn_normalized = custom_object->getOptionalStringValue("ISSN_untagged");
     else if (custom_object->getOptionalStringNode("ISSN_online"))
-        *issn_normalized = custom_object->getOptionalStringValue("ISSN_online");
+        custom_node_params->issn_normalized = custom_object->getOptionalStringValue("ISSN_online");
     else if (custom_object->getOptionalStringNode("ISSN_print"))
-        *issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
+        custom_node_params->issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
     else
         LOG_WARNING("No ISSN found for article.");
 
-    if (custom_object->getOptionalStringNode("parent_journal_name"))
-        *parent_journal_name = custom_object->getOptionalStringValue("parent_journal_name");
-
-    if (custom_object->getOptionalStringNode("harvest_url"))
-        *harvest_url = custom_object->getOptionalStringValue("harvest_url");
-
-    if (custom_object->getOptionalStringNode("delivery_mode"))
-        *delivery_mode = static_cast<DeliveryMode>(STRING_TO_DELIVERY_MODE_MAP.at(custom_object->getOptionalStringValue("delivery_mode")));
-
-    // physical form
-    const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
-    if (not physical_form.empty()) {
-        if (physical_form == "A")
-            new_record->insertField("007", "tu");
-        else if (physical_form == "O")
-            new_record->insertField("007", "cr uuu---uuuuu");
-        else
-            LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
-    }
-
-    // volume
-    const std::string volume(custom_object->getOptionalStringValue("volume"));
-    if (not volume.empty()) {
-        const auto field_it(new_record->findTag("936"));
-        if (field_it == new_record->end())
-            new_record->insertField("936", { { 'v', volume } });
-        else
-            field_it->getSubfields().addSubfield('v', volume);
-    }
-
-    // license code
-    const std::string license(custom_object->getOptionalStringValue("licenseCode"));
-    if (license == "l") {
-        const auto field_it(new_record->findTag("936"));
-        if (field_it != new_record->end())
-            field_it->getSubfields().addSubfield('z', "Kostenfrei");
-    }
-
-    // SSG numbers:
-    const std::string ssg_numbers(custom_object->getOptionalStringValue("ssgNumbers"));
-    if (not ssg_numbers.empty())
-        new_record->addSubfield("084", 'a', ssg_numbers);
+    custom_node_params->parent_journal_name = custom_object->getOptionalStringValue("parent_journal_name");
+    custom_node_params->harvest_url = custom_object->getOptionalStringValue("harvest_url");
+    custom_node_params->physical_form = custom_object->getOptionalStringValue("physicalForm");
+    custom_node_params->volume = custom_object->getOptionalStringValue("volume");
+    custom_node_params->license = custom_object->getOptionalStringValue("licenseCode");
+    custom_node_params->ssg_numbers = custom_object->getOptionalStringValue("ssgNumbers");
 }
 
 
@@ -582,11 +561,47 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 
     std::string issn_normalized, parent_journal_name, harvest_url;
     unsigned previously_downloaded_count(0);
-    DeliveryMode delivery_mode(DeliveryMode::NONE);
+    DeliveryMode delivery_mode(MarcFormatHandler::getDeliveryMode());
 
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
+    CustomNodeParameters custom_node_params;
     if (custom_node != nullptr)
-        populateCustomNode(custom_node, &issn_normalized, &parent_journal_name, &harvest_url, &delivery_mode, &new_record);
+        extractCustomNodeParameters(custom_node, &custom_node_params);
+
+    // physical form
+    const std::string physical_form(custom_node_params.physical_form);
+    if (not physical_form.empty()) {
+        if (physical_form == "A")
+            new_record.insertField("007", "tu");
+        else if (physical_form == "O")
+            new_record.insertField("007", "cr uuu---uuuuu");
+        else
+            LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
+    }
+
+    // volume
+    const std::string volume(custom_node_params.volume);
+    if (not volume.empty()) {
+        auto field_it(new_record.findTag("936"));
+        if (field_it == new_record.end())
+            new_record.insertField("936", { { 'v', volume } });
+        else
+            field_it->getSubfields().addSubfield('v', volume);
+    }
+
+    // license code
+    const std::string license(custom_node_params.license);
+    if (license == "l") {
+        auto field_it(new_record.findTag("936"));
+        if (field_it != new_record.end())
+            field_it->getSubfields().addSubfield('z', "Kostenfrei");
+    }
+
+    // SSG numbers:
+    const std::string ssg_numbers(custom_node_params.ssg_numbers);
+    if (not ssg_numbers.empty())
+        new_record.addSubfield("084", 'a', ssg_numbers);
+
 
     // title:
     if (not website_title.empty() and not new_record.hasTag("245"))
@@ -595,7 +610,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     // keywords:
     const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
     if (tags_node != nullptr)
-        ExtractKeywords(tags_node, issn_normalized, site_params_->global_params_->maps_->ISSN_to_keyword_field_map_, &new_record);
+        ExtractKeywords(tags_node, custom_node_params.issn_normalized, site_params_->global_params_->maps_->ISSN_to_keyword_field_map_, &new_record);
 
     // Populate 773:
     if (new_record.isArticle()) {

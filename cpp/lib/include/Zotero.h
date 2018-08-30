@@ -59,6 +59,17 @@ enum HarvesterConfigEntry {
 };
 
 
+struct CustomNodeParameters {
+    std::string issn_normalized;
+    std::string parent_journal_name;
+    std::string harvest_url;
+    std::string physical_form;
+    std::string volume;
+    std::string license;
+    std::string ssg_numbers;
+};
+
+
 extern const std::map<HarvesterType, std::string> HARVESTER_TYPE_TO_STRING_MAP;
 extern const std::map<HarvesterConfigEntry, std::string> HARVESTER_CONFIG_ENTRY_TO_STRING_MAP;
 
@@ -284,6 +295,7 @@ public:
     static std::unique_ptr<FormatHandler> Factory(DbConnection * const db_connection, const std::string &output_format,
                                                   const std::string &output_file,
                                                   const std::shared_ptr<const HarvestParams> &harvest_params);
+     inline DeliveryMode getDeliveryMode() { return site_params_ == nullptr ? NONE : site_params_->delivery_mode_; }
 };
 
 
@@ -350,9 +362,8 @@ private:
                              std::string * const publication_title, std::string * const abbreviated_publication_title,
                              std::string * const website_title);
 
-    void populateCustomNode(std::shared_ptr<const JSON::JSONNode> custom_node, std::string * const issn_normalized,
-                            std::string * const parent_journal_name, std::string * const harvest_url,
-                            DeliveryMode * const delivery_mode, MARC::Record * const new_record);
+    void extractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node,
+                                 struct CustomNodeParameters * const custom_node_parameters);
 };
 
 
