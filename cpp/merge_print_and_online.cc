@@ -372,7 +372,6 @@ void AddMergedPPN(MARC::Record &record, const std::string merged_ppn) {
         record.insertField("ZWI", { { 'a', "1" }, { 'b', merged_ppn } });
     else
         zwi_field->appendSubfield('b', merged_ppn);
-
 }
 
 
