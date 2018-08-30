@@ -249,7 +249,8 @@ void InstallUBTools(const bool make_install) {
 
     // Add SELinux permissions for files we need to access via web.
     // Needs to be done exactly for each file, because we might have files with passwords in there!
-    SELinuxUtil::FileContext::AddRecordIfMissing(TUELIB_CONFIG_DIRECTORY, "httpd_sys_content_t", TUELIB_CONFIG_DIRECTORY + "/issn_to_misc_bits.map");
+    if (SELinuxUtil::IsEnabled())
+        SELinuxUtil::FileContext::AddRecordIfMissing(TUELIB_CONFIG_DIRECTORY, "httpd_sys_content_t", TUELIB_CONFIG_DIRECTORY + "/issn_to_misc_bits.map");
 
     // ...and then install the rest of ub_tools:
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
