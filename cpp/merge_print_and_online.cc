@@ -367,7 +367,7 @@ bool SubfieldPrefixIsIdentical(const MARC::Record::Field &field1, const MARC::Re
 
 // Add new ZWI field or add b subfield with merged PPN if ZWI field exists
 void AddMergedPPN(MARC::Record &record, const std::string merged_ppn) {
-    auto zwi_field(record.getFirstField("ZWI"));
+    const auto zwi_field(record.getFirstField("ZWI"));
     if (zwi_field == record.end())
         record.insertField("ZWI", { { 'a', "1" }, { 'b', merged_ppn } });
     else
