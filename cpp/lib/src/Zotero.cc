@@ -61,17 +61,6 @@ const std::map<HarvesterConfigEntry, std::string> HARVESTER_CONFIG_ENTRY_TO_STRI
 };
 
 
-/*struct CustomNodeParameters {
-    std::string issn_normalized;
-    std::string parent_journal_name;
-    std::string harvest_url;
-    std::string physical_form;
-    std::string volume;
-    std::string license;
-    std::string ssg_numbers;
-};*/
-
-
 const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
 const std::string ISSN_TO_MISC_BITS_MAP_PATH_LOCAL("/usr/local/var/lib/tuelib/issn_to_misc_bits.map");
 const std::string ISSN_TO_MISC_BITS_MAP_DIR_REMOTE("/mnt/ZE020150/FID-Entwicklung/issn_to_misc_bits");
@@ -559,7 +548,6 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     std::string publication_title, abbreviated_publication_title, url, website_title;
     MARC::Record new_record(processJSON(object_node, &url, &publication_title, &abbreviated_publication_title, &website_title));
 
-    std::string issn_normalized, parent_journal_name, harvest_url;
     unsigned previously_downloaded_count(0);
     DeliveryMode delivery_mode(MarcFormatHandler::getDeliveryMode());
 
@@ -567,6 +555,10 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     CustomNodeParameters custom_node_params;
     if (custom_node != nullptr)
         extractCustomNodeParameters(custom_node, &custom_node_params);
+
+    std::string issn_normalized(custom_node_params.issn_normalized),
+                parent_journal_name(custom_node_params.parent_journal_name),
+                harvest_url(custom_node_params.harvest_url);
 
     // physical form
     const std::string physical_form(custom_node_params.physical_form);
@@ -606,6 +598,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     // title:
     if (not website_title.empty() and not new_record.hasTag("245"))
         new_record.insertField("245", { { 'a', website_title } });
+
 
     // keywords:
     const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
