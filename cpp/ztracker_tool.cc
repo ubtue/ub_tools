@@ -28,7 +28,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " command\n"
+    std::cerr << "Usage: " << ::progname << " delivery_mode command\n"
+              << "       Possible delivery modes are: TEST, LIVE\n"
               << "       Possible commands are:\n"
               << "       clear [url|zulu_timestamp]        => if no arguments are provided, this empties the entire database\n"
               << "                                            if a URL has been provided, just the entry with key \"url\"\n"
@@ -44,16 +45,16 @@ namespace {
 }
 
 
-void Clear(Zotero::DownloadTracker * const download_tracker, const std::string &url_or_zulu_timestamp) {
+void Clear(Zotero::DownloadTracker * const download_tracker, Zotero::DeliveryMode delivery_mode, const std::string &url_or_zulu_timestamp) {
     time_t timestamp;
     std::string err_msg;
 
     if (url_or_zulu_timestamp.empty()) {
-        std::cout << "Deleted " << download_tracker->clear() << " entries from the tracker database.\n";
+        std::cout << "Deleted " << download_tracker->clear(delivery_mode) << " entries from the tracker database.\n";
     } else if (TimeUtil::Iso8601StringToTimeT(url_or_zulu_timestamp, &timestamp, &err_msg))
-        std::cout << "Deleted " << download_tracker->deleteOldEntries(timestamp) << " entries from the tracker database.\n";
+        std::cout << "Deleted " << download_tracker->deleteOldEntries(delivery_mode, timestamp) << " entries from the tracker database.\n";
     else { // Assume url_or_zulu_timestamp contains a URL.
-        if (download_tracker->deleteSingleEntry(url_or_zulu_timestamp))
+        if (download_tracker->deleteSingleEntry(delivery_mode, url_or_zulu_timestamp))
             std::cout << "Deleted one entry from the tracker database.\n";
         else
             std::cerr << "Entry for URL \"" << url_or_zulu_timestamp << "\" could not be deleted!\n";
@@ -61,17 +62,17 @@ void Clear(Zotero::DownloadTracker * const download_tracker, const std::string &
 }
 
 
-void Insert(Zotero::DownloadTracker * const download_tracker, const std::string &url, const std::string &journal_name,
-            const std::string &optional_message)
+void Insert(Zotero::DownloadTracker * const download_tracker, Zotero::DeliveryMode delivery_mode, const std::string &url,
+            const std::string &journal_name, const std::string &optional_message)
 {
-    download_tracker->addOrReplace(url, journal_name, optional_message, (optional_message.empty() ? "*bogus hash*" : ""));
+    download_tracker->addOrReplace(delivery_mode, url, journal_name, optional_message, (optional_message.empty() ? "*bogus hash*" : ""));
     std::cout << "Created an entry for the URL \"" << url << "\".\n";
 }
 
 
-void Lookup(Zotero::DownloadTracker * const download_tracker, const std::string &url) {
+void Lookup(Zotero::DownloadTracker * const download_tracker, Zotero::DeliveryMode delivery_mode, const std::string &url) {
     Zotero::DownloadTracker::Entry entry;
-    if (not download_tracker->hasAlreadyBeenDownloaded(url, /* hash = */"", &entry))
+    if (not download_tracker->hasAlreadyBeenDownloaded(delivery_mode, url, /* hash = */"", &entry))
         std::cerr << "Entry for URL \"" << url << "\" could not be found!\n";
     else {
         if (entry.error_message_.empty())
@@ -82,9 +83,9 @@ void Lookup(Zotero::DownloadTracker * const download_tracker, const std::string 
 }
 
 
-void List(Zotero::DownloadTracker * const download_tracker, const std::string &pcre) {
+void List(Zotero::DownloadTracker * const download_tracker, Zotero::DeliveryMode delivery_mode, const std::string &pcre) {
     std::vector<Zotero::DownloadTracker::Entry> entries;
-    download_tracker->listMatches(pcre, &entries);
+    download_tracker->listMatches(delivery_mode, pcre, &entries);
 
     for (const auto &entry : entries) {
         std::cout << entry.url_ << ": " << TimeUtil::TimeTToLocalTimeString(entry.last_harvest_time_);
@@ -95,8 +96,8 @@ void List(Zotero::DownloadTracker * const download_tracker, const std::string &p
 }
 
 
-void IsPresent(Zotero::DownloadTracker * const download_tracker, const std::string &url) {
-    std::cout << (download_tracker->hasAlreadyBeenDownloaded(url) ? "true\n" : "false\n");
+void IsPresent(Zotero::DownloadTracker * const download_tracker, Zotero::DeliveryMode delivery_mode, const std::string &url) {
+    std::cout << (download_tracker->hasAlreadyBeenDownloaded(delivery_mode, url) ? "true\n" : "false\n");
 }
 
 
@@ -104,11 +105,21 @@ void IsPresent(Zotero::DownloadTracker * const download_tracker, const std::stri
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 2)
+    if (argc < 3)
         Usage();
 
     std::unique_ptr<DbConnection> db_connection(new DbConnection);
     Zotero::DownloadTracker download_tracker(db_connection.get());
+
+    const std::string delivery_mode_string(StringUtil::ToUpper(argv[1]));
+    Zotero::DeliveryMode delivery_mode(Zotero::DeliveryMode::NONE);
+
+    if (Zotero::STRING_TO_DELIVERY_MODE_MAP.find(delivery_mode_string) == Zotero::STRING_TO_DELIVERY_MODE_MAP.end())
+        LOG_ERROR("Unknown delivery mode '" + std::string(delivery_mode_string) + "'");
+    else
+        delivery_mode = static_cast<Zotero::DeliveryMode>(Zotero::STRING_TO_DELIVERY_MODE_MAP.at(delivery_mode_string));
+
+    --argc, ++argv;
 
     if (argc < 2 or argc > 4)
         Usage();
@@ -116,23 +127,23 @@ int Main(int argc, char *argv[]) {
     if (std::strcmp(argv[1], "clear") == 0) {
         if (argc > 3)
             LOG_ERROR("clear takes 0 or 1 arguments!");
-        Clear(&download_tracker, argc == 2 ? "" : argv[2]);
+        Clear(&download_tracker, delivery_mode, argc == 2 ? "" : argv[2]);
     } else if (std::strcmp(argv[1], "insert") == 0) {
         if (argc < 4 or argc > 5)
             LOG_ERROR("insert takes 2 or 3 arguments!");
-        Insert(&download_tracker, argv[2], argv[3], argc == 4 ? "" : argv[4]);
+        Insert(&download_tracker, delivery_mode, argv[2], argv[3], argc == 4 ? "" : argv[4]);
     } else if (std::strcmp(argv[1], "lookup") == 0) {
         if (argc != 3)
             LOG_ERROR("lookup takes 1 argument!");
-        Lookup(&download_tracker, argv[2]);
+        Lookup(&download_tracker, delivery_mode, argv[2]);
     } else if (std::strcmp(argv[1], "list") == 0) {
         if (argc > 3)
             LOG_ERROR("list takes 0 or 1 arguments!");
-        List(&download_tracker, argc == 2 ? ".*" : argv[2]);
+        List(&download_tracker, delivery_mode, argc == 2 ? ".*" : argv[2]);
     } else if (std::strcmp(argv[1], "is_present") == 0) {
         if (argc != 3)
             LOG_ERROR("is_present takes 1 argument!");
-        IsPresent(&download_tracker, argv[2]);
+        IsPresent(&download_tracker, delivery_mode, argv[2]);
     } else
         LOG_ERROR("unknown command: \"" + std::string(argv[1]) + "\"!");
 
