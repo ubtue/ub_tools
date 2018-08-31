@@ -531,5 +531,4 @@ std::string GetFullDumpEndpointPath(Flavour zeder_flavour) {
 }
 
 
-
 } // namespace Zeder
