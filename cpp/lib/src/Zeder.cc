@@ -16,6 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include "Downloader.h"
 #include "FileUtil.h"
 #include "Zeder.h"
 
@@ -267,6 +268,8 @@ std::unique_ptr<Exporter> Exporter::Factory(std::unique_ptr<Params> params) {
     switch (file_type) {
     case FileType::INI:
         return std::unique_ptr<Exporter>(new IniWriter(std::move(params)));
+    case FileType::CSV:
+        return std::unique_ptr<Exporter>(new CsvWriter(std::move(params)));
     default:
         LOG_ERROR("Reader not implemented for file '" + params->file_path_ + "'");
     };
@@ -310,6 +313,216 @@ void IniWriter::write(const EntryCollection &collection) {
     }
 
     config_->write(params->file_path_);
+}
+
+
+void CsvWriter::write(const EntryCollection &collection) {
+    const auto params(dynamic_cast<CsvWriter::Params * const>(input_params_.get()));
+    char time_buffer[100]{};
+
+    std::string header;
+    header += TextUtil::CSVEscape(params->zeder_id_column_) + ",";
+    for (const auto &column : params->attributes_to_export_)
+        header += TextUtil::CSVEscape(column) + ",";
+    header += TextUtil::CSVEscape(params->zeder_last_modified_timestamp_column_) + "\n";
+
+    output_file_.write(header);
+
+    for (const auto &entry : collection) {
+        std::string row;
+        row += TextUtil::CSVEscape(std::to_string(entry.getId())) + ",";
+
+        for (const auto &attribute : params->attributes_to_export_) {
+            if (entry.hasAttribute(attribute))
+                row += TextUtil::CSVEscape(entry.getAttribute(attribute));
+            else {
+                LOG_DEBUG("Attribute '" + attribute + "' not found for exporting in entry " + std::to_string(entry.getId()));
+                row += TextUtil::CSVEscape("");
+            }
+
+            row += ",";
+        }
+
+        std::strftime(time_buffer, sizeof(time_buffer), MODIFIED_TIMESTAMP_FORMAT_STRING, &entry.getLastModifiedTimestamp());
+        row += TextUtil::CSVEscape(time_buffer) + "\n";
+
+        output_file_.write(row);
+    }
+
+    output_file_.close();
+}
+
+
+std::unique_ptr<EndpointDownloader> EndpointDownloader::Factory(Type downloader_type, std::unique_ptr<Params> params) {
+    switch (downloader_type) {
+    case FULL_DUMP:
+        return std::unique_ptr<EndpointDownloader>(new FullDumpDownloader(std::move(params)));
+     default:
+        LOG_ERROR("Endpoint downloader not implemented for type " + std::to_string(downloader_type));
+    }
+}
+
+
+FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::unordered_set<std::string> &columns_to_download,
+                                   const std::unordered_map<std::string, std::string> &filter_regexps)
+                                   : EndpointDownloader::Params(endpoint_path), columns_to_download_(columns_to_download)
+{
+    for (const auto &filter_pair : filter_regexps)
+        filter_regexps_.insert(std::make_pair(filter_pair.first, RegexMatcher::RegexMatcherFactoryOrDie(filter_pair.second)));
+}
+
+
+bool FullDumpDownloader::DownloadData(const std::string &endpoint_url, std::shared_ptr<JSON::JSONNode> * const json_data) {
+    Downloader::Params downloader_params;
+    downloader_params.user_agent_ = "ub_tools/zeder_importer";
+
+    const TimeLimit time_limit(10000U);
+    Downloader downloader(endpoint_url, downloader_params, time_limit);
+
+    if (downloader.anErrorOccurred()) {
+        LOG_WARNING("Couldn't download full from endpoint '" + endpoint_url + "'! Error: " + downloader.getLastErrorMessage());
+        return false;
+    }
+
+    const int response_code_category(downloader.getResponseCode() / 100);
+    switch (response_code_category) {
+    case 4:
+    case 5:
+    case 9:
+        LOG_WARNING("Couldn't download full from endpoint '" + endpoint_url + "'! Error Code: " + std::to_string(downloader.getResponseCode()));
+        return false;
+    }
+
+    JSON::Parser json_parser(downloader.getMessageBody());
+    if (not json_parser.parse(json_data))
+        LOG_ERROR("Couldn't parse JSON response from endpoint '" + endpoint_url + "'! Error: " + json_parser.getErrorMessage());
+
+    return true;
+}
+
+
+void FullDumpDownloader::ParseColumnMetadata(const std::shared_ptr<JSON::JSONNode> &json_data,
+                                             std::unordered_map<std::string, ColumnMetadata> * const column_to_metadata_map)
+{
+    static const std::unordered_set<std::string> valid_column_types{ "text", "multi", "dropdown" };
+
+    const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", json_data));
+    for (const auto &metadata : *root_node->getArrayNode("meta")) {
+        const auto metadata_wrapper(JSON::JSONNode::CastToObjectNodeOrDie("entry", metadata));
+        const auto column_name(metadata_wrapper->getStringValue("Kurz"));
+        const auto column_type(metadata_wrapper->getStringValue("Feldtyp"));
+
+        if (valid_column_types.find(column_type) == valid_column_types.end())
+            LOG_ERROR("Unknown type '" + column_type + "' for column '" + column_name + "'");
+
+        ColumnMetadata column_metadata;
+        column_metadata.column_type_ = column_type;
+        for (const auto &option : *metadata_wrapper->getArrayNode("Optionen")) {
+            const auto option_wrapper(JSON::JSONNode::CastToObjectNodeOrDie("entry", option));
+            column_metadata.ordinal_to_value_map_[option_wrapper->getIntegerValue("id")] = option_wrapper->getStringValue("wert");
+        }
+
+        column_to_metadata_map->insert(std::make_pair(column_name, column_metadata));
+    }
+}
+
+
+void FullDumpDownloader::ParseRows(const Params &params, const std::shared_ptr<JSON::JSONNode> &json_data,
+                                   const std::unordered_map<std::string, ColumnMetadata> &column_to_metadata_map,
+                                   EntryCollection * const collection)
+{
+    const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", json_data));
+    for (const auto &data : *root_node->getArrayNode("daten")) {
+        const auto data_wrapper(JSON::JSONNode::CastToObjectNodeOrDie("entry", data));
+        const auto row_id(data_wrapper->getIntegerValue("DT_RowId"));
+        const auto mtime(data_wrapper->getStringValue("Mtime"));
+
+        Entry new_entry;
+        new_entry.setId(row_id);
+        new_entry.setModifiedTimestamp(TimeUtil::StringToStructTm(mtime, MODIFIED_TIMESTAMP_FORMAT_STRING));
+
+        bool skip_entry(false);
+        size_t filtered_columns(0);
+
+        for (const auto &field : *data_wrapper) {
+            std::string column_name(field.first);
+            if (column_name == "DT_RowId" || column_name == "Mtime")
+                continue;
+
+            const auto column_metadata(column_to_metadata_map.find(column_name));
+            if (column_metadata == column_to_metadata_map.end())
+                LOG_ERROR("Unknown column '" + column_name + "'");
+
+            if (not params.columns_to_download_.empty() and
+                params.columns_to_download_.find(column_name) != params.columns_to_download_.end())
+            {
+                if (column_metadata->second.column_type_ == "multi")
+                    LOG_ERROR("Columns with multiple values are not supported! Invalid column: " + column_name);
+
+                auto resolved_value(JSON::JSONNode::CastToStringNodeOrDie(column_name, field.second)->getValue());
+                if (column_metadata->second.column_type_ == "dropdown" and not resolved_value.empty()) {
+                    const auto ordinal(StringUtil::ToInt64T(resolved_value));
+                    const auto match(column_metadata->second.ordinal_to_value_map_.find(ordinal));
+                    if (match == column_metadata->second.ordinal_to_value_map_.end())
+                        LOG_ERROR("Unknown value ordinal " + std::to_string(ordinal) + " in column '" + column_name + "'");
+
+                    resolved_value = match->second;
+                }
+
+                resolved_value = StringUtil::Trim(resolved_value);
+                auto filter_regex(params.filter_regexps_.find(column_name));
+                if (filter_regex != params.filter_regexps_.end()) {
+                    ++filtered_columns;
+
+                    if (not filter_regex->second->matched(resolved_value)) {
+                        LOG_DEBUG("Skipping row " + std::to_string(row_id) + " on column '" + column_name + "' reg-ex mismatch");
+                        skip_entry = true;
+                        break;
+                    }
+                }
+
+                if (not resolved_value.empty())
+                    new_entry.setAttribute(column_name, resolved_value);
+            }
+        }
+
+        if (filtered_columns != params.filter_regexps_.size()) {
+            // at least one filter was not applied, skip the entry
+            skip_entry = true;
+        }
+
+        if (not skip_entry)
+            collection->addEntry(new_entry);
+    }
+
+    collection->sortEntries();
+}
+
+
+bool FullDumpDownloader::download(EntryCollection * const collection) {
+    const auto params(dynamic_cast<FullDumpDownloader::Params * const>(downloader_params_.get()));
+
+    std::unordered_map<std::string, ColumnMetadata> column_to_metadata_map;
+    std::shared_ptr<JSON::JSONNode> json_data;
+
+    if (not DownloadData(params->endpoint_url_, &json_data))
+        return false;
+
+    ParseColumnMetadata(json_data, &column_to_metadata_map);
+    ParseRows(*params, json_data, column_to_metadata_map,  collection);
+    return true;
+}
+
+
+std::string GetFullDumpEndpointPath(Flavour zeder_flavour) {
+    static const std::string endpoint_base_url("http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?"
+                                               "action=get&Dimension=wert&Bearbeiter=&Instanz=");
+    switch (zeder_flavour) {
+    case IXTHEO:
+        return endpoint_base_url + "ixtheo";
+    case KRIMDOK:
+        return endpoint_base_url + "krim";
+    }
 }
 
 

@@ -23,7 +23,10 @@
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
+#include "File.h"
 #include "IniFile.h"
+#include "JSON.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
 #include "util.h"
@@ -246,6 +249,7 @@ public:
     class Params {
         friend class Exporter;
         friend class IniWriter;
+        friend class CsvWriter;
     protected:
         const std::string file_path_;
     public:
@@ -299,6 +303,100 @@ public:
 public:
     virtual void write(const EntryCollection &collection) override;
 };
+
+
+class CsvWriter : public Exporter {
+    friend class Exporter;
+
+    File output_file_;
+private:
+    explicit CsvWriter(std::unique_ptr<Params> params):
+                       Exporter(std::move(params)), output_file_(this->input_params_->file_path_, "w", File::ThrowOnOpenBehaviour::THROW_ON_ERROR ) {};
+public:
+    class Params : public Exporter::Params {
+        friend class CsvWriter;
+    protected:
+        // Ordered list. The ID and the timestamp always go first and last respectively.
+        std::vector<std::string> attributes_to_export_;
+        std::string zeder_id_column_;
+        std::string zeder_last_modified_timestamp_column_;
+    public:
+        Params(const std::string &file_path, const std::vector<std::string> &attributes_to_export,
+               const std::string &zeder_id_column, const std::string &zeder_last_modified_timestamp_column):
+               Exporter::Params(file_path), attributes_to_export_(attributes_to_export),
+               zeder_id_column_(zeder_id_column), zeder_last_modified_timestamp_column_(zeder_last_modified_timestamp_column) {}
+        virtual ~Params() = default;
+    };
+public:
+    virtual ~CsvWriter() override = default;
+public:
+    virtual void write(const EntryCollection &collection) override;
+};
+
+
+class EndpointDownloader {
+public:
+    enum Type { FULL_DUMP };
+
+
+    class Params {
+        friend class EndpointDownloader;
+    protected:
+        const std::string endpoint_url_;
+    public:
+        Params(const std::string &endpoint_url): endpoint_url_(endpoint_url) {}
+        virtual ~Params() = default;
+    };
+protected:
+    std::unique_ptr<Params> downloader_params_;
+protected:
+    explicit EndpointDownloader(std::unique_ptr<Params> params): downloader_params_(std::move(params)) {}
+public:
+    virtual ~EndpointDownloader() = default;
+public:
+    virtual bool download(EntryCollection * const collection) = 0;
+
+    static std::unique_ptr<EndpointDownloader> Factory(Type downloader_type, std::unique_ptr<Params> params);
+};
+
+
+class FullDumpDownloader : public EndpointDownloader {
+    friend class EndpointDownloader;
+private:
+    explicit FullDumpDownloader(std::unique_ptr<Params> params): EndpointDownloader(std::move(params)) {};
+public:
+    class Params : public EndpointDownloader::Params {
+        friend class FullDumpDownloader;
+    protected:
+        std::unordered_set<std::string> columns_to_download_;
+
+        // Filters applied to each row. Column name => Filter reg-ex
+        std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> filter_regexps_;
+    public:
+        Params(const std::string &endpoint_path, const std::unordered_set<std::string> &columns_to_download,
+               const std::unordered_map<std::string, std::string> &filter_regexps);
+        virtual ~Params() = default;
+    };
+private:
+    struct ColumnMetadata {
+        std::string column_type_;
+        std::unordered_map<int64_t, std::string> ordinal_to_value_map_;
+    };
+
+
+    bool DownloadData(const std::string &endpoint_url, std::shared_ptr<JSON::JSONNode> * const json_data);
+    void ParseColumnMetadata(const std::shared_ptr<JSON::JSONNode> &json_data,
+                             std::unordered_map<std::string, ColumnMetadata> * const column_to_metadata_map);
+    void ParseRows(const Params &params, const std::shared_ptr<JSON::JSONNode> &json_data,
+                   const std::unordered_map<std::string, ColumnMetadata> &column_to_metadata_map, EntryCollection * const collection);
+public:
+    virtual ~FullDumpDownloader() = default;
+public:
+    virtual bool download(EntryCollection * const collection) override;
+};
+
+
+std::string GetFullDumpEndpointPath(Flavour zeder_flavour);
 
 
 } // namespace Zeder
