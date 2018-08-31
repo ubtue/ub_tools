@@ -316,41 +316,35 @@ void IniWriter::write(const EntryCollection &collection) {
 }
 
 
-std::string CsvWriter::EscapeField(const std::string &field) const {
-    const auto params(dynamic_cast<CsvWriter::Params * const>(input_params_.get()));
-    return std::string(1, params->column_delimiter_) + field + std::string(1, params->column_delimiter_);
-}
-
-
 void CsvWriter::write(const EntryCollection &collection) {
     const auto params(dynamic_cast<CsvWriter::Params * const>(input_params_.get()));
     char time_buffer[100]{};
 
     std::string header;
-    header += EscapeField(params->zeder_id_column_) + ",";
+    header += TextUtil::CSVEscape(params->zeder_id_column_) + ",";
     for (const auto &column : params->attributes_to_export_)
-        header += EscapeField(column) + ",";
-    header += EscapeField(params->zeder_last_modified_timestamp_column_) + "\n";
+        header += TextUtil::CSVEscape(column) + ",";
+    header += TextUtil::CSVEscape(params->zeder_last_modified_timestamp_column_) + "\n";
 
     output_file_.write(header);
 
     for (const auto &entry : collection) {
         std::string row;
-        row += EscapeField(std::to_string(entry.getId())) + ",";
+        row += TextUtil::CSVEscape(std::to_string(entry.getId())) + ",";
 
         for (const auto &attribute : params->attributes_to_export_) {
             if (entry.hasAttribute(attribute))
-                row += EscapeField(entry.getAttribute(attribute));
+                row += TextUtil::CSVEscape(entry.getAttribute(attribute));
             else {
                 LOG_DEBUG("Attribute '" + attribute + "' not found for exporting in entry " + std::to_string(entry.getId()));
-                row += EscapeField("");
+                row += TextUtil::CSVEscape("");
             }
 
             row += ",";
         }
 
         std::strftime(time_buffer, sizeof(time_buffer), MODIFIED_TIMESTAMP_FORMAT_STRING, &entry.getLastModifiedTimestamp());
-        row += EscapeField(time_buffer) + "\n";
+        row += TextUtil::CSVEscape(time_buffer) + "\n";
 
         output_file_.write(row);
     }
