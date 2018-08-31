@@ -309,8 +309,6 @@ class CsvWriter : public Exporter {
     friend class Exporter;
 
     File output_file_;
-
-    std::string EscapeField(const std::string &field) const;
 private:
     explicit CsvWriter(std::unique_ptr<Params> params):
                        Exporter(std::move(params)), output_file_(this->input_params_->file_path_, "w", File::ThrowOnOpenBehaviour::THROW_ON_ERROR ) {};
@@ -318,15 +316,14 @@ public:
     class Params : public Exporter::Params {
         friend class CsvWriter;
     protected:
-        const char column_delimiter_;
         // Ordered list. The ID and the timestamp always go first and last respectively.
         std::vector<std::string> attributes_to_export_;
         std::string zeder_id_column_;
         std::string zeder_last_modified_timestamp_column_;
     public:
-        Params(const std::string &file_path, const char column_delimiter, const std::vector<std::string> &attributes_to_export,
+        Params(const std::string &file_path, const std::vector<std::string> &attributes_to_export,
                const std::string &zeder_id_column, const std::string &zeder_last_modified_timestamp_column):
-               Exporter::Params(file_path), column_delimiter_(column_delimiter), attributes_to_export_(attributes_to_export),
+               Exporter::Params(file_path), attributes_to_export_(attributes_to_export),
                zeder_id_column_(zeder_id_column), zeder_last_modified_timestamp_column_(zeder_last_modified_timestamp_column) {}
         virtual ~Params() = default;
     };
