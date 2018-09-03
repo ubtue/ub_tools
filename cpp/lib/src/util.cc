@@ -218,7 +218,7 @@ std::string ReadQuotedValue(FILE * const input, const char field_delimiter, cons
                 const int next(std::fgetc(input));
                 std::ungetc(next, input);
 
-                if (next == field_separator or next == '\n' or next == EOF) 
+                if (next == field_separator or next == '\n' or next == EOF)
                     return value;
             } else
                 delimiter_seen = true;
