@@ -9,6 +9,14 @@ function ColorEcho {
     echo -e "\033[1;34m" $1 "\033[0m"
 }
 
+function InstallIfMissing {
+    if yum list installed $1 | grep --quiet $1; then
+        ColorEcho "\"$1\" already installed"
+    else
+        yum --assumeyes install $1
+    fi
+}
+
 if [[ $1 != "" && $1 != "tuefind" ]]; then
     ColorEcho "invalid system_type \"$1\"!"
     exit 1
@@ -26,9 +34,10 @@ wget http://download.opensuse.org/repositories/security:shibboleth/CentOS_7/secu
 yum --assumeyes update
 
 # basic dependencies
+InstallIfMissing "ca-certificates"
 yum --assumeyes install \
     ant cifs-utils clang crontabs gcc-c++.x86_64 git glibc-static java-*-openjdk-devel make sudo \
-    ca-certificates curl-openssl file-devel kyotocabinet-devel leptonica libarchive-devel libcurl-openssl-devel libsq3-devel libuuid-devel libwebp libxml2-devel.x86_64 libxml2 lsof lz4 mariadb mariadb-devel.x86_64 mariadb-server mawk mod_ssl openjpeg-libs openssl-devel pcre-devel policycoreutils-python poppler poppler-utils tokyocabinet-devel unzip xerces-c-devel \
+    curl-openssl file-devel kyotocabinet-devel leptonica libarchive-devel libcurl-openssl-devel libsq3-devel libuuid-devel libwebp libxml2-devel.x86_64 libxml2 lsof lz4 mariadb mariadb-devel.x86_64 mariadb-server mawk mod_ssl openjpeg-libs openssl-devel pcre-devel policycoreutils-python poppler poppler-utils tokyocabinet-devel unzip xerces-c-devel \
     tesseract tesseract-devel tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe
 
 # in CentOS, there is no "tesseract-langpack-eng", it seems to be part of the default installation
