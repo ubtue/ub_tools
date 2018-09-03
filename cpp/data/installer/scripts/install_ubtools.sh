@@ -15,7 +15,7 @@ if [ -e /etc/debian_version ]; then
     echo "Ubuntu detected! installing dependencies..."
     cd /tmp
     if [ ! -e ./install_ubuntu_packages.sh ]; then
-        apt-get --yes update
+        apt-get --quiet --yes update
         apt-get --yes install curl
         curl https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/scripts/install_ubuntu_packages.sh -o ./install_ubuntu_packages.sh
         chmod 700 ./install_ubuntu_packages.sh
@@ -26,8 +26,8 @@ elif [ -e /etc/redhat-release ]; then
     echo "CentOS detected! installing dependencies..."
     cd /tmp
     if [ ! -e ./install_centos_packages.sh ]; then
-        yum -y update
-        yum -y install curl
+        yum --quiet --assumeyes update
+        yum --assumeyes install curl
         curl https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/scripts/install_centos_packages.sh -o ./install_centos_packages.sh
         chmod 700 ./install_centos_packages.sh
     fi
