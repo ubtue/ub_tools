@@ -367,8 +367,10 @@ FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::
                                    const std::unordered_map<std::string, std::string> &filter_regexps)
                                    : EndpointDownloader::Params(endpoint_path), columns_to_download_(columns_to_download)
 {
-    for (const auto &filter_pair : filter_regexps)
-        filter_regexps_.insert(std::make_pair(filter_pair.first, RegexMatcher::RegexMatcherFactoryOrDie(filter_pair.second)));
+    for (const auto &filter_pair : filter_regexps) {
+        std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(filter_pair.second));
+        filter_regexps_.insert(std::make_pair(filter_pair.first, std::move(matcher)));
+    }
 }
 
 

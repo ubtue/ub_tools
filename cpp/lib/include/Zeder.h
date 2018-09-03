@@ -338,7 +338,6 @@ class EndpointDownloader {
 public:
     enum Type { FULL_DUMP };
 
-
     class Params {
         friend class EndpointDownloader;
     protected:
