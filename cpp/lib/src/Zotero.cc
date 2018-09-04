@@ -995,32 +995,6 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     return record_count_and_previously_downloaded_count;
 }
 
-/*
-
-inline static std::string DeliveryModeToSqlEnum(BSZUpload::DeliveryMode delivery_mode) {
-    return StringUtil::ToLower(std::find_if(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.begin(), BSZUpload::STRING_TO_DELIVERY_MODE_MAP.end(),
-                                           [delivery_mode](const std::pair<std::string, int> &entry) -> bool { return static_cast<int>
-                                           (delivery_mode) == entry.second; })->first);
-}
-
-
-inline static BSZUPload::DeliveryMode SqlEnumToDeliveryMode(const std::string &delivery_mode) {
-    return static_cast<DeliveryMode>(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.at(StringUtil::ToUpper(delivery_mode)));
-}
-
-
-inline static void UpdateDownloadTrackerEntryFromDbRow(const DbRow &row, DownloadTracker::Entry * const entry) {
-    if (row.empty())
-        LOG_ERROR("Couldn't extract DownloadTracker entry from empty DbRow");
-
-    entry->url_ = row["url"];
-    entry->last_harvest_time_ = SqlUtil::DatetimeToTimeT(row["last_harvest_time"]);
-    entry->journal_name_ = row["journal_name"];
-    entry->error_message_ = row["error_message"];
-    entry->hash_ = row["checksum"];
-    entry->delivery_mode_ = SqlEnumToDeliveryMode(row["delivery_mode"]);
-} */
-
 
 UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
                          const std::shared_ptr<RegexMatcher> &supported_urls_regex,
