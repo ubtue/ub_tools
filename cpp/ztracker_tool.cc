@@ -45,7 +45,7 @@ namespace {
 }
 
 
-void Clear(Zotero::DownloadTracker * const download_tracker, Zotero::DeliveryMode delivery_mode, const std::string &url_or_zulu_timestamp) {
+void Clear(DownloadTracker::DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &url_or_zulu_timestamp) {
     time_t timestamp;
     std::string err_msg;
 
@@ -62,7 +62,7 @@ void Clear(Zotero::DownloadTracker * const download_tracker, Zotero::DeliveryMod
 }
 
 
-void Insert(Zotero::DownloadTracker * const download_tracker, Zotero::DeliveryMode delivery_mode, const std::string &url,
+void Insert(DownloadTracker::DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &url,
             const std::string &journal_name, const std::string &optional_message)
 {
     download_tracker->addOrReplace(delivery_mode, url, journal_name, optional_message, (optional_message.empty() ? "*bogus hash*" : ""));
@@ -70,8 +70,8 @@ void Insert(Zotero::DownloadTracker * const download_tracker, Zotero::DeliveryMo
 }
 
 
-void Lookup(Zotero::DownloadTracker * const download_tracker, Zotero::DeliveryMode delivery_mode, const std::string &url) {
-    Zotero::DownloadTracker::Entry entry;
+void Lookup(DownloadTracker::DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &url) {
+    DownloadTracker::DownloadTracker::Entry entry;
     if (not download_tracker->hasAlreadyBeenDownloaded(delivery_mode, url, /* hash = */"", &entry))
         std::cerr << "Entry for URL \"" << url << "\" could not be found!\n";
     else {
@@ -83,8 +83,8 @@ void Lookup(Zotero::DownloadTracker * const download_tracker, Zotero::DeliveryMo
 }
 
 
-void List(Zotero::DownloadTracker * const download_tracker, Zotero::DeliveryMode delivery_mode, const std::string &pcre) {
-    std::vector<Zotero::DownloadTracker::Entry> entries;
+void List(DownloadTracker::DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &pcre) {
+    std::vector<DownloadTracker::DownloadTracker::Entry> entries;
     download_tracker->listMatches(delivery_mode, pcre, &entries);
 
     for (const auto &entry : entries) {
@@ -96,7 +96,7 @@ void List(Zotero::DownloadTracker * const download_tracker, Zotero::DeliveryMode
 }
 
 
-void IsPresent(Zotero::DownloadTracker * const download_tracker, Zotero::DeliveryMode delivery_mode, const std::string &url) {
+void IsPresent(DownloadTracker::DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &url) {
     std::cout << (download_tracker->hasAlreadyBeenDownloaded(delivery_mode, url) ? "true\n" : "false\n");
 }
 
@@ -109,15 +109,15 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     std::unique_ptr<DbConnection> db_connection(new DbConnection);
-    Zotero::DownloadTracker download_tracker(db_connection.get());
+    DownloadTracker::DownloadTracker download_tracker(db_connection.get());
 
     const std::string delivery_mode_string(StringUtil::ToUpper(argv[1]));
-    Zotero::DeliveryMode delivery_mode(Zotero::DeliveryMode::NONE);
+    BSZUpload::DeliveryMode delivery_mode(BSZUpload::DeliveryMode::NONE);
 
-    if (Zotero::STRING_TO_DELIVERY_MODE_MAP.find(delivery_mode_string) == Zotero::STRING_TO_DELIVERY_MODE_MAP.end())
+    if (BSZUpload::STRING_TO_DELIVERY_MODE_MAP.find(delivery_mode_string) == BSZUpload::STRING_TO_DELIVERY_MODE_MAP.end())
         LOG_ERROR("Unknown delivery mode '" + std::string(delivery_mode_string) + "'");
     else
-        delivery_mode = static_cast<Zotero::DeliveryMode>(Zotero::STRING_TO_DELIVERY_MODE_MAP.at(delivery_mode_string));
+        delivery_mode = static_cast<BSZUpload::DeliveryMode>(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.at(delivery_mode_string));
 
     --argc, ++argv;
 

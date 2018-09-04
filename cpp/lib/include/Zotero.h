@@ -27,6 +27,7 @@
 #include <unordered_map>
 #include "DbConnection.h"
 #include "Downloader.h"
+#include "DownloadTracker.h"
 #include "IniFile.h"
 #include "JSON.h"
 #include "MARC.h"
@@ -39,12 +40,6 @@
 
 
 namespace Zotero {
-
-
-enum DeliveryMode { NONE, TEST, LIVE };
-const std::map<std::string, int> STRING_TO_DELIVERY_MODE_MAP { { "NONE", static_cast<int>(Zotero::DeliveryMode::NONE) },
-                                                              { "TEST", static_cast<int>(Zotero::DeliveryMode::TEST) },
-                                                              { "LIVE", static_cast<int>(Zotero::DeliveryMode::LIVE) } };
 
 enum HarvesterType { RSS, CRAWL, DIRECT };
 const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP { { "RSS", static_cast<int>(Zotero::HarvesterType::RSS) },
@@ -187,7 +182,7 @@ struct SiteParams {
     std::string strptime_format_;
     std::vector<MARC::EditInstruction> marc_edit_instructions_;
     std::unique_ptr<RegexMatcher> extraction_regex_;
-    DeliveryMode delivery_mode_;
+    BSZUpload::DeliveryMode delivery_mode_;
 public:
 };
 
@@ -209,62 +204,6 @@ struct HarvestParams {
     unsigned harvested_url_count_ = 0;
     std::string user_agent_;
     std::unique_ptr<FormatHandler> format_handler_;
-};
-
-
-/** \class DownloadTracker
- *  \brief Loads, manages and stores the timestamps, hashes of previously downloaded metadata records.
- */
-class DownloadTracker {
-    DbConnection * db_connection_;
-public:
-    struct Entry {
-        std::string url_;
-        std::string journal_name_;
-        time_t last_harvest_time_;
-        std::string error_message_;
-        std::string hash_;
-        DeliveryMode delivery_mode_;
-    };
-public:
-    explicit DownloadTracker(DbConnection * const db): db_connection_(db) {}
-    ~DownloadTracker() = default;
-
-    // Acceptable delivery modes: TEST, LIVE
-
-    /** \brief Checks if "url" or ("url", "hash") have already been downloaded.
-     *  \return True if we have find an entry for "url" or ("url", "hash"), else false.
-     */
-    bool hasAlreadyBeenDownloaded(DeliveryMode delivery_mode, const std::string &url, const std::string &hash = "", Entry * const entry = nullptr) const;
-
-    void addOrReplace(DeliveryMode delivery_mode, const std::string &url, const std::string &journal_name, const std::string &hash, const std::string &error_message);
-
-    /** \brief Lists entries that match the URL regex given the delivery mode constraint.
-    */
-    size_t listMatches(DeliveryMode delivery_mode, const std::string &url_regex, std::vector<Entry> * const entries) const;
-
-    size_t deleteMatches(DeliveryMode delivery_mode, const std::string &url_regex);
-
-    /** \return 0 if no matching entry was found, o/w 1. */
-    size_t deleteSingleEntry(DeliveryMode delivery_mode, const std::string &url);
-
-    /** \brief Deletes all entries that have timestamps <= "cutoff_timestamp".
-     *  \return  The number of deleted entries.
-     */
-    size_t deleteOldEntries(DeliveryMode delivery_mode, const time_t cutoff_timestamp);
-
-    /** \brief Deletes all entries in the database.
-     *  \return The number of deleted entries.
-     */
-    size_t clear(DeliveryMode delivery_mode);
-
-    size_t size(DeliveryMode delivery_mode) const;
-
-    /** \brief Lists all journals that haven't had a single URL harvested for a given number of days.
-     *  \return The number of outdated journals.
-     */
-    size_t listOutdatedJournals(DeliveryMode delivery_mode, const unsigned cutoff_days,
-                                std::unordered_map<std::string, std::map<DeliveryMode, time_t>> * const outdated_journals);
 };
 
 
@@ -295,7 +234,7 @@ public:
     static std::unique_ptr<FormatHandler> Factory(DbConnection * const db_connection, const std::string &output_format,
                                                   const std::string &output_file,
                                                   const std::shared_ptr<const HarvestParams> &harvest_params);
-     inline DeliveryMode getDeliveryMode() { return site_params_ == nullptr ? NONE : site_params_->delivery_mode_; }
+     inline BSZUpload::DeliveryMode getDeliveryMode() { return site_params_ == nullptr ? BSZUpload::NONE : site_params_->delivery_mode_; }
 };
 
 
