@@ -138,7 +138,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
                 continue;
 
             const Zotero::HarvesterType harvest_type(static_cast<Zotero::HarvesterType>(section.getEnum("type", Zotero::STRING_TO_HARVEST_TYPE_MAP)));
-            const Zotero::DeliveryMode delivery_mode(static_cast<Zotero::DeliveryMode>(section.getEnum("delivery_mode", Zotero::STRING_TO_DELIVERY_MODE_MAP, Zotero::DeliveryMode::NONE)));
+            const BSZUpload::DeliveryMode delivery_mode(static_cast<BSZUpload::DeliveryMode>(section.getEnum("delivery_mode", BSZUpload::STRING_TO_DELIVERY_MODE_MAP, BSZUpload::DeliveryMode::NONE)));
             const std::string harvest_type_raw(section.getString("type"));
             const std::string issn_print(section.getString("issn_print", ""));
             const std::string issn_online(section.getString("issn_online", ""));
@@ -165,7 +165,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             all_journal_zeder_comments.emplace_back(zeder_comment);
             all_journal_zeder_urls.emplace_back(zeder_url);
 
-            const auto delivery_mode_string(std::find_if(Zotero::STRING_TO_DELIVERY_MODE_MAP.begin(), Zotero::STRING_TO_DELIVERY_MODE_MAP.end(), [delivery_mode](const std::pair<std::string, int> &map_entry) {return map_entry.second == delivery_mode; })->first);
+            const auto delivery_mode_string(std::find_if(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.begin(), BSZUpload::STRING_TO_DELIVERY_MODE_MAP.end(), [delivery_mode](const std::pair<std::string, int> &map_entry) {return map_entry.second == delivery_mode; })->first);
             all_journal_delivery_modes.emplace_back(delivery_mode_string);
 
             if (harvest_type == Zotero::HarvesterType::RSS) {

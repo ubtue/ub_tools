@@ -63,34 +63,6 @@ const std::unordered_map<std::string, std::string> group_to_user_agent_map = {
 }
 
 
-void LoadMARCEditInstructions(const IniFile::Section &section, std::vector<MARC::EditInstruction> * edit_instructions) {
-    edit_instructions->clear();
-
-    for (const auto &entry : section) {
-        if (StringUtil::StartsWith(entry.name_, "insert_field_")) {
-            const std::string tag_candidate(entry.name_.substr(__builtin_strlen("insert_field_")));
-            if (tag_candidate.length() != MARC::Record::TAG_LENGTH)
-                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + entry.name_ + "\"!");
-            edit_instructions->emplace_back(MARC::EditInstruction::CreateInsertFieldInstruction(tag_candidate, entry.value_));
-        } else if (StringUtil::StartsWith(entry.name_, "insert_subfield_")) {
-            const std::string tag_and_subfield_code_candidate(entry.name_.substr(__builtin_strlen("insert_subfield_")));
-            if (tag_and_subfield_code_candidate.length() != MARC::Record::TAG_LENGTH + 1)
-                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + entry.name_ + "\"!");
-            edit_instructions->emplace_back(MARC::EditInstruction::CreateInsertSubfieldInstruction(
-                tag_and_subfield_code_candidate.substr(0, MARC::Record::TAG_LENGTH),
-                tag_and_subfield_code_candidate[MARC::Record::TAG_LENGTH], entry.value_));
-        } else if (StringUtil::StartsWith(entry.name_, "add_subfield_")) {
-            const std::string tag_and_subfield_code_candidate(entry.name_.substr(__builtin_strlen("add_subfield_")));
-            if (tag_and_subfield_code_candidate.length() != MARC::Record::TAG_LENGTH + 1)
-                LOG_ERROR("bad entry in section \"" + section.getSectionName() + "\" \"" + entry.name_ + "\"!");
-            edit_instructions->emplace_back(MARC::EditInstruction::CreateAddSubfieldInstruction(
-                tag_and_subfield_code_candidate.substr(0, MARC::Record::TAG_LENGTH),
-                tag_and_subfield_code_candidate[MARC::Record::TAG_LENGTH], entry.value_));
-        }
-    }
-}
-
-
 void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Section &section, Zotero::SiteParams * const site_params) {
     site_params->parent_journal_name_ = section.getSectionName();
     site_params->parent_ISSN_print_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_PRINT), "");
@@ -167,15 +139,15 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
-    Zotero::DeliveryMode delivery_mode_to_process(Zotero::DeliveryMode::NONE);
+    BSZUpload::DeliveryMode delivery_mode_to_process(BSZUpload::DeliveryMode::NONE);
     if (StringUtil::StartsWith(argv[1], "--delivery-mode=")) {
         const auto mode_string(argv[1] + __builtin_strlen("--delivery-mode="));
-        const auto match(Zotero::STRING_TO_DELIVERY_MODE_MAP.find(mode_string));
+        const auto match(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.find(mode_string));
 
-        if (match == Zotero::STRING_TO_DELIVERY_MODE_MAP.end())
+        if (match == BSZUpload::STRING_TO_DELIVERY_MODE_MAP.end())
             LOG_ERROR("Unknown delivery mode '" + std::string(mode_string) + "'");
         else
-            delivery_mode_to_process = static_cast<Zotero::DeliveryMode>(match->second);
+            delivery_mode_to_process = static_cast<BSZUpload::DeliveryMode>(match->second);
 
         --argc, ++argv;
     }
@@ -255,8 +227,8 @@ int Main(int argc, char *argv[]) {
             continue;
         }
 
-        const Zotero::DeliveryMode delivery_mode(static_cast<Zotero::DeliveryMode>(section.getEnum("delivery_mode", Zotero::STRING_TO_DELIVERY_MODE_MAP, Zotero::DeliveryMode::NONE)));
-        if (delivery_mode_to_process != Zotero::DeliveryMode::NONE and delivery_mode != delivery_mode_to_process)
+        const BSZUpload::DeliveryMode delivery_mode(static_cast<BSZUpload::DeliveryMode>(section.getEnum("delivery_mode", BSZUpload::STRING_TO_DELIVERY_MODE_MAP, BSZUpload::DeliveryMode::NONE)));
+        if (delivery_mode_to_process != BSZUpload::DeliveryMode::NONE and delivery_mode != delivery_mode_to_process)
             continue;
 
         const std::string group_name(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::GROUP)));
@@ -266,15 +238,11 @@ int Main(int argc, char *argv[]) {
         else if (not groups_filter.empty() and groups_filter.find(group_name) == groups_filter.end())
             continue;
 
-        std::vector<MARC::EditInstruction> edit_instructions;
-        LoadMARCEditInstructions(section, &edit_instructions);
-
         Zotero::GobalAugmentParams global_augment_params(&augment_maps);
 
         Zotero::SiteParams site_params;
         site_params.global_params_          = &global_augment_params;
         site_params.group_params_           = &group_name_and_params->second;
-        site_params.marc_edit_instructions_ = edit_instructions;
         site_params.delivery_mode_          = delivery_mode;
         ReadGenericSiteAugmentParams(ini_file, section, &site_params);
 
