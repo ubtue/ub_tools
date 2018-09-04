@@ -195,23 +195,47 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
 }
 
 
-void CreateDatabases(const bool ub_tools) {
-    if (ub_tools) {
-        IniFile ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
-        const auto section(ini_file.getSection("Database"));
-        const std::string sql_database(section->getString("sql_database"));
-        const std::string sql_username(section->getString("sql_username"));
-        const std::string sql_password(section->getString("sql_password"));
+void CreateUbToolsDatabase() {
+    const std::string root_username("root");
+    const std::string root_password("");
 
-        const std::string root_username("root");
-        const std::string root_password("");
+    IniFile ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
+    const auto section(ini_file.getSection("Database"));
+    const std::string sql_database(section->getString("sql_database"));
+    const std::string sql_username(section->getString("sql_username"));
+    const std::string sql_password(section->getString("sql_password"));
 
-        if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
-            std::cout << "creating ub_tools database\n";
-            DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
-            DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
-            DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
-            DbConnection::MySQLImportFile(sql_database, INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", root_username, root_password);
+    if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
+        std::cout << "creating ub_tools database\n";
+        DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
+        DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
+        DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
+        DbConnection::MySQLImportFile(sql_database, INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", root_username, root_password);
+    }
+}
+
+
+void CreateVuFindDatabase(VuFindSystemType vufind_system_type) {
+    const std::string root_username("root");
+    const std::string root_password("");
+
+    const std::string sql_database("vufind");
+    const std::string sql_username("vufind");
+    const std::string sql_password("vufind");
+
+    if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
+        std::cout << "creating vufind database\n";
+        DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
+        DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
+        DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
+        DbConnection::MySQLImportFile(sql_database, VUFIND_DIRECTORY + "/module/VuFind/sql/mysql.sql", root_username, root_password);
+        switch(vufind_system_type) {
+            case IXTHEO:
+                DbConnection::MySQLImportFile(sql_database, VUFIND_DIRECTORY + "/module/IxTheo/sql/mysql.sql", root_username, root_password);
+                break;
+            case KRIMDOK:
+                DbConnection::MySQLImportFile(sql_database, VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", root_username, root_password);
+                break;
         }
     }
 }
@@ -259,7 +283,7 @@ void InstallUBTools(const bool make_install) {
     else
         ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4" });
 
-    CreateDatabases(make_install);
+    CreateUbToolsDatabase();
 
     Echo("Installed ub_tools.");
 }
@@ -595,6 +619,7 @@ int main(int argc, char **argv) {
         if (not ub_tools_only) {
             MountDeptDriveOrDie(vufind_system_type);
             DownloadVuFind();
+            CreateVuFindDatabase(vufind_system_type);
             ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, not omit_systemctl);
         }
         InstallUBTools(/* make_install = */ not ub_tools_only);
