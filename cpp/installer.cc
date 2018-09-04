@@ -619,10 +619,11 @@ int main(int argc, char **argv) {
         if (not ub_tools_only) {
             MountDeptDriveOrDie(vufind_system_type);
             DownloadVuFind();
-            CreateVuFindDatabase(vufind_system_type);
             ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, not omit_systemctl);
         }
-        InstallUBTools(/* make_install = */ not ub_tools_only);
+        InstallUBTools(/* make_install = */ true);
+        if (not ub_tools_only)
+            CreateVuFindDatabase(vufind_system_type);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
