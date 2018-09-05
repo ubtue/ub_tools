@@ -39,6 +39,8 @@ bool CompileRegex(const std::string &pattern, const unsigned options, ::pcre **p
         pcre_options |= PCRE_UTF8;
     if (options & RegexMatcher::CASE_INSENSITIVE)
         pcre_options |= PCRE_CASELESS;
+    if (options & RegexMatcher::MULTILINE)
+        pcre_options |= PCRE_MULTILINE;
 
     *pcre_arg = ::pcre_compile(pattern.c_str(), pcre_options, &errptr, &erroffset, nullptr);
     if (*pcre_arg == nullptr) {
