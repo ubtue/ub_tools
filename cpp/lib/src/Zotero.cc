@@ -126,6 +126,7 @@ const std::map<std::string, MARC::Record::BibliographicLevel> ITEM_TYPE_TO_BIBLI
 
 
 const std::string DEFAULT_SUBFIELD_CODE("eng");
+const std::string DEFAULT_LANGUAGE_CODE("eng");
 
 
 namespace TranslationServer {
@@ -438,6 +439,202 @@ void InsertDOI(MARC::Record * const record, const std::string &doi) {
 }
 
 
+void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::ObjectNode> object_node, ItemParameters * const node_parameters) {
+     // Item Type
+     node_parameters->item_type = object_node->getStringValue("itemType");
+
+     // Title
+     node_parameters->title = object_node->getOptionalStringValue("title");
+
+     // Short Title
+     node_parameters->title = object_node->getOptionalStringValue("shortTitle");
+
+     // Creators
+     for (const auto creator_node : *(object_node->getOptionalArrayNode("creators"))) {
+          Creator creator;
+          auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
+          creator.first_name = creator_object_node->getOptionalStringValue("firstName");
+          creator.last_name = creator_object_node->getOptionalStringValue("lastName");
+          creator.type = creator_object_node->getOptionalStringValue("creatorType");
+          node_parameters->creators.emplace_back(creator);
+     }
+
+     // Publication Title
+     node_parameters->publication_title = object_node->getOptionalStringValue("publicationTitle");
+
+     // Serial Short Title
+     node_parameters->abbreviated_publication_title = object_node->getOptionalStringValue("journalAbbreviation");
+
+     // DOI
+     node_parameters->doi = object_node->getOptionalStringValue("DOI");
+     if (node_parameters->doi.empty()) {
+         const std::string extra = object_node->getOptionalStringValue("extra");
+         if (not extra.empty()) {
+             static RegexMatcher * const doi_matcher(RegexMatcher::RegexMatcherFactory("^DOI:\\s*([0-9a-zA-Z./]+)$"));
+             if (doi_matcher->matched(extra))
+                 node_parameters->doi = (*doi_matcher)[1];
+         }
+     }
+     // Language
+     node_parameters->language = object_node->getOptionalStringValue("language");
+
+     // Copyright
+     node_parameters->copyright = object_node->getOptionalStringValue("rights");
+
+     // Date
+     node_parameters->date = object_node->getOptionalStringValue("date");
+
+     // Volume
+     node_parameters->volume = object_node->getOptionalStringValue("volume");
+
+     // Issue
+     node_parameters->issue = object_node->getOptionalStringValue("issue");
+     // FIXME: Test for unknown fields
+}
+
+
+
+MARC::Record::BibliographicLevel MapBiblioLevel(const std::string item_type) {
+    const auto bib_level_map_entry(ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.find(item_type));
+    if (bib_level_map_entry == ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.cend())
+        LOG_ERROR("No bibliographic level mapping entry available for Zotero item type: " + item_type);
+    return bib_level_map_entry->second;
+}
+
+
+bool IsValidItemType(const std::string item_type) {
+    static std::vector<std::string> valid_item_types({ "journalArticle", "magazineArticle",  "newspaperArticle", "webpage" });
+    return std::find(valid_item_types.begin(), valid_item_types.end(), item_type) != valid_item_types.end();
+}
+
+
+// Integrate to process
+void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters) {
+     const std::string item_type(node_parameters.item_type);
+     *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MapBiblioLevel(item_type));
+
+     // Control Fields
+
+     // Handle 001 only at the end since we need a proper hash values
+     // -> c.f. last line of this function
+
+     const std::string isil(node_parameters.isil);
+     record->insertField("003", isil); // Isil
+
+     const std::string physical_form(node_parameters.physical_form); // Physical Form
+     if (not physical_form.empty()) {
+        if (physical_form == "A")
+            record->insertField("007", "tu");
+        else if (physical_form == "O")
+            record->insertField("007", "cr uuu---uuuuu");
+        else
+            LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
+     }
+
+     // Titles
+     const std::string title(node_parameters.title);
+     if (not title.empty())
+         record->insertField("245", { { 'a', title } });
+     const std::string short_title(node_parameters.short_title);
+     if (not short_title.empty())
+         record->insertField("246", { { 'a', short_title } });
+     if (title.empty() and short_title.empty()) {
+         const std::string website_title(node_parameters.website_title);
+         if (not website_title.empty())
+             record->insertField("245", { { 'a', website_title } });
+         else
+             LOG_ERROR("No title found");
+     }
+
+     // Language (inserted uncoditionally)
+     std::string language(node_parameters.language);
+     if (language.empty())
+         language = DEFAULT_LANGUAGE_CODE;
+         record->insertField("041", { {'a', language } });
+
+     // Abstract Note
+     const std::string abstract_note(node_parameters.abstract_note);
+     if (not abstract_note.empty())
+         record->insertField("520", { {'a', abstract_note } }, '3' /* indicator 1*/);
+
+     // FIXME Which date is this??
+     const std::string date(node_parameters.date);
+     if (not date.empty())
+         record->insertField("362", { {'a', date} });
+
+     // Copyright/URL
+     const std::string copyright(node_parameters.copyright);
+     if (not copyright.empty())
+         record->insertField("542", { { UrlUtil::IsValidWebUrl(copyright) ? 'u' : 'f', copyright } });
+
+     // DOI
+     const std::string doi(node_parameters.doi);
+     if (not doi.empty())
+         record->insertField("024", { { 'a', doi }, { '2', "doi" } });
+
+
+     // Differentiating information about source (see BSZ Konkordanz MARC 936)
+
+     if (item_type == "journalArticle" or item_type == "magazineArticle" or item_type == "newspaperArticle") {
+         MARC::Subfields _936_subfields;
+         const std::string volume(node_parameters.volume);
+         if (not volume.empty())
+              _936_subfields.appendSubfield('d', volume);
+         const std::string year(node_parameters.year);
+         if (not year.empty())
+             _936_subfields.appendSubfield('j', year);
+         const std::string issue(node_parameters.issue);
+         if (not issue.empty())
+             _936_subfields.appendSubfield('e', issue);
+         const std::string pages(node_parameters.pages);
+         if (not pages.empty())
+             _936_subfields.appendSubfield('h', pages);
+         const std::string license(node_parameters.license);
+         if (license == "l")
+             _936_subfields.appendSubfield('z', "Kostenfrei");
+         if (not _936_subfields.empty())
+             record->insertField("936", _936_subfields);
+     }
+     else if (item_type == "webpage") {
+         record->insertField("935", { { 'c', "website" } });
+     }
+
+
+     // Information about superior work (See BSZ Konkordanz MARC 773)
+     MARC::Subfields _773_subfields;
+     const std::string publication_title(node_parameters.publication_title);
+     if (not publication_title.empty())
+         _773_subfields.appendSubfield('a', publication_title);
+     const std::string abbreviated_publication_title(node_parameters.abbreviated_publication_title);
+     if (not abbreviated_publication_title.empty())
+         _773_subfields.appendSubfield('p', abbreviated_publication_title);
+     const std::string issn(node_parameters.issn);
+     if (not issn.empty())
+         _773_subfields.appendSubfield('x', issn);
+     const std::string superior_ppn(node_parameters.superior_ppn);
+     if (not superior_ppn.empty())
+         _773_subfields.appendSubfield('w', "(DE-576)" + superior_ppn);
+     record->insertField("773", _773_subfields);
+
+     // Keywords
+     for (const auto keyword : node_parameters.keywords)
+          record->insertField("653", { {'a', keyword } });
+
+
+     // SSG numbers
+     const auto ssg_numbers(node_parameters.ssg_numbers);
+     if (not ssg_numbers.empty()) {
+         MARC::Subfields _084_subfields;
+         for (const auto ssg_number : ssg_numbers)
+             _084_subfields.appendSubfield('a', ssg_number);
+         _084_subfields.appendSubfield('0', "ssgn");
+     }
+
+     record->insertField("001", site_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
+                           + "#" + StringUtil::ToHexString(MARC::CalcChecksum(*record)));
+}
+
+
 MARC::Record MarcFormatHandler::processJSON(const std::shared_ptr<const JSON::ObjectNode> &object_node, std::string * const url,
                                             std::string * const publication_title, std::string * const abbreviated_publication_title,
                                             std::string * const website_title)
@@ -536,6 +733,7 @@ void MarcFormatHandler::extractCustomNodeParameters(std::shared_ptr<const JSON::
     custom_node_params->volume = custom_object->getOptionalStringValue("volume");
     custom_node_params->license = custom_object->getOptionalStringValue("licenseCode");
     custom_node_params->ssg_numbers = custom_object->getOptionalStringValue("ssgNumbers");
+
 }
 
 
@@ -972,6 +1170,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
         try {
             AugmentJson(harvest_url, json_object, site_params);
+// FIXME
             record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
         } catch (const std::exception &x) {
             LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tCouldn't process record! Error: "
