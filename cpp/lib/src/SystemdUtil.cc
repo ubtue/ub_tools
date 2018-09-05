@@ -62,14 +62,7 @@ void SystemdUtil::InstallUnit(const std::string &service_file_path) {
 bool SystemdUtil::IsUnitAvailable(const std::string &unit) {
     std::string out, err;
     ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::Which(SYSTEMD_EXECUTABLE), { "--all", "list-unit-files" }, &out, &err);
-
-    const std::string regex_pattern("^" + unit + "\\.service");
-    std::string regex_err;
-    RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &regex_err, RegexMatcher::MULTILINE));
-    if (matcher == nullptr)
-        LOG_ERROR("Failed to compile pattern \"" + regex_pattern + "\": " + regex_err);
-
-    return matcher->matched(out);
+    return RegexMatcher::Matched("^" + unit + "\\.service", out, RegexMatcher::MULTILINE);
 }
 
 
@@ -83,14 +76,7 @@ bool SystemdUtil::IsUnitEnabled(const std::string &unit) {
 bool SystemdUtil::IsUnitRunning(const std::string &unit) {
     std::string out, err;
     ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::Which(SYSTEMD_EXECUTABLE), { "status", unit }, &out, &err);
-
-    const std::string regex_pattern("(running)");
-    std::string regex_err;
-    RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &regex_err));
-    if (matcher == nullptr)
-        LOG_ERROR("Failed to compile pattern \"" + regex_pattern + "\": " + regex_err);
-
-    return matcher->matched(out);
+    return RegexMatcher::Matched("(running)", out);
 }
 
 
