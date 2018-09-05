@@ -40,7 +40,8 @@ namespace {
 
 // TODO: add archivportal-d (BEACON url not found)
 // BEACON file can only be used if entry elemtents are plain GND numbers.
-const std::map<std::string, std::string> beacon_id_to_url_map({ { "kalliope", "http://kalliope.staatsbibliothek-berlin.de/beacon/beacon.txt" } });
+const std::map<std::string, std::string> beacon_id_to_url_map({ { "kalliope", "http://kalliope.staatsbibliothek-berlin.de/beacon/beacon.txt" },
+                                                                { "archivportal-d", "https://www.archivportal-d.de/static/de/beacon-archivportal-persons.txt" }});
 
 
 std::map<std::string, std::set<std::string>> PopulateGNDToBeaconIdsMap() {
