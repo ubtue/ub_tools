@@ -45,6 +45,7 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
+#include "RegexMatcher.h"
 #include "SELinuxUtil.h"
 #include "StringUtil.h"
 #include "SystemdUtil.h"
@@ -111,6 +112,12 @@ OSSystemType DetermineOSSystemType() {
         and StringUtil::FindCaseInsensitive(file_contents, "centos") != std::string::npos)
         return CENTOS;
     Error("you're probably not on an Ubuntu nor on a CentOS system!");
+}
+
+
+// Detect if OS is running inside docker (e.g. if we might have problems to access systemctl)
+bool IsDockerEnvironment() {
+    return RegexMatcher::Matched("docker", FileUtil::ReadStringOrDie("/proc/1/cgroup"));
 }
 
 
@@ -268,21 +275,31 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tool
         ExecUtil::ExecOrDie(script, { "tuefind" });
 
     // check systemd configuration
-    if (install_systemctl and SystemdUtil::IsAvailable()) {
-        std::string apache_unit_name, mysql_unit_name;
+    if (install_systemctl) {
+        std::string apache_unit_name, mysql_unit_name, mysql_docker_command;
         switch(os_system_type) {
             case UBUNTU:
                 apache_unit_name = "apache2";
                 mysql_unit_name = "mysql";
+                mysql_docker_command = ExecUtil::Which("mysqld_safe");
                 break;
             case CENTOS:
                 apache_unit_name = "httpd";
                 mysql_unit_name = "mariadb";
+                mysql_docker_command = ExecUtil::Which("mysqld_safe");
+
+                if (not FileUtil::Exists("/etc/my.cnf"))
+                    ExecUtil::ExecOrDie(ExecUtil::Which("mysql_install_db"), { "--user=mysql", "--ldata=/var/lib/mysql/", "--basedir=/usr" });
                 break;
         }
 
-        SystemdEnableAndRunUnit(apache_unit_name);
-        SystemdEnableAndRunUnit(mysql_unit_name);
+        // we need to make sure that at least mysql is running, to be able to create databases
+        if (IsDockerEnvironment())
+            ExecUtil::Spawn(mysql_docker_command);
+        else if(SystemdUtil::IsAvailable()) {
+            SystemdEnableAndRunUnit(apache_unit_name);
+            SystemdEnableAndRunUnit(mysql_unit_name);
+        }
     }
 }
 
