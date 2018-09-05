@@ -1,4 +1,4 @@
-/** \brief Utility for deleting partial or entire MARC records based on an input list.
+/** \brief Utility for adding external BEACON references to MARC data.
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -33,7 +33,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--input-format=(marc-21|marc-xml)] [--output-format=(marc-21|marc-xml)] input_marc21 output_marc21\n";
+              << " input_marc output_marc\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -110,17 +110,11 @@ void ProcessRecords(const std::map<std::string, std::set<std::string>> &gnd_to_b
 int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc < 3)
-        Usage();
-
-    const auto reader_type(MARC::GetOptionalReaderType(&argc, &argv, 1));
-    const auto writer_type(MARC::GetOptionalWriterType(&argc, &argv, 1));
-
     if (argc != 3)
         Usage();
 
-    const auto marc_reader(MARC::Reader::Factory(argv[1], reader_type));
-    const auto marc_writer(MARC::Writer::Factory(argv[2], writer_type));
+    const auto marc_reader(MARC::Reader::Factory(argv[1]));
+    const auto marc_writer(MARC::Writer::Factory(argv[2]));
 
     std::map<std::string, std::set<std::string>> gnd_to_beacon_ids_map(PopulateGNDToBeaconIdsMap());
     ProcessRecords(gnd_to_beacon_ids_map, marc_reader.get(), marc_writer.get());
