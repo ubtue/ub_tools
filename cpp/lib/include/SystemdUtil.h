@@ -28,12 +28,17 @@ namespace SystemdUtil {
 
 // Systemd-based functions
 bool IsAvailable();
+void Reload();
 
 // Unit-based functions
-void DisableUnit(const std::string unit);
-void EnableUnit(const std::string unit);
-bool IsUnitAvailable(const std::string unit);
-bool IsUnitEnabled(const std::string unit);
+void DisableUnit(const std::string &unit);
+void EnableUnit(const std::string &unit);
+void InstallUnit(const std::string &service_file_path);
+bool IsUnitAvailable(const std::string &unit);
+bool IsUnitEnabled(const std::string &unit);
+bool IsUnitRunning(const std::string &unit);
+void RestartUnit(const std::string &unit);
+void StartUnit(const std::string &unit);
 
 
 } // namespace Systemd
