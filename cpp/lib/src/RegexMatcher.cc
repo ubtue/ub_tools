@@ -170,6 +170,17 @@ bool RegexMatcher::matched(const std::string &subject, std::string * const err_m
 }
 
 
+bool RegexMatcher::Matched(const std::string &regex, const std::string &subject, const unsigned options,
+                           std::string * const err_msg, size_t * const start_pos, size_t * const end_pos)
+{
+    RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex, err_msg, options));
+    if (matcher == nullptr)
+        LOG_ERROR("Failed to compile pattern \"" + regex + "\": " + *err_msg);
+
+    return matcher->matched(subject, err_msg, start_pos, end_pos);
+}
+
+
 std::string RegexMatcher::operator[](const unsigned group) const {
     if (unlikely(group >= last_match_count_))
         throw std::out_of_range("in RegexMatcher::operator[]: group(" + std::to_string(group) + ") >= "
