@@ -40,7 +40,7 @@ class RegexMatcher {
     mutable std::vector<int> substr_vector_;
     mutable unsigned last_match_count_;
 public:
-    enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2 }; // These need to be powers of 2.
+    enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4 }; // These need to be powers of 2.
 public:
     /** Copy constructor. */
     RegexMatcher(const RegexMatcher &that);
@@ -93,7 +93,7 @@ public:
     /** \brief Creates a RegexMatcher.
      *  \param pattern      The pattern to be compiled.
      *  \param options      Or'ed together values of type enum Option.
-     *  \note  Aborts on error and prints an error message to stderr. 
+     *  \note  Aborts on error and prints an error message to stderr.
      */
     static RegexMatcher *RegexMatcherFactoryOrDie(const std::string &regex, const unsigned options = 0);
 private:
