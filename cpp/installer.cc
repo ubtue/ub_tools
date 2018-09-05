@@ -47,6 +47,7 @@
 #include "MiscUtil.h"
 #include "SELinuxUtil.h"
 #include "StringUtil.h"
+#include "SystemdUtil.h"
 #include "Template.h"
 #include "VuFind.h"
 #include "util.h"
@@ -241,7 +242,20 @@ void CreateVuFindDatabase(VuFindSystemType vufind_system_type) {
 }
 
 
-void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tools_only) {
+void SystemdEnableAndRunUnit(const std::string unit) {
+    if (not SystemdUtil::IsUnitAvailable(unit))
+        LOG_ERROR(unit + " unit not found in systemd, installation problem?");
+
+    if (not SystemdUtil::IsUnitEnabled(unit))
+        SystemdUtil::EnableUnit(unit);
+
+    if (not SystemdUtil::IsUnitRunning(unit))
+        SystemdUtil::StartUnit(unit);
+}
+
+
+void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tools_only, bool install_systemctl) {
+    // install / update dependencies
     std::string script;
     if (os_system_type == UBUNTU)
         script = INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh";
@@ -252,6 +266,24 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tool
         ExecUtil::ExecOrDie(script);
     else
         ExecUtil::ExecOrDie(script, { "tuefind" });
+
+    // check systemd configuration
+    if (install_systemctl and SystemdUtil::IsAvailable()) {
+        std::string apache_unit_name, mysql_unit_name;
+        switch(os_system_type) {
+            case UBUNTU:
+                apache_unit_name = "apache2";
+                mysql_unit_name = "mysql";
+                break;
+            case CENTOS:
+                apache_unit_name = "httpd";
+                mysql_unit_name = "mariadb";
+                break;
+        }
+
+        SystemdEnableAndRunUnit(apache_unit_name);
+        SystemdEnableAndRunUnit(mysql_unit_name);
+    }
 }
 
 
@@ -448,15 +480,17 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
 }
 
 
-static void InstallVuFindServiceTemplate(const VuFindSystemType system_type) {
-        const std::string SYSTEMD_SERVICE_DIRECTORY("/usr/local/lib/systemd/system/");
-        ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", SYSTEMD_SERVICE_DIRECTORY });
-        Template::Map names_to_values_map;
-        names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "8G");
-        const std::string vufind_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
-                                                                                            + "/vufind.service.template"),
-                                                                 names_to_values_map));
-        FileUtil::WriteStringOrDie(SYSTEMD_SERVICE_DIRECTORY + "/vufind.service", vufind_service);
+static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType system_type, const std::string &service_name) {
+    FileUtil::AutoTempDirectory temp_dir;
+
+    Template::Map names_to_values_map;
+    names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "8G");
+    const std::string vufind_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
+                                                                                        + "/" + service_name + ".service.template"),
+                                                             names_to_values_map));
+    const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
+    FileUtil::WriteStringOrDie(service_file_path, vufind_service);
+    SystemdUtil::InstallUnit(service_file_path);
 }
 
 
@@ -484,10 +518,8 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
     if (install_systemctl) {
         Echo("Activating Solr service...");
 
-        InstallVuFindServiceTemplate(system_type);
-        ExecUtil::ExecOrDie(ExecUtil::Which("systemctl"), { "enable", SERVICENAME });
-        ExecUtil::ExecOrDie(ExecUtil::Which("systemctl"), { "daemon-reload" });
-        ExecUtil::ExecOrDie(ExecUtil::Which("systemctl"), { "restart", SERVICENAME });
+        GenerateAndInstallVuFindServiceTemplate(system_type, SERVICENAME);
+        SystemdEnableAndRunUnit(SERVICENAME);
     }
 }
 
@@ -614,7 +646,7 @@ int main(int argc, char **argv) {
     try {
         // Install dependencies before vufind
         // correct PHP version for composer dependancies
-        InstallSoftwareDependencies(os_system_type, ub_tools_only);
+        InstallSoftwareDependencies(os_system_type, ub_tools_only, not omit_systemctl);
 
         if (not ub_tools_only) {
             MountDeptDriveOrDie(vufind_system_type);
