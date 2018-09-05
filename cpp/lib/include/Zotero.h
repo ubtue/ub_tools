@@ -59,9 +59,50 @@ struct CustomNodeParameters {
     std::string parent_journal_name;
     std::string harvest_url;
     std::string physical_form;
+    std::string year;
+    std::string pages;
     std::string volume;
     std::string license;
     std::string ssg_numbers;
+    std::string journal_ppn;
+};
+
+
+struct Creator {
+    std::string first_name;
+    std::string last_name;
+    std::string type;
+    std::string author_ppn;
+};
+
+
+struct ItemParameters {
+    std::string item_type;
+    std::string publication_title;
+    std::string abbreviated_publication_title;
+    std::string language;
+    std::string abstract_note;
+    std::string website_title;
+    std::string doi;
+    std::string copyright;
+    std::string extra; // Notwendig ??
+    std::vector<Creator> creators;
+    std::string url;
+    std::string year;
+    std::string pages; // Notwendig ??
+    std::string volume; //Notwendig ??
+    std::string date;
+    std::string title;
+    std::string short_title; //Verhältnis zu title
+    std::string issue;
+    std::string isil; // FIXME needed ??
+    // Additional item parameters
+    std::string superior_ppn; // Generated on our side
+    std::string issn;
+    std::string license;
+    std::vector<std::string> keywords;
+    std::vector<std::string> ssg_numbers;
+    std::string physical_form;
 };
 
 
@@ -303,6 +344,11 @@ private:
 
     void extractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node,
                                      struct CustomNodeParameters * const custom_node_parameters);
+
+    void extractItemParameters(std::shared_ptr<const JSON::ObjectNode> custom_node,
+                               struct ItemParameters * const node_parameters);
+
+    void GenerateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters);
 };
 
 
