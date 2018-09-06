@@ -323,6 +323,21 @@ void MovePageNumbersFrom300(MARC::Record * const record, bool * const modified_r
 }
 
 
+void FixArticleLeader(MARC::Record * const record,  bool * const modified_record) {
+     // SSOAR delivers a wrong leader for articles in journals: leader[7]=m instead of b
+     // For chapters in books it is correctly done: leader[7]=a
+     // So rewrite to b if we have a component part that is not part of a book
+     // We use the fact that we have already rewritten the 773 fields where $i contains "In:"
+     for (const auto field : record->getTagRange("773")) {
+          if (field.hasSubfieldWithValue('i', "In:") and record->getLeader()[7] != 'a') {
+              record->setBibliographicLevel('b');
+              *modified_record = true;
+              return;
+          }
+     }
+}
+
+
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     unsigned record_count(0), modified_count(0);
     while (MARC::Record record = marc_reader->read()) {
@@ -336,6 +351,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         RemoveExtraneousHyphensFrom653(&record, &modified_record);
         RemoveExtraneousPublisherNames(&record, &modified_record);
         MovePageNumbersFrom300(&record, &modified_record);
+        FixArticleLeader(&record, &modified_record);
 
         marc_writer->write(record);
         if (modified_record)
