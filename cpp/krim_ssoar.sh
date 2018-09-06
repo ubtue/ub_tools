@@ -20,7 +20,7 @@ marc_augmentor krim_ssoar.xml "$augmented_file" \
     --insert-field '935a:mkri'
 
 echo "Rewrite some of the contents"
-rewritten_file=.xml
+rewritten_file="krim_ssoar-$(date +%Y%m%d).xml"
 rewrite_ssoar $augmented_file $rewritten_file
 
 echo "Uploading to the BSZ File Server"
