@@ -18,7 +18,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "RegexMatcher.h"
+#include <unordered_map>
 #include "Compiler.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -39,6 +41,8 @@ bool CompileRegex(const std::string &pattern, const unsigned options, ::pcre **p
         pcre_options |= PCRE_UTF8;
     if (options & RegexMatcher::CASE_INSENSITIVE)
         pcre_options |= PCRE_CASELESS;
+    if (options & RegexMatcher::MULTILINE)
+        pcre_options |= PCRE_MULTILINE;
 
     *pcre_arg = ::pcre_compile(pattern.c_str(), pcre_options, &errptr, &erroffset, nullptr);
     if (*pcre_arg == nullptr) {
@@ -63,9 +67,17 @@ bool CompileRegex(const std::string &pattern, const unsigned options, ::pcre **p
 }
 
 
+std::unordered_map<std::string, RegexMatcher*> matcher_cache;
+
+
 RegexMatcher *RegexMatcher::RegexMatcherFactory(const std::string &pattern, std::string * const err_msg,
                                                 const unsigned options)
 {
+    const std::string cache_key(pattern + "###" + StringUtil::ToString(options));
+    auto cache_iter(matcher_cache.find(cache_key));
+    if (cache_iter != matcher_cache.end())
+        return cache_iter->second;
+
     // Make sure the PCRE library supports UTF8:
     if ((options & RegexMatcher::ENABLE_UTF8) and not RegexMatcher::utf8_configured_) {
         int utf8_available;
@@ -89,7 +101,9 @@ RegexMatcher *RegexMatcher::RegexMatcherFactory(const std::string &pattern, std:
     if (not CompileRegex(pattern, options, &pcre_ptr, &pcre_extra_ptr, err_msg))
         return nullptr;
 
-    return new RegexMatcher(pattern, options, pcre_ptr, pcre_extra_ptr);
+    RegexMatcher * const matcher = new RegexMatcher(pattern, options, pcre_ptr, pcre_extra_ptr);
+    matcher_cache.emplace(cache_key, matcher);
+    return matcher;
 }
 
 
@@ -165,6 +179,17 @@ bool RegexMatcher::matched(const std::string &subject, std::string * const err_m
     }
 
     return false;
+}
+
+
+bool RegexMatcher::Matched(const std::string &regex, const std::string &subject, const unsigned options,
+                           std::string * const err_msg, size_t * const start_pos, size_t * const end_pos)
+{
+    RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex, err_msg, options));
+    if (matcher == nullptr)
+        LOG_ERROR("Failed to compile pattern \"" + regex + "\": " + *err_msg);
+
+    return matcher->matched(subject, err_msg, start_pos, end_pos);
 }
 
 

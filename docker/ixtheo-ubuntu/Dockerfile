@@ -28,20 +28,6 @@ RUN . /etc/profile.d/vufind.sh \
     && sudo -u solr /usr/local/vufind/solr.sh start \
     && /usr/local/vufind/import-marc.sh /usr/local/ub_tools/bsz_daten/data.mrc
 
-# configure mysqld (needs to be done via temp file)
-# (see https://stackoverflow.com/questions/26982905/mysql-setup-using-docker)
-EXPOSE 3306
-RUN echo "mysqld_safe &" > /tmp/config \
-    && echo "mysqladmin --silent --wait=30 ping || exit 1" >> /tmp/config \
-    && echo "mysql -u root -e \"CREATE DATABASE vufind;\"" >> /tmp/config \
-    && echo "mysql -u root vufind < /usr/local/vufind/module/VuFind/sql/mysql.sql" >> /tmp/config \
-    && echo "mysql -u root vufind < /usr/local/vufind/module/IxTheo/sql/mysql.sql" >> /tmp/config \
-    && echo "mysql -u root -e \"CREATE USER vufind@localhost IDENTIFIED BY 'vufind';\"" >> /tmp/config \
-    && echo "mysql -u root -e \"GRANT ALL ON *.* TO vufind@localhost;\"" >> /tmp/config \
-    && echo "mysql -u root -e \"FLUSH PRIVILEGES;\"" >> /tmp/config \
-    && bash /tmp/config \
-    && rm -f /tmp/config
-
 # configure apache
 EXPOSE 80
 EXPOSE 443

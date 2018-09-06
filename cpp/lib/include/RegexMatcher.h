@@ -40,7 +40,7 @@ class RegexMatcher {
     mutable std::vector<int> substr_vector_;
     mutable unsigned last_match_count_;
 public:
-    enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2 }; // These need to be powers of 2.
+    enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4 }; // These need to be powers of 2.
 public:
     /** Copy constructor. */
     RegexMatcher(const RegexMatcher &that);
@@ -93,9 +93,20 @@ public:
     /** \brief Creates a RegexMatcher.
      *  \param pattern      The pattern to be compiled.
      *  \param options      Or'ed together values of type enum Option.
-     *  \note  Aborts on error and prints an error message to stderr. 
+     *  \note  Aborts on error and prints an error message to stderr.
      */
     static RegexMatcher *RegexMatcherFactoryOrDie(const std::string &regex, const unsigned options = 0);
+
+    /** \brief Create a RegexMatcher and try to match the given regex.
+     *  \param pattern     The pattern to use.
+     *  \param subject     The subject to match.
+     *  \param options     Or'ed together values of type enum Option.
+     *  \param err_msg     If non-nullptr, an explanation of a possible error will be written here.
+     *  \param start_pos   If match successfull, first character of the matched part of the subject.
+     *  \param end_pos     If match successfull, last+1 character of the matched part of the subject.
+     */
+    static bool Matched(const std::string &regex, const std::string &subject, const unsigned options = 0,
+                        std::string * const err_msg = nullptr, size_t * const start_pos = nullptr, size_t * const end_pos = nullptr);
 private:
     RegexMatcher(const std::string &pattern, const unsigned options, pcre * const pcre_arg,
                  pcre_extra * const pcre_extra_arg)
