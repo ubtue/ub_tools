@@ -106,7 +106,7 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
         if (common_strptime_format[0] == '(')
             LOG_ERROR("Cannot specify locale in common_strptime_format");
 
-        if (site_params->strptime_format_.empty())
+        if (not site_params->strptime_format_.empty())
             site_params->strptime_format_ += '|';
         site_params->strptime_format_ += common_strptime_format;
     }
