@@ -221,26 +221,6 @@ public:
 
         std::vector<std::string> getEntryNames() const;
 
-        /** \brief  Returns entry values from a section that start with a particular string, case insensitive
-         *  \param            starting_with    The string which determines which items will be returned.
-         *  \return           the std::string values of all the items that matched.
-         *  \note             This is used to workaround the limitation that InFiles cannot have two
-         *                    elements in a section with the same name. So, if you want to simulate this,
-         *                    you must call them something like entry1, entry2, entry_last and then use
-         *                    this function like this: getSectionEntryValuesHavingNamesStartingWith("init", "entry");
-         */
-        std::vector<std::string> getEntryValuesHavingNamesStartingWith(const std::string &starting_with) const;
-
-        /** \brief  Returns entry names from a section that start with a particular string, case insensitive
-         *  \param            starting_with    The string which determines which items will be returned.
-         *  \return           the std::string values of all the items that matched.
-         *  \note             This is used to workaround the limiation that InFiles cannot have two
-         *                    elements in a section with the same name. So, if you want to simulate this,
-         *                    you must call them something like entry1, entry2, entry_last and
-         *                    then use this function like this: getSectionEntryNamesThatStartWith("init", "entry");
-         */
-        std::vector<std::string> getEntryNamesThatStartWith(const std::string &starting_with) const;
-
         // \return An iterator referencing the found entry or end() if no matching enmtry was found.
         inline const_iterator find(const std::string &variable_name) const {
             return std::find_if(entries_.cbegin(), entries_.cend(), [&variable_name](const Entry &entry)
@@ -254,6 +234,7 @@ public:
         }
 
         bool deleteEntry(const std::string &entry_name);
+        const std::string &getComment(const std::string &entry_name) const;
     private:
         void write(File * const output, const bool pretty_print) const;
     };
