@@ -45,8 +45,10 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
+#include "RegexMatcher.h"
 #include "SELinuxUtil.h"
 #include "StringUtil.h"
+#include "SystemdUtil.h"
 #include "Template.h"
 #include "VuFind.h"
 #include "util.h"
@@ -110,6 +112,12 @@ OSSystemType DetermineOSSystemType() {
         and StringUtil::FindCaseInsensitive(file_contents, "centos") != std::string::npos)
         return CENTOS;
     Error("you're probably not on an Ubuntu nor on a CentOS system!");
+}
+
+
+// Detect if OS is running inside docker (e.g. if we might have problems to access systemctl)
+bool IsDockerEnvironment() {
+    return RegexMatcher::Matched("docker", FileUtil::ReadStringOrDie("/proc/1/cgroup"));
 }
 
 
@@ -195,29 +203,66 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
 }
 
 
-void CreateDatabases(const bool ub_tools) {
-    if (ub_tools) {
-        IniFile ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
-        const auto section(ini_file.getSection("Database"));
-        const std::string sql_database(section->getString("sql_database"));
-        const std::string sql_username(section->getString("sql_username"));
-        const std::string sql_password(section->getString("sql_password"));
+void CreateUbToolsDatabase() {
+    const std::string root_username("root");
+    const std::string root_password("");
 
-        const std::string root_username("root");
-        const std::string root_password("");
+    IniFile ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
+    const auto section(ini_file.getSection("Database"));
+    const std::string sql_database(section->getString("sql_database"));
+    const std::string sql_username(section->getString("sql_username"));
+    const std::string sql_password(section->getString("sql_password"));
 
-        if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
-            std::cout << "creating ub_tools database\n";
-            DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
-            DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
-            DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
-            DbConnection::MySQLImportFile(sql_database, INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", root_username, root_password);
+    if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
+        std::cout << "creating ub_tools database\n";
+        DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
+        DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
+        DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
+        DbConnection::MySQLImportFile(sql_database, INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", root_username, root_password);
+    }
+}
+
+
+void CreateVuFindDatabase(VuFindSystemType vufind_system_type) {
+    const std::string root_username("root");
+    const std::string root_password("");
+
+    const std::string sql_database("vufind");
+    const std::string sql_username("vufind");
+    const std::string sql_password("vufind");
+
+    if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
+        std::cout << "creating vufind database\n";
+        DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
+        DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
+        DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
+        DbConnection::MySQLImportFile(sql_database, VUFIND_DIRECTORY + "/module/VuFind/sql/mysql.sql", root_username, root_password);
+        switch(vufind_system_type) {
+            case IXTHEO:
+                DbConnection::MySQLImportFile(sql_database, VUFIND_DIRECTORY + "/module/IxTheo/sql/mysql.sql", root_username, root_password);
+                break;
+            case KRIMDOK:
+                DbConnection::MySQLImportFile(sql_database, VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", root_username, root_password);
+                break;
         }
     }
 }
 
 
-void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tools_only) {
+void SystemdEnableAndRunUnit(const std::string unit) {
+    if (not SystemdUtil::IsUnitAvailable(unit))
+        LOG_ERROR(unit + " unit not found in systemd, installation problem?");
+
+    if (not SystemdUtil::IsUnitEnabled(unit))
+        SystemdUtil::EnableUnit(unit);
+
+    if (not SystemdUtil::IsUnitRunning(unit))
+        SystemdUtil::StartUnit(unit);
+}
+
+
+void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tools_only, bool install_systemctl) {
+    // install / update dependencies
     std::string script;
     if (os_system_type == UBUNTU)
         script = INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh";
@@ -228,6 +273,34 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tool
         ExecUtil::ExecOrDie(script);
     else
         ExecUtil::ExecOrDie(script, { "tuefind" });
+
+    // check systemd configuration
+    if (install_systemctl) {
+        std::string apache_unit_name, mysql_unit_name, mysql_docker_command;
+        switch(os_system_type) {
+            case UBUNTU:
+                apache_unit_name = "apache2";
+                mysql_unit_name = "mysql";
+                mysql_docker_command = ExecUtil::Which("mysqld_safe");
+                break;
+            case CENTOS:
+                apache_unit_name = "httpd";
+                mysql_unit_name = "mariadb";
+                mysql_docker_command = ExecUtil::Which("mysqld_safe");
+
+                if (not FileUtil::Exists("/etc/my.cnf"))
+                    ExecUtil::ExecOrDie(ExecUtil::Which("mysql_install_db"), { "--user=mysql", "--ldata=/var/lib/mysql/", "--basedir=/usr" });
+                break;
+        }
+
+        // we need to make sure that at least mysql is running, to be able to create databases
+        if (IsDockerEnvironment())
+            ExecUtil::Spawn(mysql_docker_command);
+        else if(SystemdUtil::IsAvailable()) {
+            SystemdEnableAndRunUnit(apache_unit_name);
+            SystemdEnableAndRunUnit(mysql_unit_name);
+        }
+    }
 }
 
 
@@ -259,7 +332,7 @@ void InstallUBTools(const bool make_install) {
     else
         ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4" });
 
-    CreateDatabases(make_install);
+    CreateUbToolsDatabase();
 
     Echo("Installed ub_tools.");
 }
@@ -424,15 +497,17 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
 }
 
 
-static void InstallVuFindServiceTemplate(const VuFindSystemType system_type) {
-        const std::string SYSTEMD_SERVICE_DIRECTORY("/usr/local/lib/systemd/system/");
-        ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", SYSTEMD_SERVICE_DIRECTORY });
-        Template::Map names_to_values_map;
-        names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "8G");
-        const std::string vufind_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
-                                                                                            + "/vufind.service.template"),
-                                                                 names_to_values_map));
-        FileUtil::WriteStringOrDie(SYSTEMD_SERVICE_DIRECTORY + "/vufind.service", vufind_service);
+static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType system_type, const std::string &service_name) {
+    FileUtil::AutoTempDirectory temp_dir;
+
+    Template::Map names_to_values_map;
+    names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "8G");
+    const std::string vufind_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
+                                                                                        + "/" + service_name + ".service.template"),
+                                                             names_to_values_map));
+    const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
+    FileUtil::WriteStringOrDie(service_file_path, vufind_service);
+    SystemdUtil::InstallUnit(service_file_path);
 }
 
 
@@ -460,10 +535,8 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
     if (install_systemctl) {
         Echo("Activating Solr service...");
 
-        InstallVuFindServiceTemplate(system_type);
-        ExecUtil::ExecOrDie(ExecUtil::Which("systemctl"), { "enable", SERVICENAME });
-        ExecUtil::ExecOrDie(ExecUtil::Which("systemctl"), { "daemon-reload" });
-        ExecUtil::ExecOrDie(ExecUtil::Which("systemctl"), { "restart", SERVICENAME });
+        GenerateAndInstallVuFindServiceTemplate(system_type, SERVICENAME);
+        SystemdEnableAndRunUnit(SERVICENAME);
     }
 }
 
@@ -590,14 +663,16 @@ int main(int argc, char **argv) {
     try {
         // Install dependencies before vufind
         // correct PHP version for composer dependancies
-        InstallSoftwareDependencies(os_system_type, ub_tools_only);
+        InstallSoftwareDependencies(os_system_type, ub_tools_only, not omit_systemctl);
 
         if (not ub_tools_only) {
             MountDeptDriveOrDie(vufind_system_type);
             DownloadVuFind();
             ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, not omit_systemctl);
         }
-        InstallUBTools(/* make_install = */ not ub_tools_only);
+        InstallUBTools(/* make_install = */ true);
+        if (not ub_tools_only)
+            CreateVuFindDatabase(vufind_system_type);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

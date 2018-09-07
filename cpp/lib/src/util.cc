@@ -193,6 +193,18 @@ void SkipFieldPadding(FILE * const input) {
 }
 
 
+/** \brief Remove trailing spaces and tabs from "s". */
+std::string TrimBlanks(std::string * s) {
+    std::string::const_reverse_iterator it(s->crbegin());
+    for (/* Empty! */; it != s->crend() and std::isblank(*it); ++it)
+        /* Intentionally Empty! */;
+    if (it != s->crbegin())
+        *s = s->substr(0, std::distance(it, s->crend()));
+
+    return *s;
+}
+
+
 std::string ReadQuotedValue(FILE * const input, const char field_delimiter, const char field_separator) {
     std::string value;
     bool delimiter_seen(false);
@@ -208,26 +220,19 @@ std::string ReadQuotedValue(FILE * const input, const char field_delimiter, cons
 
                 if (next == field_separator or next == '\n' or next == EOF)
                     return value;
-                else
-                    value += field_delimiter;
             } else
                 delimiter_seen = true;
-        } else
+        } else {
+            if (ch == '\n' or ch == EOF) {
+                std::ungetc(ch, input);
+                return TrimBlanks(&value);
+            }
             value += static_cast<char>(ch);
+        }
     }
 }
 
 
-/** \brief Remove trailing spaces and tabs from "s". */
-std::string TrimBlanks(std::string * s) {
-    std::string::const_reverse_iterator it(s->crbegin());
-    for (/* Empty! */; it != s->crend() and std::isblank(*it); ++it)
-        /* Intentionally Empty! */;
-    if (it != s->crbegin())
-        *s = s->substr(0, std::distance(it, s->crend()));
-
-    return *s;
-}
 
 
 std::string ReadNonQuotedValue(FILE * const input, const char field_separator) {
