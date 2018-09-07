@@ -916,6 +916,10 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
 }
 
 
+/*
+    NOTE: If the LOG_WARNING messages below are modified in any way, ensure that the
+          zts_harvester_validator code is appropriately changed.
+ */
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
                                       const SiteParams &site_params, const std::string &harvested_html, bool log)
 {
@@ -984,8 +988,9 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         }
     }
 
-    if (processed_json_entries == 0)
-        LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tZotero translation server returned an empty response!"                  "Response code = " + std::to_string(response_code));
+    if (processed_json_entries == 0) {
+        LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tZotero translation server returned an empty response! "                     "Response code = " + std::to_string(response_code));
+    }
 
     ++harvest_params->harvested_url_count_;
 
