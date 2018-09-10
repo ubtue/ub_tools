@@ -16,6 +16,7 @@
 */
 #include "BSZTransform.h"
 #include "MiscUtil.h"
+#include "UrlUtil.h"
 
 
 namespace BSZTransform {
@@ -43,6 +44,30 @@ AugmentMaps::AugmentMaps(const std::string &map_directory_path) {
     MiscUtil::LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &ISSN_to_SSG_map_);
     LoadISSNToPPNMap(&ISSN_to_superior_ppn_and_title_map_);
 }
+
+
+// "author" must be in the lastname,firstname format. Returns the empty string if no PPN was found.
+std::string DownloadAuthorPPN(const std::string &author, const struct Zotero::SiteParams &site_params) {
+    const std::string LOOKUP_URL(site_params.group_params_->author_lookup_url_ + UrlUtil::UrlEncode(author));
+
+    static std::unordered_map<std::string, std::string> url_to_lookup_result_cache;
+    const auto url_and_lookup_result(url_to_lookup_result_cache.find(LOOKUP_URL));
+    if (url_and_lookup_result == url_to_lookup_result_cache.end()) {
+        static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("<SMALL>PPN</SMALL>.*<div><SMALL>([0-9X]+)"));
+        Downloader downloader(LOOKUP_URL);
+        if (downloader.anErrorOccurred())
+            LOG_ERROR(downloader.getLastErrorMessage());
+        else if (matcher->matched(downloader.getMessageBody())) {
+            url_to_lookup_result_cache.emplace(LOOKUP_URL, (*matcher)[1]);
+            return (*matcher)[1];
+        } else
+            url_to_lookup_result_cache.emplace(LOOKUP_URL, "");
+    } else
+        return url_and_lookup_result->second;
+
+    return "";
+}
+
 
 } // end namespace BSZTransform
 

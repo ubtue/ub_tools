@@ -25,6 +25,7 @@
 #include <ctime>
 #include <kchashdb.h>
 #include <unordered_map>
+#include "BSZTransform.h"
 #include "DbConnection.h"
 #include "Downloader.h"
 #include "DownloadTracker.h"
