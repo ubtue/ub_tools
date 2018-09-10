@@ -15,6 +15,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "MiscUtil.h"
+#include "Zotero.h"
 #include "ZoteroTransformation.h"
 
 namespace Zotero {
@@ -88,7 +90,7 @@ bool IsValidItemType(const std::string item_type) {
 
 
 // "author" must be in the lastname,firstname format. Returns the empty string if no PPN was found.
-std::string DownloadAuthorPPN(const std::string &author, const struct ::Zotero::SiteParams &site_params) {
+std::string DownloadAuthorPPN(const std::string &author, const struct Zotero::SiteParams &site_params) {
     const std::string LOOKUP_URL(site_params.group_params_->author_lookup_url_ + UrlUtil::UrlEncode(author));
 
     static std::unordered_map<std::string, std::string> url_to_lookup_result_cache;
@@ -107,6 +109,13 @@ std::string DownloadAuthorPPN(const std::string &author, const struct ::Zotero::
         return url_and_lookup_result->second;
 
     return "";
+}
+
+
+// If "key" is in "map", then return the mapped value, o/w return "key".
+std::string OptionalMap(const std::string &key, const std::unordered_map<std::string, std::string> &map) {
+    const auto &key_and_value(map.find(key));
+    return (key_and_value == map.cend()) ? key : key_and_value->second;
 }
 
 
