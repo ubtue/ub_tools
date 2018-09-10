@@ -23,6 +23,7 @@
 #include <chrono>
 #include <ctime>
 #include <uuid/uuid.h>
+#include "BSZTransform.h"
 #include "DbConnection.h"
 #include "MiscUtil.h"
 #include "SqlUtil.h"
@@ -447,7 +448,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
 
      // Control Fields
 
-     // Handle 001 only at the end since we need a proper hash values
+     // Handle 001 only at the end since we need a proper hash value
      // -> c.f. last line of this function
 
      const std::string isil(node_parameters.isil);
@@ -831,7 +832,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
             if (first_name_node != nullptr)
                 name += ", " + creator_object->getStringValue("firstName");
 
-            const std::string PPN(ZoteroTransformation::DownloadAuthorPPN(name, site_params));
+            const std::string PPN(BSZTransform::DownloadAuthorPPN(name, site_params));
             if (not PPN.empty()) {
                 comments->emplace_back("Added author PPN " + PPN + " for author " + name);
                 creator_object->insert("ppn", std::make_shared<JSON::StringNode>(PPN));

@@ -89,29 +89,6 @@ bool IsValidItemType(const std::string item_type) {
 }
 
 
-// "author" must be in the lastname,firstname format. Returns the empty string if no PPN was found.
-std::string DownloadAuthorPPN(const std::string &author, const struct Zotero::SiteParams &site_params) {
-    const std::string LOOKUP_URL(site_params.group_params_->author_lookup_url_ + UrlUtil::UrlEncode(author));
-
-    static std::unordered_map<std::string, std::string> url_to_lookup_result_cache;
-    const auto url_and_lookup_result(url_to_lookup_result_cache.find(LOOKUP_URL));
-    if (url_and_lookup_result == url_to_lookup_result_cache.end()) {
-        static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("<SMALL>PPN</SMALL>.*<div><SMALL>([0-9X]+)"));
-        Downloader downloader(LOOKUP_URL);
-        if (downloader.anErrorOccurred())
-            LOG_ERROR(downloader.getLastErrorMessage());
-        else if (matcher->matched(downloader.getMessageBody())) {
-            url_to_lookup_result_cache.emplace(LOOKUP_URL, (*matcher)[1]);
-            return (*matcher)[1];
-        } else
-            url_to_lookup_result_cache.emplace(LOOKUP_URL, "");
-    } else
-        return url_and_lookup_result->second;
-
-    return "";
-}
-
-
 // If "key" is in "map", then return the mapped value, o/w return "key".
 std::string OptionalMap(const std::string &key, const std::unordered_map<std::string, std::string> &map) {
     const auto &key_and_value(map.find(key));
