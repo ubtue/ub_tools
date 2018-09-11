@@ -106,6 +106,9 @@ struct ItemParameters {
     std::vector<std::string> keywords;
     std::vector<std::string> ssg_numbers;
     std::string physical_form;
+    std::string issn_normalized;
+    std::string parent_journal_name;
+    std::string harvest_url;
 };
 
 
@@ -318,13 +321,19 @@ private:
                              std::string * const publication_title, std::string * const abbreviated_publication_title,
                              std::string * const website_title);
 
-    void extractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node,
+    void ExtractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node,
                                      struct CustomNodeParameters * const custom_node_parameters);
 
-    void extractItemParameters(std::shared_ptr<const JSON::ObjectNode> custom_node,
-                               struct ItemParameters * const node_parameters);
+    void ExtractItemParameters(std::shared_ptr<const JSON::ObjectNode> custom_node,
+                               struct ItemParameters * const item_parameters);
 
-    void GenerateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters);
+    void GenerateMarcRecord(MARC::Record * const record, const struct ItemParameters &item_parameters);
+
+    void MergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters,
+                                               struct CustomNodeParameters &custom_node_params);
+  
+    void HandleTrackingAndWriteRecord(const MARC::Record &new_record, BSZUpload::DeliveryMode delivery_mode,
+                                  struct ItemParameters &item_params, unsigned * const previously_downloaded_count);
 };
 
 
