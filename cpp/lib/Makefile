@@ -43,7 +43,7 @@ all: /usr/local/bin/iViaCore-mkdep .deps libstemmer/libstemmer.a libubtue.a
 
 libubtue.a: $(OBJS) Makefile
 	@echo "Generating $@..."
-	@ar crs $@ $^
+	@ar crs $@ $(OBJS)
 
 libstemmer/libstemmer.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libstemmer/include/*.h)
 	$(MAKE) -C libstemmer
