@@ -93,8 +93,8 @@ public:
         std::string proxy_host_and_port_;
         std::vector<std::string> additional_headers_;
         std::string post_data_;
-        std::string basic_authentication_username_;
-        std::string basic_authentication_password_;
+        std::string authentication_username_;
+        std::string authentication_password_;
     public:
         explicit Params(const std::string &user_agent = DEFAULT_USER_AGENT_STRING,
                         const std::string &acceptable_languages = DEFAULT_ACCEPTABLE_LANGUAGES,
@@ -108,8 +108,8 @@ public:
                         const std::string &proxy_host_and_port = "",
                         const std::vector<std::string> &additional_headers = {},
                         const std::string &post_data = "",
-                        const std::string &basic_authentication_username = "",
-                        const std::string &basic_authentication_password = "");
+                        const std::string &authentication_username = "",
+                        const std::string &authentication_password = "");
     } params_;
 
     typedef size_t (*WriteFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);
