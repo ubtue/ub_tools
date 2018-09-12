@@ -48,7 +48,7 @@ Configuration::Configuration(const std::string &config_file_path) {
 std::shared_ptr<JSON::ObjectNode> FieldsToJSON(const std::unordered_map<std::string, std::string> &fields) {
     std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
     for (const auto &field : fields) {
-        std::shared_ptr<JSON::StringNode> value_node(new JSON::StringNode(field.second));
+        std::shared_ptr<JSON::StringNode> value_node(new JSON::StringNode(JSON::EscapeString(field.second)));
         tree_root->insert(field.first, value_node);
     }
     return tree_root;
@@ -71,8 +71,8 @@ std::unordered_map<std::string, std::string> JSONToFields(const std::shared_ptr<
 std::shared_ptr<JSON::ObjectNode> Connection::query(const std::string &action, const REST::QueryType query_type, const std::shared_ptr<const JSON::JSONNode> &data) {
     Url url(host_.toString() + "/" + action);
     Downloader::Params params;
-    params.basic_authentication_username_ = username_;
-    params.basic_authentication_password_ = password_;
+    params.authentication_username_ = username_;
+    params.authentication_password_ = password_;
     params.ignore_ssl_certificates_ = ignore_ssl_certificates_;
 
     if (data != nullptr) {
