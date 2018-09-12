@@ -69,5 +69,24 @@ std::string DownloadAuthorPPN(const std::string &author, const struct Zotero::Si
 }
 
 
+BSZTransform::BSZTransform(const std::string &map_directory_path) : augment_maps_{AugmentMaps(map_directory_path)} {};
+BSZTransform::BSZTransform(const AugmentMaps augment_maps) : augment_maps_{augment_maps} {};
+
+void BSZTransform::DetermineKeywordOutputFieldFromISSN(const std::string &issn, std::string * const tag, char * const subfield) {
+    if (not issn.empty()) {
+        const auto issn_and_field_tag_and_subfield_code(augment_maps_.ISSN_to_keyword_field_map_.find(issn));
+        if (issn_and_field_tag_and_subfield_code != augment_maps_.ISSN_to_keyword_field_map_.end()) {
+            if (unlikely(issn_and_field_tag_and_subfield_code->second.length() != 3 + 1))
+                LOG_ERROR("\"" + issn_and_field_tag_and_subfield_code->second
+                          + "\" is not a valid MARC tag + subfield code! (Error in \"ISSN_to_keyword_field.map\"!)");
+            *tag = issn_and_field_tag_and_subfield_code->second.substr(0, 3);
+            *subfield = issn_and_field_tag_and_subfield_code->second[3];
+            return;
+        }
+    }
+    *tag="653";
+    *subfield='a';
+}
+
 } // end namespace BSZTransform
 

@@ -23,7 +23,6 @@ namespace Zotero { struct SiteParams; } // forward declaration
 
 namespace BSZTransform {
 
-
 const std::string ISSN_TO_MISC_BITS_MAP_PATH_LOCAL("/usr/local/var/lib/tuelib/issn_to_misc_bits.map");
 const std::string ISSN_TO_MISC_BITS_MAP_DIR_REMOTE("/mnt/ZE020150/FID-Entwicklung/issn_to_misc_bits");
 
@@ -54,5 +53,13 @@ public:
 };
 
 std::string DownloadAuthorPPN(const std::string &author, const struct Zotero::SiteParams &site_params);
+
+class BSZTransform {
+   public:
+      struct AugmentMaps augment_maps_;
+      BSZTransform(const std::string &map_directory_path);
+      BSZTransform(const struct AugmentMaps augment_maps);
+      void DetermineKeywordOutputFieldFromISSN(const std::string &issn, std::string * const tag, char * const subfield);
+};
 
 } // end namespace BSZTransform
