@@ -274,6 +274,17 @@ int IniFile::Section::getEnum(const std::string &variable_name,
     return name_and_int_value->second;
 }
 
+std::vector<std::string> IniFile::Section::getEntryNames() const {
+    std::vector<std::string> entry_names;
+
+    for (const auto &entry : entries_) {
+        if (not entry.name_.empty())
+            entry_names.emplace_back(entry.name_);
+    }
+
+    return entry_names;
+}
+
 
 bool IniFile::Section::deleteEntry(const std::string &entry_name) {
     auto entry(find(entry_name));
@@ -283,6 +294,16 @@ bool IniFile::Section::deleteEntry(const std::string &entry_name) {
     entries_.erase(entry);
     return true;
 }
+
+
+const std::string &IniFile::Section::getComment(const std::string &entry_name) const {
+    auto entry(find(entry_name));
+    if (unlikely(entry == end()))
+        LOG_ERROR("can't find \"" + entry_name + "\" in section \"" + section_name_ + "\"!");
+
+    return entry->comment_;
+}
+
 
 
 static inline bool ContainsSpacesOrDoubleQuotes(const std::string &value) {
