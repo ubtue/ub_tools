@@ -432,6 +432,16 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
             LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
      }
 
+     // Authors/Creators
+     const std::string creator_tag((node_parameters.creators.size() == 1) ? "100" : "700");
+     for (const auto creator : node_parameters.creators) {
+          MARC::Subfields subfields;
+          subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator.last_name, creator.first_name}), ','));
+          subfields.appendSubfield('4', creator.type);
+          subfields.appendSubfield('0', "(DE-576)" + creator.author_ppn);
+          record->insertField(creator_tag, subfields);
+     }
+
      // Titles
      const std::string title(node_parameters.title);
      if (not title.empty())
