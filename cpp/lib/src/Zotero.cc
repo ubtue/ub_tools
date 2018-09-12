@@ -505,9 +505,13 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
      record->insertField("773", _773_subfields);
 
      // Keywords
-     for (const auto keyword : node_parameters.keywords)
-          record->insertField("653", { {'a', keyword } });
-
+     BSZTransform::BSZTransform bsz_transform(*(site_params_->global_params_->maps_));
+     for (const auto keyword : node_parameters.keywords) {
+          std::string tag;
+          char subfield;
+          bsz_transform.DetermineKeywordOutputFieldFromISSN(issn, &tag, &subfield);
+          record->insertField(tag, { {subfield, keyword } });
+     }
 
      // SSG numbers
      const auto ssg_numbers(node_parameters.ssg_numbers);
