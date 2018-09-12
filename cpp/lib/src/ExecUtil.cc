@@ -324,15 +324,13 @@ bool ExecSubcommandAndCaptureStdoutAndStderr(const std::string &command, const s
     FileUtil::AutoTempFile stderr_temp;
 
     const int retcode(Exec(command, args, /* new_stdin = */ "", stdout_temp.getFilePath(), stderr_temp.getFilePath()));
-    if (retcode != 0)
-        return false;
 
     if (not FileUtil::ReadString(stdout_temp.getFilePath(), stdout_output))
         logger->error("failed to read temporary file w/ stdout contents!");
     if (not FileUtil::ReadString(stderr_temp.getFilePath(), stderr_output))
         logger->error("failed to read temporary file w/ stderr contents!");
 
-    return true;
+    return retcode == 0;
 }
 
 

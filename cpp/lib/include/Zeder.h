@@ -135,6 +135,8 @@ public:
     const_iterator end() const { return entries_.end(); }
     size_t size() const { return entries_.size(); }
     void clear() { entries_.clear(); }
+    iterator erase(const_iterator entry) { return entries_.erase(entry); }
+    bool empty() const { return entries_.empty(); }
 };
 
 
@@ -164,6 +166,10 @@ FileType GetFileTypeFromPath(const std::string &path, bool check_if_file_exists 
 
 class Importer {
 public:
+    enum MandatoryField { Z, MTIME };
+
+    static const std::map<MandatoryField, std::string> MANDATORY_FIELD_TO_STRING_MAP;
+
     class Params {
         friend class Importer;
         friend class CsvReader;
@@ -179,13 +185,6 @@ public:
         virtual ~Params() = default;
     };
 protected:
-    enum MandatoryField { Z, MTIME };
-
-    const std::map<MandatoryField, std::string> MANDATORY_FIELD_TO_STRING_MAP {
-        { Z,        "Z"      },
-        { MTIME,    "Mtime"  }
-    };
-
     std::unique_ptr<Params> input_params_;
 protected:
     explicit Importer(std::unique_ptr<Params> params): input_params_(std::move(params)) {}
@@ -273,6 +272,8 @@ class IniWriter : public Exporter {
     friend class Exporter;
 
     std::unique_ptr<IniFile> config_;
+
+    void writeEntry(IniFile::Section * const section, const std::string &name, const std::string &value) const;
 private:
     explicit IniWriter(std::unique_ptr<Params> params);
 public:
@@ -322,7 +323,8 @@ public:
         std::string zeder_last_modified_timestamp_column_;
     public:
         Params(const std::string &file_path, const std::vector<std::string> &attributes_to_export,
-               const std::string &zeder_id_column, const std::string &zeder_last_modified_timestamp_column):
+               const std::string &zeder_id_column = Importer::MANDATORY_FIELD_TO_STRING_MAP.at(Importer::MandatoryField::Z),
+               const std::string &zeder_last_modified_timestamp_column = Importer::MANDATORY_FIELD_TO_STRING_MAP.at(Importer::MandatoryField::MTIME)):
                Exporter::Params(file_path), attributes_to_export_(attributes_to_export),
                zeder_id_column_(zeder_id_column), zeder_last_modified_timestamp_column_(zeder_last_modified_timestamp_column) {}
         virtual ~Params() = default;
@@ -383,10 +385,10 @@ private:
     };
 
 
-    bool DownloadData(const std::string &endpoint_url, std::shared_ptr<JSON::JSONNode> * const json_data);
-    void ParseColumnMetadata(const std::shared_ptr<JSON::JSONNode> &json_data,
+    bool downloadData(const std::string &endpoint_url, std::shared_ptr<JSON::JSONNode> * const json_data);
+    void parseColumnMetadata(const std::shared_ptr<JSON::JSONNode> &json_data,
                              std::unordered_map<std::string, ColumnMetadata> * const column_to_metadata_map);
-    void ParseRows(const Params &params, const std::shared_ptr<JSON::JSONNode> &json_data,
+    void parseRows(const Params &params, const std::shared_ptr<JSON::JSONNode> &json_data,
                    const std::unordered_map<std::string, ColumnMetadata> &column_to_metadata_map, EntryCollection * const collection);
 public:
     virtual ~FullDumpDownloader() = default;
