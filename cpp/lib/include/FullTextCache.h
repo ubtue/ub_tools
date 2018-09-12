@@ -27,12 +27,12 @@
 
 
 class FullTextCache {
-    DbConnection *db_connection_;
-    std::shared_ptr<Elasticsearch::Index> elasticsearch_index_;
+    std::unique_ptr<DbConnection> db_connection_;
+    std::unique_ptr<Elasticsearch::Connection> elasticsearch_connection_;
+    std::string elasticsearch_index_;
     std::string elasticsearch_document_type_;
 public:
     FullTextCache(const bool use_elasticsearch = false);
-    ~FullTextCache() { delete db_connection_; }
     struct Entry {
         std::string id_;
         time_t expiration_;

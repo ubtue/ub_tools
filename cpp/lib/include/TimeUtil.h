@@ -290,4 +290,8 @@ double DiffStructTm(struct tm end, struct tm beginning);
 struct tm GetCurrentTimeGMT();
 
 
+/* Returns 0 if the date is in the range, 1 if date is greater than "last" or -1 if date is less than "first". */
+int IsDateInRange(time_t first, time_t last, time_t date);
+
+
 } // namespace TimeUtil

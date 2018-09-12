@@ -32,6 +32,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -757,7 +758,7 @@ struct tm StringToStructTm(std::string date_str, std::string optional_strptime_f
 
         NormalizeTimeZoneOffset(&date_str);
 
-        std::vector<std::string> format_string_splits;
+        std::unordered_set<std::string> format_string_splits;
         // try available format strings until a matching one is found
         if (StringUtil::SplitThenTrimWhite(optional_strptime_format, '|', &format_string_splits)) {
             for (auto format_string : format_string_splits) {
@@ -793,13 +794,28 @@ struct tm StringToStructTm(std::string date_str, std::string optional_strptime_f
 
 
 double DiffStructTm(struct tm end, struct tm beginning) {
-    return difftime(::timegm(&end), ::timegm(&beginning));
+    return ::difftime(::timegm(&end), ::timegm(&beginning));
 }
 
 
 struct tm GetCurrentTimeGMT() {
     time_t now(time(nullptr));
     return *std::gmtime(&now);
+}
+
+
+int IsDateInRange(time_t first, time_t last, time_t date) {
+    const auto diff_first(::difftime(first, date));
+    if (diff_first > 0.0)
+        return -1;
+    else if (diff_first == 0.0)
+        return 0;
+
+    const auto diff_last(::difftime(date, last));
+    if (diff_last <= 0.0)
+        return 0;
+    else
+        return 1;
 }
 
 

@@ -162,6 +162,12 @@ FileType GetFileTypeFromPath(const std::string &path, bool check_if_file_exists)
 }
 
 
+const std::map<Importer::MandatoryField, std::string> Importer::MANDATORY_FIELD_TO_STRING_MAP {
+    { Importer::MandatoryField::Z,        "Z"      },
+    { Importer::MandatoryField::MTIME,    "Mtime"  }
+};
+
+
 std::unique_ptr<Importer> Importer::Factory(std::unique_ptr<Params> params) {
     auto file_type(GetFileTypeFromPath(params->file_path_));
     switch (file_type) {
@@ -284,6 +290,14 @@ IniWriter::IniWriter(std::unique_ptr<Exporter::Params> params): Exporter(std::mo
 }
 
 
+void IniWriter::writeEntry(IniFile::Section * const section, const std::string &name, const std::string &value) const {
+    // merge existing comments
+    const auto existing_entry(section->find(name));
+    section->insert(name, value, existing_entry != section->end() ? existing_entry->comment_ : "",
+                    IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+}
+
+
 void IniWriter::write(const EntryCollection &collection) {
     const auto params(dynamic_cast<IniWriter::Params * const>(input_params_.get()));
     char time_buffer[100]{};
@@ -293,18 +307,16 @@ void IniWriter::write(const EntryCollection &collection) {
         config_->appendSection(entry.getAttribute(params->section_name_attribute_));
         auto current_section(config_->getSection(entry.getAttribute(params->section_name_attribute_)));
 
-        current_section->insert(params->zeder_id_key_, std::to_string(entry.getId()), "", IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+        writeEntry(&*current_section, params->zeder_id_key_, std::to_string(entry.getId()));
 
         std::strftime(time_buffer, sizeof(time_buffer), MODIFIED_TIMESTAMP_FORMAT_STRING, &entry.getLastModifiedTimestamp());
-        current_section->insert(params->zeder_last_modified_timestamp_key_, time_buffer, "", IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+        writeEntry(&*current_section, params->zeder_last_modified_timestamp_key_, time_buffer);
 
         for (const auto &attribute_name : params->attributes_to_export_) {
             if (entry.hasAttribute(attribute_name)) {
                 const auto &attribute_value(entry.getAttribute(attribute_name));
-                if (not attribute_value.empty()) {
-                    current_section->insert(params->attribute_to_key_map_.at(attribute_name), attribute_value,
-                                            "", IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
-                }
+                if (not attribute_value.empty())
+                    writeEntry(&*current_section, params->attribute_to_key_map_.at(attribute_name), attribute_value);
             } else
                 LOG_DEBUG("Attribute '" + attribute_name + "' not found for exporting in entry " + std::to_string(entry.getId()));
         }
@@ -374,7 +386,7 @@ FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::
 }
 
 
-bool FullDumpDownloader::DownloadData(const std::string &endpoint_url, std::shared_ptr<JSON::JSONNode> * const json_data) {
+bool FullDumpDownloader::downloadData(const std::string &endpoint_url, std::shared_ptr<JSON::JSONNode> * const json_data) {
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = "ub_tools/zeder_importer";
 
@@ -403,7 +415,7 @@ bool FullDumpDownloader::DownloadData(const std::string &endpoint_url, std::shar
 }
 
 
-void FullDumpDownloader::ParseColumnMetadata(const std::shared_ptr<JSON::JSONNode> &json_data,
+void FullDumpDownloader::parseColumnMetadata(const std::shared_ptr<JSON::JSONNode> &json_data,
                                              std::unordered_map<std::string, ColumnMetadata> * const column_to_metadata_map)
 {
     static const std::unordered_set<std::string> valid_column_types{ "text", "multi", "dropdown" };
@@ -429,7 +441,7 @@ void FullDumpDownloader::ParseColumnMetadata(const std::shared_ptr<JSON::JSONNod
 }
 
 
-void FullDumpDownloader::ParseRows(const Params &params, const std::shared_ptr<JSON::JSONNode> &json_data,
+void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<JSON::JSONNode> &json_data,
                                    const std::unordered_map<std::string, ColumnMetadata> &column_to_metadata_map,
                                    EntryCollection * const collection)
 {
@@ -507,11 +519,11 @@ bool FullDumpDownloader::download(EntryCollection * const collection) {
     std::unordered_map<std::string, ColumnMetadata> column_to_metadata_map;
     std::shared_ptr<JSON::JSONNode> json_data;
 
-    if (not DownloadData(params->endpoint_url_, &json_data))
+    if (not downloadData(params->endpoint_url_, &json_data))
         return false;
 
-    ParseColumnMetadata(json_data, &column_to_metadata_map);
-    ParseRows(*params, json_data, column_to_metadata_map,  collection);
+    parseColumnMetadata(json_data, &column_to_metadata_map);
+    parseRows(*params, json_data, column_to_metadata_map,  collection);
     return true;
 }
 
