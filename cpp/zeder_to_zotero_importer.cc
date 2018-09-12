@@ -246,14 +246,14 @@ bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFie
     bool valid(true);
 
     const auto &pppn(entry->getAttribute("pppn")), &eppn(entry->getAttribute("eppn"));
-    if (eppn.empty() or eppn == "NV" or not MiscUtil::IsValidPPN(eppn)) {
-        if (pppn.empty() or pppn == "NV" or not MiscUtil::IsValidPPN(pppn)) {
-            LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | No valid PPPN found");
-            valid = ignore_invalid_ppn_issn ? valid : false;
-        } else
-            entry->setAttribute(name_resolver.getAttributeName(PARENT_PPN), eppn);
-    } else
+    if (MiscUtil::IsValidPPN(eppn))
+        entry->setAttribute(name_resolver.getAttributeName(PARENT_PPN), eppn);
+    else if (MiscUtil::IsValidPPN(pppn))
         entry->setAttribute(name_resolver.getAttributeName(PARENT_PPN), pppn);
+    else {
+        LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | No valid PPPN found");
+        valid = ignore_invalid_ppn_issn ? valid : false;
+    }
 
     const auto &issn_print(entry->getAttribute("issn")), &issn_online(entry->getAttribute("essn"));
     if (issn_print.empty() or issn_print == "NV")
@@ -313,6 +313,10 @@ bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFie
 
     // remove the original attributes
     entry->keepAttributes(name_resolver.getAllValidAttributeNames());
+
+    std::string pretty_print;
+    entry->prettyPrint(&pretty_print);
+    LOG_DEBUG(pretty_print);
 
     return valid;
 }
@@ -443,7 +447,7 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
     // select the sections that are Zeder-compatible, i.e., that were exported by this tool
     std::vector<std::string> valid_section_names, groups;
     StringUtil::Split(ini.getString("", Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::GROUP) + "s", ""),
-                     ',', &groups);
+                      ',', &groups);
 
     for (const auto &section : ini) {
         const auto section_name(section.getSectionName());
@@ -500,8 +504,11 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
             LOG_ERROR("Entry " + std::to_string(entry.getId()) + " | Invalid harvester type");
 
         // we need to manually resolve the key names for the entry point URL as they are dependent on the harvester type
-        section->insert(name_resolver.getIniKey(ENTRY_POINT_URL, harvester_type), entry.getAttribute(name_resolver.getAttributeName(ENTRY_POINT_URL)),
-                        "", IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+        const auto entrypoint_url_key(name_resolver.getIniKey(ENTRY_POINT_URL, harvester_type));
+        const auto existing_entry(section->find(entrypoint_url_key));
+        section->insert(entrypoint_url_key, entry.getAttribute(name_resolver.getAttributeName(ENTRY_POINT_URL)),
+                        existing_entry != section->end() ? existing_entry->comment_ : "",
+                        IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
 
         if (harvester_type == Zotero::HarvesterType::CRAWL) {
             std::string temp_buffer;
@@ -515,9 +522,6 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
                         IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
             }
         }
-
-        section->insert(name_resolver.getIniKey(STRPTIME_FORMAT), "", "",
-                        IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
     });
     std::unique_ptr<Zeder::IniWriter::Params> writer_params(new Zeder::IniWriter::Params(file_path, attributes_to_export,
                                                                                          name_resolver.getAttributeName(TITLE),
@@ -532,18 +536,31 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
 void PrintZederDiffs(const std::vector<Zeder::Entry::DiffResult> &diff_results, const std::unordered_set<unsigned> &new_entry_ids) {
     LOG_INFO("\nDifferences ========================>");
 
+    std::string modified_entry_ids_string, new_entry_ids_string;
     for (const auto &diff : diff_results) {
         std::string attribute_print_buffer;
         bool is_new_entry(new_entry_ids.find(diff.id_) != new_entry_ids.end());
         diff.prettyPrint(&attribute_print_buffer);
 
-        if (is_new_entry)
+        if (is_new_entry) {
+            new_entry_ids_string += std::to_string(diff.id_) + ",";
             LOG_INFO("[NEW] " + attribute_print_buffer);
-        else
+        }
+        else {
+            modified_entry_ids_string += std::to_string(diff.id_) + ",";
             LOG_INFO("[MOD] " + attribute_print_buffer);
+        }
     }
 
-    LOG_INFO("\n");
+    LOG_INFO("\n\n");
+
+    if (not modified_entry_ids_string.empty())
+        LOG_INFO("Modified entries: " + modified_entry_ids_string);
+
+    if (not new_entry_ids_string.empty())
+        LOG_INFO("New entries: " + new_entry_ids_string);
+
+    LOG_INFO("\n\n");
 }
 
 
@@ -615,8 +632,8 @@ int Main(int argc, char *argv[]) {
                 WriteZederIni(old_ini_path, name_resolver, old_data);
             }
 
-            LOG_INFO("Modified entries: " + std::to_string(diff_results.size() - new_entry_ids.size()));
-            LOG_INFO("New entries: " + std::to_string(new_entry_ids.size()));
+            LOG_INFO("Number of modified entries: " + std::to_string(diff_results.size() - new_entry_ids.size()));
+            LOG_INFO("Number of new entries: " + std::to_string(new_entry_ids.size()));
         } else
             LOG_INFO("No modified/new entries.");
 
