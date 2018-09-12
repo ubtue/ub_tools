@@ -41,11 +41,14 @@ constexpr unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 mo
 FullTextCache::FullTextCache(const bool use_elasticsearch) {
     std::string mysql_url;
     VuFind::GetMysqlURL(&mysql_url);
-    db_connection_ = new DbConnection(mysql_url);
+    db_connection_.reset(new DbConnection(mysql_url));
     if (use_elasticsearch) {
-        std::shared_ptr<Elasticsearch::Configuration> config(Elasticsearch::Configuration::FactoryByConfigFile());
-        elasticsearch_index_ = std::make_shared<Elasticsearch::Index>(config->host_, config->index_);
-        elasticsearch_document_type_ = config->document_type_;
+        const auto elasticsearch_config(Elasticsearch::Configuration::GlobalConfig());
+        elasticsearch_index_ = elasticsearch_config.index_;
+        elasticsearch_document_type_ = elasticsearch_config.document_type_;
+
+        elasticsearch_connection_.reset(new Elasticsearch::Connection(elasticsearch_config.host_, elasticsearch_config.username_,
+                                        elasticsearch_config.password_, elasticsearch_config.ignore_ssl_certificates_));
     }
 }
 
@@ -266,7 +269,7 @@ FullTextCache::JoinedEntry FullTextCache::getJoinedEntryByDomainAndErrorMessage(
 
 
 unsigned FullTextCache::getSize() {
-    return SqlUtil::GetTableSize(db_connection_, "full_text_cache");
+    return SqlUtil::GetTableSize(db_connection_.get(), "full_text_cache");
 }
 
 
@@ -286,13 +289,13 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
             expiration = now + MIN_CACHE_EXPIRE_TIME_ON_ERROR + rand(MAX_CACHE_EXPIRE_TIME_ON_ERROR - MIN_CACHE_EXPIRE_TIME_ON_ERROR);
     }
 
-    if (elasticsearch_index_ != nullptr) {
+    if (elasticsearch_connection_) {
         Elasticsearch::Document document;
         document.id_ = id;
         document.type_ = elasticsearch_document_type_;
         document.fields_["fulltext"] = full_text;
         LOG_INFO("updating Elasticsearch fulltext for " + id);
-        elasticsearch_index_->updateOrInsertDocument(document);
+        elasticsearch_connection_->updateOrInsertDocument(elasticsearch_index_, document);
     }
 
     const std::string escaped_id(db_connection_->escapeString(id));
