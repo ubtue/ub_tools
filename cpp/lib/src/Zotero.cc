@@ -347,7 +347,7 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
      node_parameters->title = object_node->getOptionalStringValue("title");
 
      // Short Title
-     node_parameters->title = object_node->getOptionalStringValue("shortTitle");
+     node_parameters->short_title = object_node->getOptionalStringValue("shortTitle");
 
      // Creators
      for (const auto creator_node : *(object_node->getOptionalArrayNode("creators"))) {
@@ -390,10 +390,23 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
      // Issue
      node_parameters->issue = object_node->getOptionalStringValue("issue");
 
-
      // Keywords
-     // FIXME
-     // FIXME: Test for unknown fields
+     const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
+     const std::shared_ptr<const JSON::ArrayNode> tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
+     for (const auto &tag : *tags) {
+        const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
+        const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
+        if (tag_node == nullptr)
+            LOG_ERROR("unexpected: tag object does not contain a \"tag\" entry!");
+        else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
+            LOG_ERROR("unexpected: tag object's \"tag\" entry is not a string node!");
+        else {
+            const std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie("tag", tag_node));
+            const std::string value(string_node->getValue());
+            node_parameters->keywords.emplace_back(value);
+        }
+    }
+
 }
 
 
@@ -550,15 +563,23 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
 
 }
 
-
-void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters, struct CustomNodeParameters &custom_node_params){
-     (void)custom_node_params;
-     (void)item_parameters;
-     return;
+std::string GetCustomValueIfNotEmpty(const std::string &custom_value, const std::string item_value) {
+   return (not custom_value.empty()) ? custom_value : item_value;
 }
 
 
-void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_record, BSZUpload::DeliveryMode delivery_mode, 
+void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters, struct CustomNodeParameters &custom_node_params){
+     item_parameters->issn_normalized = GetCustomValueIfNotEmpty(custom_node_params.issn_normalized, item_parameters->issn_normalized);
+     item_parameters->parent_journal_name = GetCustomValueIfNotEmpty(item_parameters->parent_journal_name , item_parameters->parent_journal_name);
+     item_parameters->harvest_url = GetCustomValueIfNotEmpty(custom_node_params.harvest_url, item_parameters->harvest_url);
+     item_parameters->physical_form =GetCustomValueIfNotEmpty(custom_node_params.physical_form, item_parameters->physical_form);
+     item_parameters->license = GetCustomValueIfNotEmpty(custom_node_params.license, item_parameters->license);
+     item_parameters->superior_ppn = GetCustomValueIfNotEmpty(custom_node_params.journal_ppn, item_parameters->superior_ppn);
+     item_parameters->ssg_numbers.emplace_back(custom_node_params.ssg_numbers);
+}
+
+
+void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_record, BSZUpload::DeliveryMode delivery_mode,
                                                      struct ItemParameters &item_params, unsigned * const previously_downloaded_count) {
 
     std::string url(item_params.url);
@@ -601,10 +622,10 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     ExtractItemParameters(object_node, &item_parameters);
     MergeCustomParametersToItemParameters(&item_parameters, custom_node_params);
 
-    MARC::Record new_record("" /*empty dummy leader*/);
+    MARC::Record new_record(std::string(MARC::Record::LEADER_LENGTH, ' ') /*empty dummy leader*/);
     GenerateMarcRecord(&new_record, item_parameters);
 
-    HandleTrackingAndWriteRecord(new_record, delivery_mode, item_parameters, &previously_downloaded_count); 
+    HandleTrackingAndWriteRecord(new_record, delivery_mode, item_parameters, &previously_downloaded_count);
     return std::make_pair(/* record count */1, previously_downloaded_count);
 }
 
