@@ -105,13 +105,15 @@ Downloader::Params::Params(const std::string &user_agent, const std::string &acc
                            const PerlCompatRegExps &banned_reg_exps, const bool debugging,
                            const bool follow_redirects, const unsigned meta_redirect_threshold, const bool ignore_ssl_certificates,
                            const std::string &proxy_host_and_port, const std::vector<std::string> &additional_headers,
-                           const std::string &post_data)
+                           const std::string &post_data,
+                           const std::string &basic_authentication_username, const std::string &basic_authentication_password)
     : user_agent_(user_agent), acceptable_languages_(acceptable_languages), max_redirect_count_(max_redirect_count),
       dns_cache_timeout_(dns_cache_timeout), honour_robots_dot_txt_(honour_robots_dot_txt),
       text_translation_mode_(text_translation_mode), banned_reg_exps_(banned_reg_exps), debugging_(debugging),
       follow_redirects_(follow_redirects), meta_redirect_threshold_(meta_redirect_threshold), ignore_ssl_certificates_(ignore_ssl_certificates),
       proxy_host_and_port_(proxy_host_and_port), additional_headers_(additional_headers),
-      post_data_(post_data)
+      post_data_(post_data), basic_authentication_username_(basic_authentication_username),
+      basic_authentication_password_(basic_authentication_password)
 {
     max_redirect_count_ = follow_redirects_ ? max_redirect_count_ : 0 ;
 
@@ -340,9 +342,21 @@ void Downloader::init() {
             throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (6)!");
     }
 
-    if (not params_.post_data_.empty())
+    if (not params_.post_data_.empty()) {
         if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_POSTFIELDS, params_.post_data_.c_str())))
             throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (7)!");
+    }
+
+    if (not params_.basic_authentication_username_.empty() or not params_.basic_authentication_password_.empty()) {
+        if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_HTTPAUTH, CURLAUTH_BASIC)))
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (8)!");
+
+        if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_USERNAME, params_.basic_authentication_username_.c_str())))
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (9)!");
+        if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_PASSWORD, params_.basic_authentication_password_.c_str())))
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (10)!");
+    }
+
 }
 
 
