@@ -350,13 +350,16 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
      node_parameters->short_title = object_node->getOptionalStringValue("shortTitle");
 
      // Creators
-     for (const auto creator_node : *(object_node->getOptionalArrayNode("creators"))) {
-          Creator creator;
-          auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
-          creator.first_name = creator_object_node->getOptionalStringValue("firstName");
-          creator.last_name = creator_object_node->getOptionalStringValue("lastName");
-          creator.type = creator_object_node->getOptionalStringValue("creatorType");
-          node_parameters->creators.emplace_back(creator);
+     const auto creator_nodes(object_node->getOptionalArrayNode("creators"));
+     if (creator_nodes != nullptr) {
+         for (const auto creator_node : *creator_nodes) {
+             Creator creator;
+             auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
+             creator.first_name = creator_object_node->getOptionalStringValue("firstName");
+             creator.last_name = creator_object_node->getOptionalStringValue("lastName");
+             creator.type = creator_object_node->getOptionalStringValue("creatorType");
+             node_parameters->creators.emplace_back(creator);
+         }
      }
 
      // Publication Title
@@ -436,9 +439,11 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
      const std::string creator_tag((node_parameters.creators.size() == 1) ? "100" : "700");
      for (const auto creator : node_parameters.creators) {
           MARC::Subfields subfields;
+          if (not creator.author_ppn.empty())
+              subfields.appendSubfield('0', "(DE-576)" + creator.author_ppn);
+          if (not creator.type.empty())
+              subfields.appendSubfield('4', ZoteroTransformation::GetCreatorTypeForMarc21(creator.type));
           subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator.last_name, creator.first_name}), ','));
-          subfields.appendSubfield('4', creator.type);
-          subfields.appendSubfield('0', "(DE-576)" + creator.author_ppn);
           record->insertField(creator_tag, subfields);
      }
 
@@ -564,14 +569,28 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
     else
         LOG_WARNING("No ISSN found for article.");
 
+
+    const auto creator_nodes(custom_object->getOptionalArrayNode("creators"));
+    if (creator_nodes != nullptr) {
+        for (const auto creator_node : *creator_nodes) {
+            Creator creator;
+            auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
+            creator.first_name = creator_object_node->getOptionalStringValue("firstName");
+            creator.last_name = creator_object_node->getOptionalStringValue("lastName");
+            creator.type = creator_object_node->getOptionalStringValue("creatorType");
+            creator.author_ppn = creator_object_node->getOptionalStringValue("ppn");
+            custom_node_params->creators.emplace_back(creator);
+        }
+    }
+
     custom_node_params->parent_journal_name = custom_object->getOptionalStringValue("parent_journal_name");
     custom_node_params->harvest_url = custom_object->getOptionalStringValue("harvest_url");
     custom_node_params->physical_form = custom_object->getOptionalStringValue("physicalForm");
     custom_node_params->volume = custom_object->getOptionalStringValue("volume");
     custom_node_params->license = custom_object->getOptionalStringValue("licenseCode");
     custom_node_params->ssg_numbers = custom_object->getOptionalStringValue("ssgNumbers");
-
 }
+
 
 std::string GetCustomValueIfNotEmpty(const std::string &custom_value, const std::string item_value) {
    return (not custom_value.empty()) ? custom_value : item_value;
@@ -586,6 +605,9 @@ void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParamet
      item_parameters->license = GetCustomValueIfNotEmpty(custom_node_params.license, item_parameters->license);
      item_parameters->superior_ppn = GetCustomValueIfNotEmpty(custom_node_params.journal_ppn, item_parameters->superior_ppn);
      item_parameters->ssg_numbers.emplace_back(custom_node_params.ssg_numbers);
+     // Use the custom creator version if present since it may contain additional information such as a PPN
+     if (custom_node_params.creators.size())
+         item_parameters->creators = custom_node_params.creators;
 }
 
 
