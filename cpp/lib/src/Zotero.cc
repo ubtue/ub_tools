@@ -443,7 +443,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
               subfields.appendSubfield('0', "(DE-576)" + creator.author_ppn);
           if (not creator.type.empty())
               subfields.appendSubfield('4', ZoteroTransformation::GetCreatorTypeForMarc21(creator.type));
-          subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator.last_name, creator.first_name}), ','));
+          subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator.last_name, creator.first_name}), ", "));
           record->insertField(creator_tag, subfields);
      }
 
@@ -598,7 +598,7 @@ std::string GetCustomValueIfNotEmpty(const std::string &custom_value, const std:
 
 
 void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters, struct CustomNodeParameters &custom_node_params){
-     item_parameters->issn_normalized = GetCustomValueIfNotEmpty(custom_node_params.issn_normalized, item_parameters->issn_normalized);
+     item_parameters->issn = GetCustomValueIfNotEmpty(custom_node_params.issn_normalized, item_parameters->issn);
      item_parameters->parent_journal_name = GetCustomValueIfNotEmpty(item_parameters->parent_journal_name , item_parameters->parent_journal_name);
      item_parameters->harvest_url = GetCustomValueIfNotEmpty(custom_node_params.harvest_url, item_parameters->harvest_url);
      item_parameters->physical_form =GetCustomValueIfNotEmpty(custom_node_params.physical_form, item_parameters->physical_form);

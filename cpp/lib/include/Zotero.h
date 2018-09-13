@@ -77,6 +77,7 @@ struct CustomNodeParameters {
     std::string ssg_numbers;
     std::string journal_ppn;
     std::vector<Creator> creators;
+    std::string comment;
 };
 
 
@@ -107,7 +108,6 @@ struct ItemParameters {
     std::vector<std::string> keywords;
     std::vector<std::string> ssg_numbers;
     std::string physical_form;
-    std::string issn_normalized;
     std::string parent_journal_name;
     std::string harvest_url;
 };
