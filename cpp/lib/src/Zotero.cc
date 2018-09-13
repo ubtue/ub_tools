@@ -274,71 +274,6 @@ MarcFormatHandler::MarcFormatHandler(DbConnection * const db_connection, const s
 }
 
 
-/*void MarcFormatHandler::ExtractKeywords(std::shared_ptr<const JSON::JSONNode> tags_node, const std::string &issn,
-                                        const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
-                                        MARC::Record * const new_record)
-{
-    const std::shared_ptr<const JSON::ArrayNode> tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
-
-    // Where to stuff the data:
-    std::string marc_field("653");
-    char marc_subfield('a');
-    if (not issn.empty()) {
-        const auto issn_and_field_tag_and_subfield_code(ISSN_to_keyword_field_map.find(issn));
-        if (issn_and_field_tag_and_subfield_code != ISSN_to_keyword_field_map.end()) {
-            if (unlikely(issn_and_field_tag_and_subfield_code->second.length() != 3 + 1))
-                LOG_ERROR("\"" + issn_and_field_tag_and_subfield_code->second
-                          + "\" is not a valid MARC tag + subfield code! (Error in \"ISSN_to_keyword_field.map\"!)");
-            marc_field    = issn_and_field_tag_and_subfield_code->second.substr(0, 3);
-            marc_subfield =  issn_and_field_tag_and_subfield_code->second[3];
-        }
-    }
-
-    for (const auto &tag : *tags) {
-        const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
-        const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
-        if (tag_node == nullptr)
-            LOG_ERROR("unexpected: tag object does not contain a \"tag\" entry!");
-        else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
-            LOG_ERROR("unexpected: tag object's \"tag\" entry is not a string node!");
-        else
-            CreateSubfieldFromStringNode("tag", tag_node, marc_field, marc_subfield, new_record);
-    }
-}*/
-
-
-/*void MarcFormatHandler::ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MARC::Record * const new_record) {
-    std::vector<MARC::Subfield> subfields;
-
-    std::shared_ptr<const JSON::JSONNode> custom_node(object_node.getNode("ubtue"));
-    if (custom_node != nullptr) {
-        const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
-        std::string date_str(custom_object->getOptionalStringValue("date_normalized"));
-        if (date_str.empty())
-            date_str = custom_object->getOptionalStringValue("date_raw");
-
-        const std::string STRPTIME_FORMAT(site_params_->strptime_format_.empty() ? "%Y-%m-%d" : site_params_->strptime_format_);
-        const struct tm tm(TimeUtil::StringToStructTm(date_str, STRPTIME_FORMAT));
-        subfields.emplace_back('j', std::to_string(tm.tm_year + 1900));
-    }
-
-    const std::string issue(object_node.getOptionalStringValue("issue"));
-    if (not issue.empty())
-        subfields.emplace_back('e', issue);
-
-    const std::string pages(object_node.getOptionalStringValue("pages"));
-    if (not pages.empty())
-        subfields.emplace_back('h', pages);
-
-    const std::string volume(object_node.getOptionalStringValue("volume"));
-    if (not volume.empty())
-        subfields.emplace_back('d', volume);
-
-    if (not subfields.empty())
-        new_record->insertField("936", subfields);
-}*/
-
-
 void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::ObjectNode> object_node, ItemParameters * const node_parameters) {
      // Item Type
      node_parameters->item_type = object_node->getStringValue("itemType");
@@ -371,7 +306,7 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
      // DOI
      node_parameters->doi = object_node->getOptionalStringValue("DOI");
      if (node_parameters->doi.empty()) {
-         const std::string extra = object_node->getOptionalStringValue("extra");
+         const std::string extra(object_node->getOptionalStringValue("extra"));
          if (not extra.empty()) {
              static RegexMatcher * const doi_matcher(RegexMatcher::RegexMatcherFactory("^DOI:\\s*([0-9a-zA-Z./]+)$"));
              if (doi_matcher->matched(extra))
@@ -488,9 +423,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
      if (not doi.empty())
          record->insertField("024", { { 'a', doi }, { '2', "doi" } });
 
-
      // Differentiating information about source (see BSZ Konkordanz MARC 936)
-
      if (item_type == "journalArticle" or item_type == "magazineArticle" or item_type == "newspaperArticle") {
          MARC::Subfields _936_subfields;
          const std::string volume(node_parameters.volume);
