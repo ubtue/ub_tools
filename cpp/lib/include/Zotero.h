@@ -57,6 +57,14 @@ enum HarvesterConfigEntry {
 };
 
 
+struct Creator {
+    std::string first_name;
+    std::string last_name;
+    std::string type;
+    std::string author_ppn;
+};
+
+
 struct CustomNodeParameters {
     std::string issn_normalized;
     std::string parent_journal_name;
@@ -68,14 +76,7 @@ struct CustomNodeParameters {
     std::string license;
     std::string ssg_numbers;
     std::string journal_ppn;
-};
-
-
-struct Creator {
-    std::string first_name;
-    std::string last_name;
-    std::string type;
-    std::string author_ppn;
+    std::vector<Creator> creators;
 };
 
 
