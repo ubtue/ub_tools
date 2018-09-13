@@ -52,7 +52,7 @@ public:
     explicit AugmentMaps(const std::string &map_directory_path);
 };
 
-std::string DownloadAuthorPPN(const std::string &author, const struct Zotero::SiteParams &site_params);
+std::string DownloadAuthorPPN(const std::string &author, const Zotero::SiteParams &site_params);
 
 class BSZTransform {
    public:

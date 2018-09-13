@@ -42,6 +42,7 @@
 
 namespace BSZTransform { struct AugmentMaps; } // forward declaration
 
+
 namespace Zotero {
 
 enum HarvesterType { RSS, CRAWL, DIRECT };
