@@ -19,6 +19,7 @@
 */
 #include <iostream>
 #include "DbConnection.h"
+#include "DownloadTracker.h"
 #include "TimeUtil.h"
 #include "util.h"
 #include "Zotero.h"
@@ -45,7 +46,7 @@ namespace {
 }
 
 
-void Clear(DownloadTracker::DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &url_or_zulu_timestamp) {
+void Clear(DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &url_or_zulu_timestamp) {
     time_t timestamp;
     std::string err_msg;
 
@@ -62,7 +63,7 @@ void Clear(DownloadTracker::DownloadTracker * const download_tracker, BSZUpload:
 }
 
 
-void Insert(DownloadTracker::DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &url,
+void Insert(DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &url,
             const std::string &journal_name, const std::string &optional_message)
 {
     download_tracker->addOrReplace(delivery_mode, url, journal_name, optional_message, (optional_message.empty() ? "*bogus hash*" : ""));
@@ -70,8 +71,8 @@ void Insert(DownloadTracker::DownloadTracker * const download_tracker, BSZUpload
 }
 
 
-void Lookup(DownloadTracker::DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &url) {
-    DownloadTracker::DownloadTracker::Entry entry;
+void Lookup(DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &url) {
+    DownloadTracker::Entry entry;
     if (not download_tracker->hasAlreadyBeenDownloaded(delivery_mode, url, /* hash = */"", &entry))
         std::cerr << "Entry for URL \"" << url << "\" could not be found!\n";
     else {
@@ -83,8 +84,8 @@ void Lookup(DownloadTracker::DownloadTracker * const download_tracker, BSZUpload
 }
 
 
-void List(DownloadTracker::DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &pcre) {
-    std::vector<DownloadTracker::DownloadTracker::Entry> entries;
+void List(DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &pcre) {
+    std::vector<DownloadTracker::Entry> entries;
     download_tracker->listMatches(delivery_mode, pcre, &entries);
 
     for (const auto &entry : entries) {
@@ -96,7 +97,7 @@ void List(DownloadTracker::DownloadTracker * const download_tracker, BSZUpload::
 }
 
 
-void IsPresent(DownloadTracker::DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &url) {
+void IsPresent(DownloadTracker * const download_tracker, BSZUpload::DeliveryMode delivery_mode, const std::string &url) {
     std::cout << (download_tracker->hasAlreadyBeenDownloaded(delivery_mode, url) ? "true\n" : "false\n");
 }
 
@@ -109,7 +110,7 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     std::unique_ptr<DbConnection> db_connection(new DbConnection);
-    DownloadTracker::DownloadTracker download_tracker(db_connection.get());
+    DownloadTracker download_tracker(db_connection.get());
 
     const std::string delivery_mode_string(StringUtil::ToUpper(argv[1]));
     BSZUpload::DeliveryMode delivery_mode(BSZUpload::DeliveryMode::NONE);
