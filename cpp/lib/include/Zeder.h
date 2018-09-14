@@ -88,6 +88,8 @@ public:
     unsigned keepAttributes(const std::vector<std::string> &names_to_keep);
     void prettyPrint(std::string * const print_buffer) const;
 
+    iterator begin() { return attributes_.begin(); }
+    iterator end() { return attributes_.end(); }
     const_iterator begin() const { return attributes_.begin(); }
     const_iterator end() const { return attributes_.end(); }
     size_t size() const { return attributes_.size(); }
@@ -130,12 +132,14 @@ public:
     void addEntry(const Entry &new_entry, const bool sort_after_add = false);
 
     iterator find(const unsigned id);
+    iterator begin() { return entries_.begin(); }
+    iterator end() { return entries_.end(); }
     const_iterator find(const unsigned id) const;
     const_iterator begin() const { return entries_.begin(); }
     const_iterator end() const { return entries_.end(); }
     size_t size() const { return entries_.size(); }
     void clear() { entries_.clear(); }
-    iterator erase(const_iterator entry) { return entries_.erase(entry); }
+    iterator erase(iterator entry) { return entries_.erase(entry); }
     bool empty() const { return entries_.empty(); }
 };
 

@@ -401,8 +401,8 @@ bool EvaluateZtsHarvesterValidatorReport(const PipelineParams &params, const std
     const std::unordered_map<std::string, std::function<bool(const ValidatorErrorHandlerParams &)>> default_error_type_handlers{
         // empty responses are rare and mostly benign
         { "ERROR-ZTS_EMPTY_RESPONSE",  [](const ValidatorErrorHandlerParams &) -> bool { return true; } },
-        { "ERROR-BAD_STRPTIME_FORMAT", [&known_strptime_format_strings](const ValidatorErrorHandlerParams &params) -> bool
-                                            { return SelectBestStrptimeFormatString(params, known_strptime_format_strings); } },
+        { "ERROR-BAD_STRPTIME_FORMAT", [&known_strptime_format_strings](const ValidatorErrorHandlerParams &validator_params) -> bool
+                                            { return SelectBestStrptimeFormatString(validator_params, known_strptime_format_strings); } },
 
     };
 
