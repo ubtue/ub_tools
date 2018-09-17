@@ -344,7 +344,12 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
             node_parameters->keywords.emplace_back(value);
         }
     }
+
+    // Abstract Note
     node_parameters->abstract_note = object_node->getOptionalStringValue("abstractNote");
+
+    // URL
+    node_parameters->url = object_node->getOptionalStringValue("url");
 }
 
 
@@ -408,10 +413,16 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
      if (not abstract_note.empty())
          record->insertField("520", { {'a', abstract_note } }, '3' /* indicator 1*/);
 
-     // FIXME Which date is this??
+     // Date
      const std::string date(node_parameters.date);
      if (not date.empty())
          record->insertField("362", { {'a', date} });
+
+
+     // URL
+     const std::string url(node_parameters.url);
+     if (not url.empty())
+        record->insertField("856", { {'u', url} });
 
      // Copyright/URL
      const std::string copyright(node_parameters.copyright);

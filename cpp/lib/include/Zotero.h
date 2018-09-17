@@ -92,17 +92,16 @@ struct ItemParameters {
     std::string website_title;
     std::string doi;
     std::string copyright;
-    std::string extra; // Notwendig ??
     std::vector<Creator> creators;
     std::string url;
     std::string year;
-    std::string pages; // Notwendig ??
-    std::string volume; //Notwendig ??
+    std::string pages;
+    std::string volume;
     std::string date;
     std::string title;
-    std::string short_title; //Verhältnis zu title
+    std::string short_title;
     std::string issue;
-    std::string isil; // FIXME needed ??
+    std::string isil;
     // Additional item parameters
     std::string superior_ppn; // Generated on our side
     std::string issn;
@@ -335,7 +334,7 @@ private:
 
     void MergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters,
                                                struct CustomNodeParameters &custom_node_params);
-  
+
     void HandleTrackingAndWriteRecord(const MARC::Record &new_record, BSZUpload::DeliveryMode delivery_mode,
                                   struct ItemParameters &item_params, unsigned * const previously_downloaded_count);
 };
