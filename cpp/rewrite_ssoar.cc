@@ -52,7 +52,7 @@ void Assemble773Article(MARC::Subfields * const _773subfields, const std::string
     if (not title.empty())
         _773subfields->addSubfield('a', StringUtil::Trim(title));
     if (not volinfo.empty())
-        _773subfields->addSubfield('g', "volume: " + volinfo);
+        _773subfields->addSubfield('g', "volume: " + StringUtil::Trim(volinfo));
     if (not pages.empty())
         _773subfields->addSubfield('g', "pages: " + pages);
     if (not year.empty())
@@ -101,10 +101,10 @@ void ParseSuperior(const std::string &_500a_content, MARC::Subfields * const _77
    static RegexMatcher * const book_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_1));
    // Authors : Title. Year. Pages
    static const std::string book_regex_2("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\sS\\.\\s([\\d\\-]+))");
-   static RegexMatcher * const book_matcher_2(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_1));
+   static RegexMatcher * const book_matcher_2(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_2));
    // Authors : Title. Year. ISBN
    static const std::string book_regex_3("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\s*ISBN\\s*([\\d\\-X]+))");
-   static RegexMatcher * const book_matcher_3(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_2));
+   static RegexMatcher * const book_matcher_3(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_3));
 
    // 500 Structure fields for articles
    // Normally Journal ; Edition String ; Page (??)
