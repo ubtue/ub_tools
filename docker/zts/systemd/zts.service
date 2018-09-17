@@ -5,9 +5,10 @@ After=docker.service
 Requires=docker.service
 
 [Service]
-Type=simple
+Type=forking
 ExecStart=/usr/local/ub_tools/docker/zts/systemd/start.sh
 ExecStop=/usr/local/ub_tools/docker/zts/systemd/stop.sh
+PIDFile=/var/run/zts.pid
 
 [Install]
 WantedBy=multi-user.target
