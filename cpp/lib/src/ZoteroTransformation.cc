@@ -105,7 +105,6 @@ std::string NormalizeDate(const std::string date_raw, const std::string strptime
     return date_normalized;
 }
 
-
 bool TestForUnknownZoteroKey(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
     const std::string known_keys("^" + StringUtil::Join(known_zotero_keys, "|") + "$");
     static RegexMatcher * const known_keys_matcher(RegexMatcher::RegexMatcherFactory(known_keys));
