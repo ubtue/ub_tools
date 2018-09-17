@@ -323,10 +323,11 @@ private:
                              std::string * const publication_title, std::string * const abbreviated_publication_title,
                              std::string * const website_title);
 
+    // Extracts information from the ubtue node
     void ExtractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node,
                                      struct CustomNodeParameters * const custom_node_parameters);
 
-    void ExtractItemParameters(std::shared_ptr<const JSON::ObjectNode> custom_node,
+    void ExtractItemParameters(std::shared_ptr<const JSON::ObjectNode> object_node,
                                struct ItemParameters * const item_parameters);
 
     void GenerateMarcRecord(MARC::Record * const record, const struct ItemParameters &item_parameters);
