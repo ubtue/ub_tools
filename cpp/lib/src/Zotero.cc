@@ -501,6 +501,7 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
     else
         LOG_WARNING("No ISSN found for article.");
 
+
     const auto creator_nodes(custom_object->getOptionalArrayNode("creators"));
     if (creator_nodes != nullptr) {
         for (const auto creator_node : *creator_nodes) {
@@ -521,6 +522,7 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
     custom_node_params->license = custom_object->getOptionalStringValue("licenseCode");
     custom_node_params->ssg_numbers = custom_object->getOptionalStringValue("ssgNumbers");
     custom_node_params->date_normalized = custom_object->getOptionalStringValue("date_normalized");
+    custom_node_params->journal_ppn = custom_object->getOptionalStringValue("PPN");
 }
 
 
