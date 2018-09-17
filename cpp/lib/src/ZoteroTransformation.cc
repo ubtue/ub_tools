@@ -96,6 +96,15 @@ std::string OptionalMap(const std::string &key, const std::unordered_map<std::st
 }
 
 
+std::string NormalizeDate(const std::string date_raw, const std::string strptime_format) {
+
+    struct tm tm(TimeUtil::StringToStructTm(date_raw, strptime_format));
+    const std::string date_normalized(std::to_string(tm.tm_year + 1900) + "-"
+                                      + StringUtil::ToString(tm.tm_mon + 1, 10, 2, '0') + "-"
+                                      + StringUtil::ToString(tm.tm_mday, 10, 2, '0'));
+    return date_normalized;
+}
+
 } // end ZoteroTransformation
 
 } // end Zotero
