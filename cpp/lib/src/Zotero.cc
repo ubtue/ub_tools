@@ -616,7 +616,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
             if (first_name_node != nullptr)
                 name += ", " + creator_object->getStringValue("firstName");
 
-            const std::string PPN(BSZTransform::DownloadAuthorPPN(name, site_params));
+            const std::string PPN(BSZTransform::DownloadAuthorPPN(name, site_params.group_params_->author_lookup_url_));
             if (not PPN.empty()) {
                 comments->emplace_back("Added author PPN " + PPN + " for author " + name);
                 creator_object->insert("ppn", std::make_shared<JSON::StringNode>(PPN));

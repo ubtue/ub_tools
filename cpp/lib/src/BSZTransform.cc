@@ -47,8 +47,8 @@ AugmentMaps::AugmentMaps(const std::string &map_directory_path) {
 
 
 // "author" must be in the lastname,firstname format. Returns the empty string if no PPN was found.
-std::string DownloadAuthorPPN(const std::string &author, const struct Zotero::SiteParams &site_params) {
-    const std::string LOOKUP_URL(site_params.group_params_->author_lookup_url_ + UrlUtil::UrlEncode(author));
+std::string DownloadAuthorPPN(const std::string &author, const std::string &author_lookup_base_url) {
+    const std::string LOOKUP_URL(author_lookup_base_url + UrlUtil::UrlEncode(author));
 
     static std::unordered_map<std::string, std::string> url_to_lookup_result_cache;
     const auto url_and_lookup_result(url_to_lookup_result_cache.find(LOOKUP_URL));
