@@ -939,7 +939,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = harvest_params->user_agent_;
     bool download_succeeded(TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT,
-                                                   downloader_params, harvest_url, &response_body, &response_code,
+                                                   downloader_params, Url(harvest_url), &response_body, &response_code,
                                                    &error_message));
 
     harvest_params->min_url_processing_time_.restart();
