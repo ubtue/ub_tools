@@ -443,8 +443,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
              _936_subfields.appendSubfield('z', "Kostenfrei");
          if (not _936_subfields.empty())
              record->insertField("936", _936_subfields);
-     }
-     else if (item_type == "webpage") {
+     } else if (item_type == "webpage") {
          record->insertField("935", { { 'c', "website" } });
      }
 
@@ -501,7 +500,6 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
         custom_node_params->issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
     else
         LOG_WARNING("No ISSN found for article.");
-
 
     const auto creator_nodes(custom_object->getOptionalArrayNode("creators"));
     if (creator_nodes != nullptr) {
