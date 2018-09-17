@@ -265,21 +265,20 @@ void RemoveExtraneousHyphensFrom653(MARC::Record * const record, bool * const mo
 void RemoveExtraneousPublisherNames(MARC::Record * const record, bool * const modified_record) {
     static const std::vector<std::string> tags_to_clean{ "700", "710" };
 
-    std::vector<MARC::Record::iterator> fields_to_remove;
+    std::vector<size_t> field_indices_to_remove;
     for (const auto &tag : tags_to_clean) {
         const auto tag_range(record->getTagRange(tag));
         for (auto field(tag_range.begin()); field != tag_range.end(); ++field) {
             bool is_publisher(field->getFirstSubfieldWithCode('4') == "edt");
             if (record->isArticle() and is_publisher)
-                fields_to_remove.push_back(field);
+                field_indices_to_remove.push_back(field - record->begin());
         }
     }
 
-    for (auto &field_to_remove : fields_to_remove)
-        record->erase(field_to_remove);
-
-    if (not fields_to_remove.empty())
+    if (not field_indices_to_remove.empty()) {
+        record->deleteFields(field_indices_to_remove);
         *modified_record = true;
+    }
 }
 
 
