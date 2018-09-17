@@ -520,6 +520,7 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
     custom_node_params->volume = custom_object->getOptionalStringValue("volume");
     custom_node_params->license = custom_object->getOptionalStringValue("licenseCode");
     custom_node_params->ssg_numbers = custom_object->getOptionalStringValue("ssgNumbers");
+    custom_node_params->date_normalized = custom_object->getOptionalStringValues("date_normalized");
 }
 
 
@@ -539,6 +540,7 @@ void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParamet
      // Use the custom creator version if present since it may contain additional information such as a PPN
      if (custom_node_params.creators.size())
          item_parameters->creators = custom_node_params.creators;
+     item_parameters->date = GetCustomValueIfNotEmpty(custom_node_params.date_normalized, item_parameters->date);
 }
 
 
@@ -661,9 +663,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         } else if (key_and_node.first == "date") {
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
-            struct tm tm(TimeUtil::StringToStructTm(date_raw, site_params.strptime_format_));
-            std::string date_normalized(std::to_string(tm.tm_year + 1900) + "-" + StringUtil::ToString(tm.tm_mon + 1, 10, 2, '0') + "-"
-                                        + StringUtil::ToString(tm.tm_mday, 10, 2, '0'));
+            const std::string date_normalized(ZoteroTransformation::NormalizeDate(date_raw, site_params.strptime_format_)
             custom_fields.emplace(std::pair<std::string, std::string>("date_normalized", date_normalized));
             comments.emplace_back("normalized date to: " + date_normalized);
         }

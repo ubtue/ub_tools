@@ -84,8 +84,8 @@ void BSZTransform::DetermineKeywordOutputFieldFromISSN(const std::string &issn, 
             return;
         }
     }
-    *tag="653";
-    *subfield='a';
+    *tag = "653";
+    *subfield = 'a';
 }
 
 } // end namespace BSZTransform
