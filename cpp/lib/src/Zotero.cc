@@ -344,7 +344,7 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
             node_parameters->keywords.emplace_back(value);
         }
     }
-
+    node_parameters->abstract_note = object_node->getOptionalStringValue("abstractNote");
 }
 
 
