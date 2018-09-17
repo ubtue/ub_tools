@@ -80,6 +80,7 @@ struct CustomNodeParameters {
     std::vector<Creator> creators;
     std::string comment;
     std::string date_normalized;
+    std::string isil;
 };
 
 
