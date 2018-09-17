@@ -221,8 +221,8 @@ std::string GenerateTempMergedZtsHarvesterConfig(const PipelineParams &params, c
 }
 
 
-std::string ExecuteZtsHarvesterValidator(const PipelineParams &params, const std::string &temp_harvester_merged_config_file_path,
-                                         const Zeder::EntryCollection &downloaded_entries, const std::unordered_set<unsigned> &new_and_updated_entry_ids)
+std::string ExecuteZtsHarvesterForValidation(const PipelineParams &params, const std::string &temp_harvester_merged_config_file_path,
+                                             const Zeder::EntryCollection &downloaded_entries, const std::unordered_set<unsigned> &new_and_updated_entry_ids)
 {
     const std::string buffer_validator_report_file_path(params.working_directory_ + "/ztz_validator_report_buffer.conf");
 
@@ -231,17 +231,15 @@ std::string ExecuteZtsHarvesterValidator(const PipelineParams &params, const std
     std::vector<std::string> validator_args{
         "--min-log-level=WARNING",
     };
-    if (params.use_ubtools_folder_)
-        validator_args.emplace_back("--ubtools-wd");
-    validator_args.emplace_back(buffer_validator_report_file_path);
+    validator_args.emplace_back("--error-report-file=" + buffer_validator_report_file_path);
     validator_args.emplace_back(temp_harvester_merged_config_file_path);
 
     for (const auto &entry_id : new_and_updated_entry_ids)
         validator_args.emplace_back(downloaded_entries.find(entry_id)->getAttribute(params.journal_name_column_));
 
-    const auto ret_code(ExecUtil::Exec(params.executable_directory_ + "/zts_harvester_validator", validator_args, "", "", "", timeout));
+    const auto ret_code(ExecUtil::Exec(params.executable_directory_ + "/zts_harvester", validator_args, "", "", "", timeout));
     if (ret_code == -1 and errno == ETIME)
-        LOG_WARNING("ZTS Harvester Validator timed-out!");
+        LOG_WARNING("ZTS Harvester Validation timed-out!");
 
     return buffer_validator_report_file_path;
 }
@@ -372,7 +370,7 @@ bool EvaluateZtsHarvesterValidatorReport(const PipelineParams &params, const std
 
 
     IniFile report(temp_validator_report_file_path);
-    if (report.getBool("", "success")) {
+    if (not report.getBool("", "has_errors")) {
         // skip the further processing if the last run was successful
         return true;
     }
@@ -512,8 +510,8 @@ bool ProcessPipeline(const PipelineParams &pipeline_params) {
     AnnouncePhase("Validating new entries...");
     std::string validator_report_file_path;
     for (unsigned i(1); i <= pipeline_params.zts_harvester_validator_iterations_; ++i) {
-        validator_report_file_path = ExecuteZtsHarvesterValidator(pipeline_params, temp_merged_config_file_path,
-                                                                downloaded_entries, new_and_updated_entry_ids);
+        validator_report_file_path = ExecuteZtsHarvesterForValidation(pipeline_params, temp_merged_config_file_path,
+                                                                      downloaded_entries, new_and_updated_entry_ids);
 
         if (EvaluateZtsHarvesterValidatorReport(pipeline_params, temp_merged_config_file_path, validator_report_file_path))
             error = true;

@@ -148,7 +148,6 @@
 /zotero_cgi
 /ztracker_tool
 /zts_harvester
-/zts_harvester_validator
 
 # other excludes
 iViaCore-mkdep
