@@ -237,7 +237,8 @@ std::string ExecuteZtsHarvesterForValidation(const PipelineParams &params, const
     for (const auto &entry_id : new_and_updated_entry_ids)
         validator_args.emplace_back(downloaded_entries.find(entry_id)->getAttribute(params.journal_name_column_));
 
-    const auto ret_code(ExecUtil::Exec(params.executable_directory_ + "/zts_harvester", validator_args, "", "", "", timeout));
+    std::string stdout_capture, stderr_capture;
+    const auto ret_code(ExecUtil::Exec(params.executable_directory_ + "/zts_harvester", validator_args, "", "/tmp/tmp_stdout", "/tmp/tmp_stdout", timeout));
     if (ret_code == -1 and errno == ETIME)
         LOG_WARNING("ZTS Harvester Validation timed-out!");
 
