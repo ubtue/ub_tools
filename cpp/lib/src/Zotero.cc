@@ -636,6 +636,8 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     std::vector<std::string> comments;
     std::string issn_raw, issn_normalized;
     std::shared_ptr<JSON::StringNode> language_node(nullptr);
+    ZoteroTransformation::TestForUnknownZoteroKey(object_node);
+
     for (auto &key_and_node : *object_node) {
         if (key_and_node.first == "language") {
             language_node = JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second);

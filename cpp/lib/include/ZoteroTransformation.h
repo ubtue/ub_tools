@@ -24,6 +24,38 @@
 namespace Zotero {
 
 namespace ZoteroTransformation {
+    static std::vector<std::string> known_zotero_keys( {
+        "abstractNote",
+        "accessDate",
+        "creators",
+        "date",
+        "DOI",
+        "extra",
+        "ISSN",
+        "issue",
+        "itemType",
+        "itemVersion",
+        "journalAbbreviation",
+        "journalAbbreviation",
+        "journalArticle",
+        "key",
+        "language",
+        "libraryCatalog",
+        "magazineArticle",
+        "newspaperArticle",
+        "pages",
+        "publicationTitle",
+        "rights",
+        "shortTitle",
+        "tags",
+        "title",
+        "url",
+        "version",
+        "volume",
+        "webpage",
+        "websiteTitle",
+        "websiteType"
+    });
 
     extern const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP;
     extern const std::map<std::string, MARC::Record::BibliographicLevel> ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP;
@@ -33,6 +65,7 @@ namespace ZoteroTransformation {
     bool IsValidItemType(const std::string item_type);
     std::string OptionalMap(const std::string &key, const std::unordered_map<std::string, std::string> &map);
     std::string NormalizeDate(const std::string date_raw, const std::string strptime_format);
+    bool TestForUnknownZoteroKey(const std::shared_ptr<const JSON::ObjectNode> &object_node);
 
 } // end ZoteroTransformation
 
