@@ -79,6 +79,7 @@ struct CustomNodeParameters {
     std::string journal_ppn;
     std::vector<Creator> creators;
     std::string comment;
+    std::string date_normalized;
 };
 
 

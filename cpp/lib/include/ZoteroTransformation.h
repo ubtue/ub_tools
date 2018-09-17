@@ -26,13 +26,13 @@ namespace Zotero {
 namespace ZoteroTransformation {
 
     extern const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP;
-    extern const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP;
     extern const std::map<std::string, MARC::Record::BibliographicLevel> ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP;
 
     const std::string GetCreatorTypeForMarc21(const std::string &zotero_creator_type);
     MARC::Record::BibliographicLevel MapBiblioLevel(const std::string item_type);
     bool IsValidItemType(const std::string item_type);
     std::string OptionalMap(const std::string &key, const std::unordered_map<std::string, std::string> &map);
+    std::string NormalizeDate(const std::string date_raw, const std::string strptime_format);
 
 } // end ZoteroTransformation
 
