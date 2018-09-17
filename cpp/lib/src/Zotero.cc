@@ -510,7 +510,7 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
     else if (custom_object->getOptionalStringNode("ISSN_print"))
         custom_node_params->issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
     else
-        LOG_WARNING("No ISSN found for article.");
+        LOG_WARNING("No ISSN found for item.");
 
 
     const auto creator_nodes(custom_object->getOptionalArrayNode("creators"));
@@ -534,6 +534,7 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
     custom_node_params->ssg_numbers = custom_object->getOptionalStringValue("ssgNumbers");
     custom_node_params->date_normalized = custom_object->getOptionalStringValue("date_normalized");
     custom_node_params->journal_ppn = custom_object->getOptionalStringValue("PPN");
+    custom_node_params->isil = custom_object->getOptionalStringValue("isil");
 }
 
 
@@ -554,6 +555,7 @@ void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParamet
      if (custom_node_params.creators.size())
          item_parameters->creators = custom_node_params.creators;
      item_parameters->date = GetCustomValueIfNotEmpty(custom_node_params.date_normalized, item_parameters->date);
+     item_parameters->isil = GetCustomValueIfNotEmpty(custom_node_params.isil, item_parameters->isil);
 }
 
 
@@ -758,6 +760,8 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         const auto ISSN_and_SSGN_numbers(site_params.global_params_->maps_->ISSN_to_SSG_map_.find(issn_normalized));
         if (ISSN_and_SSGN_numbers != site_params.global_params_->maps_->ISSN_to_SSG_map_.end())
             custom_fields.emplace(std::pair<std::string, std::string>("ssgNumbers", ISSN_and_SSGN_numbers->second));
+
+
     } else
         LOG_WARNING("No suitable ISSN was found!");
 
@@ -771,6 +775,10 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
                                            [delivery_mode_buffer](const std::pair<std::string, int> &entry) -> bool { return static_cast<int>
                                            (delivery_mode_buffer) == entry.second; })->first);
     custom_fields.emplace(std::make_pair("delivery_mode", delivery_mode_string));
+
+    // Add ISIL for later use
+    const std::string isil(site_params.group_params_->isil_);
+    custom_fields.emplace(std::make_pair("isil", isil));
 
     // Insert custom node with fields and comments
     if (comments.size() > 0 or custom_fields.size() > 0) {
