@@ -19,8 +19,6 @@
 #include "MARC.h"
 #include "Zotero.h"
 
-namespace Zotero { struct SiteParams; } // forward declaration
-
 namespace BSZTransform {
 
 const std::string ISSN_TO_MISC_BITS_MAP_PATH_LOCAL("/usr/local/var/lib/tuelib/issn_to_misc_bits.map");
@@ -52,7 +50,7 @@ public:
     explicit AugmentMaps(const std::string &map_directory_path);
 };
 
-std::string DownloadAuthorPPN(const std::string &author, const Zotero::SiteParams &site_params);
+std::string DownloadAuthorPPN(const std::string &author, const std::string &author_download_base_url);
 
 class BSZTransform {
    public:
