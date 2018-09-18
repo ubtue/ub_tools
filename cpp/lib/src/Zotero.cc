@@ -24,6 +24,7 @@
 #include <ctime>
 #include <uuid/uuid.h>
 #include "DbConnection.h"
+#include "IniFile.h"
 #include "MiscUtil.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
@@ -129,6 +130,12 @@ const std::string DEFAULT_SUBFIELD_CODE("eng");
 
 
 namespace TranslationServer {
+
+
+const Url GetUrl() {
+    const IniFile ini("/usr/local/var/lib/tuelib/zotero.conf");
+    return Url(ini.getString("Server", "url"));
+}
 
 
 bool ResponseCodeIndicatesSuccess(unsigned response_code, const std::string &response_body, std::string * const error_message) {

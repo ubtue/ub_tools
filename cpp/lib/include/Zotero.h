@@ -89,6 +89,10 @@ const std::string GetCreatorTypeForMarc21(const std::string &zotero_creator_type
 namespace TranslationServer {
 
 
+/** \brief get url for zotero translation server based on local machine configuration */
+const Url GetUrl();
+
+
 /** \brief Use builtin translator to convert JSON to output format. */
 bool Export(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
             const std::string &format, const std::string &json, std::string * const response_body,
