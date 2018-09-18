@@ -52,7 +52,7 @@ void Assemble773Article(MARC::Subfields * const _773subfields, const std::string
     if (not title.empty())
         _773subfields->addSubfield('a', StringUtil::Trim(title));
     if (not volinfo.empty())
-        _773subfields->addSubfield('g', "volume: " + volinfo);
+        _773subfields->addSubfield('g', "volume: " + StringUtil::Trim(volinfo));
     if (not pages.empty())
         _773subfields->addSubfield('g', "pages: " + pages);
     if (not year.empty())
@@ -101,10 +101,10 @@ void ParseSuperior(const std::string &_500a_content, MARC::Subfields * const _77
    static RegexMatcher * const book_matcher_1(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_1));
    // Authors : Title. Year. Pages
    static const std::string book_regex_2("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\sS\\.\\s([\\d\\-]+))");
-   static RegexMatcher * const book_matcher_2(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_1));
+   static RegexMatcher * const book_matcher_2(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_2));
    // Authors : Title. Year. ISBN
    static const std::string book_regex_3("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\s*ISBN\\s*([\\d\\-X]+))");
-   static RegexMatcher * const book_matcher_3(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_2));
+   static RegexMatcher * const book_matcher_3(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_3));
 
    // 500 Structure fields for articles
    // Normally Journal ; Edition String ; Page (??)
@@ -265,21 +265,20 @@ void RemoveExtraneousHyphensFrom653(MARC::Record * const record, bool * const mo
 void RemoveExtraneousPublisherNames(MARC::Record * const record, bool * const modified_record) {
     static const std::vector<std::string> tags_to_clean{ "700", "710" };
 
-    std::vector<MARC::Record::iterator> fields_to_remove;
+    std::vector<size_t> field_indices_to_remove;
     for (const auto &tag : tags_to_clean) {
         const auto tag_range(record->getTagRange(tag));
         for (auto field(tag_range.begin()); field != tag_range.end(); ++field) {
             bool is_publisher(field->getFirstSubfieldWithCode('4') == "edt");
             if (record->isArticle() and is_publisher)
-                fields_to_remove.push_back(field);
+                field_indices_to_remove.push_back(field - record->begin());
         }
     }
 
-    for (auto &field_to_remove : fields_to_remove)
-        record->erase(field_to_remove);
-
-    if (not fields_to_remove.empty())
+    if (not field_indices_to_remove.empty()) {
+        record->deleteFields(field_indices_to_remove);
         *modified_record = true;
+    }
 }
 
 
@@ -323,6 +322,21 @@ void MovePageNumbersFrom300(MARC::Record * const record, bool * const modified_r
 }
 
 
+void FixArticleLeader(MARC::Record * const record,  bool * const modified_record) {
+     // SSOAR delivers a wrong leader for articles in journals: leader[7]=m instead of b
+     // For chapters in books it is correctly done: leader[7]=a
+     // So rewrite to b if we have a component part that is not part of a book
+     // We use the fact that we have already rewritten the 773 fields where $i contains "In:"
+     for (const auto field : record->getTagRange("773")) {
+          if (field.hasSubfieldWithValue('i', "In:") and record->getLeader()[7] != 'a') {
+              record->setBibliographicLevel('b');
+              *modified_record = true;
+              return;
+          }
+     }
+}
+
+
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     unsigned record_count(0), modified_count(0);
     while (MARC::Record record = marc_reader->read()) {
@@ -336,6 +350,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         RemoveExtraneousHyphensFrom653(&record, &modified_record);
         RemoveExtraneousPublisherNames(&record, &modified_record);
         MovePageNumbersFrom300(&record, &modified_record);
+        FixArticleLeader(&record, &modified_record);
 
         marc_writer->write(record);
         if (modified_record)

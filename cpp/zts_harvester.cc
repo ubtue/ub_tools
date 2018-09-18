@@ -193,7 +193,7 @@ int Main(int argc, char *argv[]) {
     if (not StringUtil::EndsWith(map_directory_path, '/'))
         map_directory_path += "/";
 
-    Zotero::AugmentMaps augment_maps(map_directory_path);
+    BSZTransform::AugmentMaps augment_maps(map_directory_path);
     const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
     std::unique_ptr<DbConnection> db_connection(new DbConnection);
