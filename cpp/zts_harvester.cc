@@ -184,7 +184,7 @@ int Main(int argc, char *argv[]) {
     IniFile ini_file(argv[1]);
 
     std::shared_ptr<Zotero::HarvestParams> harvest_params(new Zotero::HarvestParams);
-    harvest_params->zts_server_url_ = Url(ini_file.getString("", "zts_server_url"));
+    harvest_params->zts_server_url_ = Zotero::TranslationServer::GetUrl();
 
     if (map_directory_path.empty())
         map_directory_path = ini_file.getString("", "map_directory_path");
