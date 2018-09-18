@@ -464,18 +464,33 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
      // Information about superior work (See BSZ Konkordanz MARC 773)
      MARC::Subfields _773_subfields;
      const std::string publication_title(node_parameters.publication_title);
-     if (not publication_title.empty())
+     if (not publication_title.empty()) {
+         _773_subfields.appendSubfield('a', "In: ");
          _773_subfields.appendSubfield('a', publication_title);
+     }
      const std::string abbreviated_publication_title(node_parameters.abbreviated_publication_title);
-     if (not abbreviated_publication_title.empty())
+     if (not abbreviated_publication_title.empty()) {
+         if (not _773_subfields.hasSubfield('i'))
+             _773_subfields.appendSubfield('a', "In: ");
          _773_subfields.appendSubfield('p', abbreviated_publication_title);
+     }
      const std::string issn(node_parameters.issn);
      if (not issn.empty())
          _773_subfields.appendSubfield('x', issn);
      const std::string superior_ppn(node_parameters.superior_ppn);
      if (not superior_ppn.empty())
          _773_subfields.appendSubfield('w', "(DE-576)" + superior_ppn);
+     const std::string volume(node_parameters.volume);
+     if (not volume.empty())
+         _773_subfields.appendSubfield('g', "volume: " + volume);
+     const std::string pages(node_parameters.pages);
+     if (not pages.empty())
+         _773_subfields.appendSubfield('g', "pages: " + pages);
+     const std::string year(node_parameters.year);
+     if (not year.empty())
+         _773_subfields.appendSubfield('g', "year: " + year);
      record->insertField("773", _773_subfields);
+     
 
      // Keywords
      BSZTransform::BSZTransform bsz_transform(*(site_params_->global_params_->maps_));
