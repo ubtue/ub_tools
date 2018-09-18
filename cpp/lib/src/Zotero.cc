@@ -330,18 +330,20 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
 
      // Keywords
      const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
-     const std::shared_ptr<const JSON::ArrayNode> tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
-     for (const auto &tag : *tags) {
-        const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
-        const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
-        if (tag_node == nullptr)
-            LOG_ERROR("unexpected: tag object does not contain a \"tag\" entry!");
-        else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
-            LOG_ERROR("unexpected: tag object's \"tag\" entry is not a string node!");
-        else {
-            const std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie("tag", tag_node));
-            const std::string value(string_node->getValue());
-            node_parameters->keywords.emplace_back(value);
+     if (tags_node != nullptr) {
+         const std::shared_ptr<const JSON::ArrayNode> tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
+         for (const auto &tag : *tags) {
+            const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
+            const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
+            if (tag_node == nullptr)
+                LOG_ERROR("unexpected: tag object does not contain a \"tag\" entry!");
+            else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
+                LOG_ERROR("unexpected: tag object's \"tag\" entry is not a string node!");
+            else {
+                const std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie("tag", tag_node));
+                const std::string value(string_node->getValue());
+                node_parameters->keywords.emplace_back(value);
+            }
         }
     }
 
