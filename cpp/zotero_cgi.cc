@@ -42,7 +42,7 @@ namespace {
 
 
 std::string zts_client_maps_directory;
-std::string zts_url;
+std::string zts_url(Zotero::TranslationServer::GetUrl());
 const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
 const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS {
     // custom formats
@@ -130,7 +130,6 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     for (const auto &section : ini) {
         const std::string &title(section.getSectionName());
         if (title.empty()) {
-            zts_url = section.getString("zts_server_url");
             zts_client_maps_directory = section.getString("map_directory_path");
             StringUtil::SplitThenTrimWhite(section.getString("groups"), ',', &group_names);
         } else {
