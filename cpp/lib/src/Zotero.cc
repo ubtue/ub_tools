@@ -490,7 +490,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
      if (not year.empty())
          _773_subfields.appendSubfield('g', "year: " + year);
      record->insertField("773", _773_subfields);
-     
+
 
      // Keywords
      BSZTransform::BSZTransform bsz_transform(*(site_params_->global_params_->maps_));
@@ -718,7 +718,10 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     if (not issn_normalized.empty()) {
         const auto ISSN_parent_ppn_and_title(
             site_params.global_params_->maps_->ISSN_to_superior_ppn_and_title_map_.find(issn_normalized));
-        if (ISSN_parent_ppn_and_title != site_params.global_params_->maps_->ISSN_to_superior_ppn_and_title_map_.cend())
+        const std::string parent_ppn(site_params.parent_PPN_);
+        if (not parent_ppn.empty())
+            custom_fields.emplace(std::pair<std::string, std::string>("PPN", parent_ppn));
+        else if (ISSN_parent_ppn_and_title != site_params.global_params_->maps_->ISSN_to_superior_ppn_and_title_map_.cend())
             custom_fields.emplace(std::pair<std::string, std::string>("PPN", ISSN_parent_ppn_and_title->second.getPPN()));
 
         // physical form
