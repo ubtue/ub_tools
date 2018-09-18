@@ -21,7 +21,7 @@
 
 namespace Zotero {
 
-namespace ZoteroTransformation {
+namespace Transformation {
 
 // Zotero values see https://raw.githubusercontent.com/zotero/zotero/master/test/tests/data/allTypesAndFields.js
 // MARC21 values see https://www.loc.gov/marc/relators/relaterm.html
