@@ -23,7 +23,7 @@
 
 namespace Zotero {
 
-namespace ZoteroTransformation {
+namespace Transformation {
     static std::vector<std::string> known_zotero_keys( {
         "abstractNote",
         "accessDate",

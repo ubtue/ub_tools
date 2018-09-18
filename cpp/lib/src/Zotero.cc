@@ -357,7 +357,7 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
 
 void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters) {
      const std::string item_type(node_parameters.item_type);
-     *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, ZoteroTransformation::MapBiblioLevel(item_type));
+     *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, Transformation::MapBiblioLevel(item_type));
 
      // Control Fields
 
@@ -384,7 +384,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
           if (not creator.author_ppn.empty())
               subfields.appendSubfield('0', "(DE-576)" + creator.author_ppn);
           if (not creator.type.empty())
-              subfields.appendSubfield('4', ZoteroTransformation::GetCreatorTypeForMarc21(creator.type));
+              subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator.type));
           subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator.last_name, creator.first_name}), ", "));
           record->insertField(creator_tag, subfields);
      }
@@ -653,7 +653,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     std::vector<std::string> comments;
     std::string issn_raw, issn_normalized;
     std::shared_ptr<JSON::StringNode> language_node(nullptr);
-    ZoteroTransformation::TestForUnknownZoteroKey(object_node);
+    Transformation::TestForUnknownZoteroKey(object_node);
 
     for (auto &key_and_node : *object_node) {
         if (key_and_node.first == "language") {
@@ -682,7 +682,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         } else if (key_and_node.first == "date") {
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
-            const std::string date_normalized(ZoteroTransformation::NormalizeDate(date_raw, site_params.strptime_format_));
+            const std::string date_normalized(Transformation::NormalizeDate(date_raw, site_params.strptime_format_));
             custom_fields.emplace(std::pair<std::string, std::string>("date_normalized", date_normalized));
             comments.emplace_back("normalized date to: " + date_normalized);
         }
