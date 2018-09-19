@@ -113,6 +113,7 @@ int main(int argc, char *argv[]) {
         Zotero::GobalAugmentParams global_augment_params(&augment_maps);
         Zotero::SiteParams augment_params;
         DbConnection db_connection;
+        Zotero::HarvesterErrorLogger error_logger;
 
         augment_params.global_params_ = &global_augment_params;
         augment_params.strptime_format_ = strptime_format;
@@ -130,9 +131,10 @@ int main(int argc, char *argv[]) {
             LOG_ERROR("expected a MarcFormatHandler!");
 
         UnsignedPair total_record_count_and_previously_downloaded_record_count;
-        for (const auto &server_url : server_urls)
+        for (const auto &server_url : server_urls) {
             total_record_count_and_previously_downloaded_record_count +=
-                Zotero::HarvestSyndicationURL(mode, server_url, harvest_params, augment_params, &db_connection);
+                Zotero::HarvestSyndicationURL(mode, server_url, harvest_params, augment_params, &error_logger, &db_connection);
+        }
 
         LOG_INFO("Extracted metadata from "
                  + std::to_string(total_record_count_and_previously_downloaded_record_count.first
