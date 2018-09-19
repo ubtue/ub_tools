@@ -286,7 +286,7 @@ std::string BuildCommandString(const std::string &command, const std::vector<std
 
 /** \brief create local copy of template map directory and delete previously downloaded cache for clean test results */
 std::string PrepareMapsDirectory(const std::string &orig_directory, const std::string &tmp_directory) {
-    ExecUtil::ExecOrDie(ExecUtil::Which("cp"), { "-r", orig_directory, tmp_directory });
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("cp"), { "-r", orig_directory, tmp_directory });
     const std::string local_maps_directory(tmp_directory + "/zotero-enhancement-maps");
     return local_maps_directory;
 }
@@ -323,7 +323,7 @@ public:
 
 HarvestTask::HarvestTask(const std::string &section, const std::string &output_format_id)
     : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
-      executable_(ExecUtil::Which("zts_harvester"))
+      executable_(ExecUtil::LocateOrDie("zts_harvester"))
 {
     const std::string local_maps_directory(PrepareMapsDirectory(zts_client_maps_directory, auto_temp_dir_.getDirectoryPath()));
     const std::string file_extension(GetOutputFormatExtension(output_format_id));
