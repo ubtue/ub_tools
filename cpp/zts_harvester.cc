@@ -57,6 +57,7 @@ const std::unordered_map<std::string, std::string> group_to_user_agent_map = {
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
               << "\t[--output-file=output_file]\n"
+              << "\t[--error-report-file=error_report_file]\n"
               << "\n"
               << "\tIf any section names have been provided, only those will be processed o/w all sections will be processed.\n\n";
     std::exit(EXIT_FAILURE);
@@ -86,14 +87,15 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
 
 
 UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                            const Zotero::SiteParams &site_params, DbConnection * const db_connection)
+                            const Zotero::SiteParams &site_params, DbConnection * const db_connection,
+                            Zotero::HarvesterErrorLogger * const error_logger)
 {
     const std::string feed_url(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::FEED)));
     LOG_DEBUG("feed_url: " + feed_url);
 
     // set to test by default until we figure out how to restructure the RSS related code
     Zotero::RSSHarvestMode rss_harvest_mode(Zotero::RSSHarvestMode::TEST);
-    return Zotero::HarvestSyndicationURL(rss_harvest_mode, feed_url, harvest_params, site_params, db_connection);
+    return Zotero::HarvestSyndicationURL(rss_harvest_mode, feed_url, harvest_params, site_params, error_logger, db_connection);
 }
 
 
@@ -105,18 +107,20 @@ void ReadCrawlerSiteDesc(const IniFile::Section &section, SimpleCrawler::SiteDes
 
 UnsignedPair ProcessCrawl(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
                           const Zotero::SiteParams &site_params, const SimpleCrawler::Params &crawler_params,
-                          const std::shared_ptr<RegexMatcher> &supported_urls_regex)
+                          const std::shared_ptr<RegexMatcher> &supported_urls_regex,
+                          Zotero::HarvesterErrorLogger * const error_logger)
 {
     SimpleCrawler::SiteDesc site_desc;
     ReadCrawlerSiteDesc(section, &site_desc);
-    return Zotero::HarvestSite(site_desc, crawler_params, supported_urls_regex, harvest_params, site_params);
+    return Zotero::HarvestSite(site_desc, crawler_params, supported_urls_regex, harvest_params, site_params, error_logger);
 }
 
 
 UnsignedPair ProcessDirectHarvest(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                                  const Zotero::SiteParams &site_params)
+                                  const Zotero::SiteParams &site_params, Zotero::HarvesterErrorLogger * const error_logger)
 {
-    return Zotero::HarvestURL(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::URL)), harvest_params, site_params);
+    return Zotero::HarvestURL(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::URL)),
+                              harvest_params, site_params, error_logger);
 }
 
 
@@ -178,10 +182,18 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
+    std::string error_report_file;
+    const std::string ERROR_REPORT_FILE_FLAG_PREFIX("--error-report-file=");
+    if (StringUtil::StartsWith(argv[1], ERROR_REPORT_FILE_FLAG_PREFIX)) {
+        error_report_file = argv[1] + ERROR_REPORT_FILE_FLAG_PREFIX.length();
+        --argc, ++argv;
+    }
+
     if (argc < 2)
         Usage();
 
     IniFile ini_file(argv[1]);
+    Zotero::HarvesterErrorLogger harvester_error_logger;
 
     std::shared_ptr<Zotero::HarvestParams> harvest_params(new Zotero::HarvestParams);
     harvest_params->zts_server_url_ = Zotero::TranslationServer::GetUrl();
@@ -264,7 +276,8 @@ int Main(int argc, char *argv[]) {
                                                                                             type_string_to_value_map)));
         if (type == Zotero::HarvesterType::RSS) {
             total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section, harvest_params,
-                                                                                        site_params, db_connection.get());
+                                                                                        site_params, db_connection.get(),
+                                                                                        &harvester_error_logger);
         } else if (type == Zotero::HarvesterType::CRAWL) {
             SimpleCrawler::Params crawler_params;
             crawler_params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
@@ -273,10 +286,11 @@ int Main(int argc, char *argv[]) {
             crawler_params.user_agent_ = harvest_params->user_agent_;
 
             total_record_count_and_previously_downloaded_record_count +=
-                ProcessCrawl(section, harvest_params, site_params, crawler_params, supported_urls_regex);
-        } else
-            total_record_count_and_previously_downloaded_record_count +=
-                ProcessDirectHarvest(section, harvest_params, site_params);
+                ProcessCrawl(section, harvest_params, site_params, crawler_params, supported_urls_regex, &harvester_error_logger);
+        } else {
+            total_record_count_and_previously_downloaded_record_count += ProcessDirectHarvest(section, harvest_params, site_params,
+                                                                                              &harvester_error_logger);
+        }
     }
 
     LOG_INFO("Extracted metadata from "
@@ -288,6 +302,9 @@ int Main(int argc, char *argv[]) {
         for (const auto &section_name_and_found_flag : section_name_to_found_flag_map)
             std::cerr << '\t' << section_name_and_found_flag.first << '\n';
     }
+
+    if (not error_report_file.empty())
+        harvester_error_logger.writeReport(error_report_file);
 
     return EXIT_SUCCESS;
 }
