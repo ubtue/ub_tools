@@ -403,7 +403,7 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
 
 class HarvesterErrorLogger {
 public:
-    enum ErrorKind {
+    enum ErrorType {
         UNKNOWN,
         ZTS_CONVERSION_FAILED,
         DOWNLOAD_MULTIPLE_FAILED,
@@ -424,7 +424,7 @@ public:
         Context(HarvesterErrorLogger * const parent, const std::string &journal_name, const std::string &harvest_url)
          : parent_(*parent), journal_name_(journal_name), harvest_url_(harvest_url) {}
     public:
-        void log(HarvesterErrorLogger::ErrorKind error, const std::string &message) {
+        void log(HarvesterErrorLogger::ErrorType error, const std::string &message) {
             parent_.log(error, journal_name_, harvest_url_, message);
         }
         void autoLog(const std::string &message) {
@@ -432,10 +432,10 @@ public:
         }
     };
 private:
-    static const std::unordered_map<ErrorKind, std::string> ERROR_KIND_TO_STRING_MAP;
+    static const std::unordered_map<ErrorType, std::string> ERROR_KIND_TO_STRING_MAP;
 
     struct HarvesterError {
-        ErrorKind type;
+        ErrorType type;
         std::string message;
     };
 
@@ -451,7 +451,7 @@ public:
     Context newContext(const std::string &journal_name, const std::string &harvest_url) {
         return Context(this, journal_name, harvest_url);
     }
-    void log(ErrorKind error, const std::string &journal_name, const std::string &harvest_url, const std::string &message,
+    void log(ErrorType error, const std::string &journal_name, const std::string &harvest_url, const std::string &message,
              const bool write_to_stderr = true);
 
     // Used when the error message crosses API boundaries and cannot be logged at the point of inception
@@ -466,8 +466,8 @@ public:
 
 namespace std {
     template <>
-    struct hash<Zotero::HarvesterErrorLogger::ErrorKind> {
-        size_t operator()(const Zotero::HarvesterErrorLogger::ErrorKind &harvester_error_kind) const {
+    struct hash<Zotero::HarvesterErrorLogger::ErrorType> {
+        size_t operator()(const Zotero::HarvesterErrorLogger::ErrorType &harvester_error_kind) const {
             // hash method here.
             return hash<int>()(harvester_error_kind);
         }

@@ -1128,7 +1128,7 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
 }
 
 
-const std::unordered_map<HarvesterErrorLogger::ErrorKind, std::string> HarvesterErrorLogger::ERROR_KIND_TO_STRING_MAP{
+const std::unordered_map<HarvesterErrorLogger::ErrorType, std::string> HarvesterErrorLogger::ERROR_KIND_TO_STRING_MAP{
     { UNKNOWN,                  "ERROR-UNKNOWN"  },
     { ZTS_CONVERSION_FAILED,    "ERROR-ZTS_CONVERSION_FAILED"  },
     { DOWNLOAD_MULTIPLE_FAILED, "ERROR-DOWNLOAD_MULTIPLE_FAILED"  },
@@ -1138,7 +1138,7 @@ const std::unordered_map<HarvesterErrorLogger::ErrorKind, std::string> Harvester
 };
 
 
-void HarvesterErrorLogger::log(ErrorKind error, const std::string &journal_name, const std::string &harvest_url, const std::string &message,
+void HarvesterErrorLogger::log(ErrorType error, const std::string &journal_name, const std::string &harvest_url, const std::string &message,
                                const bool write_to_stderr)
 {
     JournalErrors *current_journal_errors(nullptr);
@@ -1163,7 +1163,7 @@ void HarvesterErrorLogger::log(ErrorKind error, const std::string &journal_name,
 void HarvesterErrorLogger::autoLog(const std::string &journal_name, const std::string &harvest_url, const std::string &message,
                                    const bool write_to_std_error)
 {
-    static const std::unordered_map<ErrorKind, RegexMatcher *> error_regexp_map{
+    static const std::unordered_map<ErrorType, RegexMatcher *> error_regexp_map{
         { BAD_STRPTIME_FORMAT,      RegexMatcher::RegexMatcherFactoryOrDie("StringToStructTm\\: don't know how to convert \\\"(.+?)\\\"") },
     };
 
