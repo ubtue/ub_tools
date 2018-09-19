@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <cstdlib>
+#include "BSZTransform.h"
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "MARC.h"
@@ -35,8 +36,8 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--min-log-level=min_log_level] [--process-remote-files] marc_input [issn_to_ppn_map]\n"
-              << "       If you omit the output filename, the file will be stored in \"" << Zotero::ISSN_TO_MISC_BITS_MAP_PATH_LOCAL << "\".\n\n"
-              << "       If --process-remote-files is given, the result will also be stored in \"" << Zotero::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE << "\".\n"
+              << "       If you omit the output filename, the file will be stored in \"" << BSZTransform::ISSN_TO_MISC_BITS_MAP_PATH_LOCAL << "\".\n\n"
+              << "       If --process-remote-files is given, the result will also be stored in \"" << BSZTransform::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE << "\".\n"
               << "          and other systems' files will be added to the regular output filename.\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -104,17 +105,17 @@ skip_to_next_record:;
 
 void ProcessRemoteMapFiles(const std::string &output_path) {
     const std::string TUEFIND_FLAVOUR(VuFind::GetTueFindFlavour());
-    const std::string remote_write_path = Zotero::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE + "/" + TUEFIND_FLAVOUR + ".map";
+    const std::string remote_write_path = BSZTransform::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE + "/" + TUEFIND_FLAVOUR + ".map";
     const std::string remote_write_path_tmp = remote_write_path + ".tmp";
     LOG_INFO("Updating " + TUEFIND_FLAVOUR + " map at \"" + remote_write_path + "\"...");
     FileUtil::CopyOrDie(output_path, remote_write_path_tmp);
     FileUtil::RenameFileOrDie(remote_write_path_tmp, remote_write_path, true /*remove target if it exists*/);
 
     std::vector<std::string> remote_read_paths;
-    FileUtil::GetFileNameList("(?<!" + TUEFIND_FLAVOUR + ")\\.map$", &remote_read_paths, Zotero::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE);
+    FileUtil::GetFileNameList("(?<!" + TUEFIND_FLAVOUR + ")\\.map$", &remote_read_paths, BSZTransform::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE);
     std::vector<std::string> concat_paths({ remote_write_path });
     for (const auto &remote_file : remote_read_paths) {
-        const std::string remote_path(Zotero::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE + "/" + remote_file);
+        const std::string remote_path(BSZTransform::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE + "/" + remote_file);
         LOG_INFO("Adding \"" + remote_path + "\" to local map in \"" + output_path + "\"...");
         concat_paths.emplace_back(remote_path);
     }
@@ -135,7 +136,7 @@ int Main(int argc, char *argv[]) {
         --argc;++argv;
     }
 
-    const std::string output_path(argc == 3 ? argv[2] : Zotero::ISSN_TO_MISC_BITS_MAP_PATH_LOCAL);
+    const std::string output_path(argc == 3 ? argv[2] : BSZTransform::ISSN_TO_MISC_BITS_MAP_PATH_LOCAL);
 
     LOG_INFO("Generating \"" + output_path + "\"...");
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
