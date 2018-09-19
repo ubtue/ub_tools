@@ -120,8 +120,6 @@ extern const std::map<HarvesterConfigEntry, std::string> HARVESTER_CONFIG_ENTRY_
 
 
 extern const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH;
-extern const std::string ISSN_TO_MISC_BITS_MAP_PATH_LOCAL;
-extern const std::string ISSN_TO_MISC_BITS_MAP_DIR_REMOTE;
 
 
 // native supported formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
