@@ -196,7 +196,7 @@ int Main(int argc, char *argv[]) {
     Zotero::HarvesterErrorLogger harvester_error_logger;
 
     std::shared_ptr<Zotero::HarvestParams> harvest_params(new Zotero::HarvestParams);
-    harvest_params->zts_server_url_ = Url(ini_file.getString("", "zts_server_url"));
+    harvest_params->zts_server_url_ = Zotero::TranslationServer::GetUrl();
 
     if (map_directory_path.empty())
         map_directory_path = ini_file.getString("", "map_directory_path");
@@ -205,7 +205,7 @@ int Main(int argc, char *argv[]) {
     if (not StringUtil::EndsWith(map_directory_path, '/'))
         map_directory_path += "/";
 
-    Zotero::AugmentMaps augment_maps(map_directory_path);
+    BSZTransform::AugmentMaps augment_maps(map_directory_path);
     const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
 
     std::unique_ptr<DbConnection> db_connection(new DbConnection);
