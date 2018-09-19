@@ -45,6 +45,7 @@ namespace BSZTransform { struct AugmentMaps; } // forward declaration
 
 namespace Zotero {
 
+
 enum HarvesterType { RSS, CRAWL, DIRECT };
 const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP { { "RSS", static_cast<int>(Zotero::HarvesterType::RSS) },
                                                               { "DIRECT", static_cast<int>(Zotero::HarvesterType::DIRECT) },
@@ -155,7 +156,7 @@ bool Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::
 /** \brief Download single URL and return as JSON. (If harvested_html is not empty, URL is not downloaded again.) */
 bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
          const Url &harvest_url, std::string * const response_body, unsigned * response_code,
-         std::string * const error_message, const std::string &harvested_html = "");
+         std::string * const error_message);
 
 /** \brief This function is used if we get a "300 - multiple" response, to paste the response body back to the server.
  *         This way we get a JSON array with all downloaded results.
@@ -223,6 +224,7 @@ void AugmentJson(const std::shared_ptr<JSON::ObjectNode> &object_node, const Sit
 
 // forward declaration
 class FormatHandler;
+class HarvesterErrorLogger;
 
 
 struct HarvestParams {
@@ -363,7 +365,7 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
  *          difference (first - second).
  */
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
-                                      const SiteParams &site_params, const std::string &harvested_html = "", const bool log = true);
+                                      const SiteParams &site_params, HarvesterErrorLogger * const error_logger, const bool verbose = true);
 
 
 /** \brief Harvest metadate from a single site.
@@ -372,7 +374,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
  */
 UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
                          const std::shared_ptr<RegexMatcher> &supported_urls_regex, const std::shared_ptr<HarvestParams> &harvest_params,
-                         const SiteParams &site_params, File * const progress_file = nullptr);
+                         const SiteParams &site_params, HarvesterErrorLogger * const error_logger, File * const progress_file = nullptr);
 
 
 /** \brief Harvest metadate from a single Web page.
@@ -380,7 +382,7 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
  *          difference (first - second).
  */
 UnsignedPair HarvestURL(const std::string &url, const std::shared_ptr<HarvestParams> &harvest_params,
-                        const SiteParams &site_params);
+                        const SiteParams &site_params, HarvesterErrorLogger * const error_logger);
 
 
 enum class RSSHarvestMode { VERBOSE, TEST, NORMAL };
@@ -395,7 +397,79 @@ enum class RSSHarvestMode { VERBOSE, TEST, NORMAL };
  */
 UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string &feed_url,
                                    const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                                   const SiteParams &site_params, DbConnection * const db_connection);
+                                   const SiteParams &site_params, HarvesterErrorLogger * const error_logger,
+                                   DbConnection * const db_connection);
+
+
+class HarvesterErrorLogger {
+public:
+    enum ErrorType {
+        UNKNOWN,
+        ZTS_CONVERSION_FAILED,
+        DOWNLOAD_MULTIPLE_FAILED,
+        FAILED_TO_PARSE_JSON,
+        ZTS_EMPTY_RESPONSE,
+        BAD_STRPTIME_FORMAT
+    };
+
+    friend class Context;
+
+    class Context {
+        friend class HarvesterErrorLogger;
+
+        HarvesterErrorLogger &parent_;
+        std::string journal_name_;
+        std::string harvest_url_;
+    private:
+        Context(HarvesterErrorLogger * const parent, const std::string &journal_name, const std::string &harvest_url)
+         : parent_(*parent), journal_name_(journal_name), harvest_url_(harvest_url) {}
+    public:
+        void log(HarvesterErrorLogger::ErrorType error, const std::string &message) {
+            parent_.log(error, journal_name_, harvest_url_, message);
+        }
+        void autoLog(const std::string &message) {
+            parent_.autoLog(journal_name_, harvest_url_, message);
+        }
+    };
+private:
+    static const std::unordered_map<ErrorType, std::string> ERROR_KIND_TO_STRING_MAP;
+
+    struct HarvesterError {
+        ErrorType type;
+        std::string message;
+    };
+
+    struct JournalErrors {
+        std::unordered_map<std::string, HarvesterError> url_errors_;
+        std::vector<HarvesterError> non_url_errors_;
+    };
+
+    std::unordered_map<std::string, JournalErrors> journal_errors_;
+public:
+    HarvesterErrorLogger() = default;
+public:
+    Context newContext(const std::string &journal_name, const std::string &harvest_url) {
+        return Context(this, journal_name, harvest_url);
+    }
+    void log(ErrorType error, const std::string &journal_name, const std::string &harvest_url, const std::string &message,
+             const bool write_to_stderr = true);
+
+    // Used when the error message crosses API boundaries and cannot be logged at the point of inception
+    void autoLog(const std::string &journal_name, const std::string &harvest_url, const std::string &message,
+                 const bool write_to_stderr = true);
+    void writeReport(const std::string &report_file_path) const;
+};
 
 
 } // namespace Zotero
+
+
+namespace std {
+    template <>
+    struct hash<Zotero::HarvesterErrorLogger::ErrorType> {
+        size_t operator()(const Zotero::HarvesterErrorLogger::ErrorType &harvester_error_kind) const {
+            // hash method here.
+            return hash<int>()(harvester_error_kind);
+        }
+    };
+} // namespace std

@@ -139,7 +139,7 @@ bool Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::
 
 bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
          const Url &harvest_url, std::string * const response_body, unsigned * response_code,
-         std::string * const error_message, const std::string &/*harvested_html*/)
+         std::string * const error_message)
 {
     const std::string endpoint_url(Url(zts_server_url.toString() + "/web"));
     downloader_params.additional_headers_ = { "Accept: application/json", "Content-Type: text/plain" };
@@ -852,12 +852,8 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
 }
 
 
-/*
-    NOTE: If the LOG_WARNING messages below are modified in any way, ensure that the
-          zts_harvester_validator code is appropriately changed.
- */
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
-                                      const SiteParams &site_params, const std::string &harvested_html, bool log)
+                                      const SiteParams &site_params, HarvesterErrorLogger * const error_logger, bool verbose)
 {
     if (harvest_url.empty())
         LOG_ERROR("empty URL passed to Zotero::Harvest");
@@ -873,6 +869,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     }
 
     already_harvested_urls.emplace(harvest_url);
+    auto error_logger_context(error_logger->newContext(site_params.parent_journal_name_, harvest_url));
 
     LOG_INFO("Harvesting URL: " + harvest_url);
 
@@ -883,12 +880,12 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     downloader_params.user_agent_ = harvest_params->user_agent_;
     bool download_succeeded(TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT,
                                                    downloader_params, Url(harvest_url), &response_body, &response_code,
-                                                   &error_message, harvested_html));
+                                                   &error_message));
 
     harvest_params->min_url_processing_time_.restart();
     if (not download_succeeded) {
-        LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tZotero conversion failed: " + error_message);
-        return std::make_pair(0, 0);
+        error_logger_context.log(HarvesterErrorLogger::ZTS_CONVERSION_FAILED, error_message);
+        return record_count_and_previously_downloaded_count;
     }
 
     // 300 => multiple matches found, try to harvest children (send the response_body right back to the server, to get all of them)
@@ -897,16 +894,18 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         download_succeeded = TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT,
                                                     downloader_params, response_body, &response_body, &response_code, &error_message);
         if (not download_succeeded) {
-            LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tDownload multiple results failed: " + error_message);
-            return std::make_pair(0, 0);
+            error_logger_context.log(HarvesterErrorLogger::DOWNLOAD_MULTIPLE_FAILED, error_message);
+            return record_count_and_previously_downloaded_count;
         }
     }
 
     // Process either single or multiple results (response_body is array by now)
     std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
     JSON::Parser json_parser(response_body);
-    if (not (json_parser.parse(&tree_root)))
-        LOG_ERROR(site_params.parent_journal_name_ + "\t" + harvest_url + "\tfailed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
+    if (not (json_parser.parse(&tree_root))) {
+        error_logger_context.log(HarvesterErrorLogger::FAILED_TO_PARSE_JSON, json_parser.getErrorMessage());
+        return record_count_and_previously_downloaded_count;
+    }
 
     const std::shared_ptr<const JSON::ArrayNode>json_array(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
     int processed_json_entries(0);
@@ -918,24 +917,22 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
             AugmentJson(harvest_url, json_object, site_params);
             record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
         } catch (const std::exception &x) {
-            LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tCouldn't process record! Error: "
-                        + std::string(x.what()));
+            error_logger_context.autoLog("Couldn't process record! Error: " + std::string(x.what()));
             return record_count_and_previously_downloaded_count;
         }
     }
 
-    if (processed_json_entries == 0) {
-        LOG_WARNING(site_params.parent_journal_name_ + "\t" + harvest_url + "\tZotero translation server returned an empty response! "                     "Response code = " + std::to_string(response_code));
-    }
+    if (processed_json_entries == 0)
+        error_logger_context.log(HarvesterErrorLogger::ZTS_EMPTY_RESPONSE, "Response code = " + std::to_string(response_code));
 
     ++harvest_params->harvested_url_count_;
 
-    if (log) {
+    if (verbose) {
         LOG_DEBUG("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
-                 + harvest_url + '\n' + "of which "
-                 + StringUtil::ToString(record_count_and_previously_downloaded_count.first
+                  + harvest_url + '\n' + "of which "
+                  + StringUtil::ToString(record_count_and_previously_downloaded_count.first
                                         - record_count_and_previously_downloaded_count.second)
-                 + " records were new records.");
+                  + " records were new records.");
     }
     return record_count_and_previously_downloaded_count;
 }
@@ -944,7 +941,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
                          const std::shared_ptr<RegexMatcher> &supported_urls_regex,
                          const std::shared_ptr<HarvestParams> &harvest_params, const SiteParams &site_params,
-                         File * const progress_file)
+                         HarvesterErrorLogger * const error_logger, File * const progress_file)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
     LOG_DEBUG("Starting crawl at base URL: " +  site_desc.start_url_);
@@ -956,7 +953,7 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
             LOG_DEBUG("Skipping unsupported URL: " + page_details.url_);
         else if (page_details.error_message_.empty()) {
             const auto record_count_and_previously_downloaded_count(
-                Harvest(page_details.url_, harvest_params, site_params, page_details.body_));
+                Harvest(page_details.url_, harvest_params, site_params, error_logger));
             total_record_count_and_previously_downloaded_record_count.first  += record_count_and_previously_downloaded_count.first;
             total_record_count_and_previously_downloaded_record_count.second += record_count_and_previously_downloaded_count.second;
             if (progress_file != nullptr) {
@@ -973,9 +970,9 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleC
 
 
 UnsignedPair HarvestURL(const std::string &url, const std::shared_ptr<HarvestParams> &harvest_params,
-                        const SiteParams &site_params)
+                        const SiteParams &site_params, HarvesterErrorLogger * const error_logger)
 {
-    return Harvest(url, harvest_params, site_params, "");
+    return Harvest(url, harvest_params, site_params, error_logger);
 }
 
 
@@ -1066,9 +1063,11 @@ void UpdateLastBuildDate(DbConnection * const db_connection, const std::string &
 
 UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string &feed_url,
                                    const std::shared_ptr<HarvestParams> &harvest_params,
-                                   const SiteParams &site_params, DbConnection * const db_connection)
+                                   const SiteParams &site_params, HarvesterErrorLogger * const error_logger,
+                                   DbConnection * const db_connection)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
+    auto error_logger_context(error_logger->newContext(site_params.parent_journal_name_, feed_url));
 
     if (mode != RSSHarvestMode::NORMAL)
         LOG_INFO("Processing URL: " + feed_url);
@@ -1077,7 +1076,7 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
     downloader_params.user_agent_ = harvest_params->user_agent_;
     Downloader downloader(feed_url, downloader_params);
     if (downloader.anErrorOccurred()) {
-        LOG_WARNING("Download problem for \"" + feed_url + "\": " + downloader.getLastErrorMessage());
+        error_logger_context.autoLog("Download problem for \"" + feed_url + "\": " + downloader.getLastErrorMessage());
         return total_record_count_and_previously_downloaded_record_count;
     }
 
@@ -1087,7 +1086,7 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
     std::unique_ptr<SyndicationFormat> syndication_format(
         SyndicationFormat::Factory(downloader.getMessageBody(), syndication_format_site_params, &err_msg));
     if (syndication_format == nullptr) {
-        LOG_WARNING("Problem parsing XML document for \"" + feed_url + "\": " + err_msg);
+        error_logger_context.autoLog("Problem parsing XML document for \"" + feed_url + "\": " + err_msg);
         return total_record_count_and_previously_downloaded_record_count;
     }
 
@@ -1114,7 +1113,7 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
             LOG_DEBUG("\t\tTitle: " + title);
 
         const auto record_count_and_previously_downloaded_count(
-            Harvest(item.getLink(), harvest_params, site_params, "", /* verbose = */ mode != RSSHarvestMode::NORMAL));
+            Harvest(item.getLink(), harvest_params, site_params, error_logger, /* verbose = */ mode != RSSHarvestMode::NORMAL));
         total_record_count_and_previously_downloaded_record_count += record_count_and_previously_downloaded_count;
 
         if (mode != RSSHarvestMode::TEST)
@@ -1126,6 +1125,97 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
         UpdateLastBuildDate(db_connection, feed_url, last_build_date);
 
     return total_record_count_and_previously_downloaded_record_count;
+}
+
+
+const std::unordered_map<HarvesterErrorLogger::ErrorType, std::string> HarvesterErrorLogger::ERROR_KIND_TO_STRING_MAP{
+    { UNKNOWN,                  "ERROR-UNKNOWN"  },
+    { ZTS_CONVERSION_FAILED,    "ERROR-ZTS_CONVERSION_FAILED"  },
+    { DOWNLOAD_MULTIPLE_FAILED, "ERROR-DOWNLOAD_MULTIPLE_FAILED"  },
+    { FAILED_TO_PARSE_JSON,     "ERROR-FAILED_TO_PARSE_JSON"  },
+    { ZTS_EMPTY_RESPONSE,       "ERROR-ZTS_EMPTY_RESPONSE"  },
+    { BAD_STRPTIME_FORMAT,      "ERROR-BAD_STRPTIME_FORMAT"  },
+};
+
+
+void HarvesterErrorLogger::log(ErrorType error, const std::string &journal_name, const std::string &harvest_url, const std::string &message,
+                               const bool write_to_stderr)
+{
+    JournalErrors *current_journal_errors(nullptr);
+    auto match(journal_errors_.find(journal_name));
+    if (match == journal_errors_.end()) {
+        journal_errors_.insert(std::make_pair(journal_name, JournalErrors()));
+        current_journal_errors = &journal_errors_[journal_name];
+    } else
+        current_journal_errors = &match->second;
+
+
+    if (not harvest_url.empty())
+        current_journal_errors->url_errors_[harvest_url] = HarvesterError{ error, message };
+    else
+        current_journal_errors->non_url_errors_.emplace_back(HarvesterError{ error, message });
+
+    if (write_to_stderr)
+        LOG_WARNING("[" + ERROR_KIND_TO_STRING_MAP.at(error) + "] for '" + harvest_url + "': " + message);
+}
+
+
+void HarvesterErrorLogger::autoLog(const std::string &journal_name, const std::string &harvest_url, const std::string &message,
+                                   const bool write_to_std_error)
+{
+    static const std::unordered_map<ErrorType, RegexMatcher *> error_regexp_map{
+        { BAD_STRPTIME_FORMAT,      RegexMatcher::RegexMatcherFactoryOrDie("StringToStructTm\\: don't know how to convert \\\"(.+?)\\\"") },
+    };
+
+    HarvesterError error{ UNKNOWN, "" };
+    for (const auto &error_regexp : error_regexp_map) {
+        if (error_regexp.second->matched(message)) {
+            error.type = error_regexp.first;
+            error.message = (*error_regexp.second)[1];
+            break;
+        }
+    }
+
+    log(error.type, journal_name, harvest_url, error.type == UNKNOWN ? message : error.message, write_to_std_error);
+}
+
+
+void HarvesterErrorLogger::writeReport(const std::string &report_file_path) const {
+    IniFile report("", true, true);
+    report.appendSection("");
+    report.getSection("")->insert("has_errors", not journal_errors_.empty() ? "true" : "false");
+
+    std::string journal_names;
+    for (const auto &journal_error : journal_errors_) {
+        const auto journal_name(journal_error.first);
+        if (journal_name.find('|') != std::string::npos)
+            LOG_ERROR("Invalid character '|' in journal name '" + journal_name + "'");
+
+        journal_names += journal_name + "|";
+        report.appendSection(journal_name);
+
+        for (const auto &url_error : journal_error.second.url_errors_) {
+            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(url_error.second.type));
+            // we cannot cache the section pointer as it can get invalidated after appending a new section
+            report.getSection(journal_name)->insert(url_error.first, error_string);
+            report.appendSection(error_string);
+            report.getSection(error_string)->insert(url_error.first, url_error.second.message);
+        }
+
+        int i(1);
+        for (const auto &non_url_error : journal_error.second.non_url_errors_) {
+            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(non_url_error.type));
+            const auto error_key(journal_name + "-non_url_error-" + std::to_string(i));
+
+            report.getSection(journal_name)->insert(error_key, error_string);
+            report.appendSection(error_string);
+            report.getSection(error_string)->insert(error_key, non_url_error.message);
+            ++i;
+        }
+    }
+
+    report.getSection("")->insert("journal_names", journal_names);
+    report.write(report_file_path);
 }
 
 
