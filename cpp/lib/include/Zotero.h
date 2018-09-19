@@ -412,13 +412,10 @@ public:
         BAD_STRPTIME_FORMAT
     };
 
-
     friend class Context;
-
 
     class Context {
         friend class HarvesterErrorLogger;
-
 
         HarvesterErrorLogger &parent_;
         std::string journal_name_;
@@ -437,12 +434,10 @@ public:
 private:
     static const std::unordered_map<ErrorKind, std::string> ERROR_KIND_TO_STRING_MAP;
 
-
     struct HarvesterError {
         ErrorKind type;
         std::string message;
     };
-
 
     struct JournalErrors {
         std::unordered_map<std::string, HarvesterError> url_errors_;
