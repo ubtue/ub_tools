@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
         if (not StringUtil::EndsWith(map_directory_path, '/'))
             map_directory_path += '/';
 
-        Zotero::AugmentMaps augment_maps(map_directory_path);
+        BSZTransform::AugmentMaps augment_maps(map_directory_path);
         Zotero::GobalAugmentParams global_augment_params(&augment_maps);
         Zotero::SiteParams augment_params;
         DbConnection db_connection;

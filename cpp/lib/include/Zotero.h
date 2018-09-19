@@ -25,6 +25,7 @@
 #include <ctime>
 #include <kchashdb.h>
 #include <unordered_map>
+#include "BSZTransform.h"
 #include "DbConnection.h"
 #include "Downloader.h"
 #include "DownloadTracker.h"
@@ -37,6 +38,9 @@
 #include "TimeUtil.h"
 #include "UnsignedPair.h"
 #include "Url.h"
+
+
+namespace BSZTransform { struct AugmentMaps; } // forward declaration
 
 
 namespace Zotero {
@@ -55,14 +59,60 @@ enum HarvesterConfigEntry {
 };
 
 
+struct Creator {
+    std::string first_name;
+    std::string last_name;
+    std::string type;
+    std::string author_ppn;
+};
+
+
 struct CustomNodeParameters {
     std::string issn_normalized;
     std::string parent_journal_name;
     std::string harvest_url;
     std::string physical_form;
+    std::string year;
+    std::string pages;
     std::string volume;
     std::string license;
     std::string ssg_numbers;
+    std::string journal_ppn;
+    std::vector<Creator> creators;
+    std::string comment;
+    std::string date_normalized;
+    std::string isil;
+};
+
+
+struct ItemParameters {
+    std::string item_type;
+    std::string publication_title;
+    std::string abbreviated_publication_title;
+    std::string language;
+    std::string abstract_note;
+    std::string website_title;
+    std::string doi;
+    std::string copyright;
+    std::vector<Creator> creators;
+    std::string url;
+    std::string year;
+    std::string pages;
+    std::string volume;
+    std::string date;
+    std::string title;
+    std::string short_title;
+    std::string issue;
+    std::string isil;
+    // Additional item parameters
+    std::string superior_ppn; // Generated on our side
+    std::string issn;
+    std::string license;
+    std::vector<std::string> keywords;
+    std::vector<std::string> ssg_numbers;
+    std::string physical_form;
+    std::string parent_journal_name;
+    std::string harvest_url;
 };
 
 
@@ -88,6 +138,10 @@ const std::string GetCreatorTypeForMarc21(const std::string &zotero_creator_type
  * https://github.com/zotero/translation-server
  */
 namespace TranslationServer {
+
+
+/** \brief get url for zotero translation server based on local machine configuration */
+const Url GetUrl();
 
 
 /** \brief Use builtin translator to convert JSON to output format. */
@@ -124,33 +178,6 @@ constexpr unsigned DEFAULT_TIMEOUT = 10000;
 constexpr unsigned DEFAULT_MIN_URL_PROCESSING_TIME = 200;
 
 
-class PPNandTitle {
-    std::string PPN_;
-    std::string title_;
-public:
-    PPNandTitle(const std::string &PPN, const std::string &title): PPN_(PPN), title_(title) { }
-    PPNandTitle() = default;
-    PPNandTitle(const PPNandTitle &other) = default;
-
-    inline const std::string &getPPN() const { return PPN_; }
-    inline const std::string &getTitle() const { return title_; }
-};
-
-
-struct AugmentMaps {
-    std::unordered_map<std::string, std::string> ISSN_to_SSG_map_;
-    std::unordered_map<std::string, std::string> ISSN_to_keyword_field_map_;
-    std::unordered_map<std::string, std::string> ISSN_to_language_code_map_;
-    std::unordered_map<std::string, std::string> ISSN_to_licence_map_;
-    std::unordered_map<std::string, std::string> ISSN_to_physical_form_map_;
-    std::unordered_map<std::string, std::string> ISSN_to_volume_map_;
-    std::unordered_map<std::string, std::string> language_to_language_code_map_;
-    std::unordered_map<std::string, PPNandTitle> ISSN_to_superior_ppn_and_title_map_;
-public:
-    explicit AugmentMaps(const std::string &map_directory_path);
-};
-
-
 struct GroupParams {
     std::string name_;
     std::string user_agent_;
@@ -164,9 +191,9 @@ void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParam
 
 /** \brief Parameters that apply to all sites equally. */
 struct GobalAugmentParams {
-    AugmentMaps * const maps_;
+    BSZTransform::AugmentMaps * const maps_;
 public:
-    explicit GobalAugmentParams(AugmentMaps * const maps): maps_(maps) { }
+    explicit GobalAugmentParams(BSZTransform::AugmentMaps * const maps): maps_(maps) { }
 };
 
 
@@ -303,8 +330,20 @@ private:
                              std::string * const publication_title, std::string * const abbreviated_publication_title,
                              std::string * const website_title);
 
-    void extractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node,
+    // Extracts information from the ubtue node
+    void ExtractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node,
                                      struct CustomNodeParameters * const custom_node_parameters);
+
+    void ExtractItemParameters(std::shared_ptr<const JSON::ObjectNode> object_node,
+                               struct ItemParameters * const item_parameters);
+
+    void GenerateMarcRecord(MARC::Record * const record, const struct ItemParameters &item_parameters);
+
+    void MergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters,
+                                               struct CustomNodeParameters &custom_node_params);
+
+    void HandleTrackingAndWriteRecord(const MARC::Record &new_record, BSZUpload::DeliveryMode delivery_mode,
+                                  struct ItemParameters &item_params, unsigned * const previously_downloaded_count);
 };
 
 
