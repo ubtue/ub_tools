@@ -89,7 +89,8 @@ RegexMatcher *RegexMatcher::RegexMatcherFactory(const std::string &pattern, std:
     ::pcre *pcre_ptr;
     ::pcre_extra *pcre_extra_ptr;
     if (not CompileRegex(pattern, options, &pcre_ptr, &pcre_extra_ptr, err_msg)) {
-        *err_msg = "failed to compile pattern: \"" + pattern + "\"";
+        if (err_msg != nullptr and err_msg->empty())
+            *err_msg = "failed to compile pattern: \"" + pattern + "\"";
         return nullptr;
     }
 
