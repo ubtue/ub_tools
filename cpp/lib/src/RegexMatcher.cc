@@ -47,7 +47,7 @@ bool CompileRegex(const std::string &pattern, const unsigned options, ::pcre **p
         *pcre_extra_arg = nullptr;
         if (err_msg != nullptr)
             *err_msg = "failed to compile invalid regular expression: \"" + pattern + "\"! ("
-                + std::string(errptr) + ")";
+                       + std::string(errptr) + ")";
         return false;
     }
 
@@ -88,8 +88,10 @@ RegexMatcher *RegexMatcher::RegexMatcherFactory(const std::string &pattern, std:
 
     ::pcre *pcre_ptr;
     ::pcre_extra *pcre_extra_ptr;
-    if (not CompileRegex(pattern, options, &pcre_ptr, &pcre_extra_ptr, err_msg))
+    if (not CompileRegex(pattern, options, &pcre_ptr, &pcre_extra_ptr, err_msg)) {
+        *err_msg = "failed to compile pattern: \"" + pattern + "\"";
         return nullptr;
+    }
 
     return new RegexMatcher(pattern, options, pcre_ptr, pcre_extra_ptr);
 }
@@ -98,7 +100,7 @@ RegexMatcher *RegexMatcher::RegexMatcherFactory(const std::string &pattern, std:
 RegexMatcher *RegexMatcher::RegexMatcherFactoryOrDie(const std::string &regex, const unsigned options) {
     std::string error_message;
     RegexMatcher *regex_matcher(RegexMatcher::RegexMatcherFactory(regex, &error_message, options));
-    if (not error_message.empty())
+    if (regex_matcher == nullptr or not error_message.empty())
         LOG_ERROR("failed to compile regex \"" + regex + "\": " + error_message);
 
     return regex_matcher;
