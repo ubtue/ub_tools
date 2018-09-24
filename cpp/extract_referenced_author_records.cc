@@ -35,8 +35,8 @@ namespace {
 
 
 void ExtractAuthorPPN(const MARC::Record &record, const std::string &tag, std::unordered_set<std::string> * const referenced_author_ppns) {
-    for (const auto field : record.getTagRange(tag)) {
-        for (const auto subfield : field.getSubfields()) {
+    for (const auto &field : record.getTagRange(tag)) {
+        for (const auto &subfield : field.getSubfields()) {
             if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-576)"))
                 referenced_author_ppns->emplace(subfield.value_.substr(__builtin_strlen("(DE-576)")));
         }
