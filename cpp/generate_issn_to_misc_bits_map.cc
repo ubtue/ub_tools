@@ -35,10 +35,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_log_level] [--process-remote-files] marc_input [issn_to_ppn_map]\n"
-              << "       If you omit the output filename, the file will be stored in \"" << BSZTransform::ISSN_TO_MISC_BITS_MAP_PATH_LOCAL << "\".\n\n"
-              << "       If --process-remote-files is given, the result will also be stored in \"" << BSZTransform::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE << "\".\n"
-              << "          and other systems' files will be added to the regular output filename.\n\n";
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_log_level] marc_input\n"
+              << "       Generates map information from marc file and stores it in \"" << BSZTransform::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE << "\".\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -83,9 +81,13 @@ void PopulateISSNtoControlNumberMapFile(MARC::Reader * const marc_reader, File *
                 const MARC::Subfields subfields(field.getSubfields());
                 for (const auto &subfield_value : subfields.extractSubfields(issn_subfield[MARC::Record::TAG_LENGTH])) {
                     std::string normalised_issn;
-                    if (MiscUtil::NormaliseISSN(subfield_value, &normalised_issn)) {
+                    const std::string title(record.getMainTitle());
+                    if (title.empty()) {
+                        ++malformed_count;
+                        LOG_WARNING("Empty title: \"" + record.getControlNumber() + "\"!");
+                    } else if (MiscUtil::NormaliseISSN(subfield_value, &normalised_issn)) {
                         (*output) << normalised_issn << ',' << record.getControlNumber() << ',' << unique_language_code << ','
-                                  << sanitized_856z_contents << ',' << record.getMainTitle() << '\n';
+                                  << sanitized_856z_contents << ',' << title << '\n';
                         ++written_count;
                         goto skip_to_next_record; // Avoid to write the entry several times
                     } else {
@@ -99,27 +101,7 @@ skip_to_next_record:;
     }
 
     LOG_INFO("Found " + std::to_string(written_count) + " ISSN's associated with " + std::to_string(total_count)
-             + " record(s), " + std::to_string(malformed_count) + " ISSN's were malformed.");
-}
-
-
-void ProcessRemoteMapFiles(const std::string &output_path) {
-    const std::string TUEFIND_FLAVOUR(VuFind::GetTueFindFlavour());
-    const std::string remote_write_path = BSZTransform::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE + "/" + TUEFIND_FLAVOUR + ".map";
-    const std::string remote_write_path_tmp = remote_write_path + ".tmp";
-    LOG_INFO("Updating " + TUEFIND_FLAVOUR + " map at \"" + remote_write_path + "\"...");
-    FileUtil::CopyOrDie(output_path, remote_write_path_tmp);
-    FileUtil::RenameFileOrDie(remote_write_path_tmp, remote_write_path, true /*remove target if it exists*/);
-
-    std::vector<std::string> remote_read_paths;
-    FileUtil::GetFileNameList("(?<!" + TUEFIND_FLAVOUR + ")\\.map$", &remote_read_paths, BSZTransform::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE);
-    std::vector<std::string> concat_paths({ remote_write_path });
-    for (const auto &remote_file : remote_read_paths) {
-        const std::string remote_path(BSZTransform::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE + "/" + remote_file);
-        LOG_INFO("Adding \"" + remote_path + "\" to local map in \"" + output_path + "\"...");
-        concat_paths.emplace_back(remote_path);
-    }
-    FileUtil::ConcatFiles(output_path, concat_paths);
+             + " record(s), " + std::to_string(malformed_count) + " had no title or ISSN's were malformed.");
 }
 
 
@@ -127,26 +109,19 @@ void ProcessRemoteMapFiles(const std::string &output_path) {
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 2 or argc > 4)
+    if (argc != 2)
         Usage();
 
-    bool process_remote_files(false);
-    if (std::strcmp(argv[1], "--process-remote-files") == 0) {
-        process_remote_files = true;
-        --argc;++argv;
-    }
+    const std::string TUEFIND_FLAVOUR(VuFind::GetTueFindFlavour());
+    const std::string input_path(argv[1]);
+    const std::string output_path(BSZTransform::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE + "/" + TUEFIND_FLAVOUR + ".map");
 
-    const std::string output_path(argc == 3 ? argv[2] : BSZTransform::ISSN_TO_MISC_BITS_MAP_PATH_LOCAL);
-
-    LOG_INFO("Generating \"" + output_path + "\"...");
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
-    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(output_path));
+    LOG_INFO("Generating \"" + output_path + "\" from \"" + input_path + "\"...");
+    FileUtil::AutoTempFile temp_file;
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_path));
+    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(temp_file.getFilePath()));
     PopulateISSNtoControlNumberMapFile(marc_reader.get(), output.get());
-
-    if (process_remote_files) {
-        output->close();
-        ProcessRemoteMapFiles(output_path);
-    }
+    FileUtil::CopyOrDie(temp_file.getFilePath(), output_path);
 
     return EXIT_SUCCESS;
 }
