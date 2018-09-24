@@ -113,6 +113,9 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     const std::string TUEFIND_FLAVOUR(VuFind::GetTueFindFlavour());
+    if (TUEFIND_FLAVOUR.empty())
+        LOG_ERROR("TUEFIND_FLAVOUR not set, map file cannot be generated.");
+
     const std::string input_path(argv[1]);
     const std::string output_path(BSZTransform::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE + "/" + TUEFIND_FLAVOUR + ".map");
 
