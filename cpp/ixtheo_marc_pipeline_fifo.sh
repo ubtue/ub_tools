@@ -309,7 +309,7 @@ wait
 StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
 (extract_referenced_author_records GesamtTiteldaten-post-pipeline-"${date}".mrc \
                                    Normdaten-"${date}".mrc \
-                                   ReferencedAuthors-"${date}".mrc >> "${log}" 2>&1 && \
+                                   ReferencedAuthors-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 

@@ -2,7 +2,6 @@
 ## (here we use / at the beginning by default, so e.g. /installer is ignored, but not data/installer)
 /add_additional_relbib_entries
 /add_author_synonyms
-/add_beacon_references
 /add_child_refs
 /add_isbns_or_issns_to_articles
 /add_journal_subscription
@@ -53,6 +52,7 @@
 /extract_local_keywords
 /extract_normdata_translations
 /extract_person_gnd_numbers
+/extract_referenced_author_records
 /extract_referenceterms
 /extract_text_from_image_only_pdfs
 /extract_vufind_translations_for_translation
