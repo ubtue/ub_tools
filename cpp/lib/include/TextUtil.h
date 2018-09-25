@@ -134,6 +134,7 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
  *  \note Throws an exception if an error occurred.
  */
 std::string UTF8ToLower(std::string * const utf8_string);
+inline std::string UTF8ToLower(std::string utf8_string) { return UTF8ToLower(&utf8_string); }
 
 
 /** \brief Converts a UTF8 string to uppercase.

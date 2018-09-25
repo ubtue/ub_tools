@@ -20,6 +20,7 @@
 #include <iostream>
 #include <set>
 #include <unordered_set>
+#include <cctype>
 #include <cstdlib>
 #include "DbConnection.h"
 #include "Compiler.h"
@@ -78,6 +79,24 @@ void ExtractAuthors(const MARC::Record &record, const std::string &tag, std::uno
 }
 
 
+std::string NormaliseTitle(const std::string &title) {
+    std::string normalised_title;
+    bool space_seen(false);
+    for (const char ch : title) {
+        if (std::ispunct(ch) or std::isspace(ch)) { 
+            if (not space_seen)
+                normalised_title += ' ';
+            space_seen = true;
+        } else {
+            space_seen = false;
+            normalised_title += ch;
+        }   
+    }
+    
+    return StringUtil::TrimWhite(&normalised_title);
+}
+
+    
 void ExtractAllAuthors(const MARC::Record &record, std::unordered_set<std::string> * const normlised_author_names) {
     ExtractAuthors(record, "100", normlised_author_names);
     ExtractAuthors(record, "700", normlised_author_names);
@@ -95,10 +114,15 @@ void PopulateTables(DbConnection * const db_connection, MARC::Reader * const rea
         }
         already_seen_control_numbers.emplace(control_number);
 
-        std::unordered_set<std::string> normlised_author_names;
-        ExtractAllAuthors(record, &normlised_author_names);
-        for (const auto normlised_author_name : normlised_author_names)
-            db_connection->queryOrDie("INSERT INTO normalised_authors SET author='" + db_connection->escapeString(normlised_author_name)
+        std::unordered_set<std::string> normalised_author_names;
+        ExtractAllAuthors(record, &normalised_author_names);
+        for (const auto normalised_author_name : normalised_author_names)
+            db_connection->queryOrDie("INSERT INTO normalised_authors SET author='" + db_connection->escapeString(normalised_author_name)
+                                      + "', ppn='" + control_number + "'");
+
+        const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(record.getFirstFieldContents("245"))));
+        if (likely(not normalised_title.empty()))
+            db_connection->queryOrDie("INSERT INTO normalised_titles SET author='" + db_connection->escapeString(normalised_title)
                                       + "', ppn='" + control_number + "'");
     }
 
@@ -115,8 +139,8 @@ int Main(int argc, char **argv) {
 
     auto reader(MARC::Reader::Factory(argv[1]));
     DbConnection ub_tools_db;
-    ub_tools_db.queryOrDie("DELETE FROM normalised_authors");
-    ub_tools_db.queryOrDie("DELETE FROM normalised_titles");
+    ub_tools_db.queryOrDie("TRUNCATE TABLE normalised_authors");
+    ub_tools_db.queryOrDie("TRUNCATE TABLE normalised_titles");
     PopulateTables(&ub_tools_db, reader.get());
 
     return EXIT_SUCCESS;
