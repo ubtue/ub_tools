@@ -48,6 +48,7 @@ void CollectAuthorPPNs(MARC::Reader * const title_reader, std::unordered_set<std
     while (const auto record = title_reader->read()) {
         ExtractAuthorPPN(record, "100", referenced_author_ppns);
         ExtractAuthorPPN(record, "400", referenced_author_ppns);
+        ExtractAuthorPPN(record, "700", referenced_author_ppns);
     }
 
     LOG_INFO("extracted " + std::to_string(referenced_author_ppns->size()) + " referenced author PPN's.");
