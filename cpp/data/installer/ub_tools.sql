@@ -58,3 +58,18 @@ CREATE TABLE harvested_urls (
 ) CHARACTER SET utf8mb4;
 CREATE INDEX harvested_urls_id_and_journal_name_index on harvested_urls(id, journal_name);
 
+
+CREATE TABLE normalised_titles (
+    title VARCHAR(191) NOT NULL,
+    ppn VARCHAR(10) NOT NULL,
+    UNIQUE(title, ppn)
+) CHARACTER SET utf8mb4;
+CREATE INDEX title_index on normalised_titles(title);
+
+
+CREATE TABLE normalised_authors (
+    author VARCHAR(191) NOT NULL,
+    ppn VARCHAR(10) NOT NULL,
+    UNIQUE(author, ppn)
+) CHARACTER SET utf8mb4;
+CREATE INDEX author_index on normalised_authors(author);
