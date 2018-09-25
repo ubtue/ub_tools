@@ -120,8 +120,10 @@ void PopulateTables(DbConnection * const db_connection, MARC::Reader * const rea
             db_connection->queryOrDie("INSERT INTO normalised_authors SET author='" + db_connection->escapeString(normalised_author_name)
                                       + "', ppn='" + control_number + "'");
 
-        const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(record.getFirstFieldContents("245"))));
-        if (likely(not normalised_title.empty()))
+        const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(record.getMainTitle())));
+        if (unlikely(normalised_title.empty()))
+            LOG_WARNING("Empty normalised title in record w/ control number: " + control_number);
+        else
             db_connection->queryOrDie("INSERT INTO normalised_titles SET title='" + db_connection->escapeString(normalised_title)
                                       + "', ppn='" + control_number + "'");
     }
