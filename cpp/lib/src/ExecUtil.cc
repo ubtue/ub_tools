@@ -39,8 +39,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <unordered_map>
-#include "StringUtil.h"
 #include "FileUtil.h"
+#include "MiscUtil.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -263,13 +264,12 @@ std::string Which(const std::string &executable_candidate) {
     }
 
     if (executable.empty()) {
-        const char * const PATH(::secure_getenv("PATH"));
-        if (PATH == nullptr)
+        const auto PATH(MiscUtil::SafeGetEnv("PATH"));
+        if (PATH.empty())
             return "";
 
-        const std::string path_str(PATH);
         std::vector<std::string> path_compoments;
-        StringUtil::Split(path_str, ':', &path_compoments);
+        StringUtil::Split(PATH, ':', &path_compoments);
         for (const auto &path_compoment : path_compoments) {
             const std::string full_path(path_compoment + "/" + executable_candidate);
             if (IsExecutableFile(full_path)) {
