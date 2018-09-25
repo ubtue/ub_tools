@@ -103,6 +103,9 @@ void ExtractAllAuthors(const MARC::Record &record, std::unordered_set<std::strin
 }
 
 
+const size_t MAX_TITLE_LENGTH(191);
+
+    
 void PopulateTables(DbConnection * const db_connection, MARC::Reader * const reader) {
     unsigned count(0);
     std::unordered_set<std::string> already_seen_control_numbers;
@@ -120,7 +123,9 @@ void PopulateTables(DbConnection * const db_connection, MARC::Reader * const rea
             db_connection->queryOrDie("INSERT INTO normalised_authors SET author='" + db_connection->escapeString(normalised_author_name)
                                       + "', ppn='" + control_number + "'");
 
-        const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(record.getMainTitle())));
+        auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(record.getMainTitle())));
+        if (unlikely(normalised_title.length() > MAX_TITLE_LENGTH))
+            normalised_title.resize(MAX_TITLE_LENGTH);
         if (unlikely(normalised_title.empty()))
             LOG_WARNING("Empty normalised title in record w/ control number: " + control_number);
         else
