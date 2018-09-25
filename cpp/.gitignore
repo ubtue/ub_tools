@@ -53,6 +53,7 @@
 /extract_local_keywords
 /extract_normdata_translations
 /extract_person_gnd_numbers
+/extract_referenced_author_records
 /extract_referenceterms
 /extract_text_from_image_only_pdfs
 /extract_vufind_translations_for_translation
