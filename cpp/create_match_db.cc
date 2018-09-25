@@ -122,7 +122,7 @@ void PopulateTables(DbConnection * const db_connection, MARC::Reader * const rea
 
         const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(record.getFirstFieldContents("245"))));
         if (likely(not normalised_title.empty()))
-            db_connection->queryOrDie("INSERT INTO normalised_titles SET author='" + db_connection->escapeString(normalised_title)
+            db_connection->queryOrDie("INSERT INTO normalised_titles SET title='" + db_connection->escapeString(normalised_title)
                                       + "', ppn='" + control_number + "'");
     }
 
