@@ -21,11 +21,14 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
+#include <cctype>
 #include <cstdlib>
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
+#include "Url.h"
 #include "util.h"
 
 
@@ -60,11 +63,33 @@ void CollectAuthorPPNs(MARC::Reader * const title_reader, std::unordered_set<std
 }
 
 
+std::string NameFromURL(const std::string &url_string) {
+    const Url url(url_string);
+    std::string name(url.getAuthority());
+    if (StringUtil::StartsWith(name, "www.", /* ignore_case = */true))
+        name = name.substr(__builtin_strlen("www."));
+    const auto last_dot_pos(name.rfind('.'));
+    if (last_dot_pos != std::string::npos)
+        name.resize(last_dot_pos);
+    StringUtil::Map(&name, '.', ' ');
+
+    // Convert the first letter of each "word" to uppercase:
+    bool first_char_of_word(true);
+    for (auto &ch : name) {
+        if (first_char_of_word)
+            ch = std::toupper(ch);
+        first_char_of_word = ch == ' ' or ch == '-';
+    }
+
+    return name;
+}
+
+
 void CollectBeaconLinks(const std::string &beacon_filename,
-                        std::unordered_map<std::string, std::set<std::string>> * const gnd_numbers_to_beacon_links_map)
+                        std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const gnd_numbers_to_beacon_links_map)
 {
     const auto input(FileUtil::OpenInputFileOrDie(beacon_filename));
-    std::string url_prefix;
+    std::string url_prefix, institution_name;
     while (not input->eof()) {
         std::string line;
         input->getline(&line);
@@ -77,21 +102,24 @@ void CollectBeaconLinks(const std::string &beacon_filename,
                 if (not StringUtil::EndsWith(line, "{ID}"))
                     LOG_ERROR("Bad TARGET line in \"" + beacon_filename + "\"!");
                 url_prefix = line.substr(0, line.length() - __builtin_strlen("{ID}"));
+                institution_name = NameFromURL(url_prefix);
             }
         } else { // Probably a GND number.
             auto gnd_number_and_beacon_links(gnd_numbers_to_beacon_links_map->find(line));
             if (gnd_number_and_beacon_links == gnd_numbers_to_beacon_links_map->end())
-                (*gnd_numbers_to_beacon_links_map)[line] = std::set<std::string>({ url_prefix + line });
+                (*gnd_numbers_to_beacon_links_map)[line] =
+                    std::set<std::pair<std::string, std::string>>({ std::make_pair(institution_name, url_prefix + line) });
             else
-                gnd_number_and_beacon_links->second.emplace(url_prefix + line);
+                gnd_number_and_beacon_links->second.emplace(std::make_pair(institution_name, url_prefix + line));
         }
     }
 }
 
 
-void FilterAuthorityRecords(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer,
-                            const std::unordered_set<std::string> &referenced_author_ppns,
-                            const std::unordered_map<std::string, std::set<std::string>> &gnd_numbers_to_beacon_links_map)
+void FilterAuthorityRecords(
+    MARC::Reader * const authority_reader, MARC::Writer * const authority_writer,
+    const std::unordered_set<std::string> &referenced_author_ppns,
+    const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_numbers_to_beacon_links_map)
 {
     unsigned count(0), gnd_tagged_count(0);
     while (auto record = authority_reader->read()) {
@@ -102,7 +130,7 @@ void FilterAuthorityRecords(MARC::Reader * const authority_reader, MARC::Writer 
                 if (gnd_number_and_beacon_links != gnd_numbers_to_beacon_links_map.cend()) {
                     ++gnd_tagged_count;
                     for (const auto &beacon_link : gnd_number_and_beacon_links->second)
-                        record.insertField("BEA", {{ 'a', beacon_link }});
+                        record.insertField("BEA", { { 'a', beacon_link.first }, { 'u', beacon_link.second } });
                 }
             }
 
@@ -112,7 +140,7 @@ void FilterAuthorityRecords(MARC::Reader * const authority_reader, MARC::Writer 
     }
 
     LOG_INFO("identified " + std::to_string(count) + " referenced author records.");
-    LOG_INFO("tagged " + std::to_string(gnd_tagged_count) + " author records with becon links.");
+    LOG_INFO("tagged " + std::to_string(gnd_tagged_count) + " author records with beacon links.");
 }
 
 
@@ -140,7 +168,7 @@ int Main(int argc, char **argv) {
         std::unordered_set<std::string> referenced_author_ppns;
         CollectAuthorPPNs(title_reader.get(), &referenced_author_ppns);
 
-        std::unordered_map<std::string, std::set<std::string>> gnd_numbers_to_beacon_links_map;
+        std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> gnd_numbers_to_beacon_links_map;
         for (int arg_no(4); arg_no < argc; ++arg_no)
             CollectBeaconLinks(argv[arg_no], &gnd_numbers_to_beacon_links_map);
 
