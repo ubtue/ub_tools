@@ -19,11 +19,12 @@
         {scripts_js}
 
         var rss_options_map = {{
-            {LOOP rss_journal_titles, rss_journal_print_issns, rss_journal_online_issns, rss_journal_parent_ppns, rss_feed_urls, rss_strptime_formats}
+            {LOOP rss_journal_titles, rss_journal_print_issns, rss_journal_online_issns, rss_journal_print_ppns, rss_journal_online_ppns, rss_feed_urls, rss_strptime_formats}
                 "{rss_journal_titles}": {{
                     "issn_print": "{rss_journal_print_issns}",
                     "issn_online": "{rss_journal_online_issns}",
-                    "parent_ppn": "{rss_journal_parent_ppns}",
+                    "ppn_print": "{rss_journal_print_ppns}",
+                    "ppn_online": "{rss_journal_online_ppns}",
                     "feed_url": "{rss_feed_urls}",
                     "strptime_format": "{rss_strptime_formats}",
                 },
@@ -31,11 +32,12 @@
         };
 
         var direct_options_map = {{
-            {LOOP direct_journal_titles, direct_journal_print_issns, direct_journal_online_issns, direct_journal_parent_ppns, direct_urls, direct_strptime_formats}
+            {LOOP direct_journal_titles, direct_journal_print_issns, direct_journal_online_issns, direct_journal_print_ppns, direct_journal_online_ppns, direct_urls, direct_strptime_formats}
                 "{direct_journal_titles}": {{
                     "issn_print": "{direct_journal_print_issns}",
                     "issn_online": "{direct_journal_online_issns}",
-                    "parent_ppn": "{direct_journal_parent_ppns}",
+                    "ppn_print": "{direct_journal_print_ppns}",
+                    "ppn_online": "{direct_journal_online_ppns}",
                     "base_url": "{direct_urls}",
                     "strptime_format": "{direct_strptime_formats}",
                 },
@@ -43,11 +45,12 @@
         };
 
         var crawling_options_map = {{
-            {LOOP crawling_journal_titles, crawling_journal_print_issns, crawling_journal_online_issns, crawling_journal_parent_ppns, crawling_base_urls, crawling_extraction_regexes, crawling_depths, crawling_strptime_formats}
+            {LOOP crawling_journal_titles, crawling_journal_print_issns, crawling_journal_online_issns, crawling_journal_print_ppns, crawling_journal_online_ppns, crawling_base_urls, crawling_extraction_regexes, crawling_depths, crawling_strptime_formats}
                 "{crawling_journal_titles}": {{
                     "issn_print": "{crawling_journal_print_issns}",
                     "issn_online": "{crawling_journal_online_issns}",
-                    "parent_ppn": "{crawling_journal_parent_ppns}",
+                    "ppn_print": "{crawling_journal_print_ppns}",
+                    "ppn_online": "{crawling_journal_online_ppns}",
                     "base_url": "{crawling_base_urls}",
                     "regex": "{crawling_extraction_regexes}",
                     "depth": "{crawling_depths}",
@@ -85,9 +88,10 @@
                 <tr>
                     <th>Group</th>
                     <th>Title</th>
-                    <th>Parent ISSN override (print)</th>
-                    <th>Parent ISSN override (online)</th>
-                    <th>Parent PPN override</th>
+                    <th>ISSN (print)</th>
+                    <th>ISSN (online)</th>
+                    <th>PPN (print)</th>
+                    <th>PPN (online)</th>
                     <th>Method</th>
                     <th>Delivery Mode</th>
                     <th>Actions</th>
@@ -96,13 +100,14 @@
                 </tr>
             </thead>
             <tbody>
-                {LOOP all_journal_titles, all_journal_groups, all_journal_print_issns, all_journal_online_issns, all_journal_parent_ppns, all_journal_methods, all_journal_delivery_modes, all_journal_zeder_ids, all_journal_zeder_comments, all_journal_zeder_urls, all_urls}
+                {LOOP all_journal_titles, all_journal_groups, all_journal_print_issns, all_journal_online_issns, all_journal_print_ppns, all_journal_online_ppns, all_journal_methods, all_journal_delivery_modes, all_journal_zeder_ids, all_journal_zeder_comments, all_journal_zeder_urls, all_urls}
                     <tr>
                         <td>{all_journal_groups}</td>
                         <td><a target="_blank" href="{all_urls}">{all_journal_titles}</a></td>
                         <td class="issn_generate_link">{all_journal_print_issns}</td>
                         <td class="issn_generate_link">{all_journal_online_issns}</td>
-                        <td>{all_journal_parent_ppns}</td>
+                        <td>{all_journal_print_ppns}</td>
+                        <td>{all_journal_online_ppns}</td>
                         <td>{all_journal_methods}</td>
                         <td>{all_journal_delivery_modes}</td>
                         <td>
@@ -137,16 +142,20 @@
                     </td>
                 </tr>
                 <tr>
-                    <td>Parent ISSN override (print)</td>
+                    <td>ISSN (print)</td>
                     <td id="rss_journal_print_issn"></td>
                 </tr>
                 <tr>
-                    <td>Parent ISSN override (online)</td>
+                    <td>ISSN (online)</td>
                     <td id="rss_journal_online_issn"></td>
                 </tr>
                 <tr>
-                    <td>Parent PPN override</td>
-                    <td id="rss_journal_parent_ppn"></td>
+                    <td>PPN (print)</td>
+                    <td id="rss_journal_ppn_print"></td>
+                </tr>
+                <tr>
+                    <td>PPN (online)</td>
+                    <td id="rss_journal_ppn_online"></td>
                 </tr>
                 <tr>
                     <td>RSS Feed Url</td>
@@ -182,16 +191,20 @@
                     </td>
                 </tr>
                 <tr>
-                    <td>Parent ISSN override (print)</td>
+                    <td>ISSN (print)</td>
                     <td id="direct_journal_print_issn"></td>
                 </tr>
                 <tr>
-                    <td>Parent ISSN override (online)</td>
+                    <td>ISSN (online)</td>
                     <td id="direct_journal_online_issn"></td>
                 </tr>
                 <tr>
-                    <td>Parent PPN override</td>
-                    <td id="direct_journal_parent_ppn"></td>
+                    <td>PPN (print)</td>
+                    <td id="direct_journal_ppn_print"></td>
+                </tr>
+                <tr>
+                    <td>PPN (online)</td>
+                    <td id="direct_journal_ppn_online"></td>
                 </tr>
                 <tr>
                     <td>Url</td>
@@ -227,16 +240,20 @@
                     </td>
                 </tr>
                 <tr>
-                    <td>Parent ISSN override (print)</td>
+                    <td>ISSN (print)</td>
                     <td id="crawling_journal_print_issn"></td>
                 </tr>
                 <tr>
-                    <td>Parent ISSN override (online)</td>
+                    <td>ISSN (online)</td>
                     <td id="crawling_journal_online_issn"></td>
                 </tr>
                 <tr>
-                    <td>Parent PPN override</td>
-                    <td id="crawling_journal_parent_ppn"></td>
+                    <td>PPN (print)</td>
+                    <td id="crawling_journal_ppn_print"></td>
+                </tr>
+                <tr>
+                    <td>PPN (online)</td>
+                    <td id="crawling_journal_ppn_online"></td>
                 </tr>
                 <tr>
                     <td>Base Url</td>
