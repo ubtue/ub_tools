@@ -103,13 +103,11 @@ void ExtractAllAuthors(const MARC::Record &record, std::unordered_set<std::strin
 }
 
 
-const size_t MAX_TITLE_LENGTH(191); // Because of MySQL restrictions on VARCHAR.
-
-
 void PopulateTables(kyotocabinet::HashDB * const titles_db, kyotocabinet::HashDB * const authors_db, MARC::Reader * const reader) {
     unsigned count(0);
     while (const auto record = reader->read()) {
         ++count;
+        const auto control_number(record.getControlNumber());
 
         std::unordered_set<std::string> normalised_author_names;
         ExtractAllAuthors(record, &normalised_author_names);
@@ -119,9 +117,6 @@ void PopulateTables(kyotocabinet::HashDB * const titles_db, kyotocabinet::HashDB
         }
 
         auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(record.getMainTitle())));
-        if (unlikely(not TextUtil::UnicodeTruncate(&normalised_title, MAX_TITLE_LENGTH)))
-            LOG_ERROR("failed to truncate the normalised title to a maximal length of " + std::to_string(MAX_TITLE_LENGTH)
-                      + " Unicode code points!");
         if (unlikely(normalised_title.empty()))
             LOG_WARNING("Empty normalised title in record w/ control number: " + control_number);
         else if (unlikely(not titles_db->set(normalised_title, control_number)))
