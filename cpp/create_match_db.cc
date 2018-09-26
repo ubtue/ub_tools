@@ -22,7 +22,7 @@
 #include <unordered_set>
 #include <cctype>
 #include <cstdlib>
-#include "DbConnection.h"
+#include <kchashdb.h>
 #include "Compiler.h"
 #include "MARC.h"
 #include "StringUtil.h"
@@ -106,22 +106,17 @@ void ExtractAllAuthors(const MARC::Record &record, std::unordered_set<std::strin
 const size_t MAX_TITLE_LENGTH(191); // Because of MySQL restrictions on VARCHAR.
 
 
-void PopulateTables(DbConnection * const db_connection, MARC::Reader * const reader) {
+void PopulateTables(kyotocabinet::HashDB * const titles_db, kyotocabinet::HashDB * const authors_db, MARC::Reader * const reader) {
     unsigned count(0);
-    std::unordered_set<std::string> already_seen_control_numbers;
     while (const auto record = reader->read()) {
-        const auto control_number(record.getControlNumber());
-        if (already_seen_control_numbers.find(control_number) != already_seen_control_numbers.cend()) {
-            LOG_WARNING("Duplicate control number: " + control_number);
-            continue;
-        }
-        already_seen_control_numbers.emplace(control_number);
+        ++count;
 
         std::unordered_set<std::string> normalised_author_names;
         ExtractAllAuthors(record, &normalised_author_names);
-        for (const auto normalised_author_name : normalised_author_names)
-            db_connection->queryOrDie("INSERT INTO normalised_authors SET author='" + db_connection->escapeString(normalised_author_name)
-                                      + "', ppn='" + control_number + "'");
+        for (const auto normalised_author_name : normalised_author_names) {
+            if (unlikely(not authors_db->set(normalised_author_name, control_number)))
+                LOG_ERROR("failed to insert normalised author into the database!");
+        }
 
         auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(record.getMainTitle())));
         if (unlikely(not TextUtil::UnicodeTruncate(&normalised_title, MAX_TITLE_LENGTH)))
@@ -129,13 +124,23 @@ void PopulateTables(DbConnection * const db_connection, MARC::Reader * const rea
                       + " Unicode code points!");
         if (unlikely(normalised_title.empty()))
             LOG_WARNING("Empty normalised title in record w/ control number: " + control_number);
-        else
-            db_connection->queryOrDie("INSERT INTO normalised_titles SET title='" + db_connection->escapeString(normalised_title)
-                                      + "', ppn='" + control_number + "'");
+        else if (unlikely(not titles_db->set(normalised_title, control_number)))
+            LOG_ERROR("failed to insert normalised title into the database!");
     }
 
     LOG_INFO("Processed " + std::to_string(count) + " records.");
 }
+
+
+std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB(const std::string &db_path) {
+    std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
+    if (not (db->open(db_path, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE)))
+        LOG_ERROR("failed to open or create \"" + db_path + "\"!");
+    return db;
+}
+
+
+const std::string MATCH_DB_PREFIX("/usr/local/var/lib/tuelib/normalised_");
 
 
 } // unnamed namespace
@@ -145,11 +150,16 @@ int Main(int argc, char **argv) {
     if (argc != 2)
         Usage();
 
+    const std::string TITLES_DB_PATH(MATCH_DB_PREFIX + "titles.db");
+    ::unlink(TITLES_DB_PATH.c_str());
+    std::unique_ptr<kyotocabinet::HashDB> titles_db(CreateOrOpenKeyValueDB(TITLES_DB_PATH));
+
+    const std::string AUTHORS_DB_PATH(MATCH_DB_PREFIX + "authors.db");
+    ::unlink(AUTHORS_DB_PATH.c_str());
+    std::unique_ptr<kyotocabinet::HashDB> authors_db(CreateOrOpenKeyValueDB(AUTHORS_DB_PATH));
+
     auto reader(MARC::Reader::Factory(argv[1]));
-    DbConnection ub_tools_db;
-    ub_tools_db.queryOrDie("TRUNCATE TABLE normalised_authors");
-    ub_tools_db.queryOrDie("TRUNCATE TABLE normalised_titles");
-    PopulateTables(&ub_tools_db, reader.get());
+    PopulateTables(titles_db.get(), authors_db.get(), reader.get());
 
     return EXIT_SUCCESS;
 }

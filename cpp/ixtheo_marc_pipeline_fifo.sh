@@ -313,6 +313,11 @@ StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
 EndPhase || Abort) &
 
 
+StartPhase "Create Databases for Title and Author Matching"
+(create_match_db GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Cleanup of Intermediate Files"
 for p in $(seq 0 "$((PHASE-1))"); do
     rm -f GesamtTiteldaten-post-phase"$p"-??????.mrc
