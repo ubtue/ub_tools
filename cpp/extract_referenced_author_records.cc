@@ -78,7 +78,7 @@ std::string NameFromURL(const std::string &url_string) {
     for (auto &ch : name) {
         if (first_char_of_word)
             ch = std::toupper(ch);
-        first_char_of_word = ch == ' ';
+        first_char_of_word = ch == ' ' or ch == '-';
     }
 
     return name;
