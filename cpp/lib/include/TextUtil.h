@@ -288,7 +288,7 @@ class ToUTF32Decoder {
 protected:
     static const std::string CANONICAL_UTF32_NAME;
     static const uint32_t NULL_CHARACTER;
-public:   
+public:
     enum State {
         NO_CHARACTER_PENDING, //< getUTF32Char() should not be called.
         CHARACTER_PENDING,    //< getUTF32Char() should be called to get the next character.
@@ -304,7 +304,7 @@ public:
      *         been decoded, signalling that getUTF32Char() should be called now.
      * \throw std::runtime_error if we're being fed an invalid UTF-8 sequence of characters
      */
-    virtual bool addByte(const char ch) = 0;  
+    virtual bool addByte(const char ch) = 0;
 
     virtual State getState() const = 0;
 
@@ -358,15 +358,15 @@ public:
     UTF8ToUTF32Decoder(const bool permissive = true): required_count_(-1), permissive_(permissive) { }
     virtual ~UTF8ToUTF32Decoder() = default;
 
-    virtual bool addByte(const char ch) override final;    
+    virtual bool addByte(const char ch) override final;
 
     virtual State getState() const override final {
         return (required_count_ == -1) ? NO_CHARACTER_PENDING
                                        : ((required_count_  > 0) ? CHARACTER_INCOMPLETE : CHARACTER_PENDING);
-    }  
+    }
 
     virtual uint32_t getUTF32Char() override final { required_count_ = -1; return utf32_char_; }
-    
+
     virtual const std::string &getInputEncoding() const override final { return EncodingConverter::CANONICAL_UTF8_NAME; }
 };
 
@@ -450,6 +450,12 @@ std::string InitialCaps(const std::string &text);
 /** \brief Returns the canonical form of a charset string.
  */
 std::string CanonizeCharset(std::string charset);
+
+
+/** \brief Truncates "utf8_string" to a maximum length of "max_length" codepoints.
+ *  \return False if conversion errors occurred, else true.
+ */
+bool UnicodeTruncate(std::string * const utf8_string, const size_t max_length);
 
 
 } // namespace TextUtil
