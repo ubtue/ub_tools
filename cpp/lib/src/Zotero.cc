@@ -50,17 +50,17 @@ const std::map<HarvesterType, std::string> HARVESTER_TYPE_TO_STRING_MAP{
     { HarvesterType::DIRECT, "DIRECT" }
 };
 const std::map<HarvesterConfigEntry, std::string> HARVESTER_CONFIG_ENTRY_TO_STRING_MAP{
-    { HarvesterConfigEntry::TYPE, "type" },
-    { HarvesterConfigEntry::GROUP, "group" },
-    { HarvesterConfigEntry::PARENT_PPN, "parent_ppn" },
-    { HarvesterConfigEntry::PARENT_ISSN_PRINT, "parent_issn_print" },
-    { HarvesterConfigEntry::PARENT_ISSN_ONLINE, "parent_issn_online" },
-    { HarvesterConfigEntry::STRPTIME_FORMAT, "strptime_format" },
-    { HarvesterConfigEntry::FEED, "feed" },
-    { HarvesterConfigEntry::URL, "url" },
-    { HarvesterConfigEntry::BASE_URL, "base_url" },
-    { HarvesterConfigEntry::EXTRACTION_REGEX, "extraction_regex" },
-    { HarvesterConfigEntry::MAX_CRAWL_DEPTH, "max_crawl_depth" }
+    { HarvesterConfigEntry::TYPE, "zotero_type" },
+    { HarvesterConfigEntry::GROUP, "zotero_group" },
+    { HarvesterConfigEntry::PARENT_PPN, "print_ppn" },
+    { HarvesterConfigEntry::PARENT_ISSN_PRINT, "print_issn" },
+    { HarvesterConfigEntry::PARENT_ISSN_ONLINE, "online_issn" },
+    { HarvesterConfigEntry::STRPTIME_FORMAT, "zotero_strptime_format" },
+    { HarvesterConfigEntry::FEED, "zotero_url" },
+    { HarvesterConfigEntry::URL, "zotero_url" },
+    { HarvesterConfigEntry::BASE_URL, "zotero_url" },
+    { HarvesterConfigEntry::EXTRACTION_REGEX, "zotero_extraction_regex" },
+    { HarvesterConfigEntry::MAX_CRAWL_DEPTH, "zotero_max_crawl_depth" }
 };
 
 
