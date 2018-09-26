@@ -33,6 +33,7 @@
 /count_gnd_refs
 /create_author_synonym_map
 /create_full_text_db
+/create_match_db
 /crossref_downloader
 /db_lookup
 /delete_ids
