@@ -1,5 +1,7 @@
 -- under CentOS we still have MariaDB 5, which has a limitation of 767 bytes for keys.
 -- this means e.g. for VARCHAR with utf8mb4, we can use at most a VARCHAR(191)!
+-- Also, the default collating sequence is a Swedish one.  This leads to aliasing problems for characters with
+-- diacritical marcks => we need to override it and use utf8mb4_bin.
 
 -- The sizes here must be in sync with the constants defined in rss_aggregator.cc!
 CREATE TABLE rss_aggregator (
