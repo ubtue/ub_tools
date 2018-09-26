@@ -94,7 +94,8 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> all_journal_titles;
     std::vector<std::string> all_journal_print_issns;
     std::vector<std::string> all_journal_online_issns;
-    std::vector<std::string> all_journal_parent_ppns;
+    std::vector<std::string> all_journal_print_ppns;
+    std::vector<std::string> all_journal_online_ppns;
     std::vector<std::string> all_journal_methods;
     std::vector<std::string> all_journal_groups;
     std::vector<std::string> all_journal_delivery_modes;
@@ -106,21 +107,24 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> rss_journal_titles;
     std::vector<std::string> rss_journal_print_issns;
     std::vector<std::string> rss_journal_online_issns;
-    std::vector<std::string> rss_journal_parent_ppns;
+    std::vector<std::string> rss_journal_print_ppns;
+    std::vector<std::string> rss_journal_online_ppns;
     std::vector<std::string> rss_feed_urls;
     std::vector<std::string> rss_strptime_formats;
 
     std::vector<std::string> direct_journal_titles;
     std::vector<std::string> direct_journal_print_issns;
     std::vector<std::string> direct_journal_online_issns;
-    std::vector<std::string> direct_journal_parent_ppns;
+    std::vector<std::string> direct_journal_print_ppns;
+    std::vector<std::string> direct_journal_online_ppns;
     std::vector<std::string> direct_urls;
     std::vector<std::string> direct_strptime_formats;
 
     std::vector<std::string> crawling_journal_titles;
     std::vector<std::string> crawling_journal_print_issns;
     std::vector<std::string> crawling_journal_online_issns;
-    std::vector<std::string> crawling_journal_parent_ppns;
+    std::vector<std::string> crawling_journal_print_ppns;
+    std::vector<std::string> crawling_journal_online_ppns;
     std::vector<std::string> crawling_base_urls;
     std::vector<std::string> crawling_extraction_regexes;
     std::vector<std::string> crawling_depths;
@@ -136,13 +140,14 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             if (group_names.find(title) != group_names.cend())
                 continue;
 
-            const Zotero::HarvesterType harvest_type(static_cast<Zotero::HarvesterType>(section.getEnum("type", Zotero::STRING_TO_HARVEST_TYPE_MAP)));
-            const BSZUpload::DeliveryMode delivery_mode(static_cast<BSZUpload::DeliveryMode>(section.getEnum("delivery_mode", BSZUpload::STRING_TO_DELIVERY_MODE_MAP, BSZUpload::DeliveryMode::NONE)));
-            const std::string harvest_type_raw(section.getString("type"));
-            const std::string issn_print(section.getString("issn_print", ""));
-            const std::string issn_online(section.getString("issn_online", ""));
-            const std::string parent_ppn(section.getString("parent_ppn", ""));
-            const std::string group(section.getString("group"));
+            const Zotero::HarvesterType harvest_type(static_cast<Zotero::HarvesterType>(section.getEnum("zotero_type", Zotero::STRING_TO_HARVEST_TYPE_MAP)));
+            const BSZUpload::DeliveryMode delivery_mode(static_cast<BSZUpload::DeliveryMode>(section.getEnum("zotero_delivery_mode", BSZUpload::STRING_TO_DELIVERY_MODE_MAP, BSZUpload::DeliveryMode::NONE)));
+            const std::string harvest_type_raw(section.getString("zotero_type"));
+            const std::string issn_print(section.getString("print_issn", ""));
+            const std::string issn_online(section.getString("online_issn", ""));
+            const std::string ppn_print(section.getString("print_ppn", ""));
+            const std::string ppn_online(section.getString("online_ppn", ""));
+            const std::string group(section.getString("zotero_group"));
             const std::string zeder_id(section.getString("zeder_id", ""));
             const std::string zeder_comment(section.getString("zeder_comment", ""));
 
@@ -157,7 +162,8 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             all_journal_titles.emplace_back(title);
             all_journal_print_issns.emplace_back(issn_print);
             all_journal_online_issns.emplace_back(issn_online);
-            all_journal_parent_ppns.emplace_back(parent_ppn);
+            all_journal_print_ppns.emplace_back(ppn_print);
+            all_journal_online_ppns.emplace_back(ppn_online);
             all_journal_groups.emplace_back(group);
             all_journal_methods.emplace_back(harvest_type_raw);
             all_journal_zeder_ids.emplace_back(zeder_id);
@@ -166,36 +172,35 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
 
             const auto delivery_mode_string(std::find_if(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.begin(), BSZUpload::STRING_TO_DELIVERY_MODE_MAP.end(), [delivery_mode](const std::pair<std::string, int> &map_entry) {return map_entry.second == delivery_mode; })->first);
             all_journal_delivery_modes.emplace_back(delivery_mode_string);
+            all_urls.emplace_back(section.getString("zotero_url"));
 
             if (harvest_type == Zotero::HarvesterType::RSS) {
-                all_urls.emplace_back(section.getString("feed"));
 
                 rss_journal_titles.emplace_back(title);
                 rss_journal_print_issns.emplace_back(issn_print);
                 rss_journal_online_issns.emplace_back(issn_online);
-                rss_journal_parent_ppns.emplace_back(parent_ppn);
-                rss_feed_urls.emplace_back(section.getString("feed"));
+                rss_journal_print_ppns.emplace_back(ppn_print);
+                rss_journal_online_ppns.emplace_back(ppn_online);
+                rss_feed_urls.emplace_back(section.getString("zotero_url"));
                 rss_strptime_formats.emplace_back(section.getString("strptime_format", ""));
             } else if (harvest_type == Zotero::HarvesterType::DIRECT) {
-                all_urls.emplace_back(section.getString("url"));
-
                 direct_journal_titles.emplace_back(title);
                 direct_journal_print_issns.emplace_back(issn_print);
                 direct_journal_online_issns.emplace_back(issn_online);
-                direct_journal_parent_ppns.emplace_back(parent_ppn);
-                direct_urls.emplace_back(section.getString("url"));
+                direct_journal_print_ppns.emplace_back(ppn_print);
+                direct_journal_online_ppns.emplace_back(ppn_online);
+                direct_urls.emplace_back(section.getString("zotero_url"));
                 direct_strptime_formats.emplace_back(section.getString("strptime_format", ""));
             } else if (harvest_type == Zotero::HarvesterType::CRAWL) {
-                all_urls.emplace_back(section.getString("base_url"));
-
                 crawling_journal_titles.emplace_back(title);
                 crawling_journal_print_issns.emplace_back(issn_print);
                 crawling_journal_online_issns.emplace_back(issn_online);
-                crawling_journal_parent_ppns.emplace_back(parent_ppn);
-                crawling_base_urls.emplace_back(section.getString("base_url"));
-                crawling_extraction_regexes.emplace_back(section.getString("extraction_regex"));
-                crawling_depths.emplace_back(section.getString("max_crawl_depth"));
-                crawling_strptime_formats.emplace_back(section.getString("strptime_format", ""));
+                crawling_journal_print_ppns.emplace_back(ppn_print);
+                crawling_journal_online_ppns.emplace_back(ppn_online);
+                crawling_base_urls.emplace_back(section.getString("zotero_url"));
+                crawling_extraction_regexes.emplace_back(section.getString("zotero_extraction_regex"));
+                crawling_depths.emplace_back(section.getString("zotero_max_crawl_depth"));
+                crawling_strptime_formats.emplace_back(section.getString("zotero_strptime_format", ""));
             }
         }
     }
@@ -209,7 +214,8 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("all_journal_titles", all_journal_titles);
     names_to_values_map->insertArray("all_journal_print_issns", all_journal_print_issns);
     names_to_values_map->insertArray("all_journal_online_issns", all_journal_online_issns);
-    names_to_values_map->insertArray("all_journal_parent_ppns", all_journal_parent_ppns);
+    names_to_values_map->insertArray("all_journal_print_ppns", all_journal_print_ppns);
+    names_to_values_map->insertArray("all_journal_online_ppns", all_journal_online_ppns);
     names_to_values_map->insertArray("all_journal_methods", all_journal_methods);
     names_to_values_map->insertArray("all_journal_groups", all_journal_groups);
     names_to_values_map->insertArray("all_journal_delivery_modes", all_journal_delivery_modes);
@@ -221,21 +227,24 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("rss_journal_titles", rss_journal_titles);
     names_to_values_map->insertArray("rss_journal_print_issns", rss_journal_print_issns);
     names_to_values_map->insertArray("rss_journal_online_issns", rss_journal_online_issns);
-    names_to_values_map->insertArray("rss_journal_parent_ppns", rss_journal_parent_ppns);
+    names_to_values_map->insertArray("rss_journal_print_ppns", rss_journal_print_ppns);
+    names_to_values_map->insertArray("rss_journal_online_ppns", rss_journal_online_ppns);
     names_to_values_map->insertArray("rss_feed_urls", rss_feed_urls);
     names_to_values_map->insertArray("rss_strptime_formats", rss_strptime_formats);
 
     names_to_values_map->insertArray("direct_journal_titles", direct_journal_titles);
     names_to_values_map->insertArray("direct_journal_print_issns", direct_journal_print_issns);
     names_to_values_map->insertArray("direct_journal_online_issns", direct_journal_online_issns);
-    names_to_values_map->insertArray("direct_journal_parent_ppns", direct_journal_parent_ppns);
+    names_to_values_map->insertArray("direct_journal_print_ppns", direct_journal_print_ppns);
+    names_to_values_map->insertArray("direct_journal_online_ppns", direct_journal_online_ppns);
     names_to_values_map->insertArray("direct_urls", direct_urls);
     names_to_values_map->insertArray("direct_strptime_formats", direct_strptime_formats);
 
     names_to_values_map->insertArray("crawling_journal_titles", crawling_journal_titles);
     names_to_values_map->insertArray("crawling_journal_print_issns", crawling_journal_print_issns);
     names_to_values_map->insertArray("crawling_journal_online_issns", crawling_journal_online_issns);
-    names_to_values_map->insertArray("crawling_journal_parent_ppns", crawling_journal_parent_ppns);
+    names_to_values_map->insertArray("crawling_journal_print_ppns", crawling_journal_print_ppns);
+    names_to_values_map->insertArray("crawling_journal_online_ppns", crawling_journal_online_ppns);
     names_to_values_map->insertArray("crawling_base_urls", crawling_base_urls);
     names_to_values_map->insertArray("crawling_extraction_regexes", crawling_extraction_regexes);
     names_to_values_map->insertArray("crawling_depths", crawling_depths);
