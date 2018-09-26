@@ -63,7 +63,7 @@ CREATE TABLE normalised_titles (
     title VARCHAR(191) NOT NULL,
     ppn VARCHAR(10) NOT NULL,
     UNIQUE(title, ppn)
-) CHARACTER SET utf8mb4;
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 CREATE INDEX title_index on normalised_titles(title);
 
 
@@ -71,5 +71,5 @@ CREATE TABLE normalised_authors (
     author VARCHAR(191) NOT NULL,
     ppn VARCHAR(10) NOT NULL,
     UNIQUE(author, ppn)
-) CHARACTER SET utf8mb4;
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 CREATE INDEX author_index on normalised_authors(author);
