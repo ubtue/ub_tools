@@ -112,15 +112,27 @@ void PopulateTables(kyotocabinet::HashDB * const titles_db, kyotocabinet::HashDB
         std::unordered_set<std::string> normalised_author_names;
         ExtractAllAuthors(record, &normalised_author_names);
         for (const auto normalised_author_name : normalised_author_names) {
-            if (unlikely(not authors_db->set(normalised_author_name, control_number)))
+            std::string control_numbers;
+            if (authors_db->get(normalised_author_name, &control_numbers))
+                control_numbers += "\0" + control_number;
+            else
+                control_numbers = control_number;
+            if (unlikely(not authors_db->set(normalised_author_name, control_numbers)))
                 LOG_ERROR("failed to insert normalised author into the database!");
         }
 
         auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(record.getMainTitle())));
         if (unlikely(normalised_title.empty()))
             LOG_WARNING("Empty normalised title in record w/ control number: " + control_number);
-        else if (unlikely(not titles_db->set(normalised_title, control_number)))
-            LOG_ERROR("failed to insert normalised title into the database!");
+        else {
+            std::string control_numbers;
+            if (titles_db->get(normalised_title, &control_numbers))
+                control_numbers += "\0" + control_number;
+            else
+                control_numbers = control_number;
+            if (unlikely(not titles_db->set(normalised_title, control_numbers)))
+                LOG_ERROR("failed to insert normalised title into the database!");
+        }
     }
 
     LOG_INFO("Processed " + std::to_string(count) + " records.");
