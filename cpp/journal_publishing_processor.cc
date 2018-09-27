@@ -142,7 +142,7 @@ void ProcessDocument(XMLParser * const xml_parser, File * const plain_text_outpu
     std::vector<std::string> article_authors;
     std::string text_opening_tag;
     if (not ExtractAuthors(xml_parser, &article_authors, &text_opening_tag))
-        LOG_ERROR("no article authors found or an error or end-of-docuemnt were found while trying to extract an author name!");
+        LOG_ERROR("no article authors found or an error or end-of-document were found while trying to extract an author name!");
     std::cout << "Article authors are:\n";
     for (const auto &author : article_authors)
         std::cout << '\t' << author << '\n';
