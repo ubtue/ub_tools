@@ -32,7 +32,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " xml_input plain_test_output\n";
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] xml_input plain_test_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -138,11 +138,17 @@ void ProcessDocument(XMLParser * const xml_parser, const ControlNumberGuesser &c
     std::string article_title;
     if (not ExtractTitle(xml_parser, &article_title))
         LOG_ERROR("no article title found!");
+    if (logger->getMinimumLogLevel() >= Logger::LL_INFO)
+        LOG_INFO("article title is \"" + article_title + "\".");
 
     std::vector<std::string> article_authors;
     std::string text_opening_tag;
     if (not ExtractAuthors(xml_parser, &article_authors, &text_opening_tag))
         LOG_ERROR("no article authors found or an error or end-of-document were found while trying to extract an author name!");
+    if (logger->getMinimumLogLevel() >= Logger::LL_INFO) {
+        for (const auto &article_author : article_authors)
+            LOG_INFO("article author is \"" + article_author + "\".");
+    }
 
     const auto matching_control_numbers(control_number_guesser.getGuessedControlNumbers(article_title, article_authors));
     if (matching_control_numbers.empty())

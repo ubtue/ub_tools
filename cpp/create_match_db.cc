@@ -32,7 +32,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_titles\n";
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] marc_titles\n";
     std::exit(EXIT_FAILURE);
 }
 
