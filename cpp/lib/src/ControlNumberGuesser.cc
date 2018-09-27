@@ -55,7 +55,7 @@ static std::string NormaliseTitle(const std::string &title) {
     std::string normalised_title;
     bool space_seen(false);
     for (const char ch : title) {
-        if (std::ispunct(ch) or std::isspace(ch)) {
+        if (std::ispunct(ch) or ch == '-' or std::isspace(ch)) {
             if (not space_seen)
                 normalised_title += ' ';
             space_seen = true;
