@@ -18,6 +18,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "ControlNumberGuesser.h"
+#include <algorithm>
+#include <iterator>
+#include <vector>
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "util.h"
@@ -67,7 +70,7 @@ static std::string NormaliseTitle(const std::string &title) {
 
 
 void ControlNumberGuesser::insertTitle(const std::string &title, const std::string &control_number) {
-    auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(title)));
+    const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(title)));
     if (unlikely(normalised_title.empty()))
         LOG_WARNING("Empty normalised title in record w/ control number: " + control_number);
     else {
@@ -125,3 +128,36 @@ void ControlNumberGuesser::insertAuthors(const std::set<std::string> &authors, c
     }
 }
 
+
+std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::string &title, const std::vector<std::string> &authors) const
+{
+    const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(title)));
+    std::string concatenated_title_control_numbers;
+    std::vector<std::string> title_control_numbers;
+    if (not titles_db_->get(normalised_title, &concatenated_title_control_numbers)
+        or StringUtil::Split(concatenated_title_control_numbers, '\0', &title_control_numbers) == 0)
+        return { };
+
+    std::vector<std::string> all_author_control_numbers;
+    for (const auto &author : authors) {
+        const auto normalised_author(TextUtil::UTF8ToLower(NormaliseTitle(author)));
+        std::string concatenated_author_control_numbers;
+        std::set<std::string> author_control_numbers;
+        if (authors_db_->get(normalised_author, &concatenated_author_control_numbers)) {
+            StringUtil::Split(concatenated_author_control_numbers, '\0', &author_control_numbers);
+            for (const auto author_control_number : author_control_numbers)
+                all_author_control_numbers.emplace_back(author_control_number);
+        }
+    }
+    if (all_author_control_numbers.empty())
+        return { };
+
+    std::sort(title_control_numbers.begin(), title_control_numbers.end());
+    std::sort(all_author_control_numbers.begin(), all_author_control_numbers.end());
+    std::vector<std::string> common_control_numbers;
+    std::set_intersection(title_control_numbers.begin(), title_control_numbers.end(),
+                          all_author_control_numbers.begin(), all_author_control_numbers.end(),
+                          std::back_inserter(common_control_numbers));
+
+    return std::set<std::string>(common_control_numbers.cbegin(), common_control_numbers.cend());
+}
