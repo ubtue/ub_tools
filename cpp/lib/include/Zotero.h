@@ -47,16 +47,14 @@ namespace Zotero {
 
 
 enum HarvesterType { RSS, CRAWL, DIRECT };
+
+
+extern const std::map<HarvesterType, std::string> HARVESTER_TYPE_TO_STRING_MAP;
+
+
 const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP { { "RSS", static_cast<int>(Zotero::HarvesterType::RSS) },
                                                               { "DIRECT", static_cast<int>(Zotero::HarvesterType::DIRECT) },
                                                               { "CRAWL", static_cast<int>(Zotero::HarvesterType::CRAWL) } };
-
-enum HarvesterConfigEntry {
-    TYPE, GROUP,
-    PARENT_PPN, PARENT_ISSN_PRINT, PARENT_ISSN_ONLINE, STRPTIME_FORMAT,
-    FEED, URL, BASE_URL,
-    EXTRACTION_REGEX, MAX_CRAWL_DEPTH
-};
 
 
 struct Creator {
@@ -114,10 +112,6 @@ struct ItemParameters {
     std::string parent_journal_name;
     std::string harvest_url;
 };
-
-
-extern const std::map<HarvesterType, std::string> HARVESTER_TYPE_TO_STRING_MAP;
-extern const std::map<HarvesterConfigEntry, std::string> HARVESTER_CONFIG_ENTRY_TO_STRING_MAP;
 
 
 extern const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH;
@@ -465,9 +459,9 @@ public:
 namespace std {
     template <>
     struct hash<Zotero::HarvesterErrorLogger::ErrorType> {
-        size_t operator()(const Zotero::HarvesterErrorLogger::ErrorType &harvester_error_kind) const {
+        size_t operator()(const Zotero::HarvesterErrorLogger::ErrorType &harvester_error_type) const {
             // hash method here.
-            return hash<int>()(harvester_error_kind);
+            return hash<int>()(harvester_error_type);
         }
     };
 } // namespace std
