@@ -165,12 +165,13 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 } // namespace TranslationServer
 
 
-void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParams> * const group_name_to_params_map) {
+void LoadGroup(const IniFile::Section &section, std::unordered_map<std::string, GroupParams> * const group_name_to_params_map) {
     GroupParams new_group_params;
     new_group_params.name_              = section.getSectionName();
     new_group_params.user_agent_        = section.getString("user_agent");
     new_group_params.isil_              = section.getString("isil");
     new_group_params.author_lookup_url_ = section.getString("author_lookup_url");
+    new_group_params.bsz_upload_group_  = section.getString("bsz_upload_group/*  */");
     group_name_to_params_map->emplace(section.getSectionName(), new_group_params);
 }
 
@@ -179,7 +180,7 @@ std::unique_ptr<FormatHandler> FormatHandler::Factory(DbConnection * const db_co
                                                       const std::string &output_file,
                                                       const std::shared_ptr<const HarvestParams> &harvest_params)
 {
-    if (output_format == "marcxml" or output_format == "marc21")
+    if (output_format == "marc-xml" or output_format == "marc-21")
         return std::unique_ptr<FormatHandler>(new MarcFormatHandler(db_connection, output_file, harvest_params));
     else if (output_format == "json")
         return std::unique_ptr<FormatHandler>(new JsonFormatHandler(db_connection, output_format, output_file, harvest_params));

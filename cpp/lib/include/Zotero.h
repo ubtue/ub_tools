@@ -175,10 +175,11 @@ struct GroupParams {
     std::string user_agent_;
     std::string isil_;
     std::string author_lookup_url_;
+    std::string bsz_upload_group_;
 };
 
 
-void LoadGroup(const IniFile::Section &section, std::map<std::string, GroupParams> * const group_name_to_params_map);
+void LoadGroup(const IniFile::Section &section, std::unordered_map<std::string, GroupParams> * const group_name_to_params_map);
 
 
 /** \brief Parameters that apply to all sites equally. */
@@ -224,7 +225,7 @@ struct HarvestParams {
     TimeLimit min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
     unsigned harvested_url_count_ = 0;
     std::string user_agent_;
-    std::unique_ptr<FormatHandler> format_handler_;
+    FormatHandler *format_handler_;
 };
 
 
@@ -251,7 +252,7 @@ public:
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) = 0;
 
     // The output format must be one of "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
-    // "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei", "json", "marc21", or "marcxml".
+    // "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei", "json", "marc-21", or "marc-xml".
     static std::unique_ptr<FormatHandler> Factory(DbConnection * const db_connection, const std::string &output_format,
                                                   const std::string &output_file,
                                                   const std::shared_ptr<const HarvestParams> &harvest_params);

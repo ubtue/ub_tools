@@ -423,7 +423,7 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
 
     // select the sections that are Zeder-compatible, i.e., that were exported by this tool
     std::vector<std::string> valid_section_names, groups;
-    StringUtil::Split(ini.getString("","groups", ""), ',', &groups);
+    StringUtil::Split(ini.getString("", "groups", ""), ',', &groups);
 
     for (const auto &section : ini) {
         const auto section_name(section.getSectionName());
