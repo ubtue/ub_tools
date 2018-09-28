@@ -83,6 +83,7 @@
 /is_mount_point_test
 /json_grep
 /jop_grep
+/journal_publishing_processor
 /kcdb_info
 /krimdok_filter
 /krimdok_marc_pipeline.sh_no_fulltext

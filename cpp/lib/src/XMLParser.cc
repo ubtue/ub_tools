@@ -25,9 +25,10 @@
 
 
 const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
-    /* do_namespaces_ = */false,
-    /* do_schema_ = */false,
-    /* ignore_whitespace_ = */true,
+    /* do_namespaces_ = */      false,
+    /* do_schema_ = */          false,
+    /* ignore_whitespace_ = */  true,
+    /* load_external_dtds_ = */ false,
 };
 
 
@@ -217,6 +218,7 @@ off_t XMLParser::getMaxOffset() {
 bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_characters) {
     try {
         if (not prolog_parsing_done_) {
+            parser_->setLoadExternalDTD(options_.load_external_dtds_);
             if (type_ == XML_FILE) {
                 body_has_more_contents_ = parser_->parseFirst(xml_filename_or_string_.c_str(), token_);
                 if (not body_has_more_contents_)

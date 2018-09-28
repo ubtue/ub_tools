@@ -19,6 +19,7 @@
  */
 #pragma once
 
+
 #include <exception>
 #include <map>
 #include <memory>
@@ -57,6 +58,8 @@ public:
         bool do_schema_;
         /** \brief Defines if CHARACTERS that only contain whitespaces will be skipped (default true). */
         bool ignore_whitespace_;
+        /** \brief When an external DTD is referenced load it (default false). */
+        bool load_external_dtds_;
     };
 
     static const Options DEFAULT_OPTIONS;
