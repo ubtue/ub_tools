@@ -17,6 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #pragma once
 
 #include <functional>
@@ -28,19 +29,33 @@
 #include "StringUtil.h"
 #include "util.h"
 
+
+/*
+ * The following provide a centeralized API to read and write journal related data stored in
+ * config files that store journal-specific data. The structure of such config files is as follows:
+ *      [journal name]
+ *      <bundle_name>_<key> = <value>
+ * Bundles are collections of related key-value config entries. Journals can have multiple bundles.
+ * Keys inside a bundle are required to be unique, but different bundles can have keys with the same name.
+ */
 namespace JournalConfig {
 
 
+// Represents an (unsigned) integer ID for entries
 using EntryId = unsigned;
 
 
+// A basic triple of an ID, a key and a value. Each Entry is associated with a specific bundle.
 struct Entry {
-    EntryId id;
-    std::string key;       // without a prefix
-    std::string value;
+    EntryId id_;
+    std::string key_;
+    std::string value_;
 };
 
 
+// Represents a collection of related entries. The template type parameter "Traits" must be a type that implements the following:
+//      * A Key-ID-Resolver map that maps key names to their corresponding ID.
+//      * A prefix string that specifies the name of the bundle.
 template<typename Traits>
 class EntryBundle {
     using KeyIdResolutionMap = std::unordered_map<std::string, typename Traits::Entries>;
@@ -59,6 +74,7 @@ public:
     EntryBundle() = default;
     explicit EntryBundle(const IniFile::Section &config_section) { load(config_section); }
 public:
+    // Loads key-value pairs into the bundle. The key name must include the bundle name as its prefix.
     size_t load(const std::vector<std::pair<std::string, std::string>> &entries, bool clear_entries = true) {
         if (clear_entries)
             clear();
@@ -78,9 +94,11 @@ public:
             }
         }
 
-        std::sort(entries_.begin(), entries_.end(), [](const Entry &a, const Entry &b) -> bool { return a.id < b.id; });
+        std::sort(entries_.begin(), entries_.end(), [](const Entry &a, const Entry &b) -> bool { return a.id_ < b.id_; });
         return entries_.size();
     }
+
+    // Loads entries directly from a section in a config file.
     size_t load(const IniFile::Section &section, bool clear_entries = true) {
         if (clear_entries)
             clear();
@@ -98,35 +116,48 @@ public:
             }
         }
 
-        std::sort(entries_.begin(), entries_.end(), [](const Entry &a, const Entry &b) -> bool { return a.id < b.id; });
+        std::sort(entries_.begin(), entries_.end(), [](const Entry &a, const Entry &b) -> bool { return a.id_ < b.id_; });
         return entries_.size();
     };
 
+    // Saves the entries as an ordered-list of key-value pairs. The key names include the bundle name as their prefixes.
     void save(std::vector<std::pair<std::string, std::string>> * const entries) const {
         const std::string bundle_prefix(Traits::prefix);
 
         for (const auto &entry: entries_)
             entries->emplace_back(bundle_prefix + "_" + entry.key, entry.value);
     }
+
+    // Saves the entries directly to a section in a config file.
+    void save(IniFile::Section * const section, IniFile::Section::DupeInsertionBehaviour insertion_behaviour) const {
+        const std::string bundle_prefix(Traits::prefix);
+
+        for (const auto &entry: entries_)
+            section->insert(bundle_prefix + "_" + entry.key, entry.value, "", insertion_behaviour);
+    }
     void clear() { entries_.clear(); }
     size_t size() const { return entries_.size(); }
+
+    // Returns the value of the entry specified by the given entry ID.
     const std::string &value(const EntryId &entry_id) const {
         for (const auto &entry: entries_) {
-            if (entry.id == entry_id)
-                return entry.value;
+            if (entry.id_ == entry_id)
+                return entry.value_;
         }
 
         LOG_ERROR("Couldn't find entry with id " + std::to_string(entry_id));
     }
+
     std::string value(const EntryId &entry_id, const std::string &default_value) const {
         for (const auto &entry: entries_) {
-            if (entry.id == entry_id)
-                return entry.value;
+            if (entry.id_ == entry_id)
+                return entry.value_;
         }
 
         return default_value;
     }
 
+    // Returns the fully-qualified key name for a specific entry. This includes the bundle name as its prefix.
     static std::string Key(const typename Traits::Entries &entry_id) {
         const auto match(std::find_if(Traits::key_id_resolver_map.begin(),
                          Traits::key_id_resolver_map.end(),
@@ -140,7 +171,7 @@ public:
         return Traits::prefix + "_" + match->first;
     }
 
-
+    // Returns the entry ID of the given key. The key may optionally include the bundle name as its prefix.
     static typename Traits::Entries EntryId(const std::string &key) {
         std::string trimmed_key(key);
         if (StringUtil::StartsWith(key + "_", Traits::prefix))
@@ -200,6 +231,7 @@ struct Zotero {
 using ZoteroBundle = EntryBundle<Zotero>;
 
 
+// Helper class to parse a config file into bundle collections.
 class Reader {
 public:
     struct Bundles {
