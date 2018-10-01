@@ -46,14 +46,16 @@
 namespace FileUtil {
 
 
-AutoTempFile::AutoTempFile(const std::string &path_prefix, bool automatically_remove)
+AutoTempFile::AutoTempFile(const std::string &path_prefix, const std::string &path_suffix, bool automatically_remove)
     : automatically_remove_(automatically_remove)
 {
-    std::string path_template(path_prefix + "XXXXXX");
+    std::string path_template(path_prefix + "XXXXXX" + path_suffix);
     const int fd(::mkstemp(const_cast<char *>(path_template.c_str())));
-    if (fd == -1)
+    if (fd == -1) {
         throw std::runtime_error("in AutoTempFile::AutoTempFile: mkstemp(3) for path prefix \"" + path_prefix
-                                 + "\" failed! (" + std::string(::strerror(errno)) + ")");
+                                 + "\" and path suffix \"" + path_suffix + "\" failed! (" + std::string(::strerror(errno)) + ")");
+    }
+
     ::close(fd);
     path_ = path_template;
 }
