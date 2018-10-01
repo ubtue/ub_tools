@@ -39,6 +39,7 @@
 #include <sys/time.h>
 #include "Compiler.h"
 #include "Locale.h"
+#include "PerlCompatRegExp.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "WebUtil.h"

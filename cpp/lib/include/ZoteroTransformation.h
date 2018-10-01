@@ -17,8 +17,6 @@
 #pragma once
 
 #include "MARC.h"
-#include "UrlUtil.h"
-#include "Zotero.h"
 
 
 namespace Zotero {

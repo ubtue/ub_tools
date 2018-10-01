@@ -36,6 +36,7 @@
 #include "FileUtil.h"
 #include "MarcQueryParser.h"
 #include "MARC.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
