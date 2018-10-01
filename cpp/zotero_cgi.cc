@@ -31,7 +31,6 @@
 #include "IniFile.h"
 #include "StringUtil.h"
 #include "Template.h"
-#include "TextUtil.h"
 #include "WallClockTimer.h"
 #include "WebUtil.h"
 #include "Zotero.h"

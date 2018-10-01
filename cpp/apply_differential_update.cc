@@ -27,14 +27,11 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
-#include "unistd.h"
 #include "Archive.h"
 #include "BSZUtil.h"
 #include "Compiler.h"
-#include "File.h"
 #include "FileUtil.h"
 #include "MARC.h"
-#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -75,7 +72,7 @@ void CopySelectedTypes(const std::vector<std::string> &archive_members, MARC::Wr
     }
 }
 
-    
+
 void PatchArchiveMembersAndCreateOutputArchive(const std::vector<std::string> &input_archive_members,
                                                const std::vector<std::string> &difference_archive_members, const std::string &output_directory)
 {

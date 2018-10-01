@@ -28,7 +28,6 @@
 #include "IniFile.h"
 #include "JSON.h"
 #include "Solr.h"
-#include "TextUtil.h"
 #include "TimeUtil.h"
 #include "util.h"
 

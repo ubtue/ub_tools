@@ -21,7 +21,6 @@
 #include <cstdlib>
 #include <cstring>
 #include "Compiler.h"
-#include "FileUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "util.h"

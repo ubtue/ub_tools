@@ -27,7 +27,6 @@
 #include "IniFile.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
-#include "SyndicationFormat.h"
 #include "util.h"
 
 

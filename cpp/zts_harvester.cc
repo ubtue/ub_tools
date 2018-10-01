@@ -24,7 +24,6 @@
 #include "DbConnection.h"
 #include "IniFile.h"
 #include "MARC.h"
-#include "StlHelpers.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"

@@ -24,8 +24,6 @@
 #include <cerrno>
 #include <cstring>
 #include <getopt.h>
-#include "Downloader.h"
-#include "FileUtil.h"
 #include "SimpleCrawler.h"
 #include "util.h"
 
