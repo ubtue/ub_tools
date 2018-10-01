@@ -520,7 +520,7 @@ std::string MakeOrdinal(const unsigned number) {
         return StringUtil::ToString(number) + "nd";
     if (number % 10 == 3)
         return StringUtil::ToString(number) + "rd";
-    return StringUtil::ToString(number) + "th";    
+    return StringUtil::ToString(number) + "th";
 }
 
 

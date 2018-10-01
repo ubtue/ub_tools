@@ -16,10 +16,10 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include "Zeder.h"
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
-#include "Zeder.h"
 
 
 namespace Zeder {
