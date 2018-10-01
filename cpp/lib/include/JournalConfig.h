@@ -75,7 +75,7 @@ public:
     explicit EntryBundle(const IniFile::Section &config_section) { load(config_section); }
 public:
     // Loads key-value pairs into the bundle. The key name must include the bundle name as its prefix.
-    size_t load(const std::vector<std::pair<std::string, std::string>> &entries, bool clear_entries = true) {
+    size_t load(const std::vector<std::pair<std::string, std::string>> &entries, const bool clear_entries = true) {
         if (clear_entries)
             clear();
 
@@ -99,7 +99,7 @@ public:
     }
 
     // Loads entries directly from a section in a config file.
-    size_t load(const IniFile::Section &section, bool clear_entries = true) {
+    size_t load(const IniFile::Section &section, const bool clear_entries = true) {
         if (clear_entries)
             clear();
 
@@ -129,7 +129,7 @@ public:
     }
 
     // Saves the entries directly to a section in a config file.
-    void save(IniFile::Section * const section, IniFile::Section::DupeInsertionBehaviour insertion_behaviour) const {
+    void save(IniFile::Section * const section, const IniFile::Section::DupeInsertionBehaviour insertion_behaviour) const {
         const std::string bundle_prefix(Traits::prefix);
 
         for (const auto &entry: entries_)
