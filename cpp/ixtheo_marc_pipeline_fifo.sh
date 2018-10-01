@@ -316,6 +316,7 @@ EndPhase || Abort) &
 StartPhase "Create Databases for Title and Author Matching"
 (create_match_db GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Cleanup of Intermediate Files"
