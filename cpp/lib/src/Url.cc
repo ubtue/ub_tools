@@ -37,7 +37,6 @@
 #include "DnsUtil.h"
 #include "Downloader.h"
 #include "HttpHeader.h"
-#include "IniFile.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
 

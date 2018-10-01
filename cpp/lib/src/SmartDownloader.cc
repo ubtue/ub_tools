@@ -20,7 +20,6 @@
 #include "SmartDownloader.h"
 #include <iostream>
 #include "Downloader.h"
-#include "FileUtil.h"
 #include "IdbPager.h"
 #include "MediaTypeUtil.h"
 #include "RegexMatcher.h"

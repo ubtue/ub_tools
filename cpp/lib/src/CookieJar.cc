@@ -31,7 +31,6 @@
 #include "Compiler.h"
 #include "DnsUtil.h"
 #include "HttpHeader.h"
-#include "PerlCompatRegExp.h"
 #include "StringUtil.h"
 #include "WebUtil.h"
 
