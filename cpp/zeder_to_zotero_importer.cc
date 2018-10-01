@@ -27,6 +27,7 @@
 #include <cstring>
 #include <unistd.h>
 #include "IniFile.h"
+#include "JournalConfig.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
@@ -61,7 +62,7 @@ enum ExportField {
     TITLE,
     ZEDER_ID, ZEDER_MODIFIED_TIMESTAMP, ZEDER_COMMENT,
     TYPE, GROUP,
-    PARENT_PPN, PARENT_ISSN_PRINT, PARENT_ISSN_ONLINE,
+    PARENT_PPN_PRINT, PARENT_PPN_ONLINE, PARENT_ISSN_PRINT, PARENT_ISSN_ONLINE,
     ENTRY_POINT_URL, STRPTIME_FORMAT,
     EXTRACTION_REGEX, MAX_CRAWL_DEPTH
 };
@@ -91,7 +92,6 @@ public:
     const std::string &getAttributeName(ExportField field) const { return attribute_names_.at(field); }
     std::vector<std::string> getAllValidAttributeNames() const;
     const std::string &getIniKey(ExportField field) const;
-    const std::string &getIniKey(ExportField field, Zotero::HarvesterType harvester_type) const;
     std::pair<std::string, std::string> getIniKeyAttributeNamePair(ExportField field) const;
     std::pair<std::string, std::string> getAttributeNameIniKeyPair(ExportField field) const;
 };
@@ -104,7 +104,8 @@ ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { ZEDER_COMMENT,            "zts_zeder_comment"         },
     { TYPE,                     "zts_type"                  },
     { GROUP,                    "zts_group"                 },
-    { PARENT_PPN,               "zts_parent_ppn"            },
+    { PARENT_PPN_PRINT,         "zts_parent_ppn_print"      },
+    { PARENT_PPN_ONLINE,        "zts_parent_ppn_online"     },
     { PARENT_ISSN_PRINT,        "zts_parent_issn_print"     },
     { PARENT_ISSN_ONLINE,       "zts_parent_issn_online"    },
     { ENTRY_POINT_URL,          "zts_entry_point_url"       },
@@ -113,18 +114,19 @@ ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { MAX_CRAWL_DEPTH,          "" /* unused */             },
 }, ini_keys_{
     { TITLE,                    "" /* exported as the section name */   },
-    { ZEDER_ID,                 "zeder_id"                              },
-    { ZEDER_MODIFIED_TIMESTAMP, "zeder_modified_time"                   },
-    { ZEDER_COMMENT,            "zeder_comment"                         },
-    { TYPE,                     Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::TYPE)                 },
-    { GROUP,                    Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::GROUP)                },
-    { PARENT_PPN,               Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_PPN)           },
-    { PARENT_ISSN_PRINT,        Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_PRINT)    },
-    { PARENT_ISSN_ONLINE,       Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_ONLINE)   },
-    { ENTRY_POINT_URL,          "" /* has multiple entries, resolved directly in the member function */                             },
-    { STRPTIME_FORMAT,          Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT)      },
-    { EXTRACTION_REGEX,         Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX)     },
-    { MAX_CRAWL_DEPTH,          Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::MAX_CRAWL_DEPTH)      },
+    { ZEDER_ID,                 JournalConfig::ZederBundle::Key(JournalConfig::Zeder::ID)                   },
+    { ZEDER_MODIFIED_TIMESTAMP, JournalConfig::ZederBundle::Key(JournalConfig::Zeder::MODIFIED_TIME)        },
+    { ZEDER_COMMENT,            JournalConfig::ZederBundle::Key(JournalConfig::Zeder::COMMENT)              },
+    { TYPE,                     JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::TYPE)               },
+    { GROUP,                    JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::GROUP)              },
+    { PARENT_PPN_PRINT,         JournalConfig::PrintBundle::Key(JournalConfig::Print::PPN)                  },
+    { PARENT_PPN_ONLINE,        JournalConfig::OnlineBundle::Key(JournalConfig::Online::PPN)                },
+    { PARENT_ISSN_PRINT,        JournalConfig::PrintBundle::Key(JournalConfig::Print::ISSN)                 },
+    { PARENT_ISSN_ONLINE,       JournalConfig::OnlineBundle::Key(JournalConfig::Online::ISSN)               },
+    { ENTRY_POINT_URL,          JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::URL)                },
+    { STRPTIME_FORMAT,          JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::STRPTIME_FORMAT)    },
+    { EXTRACTION_REGEX,         JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::EXTRACTION_REGEX)   },
+    { MAX_CRAWL_DEPTH,          JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::MAX_CRAWL_DEPTH)    },
 } {}
 
 
@@ -137,34 +139,12 @@ std::vector<std::string> ExportFieldNameResolver::getAllValidAttributeNames() co
 
 
 const std::string &ExportFieldNameResolver::getIniKey(ExportField field) const {
-    if (field == ENTRY_POINT_URL)
-        LOG_ERROR("Cannot resolve INI name for field '" + std::to_string(field) + "' without harvester type data");
-    else
-        return ini_keys_.at(field);
-}
-
-
-const std::string &ExportFieldNameResolver::getIniKey(ExportField field, Zotero::HarvesterType harvester_type) const {
-    if (field == ENTRY_POINT_URL) {
-        switch (harvester_type) {
-        case Zotero::HarvesterType::DIRECT:
-            return Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::URL);
-        case Zotero::HarvesterType::RSS:
-            return Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::FEED);
-        case Zotero::HarvesterType::CRAWL:
-            return Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::BASE_URL);
-        }
-    } else
-        return ini_keys_.at(field);
-    __builtin_unreachable(); // G++ seems not to be smart enough to figure this out on its own. :-(
+    return ini_keys_.at(field);
 }
 
 
 std::pair<std::string, std::string> ExportFieldNameResolver::getIniKeyAttributeNamePair(ExportField field) const {
-    if (field == ENTRY_POINT_URL)
-        LOG_ERROR("Cannot resolve INI name for field '" + std::to_string(field) + "' without harvester type data");
-    else
-        return std::make_pair(getIniKey(field), getAttributeName(field));
+    return std::make_pair(getIniKey(field), getAttributeName(field));
 }
 
 
@@ -247,11 +227,11 @@ bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFie
 
     const auto &pppn(entry->getAttribute("pppn")), &eppn(entry->getAttribute("eppn"));
     if (MiscUtil::IsValidPPN(eppn))
-        entry->setAttribute(name_resolver.getAttributeName(PARENT_PPN), eppn);
-    else if (MiscUtil::IsValidPPN(pppn))
-        entry->setAttribute(name_resolver.getAttributeName(PARENT_PPN), pppn);
-    else {
-        LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | No valid PPPN found");
+        entry->setAttribute(name_resolver.getAttributeName(PARENT_PPN_ONLINE), eppn);
+    if (MiscUtil::IsValidPPN(pppn))
+        entry->setAttribute(name_resolver.getAttributeName(PARENT_PPN_PRINT), pppn);
+    if (not MiscUtil::IsValidPPN(pppn) and not MiscUtil::IsValidPPN(eppn)) {
+        LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | No valid PPN found");
         valid = ignore_invalid_ppn_issn ? valid : false;
     }
 
@@ -430,14 +410,11 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
         name_resolver.getIniKeyAttributeNamePair(ZEDER_COMMENT),
         name_resolver.getIniKeyAttributeNamePair(TYPE),
         name_resolver.getIniKeyAttributeNamePair(GROUP),
-        name_resolver.getIniKeyAttributeNamePair(PARENT_PPN),
+        name_resolver.getIniKeyAttributeNamePair(PARENT_PPN_PRINT),
+        name_resolver.getIniKeyAttributeNamePair(PARENT_PPN_ONLINE),
         name_resolver.getIniKeyAttributeNamePair(PARENT_ISSN_PRINT),
         name_resolver.getIniKeyAttributeNamePair(PARENT_ISSN_ONLINE),
-        name_resolver.getIniKeyAttributeNamePair(PARENT_ISSN_ONLINE),
-
-        { name_resolver.getIniKey(ENTRY_POINT_URL, Zotero::HarvesterType::DIRECT), name_resolver.getAttributeName(ENTRY_POINT_URL) },
-        { name_resolver.getIniKey(ENTRY_POINT_URL, Zotero::HarvesterType::CRAWL), name_resolver.getAttributeName(ENTRY_POINT_URL) },
-        { name_resolver.getIniKey(ENTRY_POINT_URL, Zotero::HarvesterType::RSS), name_resolver.getAttributeName(ENTRY_POINT_URL) },
+        name_resolver.getIniKeyAttributeNamePair(ENTRY_POINT_URL),
     };
 
     IniFile ini(file_path);
@@ -446,8 +423,7 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
 
     // select the sections that are Zeder-compatible, i.e., that were exported by this tool
     std::vector<std::string> valid_section_names, groups;
-    StringUtil::Split(ini.getString("", Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::GROUP) + "s", ""),
-                      ',', &groups);
+    StringUtil::Split(ini.getString("", "groups", ""), ',', &groups);
 
     for (const auto &section : ini) {
         const auto section_name(section.getSectionName());
@@ -482,33 +458,30 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
 {
     static const std::vector<std::string> attributes_to_export{
         name_resolver.getAttributeName(ZEDER_COMMENT),
+        name_resolver.getAttributeName(PARENT_PPN_PRINT),
+        name_resolver.getAttributeName(PARENT_ISSN_PRINT),
+        name_resolver.getAttributeName(PARENT_PPN_ONLINE),
+        name_resolver.getAttributeName(PARENT_ISSN_ONLINE),
         name_resolver.getAttributeName(TYPE),
         name_resolver.getAttributeName(GROUP),
-        name_resolver.getAttributeName(PARENT_PPN),
-        name_resolver.getAttributeName(PARENT_ISSN_PRINT),
-        name_resolver.getAttributeName(PARENT_ISSN_ONLINE),
+        name_resolver.getAttributeName(ENTRY_POINT_URL),
     };
 
     static const std::unordered_map<std::string, std::string> attribute_to_ini_key_map{
         name_resolver.getAttributeNameIniKeyPair(ZEDER_COMMENT),
         name_resolver.getAttributeNameIniKeyPair(TYPE),
         name_resolver.getAttributeNameIniKeyPair(GROUP),
-        name_resolver.getAttributeNameIniKeyPair(PARENT_PPN),
+        name_resolver.getAttributeNameIniKeyPair(PARENT_PPN_PRINT),
+        name_resolver.getAttributeNameIniKeyPair(PARENT_PPN_ONLINE),
         name_resolver.getAttributeNameIniKeyPair(PARENT_ISSN_PRINT),
         name_resolver.getAttributeNameIniKeyPair(PARENT_ISSN_ONLINE),
+        name_resolver.getAttributeNameIniKeyPair(ENTRY_POINT_URL),
     };
 
     auto extra_keys_appender([name_resolver](IniFile::Section * const section, const Zeder::Entry &entry) {
         Zotero::HarvesterType harvester_type;
         if (not GetHarvesterTypeFromEntry(entry, name_resolver, &harvester_type))
             LOG_ERROR("Entry " + std::to_string(entry.getId()) + " | Invalid harvester type");
-
-        // we need to manually resolve the key names for the entry point URL as they are dependent on the harvester type
-        const auto entrypoint_url_key(name_resolver.getIniKey(ENTRY_POINT_URL, harvester_type));
-        const auto existing_entry(section->find(entrypoint_url_key));
-        section->insert(entrypoint_url_key, entry.getAttribute(name_resolver.getAttributeName(ENTRY_POINT_URL)),
-                        existing_entry != section->end() ? existing_entry->comment_ : "",
-                        IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
 
         if (harvester_type == Zotero::HarvesterType::CRAWL) {
             std::string temp_buffer;

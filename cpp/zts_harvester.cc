@@ -23,6 +23,7 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "IniFile.h"
+#include "JournalConfig.h"
 #include "MARC.h"
 #include "StlHelpers.h"
 #include "RegexMatcher.h"
@@ -51,12 +52,14 @@ const std::unordered_map<std::string, std::string> group_to_user_agent_map = {
     std::cerr << "Usage: " << ::progname << " [options] config_file_path [section1 section2 .. sectionN]\n"
               << "\n"
               << "\tOptions:\n"
-              << "\t[--min-log-level=log_level]    Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
-              << "\t[--delivery-mode=mode]         Only sections that have the specific delivery mode (either LIVE or TEST) set will be processed.\n"
-              << "\t[--groups=my_groups            Where groups are a comma-separated list of goups.\n"
+              << "\t[--min-log-level=log_level]         Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
+              << "\t[--delivery-mode=mode]              Only sections that have the specific delivery mode (either LIVE or TEST) set will be processed.\n"
+              << "\t[--groups=my_groups                 Where groups are a comma-separated list of groups.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
-              << "\t[--output-file=output_file]\n"
+              << "\t[--output-directory=output_directory]\n"
+              << "\t[--output-filename=output_filename] Overrides the automatically-generated filename based on the current date/time.\n"
+              << "\t[--output-format=output_format]     Either \"marc-21\" or \"marc-xml\", with the default being the latter\n"
               << "\t[--error-report-file=error_report_file]\n"
               << "\n"
               << "\tIf any section names have been provided, only those will be processed o/w all sections will be processed.\n\n";
@@ -64,17 +67,21 @@ const std::unordered_map<std::string, std::string> group_to_user_agent_map = {
 }
 
 
-void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Section &section, Zotero::SiteParams * const site_params) {
-    site_params->parent_journal_name_ = section.getSectionName();
-    site_params->parent_ISSN_print_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_PRINT), "");
-    site_params->parent_ISSN_online_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_ISSN_ONLINE), "");
-    site_params->parent_PPN_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::PARENT_PPN), "");
-    site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::EXTRACTION_REGEX), "")));
+void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Section &section, const JournalConfig::Reader &bundle_reader,
+                                  Zotero::SiteParams * const site_params)
+{
+    const auto section_name(section.getSectionName());
+    site_params->parent_journal_name_ = section_name;
+    site_params->parent_ISSN_print_ = bundle_reader.print(section_name).value(JournalConfig::Print::ISSN, "");
+    site_params->parent_ISSN_online_ = bundle_reader.online(section_name).value(JournalConfig::Online::ISSN, "");
+    site_params->parent_PPN_ = bundle_reader.print(section_name).value(JournalConfig::Print::PPN, "");
+    site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(bundle_reader.zotero(section_name)
+                                         .value(JournalConfig::Zotero::EXTRACTION_REGEX, "")));
 
     // append the common time format string to the site-specific override
-    site_params->strptime_format_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT), "");
+    site_params->strptime_format_ = bundle_reader.zotero(section_name).value(JournalConfig::Zotero::STRPTIME_FORMAT, "");
 
-    const auto common_strptime_format(ini_file.getString("", "common_" + Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT), ""));
+    const auto common_strptime_format(ini_file.getString("", "common_strptime_format"));
     if (not common_strptime_format.empty()) {
         if (common_strptime_format[0] == '(')
             LOG_ERROR("Cannot specify locale in common_strptime_format");
@@ -86,11 +93,11 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
 }
 
 
-UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                            const Zotero::SiteParams &site_params, DbConnection * const db_connection,
-                            Zotero::HarvesterErrorLogger * const error_logger)
+UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const JournalConfig::Reader &bundle_reader,
+                            const std::shared_ptr<Zotero::HarvestParams> &harvest_params, const Zotero::SiteParams &site_params,
+                            DbConnection * const db_connection, Zotero::HarvesterErrorLogger * const error_logger)
 {
-    const std::string feed_url(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::FEED)));
+    const std::string feed_url(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::URL));
     LOG_DEBUG("feed_url: " + feed_url);
 
     // set to test by default until we figure out how to restructure the RSS related code
@@ -99,27 +106,24 @@ UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const std::shared_p
 }
 
 
-void ReadCrawlerSiteDesc(const IniFile::Section &section, SimpleCrawler::SiteDesc * const site_desc) {
-    site_desc->start_url_ = section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::BASE_URL));
-    site_desc->max_crawl_depth_ = section.getUnsigned(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::MAX_CRAWL_DEPTH));
-}
-
-
-UnsignedPair ProcessCrawl(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                          const Zotero::SiteParams &site_params, const SimpleCrawler::Params &crawler_params,
-                          const std::shared_ptr<RegexMatcher> &supported_urls_regex,
+UnsignedPair ProcessCrawl(const IniFile::Section &section, const JournalConfig::Reader &bundle_reader,
+                          const std::shared_ptr<Zotero::HarvestParams> &harvest_params, const Zotero::SiteParams &site_params,
+                          const SimpleCrawler::Params &crawler_params, const std::shared_ptr<RegexMatcher> &supported_urls_regex,
                           Zotero::HarvesterErrorLogger * const error_logger)
 {
     SimpleCrawler::SiteDesc site_desc;
-    ReadCrawlerSiteDesc(section, &site_desc);
+    site_desc.start_url_ = bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::URL);
+    site_desc.max_crawl_depth_ = StringUtil::ToUnsigned(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::MAX_CRAWL_DEPTH));
+
     return Zotero::HarvestSite(site_desc, crawler_params, supported_urls_regex, harvest_params, site_params, error_logger);
 }
 
 
-UnsignedPair ProcessDirectHarvest(const IniFile::Section &section, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                                  const Zotero::SiteParams &site_params, Zotero::HarvesterErrorLogger * const error_logger)
+UnsignedPair ProcessDirectHarvest(const IniFile::Section &section, const JournalConfig::Reader &bundle_reader,
+                                  const std::shared_ptr<Zotero::HarvestParams> &harvest_params, const Zotero::SiteParams &site_params,
+                                  Zotero::HarvesterErrorLogger * const error_logger)
 {
-    return Zotero::HarvestURL(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::URL)),
+    return Zotero::HarvestURL(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::URL),
                               harvest_params, site_params, error_logger);
 }
 
@@ -127,12 +131,87 @@ UnsignedPair ProcessDirectHarvest(const IniFile::Section &section, const std::sh
 std::string GetMarcFormat(const std::string &output_filename) {
     switch (MARC::GuessFileType(output_filename)) {
     case MARC::FileType::BINARY:
-        return "marc21";
+        return "marc-21";
     case MARC::FileType::XML:
-        return "marcxml";
+        return "marc-xml";
     default:
         LOG_ERROR("can't determine output format from MARC output filename \"" + output_filename + "\"!");
     }
+}
+
+
+struct ZoteroFormatHandlerParams {
+    DbConnection * const db_connection_;
+    std::string output_format_string_;
+    std::string output_file_path_;
+    std::shared_ptr<Zotero::HarvestParams> harvester_params_;
+};
+
+
+void InitializeFormatHandlerParams(DbConnection * const db_connection, const std::shared_ptr<Zotero::HarvestParams> &harvester_params,
+                                   const MARC::FileType output_format, const std::string &output_directory, const std::string &output_filename,
+                                   const std::unordered_map<std::string, Zotero::GroupParams> &group_name_to_params_map,
+                                   std::unordered_map<std::string, ZoteroFormatHandlerParams> * const group_name_to_format_handler_params_map)
+{
+    static const std::string time_format_string("%Y-%m-%d %T");
+
+    for (const auto &group_param_entry : group_name_to_params_map) {
+        const auto &group_name(group_param_entry.first);
+        const auto &bsz_upload_group(group_param_entry.second.bsz_upload_group_);
+
+        char time_buffer[100]{};
+        const auto current_time_gmt(TimeUtil::GetCurrentTimeGMT());
+        std::strftime(time_buffer, sizeof(time_buffer), time_format_string.c_str(), &current_time_gmt);
+
+        std::string output_format_string;
+        std::string output_file_path(output_directory + "/" + bsz_upload_group);
+
+        if (not output_filename.empty()) {
+            output_file_path += "/" + output_filename;
+            if (output_format == MARC::FileType::AUTO)
+                output_format_string = GetMarcFormat(output_filename);
+            else if (output_format == MARC::FileType::XML)
+                output_format_string = "marc-xml";
+            else
+                output_format_string = "marc-21";
+        } else {
+            output_file_path += "/zts_harvester_" + std::string(time_buffer) + ".";
+            if (output_format == MARC::FileType::XML) {
+                output_file_path += "xml";
+                output_format_string = "marc-xml";
+            } else {
+                output_file_path += "mrc";
+                output_format_string = "marc-21";
+            }
+        }
+
+        ZoteroFormatHandlerParams format_handler_params{
+            db_connection, output_format_string, output_file_path, harvester_params
+        };
+        group_name_to_format_handler_params_map->insert(std::make_pair(group_name, format_handler_params));
+    }
+}
+
+
+Zotero::FormatHandler *GetFormatHandlerForGroup(const std::string &group_name, const std::unordered_map<std::string, ZoteroFormatHandlerParams>
+                                                &group_name_to_format_handler_params_map)
+{
+    // lazy-initialize format handlers to prevent file spam in the output directory
+    static std::unordered_map<std::string, std::unique_ptr<Zotero::FormatHandler>> group_name_to_format_handler_map;
+
+    const auto match(group_name_to_format_handler_map.find(group_name));
+    if (match != group_name_to_format_handler_map.end())
+        return match->second.get();
+
+    const auto format_handler_param(group_name_to_format_handler_params_map.at(group_name));
+    std::string file_name, directory;
+    FileUtil::DirnameAndBasename(format_handler_param.output_file_path_, &directory, &file_name);
+    FileUtil::MakeDirectory(directory, true);
+
+    auto handler(Zotero::FormatHandler::Factory(format_handler_param.db_connection_, format_handler_param.output_format_string_,
+                    format_handler_param.output_file_path_, format_handler_param.harvester_params_));
+    group_name_to_format_handler_map.insert(std::make_pair(group_name, std::move(handler)));
+    return group_name_to_format_handler_map.at(group_name).get();
 }
 
 
@@ -175,12 +254,21 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
-    std::string output_file;
-    const std::string OUTPUT_FILE_FLAG_PREFIX("--output-file=");
-    if (StringUtil::StartsWith(argv[1], OUTPUT_FILE_FLAG_PREFIX)) {
-        output_file = argv[1] + OUTPUT_FILE_FLAG_PREFIX.length();
+    std::string output_directory;
+    const std::string OUTPUT_DIRECTORY_FLAG_PREFIX("--output-directory=");
+    if (StringUtil::StartsWith(argv[1], OUTPUT_DIRECTORY_FLAG_PREFIX)) {
+        output_directory = argv[1] + OUTPUT_DIRECTORY_FLAG_PREFIX.length();
         --argc, ++argv;
     }
+
+    std::string output_filename;
+    const std::string OUTPUT_FILENAME_FLAG_PREFIX("--output-filename=");
+    if (StringUtil::StartsWith(argv[1], OUTPUT_FILENAME_FLAG_PREFIX)) {
+        output_filename = argv[1] + OUTPUT_FILENAME_FLAG_PREFIX.length();
+        --argc, ++argv;
+    }
+
+    MARC::FileType output_format(MARC::GetOptionalWriterType(&argc, &argv, 1, MARC::FileType::AUTO));
 
     std::string error_report_file;
     const std::string ERROR_REPORT_FILE_FLAG_PREFIX("--error-report-file=");
@@ -193,6 +281,7 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     IniFile ini_file(argv[1]);
+    JournalConfig::Reader bundle_reader(ini_file);
     Zotero::HarvesterErrorLogger harvester_error_logger;
 
     std::shared_ptr<Zotero::HarvestParams> harvest_params(new Zotero::HarvestParams);
@@ -210,10 +299,8 @@ int Main(int argc, char *argv[]) {
 
     std::unique_ptr<DbConnection> db_connection(new DbConnection);
 
-    if (output_file.empty())
-        output_file = ini_file.getString("", "marc_output_file");
-    harvest_params->format_handler_ = Zotero::FormatHandler::Factory(db_connection.get(), GetMarcFormat(output_file),
-                                                                     output_file, harvest_params);
+    if (output_directory.empty())
+        output_directory = ini_file.getString("", "marc_output_directory");
 
     std::unordered_map<std::string, bool> section_name_to_found_flag_map;
     for (int arg_no(2); arg_no < argc; ++arg_no)
@@ -225,30 +312,43 @@ int Main(int argc, char *argv[]) {
     unsigned processed_section_count(0);
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
 
-    std::set<std::string> group_names;
-    std::map<std::string, Zotero::GroupParams> group_name_to_params_map;
-    for (const auto &section : ini_file) {
-        if (section.getSectionName().empty()) {
-            StringUtil::SplitThenTrimWhite(section.getString("groups"), ',', &group_names);
-            continue;
-        }
+    std::unordered_set<std::string> group_names;
+    std::unordered_map<std::string, Zotero::GroupParams> group_name_to_params_map;
+    std::unordered_map<std::string, ZoteroFormatHandlerParams> group_name_to_format_handler_params_map;
 
-        // Group processing:
-        if (group_names.find(section.getSectionName()) != group_names.cend()) {
-            Zotero::LoadGroup(section, &group_name_to_params_map);
+    // process groups in advance
+    StringUtil::SplitThenTrimWhite(ini_file.getString("", "groups"), ',', &group_names);
+    for (const auto &group_name : group_names)
+        Zotero::LoadGroup(*ini_file.getSection(group_name), &group_name_to_params_map);
+    InitializeFormatHandlerParams(db_connection.get(), harvest_params, output_format, output_directory, output_filename,
+                                  group_name_to_params_map, &group_name_to_format_handler_params_map);
+
+
+    for (const auto &section : ini_file) {
+        const auto section_name(section.getSectionName());
+        if (section_name.empty() or group_names.find(section_name) != group_names.end())
             continue;
-        }
 
         const BSZUpload::DeliveryMode delivery_mode(static_cast<BSZUpload::DeliveryMode>(section.getEnum("delivery_mode", BSZUpload::STRING_TO_DELIVERY_MODE_MAP, BSZUpload::DeliveryMode::NONE)));
         if (delivery_mode_to_process != BSZUpload::DeliveryMode::NONE and delivery_mode != delivery_mode_to_process)
             continue;
 
-        const std::string group_name(section.getString(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::GROUP)));
+        const std::string group_name(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::GROUP));
         const auto group_name_and_params(group_name_to_params_map.find(group_name));
         if (group_name_and_params == group_name_to_params_map.cend())
-            LOG_ERROR("unknown or undefined group \"" + group_name + "\" in section \"" + section.getSectionName() + "\"!");
+            LOG_ERROR("unknown or undefined group \"" + group_name + "\" in section \"" + section_name + "\"!");
         else if (not groups_filter.empty() and groups_filter.find(group_name) == groups_filter.end())
             continue;
+
+        if (not section_name_to_found_flag_map.empty()) {
+            const auto section_name_and_found_flag(section_name_to_found_flag_map.find(section_name));
+            if (section_name_and_found_flag == section_name_to_found_flag_map.end())
+                continue;
+            section_name_and_found_flag->second = true;
+        }
+
+        LOG_INFO("Processing section \"" + section_name + "\".");
+        ++processed_section_count;
 
         Zotero::GobalAugmentParams global_augment_params(&augment_maps);
 
@@ -256,26 +356,17 @@ int Main(int argc, char *argv[]) {
         site_params.global_params_          = &global_augment_params;
         site_params.group_params_           = &group_name_and_params->second;
         site_params.delivery_mode_          = delivery_mode;
-        ReadGenericSiteAugmentParams(ini_file, section, &site_params);
+        ReadGenericSiteAugmentParams(ini_file, section, bundle_reader, &site_params);
 
+        harvest_params->format_handler_ = GetFormatHandlerForGroup(site_params.group_params_->name_, group_name_to_format_handler_params_map);
         harvest_params->format_handler_->setAugmentParams(&site_params);
-
-        if (not section_name_to_found_flag_map.empty()) {
-            const auto section_name_and_found_flag(section_name_to_found_flag_map.find(section.getSectionName()));
-            if (section_name_and_found_flag == section_name_to_found_flag_map.end())
-                continue;
-            section_name_and_found_flag->second = true;
-        }
-
         harvest_params->user_agent_ = group_name_and_params->second.user_agent_;
 
-        LOG_INFO("Processing section \"" + section.getSectionName() + "\".");
-        ++processed_section_count;
-
-        const Zotero::HarvesterType type(static_cast<Zotero::HarvesterType>(section.getEnum(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::TYPE),
-                                                                                            type_string_to_value_map)));
+        const Zotero::HarvesterType type(static_cast<Zotero::HarvesterType>(Zotero::STRING_TO_HARVEST_TYPE_MAP.at(bundle_reader
+                                                                            .zotero(section_name)
+                                                                            .value (JournalConfig::Zotero::TYPE))));
         if (type == Zotero::HarvesterType::RSS) {
-            total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section, harvest_params,
+            total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section, bundle_reader,harvest_params,
                                                                                         site_params, db_connection.get(),
                                                                                         &harvester_error_logger);
         } else if (type == Zotero::HarvesterType::CRAWL) {
@@ -286,9 +377,9 @@ int Main(int argc, char *argv[]) {
             crawler_params.user_agent_ = harvest_params->user_agent_;
 
             total_record_count_and_previously_downloaded_record_count +=
-                ProcessCrawl(section, harvest_params, site_params, crawler_params, supported_urls_regex, &harvester_error_logger);
+                ProcessCrawl(section, bundle_reader, harvest_params, site_params, crawler_params, supported_urls_regex, &harvester_error_logger);
         } else {
-            total_record_count_and_previously_downloaded_record_count += ProcessDirectHarvest(section, harvest_params, site_params,
+            total_record_count_and_previously_downloaded_record_count += ProcessDirectHarvest(section, bundle_reader, harvest_params, site_params,
                                                                                               &harvester_error_logger);
         }
     }
