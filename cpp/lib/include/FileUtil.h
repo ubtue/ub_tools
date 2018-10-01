@@ -147,7 +147,7 @@ class AutoTempFile {
     std::string path_;
     bool automatically_remove_;
 public:
-    explicit AutoTempFile(const std::string &path_prefix = "/tmp/ATF", bool automatically_remove = true);
+    explicit AutoTempFile(const std::string &path_prefix = "/tmp/ATF", const std::string &path_suffix = "", bool automatically_remove = true);
     ~AutoTempFile() { if (not path_.empty() and automatically_remove_) ::unlink(path_.c_str()); }
 
     const std::string &getFilePath() const { return path_; }
