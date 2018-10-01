@@ -90,7 +90,8 @@ std::string GetMinElementOrDefault(const std::vector<std::string> &elements, con
 
 
 void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Template::Map * const names_to_values_map,
-                     std::unordered_map<std::string, Zotero::GroupParams> * const group_name_to_params_map)
+                     std::unordered_map<std::string, Zotero::GroupParams> * const group_name_to_params_map,
+                     std::unordered_map<std::string, std::string> * const journal_name_to_group_name_map)
 {
     IniFile ini(ZTS_HARVESTER_CONF_FILE);
 
@@ -180,6 +181,8 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
         all_journal_zeder_ids.emplace_back(zeder_id);
         all_journal_zeder_comments.emplace_back(zeder_comment);
         all_journal_zeder_urls.emplace_back(zeder_url);
+
+        journal_name_to_group_name_map->insert(std::make_pair(title, group));
 
         const auto delivery_mode_string(std::find_if(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.begin(), BSZUpload::STRING_TO_DELIVERY_MODE_MAP.end(), [delivery_mode](const std::pair<std::string, int> &map_entry) {return map_entry.second == delivery_mode; })->first);
         all_journal_delivery_modes.emplace_back(delivery_mode_string);
@@ -461,7 +464,8 @@ int Main(int argc, char *argv[]) {
 
         std::ifstream template_html(TEMPLATE_FILENAME);
         std::unordered_map<std::string, Zotero::GroupParams> group_name_to_params_map;
-        ParseConfigFile(cgi_args, &names_to_values_map, &group_name_to_params_map);
+        std::unordered_map<std::string, std::string>journal_name_to_group_name_map;
+        ParseConfigFile(cgi_args, &names_to_values_map, &group_name_to_params_map, &journal_name_to_group_name_map);
         Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
         std::cout << std::flush;
 
@@ -478,7 +482,7 @@ int Main(int argc, char *argv[]) {
         } else if (action != default_action)
             LOG_ERROR("invalid action: \"" + action + '"');
 
-        ExecuteHarvestAction(journal_title, output_format, group_name_to_params_map.at(journal_title));
+        ExecuteHarvestAction(journal_title, output_format, group_name_to_params_map.at(journal_name_to_group_name_map.at(journal_title)));
         std::cout << "</body></html>";
     }
 
