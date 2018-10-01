@@ -171,7 +171,7 @@ void LoadGroup(const IniFile::Section &section, std::unordered_map<std::string, 
     new_group_params.user_agent_        = section.getString("user_agent");
     new_group_params.isil_              = section.getString("isil");
     new_group_params.author_lookup_url_ = section.getString("author_lookup_url");
-    new_group_params.bsz_upload_group_  = section.getString("bsz_upload_group/*  */");
+    new_group_params.bsz_upload_group_  = section.getString("bsz_upload_group");
     group_name_to_params_map->emplace(section.getSectionName(), new_group_params);
 }
 
@@ -250,9 +250,9 @@ std::pair<unsigned, unsigned> ZoteroFormatHandler::processRecord(const std::shar
 std::string GuessOutputFormat(const std::string &output_file) {
     switch (MARC::GuessFileType(output_file)) {
     case MARC::FileType::BINARY:
-        return "marc21";
+        return "marc-21";
     case MARC::FileType::XML:
-        return "marcxml";
+        return "marc-xml";
     default:
         LOG_ERROR("we should *never* get here!");
     }

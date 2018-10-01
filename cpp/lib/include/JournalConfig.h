@@ -41,25 +41,8 @@ struct Entry {
 };
 
 
-class EntryBundle {
-public:
-    virtual ~EntryBundle() = 0;
-public:
-    virtual size_t load(const std::vector<std::pair<std::string, std::string>> &entries, bool clear_entries = true) = 0;
-    virtual size_t load(const IniFile::Section &section, bool clear_entries = true) = 0;
-    virtual void save(std::vector<std::pair<std::string, std::string>> * const entries) const = 0;
-    virtual void clear() = 0;
-    virtual size_t size() const = 0;
-    virtual const std::string &value(const EntryId &entry_id) const = 0;
-    virtual std::string value(const EntryId &entry_id, const std::string &default_value = "") const = 0;
-};
-
-
-inline EntryBundle::~EntryBundle() = default;
-
-
 template<typename Traits>
-class TemplateEntryBundle : public EntryBundle {
+class EntryBundle {
     using KeyIdResolutionMap = std::unordered_map<std::string, typename Traits::Entries>;
 
     std::vector<Entry> entries_;
@@ -73,11 +56,10 @@ class TemplateEntryBundle : public EntryBundle {
         return true;
     }
 public:
-    TemplateEntryBundle() = default;
-    TemplateEntryBundle(const IniFile::Section &config_section) { load(config_section); }
-    virtual ~TemplateEntryBundle() override {}
+    EntryBundle() = default;
+    explicit EntryBundle(const IniFile::Section &config_section) { load(config_section); }
 public:
-    virtual size_t load(const std::vector<std::pair<std::string, std::string>> &entries, bool clear_entries = true) override {
+    size_t load(const std::vector<std::pair<std::string, std::string>> &entries, bool clear_entries = true) {
         if (clear_entries)
             clear();
 
@@ -99,7 +81,7 @@ public:
         std::sort(entries_.begin(), entries_.end(), [](const Entry &a, const Entry &b) -> bool { return a.id < b.id; });
         return entries_.size();
     }
-    virtual size_t load(const IniFile::Section &section, bool clear_entries = true) override {
+    size_t load(const IniFile::Section &section, bool clear_entries = true) {
         if (clear_entries)
             clear();
 
@@ -120,15 +102,15 @@ public:
         return entries_.size();
     };
 
-    virtual void save(std::vector<std::pair<std::string, std::string>> * const entries) const override {
+    void save(std::vector<std::pair<std::string, std::string>> * const entries) const {
         const std::string bundle_prefix(Traits::prefix);
 
         for (const auto &entry: entries_)
             entries->emplace_back(bundle_prefix + "_" + entry.key, entry.value);
     }
-    virtual void clear() override { entries_.clear(); }
-    virtual size_t size() const override { return entries_.size(); }
-    virtual const std::string &value(const EntryId &entry_id) const override {
+    void clear() { entries_.clear(); }
+    size_t size() const { return entries_.size(); }
+    const std::string &value(const EntryId &entry_id) const {
         for (const auto &entry: entries_) {
             if (entry.id == entry_id)
                 return entry.value;
@@ -136,7 +118,7 @@ public:
 
         LOG_ERROR("Couldn't find entry with id " + std::to_string(entry_id));
     }
-    virtual std::string value(const EntryId &entry_id, const std::string &default_value) const override {
+    std::string value(const EntryId &entry_id, const std::string &default_value) const {
         for (const auto &entry: entries_) {
             if (entry.id == entry_id)
                 return entry.value;
@@ -184,7 +166,7 @@ struct Print {
 };
 
 
-using PrintBundle = TemplateEntryBundle<Print>;
+using PrintBundle = EntryBundle<Print>;
 
 
 struct Online {
@@ -195,7 +177,7 @@ struct Online {
 };
 
 
-using OnlineBundle = TemplateEntryBundle<Online>;
+using OnlineBundle = EntryBundle<Online>;
 
 struct Zeder {
     enum Entries : EntryId { ID, MODIFIED_TIME, COMMENT };
@@ -205,7 +187,7 @@ struct Zeder {
 };
 
 
-using ZederBundle = TemplateEntryBundle<Zeder>;
+using ZederBundle = EntryBundle<Zeder>;
 
 struct Zotero {
     enum Entries : EntryId { TYPE, GROUP, URL, STRPTIME_FORMAT, EXTRACTION_REGEX, MAX_CRAWL_DEPTH, DELIVERY_MODE };
@@ -215,7 +197,7 @@ struct Zotero {
 };
 
 
-using ZoteroBundle = TemplateEntryBundle<Zotero>;
+using ZoteroBundle = EntryBundle<Zotero>;
 
 
 class Reader {
@@ -225,7 +207,7 @@ public:
         OnlineBundle bundle_online_;
         ZederBundle bundle_zeder_;
         ZoteroBundle bundle_zotero_;
-
+    public:
         Bundles() = default;
     };
 
@@ -236,7 +218,6 @@ public:
 public:
     Reader(const IniFile &config) { loadFromIni(config); }
 public:
-    const EntryBundle &bundle(const std::string &section, BundleType bundle_type) const;
     const PrintBundle &print(const std::string &section) const {
         return find(section).bundle_print_;
     }
