@@ -258,6 +258,7 @@ std::string GuessOutputFormat(const std::string &output_file) {
     }
 }
 
+
 MARC::FileType GetOutputMarcFileType(const std::string &output_format) {
     if (output_format == "marc-21")
         return MARC::FileType::BINARY;
