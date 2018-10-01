@@ -18,6 +18,7 @@
 */
 #include "Downloader.h"
 #include "FileUtil.h"
+#include "StringUtil.h"
 #include "Zeder.h"
 
 

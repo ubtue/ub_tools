@@ -16,10 +16,13 @@
 */
 #pragma once
 
-#include "MARC.h"
-#include "Zotero.h"
+
+#include <string>
+#include <unordered_map>
+
 
 namespace BSZTransform {
+
 
 const std::string ISSN_TO_MISC_BITS_MAP_PATH_LOCAL("/usr/local/var/lib/tuelib/issn_to_misc_bits.map");
 const std::string ISSN_TO_MISC_BITS_MAP_DIR_REMOTE("/mnt/ZE020150/FID-Entwicklung/issn_to_misc_bits");

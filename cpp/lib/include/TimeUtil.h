@@ -36,7 +36,6 @@
 #   define _BSD_SOURCE
 #endif
 #include <ctime>
-#include "PerlCompatRegExp.h"
 
 
 /** \namespace  TimeUtil

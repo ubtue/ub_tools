@@ -15,8 +15,12 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "BSZTransform.h"
+#include "Downloader.h"
 #include "MiscUtil.h"
+#include "RegexMatcher.h"
+#include "StringUtil.h"
 #include "UrlUtil.h"
+#include "util.h"
 
 
 namespace BSZTransform {

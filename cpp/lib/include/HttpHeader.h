@@ -30,6 +30,7 @@
 #include <fstream>
 #include <string>
 #include <stdexcept>
+#include <vector>
 #include <ctime>
 #include "TimeUtil.h"
 

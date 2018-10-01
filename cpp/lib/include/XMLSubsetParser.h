@@ -27,7 +27,6 @@
 #include <stdexcept>
 #include <string>
 #include "Compiler.h"
-#include "StringUtil.h"
 #include "TextUtil.h"
 #include "XmlUtil.h"
 #include "util.h"
