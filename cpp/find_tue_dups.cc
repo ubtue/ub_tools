@@ -28,6 +28,7 @@
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "JSON.h"
+#include "StringUtil.h"
 #include "TextUtil.h"
 #include "MARC.h"
 #include "util.h"
