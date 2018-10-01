@@ -140,10 +140,18 @@ std::string GetMarcFormat(const std::string &output_filename) {
 }
 
 
-void InitializeFormatHandlers(DbConnection * const db_connection, const std::shared_ptr<Zotero::HarvestParams> &harvester_params,
-                              const MARC::FileType output_format, const std::string &output_directory, const std::string &output_filename,
-                              const std::unordered_map<std::string, Zotero::GroupParams> &group_name_to_params_map,
-                              std::unordered_map<std::string, std::unique_ptr<Zotero::FormatHandler>> * const group_name_to_format_handler_map)
+struct ZoteroFormatHandlerParams {
+    DbConnection * const db_connection_;
+    std::string output_format_string_;
+    std::string output_file_path_;
+    std::shared_ptr<Zotero::HarvestParams> harvester_params_;
+};
+
+
+void InitializeFormatHandlerParams(DbConnection * const db_connection, const std::shared_ptr<Zotero::HarvestParams> &harvester_params,
+                                   const MARC::FileType output_format, const std::string &output_directory, const std::string &output_filename,
+                                   const std::unordered_map<std::string, Zotero::GroupParams> &group_name_to_params_map,
+                                   std::unordered_map<std::string, ZoteroFormatHandlerParams> * const group_name_to_format_handler_params_map)
 {
     static const std::string time_format_string("%Y-%m-%d %T");
 
@@ -157,7 +165,6 @@ void InitializeFormatHandlers(DbConnection * const db_connection, const std::sha
 
         std::string output_format_string;
         std::string output_file_path(output_directory + "/" + bsz_upload_group);
-        FileUtil::MakeDirectory(output_file_path, true);
 
         if (not output_filename.empty()) {
             output_file_path += "/" + output_filename;
@@ -178,10 +185,33 @@ void InitializeFormatHandlers(DbConnection * const db_connection, const std::sha
             }
         }
 
-
-        auto handler(Zotero::FormatHandler::Factory(db_connection, output_format_string, output_file_path, harvester_params));
-        group_name_to_format_handler_map->insert(std::make_pair(group_name, std::move(handler)));
+        ZoteroFormatHandlerParams format_handler_params{
+            db_connection, output_format_string, output_file_path, harvester_params
+        };
+        group_name_to_format_handler_params_map->insert(std::make_pair(group_name, format_handler_params));
     }
+}
+
+
+Zotero::FormatHandler *GetFormatHandlerForGroup(const std::string &group_name, const std::unordered_map<std::string, ZoteroFormatHandlerParams>
+                                                &group_name_to_format_handler_params_map)
+{
+    // lazy-initialize format handlers to prevent file spam in the output directory
+    static std::unordered_map<std::string, std::unique_ptr<Zotero::FormatHandler>> group_name_to_format_handler_map;
+
+    const auto match(group_name_to_format_handler_map.find(group_name));
+    if (match != group_name_to_format_handler_map.end())
+        return match->second.get();
+
+    const auto format_handler_param(group_name_to_format_handler_params_map.at(group_name));
+    std::string file_name, directory;
+    FileUtil::DirnameAndBasename(format_handler_param.output_file_path_, &directory, &file_name);
+    FileUtil::MakeDirectory(directory, true);
+
+    auto handler(Zotero::FormatHandler::Factory(format_handler_param.db_connection_, format_handler_param.output_format_string_,
+                    format_handler_param.output_file_path_, format_handler_param.harvester_params_));
+    group_name_to_format_handler_map.insert(std::make_pair(group_name, std::move(handler)));
+    return group_name_to_format_handler_map.at(group_name).get();
 }
 
 
@@ -284,14 +314,14 @@ int Main(int argc, char *argv[]) {
 
     std::unordered_set<std::string> group_names;
     std::unordered_map<std::string, Zotero::GroupParams> group_name_to_params_map;
-    std::unordered_map<std::string, std::unique_ptr<Zotero::FormatHandler>> group_name_to_format_handler_map;
+    std::unordered_map<std::string, ZoteroFormatHandlerParams> group_name_to_format_handler_params_map;
 
     // process groups in advance
     StringUtil::SplitThenTrimWhite(ini_file.getString("", "groups"), ',', &group_names);
     for (const auto &group_name : group_names)
         Zotero::LoadGroup(*ini_file.getSection(group_name), &group_name_to_params_map);
-    InitializeFormatHandlers(db_connection.get(), harvest_params, output_format, output_directory, output_filename,
-                             group_name_to_params_map, &group_name_to_format_handler_map);
+    InitializeFormatHandlerParams(db_connection.get(), harvest_params, output_format, output_directory, output_filename,
+                                  group_name_to_params_map, &group_name_to_format_handler_params_map);
 
 
     for (const auto &section : ini_file) {
@@ -310,6 +340,16 @@ int Main(int argc, char *argv[]) {
         else if (not groups_filter.empty() and groups_filter.find(group_name) == groups_filter.end())
             continue;
 
+        if (not section_name_to_found_flag_map.empty()) {
+            const auto section_name_and_found_flag(section_name_to_found_flag_map.find(section_name));
+            if (section_name_and_found_flag == section_name_to_found_flag_map.end())
+                continue;
+            section_name_and_found_flag->second = true;
+        }
+
+        LOG_INFO("Processing section \"" + section_name + "\".");
+        ++processed_section_count;
+
         Zotero::GobalAugmentParams global_augment_params(&augment_maps);
 
         Zotero::SiteParams site_params;
@@ -318,20 +358,9 @@ int Main(int argc, char *argv[]) {
         site_params.delivery_mode_          = delivery_mode;
         ReadGenericSiteAugmentParams(ini_file, section, bundle_reader, &site_params);
 
-        harvest_params->format_handler_ = group_name_to_format_handler_map.at(section_name).get();
+        harvest_params->format_handler_ = GetFormatHandlerForGroup(site_params.group_params_->name_, group_name_to_format_handler_params_map);
         harvest_params->format_handler_->setAugmentParams(&site_params);
-
-        if (not section_name_to_found_flag_map.empty()) {
-            const auto section_name_and_found_flag(section_name_to_found_flag_map.find(section_name));
-            if (section_name_and_found_flag == section_name_to_found_flag_map.end())
-                continue;
-            section_name_and_found_flag->second = true;
-        }
-
         harvest_params->user_agent_ = group_name_and_params->second.user_agent_;
-
-        LOG_INFO("Processing section \"" + section_name + "\".");
-        ++processed_section_count;
 
         const Zotero::HarvesterType type(static_cast<Zotero::HarvesterType>(Zotero::STRING_TO_HARVEST_TYPE_MAP.at(bundle_reader
                                                                             .zotero(section_name)

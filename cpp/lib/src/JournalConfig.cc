@@ -87,20 +87,4 @@ const Reader::Bundles &Reader::find(const std::string &section) const {
 }
 
 
-const EntryBundle &Reader::bundle(const std::string &section, BundleType bundle_type) const {
-    switch (bundle_type) {
-    case BundleType::PRINT:
-        return find(section).bundle_print_;
-    case BundleType::ONLINE:
-        return find(section).bundle_online_;
-    case BundleType::ZEDER:
-        return find(section).bundle_zeder_;
-    case BundleType::ZOTERO:
-        return find(section).bundle_zotero_;
-    }
-
-    LOG_ERROR("Unknown bundle type " + std::to_string(static_cast<int>(bundle_type)));
-}
-
-
 } // namespace JournalConfig
