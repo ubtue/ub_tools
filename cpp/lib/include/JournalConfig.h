@@ -250,16 +250,16 @@ public:
 public:
     Reader(const IniFile &config) { loadFromIni(config); }
 public:
-    const PrintBundle &print(const std::string &section) const {
+    inline const PrintBundle &print(const std::string &section) const {
         return find(section).bundle_print_;
     }
-    const OnlineBundle &online(const std::string &section) const {
+    inline const OnlineBundle &online(const std::string &section) const {
         return find(section).bundle_online_;
     }
-    const ZederBundle &zeder(const std::string &section) const {
+    inline const ZederBundle &zeder(const std::string &section) const {
         return find(section).bundle_zeder_;
     }
-    const ZoteroBundle &zotero(const std::string &section) const {
+    inline const ZoteroBundle &zotero(const std::string &section) const {
         return find(section).bundle_zotero_;
     }
 };

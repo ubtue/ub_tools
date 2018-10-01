@@ -24,8 +24,8 @@ namespace JournalConfig {
 
 
 const std::unordered_map<std::string, Print::Entries> Print::key_id_resolver_map{
-    { "ppn",        Print::Entries::PPN     },
-    { "issn",       Print::Entries::ISSN    },
+    { "ppn",  Print::Entries::PPN  },
+    { "issn", Print::Entries::ISSN },
 };
 
 
@@ -33,8 +33,8 @@ const std::string Print::prefix("print");
 
 
 const std::unordered_map<std::string, Online::Entries> Online::key_id_resolver_map{
-    { "ppn",        Online::Entries::PPN     },
-    { "issn",       Online::Entries::ISSN    },
+    { "ppn",  Online::Entries::PPN  },
+    { "issn", Online::Entries::ISSN },
 };
 
 
@@ -42,9 +42,9 @@ const std::string Online::prefix("online");
 
 
 const std::unordered_map<std::string, Zeder::Entries> Zeder::key_id_resolver_map{
-    { "id",             Zeder::Entries::ID            },
-    { "modified_time",  Zeder::Entries::MODIFIED_TIME },
-    { "comment",        Zeder::Entries::COMMENT       },
+    { "id",            Zeder::Entries::ID            },
+    { "modified_time", Zeder::Entries::MODIFIED_TIME },
+    { "comment",       Zeder::Entries::COMMENT       },
 };
 
 
@@ -52,13 +52,13 @@ const std::string Zeder::prefix("zeder");
 
 
 const std::unordered_map<std::string, Zotero::Entries> Zotero::key_id_resolver_map{
-    { "type",               Zotero::Entries::TYPE             },
-    { "group",              Zotero::Entries::GROUP            },
-    { "url",                Zotero::Entries::URL              },
-    { "strptime_format",    Zotero::Entries::STRPTIME_FORMAT  },
-    { "extraction_regex",   Zotero::Entries::EXTRACTION_REGEX },
-    { "max_crawl_depth",    Zotero::Entries::MAX_CRAWL_DEPTH  },
-    { "delivery_mode",      Zotero::Entries::DELIVERY_MODE    },
+    { "type",             Zotero::Entries::TYPE             },
+    { "group",            Zotero::Entries::GROUP            },
+    { "url",              Zotero::Entries::URL              },
+    { "strptime_format",  Zotero::Entries::STRPTIME_FORMAT  },
+    { "extraction_regex", Zotero::Entries::EXTRACTION_REGEX },
+    { "max_crawl_depth",  Zotero::Entries::MAX_CRAWL_DEPTH  },
+    { "delivery_mode",    Zotero::Entries::DELIVERY_MODE    },
 };
 
 
