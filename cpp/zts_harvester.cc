@@ -25,7 +25,6 @@
 #include "IniFile.h"
 #include "JournalConfig.h"
 #include "MARC.h"
-#include "StlHelpers.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
