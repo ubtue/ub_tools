@@ -33,6 +33,7 @@
 /count_gnd_refs
 /create_author_synonym_map
 /create_full_text_db
+/create_match_db
 /crossref_downloader
 /db_lookup
 /delete_ids
@@ -82,6 +83,7 @@
 /is_mount_point_test
 /json_grep
 /jop_grep
+/journal_publishing_processor
 /kcdb_info
 /krimdok_filter
 /krimdok_marc_pipeline.sh_no_fulltext

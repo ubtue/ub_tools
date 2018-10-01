@@ -1451,4 +1451,15 @@ std::string CanonizeCharset(std::string charset) {
 }
 
 
+bool UnicodeTruncate(std::string * const utf8_string, const size_t max_length) {
+    std::wstring wchar_string;
+    if (not UTF8ToWCharString(*utf8_string, &wchar_string))
+        return false;
+
+    wchar_string.resize(max_length);
+
+    return WCharToUTF8String(wchar_string, utf8_string);
+}
+
+
 } // namespace TextUtil

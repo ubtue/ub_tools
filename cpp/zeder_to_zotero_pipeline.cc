@@ -29,6 +29,8 @@
 #include <unistd.h>
 #include "ExecUtil.h"
 #include "IniFile.h"
+#include "JournalConfig.h"
+#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
@@ -295,7 +297,7 @@ bool TryStringToStructTm(const std::string &date_string, const std::string &form
 bool SelectBestStrptimeFormatString(const ValidatorErrorHandlerParams &params,
                                     const std::unordered_set<std::string> &known_strptime_format_strings)
 {
-    const auto strptime_format_key(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT));
+    const auto strptime_format_key(JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::STRPTIME_FORMAT));
 
     std::string current_format_string(params.config_entry_->getString(strptime_format_key));
     // preemptively check the date string with the current format string
@@ -388,7 +390,7 @@ bool EvaluateZtsHarvesterValidatorReport(const PipelineParams &params, const std
     // collect existing strptime format strings
     IniFile original_harvester_config(params.harvester_config_file_);
     std::unordered_set<std::string> known_strptime_format_strings;
-    const auto strptime_format_key(Zotero::HARVESTER_CONFIG_ENTRY_TO_STRING_MAP.at(Zotero::HarvesterConfigEntry::STRPTIME_FORMAT));
+    const auto strptime_format_key(JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::STRPTIME_FORMAT));
     for (const auto &section : original_harvester_config) {
         std::string format_string;
         if (section.lookup(strptime_format_key, &format_string) and not format_string.empty())

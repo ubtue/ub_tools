@@ -44,7 +44,6 @@ database = "vufind"
 #include "util.h"
 
 
-
 namespace {
 
 
