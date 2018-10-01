@@ -329,7 +329,9 @@ int Main(int argc, char *argv[]) {
         if (section_name.empty() or group_names.find(section_name) != group_names.end())
             continue;
 
-        const BSZUpload::DeliveryMode delivery_mode(static_cast<BSZUpload::DeliveryMode>(section.getEnum("delivery_mode", BSZUpload::STRING_TO_DELIVERY_MODE_MAP, BSZUpload::DeliveryMode::NONE)));
+        const BSZUpload::DeliveryMode delivery_mode(static_cast<BSZUpload::DeliveryMode>(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.at(
+                                                    bundle_reader.zotero(section_name).value(JournalConfig::Zotero::DELIVERY_MODE,
+                                                    BSZUpload::DELIVERY_MODE_TO_STRING_MAP.at(BSZUpload::DeliveryMode::NONE)))));
         if (delivery_mode_to_process != BSZUpload::DeliveryMode::NONE and delivery_mode != delivery_mode_to_process)
             continue;
 
