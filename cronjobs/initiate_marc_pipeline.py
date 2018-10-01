@@ -56,16 +56,6 @@ def ImportIntoVuFind(pattern, log_file_name):
 def StartPipeline(pipeline_script_name, marc_title, conf):
     log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
     util.ExecOrDie(pipeline_script_name, [ marc_title ], log_file_name)
-
-    deletion_list_glob = "LOEPPN-[0-9][0-9][0-9][0-9][0-9][0-9]"
-    most_recent_deletion_list = util.getMostRecentFileMatchingGlob(deletion_list_glob)
-    if not most_recent_deletion_list:
-        util.SendEmail("MARC-21 Pipeline", "Did not find any files matching \"" + deletion_list_glob + "\".",
-                       priority=5)
-    else:
-        delete_solr_ids_args = [ util.default_email_recipient, most_recent_deletion_list ]
-        util.ExecOrDie("/usr/local/bin/delete_solr_ids.sh", delete_solr_ids_args, log_file_name)
-
     log_file_name = util.MakeLogFileName("import_into_vufind", util.GetLogDirectory())
     ImportIntoVuFind(conf.get("FileNames", "title_marc_data"), log_file_name)
 
