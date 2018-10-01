@@ -27,10 +27,7 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "DbConnection.h"
-#include "File.h"
 #include "MARC.h"
-#include "RegexMatcher.h"
-#include "StringUtil.h"
 #include "util.h"
 #include "VuFind.h"
 

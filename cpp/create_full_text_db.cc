@@ -26,9 +26,7 @@
 #include <cstdlib>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include "DnsUtil.h"
 #include "ExecUtil.h"
-#include "FileUtil.h"
 #include "MARC.h"
 #include "MiscUtil.h"
 #include "Semaphore.h"

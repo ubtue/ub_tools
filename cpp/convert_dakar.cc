@@ -33,7 +33,6 @@
 #include "DbRow.h"
 #include "IniFile.h"
 #include "MARC.h"
-#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 
