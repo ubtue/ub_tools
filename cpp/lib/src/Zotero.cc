@@ -181,7 +181,7 @@ std::unique_ptr<FormatHandler> FormatHandler::Factory(DbConnection * const db_co
                                                       const std::shared_ptr<const HarvestParams> &harvest_params)
 {
     if (output_format == "marc-xml" or output_format == "marc-21")
-        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(db_connection, output_file, harvest_params));
+        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(db_connection, output_file, harvest_params, output_format));
     else if (output_format == "json")
         return std::unique_ptr<FormatHandler>(new JsonFormatHandler(db_connection, output_format, output_file, harvest_params));
     else if (std::find(EXPORT_FORMATS.begin(), EXPORT_FORMATS.end(), output_format) != EXPORT_FORMATS.end())
@@ -258,11 +258,20 @@ std::string GuessOutputFormat(const std::string &output_file) {
     }
 }
 
+MARC::FileType GetOutputMarcFileType(const std::string &output_format) {
+    if (output_format == "marc-21")
+        return MARC::FileType::BINARY;
+    else if (output_format == "marc-xml")
+        return MARC::FileType::XML;
+
+    LOG_ERROR("Unknown MARC file type '" + output_format + "'");
+}
+
 
 MarcFormatHandler::MarcFormatHandler(DbConnection * const db_connection, const std::string &output_file,
-                                     const std::shared_ptr<const HarvestParams> &harvest_params)
-    : FormatHandler(db_connection, GuessOutputFormat(output_file), output_file, harvest_params),
-      marc_writer_(MARC::Writer::Factory(output_file_))
+                                     const std::shared_ptr<const HarvestParams> &harvest_params, const std::string &output_format)
+    : FormatHandler(db_connection, output_format.empty() ? GuessOutputFormat(output_file) : output_format, output_file, harvest_params),
+      marc_writer_(MARC::Writer::Factory(output_file_, output_format.empty() ? MARC::FileType::AUTO : GetOutputMarcFileType(output_format)))
 {
 }
 

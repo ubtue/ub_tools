@@ -352,11 +352,14 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
     FileUtil::MakeDirectory(output_directory, true);
     out_path_.reset(new FileUtil::AutoTempFile(output_directory, /*automatically_remove*/ false));
 
+    std::string dir_name, basename;
+    FileUtil::DirnameAndBasename(out_path_->getFilePath(), &dir_name, &basename);
+
     std::vector<std::string> args;
     args.emplace_back("--min-log-level=DEBUG");
     args.emplace_back("--map-directory=" + local_maps_directory);
     args.emplace_back("--output-directory=" + auto_temp_dir_.getDirectoryPath());
-    args.emplace_back("--output-filename=" + out_path_->getFilePath());
+    args.emplace_back("--output-filename=" + basename);
     args.emplace_back("--output-format=" + GetOutputFormatExtension(output_format_id));
 
     args.emplace_back(ZTS_HARVESTER_CONF_FILE);
