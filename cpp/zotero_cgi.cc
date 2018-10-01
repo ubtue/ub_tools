@@ -47,8 +47,8 @@ std::string zts_url(Zotero::TranslationServer::GetUrl());
 const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
 const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS {
     // custom formats
-    { "marcxml", "xml" },
-    { "marc21", "mrc" },
+    { "marc-xml", "xml" },
+    { "marc-21", "mrc" },
     { "json", "json" },
 
     // native zotero formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
