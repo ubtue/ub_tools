@@ -345,18 +345,20 @@ public:
 HarvestTask::HarvestTask(const std::string &section, const std::string &output_format_id, const std::string &bsz_upload_group)
     : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
       executable_(ExecUtil::LocateOrDie("zts_harvester")),
-      log_path_(auto_temp_dir_.getDirectoryPath() + "/log", "", /*automatically_remove*/ false)
+      log_path_(auto_temp_dir_.getDirectoryPath() + "/log", /*automatically_remove*/ false)
 {
     const std::string local_maps_directory(PrepareMapsDirectory(zts_client_maps_directory, auto_temp_dir_.getDirectoryPath()));
-
-    FileUtil::MakeDirectory(auto_temp_dir_.getDirectoryPath() + "/" + bsz_upload_group, true);
-    out_path_.reset(new FileUtil::AutoTempFile(auto_temp_dir_.getDirectoryPath() + "/" + bsz_upload_group, std::string("output.") + GetOutputFormatExtension(output_format_id), /*automatically_remove*/ false));
+    const auto output_directory(auto_temp_dir_.getDirectoryPath() + "/" + bsz_upload_group + "/");
+    FileUtil::MakeDirectory(output_directory, true);
+    out_path_.reset(new FileUtil::AutoTempFile(output_directory, /*automatically_remove*/ false));
 
     std::vector<std::string> args;
     args.emplace_back("--min-log-level=DEBUG");
     args.emplace_back("--map-directory=" + local_maps_directory);
     args.emplace_back("--output-directory=" + auto_temp_dir_.getDirectoryPath());
     args.emplace_back("--output-filename=" + out_path_->getFilePath());
+    args.emplace_back("--output-format=" + GetOutputFormatExtension(output_format_id));
+
     args.emplace_back(ZTS_HARVESTER_CONF_FILE);
     args.emplace_back(section);
 
