@@ -46,7 +46,9 @@
 namespace FileUtil {
 
 
-AutoTempFile::AutoTempFile(const std::string &path_prefix) {
+AutoTempFile::AutoTempFile(const std::string &path_prefix, bool automatically_remove)
+    : automatically_remove_(automatically_remove)
+{
     std::string path_template(path_prefix + "XXXXXX");
     const int fd(::mkstemp(const_cast<char *>(path_template.c_str())));
     if (fd == -1)

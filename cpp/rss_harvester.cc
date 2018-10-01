@@ -55,9 +55,9 @@ void LoadServerURLs(const std::string &path, std::vector<std::string> * const se
 
 std::string GetMarcFormat(const std::string &output_filename) {
     if (StringUtil::EndsWith(output_filename, ".mrc") or StringUtil::EndsWith(output_filename, ".marc"))
-        return "marc21";
+        return "marc-21";
     if (StringUtil::EndsWith(output_filename, ".xml"))
-        return "marcxml";
+        return "marc-xml";
     LOG_ERROR("can't determine output format from MARC output filename \"" + output_filename + "\"!");
 }
 
@@ -119,14 +119,15 @@ int main(int argc, char *argv[]) {
         augment_params.strptime_format_ = strptime_format;
         const std::shared_ptr<RegexMatcher> supported_urls_regex(Zotero::LoadSupportedURLsRegex(map_directory_path));
         const std::string MARC_OUTPUT_FILE(argv[4]);
-        harvest_params->format_handler_ = Zotero::FormatHandler::Factory(&db_connection,
-                                                                         GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE, harvest_params);
+        auto format_handler(Zotero::FormatHandler::Factory(&db_connection,
+                                                            GetMarcFormat(MARC_OUTPUT_FILE), MARC_OUTPUT_FILE, harvest_params));
+        harvest_params->format_handler_ = format_handler.get();
         harvest_params->format_handler_->setAugmentParams(&augment_params);
 
 
 
         Zotero::MarcFormatHandler * const marc_format_handler(reinterpret_cast<Zotero::MarcFormatHandler *>(
-            harvest_params->format_handler_.get()));
+            harvest_params->format_handler_));
         if (unlikely(marc_format_handler == nullptr))
             LOG_ERROR("expected a MarcFormatHandler!");
 
