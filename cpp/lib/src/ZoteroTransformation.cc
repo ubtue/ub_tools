@@ -16,6 +16,7 @@
 */
 
 #include "MiscUtil.h"
+#include "StringUtil.h"
 #include "Zotero.h"
 #include "ZoteroTransformation.h"
 
