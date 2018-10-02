@@ -87,7 +87,7 @@ void ControlNumberGuesser::insertAuthors(const std::set<std::string> &authors, c
 
 std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::string &title, const std::vector<std::string> &authors) const
 {
-    const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(title)));
+    const auto normalised_title(NormaliseTitle(title));
     if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
         LOG_DEBUG("in ControlNumberGuesser::getGuessedControlNumbers: normalised_title=\"" + normalised_title + "\".");
     std::string concatenated_title_control_numbers;
@@ -98,7 +98,7 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
 
     std::vector<std::string> all_author_control_numbers;
     for (const auto &author : authors) {
-        const auto normalised_author(TextUtil::UTF8ToLower(NormaliseTitle(author)));
+        const auto normalised_author(NormaliseAuthorName(author));
         if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
             LOG_DEBUG("in ControlNumberGuesser::getGuessedControlNumbers: normalised_author=\"" + normalised_author + "\".");
         std::string concatenated_author_control_numbers;
@@ -180,5 +180,5 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
         }
     }
 
-    return normalised_author_name;
+    return TextUtil::UTF8ToLower(normalised_author_name);
 }
