@@ -52,25 +52,37 @@ ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode) {
 
 
 static std::string NormaliseTitle(const std::string &title) {
-    std::string normalised_title;
-    bool space_seen(false);
-    for (const char ch : title) {
-        if (std::ispunct(ch) or ch == '-' or std::isspace(ch)) {
-            if (not space_seen)
+    std::wstring wtitle;
+    if (unlikely(not TextUtil::UTF8ToWCharString(title, &wtitle)))
+        LOG_ERROR("failed to convert \"" + title + "\" to a wide character string!");
+
+    std::wstring normalised_title;
+    bool space_separator_seen(true);
+    for (const auto ch : wtitle) {
+        if (TextUtil::IsGeneralPunctuationCharacter(ch) or ch == '-' or TextUtil::IsSpaceSeparatorCharacter(ch)) {
+            if (not space_separator_seen)
                 normalised_title += ' ';
-            space_seen = true;
+            space_separator_seen = true;
         } else {
-            space_seen = false;
+            space_separator_seen = false;
             normalised_title += ch;
         }
     }
+    if (not normalised_title.empty() and TextUtil::IsSpaceSeparatorCharacter(normalised_title.back()))
+        normalised_title.resize(normalised_title.size() - 1);
 
-    return StringUtil::TrimWhite(&normalised_title);
+    TextUtil::ToLower(&normalised_title);
+
+    std::string utf8_normalised_title;
+    if (unlikely(not TextUtil::WCharToUTF8String(normalised_title, &utf8_normalised_title)))
+        LOG_ERROR("failed to convert a wstring to an UTF8 string!");
+
+    return utf8_normalised_title;
 }
 
 
 void ControlNumberGuesser::insertTitle(const std::string &title, const std::string &control_number) {
-    const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(title)));
+    const auto normalised_title(NormaliseTitle(title));
     if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
         LOG_DEBUG("in ControlNumberGuesser::insertTitle: normalised_title=\"" + normalised_title + "\".");
     if (unlikely(normalised_title.empty()))
