@@ -24,7 +24,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include "Compiler.h"
-#include "Downloader.h"
 #include "FullTextCache.h"
 #include "MARC.h"
 #include "MediaTypeUtil.h"
@@ -35,7 +34,6 @@
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "util.h"
-#include "VuFind.h"
 
 
 namespace {
@@ -173,7 +171,7 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
             LOG_WARNING("conversion error while converting text from \"" + http_header_charset + "\" to UTF-8!");
         return TextUtil::CollapseWhitespace(&utf8_document);
     }
-    
+
     if (StringUtil::StartsWith(media_type, "application/pdf")) {
         if (PdfUtil::PdfDocContainsNoText(document)) {
             if (not PdfUtil::GetTextFromImagePDF(document, tesseract_language_code, &extracted_text, pdf_extraction_timeout)) {

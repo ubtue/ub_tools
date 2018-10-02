@@ -24,7 +24,6 @@
 #include "BSZUtil.h"
 #include "FileUtil.h"
 #include "IniFile.h"
-#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 

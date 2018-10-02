@@ -26,8 +26,6 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
-#include "DbRow.h"
-#include "IniFile.h"
 #include "FileUtil.h"
 #include "MARC.h"
 #include "util.h"

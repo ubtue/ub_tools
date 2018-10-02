@@ -22,12 +22,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>
-#include "Archive.h"
-#include "BSZUtil.h"
 #include "Compiler.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
-#include "StringUtil.h"
 #include "util.h"
 
 
@@ -42,7 +39,7 @@ namespace {
 
 const std::string DELETE_IDS_COMMAND("/usr/local/bin/delete_ids");
 
-    
+
 void UpdateSubdirectory(const std::string &old_directory, const std::string &deletion_list, const std::string &new_directory) {
     std::vector<std::string> archive_members;
     FileUtil::GetFileNameList("\\.(mrc|raw)$", &archive_members, old_directory);

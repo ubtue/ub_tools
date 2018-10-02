@@ -28,7 +28,6 @@
 #include "TextUtil.h"
 #include "util.h"
 #include "VuFind.h"
-#include "Zotero.h"
 
 
 namespace {
