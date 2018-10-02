@@ -51,7 +51,79 @@ ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode) {
 }
 
 
-static std::string NormaliseTitle(const std::string &title) {
+void ControlNumberGuesser::insertTitle(const std::string &title, const std::string &control_number) {
+    const auto normalised_title(NormaliseTitle(title));
+    if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
+        LOG_DEBUG("in ControlNumberGuesser::insertTitle: normalised_title=\"" + normalised_title + "\".");
+    if (unlikely(normalised_title.empty()))
+        LOG_WARNING("Empty normalised title in record w/ control number: " + control_number);
+    else {
+        std::string control_numbers;
+        if (titles_db_->get(normalised_title, &control_numbers))
+            control_numbers += "\0" + control_number;
+        else
+            control_numbers = control_number;
+        if (unlikely(not titles_db_->set(normalised_title, control_numbers)))
+            LOG_ERROR("failed to insert normalised title into the database!");
+    }
+}
+
+
+void ControlNumberGuesser::insertAuthors(const std::set<std::string> &authors, const std::string &control_number) {
+    for (const auto author : authors) {
+        const auto normalised_author_name(TextUtil::UTF8ToLower(NormaliseAuthorName(author)));
+        if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
+            LOG_DEBUG("in ControlNumberGuesser::insertAuthors: normalised_author_name=\"" + normalised_author_name + "\".");
+        std::string control_numbers;
+        if (authors_db_->get(normalised_author_name, &control_numbers))
+            control_numbers += "\0" + control_number;
+        else
+            control_numbers = control_number;
+        if (unlikely(not authors_db_->set(normalised_author_name, control_numbers)))
+            LOG_ERROR("failed to insert normalised author into the database!");
+    }
+}
+
+
+std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::string &title, const std::vector<std::string> &authors) const
+{
+    const auto normalised_title(NormaliseTitle(title));
+    if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
+        LOG_DEBUG("in ControlNumberGuesser::getGuessedControlNumbers: normalised_title=\"" + normalised_title + "\".");
+    std::string concatenated_title_control_numbers;
+    std::vector<std::string> title_control_numbers;
+    if (not titles_db_->get(normalised_title, &concatenated_title_control_numbers)
+        or StringUtil::Split(concatenated_title_control_numbers, '\0', &title_control_numbers) == 0)
+        return { };
+
+    std::vector<std::string> all_author_control_numbers;
+    for (const auto &author : authors) {
+        const auto normalised_author(NormaliseAuthorName(author));
+        if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
+            LOG_DEBUG("in ControlNumberGuesser::getGuessedControlNumbers: normalised_author=\"" + normalised_author + "\".");
+        std::string concatenated_author_control_numbers;
+        std::set<std::string> author_control_numbers;
+        if (authors_db_->get(normalised_author, &concatenated_author_control_numbers)) {
+            StringUtil::Split(concatenated_author_control_numbers, '\0', &author_control_numbers);
+            for (const auto author_control_number : author_control_numbers)
+                all_author_control_numbers.emplace_back(author_control_number);
+        }
+    }
+    if (all_author_control_numbers.empty())
+        return { };
+
+    std::sort(title_control_numbers.begin(), title_control_numbers.end());
+    std::sort(all_author_control_numbers.begin(), all_author_control_numbers.end());
+    std::vector<std::string> common_control_numbers;
+    std::set_intersection(title_control_numbers.begin(), title_control_numbers.end(),
+                          all_author_control_numbers.begin(), all_author_control_numbers.end(),
+                          std::back_inserter(common_control_numbers));
+
+    return std::set<std::string>(common_control_numbers.cbegin(), common_control_numbers.cend());
+}
+
+
+std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
     std::wstring wtitle;
     if (unlikely(not TextUtil::UTF8ToWCharString(title, &wtitle)))
         LOG_ERROR("failed to convert \"" + title + "\" to a wide character string!");
@@ -81,33 +153,16 @@ static std::string NormaliseTitle(const std::string &title) {
 }
 
 
-void ControlNumberGuesser::insertTitle(const std::string &title, const std::string &control_number) {
-    const auto normalised_title(NormaliseTitle(title));
-    if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
-        LOG_DEBUG("in ControlNumberGuesser::insertTitle: normalised_title=\"" + normalised_title + "\".");
-    if (unlikely(normalised_title.empty()))
-        LOG_WARNING("Empty normalised title in record w/ control number: " + control_number);
-    else {
-        std::string control_numbers;
-        if (titles_db_->get(normalised_title, &control_numbers))
-            control_numbers += "\0" + control_number;
-        else
-            control_numbers = control_number;
-        if (unlikely(not titles_db_->set(normalised_title, control_numbers)))
-            LOG_ERROR("failed to insert normalised title into the database!");
-    }
-}
-
-
-static std::string NormaliseAuthorName(std::string author_name) {
-    author_name = StringUtil::TrimWhite(author_name);
-    const auto comma_pos(author_name.find(','));
+std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_name) {
+    auto trimmed_author_name = StringUtil::TrimWhite(author_name);
+    const auto comma_pos(trimmed_author_name.find(','));
     if (comma_pos != std::string::npos)
-        author_name = StringUtil::TrimWhite(author_name.substr(comma_pos + 1) + " " + author_name.substr(0, comma_pos));
+        trimmed_author_name = StringUtil::TrimWhite(trimmed_author_name.substr(comma_pos + 1) + " "
+                                                    + trimmed_author_name.substr(0, comma_pos));
 
     std::string normalised_author_name;
     bool space_seen(false);
-    for (const char ch : author_name) {
+    for (const char ch : trimmed_author_name) {
         switch (ch) {
         case '.':
             normalised_author_name += ch;
@@ -125,59 +180,5 @@ static std::string NormaliseAuthorName(std::string author_name) {
         }
     }
 
-    return normalised_author_name;
-}
-
-
-void ControlNumberGuesser::insertAuthors(const std::set<std::string> &authors, const std::string &control_number) {
-    for (const auto author : authors) {
-        const auto normalised_author_name(TextUtil::UTF8ToLower(NormaliseAuthorName(author)));
-        if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
-            LOG_DEBUG("in ControlNumberGuesser::insertAuthors: normalised_author_name=\"" + normalised_author_name + "\".");
-        std::string control_numbers;
-        if (authors_db_->get(normalised_author_name, &control_numbers))
-            control_numbers += "\0" + control_number;
-        else
-            control_numbers = control_number;
-        if (unlikely(not authors_db_->set(normalised_author_name, control_numbers)))
-            LOG_ERROR("failed to insert normalised author into the database!");
-    }
-}
-
-
-std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::string &title, const std::vector<std::string> &authors) const
-{
-    const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(title)));
-    if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
-        LOG_DEBUG("in ControlNumberGuesser::getGuessedControlNumbers: normalised_title=\"" + normalised_title + "\".");
-    std::string concatenated_title_control_numbers;
-    std::vector<std::string> title_control_numbers;
-    if (not titles_db_->get(normalised_title, &concatenated_title_control_numbers)
-        or StringUtil::Split(concatenated_title_control_numbers, '\0', &title_control_numbers) == 0)
-        return { };
-
-    std::vector<std::string> all_author_control_numbers;
-    for (const auto &author : authors) {
-        const auto normalised_author(TextUtil::UTF8ToLower(NormaliseTitle(author)));
-        if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
-            LOG_DEBUG("in ControlNumberGuesser::getGuessedControlNumbers: normalised_author=\"" + normalised_author + "\".");
-        std::string concatenated_author_control_numbers;
-        std::set<std::string> author_control_numbers;
-        if (authors_db_->get(normalised_author, &concatenated_author_control_numbers)) {
-            StringUtil::Split(concatenated_author_control_numbers, '\0', &author_control_numbers);
-            for (const auto author_control_number : author_control_numbers)
-                all_author_control_numbers.emplace_back(author_control_number);
-        }
-    }
-    if (all_author_control_numbers.empty())
-        return { };
-
-    std::sort(title_control_numbers.begin(), title_control_numbers.end());
-    std::sort(all_author_control_numbers.begin(), all_author_control_numbers.end());
-    std::vector<std::string> common_control_numbers;
-    std::set_intersection(title_control_numbers.begin(), title_control_numbers.end(),
-                          all_author_control_numbers.begin(), all_author_control_numbers.end(),
-                          std::back_inserter(common_control_numbers));
-
-    return std::set<std::string>(common_control_numbers.cbegin(), common_control_numbers.cend());
+    return TextUtil::UTF8ToLower(normalised_author_name);
 }
