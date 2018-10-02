@@ -32,7 +32,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] marc_titles\n";
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] [--log-to-stdout] marc_titles\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -62,7 +62,7 @@ void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::R
         std::set<std::string> author_names;
         ExtractAllAuthors(record, &author_names);
         control_number_guesser->insertAuthors(author_names, control_number);
-        
+
         const auto title(record.getMainTitle());
         if (unlikely(title.empty()))
             LOG_WARNING("Empty title in record w/ control number: " + control_number);
@@ -78,10 +78,19 @@ void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::R
 
 
 int Main(int argc, char **argv) {
+    if (argc < 2)
+        Usage();
+
+    bool log_to_stdout(false);
+    if (std::strcmp(argv[1], "--log-to-stdout") == 0) {
+        log_to_stdout = true;
+        --argc, ++argv;
+    }
+
     if (argc != 2)
         Usage();
 
-    ControlNumberGuesser control_number_guesser(ControlNumberGuesser::CLEAR_DATABASES);
+    ControlNumberGuesser control_number_guesser(ControlNumberGuesser::CLEAR_DATABASES, log_to_stdout);
     auto reader(MARC::Reader::Factory(argv[1]));
     PopulateTables(&control_number_guesser, reader.get());
 
