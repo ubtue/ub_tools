@@ -137,8 +137,8 @@ bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_t
 }
 
 
-void ProcessDocument(XMLParser * const xml_parser, const ControlNumberGuesser &control_number_guesser, File * const plain_text_output,
-                     File * const no_match_list)
+void ProcessDocument(const std::string &input_filename, XMLParser * const xml_parser, const ControlNumberGuesser &control_number_guesser,
+                     File * const plain_text_output, File * const no_match_list)
 {
     std::string article_title;
     if (not ExtractTitle(xml_parser, &article_title))
@@ -154,7 +154,8 @@ void ProcessDocument(XMLParser * const xml_parser, const ControlNumberGuesser &c
 
     const auto matching_control_numbers(control_number_guesser.getGuessedControlNumbers(article_title, article_authors));
     if (matching_control_numbers.empty()) {
-        (*no_match_list) << article_title << "\n\t" << StringUtil::Join(article_authors, "; ") << '\n';
+        (*no_match_list) << FileUtil::GetBasename(input_filename) << "\n\t" << article_title << "\n\t"
+                         << StringUtil::Join(article_authors, "; ") << '\n';
         LOG_ERROR("no matching control numbers found!");
     }
 
@@ -180,7 +181,7 @@ int Main(int argc, char *argv[]) {
     auto plain_text_output(FileUtil::OpenOutputFileOrDie(argv[2]));
     auto no_match_list(FileUtil::OpenForAppendingOrDie(argv[3]));
     ControlNumberGuesser control_number_guesser(ControlNumberGuesser::DO_NOT_CLEAR_DATABASES);
-    ProcessDocument(&xml_parser, control_number_guesser, plain_text_output.get(), no_match_list.get());
+    ProcessDocument(argv[1], &xml_parser, control_number_guesser, plain_text_output.get(), no_match_list.get());
 
     return EXIT_SUCCESS;
 }

@@ -514,7 +514,7 @@ std::string GetBasename(const std::string &path) {
 
     std::string::size_type last_slash_pos = path.rfind('/');
     if (last_slash_pos == std::string::npos)
-        return path path;
+        return path;
     return path.substr(last_slash_pos + 1);
 }
 
