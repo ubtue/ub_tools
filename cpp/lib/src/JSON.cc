@@ -685,22 +685,10 @@ static std::shared_ptr<const JSONNode> GetLastPathComponent(const std::string &p
         }
 
         switch (next_node->getType()) {
-        case JSONNode::BOOLEAN_NODE:
-        case JSONNode::NULL_NODE:
-        case JSONNode::STRING_NODE:
-        case JSONNode::INT64_NODE:
-        case JSONNode::DOUBLE_NODE:
-            throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node!");
         case JSONNode::OBJECT_NODE:
             next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component);
-            if (next_node == nullptr) {
-                if (unlikely(not have_default))
-                    throw std::runtime_error("in JSON::GetLastPathComponent: can't find path component \""
-                                             + path_component + "\" in path \"" + path + "\" in our JSON tree!");
-                return nullptr;
-            }
             break;
-        case JSONNode::ARRAY_NODE:
+        case JSONNode::ARRAY_NODE: {
             unsigned index;
             if (unlikely(not StringUtil::ToUnsigned(path_component, &index)))
                 throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
@@ -712,6 +700,9 @@ static std::shared_ptr<const JSONNode> GetLastPathComponent(const std::string &p
             next_node = array_node->getNode(index);
             break;
         }
+        default:
+            throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node!");
+        }
     }
 
     return next_node;
@@ -722,9 +713,12 @@ static std::string LookupString(const std::string &path, const std::shared_ptr<c
                                 const std::string &default_value, const bool use_default_value)
 {
     const std::shared_ptr<const JSONNode> bottommost_node(GetLastPathComponent(path, tree, use_default_value));
-    if (bottommost_node == nullptr)
-        return use_default_value ? default_value : "";
-
+    if (bottommost_node == nullptr) {
+        if (use_default_value)
+            return default_value;
+        throw std::runtime_error("in JSON::LookupString: missing bottom node!");
+    }
+    
     switch (bottommost_node->getType()) {
     case JSONNode::BOOLEAN_NODE:
         return JSONNode::CastToBooleanNodeOrDie("bottommost_node", bottommost_node)->getValue() ? "true" : "false";
@@ -771,28 +765,20 @@ static bool LookupStringsHelper(std::deque<std::string> path_components, const s
         const std::string path_component(path_components.front());
         path_components.pop_front();
 
-        if (path_component == "*") {
-            if (next_node->getType() != JSONNode::ARRAY_NODE)
-                return false;
-            const auto array_node(JSONNode::CastToArrayNodeOrDie("*", next_node));
-            for (const auto &entry : *array_node) {
-                if (not LookupStringsHelper(path_components, entry, results))
+        switch (next_node->getType()) {
+        case JSONNode::OBJECT_NODE:
+            next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component);
+            break;
+        case JSONNode::ARRAY_NODE:
+            if (path_component == "*") {
+                if (next_node->getType() != JSONNode::ARRAY_NODE)
                     return false;
-            }
-        } else {
-            switch (next_node->getType()) {
-            case JSONNode::BOOLEAN_NODE:
-            case JSONNode::NULL_NODE:
-            case JSONNode::STRING_NODE:
-            case JSONNode::INT64_NODE:
-            case JSONNode::DOUBLE_NODE:
-                return false;
-            case JSONNode::OBJECT_NODE:
-                next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component);
-                if (next_node == nullptr)
-                    return false;
-                break;
-            case JSONNode::ARRAY_NODE:
+                const auto array_node(JSONNode::CastToArrayNodeOrDie("*", next_node));
+                for (const auto &entry : *array_node) {
+                    if (not LookupStringsHelper(path_components, entry, results))
+                        return false;
+                }
+            } else { // Must be an array index.
                 unsigned index;
                 if (unlikely(not StringUtil::ToUnsigned(path_component, &index)))
                     return false;
@@ -800,8 +786,10 @@ static bool LookupStringsHelper(std::deque<std::string> path_components, const s
                 if (unlikely(index >= array_node->size()))
                     return false;
                 next_node = array_node->getNode(index);
-                break;
             }
+            break;
+        default:
+            return false;
         }
     }
 

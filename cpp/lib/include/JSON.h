@@ -394,8 +394,7 @@ std::string LookupString(const std::string &path, const std::shared_ptr<const JS
  *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
  *                        supported.  Array path components can be specified w/ an asterisk.
  *  \param tree           The root of a JSON tree structure.
- *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
- *  \throws std::runtime_error if the datum is not found.
+ *  \return The list of extracted values.
  *  \note Should "path" reference a scalar nodes that are not strings, a string representations thereof will be
  *        returned.
  */
