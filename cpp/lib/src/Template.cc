@@ -22,15 +22,13 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
 #include "Template.h"
 #include <map>
+#include <set>
 #include <stdexcept>
 #include <sstream>
 #include <stack>
 #include "Compiler.h"
-#include "FileUtil.h"
-#include "StringUtil.h"
 #include "UrlUtil.h"
 #include "util.h"
 

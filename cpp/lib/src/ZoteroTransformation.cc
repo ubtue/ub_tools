@@ -14,15 +14,17 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-#include "MiscUtil.h"
-#include "StringUtil.h"
-#include "Zotero.h"
 #include "ZoteroTransformation.h"
+#include "RegexMatcher.h"
+#include "StringUtil.h"
+#include "TimeUtil.h"
+
 
 namespace Zotero {
 
+
 namespace Transformation {
+
 
 // Zotero values see https://raw.githubusercontent.com/zotero/zotero/master/test/tests/data/allTypesAndFields.js
 // MARC21 values see https://www.loc.gov/marc/relators/relaterm.html
@@ -118,6 +120,8 @@ bool TestForUnknownZoteroKey(const std::shared_ptr<const JSON::ObjectNode> &obje
     return false;
 }
 
+
 } // end ZoteroTransformation
+
 
 } // end Zotero

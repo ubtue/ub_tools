@@ -30,12 +30,8 @@
 #include <cerrno>
 #include <cstring>
 #include "Downloader.h"
-#include "FileUtil.h"
 #include "RegexMatcher.h"
-#include "SimpleCrawler.h"
-#include "StringUtil.h"
 #include "util.h"
-#include "WebUtil.h"
 
 
 class SimpleCrawler {

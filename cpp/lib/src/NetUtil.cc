@@ -23,7 +23,6 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
 #include "NetUtil.h"
 #include <stdexcept>
 #include <unordered_map>
@@ -34,7 +33,6 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include "DnsUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 

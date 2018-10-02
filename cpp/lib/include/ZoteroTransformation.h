@@ -16,14 +16,17 @@
 */
 #pragma once
 
+
+#include "JSON.h"
 #include "MARC.h"
-#include "UrlUtil.h"
-#include "Zotero.h"
 
 
 namespace Zotero {
 
+
 namespace Transformation {
+
+
     static std::vector<std::string> known_zotero_keys( {
         "abstractNote",
         "accessDate",
@@ -66,6 +69,9 @@ namespace Transformation {
     std::string OptionalMap(const std::string &key, const std::unordered_map<std::string, std::string> &map);
     std::string NormalizeDate(const std::string date_raw, const std::string strptime_format);
     bool TestForUnknownZoteroKey(const std::shared_ptr<const JSON::ObjectNode> &object_node);
+
+
 } // end ZoteroTransformation
+
 
 } // end Zotero

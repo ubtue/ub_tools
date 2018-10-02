@@ -35,7 +35,6 @@
 #include "RegexMatcher.h"
 #include "SimpleCrawler.h"
 #include "TimeLimit.h"
-#include "TimeUtil.h"
 #include "UnsignedPair.h"
 #include "Url.h"
 

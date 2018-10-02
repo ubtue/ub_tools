@@ -25,7 +25,6 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
 #include "TextUtil.h"
 #include <algorithm>
 #include <exception>
@@ -36,10 +35,8 @@
 #include <cwctype>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "Locale.h"
 #include "HtmlParser.h"
 #include "RegexMatcher.h"
-#include "StringDataSource.h"
 #include "StringUtil.h"
 #include "XMLParser.h"
 #include "util.h"
