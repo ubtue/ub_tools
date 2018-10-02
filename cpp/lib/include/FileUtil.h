@@ -240,6 +240,7 @@ bool SetBlocking(const int fd);
  *  \param  basename  Will hold the filename part.
  */
 void DirnameAndBasename(const std::string &path, std::string * const dirname, std::string * const basename);
+std::string GetBasename(const std::string &path);
 
 
 /** \return the part of "path" after the last slash or "path" if there is no slash. */
