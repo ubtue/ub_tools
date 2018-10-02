@@ -27,11 +27,10 @@
 
 class ControlNumberGuesser {
     kyotocabinet::HashDB *titles_db_, *authors_db_;
-    bool log_to_stdout_;
 public:
     enum OpenMode { CLEAR_DATABASES, DO_NOT_CLEAR_DATABASES };
 public:
-    explicit ControlNumberGuesser(const OpenMode open_mode, const bool log_to_stdout);
+    explicit ControlNumberGuesser(const OpenMode open_mode);
     ~ControlNumberGuesser() { delete titles_db_; delete authors_db_; }
 
     void insertTitle(const std::string &title, const std::string &control_number);
