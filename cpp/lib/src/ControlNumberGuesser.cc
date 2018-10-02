@@ -51,36 +51,6 @@ ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode) {
 }
 
 
-static std::string NormaliseTitle(const std::string &title) {
-    std::wstring wtitle;
-    if (unlikely(not TextUtil::UTF8ToWCharString(title, &wtitle)))
-        LOG_ERROR("failed to convert \"" + title + "\" to a wide character string!");
-
-    std::wstring normalised_title;
-    bool space_separator_seen(true);
-    for (const auto ch : wtitle) {
-        if (TextUtil::IsGeneralPunctuationCharacter(ch) or ch == '-' or TextUtil::IsSpaceSeparatorCharacter(ch)) {
-            if (not space_separator_seen)
-                normalised_title += ' ';
-            space_separator_seen = true;
-        } else {
-            space_separator_seen = false;
-            normalised_title += ch;
-        }
-    }
-    if (not normalised_title.empty() and TextUtil::IsSpaceSeparatorCharacter(normalised_title.back()))
-        normalised_title.resize(normalised_title.size() - 1);
-
-    TextUtil::ToLower(&normalised_title);
-
-    std::string utf8_normalised_title;
-    if (unlikely(not TextUtil::WCharToUTF8String(normalised_title, &utf8_normalised_title)))
-        LOG_ERROR("failed to convert a wstring to an UTF8 string!");
-
-    return utf8_normalised_title;
-}
-
-
 void ControlNumberGuesser::insertTitle(const std::string &title, const std::string &control_number) {
     const auto normalised_title(NormaliseTitle(title));
     if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
@@ -96,36 +66,6 @@ void ControlNumberGuesser::insertTitle(const std::string &title, const std::stri
         if (unlikely(not titles_db_->set(normalised_title, control_numbers)))
             LOG_ERROR("failed to insert normalised title into the database!");
     }
-}
-
-
-static std::string NormaliseAuthorName(std::string author_name) {
-    author_name = StringUtil::TrimWhite(author_name);
-    const auto comma_pos(author_name.find(','));
-    if (comma_pos != std::string::npos)
-        author_name = StringUtil::TrimWhite(author_name.substr(comma_pos + 1) + " " + author_name.substr(0, comma_pos));
-
-    std::string normalised_author_name;
-    bool space_seen(false);
-    for (const char ch : author_name) {
-        switch (ch) {
-        case '.':
-            normalised_author_name += ch;
-            normalised_author_name += ' ';
-            space_seen = true;
-            break;
-        case ' ':
-            if (not space_seen)
-                normalised_author_name += ' ';
-            space_seen = true;
-            break;
-        default:
-            normalised_author_name += ch;
-            space_seen = false;
-        }
-    }
-
-    return normalised_author_name;
 }
 
 
@@ -180,4 +120,65 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
                           std::back_inserter(common_control_numbers));
 
     return std::set<std::string>(common_control_numbers.cbegin(), common_control_numbers.cend());
+}
+
+
+std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
+    std::wstring wtitle;
+    if (unlikely(not TextUtil::UTF8ToWCharString(title, &wtitle)))
+        LOG_ERROR("failed to convert \"" + title + "\" to a wide character string!");
+
+    std::wstring normalised_title;
+    bool space_separator_seen(true);
+    for (const auto ch : wtitle) {
+        if (TextUtil::IsGeneralPunctuationCharacter(ch) or ch == '-' or TextUtil::IsSpaceSeparatorCharacter(ch)) {
+            if (not space_separator_seen)
+                normalised_title += ' ';
+            space_separator_seen = true;
+        } else {
+            space_separator_seen = false;
+            normalised_title += ch;
+        }
+    }
+    if (not normalised_title.empty() and TextUtil::IsSpaceSeparatorCharacter(normalised_title.back()))
+        normalised_title.resize(normalised_title.size() - 1);
+
+    TextUtil::ToLower(&normalised_title);
+
+    std::string utf8_normalised_title;
+    if (unlikely(not TextUtil::WCharToUTF8String(normalised_title, &utf8_normalised_title)))
+        LOG_ERROR("failed to convert a wstring to an UTF8 string!");
+
+    return utf8_normalised_title;
+}
+
+
+std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_name) {
+    auto trimmed_author_name = StringUtil::TrimWhite(author_name);
+    const auto comma_pos(trimmed_author_name.find(','));
+    if (comma_pos != std::string::npos)
+        trimmed_author_name = StringUtil::TrimWhite(trimmed_author_name.substr(comma_pos + 1) + " "
+                                                    + trimmed_author_name.substr(0, comma_pos));
+
+    std::string normalised_author_name;
+    bool space_seen(false);
+    for (const char ch : trimmed_author_name) {
+        switch (ch) {
+        case '.':
+            normalised_author_name += ch;
+            normalised_author_name += ' ';
+            space_seen = true;
+            break;
+        case ' ':
+            if (not space_seen)
+                normalised_author_name += ' ';
+            space_seen = true;
+            break;
+        default:
+            normalised_author_name += ch;
+            space_seen = false;
+        }
+    }
+
+    return normalised_author_name;
 }
