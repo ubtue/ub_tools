@@ -369,7 +369,7 @@ std::string TokenTypeToString(const TokenType token);
  *  \param tree           The root of a JSON tree structure.
  *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
  *  \throws std::runtime_error if the datum is not found.
- *  \note Should "path" reference a scalar node that is not a string, a string representation. thereof will be
+ *  \note Should "path" reference a scalar node that is not a string, a string representation thereof will be
  *        returned.
  */
 std::string LookupString(const std::string &path, const std::shared_ptr<const JSONNode> &tree);
@@ -382,11 +382,23 @@ std::string LookupString(const std::string &path, const std::shared_ptr<const JS
  *  \param tree           The root of a JSON tree structure.
  *  \param default_value  If "path" can't be found, return this.
  *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
- *  \note Should "path" reference a scalar node that is not a string, a string representation. thereof will be
+ *  \note Should "path" reference a scalar node that is not a string, a string representation thereof will be
  *        returned.
  */
 std::string LookupString(const std::string &path, const std::shared_ptr<const JSONNode> &tree,
                          const std::string &default_value);
+
+
+/** \brief Extracts a list of strings from a JSON tree structure.
+ *  \param path           A path of the form /X/Y/X...  Individual path components may contain slashes if they are
+ *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
+ *                        supported.  Array path components can be specified w/ an asterisk.
+ *  \param tree           The root of a JSON tree structure.
+ *  \return The list of extracted values.
+ *  \note Should "path" reference a scalar nodes that are not strings, a string representations thereof will be
+ *        returned.
+ */
+std::vector<std::string> LookupStrings(const std::string &path, const std::shared_ptr<const JSONNode> &tree);
 
 
 /** \brief Extracts an integer datum from a JSON tree structure.

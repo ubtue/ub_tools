@@ -59,9 +59,10 @@ void ControlNumberGuesser::insertTitle(const std::string &title, const std::stri
         LOG_WARNING("Empty normalised title in record w/ control number: " + control_number);
     else {
         std::string control_numbers;
-        if (titles_db_->get(normalised_title, &control_numbers))
-            control_numbers += "\0" + control_number;
-        else
+        if (titles_db_->get(normalised_title, &control_numbers)) {
+            control_numbers += '\0';
+            control_numbers += control_number;
+        } else
             control_numbers = control_number;
         if (unlikely(not titles_db_->set(normalised_title, control_numbers)))
             LOG_ERROR("failed to insert normalised title into the database!");
@@ -75,9 +76,10 @@ void ControlNumberGuesser::insertAuthors(const std::set<std::string> &authors, c
         if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
             LOG_DEBUG("in ControlNumberGuesser::insertAuthors: normalised_author_name=\"" + normalised_author_name + "\".");
         std::string control_numbers;
-        if (authors_db_->get(normalised_author_name, &control_numbers))
-            control_numbers += "\0" + control_number;
-        else
+        if (authors_db_->get(normalised_author_name, &control_numbers)) {
+            control_numbers += '\0';
+            control_numbers += control_number;
+        } else
             control_numbers = control_number;
         if (unlikely(not authors_db_->set(normalised_author_name, control_numbers)))
             LOG_ERROR("failed to insert normalised author into the database!");
