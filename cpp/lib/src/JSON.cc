@@ -771,8 +771,6 @@ static bool LookupStringsHelper(std::deque<std::string> path_components, const s
             break;
         case JSONNode::ARRAY_NODE:
             if (path_component == "*") {
-                if (next_node->getType() != JSONNode::ARRAY_NODE)
-                    return false;
                 const auto array_node(JSONNode::CastToArrayNodeOrDie("*", next_node));
                 for (const auto &entry : *array_node) {
                     if (not LookupStringsHelper(path_components, entry, results))
