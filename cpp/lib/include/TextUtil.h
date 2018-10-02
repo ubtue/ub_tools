@@ -167,6 +167,9 @@ bool UTF8ToUTF32(const std::string &utf8_string, std::vector<uint32_t> * utf32_c
 uint32_t UTF32ToLower(const uint32_t code_point);
 
 
+std::wstring ToLower(std::wstring * const s);
+
+
 /** \brief Converts a UTF8 string to uppercase.
  *  \return True if no character set conversion error occurred, o/w false.
  */
@@ -456,6 +459,10 @@ std::string CanonizeCharset(std::string charset);
  *  \return False if conversion errors occurred, else true.
  */
 bool UnicodeTruncate(std::string * const utf8_string, const size_t max_length);
+
+
+inline bool IsGeneralPunctuationCharacter(const wchar_t ch) { return ch >= 0x2000 and ch <= 0x206F; }
+bool IsSpaceSeparatorCharacter(const wchar_t ch);
 
 
 } // namespace TextUtil
