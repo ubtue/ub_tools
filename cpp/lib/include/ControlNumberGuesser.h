@@ -36,4 +36,8 @@ public:
     void insertTitle(const std::string &title, const std::string &control_number);
     void insertAuthors(const std::set<std::string> &authors, const std::string &control_number);
     std::set<std::string> getGuessedControlNumbers(const std::string &title, const std::vector<std::string> &authors) const;
+
+    /** For testing purposes. */
+    static std::string NormaliseTitle(const std::string &title);
+    static std::string NormaliseAuthorName(const std::string &author_name);
 };

@@ -113,7 +113,9 @@
 /mpi_stats
 /new_journal_alert
 /normalise_and_deduplicate_language
+/normalise_author_name
 /normalise_marc_contents
+/normalise_title
 /normalise_urls
 /notify_users
 /oai_pmh_harvester
