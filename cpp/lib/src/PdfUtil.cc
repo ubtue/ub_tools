@@ -17,12 +17,11 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "PdfUtil.h"
 #include <leptonica/allheaders.h>
 #include <tesseract/baseapi.h>
 #include "ExecUtil.h"
 #include "FileUtil.h"
-#include "MiscUtil.h"
-#include "PdfUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 

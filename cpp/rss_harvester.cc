@@ -21,6 +21,7 @@
 #include <cstring>
 #include "DbConnection.h"
 #include "FileUtil.h"
+#include "StringUtil.h"
 #include "util.h"
 #include "Zotero.h"
 

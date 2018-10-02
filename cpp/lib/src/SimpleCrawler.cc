@@ -19,6 +19,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "SimpleCrawler.h"
+#include "StringUtil.h"
+#include "WebUtil.h"
 
 
 SimpleCrawler::Params::Params(const std::string &acceptable_languages, const unsigned timeout,

@@ -21,6 +21,7 @@
 */
 #include "Solr.h"
 #include "Downloader.h"
+#include "HttpHeader.h"
 #include "JSON.h"
 #include "UrlUtil.h"
 
@@ -49,7 +50,7 @@ std::string XMLError(const std::string &xml_response) {
     return xml_response;
 }
 
-    
+
 bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
            std::string * const err_msg, const std::string &host_and_port, const unsigned timeout,
            const QueryResultFormat query_result_format, const unsigned max_no_of_rows)

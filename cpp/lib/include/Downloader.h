@@ -28,9 +28,8 @@
 #include <unordered_map>
 #include <curl/curl.h>
 #include "Compiler.h"
-#include "HttpHeader.h"
-#include "RobotsDotTxt.h"
 #include "PerlCompatRegExp.h"
+#include "RobotsDotTxt.h"
 #include "TimeLimit.h"
 #include "Url.h"
 
