@@ -19,6 +19,7 @@
  */
 #include "ControlNumberGuesser.h"
 #include <algorithm>
+#include <iostream>
 #include <iterator>
 #include <vector>
 #include "StringUtil.h"
@@ -37,7 +38,7 @@ static kyotocabinet::HashDB *CreateOrOpenKeyValueDB(const std::string &db_path) 
 static const std::string MATCH_DB_PREFIX("/usr/local/var/lib/tuelib/normalised_");
 
 
-ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode) {
+ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode, const bool log_to_stdout): log_to_stdout_(log_to_stdout) {
     const std::string TITLES_DB_PATH(MATCH_DB_PREFIX + "titles.db");
     const std::string AUTHORS_DB_PATH(MATCH_DB_PREFIX + "authors.db");
 
@@ -59,10 +60,13 @@ void ControlNumberGuesser::insertTitle(const std::string &title, const std::stri
         LOG_WARNING("Empty normalised title in record w/ control number: " + control_number);
     else {
         std::string control_numbers;
-        if (titles_db_->get(normalised_title, &control_numbers))
-            control_numbers += "\0" + control_number;
-        else
+        if (titles_db_->get(normalised_title, &control_numbers)) {
+            control_numbers += '\0';
+            control_numbers += control_number;
+        } else
             control_numbers = control_number;
+        if (log_to_stdout_)
+            std::cout << normalised_title << ": " << StringUtil::Map(control_numbers, '\0', ',') << '\n';
         if (unlikely(not titles_db_->set(normalised_title, control_numbers)))
             LOG_ERROR("failed to insert normalised title into the database!");
     }
@@ -75,10 +79,13 @@ void ControlNumberGuesser::insertAuthors(const std::set<std::string> &authors, c
         if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
             LOG_DEBUG("in ControlNumberGuesser::insertAuthors: normalised_author_name=\"" + normalised_author_name + "\".");
         std::string control_numbers;
-        if (authors_db_->get(normalised_author_name, &control_numbers))
-            control_numbers += "\0" + control_number;
-        else
+        if (authors_db_->get(normalised_author_name, &control_numbers)) {
+            control_numbers += '\0';
+            control_numbers += control_number;
+        } else
             control_numbers = control_number;
+        if (log_to_stdout_)
+            std::cout << normalised_author_name << ": " << StringUtil::Map(control_numbers, '\0', ',') << '\n';
         if (unlikely(not authors_db_->set(normalised_author_name, control_numbers)))
             LOG_ERROR("failed to insert normalised author into the database!");
     }
