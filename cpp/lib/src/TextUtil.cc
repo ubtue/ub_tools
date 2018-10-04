@@ -1478,7 +1478,7 @@ bool IsSpaceSeparatorCharacter(const wchar_t ch) {
 
 double CalcTextSimilarity(const std::string &text1, const std::string &text2, const bool ignore_case) {
     double levenshtein_distance;
-    if (ignore_case)
+    if (not ignore_case)
         levenshtein_distance = MiscUtil::LevenshteinDistance(text1, text2);
     else {
         std::string lowercase_text1;
