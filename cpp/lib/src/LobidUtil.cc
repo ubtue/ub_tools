@@ -62,6 +62,22 @@ public:
 
         return root_object;
     }
+
+    const std::string executeAndLookupString(const std::string &path) {
+        const auto root_object(execute());
+        if (root_object == nullptr)
+            return "";
+
+        return JSON::LookupString(path, root_object, "");
+    }
+
+    const std::vector<std::string> executeAndLookupStrings(const std::string &path) {
+        const auto root_object(execute());
+        if (root_object == nullptr)
+            return std::vector<std::string>{};
+
+        return JSON::LookupStrings(path, root_object);
+    }
 };
 
 
@@ -105,6 +121,7 @@ public:
 /** \brief Query class for Resource API */
 class ResourceQuery : public Query {
     const std::string BASE_URL = "http://lobid.org/resources/search?format=json";
+
     std::string toUrl() {
         std::string url(BASE_URL);
         if (not title_.empty())
@@ -122,12 +139,7 @@ std::string GetAuthorPPN(const std::string &author) {
     GNDQuery query;
     query.preferredName_ = author;
     query.type_ = "DifferentiatedPerson";
-
-    const auto root_object(query.execute());
-    if (root_object == nullptr)
-        return "";
-
-    return JSON::LookupString("/member/0/gndIdentifier", root_object, "");
+    return query.executeAndLookupString("/member/0/gndIdentifier");
 }
 
 
@@ -136,24 +148,14 @@ std::vector<std::string> GetAuthorProfessions(const std::string &author) {
     query.multipleResultsAllowed_ = true;
     query.preferredName_ = author;
     query.type_ = "DifferentiatedPerson";
-
-    const auto root_object(query.execute());
-    if (root_object == nullptr)
-        return std::vector<std::string>{};
-
-    return JSON::LookupStrings("/member/*/professionOrOccupation/*/label", root_object);
+    return query.executeAndLookupStrings("/member/*/professionOrOccupation/*/label");
 }
 
 
 std::string GetOrganisationISIL(const std::string &organisation) {
     OrganisationQuery query;
     query.name_ = organisation;
-
-    const auto root_object(query.execute());
-    if (root_object == nullptr)
-        return "";
-
-    return JSON::LookupString("/member/0/isil", root_object, "");
+    return query.executeAndLookupString("/member/0/isil");
 }
 
 
@@ -161,12 +163,7 @@ std::string GetTitleDOI(const std::string &title) {
     ResourceQuery query;
     query.multipleResultsAllowed_ = true;
     query.title_ = title;
-
-    const auto root_object(query.execute());
-    if (root_object == nullptr)
-        return "";
-
-    return JSON::LookupString("/member/0/doi/0", root_object, "");
+    return query.executeAndLookupString("/member/0/doi/0");
 }
 
 
