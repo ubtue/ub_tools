@@ -718,7 +718,7 @@ static std::string LookupString(const std::string &path, const std::shared_ptr<c
             return default_value;
         throw std::runtime_error("in JSON::LookupString: missing bottom node!");
     }
-    
+
     switch (bottommost_node->getType()) {
     case JSONNode::BOOLEAN_NODE:
         return JSONNode::CastToBooleanNodeOrDie("bottommost_node", bottommost_node)->getValue() ? "true" : "false";
@@ -767,22 +767,29 @@ static bool LookupStringsHelper(std::deque<std::string> path_components, const s
 
         switch (next_node->getType()) {
         case JSONNode::OBJECT_NODE:
-            next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component);
+            next_node = JSONNode::CastToObjectNodeOrDie(path_component, next_node)->getNode(path_component);
+            if (next_node == nullptr)
+                return true;
             break;
         case JSONNode::ARRAY_NODE:
             if (path_component == "*") {
-                const auto array_node(JSONNode::CastToArrayNodeOrDie("*", next_node));
+                const auto array_node(JSONNode::CastToArrayNodeOrDie(path_component, next_node));
                 for (const auto &entry : *array_node) {
                     if (not LookupStringsHelper(path_components, entry, results))
                         return false;
                 }
+                return true;
             } else { // Must be an array index.
                 unsigned index;
-                if (unlikely(not StringUtil::ToUnsigned(path_component, &index)))
+                if (unlikely(not StringUtil::ToUnsigned(path_component, &index))) {
+                    LOG_WARNING("bad index: " + path_component);
                     return false;
-                const std::shared_ptr<const ArrayNode> array_node(JSONNode::CastToArrayNodeOrDie("next_node", next_node));
-                if (unlikely(index >= array_node->size()))
+                }
+                const std::shared_ptr<const ArrayNode> array_node(JSONNode::CastToArrayNodeOrDie(path_component, next_node));
+                if (unlikely(index >= array_node->size())) {
+                    LOG_WARNING("index too large: " + path_component);
                     return false;
+                }
                 next_node = array_node->getNode(index);
             }
             break;
