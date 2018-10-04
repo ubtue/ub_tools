@@ -20,6 +20,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <unordered_map>
+#include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
 #include "ControlNumberGuesser.h"
@@ -41,13 +42,14 @@ const std::string IXTHEO_PREFIX("https://ixtheo.de/Record/");
     
 void FindDups(File * const matches_list_output,
               const std::unordered_map<std::string, std::set<std::string>> &title_to_control_numbers_map,
-              const  std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map)
+              const std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map)
 {
     unsigned dup_count(0);
     for (const auto &title_and_control_numbers : title_to_control_numbers_map) {
         if (title_and_control_numbers.second.size() < 2)
             continue;
 
+        // Collect all control numbers for all authors of the current title:
         std::map<std::string, std::set<std::string>> author_to_control_numbers_map;
         for (const auto &control_number : title_and_control_numbers.second) {
             const auto control_number_and_authors(control_number_to_authors_map.find(control_number));
@@ -64,12 +66,23 @@ void FindDups(File * const matches_list_output,
         }
 
         // Output those cases where we found multiple control numbers for the same author for a single title:
+        std::unordered_set<std::string> already_processed_control_numbers;
         for (const auto &author_and_control_numbers : author_to_control_numbers_map) {
             if (author_and_control_numbers.second.size() >= 2) {
-                for (const auto &control_number : author_and_control_numbers.second)
+                // We may have multiple authors for the same work but only wish to report each duplicate work once:
+                for (const auto &control_number : author_and_control_numbers.second) {
+                    if (already_processed_control_numbers.find(control_number) != already_processed_control_numbers.cend())
+                        goto skip_author;
+                }
+                
+                for (const auto &control_number : author_and_control_numbers.second) {
+                    already_processed_control_numbers.emplace(control_number);
                     (*matches_list_output) << IXTHEO_PREFIX << control_number << ' ';
+                }
                 (*matches_list_output) << "\r\n";
                 ++dup_count;
+skip_author:
+                /* Intentionally empty! */;
             }
         }
     }
