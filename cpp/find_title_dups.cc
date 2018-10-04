@@ -69,6 +69,7 @@ void FindDups(File * const matches_list_output,
                 for (const auto &control_number : author_and_control_numbers.second)
                     (*matches_list_output) << IXTHEO_PREFIX << control_number << ' ';
                 (*matches_list_output) << "\r\n";
+                ++dup_count;
             }
         }
     }
