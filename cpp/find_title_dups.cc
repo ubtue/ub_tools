@@ -19,9 +19,9 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <unordered_map>
 #include <cstdio>
 #include <cstdlib>
-#include <unordered_map>
 #include "ControlNumberGuesser.h"
 #include "FileUtil.h"
 #include "util.h"
