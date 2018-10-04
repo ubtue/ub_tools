@@ -1488,7 +1488,7 @@ double CalcTextSimilarity(const std::string &text1, const std::string &text2, co
         levenshtein_distance = MiscUtil::LevenshteinDistance(lowercase_text1, lowercase_text2);
     }
 
-    return levenshtein_distance / std::min(text1.length(), text2.length());
+    return levenshtein_distance / std::max(text1.length(), text2.length());
 }
 
 
