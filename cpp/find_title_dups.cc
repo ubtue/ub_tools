@@ -41,7 +41,7 @@ const std::string IXTHEO_PREFIX("https://ixtheo.de/Record/");
     
 void FindDups(File * const matches_list_output,
               const std::unordered_map<std::string, std::set<std::string>> &title_to_control_numbers_map,
-              const  std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map)
+              const std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map)
 {
     unsigned dup_count(0);
     for (const auto &title_and_control_numbers : title_to_control_numbers_map) {
