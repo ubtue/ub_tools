@@ -36,6 +36,7 @@
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "HtmlParser.h"
+#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "XMLParser.h"
@@ -1472,6 +1473,22 @@ bool IsSpaceSeparatorCharacter(const wchar_t ch) {
     return ch == 0x0020 or ch == 0x00A0 or ch == 0x1680 or ch == 0x2000 or ch == 0x2001 or ch == 0x2002 or ch == 0x2003 or ch == 0x2004
            or ch == 0x2005 or ch == 0x2006 or ch == 0x2007 or ch == 0x2008 or ch == 0x2009 or ch == 0x200A or ch == 0x202F or ch == 0x205F
            or ch == 0x3000;
+}
+
+
+double CalcTextSimilarity(const std::string &text1, const std::string &text2, const bool ignore_case) {
+    double levenshtein_distance;
+    if (ignore_case)
+        levenshtein_distance = MiscUtil::LevenshteinDistance(text1, text2);
+    else {
+        std::string lowercase_text1;
+        UTF8ToLower(&lowercase_text1);
+        std::string lowercase_text2;
+        UTF8ToLower(&lowercase_text2);
+        levenshtein_distance = MiscUtil::LevenshteinDistance(lowercase_text1, lowercase_text2);
+    }
+
+    return levenshtein_distance / std::min(text1.length(), text2.length());
 }
 
 

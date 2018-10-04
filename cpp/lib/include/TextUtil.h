@@ -465,4 +465,8 @@ inline bool IsGeneralPunctuationCharacter(const wchar_t ch) { return ch >= 0x200
 bool IsSpaceSeparatorCharacter(const wchar_t ch);
 
 
+// \return 0.0 if the texts are identical and a large score <= 1.0 if they are not.
+double CalcTextSimilarity(const std::string &text1, const std::string &text2, const bool ignore_case = true);
+
+
 } // namespace TextUtil
