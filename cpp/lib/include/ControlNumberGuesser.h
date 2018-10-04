@@ -38,7 +38,7 @@ public:
     void insertAuthors(const std::set<std::string> &authors, const std::string &control_number);
     std::set<std::string> getGuessedControlNumbers(const std::string &title, const std::vector<std::string> &authors) const;
 
-    bool getNextTitle(std::string * const title, std::string * const control_number) const;
+    bool getNextTitle(std::string * const title, std::set<std::string> * const control_numbers) const;
     bool getNextAuthor(std::string * const author_name, std::set<std::string> * const control_numbers) const;
 
     /** For testing purposes. */

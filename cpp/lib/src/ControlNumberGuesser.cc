@@ -123,15 +123,17 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
 }
 
 
-bool ControlNumberGuesser::getNextTitle(std::string * const title, std::string * const control_number) const {
+bool ControlNumberGuesser::getNextTitle(std::string * const title, std::set<std::string> * const control_numbers) const {
     if (title_cursor_ == nullptr) {
         title_cursor_ = titles_db_->cursor();
         title_cursor_->jump();
     }
 
-    if (title_cursor_->get(title, control_number, /* Move cursor to the next record */true))
+    std::string concatenated_control_numbers;
+    if (title_cursor_->get(title, &concatenated_control_numbers, /* Move cursor to the next record */true)) {
+        StringUtil::Split(concatenated_control_numbers, '\0', control_numbers);
         return true;
-    else {
+    } else {
         delete title_cursor_;
         title_cursor_ = nullptr;
         return false;
