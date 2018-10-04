@@ -100,6 +100,8 @@ int Main(int argc, char *argv[]) {
             auto control_number_and_authors(control_number_to_authors_map.find(control_number));
             if (control_number_and_authors == control_number_to_authors_map.end())
                 control_number_to_authors_map[author] = std::set<std::string>{ author };
+            else
+                control_number_and_authors->second.emplace(author);
         }
     }
     LOG_INFO("loaded " + std::to_string(control_number_to_authors_map.size()) + " mappings from control numbers to authors.");
