@@ -434,12 +434,12 @@ uint32_t UTF32ToLower(const uint32_t code_point) {
 }
 
 
-std::wstring ToLower(std::wstring * const s) {
+std::wstring &ToLower(std::wstring * const s) {
     for (auto &ch : *s)
         ch = std::tolower(ch);
     return *s;
 }
-    
+
 
 
 uint32_t UTF32ToUpper(const uint32_t code_point) {
@@ -1477,18 +1477,20 @@ bool IsSpaceSeparatorCharacter(const wchar_t ch) {
 
 
 double CalcTextSimilarity(const std::string &text1, const std::string &text2, const bool ignore_case) {
-    double levenshtein_distance;
-    if (not ignore_case)
-        levenshtein_distance = MiscUtil::LevenshteinDistance(text1, text2);
-    else {
-        std::string lowercase_text1;
-        UTF8ToLower(&lowercase_text1);
-        std::string lowercase_text2;
-        UTF8ToLower(&lowercase_text2);
-        levenshtein_distance = MiscUtil::LevenshteinDistance(lowercase_text1, lowercase_text2);
+    std::wstring wtext1;
+    if (unlikely(UTF8ToWCharString(text1, &wtext1)))
+        LOG_ERROR("failed to convert \"text1\" to a wstring!");
+
+    std::wstring wtext2;
+    if (unlikely(UTF8ToWCharString(text2, &wtext2)))
+        LOG_ERROR("failed to convert \"text2\" to a wstring!");
+
+    if (ignore_case) {
+        ToLower(&wtext1);
+        ToLower(&wtext2);
     }
 
-    return levenshtein_distance / std::max(text1.length(), text2.length());
+    return MiscUtil::LevenshteinDistance(wtext1, wtext2) / std::max(wtext1.length(), wtext2.length());
 }
 
 

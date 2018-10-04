@@ -32,7 +32,7 @@ public:
     enum OpenMode { CLEAR_DATABASES, DO_NOT_CLEAR_DATABASES };
 public:
     explicit ControlNumberGuesser(const OpenMode open_mode);
-    ~ControlNumberGuesser() { delete titles_db_; delete authors_db_; }
+    ~ControlNumberGuesser() { delete title_cursor_; delete author_cursor_; delete titles_db_; delete authors_db_; }
 
     void insertTitle(const std::string &title, const std::string &control_number);
     void insertAuthors(const std::set<std::string> &authors, const std::string &control_number);
