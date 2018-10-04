@@ -167,7 +167,7 @@ bool UTF8ToUTF32(const std::string &utf8_string, std::vector<uint32_t> * utf32_c
 uint32_t UTF32ToLower(const uint32_t code_point);
 
 
-std::wstring ToLower(std::wstring * const s);
+std::wstring &ToLower(std::wstring * const s);
 
 
 /** \brief Converts a UTF8 string to uppercase.
