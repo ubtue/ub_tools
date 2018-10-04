@@ -89,19 +89,20 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, std::set<std::string>> title_to_control_numbers_map;
     std::string title;
     std::set<std::string> control_numbers;
-    while (control_number_guesser.getNextTitle(&title, &control_numbers)) {
+    while (control_number_guesser.getNextTitle(&title, &control_numbers))
         title_to_control_numbers_map.emplace(title, control_numbers);
-    }
+    LOG_INFO("loaded " + std::to_string(title_to_control_numbers_map.size()) + " mappings from titles to control numbers.");
 
     std::unordered_map<std::string, std::set<std::string>> control_number_to_authors_map;
     std::string author;
-    while (control_number_guesser.getNextTitle(&author, &control_numbers)) {
+    while (control_number_guesser.getNextAuthor(&author, &control_numbers)) {
         for (const auto &control_number : control_numbers) {
             auto control_number_and_authors(control_number_to_authors_map.find(control_number));
             if (control_number_and_authors == control_number_to_authors_map.end())
                 control_number_to_authors_map[author] = std::set<std::string>{ author };
         }
     }
+    LOG_INFO("loaded " + std::to_string(control_number_to_authors_map.size()) + " mappings from control numbers to authors.");
 
     auto matches_list_output(FileUtil::OpenOutputFileOrDie(argv[1]));
     FindDups(matches_list_output.get(), title_to_control_numbers_map, control_number_to_authors_map);
