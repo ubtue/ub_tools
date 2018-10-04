@@ -99,7 +99,7 @@ int Main(int argc, char *argv[]) {
         for (const auto &control_number : control_numbers) {
             auto control_number_and_authors(control_number_to_authors_map.find(control_number));
             if (control_number_and_authors == control_number_to_authors_map.end())
-                control_number_to_authors_map[author] = std::set<std::string>{ author };
+                control_number_to_authors_map[control_number] = std::set<std::string>{ author };
             else
                 control_number_and_authors->second.emplace(author);
         }
