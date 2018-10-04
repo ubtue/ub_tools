@@ -57,8 +57,8 @@ const std::shared_ptr<const JSON::ObjectNode> Query(const std::string &url, cons
     if (downloader.anErrorOccurred())
         LOG_ERROR(downloader.getLastErrorMessage());
 
-    std::shared_ptr<JSON::JSONNode> root_node(nullptr);
     JSON::Parser json_parser(downloader.getMessageBody());
+    std::shared_ptr<JSON::JSONNode> root_node;
     if (not (json_parser.parse(&root_node)))
         LOG_ERROR("failed to parse returned JSON: " + json_parser.getErrorMessage() + "(input was: "
                   + downloader.getMessageBody() + ")");
