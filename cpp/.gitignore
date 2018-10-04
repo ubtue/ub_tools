@@ -64,6 +64,7 @@
 /test_chop_into_words
 /find_latest_journal_year
 /find_missing_metadata
+/find_title_dups
 /fix_article_biblio_levels
 /fix_iso_8859_1_garbage
 /flag_article_collections
