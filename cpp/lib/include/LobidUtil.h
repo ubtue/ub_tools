@@ -1,4 +1,6 @@
 /*  \brief Utility Functions for Lobid API (HBZ) to get title data, norm data (GND) and organisational data
+ *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
+ *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
