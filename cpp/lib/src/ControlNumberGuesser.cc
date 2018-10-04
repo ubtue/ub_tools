@@ -37,7 +37,7 @@ static kyotocabinet::HashDB *CreateOrOpenKeyValueDB(const std::string &db_path) 
 static const std::string MATCH_DB_PREFIX("/usr/local/var/lib/tuelib/normalised_");
 
 
-ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode) {
+ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode) : title_cursor_(nullptr), author_cursor_(nullptr) {
     const std::string TITLES_DB_PATH(MATCH_DB_PREFIX + "titles.db");
     const std::string AUTHORS_DB_PATH(MATCH_DB_PREFIX + "authors.db");
 
@@ -53,8 +53,7 @@ ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode) {
 
 void ControlNumberGuesser::insertTitle(const std::string &title, const std::string &control_number) {
     const auto normalised_title(NormaliseTitle(title));
-    if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
-        LOG_DEBUG("in ControlNumberGuesser::insertTitle: normalised_title=\"" + normalised_title + "\".");
+    LOG_DEBUG("normalised_title=\"" + normalised_title + "\".");
     if (unlikely(normalised_title.empty()))
         LOG_WARNING("Empty normalised title in record w/ control number: " + control_number);
     else {
@@ -73,8 +72,7 @@ void ControlNumberGuesser::insertTitle(const std::string &title, const std::stri
 void ControlNumberGuesser::insertAuthors(const std::set<std::string> &authors, const std::string &control_number) {
     for (const auto author : authors) {
         const auto normalised_author_name(TextUtil::UTF8ToLower(NormaliseAuthorName(author)));
-        if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
-            LOG_DEBUG("in ControlNumberGuesser::insertAuthors: normalised_author_name=\"" + normalised_author_name + "\".");
+        LOG_DEBUG("normalised_author_name=\"" + normalised_author_name + "\".");
         std::string control_numbers;
         if (authors_db_->get(normalised_author_name, &control_numbers)) {
             control_numbers += '\0';
@@ -125,6 +123,42 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
 }
 
 
+bool ControlNumberGuesser::getNextTitle(std::string * const title, std::set<std::string> * const control_numbers) const {
+    if (title_cursor_ == nullptr) {
+        title_cursor_ = titles_db_->cursor();
+        title_cursor_->jump();
+    }
+
+    std::string concatenated_control_numbers;
+    if (title_cursor_->get(title, &concatenated_control_numbers, /* Move cursor to the next record */true)) {
+        StringUtil::Split(concatenated_control_numbers, '\0', control_numbers);
+        return true;
+    } else {
+        delete title_cursor_;
+        title_cursor_ = nullptr;
+        return false;
+    }
+}
+
+
+bool ControlNumberGuesser::getNextAuthor(std::string * const author_name, std::set<std::string> * const control_numbers) const {
+    if (author_cursor_ == nullptr) {
+        author_cursor_ = authors_db_->cursor();
+        author_cursor_->jump();
+    }
+
+    std::string concatenated_control_numbers;
+    if (author_cursor_->get(author_name, &concatenated_control_numbers, /* Move cursor to the next record */true)) {
+        StringUtil::Split(concatenated_control_numbers, '\0', control_numbers);
+        return true;
+    } else {
+        delete author_cursor_;
+        author_cursor_ = nullptr;
+        return false;
+    }
+}
+
+
 std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
     std::wstring wtitle;
     if (unlikely(not TextUtil::UTF8ToWCharString(title, &wtitle)))
@@ -164,21 +198,33 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
 
     std::string normalised_author_name;
     bool space_seen(false);
+    unsigned non_space_sequence_length(0);
     for (const char ch : trimmed_author_name) {
         switch (ch) {
         case '.':
-            normalised_author_name += ch;
-            normalised_author_name += ' ';
-            space_seen = true;
+            if (non_space_sequence_length == 1)
+                normalised_author_name.resize(normalised_author_name.length() - 1);
+            else
+                normalised_author_name += ch;
+            if (normalised_author_name.empty())
+                space_seen = false;
+            else {
+                if (normalised_author_name.back() != ' ')
+                    normalised_author_name += ' ';
+                space_seen = true;
+            }
+            non_space_sequence_length = 0;
             break;
         case ' ':
             if (not space_seen)
                 normalised_author_name += ' ';
             space_seen = true;
+            non_space_sequence_length = 0;
             break;
         default:
             normalised_author_name += ch;
             space_seen = false;
+            ++non_space_sequence_length;
         }
     }
 

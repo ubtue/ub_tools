@@ -27,6 +27,7 @@
 
 class ControlNumberGuesser {
     kyotocabinet::HashDB *titles_db_, *authors_db_;
+    mutable kyotocabinet::DB::Cursor *title_cursor_, *author_cursor_;
 public:
     enum OpenMode { CLEAR_DATABASES, DO_NOT_CLEAR_DATABASES };
 public:
@@ -36,6 +37,9 @@ public:
     void insertTitle(const std::string &title, const std::string &control_number);
     void insertAuthors(const std::set<std::string> &authors, const std::string &control_number);
     std::set<std::string> getGuessedControlNumbers(const std::string &title, const std::vector<std::string> &authors) const;
+
+    bool getNextTitle(std::string * const title, std::set<std::string> * const control_numbers) const;
+    bool getNextAuthor(std::string * const author_name, std::set<std::string> * const control_numbers) const;
 
     /** For testing purposes. */
     static std::string NormaliseTitle(const std::string &title);
