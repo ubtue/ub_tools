@@ -28,142 +28,92 @@ namespace LobidUtil {
 std::unordered_map<std::string, const std::shared_ptr<const JSON::ObjectNode>> url_to_lookup_result_cache;
 
 
-/** \brief abstract Query base class for different APIs */
-class Query {
-    const std::string BASE_URL = "http://lobid.org/";
-    virtual std::string toUrl() = 0;
-public:
-    bool multipleResultsAllowed_ = false;
+static std::string BASE_URL_GND = "http://lobid.org/gnd/search?format=json";
+static std::string BASE_URL_ORGANISATIONS = "http://lobid.org/organisations/search?format=json";
+static std::string BASE_URL_RESOURCES = "http://lobid.org/resources/search?format=json";
 
-    const std::shared_ptr<const JSON::ObjectNode> execute() {
-        const std::string url(toUrl());
-        LOG_DEBUG(url);
-        const auto url_and_lookup_result(url_to_lookup_result_cache.find(url));
-        if (url_and_lookup_result != url_to_lookup_result_cache.end())
-            return url_and_lookup_result->second;
 
-        Downloader downloader(url);
-        if (downloader.anErrorOccurred())
-            LOG_ERROR(downloader.getLastErrorMessage());
+const std::string BuildUrl(const std::string &base_url, const std::unordered_map<std::string, std::string> &params) {
+    std::string url(base_url);
+    unsigned i(0);
+    for (const auto &key_and_value : params) {
+        url += "&";
+        if (i == 0)
+            url += "q=";
+        url += key_and_value.first + UrlUtil::UrlEncode(":" + key_and_value.second);
+        ++i;
+    }
+    return url;
+}
 
-        std::shared_ptr<JSON::JSONNode> root_node(nullptr);
-        JSON::Parser json_parser(downloader.getMessageBody());
-        if (not (json_parser.parse(&root_node)))
-           LOG_ERROR("failed to parse returned JSON: " + json_parser.getErrorMessage() + "(input was: "
-                     + downloader.getMessageBody() + ")");
 
-        const std::shared_ptr<const JSON::ObjectNode> root_object(JSON::JSONNode::CastToObjectNodeOrDie("root", root_node));
-        url_to_lookup_result_cache.emplace(url, root_object);
+const std::shared_ptr<const JSON::ObjectNode> Query(const std::string &url, const bool allow_multiple_results) {
+    LOG_DEBUG(url);
+    const auto url_and_lookup_result(url_to_lookup_result_cache.find(url));
+    if (url_and_lookup_result != url_to_lookup_result_cache.end())
+        return url_and_lookup_result->second;
 
-        if (not multipleResultsAllowed_ and root_object->getIntegerValue("totalItems") > 1) {
-            LOG_WARNING("found more than one result");
-            return nullptr;
-        }
+    Downloader downloader(url);
+    if (downloader.anErrorOccurred())
+        LOG_ERROR(downloader.getLastErrorMessage());
 
-        return root_object;
+    std::shared_ptr<JSON::JSONNode> root_node(nullptr);
+    JSON::Parser json_parser(downloader.getMessageBody());
+    if (not (json_parser.parse(&root_node)))
+        LOG_ERROR("failed to parse returned JSON: " + json_parser.getErrorMessage() + "(input was: "
+                  + downloader.getMessageBody() + ")");
+
+    const std::shared_ptr<const JSON::ObjectNode> root_object(JSON::JSONNode::CastToObjectNodeOrDie("root", root_node));
+    url_to_lookup_result_cache.emplace(url, root_object);
+
+    if (not allow_multiple_results and root_object->getIntegerValue("totalItems") > 1) {
+        LOG_WARNING("found more than one result");
+        return nullptr;
     }
 
-    const std::string executeAndLookupString(const std::string &path) {
-        const auto root_object(execute());
-        if (root_object == nullptr)
-            return "";
-
-        return JSON::LookupString(path, root_object, "");
-    }
-
-    const std::vector<std::string> executeAndLookupStrings(const std::string &path) {
-        const auto root_object(execute());
-        if (root_object == nullptr)
-            return std::vector<std::string>{};
-
-        return JSON::LookupStrings(path, root_object);
-    }
-};
+    return root_object;
+}
 
 
-/** \brief Query class for GND API */
-class GNDQuery : public Query {
-    const std::string BASE_URL = "http://lobid.org/gnd/search?format=json";
+const std::string QueryAndLookupString(const std::string &url, const std::string &path, const bool allow_multiple_results) {
+    const auto root_object(Query(url, allow_multiple_results));
+    if (root_object == nullptr)
+        return "";
 
-    std::string toUrl() {
-        std::string url(BASE_URL);
-        if (not preferredName_.empty())
-            url += "&q=" + UrlUtil::UrlEncode(preferredName_);
-        if (not type_.empty())
-            url += "&filter=type:" + UrlUtil::UrlEncode(type_);
-
-        return url;
-    }
-public:
-    /** \brief the following class members are named 1:1 as available in the API. */
-    std::string preferredName_;
-    std::string type_;
-};
+    return JSON::LookupString(path, root_object, "");
+}
 
 
-/** \brief Query class for Organisation API */
-class OrganisationQuery : public Query {
-    const std::string BASE_URL = "http://lobid.org/organisations/search?format=json";
+const std::vector<std::string> QueryAndLookupStrings(const std::string &url, const std::string &path, const bool allow_multiple_results) {
+    const auto root_object(Query(url, allow_multiple_results));
+    if (root_object == nullptr)
+        return std::vector<std::string>{};
 
-    std::string toUrl() {
-        std::string url(BASE_URL);
-        if (not name_.empty())
-            url += "&q=" + UrlUtil::UrlEncode("name:\"" + name_ + "\"");
-
-        return url;
-    }
-public:
-    /** \brief the following class members are named 1:1 as available in the API. */
-    std::string name_;
-};
-
-
-/** \brief Query class for Resource API */
-class ResourceQuery : public Query {
-    const std::string BASE_URL = "http://lobid.org/resources/search?format=json";
-
-    std::string toUrl() {
-        std::string url(BASE_URL);
-        if (not title_.empty())
-            url += "&q=" + UrlUtil::UrlEncode("title:\"" + title_ + "\"");
-
-        return url;
-    }
-public:
-    /** \brief the following class members are named 1:1 as available in the API. */
-    std::string title_;
-};
+    return JSON::LookupStrings(path, root_object);
+}
 
 
 std::string GetAuthorPPN(const std::string &author) {
-    GNDQuery query;
-    query.preferredName_ = author;
-    query.type_ = "DifferentiatedPerson";
-    return query.executeAndLookupString("/member/0/gndIdentifier");
+    return QueryAndLookupString(BuildUrl(BASE_URL_GND, { { "filter=type", "DifferentiatedPerson" }, { "preferredName", author } }),
+                                "/member/0/gndIdentifier", /* allow_multiple_results */ false);
 }
 
 
 std::vector<std::string> GetAuthorProfessions(const std::string &author) {
-    GNDQuery query;
-    query.multipleResultsAllowed_ = true;
-    query.preferredName_ = author;
-    query.type_ = "DifferentiatedPerson";
-    return query.executeAndLookupStrings("/member/*/professionOrOccupation/*/label");
+    return QueryAndLookupStrings(BuildUrl(BASE_URL_GND, { { "filter=type", "DifferentiatedPerson" }, { "preferredName", author } }),
+                                 "/member/*/professionOrOccupation/*/label", /* allow_multiple_results */ false);
 }
 
 
 std::string GetOrganisationISIL(const std::string &organisation) {
-    OrganisationQuery query;
-    query.name_ = organisation;
-    return query.executeAndLookupString("/member/0/isil");
+    return QueryAndLookupString(BuildUrl(BASE_URL_ORGANISATIONS, { { "name", organisation } }),
+                                "/member/0/isil", /* allow_multiple_results */ false);
 }
 
 
 std::string GetTitleDOI(const std::string &title) {
-    ResourceQuery query;
-    query.multipleResultsAllowed_ = true;
-    query.title_ = title;
-    return query.executeAndLookupString("/member/0/doi/0");
+    return QueryAndLookupString(BuildUrl(BASE_URL_RESOURCES, { { "title", "\"" + title + "\"" } }),
+                                "/member/0/doi/0", /* allow_multiple_results */ false);
 }
 
 
