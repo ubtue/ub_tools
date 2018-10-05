@@ -600,6 +600,12 @@ std::string Record::getCompleteTitle() const {
         complete_title += subfield_b;
     }
 
+    const std::string subfield_p(StringUtil::RightTrim(" \t/", title_subfields.getFirstSubfieldWithCode('p')));
+    if (not subfield_p.empty()) {
+        complete_title += ' ';
+        complete_title += subfield_p;
+    }
+
     const std::string subfield_n(StringUtil::RightTrim(" \t/", title_subfields.getFirstSubfieldWithCode('n')));
     if (not subfield_n.empty()) {
         complete_title += ' ';
