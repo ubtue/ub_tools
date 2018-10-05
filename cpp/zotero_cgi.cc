@@ -46,25 +46,29 @@ std::string zts_url(Zotero::TranslationServer::GetUrl());
 const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
 const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS {
     // custom formats
-    { "marcxml", "xml" },
-    { "marc21", "mrc" },
+    { "marc-xml", "xml" },
+    { "marc-21", "mrc" },
     { "json", "json" },
-
-    // native zotero formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
-    { "bibtex", "bibtex" },
-    { "biblatex", "biblatex" },
-    { "bookmarks", "bookmarks" },
-    { "coins", "coins" },
-    { "csljson", "csljson" },
-    { "mods", "mods" },
-    { "refer", "refer" },
-    { "rdf_bibliontology", "rdf_bib" },
-    { "rdf_dc", "rdf_dc" },
-    { "rdf_zotero", "rdf_zotero" },
-    { "ris", "ris" },
-    { "tei", "tei" },
-    { "wikipedia", "wikipedia" }
 };
+
+
+std::vector<std::string> GetOutputFormatIds() {
+    std::vector<std::string> output_formats;
+    for (const auto &output_format_id_and_extension : OUTPUT_FORMAT_IDS_AND_EXTENSIONS)
+        output_formats.push_back(output_format_id_and_extension.first);
+
+    return output_formats;
+}
+
+
+std::string GetOutputFormatExtension(const std::string &output_format_id) {
+    for (const auto &output_format_id_and_extension : OUTPUT_FORMAT_IDS_AND_EXTENSIONS) {
+        if (output_format_id_and_extension.first == output_format_id)
+            return output_format_id_and_extension.second;
+    }
+
+    LOG_ERROR("no extension defined for output format " + output_format_id);
+}
 
 
 std::string GetCGIParameterOrDefault(const std::multimap<std::string, std::string> &cgi_args,
@@ -89,7 +93,8 @@ std::string GetMinElementOrDefault(const std::vector<std::string> &elements, con
 
 
 void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Template::Map * const names_to_values_map,
-                     std::unordered_map<std::string, Zotero::GroupParams> * const group_name_to_params_map)
+                     std::unordered_map<std::string, Zotero::GroupParams> * const group_name_to_params_map,
+                     std::unordered_map<std::string, std::string> * const journal_name_to_group_name_map)
 {
     IniFile ini(ZTS_HARVESTER_CONF_FILE);
 
@@ -179,6 +184,8 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
         all_journal_zeder_ids.emplace_back(zeder_id);
         all_journal_zeder_comments.emplace_back(zeder_comment);
         all_journal_zeder_urls.emplace_back(zeder_url);
+
+        journal_name_to_group_name_map->insert(std::make_pair(title, group));
 
         const auto delivery_mode_string(std::find_if(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.begin(), BSZUpload::STRING_TO_DELIVERY_MODE_MAP.end(), [delivery_mode](const std::pair<std::string, int> &map_entry) {return map_entry.second == delivery_mode; })->first);
         all_journal_delivery_modes.emplace_back(delivery_mode_string);
@@ -272,25 +279,6 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
 }
 
 
-std::vector<std::string> GetOutputFormatIds() {
-    std::vector<std::string> output_formats;
-
-    for (const auto &output_format_id_and_extension : OUTPUT_FORMAT_IDS_AND_EXTENSIONS)
-        output_formats.push_back(output_format_id_and_extension.first);
-
-    return output_formats;
-}
-
-
-std::string GetOutputFormatExtension(const std::string &output_format_id) {
-    for (const auto &output_format_id_and_extension : OUTPUT_FORMAT_IDS_AND_EXTENSIONS) {
-        if (output_format_id_and_extension.first == output_format_id)
-            return output_format_id_and_extension.second;
-    }
-    LOG_ERROR("no extension defined for output format " + output_format_id);
-}
-
-
 std::string BuildCommandString(const std::string &command, const std::vector<std::string> &args) {
     std::string command_string(command);
 
@@ -323,7 +311,7 @@ class HarvestTask {
     int pid_;
     int exit_code_;
     FileUtil::AutoTempFile log_path_;
-    FileUtil::AutoTempFile out_path_;
+    std::unique_ptr<FileUtil::AutoTempFile> out_path_;
 public:
     HarvestTask(const std::string &section, const std::string &output_format_id, const std::string &bsz_upload_group);
 
@@ -334,23 +322,31 @@ public:
     inline const std::string &getLogPath() const { return log_path_.getFilePath(); }
 
     /** \brief get path to out file with harvested records */
-    inline const std::string &getOutPath() const { return out_path_.getFilePath(); }
+    inline const std::string &getOutPath() const { return out_path_->getFilePath(); }
 };
 
 
 HarvestTask::HarvestTask(const std::string &section, const std::string &output_format_id, const std::string &bsz_upload_group)
     : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
       executable_(ExecUtil::LocateOrDie("zts_harvester")),
-      log_path_(auto_temp_dir_.getDirectoryPath() + "/log", /*automatically_remove*/ false),
-      out_path_(auto_temp_dir_.getDirectoryPath() + "/" + bsz_upload_group + "/output." + GetOutputFormatExtension(output_format_id), /*automatically_remove*/ false)
+      log_path_(auto_temp_dir_.getDirectoryPath() + "/log", "", /*automatically_remove*/ false)
 {
     const std::string local_maps_directory(PrepareMapsDirectory(zts_client_maps_directory, auto_temp_dir_.getDirectoryPath()));
+    const auto output_directory(auto_temp_dir_.getDirectoryPath() + "/" + bsz_upload_group + "/");
+    FileUtil::MakeDirectory(output_directory, true);
+    out_path_.reset(new FileUtil::AutoTempFile(output_directory, "." + GetOutputFormatExtension(output_format_id),
+                    /*automatically_remove*/ false));
+
+    std::string dir_name, basename;
+    FileUtil::DirnameAndBasename(out_path_->getFilePath(), &dir_name, &basename);
 
     std::vector<std::string> args;
     args.emplace_back("--min-log-level=DEBUG");
     args.emplace_back("--map-directory=" + local_maps_directory);
     args.emplace_back("--output-directory=" + auto_temp_dir_.getDirectoryPath());
-    args.emplace_back("--output-filename=" + out_path_.getFilePath());
+    args.emplace_back("--output-filename=" + basename);
+    args.emplace_back("--output-format=" + output_format_id);
+
     args.emplace_back(ZTS_HARVESTER_CONF_FILE);
     args.emplace_back(section);
 
@@ -425,6 +421,7 @@ int Main(int argc, char *argv[]) {
 
     std::multimap<std::string, std::string> cgi_args;
     WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
+
     const std::string default_action("list");
     const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));
 
@@ -460,7 +457,8 @@ int Main(int argc, char *argv[]) {
 
         std::ifstream template_html(TEMPLATE_FILENAME);
         std::unordered_map<std::string, Zotero::GroupParams> group_name_to_params_map;
-        ParseConfigFile(cgi_args, &names_to_values_map, &group_name_to_params_map);
+        std::unordered_map<std::string, std::string>journal_name_to_group_name_map;
+        ParseConfigFile(cgi_args, &names_to_values_map, &group_name_to_params_map, &journal_name_to_group_name_map);
         Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
         std::cout << std::flush;
 
@@ -477,7 +475,7 @@ int Main(int argc, char *argv[]) {
         } else if (action != default_action)
             LOG_ERROR("invalid action: \"" + action + '"');
 
-        ExecuteHarvestAction(journal_title, output_format, group_name_to_params_map.at(journal_title));
+        ExecuteHarvestAction(journal_title, output_format, group_name_to_params_map.at(journal_name_to_group_name_map.at(journal_title)));
         std::cout << "</body></html>";
     }
 

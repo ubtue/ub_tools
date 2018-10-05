@@ -285,7 +285,7 @@ class MarcFormatHandler final : public FormatHandler {
     std::unique_ptr<MARC::Writer> marc_writer_;
 public:
     MarcFormatHandler(DbConnection * const db_connection, const std::string &output_file,
-                      const std::shared_ptr<const HarvestParams> &harvest_params);
+                      const std::shared_ptr<const HarvestParams> &harvest_params, const std::string &output_format = "");
     virtual ~MarcFormatHandler() = default;
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
     MARC::Writer *getWriter() { return marc_writer_.get(); }
