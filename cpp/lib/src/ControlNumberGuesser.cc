@@ -210,7 +210,6 @@ void ControlNumberGuesser::FindDups(const std::unordered_map<std::string, std::s
                     if (already_processed_control_numbers.find(control_number) != already_processed_control_numbers.cend()) {
                         skip_author = true;
                         break;
-
                     }
                 }
 
