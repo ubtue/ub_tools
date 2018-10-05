@@ -22,7 +22,6 @@
 #include <unordered_map>
 #include <cstdlib>
 #include "Compiler.h"
-#include "DbConnection.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
 #include "FullTextCache.h"

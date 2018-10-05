@@ -39,7 +39,6 @@
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "RegexMatcher.h"
-#include "StringUtil.h"
 #include "util.h"
 
 
@@ -508,6 +507,17 @@ void DirnameAndBasename(const std::string &path, std::string * const dirname, st
         *dirname  = path.substr(0, last_slash_pos);
         *basename = path.substr(last_slash_pos + 1);
     }
+}
+
+
+std::string GetBasename(const std::string &path) {
+    if (unlikely(path.length() == 0))
+        return "";
+
+    std::string::size_type last_slash_pos = path.rfind('/');
+    if (last_slash_pos == std::string::npos)
+        return path;
+    return path.substr(last_slash_pos + 1);
 }
 
 

@@ -20,12 +20,8 @@
 #include <iostream>
 #include <cstring>
 #include "DbConnection.h"
-#include "DbResultSet.h"
-#include "Downloader.h"
 #include "FileUtil.h"
-#include "IniFile.h"
-#include "SqlUtil.h"
-#include "SyndicationFormat.h"
+#include "StringUtil.h"
 #include "util.h"
 #include "Zotero.h"
 

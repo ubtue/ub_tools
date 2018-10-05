@@ -25,6 +25,7 @@
 #include <cstring>
 #include "MARC.h"
 #include "RegexMatcher.h"
+#include "StringUtil.h"
 #include "util.h"
 
 

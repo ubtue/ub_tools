@@ -30,7 +30,6 @@
 #       include <string>
 #       define STRING
 #endif
-#include "File.h"
 
 
 /** \class  FileLocker

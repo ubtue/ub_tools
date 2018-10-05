@@ -26,7 +26,6 @@
  *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
 #include "WebUtil.h"
 #include <iostream>
 #include <sstream>
@@ -35,7 +34,6 @@
 #include "Downloader.h"
 #include "FileDescriptor.h"
 #include "FileUtil.h"
-#include "HtmlParser.h"
 #include "HttpHeader.h"
 #include "MiscUtil.h"
 #include "SslConnection.h"

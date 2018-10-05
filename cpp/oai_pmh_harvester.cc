@@ -24,7 +24,6 @@
 #include "FileUtil.h"
 #include "HttpHeader.h"
 #include "MARC.h"
-#include "StringDataSource.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
 #include "XMLParser.h"

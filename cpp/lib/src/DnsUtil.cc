@@ -41,7 +41,6 @@
 #include "RegexMatcher.h"
 #include "Resolver.h"
 #include "StringUtil.h"
-#include "TimerUtil.h"
 #include "Url.h"
 
 
@@ -58,7 +57,7 @@ bool IsValidIPv6Address(const std::string &address) {
                                                                                RegexMatcher::CASE_INSENSITIVE));
     return matcher->matched(address);
 }
-    
+
 
 namespace {
 
@@ -220,7 +219,7 @@ bool CachedTimedGetHostByName(const std::string &hostname, const TimeLimit &time
             return true;
         }
     }
-    
+
     if (not TimedGetHostByName(hostname, time_limit, ip_address, error_message)) {
         std::lock_guard<std::mutex> mutex_locker(cache_guard);
         hostname_to_IP_address_map[hostname] = static_cast<in_addr_t>(0);

@@ -22,10 +22,10 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "DbConnection.h"
+#include "FileUtil.h"
 #include "IniFile.h"
 #include "JournalConfig.h"
 #include "MARC.h"
-#include "StlHelpers.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"

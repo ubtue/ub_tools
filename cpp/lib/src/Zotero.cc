@@ -25,6 +25,7 @@
 #include <uuid/uuid.h>
 #include "BSZTransform.h"
 #include "DbConnection.h"
+#include "FileUtil.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
 #include "SqlUtil.h"
@@ -32,7 +33,6 @@
 #include "SyndicationFormat.h"
 #include "TimeUtil.h"
 #include "UrlUtil.h"
-#include "WebUtil.h"
 #include "ZoteroTransformation.h"
 #include "util.h"
 
