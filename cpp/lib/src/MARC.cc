@@ -577,6 +577,39 @@ std::string Record::getMainTitle() const {
 }
 
 
+std::string Record::getCompleteTitle() const {
+    const auto title_field(getFirstField("245"));
+    if (title_field == end())
+        return "";
+
+    const Subfields title_subfields(title_field->getSubfields());
+    const std::string subfield_a(StringUtil::RightTrim(" \t/", title_subfields.getFirstSubfieldWithCode('a')));
+    const std::string subfield_b(StringUtil::RightTrim(" \t/", title_subfields.getFirstSubfieldWithCode('b')));
+    if (subfield_a.empty() and subfield_b.empty())
+        return "";
+
+    std::string complete_title;
+    if (subfield_a.empty())
+        complete_title = subfield_b;
+    else if (subfield_b.empty())
+        complete_title = subfield_a;
+    else { // Neither titleA nor titleB are null.
+        complete_title = subfield_a;
+        if (not StringUtil::StartsWith(subfield_b, " = "))
+            complete_title += " : ";
+        complete_title += subfield_b;
+    }
+
+    const std::string subfield_n(StringUtil::RightTrim(" \t/", title_subfields.getFirstSubfieldWithCode('n')));
+    if (not subfield_n.empty()) {
+        complete_title += ' ';
+        complete_title += subfield_n;
+    }
+
+    return complete_title;
+}
+
+
 namespace {
 
 
