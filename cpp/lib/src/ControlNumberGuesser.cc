@@ -175,7 +175,7 @@ bool ControlNumberGuesser::getNextAuthor(std::string * const author_name, std::s
     }
 }
 
-    
+
 void ControlNumberGuesser::FindDups(const std::unordered_map<std::string, std::set<std::string>> &title_to_control_numbers_map,
                                     const std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map) const
 {
@@ -203,17 +203,24 @@ void ControlNumberGuesser::FindDups(const std::unordered_map<std::string, std::s
         std::unordered_set<std::string> already_processed_control_numbers;
         for (const auto &author_and_control_numbers : author_to_control_numbers_map) {
             if (author_and_control_numbers.second.size() >= 2) {
+                bool skip_author(false);
+
                 // We may have multiple authors for the same work but only wish to report each duplicate work once:
                 for (const auto &control_number : author_and_control_numbers.second) {
-                    if (already_processed_control_numbers.find(control_number) != already_processed_control_numbers.cend())
-                        continue;
+                    if (already_processed_control_numbers.find(control_number) != already_processed_control_numbers.cend()) {
+                        skip_author = true;
+                        break;
+
+                    }
                 }
 
-                std::set<std::string> *new_set(new std::set<std::string>());
-                for (const auto &control_number : author_and_control_numbers.second) {
-                    already_processed_control_numbers.emplace(control_number);
-                    new_set->emplace(control_number);
-                    control_number_to_control_number_set_map_[control_number] = new_set;
+                if (not skip_author) {
+                    std::set<std::string> *new_set(new std::set<std::string>());
+                    for (const auto &control_number : author_and_control_numbers.second) {
+                        already_processed_control_numbers.emplace(control_number);
+                        new_set->emplace(control_number);
+                        control_number_to_control_number_set_map_[control_number] = new_set;
+                    }
                 }
             }
         }
