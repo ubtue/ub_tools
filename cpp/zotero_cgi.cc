@@ -44,26 +44,10 @@ namespace {
 std::string zts_client_maps_directory;
 std::string zts_url(Zotero::TranslationServer::GetUrl());
 const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
-const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS {
-    // custom formats
-    { "marcxml", "marc-xml" },
-    { "marc21", "marc-21" },
-    { "json", "json" },
-
-    // native zotero formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
-    { "bibtex", "bibtex" },
-    { "biblatex", "biblatex" },
-    { "bookmarks", "bookmarks" },
-    { "coins", "coins" },
-    { "csljson", "csljson" },
-    { "mods", "mods" },
-    { "refer", "refer" },
-    { "rdf_bibliontology", "rdf_bib" },
-    { "rdf_dc", "rdf_dc" },
-    { "rdf_zotero", "rdf_zotero" },
-    { "ris", "ris" },
-    { "tei", "tei" },
-    { "wikipedia", "wikipedia" }
+const std::vector<std::string> OUTPUT_FORMAT_IDS {
+    "marc-xml",
+    "marc-21",
+    "json"
 };
 
 
@@ -275,25 +259,6 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
 }
 
 
-std::vector<std::string> GetOutputFormatIds() {
-    std::vector<std::string> output_formats;
-
-    for (const auto &output_format_id_and_extension : OUTPUT_FORMAT_IDS_AND_EXTENSIONS)
-        output_formats.push_back(output_format_id_and_extension.first);
-
-    return output_formats;
-}
-
-
-std::string GetOutputFormatExtension(const std::string &output_format_id) {
-    for (const auto &output_format_id_and_extension : OUTPUT_FORMAT_IDS_AND_EXTENSIONS) {
-        if (output_format_id_and_extension.first == output_format_id)
-            return output_format_id_and_extension.second;
-    }
-    LOG_ERROR("no extension defined for output format " + output_format_id);
-}
-
-
 std::string BuildCommandString(const std::string &command, const std::vector<std::string> &args) {
     std::string command_string(command);
 
@@ -359,7 +324,7 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
     args.emplace_back("--map-directory=" + local_maps_directory);
     args.emplace_back("--output-directory=" + auto_temp_dir_.getDirectoryPath());
     args.emplace_back("--output-filename=" + basename);
-    args.emplace_back("--output-format=" + GetOutputFormatExtension(output_format_id));
+    args.emplace_back("--output-format=" + output_format_id);
 
     args.emplace_back(ZTS_HARVESTER_CONF_FILE);
     args.emplace_back(section);
@@ -459,7 +424,7 @@ int Main(int argc, char *argv[]) {
 
         const std::string selected_output_format_id(GetCGIParameterOrDefault(cgi_args, "output_format_id"));
         names_to_values_map.insertScalar("selected_output_format_id", selected_output_format_id);
-        names_to_values_map.insertArray("output_format_ids", GetOutputFormatIds());
+        names_to_values_map.insertArray("output_format_ids", OUTPUT_FORMAT_IDS);
 
         const std::string TEMPLATE_FILENAME(TEMPLATE_DIRECTORY + "index.html");
         std::string error_message;
