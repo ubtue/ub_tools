@@ -343,9 +343,10 @@ bool ProcessFile(const bool report_only, File * const input) {
             std::cout << '\t' << include << '\n';
     }
 
+    const std::string input_filename_without_extension(FileUtil::GetFilenameWithoutExtensionOrDie(FileUtil::GetBasename(input->getPath())));
     std::set<std::string> namespaces_and_class_names;
     for (const auto &include : includes) {
-        if (StringUtil::EndsWith(include, ".h") and include != "util.h" and include != "Compiler.h")
+        if (StringUtil::EndsWith(include, ".h") and include != "util.h" and include != "Compiler.h" and include != input_filename_without_extension + ".h")
             namespaces_and_class_names.emplace(include.substr(0, include.length() - 2));
     }
 

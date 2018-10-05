@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include "Compiler.h"
 #include "FileUtil.h"
+#include "StringUtil.h"
 #include "MARC.h"
 #include "util.h"
 

@@ -23,9 +23,6 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "DbConnection.h"
-#include "DbResultSet.h"
-#include "DbRow.h"
-#include "FileUtil.h"
 #include "util.h"
 
 

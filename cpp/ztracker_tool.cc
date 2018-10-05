@@ -20,6 +20,7 @@
 #include <iostream>
 #include "DbConnection.h"
 #include "DownloadTracker.h"
+#include "StringUtil.h"
 #include "TimeUtil.h"
 #include "util.h"
 #include "Zotero.h"

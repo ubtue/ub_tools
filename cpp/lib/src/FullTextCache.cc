@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <ctime>
 #include "Compiler.h"
-#include "DbConnection.h"
 #include "DbRow.h"
 #include "Elasticsearch.h"
 #include "Random.h"
