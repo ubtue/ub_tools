@@ -20,10 +20,14 @@
 #include "ControlNumberGuesser.h"
 #include <algorithm>
 #include <iterator>
+#include <unordered_set>
 #include <vector>
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "util.h"
+
+
+const std::set<std::string> ControlNumberGuesser::EMPTY_SET;
 
 
 static kyotocabinet::HashDB *CreateOrOpenKeyValueDB(const std::string &db_path) {
@@ -48,6 +52,19 @@ ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode) : title_cur
 
     titles_db_  = CreateOrOpenKeyValueDB(TITLES_DB_PATH);
     authors_db_ = CreateOrOpenKeyValueDB(AUTHORS_DB_PATH);
+}
+
+
+ControlNumberGuesser::~ControlNumberGuesser() {
+    delete title_cursor_; delete author_cursor_; delete titles_db_; delete authors_db_;
+
+    std::unordered_set<std::set<std::string> *> already_deleted;
+    for (auto &control_number_and_set_ptr : control_number_to_control_number_set_map_) {
+        if (already_deleted.find(control_number_and_set_ptr.second) == already_deleted.end()) {
+            delete control_number_and_set_ptr.second;
+            already_deleted.emplace(control_number_and_set_ptr.second);
+        }
+    }
 }
 
 
@@ -156,6 +173,85 @@ bool ControlNumberGuesser::getNextAuthor(std::string * const author_name, std::s
         author_cursor_ = nullptr;
         return false;
     }
+}
+
+    
+void ControlNumberGuesser::FindDups(const std::unordered_map<std::string, std::set<std::string>> &title_to_control_numbers_map,
+                                    const std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map) const
+{
+    for (const auto &title_and_control_numbers : title_to_control_numbers_map) {
+        if (title_and_control_numbers.second.size() < 2)
+            continue;
+
+        // Collect all control numbers for all authors of the current title:
+        std::map<std::string, std::set<std::string>> author_to_control_numbers_map;
+        for (const auto &control_number : title_and_control_numbers.second) {
+            const auto control_number_and_authors(control_number_to_authors_map.find(control_number));
+            if (control_number_and_authors == control_number_to_authors_map.cend())
+                continue;
+
+            for (const auto &author : control_number_and_authors->second) {
+                auto author_and_control_numbers(author_to_control_numbers_map.find(author));
+                if (author_and_control_numbers == author_to_control_numbers_map.end())
+                    author_to_control_numbers_map[author] = std::set<std::string>{ control_number };
+                else
+                    author_and_control_numbers->second.emplace(control_number);
+            }
+        }
+
+        // Record those cases where we found multiple control numbers for the same author for a single title:
+        std::unordered_set<std::string> already_processed_control_numbers;
+        for (const auto &author_and_control_numbers : author_to_control_numbers_map) {
+            if (author_and_control_numbers.second.size() >= 2) {
+                // We may have multiple authors for the same work but only wish to report each duplicate work once:
+                for (const auto &control_number : author_and_control_numbers.second) {
+                    if (already_processed_control_numbers.find(control_number) != already_processed_control_numbers.cend())
+                        continue;
+                }
+
+                std::set<std::string> *new_set(new std::set<std::string>());
+                for (const auto &control_number : author_and_control_numbers.second) {
+                    already_processed_control_numbers.emplace(control_number);
+                    new_set->emplace(control_number);
+                    control_number_to_control_number_set_map_[control_number] = new_set;
+                }
+            }
+        }
+    }
+}
+
+
+void ControlNumberGuesser::InitControlNumberToControlNumberSetMap() const {
+    std::unordered_map<std::string, std::set<std::string>> title_to_control_numbers_map;
+    std::string title;
+    std::set<std::string> control_numbers;
+    while (getNextTitle(&title, &control_numbers))
+        title_to_control_numbers_map.emplace(title, control_numbers);
+
+    std::unordered_map<std::string, std::set<std::string>> control_number_to_authors_map;
+    std::string author;
+    while (getNextAuthor(&author, &control_numbers)) {
+        for (const auto &control_number : control_numbers) {
+            auto control_number_and_authors(control_number_to_authors_map.find(control_number));
+            if (control_number_and_authors == control_number_to_authors_map.end())
+                control_number_to_authors_map[control_number] = std::set<std::string>{ author };
+            else
+                control_number_and_authors->second.emplace(author);
+        }
+    }
+
+    FindDups(title_to_control_numbers_map, control_number_to_authors_map);
+}
+
+
+const std::set<std::string> &ControlNumberGuesser::getControlNumberPartners(const std::string &control_number) const {
+    if (control_number_to_control_number_set_map_.empty())
+        InitControlNumberToControlNumberSetMap();
+
+    const auto control_number_and_set_ptr(control_number_to_control_number_set_map_.find(control_number));
+    if (control_number_and_set_ptr == control_number_to_control_number_set_map_.cend())
+        return EMPTY_SET;
+    return *control_number_and_set_ptr->second;
 }
 
 
