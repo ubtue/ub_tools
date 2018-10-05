@@ -63,7 +63,7 @@ void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::R
         ExtractAllAuthors(record, &author_names);
         control_number_guesser->insertAuthors(author_names, control_number);
 
-        const auto title(record.getMainTitle());
+        const auto title(record.getCompleteTitle());
         if (unlikely(title.empty()))
             LOG_WARNING("Empty title in record w/ control number: " + control_number);
         else
