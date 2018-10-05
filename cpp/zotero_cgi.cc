@@ -44,11 +44,31 @@ namespace {
 std::string zts_client_maps_directory;
 std::string zts_url(Zotero::TranslationServer::GetUrl());
 const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
-const std::vector<std::string> OUTPUT_FORMAT_IDS {
-    "marc-xml",
-    "marc-21",
-    "json"
+const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS {
+    // custom formats
+    { "marc-xml", "xml" },
+    { "marc-21", "mrc" },
+    { "json", "json" },
 };
+
+
+std::vector<std::string> GetOutputFormatIds() {
+    std::vector<std::string> output_formats;
+    for (const auto &output_format_id_and_extension : OUTPUT_FORMAT_IDS_AND_EXTENSIONS)
+        output_formats.push_back(output_format_id_and_extension.first);
+
+    return output_formats;
+}
+
+
+std::string GetOutputFormatExtension(const std::string &output_format_id) {
+    for (const auto &output_format_id_and_extension : OUTPUT_FORMAT_IDS_AND_EXTENSIONS) {
+        if (output_format_id_and_extension.first == output_format_id)
+            return output_format_id_and_extension.second;
+    }
+
+    LOG_ERROR("no extension defined for output format " + output_format_id);
+}
 
 
 std::string GetCGIParameterOrDefault(const std::multimap<std::string, std::string> &cgi_args,
@@ -309,12 +329,13 @@ public:
 HarvestTask::HarvestTask(const std::string &section, const std::string &output_format_id, const std::string &bsz_upload_group)
     : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
       executable_(ExecUtil::LocateOrDie("zts_harvester")),
-      log_path_(auto_temp_dir_.getDirectoryPath() + "/log", /*automatically_remove*/ false)
+      log_path_(auto_temp_dir_.getDirectoryPath() + "/log", "", /*automatically_remove*/ false)
 {
     const std::string local_maps_directory(PrepareMapsDirectory(zts_client_maps_directory, auto_temp_dir_.getDirectoryPath()));
     const auto output_directory(auto_temp_dir_.getDirectoryPath() + "/" + bsz_upload_group + "/");
     FileUtil::MakeDirectory(output_directory, true);
-    out_path_.reset(new FileUtil::AutoTempFile(output_directory, /*automatically_remove*/ false));
+    out_path_.reset(new FileUtil::AutoTempFile(output_directory, "." + GetOutputFormatExtension(output_format_id),
+                    /*automatically_remove*/ false));
 
     std::string dir_name, basename;
     FileUtil::DirnameAndBasename(out_path_->getFilePath(), &dir_name, &basename);
@@ -400,6 +421,7 @@ int Main(int argc, char *argv[]) {
 
     std::multimap<std::string, std::string> cgi_args;
     WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
+
     const std::string default_action("list");
     const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));
 
@@ -424,7 +446,7 @@ int Main(int argc, char *argv[]) {
 
         const std::string selected_output_format_id(GetCGIParameterOrDefault(cgi_args, "output_format_id"));
         names_to_values_map.insertScalar("selected_output_format_id", selected_output_format_id);
-        names_to_values_map.insertArray("output_format_ids", OUTPUT_FORMAT_IDS);
+        names_to_values_map.insertArray("output_format_ids", GetOutputFormatIds());
 
         const std::string TEMPLATE_FILENAME(TEMPLATE_DIRECTORY + "index.html");
         std::string error_message;
