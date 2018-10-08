@@ -616,6 +616,23 @@ std::string Record::getCompleteTitle() const {
 }
 
 
+std::set<std::string> Record::getAllAuthors() const {
+    static const std::vector<std::string> AUTHOR_TAGS { "100", "700" };
+
+    std::set<std::string> author_names;
+    for (const auto tag : AUTHOR_TAGS) {
+        for (const auto &field : getTagRange(tag)) {
+            for (const auto &subfield : field.getSubfields()) {
+                if (subfield.code_ == 'a')
+                    author_names.emplace(subfield.value_);
+            }
+        }
+    }
+
+    return author_names;
+}
+
+
 namespace {
 
 

@@ -37,30 +37,13 @@ namespace {
 }
 
 
-void ExtractAuthors(const MARC::Record &record, const std::string &tag, std::set<std::string> * const author_names) {
-    for (const auto &field : record.getTagRange(tag)) {
-        for (const auto &subfield : field.getSubfields()) {
-            if (subfield.code_ == 'a')
-                author_names->emplace(subfield.value_);
-        }
-    }
-}
-
-
-void ExtractAllAuthors(const MARC::Record &record, std::set<std::string> * const author_names) {
-    ExtractAuthors(record, "100", author_names);
-    ExtractAuthors(record, "700", author_names);
-}
-
-
 void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::Reader * const reader) {
     unsigned count(0);
     while (const auto record = reader->read()) {
         ++count;
         const auto control_number(record.getControlNumber());
 
-        std::set<std::string> author_names;
-        ExtractAllAuthors(record, &author_names);
+        std::set<std::string> author_names(record.getAllAuthors());
         control_number_guesser->insertAuthors(author_names, control_number);
 
         const auto title(record.getCompleteTitle());
