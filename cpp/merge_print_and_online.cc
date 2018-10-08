@@ -337,7 +337,7 @@ std::string CanoniseText(const std::string &s) {
 
     std::string clean_s;
     for (const uint32_t utf32_ch : clean_utf32_chars) {
-        if (unlikely(utf32_ch == TextUtil::EN_DASH))
+        if (unlikely(TextUtil::IsSomeKindOfDash(utf32_ch)))
             clean_s += '-'; // ordinary minus
         else
             clean_s += TextUtil::UTF32ToUTF8(utf32_ch);

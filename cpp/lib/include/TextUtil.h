@@ -41,6 +41,10 @@ namespace TextUtil {
 
 constexpr uint32_t REPLACEMENT_CHARACTER(0xFFFDu);
 constexpr uint32_t EN_DASH(0x2013u);
+constexpr uint32_t EM_DASH(0x2014u);
+constexpr uint32_t TWO_EM_DASH(0x2E3Au);
+constexpr uint32_t THREE_EM_DASH(0x2E3Bu);
+constexpr uint32_t SMALL_EM_DASH(0xFE58u);
 
 
 /** \brief Converter between many text encodings.
@@ -468,6 +472,9 @@ bool IsSpaceSeparatorCharacter(const wchar_t ch);
 
 // \return 0.0 if the texts are identical and a large score <= 1.0 if they are not.
 double CalcTextSimilarity(const std::string &text1, const std::string &text2, const bool ignore_case = true);
+
+
+bool IsSomeKindOfDash(const uint32_t ch);
 
 
 } // namespace TextUtil
