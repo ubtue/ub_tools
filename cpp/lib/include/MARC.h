@@ -481,6 +481,9 @@ public:
      */
     std::string getMainTitle() const;
 
+    /** \return An approximation of the complete title generated from various subfields of field 245. */
+    std::string getCompleteTitle() const;
+
     /** \return An iterator pointing to the first field w/ tag "field_tag" or end() if no such field was found. */
     inline const_iterator getFirstField(const Tag &field_tag) const {
         return std::find_if(fields_.cbegin(), fields_.cend(),

@@ -1494,4 +1494,11 @@ double CalcTextSimilarity(const std::string &text1, const std::string &text2, co
 }
 
 
+bool IsSomeKindOfDash(const uint32_t ch) {
+    return ch == '-' /*ordinary minus */ or ch == EN_DASH or ch == EM_DASH or ch == TWO_EM_DASH or ch == THREE_EM_DASH
+           or ch == SMALL_EM_DASH;
+
+}
+
+
 } // namespace TextUtil
