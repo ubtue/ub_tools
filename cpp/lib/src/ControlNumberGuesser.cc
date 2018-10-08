@@ -285,6 +285,7 @@ std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
         normalised_title.resize(normalised_title.size() - 1);
     normalised_title = TextUtil::ExpandLigatures(normalised_title);
 
+    normalised_title = TextUtil::RemoveDiacritics(normalised_title);
     TextUtil::ToLower(&normalised_title);
 
     std::string utf8_normalised_title;
@@ -333,7 +334,7 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
             ++non_space_sequence_length;
         }
     }
-    normalised_author_name = TextUtil::ExpandLigatures(normalised_author_name);
+    normalised_author_name = TextUtil::ExpandLigatures(TextUtil::RemoveDiacritics(normalised_author_name));
 
     return TextUtil::UTF8ToLower(&normalised_author_name);
     LOG_DEBUG("normalised author name=\"" + normalised_author_name + "\"");

@@ -486,4 +486,9 @@ std::wstring ExpandLigatures(const std::wstring &string);
 std::string ExpandLigatures(const std::string &utf8_string);
 
 
+// Removes the diacritics from letters found in Latin-1 and a few others
+std::wstring RemoveDiacritics(const std::wstring &string);
+std::string RemoveDiacritics(const std::string &utf8_string);
+
+
 } // namespace TextUtil

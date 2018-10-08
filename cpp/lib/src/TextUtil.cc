@@ -1539,4 +1539,114 @@ std::string ExpandLigatures(const std::string &utf8_string) {
 }
 
 
+// Please note that this list is incomplete!
+static const std::map<wchar_t, wchar_t> char_with_diacritics_to_char_without_diarcritics_map{
+    { L'ẚ', L'a' },
+    { L'À', L'A' },
+    { L'à', L'a' },
+    { L'Á', L'A' },
+    { L'á', L'a' },
+    { L'Â', L'A' },
+    { L'â', L'a' },
+    { L'Ầ', L'A' },
+    { L'ầ', L'a' },
+    { L'Ấ', L'A' },
+    { L'ấ', L'a' },
+    { L'Ẫ', L'A' },
+    { L'ẫ', L'a' },
+    { L'Ấ', L'A' },
+    { L'ấ', L'a' },
+    { L'Ẫ', L'A' },
+    { L'ẫ', L'a' },
+    { L'Ẩ', L'A' },
+    { L'ẩ', L'a' },
+    { L'Ã', L'A' },
+    { L'ã', L'a' },
+    { L'ā', L'a' },
+    { L'Ä', L'A' },
+    { L'ä', L'a' },
+    { L'Å', L'A' },
+    { L'À', L'A' },
+    { L'Á', L'A' },
+    { L'Â', L'A' },
+    { L'Ã', L'A' },
+    { L'Ç', L'C' },
+    { L'È', L'E' },
+    { L'É', L'E' },
+    { L'Ê', L'E' },
+    { L'Ë', L'E' },
+    { L'Ì', L'I' },
+    { L'Í', L'I' },
+    { L'Î', L'I' },
+    { L'Ï', L'I' },
+    { L'Ñ', L'N' },
+    { L'Ò', L'O' },
+    { L'Ó', L'O' },
+    { L'Ô', L'O' },
+    { L'Õ', L'O' },
+    { L'Ö', L'O' },
+    { L'Ø', L'O' },
+    { L'Ù', L'U' },
+    { L'Ú', L'U' },
+    { L'Û', L'U' },
+    { L'Ü', L'U' },
+    { L'Ý', L'Y' },
+    { L'à', L'a' },
+    { L'á', L'a' },
+    { L'â', L'a' },
+    { L'å', L'a' },
+    { L'ç', L'c' },
+    { L'è', L'e' },
+    { L'é', L'e' },
+    { L'ê', L'e' },
+    { L'ë', L'e' },
+    { L'ì', L'i' },
+    { L'í', L'i' },
+    { L'î', L'i' },
+    { L'ï', L'i' },
+    { L'ñ', L'n' },
+    { L'ò', L'o' },
+    { L'ó', L'o' },
+    { L'ô', L'o' },
+    { L'õ', L'o' },
+    { L'ö', L'o' },
+    { L'ø', L'o' },
+    { L'ù', L'u' },
+    { L'ú', L'u' },
+    { L'ú', L'u' },
+    { L'û', L'u' },
+    { L'ü', L'u' },
+    { L'ý', L'y' },
+    { L'ÿ', L'y' },
+};
+
+
+std::wstring RemoveDiacritics(const std::wstring &string) {
+    std::wstring wstring_without_diacritics;
+    for (const auto wchar : string) {
+        const auto char_with_and_without_diacritics(char_with_diacritics_to_char_without_diarcritics_map.find(wchar));
+        if (likely(char_with_and_without_diacritics == char_with_diacritics_to_char_without_diarcritics_map.cend()))
+            wstring_without_diacritics += wchar;
+        else
+            wstring_without_diacritics += char_with_and_without_diacritics->second;
+    }
+
+    return wstring_without_diacritics;
+}
+
+
+std::string RemoveDiacritics(const std::string &utf8_string) {
+    std::wstring wstring;
+    if (unlikely(not UTF8ToWCharString(utf8_string, &wstring)))
+        LOG_ERROR("failed to convert a UTF8 string to a wide character string!");
+
+    const auto wstring_without_diacritics(RemoveDiacritics(wstring));
+    std::string utf8_without_diacritics;
+    if (unlikely(not WCharToUTF8String(wstring_without_diacritics, &utf8_without_diacritics)))
+        LOG_ERROR("failed to convert a wide character string to a UTF8 string!");
+
+    return utf8_without_diacritics;
+}
+
+
 } // namespace TextUtil
