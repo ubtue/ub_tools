@@ -469,12 +469,21 @@ bool UnicodeTruncate(std::string * const utf8_string, const size_t max_length);
 inline bool IsGeneralPunctuationCharacter(const wchar_t ch) { return ch >= 0x2000 and ch <= 0x206F; }
 bool IsSpaceSeparatorCharacter(const wchar_t ch);
 
+inline bool IsPunctuationCharacter(const wchar_t ch) {
+    if (IsGeneralPunctuationCharacter(ch)) return true;
+    return ch == '.' or ch == ',' or ch == ';' or ch == ':' or ch == '?' or ch == '!';
+}
+
 
 // \return 0.0 if the texts are identical and a large score <= 1.0 if they are not.
 double CalcTextSimilarity(const std::string &text1, const std::string &text2, const bool ignore_case = true);
 
 
 bool IsSomeKindOfDash(const uint32_t ch);
+
+
+std::wstring ExpandLigatures(const std::wstring &string);
+std::string ExpandLigatures(const std::string &utf8_string);
 
 
 } // namespace TextUtil
