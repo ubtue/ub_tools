@@ -477,4 +477,8 @@ double CalcTextSimilarity(const std::string &text1, const std::string &text2, co
 bool IsSomeKindOfDash(const uint32_t ch);
 
 
+std::wstring ExpandLigatures(const std::wstring &string);
+std::string ExpandLigatures(const std::string &utf8_string);
+
+
 } // namespace TextUtil
