@@ -524,4 +524,33 @@ std::string MakeOrdinal(const unsigned number) {
 }
 
 
+// Implementation taken from https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#C++
+template <typename StringType> unsigned LevenshteinDistance(const StringType &s1, const StringType &s2) {
+    const std::size_t len1(s1.size()), len2(s2.size());
+    std::vector<unsigned int> column(len2 + 1), previous_column(len2 + 1);
+	
+    for (unsigned i(0); i < previous_column.size(); ++i)
+        previous_column[i] = i;
+    for (unsigned i(0); i < len1; ++i) {
+        column[0] = i + 1;
+        for (unsigned j(0); j < len2; ++j)
+            // note that std::min({arg1, arg2, arg3}) works only in C++11,
+            // for C++98 use std::min(std::min(arg1, arg2), arg3)
+            column[j + 1] = std::min({ previous_column[1 + j] + 1, column[j] + 1, previous_column[j] + (s1[i] == s2[j] ? 0 : 1) });
+        column.swap(previous_column);
+    }
+    return previous_column[len2];
+}
+
+
+unsigned LevenshteinDistance(const std::string &s1, const std::string &s2) {
+    return LevenshteinDistance<std::string>(s1, s2);
+}
+
+
+unsigned LevenshteinDistance(const std::wstring &s1, const std::wstring &s2) {
+    return LevenshteinDistance<std::wstring>(s1, s2);
+}
+    
+
 } // namespace MiscUtil

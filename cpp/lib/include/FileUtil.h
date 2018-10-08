@@ -147,7 +147,7 @@ class AutoTempFile {
     std::string path_;
     bool automatically_remove_;
 public:
-    explicit AutoTempFile(const std::string &path_prefix = "/tmp/ATF", bool automatically_remove = true);
+    explicit AutoTempFile(const std::string &path_prefix = "/tmp/ATF", const std::string &path_suffix = "", bool automatically_remove = true);
     ~AutoTempFile() { if (not path_.empty() and automatically_remove_) ::unlink(path_.c_str()); }
 
     const std::string &getFilePath() const { return path_; }
@@ -240,6 +240,7 @@ bool SetBlocking(const int fd);
  *  \param  basename  Will hold the filename part.
  */
 void DirnameAndBasename(const std::string &path, std::string * const dirname, std::string * const basename);
+std::string GetBasename(const std::string &path);
 
 
 /** \return the part of "path" after the last slash or "path" if there is no slash. */

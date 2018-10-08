@@ -24,6 +24,7 @@
 #include <vector>
 #include "ControlNumberGuesser.h"
 #include "FileUtil.h"
+#include "StringUtil.h"
 #include "util.h"
 #include "XMLParser.h"
 
@@ -32,7 +33,9 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] xml_input plain_test_output\n";
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] [--normalise-only] xml_input plain_test_output no_match_list\n"
+              << "       \"no_match_list\" is the file that we append titles and author to for which we could not identify\n"
+              << "       a corresponding control number for.  When specifying --normalise-only we only require the input filename!\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -134,22 +137,32 @@ bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_t
 }
 
 
-void ProcessDocument(XMLParser * const xml_parser, const ControlNumberGuesser &control_number_guesser, File * const plain_text_output) {
+void ProcessDocument(const bool normalise_only, const std::string &input_filename, XMLParser * const xml_parser,
+                     File * const plain_text_output, File * const no_match_list)
+{
     std::string article_title;
     if (not ExtractTitle(xml_parser, &article_title))
         LOG_ERROR("no article title found!");
-    LOG_INFO("article title is \"" + article_title + "\".");
 
     std::vector<std::string> article_authors;
     std::string text_opening_tag;
     if (not ExtractAuthors(xml_parser, &article_authors, &text_opening_tag))
         LOG_ERROR("no article authors found or an error or end-of-document were found while trying to extract an author name!");
-    for (const auto &article_author : article_authors)
-        LOG_INFO("article author is \"" + article_author + "\".");
 
+    if (normalise_only) {
+        std::cout << ControlNumberGuesser::NormaliseTitle(article_title) << '\n';
+        for (const auto &article_author : article_authors)
+            std::cout << ControlNumberGuesser::NormaliseAuthorName(article_author) << '\n';
+        return;
+    }
+
+    ControlNumberGuesser control_number_guesser(ControlNumberGuesser::DO_NOT_CLEAR_DATABASES);
     const auto matching_control_numbers(control_number_guesser.getGuessedControlNumbers(article_title, article_authors));
-    if (matching_control_numbers.empty())
+    if (matching_control_numbers.empty()) {
+        (*no_match_list) << FileUtil::GetBasename(input_filename) << "\n\t" << article_title << "\n\t"
+                         << StringUtil::Join(article_authors, "; ") << '\n';
         LOG_ERROR("no matching control numbers found!");
+    }
 
     std::cout << "Matching control numbers:\n";
     for (const auto matching_control_number : matching_control_numbers)
@@ -166,13 +179,21 @@ void ProcessDocument(XMLParser * const xml_parser, const ControlNumberGuesser &c
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
+    if (argc < 3)
         Usage();
 
-    XMLParser xml_parser (argv[1], XMLParser::XML_FILE);
-    auto plain_text_output(FileUtil::OpenOutputFileOrDie(argv[2]));
-    ControlNumberGuesser control_number_guesser(ControlNumberGuesser::DO_NOT_CLEAR_DATABASES);
-    ProcessDocument(&xml_parser, control_number_guesser, plain_text_output.get());
+    bool normalise_only(false);
+    if (std::strcmp(argv[1], "--normalise-only") == 0) {
+        if (argc != 3)
+            Usage();
+        normalise_only = true;
+    } else if (argc != 4)
+        Usage();
+
+    XMLParser xml_parser (argv[normalise_only ? 2 : 1], XMLParser::XML_FILE);
+    auto plain_text_output(normalise_only ? nullptr : FileUtil::OpenOutputFileOrDie(argv[2]));
+    auto no_match_list(normalise_only ? nullptr : FileUtil::OpenForAppendingOrDie(argv[3]));
+    ProcessDocument(normalise_only, argv[normalise_only ? 2 : 1], &xml_parser, plain_text_output.get(), no_match_list.get());
 
     return EXIT_SUCCESS;
 }
