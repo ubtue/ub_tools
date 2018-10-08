@@ -138,7 +138,7 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * cons
             cross_link_ppns.emplace(record.getControlNumber());
 
             // get new max PPN, which will be winner for merging
-            const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(), [](std::string a, std::string b) -> bool { return a<b; }));
+            const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(), [](std::string a, std::string b) -> bool { return a < b; }));
 
             // remove old references
             for (const auto &ppn : cross_link_ppns) {
@@ -188,7 +188,8 @@ void EliminateDanglingOrUnreferencedCrossLinks(const std::unordered_set<std::str
             if (not drop_group) {
                 for (const auto &ppn : group_ppns) {
                     if (ppn_to_offset_map.find(ppn) == ppn_to_offset_map.end()) {
-                        LOG_INFO("Don't merge group around PPN " + ppn + " because the PPN is missing in our data! All PPNs in group: " + StringUtil::Join(group_ppns, ','));
+                        LOG_INFO("Don't merge group around PPN " + ppn + " because the PPN is missing in our data! All PPNs in group: "
+                                 + StringUtil::Join(group_ppns, ','));
                         drop_group = true;
                         break;
                     }
@@ -301,7 +302,7 @@ MARC::Record::Field MergeControlFields(const MARC::Tag &tag, const std::string &
 }
 
 
-std::string NormaliseWhitespaceAndLowercase(const std::string &s) {
+std::string CanoniseText(const std::string &s) {
     std::vector<uint32_t> utf32_chars;
     if (unlikely(not TextUtil::UTF8ToUTF32(s, &utf32_chars)))
         return s;
@@ -335,9 +336,13 @@ std::string NormaliseWhitespaceAndLowercase(const std::string &s) {
     clean_utf32_chars.resize(clean_utf32_chars.size() - trim_count);
 
     std::string clean_s;
-    for (const uint32_t utf32_ch : clean_utf32_chars)
-        clean_s += TextUtil::UTF32ToUTF8(utf32_ch);
-
+    for (const uint32_t utf32_ch : clean_utf32_chars) {
+        if (unlikely(TextUtil::IsSomeKindOfDash(utf32_ch)))
+            clean_s += '-'; // ordinary minus
+        else
+            clean_s += TextUtil::UTF32ToUTF8(utf32_ch);
+    }
+    
     return clean_s;
 }
 
@@ -358,7 +363,7 @@ bool SubfieldPrefixIsIdentical(const MARC::Record::Field &field1, const MARC::Re
             return false;
         if (subfield1->code_ != subfield_code or subfield2->code_ != subfield_code)
             return false;
-        if (NormaliseWhitespaceAndLowercase(subfield1->value_) != NormaliseWhitespaceAndLowercase(subfield2->value_))
+        if (CanoniseText(subfield1->value_) != CanoniseText(subfield2->value_))
             return false;
     }
 
@@ -461,7 +466,7 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
         } else if (record1_field->getTag() == "936" and record2_field->getTag() == "936") {
             const auto &contents1(record1_field->getContents());
             const auto &contents2(record2_field->getContents());
-            if (NormaliseWhitespaceAndLowercase(contents1) == NormaliseWhitespaceAndLowercase(contents2))
+            if (CanoniseText(contents1) == CanoniseText(contents2))
                 merged_record.appendField(*record1_field);
             else if (contents1.find('?') != std::string::npos)
                 merged_record.appendField(*record2_field);
