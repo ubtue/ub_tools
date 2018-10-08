@@ -111,7 +111,10 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
     std::vector<std::string> title_control_numbers;
     if (not titles_db_->get(normalised_title, &concatenated_title_control_numbers)
         or StringUtil::Split(concatenated_title_control_numbers, '\0', &title_control_numbers) == 0)
+    {
+        LOG_DEBUG("no entries found for normalised title");
         return { };
+    }
 
     std::vector<std::string> all_author_control_numbers;
     for (const auto &author : authors) {
@@ -269,7 +272,7 @@ std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
     std::wstring normalised_title;
     bool space_separator_seen(true);
     for (const auto ch : wtitle) {
-        if (TextUtil::IsGeneralPunctuationCharacter(ch) or ch == '-' or TextUtil::IsSpaceSeparatorCharacter(ch)) {
+        if (TextUtil::IsPunctuationCharacter(ch) or ch == '-' or TextUtil::IsSpaceSeparatorCharacter(ch)) {
             if (not space_separator_seen)
                 normalised_title += ' ';
             space_separator_seen = true;
@@ -280,6 +283,7 @@ std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
     }
     if (not normalised_title.empty() and TextUtil::IsSpaceSeparatorCharacter(normalised_title.back()))
         normalised_title.resize(normalised_title.size() - 1);
+    normalised_title = TextUtil::ExpandLigatures(normalised_title);
 
     TextUtil::ToLower(&normalised_title);
 
@@ -329,6 +333,10 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
             ++non_space_sequence_length;
         }
     }
+    normalised_author_name = TextUtil::ExpandLigatures(normalised_author_name);
 
-    return TextUtil::UTF8ToLower(normalised_author_name);
+    return TextUtil::UTF8ToLower(&normalised_author_name);
+    LOG_DEBUG("normalised author name=\"" + normalised_author_name + "\"");
+
+    return normalised_author_name;
 }
