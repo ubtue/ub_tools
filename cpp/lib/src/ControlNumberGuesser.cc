@@ -269,7 +269,7 @@ std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
     std::wstring normalised_title;
     bool space_separator_seen(true);
     for (const auto ch : wtitle) {
-        if (TextUtil::IsGeneralPunctuationCharacter(ch) or TextUtil::IsSomeKindOfDash(ch) or TextUtil::IsSpaceSeparatorCharacter(ch)) {
+        if (TextUtil::IsGeneralPunctuationCharacter(ch) or ch == '-' or TextUtil::IsSpaceSeparatorCharacter(ch)) {
             if (not space_separator_seen)
                 normalised_title += ' ';
             space_separator_seen = true;
