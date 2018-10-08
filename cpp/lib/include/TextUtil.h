@@ -40,6 +40,7 @@ namespace TextUtil {
 
 
 constexpr uint32_t REPLACEMENT_CHARACTER(0xFFFDu);
+constexpr uint32_t EN_DASH(0x2013u);
 
 
 /** \brief Converter between many text encodings.
