@@ -36,6 +36,7 @@
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "HtmlParser.h"
+#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "XMLParser.h"
@@ -431,6 +432,14 @@ bool UTF8ToUTF32(const std::string &utf8_string, std::vector<uint32_t> * utf32_c
 uint32_t UTF32ToLower(const uint32_t code_point) {
     return static_cast<uint32_t>(std::tolower(static_cast<wchar_t>(code_point), DEFAULT_LOCALE));
 }
+
+
+std::wstring &ToLower(std::wstring * const s) {
+    for (auto &ch : *s)
+        ch = std::tolower(ch);
+    return *s;
+}
+
 
 
 uint32_t UTF32ToUpper(const uint32_t code_point) {
@@ -1456,6 +1465,32 @@ bool UnicodeTruncate(std::string * const utf8_string, const size_t max_length) {
     wchar_string.resize(max_length);
 
     return WCharToUTF8String(wchar_string, utf8_string);
+}
+
+
+// See https://www.compart.com/en/unicode/category/Zs for where we got this.
+bool IsSpaceSeparatorCharacter(const wchar_t ch) {
+    return ch == 0x0020 or ch == 0x00A0 or ch == 0x1680 or ch == 0x2000 or ch == 0x2001 or ch == 0x2002 or ch == 0x2003 or ch == 0x2004
+           or ch == 0x2005 or ch == 0x2006 or ch == 0x2007 or ch == 0x2008 or ch == 0x2009 or ch == 0x200A or ch == 0x202F or ch == 0x205F
+           or ch == 0x3000;
+}
+
+
+double CalcTextSimilarity(const std::string &text1, const std::string &text2, const bool ignore_case) {
+    std::wstring wtext1;
+    if (unlikely(UTF8ToWCharString(text1, &wtext1)))
+        LOG_ERROR("failed to convert \"text1\" to a wstring!");
+
+    std::wstring wtext2;
+    if (unlikely(UTF8ToWCharString(text2, &wtext2)))
+        LOG_ERROR("failed to convert \"text2\" to a wstring!");
+
+    if (ignore_case) {
+        ToLower(&wtext1);
+        ToLower(&wtext2);
+    }
+
+    return MiscUtil::LevenshteinDistance(wtext1, wtext2) / std::max(wtext1.length(), wtext2.length());
 }
 
 

@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "JSON.h"
+#include <deque>
 #include <stdexcept>
 #include <string>
 #include <cctype>
@@ -640,7 +641,7 @@ std::string TokenTypeToString(const TokenType token) {
 }
 
 
-static size_t ParsePath(const std::string &path, std::vector<std::string> * const components) {
+static size_t ParsePath(const std::string &path, std::deque<std::string> * const components) {
     std::string component;
 
     if (not StringUtil::StartsWith(path, "/"))
@@ -671,7 +672,7 @@ static size_t ParsePath(const std::string &path, std::vector<std::string> * cons
 static std::shared_ptr<const JSONNode> GetLastPathComponent(const std::string &path, const std::shared_ptr<const JSONNode> &tree,
                                                             const bool have_default)
 {
-    std::vector<std::string> path_components;
+    std::deque<std::string> path_components;
     if (unlikely(ParsePath(path, &path_components) == 0))
         throw std::runtime_error("in JSON::GetLastPathComponent: an empty path is invalid!");
 
@@ -679,28 +680,15 @@ static std::shared_ptr<const JSONNode> GetLastPathComponent(const std::string &p
     for (const auto &path_component : path_components) {
         if (next_node == nullptr) {
             if (unlikely(not have_default))
-                throw std::runtime_error("in JSON::GetLastPathComponent: can't find \"" + path
-                                         + "\" in our JSON tree!");
+                throw std::runtime_error("in JSON::GetLastPathComponent: can't find \"" + path + "\" in our JSON tree!");
             return nullptr;
         }
 
         switch (next_node->getType()) {
-        case JSONNode::BOOLEAN_NODE:
-        case JSONNode::NULL_NODE:
-        case JSONNode::STRING_NODE:
-        case JSONNode::INT64_NODE:
-        case JSONNode::DOUBLE_NODE:
-            throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node!");
         case JSONNode::OBJECT_NODE:
             next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component);
-            if (next_node == nullptr) {
-                if (unlikely(not have_default))
-                    throw std::runtime_error("in JSON::GetLastPathComponent: can't find path component \""
-                                             + path_component + "\" in path \"" + path + "\" in our JSON tree!");
-                return nullptr;
-            }
             break;
-        case JSONNode::ARRAY_NODE:
+        case JSONNode::ARRAY_NODE: {
             unsigned index;
             if (unlikely(not StringUtil::ToUnsigned(path_component, &index)))
                 throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
@@ -712,6 +700,9 @@ static std::shared_ptr<const JSONNode> GetLastPathComponent(const std::string &p
             next_node = array_node->getNode(index);
             break;
         }
+        default:
+            throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node!");
+        }
     }
 
     return next_node;
@@ -722,8 +713,11 @@ static std::string LookupString(const std::string &path, const std::shared_ptr<c
                                 const std::string &default_value, const bool use_default_value)
 {
     const std::shared_ptr<const JSONNode> bottommost_node(GetLastPathComponent(path, tree, use_default_value));
-    if (bottommost_node == nullptr)
-        return default_value;
+    if (bottommost_node == nullptr) {
+        if (use_default_value)
+            return default_value;
+        throw std::runtime_error("in JSON::LookupString: missing bottom node!");
+    }
 
     switch (bottommost_node->getType()) {
     case JSONNode::BOOLEAN_NODE:
@@ -757,6 +751,65 @@ std::string LookupString(const std::string &path, const std::shared_ptr<const JS
 
 std::string LookupString(const std::string &path, const std::shared_ptr<const JSONNode> &tree, const std::string &default_value) {
     return LookupString(path, tree, default_value, /* use_default_value = */ true);
+}
+
+
+static bool LookupStringsHelper(std::deque<std::string> path_components, const std::shared_ptr<const JSONNode> &tree,
+                                std::vector<std::string> * const results)
+{
+    std::shared_ptr<const JSONNode> next_node(tree);
+    while (not path_components.empty()) {
+        if (next_node == nullptr)
+            return false;
+
+        const std::string path_component(path_components.front());
+        path_components.pop_front();
+
+        switch (next_node->getType()) {
+        case JSONNode::OBJECT_NODE:
+            next_node = JSONNode::CastToObjectNodeOrDie(path_component, next_node)->getNode(path_component);
+            if (next_node == nullptr)
+                return true;
+            break;
+        case JSONNode::ARRAY_NODE:
+            if (path_component == "*") {
+                const auto array_node(JSONNode::CastToArrayNodeOrDie(path_component, next_node));
+                for (const auto &entry : *array_node) {
+                    if (not LookupStringsHelper(path_components, entry, results))
+                        return false;
+                }
+                return true;
+            } else { // Must be an array index.
+                unsigned index;
+                if (unlikely(not StringUtil::ToUnsigned(path_component, &index))) {
+                    LOG_WARNING("bad index: " + path_component);
+                    return false;
+                }
+                const std::shared_ptr<const ArrayNode> array_node(JSONNode::CastToArrayNodeOrDie(path_component, next_node));
+                if (unlikely(index >= array_node->size())) {
+                    LOG_WARNING("index too large: " + path_component);
+                    return false;
+                }
+                next_node = array_node->getNode(index);
+            }
+            break;
+        default:
+            return false;
+        }
+    }
+
+    results->emplace_back(next_node->toString());
+    return true;
+}
+
+
+std::vector<std::string> LookupStrings(const std::string &path, const std::shared_ptr<const JSONNode> &tree) {
+    std::deque<std::string> path_components;
+    if (unlikely(ParsePath(path, &path_components) == 0))
+        throw std::runtime_error("in JSON::LookupStringsHelper: an empty path is invalid!");
+
+    std::vector<std::string> results;
+    return LookupStringsHelper(path_components, tree, &results) ? results : std::vector<std::string>{};
 }
 
 

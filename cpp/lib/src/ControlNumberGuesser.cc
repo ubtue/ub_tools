@@ -20,10 +20,14 @@
 #include "ControlNumberGuesser.h"
 #include <algorithm>
 #include <iterator>
+#include <unordered_set>
 #include <vector>
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "util.h"
+
+
+const std::set<std::string> ControlNumberGuesser::EMPTY_SET;
 
 
 static kyotocabinet::HashDB *CreateOrOpenKeyValueDB(const std::string &db_path) {
@@ -37,7 +41,7 @@ static kyotocabinet::HashDB *CreateOrOpenKeyValueDB(const std::string &db_path) 
 static const std::string MATCH_DB_PREFIX("/usr/local/var/lib/tuelib/normalised_");
 
 
-ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode) {
+ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode) : title_cursor_(nullptr), author_cursor_(nullptr) {
     const std::string TITLES_DB_PATH(MATCH_DB_PREFIX + "titles.db");
     const std::string AUTHORS_DB_PATH(MATCH_DB_PREFIX + "authors.db");
 
@@ -51,35 +55,30 @@ ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode) {
 }
 
 
-static std::string NormaliseTitle(const std::string &title) {
-    std::string normalised_title;
-    bool space_seen(false);
-    for (const char ch : title) {
-        if (std::ispunct(ch) or ch == '-' or std::isspace(ch)) {
-            if (not space_seen)
-                normalised_title += ' ';
-            space_seen = true;
-        } else {
-            space_seen = false;
-            normalised_title += ch;
+ControlNumberGuesser::~ControlNumberGuesser() {
+    delete title_cursor_; delete author_cursor_; delete titles_db_; delete authors_db_;
+
+    std::unordered_set<std::set<std::string> *> already_deleted;
+    for (auto &control_number_and_set_ptr : control_number_to_control_number_set_map_) {
+        if (already_deleted.find(control_number_and_set_ptr.second) == already_deleted.end()) {
+            delete control_number_and_set_ptr.second;
+            already_deleted.emplace(control_number_and_set_ptr.second);
         }
     }
-
-    return StringUtil::TrimWhite(&normalised_title);
 }
 
 
 void ControlNumberGuesser::insertTitle(const std::string &title, const std::string &control_number) {
-    const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(title)));
-    if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
-        LOG_DEBUG("in ControlNumberGuesser::insertTitle: normalised_title=\"" + normalised_title + "\".");
+    const auto normalised_title(NormaliseTitle(title));
+    LOG_DEBUG("normalised_title=\"" + normalised_title + "\".");
     if (unlikely(normalised_title.empty()))
         LOG_WARNING("Empty normalised title in record w/ control number: " + control_number);
     else {
         std::string control_numbers;
-        if (titles_db_->get(normalised_title, &control_numbers))
-            control_numbers += "\0" + control_number;
-        else
+        if (titles_db_->get(normalised_title, &control_numbers)) {
+            control_numbers += '\0';
+            control_numbers += control_number;
+        } else
             control_numbers = control_number;
         if (unlikely(not titles_db_->set(normalised_title, control_numbers)))
             LOG_ERROR("failed to insert normalised title into the database!");
@@ -87,45 +86,15 @@ void ControlNumberGuesser::insertTitle(const std::string &title, const std::stri
 }
 
 
-static std::string NormaliseAuthorName(std::string author_name) {
-    author_name = StringUtil::TrimWhite(author_name);
-    const auto comma_pos(author_name.find(','));
-    if (comma_pos != std::string::npos)
-        author_name = StringUtil::TrimWhite(author_name.substr(comma_pos + 1) + " " + author_name.substr(0, comma_pos));
-
-    std::string normalised_author_name;
-    bool space_seen(false);
-    for (const char ch : author_name) {
-        switch (ch) {
-        case '.':
-            normalised_author_name += ch;
-            normalised_author_name += ' ';
-            space_seen = true;
-            break;
-        case ' ':
-            if (not space_seen)
-                normalised_author_name += ' ';
-            space_seen = true;
-            break;
-        default:
-            normalised_author_name += ch;
-            space_seen = false;
-        }
-    }
-
-    return normalised_author_name;
-}
-
-
 void ControlNumberGuesser::insertAuthors(const std::set<std::string> &authors, const std::string &control_number) {
     for (const auto author : authors) {
         const auto normalised_author_name(TextUtil::UTF8ToLower(NormaliseAuthorName(author)));
-        if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
-            LOG_DEBUG("in ControlNumberGuesser::insertAuthors: normalised_author_name=\"" + normalised_author_name + "\".");
+        LOG_DEBUG("normalised_author_name=\"" + normalised_author_name + "\".");
         std::string control_numbers;
-        if (authors_db_->get(normalised_author_name, &control_numbers))
-            control_numbers += "\0" + control_number;
-        else
+        if (authors_db_->get(normalised_author_name, &control_numbers)) {
+            control_numbers += '\0';
+            control_numbers += control_number;
+        } else
             control_numbers = control_number;
         if (unlikely(not authors_db_->set(normalised_author_name, control_numbers)))
             LOG_ERROR("failed to insert normalised author into the database!");
@@ -135,7 +104,7 @@ void ControlNumberGuesser::insertAuthors(const std::set<std::string> &authors, c
 
 std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::string &title, const std::vector<std::string> &authors) const
 {
-    const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(title)));
+    const auto normalised_title(NormaliseTitle(title));
     if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
         LOG_DEBUG("in ControlNumberGuesser::getGuessedControlNumbers: normalised_title=\"" + normalised_title + "\".");
     std::string concatenated_title_control_numbers;
@@ -146,7 +115,7 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
 
     std::vector<std::string> all_author_control_numbers;
     for (const auto &author : authors) {
-        const auto normalised_author(TextUtil::UTF8ToLower(NormaliseTitle(author)));
+        const auto normalised_author(NormaliseAuthorName(author));
         if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
             LOG_DEBUG("in ControlNumberGuesser::getGuessedControlNumbers: normalised_author=\"" + normalised_author + "\".");
         std::string concatenated_author_control_numbers;
@@ -168,4 +137,198 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
                           std::back_inserter(common_control_numbers));
 
     return std::set<std::string>(common_control_numbers.cbegin(), common_control_numbers.cend());
+}
+
+
+bool ControlNumberGuesser::getNextTitle(std::string * const title, std::set<std::string> * const control_numbers) const {
+    if (title_cursor_ == nullptr) {
+        title_cursor_ = titles_db_->cursor();
+        title_cursor_->jump();
+    }
+
+    std::string concatenated_control_numbers;
+    if (title_cursor_->get(title, &concatenated_control_numbers, /* Move cursor to the next record */true)) {
+        StringUtil::Split(concatenated_control_numbers, '\0', control_numbers);
+        return true;
+    } else {
+        delete title_cursor_;
+        title_cursor_ = nullptr;
+        return false;
+    }
+}
+
+
+bool ControlNumberGuesser::getNextAuthor(std::string * const author_name, std::set<std::string> * const control_numbers) const {
+    if (author_cursor_ == nullptr) {
+        author_cursor_ = authors_db_->cursor();
+        author_cursor_->jump();
+    }
+
+    std::string concatenated_control_numbers;
+    if (author_cursor_->get(author_name, &concatenated_control_numbers, /* Move cursor to the next record */true)) {
+        StringUtil::Split(concatenated_control_numbers, '\0', control_numbers);
+        return true;
+    } else {
+        delete author_cursor_;
+        author_cursor_ = nullptr;
+        return false;
+    }
+}
+
+
+void ControlNumberGuesser::FindDups(const std::unordered_map<std::string, std::set<std::string>> &title_to_control_numbers_map,
+                                    const std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map) const
+{
+    for (const auto &title_and_control_numbers : title_to_control_numbers_map) {
+        if (title_and_control_numbers.second.size() < 2)
+            continue;
+
+        // Collect all control numbers for all authors of the current title:
+        std::map<std::string, std::set<std::string>> author_to_control_numbers_map;
+        for (const auto &control_number : title_and_control_numbers.second) {
+            const auto control_number_and_authors(control_number_to_authors_map.find(control_number));
+            if (control_number_and_authors == control_number_to_authors_map.cend())
+                continue;
+
+            for (const auto &author : control_number_and_authors->second) {
+                auto author_and_control_numbers(author_to_control_numbers_map.find(author));
+                if (author_and_control_numbers == author_to_control_numbers_map.end())
+                    author_to_control_numbers_map[author] = std::set<std::string>{ control_number };
+                else
+                    author_and_control_numbers->second.emplace(control_number);
+            }
+        }
+
+        // Record those cases where we found multiple control numbers for the same author for a single title:
+        std::unordered_set<std::string> already_processed_control_numbers;
+        for (const auto &author_and_control_numbers : author_to_control_numbers_map) {
+            if (author_and_control_numbers.second.size() >= 2) {
+                bool skip_author(false);
+
+                // We may have multiple authors for the same work but only wish to report each duplicate work once:
+                for (const auto &control_number : author_and_control_numbers.second) {
+                    if (already_processed_control_numbers.find(control_number) != already_processed_control_numbers.cend()) {
+                        skip_author = true;
+                        break;
+                    }
+                }
+
+                if (not skip_author) {
+                    std::set<std::string> *new_set(new std::set<std::string>());
+                    for (const auto &control_number : author_and_control_numbers.second) {
+                        already_processed_control_numbers.emplace(control_number);
+                        new_set->emplace(control_number);
+                        control_number_to_control_number_set_map_[control_number] = new_set;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+void ControlNumberGuesser::InitControlNumberToControlNumberSetMap() const {
+    std::unordered_map<std::string, std::set<std::string>> title_to_control_numbers_map;
+    std::string title;
+    std::set<std::string> control_numbers;
+    while (getNextTitle(&title, &control_numbers))
+        title_to_control_numbers_map.emplace(title, control_numbers);
+
+    std::unordered_map<std::string, std::set<std::string>> control_number_to_authors_map;
+    std::string author;
+    while (getNextAuthor(&author, &control_numbers)) {
+        for (const auto &control_number : control_numbers) {
+            auto control_number_and_authors(control_number_to_authors_map.find(control_number));
+            if (control_number_and_authors == control_number_to_authors_map.end())
+                control_number_to_authors_map[control_number] = std::set<std::string>{ author };
+            else
+                control_number_and_authors->second.emplace(author);
+        }
+    }
+
+    FindDups(title_to_control_numbers_map, control_number_to_authors_map);
+}
+
+
+const std::set<std::string> &ControlNumberGuesser::getControlNumberPartners(const std::string &control_number) const {
+    if (control_number_to_control_number_set_map_.empty())
+        InitControlNumberToControlNumberSetMap();
+
+    const auto control_number_and_set_ptr(control_number_to_control_number_set_map_.find(control_number));
+    if (control_number_and_set_ptr == control_number_to_control_number_set_map_.cend())
+        return EMPTY_SET;
+    return *control_number_and_set_ptr->second;
+}
+
+
+std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
+    std::wstring wtitle;
+    if (unlikely(not TextUtil::UTF8ToWCharString(title, &wtitle)))
+        LOG_ERROR("failed to convert \"" + title + "\" to a wide character string!");
+
+    std::wstring normalised_title;
+    bool space_separator_seen(true);
+    for (const auto ch : wtitle) {
+        if (TextUtil::IsGeneralPunctuationCharacter(ch) or ch == '-' or TextUtil::IsSpaceSeparatorCharacter(ch)) {
+            if (not space_separator_seen)
+                normalised_title += ' ';
+            space_separator_seen = true;
+        } else {
+            space_separator_seen = false;
+            normalised_title += ch;
+        }
+    }
+    if (not normalised_title.empty() and TextUtil::IsSpaceSeparatorCharacter(normalised_title.back()))
+        normalised_title.resize(normalised_title.size() - 1);
+
+    TextUtil::ToLower(&normalised_title);
+
+    std::string utf8_normalised_title;
+    if (unlikely(not TextUtil::WCharToUTF8String(normalised_title, &utf8_normalised_title)))
+        LOG_ERROR("failed to convert a wstring to an UTF8 string!");
+
+    return utf8_normalised_title;
+}
+
+
+std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_name) {
+    auto trimmed_author_name = StringUtil::TrimWhite(author_name);
+    const auto comma_pos(trimmed_author_name.find(','));
+    if (comma_pos != std::string::npos)
+        trimmed_author_name = StringUtil::TrimWhite(trimmed_author_name.substr(comma_pos + 1) + " "
+                                                    + trimmed_author_name.substr(0, comma_pos));
+
+    std::string normalised_author_name;
+    bool space_seen(false);
+    unsigned non_space_sequence_length(0);
+    for (const char ch : trimmed_author_name) {
+        switch (ch) {
+        case '.':
+            if (non_space_sequence_length == 1)
+                normalised_author_name.resize(normalised_author_name.length() - 1);
+            else
+                normalised_author_name += ch;
+            if (normalised_author_name.empty())
+                space_seen = false;
+            else {
+                if (normalised_author_name.back() != ' ')
+                    normalised_author_name += ' ';
+                space_seen = true;
+            }
+            non_space_sequence_length = 0;
+            break;
+        case ' ':
+            if (not space_seen)
+                normalised_author_name += ' ';
+            space_seen = true;
+            non_space_sequence_length = 0;
+            break;
+        default:
+            normalised_author_name += ch;
+            space_seen = false;
+            ++non_space_sequence_length;
+        }
+    }
+
+    return TextUtil::UTF8ToLower(normalised_author_name);
 }

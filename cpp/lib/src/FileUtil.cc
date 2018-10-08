@@ -45,14 +45,16 @@
 namespace FileUtil {
 
 
-AutoTempFile::AutoTempFile(const std::string &path_prefix, bool automatically_remove)
+AutoTempFile::AutoTempFile(const std::string &path_prefix, const std::string &path_suffix, bool automatically_remove)
     : automatically_remove_(automatically_remove)
 {
-    std::string path_template(path_prefix + "XXXXXX");
-    const int fd(::mkstemp(const_cast<char *>(path_template.c_str())));
-    if (fd == -1)
-        throw std::runtime_error("in AutoTempFile::AutoTempFile: mkstemp(3) for path prefix \"" + path_prefix
+    std::string path_template(path_prefix + "XXXXXX" + path_suffix);
+    const int fd(::mkstemps(const_cast<char *>(path_template.c_str()), path_suffix.length()));
+    if (fd == -1) {
+        throw std::runtime_error("in AutoTempFile::AutoTempFile: mkstemps(3) for path prefix \"" + path_prefix
                                  + "\" failed! (" + std::string(::strerror(errno)) + ")");
+    }
+
     ::close(fd);
     path_ = path_template;
 }
@@ -505,6 +507,17 @@ void DirnameAndBasename(const std::string &path, std::string * const dirname, st
         *dirname  = path.substr(0, last_slash_pos);
         *basename = path.substr(last_slash_pos + 1);
     }
+}
+
+
+std::string GetBasename(const std::string &path) {
+    if (unlikely(path.length() == 0))
+        return "";
+
+    std::string::size_type last_slash_pos = path.rfind('/');
+    if (last_slash_pos == std::string::npos)
+        return path;
+    return path.substr(last_slash_pos + 1);
 }
 
 

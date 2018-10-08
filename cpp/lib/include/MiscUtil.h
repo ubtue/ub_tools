@@ -160,4 +160,8 @@ size_t LoadMapFile(const std::string &filename, std::unordered_map<std::string, 
 std::string MakeOrdinal(const unsigned number);
 
 
+unsigned LevenshteinDistance(const std::string &s1, const std::string &s2);
+unsigned LevenshteinDistance(const std::wstring &s1, const std::wstring &s2);
+
+
 } // namespace MiscUtil
