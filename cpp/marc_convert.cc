@@ -23,6 +23,7 @@
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
+#include "FileUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -32,20 +33,29 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--quiet] [--limit max_no_of_records] marc_input marc_output [CTLN_1 CTLN_2 .. CTLN_N]\n"
+    std::cerr << "Usage: " << ::progname << " [--quiet] [--limit max_no_of_records] [--output-individual-files] marc_input marc_output [CTLN_1 CTLN_2 .. CTLN_N]\n"
               << "       Autoconverts the MARC format of \"marc_input\" to \"marc_output\".\n"
               << "       Supported extensions are \"xml\", \"mrc\", \"marc\" and \"raw\".\n"
               << "       All extensions except for \"xml\" are assumed to imply MARC-21.\n"
               << "       If a control number list has been specified only those records will\n"
-              << "       be extracted or converted.\n\n";
+              << "       be extracted or converted.\n"
+              << "       If --output-individual-files is specified marc_output must be a writable directory\n"
+              << "       and files are named from the control numbers and written as xml\n\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-void ProcessRecords(const bool quiet, const unsigned max_no_of_records, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+void ProcessRecords(const bool quiet, const bool output_individual_files, const unsigned max_no_of_records,
+                    MARC::Reader * const marc_reader, const std::string output_filename_or_directory,
                     const std::set<std::string> &control_numbers)
 {
     unsigned record_count(0), extracted_count(0);
+
+    std::unique_ptr<MARC::Writer> marc_writer;
+    if (output_individual_files)
+        FileUtil::ChangeDirectoryOrDie(output_filename_or_directory);
+    else
+        marc_writer = MARC::Writer::Factory(output_filename_or_directory);
 
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
@@ -54,6 +64,10 @@ void ProcessRecords(const bool quiet, const unsigned max_no_of_records, MARC::Re
             continue;
 
         ++extracted_count;
+        // Open a new xml file with the name derived from the control number for each record
+        if (output_individual_files)
+            marc_writer =  MARC::Writer::Factory(record.getControlNumber() + ".xml", MARC::FileType::XML);
+
         marc_writer->write(record);
 
         if (record_count == max_no_of_records)
@@ -92,22 +106,27 @@ int main(int argc, char *argv[]) {
         argc -= 2;
         argv += 2;
     }
-    
+
+    bool output_individual_files(false);
+    if (std::strcmp(argv[1], "--output-individual-files") == 0) {
+        output_individual_files = true;
+        --argc, ++argv;
+    }
+
     if (argc < 3)
         Usage();
 
     const std::string input_filename(argv[1]);
-    const std::string output_filename(argv[2]);
+    const std::string output_file_or_directory(argv[2]);
 
     try {
         std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename));
-        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(output_filename));
 
         std::set<std::string> control_numbers;
         for (int arg_no(3); arg_no < argc; ++arg_no)
             control_numbers.emplace(argv[arg_no]);
 
-        ProcessRecords(quiet, max_no_of_records, marc_reader.get(), marc_writer.get(), control_numbers);
+        ProcessRecords(quiet, output_individual_files, max_no_of_records, marc_reader.get(), output_file_or_directory, control_numbers);
     } catch (const std::exception &e) {
         LOG_ERROR("Caught exception: " + std::string(e.what()));
     }
