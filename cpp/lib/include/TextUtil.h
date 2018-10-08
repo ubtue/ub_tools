@@ -471,9 +471,8 @@ bool IsSpaceSeparatorCharacter(const wchar_t ch);
 
 inline bool IsPunctuationCharacter(const wchar_t ch) {
     if (IsGeneralPunctuationCharacter(ch)) return true;
-    return ch == '.' or ch == ',' or ch == ';' or ch == '?' or ch == '!';
+    return ch == '.' or ch == ',' or ch == ';' or ch == ':' or ch == '?' or ch == '!';
 }
-
 
 
 // \return 0.0 if the texts are identical and a large score <= 1.0 if they are not.
