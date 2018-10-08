@@ -1501,4 +1501,42 @@ bool IsSomeKindOfDash(const uint32_t ch) {
 }
 
 
+static const std::map<wchar_t, std::pair<wchar_t, wchar_t>> ligature_to_expansion_map{
+    {L'æ', { 'a', 'e' }},
+    {L'Æ', { 'A', 'E' }},
+    {L'œ', { 'o', 'e' }},
+    {L'Œ', { 'O', 'E' }},
+};
+
+
+std::wstring ExpandLigatures(const std::wstring &string) {
+    std::wstring wstring_with_expanded_ligatures;
+    for (const auto wchar : string) {
+        const auto ligature_and_expansion(ligature_to_expansion_map.find(wchar));
+        if (likely(ligature_and_expansion == ligature_to_expansion_map.cend()))
+            wstring_with_expanded_ligatures += wchar;
+        else {
+            wstring_with_expanded_ligatures += ligature_and_expansion->second.first;
+            wstring_with_expanded_ligatures += ligature_and_expansion->second.second;
+        }
+    }
+
+    return wstring_with_expanded_ligatures;
+}
+
+
+std::string ExpandLigatures(const std::string &utf8_string) {
+    std::wstring wstring;
+    if (unlikely(not UTF8ToWCharString(utf8_string, &wstring)))
+        LOG_ERROR("failed to convert a UTF8 string to a wide character string!");
+
+    const auto wstring_with_expanded_ligatures(ExpandLigatures(wstring));
+    std::string utf8_with_expanded_ligatures;
+    if (unlikely(not WCharToUTF8String(wstring_with_expanded_ligatures, &utf8_with_expanded_ligatures)))
+        LOG_ERROR("failed to convert a wide character string to a UTF8 string!");
+
+    return utf8_with_expanded_ligatures;
+}
+
+
 } // namespace TextUtil
