@@ -40,7 +40,7 @@ namespace {
               << "       If a control number list has been specified only those records will\n"
               << "       be extracted or converted.\n"
               << "       If --output-individual-files is specified marc_output must be a writable directory\n"
-              << "       and files are named from the control numbers and written as xml\n\n";
+              << "       and files are named from the control numbers and written as XML\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -64,9 +64,10 @@ void ProcessRecords(const bool quiet, const bool output_individual_files, const 
             continue;
 
         ++extracted_count;
-        // Open a new xml file with the name derived from the control number for each record
+
+        // Open a new XML file with the name derived from the control number for each record
         if (output_individual_files)
-            marc_writer =  MARC::Writer::Factory(record.getControlNumber() + ".xml", MARC::FileType::XML);
+            marc_writer = MARC::Writer::Factory(record.getControlNumber() + ".xml", MARC::FileType::XML);
 
         marc_writer->write(record);
 
