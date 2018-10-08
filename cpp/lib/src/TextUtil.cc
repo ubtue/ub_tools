@@ -1532,7 +1532,7 @@ std::string ExpandLigatures(const std::string &utf8_string) {
 
     const auto wstring_with_expanded_ligatures(ExpandLigatures(wstring));
     std::string utf8_with_expanded_ligatures;
-    if (unlikely(not WCharToUTF8String(wstring, &utf8_with_expanded_ligatures)))
+    if (unlikely(not WCharToUTF8String(wstring_with_expanded_ligatures, &utf8_with_expanded_ligatures)))
         LOG_ERROR("failed to convert a wide character string to a UTF8 string!");
 
     return utf8_with_expanded_ligatures;
