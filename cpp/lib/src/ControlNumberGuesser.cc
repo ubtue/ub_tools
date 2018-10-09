@@ -335,6 +335,15 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
         }
     }
     normalised_author_name = TextUtil::ExpandLigatures(TextUtil::RemoveDiacritics(normalised_author_name));
+    if (unlikely(normalised_author_name.empty()))
+        return "";
+
+    // Only keep the first name and the last name:
+    std::vector<std::string> parts;
+    StringUtil::Split(normalised_author_name, ' ', &parts);
+    normalised_author_name = parts.front();
+    if (parts.size() > 1)
+        normalised_author_name += " " + parts.back();
 
     TextUtil::UTF8ToLower(&normalised_author_name);
     LOG_DEBUG("normalised author name=\"" + normalised_author_name + "\"");
