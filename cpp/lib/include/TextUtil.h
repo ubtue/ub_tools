@@ -470,7 +470,7 @@ inline bool IsGeneralPunctuationCharacter(const wchar_t ch) { return ch >= 0x200
 bool IsSpaceSeparatorCharacter(const wchar_t ch);
 
 
-/** Tests against IsSpaceSeparatorCharacter and trditional UNIX whitespace characters. */
+/** Tests against IsSpaceSeparatorCharacter and traditional UNIX whitespace characters. */
 bool IsSpace(const wchar_t ch);
 
 
