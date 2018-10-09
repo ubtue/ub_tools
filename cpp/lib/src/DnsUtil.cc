@@ -120,7 +120,7 @@ bool IsValidHostName(const std::string &host_name) {
 
 bool IsDottedQuad(const std::string &possible_dotted_quad) {
     std::list<std::string> octets;
-    StringUtil::Split(possible_dotted_quad, ".", &octets);
+    StringUtil::Split(possible_dotted_quad, '.', &octets);
     if (octets.size() != 4)
         return false;
     for (std::list<std::string>::const_iterator octet(octets.begin()); octet != octets.end(); ++octet) {

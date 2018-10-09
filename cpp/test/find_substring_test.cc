@@ -23,9 +23,9 @@ int main(int argc, char *argv[]) {
         Usage();
 
     std::vector<std::string> haystack;
-    StringUtil::Split(argv[1], ':', &haystack);
+    StringUtil::Split(std::string(argv[1]), ':', &haystack);
     std::vector<std::string> needle;
-    StringUtil::Split(argv[2], ':', &needle);
+    StringUtil::Split(std::string(argv[2]), ':', &needle);
 
     const std::vector<std::string>::const_iterator start_iter(TextUtil::FindSubstring(haystack, needle));
     if (start_iter == haystack.cend())
@@ -33,4 +33,3 @@ int main(int argc, char *argv[]) {
     else
         std::cout << "Needle was found at offset " << (start_iter - haystack.cbegin()) << " in haystack.\n";
 }
-
