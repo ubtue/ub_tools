@@ -627,7 +627,7 @@ bool IsValidFpath(const std::string &fpath) {
         return true;
 
     std::list<std::string> segments;
-    StringUtil::Split(fpath, "/", &segments);
+    StringUtil::Split(fpath, '/', &segments);
     if (segments.empty())
         return true;
 
@@ -648,7 +648,7 @@ bool FixFpath(std::string * const fpath) {
     const bool ends_in_slash = (*fpath)[fpath->length() - 1] == '/';
 
     std::list<std::string> segments;
-    StringUtil::Split(*fpath, "/", &segments);
+    StringUtil::Split(*fpath, '/', &segments);
     if (segments.empty())
         return true;
 
@@ -672,7 +672,7 @@ bool IsValidHpath(const std::string &hpath) {
         return true;
 
     std::list<std::string> segments;
-    StringUtil::Split(hpath, "/", &segments);
+    StringUtil::Split(hpath, '/', &segments);
     if (segments.empty())
         return true;
 
@@ -703,7 +703,7 @@ bool FixHpath(std::string * const hpath) {
     const bool ends_in_slash = (*hpath)[hpath->length() - 1] == '/';
 
     std::list<std::string> segments;
-    StringUtil::Split(*hpath, "/", &segments);
+    StringUtil::Split(*hpath, '/', &segments);
     if (segments.empty())
         return true;
 
@@ -836,11 +836,11 @@ bool CanonizePath(std::string non_canonical_path, std::string reference_path, st
         reference_path = reference_path.substr(0, last_slash_pos); // Strip off any characters following the last slash
 
     std::list<std::string> segments;
-    StringUtil::Split(reference_path, "/", &segments);
+    StringUtil::Split(reference_path, '/', &segments);
 
     /* Step 6 b) */
     std::list<std::string> non_canonical_path_segments;
-    StringUtil::Split(non_canonical_path, "/", &non_canonical_path_segments);
+    StringUtil::Split(non_canonical_path, '/', &non_canonical_path_segments);
     segments.splice(segments.end(), non_canonical_path_segments);
 
     /* Steps 6 c) and d), remove single-dot components. */
@@ -1196,7 +1196,7 @@ bool Url::cleanUp() {
     // If this is a relative URL, we may be able to make it into an HTTP URL:
     if (scheme_.empty() and default_base_url_.empty() and not relative_url_.empty()) {
         std::list<std::string> segments;
-        StringUtil::Split(relative_url_, "/", &segments);
+        StringUtil::Split(relative_url_, '/', &segments);
         if (not segments.empty() and DnsUtil::IsValidHostName(segments.front())) {
             scheme_    = "http";
             authority_ = segments.front();
@@ -1309,7 +1309,7 @@ bool Url::makeValid() {
             return true;
         else if (scheme_.empty() and default_base_url_.empty() and not path_.empty()) {
             std::list<std::string> segments;
-            StringUtil::Split(path_, "/", &segments);
+            StringUtil::Split(path_, '/', &segments);
             if (not segments.empty() and DnsUtil::IsValidHostName(segments.front())) {
                 scheme_    = "http";
                 authority_ = segments.front();
