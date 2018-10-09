@@ -469,6 +469,11 @@ bool UnicodeTruncate(std::string * const utf8_string, const size_t max_length);
 inline bool IsGeneralPunctuationCharacter(const wchar_t ch) { return ch >= 0x2000 and ch <= 0x206F; }
 bool IsSpaceSeparatorCharacter(const wchar_t ch);
 
+
+/** Tests against IsSpaceSeparatorCharacter and trditional UNIX whitespace characters. */
+bool IsSpace(const wchar_t ch);
+
+
 inline bool IsPunctuationCharacter(const wchar_t ch) {
     if (IsGeneralPunctuationCharacter(ch)) return true;
     return ch == '.' or ch == ',' or ch == ';' or ch == ':' or ch == '?' or ch == '!';
