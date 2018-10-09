@@ -411,7 +411,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
      std::string language(node_parameters.language);
      if (language.empty())
          language = DEFAULT_LANGUAGE_CODE;
-         record->insertField("041", { {'a', language } });
+     record->insertField("041", { {'a', language } });
 
      // Abstract Note
      const std::string abstract_note(node_parameters.abstract_note);
