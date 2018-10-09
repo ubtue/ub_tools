@@ -336,7 +336,7 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
     }
     normalised_author_name = TextUtil::ExpandLigatures(TextUtil::RemoveDiacritics(normalised_author_name));
 
-    return TextUtil::UTF8ToLower(&normalised_author_name);
+    TextUtil::UTF8ToLower(&normalised_author_name);
     LOG_DEBUG("normalised author name=\"" + normalised_author_name + "\"");
 
     return normalised_author_name;
