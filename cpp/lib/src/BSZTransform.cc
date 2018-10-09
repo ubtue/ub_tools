@@ -25,6 +25,7 @@
 
 namespace BSZTransform {
 
+
 void LoadISSNToPPNMap(std::unordered_map<std::string, PPNandTitle> * const ISSN_to_superior_ppn_map) {
      enum ISSN_TO_PPN_OFFSET {ISSN_OFFSET = 0, PPN_OFFSET = 1, TITLE_OFFSET = 4};
      std::vector<std::vector<std::string>> parsed_issn_to_superior_content;
@@ -73,8 +74,9 @@ std::string DownloadAuthorPPN(const std::string &author, const std::string &auth
 }
 
 
-BSZTransform::BSZTransform(const std::string &map_directory_path) : augment_maps_{AugmentMaps(map_directory_path)} {};
-BSZTransform::BSZTransform(const AugmentMaps augment_maps) : augment_maps_{augment_maps} {};
+BSZTransform::BSZTransform(const std::string &map_directory_path): augment_maps_(AugmentMaps(map_directory_path)) {}
+BSZTransform::BSZTransform(const AugmentMaps &augment_maps): augment_maps_(augment_maps) {}
+
 
 void BSZTransform::DetermineKeywordOutputFieldFromISSN(const std::string &issn, std::string * const tag, char * const subfield) {
     if (not issn.empty()) {
@@ -92,5 +94,5 @@ void BSZTransform::DetermineKeywordOutputFieldFromISSN(const std::string &issn, 
     *subfield = 'a';
 }
 
-} // end namespace BSZTransform
 
+} // end namespace BSZTransform
