@@ -22,6 +22,7 @@
 #include <iterator>
 #include <unordered_set>
 #include <vector>
+#include "Compiler.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "util.h"
@@ -297,18 +298,20 @@ std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
 
 
 std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_name) {
-    auto trimmed_author_name = StringUtil::TrimWhite(author_name);
+    auto trimmed_author_name(StringUtil::TrimWhite(author_name));
     const auto comma_pos(trimmed_author_name.find(','));
     if (comma_pos != std::string::npos)
         trimmed_author_name = StringUtil::TrimWhite(trimmed_author_name.substr(comma_pos + 1) + " "
                                                     + trimmed_author_name.substr(0, comma_pos));
+    std::wstring wtrimmed_author_name;
+    if (unlikely(not TextUtil::UTF8ToWCharString(trimmed_author_name, &wtrimmed_author_name)))
+        LOG_ERROR("failed to convert trimmed_author_name to a wstring!");
 
-    std::string normalised_author_name;
+    std::wstring normalised_author_name;
     bool space_seen(false);
     unsigned non_space_sequence_length(0);
-    for (const char ch : trimmed_author_name) {
-        switch (ch) {
-        case '.':
+    for (const wchar_t ch : wtrimmed_author_name) {
+        if (ch == '.') {
             if (non_space_sequence_length == 1)
                 normalised_author_name.resize(normalised_author_name.length() - 1);
             else
@@ -316,19 +319,17 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
             if (normalised_author_name.empty())
                 space_seen = false;
             else {
-                if (normalised_author_name.back() != ' ')
+                if (not TextUtil::IsSpace(normalised_author_name.back()))
                     normalised_author_name += ' ';
                 space_seen = true;
             }
             non_space_sequence_length = 0;
-            break;
-        case ' ':
+        } else if (TextUtil::IsSpace(ch)) {
             if (not space_seen)
                 normalised_author_name += ' ';
             space_seen = true;
             non_space_sequence_length = 0;
-            break;
-        default:
+        } else {
             normalised_author_name += ch;
             space_seen = false;
             ++non_space_sequence_length;
@@ -337,16 +338,19 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
     normalised_author_name = TextUtil::ExpandLigatures(TextUtil::RemoveDiacritics(normalised_author_name));
 
     // Only keep the first name and the last name:
-    std::vector<std::string> parts;
+    std::vector<std::wstring> parts;
     StringUtil::Split(normalised_author_name, ' ', &parts);
     if (unlikely(parts.empty()))
         return "";
     normalised_author_name = parts.front();
     if (parts.size() > 1)
-        normalised_author_name += " " + parts.back();
+        normalised_author_name += L" " + parts.back();
 
-    TextUtil::UTF8ToLower(&normalised_author_name);
-    LOG_DEBUG("normalised author name=\"" + normalised_author_name + "\"");
+    TextUtil::ToLower(&normalised_author_name);
 
-    return normalised_author_name;
+    std::string utf8_normalised_author_name;
+    if (unlikely(not TextUtil::WCharToUTF8String(normalised_author_name, &utf8_normalised_author_name)))
+        LOG_ERROR("failed to convert normalised_author_name to a UTF8 string!");
+
+    return utf8_normalised_author_name;
 }

@@ -226,7 +226,7 @@ void ProcessRecordTranslatedSynonyms(MARC::Record * const record, const std::vec
 
         std::set<std::string> synonym_values;
         synonym_values.clear();
-        for (auto primary_tag_and_subfield_codes(primary_tags_and_subfield_codes.begin()); 
+        for (auto primary_tag_and_subfield_codes(primary_tags_and_subfield_codes.begin());
             primary_tag_and_subfield_codes != primary_tags_and_subfield_codes.end();
             ++primary_tag_and_subfield_codes)
         {
@@ -309,7 +309,7 @@ void ExtractTranslatedSynonyms(std::vector<std::map<std::string, std::vector<std
         std::string line;
         while(std::getline(translation_file, line)) {
             std::vector<std::string> german_and_translations;
-            StringUtil::Split(line, "|", &german_and_translations);
+            StringUtil::Split(line, '|', &german_and_translations);
             if (german_and_translations.size() < 2)
                 LOG_ERROR("invalid line \"" + line + "\" in \"" + translation_file_name + "\"!");
             std::string german_term = german_and_translations[0];
@@ -386,20 +386,18 @@ int Main(int argc, char **argv) {
    if (not unlikely(ParseSpec(AUTHORITY_DATA_PRIMARY_SPEC, &primary_tags_and_subfield_codes, &filter_specs)))
        LOG_ERROR("Could not properly parse " + AUTHORITY_DATA_PRIMARY_SPEC);
 
-   if (unlikely(StringUtil::Split(AUTHORITY_DATA_SYNONYM_SPEC, ":", &synonym_tags_and_subfield_codes) == 0))
+   if (unlikely(StringUtil::Split(AUTHORITY_DATA_SYNONYM_SPEC, ':', &synonym_tags_and_subfield_codes) == 0))
        LOG_ERROR("Need at least one synonym_tag_and_subfield_codes field");
 
-   if (unlikely(StringUtil::Split(TITLE_DATA_PRIMARY_SPEC, ":", &input_tags_and_subfield_codes) == 0))
+   if (unlikely(StringUtil::Split(TITLE_DATA_PRIMARY_SPEC, ':', &input_tags_and_subfield_codes) == 0))
        LOG_ERROR("Need at least one input field");
 
-   if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS, ":", &output_tags_and_subfield_codes)
-                == 0))
+   if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS, ':', &output_tags_and_subfield_codes) == 0))
        LOG_ERROR("Need at least one output field");
 
-
-   if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS, ":", &translation_tags_and_subfield_codes)
-                == 0))
-       LOG_ERROR("Need at least as many output fields as supported languages: (currently " + std::to_string(languages_to_translate.size()) + ")");
+   if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS, ':', &translation_tags_and_subfield_codes) == 0))
+       LOG_ERROR("Need at least as many output fields as supported languages: (currently " + std::to_string(languages_to_translate.size())
+                 + ")");
 
    unsigned num_of_authority_entries(primary_tags_and_subfield_codes.size());
 

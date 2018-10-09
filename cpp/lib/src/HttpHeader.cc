@@ -62,13 +62,13 @@ HttpHeader::HttpHeader(const std::string &header) {
 
     // Split the header into several lines:
     std::list<std::string> lines;
-    StringUtil::Split(header, "\r\n", &lines);
+    StringUtil::Split(header, std::string("\r\n"), &lines);
 
     // Some Web servers incorrectly use '\n' instead of '\r\n'.
     // Detect (and compensate for) this behaviour:
     if (lines.size() == 1) {
         lines.clear();
-        StringUtil::Split(header, "\n", &lines);
+        StringUtil::Split(header, '\n', &lines);
     }
 
     // If we couldn't split the headers, then it was probably trivially small:

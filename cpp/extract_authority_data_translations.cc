@@ -244,7 +244,7 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
                 std::vector<std::string> splitType;
 
                 // Extract the encoded type
-                StringUtil::Split((*translation_vector_it), "-", &splitType);
+                StringUtil::Split(*translation_vector_it, '-', &splitType);
                 const std::string origin_and_language = splitType[0];
                 const std::string type = (splitType.size() == 2) ? splitType[1] : "";
 
@@ -301,7 +301,7 @@ int main(int argc, char **argv) {
 
     // Create a file for each language
     std::vector<std::string> output_file_components;
-    if (unlikely(StringUtil::Split(extracted_translations_filename, ".", &output_file_components) < 1))
+    if (unlikely(StringUtil::Split(extracted_translations_filename, '.', &output_file_components) < 1))
         LOG_ERROR("extracted_translations_filename " + extracted_translations_filename + " is not valid");
 
     File *lang_files[NUMBER_OF_LANGUAGES];
