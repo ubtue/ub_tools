@@ -1476,6 +1476,11 @@ bool IsSpaceSeparatorCharacter(const wchar_t ch) {
 }
 
 
+bool IsSpace(const wchar_t ch) {
+    return IsSpaceSeparatorCharacter(ch) or ch == '\f' or ch == '\n' or ch == '\r' or ch == '\t' or ch == '\v';
+}
+
+
 double CalcTextSimilarity(const std::string &text1, const std::string &text2, const bool ignore_case) {
     std::wstring wtext1;
     if (unlikely(UTF8ToWCharString(text1, &wtext1)))

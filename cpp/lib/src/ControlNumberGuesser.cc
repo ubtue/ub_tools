@@ -272,7 +272,7 @@ std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
     std::wstring normalised_title;
     bool space_separator_seen(true);
     for (const auto ch : wtitle) {
-        if (TextUtil::IsPunctuationCharacter(ch) or ch == '-' or TextUtil::IsSpaceSeparatorCharacter(ch)) {
+        if (TextUtil::IsPunctuationCharacter(ch) or ch == '-' or TextUtil::IsSpace(ch)) {
             if (not space_separator_seen)
                 normalised_title += ' ';
             space_separator_seen = true;
@@ -281,7 +281,7 @@ std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
             normalised_title += ch;
         }
     }
-    if (not normalised_title.empty() and TextUtil::IsSpaceSeparatorCharacter(normalised_title.back()))
+    if (not normalised_title.empty() and TextUtil::IsSpace(normalised_title.back()))
         normalised_title.resize(normalised_title.size() - 1);
     normalised_title = TextUtil::ExpandLigatures(normalised_title);
 
@@ -335,12 +335,12 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
         }
     }
     normalised_author_name = TextUtil::ExpandLigatures(TextUtil::RemoveDiacritics(normalised_author_name));
-    if (unlikely(normalised_author_name.empty()))
-        return "";
 
     // Only keep the first name and the last name:
     std::vector<std::string> parts;
     StringUtil::Split(normalised_author_name, ' ', &parts);
+    if (unlikely(parts.empty()))
+        return "";
     normalised_author_name = parts.front();
     if (parts.size() > 1)
         normalised_author_name += " " + parts.back();
