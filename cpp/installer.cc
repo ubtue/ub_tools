@@ -65,7 +65,7 @@
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 
 
-__attribute__((noreturn)) void Error(const std::string &msg) {
+[[noreturn]] void Error(const std::string &msg) {
     if (::progname == nullptr)
         std::cerr << "You must set \"progname\" in main() with \"progname = argv[0];\" in oder to use Error().\n";
     else
@@ -74,7 +74,7 @@ __attribute__((noreturn)) void Error(const std::string &msg) {
 }
 
 
-__attribute__((noreturn)) void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " --ub-tools-only|(vufind_system_type [--omit-cronjobs] [--omit-systemctl])\n";
     std::cerr << "       where \"vufind_system_type\" must be either \"krimdok\" or \"ixtheo\".\n\n";
     std::exit(EXIT_FAILURE);
@@ -609,9 +609,7 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
 }
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
-
+int Main(int argc, char **argv) {
     bool ub_tools_only(false);
     VuFindSystemType vufind_system_type;
     bool omit_cronjobs(false);
@@ -660,20 +658,18 @@ int main(int argc, char **argv) {
 
     const OSSystemType os_system_type(DetermineOSSystemType());
 
-    try {
-        // Install dependencies before vufind
-        // correct PHP version for composer dependancies
-        InstallSoftwareDependencies(os_system_type, ub_tools_only, not omit_systemctl);
+    // Install dependencies before vufind
+    // correct PHP version for composer dependancies
+    InstallSoftwareDependencies(os_system_type, ub_tools_only, not omit_systemctl);
 
-        if (not ub_tools_only) {
-            MountDeptDriveOrDie(vufind_system_type);
-            DownloadVuFind();
-            ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, not omit_systemctl);
-        }
-        InstallUBTools(/* make_install = */ true);
-        if (not ub_tools_only)
-            CreateVuFindDatabase(vufind_system_type);
-    } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+    if (not ub_tools_only) {
+        MountDeptDriveOrDie(vufind_system_type);
+        DownloadVuFind();
+        ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, not omit_systemctl);
     }
+    InstallUBTools(/* make_install = */ true);
+    if (not ub_tools_only)
+        CreateVuFindDatabase(vufind_system_type);
+
+    return EXIT_SUCCESS;
 }
