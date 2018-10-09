@@ -616,6 +616,36 @@ std::string Record::getCompleteTitle() const {
 }
 
 
+std::set<std::string> Record::getDOIs() const {
+    std::set<std::string> dois;
+    for (const auto field : getTagRange("024")) {
+        const Subfields subfields(field.getSubfields());
+        if (subfields.getFirstSubfieldWithCode('2') == "doi")
+            dois.emplace(subfields.getFirstSubfieldWithCode('a'));
+    }
+
+    return dois;
+}
+
+
+std::set<std::string> Record::getISSNs() const {
+    std::set<std::string> issns;
+    for (const auto field : getTagRange("022"))
+        issns.emplace(field.getFirstSubfieldWithCode('a'));
+
+    return issns;
+}
+
+
+std::set<std::string> Record::getISBNs() const {
+    std::set<std::string> isbns;
+    for (const auto field : getTagRange("020"))
+        isbns.emplace(field.getFirstSubfieldWithCode('a'));
+
+    return isbns;
+}
+
+
 namespace {
 
 
