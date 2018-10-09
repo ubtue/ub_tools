@@ -345,7 +345,6 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
     args.emplace_back("--map-directory=" + local_maps_directory);
     args.emplace_back("--output-directory=" + auto_temp_dir_.getDirectoryPath());
     args.emplace_back("--output-filename=" + basename);
-    args.emplace_back("--output-format=" + output_format_id);
 
     args.emplace_back(ZTS_HARVESTER_CONF_FILE);
     args.emplace_back(section);

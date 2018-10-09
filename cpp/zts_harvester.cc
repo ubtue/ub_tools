@@ -59,7 +59,7 @@ const std::unordered_map<std::string, std::string> group_to_user_agent_map = {
               << "\t[--map-directory=map_directory]\n"
               << "\t[--output-directory=output_directory]\n"
               << "\t[--output-filename=output_filename] Overrides the automatically-generated filename based on the current date/time.\n"
-              << "\t[--output-format=output_format]     Either \"marc-21\" or \"marc-xml\", with the default being the latter\n"
+              << "\t[--output-format=output_format]     Either \"marc-21\" or \"marc-xml\" or \"json\", with the default being \"marc-xml\"\n"
               << "\t[--error-report-file=error_report_file]\n"
               << "\n"
               << "\tIf any section names have been provided, only those will be processed o/w all sections will be processed.\n\n";
@@ -128,15 +128,28 @@ UnsignedPair ProcessDirectHarvest(const IniFile::Section &section, const Journal
 }
 
 
-std::string GetMarcFormat(const std::string &output_filename) {
-    switch (MARC::GuessFileType(output_filename)) {
-    case MARC::FileType::BINARY:
-        return "marc-21";
-    case MARC::FileType::XML:
+std::string GetOutputFormatString(const std::string &output_filename) {
+    const auto extension(FileUtil::GetExtension(output_filename, /*to_lower_case = */ true));
+    if (extension == "xml")
         return "marc-xml";
-    default:
-        LOG_ERROR("can't determine output format from MARC output filename \"" + output_filename + "\"!");
-    }
+    else if (extension == "mrc")
+        return "marc-21";
+    else if (extension == "json")
+        return "json";
+
+    LOG_ERROR("couldn't determine output format from filename '" + output_filename + "'");
+}
+
+
+std::string GetOutputFormatExtension(const std::string &output_format_string) {
+    if (output_format_string == "marc-xml")
+        return "xml";
+    else if (output_format_string == "marc-21")
+        return "mrc";
+    else if (output_format_string == "json")
+        return "json";
+
+    LOG_ERROR("couldn't determine output extension from format string '" + output_format_string + "'");
 }
 
 
@@ -149,7 +162,7 @@ struct ZoteroFormatHandlerParams {
 
 
 void InitializeFormatHandlerParams(DbConnection * const db_connection, const std::shared_ptr<Zotero::HarvestParams> &harvester_params,
-                                   const MARC::FileType output_format, const std::string &output_directory, const std::string &output_filename,
+                                   std::string output_format_string, const std::string &output_directory, const std::string &output_filename,
                                    const std::unordered_map<std::string, Zotero::GroupParams> &group_name_to_params_map,
                                    std::unordered_map<std::string, ZoteroFormatHandlerParams> * const group_name_to_format_handler_params_map)
 {
@@ -163,27 +176,14 @@ void InitializeFormatHandlerParams(DbConnection * const db_connection, const std
         const auto current_time_gmt(TimeUtil::GetCurrentTimeGMT());
         std::strftime(time_buffer, sizeof(time_buffer), time_format_string.c_str(), &current_time_gmt);
 
-        std::string output_format_string;
         std::string output_file_path(output_directory + "/" + bsz_upload_group);
+        std::string output_format;
 
         if (not output_filename.empty()) {
             output_file_path += "/" + output_filename;
-            if (output_format == MARC::FileType::AUTO)
-                output_format_string = GetMarcFormat(output_filename);
-            else if (output_format == MARC::FileType::XML)
-                output_format_string = "marc-xml";
-            else
-                output_format_string = "marc-21";
-        } else {
-            output_file_path += "/zts_harvester_" + std::string(time_buffer) + ".";
-            if (output_format == MARC::FileType::XML) {
-                output_file_path += "xml";
-                output_format_string = "marc-xml";
-            } else {
-                output_file_path += "mrc";
-                output_format_string = "marc-21";
-            }
-        }
+            output_format_string = GetOutputFormatString(output_filename);
+        } else
+            output_file_path += "/zts_harvester_" + std::string(time_buffer) + "." + GetOutputFormatExtension(output_format_string);
 
         ZoteroFormatHandlerParams format_handler_params{
             db_connection, output_format_string, output_file_path, harvester_params
@@ -222,59 +222,68 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
+    // Handle options independent of the order
     BSZUpload::DeliveryMode delivery_mode_to_process(BSZUpload::DeliveryMode::NONE);
-    if (StringUtil::StartsWith(argv[1], "--delivery-mode=")) {
-        const auto mode_string(argv[1] + __builtin_strlen("--delivery-mode="));
-        const auto match(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.find(mode_string));
-
-        if (match == BSZUpload::STRING_TO_DELIVERY_MODE_MAP.end())
-            LOG_ERROR("Unknown delivery mode '" + std::string(mode_string) + "'");
-        else
-            delivery_mode_to_process = static_cast<BSZUpload::DeliveryMode>(match->second);
-
-        --argc, ++argv;
-    }
-
     std::unordered_set<std::string> groups_filter;
-    if (StringUtil::StartsWith(argv[1], "--groups=")) {
-        StringUtil::SplitThenTrimWhite(argv[1] + __builtin_strlen("--groups="), ',', &groups_filter);
-        --argc, ++argv;
-    }
-
     bool ignore_robots_dot_txt(false);
-    if (std::strcmp(argv[1], "--ignore-robots-dot-txt") == 0) {
-        ignore_robots_dot_txt = true;
-        --argc, ++argv;
-    }
-
     std::string map_directory_path;
-    const std::string MAP_DIRECTORY_FLAG_PREFIX("--map-directory=");
-    if (StringUtil::StartsWith(argv[1], MAP_DIRECTORY_FLAG_PREFIX)) {
-        map_directory_path = argv[1] + MAP_DIRECTORY_FLAG_PREFIX.length();
-        --argc, ++argv;
-    }
-
     std::string output_directory;
-    const std::string OUTPUT_DIRECTORY_FLAG_PREFIX("--output-directory=");
-    if (StringUtil::StartsWith(argv[1], OUTPUT_DIRECTORY_FLAG_PREFIX)) {
-        output_directory = argv[1] + OUTPUT_DIRECTORY_FLAG_PREFIX.length();
-        --argc, ++argv;
-    }
-
     std::string output_filename;
-    const std::string OUTPUT_FILENAME_FLAG_PREFIX("--output-filename=");
-    if (StringUtil::StartsWith(argv[1], OUTPUT_FILENAME_FLAG_PREFIX)) {
-        output_filename = argv[1] + OUTPUT_FILENAME_FLAG_PREFIX.length();
-        --argc, ++argv;
-    }
-
-    MARC::FileType output_format(MARC::GetOptionalWriterType(&argc, &argv, 1, MARC::FileType::AUTO));
-
+    std::string output_format_string("marc-xml");
     std::string error_report_file;
-    const std::string ERROR_REPORT_FILE_FLAG_PREFIX("--error-report-file=");
-    if (StringUtil::StartsWith(argv[1], ERROR_REPORT_FILE_FLAG_PREFIX)) {
-        error_report_file = argv[1] + ERROR_REPORT_FILE_FLAG_PREFIX.length();
-        --argc, ++argv;
+
+    while (StringUtil::StartsWith(argv[1], "--")) {
+        if (StringUtil::StartsWith(argv[1], "--delivery-mode=")) {
+            const auto mode_string(argv[1] + __builtin_strlen("--delivery-mode="));
+            const auto match(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.find(mode_string));
+
+            if (match == BSZUpload::STRING_TO_DELIVERY_MODE_MAP.end())
+                LOG_ERROR("Unknown delivery mode '" + std::string(mode_string) + "'");
+            else
+                delivery_mode_to_process = static_cast<BSZUpload::DeliveryMode>(match->second);
+
+            --argc, ++argv;
+        }
+
+        if (StringUtil::StartsWith(argv[1], "--groups=")) {
+            StringUtil::SplitThenTrimWhite(argv[1] + __builtin_strlen("--groups="), ',', &groups_filter);
+            --argc, ++argv;
+        }
+
+        if (std::strcmp(argv[1], "--ignore-robots-dot-txt") == 0) {
+            ignore_robots_dot_txt = true;
+            --argc, ++argv;
+        }
+
+        const std::string MAP_DIRECTORY_FLAG_PREFIX("--map-directory=");
+        if (StringUtil::StartsWith(argv[1], MAP_DIRECTORY_FLAG_PREFIX)) {
+            map_directory_path = argv[1] + MAP_DIRECTORY_FLAG_PREFIX.length();
+            --argc, ++argv;
+        }
+
+        const std::string OUTPUT_DIRECTORY_FLAG_PREFIX("--output-directory=");
+        if (StringUtil::StartsWith(argv[1], OUTPUT_DIRECTORY_FLAG_PREFIX)) {
+            output_directory = argv[1] + OUTPUT_DIRECTORY_FLAG_PREFIX.length();
+            --argc, ++argv;
+        }
+
+        const std::string OUTPUT_FILENAME_FLAG_PREFIX("--output-filename=");
+        if (StringUtil::StartsWith(argv[1], OUTPUT_FILENAME_FLAG_PREFIX)) {
+            output_filename = argv[1] + OUTPUT_FILENAME_FLAG_PREFIX.length();
+            --argc, ++argv;
+        }
+
+        const std::string OUTPUT_FORMAT_FLAG_PREFIX("--output-format=");
+        if (StringUtil::StartsWith(argv[1], OUTPUT_FORMAT_FLAG_PREFIX)) {
+            output_format_string = argv[1] + OUTPUT_FORMAT_FLAG_PREFIX.length();
+            --argc, ++argv;
+        }
+
+        const std::string ERROR_REPORT_FILE_FLAG_PREFIX("--error-report-file=");
+        if (StringUtil::StartsWith(argv[1], ERROR_REPORT_FILE_FLAG_PREFIX)) {
+            error_report_file = argv[1] + ERROR_REPORT_FILE_FLAG_PREFIX.length();
+            --argc, ++argv;
+        }
     }
 
     if (argc < 2)
@@ -320,7 +329,7 @@ int Main(int argc, char *argv[]) {
     StringUtil::SplitThenTrimWhite(ini_file.getString("", "groups"), ',', &group_names);
     for (const auto &group_name : group_names)
         Zotero::LoadGroup(*ini_file.getSection(group_name), &group_name_to_params_map);
-    InitializeFormatHandlerParams(db_connection.get(), harvest_params, output_format, output_directory, output_filename,
+    InitializeFormatHandlerParams(db_connection.get(), harvest_params, output_format_string, output_directory, output_filename,
                                   group_name_to_params_map, &group_name_to_format_handler_params_map);
 
 
