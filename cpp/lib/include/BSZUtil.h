@@ -59,7 +59,7 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
                            const std::string &optional_suffix = "");
 
 
-void ExtractYearVolumeBook(const MARC::Record &record, std::string * const year, std::string * const volume, std::string * const book);
+void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year, std::string * const volume, std::string * const issue);
 
 
 } // namespace BSZUtil
