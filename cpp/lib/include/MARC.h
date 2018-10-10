@@ -484,6 +484,8 @@ public:
     /** \return An approximation of the complete title generated from various subfields of field 245. */
     std::string getCompleteTitle() const;
 
+    /** \return All author names in fields 100$a and 700$a. */
+    std::set<std::string> getAllAuthors() const;
     std::set<std::string> getDOIs() const;
     std::set<std::string> getISSNs() const;
     std::set<std::string> getISBNs() const;
