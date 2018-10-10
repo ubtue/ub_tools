@@ -469,6 +469,11 @@ bool UnicodeTruncate(std::string * const utf8_string, const size_t max_length);
 inline bool IsGeneralPunctuationCharacter(const wchar_t ch) { return ch >= 0x2000 and ch <= 0x206F; }
 bool IsSpaceSeparatorCharacter(const wchar_t ch);
 
+
+/** Tests against IsSpaceSeparatorCharacter and traditional UNIX whitespace characters. */
+bool IsSpace(const wchar_t ch);
+
+
 inline bool IsPunctuationCharacter(const wchar_t ch) {
     if (IsGeneralPunctuationCharacter(ch)) return true;
     return ch == '.' or ch == ',' or ch == ';' or ch == ':' or ch == '?' or ch == '!';
@@ -484,6 +489,11 @@ bool IsSomeKindOfDash(const uint32_t ch);
 
 std::wstring ExpandLigatures(const std::wstring &string);
 std::string ExpandLigatures(const std::string &utf8_string);
+
+
+// Removes the diacritics from letters found in Latin-1 and a few others
+std::wstring RemoveDiacritics(const std::wstring &string);
+std::string RemoveDiacritics(const std::string &utf8_string);
 
 
 } // namespace TextUtil

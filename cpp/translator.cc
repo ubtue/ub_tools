@@ -622,7 +622,7 @@ void GetAdditionalViewLanguages(const IniFile &ini_file, std::vector<std::string
                                 const std::string &translator)
 {
     const std::string ini_additional_view_languages(ini_file.getString(ADDITIONAL_VIEW_LANGUAGES, translator, ""));
-    StringUtil::Split(ini_additional_view_languages, ",", additional_view_languages);
+    StringUtil::Split(ini_additional_view_languages, ',', additional_view_languages);
     std::for_each(additional_view_languages->begin(), additional_view_languages->end(),
                   [](std::string &additional_view_language){ StringUtil::TrimWhite(&additional_view_language); });
 }

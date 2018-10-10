@@ -125,7 +125,7 @@ public:
         const std::string bundle_prefix(Traits::prefix);
 
         for (const auto &entry: entries_)
-            entries->emplace_back(bundle_prefix + "_" + entry.key, entry.value);
+            entries->emplace_back(bundle_prefix + "_" + entry.key_, entry.value_);
     }
 
     // Saves the entries directly to a section in a config file.
@@ -133,7 +133,7 @@ public:
         const std::string bundle_prefix(Traits::prefix);
 
         for (const auto &entry: entries_)
-            section->insert(bundle_prefix + "_" + entry.key, entry.value, "", insertion_behaviour);
+            section->insert(bundle_prefix + "_" + entry.key_, entry.value_, "", insertion_behaviour);
     }
     void clear() { entries_.clear(); }
     size_t size() const { return entries_.size(); }

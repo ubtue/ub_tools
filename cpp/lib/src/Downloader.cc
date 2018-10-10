@@ -162,7 +162,7 @@ void SplitHttpHeaders(std::string possible_combo_headers, std::vector<std::strin
     StringUtil::ReplaceString("\r\n", "\n", &possible_combo_headers);
     StringUtil::ReplaceString("\n", "\r\n", &possible_combo_headers);
 
-    StringUtil::Split(possible_combo_headers, "\r\n\r\n", individual_headers);
+    StringUtil::Split(possible_combo_headers, std::string("\r\n\r\n"), individual_headers);
     for (auto &individual_header : *individual_headers)
         individual_header += "\r\n\r\n";
 }
