@@ -23,8 +23,12 @@
 #include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
+#include "Compiler.h"
 #include "ControlNumberGuesser.h"
 #include "FileUtil.h"
+#include "MARC.h"
+#include "MiscUtil.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -32,22 +36,135 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] possible_matches_list\n";
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] marc_collection possible_matches_list\n";
     std::exit(EXIT_FAILURE);
+}
+
+
+struct RecordInfo {
+    std::set<std::string> dois_, isbns_, issns_;
+    enum Type { MONOGRAPH, SERIAL, ARTICLE, OTHER } type_;
+    std::string year_, volume_, issue_;
+    bool may_be_a_review_;
+};
+
+
+const std::string YEAR_WILDCARD("????"), VOLUME_WILDCARD("?"), ISSUE_WILDCARD("?");
+
+
+void ExtractYearVolumeIssue(const MARC::Record &record, RecordInfo * const record_info) {
+    record_info->year_   = YEAR_WILDCARD;
+    record_info->volume_ = VOLUME_WILDCARD;
+    record_info->issue_  = ISSUE_WILDCARD;
+
+    for (const auto &field : record.getTagRange("936")) {
+        const MARC::Subfields subfields(field.getSubfields());
+
+        const auto year(subfields.getFirstSubfieldWithCode('j'));
+        if (not year.empty())
+            record_info->year_ = year;
+
+        const auto volume(subfields.getFirstSubfieldWithCode('d'));
+        if (not volume.empty())
+            record_info->volume_ = volume;
+
+        const auto issue(subfields.getFirstSubfieldWithCode('e'));
+        if (not issue.empty())
+            record_info->issue_ = issue;
+    }
+}
+
+
+void CollectInfos(MARC::Reader * const marc_reader, std::unordered_map<std::string, RecordInfo> * const ppns_to_infos_map) {
+    while (const auto record = marc_reader->read()) {
+        RecordInfo new_info;
+        new_info.dois_ = record.getDOIs();
+        new_info.isbns_ = record.getISBNs();
+        new_info.issns_ = record.getISSNs();
+        if (record.isMonograph())
+            new_info.type_ = RecordInfo::MONOGRAPH;
+        else if (record.isSerial())
+            new_info.type_ = RecordInfo::SERIAL;
+        else if (record.isArticle())
+            new_info.type_ = RecordInfo::ARTICLE;
+        else
+            new_info.type_ = RecordInfo::OTHER;
+        ExtractYearVolumeIssue(record, &new_info);
+        new_info.may_be_a_review_ = MARC::PossiblyAReviewArticle(record);
+
+        (*ppns_to_infos_map)[record.getControlNumber()] = new_info;
+    }
+}
+
+
+bool SetContainsOnlyArticlePPNs(const std::set<std::string> &ppns, const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map) {
+    for (const auto &ppn : ppns) {
+        const auto ppn_and_record_info(ppns_to_infos_map.find(ppn));
+        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
+            LOG_ERROR("PPN "+ ppn + " is missing in ppns_to_infos_map!");
+        if (ppn_and_record_info->second.type_ != RecordInfo::ARTICLE)
+            return false;
+    }
+
+    return true;
+}
+
+
+bool ContainsAtLeastOnePossibleReview(const std::set<std::string> &ppns,
+                                      const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map)
+{
+    for (const auto &ppn : ppns) {
+        const auto ppn_and_record_info(ppns_to_infos_map.find(ppn));
+        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
+            LOG_ERROR("PPN "+ ppn + " is missing in ppns_to_infos_map!");
+        if (ppn_and_record_info->second.may_be_a_review_)
+            return true;
+    }
+
+    return false;
+}
+
+
+bool IsConsistentSet(const std::set<std::string> &ppns, const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map) {
+    if (unlikely(ppns.empty()))
+        return false;
+
+    auto ppn(ppns.cbegin());
+    auto ppn_and_record_info(ppns_to_infos_map.find(*ppn));
+    if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
+        LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map!");
+    std::set<std::string> shared_dois(ppn_and_record_info->second.dois_);
+
+    for (++ppn; ppn != ppns.cend(); ++ppn) {
+        ppn_and_record_info = ppns_to_infos_map.find(*ppn);
+        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
+            LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map!");
+        shared_dois = MiscUtil::Intersect(shared_dois, ppn_and_record_info->second.dois_);
+    }
+
+    return not shared_dois.empty();
 }
 
 
 const std::string IXTHEO_PREFIX("https://ixtheo.de/Record/");
 
-    
+
 void FindDups(File * const matches_list_output,
               const std::unordered_map<std::string, std::set<std::string>> &title_to_control_numbers_map,
-              const std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map)
+              const std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map,
+              const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map)
 {
-    unsigned dup_count(0);
+    unsigned dup_count(0), winner(0);
     for (const auto &title_and_control_numbers : title_to_control_numbers_map) {
-        if (title_and_control_numbers.second.size() < 2)
+        if (title_and_control_numbers.second.size() < 2
+            or not SetContainsOnlyArticlePPNs(title_and_control_numbers.second, ppns_to_infos_map)
+            or ContainsAtLeastOnePossibleReview(title_and_control_numbers.second, ppns_to_infos_map))
             continue;
+
+        if (IsConsistentSet(title_and_control_numbers.second, ppns_to_infos_map)) {
+            std::cerr << "We have a winner!\n";
+            ++winner;
+        }
 
         // Collect all control numbers for all authors of the current title:
         std::map<std::string, std::set<std::string>> author_to_control_numbers_map;
@@ -74,7 +191,7 @@ void FindDups(File * const matches_list_output,
                     if (already_processed_control_numbers.find(control_number) != already_processed_control_numbers.cend())
                         goto skip_author;
                 }
-                
+
                 for (const auto &control_number : author_and_control_numbers.second) {
                     already_processed_control_numbers.emplace(control_number);
                     (*matches_list_output) << IXTHEO_PREFIX << control_number << ' ';
@@ -88,18 +205,23 @@ skip_author:
     }
 
     LOG_INFO("found " + std::to_string(dup_count) + " possible multiples.");
+    LOG_INFO("found " + std::to_string(winner) + " winners.");
 }
 
-    
+
 } // unnamed namespace
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 2)
+    if (argc != 3)
         Usage();
 
+    auto marc_reader(MARC::Reader::Factory(argv[1]));
+    std::unordered_map<std::string, RecordInfo> ppns_to_infos_map;
+    CollectInfos(marc_reader.get(), &ppns_to_infos_map);
+
     ControlNumberGuesser control_number_guesser(ControlNumberGuesser::DO_NOT_CLEAR_DATABASES);
-    
+
     std::unordered_map<std::string, std::set<std::string>> title_to_control_numbers_map;
     std::string title;
     std::set<std::string> control_numbers;
@@ -120,8 +242,8 @@ int Main(int argc, char *argv[]) {
     }
     LOG_INFO("loaded " + std::to_string(control_number_to_authors_map.size()) + " mappings from control numbers to authors.");
 
-    auto matches_list_output(FileUtil::OpenOutputFileOrDie(argv[1]));
-    FindDups(matches_list_output.get(), title_to_control_numbers_map, control_number_to_authors_map);
+    auto matches_list_output(FileUtil::OpenOutputFileOrDie(argv[2]));
+    FindDups(matches_list_output.get(), title_to_control_numbers_map, control_number_to_authors_map, ppns_to_infos_map);
 
     return EXIT_SUCCESS;
 }
