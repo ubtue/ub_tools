@@ -125,7 +125,7 @@ bool ContainsAtLeastOnePossibleReview(const std::set<std::string> &ppns,
 }
 
 
-bool IsConsistentSet(const std::set<std::string> &ppns, const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map) {
+bool HasAtLeastOneCommonDOI(const std::set<std::string> &ppns, const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map) {
     if (unlikely(ppns.empty()))
         return false;
 
@@ -146,6 +146,30 @@ bool IsConsistentSet(const std::set<std::string> &ppns, const std::unordered_map
 }
 
 
+bool IsConsistentSet(const std::set<std::string> &ppns, const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map) {
+    if (unlikely(ppns.empty()))
+        return false;
+
+    auto ppn(ppns.cbegin());
+    auto ppn_and_record_info(ppns_to_infos_map.find(*ppn));
+    if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
+        LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map!");
+    std::string year(ppn_and_record_info->second.year_), volume(ppn_and_record_info->second.volume_),
+                issue(ppn_and_record_info->second.issue_);
+
+    for (++ppn; ppn != ppns.cend(); ++ppn) {
+        ppn_and_record_info = ppns_to_infos_map.find(*ppn);
+        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
+            LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map!");
+        if (ppn_and_record_info->second.year_ != year or ppn_and_record_info->second.volume_ != volume
+            or ppn_and_record_info->second.issue_ != issue)
+            return false;
+    }
+
+    return true;
+}
+
+
 const std::string IXTHEO_PREFIX("https://ixtheo.de/Record/");
 
 
@@ -154,17 +178,23 @@ void FindDups(File * const matches_list_output,
               const std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map,
               const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map)
 {
-    unsigned dup_count(0), winner(0);
+    unsigned doi_match_count(0), non_doi_match_count(0);
     for (const auto &title_and_control_numbers : title_to_control_numbers_map) {
         if (title_and_control_numbers.second.size() < 2
             or not SetContainsOnlyArticlePPNs(title_and_control_numbers.second, ppns_to_infos_map)
             or ContainsAtLeastOnePossibleReview(title_and_control_numbers.second, ppns_to_infos_map))
             continue;
 
-        if (IsConsistentSet(title_and_control_numbers.second, ppns_to_infos_map)) {
-            std::cerr << "We have a winner!\n";
-            ++winner;
+        if (HasAtLeastOneCommonDOI(title_and_control_numbers.second, ppns_to_infos_map)) {
+            for (const auto &control_number : title_and_control_numbers.second)
+                (*matches_list_output) << IXTHEO_PREFIX << control_number << ' ';
+            (*matches_list_output) << "\r\n";
+            ++doi_match_count;
+            continue;
         }
+
+        if (not IsConsistentSet(title_and_control_numbers.second, ppns_to_infos_map))
+            continue;
 
         // Collect all control numbers for all authors of the current title:
         std::map<std::string, std::set<std::string>> author_to_control_numbers_map;
@@ -197,15 +227,14 @@ void FindDups(File * const matches_list_output,
                     (*matches_list_output) << IXTHEO_PREFIX << control_number << ' ';
                 }
                 (*matches_list_output) << "\r\n";
-                ++dup_count;
+                ++non_doi_match_count;
 skip_author:
                 /* Intentionally empty! */;
             }
         }
     }
 
-    LOG_INFO("found " + std::to_string(dup_count) + " possible multiples.");
-    LOG_INFO("found " + std::to_string(winner) + " winners.");
+    LOG_INFO("found " + std::to_string(doi_match_count) + " DOI matches and " + std::to_string(non_doi_match_count) + " non-DOI matches.");
 }
 
 
