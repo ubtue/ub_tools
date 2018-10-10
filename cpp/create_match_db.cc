@@ -38,22 +38,24 @@ namespace {
 
 
 void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::Reader * const reader) {
-    unsigned count(0);
+    unsigned processed_record_count(0), records_with_empty_titles(0);
     while (const auto record = reader->read()) {
-        ++count;
+        ++processed_record_count;
         const auto control_number(record.getControlNumber());
 
         std::set<std::string> author_names(record.getAllAuthors());
         control_number_guesser->insertAuthors(author_names, control_number);
 
         const auto title(record.getCompleteTitle());
-        if (unlikely(title.empty()))
-            LOG_WARNING("Empty title in record w/ control number: " + control_number);
-        else
+        if (unlikely(title.empty())) {
+            ++records_with_empty_titles;
+            LOG_DEBUG("Empty title in record w/ control number: " + control_number);
+        } else
             control_number_guesser->insertTitle(title, control_number);
     }
 
-    LOG_INFO("Processed " + std::to_string(count) + " records.");
+    LOG_INFO("Processed " + std::to_string(processed_record_count) + " records.");
+    LOG_INFO("Found " + std::to_string(records_with_empty_titles) + " records with empty titles.");
 }
 
 
