@@ -2160,4 +2160,28 @@ FileType GetOptionalWriterType(int * const argc, char *** const argv, const int 
 }
 
 
+bool IsAReviewArticle(const Record &record) {
+    for (const auto _655_field : record.getTagRange("655")) {
+        if (StringUtil::FindCaseInsensitive(_655_field.getFirstSubfieldWithCode('a'), "rezension") != std::string::npos)
+            return true;
+    }
+
+    for (const auto _935_field : record.getTagRange("935")) {
+        if (_935_field.getFirstSubfieldWithCode('c') == "uwre")
+            return true;
+    }
+
+    return false;
+}
+
+
+bool PossiblyAReviewArticle(const Record &record) {
+    if (IsAReviewArticle(record))
+        return true;
+
+    return StringUtil::FindCaseInsensitive(record.getMainTitle(), "review") != std::string::npos
+           or StringUtil::FindCaseInsensitive(record.getMainTitle(), "rezension") != std::string::npos;
+}
+
+
 } // namespace MARC

@@ -960,4 +960,8 @@ FileType GetOptionalReaderType(int * const argc, char *** const argv, const int 
 FileType GetOptionalWriterType(int * const argc, char *** const argv, const int arg_no, const FileType default_file_type = FileType::AUTO);
 
 
+bool IsAReviewArticle(const Record &record);
+bool PossiblyAReviewArticle(const Record &record);
+
+
 } // namespace MARC
