@@ -27,6 +27,7 @@
 #pragma once
 
 
+#include <algorithm>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -162,6 +163,13 @@ std::string MakeOrdinal(const unsigned number);
 
 unsigned LevenshteinDistance(const std::string &s1, const std::string &s2);
 unsigned LevenshteinDistance(const std::wstring &s1, const std::wstring &s2);
+
+
+template<typename ElementType> std::set<ElementType> Intersect(const std::set<ElementType> &set1, const std::set<ElementType> &set2) {
+    std::set<ElementType> result;
+    std::set_intersection(set1.cbegin(), set1.cend(), set2.cbegin(), set2.cend(), std::inserter(result, result.begin()));
+    return result;
+}
 
 
 } // namespace MiscUtil

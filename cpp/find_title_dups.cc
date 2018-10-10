@@ -27,6 +27,7 @@
 #include "ControlNumberGuesser.h"
 #include "FileUtil.h"
 #include "MARC.h"
+#include "MiscUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -123,6 +124,28 @@ bool ContainsAtLeastOnePossibleReview(const std::set<std::string> &ppns,
     return false;
 }
 
+
+bool IsConsistentSet(const std::set<std::string> &ppns, const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map) {
+    if (unlikely(ppns.empty()))
+        return false;
+
+    auto ppn(ppns.cbegin());
+    auto ppn_and_record_info(ppns_to_infos_map.find(*ppn));
+    if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
+        LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map!");
+    std::set<std::string> shared_dois(ppn_and_record_info->second.dois_);
+
+    for (++ppn; ppn != ppns.cend(); ++ppn) {
+        ppn_and_record_info = ppns_to_infos_map.find(*ppn);
+        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
+            LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map!");
+        shared_dois = MiscUtil::Intersect(shared_dois, ppn_and_record_info->second.dois_);
+    }
+
+    return not shared_dois.empty();
+}
+
+
 const std::string IXTHEO_PREFIX("https://ixtheo.de/Record/");
 
 
@@ -131,12 +154,17 @@ void FindDups(File * const matches_list_output,
               const std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map,
               const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map)
 {
-    unsigned dup_count(0);
+    unsigned dup_count(0), winner(0);
     for (const auto &title_and_control_numbers : title_to_control_numbers_map) {
         if (title_and_control_numbers.second.size() < 2
             or not SetContainsOnlyArticlePPNs(title_and_control_numbers.second, ppns_to_infos_map)
             or ContainsAtLeastOnePossibleReview(title_and_control_numbers.second, ppns_to_infos_map))
             continue;
+
+        if (IsConsistentSet(title_and_control_numbers.second, ppns_to_infos_map)) {
+            std::cerr << "We have a winner!\n";
+            ++winner;
+        }
 
         // Collect all control numbers for all authors of the current title:
         std::map<std::string, std::set<std::string>> author_to_control_numbers_map;
@@ -177,6 +205,7 @@ skip_author:
     }
 
     LOG_INFO("found " + std::to_string(dup_count) + " possible multiples.");
+    LOG_INFO("found " + std::to_string(winner) + " winners.");
 }
 
 
