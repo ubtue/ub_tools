@@ -40,6 +40,7 @@ public:
     inline const std::string &getTitle() const { return title_; }
 };
 
+
 struct AugmentMaps {
     std::unordered_map<std::string, std::string> ISSN_to_SSG_map_;
     std::unordered_map<std::string, std::string> ISSN_to_keyword_field_map_;
@@ -53,14 +54,17 @@ public:
     explicit AugmentMaps(const std::string &map_directory_path);
 };
 
+
 std::string DownloadAuthorPPN(const std::string &author, const std::string &author_download_base_url);
 
+
 class BSZTransform {
-   public:
-      struct AugmentMaps augment_maps_;
+public:
+      AugmentMaps augment_maps_;
       BSZTransform(const std::string &map_directory_path);
-      BSZTransform(const struct AugmentMaps augment_maps);
+      BSZTransform(const AugmentMaps &augment_maps);
       void DetermineKeywordOutputFieldFromISSN(const std::string &issn, std::string * const tag, char * const subfield);
 };
+
 
 } // end namespace BSZTransform

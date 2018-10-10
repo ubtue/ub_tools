@@ -633,6 +633,36 @@ std::set<std::string> Record::getAllAuthors() const {
 }
 
 
+std::set<std::string> Record::getDOIs() const {
+    std::set<std::string> dois;
+    for (const auto field : getTagRange("024")) {
+        const Subfields subfields(field.getSubfields());
+        if (subfields.getFirstSubfieldWithCode('2') == "doi")
+            dois.emplace(subfields.getFirstSubfieldWithCode('a'));
+    }
+
+    return dois;
+}
+
+
+std::set<std::string> Record::getISSNs() const {
+    std::set<std::string> issns;
+    for (const auto field : getTagRange("022"))
+        issns.emplace(field.getFirstSubfieldWithCode('a'));
+
+    return issns;
+}
+
+
+std::set<std::string> Record::getISBNs() const {
+    std::set<std::string> isbns;
+    for (const auto field : getTagRange("020"))
+        isbns.emplace(field.getFirstSubfieldWithCode('a'));
+
+    return isbns;
+}
+
+
 namespace {
 
 
@@ -2144,6 +2174,30 @@ FileType GetOptionalWriterType(int * const argc, char *** const argv, const int 
     }
 
     return return_value;
+}
+
+
+bool IsAReviewArticle(const Record &record) {
+    for (const auto _655_field : record.getTagRange("655")) {
+        if (StringUtil::FindCaseInsensitive(_655_field.getFirstSubfieldWithCode('a'), "rezension") != std::string::npos)
+            return true;
+    }
+
+    for (const auto _935_field : record.getTagRange("935")) {
+        if (_935_field.getFirstSubfieldWithCode('c') == "uwre")
+            return true;
+    }
+
+    return false;
+}
+
+
+bool PossiblyAReviewArticle(const Record &record) {
+    if (IsAReviewArticle(record))
+        return true;
+
+    return StringUtil::FindCaseInsensitive(record.getMainTitle(), "review") != std::string::npos
+           or StringUtil::FindCaseInsensitive(record.getMainTitle(), "rezension") != std::string::npos;
 }
 
 

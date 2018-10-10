@@ -537,6 +537,8 @@ std::string GetFullDumpEndpointPath(Flavour zeder_flavour) {
         return endpoint_base_url + "ixtheo";
     case KRIMDOK:
         return endpoint_base_url + "krim";
+    default:
+        LOG_ERROR("we should *never* get here! (zeder_flavour=" + std::to_string(zeder_flavour) + ")");
     }
 }
 

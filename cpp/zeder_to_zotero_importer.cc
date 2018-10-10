@@ -177,7 +177,7 @@ ImporterParams::ImporterParams(const std::string &config_file_path, const std::s
     const auto section(config.getSection(Zeder::FLAVOUR_TO_STRING_MAP.at(flavour_)));
 
     const auto url_field_priority(section->getString("url_field_priority"));
-    if (StringUtil::Split(url_field_priority, ",", &url_field_priority_) == 0)
+    if (StringUtil::Split(url_field_priority, ',', &url_field_priority_) == 0)
         LOG_ERROR("Invalid URL field priority for flavour " + std::to_string(flavour_) + " in '" + config.getFilename() + "'");
 
     if (not entry_ids_string.empty()) {
