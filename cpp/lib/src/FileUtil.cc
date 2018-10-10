@@ -75,7 +75,7 @@ SELinuxFileContext::SELinuxFileContext(const std::string &path) {
         return;
 
     std::vector<std::string> context_as_vector;
-    const unsigned no_of_components(StringUtil::Split(file_context, ":", &context_as_vector,
+    const unsigned no_of_components(StringUtil::Split(std::string(file_context), ':', &context_as_vector,
                                                       /* suppress_empty_components = */ false));
     if (unlikely(no_of_components != 4))
         throw std::runtime_error("in SELinuxFileContext::SELinuxFileContext: context \"" + std::string(file_context)
