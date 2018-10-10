@@ -97,11 +97,11 @@ std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record) {
 }
 
 
-void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * const marc_reader,
-                                                             std::unordered_set<std::string> * const superior_ppns,
-                                                             std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
-                                                             std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map,
-                                                             std::unordered_multimap<std::string, std::string> * const canonical_ppn_to_ppn_map)
+void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(
+    MARC::Reader * const marc_reader, std::unordered_set<std::string> * const superior_ppns,
+    std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
+    std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map,
+    std::unordered_multimap<std::string, std::string> * const canonical_ppn_to_ppn_map)
 {
     off_t last_offset(0);
     unsigned record_count(0);
@@ -119,6 +119,10 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * cons
                     superior_ppns->emplace(uplink_ppn);
             }
         }
+
+        // We only want to merge serials!
+        if (not record.isSerial())
+            continue;
 
         // in the following lines, we get all cross referenced PPNs and check the maps for their references as well.
         // we then determine the new superior PPN for all cross refences and overwrite all existing mapping entries.
@@ -138,7 +142,8 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * cons
             cross_link_ppns.emplace(record.getControlNumber());
 
             // get new max PPN, which will be winner for merging
-            const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(), [](std::string a, std::string b) -> bool { return a < b; }));
+            const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(),
+                                                        [](std::string a, std::string b) -> bool { return a < b; }));
 
             // remove old references
             for (const auto &ppn : cross_link_ppns) {
@@ -342,7 +347,7 @@ std::string CanoniseText(const std::string &s) {
         else
             clean_s += TextUtil::UTF32ToUTF8(utf32_ch);
     }
-    
+
     return clean_s;
 }
 
