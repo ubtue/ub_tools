@@ -193,14 +193,14 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
 }
 
 
-void ExtractYearVolumeBook(const MARC::Record &record, std::string * const year, std::string * const volume, std::string * const book) {
+void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year, std::string * const volume, std::string * const issue) {
     const auto field_936(record.findTag("936"));
     if (field_936 == record.end())
         return;
 
     *year = field_936->getFirstSubfieldWithCode('j');
     *volume = field_936->getFirstSubfieldWithCode('d');
-    *book = field_936->getFirstSubfieldWithCode('e');
+    *issue = field_936->getFirstSubfieldWithCode('e');
 }
 
 
