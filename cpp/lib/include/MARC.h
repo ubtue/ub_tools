@@ -964,4 +964,12 @@ bool IsAReviewArticle(const Record &record);
 bool PossiblyAReviewArticle(const Record &record);
 
 
+/** \return True if field "field" contains a reference to another MARC record that is not a link to a superior work and false, if not. */
+bool IsCrossLinkField(const MARC::Record::Field &field);
+
+
+/** \return partner PPN's or the empty set if none were found. */
+std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record);
+
+
 } // namespace MARC
