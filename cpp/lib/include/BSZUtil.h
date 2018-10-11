@@ -25,6 +25,7 @@
 #include <unordered_set>
 #include <vector>
 #include "File.h"
+#include "MARC.h"
 
 
 namespace BSZUtil {
@@ -56,6 +57,9 @@ ArchiveType GetArchiveType(const std::string &member_name);
 // An enforced precondition is that all members must end in "[abc]\\d\\d\\d.raw$".
 void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::string> * const archive_members,
                            const std::string &optional_suffix = "");
+
+
+void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year, std::string * const volume, std::string * const issue);
 
 
 } // namespace BSZUtil
