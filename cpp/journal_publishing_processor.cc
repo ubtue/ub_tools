@@ -83,14 +83,12 @@ bool ExtractAuthor(XMLParser * const xml_parser, std::vector<std::string> * cons
 }
 
 
-bool ExtractAuthors(XMLParser * const xml_parser, std::vector<std::string> * const article_authors, std::string * const text_opening_tag) {
+bool ExtractAuthors(XMLParser * const xml_parser, std::vector<std::string> * const article_authors) {
     XMLParser::XMLPart xml_part;
     while (xml_parser->getNext(&xml_part)) {
         if (xml_part.type_ == XMLParser::XMLPart::OPENING_TAG) {
-            if (xml_part.data_ == "abstract" or xml_part.data_ == "body") {
-                *text_opening_tag = xml_part.data_;
+            if (xml_part.data_ == "abstract" or xml_part.data_ == "body")
                 return true;
-            }
             else if (xml_part.data_ == "contrib") {
                 const auto contrib_type_and_value(xml_part.attributes_.find("contrib-type"));
                 if (contrib_type_and_value != xml_part.attributes_.cend() and contrib_type_and_value->second == "author") {
@@ -105,33 +103,29 @@ bool ExtractAuthors(XMLParser * const xml_parser, std::vector<std::string> * con
 }
 
 
-bool ExtractTextHelper(XMLParser * const xml_parser, const std::string &closing_tag, std::string * const text) {
-    XMLParser::XMLPart xml_part;
-    while (xml_parser->getNext(&xml_part)) {
-        if (xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG and xml_part.data_ == closing_tag)
-            return true;
-        if (xml_part.type_ == XMLParser::XMLPart::CHARACTERS)
-            *text += xml_part.data_;
-    }
-
-    return false;
-}
-
-
 // Extracts abstracts and bodies.
 bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_tag, std::string * const text) {
-    if (not ExtractTextHelper(xml_parser, text_opening_tag, text))
+    xml_parser->rewind();
+
+    XMLParser::XMLPart xml_part;
+    if (not xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, { text_opening_tag }, &xml_part))
         return false;
-    *text += '\n';
 
-    if (text_opening_tag == "body")
-        return true;
+    do {
+        if (xml_part.isClosingTag(text_opening_tag))
+            break;
 
-    if (xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, "body")) {
-        if (not ExtractTextHelper(xml_parser, "body", text))
-            return false;
-        *text += '\n';
-    }
+        // format the text as it's read in
+        if (xml_part.isClosingTag("sec"))
+            *text += "\n\n\n";
+        else if (xml_part.isClosingTag("label"))
+            *text += ": ";
+        else if (xml_part.isClosingTag("title") or xml_part.isClosingTag("p"))
+            *text += "\n\n";
+        else if (xml_part.isCharacters())
+            *text += xml_part.data_;
+
+    } while (xml_parser->getNext(&xml_part));
 
     return not text->empty();
 }
@@ -145,8 +139,7 @@ void ProcessDocument(const bool normalise_only, const std::string &input_filenam
         LOG_ERROR("no article title found!");
 
     std::vector<std::string> article_authors;
-    std::string text_opening_tag;
-    if (not ExtractAuthors(xml_parser, &article_authors, &text_opening_tag))
+    if (not ExtractAuthors(xml_parser, &article_authors))
         LOG_ERROR("no article authors found or an error or end-of-document were found while trying to extract an author name!");
 
     if (normalise_only) {
@@ -168,10 +161,17 @@ void ProcessDocument(const bool normalise_only, const std::string &input_filenam
     for (const auto matching_control_number : matching_control_numbers)
         std::cout << '\t' << matching_control_number << '\n';
 
-    std::string text;
-    if (not ExtractText(xml_parser, text_opening_tag, &text))
-        LOG_ERROR("no text found!");
-    plain_text_output->write(text);
+    std::string full_text, abstract;
+    ExtractText(xml_parser, "body", &full_text);
+    ExtractText(xml_parser, "abstract", &abstract);
+
+    if (full_text.empty() and abstract.empty())
+        LOG_ERROR("Neither full-text nor abstract text was found");
+
+    if (not full_text.empty())
+        plain_text_output->write(full_text);
+    else
+        plain_text_output->write(abstract);
 }
 
 
