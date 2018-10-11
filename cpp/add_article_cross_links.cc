@@ -1,4 +1,4 @@
-/** \brief Tool for detecting possible dups based on the same title and, at least one common author.
+/** \brief Tool for cross linking articles that are likely to refer to the same work.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
