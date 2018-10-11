@@ -1,4 +1,4 @@
-/** \brief Tool for detecting possible dups based on the same title and, at least one common author.
+/** \brief Tool for cross linking articles that are likely to refer to the same work.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -36,7 +36,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] marc_collection possible_matches_list\n";
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] marc_input marc_output possible_matches_list\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -45,7 +45,7 @@ struct RecordInfo {
     std::set<std::string> dois_, isbns_, issns_;
     enum Type { MONOGRAPH, SERIAL, ARTICLE, OTHER } type_;
     std::string year_, volume_, issue_;
-    bool may_be_a_review_;
+    bool may_be_a_review_, is_electronic_;
 };
 
 
@@ -91,6 +91,7 @@ void CollectInfos(MARC::Reader * const marc_reader, std::unordered_map<std::stri
             new_info.type_ = RecordInfo::OTHER;
         ExtractYearVolumeIssue(record, &new_info);
         new_info.may_be_a_review_ = MARC::PossiblyAReviewArticle(record);
+        new_info.is_electronic_ = record.isElectronicResource();
 
         (*ppns_to_infos_map)[record.getControlNumber()] = new_info;
     }
@@ -173,10 +174,20 @@ bool IsConsistentSet(const std::set<std::string> &ppns, const std::unordered_map
 const std::string IXTHEO_PREFIX("https://ixtheo.de/Record/");
 
 
+void InsertSingleSet(const std::set<std::string> &dups,
+                     std::unordered_map<std::string, std::set<std::string> *> * const control_number_to_dups_set_map)
+{
+    auto dups_set(new std::set<std::string>(dups));
+    for (const auto &control_number : dups)
+        (*control_number_to_dups_set_map)[control_number] = dups_set;
+}
+
+
 void FindDups(File * const matches_list_output,
               const std::unordered_map<std::string, std::set<std::string>> &title_to_control_numbers_map,
               const std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map,
-              const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map)
+              const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map,
+              std::unordered_map<std::string, std::set<std::string> *> * const control_number_to_dups_set_map)
 {
     unsigned doi_match_count(0), non_doi_match_count(0);
     for (const auto &title_and_control_numbers : title_to_control_numbers_map) {
@@ -186,6 +197,7 @@ void FindDups(File * const matches_list_output,
             continue;
 
         if (HasAtLeastOneCommonDOI(title_and_control_numbers.second, ppns_to_infos_map)) {
+            InsertSingleSet(title_and_control_numbers.second, control_number_to_dups_set_map);
             for (const auto &control_number : title_and_control_numbers.second)
                 (*matches_list_output) << IXTHEO_PREFIX << control_number << ' ';
             (*matches_list_output) << "\r\n";
@@ -222,6 +234,7 @@ void FindDups(File * const matches_list_output,
                         goto skip_author;
                 }
 
+                InsertSingleSet(author_and_control_numbers.second, control_number_to_dups_set_map);
                 for (const auto &control_number : author_and_control_numbers.second) {
                     already_processed_control_numbers.emplace(control_number);
                     (*matches_list_output) << IXTHEO_PREFIX << control_number << ' ';
@@ -238,14 +251,60 @@ skip_author:
 }
 
 
+
+
+bool AugmentRecord(MARC::Record * const record, const std::set<std::string> &dups_set,
+                   const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map)
+{
+    const auto existing_cross_references(MARC::ExtractCrossReferencePPNs(*record));
+
+    bool added_at_least_one_new_cross_link(false);
+    for (const auto &cross_link_ppn : dups_set) {
+        if (cross_link_ppn != record->getControlNumber()
+            and existing_cross_references.find(cross_link_ppn) == existing_cross_references.cend())
+        {
+            const auto ppn_and_record_info(ppns_to_infos_map.find(cross_link_ppn));
+            if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
+                LOG_ERROR("did not find a record info record for PPN \"" + cross_link_ppn + "\"!");
+            const bool is_electronic(ppn_and_record_info->second.is_electronic_);
+            record->insertField("776",
+                                { { 'i', "Erscheint auch als" }, { 'n', (is_electronic ? "elektronische Ausgabe" : "Druckausgabe") },
+                                  { 'w', "(DE-576)" + cross_link_ppn } });
+            added_at_least_one_new_cross_link = true;
+        }
+    }
+
+    return added_at_least_one_new_cross_link;
+}
+
+
+void AddCrossLinks(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                   const std::unordered_map<std::string, std::set<std::string> *> &control_number_to_dups_set_map,
+                   const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map)
+{
+    unsigned augmentation_count(0);
+    while (auto record = marc_reader->read()) {
+        const auto control_number_and_dups_set(control_number_to_dups_set_map.find(record.getControlNumber()));
+        if (control_number_and_dups_set != control_number_to_dups_set_map.cend()
+            and AugmentRecord(&record, *control_number_and_dups_set->second, ppns_to_infos_map))
+            ++augmentation_count;
+        marc_writer->write(record);
+    }
+
+    LOG_INFO("Added cross links to " + std::to_string(augmentation_count) + " record(s).");
+}
+
+
 } // unnamed namespace
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
+    if (argc != 4)
         Usage();
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
+    auto marc_writer(MARC::Writer::Factory(argv[2]));
+
     std::unordered_map<std::string, RecordInfo> ppns_to_infos_map;
     CollectInfos(marc_reader.get(), &ppns_to_infos_map);
 
@@ -271,8 +330,13 @@ int Main(int argc, char *argv[]) {
     }
     LOG_INFO("loaded " + std::to_string(control_number_to_authors_map.size()) + " mappings from control numbers to authors.");
 
-    auto matches_list_output(FileUtil::OpenOutputFileOrDie(argv[2]));
-    FindDups(matches_list_output.get(), title_to_control_numbers_map, control_number_to_authors_map, ppns_to_infos_map);
+    auto matches_list_output(FileUtil::OpenOutputFileOrDie(argv[3]));
+    std::unordered_map<std::string, std::set<std::string> *> control_number_to_dups_set_map;
+    FindDups(matches_list_output.get(), title_to_control_numbers_map, control_number_to_authors_map, ppns_to_infos_map,
+             &control_number_to_dups_set_map);
+
+    marc_reader->rewind();
+    AddCrossLinks(marc_reader.get(), marc_writer.get(), control_number_to_dups_set_map, ppns_to_infos_map);
 
     return EXIT_SUCCESS;
 }

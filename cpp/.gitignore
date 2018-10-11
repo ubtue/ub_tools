@@ -1,6 +1,7 @@
 # compiled cpp programs
 ## (here we use / at the beginning by default, so e.g. /installer is ignored, but not data/installer)
 /add_additional_relbib_entries
+/add_article_cross_links
 /add_author_synonyms
 /add_child_refs
 /add_isbns_or_issns_to_articles
@@ -64,7 +65,6 @@
 /test_chop_into_words
 /find_latest_journal_year
 /find_missing_metadata
-/find_title_dups
 /fix_article_biblio_levels
 /fix_iso_8859_1_garbage
 /flag_article_collections
