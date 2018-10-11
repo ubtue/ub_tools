@@ -72,6 +72,12 @@ public:
         Attributes attributes_;
         off_t offset_;
         std::string toString();
+
+        inline bool isOpeningTag() const { return type_ == OPENING_TAG; }
+        inline bool isOpeningTag(const std::string &tag) const { return type_ == OPENING_TAG and data_ == tag; }
+        inline bool isClosingTag() const { return type_ == CLOSING_TAG; }
+        inline bool isClosingTag(const std::string &tag) const { return type_ == CLOSING_TAG and data_ == tag; }
+        inline bool isCharacters() const { return type_ == CHARACTERS; }
     };
 private:
     Type type_;
