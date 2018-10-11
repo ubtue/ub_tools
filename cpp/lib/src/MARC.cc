@@ -2185,14 +2185,7 @@ bool PossiblyAReviewArticle(const Record &record) {
 
 
 bool IsCrossLinkField(const MARC::Record::Field &field) {
-    for (const auto &subfield : field.getSubfields()) {
-        if (subfield.code_ == 'i'
-            and (subfield.value_ == "Erscheint auch als" or subfield.value_ == "Online-Ausg." or subfield.value_ == "Digital. Ausg."
-                 or subfield.value_ == "Druckausg."))
-            return true;
-    }
-
-    return false;
+    return (field.getTag() == "775" or field.getTag() == "776") and field.hasSubfield('w');
 }
 
 
