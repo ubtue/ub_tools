@@ -251,8 +251,6 @@ skip_author:
 }
 
 
-
-
 bool AugmentRecord(MARC::Record * const record, const std::set<std::string> &dups_set,
                    const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map)
 {

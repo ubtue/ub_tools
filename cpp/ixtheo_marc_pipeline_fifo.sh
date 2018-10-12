@@ -122,6 +122,13 @@ StartPhase "Augment Authority Data with Keyword Translations"
 EndPhase || Abort) &
 wait
 
+
+StartPhase "Create Databases for Title and Author Matching (for article cross-linking)"
+(create_match_db GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
 StartPhase "Merge Print and Online Superior Records"
 (merge_print_and_online GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
@@ -319,7 +326,7 @@ StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
 EndPhase || Abort) &
 
 
-StartPhase "Create Databases for Title and Author Matching"
+StartPhase "Create Databases for Title and Author Matching (for Elasticsearch imports)"
 (create_match_db GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
