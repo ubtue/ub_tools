@@ -22,8 +22,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
-#include "ControlNumberGuesser.h"
 #include "FileUtil.h"
+#include "FullTextImport.h"
 #include "StringUtil.h"
 #include "util.h"
 #include "XMLParser.h"
@@ -33,9 +33,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] [--normalise-only] xml_input plain_test_output no_match_list\n"
-              << "       \"no_match_list\" is the file that we append titles and author to for which we could not identify\n"
-              << "       a corresponding control number for.  When specifying --normalise-only we only require the input filename!\n\n";
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] [--normalise-only] xml_input full_text_output\n"
+              << "       When specifying --normalise-only we only require the input filename!\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -58,7 +57,7 @@ bool ExtractTitle(XMLParser * const xml_parser, std::string * const article_titl
 }
 
 
-bool ExtractAuthor(XMLParser * const xml_parser, std::vector<std::string> * const article_authors) {
+bool ExtractAuthor(XMLParser * const xml_parser, std::set<std::string> * const article_authors) {
     if (not xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, "surname"))
         return false;
 
@@ -69,12 +68,12 @@ bool ExtractAuthor(XMLParser * const xml_parser, std::vector<std::string> * cons
 
     while (xml_parser->getNext(&xml_part)) {
         if (xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG and xml_part.data_ == "contrib") {
-            article_authors->emplace_back(surname);
+            article_authors->insert(surname);
             return true;
         } else if (xml_part.type_ == XMLParser::XMLPart::OPENING_TAG and xml_part.data_ == "given-names") {
             if (not xml_parser->getNext(&xml_part) or xml_part.type_ != XMLParser::XMLPart::CHARACTERS)
                 return false;
-            article_authors->emplace_back(xml_part.data_ + " " + surname);
+            article_authors->insert(xml_part.data_ + " " + surname);
             return true;
         }
     }
@@ -83,7 +82,7 @@ bool ExtractAuthor(XMLParser * const xml_parser, std::vector<std::string> * cons
 }
 
 
-bool ExtractAuthors(XMLParser * const xml_parser, std::vector<std::string> * const article_authors) {
+bool ExtractAuthors(XMLParser * const xml_parser, std::set<std::string> * const article_authors) {
     XMLParser::XMLPart xml_part;
     while (xml_parser->getNext(&xml_part)) {
         if (xml_part.type_ == XMLParser::XMLPart::OPENING_TAG) {
@@ -117,11 +116,11 @@ bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_t
 
         // format the text as it's read in
         if (xml_part.isClosingTag("sec"))
-            *text += "\n\n\n";
+            *text += FullTextImport::CHUNK_DELIMITER;
         else if (xml_part.isClosingTag("label"))
             *text += ": ";
         else if (xml_part.isClosingTag("title") or xml_part.isClosingTag("p"))
-            *text += "\n\n";
+            *text += FullTextImport::PARAGRAPH_DELIMITER;
         else if (xml_part.isCharacters())
             *text += xml_part.data_;
 
@@ -131,14 +130,12 @@ bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_t
 }
 
 
-void ProcessDocument(const bool normalise_only, const std::string &input_filename, XMLParser * const xml_parser,
-                     File * const plain_text_output, File * const no_match_list)
-{
+void ProcessDocument(const bool normalise_only, XMLParser * const xml_parser, File * const plain_text_output) {
     std::string article_title;
     if (not ExtractTitle(xml_parser, &article_title))
         LOG_ERROR("no article title found!");
 
-    std::vector<std::string> article_authors;
+    std::set<std::string> article_authors;
     if (not ExtractAuthors(xml_parser, &article_authors))
         LOG_ERROR("no article authors found or an error or end-of-document were found while trying to extract an author name!");
 
@@ -149,18 +146,6 @@ void ProcessDocument(const bool normalise_only, const std::string &input_filenam
         return;
     }
 
-    ControlNumberGuesser control_number_guesser(ControlNumberGuesser::DO_NOT_CLEAR_DATABASES);
-    const auto matching_control_numbers(control_number_guesser.getGuessedControlNumbers(article_title, article_authors));
-    if (matching_control_numbers.empty()) {
-        (*no_match_list) << FileUtil::GetBasename(input_filename) << "\n\t" << article_title << "\n\t"
-                         << StringUtil::Join(article_authors, "; ") << '\n';
-        LOG_ERROR("no matching control numbers found!");
-    }
-
-    std::cout << "Matching control numbers:\n";
-    for (const auto matching_control_number : matching_control_numbers)
-        std::cout << '\t' << matching_control_number << '\n';
-
     std::string full_text, abstract;
     ExtractText(xml_parser, "body", &full_text);
     ExtractText(xml_parser, "abstract", &abstract);
@@ -168,10 +153,7 @@ void ProcessDocument(const bool normalise_only, const std::string &input_filenam
     if (full_text.empty() and abstract.empty())
         LOG_ERROR("Neither full-text nor abstract text was found");
 
-    if (not full_text.empty())
-        plain_text_output->write(full_text);
-    else
-        plain_text_output->write(abstract);
+    FullTextImport::WriteExtractedTextToDisk(not full_text.empty() ? full_text : abstract, article_title, article_authors, plain_text_output);
 }
 
 
@@ -184,16 +166,16 @@ int Main(int argc, char *argv[]) {
 
     bool normalise_only(false);
     if (std::strcmp(argv[1], "--normalise-only") == 0) {
-        if (argc != 3)
-            Usage();
         normalise_only = true;
-    } else if (argc != 4)
+        ++argc, ++argv;
+    }
+
+    if (argc != 3)
         Usage();
 
-    XMLParser xml_parser (argv[normalise_only ? 2 : 1], XMLParser::XML_FILE);
+    XMLParser xml_parser (argv[1], XMLParser::XML_FILE);
     auto plain_text_output(normalise_only ? nullptr : FileUtil::OpenOutputFileOrDie(argv[2]));
-    auto no_match_list(normalise_only ? nullptr : FileUtil::OpenForAppendingOrDie(argv[3]));
-    ProcessDocument(normalise_only, argv[normalise_only ? 2 : 1], &xml_parser, plain_text_output.get(), no_match_list.get());
+    ProcessDocument(normalise_only, &xml_parser, plain_text_output.get());
 
     return EXIT_SUCCESS;
 }
