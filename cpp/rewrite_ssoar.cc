@@ -334,6 +334,15 @@ void FixArticleLeader(MARC::Record * const record,  bool * const modified_record
 }
 
 
+void RemoveLicenseField540(MARC::Record * const record,  bool * const modified_record) {
+    auto field_540(record->findTag("540"));
+    if (field_540 != record->end()) {
+        *modified_record = true;
+        record->erase(field_540);
+    }
+}
+
+
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     unsigned record_count(0), modified_count(0);
     while (MARC::Record record = marc_reader->read()) {
@@ -348,6 +357,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         RemoveExtraneousPublisherNames(&record, &modified_record);
         MovePageNumbersFrom300(&record, &modified_record);
         FixArticleLeader(&record, &modified_record);
+        RemoveLicenseField540(&record, &modified_record);
 
         marc_writer->write(record);
         if (modified_record)
