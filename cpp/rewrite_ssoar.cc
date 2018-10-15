@@ -82,20 +82,43 @@ void Assemble773Book(MARC::Subfields * const _773subfields, const std::string &t
 }
 
 
+bool ParseVolInfo(const std::string &volinfo, std::string * const volinfo_vol, std::string * const volinfo_year,
+                  std::string * const volinfo_edition) {
+    static const std::string volinfo_regex("(\\d+)\\s+\\((\\d{4})\\)\\s+(\\d+)"); //vol (year) edition
+    static RegexMatcher * const vol_info_matcher(RegexMatcher::RegexMatcherFactoryOrDie(volinfo_regex));
+    if (not vol_info_matcher->matched(volinfo))
+        return false;
+
+    *volinfo_vol = (*vol_info_matcher)[1];
+    *volinfo_year = (*vol_info_matcher)[2];
+    *volinfo_edition = (*vol_info_matcher)[3];
+    return true;
+}
+
+
 void Assemble936Article(MARC::Subfields * const _936subfields,
                         const std::string &year = "", const std::string &pages = "",
                         const std::string &volinfo = "", const std::string &edition = "") {
 
     if (volinfo.empty() and pages.empty() and year.empty() and edition.empty() and volinfo.empty())
         return;
-    if (not volinfo.empty())
-        _936subfields->addSubfield('d', StringUtil::Trim(volinfo));
-    if (not year.empty())
-        _936subfields->addSubfield('j', year);
+
+    std::string volinfo_vol;
+    std::string volinfo_year;
+    std::string volinfo_edition;
+    // Volinfo might also contain vol year edition in the format "vol (year) edition"
+    if (not volinfo.empty()) {
+        if (ParseVolInfo(volinfo, &volinfo_vol, &volinfo_year, &volinfo_edition))
+            _936subfields->addSubfield('d', volinfo_vol);
+        else
+            _936subfields->addSubfield('d', StringUtil::Trim(volinfo));
+    }
+    if (not (year.empty() and volinfo_year.empty()))
+        _936subfields->addSubfield('j', (not year.empty()) ? year : volinfo_year);
     if (not pages.empty())
         _936subfields->addSubfield('h', pages);
-    if (not edition.empty())
-        _936subfields->addSubfield('e', edition);
+    if (not (edition.empty() and volinfo_edition.empty()))
+        _936subfields->addSubfield('e', (not edition.empty()) ? edition : volinfo_edition);
 }
 
 
