@@ -326,13 +326,7 @@ StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
                                    Normdaten-"${date}".mrc \
                                    ReferencedAuthors-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-
-
-StartPhase "Create Databases for Title and Author Matching (for Elasticsearch imports)"
-(create_match_db GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
 wait
-
 
 StartPhase "Cleanup of Intermediate Files"
 for p in $(seq 0 "$((PHASE-1))"); do
