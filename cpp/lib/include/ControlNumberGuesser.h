@@ -47,7 +47,7 @@ public:
     void insertTitle(const std::string &title, const std::string &control_number);
     void insertAuthors(const std::set<std::string> &authors, const std::string &control_number);
     void insertYear(const std::string &year, const std::string &control_number);
-    std::set<std::string> getGuessedControlNumbers(const std::string &title, const std::vector<std::string> &authors,
+    std::set<std::string> getGuessedControlNumbers(const std::string &title, const std::set<std::string> &authors,
                                                    const std::string &year = "") const;
 
     bool getNextTitle(std::string * const title, std::set<std::string> * const control_numbers) const;
