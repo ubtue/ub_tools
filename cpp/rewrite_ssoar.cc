@@ -348,6 +348,24 @@ void Rewrite856OpenAccess(MARC::Record * const record,  bool * const modified_re
 }
 
 
+void Transfer024DOITo856(MARC::Record * const record,  bool * const modified_record) {
+    static const std::string doi_regex("^http[s]?://doi.org/.*$");
+    static RegexMatcher * const doi_matcher(RegexMatcher::RegexMatcherFactoryOrDie(doi_regex));
+
+    for (auto &field : record->getTagRange("024")) {
+        if (field.getIndicator1() == '7' and field.getIndicator2() == ' ' and
+            doi_matcher->matched(field.getFirstSubfieldWithCode('a'))) {
+                record->insertField("856", MARC::Subfields({
+                                           MARC::Subfield('u', (*doi_matcher)[0]),
+                                           MARC::Subfield('x', "Resolving System"),
+                                           MARC::Subfield('z', "Kostenfrei") }),
+                                    '4' /*indicator1*/ , '0' /*indicator 2*/);
+                *modified_record = true;
+        }
+    }
+}
+
+
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     unsigned record_count(0), modified_count(0);
     while (MARC::Record record = marc_reader->read()) {
@@ -363,6 +381,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         MovePageNumbersFrom300(&record, &modified_record);
         FixArticleLeader(&record, &modified_record);
         RemoveLicenseField540(&record, &modified_record);
+        Transfer024DOITo856(&record, &modified_record);
         Rewrite856OpenAccess(&record, &modified_record);
 
         marc_writer->write(record);
