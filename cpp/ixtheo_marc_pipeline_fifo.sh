@@ -123,16 +123,16 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Create Databases for Title and Author Matching (for article cross-linking)"
-(create_match_db GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc >> "${log}" 2>&1 && \
+StartPhase "Merge Print and Online Superior Records"
+(merge_print_and_online GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
+                        GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                        missing_ppn_partners.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
 
-StartPhase "Merge Print and Online Superior Records"
-(merge_print_and_online GesamtTiteldaten-post-phase"$((PHASE-4))"-"${date}".mrc \
-                        GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                        missing_ppn_partners.list >> "${log}" 2>&1 && \
+StartPhase "Create Databases for Title and Author Matching (for article cross-linking)"
+(create_match_db GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
