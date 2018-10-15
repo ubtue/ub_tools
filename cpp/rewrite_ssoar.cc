@@ -132,7 +132,7 @@ void Assemble936Book(MARC::Subfields * const _936subfields, const std::string &y
 }
 
 
-void ParseSuperior(const std::string &_500a_content, MARC::Subfields * const _773subfields,
+void Parse500Content(const std::string &_500a_content, MARC::Subfields * const _773subfields,
                   MARC::Subfields * const _936subfields) {
      // Belegung nach BSZ-Konkordanz
      // 773 $a "Geistiger Schöpfer"
@@ -269,9 +269,9 @@ void InsertYearInto264c(MARC::Record * const record, bool * const modified_recor
 }
 
 
-void RewriteSuperiorReference(MARC::Record * const record, bool * const modified_record) {
+void Create773And936From500(MARC::Record * const record, bool * const modified_record) {
     if (record->findTag("773") != record->end())
-        return;
+        LOG_ERROR("We we erroneously called for PPN " + record->getControlNumber() + " although a 773 field is already present");
 
     // Check if we have matching 500 field
     const std::string superior_string("^In:[\\s]*(.*)");
@@ -286,7 +286,7 @@ void RewriteSuperiorReference(MARC::Record * const record, bool * const modified
                 MARC::Subfields new_773_Subfields;
                 MARC::Subfields new_936_Subfields;
                 // Parse Field Contents
-                ParseSuperior((*superior_matcher)[1], &new_773_Subfields, &new_936_Subfields);
+                Parse500Content((*superior_matcher)[1], &new_773_Subfields, &new_936_Subfields);
                 if (not new_773_Subfields.empty())
                     new_773_fields.emplace_back(new_773_Subfields.toString());
                 if (not new_936_Subfields.empty())
@@ -303,6 +303,40 @@ void RewriteSuperiorReference(MARC::Record * const record, bool * const modified
 
     if (not (new_773_fields.empty() and new_936_fields.empty()))
         *modified_record = true;
+}
+
+
+void RewriteExisting773FieldAndAdd936(MARC::Record * const record, bool * const modified_record) {
+    // Data from SSOAR contains data where $g is split up which it should not be
+    for (auto &field : record->getTagRange("773")) {
+        std::map<std::string, std::string> new_g_subfield_map;
+        for (auto &subfield : field.getSubfields()) {
+            if (subfield.code_ == 'g') {
+                for (const auto target : { "volume", "number", "year", "pages" }) {
+                    if (StringUtil::StartsWith(subfield.value_, (target + std::string(":")).c_str()))
+                        new_g_subfield_map[target] = subfield.value_.substr(__builtin_strlen((target + std::string(":")).c_str()));
+                }
+            }
+        }
+        field.deleteAllSubfieldsWithCode('g');
+        field.insertOrReplaceSubfield('g', new_g_subfield_map["volume"] + " (" + new_g_subfield_map["year"] + ") " +
+                                           new_g_subfield_map["number"] + "; " +  new_g_subfield_map["pages"]);
+        *modified_record = true;
+    }
+}
+
+
+void RewriteSuperiorReference(MARC::Record * const record, bool * const modified_record) {
+
+    // Case 1: We already have 773 => Rewrite and generate 936
+    if (record->findTag("773") != record->end()) {
+        RewriteExisting773FieldAndAdd936(record, modified_record);
+        return;
+    }
+
+    // Case 2: Create 773 and 936 from 500
+    Create773And936From500(record, modified_record);
+
 }
 
 
