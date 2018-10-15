@@ -27,6 +27,7 @@
 #include "DbConnection.h"
 #include "FileUtil.h"
 #include "IniFile.h"
+#include "LobidUtil.h"
 #include "MiscUtil.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
@@ -167,11 +168,12 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 
 void LoadGroup(const IniFile::Section &section, std::unordered_map<std::string, GroupParams> * const group_name_to_params_map) {
     GroupParams new_group_params;
-    new_group_params.name_              = section.getSectionName();
-    new_group_params.user_agent_        = section.getString("user_agent");
-    new_group_params.isil_              = section.getString("isil");
-    new_group_params.author_lookup_url_ = section.getString("author_lookup_url");
-    new_group_params.bsz_upload_group_  = section.getString("bsz_upload_group");
+    new_group_params.name_                           = section.getSectionName();
+    new_group_params.user_agent_                     = section.getString("user_agent");
+    new_group_params.isil_                           = section.getString("isil");
+    new_group_params.bsz_upload_group_               = section.getString("bsz_upload_group");
+    new_group_params.author_ppn_lookup_url_          = section.getString("author_ppn_lookup_url");
+    new_group_params.author_gnd_lookup_query_params_ = section.getString("author_gnd_lookup_query_params", "");
     group_name_to_params_map->emplace(section.getSectionName(), new_group_params);
 }
 
@@ -296,6 +298,8 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
              creator.first_name = creator_object_node->getOptionalStringValue("firstName");
              creator.last_name = creator_object_node->getOptionalStringValue("lastName");
              creator.type = creator_object_node->getOptionalStringValue("creatorType");
+             creator.ppn = creator_object_node->getOptionalStringValue("ppn");
+             creator.gnd_number = creator_object_node->getOptionalStringValue("gnd_number");
              node_parameters->creators.emplace_back(creator);
          }
      }
@@ -384,8 +388,10 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
      const std::string creator_tag((node_parameters.creators.size() == 1) ? "100" : "700");
      for (const auto creator : node_parameters.creators) {
           MARC::Subfields subfields;
-          if (not creator.author_ppn.empty())
-              subfields.appendSubfield('0', "(DE-576)" + creator.author_ppn);
+          if (not creator.ppn.empty())
+              subfields.appendSubfield('0', "(DE-576)" + creator.ppn);
+          if (not creator.gnd_number.empty())
+              subfields.appendSubfield('0', "(DE-588)" + creator.gnd_number);
           if (not creator.type.empty())
               subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator.type));
           subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator.last_name, creator.first_name}), ", "));
@@ -541,7 +547,8 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
             creator.first_name = creator_object_node->getOptionalStringValue("firstName");
             creator.last_name = creator_object_node->getOptionalStringValue("lastName");
             creator.type = creator_object_node->getOptionalStringValue("creatorType");
-            creator.author_ppn = creator_object_node->getOptionalStringValue("ppn");
+            creator.ppn = creator_object_node->getOptionalStringValue("ppn");
+            creator.gnd_number = creator_object_node->getOptionalStringValue("gnd_number");
             custom_node_params->creators.emplace_back(creator);
         }
     }
@@ -651,10 +658,16 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
             if (first_name_node != nullptr)
                 name += ", " + creator_object->getStringValue("firstName");
 
-            const std::string PPN(BSZTransform::DownloadAuthorPPN(name, site_params.group_params_->author_lookup_url_));
+            const std::string PPN(BSZTransform::DownloadAuthorPPN(name, site_params.group_params_->author_ppn_lookup_url_));
             if (not PPN.empty()) {
                 comments->emplace_back("Added author PPN " + PPN + " for author " + name);
                 creator_object->insert("ppn", std::make_shared<JSON::StringNode>(PPN));
+            }
+
+            const std::string gnd_number(LobidUtil::GetAuthorGNDNumber(name, site_params.group_params_->author_gnd_lookup_query_params_));
+            if (not gnd_number.empty()) {
+                comments->emplace_back("Added author GND number " + gnd_number + " for author " + name);
+                creator_object->insert("gnd_number", std::make_shared<JSON::StringNode>(gnd_number));
             }
         }
     }

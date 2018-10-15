@@ -54,7 +54,6 @@ AugmentMaps::AugmentMaps(const std::string &map_directory_path) {
 // "author" must be in the lastname,firstname format. Returns the empty string if no PPN was found.
 std::string DownloadAuthorPPN(const std::string &author, const std::string &author_lookup_base_url) {
     const std::string LOOKUP_URL(author_lookup_base_url + UrlUtil::UrlEncode(author));
-
     static std::unordered_map<std::string, std::string> url_to_lookup_result_cache;
     const auto url_and_lookup_result(url_to_lookup_result_cache.find(LOOKUP_URL));
     if (url_and_lookup_result == url_to_lookup_result_cache.end()) {
@@ -69,7 +68,6 @@ std::string DownloadAuthorPPN(const std::string &author, const std::string &auth
             url_to_lookup_result_cache.emplace(LOOKUP_URL, "");
     } else
         return url_and_lookup_result->second;
-
     return "";
 }
 
