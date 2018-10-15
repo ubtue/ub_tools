@@ -343,6 +343,16 @@ void RemoveLicenseField540(MARC::Record * const record,  bool * const modified_r
 }
 
 
+void Rewrite856OpenAccess(MARC::Record * const record,  bool * const modified_record) {
+    for (auto &field : record->getTagRange("856")) {
+        if (field.getIndicator1() == '4' and field.getIndicator2() == ' ' and field.hasSubfieldWithValue('z', "Open Access")) {
+            field.insertOrReplaceSubfield('z', "Kostenfrei");
+            *modified_record = true;
+        }
+    }
+}
+
+
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     unsigned record_count(0), modified_count(0);
     while (MARC::Record record = marc_reader->read()) {
@@ -358,6 +368,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         MovePageNumbersFrom300(&record, &modified_record);
         FixArticleLeader(&record, &modified_record);
         RemoveLicenseField540(&record, &modified_record);
+        Rewrite856OpenAccess(&record, &modified_record);
 
         marc_writer->write(record);
         if (modified_record)
