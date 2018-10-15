@@ -123,16 +123,16 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Create Databases for Title and Author Matching (for article cross-linking)"
-(create_match_db GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc >> "${log}" 2>&1 && \
+StartPhase "Merge Print and Online Superior Records"
+(merge_print_and_online GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
+                        GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                        missing_ppn_partners.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
 
-StartPhase "Merge Print and Online Superior Records"
-(merge_print_and_online GesamtTiteldaten-post-phase"$((PHASE-4))"-"${date}".mrc \
-                        GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                        missing_ppn_partners.list >> "${log}" 2>&1 && \
+StartPhase "Create Databases for Title and Author Matching (for article cross-linking)"
+(create_match_db GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
@@ -326,13 +326,7 @@ StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
                                    Normdaten-"${date}".mrc \
                                    ReferencedAuthors-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-
-
-StartPhase "Create Databases for Title and Author Matching (for Elasticsearch imports)"
-(create_match_db GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
 wait
-
 
 StartPhase "Cleanup of Intermediate Files"
 for p in $(seq 0 "$((PHASE-1))"); do
