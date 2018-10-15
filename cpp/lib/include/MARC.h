@@ -484,6 +484,8 @@ public:
     /** \return An approximation of the complete title generated from various subfields of field 245. */
     std::string getCompleteTitle() const;
 
+    /** \return All author names in fields 100$a and 700$a. */
+    std::set<std::string> getAllAuthors() const;
     std::set<std::string> getDOIs() const;
     std::set<std::string> getISSNs() const;
     std::set<std::string> getISBNs() const;
@@ -962,6 +964,14 @@ FileType GetOptionalWriterType(int * const argc, char *** const argv, const int 
 
 bool IsAReviewArticle(const Record &record);
 bool PossiblyAReviewArticle(const Record &record);
+
+
+/** \return True if field "field" contains a reference to another MARC record that is not a link to a superior work and false, if not. */
+bool IsCrossLinkField(const MARC::Record::Field &field);
+
+
+/** \return partner PPN's or the empty set if none were found. */
+std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record);
 
 
 } // namespace MARC
