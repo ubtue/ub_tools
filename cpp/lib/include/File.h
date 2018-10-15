@@ -133,8 +133,13 @@ public:
      *  \param s  The string to write.
      *  \return true if we succeeded, else false.
      */
-    inline bool write(const std::string &s)
-        { return write(reinterpret_cast<const void *>(s.data()), s.size()) == s.size(); }
+    inline bool write(const std::string &s) { return write(reinterpret_cast<const void *>(s.data()), s.size()) == s.size(); }
+
+    /** \brief Write a string to a file and append a newline.
+     *  \param s  The string to write.
+     *  \return true if we succeeded, else false.
+     */
+    inline bool writeln(const std::string &s) { return write(s + "\n"); }
 
     /** \brief Write a character. */
     inline int put(const char ch) { return putc(ch, file_); }
