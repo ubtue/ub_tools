@@ -27,6 +27,7 @@
 #include "DbConnection.h"
 #include "FileUtil.h"
 #include "IniFile.h"
+#include "LobidUtil.h"
 #include "MiscUtil.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
@@ -167,11 +168,11 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 
 void LoadGroup(const IniFile::Section &section, std::unordered_map<std::string, GroupParams> * const group_name_to_params_map) {
     GroupParams new_group_params;
-    new_group_params.name_              = section.getSectionName();
-    new_group_params.user_agent_        = section.getString("user_agent");
-    new_group_params.isil_              = section.getString("isil");
-    new_group_params.author_lookup_url_ = section.getString("author_lookup_url");
-    new_group_params.bsz_upload_group_  = section.getString("bsz_upload_group");
+    new_group_params.name_                       = section.getSectionName();
+    new_group_params.user_agent_                 = section.getString("user_agent");
+    new_group_params.isil_                       = section.getString("isil");
+    new_group_params.bsz_upload_group_           = section.getString("bsz_upload_group");
+    new_group_params.author_lookup_query_params_ = section.getString("author_lookup_query_params", "");
     group_name_to_params_map->emplace(section.getSectionName(), new_group_params);
 }
 
@@ -651,7 +652,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
             if (first_name_node != nullptr)
                 name += ", " + creator_object->getStringValue("firstName");
 
-            const std::string PPN(BSZTransform::DownloadAuthorPPN(name, site_params.group_params_->author_lookup_url_));
+            const std::string PPN(LobidUtil::GetAuthorPPN(name, site_params.group_params_->author_lookup_query_params_));
             if (not PPN.empty()) {
                 comments->emplace_back("Added author PPN " + PPN + " for author " + name);
                 creator_object->insert("ppn", std::make_shared<JSON::StringNode>(PPN));
