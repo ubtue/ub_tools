@@ -1,5 +1,5 @@
  /*
- *  \brief   Interface to upload metadata-augmented full-text to Elasticsearch
+ *  \brief   Implementation of classes and functions related to the importing of full-text into Elasticsearch
  *  \author  Madeeswaran Kannan
  *
  *  Copyright (C) 2018, Library of the University of Tübingen
