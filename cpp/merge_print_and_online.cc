@@ -62,46 +62,11 @@ std::string ExtractUplinkPPN(const MARC::Record::Field &field) {
 }
 
 
-bool IsCrossLinkField(const MARC::Record::Field &field) {
-    for (const auto &subfield : field.getSubfields()) {
-        if (subfield.code_ == 'i'
-            and (subfield.value_ == "Erscheint auch als" or subfield.value_ == "Online-Ausg." or subfield.value_ == "Digital. Ausg."
-                 or subfield.value_ == "Druckausg."))
-            return true;
-    }
-
-    return false;
-}
-
-
-// Returns a partner PPN or the empty string if none was found.
-void ExtractCrossReferencePPNsFromTag(const MARC::Record &record, const std::string &tag, std::set<std::string> * const partner_ppns) {
-    for (const auto &field : record.getTagRange(tag)) {
-        if (IsCrossLinkField(field)) {
-            const MARC::Subfields subfields(field.getSubfields());
-            for (const auto &w_subfield : subfields.extractSubfields('w')) {
-                if (StringUtil::StartsWith(w_subfield, "(DE-576)"))
-                    partner_ppns->emplace(w_subfield.substr(__builtin_strlen("(DE-576)")));
-            }
-        }
-    }
-}
-
-
-// Returns a partner PPN or the empty string if none was found.
-std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record) {
-    std::set<std::string> partner_ppns;
-    ExtractCrossReferencePPNsFromTag(record, "775", &partner_ppns);
-    ExtractCrossReferencePPNsFromTag(record, "776", &partner_ppns);
-    return partner_ppns;
-}
-
-
-void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * const marc_reader,
-                                                             std::unordered_set<std::string> * const superior_ppns,
-                                                             std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
-                                                             std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map,
-                                                             std::unordered_multimap<std::string, std::string> * const canonical_ppn_to_ppn_map)
+void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(
+    MARC::Reader * const marc_reader, std::unordered_set<std::string> * const superior_ppns,
+    std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
+    std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map,
+    std::unordered_multimap<std::string, std::string> * const canonical_ppn_to_ppn_map)
 {
     off_t last_offset(0);
     unsigned record_count(0);
@@ -120,9 +85,13 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * cons
             }
         }
 
+        // We only want to merge serials!
+        if (not record.isSerial())
+            continue;
+
         // in the following lines, we get all cross referenced PPNs and check the maps for their references as well.
         // we then determine the new superior PPN for all cross refences and overwrite all existing mapping entries.
-        auto cross_link_ppns(ExtractCrossReferencePPNs(record));
+        auto cross_link_ppns(MARC::ExtractCrossReferencePPNs(record));
         if (not cross_link_ppns.empty()) {
 
             // check maps for additional referenced ppns
@@ -138,7 +107,8 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(MARC::Reader * cons
             cross_link_ppns.emplace(record.getControlNumber());
 
             // get new max PPN, which will be winner for merging
-            const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(), [](std::string a, std::string b) -> bool { return a < b; }));
+            const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(),
+                                                        [](std::string a, std::string b) -> bool { return a < b; }));
 
             // remove old references
             for (const auto &ppn : cross_link_ppns) {
@@ -342,7 +312,7 @@ std::string CanoniseText(const std::string &s) {
         else
             clean_s += TextUtil::UTF32ToUTF8(utf32_ch);
     }
-    
+
     return clean_s;
 }
 
@@ -538,7 +508,7 @@ MARC::Record &Patch246i(MARC::Record * const record) {
 void DeleteCrossLinkFields(MARC::Record * const record) {
     std::vector<size_t> field_indices_for_deletion;
     for (auto field(record->begin()); field != record->end(); ++field) {
-        if (IsCrossLinkField(*field))
+        if (MARC::IsCrossLinkField(*field))
             field_indices_for_deletion.emplace_back(field - record->begin());
     }
     record->deleteFields(field_indices_for_deletion);
