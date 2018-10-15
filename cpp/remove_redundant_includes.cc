@@ -1,7 +1,7 @@
 /** \brief A tool to find and eliminate unused C++ includes.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -316,7 +316,7 @@ bool RemoveIncludes(File * const input, File * const output,
         if (ShouldRemove(line, namespaces_and_class_names))
             removed_at_least_one = true;
         else
-            output->write(line + "\n");
+            output->writeln(line);
     }
 
     if (not namespaces_and_class_names->empty()) {
