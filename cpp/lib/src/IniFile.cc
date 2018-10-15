@@ -314,7 +314,7 @@ static inline bool ContainsSpacesOrDoubleQuotes(const std::string &value) {
 
 
 void IniFile::Section::write(File * const output, const bool pretty_print) const {
-    if (unlikely(not section_name_.empty() and not output->write("[" + section_name_ + "]\n")))
+    if (unlikely(not section_name_.empty() and not output->writeln("[" + section_name_ + "]")))
         LOG_ERROR("failed to write section header to \"" + output->getPath() + "\"!");
 
     // If we want pretty output we align all the equal signs in a section:
@@ -328,7 +328,7 @@ void IniFile::Section::write(File * const output, const bool pretty_print) const
 
     for (const auto &entry : entries_) {
         if (entry.name_.empty()) {
-            if (unlikely(not output->write(entry.comment_ + "\n")))
+            if (unlikely(not output->writeln(entry.comment_)))
                 LOG_ERROR("failed to write a comment to \"" + output->getPath() + "\"!");
         } else {
             std::string line(entry.name_);
@@ -342,7 +342,7 @@ void IniFile::Section::write(File * const output, const bool pretty_print) const
             if (need_quotes)
                 line += '"';
             line += entry.comment_;
-            if (unlikely(not output->write(line + "\n")))
+            if (unlikely(not output->writeln(line)))
                 LOG_ERROR("failed to write a name/value pair to \"" + output->getPath() + "\"!");
         }
     }
