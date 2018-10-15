@@ -31,7 +31,12 @@ class ControlNumberGuesser {
     const size_t MAX_CONTROL_NUMBER_LENGTH;
     kyotocabinet::HashDB *titles_db_, *authors_db_, *years_db_;
     mutable kyotocabinet::DB::Cursor *title_cursor_, *author_cursor_, *year_cursor_;
+
+    // A map that, given a conmtrol number, allows lookups of all control numbers of items that have the same normalised title
+    // and at least one common normalized author.
     mutable std::unordered_map<std::string, std::set<std::string> *> control_number_to_control_number_set_map_;
+
+    //  A map that, given a conmtrol number, allows lookups of all control numbers of items that share the same publication year.
     mutable std::unordered_map<std::string, std::unordered_set<std::string> *> control_number_to_year_control_number_set_map_;
 public:
     enum OpenMode { CLEAR_DATABASES, DO_NOT_CLEAR_DATABASES };
