@@ -31,11 +31,8 @@ const std::string PARAGRAPH_DELIMITER("\n\n");
 void WriteExtractedTextToDisk(const std::string &full_text, const std::string &normalised_title,
                               const std::set<std::string> &normalised_authors, File * const output_file)
 {
-
-    output_file->write(normalised_title + "\n");
-
-    const std::string authors_str(StringUtil::Join(normalised_authors, '|'));
-    output_file->write(authors_str + "\n");
+    output_file->writeln(normalised_title);
+    output_file->writeln(StringUtil::Join(normalised_authors, '|'));
     output_file->write(full_text);
 }
 
