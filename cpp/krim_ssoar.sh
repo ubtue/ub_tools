@@ -13,7 +13,7 @@ fi
 
 
 echo "Remove superfluous fields"
-filtered_file = "krim_ssoar_filtered.xml"
+filtered_file="krim_ssoar_filtered.xml"
 marc_filter krim_ssoar.xml "$filtered_file" --remove-fields '7737:nnas'
 
 
