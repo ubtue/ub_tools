@@ -60,8 +60,8 @@ struct Creator {
     std::string first_name;
     std::string last_name;
     std::string type;
-    std::string author_ppn;
-    std::string author_gnd_number;
+    std::string ppn;
+    std::string gnd_number;
 };
 
 

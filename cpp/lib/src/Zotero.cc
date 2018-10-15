@@ -298,7 +298,8 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
              creator.first_name = creator_object_node->getOptionalStringValue("firstName");
              creator.last_name = creator_object_node->getOptionalStringValue("lastName");
              creator.type = creator_object_node->getOptionalStringValue("creatorType");
-             creator.author_ppn = creator_object_node->getOptionalStringValue("ppn");
+             creator.ppn = creator_object_node->getOptionalStringValue("ppn");
+             creator.gnd_number = creator_object_node->getOptionalStringValue("gnd_number");
              node_parameters->creators.emplace_back(creator);
          }
      }
@@ -387,10 +388,10 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
      const std::string creator_tag((node_parameters.creators.size() == 1) ? "100" : "700");
      for (const auto creator : node_parameters.creators) {
           MARC::Subfields subfields;
-          if (not creator.author_ppn.empty())
-              subfields.appendSubfield('0', "(DE-576)" + creator.author_ppn);
-          if (not creator.author_gnd_number.empty())
-              subfields.appendSubfield('0', "(DE-588)" + creator.author_gnd_number);
+          if (not creator.ppn.empty())
+              subfields.appendSubfield('0', "(DE-576)" + creator.ppn);
+          if (not creator.gnd_number.empty())
+              subfields.appendSubfield('0', "(DE-588)" + creator.gnd_number);
           if (not creator.type.empty())
               subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator.type));
           subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator.last_name, creator.first_name}), ", "));
@@ -546,8 +547,8 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
             creator.first_name = creator_object_node->getOptionalStringValue("firstName");
             creator.last_name = creator_object_node->getOptionalStringValue("lastName");
             creator.type = creator_object_node->getOptionalStringValue("creatorType");
-            creator.author_ppn = creator_object_node->getOptionalStringValue("ppn");
-            creator.author_gnd_number = creator_object_node->getOptionalStringValue("gnd_number");
+            creator.ppn = creator_object_node->getOptionalStringValue("ppn");
+            creator.gnd_number = creator_object_node->getOptionalStringValue("gnd_number");
             custom_node_params->creators.emplace_back(creator);
         }
     }
