@@ -122,10 +122,25 @@ StartPhase "Augment Authority Data with Keyword Translations"
 EndPhase || Abort) &
 wait
 
+
 StartPhase "Merge Print and Online Superior Records"
 (merge_print_and_online GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                         missing_ppn_partners.list >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
+StartPhase "Create Databases for Title and Author Matching (for article cross-linking)"
+(create_match_db GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
+StartPhase "Cross Link Articles"
+(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                         article_matches.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
@@ -311,13 +326,7 @@ StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
                                    Normdaten-"${date}".mrc \
                                    ReferencedAuthors-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-
-
-StartPhase "Create Databases for Title and Author Matching"
-(create_match_db GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
 wait
-
 
 StartPhase "Cleanup of Intermediate Files"
 for p in $(seq 0 "$((PHASE-1))"); do
