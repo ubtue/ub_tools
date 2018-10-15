@@ -34,8 +34,7 @@ void WriteExtractedTextToDisk(const std::string &full_text, const std::string &n
 
     output_file->write(normalised_title + "\n");
 
-    std::string authors_str(StringUtil::Join(normalised_authors, '|'));
-
+    const std::string authors_str(StringUtil::Join(normalised_authors, '|'));
     output_file->write(authors_str + "\n");
     output_file->write(full_text);
 }
