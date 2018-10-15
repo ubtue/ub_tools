@@ -45,17 +45,17 @@ void Assemble773Article(MARC::Subfields * const _773subfields, const std::string
                         const std::string &volinfo = "", const std::string &edition = "")
 {
     if (not (title.empty() and volinfo.empty() and pages.empty() and year.empty() and edition.empty()))
-       _773subfields->addSubfield('i', "In:");
+       _773subfields->appendSubfield('i', "In:");
     if (not title.empty())
-        _773subfields->addSubfield('a', StringUtil::Trim(title));
+        _773subfields->appendSubfield('t', StringUtil::Trim(title));
     if (not volinfo.empty())
-        _773subfields->addSubfield('g', "volume: " + StringUtil::Trim(volinfo));
+        _773subfields->appendSubfield('g', "volume: " + StringUtil::Trim(volinfo));
     if (not pages.empty())
-        _773subfields->addSubfield('g', "pages: " + pages);
+        _773subfields->appendSubfield('g', "pages: " + pages);
     if (not year.empty())
-        _773subfields->addSubfield('g', "year: " + year);
+        _773subfields->appendSubfield('d', "year: " + year);
     if (not edition.empty())
-        _773subfields->addSubfield('g', "edition: "  + edition);
+        _773subfields->appendSubfield('g', "edition: "  + edition);
 }
 
 
@@ -76,7 +76,7 @@ void Assemble773Book(MARC::Subfields * const _773subfields, const std::string &t
     if (not year.empty())
         _773subfields->addSubfield('d', year);
     if ( not pages.empty())
-        _773subfields->addSubfield('g', "pages:" + pages);
+        _773subfields->addSubfield('g', "S." + pages);
     if (not isbn.empty())
         _773subfields->addSubfield('o', isbn);
 }
@@ -269,9 +269,14 @@ void InsertYearInto264c(MARC::Record * const record, bool * const modified_recor
 }
 
 
+void Move500ToLocal938Field(MARC::Record * const record, const std::string &_500a_superior_content) {
+    record->insertField("LOK", { {'0', "938"}, {'l', ""}, {'8', _500a_superior_content } });
+}
+
+
 void Create773And936From500(MARC::Record * const record, bool * const modified_record) {
     if (record->findTag("773") != record->end())
-        LOG_ERROR("We erroneously called for PPN " + record->getControlNumber() + " although a 773 field is already present");
+        LOG_ERROR("We were erroneously called for PPN " + record->getControlNumber() + " although a 773 field is already present");
 
     // Check if we have matching 500 field
     const std::string superior_string("^In:[\\s]*(.*)");
@@ -291,6 +296,7 @@ void Create773And936From500(MARC::Record * const record, bool * const modified_r
                     new_773_fields.emplace_back(new_773_Subfields.toString());
                 if (not new_936_Subfields.empty())
                     new_936_fields.emplace_back(new_936_Subfields.toString());
+                Move500ToLocal938Field(record, subfield.value_);
             }
         }
     }
@@ -349,7 +355,6 @@ void RewriteSuperiorReference(MARC::Record * const record, bool * const modified
 
     // Case 2: Create 773 and 936 from 500
     Create773And936From500(record, modified_record);
-
 }
 
 
