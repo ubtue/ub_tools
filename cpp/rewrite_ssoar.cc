@@ -271,7 +271,7 @@ void InsertYearInto264c(MARC::Record * const record, bool * const modified_recor
 
 void Create773And936From500(MARC::Record * const record, bool * const modified_record) {
     if (record->findTag("773") != record->end())
-        LOG_ERROR("We we erroneously called for PPN " + record->getControlNumber() + " although a 773 field is already present");
+        LOG_ERROR("We erroneously called for PPN " + record->getControlNumber() + " although a 773 field is already present");
 
     // Check if we have matching 500 field
     const std::string superior_string("^In:[\\s]*(.*)");
@@ -323,13 +323,13 @@ void RewriteExisting773FieldAndAdd936(MARC::Record * const record, bool * const 
                                            new_g_subfield_map["number"] + "; " +  new_g_subfield_map["pages"]);
 
 
-        MARC::Subfields new_936subfields;
-        Assemble936Article(&new_936subfields,new_g_subfield_map["year"] , new_g_subfield_map["pages"], new_g_subfield_map["volume"],
+        MARC::Subfields new_936_subfields;
+        Assemble936Article(&new_936_subfields,new_g_subfield_map["year"] , new_g_subfield_map["pages"], new_g_subfield_map["volume"],
                            new_g_subfield_map["number"]);
 
         std::vector<std::string> new_936_fields;
-        if (not new_936_Subfields.empty())
-            new_936_fields.emplace_back(new_936_Subfields.toString());
+        if (not new_936_subfields.empty())
+            new_936_fields.emplace_back(new_936_subfields.toString());
 
         for (const auto &new_936_field : new_936_fields)
             record->insertField("936", "uw" + new_936_field);
@@ -431,9 +431,11 @@ void FixArticleLeader(MARC::Record * const record,  bool * const modified_record
      // SSOAR delivers a wrong leader for articles in journals: leader[7]=m instead of b
      // For chapters in books it is correctly done: leader[7]=a
      // So rewrite to b if we have a component part that is not part of a book
-     // We use the fact that we have already rewritten the 773 fields where $i contains "In:"
-     for (const auto field : record->getTagRange("773")) {
-          if (field.hasSubfieldWithValue('i', "In:") and record->getLeader()[7] != 'a') {
+     // The criterion is that we do not have both "In:" and "(Hg.)"
+     for (const auto _500_a_subfield : record->getSubfieldValues("500", 'a')) {
+          static const std::string is_book_component_regex("^In:.*\\(Hg.\\)(.+)");
+          static RegexMatcher * const is_book_component_matcher(RegexMatcher::RegexMatcherFactoryOrDie(is_book_component_regex));
+          if (not is_book_component_matcher->matched(_500_a_subfield)) {
               record->setBibliographicLevel('b');
               *modified_record = true;
               return;
