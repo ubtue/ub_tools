@@ -17,14 +17,14 @@ augmented_file="krim_ssoar_augmented.xml"
 marc_augmentor krim_ssoar.xml "$augmented_file" \
     --insert-field '084:  \x1FaKRIM\x1FqDE-21\x1F2fid' \
     --insert-field '852a:DE-2619' \
-    --insert-field '935a:mkri'
+    --insert-field '935a:mkri' \
     --insert-field '935a:soar'
 
 echo "Rewrite some of the contents"
 rewritten_file="krim_ssoar-$(date +%Y%m%d).xml"
 rewrite_ssoar $augmented_file $rewritten_file
 
-echo "Uploading to the BSZ File Server"
-upload_to_bsz_ftp_server.sh "$rewritten_file" "/pub/UBTuebingen_Import_Test/krimdok_Test"
+#echo "Uploading to the BSZ File Server"
+#upload_to_bsz_ftp_server.sh "$rewritten_file" "/pub/UBTuebingen_Import_Test/krimdok_Test"
 
 echo '*** DONE ***'
