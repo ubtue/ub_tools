@@ -55,9 +55,6 @@ public:
 };
 
 
-std::string DownloadAuthorPPN(const std::string &author, const std::string &author_download_base_url);
-
-
 class BSZTransform {
 public:
       AugmentMaps augment_maps_;

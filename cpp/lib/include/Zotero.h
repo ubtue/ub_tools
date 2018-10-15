@@ -173,8 +173,8 @@ struct GroupParams {
     std::string name_;
     std::string user_agent_;
     std::string isil_;
-    std::string author_lookup_url_;
     std::string bsz_upload_group_;
+    std::string author_lookup_query_params_;
 };
 
 

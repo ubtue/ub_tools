@@ -694,9 +694,12 @@ static std::shared_ptr<const JSONNode> GetLastPathComponent(const std::string &p
                 throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
                                          + "\" in path \"" + path + "\" can't be converted to an array index!");
             const std::shared_ptr<const ArrayNode> array_node(JSONNode::CastToArrayNodeOrDie("next_node", next_node));
-            if (unlikely(index >= array_node->size()))
-                throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
-                                         + "\" in path \"" + path + "\" is too large as an array index!");
+            if (unlikely(index >= array_node->size())) {
+                if (unlikely(not have_default))
+                    throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
+                                             + "\" in path \"" + path + "\" is too large as an array index!");
+                return nullptr;
+            }
             next_node = array_node->getNode(index);
             break;
         }

@@ -33,16 +33,28 @@ static std::string BASE_URL_ORGANISATIONS = "http://lobid.org/organisations/sear
 static std::string BASE_URL_RESOURCES = "http://lobid.org/resources/search?format=json";
 
 
-const std::string BuildUrl(const std::string &base_url, const std::unordered_map<std::string, std::string> &params) {
-    std::string url(base_url);
+void AddUrlParams(std::string * const url, const std::string &key, const std::unordered_map<std::string, std::string> &params) {
     unsigned i(0);
     for (const auto &key_and_value : params) {
-        url += "&";
         if (i == 0)
-            url += "q=";
-        url += key_and_value.first + UrlUtil::UrlEncode(":" + key_and_value.second);
+            *url += "&" + key + "=";
+        else
+            *url += UrlUtil::UrlEncode(" AND ");
+        *url += UrlUtil::UrlEncode(key_and_value.first + ":" + key_and_value.second);
         ++i;
     }
+}
+
+
+const std::string BuildUrl(const std::string &base_url, const std::unordered_map<std::string, std::string> &query_params,
+                           const std::unordered_map<std::string, std::string> &filter_params,
+                           const std::string &additional_query_params)
+{
+    std::string url(base_url);
+    AddUrlParams(&url, "q", query_params);
+    if (not additional_query_params.empty())
+        url += UrlUtil::UrlEncode(" AND " + additional_query_params);
+    AddUrlParams(&url, "filter", filter_params);
     return url;
 }
 
@@ -66,8 +78,12 @@ const std::shared_ptr<const JSON::ObjectNode> Query(const std::string &url, cons
     const std::shared_ptr<const JSON::ObjectNode> root_object(JSON::JSONNode::CastToObjectNodeOrDie("root", root_node));
     url_to_lookup_result_cache.emplace(url, root_object);
 
-    if (not allow_multiple_results and root_object->getIntegerValue("totalItems") > 1) {
-        LOG_WARNING("found more than one result");
+    const unsigned total_items(root_object->getIntegerValue("totalItems"));
+    if (total_items == 0) {
+        LOG_WARNING("empty result for query: " + url);
+        return nullptr;
+    } else if (not allow_multiple_results and total_items > 1) {
+        LOG_WARNING("multiple results for query: " + url);
         return nullptr;
     }
 
@@ -93,26 +109,26 @@ const std::vector<std::string> QueryAndLookupStrings(const std::string &url, con
 }
 
 
-std::string GetAuthorPPN(const std::string &author) {
-    return QueryAndLookupString(BuildUrl(BASE_URL_GND, { { "filter=type", "DifferentiatedPerson" }, { "preferredName", author } }),
+std::string GetAuthorPPN(const std::string &author, const std::string &additional_query_params) {
+    return QueryAndLookupString(BuildUrl(BASE_URL_GND, { { "preferredName", author } }, { { "type", "DifferentiatedPerson" } }, additional_query_params),
                                 "/member/0/gndIdentifier", /* allow_multiple_results */ false);
 }
 
 
-std::vector<std::string> GetAuthorProfessions(const std::string &author) {
-    return QueryAndLookupStrings(BuildUrl(BASE_URL_GND, { { "filter=type", "DifferentiatedPerson" }, { "preferredName", author } }),
+std::vector<std::string> GetAuthorProfessions(const std::string &author, const std::string &additional_query_params) {
+    return QueryAndLookupStrings(BuildUrl(BASE_URL_GND, { { "preferredName", author } }, { { "type", "DifferentiatedPerson" } }, additional_query_params),
                                  "/member/*/professionOrOccupation/*/label", /* allow_multiple_results */ false);
 }
 
 
-std::string GetOrganisationISIL(const std::string &organisation) {
-    return QueryAndLookupString(BuildUrl(BASE_URL_ORGANISATIONS, { { "name", organisation } }),
+std::string GetOrganisationISIL(const std::string &organisation, const std::string &additional_query_params) {
+    return QueryAndLookupString(BuildUrl(BASE_URL_ORGANISATIONS, { { "name", organisation } }, { },  additional_query_params),
                                 "/member/0/isil", /* allow_multiple_results */ false);
 }
 
 
-std::string GetTitleDOI(const std::string &title) {
-    return QueryAndLookupString(BuildUrl(BASE_URL_RESOURCES, { { "title", "\"" + title + "\"" } }),
+std::string GetTitleDOI(const std::string &title, const std::string &additional_query_params) {
+    return QueryAndLookupString(BuildUrl(BASE_URL_RESOURCES, { { "title", "\"" + title + "\"" } }, { }, additional_query_params),
                                 "/member/0/doi/0", /* allow_multiple_results */ false);
 }
 

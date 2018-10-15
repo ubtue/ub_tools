@@ -26,10 +26,16 @@
 namespace LobidUtil {
 
 
-std::string GetAuthorPPN(const std::string &author);
-std::vector<std::string> GetAuthorProfessions(const std::string &author);
-std::string GetOrganisationISIL(const std::string &organisation);
-std::string GetTitleDOI(const std::string &title);
+/** \note  additional_query_params (if necessary) are meant to be passed in Lucene query syntax,
+ *         e.g. "dateOfBirth:19* AND professionOrOccupation.label:theolog*"
+ *  \see   - http://lobid.org/gnd/api
+ *         - http://lobid.org/organisations/api/de
+ *         - http://lobid.org/resources/api
+ */
+std::string GetAuthorPPN(const std::string &author, const std::string &additional_query_params="");
+std::vector<std::string> GetAuthorProfessions(const std::string &author, const std::string &additional_query_params="");
+std::string GetOrganisationISIL(const std::string &organisation, const std::string &additional_query_params="");
+std::string GetTitleDOI(const std::string &title, const std::string &additional_query_params="");
 
 
 } // namespace LobidUtil
