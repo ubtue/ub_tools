@@ -49,8 +49,7 @@ struct FullTextData {
 };
 
 
-// Writes full-text data as a text file to disk. The full-text is expected to be split into chunks at the bare minimum.
-// Format:
+// Writes full-text data as a text file to disk. The full-text is expected to be split into chunks and formatted in the following manner:
 // Line 1: <normalized_title>
 // Line 2: <normalized authors>
 // Line 3...: <full_text>
