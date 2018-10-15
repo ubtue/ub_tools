@@ -43,22 +43,29 @@ extern const std::string PARAGRAPH_DELIMITER;
 // The actual full-text consists of multiple chunks of arbitrary text sequences.
 // What constitutes a chunk is dependent on the source of the full-text.
 struct FullTextData {
-    std::string normalised_title_;
-    std::set<std::string> normalised_authors_;
+    std::string title_;
+    std::set<std::string> authors_;
+    std::string year_;
     std::vector<std::string> full_text_;
 };
 
 
 // Writes full-text data as a text file to disk. The full-text is expected to be split into chunks and formatted in the following manner:
-// Line 1: <normalized_title>
-// Line 2: <normalized authors>
-// Line 3...: <full_text>
-void WriteExtractedTextToDisk(const std::string &full_text, const std::string &normalised_title,
-                              const std::set<std::string> &normalised_authors, File * const output_file);
+// Line 1: <title>
+// Line 2: <authors>
+// Line 3: <year>
+// Line 4: <full_text>
+void WriteExtractedTextToDisk(const std::string &full_text, const std::string &title,
+                              const std::set<std::string> &authors, const std::string &year, File * const output_file);
 
 
 // Reads in and parses a text file previously written to disk with WriteExtractedTextToDisk() into a FullTextData instance.
 void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const full_text_data);
+
+
+// Match full-text data with an existing record's control number, if any. Returns the number of exact matches.
+size_t CorrelateFullTextData(const std::vector<std::shared_ptr<FullTextData>> &full_text_data,
+                            std::unordered_map<std::string, std::shared_ptr<FullTextData>> * const control_number_to_full_text_data_map);
 
 
 } // namespace FullTextImport

@@ -28,11 +28,12 @@ const std::string CHUNK_DELIMITER("\n\n\n");
 const std::string PARAGRAPH_DELIMITER("\n\n");
 
 
-void WriteExtractedTextToDisk(const std::string &full_text, const std::string &normalised_title,
-                              const std::set<std::string> &normalised_authors, File * const output_file)
+void WriteExtractedTextToDisk(const std::string &full_text, const std::string &title, const std::set<std::string> &authors,
+                              const std::string &year, File * const output_file)
 {
-    output_file->writeln(normalised_title);
-    output_file->writeln(StringUtil::Join(normalised_authors, '|'));
+    output_file->writeln(title);
+    output_file->writeln(StringUtil::Join(authors, '|'));
+    output_file->writeln(year);
     output_file->write(full_text);
 }
 
@@ -43,12 +44,19 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
     while (not input_file->eof()) {
         const auto line(input_file->getline());
 
-        if (line_no == 1)
-            full_text_data->normalised_title_ = line;
-        else if (line_no == 2)
-            StringUtil::Split(line, '|', &full_text_data->normalised_authors_);
-        else
+        switch (line_no) {
+        case 1:
+            full_text_data->title_ = line;
+            break;
+        case 2:
+            StringUtil::Split(line, '|', &full_text_data->authors_);
+            break;
+        case 3:
+            full_text_data->year_ = line;
+            break;
+        default:
             full_text += line + "\n";
+        }
 
         ++line_no;
     }
@@ -73,6 +81,43 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
         chunk_delimiter_index = full_text.find(CHUNK_DELIMITER, chunk_search_start_index);
 
     } while (chunk_delimiter_index != std::string::npos);
+}
+
+
+size_t CorrelateFullTextData(const std::vector<std::shared_ptr<FullTextData>> &full_text_data,
+                            std::unordered_map<std::string, std::shared_ptr<FullTextData>> * const control_number_to_full_text_data_map)
+{
+    size_t exact_matches(0);
+    ControlNumberGuesser ppn_guesser(ControlNumberGuesser::DO_NOT_CLEAR_DATABASES);
+    for (const auto &full_text : full_text_data) {
+        const auto matching_ppns(ppn_guesser.getGuessedControlNumbers(full_text->title_, full_text->authors_, full_text->year_));
+        if (matching_ppns.empty())
+            continue;
+        else if (matching_ppns.size() != 1) {
+            LOG_DEBUG("multiple control numbers found for full-text with title '" + full_text->title_ + "', authors '" +
+                      StringUtil::Join(full_text->authors_, ",") + "'");
+            LOG_DEBUG("control numbers: " + StringUtil::Join(matching_ppns, ","));
+
+            continue;
+        }
+
+        ++exact_matches;
+        const auto &exact_ppn(*matching_ppns.begin());
+        const auto existing_match(control_number_to_full_text_data_map->find(exact_ppn));
+        if (existing_match != control_number_to_full_text_data_map->end() and
+            (existing_match->second->title_ != full_text->title_ or existing_match->second->authors_ != full_text->authors_))
+        {
+            LOG_WARNING("control number '" + exact_ppn + "' has multiple full-text data matches");
+            LOG_WARNING("\texisting data: title '" + existing_match->second->title_ + "', authors '" +
+                        StringUtil::Join(existing_match->second->authors_, ",") + "'");
+            LOG_WARNING("\tincoming data: title '" + full_text->title_ + "', authors '" +
+                        StringUtil::Join(full_text->authors_, ",") + "'");
+        }
+
+        (*control_number_to_full_text_data_map)[exact_ppn] = full_text;
+    }
+
+    return exact_matches;
 }
 
 
