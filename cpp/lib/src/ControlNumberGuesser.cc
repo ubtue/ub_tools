@@ -22,7 +22,9 @@
 #include <iterator>
 #include <unordered_set>
 #include <vector>
+#include "BSZUtil.h"
 #include "Compiler.h"
+#include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "util.h"
@@ -42,28 +44,41 @@ static kyotocabinet::HashDB *CreateOrOpenKeyValueDB(const std::string &db_path) 
 static const std::string MATCH_DB_PREFIX("/usr/local/var/lib/tuelib/normalised_");
 
 
-ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode) : title_cursor_(nullptr), author_cursor_(nullptr) {
+ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode)
+    : MAX_CONTROL_NUMBER_LENGTH(BSZUtil::PPN_LENGTH_NEW), title_cursor_(nullptr), author_cursor_(nullptr)
+{
     const std::string TITLES_DB_PATH(MATCH_DB_PREFIX + "titles.db");
     const std::string AUTHORS_DB_PATH(MATCH_DB_PREFIX + "authors.db");
+    const std::string YEARS_DB_PATH(MATCH_DB_PREFIX + "years.db");
 
     if (open_mode == CLEAR_DATABASES) {
         ::unlink(TITLES_DB_PATH.c_str());
         ::unlink(AUTHORS_DB_PATH.c_str());
+        ::unlink(YEARS_DB_PATH.c_str());
     }
 
     titles_db_  = CreateOrOpenKeyValueDB(TITLES_DB_PATH);
     authors_db_ = CreateOrOpenKeyValueDB(AUTHORS_DB_PATH);
+    years_db_   = CreateOrOpenKeyValueDB(YEARS_DB_PATH);
 }
 
 
 ControlNumberGuesser::~ControlNumberGuesser() {
-    delete title_cursor_; delete author_cursor_; delete titles_db_; delete authors_db_;
+    delete title_cursor_, delete author_cursor_, delete year_cursor_, delete titles_db_, delete authors_db_, delete years_db_;
 
     std::unordered_set<std::set<std::string> *> already_deleted;
     for (auto &control_number_and_set_ptr : control_number_to_control_number_set_map_) {
         if (already_deleted.find(control_number_and_set_ptr.second) == already_deleted.end()) {
             delete control_number_and_set_ptr.second;
             already_deleted.emplace(control_number_and_set_ptr.second);
+        }
+    }
+
+    std::unordered_set<std::unordered_set<std::string> *> already_deleted_year_sets;
+    for (auto &control_number_and_year_set_ptr : control_number_to_year_control_number_set_map_) {
+        if (already_deleted_year_sets.find(control_number_and_year_set_ptr.second) == already_deleted_year_sets.end()) {
+            delete control_number_and_year_set_ptr.second;
+            already_deleted_year_sets.emplace(control_number_and_year_set_ptr.second);
         }
     }
 }
@@ -103,7 +118,26 @@ void ControlNumberGuesser::insertAuthors(const std::set<std::string> &authors, c
 }
 
 
-std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::string &title, const std::vector<std::string> &authors) const
+void ControlNumberGuesser::insertYear(const std::string &year, const std::string &control_number) {
+    if (unlikely(control_number.length() > MAX_CONTROL_NUMBER_LENGTH))
+        LOG_ERROR("\"" + control_number + "\" is too large to fit!");
+
+    std::string control_numbers;
+    size_t padded_length;
+    if (years_db_->get(year, &control_numbers))
+        padded_length = control_numbers.length();
+    padded_length = MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */;
+
+    control_numbers += control_number;
+    StringUtil::Pad(&control_numbers, padded_length, '\0');
+
+    if (unlikely(not years_db_->set(year, control_numbers)))
+        LOG_ERROR("failed to insert a new year into the database!");
+}
+
+
+std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::string &title, const std::vector<std::string> &authors,
+                                                                     const std::string &year) const
 {
     const auto normalised_title(NormaliseTitle(title));
     if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
@@ -140,7 +174,28 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
                           all_author_control_numbers.begin(), all_author_control_numbers.end(),
                           std::back_inserter(common_control_numbers));
 
-    return std::set<std::string>(common_control_numbers.cbegin(), common_control_numbers.cend());
+    if (year.empty())
+        return std::set<std::string>(common_control_numbers.cbegin(), common_control_numbers.cend());
+
+    std::string concatenated_year_control_numbers;
+    std::vector<std::string> year_control_numbers;
+    if (years_db_->get(year, &concatenated_year_control_numbers)) {
+        size_t count(concatenated_year_control_numbers.size() / (MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */));
+        year_control_numbers.reserve(count);
+        const char *control_number(concatenated_year_control_numbers.data());
+        for (unsigned i(0); i < count; ++i) {
+            year_control_numbers.emplace_back(control_number);
+            control_number += MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */;
+        }
+    } else
+        return { };
+
+    std::vector<std::string> common_control_numbers2;
+    std::set_intersection(common_control_numbers.begin(), common_control_numbers.end(),
+                          year_control_numbers.begin(), year_control_numbers.end(),
+                          std::back_inserter(common_control_numbers2));
+
+    return std::set<std::string>(common_control_numbers2.cbegin(), common_control_numbers2.cend());
 }
 
 
@@ -175,6 +230,30 @@ bool ControlNumberGuesser::getNextAuthor(std::string * const author_name, std::s
     } else {
         delete author_cursor_;
         author_cursor_ = nullptr;
+        return false;
+    }
+}
+
+
+bool ControlNumberGuesser::getNextYear(std::string * const year, std::unordered_set<std::string> * const control_numbers) const {
+    if (year_cursor_ == nullptr) {
+        year_cursor_ = years_db_->cursor();
+        year_cursor_->jump();
+    }
+
+    std::string concatenated_control_numbers;
+    if (year_cursor_->get(year, &concatenated_control_numbers, /* Move cursor to the next record */true)) {
+        size_t count(concatenated_control_numbers.size() / (MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */));
+        control_numbers->reserve(count);
+        const char *control_number(concatenated_control_numbers.data());
+        for (unsigned i(0); i < count; ++i) {
+            control_numbers->emplace(control_number);
+            control_number += MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */;
+        }
+        return true;
+    } else {
+        delete year_cursor_;
+        year_cursor_ = nullptr;
         return false;
     }
 }
@@ -254,14 +333,38 @@ void ControlNumberGuesser::InitControlNumberToControlNumberSetMap() const {
 }
 
 
-const std::set<std::string> &ControlNumberGuesser::getControlNumberPartners(const std::string &control_number) const {
+void ControlNumberGuesser::InitControlNumberToYearControlNumberSetMap() const {
+    std::string year;
+    std::unordered_set<std::string> control_numbers;
+    while (getNextYear(&year, &control_numbers)) {
+        std::unordered_set<std::string> *heap_set(new std::unordered_set<std::string>(control_numbers));
+        for (const auto &control_number : control_numbers) {
+            if (unlikely(control_number_to_year_control_number_set_map_.find(control_number)
+                         != control_number_to_year_control_number_set_map_.end()))
+                LOG_ERROR("control number \"" + control_number + "\" is associated w/ 2 years!");
+            control_number_to_year_control_number_set_map_[control_number] = heap_set;
+        }
+    }
+}
+
+
+std::set<std::string> ControlNumberGuesser::getControlNumberPartners(const std::string &control_number, const bool also_use_years) const {
     if (control_number_to_control_number_set_map_.empty())
         InitControlNumberToControlNumberSetMap();
+    if (also_use_years and control_number_to_year_control_number_set_map_.empty())
+        InitControlNumberToYearControlNumberSetMap();
 
     const auto control_number_and_set_ptr(control_number_to_control_number_set_map_.find(control_number));
     if (control_number_and_set_ptr == control_number_to_control_number_set_map_.cend())
         return EMPTY_SET;
-    return *control_number_and_set_ptr->second;
+
+    if (also_use_years) {
+        const auto control_number_and_year_set_ptr(control_number_to_year_control_number_set_map_.find(control_number));
+        if (control_number_and_year_set_ptr == control_number_to_year_control_number_set_map_.cend())
+            return EMPTY_SET;
+        return MiscUtil::Intersect(*control_number_and_set_ptr->second, *control_number_and_year_set_ptr->second);
+    } else
+        return *control_number_and_set_ptr->second;
 }
 
 

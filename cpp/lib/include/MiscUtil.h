@@ -33,6 +33,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 
@@ -166,6 +167,15 @@ unsigned LevenshteinDistance(const std::wstring &s1, const std::wstring &s2);
 
 
 template<typename ElementType> std::set<ElementType> Intersect(const std::set<ElementType> &set1, const std::set<ElementType> &set2) {
+    std::set<ElementType> result;
+    std::set_intersection(set1.cbegin(), set1.cend(), set2.cbegin(), set2.cend(), std::inserter(result, result.begin()));
+    return result;
+}
+
+
+template<typename ElementType> std::set<ElementType> Intersect(const std::set<ElementType> &set1,
+                                                               const std::unordered_set<ElementType> &set2)
+{
     std::set<ElementType> result;
     std::set_intersection(set1.cbegin(), set1.cend(), set2.cbegin(), set2.cend(), std::inserter(result, result.begin()));
     return result;
