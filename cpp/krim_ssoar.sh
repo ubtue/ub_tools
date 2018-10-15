@@ -12,13 +12,20 @@ if [[ $(marc_size krim_ssoar.xml) == 0 ]]; then
 fi
 
 
+echo "Remove superfluous fields"
+filtered_file = "krim_ssoar_filtered.xml"
+marc_filter krim_ssoar.xml "$filtered_file" --remove-fields '7737:nnas'
+
+
 echo "Add various selection identifiers"
 augmented_file="krim_ssoar_augmented.xml"
-marc_augmentor krim_ssoar.xml "$augmented_file" \
+marc_augmentor $filtered_file" "$augmented_file" \
     --insert-field '084:  \x1FaKRIM\x1FqDE-21\x1F2fid' \
     --insert-field '852a:DE-2619' \
     --insert-field '935a:mkri' \
     --insert-field '935a:soar'
+
+
 
 echo "Rewrite some of the contents"
 rewritten_file="krim_ssoar-$(date +%Y%m%d).xml"
