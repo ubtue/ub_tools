@@ -321,6 +321,19 @@ void RewriteExisting773FieldAndAdd936(MARC::Record * const record, bool * const 
         field.deleteAllSubfieldsWithCode('g');
         field.insertOrReplaceSubfield('g', new_g_subfield_map["volume"] + " (" + new_g_subfield_map["year"] + ") " +
                                            new_g_subfield_map["number"] + "; " +  new_g_subfield_map["pages"]);
+
+
+        MARC::Subfields new_936subfields;
+        Assemble936Article(&new_936subfields,new_g_subfield_map["year"] , new_g_subfield_map["pages"], new_g_subfield_map["volume"],
+                           new_g_subfield_map["number"]);
+
+        std::vector<std::string> new_936_fields;
+        if (not new_936_Subfields.empty())
+            new_936_fields.emplace_back(new_936_Subfields.toString());
+
+        for (const auto &new_936_field : new_936_fields)
+            record->insertField("936", "uw" + new_936_field);
+
         *modified_record = true;
     }
 }
