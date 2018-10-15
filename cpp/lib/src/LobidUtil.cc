@@ -122,13 +122,13 @@ std::vector<std::string> GetAuthorProfessions(const std::string &author, const s
 
 
 std::string GetOrganisationISIL(const std::string &organisation, const std::string &additional_query_params) {
-    return QueryAndLookupString(BuildUrl(BASE_URL_ORGANISATIONS, { { "name", organisation } }, { },  additional_query_params),
+    return QueryAndLookupString(BuildUrl(BASE_URL_ORGANISATIONS, { { "name", organisation } }, std::unordered_map<std::string, std::string>(), additional_query_params),
                                 "/member/0/isil", /* allow_multiple_results */ false);
 }
 
 
 std::string GetTitleDOI(const std::string &title, const std::string &additional_query_params) {
-    return QueryAndLookupString(BuildUrl(BASE_URL_RESOURCES, { { "title", "\"" + title + "\"" } }, { }, additional_query_params),
+    return QueryAndLookupString(BuildUrl(BASE_URL_RESOURCES, { { "title", "\"" + title + "\"" } }, std::unordered_map<std::string, std::string>(), additional_query_params),
                                 "/member/0/doi/0", /* allow_multiple_results */ false);
 }
 
