@@ -61,6 +61,7 @@ struct Creator {
     std::string last_name;
     std::string type;
     std::string author_ppn;
+    std::string author_gnd_number;
 };
 
 
@@ -174,7 +175,8 @@ struct GroupParams {
     std::string user_agent_;
     std::string isil_;
     std::string bsz_upload_group_;
-    std::string author_lookup_query_params_;
+    std::string author_ppn_lookup_url_;
+    std::string author_gnd_lookup_query_params_;
 };
 
 

@@ -109,7 +109,7 @@ const std::vector<std::string> QueryAndLookupStrings(const std::string &url, con
 }
 
 
-std::string GetAuthorPPN(const std::string &author, const std::string &additional_query_params) {
+std::string GetAuthorGNDNumber(const std::string &author, const std::string &additional_query_params) {
     return QueryAndLookupString(BuildUrl(BASE_URL_GND, { { "preferredName", author } }, { { "type", "DifferentiatedPerson" } }, additional_query_params),
                                 "/member/0/gndIdentifier", /* allow_multiple_results */ false);
 }
