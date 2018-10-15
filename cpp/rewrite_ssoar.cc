@@ -176,24 +176,19 @@ void InsertSigilInto003And852(MARC::Record * const record, bool * const modified
 // Rewrite to 041$h or get date from 008
 void InsertLanguageInto041(MARC::Record * const record, bool * const modified_record) {
      for (auto &field : record->getTagRange("041")) {
-         if (field.hasSubfield('h'))
-             return;
-
          // Check whether the information is already in the $a field
          static const std::string valid_language_regex("([a-zA-Z]{3})$");
          static RegexMatcher * const valid_language_matcher(RegexMatcher::RegexMatcherFactoryOrDie(valid_language_regex));
          std::string language;
-         if (valid_language_matcher->matched(field.getFirstSubfieldWithCode('a'))) {
-             field.replaceSubfieldCode('a', 'h');
-             *modified_record = true;
+         if (valid_language_matcher->matched(field.getFirstSubfieldWithCode('a')))
              return;
-         } else {
+         else {
              const std::string _008_field(record->getFirstFieldContents("008"));
              if (not valid_language_matcher->matched(_008_field)) {
                  LOG_WARNING("Invalid language code " + language);
                  continue;
              }
-             record->addSubfield("041", 'h', language);
+             field.insertOrReplaceSubfield('a', language);
              *modified_record = true;
              return;
         }
