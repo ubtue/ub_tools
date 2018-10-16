@@ -269,13 +269,25 @@ void InsertYearInto264c(MARC::Record * const record, bool * const modified_recor
 }
 
 
-void WriteLocal938L8(MARC::Record * const record, const std::string &content) {
-    record->insertField("LOK", { {'0', "938"}, {'l', ""}, {'8', content } });
+void WriteLocal938L8(MARC::Record * const record, const std::string subfield_8_content, const std::string &content) {
+    record->insertField("LOK", { { '0', "938"}, { 'l', ""}, { '8', subfield_8_content }, { 'a', content } });
 }
 
 
-void Move500ToLocal938Field(MARC::Record * const record, const std::string &_500a_superior_content) {
-    WriteLocal938L8(record, _500a_superior_content);
+void Copy500SuperiorToLocal938Field(MARC::Record * const record, const std::string &_500a_superior_content) {
+    WriteLocal938L8(record, "", _500a_superior_content);
+}
+
+
+void Copy024OIAIdentifierToLocal938Field(MARC::Record * const record, bool * const modified_record) {
+    static const std::string oai_regex("^oai:gesis.izsoz.de:document/.*");
+    static RegexMatcher * const oai_matcher(RegexMatcher::RegexMatcherFactory(oai_regex)); 
+    for (const auto &field : record->getTagRange("024")) {
+        if (oai_matcher->matched(field.getFirstSubfieldWithCode('a'))) {
+            WriteLocal938L8(record, "1", (*oai_matcher)[0]);
+            *modified_record = true;
+        }
+    }
 }
 
 
@@ -285,7 +297,7 @@ void Create773And936From500(MARC::Record * const record, bool * const modified_r
 
     // Check if we have matching 500 field
     const std::string superior_string("^In:[\\s]*(.*)");
-    RegexMatcher * const superior_matcher(RegexMatcher::RegexMatcherFactory(superior_string));
+    static RegexMatcher * const superior_matcher(RegexMatcher::RegexMatcherFactory(superior_string));
 
     std::vector<std::string> new_773_fields;
     std::vector<std::string> new_936_fields;
@@ -301,7 +313,7 @@ void Create773And936From500(MARC::Record * const record, bool * const modified_r
                     new_773_fields.emplace_back(new_773_Subfields.toString());
                 if (not new_936_Subfields.empty())
                     new_936_fields.emplace_back(new_936_Subfields.toString());
-                Move500ToLocal938Field(record, subfield.value_);
+                Copy500SuperiorToLocal938Field(record, subfield.value_);
             }
         }
     }
@@ -508,6 +520,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         RemoveLicenseField540(&record, &modified_record);
         Transfer024DOITo856(&record, &modified_record);
         Rewrite856OpenAccess(&record, &modified_record);
+        Copy024OIAIdentifierToLocal938Field(&record, &modified_record);
 
         marc_writer->write(record);
         if (modified_record)
