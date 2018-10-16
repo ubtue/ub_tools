@@ -1,7 +1,7 @@
 /** \file   log_rotate.cc
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -58,7 +58,7 @@ void CopyLines(File * const input, File * const output) {
     while (not input->eof()) {
         std::string line;
         input->getline(&line);
-        if (unlikely(not output->write(line + "\n")))
+        if (unlikely(not output->writeln(line)))
             logger->error("in CopyLines: failed to write a line to \"" + output->getPath() + "\"!");
     }
 }
