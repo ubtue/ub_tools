@@ -283,14 +283,14 @@ void InsertYearInto264c(MARC::Record * const record, bool * const modified_recor
 
 // Write to the MARC correspondence of PICA 8520 (Field for local SWB projects for monographies)
 void WriteLocal938L8(MARC::Record * const record, const std::string &subfield_8_content, const std::string &content) {
-    record->insertField("LOK", { { '0', "938" }, { 'l', "" }, { '8', subfield_8_content }, { 'a', content } });
+    record->insertField("LOK", { { '0', "938" }, { 'l', content }, { '8', subfield_8_content } });
 }
 
 
 // Transfer the original 500 data to a "parking field", i.e. make sure that the content description delivered in 500 fields
 // is kept in a field that "survives" potential transformations"
 void Copy500SuperiorToLocal938Field(MARC::Record * const record, const std::string &_500a_superior_content) {
-    WriteLocal938L8(record, "", _500a_superior_content);
+    WriteLocal938L8(record, "0", _500a_superior_content);
 }
 
 
