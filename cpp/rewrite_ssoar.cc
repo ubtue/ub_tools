@@ -40,6 +40,20 @@ namespace {
 }
 
 
+bool ParseVolInfo(const std::string &volinfo, std::string * const volinfo_vol, std::string * const volinfo_year,
+                  std::string * const volinfo_edition) {
+    static const std::string volinfo_regex("(\\d+)\\s+\\((\\d{4})\\)\\s+(\\d+)"); //vol (year) edition
+    static RegexMatcher * const vol_info_matcher(RegexMatcher::RegexMatcherFactoryOrDie(volinfo_regex));
+    if (not vol_info_matcher->matched(volinfo))
+        return false;
+
+    *volinfo_vol = (*vol_info_matcher)[1];
+    *volinfo_year = (*vol_info_matcher)[2];
+    *volinfo_edition = (*vol_info_matcher)[3];
+    return true;
+}
+
+
 void Assemble773Article(MARC::Subfields * const _773subfields, const std::string &title = "",
                         const std::string &year = "", const std::string &pages = "",
                         const std::string &volinfo = "", const std::string &edition = "")
@@ -48,14 +62,22 @@ void Assemble773Article(MARC::Subfields * const _773subfields, const std::string
        _773subfields->appendSubfield('i', "In:");
     if (not title.empty())
         _773subfields->appendSubfield('t', StringUtil::Trim(title));
+
+    std::string subfield_g_content;
+    std::string volinfo_vol, volinfo_year, volinfo_edition;
+
     if (not volinfo.empty())
-        _773subfields->appendSubfield('g', "volume: " + StringUtil::Trim(volinfo));
-    if (not pages.empty())
-        _773subfields->appendSubfield('g', "pages: " + pages);
-    if (not year.empty())
-        _773subfields->appendSubfield('d', "year: " + year);
-    if (not edition.empty())
-        _773subfields->appendSubfield('g', "edition: "  + edition);
+        ParseVolInfo(volinfo, &volinfo_vol, &volinfo_year, &volinfo_edition);
+        subfield_g_content.append(StringUtil::Trim(volinfo));
+    if (not pages.empty()) {
+        subfield_g_content += not subfield_g_content.empty() ? ", " : subfield_g_content;
+        subfield_g_content += "S. " + pages;
+    }
+
+    if (not (year.empty() and volinfo_year.empty()))
+        _773subfields->appendSubfield('d', (not year.empty()) ? year : volinfo_year);
+    if (not (edition.empty() and volinfo_edition.empty()))
+        _773subfields->appendSubfield('g', (not edition.empty()) ? edition : volinfo_edition);
 }
 
 
@@ -79,20 +101,6 @@ void Assemble773Book(MARC::Subfields * const _773subfields, const std::string &t
         _773subfields->addSubfield('g', "S." + pages);
     if (not isbn.empty())
         _773subfields->addSubfield('o', isbn);
-}
-
-
-bool ParseVolInfo(const std::string &volinfo, std::string * const volinfo_vol, std::string * const volinfo_year,
-                  std::string * const volinfo_edition) {
-    static const std::string volinfo_regex("(\\d+)\\s+\\((\\d{4})\\)\\s+(\\d+)"); //vol (year) edition
-    static RegexMatcher * const vol_info_matcher(RegexMatcher::RegexMatcherFactoryOrDie(volinfo_regex));
-    if (not vol_info_matcher->matched(volinfo))
-        return false;
-
-    *volinfo_vol = (*vol_info_matcher)[1];
-    *volinfo_year = (*vol_info_matcher)[2];
-    *volinfo_edition = (*vol_info_matcher)[3];
-    return true;
 }
 
 
@@ -281,7 +289,7 @@ void Copy500SuperiorToLocal938Field(MARC::Record * const record, const std::stri
 
 void Copy024OIAIdentifierToLocal938Field(MARC::Record * const record, bool * const modified_record) {
     static const std::string oai_regex("^oai:gesis.izsoz.de:document/.*");
-    static RegexMatcher * const oai_matcher(RegexMatcher::RegexMatcherFactory(oai_regex)); 
+    static RegexMatcher * const oai_matcher(RegexMatcher::RegexMatcherFactory(oai_regex));
     for (const auto &field : record->getTagRange("024")) {
         if (oai_matcher->matched(field.getFirstSubfieldWithCode('a'))) {
             WriteLocal938L8(record, "1", (*oai_matcher)[0]);
