@@ -53,6 +53,7 @@ void TagCrossLinks(MARC::Reader * const reader, MARC::Writer * const writer,
                 if (unlikely(ppn_and_is_electronic == ppn_to_is_electronic_map.cend())) {
                     LOG_WARNING("dangling cross link from \"" + record.getControlNumber() + "\" to \"" + partner_control_number + "\"!");
                     ++danglink_link_count;
+                    field.appendSubfield('x', "dangling");
                     continue;
                 }
 
