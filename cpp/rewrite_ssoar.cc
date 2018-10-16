@@ -41,7 +41,7 @@ namespace {
 
 
 bool ParseVolInfo(const std::string &volinfo, std::string * const volinfo_vol, std::string * const volinfo_year,
-                  std::string * const volinfo_edition) 
+                  std::string * const volinfo_edition)
 {
     static const std::string volinfo_regex("(\\d+)\\s+\\((\\d{4})\\)\\s+(\\d+)"); //vol (year) edition
     static RegexMatcher * const vol_info_matcher(RegexMatcher::RegexMatcherFactoryOrDie(volinfo_regex));
@@ -77,8 +77,11 @@ void Assemble773Article(MARC::Subfields * const _773subfields, const std::string
 
     if (not (year.empty() and volinfo_year.empty()))
         _773subfields->appendSubfield('d', (not year.empty()) ? year : volinfo_year);
-    if (not (edition.empty() and volinfo_edition.empty()))
-        _773subfields->appendSubfield('g', (not edition.empty()) ? edition : volinfo_edition);
+    if (not (edition.empty() and volinfo_edition.empty())) {
+        const std::string _776g_year(_773subfields->hasSubfield('d') ?
+                                     "(" + _773subfields->getFirstSubfieldWithCode('d') + "), " : "");
+        _773subfields->appendSubfield('g', _776g_year + ((not edition.empty()) ? edition : volinfo_edition));
+    }
 }
 
 
@@ -95,13 +98,13 @@ void Assemble773Book(MARC::Subfields * const _773subfields, const std::string &t
             _773subfields->addSubfield('a', StringUtil::Trim(title));
     }
     if (not authors.empty())
-        _773subfields->addSubfield('a', authors);
+        _773subfields->appendSubfield('a', authors);
     if (not year.empty())
-        _773subfields->addSubfield('d', year);
+        _773subfields->appendSubfield('d', year);
     if ( not pages.empty())
-        _773subfields->addSubfield('g', "S." + pages);
+        _773subfields->appendSubfield('g', (not year.empty()) ? "(" + year + "), " : std::string("") + "S." + pages);
     if (not isbn.empty())
-        _773subfields->addSubfield('o', isbn);
+        _773subfields->appendSubfield('o', isbn);
 }
 
 
@@ -284,7 +287,8 @@ void WriteLocal938L8(MARC::Record * const record, const std::string &subfield_8_
 }
 
 
-// Transfer the original 500 data to a "parking field"
+// Transfer the original 500 data to a "parking field", i.e. make sure that the content description delivered in 500 fields
+// is kept in a field that "survives" potential transformations"
 void Copy500SuperiorToLocal938Field(MARC::Record * const record, const std::string &_500a_superior_content) {
     WriteLocal938L8(record, "", _500a_superior_content);
 }
