@@ -78,9 +78,9 @@ void Assemble773Article(MARC::Subfields * const _773subfields, const std::string
     if (not (year.empty() and volinfo_year.empty()))
         _773subfields->appendSubfield('d', (not year.empty()) ? year : volinfo_year);
     if (not (edition.empty() and volinfo_edition.empty())) {
-        const std::string _776g_year(_773subfields->hasSubfield('d') ?
-                                     "(" + _773subfields->getFirstSubfieldWithCode('d') + "), " : "");
-        _773subfields->appendSubfield('g', _776g_year + ((not edition.empty()) ? edition : volinfo_edition));
+        const std::string _773g_year(_773subfields->hasSubfield('d') ?
+                                     "(" + _773subfields->getFirstSubfieldWithCode('d') + ")" : "");
+        _773subfields->appendSubfield('g', _773g_year + ((not edition.empty()) ? ", " + edition : ", " + volinfo_edition));
     }
 }
 
@@ -101,8 +101,11 @@ void Assemble773Book(MARC::Subfields * const _773subfields, const std::string &t
         _773subfields->appendSubfield('a', authors);
     if (not year.empty())
         _773subfields->appendSubfield('d', year);
-    if ( not pages.empty())
-        _773subfields->appendSubfield('g', (not year.empty()) ? "(" + year + "), " : std::string("") + "S." + pages);
+    if ( not pages.empty()) {
+        const std::string _773g_year(_773subfields->hasSubfield('d') ?
+                                     "(" + _773subfields->getFirstSubfieldWithCode('d') + ")" : "");
+        _773subfields->appendSubfield('g', _773g_year + ", " + "S. " + pages);
+    }
     if (not isbn.empty())
         _773subfields->appendSubfield('o', isbn);
 }
