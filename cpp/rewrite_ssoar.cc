@@ -45,17 +45,17 @@ void Assemble773Article(MARC::Subfields * const _773subfields, const std::string
                         const std::string &volinfo = "", const std::string &edition = "")
 {
     if (not (title.empty() and volinfo.empty() and pages.empty() and year.empty() and edition.empty()))
-       _773subfields->addSubfield('i', "In:");
+       _773subfields->appendSubfield('i', "In:");
     if (not title.empty())
-        _773subfields->addSubfield('a', StringUtil::Trim(title));
+        _773subfields->appendSubfield('t', StringUtil::Trim(title));
     if (not volinfo.empty())
-        _773subfields->addSubfield('g', "volume: " + StringUtil::Trim(volinfo));
+        _773subfields->appendSubfield('g', "volume: " + StringUtil::Trim(volinfo));
     if (not pages.empty())
-        _773subfields->addSubfield('g', "pages: " + pages);
+        _773subfields->appendSubfield('g', "pages: " + pages);
     if (not year.empty())
-        _773subfields->addSubfield('g', "year: " + year);
+        _773subfields->appendSubfield('d', "year: " + year);
     if (not edition.empty())
-        _773subfields->addSubfield('g', "edition: "  + edition);
+        _773subfields->appendSubfield('g', "edition: "  + edition);
 }
 
 
@@ -76,7 +76,7 @@ void Assemble773Book(MARC::Subfields * const _773subfields, const std::string &t
     if (not year.empty())
         _773subfields->addSubfield('d', year);
     if ( not pages.empty())
-        _773subfields->addSubfield('g', "pages:" + pages);
+        _773subfields->addSubfield('g', "S." + pages);
     if (not isbn.empty())
         _773subfields->addSubfield('o', isbn);
 }
@@ -269,9 +269,19 @@ void InsertYearInto264c(MARC::Record * const record, bool * const modified_recor
 }
 
 
+void WriteLocal938L8(MARC::Record * const record, const std::string &content) {
+    record->insertField("LOK", { {'0', "938"}, {'l', ""}, {'8', content } });
+}
+
+
+void Move500ToLocal938Field(MARC::Record * const record, const std::string &_500a_superior_content) {
+    WriteLocal938L8(record, _500a_superior_content);
+}
+
+
 void Create773And936From500(MARC::Record * const record, bool * const modified_record) {
     if (record->findTag("773") != record->end())
-        LOG_ERROR("We we erroneously called for PPN " + record->getControlNumber() + " although a 773 field is already present");
+        LOG_ERROR("We were erroneously called for PPN " + record->getControlNumber() + " although a 773 field is already present");
 
     // Check if we have matching 500 field
     const std::string superior_string("^In:[\\s]*(.*)");
@@ -291,6 +301,7 @@ void Create773And936From500(MARC::Record * const record, bool * const modified_r
                     new_773_fields.emplace_back(new_773_Subfields.toString());
                 if (not new_936_Subfields.empty())
                     new_936_fields.emplace_back(new_936_Subfields.toString());
+                Move500ToLocal938Field(record, subfield.value_);
             }
         }
     }
@@ -323,13 +334,13 @@ void RewriteExisting773FieldAndAdd936(MARC::Record * const record, bool * const 
                                            new_g_subfield_map["number"] + "; " +  new_g_subfield_map["pages"]);
 
 
-        MARC::Subfields new_936subfields;
-        Assemble936Article(&new_936subfields,new_g_subfield_map["year"] , new_g_subfield_map["pages"], new_g_subfield_map["volume"],
+        MARC::Subfields new_936_subfields;
+        Assemble936Article(&new_936_subfields,new_g_subfield_map["year"] , new_g_subfield_map["pages"], new_g_subfield_map["volume"],
                            new_g_subfield_map["number"]);
 
         std::vector<std::string> new_936_fields;
-        if (not new_936_Subfields.empty())
-            new_936_fields.emplace_back(new_936_Subfields.toString());
+        if (not new_936_subfields.empty())
+            new_936_fields.emplace_back(new_936_subfields.toString());
 
         for (const auto &new_936_field : new_936_fields)
             record->insertField("936", "uw" + new_936_field);
@@ -349,7 +360,6 @@ void RewriteSuperiorReference(MARC::Record * const record, bool * const modified
 
     // Case 2: Create 773 and 936 from 500
     Create773And936From500(record, modified_record);
-
 }
 
 
@@ -431,9 +441,11 @@ void FixArticleLeader(MARC::Record * const record,  bool * const modified_record
      // SSOAR delivers a wrong leader for articles in journals: leader[7]=m instead of b
      // For chapters in books it is correctly done: leader[7]=a
      // So rewrite to b if we have a component part that is not part of a book
-     // We use the fact that we have already rewritten the 773 fields where $i contains "In:"
-     for (const auto field : record->getTagRange("773")) {
-          if (field.hasSubfieldWithValue('i', "In:") and record->getLeader()[7] != 'a') {
+     // The criterion is that we do not have both "In:" and "(Hg.)"
+     for (const auto _500_a_subfield : record->getSubfieldValues("500", 'a')) {
+          static const std::string is_book_component_regex("^In:.*\\(Hg.\\)(.+)");
+          static RegexMatcher * const is_book_component_matcher(RegexMatcher::RegexMatcherFactoryOrDie(is_book_component_regex));
+          if (not is_book_component_matcher->matched(_500_a_subfield)) {
               record->setBibliographicLevel('b');
               *modified_record = true;
               return;
