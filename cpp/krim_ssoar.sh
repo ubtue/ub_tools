@@ -12,9 +12,9 @@ if [[ $(marc_size krim_ssoar.xml) == 0 ]]; then
 fi
 
 
-echo "Remove superfluous fields"
+echo "Remove superfluous subfields"
 filtered_file="krim_ssoar_filtered.xml"
-marc_filter krim_ssoar.xml "$filtered_file" --remove-fields '7737:nnas'
+marc_filter krim_ssoar.xml "$filtered_file" --remove-subfields '7737:nnas'
 
 
 echo "Add various selection identifiers"
