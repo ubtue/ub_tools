@@ -22,6 +22,7 @@
 #include <unordered_set>
 #include <cctype>
 #include <cstdlib>
+#include "BSZUtil.h"
 #include "Compiler.h"
 #include "ControlNumberGuesser.h"
 #include "MARC.h"
@@ -52,6 +53,11 @@ void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::R
             LOG_DEBUG("Empty title in record w/ control number: " + control_number);
         } else
             control_number_guesser->insertTitle(title, control_number);
+
+        std::string year, volume, issue;
+        BSZUtil::ExtractYearVolumeIssue(record, &year, &volume, &issue);
+        if (not year.empty())
+            control_number_guesser->insertYear(year, control_number);
     }
 
     LOG_INFO("Processed " + std::to_string(processed_record_count) + " records.");
