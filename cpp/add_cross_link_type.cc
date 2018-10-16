@@ -44,14 +44,15 @@ void CollectRecordTypes(MARC::Reader * const reader, std::unordered_map<std::str
 void TagCrossLinks(MARC::Reader * const reader, MARC::Writer * const writer,
                    const std::unordered_map<std::string, bool> &ppn_to_is_electronic_map)
 {
-    unsigned link_target_is_same_type(0), link_target_is_different_type(0);
+    unsigned link_target_is_same_type(0), link_target_is_different_type(0), danglink_link_count(0);
     while (auto record = reader->read()) {
         for (auto &field : record) {
             std::string partner_control_number;
             if (MARC::IsCrossLinkField(field, &partner_control_number)) {
                 const auto ppn_and_is_electronic(ppn_to_is_electronic_map.find(partner_control_number));
                 if (unlikely(ppn_and_is_electronic == ppn_to_is_electronic_map.cend())) {
-                    LOG_WARNING("dangling cross link to \"" + partner_control_number + "\"!");
+                    LOG_WARNING("dangling cross link from \"" + record.getControlNumber() + "\" to \"" + partner_control_number + "\"!");
+                    ++danglink_link_count;
                     continue;
                 }
 
@@ -69,6 +70,7 @@ void TagCrossLinks(MARC::Reader * const reader, MARC::Writer * const writer,
 
     LOG_INFO(std::to_string(link_target_is_different_type) + " cross links point to different types and "
              + std::to_string(link_target_is_same_type) + " cross links point to identical types.");
+    LOG_WARNING(std::to_string(danglink_link_count) + " cross links were dangling!");
 }
 
 
