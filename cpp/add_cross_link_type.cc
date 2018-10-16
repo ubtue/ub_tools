@@ -62,7 +62,7 @@ void TagCrossLinks(MARC::Reader * const reader, MARC::Writer * const writer,
                 else
                     ++link_target_is_different_type;
 
-                field.appendSubfield('x', ppn_and_is_electronic->second ? "electronic" : "non-electronic");
+                field.appendSubfield('x', ppn_and_is_electronic->second ? "Electronic" : "Non-Electronic");
             }
         }
 
