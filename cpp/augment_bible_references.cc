@@ -236,8 +236,8 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
         const auto subfields(field.getSubfields());
         const bool esra_special_case(subfields.getFirstSubfieldWithCode('a') == "Esra");
         const bool maccabee_special_case(subfields.getFirstSubfieldWithCode('a') == "Makkabäer");
-        if (not (subfields.getFirstSubfieldWithCode('a') == "Bibel" and subfields.hasSubfield('p'))
-            and not esra_special_case and not maccabee_special_case)
+        if (not (subfields.getFirstSubfieldWithCode('a') == "Bibel" and subfields.hasSubfield('p')) and not esra_special_case
+            and not maccabee_special_case)
             continue;
 
         std::string book_name_candidate;
@@ -257,16 +257,14 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
         if (books_of_the_bible.find(book_name_candidate) == books_of_the_bible.cend()) {
             LOG_WARNING(
                 record.getControlNumber() + ": unknown bible book: "
-                + (esra_special_case ? "esra"
-                                     : (maccabee_special_case ? "makkabäer"
-                                                              : subfields.getFirstSubfieldWithCode('p'))));
+                + (esra_special_case ? "esra" : (maccabee_special_case ? "makkabäer" : subfields.getFirstSubfieldWithCode('p'))));
             ++unknown_book_count;
             continue;
         }
 
         std::vector<std::string> n_subfield_values(subfields.extractSubfields('n'));
         if (n_subfield_values.size() > 2) {
-            std::cerr << "More than 2 $n subfields for PPN " << record.getControlNumber() << "!\n";
+            LOG_WARNING("More than 2 $n subfields for PPN " + record.getControlNumber() + "!");
             continue;
         }
 
@@ -293,18 +291,10 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
 
         if (book_codes.size() > 1 or n_subfield_values.empty())
             ranges->insert(
-                std::make_pair(
-                    book_codes.front()
-                    + std::string(BibleUtil::MAX_CHAPTER_LENGTH + BibleUtil::MAX_VERSE_LENGTH,
-                                  '0'),
-                    book_codes.back()
-                    + std::string(BibleUtil::MAX_CHAPTER_LENGTH + BibleUtil::MAX_VERSE_LENGTH,
-                                  '9')
-                )
-            );
+                std::make_pair(book_codes.front() + std::string(BibleUtil::MAX_CHAPTER_LENGTH + BibleUtil::MAX_VERSE_LENGTH, '0'),
+                               book_codes.back() + std::string(BibleUtil::MAX_CHAPTER_LENGTH + BibleUtil::MAX_VERSE_LENGTH, '9')));
         else if (not BibleUtil::ParseBibleReference(n_subfield_values.front(), book_codes[0], ranges)) {
-            LOG_WARNING(record.getControlNumber() + ": failed to parse bible references (1): "
-                        + n_subfield_values.front());
+            LOG_WARNING(record.getControlNumber() + ": failed to parse bible references (1): " + n_subfield_values.front());
             continue;
         }
 
@@ -320,8 +310,7 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
    saved to a file that maps periope names to bible ranges. */
 void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
                   MARC::Reader * const authority_reader,
-                  std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const
-                      gnd_codes_to_bible_ref_codes_map)
+                  std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const gnd_codes_to_bible_ref_codes_map)
 {
     gnd_codes_to_bible_ref_codes_map->clear();
     LOG_INFO("Starting loading of norm data.");
@@ -351,8 +340,7 @@ void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book
             gnd_codes_to_bible_ref_codes_map->emplace(gnd_code, ranges);
             ++bible_ref_count;
         } catch (const std::exception &x) {
-            LOG_ERROR("caught exception for authority record w/ PPN " + record.getControlNumber() + ": "
-                      + std::string(x.what()));
+            LOG_ERROR("caught exception for authority record w/ PPN " + record.getControlNumber() + ": " + std::string(x.what()));
         }
     }
 
@@ -367,8 +355,8 @@ void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book
 
 
 bool FindGndCodes(const std::string &tags, const MARC::Record &record,
-                  const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>>
-                  &gnd_codes_to_bible_ref_codes_map, std::set<std::string> * const ranges)
+                  const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map,
+                  std::set<std::string> * const ranges)
 {
     ranges->clear();
 
@@ -394,8 +382,7 @@ bool FindGndCodes(const std::string &tags, const MARC::Record &record,
                     for (const auto &range : gnd_code_and_ranges->second)
                         ranges->insert(range.first + ":" + range.second);
                 } else
-                    LOG_INFO(record.getControlNumber() + ": GND code \"" + gnd_code
-                             + "\" was not found in our map.");
+                    LOG_INFO(record.getControlNumber() + ": GND code \"" + gnd_code + "\" was not found in our map.");
             }
         }
     }
@@ -407,8 +394,7 @@ bool FindGndCodes(const std::string &tags, const MARC::Record &record,
 /* Augments MARC title records that contain bible references by pointing at bible reference norm data records
    by adding a new MARC field with tag BIB_REF_RANGE_TAG.  This field is filled in with bible ranges. */
 void AugmentBibleRefs(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                      const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>>
-                          &gnd_codes_to_bible_ref_codes_map)
+                      const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map)
 {
     LOG_INFO("Starting augmentation of title records.");
 
