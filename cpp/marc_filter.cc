@@ -631,9 +631,10 @@ void Filter(const std::vector<FilterDescriptor> &filters, MARC::Reader * const m
                std::vector<std::pair<size_t, char>> matched_field_indices_and_subfields;
                if (MatchedSubfield(record, filter.getCompiledPatterns(), &matched_field_indices_and_subfields)) {
                    std::sort(matched_field_indices_and_subfields.begin(), matched_field_indices_and_subfields.end());
-                   for (const auto field_index_and_subfield : matched_field_indices_and_subfields)
-                       record.getField(field_index_and_subfield.first)
-                           .deleteAllSubfieldsWithCode(field_index_and_subfield.second);
+                   for (const auto field_index_and_subfield : matched_field_indices_and_subfields) {
+                       auto field(record.begin() + field_index_and_subfield.first);
+                       field->deleteAllSubfieldsWithCode(field_index_and_subfield.second);
+                   }
                    modified_record = true;
                    break;
                }
