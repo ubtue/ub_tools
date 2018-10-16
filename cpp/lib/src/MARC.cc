@@ -2201,8 +2201,19 @@ bool PossiblyAReviewArticle(const Record &record) {
 }
 
 
-bool IsCrossLinkField(const MARC::Record::Field &field) {
-    return (field.getTag() == "775" or field.getTag() == "776") and field.hasSubfield('w');
+bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const partner_control_number) {
+    if ((field.getTag() != "775" and field.getTag() != "776") or not field.hasSubfield('w'))
+        return false;
+
+    const MARC::Subfields subfields(field.getSubfields());
+    for (const auto &w_subfield : subfields.extractSubfields('w')) {
+        if (StringUtil::StartsWith(w_subfield, "(DE-576)")) {
+            *partner_control_number = w_subfield.substr(__builtin_strlen("(DE-576)"));
+            return true;
+        }
+    }
+
+    return false;
 }
 
 
@@ -2210,13 +2221,9 @@ bool IsCrossLinkField(const MARC::Record::Field &field) {
 static void ExtractCrossReferencePPNsFromTag(const MARC::Record &record, const std::string &tag, std::set<std::string> * const partner_ppns)
 {
     for (const auto &field : record.getTagRange(tag)) {
-        if (IsCrossLinkField(field)) {
-            const MARC::Subfields subfields(field.getSubfields());
-            for (const auto &w_subfield : subfields.extractSubfields('w')) {
-                if (StringUtil::StartsWith(w_subfield, "(DE-576)"))
-                    partner_ppns->emplace(w_subfield.substr(__builtin_strlen("(DE-576)")));
-            }
-        }
+        std::string partner_control_number;
+        if (IsCrossLinkField(field, &partner_control_number))
+            partner_ppns->emplace(partner_control_number);
     }
 }
 
