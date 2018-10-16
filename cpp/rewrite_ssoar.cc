@@ -269,8 +269,13 @@ void InsertYearInto264c(MARC::Record * const record, bool * const modified_recor
 }
 
 
+void WriteLocal938L8(MARC::Record * const record, const std::string &content) {
+    record->insertField("LOK", { {'0', "938"}, {'l', ""}, {'8', content } });
+}
+
+
 void Move500ToLocal938Field(MARC::Record * const record, const std::string &_500a_superior_content) {
-    record->insertField("LOK", { {'0', "938"}, {'l', ""}, {'8', _500a_superior_content } });
+    WriteLocal938L8(record, _500a_superior_content);
 }
 
 
