@@ -143,7 +143,7 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
     const auto normalised_title(NormaliseTitle(title));
     LOG_DEBUG("in ControlNumberGuesser::getGuessedControlNumbers: normalised_title=\"" + normalised_title + "\".");
     std::string concatenated_title_control_numbers;
-    std::vector<std::string> title_control_numbers;
+    std::set<std::string> title_control_numbers;
     if (not titles_db_->get(normalised_title, &concatenated_title_control_numbers)
         or StringUtil::Split(concatenated_title_control_numbers, '\0', &title_control_numbers) == 0)
     {
@@ -151,7 +151,7 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
         return { };
     }
 
-    std::vector<std::string> all_author_control_numbers;
+    std::set<std::string> all_author_control_numbers;
     for (const auto &author : authors) {
         const auto normalised_author(NormaliseAuthorName(author));
         LOG_DEBUG("in ControlNumberGuesser::getGuessedControlNumbers: normalised_author=\"" + normalised_author + "\".");
@@ -160,21 +160,15 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
         if (authors_db_->get(normalised_author, &concatenated_author_control_numbers)) {
             StringUtil::Split(concatenated_author_control_numbers, '\0', &author_control_numbers);
             for (const auto author_control_number : author_control_numbers)
-                all_author_control_numbers.emplace_back(author_control_number);
+                all_author_control_numbers.insert(author_control_number);
         }
     }
     if (all_author_control_numbers.empty())
         return { };
 
-    std::sort(title_control_numbers.begin(), title_control_numbers.end());
-    std::sort(all_author_control_numbers.begin(), all_author_control_numbers.end());
-    std::vector<std::string> common_control_numbers;
-    std::set_intersection(title_control_numbers.begin(), title_control_numbers.end(),
-                          all_author_control_numbers.begin(), all_author_control_numbers.end(),
-                          std::back_inserter(common_control_numbers));
-
+    const auto common_control_numbers(MiscUtil::Intersect(title_control_numbers, all_author_control_numbers));
     if (year.empty())
-        return std::set<std::string>(common_control_numbers.cbegin(), common_control_numbers.cend());
+        return common_control_numbers;
 
     std::string concatenated_year_control_numbers;
     std::vector<std::string> year_control_numbers;
@@ -189,12 +183,7 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
     } else
         return { };
 
-    std::vector<std::string> common_control_numbers2;
-    std::set_intersection(common_control_numbers.begin(), common_control_numbers.end(),
-                          year_control_numbers.begin(), year_control_numbers.end(),
-                          std::back_inserter(common_control_numbers2));
-
-    return std::set<std::string>(common_control_numbers2.cbegin(), common_control_numbers2.cend());
+    return MiscUtil::Intersect(common_control_numbers, std::set<std::string>(year_control_numbers.begin(), year_control_numbers.end()));
 }
 
 
