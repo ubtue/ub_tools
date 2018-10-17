@@ -182,4 +182,13 @@ template<typename ElementType> std::set<ElementType> Intersect(const std::set<El
 }
 
 
+template<typename ElementType> std::set<ElementType> Intersect(const std::unordered_set<ElementType> &set1,
+                                                               const std::unordered_set<ElementType> &set2)
+{
+    std::set<ElementType> result;
+    std::set_intersection(set1.cbegin(), set1.cend(), set2.cbegin(), set2.cend(), std::inserter(result, result.begin()));
+    return result;
+}
+
+
 } // namespace MiscUtil
