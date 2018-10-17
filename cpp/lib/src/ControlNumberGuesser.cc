@@ -241,19 +241,42 @@ bool ControlNumberGuesser::getNextYear(std::string * const year, std::unordered_
 
     std::string concatenated_control_numbers;
     if (year_cursor_->get(year, &concatenated_control_numbers, /* Move cursor to the next record */true)) {
-        size_t count(concatenated_control_numbers.size() / (MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */));
-        control_numbers->reserve(count);
-        const char *control_number(concatenated_control_numbers.data());
-        for (unsigned i(0); i < count; ++i) {
-            control_numbers->emplace(control_number);
-            control_number += MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */;
-        }
+        splitControNumbers(concatenated_control_numbers, control_numbers);
         return true;
     } else {
         delete year_cursor_;
         year_cursor_ = nullptr;
         return false;
     }
+}
+
+
+void ControlNumberGuesser::lookupTitle(const std::string &title, std::set<std::string> * const control_numbers) const {
+    control_numbers->clear();
+
+    const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(title)));
+    std::string concatenated_control_numbers;
+    titles_db_->get(normalised_title, &concatenated_control_numbers);
+    StringUtil::Split(concatenated_control_numbers, '\0', control_numbers);
+}
+
+
+void ControlNumberGuesser::lookupAuthor(const std::string &author_name, std::set<std::string> * const control_numbers) const {
+    control_numbers->clear();
+
+    const auto normalised_author_name(TextUtil::UTF8ToLower(NormaliseAuthorName(author_name)));
+    std::string concatenated_control_numbers;
+    authors_db_->get(normalised_author_name, &concatenated_control_numbers);
+    StringUtil::Split(concatenated_control_numbers, '\0', control_numbers);
+}
+
+
+void ControlNumberGuesser::lookupYear(const std::string &year, std::unordered_set<std::string> * const control_numbers) const {
+    control_numbers->clear();
+
+    std::string concatenated_control_numbers;
+    if (years_db_->get(year, &concatenated_control_numbers))
+        splitControNumbers(concatenated_control_numbers, control_numbers);
 }
 
 
@@ -454,4 +477,17 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
         LOG_ERROR("failed to convert normalised_author_name to a UTF8 string!");
 
     return utf8_normalised_author_name;
+}
+
+
+void ControlNumberGuesser::splitControNumbers(const std::string &concatenated_control_numbers,
+                                              std::unordered_set<std::string> * const control_numbers) const
+{
+    size_t count(concatenated_control_numbers.size() / (MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */));
+    control_numbers->reserve(count);
+    const char *control_number(concatenated_control_numbers.data());
+    for (unsigned i(0); i < count; ++i) {
+        control_numbers->emplace(control_number);
+        control_number += MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */;
+    }
 }
