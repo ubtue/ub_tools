@@ -14,7 +14,9 @@ fi
 
 echo "Remove superfluous subfields"
 filtered_file="krim_ssoar_filtered.xml"
-marc_filter krim_ssoar.xml "$filtered_file" --remove-subfields '7737:nnas'
+marc_filter krim_ssoar.xml "$filtered_file" \
+    --remove-subfields '7737:nnas' \
+    --remove-subfields '856s:^\s+bytes'
 
 
 echo "Add various selection identifiers"
