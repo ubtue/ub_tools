@@ -24,6 +24,7 @@
 #include <cstdlib>
 #include <cstring>
 #include "ControlNumberGuesser.h"
+#include "MiscUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -32,35 +33,10 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << "(--lookup-author=author|--lookup-title=title|--lookup-year=year)]\n";
+    std::cerr << "Usage: " << ::progname << "--lookup-author=author|--lookup-title=title|--lookup-year=year\n"
+              << "       You can repeat the lookup operations any number of times, in which case you will get the\n"
+              << "       intersection of the lookups.\n\n";
     std::exit(EXIT_FAILURE);
-}
-
-
-void LookupAuthor(const ControlNumberGuesser &control_number_guesser, const std::string &author) {
-    std::set<std::string> control_numbers;
-    control_number_guesser.lookupAuthor(author, &control_numbers);
-
-    for (const auto &control_number : control_numbers)
-        std::cout << control_number << '\n';
-}
-
-
-void LookupTitle(const ControlNumberGuesser &control_number_guesser, const std::string &title) {
-    std::set<std::string> control_numbers;
-    control_number_guesser.lookupTitle(title, &control_numbers);
-
-    for (const auto &control_number : control_numbers)
-        std::cout << control_number << '\n';
-}
-
-
-void LookupYear(const ControlNumberGuesser &control_number_guesser, const std::string &year) {
-    std::unordered_set<std::string> control_numbers;
-    control_number_guesser.lookupYear(year, &control_numbers);
-
-    for (const auto &control_number : control_numbers)
-        std::cout << control_number << '\n';
 }
 
 
@@ -68,18 +44,46 @@ void LookupYear(const ControlNumberGuesser &control_number_guesser, const std::s
 
 
 int Main(int argc, char **argv) {
-    if (argc != 2)
-        Usage();
-
     const ControlNumberGuesser control_number_guesser(ControlNumberGuesser::DO_NOT_CLEAR_DATABASES);
-    if (StringUtil::StartsWith(argv[1], "--lookup-author="))
-        LookupAuthor(control_number_guesser, argv[1] + __builtin_strlen("--lookup-author="));
-    else if (StringUtil::StartsWith(argv[1], "--lookup-title="))
-        LookupTitle(control_number_guesser, argv[1] + __builtin_strlen("--lookup-title="));
-    else if (StringUtil::StartsWith(argv[1], "--lookup-year="))
-        LookupYear(control_number_guesser, argv[1] + __builtin_strlen("--lookup-year="));
-    else
-        Usage();
+
+    std::unordered_set<std::string> control_numbers;
+    for (int arg_no(1); arg_no < argc; ++arg_no) {
+        if (StringUtil::StartsWith(argv[1], "--lookup-author=")) {
+            std::set<std::string> control_numbers2;
+            control_number_guesser.lookupAuthor(argv[arg_no] + __builtin_strlen("--lookup-author="), &control_numbers2);
+            if (arg_no == 1)
+                control_numbers.insert(control_numbers2.cbegin(), control_numbers2.cend());
+            else {
+                control_numbers2 = MiscUtil::Intersect(control_numbers2, control_numbers);
+                control_numbers.clear();
+                control_numbers.insert(control_numbers2.cbegin(), control_numbers2.cend());
+            }
+        } else if (StringUtil::StartsWith(argv[1], "--lookup-title=")) {
+            std::set<std::string> control_numbers2;
+            control_number_guesser.lookupTitle(argv[arg_no] + __builtin_strlen("--lookup-title="), &control_numbers2);
+            if (arg_no == 1)
+                control_numbers.insert(control_numbers2.cbegin(), control_numbers2.cend());
+            else {
+                control_numbers2 = MiscUtil::Intersect(control_numbers2, control_numbers);
+                control_numbers.clear();
+                control_numbers.insert(control_numbers2.cbegin(), control_numbers2.cend());
+            }
+        } else if (StringUtil::StartsWith(argv[1], "--lookup-year=")) {
+            if (arg_no == 1)
+                control_number_guesser.lookupYear(argv[arg_no] + __builtin_strlen("--lookup-year="), &control_numbers);
+            else {
+                std::unordered_set<std::string> control_numbers2;
+                control_number_guesser.lookupYear(argv[arg_no] + __builtin_strlen("--lookup-year="), &control_numbers2);
+                const auto control_numbers3(MiscUtil::Intersect(control_numbers2, control_numbers));
+                control_numbers.clear();
+                control_numbers.insert(control_numbers3.cbegin(), control_numbers3.cend());
+            }
+        } else
+            Usage();
+    }
+
+    for (const auto &control_number : control_numbers)
+        std::cout << control_number << '\n';
 
     return EXIT_SUCCESS;
 }
