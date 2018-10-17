@@ -45,7 +45,7 @@ static const std::string MATCH_DB_PREFIX("/usr/local/var/lib/tuelib/normalised_"
 
 
 ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode)
-    : MAX_CONTROL_NUMBER_LENGTH(BSZUtil::PPN_LENGTH_NEW), title_cursor_(nullptr), author_cursor_(nullptr)
+    : MAX_CONTROL_NUMBER_LENGTH(BSZUtil::PPN_LENGTH_NEW), title_cursor_(nullptr), author_cursor_(nullptr), year_cursor_(nullptr)
 {
     const std::string TITLES_DB_PATH(MATCH_DB_PREFIX + "titles.db");
     const std::string AUTHORS_DB_PATH(MATCH_DB_PREFIX + "authors.db");
