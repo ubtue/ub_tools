@@ -202,7 +202,6 @@ void Parse500Content(const std::string &_500a_content, MARC::Subfields * const _
          Assemble773Book(_773subfields, title, authors, year, "", isbn);
          Assemble936Book(_936subfields, year);
      } else if (book_matcher_4->matched(_500a_content)) {
-std::cerr << "MATCHED BOOK MATCHER 4 FOR: " << _500a_content << '\n';
          const std::string title((*book_matcher_4)[1]);
          const std::string year((*book_matcher_4)[2]);
          const std::string pages((*book_matcher_4)[3]);
