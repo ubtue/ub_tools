@@ -129,7 +129,8 @@ void ControlNumberGuesser::insertYear(const std::string &year, const std::string
     padded_length += MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */;
 
     control_numbers += control_number;
-    StringUtil::Pad(&control_numbers, padded_length, '\0');
+    for (auto i(control_numbers.size()); i < padded_length; ++i)
+        control_numbers += '\0';
 
     if (unlikely(not years_db_->set(year, control_numbers)))
         LOG_ERROR("failed to insert a new year into the database!");
