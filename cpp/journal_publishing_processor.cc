@@ -46,12 +46,12 @@ struct Metadata {
 };
 
 
-std::string ReadCharactersUntilNextClosingTag(XMLParser * const xml_parser, const std::string &closing_tag = "") {
+std::string ReadCharactersUntilNextClosingTag(XMLParser * const xml_parser) {
     XMLParser::XMLPart xml_part;
     std::string extracted_data;
 
     while (xml_parser->getNext(&xml_part)) {
-        if (xml_part.isClosingTag() and (closing_tag.empty() or xml_part.data_ == closing_tag))
+        if (xml_part.isClosingTag())
             break;
         else if (xml_part.type_ == XMLParser::XMLPart::CHARACTERS)
             extracted_data += xml_part.data_;
@@ -68,7 +68,7 @@ void ExtractAuthor(XMLParser * const xml_parser, std::set<std::string> * const a
     XMLParser::XMLPart xml_part;
     if (not xml_parser->getNext(&xml_part) or xml_part.type_ != XMLParser::XMLPart::CHARACTERS)
         return;
-    std::string surname(xml_part.data_);
+    const std::string surname(xml_part.data_);
 
     while (xml_parser->getNext(&xml_part)) {
         if (xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG and xml_part.data_ == "contrib") {
@@ -139,6 +139,9 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
     if (full_text_metadata.authors_.empty())
         LOG_ERROR("no article authors found in file '" + input_file_path + "'");
 
+    if (full_text_metadata.publication_year_.empty())
+        LOG_ERROR("no publication year found in file '" + input_file_path + "'");
+
     if (normalise_only) {
         std::cout << ControlNumberGuesser::NormaliseTitle(full_text_metadata.title_) << '\n';
         for (const auto &article_author : full_text_metadata.authors_)
@@ -151,7 +154,7 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
         ExtractText(xml_parser, "abstract", &abstract);
 
     if (full_text.empty() and abstract.empty())
-        LOG_ERROR("Neither full-text nor abstract text was found in file '" + input_file_path + "'");
+        LOG_ERROR("neither full-text nor abstract text was found in file '" + input_file_path + "'");
 
     FullTextImport::WriteExtractedTextToDisk(not full_text.empty() ? full_text : abstract,
                                              full_text_metadata.title_, full_text_metadata.authors_, full_text_metadata.publication_year_,
