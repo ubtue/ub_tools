@@ -168,6 +168,9 @@ void Parse500Content(const std::string &_500a_content, MARC::Subfields * const _
      // Authors : Title. Year. ISBN
      static const std::string book_regex_3("^([^:]*):\\s*(.+)?\\s*(\\d{4})\\.(?=\\s*ISBN\\s*([\\d\\-X]+))");
      static RegexMatcher * const book_matcher_3(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_3));
+     // Title. Year. Pages
+     static const std::string book_regex_4("^(.+)\\.\\s+(\\d{4})\\.\\s+S\\.\\s+([\\d-]+)");
+     static RegexMatcher * const book_matcher_4(RegexMatcher::RegexMatcherFactoryOrDie(book_regex_4));
 
      // 500 Structure fields for articles
      // Normally Journal ; Edition String ; Page (??)
@@ -201,6 +204,13 @@ void Parse500Content(const std::string &_500a_content, MARC::Subfields * const _
          const std::string isbn((*book_matcher_3)[4]);
          Assemble773Book(_773subfields, title, authors, year, "", isbn);
          Assemble936Book(_936subfields, year);
+     } else if (book_matcher_4->matched(_500a_content)) {
+std::cerr << "MATCHED BOOK MATCHER 4 FOR: " << _500a_content << '\n';
+         const std::string title((*book_matcher_4)[1]);
+         const std::string year((*book_matcher_4)[2]);
+         const std::string pages((*book_matcher_4)[3]);
+         Assemble773Book(_773subfields, title, "", year, pages);
+         Assemble936Book(_936subfields, year, pages);
      } else if (article_matcher_1->matched(_500a_content)) {
          const std::string title((*article_matcher_1)[1]);
          const std::string volinfo((*article_matcher_1)[2]);
