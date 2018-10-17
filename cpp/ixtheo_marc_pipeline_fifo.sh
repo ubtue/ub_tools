@@ -295,7 +295,7 @@ StartPhase "Tag PDA candidates"
 (augment_pda \
     $(ls -t gvi_ppn_list-??????.txt | head -1) \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -308,7 +308,7 @@ wait
 
 StartPhase "Cross-link Type Tagging"
 (add_cross_link_type GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
-    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+    GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
