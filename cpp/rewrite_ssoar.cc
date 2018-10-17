@@ -94,8 +94,13 @@ void Assemble773Book(MARC::Subfields * const _773subfields, const std::string &t
     if (not title.empty()) {
         _773subfields->addSubfield('t', StringUtil::Trim(title));
     }
-    if (not authors.empty())
-        _773subfields->appendSubfield('a', authors);
+    if (not authors.empty()) {
+        // Do not add editors
+        static std::string editor_regex("\\(Hg\\.\\)");
+        static RegexMatcher * const editor_matcher(RegexMatcher::RegexMatcherFactory(editor_regex));
+        if (not editor_matcher->matched(authors))
+            _773subfields->appendSubfield('a', authors);
+    }
     if (not year.empty())
         _773subfields->appendSubfield('d', year);
     if ( not pages.empty()) {
