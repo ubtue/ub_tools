@@ -48,9 +48,10 @@ int Main(int argc, char **argv) {
 
     std::unordered_set<std::string> control_numbers;
     for (int arg_no(1); arg_no < argc; ++arg_no) {
-        if (StringUtil::StartsWith(argv[1], "--lookup-author=")) {
+        if (StringUtil::StartsWith(argv[arg_no], "--lookup-author=")) {
             std::set<std::string> control_numbers2;
             control_number_guesser.lookupAuthor(argv[arg_no] + __builtin_strlen("--lookup-author="), &control_numbers2);
+
             if (arg_no == 1)
                 control_numbers.insert(control_numbers2.cbegin(), control_numbers2.cend());
             else {
@@ -58,9 +59,10 @@ int Main(int argc, char **argv) {
                 control_numbers.clear();
                 control_numbers.insert(control_numbers2.cbegin(), control_numbers2.cend());
             }
-        } else if (StringUtil::StartsWith(argv[1], "--lookup-title=")) {
+        } else if (StringUtil::StartsWith(argv[arg_no], "--lookup-title=")) {
             std::set<std::string> control_numbers2;
             control_number_guesser.lookupTitle(argv[arg_no] + __builtin_strlen("--lookup-title="), &control_numbers2);
+
             if (arg_no == 1)
                 control_numbers.insert(control_numbers2.cbegin(), control_numbers2.cend());
             else {
@@ -68,7 +70,7 @@ int Main(int argc, char **argv) {
                 control_numbers.clear();
                 control_numbers.insert(control_numbers2.cbegin(), control_numbers2.cend());
             }
-        } else if (StringUtil::StartsWith(argv[1], "--lookup-year=")) {
+        } else if (StringUtil::StartsWith(argv[arg_no], "--lookup-year=")) {
             if (arg_no == 1)
                 control_number_guesser.lookupYear(argv[arg_no] + __builtin_strlen("--lookup-year="), &control_numbers);
             else {
