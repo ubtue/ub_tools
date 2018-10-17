@@ -49,8 +49,8 @@ ControlNumberGuesser::ControlNumberGuesser(const OpenMode open_mode)
 {
     const std::string TITLES_DB_PATH(MATCH_DB_PREFIX + "titles.db");
     const std::string AUTHORS_DB_PATH(MATCH_DB_PREFIX + "authors.db");
-    const std::string YEARS_DB_PATH(MATCH_DB_PREFIX + "years.db");
 
+    const std::string YEARS_DB_PATH(MATCH_DB_PREFIX + "years.db");
     if (open_mode == CLEAR_DATABASES) {
         ::unlink(TITLES_DB_PATH.c_str());
         ::unlink(AUTHORS_DB_PATH.c_str());
@@ -136,12 +136,11 @@ void ControlNumberGuesser::insertYear(const std::string &year, const std::string
 }
 
 
-std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::string &title, const std::vector<std::string> &authors,
+std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::string &title, const std::set<std::string> &authors,
                                                                      const std::string &year) const
 {
     const auto normalised_title(NormaliseTitle(title));
-    if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
-        LOG_DEBUG("in ControlNumberGuesser::getGuessedControlNumbers: normalised_title=\"" + normalised_title + "\".");
+    LOG_DEBUG("in ControlNumberGuesser::getGuessedControlNumbers: normalised_title=\"" + normalised_title + "\".");
     std::string concatenated_title_control_numbers;
     std::vector<std::string> title_control_numbers;
     if (not titles_db_->get(normalised_title, &concatenated_title_control_numbers)
@@ -154,8 +153,7 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
     std::vector<std::string> all_author_control_numbers;
     for (const auto &author : authors) {
         const auto normalised_author(NormaliseAuthorName(author));
-        if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG)
-            LOG_DEBUG("in ControlNumberGuesser::getGuessedControlNumbers: normalised_author=\"" + normalised_author + "\".");
+        LOG_DEBUG("in ControlNumberGuesser::getGuessedControlNumbers: normalised_author=\"" + normalised_author + "\".");
         std::string concatenated_author_control_numbers;
         std::set<std::string> author_control_numbers;
         if (authors_db_->get(normalised_author, &concatenated_author_control_numbers)) {

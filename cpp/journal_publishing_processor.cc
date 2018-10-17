@@ -39,70 +39,69 @@ namespace {
 }
 
 
-bool ExtractTitle(XMLParser * const xml_parser, std::string * const article_title) {
-    article_title->clear();
+struct Metadata {
+    std::string title_;
+    std::set<std::string> authors_;
+    std::string publication_year_;
+};
 
-    if (not xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, "article-title"))
-        return false;
 
+std::string ReadCharactersUntilNextClosingTag(XMLParser * const xml_parser) {
     XMLParser::XMLPart xml_part;
+    std::string extracted_data;
+
     while (xml_parser->getNext(&xml_part)) {
-        if (xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG and xml_part.data_ == "article-title")
-            return not article_title->empty();
-        if (xml_part.type_ == XMLParser::XMLPart::CHARACTERS)
-            *article_title += xml_part.data_;
+        if (xml_part.isClosingTag())
+            break;
+        else if (xml_part.type_ == XMLParser::XMLPart::CHARACTERS)
+            extracted_data += xml_part.data_;
     }
 
-    return false;
+    return extracted_data;
 }
 
 
-bool ExtractAuthor(XMLParser * const xml_parser, std::set<std::string> * const article_authors) {
+void ExtractAuthor(XMLParser * const xml_parser, std::set<std::string> * const article_authors) {
     if (not xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, "surname"))
-        return false;
+        return;
 
     XMLParser::XMLPart xml_part;
     if (not xml_parser->getNext(&xml_part) or xml_part.type_ != XMLParser::XMLPart::CHARACTERS)
-        return false;
-    std::string surname(xml_part.data_);
+        return;
+    const std::string surname(xml_part.data_);
 
     while (xml_parser->getNext(&xml_part)) {
         if (xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG and xml_part.data_ == "contrib") {
             article_authors->insert(surname);
-            return true;
+            return;
         } else if (xml_part.type_ == XMLParser::XMLPart::OPENING_TAG and xml_part.data_ == "given-names") {
             if (not xml_parser->getNext(&xml_part) or xml_part.type_ != XMLParser::XMLPart::CHARACTERS)
-                return false;
+                return;
             article_authors->insert(xml_part.data_ + " " + surname);
-            return true;
+            return;
         }
     }
-
-    return false;
 }
 
 
-bool ExtractAuthors(XMLParser * const xml_parser, std::set<std::string> * const article_authors) {
+void ExtractMetadata(XMLParser * const xml_parser, Metadata * const metadata) {
     XMLParser::XMLPart xml_part;
+
     while (xml_parser->getNext(&xml_part)) {
-        if (xml_part.type_ == XMLParser::XMLPart::OPENING_TAG) {
-            if (xml_part.data_ == "abstract" or xml_part.data_ == "body")
-                return true;
-            else if (xml_part.data_ == "contrib") {
-                const auto contrib_type_and_value(xml_part.attributes_.find("contrib-type"));
-                if (contrib_type_and_value != xml_part.attributes_.cend() and contrib_type_and_value->second == "author") {
-                    if (not ExtractAuthor(xml_parser, article_authors))
-                        return false;
-                }
-            }
+        if (xml_part.isOpeningTag("article-title"))
+            metadata->title_ = ReadCharactersUntilNextClosingTag(xml_parser);
+        else if (xml_part.isOpeningTag("contrib")) {
+            const auto contrib_type_and_value(xml_part.attributes_.find("contrib-type"));
+            if (contrib_type_and_value != xml_part.attributes_.cend() and contrib_type_and_value->second == "author")
+                ExtractAuthor(xml_parser, &metadata->authors_);
+        } else if (xml_part.isOpeningTag("pub-date")) {
+            if (xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, "year"))
+                metadata->publication_year_ = ReadCharactersUntilNextClosingTag(xml_parser);
         }
     }
-
-    return false;
 }
 
 
-// Extracts abstracts and bodies.
 bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_tag, std::string * const text) {
     xml_parser->rewind();
 
@@ -130,30 +129,36 @@ bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_t
 }
 
 
-void ProcessDocument(const bool normalise_only, XMLParser * const xml_parser, File * const plain_text_output) {
-    std::string article_title;
-    if (not ExtractTitle(xml_parser, &article_title))
-        LOG_ERROR("no article title found!");
+void ProcessDocument(const bool normalise_only, const std::string &input_file_path, XMLParser * const xml_parser, File * const plain_text_output) {
+    Metadata full_text_metadata;
+    ExtractMetadata(xml_parser, &full_text_metadata);
 
-    std::set<std::string> article_authors;
-    if (not ExtractAuthors(xml_parser, &article_authors))
-        LOG_ERROR("no article authors found or an error or end-of-document were found while trying to extract an author name!");
+    if (full_text_metadata.title_.empty())
+        LOG_ERROR("no article title found in file '" + input_file_path + "'");
+
+    if (full_text_metadata.authors_.empty())
+        LOG_ERROR("no article authors found in file '" + input_file_path + "'");
+
+    if (full_text_metadata.publication_year_.empty())
+        LOG_ERROR("no publication year found in file '" + input_file_path + "'");
 
     if (normalise_only) {
-        std::cout << ControlNumberGuesser::NormaliseTitle(article_title) << '\n';
-        for (const auto &article_author : article_authors)
+        std::cout << ControlNumberGuesser::NormaliseTitle(full_text_metadata.title_) << '\n';
+        for (const auto &article_author : full_text_metadata.authors_)
             std::cout << ControlNumberGuesser::NormaliseAuthorName(article_author) << '\n';
         return;
     }
 
     std::string full_text, abstract;
-    ExtractText(xml_parser, "body", &full_text);
-    ExtractText(xml_parser, "abstract", &abstract);
+    if (not ExtractText(xml_parser, "body", &full_text))
+        ExtractText(xml_parser, "abstract", &abstract);
 
     if (full_text.empty() and abstract.empty())
-        LOG_ERROR("Neither full-text nor abstract text was found");
+        LOG_ERROR("neither full-text nor abstract text was found in file '" + input_file_path + "'");
 
-    FullTextImport::WriteExtractedTextToDisk(not full_text.empty() ? full_text : abstract, article_title, article_authors, plain_text_output);
+    FullTextImport::WriteExtractedTextToDisk(not full_text.empty() ? full_text : abstract,
+                                             full_text_metadata.title_, full_text_metadata.authors_, full_text_metadata.publication_year_,
+                                             plain_text_output);
 }
 
 
@@ -175,7 +180,7 @@ int Main(int argc, char *argv[]) {
 
     XMLParser xml_parser (argv[1], XMLParser::XML_FILE);
     auto plain_text_output(normalise_only ? nullptr : FileUtil::OpenOutputFileOrDie(argv[2]));
-    ProcessDocument(normalise_only, &xml_parser, plain_text_output.get());
+    ProcessDocument(normalise_only, argv[1], &xml_parser, plain_text_output.get());
 
     return EXIT_SUCCESS;
 }
