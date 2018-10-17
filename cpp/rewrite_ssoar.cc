@@ -43,7 +43,7 @@ namespace {
 bool ParseVolInfo(const std::string &volinfo, std::string * const volinfo_vol, std::string * const volinfo_year,
                   std::string * const volinfo_edition)
 {
-    static const std::string volinfo_regex("(\\d+)\\s+\\((\\d{4})\\)\\s+(\\d+)"); //vol (year) edition
+    static const std::string volinfo_regex("(\\d+)\\s+\\((\\d{4})\\)\\s+([\\d\\-/]+)"); //vol (year) edition
     static RegexMatcher * const vol_info_matcher(RegexMatcher::RegexMatcherFactoryOrDie(volinfo_regex));
     if (not vol_info_matcher->matched(volinfo))
         return false;
@@ -51,6 +51,8 @@ bool ParseVolInfo(const std::string &volinfo, std::string * const volinfo_vol, s
     *volinfo_vol = (*vol_info_matcher)[1];
     *volinfo_year = (*vol_info_matcher)[2];
     *volinfo_edition = (*vol_info_matcher)[3];
+    // Normalize range representation in edition ranges because RDA requires it
+    StringUtil::Map(volinfo_edition, '-', '/');
     return true;
 }
 
@@ -67,21 +69,29 @@ void Assemble773Article(MARC::Subfields * const _773subfields, const std::string
     std::string subfield_g_content;
     std::string volinfo_vol, volinfo_year, volinfo_edition;
 
+    // Generate $g with vol(year), edition, pages
     if (not volinfo.empty())
-        ParseVolInfo(volinfo, &volinfo_vol, &volinfo_year, &volinfo_edition);
-        subfield_g_content.append(StringUtil::Trim(volinfo));
+        ParseVolInfo(StringUtil::Trim(volinfo), &volinfo_vol, &volinfo_year, &volinfo_edition);
+
+    if (not (year.empty() and volinfo_year.empty()))
+        _773subfields->appendSubfield('d', (not year.empty()) ? year : volinfo_year);
+
+    if (not volinfo_vol.empty())
+        subfield_g_content += volinfo_vol;
+
+    if (not volinfo_year.empty())
+        subfield_g_content += "(" + volinfo_year + ")";
+
+    if (not (edition.empty() and volinfo_edition.empty()))
+        subfield_g_content += (not edition.empty()) ? ", " + edition : ", " + volinfo_edition;
+
     if (not pages.empty()) {
         subfield_g_content += not subfield_g_content.empty() ? ", " : subfield_g_content;
         subfield_g_content += "S. " + pages;
     }
 
-    if (not (year.empty() and volinfo_year.empty()))
-        _773subfields->appendSubfield('d', (not year.empty()) ? year : volinfo_year);
-    if (not (edition.empty() and volinfo_edition.empty())) {
-        const std::string _773g_year(_773subfields->hasSubfield('d') ?
-                                     "(" + _773subfields->getFirstSubfieldWithCode('d') + ")" : "");
-        _773subfields->appendSubfield('g', _773g_year + ((not edition.empty()) ? ", " + edition : ", " + volinfo_edition));
-    }
+    if (not subfield_g_content.empty())
+        _773subfields->appendSubfield('g', subfield_g_content);
 }
 
 
@@ -484,8 +494,11 @@ void FixArticleLeader(MARC::Record * const record,  bool * const modified_record
      // So rewrite to b if we have a component part that is not part of a book
      // The criterion is that we do not have both "In:" and "(Hg.)"
      for (const auto _500_a_subfield : record->getSubfieldValues("500", 'a')) {
-          static const std::string is_book_component_regex("^In:.*\\(Hg.\\)(.+)");
+          static const std::string is_book_component_regex("^(.+)\\(Hg.\\)(.+)");
           static RegexMatcher * const is_book_component_matcher(RegexMatcher::RegexMatcherFactoryOrDie(is_book_component_regex));
+          // Skip fields that are definitely not relevant
+          if (not StringUtil::StartsWith(_500_a_subfield, "In:"))
+              continue;
           if (not is_book_component_matcher->matched(_500_a_subfield)) {
               record->setBibliographicLevel('b');
               *modified_record = true;
@@ -514,13 +527,16 @@ void Rewrite856OpenAccess(MARC::Record * const record,  bool * const modified_re
 }
 
 
-void Transfer024DOITo856(MARC::Record * const record,  bool * const modified_record) {
-    static const std::string doi_regex("^http[s]?://doi.org/.*$");
+void Fix024DOIAndTransferTo856(MARC::Record * const record,  bool * const modified_record) {
+    static const std::string doi_regex("^http[s]?://doi.org/(.*$)");
     static RegexMatcher * const doi_matcher(RegexMatcher::RegexMatcherFactoryOrDie(doi_regex));
 
     for (auto &field : record->getTagRange("024")) {
         if (field.getIndicator1() == '7' and field.getIndicator2() == ' ' and
             doi_matcher->matched(field.getFirstSubfieldWithCode('a'))) {
+                // Remove Resolver Prefix in 024
+                field.insertOrReplaceSubfield('a', (*doi_matcher)[1]);
+                // Create new information
                 record->insertField("856", MARC::Subfields({
                                            MARC::Subfield('u', (*doi_matcher)[0]),
                                            MARC::Subfield('x', "Resolving System"),
@@ -547,7 +563,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         MovePageNumbersFrom300(&record, &modified_record);
         FixArticleLeader(&record, &modified_record);
         RemoveLicenseField540(&record, &modified_record);
-        Transfer024DOITo856(&record, &modified_record);
+        Fix024DOIAndTransferTo856(&record, &modified_record);
         Rewrite856OpenAccess(&record, &modified_record);
         Copy024OIAIdentifierToLocal938Field(&record, &modified_record);
 
