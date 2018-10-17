@@ -92,10 +92,7 @@ void Assemble773Book(MARC::Subfields * const _773subfields, const std::string &t
     if (not (title.empty() and authors.empty() and year.empty() and pages.empty() and isbn.empty()))
        _773subfields->addSubfield('i', "In:");
     if (not title.empty()) {
-        if (not authors.empty())
-            _773subfields->addSubfield('t', StringUtil::Trim(title));
-        else
-            _773subfields->addSubfield('a', StringUtil::Trim(title));
+        _773subfields->addSubfield('t', StringUtil::Trim(title));
     }
     if (not authors.empty())
         _773subfields->appendSubfield('a', authors);
