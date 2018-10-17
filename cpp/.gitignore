@@ -4,6 +4,7 @@
 /add_article_cross_links
 /add_author_synonyms
 /add_child_refs
+/add_cross_link_type
 /add_isbns_or_issns_to_articles
 /add_journal_subscription
 /add_publication_year_to_serials
@@ -27,6 +28,7 @@
 /clean_tag_db
 /collect_solr_stats_data
 /control_number_filter
+/control_number_guesser
 /convert_bible_references
 /convert_dakar
 /convert_oai_pmh_dc_to_marc21
