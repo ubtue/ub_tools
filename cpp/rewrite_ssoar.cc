@@ -67,21 +67,29 @@ void Assemble773Article(MARC::Subfields * const _773subfields, const std::string
     std::string subfield_g_content;
     std::string volinfo_vol, volinfo_year, volinfo_edition;
 
+    // Generate $g with vol(year), edition, pages
     if (not volinfo.empty())
-        ParseVolInfo(volinfo, &volinfo_vol, &volinfo_year, &volinfo_edition);
-        subfield_g_content.append(StringUtil::Trim(volinfo));
+        ParseVolInfo(StringUtil::Trim(volinfo), &volinfo_vol, &volinfo_year, &volinfo_edition);
+
+    if (not (year.empty() and volinfo_year.empty()))
+        _773subfields->appendSubfield('d', (not year.empty()) ? year : volinfo_year);
+
+    if (not volinfo_vol.empty())
+        subfield_g_content += volinfo_vol;
+
+    if (not volinfo_year.empty())
+        subfield_g_content += "(" + volinfo_year + ")";
+
+    if (not (edition.empty() and volinfo_edition.empty()))
+        subfield_g_content += (not edition.empty()) ? ", " + edition : ", " + volinfo_edition;
+
     if (not pages.empty()) {
         subfield_g_content += not subfield_g_content.empty() ? ", " : subfield_g_content;
         subfield_g_content += "S. " + pages;
     }
 
-    if (not (year.empty() and volinfo_year.empty()))
-        _773subfields->appendSubfield('d', (not year.empty()) ? year : volinfo_year);
-    if (not (edition.empty() and volinfo_edition.empty())) {
-        const std::string _773g_year(_773subfields->hasSubfield('d') ?
-                                     "(" + _773subfields->getFirstSubfieldWithCode('d') + ")" : "");
-        _773subfields->appendSubfield('g', _773g_year + ((not edition.empty()) ? ", " + edition : ", " + volinfo_edition));
-    }
+    if (not subfield_g_content.empty())
+        _773subfields->appendSubfield('g', subfield_g_content);
 }
 
 
