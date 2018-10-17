@@ -123,10 +123,10 @@ void ControlNumberGuesser::insertYear(const std::string &year, const std::string
         LOG_ERROR("\"" + control_number + "\" is too large to fit!");
 
     std::string control_numbers;
-    size_t padded_length;
+    size_t padded_length(0);
     if (years_db_->get(year, &control_numbers))
         padded_length = control_numbers.length();
-    padded_length = MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */;
+    padded_length += MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */;
 
     control_numbers += control_number;
     StringUtil::Pad(&control_numbers, padded_length, '\0');
