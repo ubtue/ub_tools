@@ -42,7 +42,7 @@ void Usage() __attribute__((noreturn));
 
 void Usage() {
     std::cerr << "Usage: " << ::progname << " [--debug|--query] [--map-file-directory=path] bible_reference_candidate\n";
-    std::cerr << "          books_of_the_bible_to_code_map\n";
+    std::cerr << "          bible_aliases_map books_of_the_bible_to_code_map\n";
     std::cerr << "          books_of_the_bible_to_canonical_form_map pericopes_to_codes_map\n";
     std::cerr << '\n';
     std::cerr << "          When --debug has been specified additional tracing output will be generated.\n";
@@ -214,13 +214,17 @@ int main(int argc, char **argv) {
         ++argv, --argc;
     }
 
-    if (argc != 5)
+    if (argc != 6)
         Usage();
 
-    const std::string bible_reference_candidate(StringUtil::Trim(TextUtil::CollapseWhitespace(StringUtil::ToLower(argv[1]))));
-    const std::string books_of_the_bible_to_code_map_filename(map_file_path + argv[2]);
-    const std::string books_of_the_bible_to_canonical_form_map_filename(map_file_path + argv[3]);
-    const std::string pericopes_to_codes_map(map_file_path + argv[4]);
+    std::string bible_reference_candidate(StringUtil::Trim(TextUtil::CollapseWhitespace(TextUtil::UTF8ToLower(argv[1]))));
+    const std::string bible_aliases_map_filename(map_file_path + argv[2]);
+    const std::string books_of_the_bible_to_code_map_filename(map_file_path + argv[3]);
+    const std::string books_of_the_bible_to_canonical_form_map_filename(map_file_path + argv[4]);
+    const std::string pericopes_to_codes_map(map_file_path + argv[5]);
+
+    const BibleUtil::BibleAliasMapper alias_mapper(bible_aliases_map_filename);
+    bible_reference_candidate = alias_mapper.map(bible_reference_candidate, verbose);
 
     HandleBookRanges(verbose, generate_solr_query, books_of_the_bible_to_canonical_form_map_filename,
                      books_of_the_bible_to_code_map_filename, bible_reference_candidate);
