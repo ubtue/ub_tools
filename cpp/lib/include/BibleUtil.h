@@ -31,7 +31,7 @@ namespace BibleUtil {
 
 static const std::string BIB_REF_RANGE_TAG("809");
 
-    
+
 const unsigned BOOK_CODE_LENGTH(2);
 const unsigned MAX_CHAPTER_LENGTH(3);
 const unsigned MAX_VERSE_LENGTH(3);
@@ -69,8 +69,6 @@ public:
 };
 
 
-
-
 class BibleBookToCodeMapper {
     std::unordered_map<std::string, std::string> bible_books_to_codes_map_;
 public:
@@ -80,6 +78,18 @@ public:
      *  \return The mapped name or, if no mapping was found, the empty string.
      */
     std::string mapToCode(const std::string &bible_book_candidate, const bool verbose = false) const;
+};
+
+
+class BibleAliasMapper {
+    std::unordered_map<std::string, std::string> aliases_to_canonical_forms_map_;
+public:
+    explicit BibleAliasMapper(const std::string &bible_aliases_map_filename);
+
+    /** \brief Map noncanonical forms to the canonical ones.
+     *  \return The canonical mapped version if found, else the original "bible_reference_candidate".
+     */
+    std::string map(const std::string &bible_reference_candidate, const bool verbose = false) const;
 };
 
 
