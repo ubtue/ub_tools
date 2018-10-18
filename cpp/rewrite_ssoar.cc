@@ -43,7 +43,7 @@ namespace {
 bool ParseVolInfo(const std::string &volinfo, std::string * const volinfo_vol, std::string * const volinfo_year,
                   std::string * const volinfo_edition)
 {
-    static const std::string volinfo_regex("(\\d+)\\s+\\((\\d{4})\\)\\s+([\\d\\-/]+)"); //vol (year) edition
+    static const std::string volinfo_regex("(\\d+)\\s+\\((\\d{4})\\)\\s+([\\d\\-+/]+)"); //vol (year) edition
     static RegexMatcher * const vol_info_matcher(RegexMatcher::RegexMatcherFactoryOrDie(volinfo_regex));
     if (not vol_info_matcher->matched(volinfo))
         return false;
@@ -52,7 +52,7 @@ bool ParseVolInfo(const std::string &volinfo, std::string * const volinfo_vol, s
     *volinfo_year = (*vol_info_matcher)[2];
     *volinfo_edition = (*vol_info_matcher)[3];
     // Normalize range representation in edition ranges because RDA requires it
-    StringUtil::Map(volinfo_edition, '-', '/');
+    StringUtil::Map(volinfo_edition, "-+", "//");
     return true;
 }
 
