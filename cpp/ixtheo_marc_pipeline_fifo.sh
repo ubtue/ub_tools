@@ -90,6 +90,7 @@ StartPhase "Drop Records Containing mtex in 935" \
      GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --drop 935a:mtex \
     --remove-fields '856u:ixtheo\.de' \
+    --remove-fields 'LOK:086630(.*)\x{1F}x' `# Remove internal bibliographic comments`  \
     --filter-chars 130a:240a:245a '@' \
     --remove-subfields '6002:blmsh' '6102:blmsh' '6302:blmsh' '6892:blmsh' '6502:blmsh' '6512:blmsh' '6552:blmsh' \
     --replace 600a:610a:630a:648a:650a:651a:655a /usr/local/var/lib/tuelib/keyword_normalistion.map \
@@ -109,7 +110,7 @@ EndPhase || Abort) &
 
 StartPhase "Extract Translations and Generate Interface Translation Files"
 (extract_vufind_translations_for_translation \
-    "$VUFIND_HOME"/local/tuefind/languages/de.ini \ # German terms before all others.
+    "$VUFIND_HOME"/local/tuefind/languages/de.ini `# German terms before all others.` \
     $(ls -1 "$VUFIND_HOME"/local/tuefind/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
 generate_vufind_translation_files "$VUFIND_HOME"/local/tuefind/languages/ >> "${log}" 2>&1 && \
 EndPhase || Abort) &
@@ -132,13 +133,13 @@ wait
 
 
 StartPhase "Create Databases for Title and Author Matching (for article cross-linking)"
-(create_match_db GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+(create_match_db GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
 
 StartPhase "Cross Link Articles"
-(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                          article_matches.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &
@@ -252,13 +253,6 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
-StartPhase "Extract Tags From MySql Tables and Insert Them Into MARC Records"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(convert_tags_to_keywords GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-
-
 StartPhase "Tag further potential relbib entries"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_additional_relbib_entries GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
@@ -302,13 +296,20 @@ StartPhase "Tag PDA candidates"
 (augment_pda \
     $(ls -t gvi_ppn_list-??????.txt | head -1) \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
 StartPhase "Export Subsystem Tags to VuFind SQL Database"
 (export_subsystem_ids_to_db GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
      >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
+StartPhase "Cross-link Type Tagging"
+(add_cross_link_type GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+    GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 

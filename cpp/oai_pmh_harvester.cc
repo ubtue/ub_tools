@@ -257,7 +257,7 @@ int Main(int argc, char **argv) {
                                       "<collection xmlns=\"http://www.loc.gov/MARC21/slim\" "
                                       "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
                                       "xsi:schemaLocation=\"http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd\">");
-    temp_output->write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + COLLECTION_OPEN + "\n");
+    temp_output->writeln("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + COLLECTION_OPEN);
 
     std::string resumption_token, cursor, complete_list_size;
     unsigned total_record_count(0);
@@ -268,7 +268,7 @@ int Main(int argc, char **argv) {
                  + ", completeListSize=" + complete_list_size + ").");
 
     const std::string COLLECTION_CLOSE("</collection>");
-    temp_output->write(COLLECTION_CLOSE + "\n");
+    temp_output->writeln(COLLECTION_CLOSE);
     temp_output->close();
     LOG_INFO("Downloaded " + std::to_string(total_record_count) + " record(s).");
 
