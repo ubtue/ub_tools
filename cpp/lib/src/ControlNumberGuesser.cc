@@ -111,9 +111,8 @@ void ControlNumberGuesser::insertYear(const std::string &year, const std::string
 
     if (not query_result.empty())
         db_connection_->queryOrDie("UPDATE publication_year SET control_numbers='" + control_numbers + "' WHERE year='" + year + "'");
-    else {
+    else
         db_connection_->queryOrDie("INSERT INTO publication_year VALUES('" + year + "', '" + control_numbers + "')");
-    }
 }
 
 
