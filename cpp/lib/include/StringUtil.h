@@ -2349,6 +2349,13 @@ inline std::string PadLeading(const std::string &s, const std::string::size_type
 }
 
 
+inline std::string &Pad(std::string * const s, const std::string::size_type min_length, const char pad_char = ' ') {
+    if (s->length() < min_length)
+        s->insert(0, min_length - s->length(), pad_char);
+    return *s;
+}
+
+
 /** \return If "needle" was found in "haystack", the starting position in "haystack" else std::string::npos. */
 size_t FindCaseInsensitive(const std::string &haystack, const std::string &needle);
 

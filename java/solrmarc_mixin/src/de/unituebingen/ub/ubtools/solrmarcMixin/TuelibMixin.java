@@ -660,12 +660,16 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (_773Field == null)
             return null;
 
-        final Subfield aSubfield = _773Field.getSubfield('a');
-        if (aSubfield == null)
+
+        Subfield titleSubfield = _773Field.getSubfield('t');
+        if (titleSubfield == null)
+            titleSubfield = _773Field.getSubfield('a');
+
+        if (titleSubfield == null)
             return null;
 
         final Set<String> subfields = new LinkedHashSet<String>();
-        subfields.add(aSubfield.getData());
+        subfields.add(titleSubfield.getData());
 
         final Subfield gSubfield = _773Field.getSubfield('g');
         if (gSubfield != null)
