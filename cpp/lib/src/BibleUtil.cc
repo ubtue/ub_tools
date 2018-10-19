@@ -465,7 +465,7 @@ BibleAliasMapper::BibleAliasMapper(const std::string &bible_aliases_map_filename
 
 std::string BibleAliasMapper::map(const std::string &bible_reference_candidate, const bool verbose) const {
     const std::string normalised_reference_candidate(StringUtil::Filter(TextUtil::UTF8ToLower(bible_reference_candidate), { ' ' }));
-    const auto alias_and_canonical_form(aliases_to_canonical_forms_map_.find(bible_reference_candidate));
+    const auto alias_and_canonical_form(aliases_to_canonical_forms_map_.find(normalised_reference_candidate));
     if (alias_and_canonical_form == aliases_to_canonical_forms_map_.end()) {
         if (verbose)
             std::cerr << "No mapping from \"" << bible_reference_candidate << "\" to a canonical form was found!\n";
