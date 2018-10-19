@@ -41,7 +41,8 @@ private:
         : row_(row), field_sizes_(field_sizes), field_count_(field_count), stmt_handle_(nullptr),
           field_name_to_index_map_(&field_name_to_index_map) { }
     DbRow(sqlite3_stmt *stmt_handle, const std::map<std::string, unsigned> &field_name_to_index_map)
-        : row_(nullptr), field_sizes_(nullptr), stmt_handle_(stmt_handle), field_name_to_index_map_(&field_name_to_index_map) { }
+        : row_(nullptr), field_sizes_(nullptr), field_count_(field_name_to_index_map.size()), stmt_handle_(stmt_handle),
+          field_name_to_index_map_(&field_name_to_index_map) { }
 public:
     DbRow(): row_(nullptr), field_sizes_(nullptr), field_count_(0), stmt_handle_(nullptr) { }
     DbRow(DbRow &&other);
@@ -69,7 +70,7 @@ public:
 
     /** \throws std::out_of_range if the index "i" refers to an invalid column. */
     bool isNull(const size_t i) const;
-    
+
     /** \throws std::out_of_range if the "column_name" refers to a non-existent column name. */
     bool isNull(const std::string &column_name) const;
 };
