@@ -1,4 +1,5 @@
--- Control numbers are saved as concatenated lists of individual numbers delimited by the '|' character
+-- Control numbers are saved as a single text blob consisting of individual numbers concatenated together with the '|' character.
+-- Individual (control) numbers are additionally padded to their maximum length in the case of the "publication_year" table.
 
 CREATE TABLE normalised_titles (
     title TEXT NOT NULL PRIMARY KEY,
