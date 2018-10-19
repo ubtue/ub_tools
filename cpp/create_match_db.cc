@@ -39,6 +39,9 @@ namespace {
 
 
 void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::Reader * const reader) {
+    control_number_guesser->clearDatabase();
+    control_number_guesser->beingUpdate();
+
     unsigned processed_record_count(0), records_with_empty_titles(0);
     while (const auto record = reader->read()) {
         ++processed_record_count;
@@ -59,6 +62,7 @@ void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::R
         if (not year.empty())
             control_number_guesser->insertYear(year, control_number);
     }
+    control_number_guesser->endUpdate();
 
     LOG_INFO("Processed " + std::to_string(processed_record_count) + " records.");
     LOG_INFO("Found " + std::to_string(records_with_empty_titles) + " records with empty titles.");
@@ -72,7 +76,7 @@ int Main(int argc, char **argv) {
     if (argc != 2)
         Usage();
 
-    ControlNumberGuesser control_number_guesser(ControlNumberGuesser::CLEAR_DATABASES);
+    ControlNumberGuesser control_number_guesser;
     auto reader(MARC::Reader::Factory(argv[1]));
     PopulateTables(&control_number_guesser, reader.get());
 

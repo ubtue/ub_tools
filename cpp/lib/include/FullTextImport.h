@@ -47,6 +47,10 @@ struct FullTextData {
     std::set<std::string> authors_;
     std::string year_;
     std::vector<std::string> full_text_;
+
+    inline bool hasValidMetadata() const {
+        return not title_.empty() and not authors_.empty() and not year_.empty();
+    }
 };
 
 
