@@ -2205,10 +2205,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        // If we classified an object as "DictionaryEntryOrArticle" we don't also want it to be classified as an article:
-        if (result.contains("Article") && result.contains("DictionaryEntryOrArticle"))
-            result.remove("Article");
-
         // Nothing worked!
         if (result.isEmpty()) {
             result.add("Unknown");
@@ -2359,6 +2355,10 @@ outer:  for (final VariableField _935Field : _935Fields) {
             formats.remove("eBook");
             formats.add("Book");
         }
+
+        // If we classified an object as "DictionaryEntryOrArticle" we don't also want it to be classified as an article:
+        if (formats.contains("Article") && formats.contains("DictionaryEntryOrArticle"))
+            formats.remove("Article");
 
         return formats;
     }
