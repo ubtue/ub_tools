@@ -988,19 +988,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
-    /**
-     * Returns a Set<String> of Persistent Identifiers, e.g. DOIs and URNs
-     * e.g.
-     *  DOI:<doi1>
-     *  URN:<urn1>
-     *  URN:<urn2>
-     * URLs are scanned for URNs from 856$u. "urn:" will be part of the URN.
-     * Furthermore 024$2 will be checked for "doi".
-     */
-    public Set<String> getTypesAndPersistentIdentifiers(final Record record) {
+    private static Set<String> getDOIs(final Record record) {
         final Set<String> result = new TreeSet<>();
 
-        // Handle DOIs
         for (final VariableField variableField : record.getVariableFields("024")) {
             final DataField field = (DataField) variableField;
             final Subfield subfield_2 = field.getSubfield('2');
@@ -1012,7 +1002,12 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        // Handle URNs
+        return result;
+    }
+
+    private static Set<String> getURNs(final Record record) {
+        final Set<String> result = new TreeSet<>();
+
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
 
@@ -1027,6 +1022,22 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
+        return result;
+    }
+    
+    /**
+     * Returns a Set<String> of Persistent Identifiers, e.g. DOIs and URNs
+     * e.g.
+     *  DOI:<doi1>
+     *  URN:<urn1>
+     *  URN:<urn2>
+     * URLs are scanned for URNs from 856$u. "urn:" will be part of the URN.
+     * Furthermore 024$2 will be checked for "doi".
+     */
+    public Set<String> getTypesAndPersistentIdentifiers(final Record record) {
+        final Set<String> result = getDOIs(record);
+        result.addAll(getURNs(record));
+        
         return result;
     }
 
@@ -2200,6 +2211,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (result.isEmpty()) {
             result.add("Unknown");
         }
+
+        if (!getDOIs(record).isEmpty())
+            result.add("Electronic");
 
         return result;
     }
