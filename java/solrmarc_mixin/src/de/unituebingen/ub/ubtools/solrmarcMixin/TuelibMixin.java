@@ -1126,7 +1126,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         for (final String value : values) {
             if (value.startsWith(ISIL_PREFIX_BSZ))
-                ppns.add(value.substring(0, ISIL_PREFIX_BSZ.length()));
+                ppns.add(value.substring(ISIL_PREFIX_BSZ.length()));
         }
 
         return ppns;
