@@ -23,26 +23,28 @@
 #include <set>
 #include <string>
 #include <unordered_map>
-#include <kchashdb.h>
+#include "BSZUtil.h"
+#include "DbConnection.h"
 
 
 class ControlNumberGuesser {
     static const std::set<std::string> EMPTY_SET;
+    static const std::string DATABASE_PATH;
+    static const std::string INSTALLER_SCRIPT_PATH;
+
     const size_t MAX_CONTROL_NUMBER_LENGTH;
-    kyotocabinet::HashDB *titles_db_, *authors_db_, *years_db_;
-    mutable kyotocabinet::DB::Cursor *title_cursor_, *author_cursor_, *year_cursor_;
-
-    // A map that, given a control number, allows lookups of all control numbers of items that have the same normalised title
-    // and at least one common normalized author.
-    mutable std::unordered_map<std::string, std::set<std::string> *> control_number_to_control_number_set_map_;
-
-    //  A map that, given a control number, allows lookups of all control numbers of items that share the same publication year.
-    mutable std::unordered_map<std::string, std::unordered_set<std::string> *> control_number_to_year_control_number_set_map_;
+    std::unique_ptr<DbConnection> db_connection_;
+    mutable std::unique_ptr<DbResultSet> title_cursor_, author_cursor_, year_cursor_;
+    bool transaction_in_progress_;
 public:
-    enum OpenMode { CLEAR_DATABASES, DO_NOT_CLEAR_DATABASES };
-public:
-    explicit ControlNumberGuesser(const OpenMode open_mode);
+    explicit ControlNumberGuesser()
+        : MAX_CONTROL_NUMBER_LENGTH(BSZUtil::PPN_LENGTH_NEW), db_connection_(new DbConnection(DATABASE_PATH, DbConnection::CREATE)),
+          transaction_in_progress_(false) {}
     ~ControlNumberGuesser();
+public:
+    void clearDatabase();
+    void beingUpdate();
+    void endUpdate();
 
     void insertTitle(const std::string &title, const std::string &control_number);
     void insertAuthors(const std::set<std::string> &authors, const std::string &control_number);
@@ -58,18 +60,13 @@ public:
     void lookupAuthor(const std::string &author_name, std::set<std::string> * const control_numbers) const;
     void lookupYear(const std::string &year, std::unordered_set<std::string> * const control_numbers) const;
 
-    /** \return The control numbers of objects w/ the same title and at least one common author.
-     *  \note   If we found any partners, "control_number" will also be included in the returned set.
-     */
-    std::set<std::string> getControlNumberPartners(const std::string &control_number, const bool also_use_years = false) const;
-
     /** For testing purposes. */
     static std::string NormaliseTitle(const std::string &title);
     static std::string NormaliseAuthorName(const std::string &author_name);
 private:
-    void FindDups(const std::unordered_map<std::string, std::set<std::string>> &title_to_control_numbers_map,
-                  const std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map) const;
-    void InitControlNumberToControlNumberSetMap() const;
-    void InitControlNumberToYearControlNumberSetMap() const;
-    void splitControNumbers(const std::string &concatenated_control_numbers, std::unordered_set<std::string> * const control_numbers) const;
+    void insertNewControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
+                                const std::string &control_number);
+    bool lookupControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
+                             std::string * const control_numbers) const;
+    void splitControlNumbers(const std::string &concatenated_control_numbers, std::unordered_set<std::string> * const control_numbers) const;
 };

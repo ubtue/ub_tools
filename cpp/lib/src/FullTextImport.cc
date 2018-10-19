@@ -88,7 +88,7 @@ size_t CorrelateFullTextData(const std::vector<std::shared_ptr<FullTextData>> &f
                             std::unordered_map<std::string, std::shared_ptr<FullTextData>> * const control_number_to_full_text_data_map)
 {
     size_t exact_matches(0);
-    ControlNumberGuesser ppn_guesser(ControlNumberGuesser::DO_NOT_CLEAR_DATABASES);
+    ControlNumberGuesser ppn_guesser;
     for (const auto &full_text : full_text_data) {
         const auto matching_ppns(ppn_guesser.getGuessedControlNumbers(full_text->title_, full_text->authors_, full_text->year_));
         if (matching_ppns.empty())

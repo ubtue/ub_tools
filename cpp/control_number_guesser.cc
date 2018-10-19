@@ -44,7 +44,7 @@ namespace {
 
 
 int Main(int argc, char **argv) {
-    const ControlNumberGuesser control_number_guesser(ControlNumberGuesser::DO_NOT_CLEAR_DATABASES);
+    const ControlNumberGuesser control_number_guesser;
 
     std::unordered_set<std::string> control_numbers;
     for (int arg_no(1); arg_no < argc; ++arg_no) {
