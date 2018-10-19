@@ -1116,6 +1116,19 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
+    public Set<String> getAuthorPPNs(final Record record, final String fieldSpecs) {
+        final Set<String> values = SolrIndexer.instance().getFieldList(record, fieldSpecs);
+        final Set<String> ppns = new TreeSet<>();
+
+        for (final String value : values) {
+            if (value.startsWith(ISIL_PREFIX_BSZ))
+                ppns.add(value);
+        }
+
+        return ppns;
+    }
+
+
     /**
      * @param record
      *            the record
