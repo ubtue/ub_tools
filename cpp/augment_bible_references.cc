@@ -49,9 +49,7 @@ namespace {
 }
 
 
-void LoadBibleOrderMap(File * const input,
-                       std::unordered_map<std::string, std::string> * const books_of_the_bible_to_code_map)
-{
+void LoadBibleOrderMap(File * const input, std::unordered_map<std::string, std::string> * const books_of_the_bible_to_code_map) {
     LOG_INFO("Started loading of the bible-order map.");
 
     unsigned line_no(0);
@@ -125,8 +123,7 @@ bool OrderNSubfields(std::vector<std::string> * const n_subfield_values) {
 
 // Populates "numbered_books" based on "book_name_candidate" and the 0th entry in "*n_subfield_values".
 // If there were one or more arabic numerals in "(*n_subfield_values)[0]" this entry will also be removed.
-void CreateNumberedBooks(const std::string &book_name_candidate,
-                         std::vector<std::string> * const n_subfield_values,
+void CreateNumberedBooks(const std::string &book_name_candidate, std::vector<std::string> * const n_subfield_values,
                          std::vector<std::string> * const numbered_books)
 {
     numbered_books->clear();
@@ -234,7 +231,8 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
     bool found_at_least_one(false);
     for (const auto &field : record.getTagRange(field_tag)) {
         const auto subfields(field.getSubfields());
-        const bool esra_special_case(subfields.getFirstSubfieldWithCode('a') == "Esra");
+        const bool esra_special_case(subfields.getFirstSubfieldWithCode('a') == "Esra"
+                                     or subfields.getFirstSubfieldWithCode('a') == "Esdras");
         const bool maccabee_special_case(subfields.getFirstSubfieldWithCode('a') == "Makkabäer");
         if (not (subfields.getFirstSubfieldWithCode('a') == "Bibel" and subfields.hasSubfield('p')) and not esra_special_case
             and not maccabee_special_case)
@@ -276,6 +274,21 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
 
         std::vector<std::string> books;
         CreateNumberedBooks(book_name_candidate, &n_subfield_values, &books);
+
+        // Special processing for 2 Esdras, 5 Esra and 6 Esra
+        if (not books.empty()) {
+            if (books[0] == "5esra") {
+                books[0] = "4esra";
+                n_subfield_values.clear();
+                n_subfield_values.emplace_back("1-2"); // 5 Esra is an alias for 4 Esra 1-2
+            } else if (books[0] == "6esra") {
+                books[0] = "4esra";
+                n_subfield_values.clear();
+                n_subfield_values.emplace_back("15-16"); // 6 Esra is an alias for 4 Esra 15-16
+            } else if (books[0] == "2esdras")
+                books[0] = "4esra";
+        }
+
         if (not HaveBibleBookCodes(books, bible_book_to_code_map)) {
             LOG_WARNING(record.getControlNumber() + ": found no bible book code for \"" + book_name_candidate
                         + "\"! (" + StringUtil::Join(n_subfield_values, ", ") + ")");
