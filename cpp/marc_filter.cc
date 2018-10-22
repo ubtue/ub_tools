@@ -611,54 +611,58 @@ void Filter(const std::vector<FilterDescriptor> &filters, MARC::Reader * const m
                     goto print_counts;
                 }
             } else if (filter.getFilterType() == FilterType::FILTER_CHARS) {
-                if (FilterCharacters(filter.getSubfieldSpecs(), filter.getCharsToDelete(), &record))
+                if (FilterCharacters(filter.getSubfieldSpecs(), filter.getCharsToDelete(), &record)) {
                     modified_record = true;
+                    continue;
+                }
             } else if (filter.getFilterType() == FilterType::DROP_BIBLIOGRAPHIC_LEVEL) {
                 if (std::strchr(filter.getBiblioLevels().c_str(), record.getBibliographicLevel())
                     != nullptr)
                 {
                     deleted_record = true;
-                    break;
+                    continue;
                 }
             } else if (filter.getFilterType() == FilterType::KEEP_BIBLIOGRAPHIC_LEVEL) {
                 if (std::strchr(filter.getBiblioLevels().c_str(), record.getBibliographicLevel())
                                 != nullptr)
                 {
                     deleted_record = true;
-                    break;
+                    continue;
                 }
             } else if (filter.getFilterType() == FilterType::REMOVE_SUBFIELDS) {
-               std::vector<std::pair<size_t, char>> matched_field_indices_and_subfields;
-               if (MatchedSubfield(record, filter.getCompiledPatterns(), &matched_field_indices_and_subfields)) {
-                   std::sort(matched_field_indices_and_subfields.begin(), matched_field_indices_and_subfields.end());
-                   for (const auto field_index_and_subfield : matched_field_indices_and_subfields) {
-                       auto field(record.begin() + field_index_and_subfield.first);
-                       field->deleteAllSubfieldsWithCode(field_index_and_subfield.second);
-                   }
-                   modified_record = true;
-                   break;
-               }
-            } else if (filter.getFilterType() == FilterType::TRANSLATE) {
-                if (TranslateCharacters(filter.getSubfieldSpecs(), filter.getTranslateMap(), &record))
+                std::vector<std::pair<size_t, char>> matched_field_indices_and_subfields;
+                if (MatchedSubfield(record, filter.getCompiledPatterns(), &matched_field_indices_and_subfields)) {
+                    std::sort(matched_field_indices_and_subfields.begin(), matched_field_indices_and_subfields.end());
+                    for (const auto field_index_and_subfield : matched_field_indices_and_subfields) {
+                        auto field(record.begin() + field_index_and_subfield.first);
+                        field->deleteAllSubfieldsWithCode(field_index_and_subfield.second);
+                    }
                     modified_record = true;
+                    continue;
+                }
+            } else if (filter.getFilterType() == FilterType::TRANSLATE) {
+                if (TranslateCharacters(filter.getSubfieldSpecs(), filter.getTranslateMap(), &record)) {
+                    modified_record = true;
+                    continue;
+                }
             } else if (filter.getFilterType() == FilterType::REPLACE) {
                 if (ReplaceSubfields(filter.getSubfieldSpecs(), filter.getRegexMatcher(),
-                                     filter.getStringFragmentsAndBackreferences(), &record))
+                                     filter.getStringFragmentsAndBackreferences(), &record)) {
                     modified_record = true;
+                    continue;
+                }
             } else {
                 std::vector<size_t> matched_field_indices;
                 if (Matched(record, filter.getCompiledPatterns(), &matched_field_indices)) {
                     if (filter.getFilterType() == FilterType::DROP) {
                         deleted_record = true;
-                        break;
+                        continue;
                     } else if (filter.getFilterType() == FilterType::REMOVE_FIELDS) {
                         record.deleteFields(matched_field_indices);
                         modified_record = true;
                     }
-                } else if (filter.getFilterType() == FilterType::KEEP) {
-                    deleted_record = true;
-                    break;
-                }
+                } else if (filter.getFilterType() == FilterType::KEEP)
+                    continue;
             }
         }
 
