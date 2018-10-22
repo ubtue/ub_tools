@@ -15,21 +15,18 @@ fi
 echo "Remove superfluous subfields"
 filtered_file="krim_ssoar_filtered.xml"
 marc_filter krim_ssoar.xml "$filtered_file" \
-    --remove-subfields '7737:nnas'
-
-
-filtered_file1="krim_ssoar_filtered1.xml"
-marc_filter "$filtered_file" "$filtered_file1" \
+    --remove-subfields '7737:nnas' \
     --remove-subfields '856s:^\s+bytes'
 
 
 echo "Add various selection identifiers"
 augmented_file="krim_ssoar_augmented.xml"
-marc_augmentor "$filtered_file1" "$augmented_file" \
+marc_augmentor "$filtered_file" "$augmented_file" \
     --insert-field '084:  \x1FaKRIM\x1FqDE-21\x1F2fid' \
     --insert-field '852a:DE-2619' \
     --insert-field '935a:mkri' \
     --insert-field 'LOK:  \x1F0935\x1Fasoar'
+
 
 
 echo "Rewrite some of the contents"
