@@ -53,7 +53,7 @@ void TagCrossLinks(MARC::Reader * const reader, MARC::Writer * const writer,
                 if (unlikely(ppn_and_is_electronic == ppn_to_is_electronic_map.cend())) {
                     LOG_WARNING("dangling cross link from \"" + record.getControlNumber() + "\" to \"" + partner_control_number + "\"!");
                     ++danglink_link_count;
-                    field.appendSubfield('x', "dangling");
+                    field.appendSubfield('k', "dangling");
                     continue;
                 }
 
@@ -62,7 +62,7 @@ void TagCrossLinks(MARC::Reader * const reader, MARC::Writer * const writer,
                 else
                     ++link_target_is_different_type;
 
-                field.appendSubfield('x', ppn_and_is_electronic->second ? "Electronic" : "Non-Electronic");
+                field.appendSubfield('k', ppn_and_is_electronic->second ? "Electronic" : "Non-Electronic");
             }
         }
 
