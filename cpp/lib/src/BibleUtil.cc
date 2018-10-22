@@ -24,6 +24,7 @@
 #include "MapIO.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "util.h"
 
 
@@ -454,6 +455,27 @@ std::string BibleBookToCodeMapper::mapToCode(const std::string &bible_book_candi
     }
 
     return bible_book_and_code->second;
+}
+
+
+BibleAliasMapper::BibleAliasMapper(const std::string &bible_aliases_map_filename) {
+    MapIO::DeserialiseMap(bible_aliases_map_filename, &aliases_to_canonical_forms_map_);
+}
+
+
+std::string BibleAliasMapper::map(const std::string &bible_reference_candidate, const bool verbose) const {
+    const std::string normalised_reference_candidate(StringUtil::Filter(TextUtil::UTF8ToLower(bible_reference_candidate), { ' ' }));
+    const auto alias_and_canonical_form(aliases_to_canonical_forms_map_.find(normalised_reference_candidate));
+    if (alias_and_canonical_form == aliases_to_canonical_forms_map_.end()) {
+        if (verbose)
+            std::cerr << "No mapping from \"" << bible_reference_candidate << "\" to a canonical form was found!\n";
+
+        return bible_reference_candidate;
+    }
+
+    if (verbose)
+        std::cerr << "Replaced " << bible_reference_candidate << " with " << alias_and_canonical_form->second << '\n';
+    return alias_and_canonical_form->second;
 }
 
 

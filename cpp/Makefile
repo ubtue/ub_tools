@@ -75,7 +75,7 @@ data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.tem
 	@echo "Installing data..."
 	mkdir --parents /usr/local/var/lib/tuelib/bibleRef/
 	cp data/books_of_the_bible_to_canonical_form.map data/books_of_the_bible_to_code.map \
-           data/pericopes_to_codes.map /usr/local/var/lib/tuelib/bibleRef/
+           data/pericopes_to_codes.map data/bible_aliases.map /usr/local/var/lib/tuelib/bibleRef/
 	mkdir --parents /usr/local/var/lib/tuelib/translate_chainer
 	cp data/done_translating.html data/translate.html data/translation_front_page.html \
            data/mytranslations_template.msg /usr/local/var/lib/tuelib/translate_chainer/

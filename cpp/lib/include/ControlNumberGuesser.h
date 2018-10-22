@@ -47,12 +47,16 @@ public:
     void insertTitle(const std::string &title, const std::string &control_number);
     void insertAuthors(const std::set<std::string> &authors, const std::string &control_number);
     void insertYear(const std::string &year, const std::string &control_number);
-    std::set<std::string> getGuessedControlNumbers(const std::string &title, const std::vector<std::string> &authors,
+    std::set<std::string> getGuessedControlNumbers(const std::string &title, const std::set<std::string> &authors,
                                                    const std::string &year = "") const;
 
     bool getNextTitle(std::string * const title, std::set<std::string> * const control_numbers) const;
     bool getNextAuthor(std::string * const author_name, std::set<std::string> * const control_numbers) const;
     bool getNextYear(std::string * const year, std::unordered_set<std::string> * const control_numbers) const;
+
+    void lookupTitle(const std::string &title, std::set<std::string> * const control_numbers) const;
+    void lookupAuthor(const std::string &author_name, std::set<std::string> * const control_numbers) const;
+    void lookupYear(const std::string &year, std::unordered_set<std::string> * const control_numbers) const;
 
     /** \return The control numbers of objects w/ the same title and at least one common author.
      *  \note   If we found any partners, "control_number" will also be included in the returned set.
@@ -67,4 +71,5 @@ private:
                   const std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map) const;
     void InitControlNumberToControlNumberSetMap() const;
     void InitControlNumberToYearControlNumberSetMap() const;
+    void splitControNumbers(const std::string &concatenated_control_numbers, std::unordered_set<std::string> * const control_numbers) const;
 };

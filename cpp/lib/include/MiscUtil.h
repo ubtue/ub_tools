@@ -176,8 +176,33 @@ template<typename ElementType> std::set<ElementType> Intersect(const std::set<El
 template<typename ElementType> std::set<ElementType> Intersect(const std::set<ElementType> &set1,
                                                                const std::unordered_set<ElementType> &set2)
 {
+    std::vector<ElementType> sorted_set2;
+    sorted_set2.reserve(set2.size());
+    std::copy(set2.cbegin(), set2.cend(), std::back_inserter(sorted_set2));
+    std::sort(sorted_set2.begin(), sorted_set2.end());
+
     std::set<ElementType> result;
-    std::set_intersection(set1.cbegin(), set1.cend(), set2.cbegin(), set2.cend(), std::inserter(result, result.begin()));
+    std::set_intersection(set1.cbegin(), set1.cend(), sorted_set2.cbegin(), sorted_set2.cend(), std::inserter(result, result.begin()));
+    return result;
+}
+
+
+template<typename ElementType> std::set<ElementType> Intersect(const std::unordered_set<ElementType> &set1,
+                                                               const std::unordered_set<ElementType> &set2)
+{
+    std::vector<ElementType> sorted_set1;
+    sorted_set1.reserve(set1.size());
+    std::copy(set1.cbegin(), set1.cend(), std::back_inserter(sorted_set1));
+    std::sort(sorted_set1.begin(), sorted_set1.end());
+
+    std::vector<ElementType> sorted_set2;
+    sorted_set2.reserve(set2.size());
+    std::copy(set2.cbegin(), set2.cend(), std::back_inserter(sorted_set2));
+    std::sort(sorted_set2.begin(), sorted_set2.end());
+
+    std::set<ElementType> result;
+    std::set_intersection(sorted_set1.cbegin(), sorted_set1.cend(), sorted_set2.cbegin(), sorted_set2.cend(),
+                          std::inserter(result, result.begin()));
     return result;
 }
 
