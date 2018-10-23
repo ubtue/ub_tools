@@ -474,6 +474,11 @@ bool Record::isElectronicResource() const {
         }
     }
 
+    for (const auto &_024_field : getTagRange("024")) {
+        if (_024_field.getFirstSubfieldWithCode('2') == "doi")
+            return true;
+    }
+
     return false;
 }
 
