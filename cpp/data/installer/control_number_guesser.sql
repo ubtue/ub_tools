@@ -21,3 +21,12 @@ CREATE TABLE publication_year (
     UNIQUE (year)
 );
 CREATE INDEX publication_year_index ON publication_year(year);
+
+CREATE TABLE doi (
+    doi TEXT NOT NULL PRIMARY KEY,
+    control_numbers TEXT NOT NULL,
+    UNIQUE (doi)
+);
+CREATE INDEX doi_doi_index ON doi(doi);
+
+

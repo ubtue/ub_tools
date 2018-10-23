@@ -116,11 +116,23 @@ void ControlNumberGuesser::insertYear(const std::string &year, const std::string
 }
 
 
+void ControlNumberGuesser::insertDoi(const std::string &doi, const std::string &control_number) {
+    std::string normalised_doi;
+    MiscUtil::NormaliseDOI(doi, &normalised_doi);
+
+    LOG_DEBUG("normalised_doi=\"" + normalised_doi + "\".");
+    if (unlikely(normalised_doi.empty()))
+        LOG_WARNING("Empty normalised doi in record w/ control number: " + control_number);
+    else
+        insertNewControlNumber("doi", "doi", normalised_doi, control_number);
+}
+
+
 std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::string &title, const std::set<std::string> &authors,
-                                                                     const std::string &year) const
+                                                                     const std::string &year, const std::string &doi) const
 {
     const auto normalised_title(NormaliseTitle(title));
-    std::set<std::string> title_control_numbers, all_author_control_numbers;
+    std::set<std::string> title_control_numbers, all_author_control_numbers, doi_control_numbers;
     std::unordered_set<std::string> year_control_numbers;
 
     lookupTitle(normalised_title, &title_control_numbers);
@@ -144,12 +156,18 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
         return { };
     }
 
-    const auto common_control_numbers(MiscUtil::Intersect(title_control_numbers, all_author_control_numbers));
+    auto common_control_numbers(MiscUtil::Intersect(title_control_numbers, all_author_control_numbers));
     if (year.empty())
         return common_control_numbers;
 
     lookupYear(year, &year_control_numbers);
-    return MiscUtil::Intersect(common_control_numbers, year_control_numbers);
+    common_control_numbers = MiscUtil::Intersect(common_control_numbers, year_control_numbers);
+
+    if (doi.empty())
+        return common_control_numbers;
+
+    lookupDoi(doi, &doi_control_numbers);
+    return MiscUtil::Intersect(common_control_numbers, doi_control_numbers);
 }
 
 
@@ -236,6 +254,17 @@ void ControlNumberGuesser::lookupYear(const std::string &year, std::unordered_se
     std::string concatenated_control_numbers;
     if (lookupControlNumber("publication_year", "year", year, &concatenated_control_numbers))
         splitControlNumbers(concatenated_control_numbers, control_numbers);
+}
+
+
+void ControlNumberGuesser::lookupDoi(const std::string &doi, std::set<std::string> * const control_numbers) const {
+    control_numbers->clear();
+
+    std::string normalised_doi;
+    MiscUtil::NormaliseDOI(doi, &normalised_doi);
+    std::string concatenated_control_numbers;
+    lookupControlNumber("doi", "doi", normalised_doi, &concatenated_control_numbers);
+    StringUtil::Split(concatenated_control_numbers, '|', control_numbers);
 }
 
 
