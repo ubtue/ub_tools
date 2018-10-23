@@ -52,9 +52,6 @@ const std::map<HarvesterType, std::string> HARVESTER_TYPE_TO_STRING_MAP{
 };
 
 
-const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
-
-
 const std::vector<std::string> EXPORT_FORMATS{
     "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
     "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei",
