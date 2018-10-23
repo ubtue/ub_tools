@@ -46,7 +46,7 @@ namespace {
 int Main(int argc, char **argv) {
     const ControlNumberGuesser control_number_guesser;
 
-    std::unordered_set<std::string> control_numbers;
+    std::set<std::string> control_numbers;
     for (int arg_no(1); arg_no < argc; ++arg_no) {
         if (StringUtil::StartsWith(argv[arg_no], "--lookup-author=")) {
             std::set<std::string> control_numbers2;
@@ -71,12 +71,13 @@ int Main(int argc, char **argv) {
                 control_numbers.insert(control_numbers2.cbegin(), control_numbers2.cend());
             }
         } else if (StringUtil::StartsWith(argv[arg_no], "--lookup-year=")) {
+            std::unordered_set<std::string> control_numbers2;
+            control_number_guesser.lookupYear(argv[arg_no] + __builtin_strlen("--lookup-year="), &control_numbers2);
+
             if (arg_no == 1)
-                control_number_guesser.lookupYear(argv[arg_no] + __builtin_strlen("--lookup-year="), &control_numbers);
+                control_numbers.insert(control_numbers2.cbegin(), control_numbers2.cend());
             else {
-                std::unordered_set<std::string> control_numbers2;
-                control_number_guesser.lookupYear(argv[arg_no] + __builtin_strlen("--lookup-year="), &control_numbers2);
-                const auto control_numbers3(MiscUtil::Intersect(control_numbers2, control_numbers));
+                const auto control_numbers3(MiscUtil::Intersect(control_numbers, control_numbers2));
                 control_numbers.clear();
                 control_numbers.insert(control_numbers3.cbegin(), control_numbers3.cend());
             }
@@ -84,7 +85,7 @@ int Main(int argc, char **argv) {
             if (arg_no == 1)
                 control_number_guesser.lookupDoi(argv[arg_no] + __builtin_strlen("--lookup-doi="), &control_numbers);
             else {
-                std::unordered_set<std::string> control_numbers2;
+                std::set<std::string> control_numbers2;
                 control_number_guesser.lookupDoi(argv[arg_no] + __builtin_strlen("--lookup-doi="), &control_numbers2);
                 const auto control_numbers3(MiscUtil::Intersect(control_numbers2, control_numbers));
                 control_numbers.clear();
