@@ -787,7 +787,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
                 final String month = dataString.substring(2, 4);
                 if (!isValidMonthCode(month)) {
-                    logger.severe("in getTueLocalIndexedDate: bad month in LOK 988 field: " + month
+                    logger.severe("in getTueLocalIndexedDate: bad month in LOK 938 field: " + month
                                   + "! (PPN: " + record.getControlNumber() + ")");
                     return null;
                 }
