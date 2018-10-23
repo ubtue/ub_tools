@@ -306,7 +306,7 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, RecordInfo> ppns_to_infos_map;
     CollectInfos(marc_reader.get(), &ppns_to_infos_map);
 
-    ControlNumberGuesser control_number_guesser(ControlNumberGuesser::DO_NOT_CLEAR_DATABASES);
+    ControlNumberGuesser control_number_guesser;
 
     std::unordered_map<std::string, std::set<std::string>> title_to_control_numbers_map;
     std::string title;
