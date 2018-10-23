@@ -46,11 +46,8 @@ struct FullTextData {
     std::string title_;
     std::set<std::string> authors_;
     std::string year_;
+    std::string doi_;
     std::vector<std::string> full_text_;
-
-    inline bool hasValidMetadata() const {
-        return not title_.empty() and not authors_.empty() and not year_.empty();
-    }
 };
 
 
@@ -58,9 +55,11 @@ struct FullTextData {
 // Line 1: <title>
 // Line 2: <authors>
 // Line 3: <year>
-// Line 4: <full_text>
+// Line 4: <doi>
+// Line 5: <full_text>
 void WriteExtractedTextToDisk(const std::string &full_text, const std::string &title,
-                              const std::set<std::string> &authors, const std::string &year, File * const output_file);
+                              const std::set<std::string> &authors, const std::string &year, const std::string &doi,
+                              File * const output_file);
 
 
 // Reads in and parses a text file previously written to disk with WriteExtractedTextToDisk() into a FullTextData instance.

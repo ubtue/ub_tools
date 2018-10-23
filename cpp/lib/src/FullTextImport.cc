@@ -29,11 +29,12 @@ const std::string PARAGRAPH_DELIMITER("\n\n");
 
 
 void WriteExtractedTextToDisk(const std::string &full_text, const std::string &title, const std::set<std::string> &authors,
-                              const std::string &year, File * const output_file)
+                              const std::string &year, const std::string &doi, File * const output_file)
 {
     output_file->writeln(title);
     output_file->writeln(StringUtil::Join(authors, '|'));
     output_file->writeln(year);
+    output_file->writeln(doi);
     output_file->write(full_text);
 }
 
@@ -53,6 +54,9 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
             break;
         case 3:
             full_text_data->year_ = line;
+            break;
+        case 4:
+            full_text_data->doi_ = line;
             break;
         default:
             full_text += line + "\n";
@@ -90,7 +94,8 @@ size_t CorrelateFullTextData(const std::vector<std::shared_ptr<FullTextData>> &f
     size_t exact_matches(0);
     ControlNumberGuesser ppn_guesser;
     for (const auto &full_text : full_text_data) {
-        const auto matching_ppns(ppn_guesser.getGuessedControlNumbers(full_text->title_, full_text->authors_, full_text->year_));
+        const auto matching_ppns(ppn_guesser.getGuessedControlNumbers(full_text->title_, full_text->authors_,
+                                                                      full_text->year_, full_text->doi_));
         if (matching_ppns.empty())
             continue;
         else if (matching_ppns.size() != 1) {
