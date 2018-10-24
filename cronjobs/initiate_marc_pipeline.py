@@ -39,6 +39,10 @@ import_log_summary = "/tmp/import_into_vufind_log.summary"
 
 
 def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name):
+    vufind_dir = os.getenv("VUFIND_HOME");
+    if vufind_dir == None:
+        util.Error("VUFIND_HOME not set, cannot start solr import!")
+
     # import title data
     title_index = 'biblio'
     title_args = [ sorted(glob.glob(title_pattern), reverse=True)[0] ]
@@ -46,9 +50,9 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name):
         util.Error("\"" + title_pattern + "\" matched " + str(len(title_args))
                    + " files! (Should have matched exactly 1 file!)")
     ClearSolrIndex(title_index)
-    util.ExecOrDie("/usr/local/vufind/import-marc.sh", title_args, log_file_name)
+    util.ExecOrDie(vufind_dir + "/import-marc.sh", title_args, log_file_name)
     OptimizeSolrIndex(title_index)
-    util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", "/usr/local/vufind/index-alphabetic-browse.sh"], log_file_name)
+    util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"], log_file_name)
 
     # import authority data
     authority_index = 'authority'
@@ -57,12 +61,12 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name):
         util.Error("\"" + authority_pattern + "\" matched " + str(len(authority_args))
                    + " files! (Should have matched exactly 1 file!)")
     ClearSolrIndex(authority_index)
-    util.ExecOrDie("/usr/local/vufind/import-marc-auth.sh", authority_args, log_file_name)
+    util.ExecOrDie(vufind_dir + "/import-marc-auth.sh", authority_args, log_file_name)
     OptimizeSolrIndex(authority_index)
 
     # cleanup logs
-    util.ExecOrDie("/usr/local/bin/summarize_logs", ["/usr/local/vufind/import/solrmarc.log", solrmarc_log_summary])
-    util.ExecOrDie("/usr/local/bin/log_rotate", ["/usr/local/vufind/import/", "solrmarc\\.log"])
+    util.ExecOrDie("/usr/local/bin/summarize_logs", [vufind_dir + "/import/solrmarc.log", solrmarc_log_summary])
+    util.ExecOrDie("/usr/local/bin/log_rotate", [vufind_dir + "/import/", "solrmarc\\.log"])
     util.ExecOrDie("/usr/local/bin/summarize_logs", [log_file_name, import_log_summary])
     util.ExecOrDie("/usr/local/bin/log_rotate", [os.path.dirname(log_file_name), os.path.basename(log_file_name)])
 
