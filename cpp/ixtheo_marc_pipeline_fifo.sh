@@ -119,7 +119,7 @@ EndPhase || Abort) &
 StartPhase "Augment Authority Data with Keyword Translations"
 (augment_authority_data_with_translations Normdaten-"${date}".mrc \
                                           Normdaten-augmented-"${date}".mrc \
-                                          >> "${log}" 2>&1 &&
+                                          >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
