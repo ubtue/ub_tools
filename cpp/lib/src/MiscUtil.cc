@@ -252,9 +252,20 @@ std::string GetUserName() {
 }
 
 
+static RegexMatcher * const DOI_MATCHER(RegexMatcher::RegexMatcherFactory("^(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\"&\\'<>])\\S)+)$"));
+
+
 bool IsDOI(const std::string &doi_candidate) {
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\"&\\'<>])\\S)+)$"));
-    return matcher->matched(doi_candidate);
+    return DOI_MATCHER->matched(doi_candidate);
+}
+
+
+bool NormaliseDOI(const std::string &doi_candidate, std::string * const normalised_doi) {
+    if (DOI_MATCHER->matched(doi_candidate))
+        return false;
+
+    *normalised_doi = (*DOI_MATCHER)[1];
+    return true;
 }
 
 
@@ -528,7 +539,7 @@ std::string MakeOrdinal(const unsigned number) {
 template <typename StringType> unsigned LevenshteinDistance(const StringType &s1, const StringType &s2) {
     const std::size_t len1(s1.size()), len2(s2.size());
     std::vector<unsigned int> column(len2 + 1), previous_column(len2 + 1);
-	
+
     for (unsigned i(0); i < previous_column.size(); ++i)
         previous_column[i] = i;
     for (unsigned i(0); i < len1; ++i) {
@@ -551,6 +562,6 @@ unsigned LevenshteinDistance(const std::string &s1, const std::string &s2) {
 unsigned LevenshteinDistance(const std::wstring &s1, const std::wstring &s2) {
     return LevenshteinDistance<std::wstring>(s1, s2);
 }
-    
+
 
 } // namespace MiscUtil

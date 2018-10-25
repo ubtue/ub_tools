@@ -39,13 +39,6 @@ namespace {
 }
 
 
-struct Metadata {
-    std::string title_;
-    std::set<std::string> authors_;
-    std::string publication_year_;
-};
-
-
 std::string ReadCharactersUntilNextClosingTag(XMLParser * const xml_parser) {
     XMLParser::XMLPart xml_part;
     std::string extracted_data;
@@ -84,7 +77,7 @@ void ExtractAuthor(XMLParser * const xml_parser, std::set<std::string> * const a
 }
 
 
-void ExtractMetadata(XMLParser * const xml_parser, Metadata * const metadata) {
+void ExtractMetadata(XMLParser * const xml_parser, FullTextImport::FullTextData * const metadata) {
     XMLParser::XMLPart xml_part;
 
     while (xml_parser->getNext(&xml_part)) {
@@ -96,7 +89,11 @@ void ExtractMetadata(XMLParser * const xml_parser, Metadata * const metadata) {
                 ExtractAuthor(xml_parser, &metadata->authors_);
         } else if (xml_part.isOpeningTag("pub-date")) {
             if (xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, "year"))
-                metadata->publication_year_ = ReadCharactersUntilNextClosingTag(xml_parser);
+                metadata->year_ = ReadCharactersUntilNextClosingTag(xml_parser);
+        } else if (xml_part.isOpeningTag("article-id")) {
+            const auto id_type_and_value(xml_part.attributes_.find("pub-id-type"));
+            if (id_type_and_value != xml_part.attributes_.cend() and id_type_and_value->second == "doi")
+                metadata->doi_ = ReadCharactersUntilNextClosingTag(xml_parser);
         }
     }
 }
@@ -130,7 +127,7 @@ bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_t
 
 
 void ProcessDocument(const bool normalise_only, const std::string &input_file_path, XMLParser * const xml_parser, File * const plain_text_output) {
-    Metadata full_text_metadata;
+    FullTextImport::FullTextData full_text_metadata;
     ExtractMetadata(xml_parser, &full_text_metadata);
 
     if (full_text_metadata.title_.empty())
@@ -139,8 +136,11 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
     if (full_text_metadata.authors_.empty())
         LOG_ERROR("no article authors found in file '" + input_file_path + "'");
 
-    if (full_text_metadata.publication_year_.empty())
+    if (full_text_metadata.year_.empty())
         LOG_ERROR("no publication year found in file '" + input_file_path + "'");
+
+    if (full_text_metadata.doi_.empty())
+        LOG_WARNING("no doi found in file '" + input_file_path + "'");
 
     if (normalise_only) {
         std::cout << ControlNumberGuesser::NormaliseTitle(full_text_metadata.title_) << '\n';
@@ -157,7 +157,8 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
         LOG_ERROR("neither full-text nor abstract text was found in file '" + input_file_path + "'");
 
     FullTextImport::WriteExtractedTextToDisk(not full_text.empty() ? full_text : abstract,
-                                             full_text_metadata.title_, full_text_metadata.authors_, full_text_metadata.publication_year_,
+                                             full_text_metadata.title_, full_text_metadata.authors_,
+                                             full_text_metadata.year_, full_text_metadata.doi_,
                                              plain_text_output);
 }
 
