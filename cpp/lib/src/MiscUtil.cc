@@ -261,7 +261,7 @@ bool IsDOI(const std::string &doi_candidate) {
 
 
 bool NormaliseDOI(const std::string &doi_candidate, std::string * const normalised_doi) {
-    if (not IsDOI(doi_candidate))
+    if (DOI_MATCHER->matched(doi_candidate))
         return false;
 
     *normalised_doi = (*DOI_MATCHER)[1];
