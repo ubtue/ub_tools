@@ -83,10 +83,10 @@ int Main(int argc, char **argv) {
             }
         } else if (StringUtil::StartsWith(argv[arg_no], "--lookup-doi=")) {
             if (arg_no == 1)
-                control_number_guesser.lookupDoi(argv[arg_no] + __builtin_strlen("--lookup-doi="), &control_numbers);
+                control_number_guesser.lookupDOI(argv[arg_no] + __builtin_strlen("--lookup-doi="), &control_numbers);
             else {
                 std::set<std::string> control_numbers2;
-                control_number_guesser.lookupDoi(argv[arg_no] + __builtin_strlen("--lookup-doi="), &control_numbers2);
+                control_number_guesser.lookupDOI(argv[arg_no] + __builtin_strlen("--lookup-doi="), &control_numbers2);
                 const auto control_numbers3(MiscUtil::Intersect(control_numbers2, control_numbers));
                 control_numbers.clear();
                 control_numbers.insert(control_numbers3.cbegin(), control_numbers3.cend());

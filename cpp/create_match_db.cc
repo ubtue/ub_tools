@@ -63,7 +63,7 @@ void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::R
             control_number_guesser->insertYear(year, control_number);
 
         for (const auto &doi : record.getDOIs())
-            control_number_guesser->insertDoi(doi, control_number);
+            control_number_guesser->insertDOI(doi, control_number);
     }
     control_number_guesser->endUpdate();
 
