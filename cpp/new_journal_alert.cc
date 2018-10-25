@@ -41,7 +41,10 @@
 #include "VuFind.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--debug] [solr_host_and_port] user_type hostname sender_email "
               << "email_subject\n"
               << "  Sends out notification emails for journal subscribers.\n"
@@ -413,11 +416,12 @@ std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB(const std::string &
 }
 
 
+} // unnamed namespace
+
+
 // gets user subscriptions for superior works from mysql
 // uses kyotocabinet HashDB (file) to prevent entries from being sent multiple times to same user
-int main(int argc, char **argv) {
-    ::progname = argv[0];
-
+int Main(int argc, char **argv) {
     if (argc < 5)
         Usage();
 
@@ -448,17 +452,15 @@ int main(int argc, char **argv) {
 
     std::unique_ptr<kyotocabinet::HashDB> notified_db(CreateOrOpenKeyValueDB(user_type));
 
-    try {
-        std::string mysql_url;
-        VuFind::GetMysqlURL(&mysql_url);
-        DbConnection db_connection(mysql_url);
+    std::string mysql_url;
+    VuFind::GetMysqlURL(&mysql_url);
+    DbConnection db_connection(mysql_url);
 
-        std::unordered_set<std::string> new_notification_ids;
-        ProcessSubscriptions(debug, &db_connection, notified_db, &new_notification_ids, solr_host_and_port, user_type, hostname,
-                             sender_email, email_subject);
-        if (not debug)
-            RecordNewlyNotifiedIds(notified_db, new_notification_ids);
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
+    std::unordered_set<std::string> new_notification_ids;
+    ProcessSubscriptions(debug, &db_connection, notified_db, &new_notification_ids, solr_host_and_port, user_type, hostname,
+                         sender_email, email_subject);
+    if (not debug)
+        RecordNewlyNotifiedIds(notified_db, new_notification_ids);
+
+    return EXIT_SUCCESS;
 }
