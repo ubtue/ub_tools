@@ -167,7 +167,7 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
     if (doi.empty())
         return common_control_numbers;
 
-    lookupDoi(doi, &doi_control_numbers);
+    lookupDOI(doi, &doi_control_numbers);
     return MiscUtil::Intersect(common_control_numbers, doi_control_numbers);
 }
 
