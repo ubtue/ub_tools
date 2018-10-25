@@ -1,6 +1,7 @@
 /** \file   ControlNumberGuesser.cc
  *  \brief  Implementation of the ControlNumberGuesser class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
@@ -116,7 +117,7 @@ void ControlNumberGuesser::insertYear(const std::string &year, const std::string
 }
 
 
-void ControlNumberGuesser::insertDoi(const std::string &doi, const std::string &control_number) {
+void ControlNumberGuesser::insertDOI(const std::string &doi, const std::string &control_number) {
     std::string normalised_doi;
     MiscUtil::NormaliseDOI(doi, &normalised_doi);
 
@@ -257,7 +258,7 @@ void ControlNumberGuesser::lookupYear(const std::string &year, std::unordered_se
 }
 
 
-void ControlNumberGuesser::lookupDoi(const std::string &doi, std::set<std::string> * const control_numbers) const {
+void ControlNumberGuesser::lookupDOI(const std::string &doi, std::set<std::string> * const control_numbers) const {
     control_numbers->clear();
 
     std::string normalised_doi;

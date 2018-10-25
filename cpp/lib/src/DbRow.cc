@@ -36,7 +36,7 @@ DbRow::DbRow(DbRow &&other) {
 
 std::string DbRow::operator[](const size_t i) const {
     if (unlikely(i >= size()))
-        throw std::out_of_range("index out of range in DbRow::operator[]: max. index is " + std::to_string((int)size() - 1)
+        throw std::out_of_range("index out of range in DbRow::operator[]: max. index is " + std::to_string(static_cast<int>(size()) - 1)
                                 + ", actual index was " + std::to_string(i) + "!");
 
     if (stmt_handle_ == nullptr)

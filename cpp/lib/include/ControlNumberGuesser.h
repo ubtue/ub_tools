@@ -1,6 +1,7 @@
 /** \file   ControlNumberGuesser.h
  *  \brief  Interface for the ControlNumberGuesser class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
@@ -49,7 +50,7 @@ public:
     void insertTitle(const std::string &title, const std::string &control_number);
     void insertAuthors(const std::set<std::string> &authors, const std::string &control_number);
     void insertYear(const std::string &year, const std::string &control_number);
-    void insertDoi(const std::string &doi, const std::string &control_number);
+    void insertDOI(const std::string &doi, const std::string &control_number);
     std::set<std::string> getGuessedControlNumbers(const std::string &title, const std::set<std::string> &authors,
                                                    const std::string &year = "", const std::string &doi = "") const;
 
@@ -60,7 +61,7 @@ public:
     void lookupTitle(const std::string &title, std::set<std::string> * const control_numbers) const;
     void lookupAuthor(const std::string &author_name, std::set<std::string> * const control_numbers) const;
     void lookupYear(const std::string &year, std::unordered_set<std::string> * const control_numbers) const;
-    void lookupDoi(const std::string &doi, std::set<std::string> * const control_numbers) const;
+    void lookupDOI(const std::string &doi, std::set<std::string> * const control_numbers) const;
 
     /** For testing purposes. */
     static std::string NormaliseTitle(const std::string &title);

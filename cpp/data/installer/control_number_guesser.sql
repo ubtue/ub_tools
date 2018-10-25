@@ -1,5 +1,6 @@
 -- Control numbers are saved as a single text blob consisting of individual numbers concatenated together with the '|' character.
 -- Individual (control) numbers are additionally padded to their maximum length in the case of the "publication_year" table.
+-- All text fields contain UTF-8 strings.
 
 CREATE TABLE normalised_titles (
     title TEXT NOT NULL PRIMARY KEY,
