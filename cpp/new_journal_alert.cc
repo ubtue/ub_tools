@@ -32,6 +32,7 @@
 #include "EmailSender.h"
 #include "FileUtil.h"
 #include "HtmlUtil.h"
+#include "IniFile.h"
 #include "JSON.h"
 #include "Solr.h"
 #include "StringUtil.h"
@@ -41,7 +42,10 @@
 #include "VuFind.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--debug] [solr_host_and_port] user_type hostname sender_email "
               << "email_subject\n"
               << "  Sends out notification emails for journal subscribers.\n"
@@ -249,16 +253,13 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         LOG_ERROR("Solr query failed or timed-out: \"" + QUERY + "\". (" + err_msg + ")");
 
-    return ExtractNewIssueInfos(notified_db, new_notification_ids, json_result, new_issue_infos,
-                                max_last_modification_time);
+    return ExtractNewIssueInfos(notified_db, new_notification_ids, json_result, new_issue_infos, max_last_modification_time);
 }
 
 
-void SendNotificationEmail(const bool debug, const std::string &firstname, const std::string &lastname,
-                           const std::string &recipient_email, const std::string &vufind_host,
-                           const std::string &sender_email, const std::string &email_subject,
-                           const std::vector<NewIssueInfo> &new_issue_infos,
-                           const std::string &user_type)
+void SendNotificationEmail(const bool debug, const std::string &firstname, const std::string &lastname, const std::string &recipient_email,
+                           const std::string &vufind_host, const std::string &sender_email, const std::string &email_subject,
+                           const std::vector<NewIssueInfo> &new_issue_infos, const std::string &user_type)
 {
     std::string email_template = GetEmailTemplate(user_type);
 
@@ -294,16 +295,28 @@ void SendNotificationEmail(const bool debug, const std::string &firstname, const
 }
 
 
-void ProcessSingleUser(const bool debug, DbConnection * const db_connection,
-                       const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
-                       std::unordered_set<std::string> * const new_notification_ids, const std::string &user_id,
-                       const std::string &solr_host_and_port, const std::string &hostname,
-                       const std::string &sender_email, const std::string &email_subject,
-                       std::vector<SerialControlNumberAndMaxLastModificationTime>
-                           &control_numbers_and_last_modification_times)
+void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &bundle_name,
+                              std::vector<std::string> * const control_numbers)
 {
-    db_connection->queryOrDie("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id WHERE user.id='"
-                              + user_id + "'");
+    const auto section(bundles_config.getSection(bundle_name));
+    if (section == bundles_config.end()) {
+        LOG_WARNING("can't find bundle \"" + bundle_name + "\" in \"" + bundles_config.getFilename() + "\"!");
+        return;
+    }
+
+    for (const auto &entry : *section)
+        control_numbers->emplace_back(entry.value_);
+}
+
+
+void ProcessSingleUser(
+    const bool debug, DbConnection * const db_connection, const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
+    const IniFile &bundles_config, std::unordered_set<std::string> * const new_notification_ids,
+    const std::string &user_id, const std::string &solr_host_and_port, const std::string &hostname,
+    const std::string &sender_email, const std::string &email_subject,
+    std::vector<SerialControlNumberAndMaxLastModificationTime> &control_numbers_or_bundle_names_and_last_modification_times)
+{
+    db_connection->queryOrDie("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.user_id WHERE user.id='" + user_id + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
 
     if (result_set.empty())
@@ -314,8 +327,8 @@ void ProcessSingleUser(const bool debug, DbConnection * const db_connection,
     const DbRow row(result_set.getNextRow());
     const std::string username(row["username"]);
 
-    LOG_INFO("Found " + std::to_string(control_numbers_and_last_modification_times.size()) + " subscriptions for \""
-         + username + "\".");
+    LOG_INFO("Found " + std::to_string(control_numbers_or_bundle_names_and_last_modification_times.size()) + " subscriptions for \""
+             + username + "\".");
 
     const std::string firstname(row["firstname"]);
     const std::string lastname(row["lastname"]);
@@ -324,46 +337,56 @@ void ProcessSingleUser(const bool debug, DbConnection * const db_connection,
 
     // Collect the dates for new issues.
     std::vector<NewIssueInfo> new_issue_infos;
-    for (auto &control_number_and_last_modification_time : control_numbers_and_last_modification_times) {
-        std::string max_last_modification_time(control_number_and_last_modification_time.last_modification_time_);
-        if (GetNewIssues(notified_db, new_notification_ids, solr_host_and_port,
-                         control_number_and_last_modification_time.serial_control_number_,
-                         control_number_and_last_modification_time.last_modification_time_, &new_issue_infos,
-                         &max_last_modification_time))
-            control_number_and_last_modification_time.setMaxLastModificationTime(max_last_modification_time);
+    for (auto &control_number_or_bundle_name_and_last_modification_time : control_numbers_or_bundle_names_and_last_modification_times) {
+        std::string max_last_modification_time(control_number_or_bundle_name_and_last_modification_time.last_modification_time_);
+        if (StringUtil::StartsWith(control_number_or_bundle_name_and_last_modification_time.serial_control_number_, "bundle:")) {
+            const std::string bundle_name(
+                control_number_or_bundle_name_and_last_modification_time.serial_control_number_.substr(__builtin_strlen("bundle:")));
+            std::vector<std::string> bundle_control_numbers;
+            LoadBundleControlNumbers(bundles_config, bundle_name, &bundle_control_numbers);
+            for (const auto &bundle_control_number : bundle_control_numbers) {
+                if (GetNewIssues(notified_db, new_notification_ids, solr_host_and_port, bundle_control_number,
+                                 control_number_or_bundle_name_and_last_modification_time.last_modification_time_, &new_issue_infos,
+                                 &max_last_modification_time))
+                    control_number_or_bundle_name_and_last_modification_time.setMaxLastModificationTime(max_last_modification_time);
+            }
+        } else {
+            if (GetNewIssues(notified_db, new_notification_ids, solr_host_and_port,
+                             control_number_or_bundle_name_and_last_modification_time.serial_control_number_,
+                             control_number_or_bundle_name_and_last_modification_time.last_modification_time_, &new_issue_infos,
+                             &max_last_modification_time))
+                control_number_or_bundle_name_and_last_modification_time.setMaxLastModificationTime(max_last_modification_time);
+        }
     }
 
     LOG_INFO("Found " + std::to_string(new_issue_infos.size()) + " new issues for " + "\"" + username + "\".");
 
     if (not new_issue_infos.empty())
-        SendNotificationEmail(debug, firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos,
-                              user_type);
+        SendNotificationEmail(debug, firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos, user_type);
 
     // Update the database with the new last issue dates
     // skip in DEBUG mode
     if (debug)
         return;
 
-    for (const auto &control_number_and_last_modification_time : control_numbers_and_last_modification_times) {
-        if (not control_number_and_last_modification_time.changed())
+    for (const auto &control_number_or_bundle_name_and_last_modification_time : control_numbers_or_bundle_names_and_last_modification_times)
+    {
+        if (not control_number_or_bundle_name_and_last_modification_time.changed())
             continue;
 
         db_connection->queryOrDie(
             "UPDATE ixtheo_journal_subscriptions SET max_last_modification_time='"
-            + ConvertDateFromZuluDate(control_number_and_last_modification_time.last_modification_time_)
-            + "' WHERE id=" + user_id
-            + " AND journal_control_number='" + control_number_and_last_modification_time.serial_control_number_
-            + "'");
+            + ConvertDateFromZuluDate(control_number_or_bundle_name_and_last_modification_time.last_modification_time_) + "' WHERE user_id="
+            + user_id + " AND journal_control_number_or_bundle_name='"
+            + control_number_or_bundle_name_and_last_modification_time.serial_control_number_ + "'");
     }
 }
 
 
-void ProcessSubscriptions(const bool debug, DbConnection * const db_connection,
-                          const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
-                          std::unordered_set<std::string> * const new_notification_ids,
-                          const std::string &solr_host_and_port, const std::string &user_type,
-                          const std::string &hostname, const std::string &sender_email,
-                          const std::string &email_subject)
+void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
+                          const IniFile &bundles_config, std::unordered_set<std::string> * const new_notification_ids,
+                          const std::string &solr_host_and_port, const std::string &user_type, const std::string &hostname,
+                          const std::string &sender_email, const std::string &email_subject)
 {
     db_connection->queryOrDie("SELECT DISTINCT id FROM ixtheo_journal_subscriptions WHERE id IN (SELECT id FROM "
                               "ixtheo_user WHERE ixtheo_user.user_type = '" + user_type  + "')");
@@ -374,17 +397,17 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection,
     while (const DbRow id_row = id_result_set.getNextRow()) {
         const std::string user_id(id_row["id"]);
 
-        db_connection->queryOrDie("SELECT journal_control_number,max_last_modification_time FROM "
-                                  "ixtheo_journal_subscriptions WHERE id=" + user_id);
+        db_connection->queryOrDie("SELECT journal_control_number_or_bundle_name,max_last_modification_time FROM "
+                                  "ixtheo_journal_subscriptions WHERE user_id=" + user_id);
         DbResultSet result_set(db_connection->getLastResultSet());
-        std::vector<SerialControlNumberAndMaxLastModificationTime> control_numbers_and_last_modification_times;
+        std::vector<SerialControlNumberAndMaxLastModificationTime> control_numbers_or_bundle_names_and_last_modification_times;
         while (const DbRow row = result_set.getNextRow()) {
-            control_numbers_and_last_modification_times.emplace_back(SerialControlNumberAndMaxLastModificationTime(
-                row["journal_control_number"], ConvertDateToZuluDate(row["max_last_modification_time"])));
+            control_numbers_or_bundle_names_and_last_modification_times.emplace_back(SerialControlNumberAndMaxLastModificationTime(
+                row["journal_control_number_or_bundle_name"], ConvertDateToZuluDate(row["max_last_modification_time"])));
             ++subscription_count;
         }
-        ProcessSingleUser(debug, db_connection, notified_db, new_notification_ids, user_id, solr_host_and_port,
-                          hostname, sender_email, email_subject, control_numbers_and_last_modification_times);
+        ProcessSingleUser(debug, db_connection, notified_db, bundles_config, new_notification_ids, user_id, solr_host_and_port,
+                          hostname, sender_email, email_subject, control_numbers_or_bundle_names_and_last_modification_times);
     }
 
     LOG_INFO("Processed " + std::to_string(user_count) + " users and " + std::to_string(subscription_count) + " subscriptions.\n");
@@ -398,7 +421,7 @@ void RecordNewlyNotifiedIds(const std::unique_ptr<kyotocabinet::HashDB> &notifie
     for (const auto &id : new_notification_ids) {
         if (not notified_db->add(id, now))
             LOG_ERROR("Failed to add key/value pair to database \"" + notified_db->path() + "\" ("
-                  + std::string(notified_db->error().message()) + ")!");
+                      + std::string(notified_db->error().message()) + ")!");
     }
 }
 
@@ -413,11 +436,12 @@ std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB(const std::string &
 }
 
 
+} // unnamed namespace
+
+
 // gets user subscriptions for superior works from mysql
 // uses kyotocabinet HashDB (file) to prevent entries from being sent multiple times to same user
-int main(int argc, char **argv) {
-    ::progname = argv[0];
-
+int Main(int argc, char **argv) {
     if (argc < 5)
         Usage();
 
@@ -448,17 +472,17 @@ int main(int argc, char **argv) {
 
     std::unique_ptr<kyotocabinet::HashDB> notified_db(CreateOrOpenKeyValueDB(user_type));
 
-    try {
-        std::string mysql_url;
-        VuFind::GetMysqlURL(&mysql_url);
-        DbConnection db_connection(mysql_url);
+    std::string mysql_url;
+    VuFind::GetMysqlURL(&mysql_url);
+    DbConnection db_connection(mysql_url);
 
-        std::unordered_set<std::string> new_notification_ids;
-        ProcessSubscriptions(debug, &db_connection, notified_db, &new_notification_ids, solr_host_and_port, user_type, hostname,
-                             sender_email, email_subject);
-        if (not debug)
-            RecordNewlyNotifiedIds(notified_db, new_notification_ids);
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
+    const IniFile bundles_config("/usr/local/var/lib/tuelib/journal_alert_bundles.conf");
+
+    std::unordered_set<std::string> new_notification_ids;
+    ProcessSubscriptions(debug, &db_connection, notified_db, bundles_config, &new_notification_ids, solr_host_and_port, user_type, hostname,
+                         sender_email, email_subject);
+    if (not debug)
+        RecordNewlyNotifiedIds(notified_db, new_notification_ids);
+
+    return EXIT_SUCCESS;
 }
