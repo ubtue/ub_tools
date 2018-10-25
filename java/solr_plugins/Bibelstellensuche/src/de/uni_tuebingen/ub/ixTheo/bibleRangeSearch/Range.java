@@ -10,13 +10,23 @@ class Range {
     private int lower;
     private int upper;
 
+    static float EPSILON = 5.96e-08f; // Taken from https://en.wikipedia.org/wiki/Machine_epsilon
+
     private static float getRangesScore(final Range[] ranges, final Range[] queryRanges) {
         float best_individual_distance = Float.NEGATIVE_INFINITY;
+        int best_distance_count = 0;
         for (final Range range : ranges) {
             float distance = range.getBestMatchingScore(queryRanges);
-            if (distance > best_individual_distance)
+            if (distance > best_individual_distance) {
                 best_individual_distance = distance;
+                best_distance_count = 1;
+            } else if (distance == best_individual_distance)
+                ++best_distance_count;
         }
+
+        if (best_distance_count > 1)
+            best_individual_distance *= (1.0f + EPSILON) * best_distance_count;
+
         return best_individual_distance;
     }
 
