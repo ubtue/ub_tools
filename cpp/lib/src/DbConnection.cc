@@ -186,7 +186,8 @@ void AddStatement(const std::string &statement_candidate, std::vector<std::strin
             individual_statements->emplace_back(statement_candidate);
         else
             individual_statements->back() += statement_candidate;
-    }
+    } else
+        individual_statements->emplace_back(statement_candidate);
 }
 
 

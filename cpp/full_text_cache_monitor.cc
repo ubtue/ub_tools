@@ -30,6 +30,7 @@
 #include "HtmlUtil.h"
 #include "SqlUtil.h"
 #include "Template.h"
+#include "TimeUtil.h"
 #include "UrlUtil.h"
 #include "util.h"
 #include "WebUtil.h"
@@ -103,7 +104,10 @@ void ShowPageIdDetails(FullTextCache * const cache, std::string * const body) {
 
     Template::Map template_variables;
     template_variables.insertScalar("id", HtmlUtil::HtmlEscape(id));
-    template_variables.insertScalar("expiration", HtmlUtil::HtmlEscape(SqlUtil::TimeTToDatetime(entry.expiration_)));
+    if (entry.expiration_ == TimeUtil::BAD_TIME_T)
+        template_variables.insertScalar("expiration", "never");
+    else
+        template_variables.insertScalar("expiration", HtmlUtil::HtmlEscape(SqlUtil::TimeTToDatetime(entry.expiration_)));
     template_variables.insertScalar("link_sobek",
                                     "<a href=\"https://sobek.ub.uni-tuebingen.de/Record/"
                                     + UrlUtil::UrlEncode(id) + "\" target=\"sobek\">test (sobek)</a>");

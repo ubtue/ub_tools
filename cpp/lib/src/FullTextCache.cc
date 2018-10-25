@@ -26,13 +26,12 @@
 #include "Random.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include "UrlUtil.h"
 #include "util.h"
 #include "VuFind.h"
 
 
-constexpr unsigned MIN_CACHE_EXPIRE_TIME(42300 * 60 * 2); // About 2 months in seconds.
-constexpr unsigned MAX_CACHE_EXPIRE_TIME(42300 * 60 * 4); // About 4 months in seconds.
 constexpr unsigned MIN_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60); // About 1 month in seconds.
 constexpr unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 months in seconds.
 
@@ -87,7 +86,7 @@ bool FullTextCache::entryExpired(const std::string &id, std::vector<std::string>
         return true;
 
     const time_t now(std::time(nullptr));
-    if (now < entry.expiration_) {
+    if (entry.expiration_ == TimeUtil::BAD_TIME_T or now < entry.expiration_) {
         std::vector<std::string> existing_urls(FullTextCache::getEntryUrlsAsStrings(id));
         std::sort(existing_urls.begin(), existing_urls.end());
         std::sort(urls.begin(), urls.end());
@@ -101,8 +100,7 @@ bool FullTextCache::entryExpired(const std::string &id, std::vector<std::string>
 
 
 void FullTextCache::expireEntries() {
-    const std::string now(SqlUtil::TimeTToDatetime(std::time(nullptr)));
-    db_connection_->queryOrDie("DELETE FROM full_text_cache WHERE expiration < \"" + now + "\"");
+    db_connection_->queryOrDie("DELETE FROM full_text_cache WHERE expiration IS NOT NULL AND expiration < NOW()");
 }
 
 
@@ -115,7 +113,10 @@ bool FullTextCache::getEntry(const std::string &id, Entry * const entry) {
 
     const DbRow row(result_set.getNextRow());
     entry->id_ = id;
-    entry->expiration_ = SqlUtil::DatetimeToTimeT(row["expiration"]);
+    if (row["expiration"].empty())
+        entry->expiration_ = TimeUtil::BAD_TIME_T;
+    else
+        entry->expiration_ = SqlUtil::DatetimeToTimeT(row["expiration"]);
     return true;
 }
 
@@ -277,7 +278,7 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
 {
     const time_t now(std::time(nullptr));
     Random::Rand rand(now);
-    time_t expiration(now + MIN_CACHE_EXPIRE_TIME + rand(MAX_CACHE_EXPIRE_TIME - MIN_CACHE_EXPIRE_TIME));
+    time_t expiration(TimeUtil::BAD_TIME_T);
     for (const auto &entry_url : entry_urls) {
         if (full_text.empty() and entry_url.error_message_.empty())
             logger->error("in FullTextCache::InsertIntoCache (id " + id + "): "
@@ -297,10 +298,16 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
         elasticsearch_connection_->updateOrInsertDocument(elasticsearch_index_, document);
     }
 
+    std::string expiration_string;
+    if (expiration == TimeUtil::BAD_TIME_T)
+        expiration_string = "NULL";
+    else
+        expiration_string = "\"" + SqlUtil::TimeTToDatetime(expiration) + "\"";
+
     const std::string escaped_id(db_connection_->escapeString(id));
     db_connection_->queryOrDie("INSERT INTO full_text_cache "
                                "SET id=\"" + escaped_id + "\","
-                               "expiration=\"" + SqlUtil::TimeTToDatetime(expiration) + "\","
+                               "expiration=" + expiration_string + ","
                                "full_text=\"" + db_connection_->escapeString(full_text) + "\"");
 
     for (const auto &entry_url : entry_urls) {

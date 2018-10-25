@@ -54,6 +54,7 @@
 /extract_bible_references
 /extract_keywords_for_translation
 /extract_local_keywords
+/extract_local_krimdok_topics
 /extract_normdata_translations
 /extract_person_gnd_numbers
 /extract_referenced_author_records
@@ -166,4 +167,6 @@ test_auto_temp_file
 test_chop_into_words
 test_find_substring
 test_utf32_to_lowercase_conversion
+test/base64_coder
+tests/generate_large_marc_record
 tests/TextUtil_CollapseAndTrimWhitespaceTest
