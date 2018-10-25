@@ -107,6 +107,12 @@ std::string GetUserName();
 bool IsDOI(const std::string &doi_candidate);
 
 
+/** \brief Converts a DOI to its canonical format.
+ *  \return True if the input was a valid DOI.
+ */
+bool NormaliseDOI(const std::string &doi_candidate, std::string * const normalised_doi);
+
+
 bool IsPossibleISSN(std::string issn_candidate);
 
 
