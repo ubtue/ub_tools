@@ -12,25 +12,25 @@ import traceback
 import util
 
 
-# Delete the index to do away with old data that might remain otherwise
+# Clear the index to do away with old data that might remain otherwise
 # Since no commit is executed here we avoid the empty index problem
-def DeleteSolrIndex():
+def ClearSolrIndex(index):
     try:
         request = urllib2.Request(
-            "http://localhost:8080/solr/biblio/update?stream.body=%3Cdelete%3E%3Cquery%3E*:*%3C/query%3E%3C/delete%3E")
+            "http://localhost:8080/solr/" + index + "/update?stream.body=%3Cdelete%3E%3Cquery%3E*:*%3C/query%3E%3C/delete%3E")
         response = urllib2.urlopen(request, timeout=60)
     except:
-        util.SendEmail("MARC-21 Pipeline", "Failed to clear the SOLR index!", priority=1)
+        util.SendEmail("MARC-21 Pipeline", "Failed to clear the SOLR index \"" + index + "\"!", priority=1)
         sys.exit(-1)
 
 
-def OptimizeSolrIndex():
+def OptimizeSolrIndex(index):
     try:
         request = urllib2.Request(
-            "http://localhost:8080/solr/biblio/update?optimize=true")
+            "http://localhost:8080/solr/" + index + "/update?optimize=true")
         response = urllib2.urlopen(request, timeout=1800)
     except:
-        util.SendEmail("MARC-21 Pipeline", "Failed to optimize the SOLR index!", priority=1)
+        util.SendEmail("MARC-21 Pipeline", "Failed to optimize the SOLR index \"" + index + "\"!", priority=1)
         sys.exit(-1)
 
 
@@ -38,17 +38,35 @@ solrmarc_log_summary = "/tmp/solrmarc_log.summary"
 import_log_summary = "/tmp/import_into_vufind_log.summary"
 
 
-def ImportIntoVuFind(pattern, log_file_name):
-    args = [ sorted(glob.glob(pattern), reverse=True)[0] ]
-    if len(args) != 1:
-        util.Error("\"" + pattern + "\" matched " + str(len(args))
+def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name):
+    vufind_dir = os.getenv("VUFIND_HOME");
+    if vufind_dir == None:
+        util.Error("VUFIND_HOME not set, cannot start solr import!")
+
+    # import title data
+    title_index = 'biblio'
+    title_args = [ sorted(glob.glob(title_pattern), reverse=True)[0] ]
+    if len(title_args) != 1:
+        util.Error("\"" + title_pattern + "\" matched " + str(len(title_args))
                    + " files! (Should have matched exactly 1 file!)")
-    DeleteSolrIndex()
-    util.ExecOrDie("/usr/local/vufind/import-marc.sh", args, log_file_name)
-    util.ExecOrDie("/usr/local/bin/summarize_logs", ["/usr/local/vufind/import/solrmarc.log", solrmarc_log_summary])
-    util.ExecOrDie("/usr/local/bin/log_rotate", ["/usr/local/vufind/import/", "solrmarc\\.log"])
-    OptimizeSolrIndex()
-    util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", "/usr/local/vufind/index-alphabetic-browse.sh"], log_file_name)
+    ClearSolrIndex(title_index)
+    util.ExecOrDie(vufind_dir + "/import-marc.sh", title_args, log_file_name)
+    OptimizeSolrIndex(title_index)
+    util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"], log_file_name)
+
+    # import authority data
+    authority_index = 'authority'
+    authority_args = [ sorted(glob.glob(authority_pattern), reverse=True)[0] ]
+    if len(authority_args) != 1:
+        util.Error("\"" + authority_pattern + "\" matched " + str(len(authority_args))
+                   + " files! (Should have matched exactly 1 file!)")
+    ClearSolrIndex(authority_index)
+    util.ExecOrDie(vufind_dir + "/import-marc-auth.sh", authority_args, log_file_name)
+    OptimizeSolrIndex(authority_index)
+
+    # cleanup logs
+    util.ExecOrDie("/usr/local/bin/summarize_logs", [vufind_dir + "/import/solrmarc.log", solrmarc_log_summary])
+    util.ExecOrDie("/usr/local/bin/log_rotate", [vufind_dir + "/import/", "solrmarc\\.log"])
     util.ExecOrDie("/usr/local/bin/summarize_logs", [log_file_name, import_log_summary])
     util.ExecOrDie("/usr/local/bin/log_rotate", [os.path.dirname(log_file_name), os.path.basename(log_file_name)])
 
@@ -57,7 +75,7 @@ def StartPipeline(pipeline_script_name, marc_title, conf):
     log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
     util.ExecOrDie(pipeline_script_name, [ marc_title ], log_file_name)
     log_file_name = util.MakeLogFileName("import_into_vufind", util.GetLogDirectory())
-    ImportIntoVuFind(conf.get("FileNames", "title_marc_data"), log_file_name)
+    ImportIntoVuFind(conf.get("FileNames", "title_marc_data"), conf.get("FileNames", "authority_marc_data"), log_file_name)
 
 
 # Returns True if we have no timestamp file or if link_filename's creation time is more recent than
