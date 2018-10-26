@@ -668,6 +668,27 @@ std::set<std::string> Record::getISBNs() const {
 }
 
 
+std::set<std::string> Record::getDDCs() const {
+    std::set<std::string> ddcs;
+    for (const auto field : getTagRange("082"))
+        // Many DDC's have superfluous backslashes which are non-standard and should be removed.
+        ddcs.emplace(StringUtil::RemoveChars("/", field.getFirstSubfieldWithCode('a')));
+
+    return ddcs;
+}
+
+
+std::set<std::string> Record::getRVKs() const {
+    std::set<std::string> rvks;
+    for (const auto field : getTagRange("084")) {
+        if (field.getFirstSubfieldWithCode('2') == "rvk")
+            rvks.emplace(field.getFirstSubfieldWithCode('a'));
+    }
+
+    return rvks;
+}
+
+
 namespace {
 
 
