@@ -1697,6 +1697,11 @@ std::string &WhitenChars(const std::string &chars_to_whiten, std::string * const
  */
 std::string &RemoveChars(const std::string &remove_set, std::string * const s);
 
+inline std::string RemoveChars(const std::string &remove_set, const std::string &s) {
+    std::string temp_s(s);
+    return RemoveChars(remove_set, &temp_s);
+}
+
 
 /** \brief   Removes all characters not in a supplied set from a string.
  *  \param   preserve_set  The "set" of characters that will not be removed from "s".
