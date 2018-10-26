@@ -22,6 +22,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include "Compiler.h"
+#include "FileUtil.h"
+#include "StringUtil.h"
 #include "MARC.h"
 #include "util.h"
 
@@ -30,7 +32,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] [--generate-dangling-log] marc_input marc_output\n"
+              << "            If \"--generate-dangling-log\" has been specified an addition \"dangling.log\" file will be generated.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -41,9 +44,13 @@ void CollectRecordTypes(MARC::Reader * const reader, std::unordered_map<std::str
 }
 
 
-void TagCrossLinks(MARC::Reader * const reader, MARC::Writer * const writer,
+void TagCrossLinks(const bool generate_dangling_log, MARC::Reader * const reader, MARC::Writer * const writer,
                    const std::unordered_map<std::string, bool> &ppn_to_is_electronic_map)
 {
+    std::unique_ptr<File> dangling_log;
+    if (generate_dangling_log)
+        dangling_log = FileUtil::OpenOutputFileOrDie("dangling.log");
+
     unsigned link_target_is_same_type(0), link_target_is_different_type(0), danglink_link_count(0);
     while (auto record = reader->read()) {
         for (auto &field : record) {
@@ -54,6 +61,13 @@ void TagCrossLinks(MARC::Reader * const reader, MARC::Writer * const writer,
                     LOG_WARNING("dangling cross link from \"" + record.getControlNumber() + "\" to \"" + partner_control_number + "\"!");
                     ++danglink_link_count;
                     field.appendSubfield('k', "dangling");
+                    if (generate_dangling_log) {
+                        const auto ddcs(record.getDDCs());
+                        const auto rvks(record.getRVKs());
+                        *dangling_log << record.getControlNumber() << ',' << partner_control_number << ",DDCs:"
+                                      << StringUtil::Join(ddcs, ';') << ",RVKs:" << StringUtil::Join(rvks, ';') << ','
+                                      << record.getLeader() << '\n';
+                    }
                     continue;
                 }
 
@@ -79,8 +93,16 @@ void TagCrossLinks(MARC::Reader * const reader, MARC::Writer * const writer,
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
+    if (argc != 3 and argc != 4)
         Usage();
+
+    bool generate_dangling_log(false);
+    if (argc == 4) {
+        if (std::strcmp(argv[1], "--generate-dangling-log") != 0)
+            Usage();
+        generate_dangling_log = true;
+        --argc, ++argv;
+    }
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
     auto marc_writer(MARC::Writer::Factory(argv[2]));
@@ -89,7 +111,7 @@ int Main(int argc, char *argv[]) {
     CollectRecordTypes(marc_reader.get(), &ppn_to_is_electronic_map);
     marc_reader->rewind();
 
-    TagCrossLinks(marc_reader.get(), marc_writer.get(), ppn_to_is_electronic_map);
+    TagCrossLinks(generate_dangling_log, marc_reader.get(), marc_writer.get(), ppn_to_is_electronic_map);
 
     return EXIT_SUCCESS;
 }
