@@ -168,9 +168,9 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
 
         std::string zeder_url;
         if (not zeder_id.empty()) {
-            if (group == "KrimDok")
+            if (group == "IxTheo")
                 zeder_url = "http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo#suche=Z%3D" + zeder_id;
-            else if (group == "IxTheo")
+            else if (group == "KrimDok")
                 zeder_url = "http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=krim#suche=Z%3D" + zeder_id;
         }
 
