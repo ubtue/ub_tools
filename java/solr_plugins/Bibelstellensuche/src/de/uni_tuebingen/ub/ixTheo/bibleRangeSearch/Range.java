@@ -25,7 +25,7 @@ class Range {
         }
 
         if (best_distance_count > 1)
-            best_individual_distance *= EPSILON * best_distance_count;
+            best_individual_distance *= (1.0f + EPSILON) * best_distance_count;
 
         return best_individual_distance;
     }
