@@ -573,17 +573,17 @@ void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc
 //    remaining subscription is the minimum of the two previously existing subscriptions.
 void PatchSerialSubscriptions(DbConnection * connection, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
     for (const auto &ppn_and_ppn : ppn_to_canonical_ppn_map) {
-        connection->queryOrDie("SELECT id,max_last_modification_time FROM ixtheo_journal_subscriptions WHERE "
-                               "journal_control_number='" + ppn_and_ppn.first + "'");
+        connection->queryOrDie("SELECT user_id,max_last_modification_time FROM ixtheo_journal_subscriptions WHERE "
+                               "journal_control_number_or_bundle_name='" + ppn_and_ppn.first + "'");
         DbResultSet ppn_first_result_set(connection->getLastResultSet());
         while (const DbRow ppn_first_row = ppn_first_result_set.getNextRow()) {
             const std::string user_id(ppn_first_row["id"]);
             connection->queryOrDie("SELECT max_last_modification_time FROM ixtheo_journal_subscriptions "
-                                   "WHERE id='" + user_id + "' AND journal_control_number='" + ppn_and_ppn.second + "'");
+                                   "WHERE user_id='" + user_id + "' AND journal_control_number_or_bundle_name='" + ppn_and_ppn.second + "'");
             DbResultSet ppn_second_result_set(connection->getLastResultSet());
             if (ppn_second_result_set.empty()) {
-                connection->queryOrDie("UPDATE ixtheo_journal_subscriptions SET journal_control_number='"
-                                       + ppn_and_ppn.second + "' WHERE id='" + user_id + "' AND journal_control_number='"
+                connection->queryOrDie("UPDATE ixtheo_journal_subscriptions SET journal_control_number_or_bundle_name='"
+                                       + ppn_and_ppn.second + "' WHERE user_id='" + user_id + "' AND journal_control_number_or_bundle_name='"
                                        + ppn_and_ppn.first + "'");
                 continue;
             }
@@ -597,12 +597,12 @@ void PatchSerialSubscriptions(DbConnection * connection, const std::unordered_ma
                 (ppn_second_row["max_last_modification_time"] < ppn_first_row["max_last_modification_time"])
                     ? ppn_second_row["max_last_modification_time"]
                     : ppn_first_row["max_last_modification_time"]);
-            connection->queryOrDie("DELETE FROM ixtheo_journal_subscriptions WHERE journal_control_number='"
+            connection->queryOrDie("DELETE FROM ixtheo_journal_subscriptions WHERE journal_control_number_or_bundle_name='"
                                    + ppn_and_ppn.first + "' and id='" + user_id + "'");
             if (ppn_first_row["max_last_modification_time"] > min_max_last_modification_time)
                 connection->queryOrDie("UPDATE ixtheo_journal_subscriptions SET max_last_modification_time='"
-                                       + min_max_last_modification_time + "' WHERE journal_control_number='"
-                                       + ppn_and_ppn.second + "' and id='" + user_id + "'");
+                                       + min_max_last_modification_time + "' WHERE journal_control_number_or_bundle_name='"
+                                       + ppn_and_ppn.second + "' and user_id='" + user_id + "'");
         }
     }
 }
