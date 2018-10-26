@@ -88,7 +88,7 @@ void LoadCSVFile(const std::string &filename, std::vector<IxTheoMapper> * const 
 }
 
 
-void UpdateIxTheoNotations(const std::vector<IxTheoMapper> &mappers, const std::vector<std::string> &orig_values,
+void UpdateIxTheoNotations(const std::vector<IxTheoMapper> &mappers, const std::set<std::string> &orig_values,
                            std::string * const ixtheo_notations_list)
 {
     std::vector<std::string> ixtheo_notations_vector;
@@ -127,7 +127,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
             continue;
         }
 
-        std::vector<std::string> ddc_values(record.getSubfieldValues("082", 'a'));
+        const std::set<std::string> ddc_values(record.getDDCs());
         if (ddc_values.empty()) {
             marc_writer->write(record);
             continue;
@@ -143,27 +143,12 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
             continue;
         }
 
-        // Many DDC's have superfluous backslashes which are non-standard and need to be removed before further
-        // processing can take place:
-        for (auto &ddc_value : ddc_values)
-            StringUtil::RemoveChars("/", &ddc_value);
-
         UpdateIxTheoNotations(ddc_to_ixtheo_notation_mappers, ddc_values, &ixtheo_notations_list);
         if (not ixtheo_notations_list.empty())
             LOG_DEBUG(record.getControlNumber() + ": " + StringUtil::Join(ddc_values, ',') + " -> " + ixtheo_notations_list);
 
 /*
-        std::vector<std::string> rvk_values;
-        int _084_index(record.getFieldIndex("084"));
-        if (_084_index != -1) {
-            const std::vector<std::string> &fields(record.getFields());
-            while (_084_index < static_cast<ssize_t>(dir_entries.size()) and dir_entries[_084_index].getTag() == "084") {
-                const Subfields subfields(fields[_084_index]);
-                if (subfields.hasSubfieldWithValue('2', "rvk"))
-                    rvk_values.emplace_back(subfields.getFirstSubfieldValue('a'));
-                ++_084_index;
-            }
-        }
+        const std::set<std::string> rvk_values(record.getRVKs());
         UpdateIxTheoNotations(rvk_to_ixtheo_notation_mappers, rvk_values, &ixtheo_notations_list);
 */
 

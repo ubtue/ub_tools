@@ -489,6 +489,8 @@ public:
     std::set<std::string> getDOIs() const;
     std::set<std::string> getISSNs() const;
     std::set<std::string> getISBNs() const;
+    std::set<std::string> getDDCs() const;
+    std::set<std::string> getRVKs() const;
 
     /** \return An iterator pointing to the first field w/ tag "field_tag" or end() if no such field was found. */
     inline const_iterator getFirstField(const Tag &field_tag) const {
