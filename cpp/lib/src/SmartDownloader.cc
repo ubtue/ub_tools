@@ -20,7 +20,6 @@
 #include "SmartDownloader.h"
 #include <iostream>
 #include "Downloader.h"
-#include "IdbPager.h"
 #include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -189,55 +188,21 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
                                             std::string * const document, std::string * const http_header_charset,
                                             std::string * const error_message)
 {
+    std::string url_improved(url);
+    if (RegexMatcher::Matched("/diglit/", url))
+        url_improved = StringUtil::ReplaceString("/diglit/", "/opendigi/", &url_improved);
+    if (RegexMatcher::Matched("/opendigi/", url_improved))
+        url_improved = url_improved + "/ocr";
+
+    if (trace_ and url != url_improved)
+        LOG_INFO("converted url \"" + url + "\" to \"" + url_improved + "\"");
+
     if (trace_)
-        LOG_INFO("about to download \"" + url + "\".");
-    if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message)) {
+        LOG_INFO("about to download \"" + url_improved + "\".");
+    if (not DownloadHelper(url_improved, time_limit, document, http_header_charset, error_message)) {
         if (trace_)
             LOG_WARNING("original download failed!");
         return false;
-    }
-    const std::string start_string("<input type=\"hidden\" name=\"projectname\" value=\"");
-    size_t start_pos(document->find(start_string));
-    if  (start_pos == std::string::npos) {
-        if (trace_)
-            LOG_WARNING("start position not found!");
-        *error_message = "no matching Diglit structure found (start position)!";
-        return false;
-    }
-    start_pos += start_string.length();
-    const size_t end_pos(document->find('"', start_pos));
-    if  (end_pos == std::string::npos) {
-        if (trace_)
-            LOG_WARNING("end position not found!");
-        *error_message = "no matching Diglit structure found (end position)!";
-        return false;
-    }
-    const std::string projectname(document->substr(start_pos, end_pos - start_pos));
-    document->clear();
-    std::string page;
-
-    RomanPageNumberGenerator roman_page_number_generator;
-    IdbPager roman_pager(projectname, &roman_page_number_generator);
-    while (roman_pager.getNextPage(time_limit, &page)) {
-        if (time_limit.limitExceeded()) {
-            if (trace_)
-                LOG_WARNING("time out while paging! (roman numbers)");
-            *error_message = "time out while paging! (Diglit roman numbers)";
-            return false;
-        }
-        document->append(page);
-    }
-
-    ArabicPageNumberGenerator arabic_page_number_generator;
-    IdbPager arabic_pager(projectname, &arabic_page_number_generator);
-    while (arabic_pager.getNextPage(time_limit, &page)) {
-        if (time_limit.limitExceeded()) {
-            if (trace_)
-                LOG_WARNING("time out while paging! (arabic numbers)");
-            *error_message = "time out while paging! (Diglit arabic numbers)";
-            return false;
-        }
-        document->append(page);
     }
 
     return not document->empty();
@@ -384,8 +349,10 @@ bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::str
     };
 
     for (auto &smart_downloader : smart_downloaders) {
-        if (smart_downloader->canHandleThis(url))
+        if (smart_downloader->canHandleThis(url)) {
+            LOG_DEBUG("Downloading url " + url + " using " + smart_downloader->getName());
             return smart_downloader->downloadDoc(url, time_limit, document, http_header_charset, error_message);
+        }
     }
 
     *error_message = "No downloader available for URL: " + url;
