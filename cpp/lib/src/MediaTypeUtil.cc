@@ -38,6 +38,7 @@
 #include "Url.h"
 #include "util.h"
 #include "WebUtil.h"
+#include "XMLParser.h"
 
 
 namespace MediaTypeUtil {
@@ -109,6 +110,24 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
 
     if (auto_simplify)
         SimplifyMediaType(&media_type);
+
+    return media_type;
+}
+
+
+std::string GetMediaType(const std::string &document, std::string * const subtype, const bool auto_simplify) {
+    std::string media_type = GetMediaType(document, auto_simplify);
+
+    if (media_type == "text/xml") {
+        XMLParser parser(document, XMLParser::XML_STRING);
+
+        std::map<std::string, std::string> attrib_map;
+        XMLParser::XMLPart part;
+        if (parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "", &part)) {
+            if (part.data_ == "TEI")
+                *subtype = "tei";
+        }
+    }
 
     return media_type;
 }
