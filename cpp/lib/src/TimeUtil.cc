@@ -698,11 +698,19 @@ std::string StructTmToString(const struct tm &tm) {
 }
 
 
-void CorrectForSymbolicTimeZone(struct tm * const /*tm*/, const std::string &time_zone_name) {
+void CorrectForSymbolicTimeZone(struct tm * const tm, const std::string &time_zone_name) {
     if (time_zone_name == "GMT" or time_zone_name == "UTC")
         return; // GMT is the same as UTC
 
-    LOG_ERROR("Unhandled timezone symbolic name '" + time_zone_name + "'");
+    time_t converted_tm(::mktime(tm));
+    const char *offset = "+00:00";
+    if (time_zone_name == "PDT")
+        offset = "-07:00";
+    else
+        LOG_ERROR("Unhandled timezone symbolic name '" + time_zone_name + "'");
+
+    if (not AdjustForTimeOffset(&converted_tm, offset))
+        LOG_ERROR("couldn't adjust time_t " + TimeTToString(converted_tm) + " with offset " + std::string(offset));
 }
 
 
