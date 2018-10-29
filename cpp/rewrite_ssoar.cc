@@ -318,14 +318,23 @@ void Copy500SuperiorToLocal938Field(MARC::Record * const record, const std::stri
 }
 
 
-void Copy024OIAIdentifierToLocal938Field(MARC::Record * const record, bool * const modified_record) {
+void Move024OIAIdentifierToLocal938Field(MARC::Record * const record, bool * const modified_record) {
     static const std::string oai_regex("^oai:gesis.izsoz.de:document/.*");
     static RegexMatcher * const oai_matcher(RegexMatcher::RegexMatcherFactory(oai_regex));
+
     for (const auto &field : record->getTagRange("024")) {
         if (oai_matcher->matched(field.getFirstSubfieldWithCode('a'))) {
             WriteLocal938L8(record, "1", (*oai_matcher)[0]);
             *modified_record = true;
         }
+    }
+
+    auto field(record->getFirstField("024"));
+    while (field != record->end() and field->getTag() == "024") {
+        if (oai_matcher->matched(field->getFirstSubfieldWithCode('a')))
+           field = record->erase(field);
+        else
+           ++field;
     }
 }
 
@@ -355,6 +364,15 @@ void Create773And936From500(MARC::Record * const record, bool * const modified_r
                 Copy500SuperiorToLocal938Field(record, subfield.value_);
             }
         }
+    }
+
+    // Delete field that has just been copied to LOK 938
+    auto field(record->getFirstField("500"));
+    while (field != record->end() and field->getTag() == "500") {
+        if (superior_matcher->matched(field->getFirstSubfieldWithCode('a')))
+           field = record->erase(field);
+        else
+           ++field;
     }
 
     for (const auto &new_773_field : new_773_fields)
@@ -565,7 +583,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         RemoveLicenseField540(&record, &modified_record);
         Fix024DOIAndTransferTo856(&record, &modified_record);
         Rewrite856OpenAccess(&record, &modified_record);
-        Copy024OIAIdentifierToLocal938Field(&record, &modified_record);
+        Move024OIAIdentifierToLocal938Field(&record, &modified_record);
 
         marc_writer->write(record);
         if (modified_record)
