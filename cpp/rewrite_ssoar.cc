@@ -366,14 +366,10 @@ void Create773And936From500(MARC::Record * const record, bool * const modified_r
         }
     }
 
-    // Delete field that has just been copied to LOK 938
+    // Delete all 500 fields since relevant data has been saved away
     auto field(record->getFirstField("500"));
-    while (field != record->end() and field->getTag() == "500") {
-        if (superior_matcher->matched(field->getFirstSubfieldWithCode('a')))
+    while (field != record->end() and field->getTag() == "500")
            field = record->erase(field);
-        else
-           ++field;
-    }
 
     for (const auto &new_773_field : new_773_fields)
         record->insertField("773", "08" + new_773_field);
