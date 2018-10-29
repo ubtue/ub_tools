@@ -865,6 +865,8 @@ private:
     explicit XmlWriter(File * const output_file, const unsigned indent_amount = 0,
                        const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion);
 public:
+    explicit XmlWriter(std::string * const output_string, const unsigned indent_amount = 0,
+                       const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion);
     virtual ~XmlWriter() final { delete xml_writer_; }
 
     virtual void write(const Record &record) override final;
