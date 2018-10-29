@@ -366,7 +366,7 @@ void Create773And936From500(MARC::Record * const record, bool * const modified_r
         }
     }
 
-    // Delete all 500 fields since relevant data has been saved away
+    // Delete all 500 fields since relevant data has been copied away
     auto field(record->getFirstField("500"));
     while (field != record->end() and field->getTag() == "500")
            field = record->erase(field);
