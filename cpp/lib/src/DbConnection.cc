@@ -300,7 +300,7 @@ DbResultSet DbConnection::getLastResultSet() {
 }
 
 
-std::string DbConnection::escapeString(const std::string &unescaped_string) {
+std::string DbConnection::escapeString(const std::string &unescaped_string, const bool add_quotes) {
     char * const buffer(reinterpret_cast<char * const>(std::malloc(unescaped_string.size() * 2 + 1)));
     size_t escaped_length;
 
@@ -317,8 +317,16 @@ std::string DbConnection::escapeString(const std::string &unescaped_string) {
         escaped_length = cp - buffer;
     }
 
-    const std::string escaped_string(buffer, escaped_length);
+    std::string escaped_string;
+    escaped_string.reserve(escaped_length + (add_quotes ? 2 : 0));
+    if (add_quotes)
+        escaped_string += '\'';
+
+    escaped_string.append(buffer, escaped_length);
     std::free(buffer);
+
+    if (add_quotes)
+        escaped_string += '\'';
     return escaped_string;
 }
 
