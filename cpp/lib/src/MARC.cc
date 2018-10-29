@@ -1664,6 +1664,13 @@ XmlWriter::XmlWriter(File * const output_file, const unsigned indent_amount,
 }
 
 
+XmlWriter::XmlWriter(std::string * const output_string, const unsigned indent_amount,
+                     const MarcXmlWriter::TextConversionType text_conversion_type)
+{
+    xml_writer_ = new MarcXmlWriter(output_string, indent_amount, text_conversion_type);
+}
+
+
 void XmlWriter::write(const Record &record) {
     xml_writer_->openTag("record");
 
