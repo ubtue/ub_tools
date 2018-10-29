@@ -307,7 +307,7 @@ void InsertYearInto264c(MARC::Record * const record, bool * const modified_recor
 
 // Write to the MARC correspondence of PICA 8520 (Field for local SWB projects for monographies)
 void WriteLocal938L8(MARC::Record * const record, const std::string &subfield_8_content, const std::string &content) {
-    record->insertField("LOK", { { '0', "938" }, { 'l', content }, { '8', subfield_8_content } });
+    record->insertField("938", { { '2', "LOK" }, { 'l', content }, { '8', subfield_8_content } });
 }
 
 
