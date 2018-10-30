@@ -17,6 +17,7 @@
 /append_marc_xml
 /apply_differential_update
 /archive_delete_ids
+/archive_records
 /augment_773a
 /augment_authority_data_with_translations
 /augment_bible_references
