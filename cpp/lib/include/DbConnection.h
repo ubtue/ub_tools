@@ -105,6 +105,9 @@ public:
      *  \note This probably breaks for Sqlite if the string contains binary characters.
      */
     std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false);
+    inline std::string escapeAndQuoteString(const std::string &unescaped_string) {
+        return escapeString(unescaped_string, /* add_quotes = */true);
+    }
 private:
     /** \note This constructor is for operations which do not require any existing database.
      *        It should only be used in static functions.
