@@ -244,6 +244,8 @@ public class MultiLanguageQueryParser extends QParser {
                  currentClause = processBooleanQuery((BooleanQuery)currentClause);
              else if (currentClause instanceof PhraseQuery)
                  currentClause = processPhraseQuery((PhraseQuery)currentClause);
+             else if (currentClause instanceof SynonymQuery)
+                 currentClause = processSynonymQuery((SynonymQuery)currentClause);
              else
                  throw new SolrException(ErrorCode.SERVER_ERROR, "Unknown currentClause type in DisjunctionMaxQuery: " +
                                          currentClause.getClass().getName());
@@ -273,6 +275,9 @@ public class MultiLanguageQueryParser extends QParser {
             return new BoostQuery(subquery, queryCandidate.getBoost());
         } else if (subquery instanceof WildcardQuery) {
             subquery = processWildcardQuery((WildcardQuery)subquery);
+            return new BoostQuery(subquery, queryCandidate.getBoost());
+        } else if (subquery instanceof SynonymQuery) {
+            subquery = processSynonymQuery((SynonymQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
         } else
 	    throw new SolrException(ErrorCode.SERVER_ERROR, "Boost Query: Unable to handle " +  subquery.getClass().getName());
