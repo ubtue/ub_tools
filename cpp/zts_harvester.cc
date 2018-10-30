@@ -82,6 +82,11 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
         if (StringUtil::StartsWith(entry.name_, "add_field"))
             site_params->additional_fields_.emplace_back(entry.value_);
     }
+
+    for (const auto &entry : section) {
+        if (StringUtil::StartsWith(entry.name_, "non_standard_metadata_field"))
+            site_params->non_standard_metadata_fields_.emplace_back(entry.value_);
+    }
 }
 
 
