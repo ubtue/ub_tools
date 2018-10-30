@@ -246,6 +246,8 @@ public class MultiLanguageQueryParser extends QParser {
                  currentClause = processPhraseQuery((PhraseQuery)currentClause);
              else if (currentClause instanceof SynonymQuery)
                  currentClause = processSynonymQuery((SynonymQuery)currentClause);
+             else if (currentClause instanceof MultiPhraseQuery)
+                 currentClause = processMultiPhraseQuery((MultiPhraseQuery)currentClause);
              else
                  throw new SolrException(ErrorCode.SERVER_ERROR, "Unknown currentClause type in DisjunctionMaxQuery: " +
                                          currentClause.getClass().getName());
