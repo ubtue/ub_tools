@@ -180,7 +180,8 @@ void InitializeFormatHandlerParams(DbConnection * const db_connection, const std
 }
 
 
-Zotero::FormatHandler *GetFormatHandlerForGroup(const std::string &group_name, const std::unordered_map<std::string, ZoteroFormatHandlerParams>
+Zotero::FormatHandler *GetFormatHandlerForGroup(const std::string &group_name,
+                                                const std::unordered_map<std::string, ZoteroFormatHandlerParams>
                                                 &group_name_to_format_handler_params_map)
 {
     // lazy-initialize format handlers to prevent file spam in the output directory
@@ -202,6 +203,68 @@ Zotero::FormatHandler *GetFormatHandlerForGroup(const std::string &group_name, c
 }
 
 
+// Parses the command-line arguments.
+void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode * const delivery_mode_to_process,
+                 std::unordered_set<std::string> * const groups_filter, bool * const ignore_robots_dot_txt,
+                 std::string * const map_directory_path, std::string * const output_directory, std::string * const output_filename,
+                 std::string * const output_format_string, std::string * const error_report_file)
+{
+    while (StringUtil::StartsWith((*argv)[1], "--")) {
+        if (StringUtil::StartsWith((*argv)[1], "--delivery-mode=")) {
+            const auto mode_string((*argv)[1] + __builtin_strlen("--delivery-mode="));
+            const auto match(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.find(mode_string));
+
+            if (match == BSZUpload::STRING_TO_DELIVERY_MODE_MAP.end())
+                LOG_ERROR("Unknown delivery mode '" + std::string(mode_string) + "'");
+            else
+                *delivery_mode_to_process = static_cast<BSZUpload::DeliveryMode>(match->second);
+
+            --*argc, ++*argv;
+        }
+
+        if (StringUtil::StartsWith((*argv)[1], "--groups=")) {
+            StringUtil::SplitThenTrimWhite((*argv)[1] + __builtin_strlen("--groups="), ',', groups_filter);
+            --*argc, ++*argv;
+        }
+
+        if (std::strcmp((*argv)[1], "--ignore-robots-dot-txt") == 0) {
+            *ignore_robots_dot_txt = true;
+            --*argc, ++*argv;
+        }
+
+        const std::string MAP_DIRECTORY_FLAG_PREFIX("--map-directory=");
+        if (StringUtil::StartsWith((*argv)[1], MAP_DIRECTORY_FLAG_PREFIX)) {
+            *map_directory_path = (*argv)[1] + MAP_DIRECTORY_FLAG_PREFIX.length();
+            --*argc, ++*argv;
+        }
+
+        const std::string OUTPUT_DIRECTORY_FLAG_PREFIX("--output-directory=");
+        if (StringUtil::StartsWith((*argv)[1], OUTPUT_DIRECTORY_FLAG_PREFIX)) {
+            *output_directory = (*argv)[1] + OUTPUT_DIRECTORY_FLAG_PREFIX.length();
+            --*argc, ++*argv;
+        }
+
+        const std::string OUTPUT_FILENAME_FLAG_PREFIX("--output-filename=");
+        if (StringUtil::StartsWith((*argv)[1], OUTPUT_FILENAME_FLAG_PREFIX)) {
+            *output_filename = (*argv)[1] + OUTPUT_FILENAME_FLAG_PREFIX.length();
+            --*argc, ++*argv;
+        }
+
+        const std::string OUTPUT_FORMAT_FLAG_PREFIX("--output-format=");
+        if (StringUtil::StartsWith((*argv)[1], OUTPUT_FORMAT_FLAG_PREFIX)) {
+            *output_format_string = (*argv)[1] + OUTPUT_FORMAT_FLAG_PREFIX.length();
+            --*argc, ++*argv;
+        }
+
+        const std::string ERROR_REPORT_FILE_FLAG_PREFIX("--error-report-file=");
+        if (StringUtil::StartsWith((*argv)[1], ERROR_REPORT_FILE_FLAG_PREFIX)) {
+            *error_report_file = (*argv)[1] + ERROR_REPORT_FILE_FLAG_PREFIX.length();
+            --*argc, ++*argv;
+        }
+    }
+}
+
+
 } // unnamed namespace
 
 
@@ -218,60 +281,8 @@ int Main(int argc, char *argv[]) {
     std::string output_filename;
     std::string output_format_string("marc-xml");
     std::string error_report_file;
-
-    while (StringUtil::StartsWith(argv[1], "--")) {
-        if (StringUtil::StartsWith(argv[1], "--delivery-mode=")) {
-            const auto mode_string(argv[1] + __builtin_strlen("--delivery-mode="));
-            const auto match(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.find(mode_string));
-
-            if (match == BSZUpload::STRING_TO_DELIVERY_MODE_MAP.end())
-                LOG_ERROR("Unknown delivery mode '" + std::string(mode_string) + "'");
-            else
-                delivery_mode_to_process = static_cast<BSZUpload::DeliveryMode>(match->second);
-
-            --argc, ++argv;
-        }
-
-        if (StringUtil::StartsWith(argv[1], "--groups=")) {
-            StringUtil::SplitThenTrimWhite(argv[1] + __builtin_strlen("--groups="), ',', &groups_filter);
-            --argc, ++argv;
-        }
-
-        if (std::strcmp(argv[1], "--ignore-robots-dot-txt") == 0) {
-            ignore_robots_dot_txt = true;
-            --argc, ++argv;
-        }
-
-        const std::string MAP_DIRECTORY_FLAG_PREFIX("--map-directory=");
-        if (StringUtil::StartsWith(argv[1], MAP_DIRECTORY_FLAG_PREFIX)) {
-            map_directory_path = argv[1] + MAP_DIRECTORY_FLAG_PREFIX.length();
-            --argc, ++argv;
-        }
-
-        const std::string OUTPUT_DIRECTORY_FLAG_PREFIX("--output-directory=");
-        if (StringUtil::StartsWith(argv[1], OUTPUT_DIRECTORY_FLAG_PREFIX)) {
-            output_directory = argv[1] + OUTPUT_DIRECTORY_FLAG_PREFIX.length();
-            --argc, ++argv;
-        }
-
-        const std::string OUTPUT_FILENAME_FLAG_PREFIX("--output-filename=");
-        if (StringUtil::StartsWith(argv[1], OUTPUT_FILENAME_FLAG_PREFIX)) {
-            output_filename = argv[1] + OUTPUT_FILENAME_FLAG_PREFIX.length();
-            --argc, ++argv;
-        }
-
-        const std::string OUTPUT_FORMAT_FLAG_PREFIX("--output-format=");
-        if (StringUtil::StartsWith(argv[1], OUTPUT_FORMAT_FLAG_PREFIX)) {
-            output_format_string = argv[1] + OUTPUT_FORMAT_FLAG_PREFIX.length();
-            --argc, ++argv;
-        }
-
-        const std::string ERROR_REPORT_FILE_FLAG_PREFIX("--error-report-file=");
-        if (StringUtil::StartsWith(argv[1], ERROR_REPORT_FILE_FLAG_PREFIX)) {
-            error_report_file = argv[1] + ERROR_REPORT_FILE_FLAG_PREFIX.length();
-            --argc, ++argv;
-        }
-    }
+    ProcessArgs(&argc, &argv, &delivery_mode_to_process, &groups_filter, &ignore_robots_dot_txt, &map_directory_path, &output_directory,
+                &output_filename, &output_format_string, &error_report_file);
 
     if (argc < 2)
         Usage();
