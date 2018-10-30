@@ -360,6 +360,19 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
 
     // URL
     node_parameters->url = object_node->getOptionalStringValue("url");
+
+    // Non-standard metadata:
+    const auto notes_nodes(object_node->getOptionalArrayNode("notes"));
+    if (creator_nodes != nullptr) {
+        for (const auto note_node : *notes_nodes) {
+            auto note_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, note_node));
+            const std::string key_value_pair(note_object_node->getStringValue("note"));
+            const auto first_colon_pos(key_value_pair.find(':'));
+            if (unlikely(first_colon_pos == std::string::npos))
+                LOG_ERROR("additional metadata in \"notes\" is missing a colon!");
+            node_parameters->notes_key_value_pairs_[key_value_pair.substr(0, first_colon_pos)] = key_value_pair.substr(first_colon_pos + 1);
+        }
+    }
 }
 
 
@@ -367,17 +380,40 @@ static const size_t MIN_CONTROl_FIELD_LENGTH(1);
 static const size_t MIN_DATA_FIELD_LENGTH(2 /*indicators*/ + 1 /*subfield separator*/ + 1 /*subfield code*/ + 1 /*subfield value*/);
 
 
+static bool InsertAdditionalField(MARC::Record * const record, const std::string &additional_field) {
+    if (unlikely(additional_field.length() < MARC::Record::TAG_LENGTH))
+        return false;
+    const MARC::Tag tag(additional_field.substr(0, MARC::Record::TAG_LENGTH));
+    if ((tag.isTagOfControlField() and additional_field.length() < MARC::Record::TAG_LENGTH + MIN_CONTROl_FIELD_LENGTH)
+        or (not tag.isTagOfControlField() and additional_field.length() < MARC::Record::TAG_LENGTH + MIN_DATA_FIELD_LENGTH))
+        return false;
+    record->insertField(tag, additional_field.substr(MARC::Record::TAG_LENGTH));
+
+    return true;
+}
+
+
 static void InsertAdditionalFields(const std::string &parameter_source, MARC::Record * const record,
                                    const std::vector<std::string> &additional_fields)
 {
     for (const auto &additional_field : additional_fields) {
-        if (unlikely(additional_field.length() < MARC::Record::TAG_LENGTH))
-            LOG_ERROR("bad additional field \"" + StringUtil::CStyleEscape(additional_field) +"\" in \"" + parameter_source + "\"! (1)");
-        const MARC::Tag tag(additional_field.substr(0, MARC::Record::TAG_LENGTH));
-        if ((tag.isTagOfControlField() and additional_field.length() < MARC::Record::TAG_LENGTH + MIN_CONTROl_FIELD_LENGTH)
-            or (not tag.isTagOfControlField() and additional_field.length() < MARC::Record::TAG_LENGTH + MIN_DATA_FIELD_LENGTH))
-            LOG_ERROR("bad additional field \"" + StringUtil::CStyleEscape(additional_field) +"\" in \"" + parameter_source + "\"! (2)");
-        record->insertField(tag, additional_field.substr(MARC::Record::TAG_LENGTH));
+        if (not InsertAdditionalField(record, additional_field))
+            LOG_ERROR("bad additional field \"" + StringUtil::CStyleEscape(additional_field) +"\" in \"" + parameter_source + "\"!");
+    }
+}
+
+
+static void ProcessNonStandardMetadata(MARC::Record * const record, const std::map<std::string, std::string> &notes_key_value_pairs,
+                                       const std::vector<std::string> &non_standard_metadata_fields)
+{
+    for (const auto &key_and_value : notes_key_value_pairs) {
+        const std::string key("%" + key_and_value.first + "%");
+        for (const auto &non_standard_metadata_field : non_standard_metadata_fields) {
+            if (non_standard_metadata_field.find(key) != std::string::npos) {
+                if (not InsertAdditionalField(record, StringUtil::ReplaceString(key, key_and_value.second, non_standard_metadata_field)))
+                    LOG_ERROR("failed to add non-standard metadata field! (Pattern was \"" + non_standard_metadata_field + "\")");
+            }
+        }
     }
 }
 
@@ -543,6 +579,8 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
      InsertAdditionalFields("site params (" + site_params_->parent_journal_name_ + ")", record, site_params_->additional_fields_);
      InsertAdditionalFields("group params (" + site_params_->group_params_->name_ + ")", record,
                             site_params_->group_params_->additional_fields_);
+
+     ProcessNonStandardMetadata(record, node_parameters.notes_key_value_pairs_, site_params_->non_standard_metadata_fields_);
 }
 
 
