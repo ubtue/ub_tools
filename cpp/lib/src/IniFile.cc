@@ -483,12 +483,12 @@ void IniFile::processSectionEntry(const std::string &line, const std::string &co
                                      + getCurrentFile() + "\"!");
 
         if (value[0] == '"') { // double-quoted string
-            if (value.length() == 1 or value[value.length()-1] != '"')
+            if (value.length() == 1 or value[value.length() - 1] != '"')
                 throw std::runtime_error("in IniFile::processSectionEntry: improperly quoted value on line "
                                          + std::to_string(getCurrentLineNo()) + " in file \""
                                          + getCurrentFile() + "!");
 
-            value = value.substr(1, value.length()-2);
+            value = value.substr(1, value.length() - 2);
             TextUtil::CStyleUnescape(&value);
         }
 

@@ -77,6 +77,11 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
             site_params->strptime_format_ += '|';
         site_params->strptime_format_ += common_strptime_format;
     }
+
+    for (const auto &entry : section) {
+        if (StringUtil::StartsWith(entry.name_, "add_field"))
+            site_params->additional_fields_.emplace_back(entry.value_);
+    }
 }
 
 
@@ -366,7 +371,8 @@ int Main(int argc, char *argv[]) {
         site_params.delivery_mode_          = delivery_mode;
         ReadGenericSiteAugmentParams(ini_file, section, bundle_reader, &site_params);
 
-        harvest_params->format_handler_ = GetFormatHandlerForGroup(site_params.group_params_->name_, group_name_to_format_handler_params_map);
+        harvest_params->format_handler_ = GetFormatHandlerForGroup(site_params.group_params_->name_,
+                                                                   group_name_to_format_handler_params_map);
         harvest_params->format_handler_->setAugmentParams(&site_params);
         harvest_params->user_agent_ = group_name_and_params->second.user_agent_;
 
@@ -385,10 +391,11 @@ int Main(int argc, char *argv[]) {
             crawler_params.user_agent_ = harvest_params->user_agent_;
 
             total_record_count_and_previously_downloaded_record_count +=
-                ProcessCrawl(section, bundle_reader, harvest_params, site_params, crawler_params, supported_urls_regex, &harvester_error_logger);
+                ProcessCrawl(section, bundle_reader, harvest_params, site_params, crawler_params, supported_urls_regex,
+                             &harvester_error_logger);
         } else {
-            total_record_count_and_previously_downloaded_record_count += ProcessDirectHarvest(section, bundle_reader, harvest_params, site_params,
-                                                                                              &harvester_error_logger);
+            total_record_count_and_previously_downloaded_record_count += ProcessDirectHarvest(section, bundle_reader, harvest_params,
+                                                                                              site_params, &harvester_error_logger);
         }
     }
 
