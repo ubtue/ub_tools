@@ -172,6 +172,11 @@ void LoadGroup(const IniFile::Section &section, std::unordered_map<std::string, 
     new_group_params.author_ppn_lookup_url_          = section.getString("author_ppn_lookup_url");
     new_group_params.author_gnd_lookup_query_params_ = section.getString("author_gnd_lookup_query_params", "");
     group_name_to_params_map->emplace(section.getSectionName(), new_group_params);
+
+    for (const auto &entry : section) {
+        if (StringUtil::StartsWith(entry.name_, "add_field"))
+            new_group_params.additional_fields_.emplace_back(entry.value_);
+    }
 }
 
 
@@ -184,8 +189,7 @@ std::unique_ptr<FormatHandler> FormatHandler::Factory(DbConnection * const db_co
     else if (output_format == "json")
         return std::unique_ptr<FormatHandler>(new JsonFormatHandler(db_connection, output_format, output_file, harvest_params));
     else if (std::find(EXPORT_FORMATS.begin(), EXPORT_FORMATS.end(), output_format) != EXPORT_FORMATS.end())
-        return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(db_connection, output_format, output_file,
-                                                                      harvest_params));
+        return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(db_connection, output_format, output_file, harvest_params));
     else
         LOG_ERROR("invalid output-format: " + output_format);
 }
@@ -359,6 +363,25 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
 }
 
 
+static const size_t MIN_CONTROl_FIELD_LENGTH(1);
+static const size_t MIN_DATA_FIELD_LENGTH(2 /*indicators*/ + 1 /*subfield separator*/ + 1 /*subfield code*/ + 1 /*subfield value*/);
+
+
+static void InsertAdditionalFields(const std::string &parameter_source, MARC::Record * const record,
+                                   const std::vector<std::string> &additional_fields)
+{
+    for (const auto &additional_field : additional_fields) {
+        if (unlikely(additional_field.length() < MARC::Record::TAG_LENGTH))
+            LOG_ERROR("bad additional field \"" + StringUtil::CStyleEscape(additional_field) +"\" in \"" + parameter_source + "\"! (1)");
+        const MARC::Tag tag(additional_field.substr(0, MARC::Record::TAG_LENGTH));
+        if ((tag.isTagOfControlField() and additional_field.length() < MARC::Record::TAG_LENGTH + MIN_CONTROl_FIELD_LENGTH)
+            or (not tag.isTagOfControlField() and additional_field.length() < MARC::Record::TAG_LENGTH + MIN_DATA_FIELD_LENGTH))
+            LOG_ERROR("bad additional field \"" + StringUtil::CStyleEscape(additional_field) +"\" in \"" + parameter_source + "\"! (2)");
+        record->insertField(tag, additional_field.substr(MARC::Record::TAG_LENGTH));
+    }
+}
+
+
 void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters) {
      const std::string item_type(node_parameters.item_type);
      *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, Transformation::MapBiblioLevel(item_type));
@@ -466,7 +489,6 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
          record->insertField("935", { { 'c', "website" } });
      }
 
-
      // Information about superior work (See BSZ Konkordanz MARC 773)
      MARC::Subfields _773_subfields;
      const std::string publication_title(node_parameters.publication_title);
@@ -497,7 +519,6 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
          _773_subfields.appendSubfield('g', "year: " + year);
      record->insertField("773", _773_subfields);
 
-
      // Keywords
      BSZTransform::BSZTransform bsz_transform(*(site_params_->global_params_->maps_));
      for (const auto keyword : node_parameters.keywords) {
@@ -518,6 +539,10 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
 
      record->insertField("001", site_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
                            + "#" + StringUtil::ToHexString(MARC::CalcChecksum(*record)));
+
+     InsertAdditionalFields("site params (" + site_params_->parent_journal_name_ + ")", record, site_params_->additional_fields_);
+     InsertAdditionalFields("group params (" + site_params_->group_params_->name_ + ")", record,
+                            site_params_->group_params_->additional_fields_);
 }
 
 
