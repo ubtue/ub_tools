@@ -35,19 +35,6 @@
 namespace {
 
 
-const std::unordered_map<std::string, std::string> group_to_user_agent_map = {
-    // system-specific groups
-    {"IxTheo", "ub_tools/ixtheo (see https://ixtheo.de/crawler)"},
-    {"RelBib", "ub_tools/relbib (see https://relbib.de/crawler)"},
-    {"KrimDok", "ub_tools/krimdok (see https://krimdok.uni-tuebingen.de/crawler)"},
-    // user-specific groups
-    {"Braun", "ub_tools/test"},
-    {"Kellmeyer", "ub_tools/ixtheo (see https://ixtheo.de/crawler)"},
-    {"Kim", "ub_tools/ixtheo (see https://ixtheo.de/crawler)"},
-    {"Stelzel", "ub_tools/krimdok (see https://krimdok.uni-tuebingen.de/crawler)"},
-};
-
-
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [options] config_file_path [section1 section2 .. sectionN]\n"
               << "\n"
