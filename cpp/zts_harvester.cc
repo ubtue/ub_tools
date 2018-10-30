@@ -180,9 +180,8 @@ void InitializeFormatHandlerParams(DbConnection * const db_connection, const std
 }
 
 
-Zotero::FormatHandler *GetFormatHandlerForGroup(const std::string &group_name,
-                                                const std::unordered_map<std::string, ZoteroFormatHandlerParams>
-                                                &group_name_to_format_handler_params_map)
+Zotero::FormatHandler *GetFormatHandlerForGroup(
+    const std::string &group_name, const std::unordered_map<std::string, ZoteroFormatHandlerParams> &group_name_to_format_handler_params_map)
 {
     // lazy-initialize format handlers to prevent file spam in the output directory
     static std::unordered_map<std::string, std::unique_ptr<Zotero::FormatHandler>> group_name_to_format_handler_map;
