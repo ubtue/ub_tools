@@ -200,7 +200,6 @@ struct SiteParams {
     std::string parent_ISSN_online_;
     std::string parent_PPN_;
     std::string strptime_format_;
-    std::vector<MARC::EditInstruction> marc_edit_instructions_;
     std::unique_ptr<RegexMatcher> extraction_regex_;
     BSZUpload::DeliveryMode delivery_mode_;
     std::vector<std::string> additional_fields_;
