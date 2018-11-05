@@ -281,66 +281,66 @@ MarcFormatHandler::MarcFormatHandler(DbConnection * const db_connection, const s
 
 
 void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::ObjectNode> object_node, ItemParameters * const node_parameters) {
-     // Item Type
-     node_parameters->item_type = object_node->getStringValue("itemType");
+    // Item Type
+    node_parameters->item_type = object_node->getStringValue("itemType");
 
-     // Title
-     node_parameters->title = object_node->getOptionalStringValue("title");
+    // Title
+    node_parameters->title = object_node->getOptionalStringValue("title");
 
-     // Short Title
-     node_parameters->short_title = object_node->getOptionalStringValue("shortTitle");
+    // Short Title
+    node_parameters->short_title = object_node->getOptionalStringValue("shortTitle");
 
-     // Creators
-     const auto creator_nodes(object_node->getOptionalArrayNode("creators"));
-     if (creator_nodes != nullptr) {
-         for (const auto creator_node : *creator_nodes) {
-             Creator creator;
-             auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
-             creator.first_name = creator_object_node->getOptionalStringValue("firstName");
-             creator.last_name = creator_object_node->getOptionalStringValue("lastName");
-             creator.type = creator_object_node->getOptionalStringValue("creatorType");
-             creator.ppn = creator_object_node->getOptionalStringValue("ppn");
-             creator.gnd_number = creator_object_node->getOptionalStringValue("gnd_number");
-             node_parameters->creators.emplace_back(creator);
-         }
-     }
+    // Creators
+    const auto creator_nodes(object_node->getOptionalArrayNode("creators"));
+    if (creator_nodes != nullptr) {
+        for (const auto creator_node : *creator_nodes) {
+            Creator creator;
+            auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
+            creator.first_name = creator_object_node->getOptionalStringValue("firstName");
+            creator.last_name = creator_object_node->getOptionalStringValue("lastName");
+            creator.type = creator_object_node->getOptionalStringValue("creatorType");
+            creator.ppn = creator_object_node->getOptionalStringValue("ppn");
+            creator.gnd_number = creator_object_node->getOptionalStringValue("gnd_number");
+            node_parameters->creators.emplace_back(creator);
+        }
+    }
 
-     // Publication Title
-     node_parameters->publication_title = object_node->getOptionalStringValue("publicationTitle");
+    // Publication Title
+    node_parameters->publication_title = object_node->getOptionalStringValue("publicationTitle");
 
-     // Serial Short Title
-     node_parameters->abbreviated_publication_title = object_node->getOptionalStringValue("journalAbbreviation");
+    // Serial Short Title
+    node_parameters->abbreviated_publication_title = object_node->getOptionalStringValue("journalAbbreviation");
 
-     // DOI
-     node_parameters->doi = object_node->getOptionalStringValue("DOI");
-     if (node_parameters->doi.empty()) {
-         const std::string extra(object_node->getOptionalStringValue("extra"));
-         if (not extra.empty()) {
-             static RegexMatcher * const doi_matcher(RegexMatcher::RegexMatcherFactory("^DOI:\\s*([0-9a-zA-Z./]+)$"));
-             if (doi_matcher->matched(extra))
-                 node_parameters->doi = (*doi_matcher)[1];
-         }
-     }
-     // Language
-     node_parameters->language = object_node->getOptionalStringValue("language");
+    // DOI
+    node_parameters->doi = object_node->getOptionalStringValue("DOI");
+    if (node_parameters->doi.empty()) {
+        const std::string extra(object_node->getOptionalStringValue("extra"));
+        if (not extra.empty()) {
+            static RegexMatcher * const doi_matcher(RegexMatcher::RegexMatcherFactory("^DOI:\\s*([0-9a-zA-Z./]+)$"));
+            if (doi_matcher->matched(extra))
+                node_parameters->doi = (*doi_matcher)[1];
+        }
+    }
+    // Language
+    node_parameters->language = object_node->getOptionalStringValue("language");
 
-     // Copyright
-     node_parameters->copyright = object_node->getOptionalStringValue("rights");
+    // Copyright
+    node_parameters->copyright = object_node->getOptionalStringValue("rights");
 
-     // Date
-     node_parameters->date = object_node->getOptionalStringValue("date");
+    // Date
+    node_parameters->date = object_node->getOptionalStringValue("date");
 
-     // Volume
-     node_parameters->volume = object_node->getOptionalStringValue("volume");
+    // Volume
+    node_parameters->volume = object_node->getOptionalStringValue("volume");
 
      // Issue
-     node_parameters->issue = object_node->getOptionalStringValue("issue");
+    node_parameters->issue = object_node->getOptionalStringValue("issue");
 
-     // Keywords
-     const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
-     if (tags_node != nullptr) {
-         const std::shared_ptr<const JSON::ArrayNode> tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
-         for (const auto &tag : *tags) {
+    // Keywords
+    const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
+    if (tags_node != nullptr) {
+        const std::shared_ptr<const JSON::ArrayNode> tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
+        for (const auto &tag : *tags) {
             const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
             const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
             if (tag_node == nullptr)
