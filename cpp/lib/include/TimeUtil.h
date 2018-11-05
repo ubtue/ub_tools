@@ -139,7 +139,7 @@ inline std::string TimeTToZuluString(const time_t &the_time)
     { return TimeTToUtcString(the_time, ZULU_FORMAT); }
 
 
-/** \brief  Parses a date/time string into its individual components.
+/** \brief  Parses an ISO 8601 date/time string into its individual components (see https://en.wikipedia.org/wiki/ISO_8601).
  *  \note   We support three formats: "YYYY-MM-DD hh:mm:ss", "YYYY-MM-DDThh:mm:ssZ", and "YYYY-MM-DD".
  *  \param  possible_date            The string that we suspect to be a date in one of the 3 formats that we support.
  *  \param  year                     The year component of the date.
