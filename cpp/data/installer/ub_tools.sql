@@ -66,12 +66,14 @@ CREATE TABLE marc_records (
     hash VARCHAR(40) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
     main_title VARCHAR(191) NOT NULL,
+    superior_title VARCHAR(191),
     record BLOB NOT NULL
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 CREATE INDEX marc_records_url_index ON marc_records(url);
 CREATE INDEX marc_records_hash_index ON marc_records(hash);
 CREATE INDEX marc_records_created_at_index ON marc_records(created_at);
 CREATE INDEX marc_records_main_title_index ON marc_records(main_title); 
+CREATE INDEX marc_records_superior_title_index ON marc_records(superior_title); 
 
 CREATE TABLE marc_authors (
     marc_records_id INT AUTO_INCREMENT PRIMARY KEY,

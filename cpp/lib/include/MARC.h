@@ -475,7 +475,6 @@ public:
             return fields_.front().getContents();
     }
 
-
     /** \return The main title (contents of 245$a or, if that does not exist, the contents of 245$b) or the empty string
      *          in the very unlikely case that we can't find it.
      */
@@ -483,6 +482,9 @@ public:
 
     /** \return An approximation of the complete title generated from various subfields of field 245. */
     std::string getCompleteTitle() const;
+
+    /** \return The title of the superior work, if applicable. (contents of 773$a) */
+    std::string getSuperiorTitle() const;
 
     /** \return All author names in fields 100$a and 700$a. */
     std::set<std::string> getAllAuthors() const;
