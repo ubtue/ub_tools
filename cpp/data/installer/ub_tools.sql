@@ -59,3 +59,23 @@ CREATE TABLE harvested_urls (
     CONSTRAINT url_and_delivery_mode UNIQUE (url, delivery_mode)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 CREATE INDEX harvested_urls_id_and_journal_name_index on harvested_urls(id, journal_name);
+
+CREATE TABLE marc_records (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    url VARCHAR(191) NOT NULL,
+    hash VARCHAR(40) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    main_title VARCHAR(191) NOT NULL,
+    record BLOB NOT NULL
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+CREATE INDEX marc_records_url_index ON marc_records(url);
+CREATE INDEX marc_records_hash_index ON marc_records(hash);
+CREATE INDEX marc_records_created_at_index ON marc_records(created_at);
+CREATE INDEX marc_records_main_title_index ON marc_records(main_title); 
+
+CREATE TABLE marc_authors (
+    marc_records_id INT AUTO_INCREMENT PRIMARY KEY,
+    author VARCHAR(191) NOT NULL,
+    CONSTRAINT marc_records_id FOREIGN KEY (marc_records_id) REFERENCES marc_records (id) ON DELETE CASCADE
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+CREATE INDEX marc_authors_author_index ON marc_authors(author);
