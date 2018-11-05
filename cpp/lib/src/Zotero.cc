@@ -443,17 +443,17 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
             LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
     }
 
-    // Authors/Creators
+    // Authors/Creators (use reverse iterator to keep order, because "insertField" inserts at first possible position)
     const std::string creator_tag((node_parameters.creators.size() == 1) ? "100" : "700");
-    for (const auto creator : node_parameters.creators) {
+    for (auto creator(node_parameters.creators.rbegin()); creator != node_parameters.creators.rend(); ++creator) {
         MARC::Subfields subfields;
-        if (not creator.ppn.empty())
-            subfields.appendSubfield('0', "(DE-576)" + creator.ppn);
-        if (not creator.gnd_number.empty())
-            subfields.appendSubfield('0', "(DE-588)" + creator.gnd_number);
-        if (not creator.type.empty())
-            subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator.type));
-        subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator.last_name, creator.first_name}), ", "));
+        if (not creator->ppn.empty())
+            subfields.appendSubfield('0', "(DE-576)" + creator->ppn);
+        if (not creator->gnd_number.empty())
+            subfields.appendSubfield('0', "(DE-588)" + creator->gnd_number);
+        if (not creator->type.empty())
+            subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator->type));
+        subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator->last_name, creator->first_name}), ", "));
         record->insertField(creator_tag, subfields);
     }
 
@@ -485,9 +485,8 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
 
     // Date
     const std::string date(node_parameters.date);
-    if (not date.empty())
+    if (not date.empty() and item_type != "journalArticle")
         record->insertField("362", { {'a', date} });
-
 
     // URL
     const std::string url(node_parameters.url);
@@ -502,7 +501,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     // DOI
     const std::string doi(node_parameters.doi);
     if (not doi.empty())
-        record->insertField("024", { { 'a', doi }, { '2', "doi" } });
+        record->insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     if (item_type == "journalArticle" or item_type == "magazineArticle" or item_type == "newspaperArticle") {
