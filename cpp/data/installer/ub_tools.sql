@@ -66,7 +66,7 @@ CREATE TABLE marc_records (
     hash VARCHAR(40) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
     main_title VARCHAR(191) NOT NULL,
-    superior_control_number VARCHAR(191),
+    superior_control_number VARCHAR(20),
     record BLOB NOT NULL
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 CREATE INDEX marc_records_url_index ON marc_records(url);
