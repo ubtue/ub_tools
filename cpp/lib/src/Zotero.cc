@@ -506,26 +506,25 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     if (item_type == "journalArticle" or item_type == "magazineArticle" or item_type == "newspaperArticle") {
         MARC::Subfields _936_subfields;
-        const std::string volume(node_parameters.volume);
-        if (not volume.empty())
-            _936_subfields.appendSubfield('d', volume);
-        const std::string year(node_parameters.year);
-        if (not year.empty())
-            _936_subfields.appendSubfield('j', year);
         const std::string issue(node_parameters.issue);
         if (not issue.empty())
-            _936_subfields.appendSubfield('e', issue);
+            _936_subfields.appendSubfield('d', issue);
+        const std::string volume(node_parameters.volume);
+        if (not volume.empty())
+            _936_subfields.appendSubfield('e', volume);
         const std::string pages(node_parameters.pages);
         if (not pages.empty())
             _936_subfields.appendSubfield('h', pages);
+        const std::string year(node_parameters.year);
+        if (not year.empty())
+            _936_subfields.appendSubfield('j', year);
         const std::string license(node_parameters.license);
         if (license == "l")
             _936_subfields.appendSubfield('z', "Kostenfrei");
         if (not _936_subfields.empty())
             record->insertField("936", _936_subfields);
-    } else if (item_type == "webpage") {
+    } else if (item_type == "webpage")
         record->insertField("935", { { 'c', "website" } });
-    }
 
     // Information about superior work (See BSZ Konkordanz MARC 773)
     MARC::Subfields _773_subfields;
