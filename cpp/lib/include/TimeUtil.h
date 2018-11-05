@@ -148,13 +148,26 @@ inline std::string TimeTToZuluString(const time_t &the_time)
  *  \param  hour                     The hour component of the date.
  *  \param  minute                   The minute component of the date.
  *  \param  second                   The second component of the date.
+ *  \param  hour_offset              Timezone hour offset
+ *  \param  minute_offset            Timezone minute offset
  *  \param  is_definitely_zulu_time  Will be set to true if the date/time format was in Zulu time for sure.
  *  \return The number of components that we successfully identified, 3 or 6, or 0 if we didn't have an exact match with
  *          one of our three supported formats.  When we return three, hour, minute, and second will be set to zero.
  */
 unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * const year, unsigned * const month,
                                 unsigned * const day, unsigned * const hour, unsigned * const minute,
-                                unsigned * const second, bool * const is_definitely_zulu_time);
+                                unsigned * const second, int * const hour_offset, int * const minute_offset,
+                                bool * const is_definitely_zulu_time);
+
+
+/** \brief  Parses a date/time string and gets the year out of it.
+ *  \note   Possible string formats see StringToBrokenDownTime
+ *  \param  Date/Time string in supported format.
+ *  \year   The year component of the date.
+ *  \return True if year could be determined, else false.
+ */
+bool StringToYear(const std::string &possible_date, unsigned * const year);
+
 
 
 /** \brief   Convert a time from (a subset of) ISO 8601 format to a time_t.
