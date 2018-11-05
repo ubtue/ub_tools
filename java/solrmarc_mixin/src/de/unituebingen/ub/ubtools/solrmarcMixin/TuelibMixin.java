@@ -988,23 +988,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
-    private static Set<String> getDOIs(final Record record) {
-        final Set<String> result = new TreeSet<>();
-
-        for (final VariableField variableField : record.getVariableFields("024")) {
-            final DataField field = (DataField) variableField;
-            final Subfield subfield_2 = field.getSubfield('2');
-            if (subfield_2 != null && subfield_2.getData().equals("doi")) {
-                final Subfield subfield_a = field.getSubfield('a');
-                if (subfield_a != null) {
-                    result.add("DOI:" + subfield_a.getData());
-                }
-            }
-        }
-
-        return result;
-    }
-
     private static Set<String> getURNs(final Record record) {
         final Set<String> result = new TreeSet<>();
 
@@ -1024,7 +1007,24 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         return result;
     }
-    
+
+    private static Set<String> getDOIs(final Record record) {
+        final Set<String> result = new TreeSet<>();
+
+        for (final VariableField variableField : record.getVariableFields("024")) {
+            final DataField field = (DataField) variableField;
+            final Subfield subfield_2 = field.getSubfield('2');
+            if (subfield_2 != null && subfield_2.getData().equals("doi")) {
+                final Subfield subfield_a = field.getSubfield('a');
+                if (subfield_a != null) {
+                    result.add("DOI:" + subfield_a.getData());
+                }
+            }
+        }
+
+        return result;
+    }
+
     /**
      * Returns a Set<String> of Persistent Identifiers, e.g. DOIs and URNs
      * e.g.
@@ -1037,7 +1037,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getTypesAndPersistentIdentifiers(final Record record) {
         final Set<String> result = getDOIs(record);
         result.addAll(getURNs(record));
-        
+
         return result;
     }
 
@@ -2221,9 +2221,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             result.add("Unknown");
         }
 
-        if (!getDOIs(record).isEmpty())
-            result.add("Electronic");
-
         return result;
     }
 
@@ -2407,21 +2404,23 @@ outer:  for (final VariableField _935Field : _935Fields) {
      */
 
     public Set<String> getMediatype(final Record record) {
-        final Set<String> mediatype = new HashSet<>();
+        final Set<String> mediatypes = new HashSet<>();
         final Set<String> formats = getFormatIncludingElectronic(record);
 
         if (formats.contains(electronicRessource))
-            mediatype.add(electronicRessource);
+            mediatypes.add(electronicRessource);
         else
-            mediatype.add(nonElectronicRessource);
+            mediatypes.add(nonElectronicRessource);
+        if (!getDOIs(record).isEmpty())
+            mediatypes.add(electronicRessource);
 
         final VariableField field = record.getVariableField("ZWI");
         if (field != null) {
-            mediatype.add(electronicRessource);
-            mediatype.add(nonElectronicRessource);
+            mediatypes.add(electronicRessource);
+            mediatypes.add(nonElectronicRessource);
         }
 
-        return mediatype;
+        return mediatypes;
     }
 
     /**

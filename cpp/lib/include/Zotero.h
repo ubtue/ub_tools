@@ -111,6 +111,7 @@ struct ItemParameters {
     std::string physical_form;
     std::string parent_journal_name;
     std::string harvest_url;
+    std::map<std::string, std::string> notes_key_value_pairs_; // Abuse of the "notes" field to pass thru non-standard values
 };
 
 
@@ -174,6 +175,7 @@ struct GroupParams {
     std::string bsz_upload_group_;
     std::string author_ppn_lookup_url_;
     std::string author_gnd_lookup_query_params_;
+    std::vector<std::string> additional_fields_;
 };
 
 
@@ -202,6 +204,8 @@ struct SiteParams {
     std::vector<MARC::EditInstruction> marc_edit_instructions_;
     std::unique_ptr<RegexMatcher> extraction_regex_;
     BSZUpload::DeliveryMode delivery_mode_;
+    std::vector<std::string> additional_fields_;
+    std::vector<std::string> non_standard_metadata_fields_;
 public:
 };
 
