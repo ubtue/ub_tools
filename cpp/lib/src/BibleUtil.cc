@@ -483,10 +483,20 @@ std::string Map6Esra(const std::string &bible_reference_candidate) {
 }
 
 
+// 5 Esra is a virtual bible book that corresponds to 4 Esra 1-2.
+std::string Map5Esra(const std::string &bible_reference_candidate) {
+    std::string book_candidate, chapters_and_verses_candidate;
+    SplitIntoBookAndChaptersAndVerses(bible_reference_candidate, &book_candidate, &chapters_and_verses_candidate);
+    return "4esra" + chapters_and_verses_candidate;
+}
+
+
 std::string BibleAliasMapper::map(const std::string &bible_reference_candidate, const bool verbose) const {
     const std::string normalised_reference_candidate(StringUtil::Filter(TextUtil::UTF8ToLower(bible_reference_candidate), { ' ' }));
     if (StringUtil::StartsWith(normalised_reference_candidate, { "6esra", "6ezra", "6ezr", "6esr", "6esd" }, /* ignore_case */false))
         return Map6Esra(normalised_reference_candidate);
+    if (StringUtil::StartsWith(normalised_reference_candidate, { "5esra", "5ezra", "5ezr", "5esr", "5esd" }, /* ignore_case */false))
+        return Map5Esra(normalised_reference_candidate);
 
     const auto alias_and_canonical_form(aliases_to_canonical_forms_map_.find(normalised_reference_candidate));
     if (alias_and_canonical_form == aliases_to_canonical_forms_map_.end()) {
