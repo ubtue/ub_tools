@@ -486,6 +486,9 @@ public:
     /** \return The title of the superior work, if applicable. (contents of 773$a) */
     std::string getSuperiorTitle() const;
 
+    /** \return The control number of the superior work, if found, else the empty string. */
+    std::string getSuperiorControlNumber() const;
+
     /** \return All author names in fields 100$a and 700$a. */
     std::set<std::string> getAllAuthors() const;
     std::set<std::string> getDOIs() const;
