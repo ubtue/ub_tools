@@ -63,9 +63,13 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
 
         xml_writer.write(record);
 
+        const auto superior_title(record.getSuperiorTitle());
+        std::string superior_title_sql(
+            superior_title.empty() ? "" : ",superior_title=" + db_connection->escapeAndQuoteString(superior_title));
+
         db_connection->queryOrDie("INSERT INTO marc_records SET url=" + db_connection->escapeAndQuoteString(url)
                                   + ",hash=" + db_connection->escapeAndQuoteString(hash) + ",main_title="
-                                  + db_connection->escapeAndQuoteString(record.getMainTitle()) + ",record="
+                                  + db_connection->escapeAndQuoteString(record.getMainTitle()) + superior_title_sql + ",record="
                                   + db_connection->escapeAndQuoteString(GzStream::CompressString(record_blob, GzStream::GZIP)));
         record_blob.clear();
         db_connection->queryOrDie("SELECT LAST_INSERT_ID() AS id");
