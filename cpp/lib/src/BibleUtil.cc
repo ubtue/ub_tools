@@ -463,8 +463,31 @@ BibleAliasMapper::BibleAliasMapper(const std::string &bible_aliases_map_filename
 }
 
 
+// 6 Esra is a virtual bible book that corresponds to 4 Esra 15-16.
+std::string Map6Esra(const std::string &bible_reference_candidate) {
+    std::string book_candidate, chapters_and_verses_candidate;
+    SplitIntoBookAndChaptersAndVerses(bible_reference_candidate, &book_candidate, &chapters_and_verses_candidate);
+    if (chapters_and_verses_candidate.empty())
+        return "4esra";
+
+    auto iter(chapters_and_verses_candidate.cbegin());
+    std::string chapter_digits;
+    while (StringUtil::IsDigit(*iter))
+        chapter_digits += *iter++;
+
+    if (unlikely(chapter_digits.empty()))
+        return bible_reference_candidate; // We give up.
+
+    return "4esra" + std::to_string(StringUtil::ToUnsigned(chapter_digits) + 14)
+           + chapters_and_verses_candidate.substr(chapter_digits.length());
+}
+
+
 std::string BibleAliasMapper::map(const std::string &bible_reference_candidate, const bool verbose) const {
     const std::string normalised_reference_candidate(StringUtil::Filter(TextUtil::UTF8ToLower(bible_reference_candidate), { ' ' }));
+    if (StringUtil::StartsWith(normalised_reference_candidate, { "6esra", "6ezra", "6ezr", "6esr", "6esd" }, /* ignore_case */false))
+        return Map6Esra(normalised_reference_candidate);
+
     const auto alias_and_canonical_form(aliases_to_canonical_forms_map_.find(normalised_reference_candidate));
     if (alias_and_canonical_form == aliases_to_canonical_forms_map_.end()) {
         if (verbose)
