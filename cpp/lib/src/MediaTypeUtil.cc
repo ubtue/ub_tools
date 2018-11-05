@@ -38,6 +38,7 @@
 #include "Url.h"
 #include "util.h"
 #include "WebUtil.h"
+#include "XMLParser.h"
 
 
 namespace MediaTypeUtil {
@@ -109,6 +110,26 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
 
     if (auto_simplify)
         SimplifyMediaType(&media_type);
+
+    return media_type;
+}
+
+
+std::string GetMediaType(const std::string &document, std::string * const subtype, const bool auto_simplify) {
+    std::string media_type(GetMediaType(document, auto_simplify));
+
+    // also include "text/html" which is reported by libmagic if xml prolog is missing
+    if (media_type == "text/xml" or media_type == "text/html") {
+        XMLParser parser(document, XMLParser::XML_STRING);
+        XMLParser::XMLPart part;
+        if (parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "", &part)) {
+            const auto xmlns(part.attributes_.find("xmlns"));
+            if (part.data_ == "TEI" and xmlns != part.attributes_.end() and xmlns->second == "http://www.tei-c.org/ns/1.0") {
+                media_type = "text/xml";
+                *subtype = "tei";
+            }
+        }
+    }
 
     return media_type;
 }
