@@ -363,7 +363,7 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
 
     // Non-standard metadata:
     const auto notes_nodes(object_node->getOptionalArrayNode("notes"));
-    if (creator_nodes != nullptr) {
+    if (notes_nodes != nullptr) {
         for (const auto note_node : *notes_nodes) {
             auto note_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, note_node));
             const std::string key_value_pair(note_object_node->getStringValue("note"));
