@@ -533,12 +533,6 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         _773_subfields.appendSubfield('i', "In: ");
         _773_subfields.appendSubfield('a', publication_title);
     }
-    const std::string abbreviated_publication_title(node_parameters.abbreviated_publication_title);
-    if (not abbreviated_publication_title.empty()) {
-        if (not _773_subfields.hasSubfield('i'))
-            _773_subfields.appendSubfield('i', "In: ");
-        _773_subfields.appendSubfield('p', abbreviated_publication_title);
-    }
     const std::string issn(node_parameters.issn);
     if (not issn.empty())
         _773_subfields.appendSubfield('x', issn);
