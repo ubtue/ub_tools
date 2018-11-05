@@ -485,9 +485,8 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
 
     // Date
     const std::string date(node_parameters.date);
-    if (not date.empty())
+    if (not date.empty() and item_type != "journalArticle")
         record->insertField("362", { {'a', date} });
-
 
     // URL
     const std::string url(node_parameters.url);
