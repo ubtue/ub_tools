@@ -621,6 +621,28 @@ std::string Record::getCompleteTitle() const {
 }
 
 
+std::string  Record::getSuperiorTitle() const {
+    for (const auto &field : getTagRange("773")) {
+        const auto superior_title_candidate(field.getFirstSubfieldWithCode('a'));
+        if (likely(not superior_title_candidate.empty()))
+            return superior_title_candidate;
+    }
+
+    return "";
+}
+
+
+std::string Record::getSuperiorControlNumber() const {
+    for (const auto &field : getTagRange("773")) {
+        const auto w_subfield(field.getFirstSubfieldWithCode('w'));
+        if (likely(StringUtil::StartsWith(w_subfield, "(DE-576)")))
+            return w_subfield.substr(__builtin_strlen("(DE-576)"));
+    }
+
+    return "";
+}
+
+
 std::set<std::string> Record::getAllAuthors() const {
     static const std::vector<std::string> AUTHOR_TAGS { "100", "700" };
 
