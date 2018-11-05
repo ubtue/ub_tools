@@ -333,8 +333,11 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
     // Volume
     node_parameters->volume = object_node->getOptionalStringValue("volume");
 
-     // Issue
+    // Issue
     node_parameters->issue = object_node->getOptionalStringValue("issue");
+
+    // Pages
+    node_parameters->pages = object_node->getOptionalStringValue("pages");
 
     // Keywords
     const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
