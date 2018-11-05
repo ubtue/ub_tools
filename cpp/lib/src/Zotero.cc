@@ -638,23 +638,28 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
 
 
 std::string GetCustomValueIfNotEmpty(const std::string &custom_value, const std::string item_value) {
-   return (not custom_value.empty()) ? custom_value : item_value;
+    return (not custom_value.empty()) ? custom_value : item_value;
 }
 
 
 void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters, struct CustomNodeParameters &custom_node_params){
-     item_parameters->issn = GetCustomValueIfNotEmpty(custom_node_params.issn_normalized, item_parameters->issn);
-     item_parameters->parent_journal_name = GetCustomValueIfNotEmpty(item_parameters->parent_journal_name , item_parameters->parent_journal_name);
-     item_parameters->harvest_url = GetCustomValueIfNotEmpty(custom_node_params.harvest_url, item_parameters->harvest_url);
-     item_parameters->physical_form =GetCustomValueIfNotEmpty(custom_node_params.physical_form, item_parameters->physical_form);
-     item_parameters->license = GetCustomValueIfNotEmpty(custom_node_params.license, item_parameters->license);
-     item_parameters->superior_ppn = GetCustomValueIfNotEmpty(custom_node_params.journal_ppn, item_parameters->superior_ppn);
-     item_parameters->ssg_numbers.emplace_back(custom_node_params.ssg_numbers);
-     // Use the custom creator version if present since it may contain additional information such as a PPN
-     if (custom_node_params.creators.size())
-         item_parameters->creators = custom_node_params.creators;
-     item_parameters->date = GetCustomValueIfNotEmpty(custom_node_params.date_normalized, item_parameters->date);
-     item_parameters->isil = GetCustomValueIfNotEmpty(custom_node_params.isil, item_parameters->isil);
+    item_parameters->issn = GetCustomValueIfNotEmpty(custom_node_params.issn_normalized, item_parameters->issn);
+    item_parameters->parent_journal_name = GetCustomValueIfNotEmpty(item_parameters->parent_journal_name , item_parameters->parent_journal_name);
+    item_parameters->harvest_url = GetCustomValueIfNotEmpty(custom_node_params.harvest_url, item_parameters->harvest_url);
+    item_parameters->physical_form =GetCustomValueIfNotEmpty(custom_node_params.physical_form, item_parameters->physical_form);
+    item_parameters->license = GetCustomValueIfNotEmpty(custom_node_params.license, item_parameters->license);
+    item_parameters->superior_ppn = GetCustomValueIfNotEmpty(custom_node_params.journal_ppn, item_parameters->superior_ppn);
+    item_parameters->ssg_numbers.emplace_back(custom_node_params.ssg_numbers);
+    // Use the custom creator version if present since it may contain additional information such as a PPN
+    if (custom_node_params.creators.size())
+        item_parameters->creators = custom_node_params.creators;
+    item_parameters->date = GetCustomValueIfNotEmpty(custom_node_params.date_normalized, item_parameters->date);
+    item_parameters->isil = GetCustomValueIfNotEmpty(custom_node_params.isil, item_parameters->isil);
+    if (item_parameters->year.empty() and not custom_node_params.date_normalized.empty()) {
+        unsigned year;
+        if (TimeUtil::StringToYear(custom_node_params.date_normalized, &year))
+            item_parameters->year = StringUtil::ToString(year);
+    }
 }
 
 
@@ -907,6 +912,8 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
 
         object_node->insert("ubtue", custom_object);
     }
+
+    LOG_DEBUG("Augmented JSON: " + object_node->toString());
 }
 
 
