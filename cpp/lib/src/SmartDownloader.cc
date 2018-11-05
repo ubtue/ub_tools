@@ -188,18 +188,18 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
                                             std::string * const document, std::string * const http_header_charset,
                                             std::string * const error_message)
 {
-    std::string url_improved(url);
+    std::string improved_url(url);
     if (RegexMatcher::Matched("/diglit/", url))
-        url_improved = StringUtil::ReplaceString("/diglit/", "/opendigi/", &url_improved);
-    if (RegexMatcher::Matched("/opendigi/", url_improved))
-        url_improved = url_improved + "/ocr";
+        improved_url = StringUtil::ReplaceString("/diglit/", "/opendigi/", &improved_url);
+    if (RegexMatcher::Matched("/opendigi/", improved_url))
+        improved_url += "/ocr";
 
-    if (trace_ and url != url_improved)
-        LOG_INFO("converted url \"" + url + "\" to \"" + url_improved + "\"");
+    if (trace_ and url != improved_url)
+        LOG_INFO("converted url \"" + url + "\" to \"" + improved_url + "\"");
 
     if (trace_)
-        LOG_INFO("about to download \"" + url_improved + "\".");
-    if (not DownloadHelper(url_improved, time_limit, document, http_header_charset, error_message)) {
+        LOG_INFO("about to download \"" + improved_url + "\".");
+    if (not DownloadHelper(improved_url, time_limit, document, http_header_charset, error_message)) {
         if (trace_)
             LOG_WARNING("original download failed!");
         return false;
