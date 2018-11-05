@@ -116,7 +116,7 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
 
 
 std::string GetMediaType(const std::string &document, std::string * const subtype, const bool auto_simplify) {
-    std::string media_type = GetMediaType(document, auto_simplify);
+    const std::string media_type(GetMediaType(document, auto_simplify));
 
     if (media_type == "text/xml") {
         XMLParser parser(document, XMLParser::XML_STRING);
