@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "RegexMatcher.h"
+#include <unordered_map>
 #include "Compiler.h"
 #include "util.h"
 
@@ -173,12 +174,20 @@ bool RegexMatcher::matched(const std::string &subject, std::string * const err_m
 }
 
 
+static std::unordered_map<std::string, RegexMatcher *> regex_to_matcher_map;
+
+
 bool RegexMatcher::Matched(const std::string &regex, const std::string &subject, const unsigned options,
                            std::string * const err_msg, size_t * const start_pos, size_t * const end_pos)
 {
+    const auto regex_and_matcher(regex_to_matcher_map.find(regex));
+    if (regex_and_matcher != regex_to_matcher_map.cend())
+        return regex_and_matcher->second->matched(subject, err_msg, start_pos, end_pos);
+
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex, err_msg, options));
     if (matcher == nullptr)
         LOG_ERROR("Failed to compile pattern \"" + regex + "\": " + *err_msg);
+    regex_to_matcher_map[regex] = matcher;
 
     return matcher->matched(subject, err_msg, start_pos, end_pos);
 }
