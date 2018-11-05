@@ -53,13 +53,13 @@ static void Usage() {
 
 // \note Sets "error_message" when it returns false.
 bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std::string * const document,
-                             std::string * const media_type, std::string * const http_header_charset,
-                             std::string * const error_message)
+                             std::string * const media_type, std::string * const media_subtype,
+                             std::string * const http_header_charset, std::string * const error_message)
 {
     if (not SmartDownload(url, timeout, document, http_header_charset, error_message))
         return false;
 
-    *media_type = MediaTypeUtil::GetMediaType(*document);
+    *media_type = MediaTypeUtil::GetMediaType(*document, media_subtype);
     if (media_type->empty()) {
         *error_message = "Failed to get media type";
         return false;
@@ -141,13 +141,18 @@ bool IsUTF8(const std::string &charset) {
 }
 
 
-std::string ConvertToPlainText(const std::string &media_type, const std::string &http_header_charset,
+std::string ConvertToPlainText(const std::string &media_type, const std::string &media_subtype, const std::string &http_header_charset,
                                const std::string &tesseract_language_code, const std::string &document,
                                const unsigned pdf_extraction_timeout, std::string * const error_message)
 {
     std::string extracted_text;
     if (media_type == "text/html" or media_type == "text/xhtml") {
         extracted_text = TextUtil::ExtractTextFromHtml(document, http_header_charset);
+        return TextUtil::CollapseWhitespace(&extracted_text);
+    }
+
+    if (media_type == "text/xml" and media_subtype == "tei") {
+        extracted_text = TextUtil::ExtractTextFromUBTei(document);
         return TextUtil::CollapseWhitespace(&extracted_text);
     }
 
@@ -242,13 +247,13 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             std::string domain;
             cache.getDomainFromUrl(url, &domain);
             entry_url.domain_ = domain;
-            std::string document, media_type, http_header_charset, error_message;
-            if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &http_header_charset,
+            std::string document, media_type, media_subtype, http_header_charset, error_message;
+            if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &media_subtype, &http_header_charset,
                                              &error_message))) {
                 LOG_WARNING("URL " + url + ": could not get document and media type! (" + error_message + ")");
                 entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
             } else {
-                std::string extracted_text(ConvertToPlainText(media_type, http_header_charset, GetTesseractLanguageCode(*record),
+                std::string extracted_text(ConvertToPlainText(media_type, media_subtype, http_header_charset, GetTesseractLanguageCode(*record),
                                                               document, pdf_extraction_timeout, &error_message));
 
                 if (unlikely(extracted_text.empty())) {

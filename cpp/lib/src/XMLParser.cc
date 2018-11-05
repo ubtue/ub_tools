@@ -268,9 +268,6 @@ bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::st
     if (unlikely(expected_type != XMLPart::OPENING_TAG and expected_type != XMLPart::CLOSING_TAG))
         LOG_ERROR("Unexpected type: " + XMLPart::TypeToString(expected_type));
 
-    if (unlikely(expected_tags.empty()))
-        LOG_ERROR("Need at least one expected tag!");
-
     XMLPart xml_part;
     bool return_value(false);
     while (getNext(&xml_part)) {
