@@ -419,168 +419,180 @@ static void ProcessNonStandardMetadata(MARC::Record * const record, const std::m
 
 
 void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters) {
-     const std::string item_type(node_parameters.item_type);
-     *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, Transformation::MapBiblioLevel(item_type));
+    const std::string item_type(node_parameters.item_type);
+    *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, Transformation::MapBiblioLevel(item_type));
 
-     // Control Fields
+    // Control Fields
 
-     // Handle 001 only at the end since we need a proper hash value
-     // -> c.f. last line of this function
+    // Handle 001 only at the end since we need a proper hash value
+    // -> c.f. last line of this function
 
-     const std::string isil(node_parameters.isil);
-     record->insertField("003", isil); // Isil
+    const std::string isil(node_parameters.isil);
+    record->insertField("003", isil); // Isil
 
-     const std::string physical_form(node_parameters.physical_form); // Physical Form
-     if (not physical_form.empty()) {
+    const std::string physical_form(node_parameters.physical_form); // Physical Form
+    if (not physical_form.empty()) {
         if (physical_form == "A")
             record->insertField("007", "tu");
         else if (physical_form == "O")
             record->insertField("007", "cr uuu---uuuuu");
         else
             LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
-     }
+    }
 
-     // Authors/Creators
-     const std::string creator_tag((node_parameters.creators.size() == 1) ? "100" : "700");
-     for (const auto creator : node_parameters.creators) {
-          MARC::Subfields subfields;
-          if (not creator.ppn.empty())
-              subfields.appendSubfield('0', "(DE-576)" + creator.ppn);
-          if (not creator.gnd_number.empty())
-              subfields.appendSubfield('0', "(DE-588)" + creator.gnd_number);
-          if (not creator.type.empty())
-              subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator.type));
-          subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator.last_name, creator.first_name}), ", "));
-          record->insertField(creator_tag, subfields);
-     }
+    // Authors/Creators
+    const std::string creator_tag((node_parameters.creators.size() == 1) ? "100" : "700");
+    for (const auto creator : node_parameters.creators) {
+        MARC::Subfields subfields;
+        if (not creator.ppn.empty())
+            subfields.appendSubfield('0', "(DE-576)" + creator.ppn);
+        if (not creator.gnd_number.empty())
+            subfields.appendSubfield('0', "(DE-588)" + creator.gnd_number);
+        if (not creator.type.empty())
+            subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator.type));
+        subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator.last_name, creator.first_name}), ", "));
+        record->insertField(creator_tag, subfields);
+    }
 
-     // Titles
-     const std::string title(node_parameters.title);
-     if (not title.empty())
-         record->insertField("245", { { 'a', title } });
-     const std::string short_title(node_parameters.short_title);
-     if (not short_title.empty())
-         record->insertField("246", { { 'a', short_title } });
-     if (title.empty() and short_title.empty()) {
-         const std::string website_title(node_parameters.website_title);
-         if (not website_title.empty())
-             record->insertField("245", { { 'a', website_title } });
-         else
-             LOG_ERROR("No title found");
-     }
+    // Titles
+    const std::string title(node_parameters.title);
+    if (not title.empty())
+        record->insertField("245", { { 'a', title } });
+    const std::string short_title(node_parameters.short_title);
+    if (not short_title.empty())
+        record->insertField("246", { { 'a', short_title } });
+    if (title.empty() and short_title.empty()) {
+        const std::string website_title(node_parameters.website_title);
+        if (not website_title.empty())
+            record->insertField("245", { { 'a', website_title } });
+        else
+            LOG_ERROR("No title found");
+    }
 
-     // Language (inserted uncoditionally)
-     std::string language(node_parameters.language);
-     if (language.empty())
-         language = DEFAULT_LANGUAGE_CODE;
-     record->insertField("041", { {'a', language } });
+    // Language (inserted uncoditionally)
+    std::string language(node_parameters.language);
+    if (language.empty())
+        language = DEFAULT_LANGUAGE_CODE;
+    record->insertField("041", { {'a', language } });
 
-     // Abstract Note
-     const std::string abstract_note(node_parameters.abstract_note);
-     if (not abstract_note.empty())
-         record->insertField("520", { {'a', abstract_note } }, '3' /* indicator 1*/);
+    // Abstract Note
+    const std::string abstract_note(node_parameters.abstract_note);
+    if (not abstract_note.empty())
+        record->insertField("520", { {'a', abstract_note } }, '3' /* indicator 1*/);
 
-     // Date
-     const std::string date(node_parameters.date);
-     if (not date.empty())
-         record->insertField("362", { {'a', date} });
+    // Date
+    const std::string date(node_parameters.date);
+    if (not date.empty())
+        record->insertField("362", { {'a', date} });
 
 
-     // URL
-     const std::string url(node_parameters.url);
-     if (not url.empty())
+    // URL
+    const std::string url(node_parameters.url);
+    if (not url.empty())
         record->insertField("856", { {'u', url} });
 
      // Copyright/URL
      const std::string copyright(node_parameters.copyright);
-     if (not copyright.empty())
-         record->insertField("542", { { UrlUtil::IsValidWebUrl(copyright) ? 'u' : 'f', copyright } });
+    if (not copyright.empty())
+        record->insertField("542", { { UrlUtil::IsValidWebUrl(copyright) ? 'u' : 'f', copyright } });
 
-     // DOI
-     const std::string doi(node_parameters.doi);
-     if (not doi.empty())
-         record->insertField("024", { { 'a', doi }, { '2', "doi" } });
+    // DOI
+    const std::string doi(node_parameters.doi);
+    if (not doi.empty())
+        record->insertField("024", { { 'a', doi }, { '2', "doi" } });
 
-     // Differentiating information about source (see BSZ Konkordanz MARC 936)
-     if (item_type == "journalArticle" or item_type == "magazineArticle" or item_type == "newspaperArticle") {
-         MARC::Subfields _936_subfields;
-         const std::string volume(node_parameters.volume);
-         if (not volume.empty())
-              _936_subfields.appendSubfield('d', volume);
-         const std::string year(node_parameters.year);
-         if (not year.empty())
-             _936_subfields.appendSubfield('j', year);
-         const std::string issue(node_parameters.issue);
-         if (not issue.empty())
-             _936_subfields.appendSubfield('e', issue);
-         const std::string pages(node_parameters.pages);
-         if (not pages.empty())
-             _936_subfields.appendSubfield('h', pages);
-         const std::string license(node_parameters.license);
-         if (license == "l")
-             _936_subfields.appendSubfield('z', "Kostenfrei");
-         if (not _936_subfields.empty())
-             record->insertField("936", _936_subfields);
-     } else if (item_type == "webpage") {
-         record->insertField("935", { { 'c', "website" } });
-     }
+    // Differentiating information about source (see BSZ Konkordanz MARC 936)
+    if (item_type == "journalArticle" or item_type == "magazineArticle" or item_type == "newspaperArticle") {
+        MARC::Subfields _936_subfields;
+        const std::string volume(node_parameters.volume);
+        if (not volume.empty())
+            _936_subfields.appendSubfield('d', volume);
+        const std::string year(node_parameters.year);
+        if (not year.empty())
+            _936_subfields.appendSubfield('j', year);
+        const std::string issue(node_parameters.issue);
+        if (not issue.empty())
+            _936_subfields.appendSubfield('e', issue);
+        const std::string pages(node_parameters.pages);
+        if (not pages.empty())
+            _936_subfields.appendSubfield('h', pages);
+        const std::string license(node_parameters.license);
+        if (license == "l")
+            _936_subfields.appendSubfield('z', "Kostenfrei");
+        if (not _936_subfields.empty())
+            record->insertField("936", _936_subfields);
+    } else if (item_type == "webpage") {
+        record->insertField("935", { { 'c', "website" } });
+    }
 
-     // Information about superior work (See BSZ Konkordanz MARC 773)
-     MARC::Subfields _773_subfields;
-     const std::string publication_title(node_parameters.publication_title);
-     if (not publication_title.empty()) {
-         _773_subfields.appendSubfield('i', "In: ");
-         _773_subfields.appendSubfield('a', publication_title);
-     }
-     const std::string abbreviated_publication_title(node_parameters.abbreviated_publication_title);
-     if (not abbreviated_publication_title.empty()) {
-         if (not _773_subfields.hasSubfield('i'))
-             _773_subfields.appendSubfield('i', "In: ");
-         _773_subfields.appendSubfield('p', abbreviated_publication_title);
-     }
-     const std::string issn(node_parameters.issn);
-     if (not issn.empty())
-         _773_subfields.appendSubfield('x', issn);
-     const std::string superior_ppn(node_parameters.superior_ppn);
-     if (not superior_ppn.empty())
-         _773_subfields.appendSubfield('w', "(DE-576)" + superior_ppn);
-     const std::string volume(node_parameters.volume);
-     if (not volume.empty())
-         _773_subfields.appendSubfield('g', "volume: " + volume);
-     const std::string pages(node_parameters.pages);
-     if (not pages.empty())
-         _773_subfields.appendSubfield('g', "pages: " + pages);
-     const std::string year(node_parameters.year);
-     if (not year.empty())
-         _773_subfields.appendSubfield('g', "year: " + year);
-     record->insertField("773", _773_subfields);
+    // Information about superior work (See BSZ Konkordanz MARC 773)
+    MARC::Subfields _773_subfields;
+    const std::string publication_title(node_parameters.publication_title);
+    if (not publication_title.empty()) {
+        _773_subfields.appendSubfield('i', "In: ");
+        _773_subfields.appendSubfield('a', publication_title);
+    }
+    const std::string abbreviated_publication_title(node_parameters.abbreviated_publication_title);
+    if (not abbreviated_publication_title.empty()) {
+        if (not _773_subfields.hasSubfield('i'))
+            _773_subfields.appendSubfield('i', "In: ");
+        _773_subfields.appendSubfield('p', abbreviated_publication_title);
+    }
+    const std::string issn(node_parameters.issn);
+    if (not issn.empty())
+        _773_subfields.appendSubfield('x', issn);
+    const std::string superior_ppn(node_parameters.superior_ppn);
+    if (not superior_ppn.empty())
+        _773_subfields.appendSubfield('w', "(DE-576)" + superior_ppn);
+    const std::string volume(node_parameters.volume);
 
-     // Keywords
-     BSZTransform::BSZTransform bsz_transform(*(site_params_->global_params_->maps_));
-     for (const auto keyword : node_parameters.keywords) {
-          std::string tag;
-          char subfield;
-          bsz_transform.DetermineKeywordOutputFieldFromISSN(issn, &tag, &subfield);
-          record->insertField(tag, { {subfield, keyword } });
-     }
+    // 773g, example: "52(2018), 1, S. 1-40" => <volume>(<year>), <issue>, S. <pages>
+    std::string g_content;
+    if (not volume.empty()) {
+        g_content += volume;
 
-     // SSG numbers
-     const auto ssg_numbers(node_parameters.ssg_numbers);
-     if (not ssg_numbers.empty()) {
-         MARC::Subfields _084_subfields;
-         for (const auto ssg_number : ssg_numbers)
-             _084_subfields.appendSubfield('a', ssg_number);
-         _084_subfields.appendSubfield('0', "ssgn");
-     }
+        const std::string year(node_parameters.year);
+        if (not year.empty())
+            g_content += "(" + year + ")";
 
-     record->insertField("001", site_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
-                           + "#" + StringUtil::ToHexString(MARC::CalcChecksum(*record)));
+        const std::string issue(node_parameters.issue);
+        if (not issue.empty())
+            g_content += ", " + issue;
 
-     InsertAdditionalFields("site params (" + site_params_->parent_journal_name_ + ")", record, site_params_->additional_fields_);
-     InsertAdditionalFields("group params (" + site_params_->group_params_->name_ + ")", record,
-                            site_params_->group_params_->additional_fields_);
+        const std::string pages(node_parameters.pages);
+        if (not pages.empty())
+            g_content += ", S. " + pages;
 
-     ProcessNonStandardMetadata(record, node_parameters.notes_key_value_pairs_, site_params_->non_standard_metadata_fields_);
+        _773_subfields.appendSubfield('g', g_content);
+    }
+    record->insertField("773", _773_subfields);
+
+    // Keywords
+    BSZTransform::BSZTransform bsz_transform(*(site_params_->global_params_->maps_));
+    for (const auto keyword : node_parameters.keywords) {
+        std::string tag;
+        char subfield;
+        bsz_transform.DetermineKeywordOutputFieldFromISSN(issn, &tag, &subfield);
+        record->insertField(tag, { {subfield, keyword } });
+    }
+
+    // SSG numbers
+    const auto ssg_numbers(node_parameters.ssg_numbers);
+    if (not ssg_numbers.empty()) {
+        MARC::Subfields _084_subfields;
+        for (const auto ssg_number : ssg_numbers)
+            _084_subfields.appendSubfield('a', ssg_number);
+        _084_subfields.appendSubfield('0', "ssgn");
+    }
+
+    record->insertField("001", site_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
+                        + "#" + StringUtil::ToHexString(MARC::CalcChecksum(*record)));
+
+    InsertAdditionalFields("site params (" + site_params_->parent_journal_name_ + ")", record, site_params_->additional_fields_);
+    InsertAdditionalFields("group params (" + site_params_->group_params_->name_ + ")", record,
+                           site_params_->group_params_->additional_fields_);
+
+    ProcessNonStandardMetadata(record, node_parameters.notes_key_value_pairs_, site_params_->non_standard_metadata_fields_);
 }
 
 
