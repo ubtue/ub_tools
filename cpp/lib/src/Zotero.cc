@@ -1025,7 +1025,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     PreprocessHarvesterResponse(&json_array);
 
     int processed_json_entries(0);
-    for (auto entry : *json_array) {
+    for (const auto entry : *json_array) {
         const std::shared_ptr<JSON::ObjectNode> json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
         ++processed_json_entries;
 
