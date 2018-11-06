@@ -160,7 +160,6 @@
 /zts_harvester
 
 # other excludes
-data/zeder_to_zotero_importer.conf
 iViaCore-mkdep
 log
 Pipeline
