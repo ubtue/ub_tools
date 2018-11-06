@@ -935,6 +935,37 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
 }
 
 
+void PreprocessHarvesterResponse(std::shared_ptr<JSON::ArrayNode> * const response_object_array) {
+    // notes returned by the translation server are encoded as separate objects in the response
+    // we'll need to iterate through the entires and append individual notes to their parents
+    std::shared_ptr<JSON::ArrayNode> augmented_array(new JSON::ArrayNode());
+    JSON::ObjectNode *last_entry(nullptr);
+
+    for (auto entry : **response_object_array) {
+        const auto json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
+        const auto item_type(json_object->getStringValue("itemType"));
+
+        if (item_type == "note") {
+            if (last_entry == nullptr)
+                LOG_ERROR("unexpected note object in translation server response!");
+
+            const std::shared_ptr<JSON::ObjectNode> new_note(new JSON::ObjectNode());
+            new_note->insert("note", std::shared_ptr<JSON::JSONNode>(new JSON::StringNode(json_object->getStringValue("note"))));
+            last_entry->getArrayNode("notes")->push_back(new_note);
+            continue;
+        }
+
+        // add the main entry to our array
+        auto main_entry_copy(JSON::JSONNode::CastToObjectNodeOrDie("entry", json_object->clone()));
+        main_entry_copy->insert("notes", std::shared_ptr<JSON::JSONNode>(new JSON::ArrayNode()));
+        augmented_array->push_back(main_entry_copy);
+        last_entry = main_entry_copy.get();
+    }
+
+    *response_object_array = augmented_array;
+}
+
+
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
                                       const SiteParams &site_params, HarvesterErrorLogger * const error_logger, bool verbose)
 {
@@ -990,9 +1021,11 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         return record_count_and_previously_downloaded_count;
     }
 
-    const std::shared_ptr<const JSON::ArrayNode>json_array(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
+    auto json_array(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
+    PreprocessHarvesterResponse(&json_array);
+
     int processed_json_entries(0);
-    for (const auto entry : *json_array) {
+    for (auto entry : *json_array) {
         const std::shared_ptr<JSON::ObjectNode> json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
         ++processed_json_entries;
 
