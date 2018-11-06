@@ -72,7 +72,8 @@ bool AlreadyHasIdenticalUrl(const MARC::Record &record, const std::string &url) 
 
 
 void Augment856(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                const std::unordered_map<std::string, std::string> &doi_to_url) {
+                const std::unordered_map<std::string, std::string> &doi_to_url)
+    {
     while (MARC::Record record = marc_reader->read()) {
         for (const auto &field : record.getTagRange("024")) {
             if (field.hasSubfieldWithValue('2', "doi")) {
