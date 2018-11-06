@@ -969,7 +969,6 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     }
 
     // Process either single or multiple results (response_body is array by now)
-    LOG_DEBUG(response_body);
     std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
     JSON::Parser json_parser(response_body);
     if (not (json_parser.parse(&tree_root))) {
