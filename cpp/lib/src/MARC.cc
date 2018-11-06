@@ -876,6 +876,8 @@ void Record::appendField(const Tag &new_field_tag, const std::string &field_cont
     if (unlikely(not fields_.empty() and fields_.back().getTag() > new_field_tag))
         LOG_ERROR("attempt to append a \"" + new_field_tag.toString() + "\" field after a \"" + fields_.back().getTag().toString()
                   + "\" field!");
+    if (unlikely(not fields_.empty() and fields_.back().getTag() == new_field_tag and not IsRepeatableField(new_field_tag)))
+        LOG_ERROR("attempt to append a second non-repeatable\"" + new_field_tag.toString() + "\" field! (1)");
     fields_.emplace_back(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + field_contents);
 }
 
@@ -884,6 +886,8 @@ void Record::appendField(const Tag &new_field_tag, const Subfields &subfields, c
     if (unlikely(not fields_.empty() and fields_.back().getTag() > new_field_tag))
         LOG_ERROR("attempt to append a \"" + new_field_tag.toString() + "\" field after a \"" + fields_.back().getTag().toString()
                   + "\" field! (2)");
+    if (unlikely(not fields_.empty() and fields_.back().getTag() == new_field_tag and not IsRepeatableField(new_field_tag)))
+        LOG_ERROR("attempt to append a second non-repeatable\"" + new_field_tag.toString() + "\" field! (2)");
     fields_.emplace_back(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString());
 }
 
@@ -892,6 +896,8 @@ void Record::appendField(const Field &field) {
     if (unlikely(not fields_.empty() and fields_.back().getTag() > field.getTag()))
         LOG_ERROR("attempt to append a \"" + field.getTag().toString() + "\" field after a \"" + fields_.back().getTag().toString()
                   + "\" field! (3)");
+    if (unlikely(not fields_.empty() and fields_.back().getTag() == field.getTag() and not IsRepeatableField(field.getTag())))
+        LOG_ERROR("attempt to append a second non-repeatable\"" + field.getTag().toString() + "\" field! (3)");
     fields_.emplace_back(field);
 }
 
