@@ -199,7 +199,8 @@ struct SiteParams {
     std::string parent_journal_name_;
     std::string parent_ISSN_print_;
     std::string parent_ISSN_online_;
-    std::string parent_PPN_;
+    std::string parent_PPN_print_;
+    std::string parent_PPN_online_;
     std::string strptime_format_;
     std::unique_ptr<RegexMatcher> extraction_regex_;
     BSZUpload::DeliveryMode delivery_mode_;

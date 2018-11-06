@@ -61,7 +61,8 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
     site_params->parent_journal_name_ = section_name;
     site_params->parent_ISSN_print_ = bundle_reader.print(section_name).value(JournalConfig::Print::ISSN, "");
     site_params->parent_ISSN_online_ = bundle_reader.online(section_name).value(JournalConfig::Online::ISSN, "");
-    site_params->parent_PPN_ = bundle_reader.print(section_name).value(JournalConfig::Print::PPN, "");
+    site_params->parent_PPN_print_ = bundle_reader.print(section_name).value(JournalConfig::Print::PPN, "");
+    site_params->parent_PPN_online_ = bundle_reader.online(section_name).value(JournalConfig::Online::PPN, "");
     site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(bundle_reader.zotero(section_name)
                                          .value(JournalConfig::Zotero::EXTRACTION_REGEX, "")));
 
