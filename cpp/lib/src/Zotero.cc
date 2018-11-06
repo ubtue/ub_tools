@@ -500,8 +500,10 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
 
     // DOI
     const std::string doi(node_parameters.doi);
-    if (not doi.empty())
+    if (not doi.empty()) {
         record->insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
+        record->insertField("856", { {'u', "https://doi.org/" + doi} });
+    }
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     if (item_type == "journalArticle" or item_type == "magazineArticle" or item_type == "newspaperArticle") {
