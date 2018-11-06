@@ -299,7 +299,7 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
             creator.first_name = creator_object_node->getOptionalStringValue("firstName");
             creator.last_name = creator_object_node->getOptionalStringValue("lastName");
             creator.type = creator_object_node->getOptionalStringValue("creatorType");
-            creator.ppn = creator_object_node->getOptionalStringValue("PPN");
+            creator.ppn = creator_object_node->getOptionalStringValue("ppn");
             creator.gnd_number = creator_object_node->getOptionalStringValue("gnd_number");
             node_parameters->creators.emplace_back(creator);
         }
@@ -610,7 +610,7 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
             creator.first_name = creator_object_node->getOptionalStringValue("firstName");
             creator.last_name = creator_object_node->getOptionalStringValue("lastName");
             creator.type = creator_object_node->getOptionalStringValue("creatorType");
-            creator.ppn = creator_object_node->getOptionalStringValue("PPN");
+            creator.ppn = creator_object_node->getOptionalStringValue("ppn");
             creator.gnd_number = creator_object_node->getOptionalStringValue("gnd_number");
             custom_node_params->creators.emplace_back(creator);
         }
@@ -623,7 +623,7 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
     custom_node_params->license = custom_object->getOptionalStringValue("licenseCode");
     custom_node_params->ssg_numbers = custom_object->getOptionalStringValue("ssgNumbers");
     custom_node_params->date_normalized = custom_object->getOptionalStringValue("date_normalized");
-    custom_node_params->journal_ppn = custom_object->getOptionalStringValue("PPN");
+    custom_node_params->journal_ppn = custom_object->getOptionalStringValue("ppn");
     custom_node_params->isil = custom_object->getOptionalStringValue("isil");
 }
 
@@ -729,7 +729,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
             const std::string PPN(BSZTransform::DownloadAuthorPPN(name, site_params.group_params_->author_ppn_lookup_url_));
             if (not PPN.empty()) {
                 comments->emplace_back("Added author PPN " + PPN + " for author " + name);
-                creator_object->insert("PPN", std::make_shared<JSON::StringNode>(PPN));
+                creator_object->insert("ppn", std::make_shared<JSON::StringNode>(PPN));
             }
 
             const std::string gnd_number(LobidUtil::GetAuthorGNDNumber(name, site_params.group_params_->author_gnd_lookup_query_params_));
@@ -800,11 +800,11 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
 
     if (not site_params.parent_PPN_online_.empty()) {
         parent_ppn = site_params.parent_PPN_online_;
-        custom_fields.emplace(std::pair<std::string, std::string>("PPN", parent_ppn));
+        custom_fields.emplace(std::pair<std::string, std::string>("ppn", parent_ppn));
         LOG_DEBUG("Using default online PPN \"" + parent_ppn + "\"");
     } else if (not site_params.parent_PPN_print_.empty()) {
         parent_ppn = site_params.parent_PPN_print_;
-        custom_fields.emplace(std::pair<std::string, std::string>("PPN", parent_ppn));
+        custom_fields.emplace(std::pair<std::string, std::string>("ppn", parent_ppn));
         LOG_DEBUG("Using default print PPN \"" + parent_ppn + "\"");
     }
 
@@ -982,6 +982,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     }
 
     // Process either single or multiple results (response_body is array by now)
+    LOG_DEBUG("JSON RAW: " + response_body);
     std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
     JSON::Parser json_parser(response_body);
     if (not (json_parser.parse(&tree_root))) {
