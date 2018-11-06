@@ -3,30 +3,30 @@
 # based on the local snapshot of unpaywall data
 set -o errexit -o nounset
 
-DOIFILE="dois.txt"
-TMPDIR=$(mktemp -d -p . oadoi.XXXXXXXXXX)
-CHUNKLINES=10000
-OUTPUTFILE="oadoi_urls.json"
+DOI_FILE="dois.txt"
+TMP_DIR=$(mktemp -d -p . oadoi.XXXXXXXXXX)
+CHUNK_LINES=10000
+OUTPUT_FILE="oadoi_urls.json"
 DATABASE="oadoi"
 
 
-function cleanup {
-  rm -rf "$TMPDIR"
+function CleanUp {
+  rm -rf "$TMP_DIR"
 }
 
-trap cleanup EXIT
+trap CleanUp EXIT
 
 
-function getDOIsFromTitleData() {
+function GetDOIsFromTitleData() {
    # Extract plausible data
-   marc_grep $1 'if "0242"=="doi" extract "024a"' no_label | grep '^10\.' > $DOIFILE
+   marc_grep $1 'if "0242"=="doi" extract "024a"' no_label | grep '^10\.' > $DOI_FILE
 }
 
 
-function createDOIToURLMap() {
-    split --lines "$CHUNKLINES" --additional-suffix=".part" "$DOIFILE"
+function CreateDoiToUrlMap() {
+    split --lines "$CHUNK_LINES" --additional-suffix=".part" "$DOI_FILE"
     counter=0
-    > "$OUTPUTFILE"
+    > "$OUTPUT_FILE"
     for part in *.part; do
         ((++counter))
         cat $part | sed  's/^/"/; s/$/"/' | sed -re ':a;N;$!ba;s/\n/, /g' \
@@ -37,7 +37,7 @@ function createDOIToURLMap() {
         mongo --quiet "$DATABASE" mongo_query"$counter".js > output"$counter".json
     done;
     # Combine and make array
-    cat *.json | jq --slurp '.' > "$OUTPUTFILE"
+    cat *.json | jq --slurp '.' > "$OUTPUT_FILE"
 }
 
 # Main Program
@@ -47,9 +47,9 @@ if [ $# != 1 ]; then
 fi  
 
 title_data=$1
-cd "$TMPDIR"
-getDOIsFromTitleData $title_data
-createDOIToURLMap
-mv "$OUTPUTFILE" ..
+cd "$TMP_DIR"
+GetDOIsFromTitleData $title_data
+CreateDoiToUrlMap
+mv "$OUTPUT_FILE" ..
 cd ..
-echo "Successfully created file \"${OUTPUTFILE}\""
+echo "Successfully created file \"${OUTPUT_FILE}\""
