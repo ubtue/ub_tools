@@ -363,7 +363,7 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
 
     // Non-standard metadata:
     const auto notes_nodes(object_node->getOptionalArrayNode("notes"));
-    if (creator_nodes != nullptr) {
+    if (notes_nodes != nullptr) {
         for (const auto note_node : *notes_nodes) {
             auto note_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, note_node));
             const std::string key_value_pair(note_object_node->getStringValue("note"));
@@ -969,6 +969,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     }
 
     // Process either single or multiple results (response_body is array by now)
+    LOG_DEBUG(response_body);
     std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
     JSON::Parser json_parser(response_body);
     if (not (json_parser.parse(&tree_root))) {
