@@ -2687,9 +2687,9 @@ outer:  for (final VariableField _935Field : _935Fields) {
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField dataField = (DataField) variableField;
             final Subfield subfield_z = dataField.getSubfield('z');
-            if (subfield_z != null && subfield_z.equals("unpaywall"))
-                return Boolean.toString(true);
+            if (subfield_z != null && subfield_z.getData().equals("unpaywall"))
+                return Boolean.TRUE.toString();
         }
-        return Boolean.toString(false);
+        return Boolean.FALSE.toString();
     }
 }
