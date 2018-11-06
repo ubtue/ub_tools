@@ -458,19 +458,13 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     }
 
     // Titles
-    const std::string title(node_parameters.title);
+    std::string title(node_parameters.title);
+    if (title.empty())
+        title = node_parameters.website_title;
     if (not title.empty())
         record->insertField("245", { { 'a', title } });
-    const std::string short_title(node_parameters.short_title);
-    if (not short_title.empty())
-        record->insertField("246", { { 'a', short_title } });
-    if (title.empty() and short_title.empty()) {
-        const std::string website_title(node_parameters.website_title);
-        if (not website_title.empty())
-            record->insertField("245", { { 'a', website_title } });
-        else
-            LOG_ERROR("No title found");
-    }
+    else
+        LOG_ERROR("No title found");
 
     // Language (inserted uncoditionally)
     std::string language(node_parameters.language);
