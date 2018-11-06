@@ -32,6 +32,7 @@
 
 namespace {
 
+
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname \
               << " doi_to_url_map.json marc_input marc_output\n";
@@ -39,7 +40,7 @@ namespace {
 }
 
 
-void CreateDOIToURLMap(const std::string map_filename, std::unordered_map<std::string, std::string> * const doi_to_url) {
+void CreateDoiToUrlMap(const std::string &map_filename, std::unordered_map<std::string, std::string> * const doi_to_url) {
     std::string json_document;
     if (not FileUtil::ReadString(map_filename, &json_document))
         LOG_ERROR("Could not read in " + map_filename);
@@ -47,7 +48,7 @@ void CreateDOIToURLMap(const std::string map_filename, std::unordered_map<std::s
     JSON::Parser json_parser(json_document);
     std::shared_ptr<JSON::JSONNode> entries;
     if (not json_parser.parse(&entries))
-        LOG_ERROR("Could not properly parse: " + json_parser.getErrorMessage());
+        LOG_ERROR("Could not properly parse \"" + map_filename + ": " + json_parser.getErrorMessage());
     
     std::shared_ptr<JSON::ArrayNode> entry_array(JSON::JSONNode::CastToArrayNodeOrDie("", entries));
     for (const auto &entry : *entry_array) {
@@ -61,7 +62,7 @@ void CreateDOIToURLMap(const std::string map_filename, std::unordered_map<std::s
 } 
 
 
-bool AlreadyHasIdenticalURL(const MARC::Record &record, const std::string &url) {
+bool AlreadyHasIdenticalUrl(const MARC::Record &record, const std::string &url) {
     for (const auto &field : record.getTagRange("856")) {
         if (field.hasSubfieldWithValue('u', url))
             return true;        
@@ -71,7 +72,7 @@ bool AlreadyHasIdenticalURL(const MARC::Record &record, const std::string &url) 
 
 
 void Augment856(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-           const std::unordered_map<std::string, std::string> &doi_to_url) {
+                const std::unordered_map<std::string, std::string> &doi_to_url) {
     while (MARC::Record record = marc_reader->read()) {
         for (const auto &field : record.getTagRange("024")) {
             if (field.hasSubfieldWithValue('2', "doi")) {
@@ -79,8 +80,8 @@ void Augment856(MARC::Reader * const marc_reader, MARC::Writer * const marc_writ
                 const auto doi_and_url(doi_to_url.find(doi));
                 if (doi_and_url != doi_to_url.cend()) {
                     const std::string url(doi_and_url->second);
-                    if (not AlreadyHasIdenticalURL(record, url))
-                        record.insertField("856", { {'u', url}, {'z', "unpaywall"} });
+                    if (not AlreadyHasIdenticalUrl(record, url))
+                        record.insertField("856", { { 'u', url }, { 'z', "unpaywall" } });
                 }
             }
         }
@@ -89,14 +90,14 @@ void Augment856(MARC::Reader * const marc_reader, MARC::Writer * const marc_writ
 }
 
 
-} // end unnamed namespace
+} // unnamed namespace
 
 int Main(int argc, char *argv[]) {
-   if (argc < 4)
+   if (argc != 4)
        Usage();
    
    std::unordered_map<std::string, std::string> doi_to_url;
-   CreateDOIToURLMap(argv[1], &doi_to_url);
+   CreateDoiToUrlMap(argv[1], &doi_to_url);
    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
    Augment856(marc_reader.get(), marc_writer.get(), doi_to_url);
