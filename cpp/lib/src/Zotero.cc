@@ -299,7 +299,7 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
             creator.first_name = creator_object_node->getOptionalStringValue("firstName");
             creator.last_name = creator_object_node->getOptionalStringValue("lastName");
             creator.type = creator_object_node->getOptionalStringValue("creatorType");
-            creator.ppn = creator_object_node->getOptionalStringValue("ppn");
+            creator.ppn = creator_object_node->getOptionalStringValue("PPN");
             creator.gnd_number = creator_object_node->getOptionalStringValue("gnd_number");
             node_parameters->creators.emplace_back(creator);
         }
@@ -610,7 +610,7 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
             creator.first_name = creator_object_node->getOptionalStringValue("firstName");
             creator.last_name = creator_object_node->getOptionalStringValue("lastName");
             creator.type = creator_object_node->getOptionalStringValue("creatorType");
-            creator.ppn = creator_object_node->getOptionalStringValue("ppn");
+            creator.ppn = creator_object_node->getOptionalStringValue("PPN");
             creator.gnd_number = creator_object_node->getOptionalStringValue("gnd_number");
             custom_node_params->creators.emplace_back(creator);
         }
@@ -729,7 +729,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
             const std::string PPN(BSZTransform::DownloadAuthorPPN(name, site_params.group_params_->author_ppn_lookup_url_));
             if (not PPN.empty()) {
                 comments->emplace_back("Added author PPN " + PPN + " for author " + name);
-                creator_object->insert("ppn", std::make_shared<JSON::StringNode>(PPN));
+                creator_object->insert("PPN", std::make_shared<JSON::StringNode>(PPN));
             }
 
             const std::string gnd_number(LobidUtil::GetAuthorGNDNumber(name, site_params.group_params_->author_gnd_lookup_query_params_));
@@ -750,7 +750,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     LOG_DEBUG("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
-    std::string issn_raw, issn_normalized;
+    std::string issn_raw, issn_normalized, parent_ppn;
     std::shared_ptr<JSON::StringNode> language_node(nullptr);
     Transformation::TestForUnknownZoteroKey(object_node);
 
@@ -798,15 +798,18 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         LOG_DEBUG("Using default print ISSN \"" + issn_normalized + "\"");
     }
 
+    if (not site_params.parent_PPN_online_.empty()) {
+        parent_ppn = site_params.parent_PPN_online_;
+        custom_fields.emplace(std::pair<std::string, std::string>("PPN", parent_ppn));
+        LOG_DEBUG("Using default online PPN \"" + parent_ppn + "\"");
+    } else if (not site_params.parent_PPN_print_.empty()) {
+        parent_ppn = site_params.parent_PPN_print_;
+        custom_fields.emplace(std::pair<std::string, std::string>("PPN", parent_ppn));
+        LOG_DEBUG("Using default print PPN \"" + parent_ppn + "\"");
+    }
+
     // ISSN specific overrides
     if (not issn_normalized.empty()) {
-        const auto ISSN_parent_ppn_and_title(
-            site_params.global_params_->maps_->ISSN_to_superior_ppn_and_title_map_.find(issn_normalized));
-        const std::string parent_ppn(site_params.parent_PPN_);
-        if (not parent_ppn.empty())
-            custom_fields.emplace(std::pair<std::string, std::string>("PPN", parent_ppn));
-        else if (ISSN_parent_ppn_and_title != site_params.global_params_->maps_->ISSN_to_superior_ppn_and_title_map_.cend())
-            custom_fields.emplace(std::pair<std::string, std::string>("PPN", ISSN_parent_ppn_and_title->second.getPPN()));
 
         // physical form
         const auto ISSN_and_physical_form(site_params.global_params_->maps_->ISSN_to_physical_form_map_.find(issn_normalized));
