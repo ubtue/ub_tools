@@ -33,11 +33,12 @@
 
 
 #include <algorithm>
+#include <list>
 #include <set>
 #include <string>
-#include <list>
 #include <stdexcept>
 #include <type_traits>
+#include <vector>
 #include <cassert>
 #include <cctype>
 #include <cerrno>
@@ -1965,6 +1966,13 @@ inline bool StartsWith(const std::string &s, const std::string &prefix, const bo
     return prefix.empty() or (s.length() >= prefix.length()
            and (ignore_case ? (::strncasecmp(s.c_str(), prefix.c_str(), prefix.length()) == 0)
                             : (std::strncmp(s.c_str(), prefix.c_str(), prefix.length()) == 0)));
+}
+inline bool StartsWith(const std::string &s, const std::vector<std::string> &prefixes, const bool ignore_case = false) {
+    for (const auto &prefix : prefixes) {
+        if (StartsWith(s, prefix, ignore_case))
+            return true;
+    }
+    return false;
 }
 
 

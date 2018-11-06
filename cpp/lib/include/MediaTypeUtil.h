@@ -64,6 +64,17 @@ std::string GetHtmlMediaType(const std::string &document);
 std::string GetMediaType(const std::string &document, const bool auto_simplify = true);
 
 
+/** \brief  Get the media type of a document, including a subtype.
+ *  \param  document       The document to analyse.
+ *  \param  subtype        The subtype, if it can be determined.
+ *  \param  auto_simplify  If "true", calls SimplifyMediaType() before returning the type.
+ *  \return The media type of the document, or an empty string if it is unknown.
+ *
+ *  Same as GetMediaType, but in case of text/xml we set subtype to "tei" if it is detected.
+ */
+std::string GetMediaType(const std::string &document, std::string * const subtype, const bool auto_simplify = true);
+
+
 /** \brief  Get the media type of a document.
  *  \param  filename       The file to analyse.
  *  \param  auto_simplify  If "true", calls SimplifyMediaType() before returning the type.
