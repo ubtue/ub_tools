@@ -201,7 +201,6 @@ struct SiteParams {
     std::string parent_ISSN_online_;
     std::string parent_PPN_;
     std::string strptime_format_;
-    std::vector<MARC::EditInstruction> marc_edit_instructions_;
     std::unique_ptr<RegexMatcher> extraction_regex_;
     BSZUpload::DeliveryMode delivery_mode_;
     std::vector<std::string> additional_fields_;
@@ -319,7 +318,6 @@ private:
 
     void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node,
                                         MARC::Record * const new_record);
-    void CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record);
 
     MARC::Record processJSON(const std::shared_ptr<const JSON::ObjectNode> &object_node, std::string * const url,
                              std::string * const publication_title, std::string * const abbreviated_publication_title,

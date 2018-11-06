@@ -37,14 +37,12 @@ Locale::Locale(const std::string &new_locale, const int category, const bool res
         old_locale_ = ::setlocale(category, nullptr);
 
     // Attempt to set the new locale:
-    if (::setlocale(category, new_locale.c_str()) == nullptr)
-        throw std::runtime_error("in Locale::Locale: can't set new locale \"" + new_locale
-                                 + "\" for requested category!");
+    is_valid_ = ::setlocale(category, new_locale.c_str()) != nullptr;
 }
 
 
 Locale::~Locale() {
-    if (restore_)
+    if (restore_ and is_valid_)
         // Restore original locale:
         assert(::setlocale(category_, old_locale_.c_str()) != nullptr);
 }
