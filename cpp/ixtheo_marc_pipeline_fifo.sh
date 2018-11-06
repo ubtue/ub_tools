@@ -163,6 +163,9 @@ StartPhase "Extract Normdata Translations"
 (extract_authority_data_translations Normdaten-augmented-"${date}".mrc \
                                      normdata_translations.txt >> "${log}" 2>&1 &&
 EndPhase || Abort) &
+
+
+
 wait
 
 
@@ -270,7 +273,14 @@ EndPhase || Abort) &
 
 
 StartPhase "Integrate Refterms"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_referenceterms Hinweissätze-Ergebnisse-"${date}".txt GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
+StartPhase "Add Additional Open Access URLs"
+(add_oa_urls oadoi_urls.json GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
