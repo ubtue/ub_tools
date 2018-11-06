@@ -286,10 +286,9 @@ std::string StructTmToString(const struct tm &tm);
 
 
 /** \brief Attempts to convert "date_str" to a struct tm instance.
- *  \param optional_strptime_format  If empty, a few heuristics will be tried, o/w, you must
- *         specify an optional locale (please only pick ones that are supported by all operating systems that we use) in parentheses
-           followed by a format as documented on the strptime(3) man page.
- *  \throws std::runtime_error if the conversion failed.
+ *  \param optional_strptime_format  If empty, a few heuristics will be tried, o/w, you must specify an optional list of
+ *         pipe-separated locales (please only pick ones that are supported by all operating systems that we use) in parentheses
+ *         followed by a format as documented on the strptime(3) man page.
  */
 struct tm StringToStructTm(std::string date_str, std::string optional_strptime_format = DEFAULT_FORMAT);
 
