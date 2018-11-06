@@ -46,6 +46,7 @@ namespace Transformation {
         "libraryCatalog",
         "magazineArticle",
         "newspaperArticle",
+        "note",
         "pages",
         "publicationTitle",
         "rights",
