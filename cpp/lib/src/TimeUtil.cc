@@ -220,6 +220,15 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
 }
 
 
+bool StringToYear(const std::string &possible_date, unsigned * const year) {
+    unsigned month, day, hour, minute, second;
+    int hour_offset, minute_offset;
+    bool is_definitely_zulu_time;
+    return (StringToBrokenDownTime(possible_date, year, &month, &day, &hour, &minute, &second,
+                                   &hour_offset, &minute_offset, &is_definitely_zulu_time) > 0);
+}
+
+
 bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_time, std::string * const err_msg,
                           const TimeZone time_zone)
 {

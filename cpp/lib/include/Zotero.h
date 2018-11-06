@@ -318,7 +318,6 @@ private:
 
     void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node,
                                         MARC::Record * const new_record);
-    void CreateCreatorFields(const std::shared_ptr<const JSON::JSONNode> creators_node, MARC::Record * const marc_record);
 
     MARC::Record processJSON(const std::shared_ptr<const JSON::ObjectNode> &object_node, std::string * const url,
                              std::string * const publication_title, std::string * const abbreviated_publication_title,
