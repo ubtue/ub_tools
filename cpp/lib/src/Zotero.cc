@@ -458,19 +458,13 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     }
 
     // Titles
-    const std::string title(node_parameters.title);
+    std::string title(node_parameters.title);
+    if (title.empty())
+        title = node_parameters.website_title;
     if (not title.empty())
         record->insertField("245", { { 'a', title } });
-    const std::string short_title(node_parameters.short_title);
-    if (not short_title.empty())
-        record->insertField("246", { { 'a', short_title } });
-    if (title.empty() and short_title.empty()) {
-        const std::string website_title(node_parameters.website_title);
-        if (not website_title.empty())
-            record->insertField("245", { { 'a', website_title } });
-        else
-            LOG_ERROR("No title found");
-    }
+    else
+        LOG_ERROR("No title found");
 
     // Language (inserted uncoditionally)
     std::string language(node_parameters.language);
@@ -500,8 +494,10 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
 
     // DOI
     const std::string doi(node_parameters.doi);
-    if (not doi.empty())
+    if (not doi.empty()) {
         record->insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
+        record->insertField("856", { {'u', "https://doi.org/" + doi} });
+    }
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     if (item_type == "journalArticle" or item_type == "magazineArticle" or item_type == "newspaperArticle") {
@@ -627,7 +623,7 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
     custom_node_params->license = custom_object->getOptionalStringValue("licenseCode");
     custom_node_params->ssg_numbers = custom_object->getOptionalStringValue("ssgNumbers");
     custom_node_params->date_normalized = custom_object->getOptionalStringValue("date_normalized");
-    custom_node_params->journal_ppn = custom_object->getOptionalStringValue("PPN");
+    custom_node_params->journal_ppn = custom_object->getOptionalStringValue("ppn");
     custom_node_params->isil = custom_object->getOptionalStringValue("isil");
 }
 
@@ -754,7 +750,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     LOG_DEBUG("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
-    std::string issn_raw, issn_normalized;
+    std::string issn_raw, issn_normalized, parent_ppn;
     std::shared_ptr<JSON::StringNode> language_node(nullptr);
     Transformation::TestForUnknownZoteroKey(object_node);
 
@@ -802,15 +798,18 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         LOG_DEBUG("Using default print ISSN \"" + issn_normalized + "\"");
     }
 
+    if (not site_params.parent_PPN_online_.empty()) {
+        parent_ppn = site_params.parent_PPN_online_;
+        custom_fields.emplace(std::pair<std::string, std::string>("ppn", parent_ppn));
+        LOG_DEBUG("Using default online PPN \"" + parent_ppn + "\"");
+    } else if (not site_params.parent_PPN_print_.empty()) {
+        parent_ppn = site_params.parent_PPN_print_;
+        custom_fields.emplace(std::pair<std::string, std::string>("ppn", parent_ppn));
+        LOG_DEBUG("Using default print PPN \"" + parent_ppn + "\"");
+    }
+
     // ISSN specific overrides
     if (not issn_normalized.empty()) {
-        const auto ISSN_parent_ppn_and_title(
-            site_params.global_params_->maps_->ISSN_to_superior_ppn_and_title_map_.find(issn_normalized));
-        const std::string parent_ppn(site_params.parent_PPN_);
-        if (not parent_ppn.empty())
-            custom_fields.emplace(std::pair<std::string, std::string>("PPN", parent_ppn));
-        else if (ISSN_parent_ppn_and_title != site_params.global_params_->maps_->ISSN_to_superior_ppn_and_title_map_.cend())
-            custom_fields.emplace(std::pair<std::string, std::string>("PPN", ISSN_parent_ppn_and_title->second.getPPN()));
 
         // physical form
         const auto ISSN_and_physical_form(site_params.global_params_->maps_->ISSN_to_physical_form_map_.find(issn_normalized));

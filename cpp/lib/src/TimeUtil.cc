@@ -769,8 +769,20 @@ struct tm StringToStructTm(std::string date_str, std::string optional_strptime_f
             const size_t closing_paren_pos(optional_strptime_format.find(')', 1));
             if (unlikely(closing_paren_pos == std::string::npos or closing_paren_pos == 1))
                 throw std::runtime_error("TimeUtil::StringToStructTm: bad locale specification \"" + optional_strptime_format + "\"!");
-            const std::string locale_specification(optional_strptime_format.substr(1, closing_paren_pos - 1));
-            locale.reset(new Locale(locale_specification, LC_TIME));
+            const std::string locale_specifications(optional_strptime_format.substr(1, closing_paren_pos - 1));
+            std::vector<std::string> locales_list;
+            StringUtil::Split(locale_specifications, '|', &locales_list);
+            for (const auto &locale_specification : locales_list) {
+                Locale *new_locale(new Locale(locale_specification, LC_TIME));
+                if (new_locale->isValid()) {
+                    locale.reset(new_locale);
+                    break;
+                } else
+                    delete new_locale;
+            }
+            if (unlikely(locale == nullptr))
+                LOG_ERROR("no valid locale found in \"" + locale_specifications + "\"!");
+
             optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
         }
 
