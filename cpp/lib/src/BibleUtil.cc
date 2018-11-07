@@ -468,7 +468,7 @@ std::string Map6Esra(const std::string &bible_reference_candidate) {
     std::string book_candidate, chapters_and_verses_candidate;
     SplitIntoBookAndChaptersAndVerses(bible_reference_candidate, &book_candidate, &chapters_and_verses_candidate);
     if (chapters_and_verses_candidate.empty())
-        return "4esra";
+        return "4esra15-16";
 
     auto iter(chapters_and_verses_candidate.cbegin());
     std::string chapter_digits;
@@ -487,7 +487,7 @@ std::string Map6Esra(const std::string &bible_reference_candidate) {
 std::string Map5Esra(const std::string &bible_reference_candidate) {
     std::string book_candidate, chapters_and_verses_candidate;
     SplitIntoBookAndChaptersAndVerses(bible_reference_candidate, &book_candidate, &chapters_and_verses_candidate);
-    return "4esra" + chapters_and_verses_candidate;
+    return (chapters_and_verses_candidate.empty()) ? "4esra1-2" : "4esra" + chapters_and_verses_candidate;
 }
 
 
