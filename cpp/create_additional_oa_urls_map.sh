@@ -31,7 +31,7 @@ function CreateDoiToUrlMap() {
         cat $part | sed  's/^/"/; s/$/"/' | sed -re ':a;N;$!ba;s/\n/, /g' \
             | sed '1i db.all_oadoi.find( { $and: [ { "doi" : { $in:  [' -  \
             | sed -e '$a] } },  { "best_oa_location" : { $type : "object" } } ] }, \
-                    { "doi": 1, "best_oa_location.url" : 1, "_id": 0 }).forEach(printjson);' \
+                    { "doi": 1, "best_oa_location" : 1, "_id": 0 }).forEach(printjson);' \
             > mongo_query"$counter".js
         mongo --quiet "$DATABASE" mongo_query"$counter".js > output"$counter".json
     done;
