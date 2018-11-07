@@ -514,8 +514,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
             _936_subfields.appendSubfield('z', "Kostenfrei");
         if (not _936_subfields.empty())
             record->insertField("936", _936_subfields);
-    } else if (item_type == "webpage")
-        record->insertField("935", { { 'c', "website" } });
+    }
 
     // Information about superior work (See BSZ Konkordanz MARC 773)
     MARC::Subfields _773_subfields;
