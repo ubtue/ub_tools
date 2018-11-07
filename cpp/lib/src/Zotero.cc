@@ -487,11 +487,6 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     if (not url.empty())
         record->insertField("856", { {'u', url} });
 
-     // Copyright/URL
-     const std::string copyright(node_parameters.copyright);
-    if (not copyright.empty())
-        record->insertField("542", { { UrlUtil::IsValidWebUrl(copyright) ? 'u' : 'f', copyright } });
-
     // DOI
     const std::string doi(node_parameters.doi);
     if (not doi.empty()) {
