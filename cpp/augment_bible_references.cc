@@ -276,17 +276,19 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
         CreateNumberedBooks(book_name_candidate, &n_subfield_values, &books);
 
         // Special processing for 2 Esdras, 5 Esra and 6 Esra
-        if (not books.empty()) {
-            if (books[0] == "5esra") {
-                books[0] = "4esra";
-                n_subfield_values.clear();
-                n_subfield_values.emplace_back("1-2"); // 5 Esra is an alias for 4 Esra 1-2
-            } else if (books[0] == "6esra") {
-                books[0] = "4esra";
-                n_subfield_values.clear();
-                n_subfield_values.emplace_back("15-16"); // 6 Esra is an alias for 4 Esra 15-16
-            } else if (books[0] == "2esdras")
-                books[0] = "4esra";
+        for (auto &book : books) {
+            if (book == "5esra") { // an alias for 4Esra1-2
+                if (n_subfield_values.empty())
+                    n_subfield_values.emplace_back("1-2");
+                book = "4esra";
+            } else if (book == "6esra") { // an alias for 4Esra15-16
+                book = "4esra";
+                if (n_subfield_values.empty())
+                    n_subfield_values.emplace_back("15-16");
+                else // So far this case does nor appear in our data.
+                    LOG_ERROR("n_subfield_values for 6esra: " + StringUtil::Join(n_subfield_values, "++"));
+            } else if (book == "2esdras")
+                book = "4esra";
         }
 
         if (not HaveBibleBookCodes(books, bible_book_to_code_map)) {
