@@ -2701,8 +2701,8 @@ outer:  for (final VariableField _935Field : _935Fields) {
     public String hasUnpaywallEntry(final Record record) {
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField dataField = (DataField) variableField;
-            final Subfield subfield_z = dataField.getSubfield('z');
-            if (subfield_z != null && subfield_z.getData().equals("unpaywall"))
+            final Subfield subfield_x = dataField.getSubfield('x');
+            if (subfield_x != null && subfield_z.getData().equals("unpaywall"))
                 return Boolean.TRUE.toString();
         }
         return Boolean.FALSE.toString();
