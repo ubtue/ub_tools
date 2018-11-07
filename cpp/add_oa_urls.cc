@@ -44,12 +44,12 @@ void CreateDoiToUrlMap(const std::string &map_filename, std::unordered_map<std::
     std::string json_document;
     if (not FileUtil::ReadString(map_filename, &json_document))
         LOG_ERROR("Could not read in " + map_filename);
-  
+
     JSON::Parser json_parser(json_document);
     std::shared_ptr<JSON::JSONNode> entries;
     if (not json_parser.parse(&entries))
         LOG_ERROR("Could not properly parse \"" + map_filename + ": " + json_parser.getErrorMessage());
-    
+
     std::shared_ptr<JSON::ArrayNode> entry_array(JSON::JSONNode::CastToArrayNodeOrDie("", entries));
     for (const auto &entry : *entry_array) {
         const std::string doi(LookupString("/doi", entry));
@@ -59,13 +59,13 @@ void CreateDoiToUrlMap(const std::string &map_filename, std::unordered_map<std::
         else
             LOG_ERROR("Either doi or url missing");
     }
-} 
+}
 
 
 bool AlreadyHasIdenticalUrl(const MARC::Record &record, const std::string &url) {
     for (const auto &field : record.getTagRange("856")) {
         if (field.hasSubfieldWithValue('u', url))
-            return true;        
+            return true;
     }
     return false;
 }
@@ -82,7 +82,8 @@ void Augment856(MARC::Reader * const marc_reader, MARC::Writer * const marc_writ
                 if (doi_and_url != doi_to_url.cend()) {
                     const std::string url(doi_and_url->second);
                     if (not AlreadyHasIdenticalUrl(record, url))
-                        record.insertField("856", { { 'u', url }, { 'z', "unpaywall" } });
+                        record.insertField("856", { { 'u', url }, { 'x', "unpaywall" },
+                                                    { 'z', "Vermutlich kostenfreier Zugang" } });
                 }
             }
         }
@@ -97,7 +98,7 @@ void Augment856(MARC::Reader * const marc_reader, MARC::Writer * const marc_writ
 int Main(int argc, char *argv[]) {
    if (argc != 4)
        Usage();
-   
+
    std::unordered_map<std::string, std::string> doi_to_url;
    CreateDoiToUrlMap(argv[1], &doi_to_url);
    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
