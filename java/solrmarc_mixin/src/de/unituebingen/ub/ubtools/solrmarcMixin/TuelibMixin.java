@@ -2394,6 +2394,18 @@ outer:  for (final VariableField _935Field : _935Fields) {
     private final static String electronicRessource = "Electronic";
     private final static String nonElectronicRessource = "Non-Electronic";
 
+    private boolean isPrintResource(final Record record) {
+        for (final VariableField _935_field : record.getVariableFields("935")) {
+            final DataField data_field = (DataField) _935_field;
+            for (final Subfield subfield_b : data_field.getSubfields('b')) {
+                if (subfield_b.equals("druck"))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Determine Mediatype For facets we need to differentiate between
      * electronic and non-electronic resources
@@ -2405,20 +2417,23 @@ outer:  for (final VariableField _935Field : _935Fields) {
 
     public Set<String> getMediatype(final Record record) {
         final Set<String> mediatypes = new HashSet<>();
-        final Set<String> formats = getFormatIncludingElectronic(record);
-
-        if (formats.contains(electronicRessource))
-            mediatypes.add(electronicRessource);
-        else
-            mediatypes.add(nonElectronicRessource);
-        if (!getDOIs(record).isEmpty())
-            mediatypes.add(electronicRessource);
-
         final VariableField field = record.getVariableField("ZWI");
         if (field != null) {
             mediatypes.add(electronicRessource);
             mediatypes.add(nonElectronicRessource);
+            return mediatypes;
         }
+
+        final Set<String> formats = getFormatIncludingElectronic(record);
+
+        if (formats.contains(electronicRessource)) {
+            mediatypes.add(electronicRessource);
+            if (isPrintResource(record))
+                mediatypes.add(nonElectronicRessource);
+        } else
+            mediatypes.add(nonElectronicRessource);
+        if (!getDOIs(record).isEmpty())
+            mediatypes.add(electronicRessource);
 
         return mediatypes;
     }
