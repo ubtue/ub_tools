@@ -216,19 +216,6 @@ const std::map<std::string, std::string> book_alias_map {
 static unsigned unknown_book_count;
 
 
-std::string IncrementChapter(const std::string &orig_chapter_and_verse, const unsigned increment) {
-    auto ch(orig_chapter_and_verse.cbegin());
-    std::string chapter_digits;
-    while (ch != orig_chapter_and_verse.cend() and StringUtil::IsDigit(*ch))
-        chapter_digits += *ch++;
-
-    if (unlikely(chapter_digits.empty()))
-        return orig_chapter_and_verse;
-
-    return std::to_string(StringUtil::ToUnsigned(chapter_digits) + increment) + orig_chapter_and_verse.substr(chapter_digits.length());
-}
-
-
 /*  Possible fields containing bible references which will be extracted as bible ranges are 130 and 430
     (specified by "field_tag").  If one of these fields contains a bible reference, the subfield "a" must
     contain the text "Bible".  Subfield "p" must contain the name of a book of the bible.  Book ordinals and
@@ -289,21 +276,19 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
         CreateNumberedBooks(book_name_candidate, &n_subfield_values, &books);
 
         // Special processing for 2 Esdras, 5 Esra and 6 Esra
-        if (not books.empty()) {
-            if (books[0] == "5esra") { // an alias for 4Esra1-2
+        for (auto &book : books) {
+            if (book == "5esra") { // an alias for 4Esra1-2
                 if (n_subfield_values.empty())
                     n_subfield_values.emplace_back("1-2");
-                books[0] = "4esra";
-            } else if (books[0] == "6esra") { // an alias for 4Esra15-16
-                books[0] = "4esra";
+                book = "4esra";
+            } else if (book == "6esra") { // an alias for 4Esra15-16
+                book = "4esra";
                 if (n_subfield_values.empty())
                     n_subfield_values.emplace_back("15-16");
-                else {
-                    for (auto &n_subfield_value : n_subfield_values)
-                        n_subfield_value = IncrementChapter(n_subfield_value, 14);
-                }
-            } else if (books[0] == "2esdras")
-                books[0] = "4esra";
+                else // So far this case does nor appear in our data.
+                    LOG_ERROR("n_subfield_values for 6esra: " + StringUtil::Join(n_subfield_values, "++"));
+            } else if (book == "2esdras")
+                book = "4esra";
         }
 
         if (not HaveBibleBookCodes(books, bible_book_to_code_map)) {
