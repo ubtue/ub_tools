@@ -168,10 +168,13 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
 
         std::string zeder_url;
         if (not zeder_id.empty()) {
-            if (group == "IxTheo")
-                zeder_url = "http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo#suche=Z%3D" + zeder_id;
-            else if (group == "KrimDok")
-                zeder_url = "http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=krim#suche=Z%3D" + zeder_id;
+            const auto group_params(group_name_to_params_map->find(group));
+            if (group_params != group_name_to_params_map->end()) {
+                if (group_params->second.bsz_upload_group_ == "ixtheo")
+                    zeder_url = "http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo#suche=Z%3D" + zeder_id;
+                else if (group_params->second.bsz_upload_group_ == "krimdok")
+                    zeder_url = "http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=krim#suche=Z%3D" + zeder_id;
+            }
         }
 
         all_journal_titles.emplace_back(title);
