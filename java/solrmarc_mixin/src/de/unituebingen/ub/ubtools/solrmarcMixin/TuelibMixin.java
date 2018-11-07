@@ -2593,11 +2593,15 @@ outer:  for (final VariableField _935Field : _935Fields) {
     public String getOpenAccessStatus(final Record record) {
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField dataField = (DataField) variableField;
-            final Subfield subfieldZ = dataField.getSubfield('z');
-            if (subfieldZ != null && subfieldZ.getData().toLowerCase().startsWith("kostenfrei")) {
-                final Subfield subfield3 = dataField.getSubfield('3');
-                if (subfield3 == null || subfield3.getData().toLowerCase().equals("volltext"))
-                    return "open-access";
+            for (final Subfield subfieldZ : dataField.getSubfields('z'))
+                if (subfieldZ.getData().toLowerCase().startsWith("kostenfrei")) {
+                    final Subfield subfield3 = dataField.getSubfield('3');
+                    if (subfield3 == null || subfield3.getData().toLowerCase().equals("volltext"))
+                        return "open-access";
+            }
+            for (final Subfield subfieldX : dataField.getSubfields('x')) {
+                if (subfieldX != null && subfieldX.getData().toLowerCase().equals("unpaywall"))
+                   return "open-access";
             }
         }
 
@@ -2702,7 +2706,7 @@ outer:  for (final VariableField _935Field : _935Fields) {
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField dataField = (DataField) variableField;
             final Subfield subfield_x = dataField.getSubfield('x');
-            if (subfield_x != null && subfield_z.getData().equals("unpaywall"))
+            if (subfield_x != null && subfield_x.getData().equals("unpaywall"))
                 return Boolean.TRUE.toString();
         }
         return Boolean.FALSE.toString();
