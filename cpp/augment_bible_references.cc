@@ -290,12 +290,18 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
 
         // Special processing for 2 Esdras, 5 Esra and 6 Esra
         if (not books.empty()) {
-            if (books[0] == "5esra") // an alias for 4Esra1-2
+            if (books[0] == "5esra") { // an alias for 4Esra1-2
+                if (n_subfield_values.empty())
+                    n_subfield_values.emplace_back("1-2");
                 books[0] = "4esra";
-            else if (books[0] == "6esra") { // an alias for 4Esra15-16
+            } else if (books[0] == "6esra") { // an alias for 4Esra15-16
                 books[0] = "4esra";
-                for (auto &n_subfield_value : n_subfield_values)
-                    n_subfield_value = IncrementChapter(n_subfield_value, 14);
+                if (n_subfield_values.empty())
+                    n_subfield_values.emplace_back("15-16");
+                else {
+                    for (auto &n_subfield_value : n_subfield_values)
+                        n_subfield_value = IncrementChapter(n_subfield_value, 14);
+                }
             } else if (books[0] == "2esdras")
                 books[0] = "4esra";
         }
