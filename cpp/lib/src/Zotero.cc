@@ -487,11 +487,6 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     if (not url.empty())
         record->insertField("856", { {'u', url} });
 
-     // Copyright/URL
-     const std::string copyright(node_parameters.copyright);
-    if (not copyright.empty())
-        record->insertField("542", { { UrlUtil::IsValidWebUrl(copyright) ? 'u' : 'f', copyright } });
-
     // DOI
     const std::string doi(node_parameters.doi);
     if (not doi.empty()) {
@@ -502,12 +497,12 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     if (item_type == "journalArticle" or item_type == "magazineArticle" or item_type == "newspaperArticle") {
         MARC::Subfields _936_subfields;
-        const std::string issue(node_parameters.issue);
-        if (not issue.empty())
-            _936_subfields.appendSubfield('d', issue);
         const std::string volume(node_parameters.volume);
         if (not volume.empty())
-            _936_subfields.appendSubfield('e', volume);
+            _936_subfields.appendSubfield('d', volume);
+        const std::string issue(node_parameters.issue);
+        if (not issue.empty())
+            _936_subfields.appendSubfield('e', issue);
         const std::string pages(node_parameters.pages);
         if (not pages.empty())
             _936_subfields.appendSubfield('h', pages);
