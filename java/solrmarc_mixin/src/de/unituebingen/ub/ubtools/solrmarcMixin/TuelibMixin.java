@@ -2418,6 +2418,16 @@ outer:  for (final VariableField _935Field : _935Fields) {
         if (field != null) {
             mediatypes.add(electronicRessource);
             mediatypes.add(nonElectronicRessource);
+        } else {
+            for (final VariableField _935_field : record.getVariableFields("935")) {
+                final DataField data_field = (DataField) _935_field;
+                for (final Subfield subfield_b : data_field.getSubfields('b')) {
+                    if (subfield_b.equals("druck")) {
+                        mediatypes.add(nonElectronicRessource);
+                        break;
+                    }
+                }
+            }
         }
 
         return mediatypes;
