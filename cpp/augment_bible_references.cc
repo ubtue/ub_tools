@@ -216,6 +216,19 @@ const std::map<std::string, std::string> book_alias_map {
 static unsigned unknown_book_count;
 
 
+std::string IncrementChapter(const std::string &orig_chapter_and_verse, const unsigned increment) {
+    auto ch(orig_chapter_and_verse.cbegin());
+    std::string chapter_digits;
+    while (ch != orig_chapter_and_verse.cend() and StringUtil::IsDigit(*ch))
+        chapter_digits += *ch++;
+
+    if (unlikely(chapter_digits.empty()))
+        return orig_chapter_and_verse;
+
+    return std::to_string(StringUtil::ToUnsigned(chapter_digits) + increment) + orig_chapter_and_verse.substr(chapter_digits.length());
+}
+
+
 /*  Possible fields containing bible references which will be extracted as bible ranges are 130 and 430
     (specified by "field_tag").  If one of these fields contains a bible reference, the subfield "a" must
     contain the text "Bible".  Subfield "p" must contain the name of a book of the bible.  Book ordinals and
@@ -277,14 +290,12 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
 
         // Special processing for 2 Esdras, 5 Esra and 6 Esra
         if (not books.empty()) {
-            if (books[0] == "5esra") {
+            if (books[0] == "5esra") // an alias for 4Esra1-2
                 books[0] = "4esra";
-                n_subfield_values.clear();
-                n_subfield_values.emplace_back("1-2"); // 5 Esra is an alias for 4 Esra 1-2
-            } else if (books[0] == "6esra") {
+            else if (books[0] == "6esra") { // an alias for 4Esra15-16
                 books[0] = "4esra";
-                n_subfield_values.clear();
-                n_subfield_values.emplace_back("15-16"); // 6 Esra is an alias for 4 Esra 15-16
+                for (auto &n_subfield_value : n_subfield_values)
+                    n_subfield_value = IncrementChapter(n_subfield_value, 14);
             } else if (books[0] == "2esdras")
                 books[0] = "4esra";
         }
