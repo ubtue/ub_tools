@@ -156,6 +156,13 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
+StartPhase "Add Additional Open Access URL's"
+(add_oa_urls oadoi_urls_krimdok.json GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
 StartPhase "Check Record Integity at the End of the Pipeline"
 (marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
             --write-data=GesamtTiteldaten-post-pipeline-"${date}".mrc GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
