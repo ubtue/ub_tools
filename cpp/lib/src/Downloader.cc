@@ -417,7 +417,8 @@ void Downloader::InitCurlEasyHandle(const long dns_cache_timeout, const char * c
         throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (9)!");
 
     // User agent information:
-    *user_agent = Downloader::DEFAULT_USER_AGENT_STRING;
+    if (user_agent->empty())
+        *user_agent = Downloader::DEFAULT_USER_AGENT_STRING;
     if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_USERAGENT, user_agent->c_str()) != CURLE_OK))
         throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (10)!");
 
