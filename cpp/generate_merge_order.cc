@@ -81,12 +81,6 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
     if (date1 != date2)
         return date1 < date2;
 
-    // Deletion lists come first:
-    if (filename1[0] == 'L' and filename2[0] != 'L')
-        return true;
-    if (filename2[0] == 'L' and filename1[0] != 'L')
-        return false;
-
     // Complete dumps come before anything else:
     if (StringUtil::StartsWith(filename1, "SA-") and not StringUtil::StartsWith(filename2, "SA-"))
         return true;
@@ -97,6 +91,12 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
     if (StringUtil::StartsWith(filename1, "Complete-MARC-") and not StringUtil::StartsWith(filename2, "Complete-MARC-"))
         return true;
     if (StringUtil::StartsWith(filename2, "Complete-MARC-") and not StringUtil::StartsWith(filename1, "Complete-MARC-"))
+        return false;
+
+    // Deletion lists come first:
+    if (filename1[0] == 'L' and filename2[0] != 'L')
+        return true;
+    if (filename2[0] == 'L' and filename1[0] != 'L')
         return false;
 
     // Sekkor updates come before anything else:
