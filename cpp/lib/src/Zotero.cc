@@ -578,6 +578,8 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
                            site_params_->group_params_->additional_fields_);
 
     ProcessNonStandardMetadata(record, node_parameters.notes_key_value_pairs_, site_params_->non_standard_metadata_fields_);
+
+    record->insertField("ZID", { { 'a', site_params_->zeder_id_} });
 }
 
 
