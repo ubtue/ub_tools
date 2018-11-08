@@ -525,6 +525,18 @@ size_t Record::reTag(const Tag &from_tag, const Tag &to_tag) {
 }
 
 
+Record::iterator Record::erase(const Tag &tag, const bool first_occurrence_only) {
+    auto iter(findTag(tag));
+    while (iter != end() and iter->getTag() == tag) {
+        iter = erase(iter);
+        if (first_occurrence_only)
+            return iter;
+    }
+
+    return iter;
+}
+
+
 bool Record::hasTagWithIndicators(const Tag &tag, const char indicator1, const char indicator2) const {
     for (const auto &field : getTagRange(tag)) {
         if (field.getIndicator1() == indicator1 and field.getIndicator2() == indicator2)

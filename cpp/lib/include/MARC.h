@@ -666,6 +666,13 @@ public:
      */
     inline iterator erase(const iterator pos) { return fields_.erase(pos); }
 
+    /** \brief Removes one or more fields w/ tag "tag".
+     *  \param  tag                    Delete fields w/ this tag.
+     *  \param  first_occurrence_only  If true, we delete at most one field.
+     *  \return The iterator following the deleted fields.
+     */
+    iterator erase(const Tag &tag, const bool first_occurrence_only = false);
+
     /** \return True if field with tag "tag" exists. */
     inline bool hasTag(const Tag &tag) const { return findTag(tag) != fields_.cend(); }
 
