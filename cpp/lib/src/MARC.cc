@@ -1105,8 +1105,8 @@ bool Record::isValid(std::string * const error_message) const {
 enum class MediaType { XML, MARC21, OTHER };
 
 
-static MediaType GetMediaType(const std::string &input_filename) {
-    File input(input_filename, "r");
+static MediaType GetMediaType(const std::string &filename) {
+    File input(filename, "r");
     if (input.anErrorOccurred())
         return MediaType::OTHER;
 
@@ -1114,8 +1114,8 @@ static MediaType GetMediaType(const std::string &input_filename) {
     const size_t read_count(input.read(magic, sizeof(magic) - 1));
     if (read_count != sizeof(magic) - 1) {
         if (read_count == 0) {
-            LOG_WARNING("empty input file \"" + input_filename + "\"!");
-            const std::string extension(FileUtil::GetExtension(input_filename));
+            LOG_WARNING("empty file \"" + filename + "\"!");
+            const std::string extension(FileUtil::GetExtension(filename));
             if (::strcasecmp(extension.c_str(), "mrc") == 0 or ::strcasecmp(extension.c_str(), "marc") == 0
                 or ::strcasecmp(extension.c_str(), "raw") == 0) {
                 return MediaType::MARC21;
@@ -1156,8 +1156,10 @@ std::string FileTypeToString(const FileType file_type) {
 }
 
 
-FileType GuessFileType(const std::string &filename) {
-    if (FileUtil::Exists(filename) and not FileUtil::IsPipeOrFIFO(filename)) {
+FileType GuessFileType(const std::string &filename, const GuessFileTypeBehaviour guess_file_type_behaviour) {
+    if (guess_file_type_behaviour == GuessFileTypeBehaviour::ATTEMPT_A_READ and FileUtil::Exists(filename)
+        and not FileUtil::IsPipeOrFIFO(filename))
+    {
         switch (GetMediaType(filename)) {
         case MediaType::XML:
             return FileType::XML;
@@ -1620,7 +1622,7 @@ std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, File
                                         const WriterMode writer_mode)
 {
     if (writer_type == FileType::AUTO)
-        writer_type = GuessFileType(output_filename);
+        writer_type = GuessFileType(output_filename, GuessFileTypeBehaviour::USE_THE_FILENAME_ONLY);
 
     std::unique_ptr<File> output(writer_mode == WriterMode::OVERWRITE
                                  ? FileUtil::OpenOutputFileOrDie(output_filename)
