@@ -729,16 +729,20 @@ public:
 
 
 enum class FileType { AUTO, BINARY, XML };
+enum class GuessFileTypeBehaviour { ATTEMPT_A_READ, USE_THE_FILENAME_ONLY };
 
 
 std::string FileTypeToString(const FileType file_type);
 
 
 /** \brief  Determines the file type of "filename".
+ *  \param  filename                   The file whose type we want to determine.
+ *  \param  guess_file_type_behaviour  Whether to just use the filename or, for existing files, to attempt a read.
  *  \return FileType::BINARY or FileType::XML.
  *  \note   Aborts if we can't determine the file type or if it is not FileType::BINARY nor FileType::XML.
  */
-FileType GuessFileType(const std::string &filename);
+FileType GuessFileType(const std::string &filename,
+                       const GuessFileTypeBehaviour guess_file_type_behaviour = GuessFileTypeBehaviour::ATTEMPT_A_READ);
 
 
 class Reader {
