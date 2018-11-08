@@ -196,6 +196,7 @@ struct SiteParams {
     GobalAugmentParams *global_params_;
     GroupParams *group_params_;
 
+    std::string zeder_id_;
     std::string parent_journal_name_;
     std::string parent_ISSN_print_;
     std::string parent_ISSN_online_;
@@ -206,7 +207,6 @@ struct SiteParams {
     BSZUpload::DeliveryMode delivery_mode_;
     std::vector<std::string> additional_fields_;
     std::vector<std::string> non_standard_metadata_fields_;
-public:
 };
 
 
