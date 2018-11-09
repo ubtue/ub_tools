@@ -164,7 +164,7 @@ extern const std::string DEFAULT_SUBFIELD_CODE;
 
 // Default timeout values in milliseconds
 constexpr unsigned DEFAULT_CONVERSION_TIMEOUT = 60000;
-constexpr unsigned DEFAULT_TIMEOUT = 10000;
+constexpr unsigned DEFAULT_TIMEOUT = 30000;
 constexpr unsigned DEFAULT_MIN_URL_PROCESSING_TIME = 200;
 
 
