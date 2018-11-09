@@ -70,7 +70,7 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
                 publication_year = "publication_year=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('j'));
             if (subfields.hasSubfield('d'))
                 volume = "volume=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('d'));
-            if (subfields.hasSubfield('j'))
+            if (subfields.hasSubfield('e'))
                 issue = "issue=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('e'));
             if (subfields.hasSubfield('h'))
                 pages = "pages=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('h'));
