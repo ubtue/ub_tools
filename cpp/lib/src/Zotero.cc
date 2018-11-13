@@ -485,7 +485,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     // URL
     const std::string url(node_parameters.url);
     if (not url.empty())
-        record->insertField("856", { {'u', url} });
+        record->insertField("856", { {'u', url } }, /* indicator1 = */'4', /* indicator2 = */'0');
 
     // DOI
     const std::string doi(node_parameters.doi);
@@ -493,7 +493,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         record->insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
         const std::string doi_url("https://doi.org/" + doi);
         if (doi_url != url)
-            record->insertField("856", { { 'u', doi_url } });
+            record->insertField("856", { { 'u', doi_url } }, /* indicator1 = */'4', /* indicator2 = */'0');
     }
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
