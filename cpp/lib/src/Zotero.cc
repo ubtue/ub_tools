@@ -784,6 +784,10 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
             const std::string date_normalized(Transformation::NormalizeDate(date_raw, site_params.strptime_format_));
             custom_fields.emplace(std::pair<std::string, std::string>("date_normalized", date_normalized));
             comments.emplace_back("normalized date to: " + date_normalized);
+        } else if (key_and_node.first == "volume" or key_and_node.first == "issue") {
+            std::shared_ptr<JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second));
+            if (string_node->getValue() == "0")
+                string_node->setValue("");
         }
     }
 
