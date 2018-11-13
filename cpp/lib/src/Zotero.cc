@@ -454,7 +454,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         if (not creator->type.empty())
             subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator->type));
         subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator->last_name, creator->first_name}), ", "));
-        record->insertField(creator_tag, subfields);
+        record->insertField(creator_tag, subfields, '1');
     }
 
     // Titles
