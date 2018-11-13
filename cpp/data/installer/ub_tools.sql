@@ -65,7 +65,7 @@ CREATE TABLE marc_records (
     url VARCHAR(191) NOT NULL,
     hash VARCHAR(40) NOT NULL,
     zeder_id VARCHAR(10) NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     main_title VARCHAR(191) NOT NULL,
     superior_control_number VARCHAR(20) DEFAULT NULL,
     publication_year CHAR(4) DEFAULT NULL,
@@ -78,8 +78,8 @@ CREATE INDEX marc_records_url_index ON marc_records(url);
 CREATE INDEX marc_records_hash_index ON marc_records(hash);
 CREATE INDEX marc_records_zeder_id_index ON marc_records(zeder_id);
 CREATE INDEX marc_records_created_at_index ON marc_records(created_at);
-CREATE INDEX marc_records_main_title_index ON marc_records(main_title); 
-CREATE INDEX marc_records_superior_control_number_index ON marc_records(superior_control_number); 
+CREATE INDEX marc_records_main_title_index ON marc_records(main_title);
+CREATE INDEX marc_records_superior_control_number_index ON marc_records(superior_control_number);
 
 CREATE TABLE marc_authors (
     marc_records_id INT AUTO_INCREMENT PRIMARY KEY,
