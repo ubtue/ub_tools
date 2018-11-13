@@ -515,7 +515,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         if (license == "l")
             _936_subfields.appendSubfield('z', "Kostenfrei");
         if (not _936_subfields.empty())
-            record->insertField("936", _936_subfields);
+            record->insertField("936", _936_subfields, 'u', 'w');
     }
 
     // Information about superior work (See BSZ Konkordanz MARC 773)
@@ -534,6 +534,8 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     const std::string volume(node_parameters.volume);
 
     // 773g, example: "52(2018), 1, S. 1-40" => <volume>(<year>), <issue>, S. <pages>
+    const bool _773_subfields_iaxw_present(not _773_subfields.empty());
+    bool _773_subfield_g_present(false);
     std::string g_content;
     if (not volume.empty()) {
         g_content += volume;
@@ -551,8 +553,13 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
             g_content += ", S. " + pages;
 
         _773_subfields.appendSubfield('g', g_content);
+        _773_subfield_g_present = true;
     }
-    record->insertField("773", _773_subfields);
+
+    if (_773_subfields_iaxw_present and _773_subfield_g_present)
+        record->insertField("773", _773_subfields, '0', '8');
+    else
+        record->insertField("773", _773_subfields);
 
     // Keywords
     BSZTransform::BSZTransform bsz_transform(*(site_params_->global_params_->maps_));
