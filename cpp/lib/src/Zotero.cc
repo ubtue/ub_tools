@@ -556,13 +556,13 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
 
     // Keywords
     BSZTransform::BSZTransform bsz_transform(*(site_params_->global_params_->maps_));
-    for (const auto keyword : node_parameters.keywords) {
+    for (auto keyword : node_parameters.keywords) {
         std::string tag;
         char subfield, indicator2(' ');
         bsz_transform.DetermineKeywordOutputFieldFromISSN(issn, &tag, &subfield);
         if (tag == "650")
             indicator2 = '4';
-        record->insertField(tag, { {subfield, keyword } }, ' ', indicator2);
+        record->insertField(tag, { { subfield, StringUtil::TrimWhite(&keyword) } }, /* indicator1 = */' ', indicator2);
     }
 
     // SSG numbers
