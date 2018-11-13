@@ -62,10 +62,25 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
             superior_control_number.empty() ? "" : ",superior_control_number="
                                                    + db_connection->escapeAndQuoteString(superior_control_number));
 
+        std::string publication_year, volume, issue, pages;
+        const auto _936_field(record.getFirstField("936"));
+        if (_936_field != record.end()) {
+            const MARC::Subfields subfields(_936_field->getSubfields());
+            if (subfields.hasSubfield('j'))
+                publication_year = "publication_year=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('j'));
+            if (subfields.hasSubfield('d'))
+                volume = "volume=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('d'));
+            if (subfields.hasSubfield('e'))
+                issue = "issue=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('e'));
+            if (subfields.hasSubfield('h'))
+                pages = "pages=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('h'));
+        }
+
         db_connection->queryOrDie("INSERT INTO marc_records SET url=" + db_connection->escapeAndQuoteString(url)
                                   + ",zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) + ",hash="
                                   + db_connection->escapeAndQuoteString(hash) + ",main_title="
-                                  + db_connection->escapeAndQuoteString(record.getMainTitle()) + superior_control_number_sql + ",record="
+                                  + db_connection->escapeAndQuoteString(record.getMainTitle()) + superior_control_number_sql
+                                  + publication_year + volume + issue + pages + ",record="
                                   + db_connection->escapeAndQuoteString(GzStream::CompressString(record_blob, GzStream::GZIP)));
         record_blob.clear();
         db_connection->queryOrDie("SELECT LAST_INSERT_ID() AS id");
