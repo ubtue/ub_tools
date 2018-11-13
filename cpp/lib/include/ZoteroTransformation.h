@@ -30,6 +30,7 @@ namespace Transformation {
     static std::vector<std::string> known_zotero_keys( {
         "abstractNote",
         "accessDate",
+        "archiveLocation",
         "creators",
         "date",
         "DOI",
