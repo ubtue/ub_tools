@@ -1,0 +1,14 @@
+[Unit]
+Description=SQUID HTTP/HTTPS Proxy
+Documentation=https://github.com/ub_tools/docker/squid/
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=forking
+ExecStart=/usr/local/ub_tools/docker/squid/systemd/start.sh
+ExecStop=/usr/local/ub_tools/docker/squid/systemd/stop.sh
+PIDFile=/var/run/squid.pid
+
+[Install]
+WantedBy=multi-user.target
