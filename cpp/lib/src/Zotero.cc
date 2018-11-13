@@ -462,7 +462,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     if (title.empty())
         title = node_parameters.website_title;
     if (not title.empty())
-        record->insertField("245", { { 'a', title } });
+        record->insertField("245", { { 'a', title } }, '0', '0');
     else
         LOG_ERROR("No title found");
 
