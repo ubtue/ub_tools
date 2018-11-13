@@ -515,7 +515,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         if (license == "l")
             _936_subfields.appendSubfield('z', "Kostenfrei");
         if (not _936_subfields.empty())
-            record->insertField("936", _936_subfields);
+            record->insertField("936", _936_subfields, 'u', 'w');
     }
 
     // Information about superior work (See BSZ Konkordanz MARC 773)
