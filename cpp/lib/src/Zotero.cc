@@ -491,7 +491,9 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     const std::string doi(node_parameters.doi);
     if (not doi.empty()) {
         record->insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
-        record->insertField("856", { {'u', "https://doi.org/" + doi} });
+        const std::string doi_url("https://doi.org/" + doi);
+        if (doi_url != url)
+            record->insertField("856", { { 'u', doi_url } });
     }
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
@@ -514,8 +516,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
             _936_subfields.appendSubfield('z', "Kostenfrei");
         if (not _936_subfields.empty())
             record->insertField("936", _936_subfields);
-    } else if (item_type == "webpage")
-        record->insertField("935", { { 'c', "website" } });
+    }
 
     // Information about superior work (See BSZ Konkordanz MARC 773)
     MARC::Subfields _773_subfields;
@@ -557,9 +558,11 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     BSZTransform::BSZTransform bsz_transform(*(site_params_->global_params_->maps_));
     for (const auto keyword : node_parameters.keywords) {
         std::string tag;
-        char subfield;
+        char subfield, indicator2(' ');
         bsz_transform.DetermineKeywordOutputFieldFromISSN(issn, &tag, &subfield);
-        record->insertField(tag, { {subfield, keyword } });
+        if (tag == "650")
+            indicator2 = '4';
+        record->insertField(tag, { {subfield, keyword } }, ' ', indicator2);
     }
 
     // SSG numbers
@@ -579,6 +582,8 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
                            site_params_->group_params_->additional_fields_);
 
     ProcessNonStandardMetadata(record, node_parameters.notes_key_value_pairs_, site_params_->non_standard_metadata_fields_);
+
+    record->insertField("ZID", { { 'a', site_params_->zeder_id_} });
 }
 
 

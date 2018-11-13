@@ -164,7 +164,7 @@ extern const std::string DEFAULT_SUBFIELD_CODE;
 
 // Default timeout values in milliseconds
 constexpr unsigned DEFAULT_CONVERSION_TIMEOUT = 60000;
-constexpr unsigned DEFAULT_TIMEOUT = 10000;
+constexpr unsigned DEFAULT_TIMEOUT = 30000;
 constexpr unsigned DEFAULT_MIN_URL_PROCESSING_TIME = 200;
 
 
@@ -196,6 +196,7 @@ struct SiteParams {
     GobalAugmentParams *global_params_;
     GroupParams *group_params_;
 
+    std::string zeder_id_;
     std::string parent_journal_name_;
     std::string parent_ISSN_print_;
     std::string parent_ISSN_online_;
@@ -206,7 +207,6 @@ struct SiteParams {
     BSZUpload::DeliveryMode delivery_mode_;
     std::vector<std::string> additional_fields_;
     std::vector<std::string> non_standard_metadata_fields_;
-public:
 };
 
 

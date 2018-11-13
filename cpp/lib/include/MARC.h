@@ -666,6 +666,13 @@ public:
      */
     inline iterator erase(const iterator pos) { return fields_.erase(pos); }
 
+    /** \brief Removes one or more fields w/ tag "tag".
+     *  \param  tag                    Delete fields w/ this tag.
+     *  \param  first_occurrence_only  If true, we delete at most one field.
+     *  \return The iterator following the deleted fields.
+     */
+    iterator erase(const Tag &tag, const bool first_occurrence_only = false);
+
     /** \return True if field with tag "tag" exists. */
     inline bool hasTag(const Tag &tag) const { return findTag(tag) != fields_.cend(); }
 
@@ -722,16 +729,20 @@ public:
 
 
 enum class FileType { AUTO, BINARY, XML };
+enum class GuessFileTypeBehaviour { ATTEMPT_A_READ, USE_THE_FILENAME_ONLY };
 
 
 std::string FileTypeToString(const FileType file_type);
 
 
 /** \brief  Determines the file type of "filename".
+ *  \param  filename                   The file whose type we want to determine.
+ *  \param  guess_file_type_behaviour  Whether to just use the filename or, for existing files, to attempt a read.
  *  \return FileType::BINARY or FileType::XML.
  *  \note   Aborts if we can't determine the file type or if it is not FileType::BINARY nor FileType::XML.
  */
-FileType GuessFileType(const std::string &filename);
+FileType GuessFileType(const std::string &filename,
+                       const GuessFileTypeBehaviour guess_file_type_behaviour = GuessFileTypeBehaviour::ATTEMPT_A_READ);
 
 
 class Reader {
