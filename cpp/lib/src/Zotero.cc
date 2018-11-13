@@ -454,7 +454,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         if (not creator->type.empty())
             subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator->type));
         subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator->last_name, creator->first_name}), ", "));
-        record->insertField(creator_tag, subfields);
+        record->insertField(creator_tag, subfields, /* indicator 1 = */'1');
     }
 
     // Titles
@@ -462,7 +462,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     if (title.empty())
         title = node_parameters.website_title;
     if (not title.empty())
-        record->insertField("245", { { 'a', title } });
+        record->insertField("245", { { 'a', title } }, /* indicator 1 = */'0', /* indicator 2 = */'0');
     else
         LOG_ERROR("No title found");
 
@@ -475,7 +475,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     // Abstract Note
     const std::string abstract_note(node_parameters.abstract_note);
     if (not abstract_note.empty())
-        record->insertField("520", { {'a', abstract_note } }, '3' /* indicator 1*/);
+        record->insertField("520", { {'a', abstract_note } }, /* indicator 1 = */'3');
 
     // Date
     const std::string date(node_parameters.date);
