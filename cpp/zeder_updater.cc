@@ -65,27 +65,10 @@ void WriteTimeStamp(const time_t timestamp) {
 }
 
 
-void GetJournalInfo(DbConnection * const db_connection, const std::string &zeder_id,
-                    std::string * const superior_control_number,  std::string * const superior_title)
-{
-    db_connection->queryOrDie("SELECT control_number,title FROM superior_info WHERE zeder_id="
-                              + db_connection->escapeAndQuoteString(zeder_id));
-    DbResultSet result_set(db_connection->getLastResultSet());
-    if (result_set.empty())
-        LOG_ERROR("empty results set in table \"superior_info\" for Zeder ID \"" + zeder_id + "\"!");
-
-    const DbRow row(result_set.getNextRow());
-    *superior_control_number = row["control_number"];
-    *superior_title          = row["title"];
-}
-
-
 bool ProcessJournal(DbConnection * const db_connection, const time_t old_timestamp, const std::string &zeder_id,
-                    const std::string &zeder_url_prefix, const unsigned max_issue_count, std::string * const report)
+                    const std::string &superior_title, const std::string &zeder_url_prefix, const unsigned max_issue_count,
+                    std::string * const report)
 {
-    std::string superior_control_number, superior_title;
-    GetJournalInfo(db_connection, zeder_id, &superior_control_number, &superior_title);
-
     db_connection->queryOrDie("SELECT volume,issue,pages,created_at FROM marc_records WHERE zeder_id="
                               + db_connection->escapeAndQuoteString(zeder_id) + " ORDER BY created_at DESC LIMIT "
                               + std::to_string(max_issue_count));
@@ -128,7 +111,7 @@ int Main(int argc, char *argv[]) {
     unsigned journal_count(0), updated_journal_count(0);
     std::string report;
     while (const DbRow row = result_set.getNextRow()) {
-        if (ProcessJournal(&db_connection, old_timestamp, row["zeder_id"], zeder_url_prefix, max_issue_count, &report))
+        if (ProcessJournal(&db_connection, old_timestamp, row["zeder_id"], row["title"], zeder_url_prefix, max_issue_count, &report))
             ++updated_journal_count;
         ++journal_count;
     }
