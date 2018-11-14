@@ -101,7 +101,7 @@ bool ProcessJournal(DbConnection * const db_connection, const time_t old_timesta
         } else
             status = "unverändert";
 
-        *report += zeder_url_prefix + zeder_id + "," + superior_title + ", " + row["volume"] + ";" + row["issue"] + ";" + row["pages"]
+        *report += zeder_url_prefix + zeder_id + "," + superior_title + "," + row["volume"] + ";" + row["issue"] + ";" + row["pages"] + ","
                    + status + "\n";
     }
 
@@ -123,7 +123,7 @@ int Main(int argc, char *argv[]) {
 
     const time_t old_timestamp(ReadTimeStamp());
     DbConnection db_connection;
-    db_connection.queryOrDie("SELECT DISTINCT zeder_id,superior_title FROM marc_records");
+    db_connection.queryOrDie("SELECT DISTINCT zeder_id FROM marc_records");
     DbResultSet result_set(db_connection.getLastResultSet());
     unsigned journal_count(0), updated_journal_count(0);
     std::string report;
