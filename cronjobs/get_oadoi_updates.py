@@ -71,12 +71,12 @@ def DownloadUpdateFiles(download_list, json_update_objects, api_key, target_dire
     download_urls = GetDownloadUrls(download_list, json_update_objects, api_key)
     if not target_directory is None:
        os.chdir(target_directory)
-       
+
     oadoi_downloader = urllib.URLopener()
     for url in download_urls:
         # XXX CHANGE ME TO ACTIVE
         print "WE WOULD RETRIEVE: " + "oadoi_downloader.retrieve(" + url + ")"
-        
+
 
 def UpdateDatabase(update_list, config, source_directory=None):
     database = config.get("MongoDB", "database")
@@ -86,8 +86,8 @@ def UpdateDatabase(update_list, config, source_directory=None):
        os.chdir(directory)
     for filename in update_list:
          #Pipe through zcat so we don't have to explicitly unpack
-         zcat = subprocess.Popen( [ "zcat", filename ], stdout=subprocess.PIPE) 
-         mongo = subprocess.Popen( ["mongoimport", 
+         zcat = subprocess.Popen( [ "zcat", filename ], stdout=subprocess.PIPE)
+         mongo = subprocess.Popen( ["mongoimport",
                                    "--db", database, "--collection", collection, "--upsert", "--upsertFields", "doi", "--host", host ],
                                    stdin=zcat.stdout, stdout=sys.stdout)
          zcat.stdout.close() # Allow p1 to receive a SIGPIPE if p2 exits.
@@ -108,7 +108,7 @@ def Main():
     update_and_download_lists = GetAllFilesFromLastMissingLocal(remote_update_files, local_update_files)
     if not update_and_download_lists:
         print "Received empty list - so nothing to do"
-        sys.exit(0) 
+        sys.exit(0)
     DownloadUpdateFiles(update_and_download_lists['download'], json_update_objects, api_key, working_dir)
     UpdateDatabase(update_and_download_lists['update'], config)
 
