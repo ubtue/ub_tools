@@ -89,11 +89,12 @@ def UpdateDatabase(update_list, config, source_directory=None):
          zcat = subprocess.Popen( [ "zcat", filename ], stdout=subprocess.PIPE) 
          mongo = subprocess.Popen( ["mongoimport", 
                                    "--db", database, "--collection", collection, "--upsert", "--upsertFields", "doi", "--host", host ],
-                                   stdin=zcat.stdout, stdout=subprocess.PIPE)
+                                   stdin=zcat.stdout, stdout=sys.stdout)
          zcat.stdout.close() # Allow p1 to receive a SIGPIPE if p2 exits.
-         output = mongo.communicate()[0]
-         print output
-         print "We loaded up " + filename
+         returncode = zcat.wait()
+         if returncode != 0:
+             sys.exit(1)
+         mongo.communicate()
 
 
 def Main():
@@ -105,6 +106,9 @@ def Main():
     remote_update_files = GetRemoteUpdateFiles(json_update_objects)
     local_update_files = GetLocalUpdateFiles(config, working_dir)
     update_and_download_lists = GetAllFilesFromLastMissingLocal(remote_update_files, local_update_files)
+    if not update_and_download_lists:
+        print "Received empty list - so nothing to do"
+        sys.exit(0) 
     DownloadUpdateFiles(update_and_download_lists['download'], json_update_objects, api_key, working_dir)
     UpdateDatabase(update_and_download_lists['update'], config)
 
