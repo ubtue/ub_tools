@@ -67,6 +67,7 @@ CREATE TABLE marc_records (
     zeder_id VARCHAR(10) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     main_title VARCHAR(191) NOT NULL,
+    superior_title VARCHAR(191) NOT NULL,
     superior_control_number VARCHAR(20) DEFAULT NULL,
     publication_year CHAR(4) DEFAULT NULL,
     volume CHAR(40) DEFAULT NULL,
