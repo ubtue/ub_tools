@@ -454,7 +454,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         if (not creator->type.empty())
             subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator->type));
         subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator->last_name, creator->first_name}), ", "));
-        record->insertField(creator_tag, subfields);
+        record->insertField(creator_tag, subfields, /* indicator 1 = */'1');
     }
 
     // Titles
@@ -462,7 +462,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     if (title.empty())
         title = node_parameters.website_title;
     if (not title.empty())
-        record->insertField("245", { { 'a', title } });
+        record->insertField("245", { { 'a', title } }, /* indicator 1 = */'0', /* indicator 2 = */'0');
     else
         LOG_ERROR("No title found");
 
@@ -475,7 +475,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     // Abstract Note
     const std::string abstract_note(node_parameters.abstract_note);
     if (not abstract_note.empty())
-        record->insertField("520", { {'a', abstract_note } }, '3' /* indicator 1*/);
+        record->insertField("520", { {'a', abstract_note } }, /* indicator 1 = */'3');
 
     // Date
     const std::string date(node_parameters.date);
@@ -485,7 +485,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     // URL
     const std::string url(node_parameters.url);
     if (not url.empty())
-        record->insertField("856", { {'u', url} });
+        record->insertField("856", { {'u', url } }, /* indicator1 = */'4', /* indicator2 = */'0');
 
     // DOI
     const std::string doi(node_parameters.doi);
@@ -493,7 +493,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         record->insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
         const std::string doi_url("https://doi.org/" + doi);
         if (doi_url != url)
-            record->insertField("856", { { 'u', doi_url } });
+            record->insertField("856", { { 'u', doi_url } }, /* indicator1 = */'4', /* indicator2 = */'0');
     }
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
@@ -515,7 +515,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         if (license == "l")
             _936_subfields.appendSubfield('z', "Kostenfrei");
         if (not _936_subfields.empty())
-            record->insertField("936", _936_subfields);
+            record->insertField("936", _936_subfields, 'u', 'w');
     }
 
     // Information about superior work (See BSZ Konkordanz MARC 773)
@@ -534,6 +534,8 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     const std::string volume(node_parameters.volume);
 
     // 773g, example: "52(2018), 1, S. 1-40" => <volume>(<year>), <issue>, S. <pages>
+    const bool _773_subfields_iaxw_present(not _773_subfields.empty());
+    bool _773_subfield_g_present(false);
     std::string g_content;
     if (not volume.empty()) {
         g_content += volume;
@@ -551,18 +553,23 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
             g_content += ", S. " + pages;
 
         _773_subfields.appendSubfield('g', g_content);
+        _773_subfield_g_present = true;
     }
-    record->insertField("773", _773_subfields);
+
+    if (_773_subfields_iaxw_present and _773_subfield_g_present)
+        record->insertField("773", _773_subfields, '0', '8');
+    else
+        record->insertField("773", _773_subfields);
 
     // Keywords
     BSZTransform::BSZTransform bsz_transform(*(site_params_->global_params_->maps_));
-    for (const auto keyword : node_parameters.keywords) {
+    for (auto keyword : node_parameters.keywords) {
         std::string tag;
         char subfield, indicator2(' ');
         bsz_transform.DetermineKeywordOutputFieldFromISSN(issn, &tag, &subfield);
         if (tag == "650")
             indicator2 = '4';
-        record->insertField(tag, { {subfield, keyword } }, ' ', indicator2);
+        record->insertField(tag, { { subfield, StringUtil::TrimWhite(&keyword) } }, /* indicator1 = */' ', indicator2);
     }
 
     // SSG numbers
@@ -784,6 +791,10 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
             const std::string date_normalized(Transformation::NormalizeDate(date_raw, site_params.strptime_format_));
             custom_fields.emplace(std::pair<std::string, std::string>("date_normalized", date_normalized));
             comments.emplace_back("normalized date to: " + date_normalized);
+        } else if (key_and_node.first == "volume" or key_and_node.first == "issue") {
+            std::shared_ptr<JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second));
+            if (string_node->getValue() == "0")
+                string_node->setValue("");
         }
     }
 
