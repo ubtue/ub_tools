@@ -87,6 +87,7 @@ def UpdateDatabase(update_list, config, source_directory=None):
     for filename in update_list:
          #Pipe through zcat so we don't have to explicitly unpack
          zcat = subprocess.Popen( [ "zcat", filename ], stdout=subprocess.PIPE)
+         # XXX Notice that --upsert must be --mode=upsert with MongoDB 3.6 client on CentOS7
          mongo = subprocess.Popen( ["mongoimport",
                                    "--db", database, "--collection", collection, "--upsert", "--upsertFields", "doi", "--host", host ],
                                    stdin=zcat.stdout, stdout=sys.stdout)
