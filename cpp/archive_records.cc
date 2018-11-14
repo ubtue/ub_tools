@@ -76,10 +76,18 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
                 pages = "pages=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('h'));
         }
 
+        std::string superior_title;
+        for (const auto &_773_field : record.getTagRange("773")) {
+            superior_title = _773_field.getFirstSubfieldWithCode('a');
+            if (not superior_title.empty())
+                break;
+        }
+
         db_connection->queryOrDie("INSERT INTO marc_records SET url=" + db_connection->escapeAndQuoteString(url)
                                   + ",zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) + ",hash="
                                   + db_connection->escapeAndQuoteString(hash) + ",main_title="
-                                  + db_connection->escapeAndQuoteString(record.getMainTitle()) + superior_control_number_sql
+                                  + db_connection->escapeAndQuoteString(record.getMainTitle()) + ",superior_title="
+                                  + db_connection->escapeAndQuoteString(superior_title) + superior_control_number_sql
                                   + publication_year + volume + issue + pages + ",record="
                                   + db_connection->escapeAndQuoteString(GzStream::CompressString(record_blob, GzStream::GZIP)));
         record_blob.clear();
