@@ -67,7 +67,6 @@ CREATE TABLE marc_records (
     zeder_id VARCHAR(10) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     main_title VARCHAR(191) NOT NULL,
-    superior_control_number VARCHAR(20) DEFAULT NULL,
     publication_year CHAR(4) DEFAULT NULL,
     volume CHAR(40) DEFAULT NULL,
     issue CHAR(40) DEFAULT NULL,
@@ -80,6 +79,13 @@ CREATE INDEX marc_records_zeder_id_index ON marc_records(zeder_id);
 CREATE INDEX marc_records_created_at_index ON marc_records(created_at);
 CREATE INDEX marc_records_main_title_index ON marc_records(main_title);
 CREATE INDEX marc_records_superior_control_number_index ON marc_records(superior_control_number);
+
+CREATE TABLE superior_info (
+    zeder_id VARCHAR(10) PRIMARY KEY,
+    control_number VARCHAR(20) DEFAULT NULL,
+    title VARCHAR(191) NOT NULL,
+    CONSTRAINT zeder_id FOREIGN KEY (zeder_id) REFERENCES marc_records (zeder_id) ON DELETE CASCADE
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 CREATE TABLE marc_authors (
     marc_records_id INT AUTO_INCREMENT PRIMARY KEY,
