@@ -33,6 +33,7 @@
 #include "IniFile.h"
 #include "StringUtil.h"
 #include "Template.h"
+#include "UBTools.h"
 #include "UrlUtil.h"
 #include "util.h"
 #include "WebUtil.h"
@@ -41,7 +42,7 @@
 namespace {
 
 
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
+const std::string CONF_FILE_PATH(UBTools::TUELIB_PATH + "translations.conf");
 const int ENTRIES_PER_PAGE(30);
 const std::string NO_GND_CODE("-1");
 const std::string LANGUAGES_SECTION("Languages");
@@ -55,6 +56,7 @@ const std::string TOKEN_COLUMN_DESCRIPTOR("token");
 const std::string MACS_COLUMN_DESCRIPTOR("macs");
 const int NO_INDEX(-1);
 const unsigned int LOOKFOR_PREFIX_LIMIT(3);
+
 
 enum Category { VUFIND, KEYWORDS };
 
@@ -613,7 +615,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     names_to_values_map.insertScalar("target_translation_scope", target);
     names_to_values_map.insertScalar("filter_untranslated", filter_untranslated ? "checked" : "");
 
-    std::ifstream translate_html("/usr/local/var/lib/tuelib/translate_chainer/translation_front_page.html", std::ios::binary);
+    std::ifstream translate_html(UBTools::TUELIB_PATH + "translate_chainer/translation_front_page.html", std::ios::binary);
     Template::ExpandTemplate(translate_html, std::cout, names_to_values_map);
 }
 
@@ -710,8 +712,7 @@ void MailMyTranslations(DbConnection &db_connection, const IniFile &ini_file, co
 
     //Expand Template
     std::stringstream mail_content;
-    std::ifstream mytranslations_template("/usr/local/var/lib/tuelib/translate_chainer/mytranslations_template.msg",
-                                          std::ios::binary);
+    std::ifstream mytranslations_template(UBTools::TUELIB_PATH + "translate_chainer/mytranslations_template.msg");
     Template::ExpandTemplate(mytranslations_template, mail_content, names_to_values_map);
 
     // Get Mail address
@@ -762,53 +763,51 @@ void RestoreUserState(DbConnection &db_connection, const std::string &translator
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
+int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    try {
-        std::multimap<std::string, std::string> cgi_args;
-        WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
+    std::multimap<std::string, std::string> cgi_args;
+    WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
 
-        const IniFile ini_file(CONF_FILE_PATH);
-        const std::string sql_database(ini_file.getString("Database", "sql_database"));
-        const std::string sql_username(ini_file.getString("Database", "sql_username"));
-        const std::string sql_password(ini_file.getString("Database", "sql_password"));
-        DbConnection db_connection(sql_database, sql_username, sql_password);
+    const IniFile ini_file(CONF_FILE_PATH);
+    const std::string sql_database(ini_file.getString("Database", "sql_database"));
+    const std::string sql_username(ini_file.getString("Database", "sql_username"));
+    const std::string sql_password(ini_file.getString("Database", "sql_password"));
+    DbConnection db_connection(sql_database, sql_username, sql_password);
 
-        const std::string translator(GetTranslatorOrEmptyString());
+    const std::string translator(GetTranslatorOrEmptyString());
 
-        if (translator.empty()) {
-            ShowErrorPageAndDie("Error - No Valid User", "No valid user selected");
-        }
-
-        // Read in the views for the respective users
-        std::vector<std::string> translator_languages;
-        GetTranslatorLanguages(ini_file, translator, &translator_languages);
-        if (translator_languages.size() == 0)
-            ShowErrorPageAndDie("Error - No languages", "No languages specified for user " + translator ,
-                                "Contact your administrator");
-        std::vector<std::string> additional_view_languages;
-        GetAdditionalViewLanguages(ini_file, &additional_view_languages, translator);
-
-        std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
-
-        const std::string mail(GetCGIParameterOrDefault(cgi_args, "mail", ""));
-        if (mail == "mytranslations")
-           MailMyTranslations(db_connection, ini_file, translator);
-
-        std::string lookfor(GetCGIParameterOrDefault(cgi_args, "lookfor", ""));
-        std::string offset(GetCGIParameterOrDefault(cgi_args, "offset", "0"));
-        const std::string translation_target(GetCGIParameterOrDefault(cgi_args, "target", "keywords"));
-        const std::string save_action(GetCGIParameterOrDefault(cgi_args, "save_action", ""));
-        const std::string filter_untranslated_value(GetCGIParameterOrDefault(cgi_args, "filter_untranslated", ""));
-        const bool filter_untranslated(filter_untranslated_value == "checked");
-        if (save_action == "save")
-            SaveUserState(db_connection, translator, translation_target, lookfor, offset, filter_untranslated);
-        else if (save_action == "restore")
-            RestoreUserState(db_connection, translator, translation_target, &lookfor, &offset, filter_untranslated);
-        ShowFrontPage(db_connection, lookfor, offset, translation_target, translator, translator_languages,
-                      additional_view_languages, filter_untranslated);
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
+    if (translator.empty()) {
+        ShowErrorPageAndDie("Error - No Valid User", "No valid user selected");
     }
+
+    // Read in the views for the respective users
+    std::vector<std::string> translator_languages;
+    GetTranslatorLanguages(ini_file, translator, &translator_languages);
+    if (translator_languages.size() == 0)
+        ShowErrorPageAndDie("Error - No languages", "No languages specified for user " + translator ,
+                            "Contact your administrator");
+    std::vector<std::string> additional_view_languages;
+    GetAdditionalViewLanguages(ini_file, &additional_view_languages, translator);
+
+    std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+
+    const std::string mail(GetCGIParameterOrDefault(cgi_args, "mail", ""));
+    if (mail == "mytranslations")
+        MailMyTranslations(db_connection, ini_file, translator);
+
+    std::string lookfor(GetCGIParameterOrDefault(cgi_args, "lookfor", ""));
+    std::string offset(GetCGIParameterOrDefault(cgi_args, "offset", "0"));
+    const std::string translation_target(GetCGIParameterOrDefault(cgi_args, "target", "keywords"));
+    const std::string save_action(GetCGIParameterOrDefault(cgi_args, "save_action", ""));
+    const std::string filter_untranslated_value(GetCGIParameterOrDefault(cgi_args, "filter_untranslated", ""));
+    const bool filter_untranslated(filter_untranslated_value == "checked");
+    if (save_action == "save")
+        SaveUserState(db_connection, translator, translation_target, lookfor, offset, filter_untranslated);
+    else if (save_action == "restore")
+        RestoreUserState(db_connection, translator, translation_target, &lookfor, &offset, filter_untranslated);
+    ShowFrontPage(db_connection, lookfor, offset, translation_target, translator, translator_languages,
+                  additional_view_languages, filter_untranslated);
+
+    return EXIT_SUCCESS;
 }

@@ -271,7 +271,7 @@ public:
     /**  \brief  Construct an IniFile based on the program's configuration file.
      *
      *   This constructor creates an instance based on a program-specific configuration file.  The file is in the
-     *   libiViaCore etc directory, and is named X.conf (where "X" is the program name, as stored in "progname"
+     *   /usr/local/var/lib/tuelib/ directory, and is named X.conf (where "X" is the program name, as stored in "progname"
      *   in "util.h".
      */
     IniFile();
@@ -517,7 +517,7 @@ public:
     // \param pretty_print  If true we vertically align equal signs w/in each section.
     void write(const std::string &path, const bool pretty_print = true) const;
 
-    /** \brief  Generate an ini file name based upon the program name, i.e, programname.conf */
+    /** \brief  Generate an ini file name based upon the program name, i.e, /usr/local/var/lib/tuelib/programname.conf */
     static std::string DefaultIniFileName();
 private:
     inline unsigned &getCurrentLineNo() {

@@ -27,11 +27,15 @@
 #include "StringUtil.h"
 #include "UrlUtil.h"
 #include "XMLParser.h"
+#include "UBTools.h"
 #include "util.h"
 
 
+namespace {
+
+
 //https://memory.loc.gov/cgi-bin/oai2_0?verb=ListRecords&metadataPrefix=marc21&set=mussm
-void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
               << " [--skip-dups] [--ignore-ssl-certificates] base_url metadata_prefix [harvest_set] control_number_prefix output_filename"
               << " time_limit_per_request\n"
@@ -182,7 +186,7 @@ std::string MakeRequestURL(const std::string &base_url, const std::string &metad
 }
 
 
-const std::string OAI_DUPS_DB_FILENAME("/usr/local/var/lib/tuelib/oai_dups.db");
+const std::string OAI_DUPS_DB_FILENAME(UBTools::TUELIB_PATH + "oai_dups.db");
 
 
 std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB() {
@@ -220,6 +224,9 @@ void GenerateValidatedOutput(kyotocabinet::HashDB * const dups_db, MARC::Reader 
         marc_writer->write(record);
     }
 }
+
+
+} // unnamed namespace
 
 
 int Main(int argc, char **argv) {

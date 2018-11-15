@@ -2,7 +2,7 @@
  *  \brief A tool for reading/editing of the "translations" SQL table.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -30,6 +30,7 @@
 #include "MiscUtil.h"
 #include "SqlUtil.h"
 #include "TranslationUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -180,7 +181,7 @@ void UpdateIntoKeywordTranslations(DbConnection * const connection, const std::s
                                    const std::string &gnd_code, const std::string &language_code,
                                    const std::string &text, const std::string &translator)
 {
-    connection->queryOrDie("UPDATE keyword_translations SET translation=\"" + connection->escapeString(text) 
+    connection->queryOrDie("UPDATE keyword_translations SET translation=\"" + connection->escapeString(text)
                            + "\", translator=\"" + translator + "\" WHERE ppn=\"" + ppn + "\" AND gnd_code=\""
                            + gnd_code + "\" AND language_code=\"" + language_code + "\""
                            + "AND status != \"unreliable\";");
@@ -204,7 +205,7 @@ void ValidateKeywordTranslation(DbConnection * const connection, const std::stri
 }
 
 
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
+const std::string CONF_FILE_PATH(UBTools::TUELIB_PATH + "translations.conf");
 
 
 int main(int argc, char *argv[]) {

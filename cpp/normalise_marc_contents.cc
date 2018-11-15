@@ -32,6 +32,7 @@
 #include "MARC.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -115,7 +116,7 @@ void InsertVariantsIntoMap(const std::vector<std::string> &subfield_specs, const
 //   variant2 = "F. & J."
 //
 void LoadConfigFile(std::vector<std::pair<std::string, VariantsToCanonicalNameMap>> * const maps) {
-    const IniFile ini_file("/usr/local/var/lib/tuelib/normalise_marc_contents.conf");
+    const IniFile ini_file(UBTools::TUELIB_PATH + "normalise_marc_contents.conf");
 
     std::map<std::string, std::vector<std::string>> subfields_name_to_subfields_map;
     LoadTagAndSubfieldCodesGroupsFromGlobalSection(ini_file, &subfields_name_to_subfields_map);

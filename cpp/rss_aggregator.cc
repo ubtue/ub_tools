@@ -169,9 +169,6 @@ unsigned ProcessSection(const IniFile::Section &section, const SyndicationFormat
 }
 
 
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_aggregator.conf");
-
-
 } // unnamed namespace
 
 
@@ -202,7 +199,7 @@ int Main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    IniFile ini_file(CONF_FILE_PATH);
+    IniFile ini_file;
     DbConnection db_connection(ini_file);
 
     const unsigned DEFAULT_POLL_INTERVAL(ini_file.getUnsigned("", "default_poll_interval"));
