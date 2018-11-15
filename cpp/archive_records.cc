@@ -78,7 +78,7 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
 
         std::string superior_title;
         for (const auto &_773_field : record.getTagRange("773")) {
-            superior_title = _773_field.getFirstSubfieldWithCode('a');
+            superior_title = _773_field.getFirstSubfieldWithCode('t');
             if (not superior_title.empty())
                 break;
         }
