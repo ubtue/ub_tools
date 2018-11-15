@@ -94,11 +94,11 @@ std::string &EscapeBlob(std::string * const s);
 std::string Unescape(std::string * const s);
 
 
-/** Converts an SQL datetime to a struct tm type. */
+/** Converts an SQL datetime or timestamp to a struct tm type. */
 tm DatetimeToTm(const std::string &datetime);
 
 
-/** Converts an SQL datetime to a time_t type (number of seconds since epoch. */
+/** Converts an SQL datetime or timestamp to a time_t type (number of seconds since epoch. */
 time_t DatetimeToTimeT(const std::string &datetime);
 
 

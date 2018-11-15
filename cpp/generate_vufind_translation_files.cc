@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016,2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -35,14 +35,17 @@
 #include "DbRow.h"
 #include "IniFile.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbose] output_directory_path\n";
     std::exit(EXIT_FAILURE);
 }
-
 
 
 // Needed since no consistent convention was used for brackets
@@ -68,7 +71,7 @@ void ProcessLanguage(const bool verbose, const std::string &output_file_path, co
             logger->error("failed to rename \"" + output_file_path + "\" to \"" + output_file_path + ".bak\"! ("
                           + std::string(::strerror(errno)) + ")");
     }
-    
+
     File output(output_file_path, "w");
     if (unlikely(output.fail()))
         logger->error("failed to open \"" + output_file_path + "\" for writing!");
@@ -131,10 +134,13 @@ void GetLanguageCodes(const bool verbose, DbConnection * const db_connection,
 }
 
 
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
+const std::string CONF_FILE_PATH(UBTools::TUELIB_PATH + "translations.conf");
 
 
-int main(int argc, char **argv) {
+} // unnamed namespace
+
+
+int Main(int argc, char **argv) {
     ::progname = argv[0];
 
     if (argc < 2)
@@ -151,20 +157,17 @@ int main(int argc, char **argv) {
     if (unlikely(not FileUtil::IsDirectory(output_directory)))
         logger->error("\"" + output_directory + "\" is not a directory or can't be read!");
 
-    try {
-        const IniFile ini_file(CONF_FILE_PATH);
-        const std::string sql_database(ini_file.getString("Database", "sql_database"));
-        const std::string sql_username(ini_file.getString("Database", "sql_username"));
-        const std::string sql_password(ini_file.getString("Database", "sql_password"));
-        DbConnection db_connection(sql_database, sql_username, sql_password);
+    const IniFile ini_file(CONF_FILE_PATH);
+    const std::string sql_database(ini_file.getString("Database", "sql_database"));
+    const std::string sql_username(ini_file.getString("Database", "sql_username"));
+    const std::string sql_password(ini_file.getString("Database", "sql_password"));
+    DbConnection db_connection(sql_database, sql_username, sql_password);
 
-        std::map<std::string, std::string> _2letter_and_3letter_codes;
-        GetLanguageCodes(verbose, &db_connection, &_2letter_and_3letter_codes);
-        for (const auto &_2letter_intl_code_and_fake_3letter_english_code : _2letter_and_3letter_codes)
-            ProcessLanguage(verbose,
-                            output_directory + "/" + _2letter_intl_code_and_fake_3letter_english_code.first + ".ini",
-                            _2letter_intl_code_and_fake_3letter_english_code.second, &db_connection);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    std::map<std::string, std::string> _2letter_and_3letter_codes;
+    GetLanguageCodes(verbose, &db_connection, &_2letter_and_3letter_codes);
+    for (const auto &_2letter_intl_code_and_fake_3letter_english_code : _2letter_and_3letter_codes)
+        ProcessLanguage(verbose, output_directory + "/" + _2letter_intl_code_and_fake_3letter_english_code.first + ".ini",
+                        _2letter_intl_code_and_fake_3letter_english_code.second, &db_connection);
+
+    return EXIT_SUCCESS;
 }

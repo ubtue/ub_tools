@@ -86,18 +86,22 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
         db_connection->queryOrDie("INSERT INTO marc_records SET url=" + db_connection->escapeAndQuoteString(url)
                                   + ",zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) + ",hash="
                                   + db_connection->escapeAndQuoteString(hash) + ",main_title="
-                                  + db_connection->escapeAndQuoteString(record.getMainTitle()) + ",superior_title="
-                                  + db_connection->escapeAndQuoteString(superior_title) + superior_control_number_sql
+                                  + db_connection->escapeAndQuoteString(record.getMainTitle())
+                                  + db_connection->escapeAndQuoteString(superior_title)
                                   + publication_year + volume + issue + pages + ",record="
                                   + db_connection->escapeAndQuoteString(GzStream::CompressString(record_blob, GzStream::GZIP)));
-        record_blob.clear();
+
         db_connection->queryOrDie("SELECT LAST_INSERT_ID() AS id");
         const DbRow id_row(db_connection->getLastResultSet().getNextRow());
         const std::string last_id(id_row["id"]);
-
         for (const auto &author : record.getAllAuthors())
             db_connection->queryOrDie("INSERT INTO marc_authors SET marc_records_id=" + last_id + ",author="
                                       + db_connection->escapeAndQuoteString(author));
+
+        db_connection->queryOrDie("INSERT INTO superior_info SET zeder_id=" + db_connection->escapeAndQuoteString(zeder_id)
+                                  + ",superior_title=" + db_connection->escapeAndQuoteString(superior_title) + superior_control_number_sql);
+
+        record_blob.clear();
     }
 
     std::cout << "Stored " << record_count << " MARC record(s).\n";

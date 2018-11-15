@@ -21,13 +21,14 @@
 #include <memory>
 #include "FileUtil.h"
 #include "IniFile.h"
+#include "UBTools.h"
 #include "UrlUtil.h"
 
 
 namespace Elasticsearch {
 
 
-const std::string Configuration::GLOBAL_CONFIG_FILE_PATH("/usr/local/var/lib/tuelib/Elasticsearch.conf");
+const std::string Configuration::GLOBAL_CONFIG_FILE_PATH(UBTools::TUELIB_PATH + "Elasticsearch.conf");
 
 
 Configuration::Configuration(const std::string &config_file_path) {
