@@ -96,10 +96,10 @@ bool ProcessJournal(DbConnection * const db_connection, const time_t old_timesta
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 4)
+    if (argc != 3)
         Usage();
 
-    const std::string sender_email_address(argv[2]), notification_email_address(argv[3]);
+    const std::string sender_email_address(argv[1]), notification_email_address(argv[2]);
     IniFile ini_file;
     const unsigned max_issue_count(ini_file.getUnsigned("", "max_issue_count"));
     const std::string zeder_url_prefix(ini_file.getString("", "zeder_url_prefix"));
