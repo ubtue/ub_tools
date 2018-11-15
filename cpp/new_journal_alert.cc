@@ -428,7 +428,7 @@ void RecordNewlyNotifiedIds(const std::unique_ptr<kyotocabinet::HashDB> &notifie
 
 
 std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB(const std::string &user_type) {
-    const std::string DB_FILENAME(UBTools::TUELIB_PATH + "" + user_type + "_notified.db");
+    const std::string DB_FILENAME(UBTools::TUELIB_PATH + user_type + "_notified.db");
     std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
     if (not (db->open(DB_FILENAME,
                       kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
