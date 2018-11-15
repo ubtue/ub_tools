@@ -36,6 +36,7 @@
 #include "MARC.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -468,7 +469,7 @@ int Main(int argc, char **argv) {
     auto authority_reader(MARC::Reader::Factory(authority_input_filename));
     auto title_writer(MARC::Writer::Factory(title_output_filename));
 
-    const std::string books_of_the_bible_to_code_map_filename("/usr/local/var/lib/tuelib/bibleRef/books_of_the_bible_to_code.map");
+    const std::string books_of_the_bible_to_code_map_filename(UBTools::TUELIB_PATH + "bibleRef/books_of_the_bible_to_code.map");
     File books_of_the_bible_to_code_map_file(books_of_the_bible_to_code_map_filename, "r");
     if (not books_of_the_bible_to_code_map_file)
         LOG_ERROR("can't open \"" + books_of_the_bible_to_code_map_filename + "\" for reading!");

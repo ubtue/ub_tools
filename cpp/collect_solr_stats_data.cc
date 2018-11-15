@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argv[2]));
 
     try {
-        const IniFile ini_file("/usr/local/var/lib/tuelib/collect_solr_stats_data.conf");
+        const IniFile ini_file;
         DbConnection db_connection(ini_file);
 
         CollectGeneralStats(system_type, &db_connection);
