@@ -25,6 +25,7 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -37,8 +38,7 @@ namespace {
 }
 
 
-const std::string CONF_FILE_PATH(
-    "/usr/local/var/lib/tuelib/cronjobs/merge_differential_and_full_marc_updates.conf");
+const std::string CONF_FILE_PATH(UBTools::TUELIB_PATH + "cronjobs/merge_differential_and_full_marc_updates.conf");
 
 
 void LoadFilePCRE(std::string * const file_pcre) {

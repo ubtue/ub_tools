@@ -38,6 +38,7 @@
 #include "StringUtil.h"
 #include "Template.h"
 #include "TimeUtil.h"
+#include "UBTools.h"
 #include "util.h"
 #include "VuFind.h"
 
@@ -227,7 +228,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
 
 std::string GetEmailTemplate(const std::string user_type) {
     std::string result;
-    const std::string EMAIL_TEMPLATE_PATH("/usr/local/var/lib/tuelib/subscriptions_email." + user_type + ".template");
+    const std::string EMAIL_TEMPLATE_PATH(UBTools::TUELIB_PATH + "subscriptions_email." + user_type + ".template");
 
     if (unlikely(not FileUtil::ReadString(EMAIL_TEMPLATE_PATH, &result)))
         LOG_ERROR("can't load email template \"" + EMAIL_TEMPLATE_PATH + "\"!");
@@ -427,7 +428,7 @@ void RecordNewlyNotifiedIds(const std::unique_ptr<kyotocabinet::HashDB> &notifie
 
 
 std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB(const std::string &user_type) {
-    const std::string DB_FILENAME("/usr/local/var/lib/tuelib/" + user_type + "_notified.db");
+    const std::string DB_FILENAME(UBTools::TUELIB_PATH + "" + user_type + "_notified.db");
     std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
     if (not (db->open(DB_FILENAME,
                       kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
@@ -476,7 +477,7 @@ int Main(int argc, char **argv) {
     VuFind::GetMysqlURL(&mysql_url);
     DbConnection db_connection(mysql_url);
 
-    const IniFile bundles_config("/usr/local/var/lib/tuelib/journal_alert_bundles.conf");
+    const IniFile bundles_config(UBTools::TUELIB_PATH + "journal_alert_bundles.conf");
 
     std::unordered_set<std::string> new_notification_ids;
     ProcessSubscriptions(debug, &db_connection, notified_db, bundles_config, &new_notification_ids, solr_host_and_port, user_type, hostname,

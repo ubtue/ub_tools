@@ -40,6 +40,7 @@
 #include "FileUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -369,7 +370,7 @@ IniFile::IniFile(const std::string &ini_file_name, const bool ignore_failed_incl
 
 
 std::string IniFile::DefaultIniFileName() {
-    return ETC_DIR + std::string("/") + progname + std::string(".conf");
+    return UBTools::TUELIB_PATH + FileUtil::GetBasename(::progname) + std::string(".conf");
 }
 
 

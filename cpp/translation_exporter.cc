@@ -27,6 +27,7 @@
 #include "MARC.h"
 #include "StringUtil.h"
 #include "TranslationUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -96,7 +97,7 @@ void GenerateAuthortyRecords(DbConnection * const db_connection, MARC::Writer * 
 }
 
 
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
+const std::string CONF_FILE_PATH(UBTools::TUELIB_PATH + "translations.conf");
 
 
 } // unnamed namespace

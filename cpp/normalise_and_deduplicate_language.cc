@@ -26,6 +26,7 @@
 #include "IniFile.h"
 #include "MARC.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -40,7 +41,7 @@ namespace {
 }
 
 
-const std::string CONFIG_FILE_PATH("/usr/local/var/lib/tuelib/normalise_and_deduplicate_language.conf");
+const std::string CONFIG_FILE_PATH(UBTools::TUELIB_PATH + "normalise_and_deduplicate_language.conf");
 
 
 const std::string LANGUAGE_CODE_OVERRIDE_SECTION("Overrides");

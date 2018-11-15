@@ -35,6 +35,7 @@
 #include "WallClockTimer.h"
 #include "WebUtil.h"
 #include "Zotero.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -412,7 +413,7 @@ void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_ar
 }
 
 
-const std::string TEMPLATE_DIRECTORY("/usr/local/var/lib/tuelib/zotero_cgi/");
+const std::string TEMPLATE_DIRECTORY(UBTools::TUELIB_PATH + "zotero_cgi/");
 
 
 } // unnamed namespace

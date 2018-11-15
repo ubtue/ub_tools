@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016,2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -27,10 +27,14 @@
 #include "DbRow.h"
 #include "IniFile.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
+namespace {
+
+
+const std::string CONF_FILE_PATH(UBTools::TUELIB_PATH + "translations.conf");
 
 
 void GetLanguageCodes(DbConnection * const db_connection, std::vector<std::string> * const language_codes) {
@@ -69,36 +73,37 @@ void GenerateStats(DbConnection * const db_connection, const std::vector<std::st
 }
 
 
-int main(int /*argc*/, char *argv[]) {
+} // unnamed namespace
+
+
+int Main(int /*argc*/, char *argv[]) {
     ::progname = argv[0];
 
-    try {
-        const IniFile ini_file(CONF_FILE_PATH);
-        const std::string sql_database(ini_file.getString("", "sql_database"));
-        const std::string sql_username(ini_file.getString("", "sql_username"));
-        const std::string sql_password(ini_file.getString("", "sql_password"));
-        DbConnection db_connection(sql_database, sql_username, sql_password);
+    const IniFile ini_file(CONF_FILE_PATH);
+    const std::string sql_database(ini_file.getString("", "sql_database"));
+    const std::string sql_username(ini_file.getString("", "sql_username"));
+    const std::string sql_password(ini_file.getString("", "sql_password"));
+    DbConnection db_connection(sql_database, sql_username, sql_password);
 
-        std::vector<std::string> language_codes;
-        GetLanguageCodes(&db_connection, &language_codes);
+    std::vector<std::string> language_codes;
+    GetLanguageCodes(&db_connection, &language_codes);
 
-        std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
-        std::cout << "<html>\n";
-        std::cout << "  <title>Translation Stats</table>\n";
-        std::cout << "  <body>\n";
-        std::cout << "    <h2>VuFind Interface Translations</h2>\n";
-        std::cout << "    <table>\n";
-        std::cout << "      <th>Language</th><th>Total count</th><th>Translated</th>>\n";
-        GenerateStats(&db_connection, language_codes, "vufind_translations", "token");
-        std::cout << "    </table>\n";
-        std::cout << "    <h2>Keyword Interface Translations</h2>\n";
-        std::cout << "    <table>\n";
-        std::cout << "      <th>Language</th><th>Total count</th><th>Translated</th>>\n";
-        GenerateStats(&db_connection, language_codes, "keyword_translations", "ppn");
-        std::cout << "    </table>\n";
-        std::cout << "  </body>\n";
-        std::cout << "</html>\n";
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+    std::cout << "<html>\n";
+    std::cout << "  <title>Translation Stats</table>\n";
+    std::cout << "  <body>\n";
+    std::cout << "    <h2>VuFind Interface Translations</h2>\n";
+    std::cout << "    <table>\n";
+    std::cout << "      <th>Language</th><th>Total count</th><th>Translated</th>>\n";
+    GenerateStats(&db_connection, language_codes, "vufind_translations", "token");
+    std::cout << "    </table>\n";
+    std::cout << "    <h2>Keyword Interface Translations</h2>\n";
+    std::cout << "    <table>\n";
+    std::cout << "      <th>Language</th><th>Total count</th><th>Translated</th>>\n";
+    GenerateStats(&db_connection, language_codes, "keyword_translations", "ppn");
+    std::cout << "    </table>\n";
+    std::cout << "  </body>\n";
+    std::cout << "</html>\n";
+
+    return EXIT_SUCCESS;
 }
