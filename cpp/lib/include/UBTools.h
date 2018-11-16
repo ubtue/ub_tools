@@ -25,7 +25,7 @@
 namespace UBTools {
 
 
-extern const std::string TUELIB_PATH;
+const std::string TUELIB_PATH("/usr/local/var/lib/tuelib/");
 
 
 } // namespace UBTools
