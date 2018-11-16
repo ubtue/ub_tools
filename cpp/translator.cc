@@ -42,7 +42,7 @@
 namespace {
 
 
-const std::string CONF_FILE_PATH(UBTools::TUELIB_PATH + "translations.conf");
+const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 const int ENTRIES_PER_PAGE(30);
 const std::string NO_GND_CODE("-1");
 const std::string LANGUAGES_SECTION("Languages");
@@ -615,7 +615,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     names_to_values_map.insertScalar("target_translation_scope", target);
     names_to_values_map.insertScalar("filter_untranslated", filter_untranslated ? "checked" : "");
 
-    std::ifstream translate_html(UBTools::TUELIB_PATH + "translate_chainer/translation_front_page.html", std::ios::binary);
+    std::ifstream translate_html(UBTools::GetTuelibPath() + "translate_chainer/translation_front_page.html", std::ios::binary);
     Template::ExpandTemplate(translate_html, std::cout, names_to_values_map);
 }
 
@@ -712,7 +712,7 @@ void MailMyTranslations(DbConnection &db_connection, const IniFile &ini_file, co
 
     //Expand Template
     std::stringstream mail_content;
-    std::ifstream mytranslations_template(UBTools::TUELIB_PATH + "translate_chainer/mytranslations_template.msg");
+    std::ifstream mytranslations_template(UBTools::GetTuelibPath() + "translate_chainer/mytranslations_template.msg");
     Template::ExpandTemplate(mytranslations_template, mail_content, names_to_values_map);
 
     // Get Mail address
