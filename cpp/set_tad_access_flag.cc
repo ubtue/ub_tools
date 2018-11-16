@@ -315,7 +315,7 @@ bool CanUseTAD(const std::string &email_address, const std::vector<Pattern> &pat
 }
 
 
-const std::string EMAIL_RULES_FILE(UBTools::TUELIB_PATH + "tad_email_acl.yaml");
+const std::string EMAIL_RULES_FILE(UBTools::GetTuelibPath() + "tad_email_acl.yaml");
 
 
 void UpdateSingleUser(DbConnection * const db_connection, const std::vector<Pattern> &patterns,

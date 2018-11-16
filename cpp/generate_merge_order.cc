@@ -38,7 +38,7 @@ namespace {
 }
 
 
-const std::string CONF_FILE_PATH(UBTools::TUELIB_PATH + "cronjobs/merge_differential_and_full_marc_updates.conf");
+const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "cronjobs/merge_differential_and_full_marc_updates.conf");
 
 
 void LoadFilePCRE(std::string * const file_pcre) {

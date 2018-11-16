@@ -92,7 +92,7 @@ std::string Base64Encode(const std::string &s) {
 bool perform_logging;
 
 
-const std::string SMTP_CONFIG_PATH(UBTools::TUELIB_PATH + "cronjobs/smtp_server.conf");
+const std::string SMTP_CONFIG_PATH(UBTools::GetTuelibPath() + "cronjobs/smtp_server.conf");
 
 
 // GetDateInRFC822Format()  -- returns current date and time in an RFC-822 compliant format.

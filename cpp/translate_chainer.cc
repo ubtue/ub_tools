@@ -148,7 +148,7 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(
     std::vector<Translation> translations;
     ParseTranslationsDbToolOutput(output, &translations);
     if (translations.empty()) {
-        std::ifstream done_html(UBTools::TUELIB_PATH + "translate_chainer/done_translating.html",
+        std::ifstream done_html(UBTools::GetTuelibPath() + "translate_chainer/done_translating.html",
                                 std::ios::binary);
         std::cout << done_html.rdbuf();
     } else {
@@ -184,7 +184,7 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(
 
         names_to_values_map.insertScalar("translator", getTranslatorOrEmptyString());
 
-        std::ifstream translate_html(UBTools::TUELIB_PATH + "translate_chainer/translate.html", std::ios::binary);
+        std::ifstream translate_html(UBTools::GetTuelibPath() + "translate_chainer/translate.html", std::ios::binary);
         Template::ExpandTemplate(translate_html, std::cout, names_to_values_map);
     }
 }

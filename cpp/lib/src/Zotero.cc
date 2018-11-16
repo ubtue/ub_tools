@@ -67,7 +67,7 @@ namespace TranslationServer {
 
 
 const Url GetUrl() {
-    const IniFile ini(UBTools::TUELIB_PATH + "zotero.conf");
+    const IniFile ini(UBTools::GetTuelibPath() + "zotero.conf");
     return Url(ini.getString("Server", "url"));
 }
 
