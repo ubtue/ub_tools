@@ -182,7 +182,7 @@ void AugmentNormdata(MARC::Reader * const marc_reader, MARC::Writer *marc_writer
 } //unnamed namespace
 
 
-const std::string CONF_FILE_PATH(UBTools::TUELIB_PATH + "translations.conf");
+const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 
 
 int Main(int argc, char **argv) {

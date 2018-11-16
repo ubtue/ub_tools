@@ -205,7 +205,7 @@ void ValidateKeywordTranslation(DbConnection * const connection, const std::stri
 }
 
 
-const std::string CONF_FILE_PATH(UBTools::TUELIB_PATH + "translations.conf");
+const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 
 
 int main(int argc, char *argv[]) {

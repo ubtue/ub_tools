@@ -1,4 +1,4 @@
-/** \file   UBTools.h
+/** \file   UBTools.cc
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -16,16 +16,15 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#pragma once
-
-
-#include <string>
+#include "UBTools.h"
 
 
 namespace UBTools {
 
 
-std::string GetTuelibPath();
+std::string GetTuelibPath() {
+    return "/usr/local/var/lib/tuelib/";
+}
 
 
 } // namespace UBTools
