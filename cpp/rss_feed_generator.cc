@@ -43,7 +43,7 @@ namespace {
 }
 
 
-const std::string CONF_FILE_PATH(UBTools::TUELIB_PATH + "rss_aggregator.conf");
+const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "rss_aggregator.conf");
 
 
 } // unnamed namespace

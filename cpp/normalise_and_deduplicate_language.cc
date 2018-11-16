@@ -41,7 +41,7 @@ namespace {
 }
 
 
-const std::string CONFIG_FILE_PATH(UBTools::TUELIB_PATH + "normalise_and_deduplicate_language.conf");
+const std::string CONFIG_FILE_PATH(UBTools::GetTuelibPath() + "normalise_and_deduplicate_language.conf");
 
 
 const std::string LANGUAGE_CODE_OVERRIDE_SECTION("Overrides");

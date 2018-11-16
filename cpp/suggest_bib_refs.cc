@@ -42,7 +42,7 @@ namespace {
 
 
 void LoadPericopes(std::unordered_map<std::string, std::string> * const pericopes_to_codes_map) {
-    const std::string PERIOCPES_FILE(UBTools::TUELIB_PATH + "bibleRef/pericopes_to_codes.map");
+    const std::string PERIOCPES_FILE(UBTools::GetTuelibPath() + "bibleRef/pericopes_to_codes.map");
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(PERIOCPES_FILE));
     unsigned pericope_count(0), line_no(0);
     while (not input->eof()) {
@@ -175,8 +175,8 @@ int Main(int argc, char *argv[]) {
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
     std::unique_ptr<File> ppn_candidate_list(FileUtil::OpenOutputFileOrDie(argv[2]));
 
-    const BibleUtil::BibleBookCanoniser bible_book_canoniser(UBTools::TUELIB_PATH + "bibleRef/books_of_the_bible_to_canonical_form.map");
-    const BibleUtil::BibleBookToCodeMapper bible_book_to_code_mapper(UBTools::TUELIB_PATH + "bibleRef/books_of_the_bible_to_code.map");
+    const BibleUtil::BibleBookCanoniser bible_book_canoniser(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_canonical_form.map");
+    const BibleUtil::BibleBookToCodeMapper bible_book_to_code_mapper(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_code.map");
 
     std::unordered_map<std::string, std::string> pericopes_to_codes_map;
     LoadPericopes(&pericopes_to_codes_map);
