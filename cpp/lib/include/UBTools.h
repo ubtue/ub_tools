@@ -25,7 +25,7 @@
 namespace UBTools {
 
 
-const std::string TUELIB_PATH("/usr/local/var/lib/tuelib/");
+std::string GetTuelibPath();
 
 
 } // namespace UBTools
