@@ -28,7 +28,7 @@
 namespace Elasticsearch {
 
 
-const std::string Configuration::GLOBAL_CONFIG_FILE_PATH(UBTools::TUELIB_PATH + "Elasticsearch.conf");
+const std::string Configuration::GLOBAL_CONFIG_FILE_PATH(UBTools::GetTuelibPath() + "Elasticsearch.conf");
 
 
 Configuration::Configuration(const std::string &config_file_path) {

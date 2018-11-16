@@ -48,7 +48,7 @@ public:
 };
 
 
-const std::string template_directory(UBTools::TUELIB_PATH + "full_text_cache_monitor/");
+const std::string template_directory(UBTools::GetTuelibPath() + "full_text_cache_monitor/");
 std::multimap<std::string, std::string> cgi_args;
 
 
