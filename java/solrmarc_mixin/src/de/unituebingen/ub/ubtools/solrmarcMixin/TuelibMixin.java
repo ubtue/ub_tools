@@ -357,8 +357,10 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
         }
+        result.addAll(getLocal689Topics(record));
         return result;
     }
+
 
 
     /**
