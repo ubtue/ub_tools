@@ -582,7 +582,7 @@ void ProcessJournal(const unsigned timeout, const std::string &line, MARC::Write
 
 
 std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB() {
-    const std::string DB_FILENAME(UBTools::TUELIB_PATH + "crossref_downloader/notified.db");
+    const std::string DB_FILENAME(UBTools::GetTuelibPath() + "crossref_downloader/notified.db");
     std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
     if (not (db->open(DB_FILENAME, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
         LOG_ERROR("failed to open or create \"" + DB_FILENAME + "\"!");

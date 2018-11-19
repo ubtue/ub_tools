@@ -78,12 +78,9 @@ public:
 
 
 std::string GetJournalNameOrDie(const MARC::Record &record) {
-    const auto _773_field(record.getFirstField("773"));
-    if (unlikely(_773_field == record.end()))
-        LOG_ERROR("record w/ control number \"" + record.getControlNumber() + "\" is missing a 773-field!");
-    const auto journal_name(_773_field->getFirstSubfieldWithCode('a'));
+    const auto journal_name(record.getSuperiorTitle());
     if (unlikely(journal_name.empty()))
-        LOG_ERROR("the first 773-field of the record w/ control number \"" + record.getControlNumber() + "\" is missing a $a-subfield!");
+        LOG_ERROR("the record w/ control number \"" + record.getControlNumber() + "\" is missing a superior title!");
 
     return journal_name;
 }

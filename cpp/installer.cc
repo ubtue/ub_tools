@@ -310,21 +310,21 @@ void InstallUBTools(const bool make_install) {
     ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4", "install" });
 
     // ...then create /usr/local/var/lib/tuelib
-    if (not FileUtil::Exists(UBTools::TUELIB_PATH)) {
-        Echo("creating " + UBTools::TUELIB_PATH);
-        ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", UBTools::TUELIB_PATH });
+    if (not FileUtil::Exists(UBTools::GetTuelibPath())) {
+        Echo("creating " + UBTools::GetTuelibPath());
+        ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", UBTools::GetTuelibPath() });
     }
 
-    if (not FileUtil::Exists(UBTools::TUELIB_PATH + "/zotero-enhancement-maps")) {
+    if (not FileUtil::Exists(UBTools::GetTuelibPath() + "/zotero-enhancement-maps")) {
         const std::string git_url("https://github.com/ubtue/zotero-enhancement-maps.git");
-        ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, UBTools::TUELIB_PATH + "/zotero-enhancement-maps" });
+        ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, UBTools::GetTuelibPath() + "/zotero-enhancement-maps" });
     }
 
     // Add SELinux permissions for files we need to access via web.
     // Needs to be done exactly for each file, because we might have files with passwords in there!
     if (SELinuxUtil::IsEnabled())
-        SELinuxUtil::FileContext::AddRecordIfMissing(UBTools::TUELIB_PATH, "httpd_sys_content_t",
-                                                     UBTools::TUELIB_PATH + "/issn_to_misc_bits.map");
+        SELinuxUtil::FileContext::AddRecordIfMissing(UBTools::GetTuelibPath(), "httpd_sys_content_t",
+                                                     UBTools::GetTuelibPath() + "/issn_to_misc_bits.map");
 
     // ...and then install the rest of ub_tools:
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);

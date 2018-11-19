@@ -635,6 +635,11 @@ std::string Record::getCompleteTitle() const {
 
 std::string  Record::getSuperiorTitle() const {
     for (const auto &field : getTagRange("773")) {
+        const auto superior_title_candidate(field.getFirstSubfieldWithCode('t'));
+        if (likely(not superior_title_candidate.empty()))
+            return superior_title_candidate;
+    }
+    for (const auto &field : getTagRange("773")) {
         const auto superior_title_candidate(field.getFirstSubfieldWithCode('a'));
         if (likely(not superior_title_candidate.empty()))
             return superior_title_candidate;

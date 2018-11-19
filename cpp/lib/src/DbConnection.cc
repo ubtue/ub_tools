@@ -118,7 +118,7 @@ DbConnection::~DbConnection() {
 }
 
 
-const std::string DbConnection::DEFAULT_CONFIG_FILE_PATH(UBTools::TUELIB_PATH + "ub_tools.conf");
+const std::string DbConnection::DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath() + "ub_tools.conf");
 
 
 bool DbConnection::query(const std::string &query_statement) {

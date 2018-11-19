@@ -38,7 +38,7 @@
 #include "util.h"
 
 
-const std::string CONF_FILE_PATH(UBTools::TUELIB_PATH + "dakar.conf");
+const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "dakar.conf");
 const std::string NOT_AVAILABLE("N/A");
 
 

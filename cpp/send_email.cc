@@ -168,7 +168,7 @@ int Main(int argc, char *argv[]) {
                      &priority_as_string, &format_as_string, &expand_newline_escapes);
 
     if (sender.empty() and reply_to.empty()) {
-        IniFile ini_file(UBTools::TUELIB_PATH + "cronjobs/smtp_server.conf");
+        IniFile ini_file(UBTools::GetTuelibPath() + "cronjobs/smtp_server.conf");
         sender = ini_file.getString("SMTPServer", "server_user") + "@uni-tuebingen.de";
     }
 

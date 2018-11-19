@@ -34,7 +34,7 @@
 namespace {
 
 
-const std::string CONF_FILE_PATH(UBTools::TUELIB_PATH + "translations.conf");
+const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 
 
 void GetLanguageCodes(DbConnection * const db_connection, std::vector<std::string> * const language_codes) {

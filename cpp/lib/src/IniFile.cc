@@ -370,7 +370,7 @@ IniFile::IniFile(const std::string &ini_file_name, const bool ignore_failed_incl
 
 
 std::string IniFile::DefaultIniFileName() {
-    return UBTools::TUELIB_PATH + FileUtil::GetBasename(::progname) + std::string(".conf");
+    return UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + std::string(".conf");
 }
 
 

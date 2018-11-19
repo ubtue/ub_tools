@@ -76,13 +76,7 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
                 pages = "pages=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('h'));
         }
 
-        std::string superior_title;
-        for (const auto &_773_field : record.getTagRange("773")) {
-            superior_title = _773_field.getFirstSubfieldWithCode('t');
-            if (not superior_title.empty())
-                break;
-        }
-
+        const std::string superior_title(record.getSuperiorTitle());
         db_connection->queryOrDie("INSERT INTO marc_records SET url=" + db_connection->escapeAndQuoteString(url)
                                   + ",zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) + ",hash="
                                   + db_connection->escapeAndQuoteString(hash) + ",main_title="
