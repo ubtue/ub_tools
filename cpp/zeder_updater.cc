@@ -1,4 +1,4 @@
-/** \brief Updates Zeder w/ the last N issues of harvested articles for each journal.
+/** \brief Updates Zeder (via Ingo's SQL database) w/ the last N issues of harvested articles for each journal.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -22,7 +22,6 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
-#include "EmailSender.h"
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "SqlUtil.h"
@@ -51,6 +50,7 @@ time_t ReadTimeStamp() {
         const auto timestamp_file(FileUtil::OpenInputFileOrDie(TIMESTAMP_PATH));
         if (timestamp_file->read(reinterpret_cast<void *>(&timestamp), sizeof timestamp) != sizeof timestamp)
             LOG_ERROR("failed to read " + std::to_string(sizeof timestamp) + " bytes from \"" + TIMESTAMP_PATH + "\"!");
+std::cerr << "Old timestamp: " << SqlUtil::TimeTToDatetime(timestamp) << '\n';
         return timestamp;
     } else
         return 0;
@@ -60,14 +60,14 @@ time_t ReadTimeStamp() {
 void WriteTimeStamp(const time_t timestamp) {
     const std::string TIMESTAMP_PATH(UBTools::GetTuelibPath() + TIMESTAMP_FILENAME);
     const auto timestamp_file(FileUtil::OpenOutputFileOrDie(TIMESTAMP_PATH));
+std::cerr << "New timestamp: " << SqlUtil::TimeTToDatetime(timestamp) << '\n';
     if (timestamp_file->write(reinterpret_cast<const void *>(&timestamp), sizeof timestamp) != sizeof timestamp)
         LOG_ERROR("failed to write " + std::to_string(sizeof timestamp) + " bytes to \"" + TIMESTAMP_PATH + "\"!");
 }
 
 
 bool ProcessJournal(DbConnection * const db_connection, const time_t old_timestamp, const std::string &zeder_id,
-                    const std::string &superior_title, const std::string &zeder_url_prefix, const unsigned max_issue_count,
-                    std::string * const report)
+                    const std::string &superior_title, const std::string &zeder_url_prefix, const unsigned max_issue_count)
 {
     db_connection->queryOrDie("SELECT volume,issue,pages,created_at,resource_type FROM marc_records WHERE zeder_id="
                               + db_connection->escapeAndQuoteString(zeder_id) + " ORDER BY created_at DESC LIMIT "
@@ -84,8 +84,8 @@ bool ProcessJournal(DbConnection * const db_connection, const time_t old_timesta
         } else
             status = "unverändert";
 
-        *report += zeder_url_prefix + zeder_id + "," + superior_title + "," + row["volume"] + ";" + row["issue"] + ";" + row["pages"] + ","
-                   + status + "," + row["resource_type"] + "\n";
+        std::cout << zeder_url_prefix << zeder_id << "," << row["created_at"] << "," << superior_title << "," << row["volume"] << ";"
+                  << row["issue"] << ";" << row["pages"] << "," << status << "," << row["resource_type"] << "\n";
     }
 
     return found_at_least_one_new_issue;
@@ -105,21 +105,20 @@ int Main(int argc, char *argv[]) {
     const std::string zeder_url_prefix(ini_file.getString("", "zeder_url_prefix"));
 
     const time_t old_timestamp(ReadTimeStamp());
-    DbConnection db_connection;
-    db_connection.queryOrDie("SELECT DISTINCT marc_records.zeder_id,superior_info.title FROM marc_records LEFT JOIN superior_info ON marc_records.zeder_id=superior_info.zeder_id");
+    DbConnection db_connection(DbConnection::TZ_UTC);
+    db_connection.queryOrDie("SELECT DISTINCT marc_records.zeder_id,superior_info.title FROM marc_records "
+                             "LEFT JOIN superior_info ON marc_records.zeder_id=superior_info.zeder_id");
     DbResultSet result_set(db_connection.getLastResultSet());
     unsigned journal_count(0), updated_journal_count(0);
-    std::string report;
     while (const DbRow row = result_set.getNextRow()) {
-        if (ProcessJournal(&db_connection, old_timestamp, row["zeder_id"], row["title"], zeder_url_prefix, max_issue_count, &report))
+        if (ProcessJournal(&db_connection, old_timestamp, row["zeder_id"], row["title"], zeder_url_prefix, max_issue_count))
             ++updated_journal_count;
         ++journal_count;
     }
 
     WriteTimeStamp(::time(nullptr));
 
-    EmailSender::SendEmail(sender_email_address, notification_email_address, "Zeder Updater", report);
-    LOG_INFO("Found " + std::to_string(updated_journal_count) + " out of " + std::to_string(journal_count) + " journals wuth new entries.");
+    LOG_INFO("Found " + std::to_string(updated_journal_count) + " out of " + std::to_string(journal_count) + " journals with new entries.");
 
     return EXIT_SUCCESS;
 }
