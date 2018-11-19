@@ -329,6 +329,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     /**
      * Hole das Sachschlagwort aus 689|a (wenn 689|d != z oder f)
+     * und füge auch Schlagwörter aus LOK 689 ein
      *
      * @param record
      *            the record
