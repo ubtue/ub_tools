@@ -32,6 +32,7 @@
 #include "Template.h"
 #include "TimeUtil.h"
 #include "UrlUtil.h"
+#include "UBTools.h"
 #include "util.h"
 #include "WebUtil.h"
 
@@ -47,7 +48,7 @@ public:
 };
 
 
-const std::string template_directory("/usr/local/var/lib/tuelib/full_text_cache_monitor/");
+const std::string template_directory(UBTools::GetTuelibPath() + "full_text_cache_monitor/");
 std::multimap<std::string, std::string> cgi_args;
 
 

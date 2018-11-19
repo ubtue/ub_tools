@@ -27,6 +27,7 @@
 #include "IniFile.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -42,7 +43,7 @@ namespace {
 }
 
 
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/rss_aggregator.conf");
+const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "rss_aggregator.conf");
 
 
 } // unnamed namespace

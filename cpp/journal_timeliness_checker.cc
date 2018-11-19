@@ -23,6 +23,7 @@
 #include "EmailSender.h"
 #include "IniFile.h"
 #include "SqlUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -64,7 +65,7 @@ int Main(int argc, char *argv[]) {
     const std::string sender_email_address(argv[2]), notification_email_address(argv[3]);
     DbConnection db_connection;
 
-    IniFile ini_file("/usr/local/var/lib/tuelib/zts_harvester.conf");
+    IniFile ini_file(UBTools::GetTuelibPath() + "zts_harvester.conf");
     std::string tardy_list;
     for (const auto &section : ini_file) {
         if (section.find("user_agent") != section.end())

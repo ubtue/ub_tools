@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2016,2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -33,10 +33,14 @@
 #include "IniFile.h"
 #include "StringUtil.h"
 #include "TranslationUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << progname << " translation.ini...\n";
     std::exit(EXIT_FAILURE);
 }
@@ -75,50 +79,51 @@ void InsertTranslations(
 }
 
 
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
+const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 
 
-int main(int argc, char **argv) {
-    progname = argv[0];
+} // unnamed namespace
+
+
+int Main(int argc, char **argv) {
+    ::progname = argv[0];
 
     if (argc < 2)
         Usage();
 
-    try {
-        const IniFile ini_file(CONF_FILE_PATH);
-        const std::string sql_database(ini_file.getString("Database", "sql_database"));
-        const std::string sql_username(ini_file.getString("Database", "sql_username"));
-        const std::string sql_password(ini_file.getString("Database", "sql_password"));
-        DbConnection db_connection(sql_database, sql_username, sql_password);
+    const IniFile ini_file(CONF_FILE_PATH);
+    const std::string sql_database(ini_file.getString("Database", "sql_database"));
+    const std::string sql_username(ini_file.getString("Database", "sql_username"));
+    const std::string sql_password(ini_file.getString("Database", "sql_password"));
+    DbConnection db_connection(sql_database, sql_username, sql_password);
 
-        for (int arg_no(1); arg_no < argc; ++arg_no) {
-            // Get the 2-letter language code from the filename.  We expect filenames of the form "xx.ini" or
-            // "some_path/xx.ini":
-            const std::string ini_filename(argv[arg_no]);
-            if (unlikely(not StringUtil::EndsWith(ini_filename, ".ini")))
-                logger->error("expected filename \"" + ini_filename + "\" to end in \".ini\"!");
-            std::string two_letter_code;
-            if (ini_filename.length() == 6)
-                two_letter_code = ini_filename.substr(0, 2);
-            else {
-                const std::string::size_type last_slash_pos(ini_filename.rfind('/'));
-                if (unlikely(last_slash_pos == std::string::npos
-                             or (last_slash_pos + 6 + 1 != ini_filename.length())))
-                    logger->error("INI filename does not match expected pattern: \"" + ini_filename + "\"!");
-                two_letter_code = ini_filename.substr(last_slash_pos + 1, 2);
-            }
-
-            const std::string german_3letter_code(
-                TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(two_letter_code));
-
-            std::unordered_map<std::string, std::pair<unsigned, std::string>> keys_to_line_no_and_translation_map;
-            TranslationUtil::ReadIniFile(ini_filename, &keys_to_line_no_and_translation_map);
-            std::cout << "Read " << keys_to_line_no_and_translation_map.size()
-                      << " mappings from English to another language from \"" << ini_filename << "\".\n";
-
-            InsertTranslations(&db_connection, german_3letter_code, keys_to_line_no_and_translation_map);
+    for (int arg_no(1); arg_no < argc; ++arg_no) {
+        // Get the 2-letter language code from the filename.  We expect filenames of the form "xx.ini" or
+        // "some_path/xx.ini":
+        const std::string ini_filename(argv[arg_no]);
+        if (unlikely(not StringUtil::EndsWith(ini_filename, ".ini")))
+            logger->error("expected filename \"" + ini_filename + "\" to end in \".ini\"!");
+        std::string two_letter_code;
+        if (ini_filename.length() == 6)
+            two_letter_code = ini_filename.substr(0, 2);
+        else {
+            const std::string::size_type last_slash_pos(ini_filename.rfind('/'));
+            if (unlikely(last_slash_pos == std::string::npos
+                         or (last_slash_pos + 6 + 1 != ini_filename.length())))
+                logger->error("INI filename does not match expected pattern: \"" + ini_filename + "\"!");
+            two_letter_code = ini_filename.substr(last_slash_pos + 1, 2);
         }
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+
+        const std::string german_3letter_code(
+                                              TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(two_letter_code));
+
+        std::unordered_map<std::string, std::pair<unsigned, std::string>> keys_to_line_no_and_translation_map;
+        TranslationUtil::ReadIniFile(ini_filename, &keys_to_line_no_and_translation_map);
+        std::cout << "Read " << keys_to_line_no_and_translation_map.size()
+                  << " mappings from English to another language from \"" << ini_filename << "\".\n";
+
+        InsertTranslations(&db_connection, german_3letter_code, keys_to_line_no_and_translation_map);
     }
+
+    return EXIT_SUCCESS;
 }

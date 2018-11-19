@@ -514,6 +514,9 @@ size_t LoadMapFile(const std::string &filename, std::unordered_map<std::string, 
         ++line_no;
 
         StringUtil::Trim(&line);
+        if (line.empty())
+            continue;
+
         std::string key, value;
         if (not ParseLine(line, &key, &value))
             LOG_ERROR("invalid input on line \"" + std::to_string(line_no) + "\" in \"" + input->getPath() + "\"!");

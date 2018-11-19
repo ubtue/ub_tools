@@ -34,13 +34,16 @@
 #include "IniFile.h"
 #include "MARC.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/dakar.conf");
+const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "dakar.conf");
 const std::string NOT_AVAILABLE("N/A");
 
+
 namespace {
+
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--generate-list|--augment-db] authority_data" << '\n';
@@ -104,12 +107,10 @@ void GetCICFromDB(DbConnection &db_connection, std::set<std::string> * const cic
 }
 
 
-void AssemblePrimaryAndSynonymKeywordEntry(const MARC::Record &record,
-                                   const std::string gnd_number,
-                                   std::unordered_multimap<std::string,std::string> * const keyword_to_gnd_map,
-                                   const std::string primary_tag,
-                                   const std::string subfield_spec,
-                                   const std::string synonym_tag)
+void AssemblePrimaryAndSynonymKeywordEntry(const MARC::Record &record, const std::string gnd_number,
+                                           std::unordered_multimap<std::string,std::string> * const keyword_to_gnd_map,
+                                           const std::string primary_tag, const std::string subfield_spec,
+                                           const std::string synonym_tag)
 {
     const std::string primary(StringUtil::Join(record.getSubfieldAndNumericSubfieldValues(primary_tag, subfield_spec), " "));
     if (not primary.empty()) {
@@ -383,4 +384,3 @@ int Main(int argc, char **argv) {
          AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map);
      return EXIT_SUCCESS;
 }
-

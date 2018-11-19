@@ -24,6 +24,7 @@
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -167,7 +168,7 @@ int Main(int argc, char *argv[]) {
                      &priority_as_string, &format_as_string, &expand_newline_escapes);
 
     if (sender.empty() and reply_to.empty()) {
-        IniFile ini_file("/usr/local/var/lib/tuelib/cronjobs/smtp_server.conf");
+        IniFile ini_file(UBTools::GetTuelibPath() + "cronjobs/smtp_server.conf");
         sender = ini_file.getString("SMTPServer", "server_user") + "@uni-tuebingen.de";
     }
 
@@ -186,7 +187,7 @@ int Main(int argc, char *argv[]) {
         else
             LOG_ERROR("failed to send your email!");
     }
-    
+
 
     return EXIT_SUCCESS;
 }

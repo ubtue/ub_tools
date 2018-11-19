@@ -2,7 +2,7 @@
  *  \brief   Downloads metadata from crossref.org and generates MARC-21 records.
  *  \author  Dr. Johannes Ruscheinski
  *
- *  \copyright (C) 2017, Library of the University of Tübingen
+ *  \copyright (C) 2017,2018, Library of the University of Tübingen
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -32,6 +32,7 @@
 #include "MARC.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -581,10 +582,9 @@ void ProcessJournal(const unsigned timeout, const std::string &line, MARC::Write
 
 
 std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB() {
-    const std::string DB_FILENAME("/usr/local/var/lib/tuelib/crossref_downloader/notified.db");
+    const std::string DB_FILENAME(UBTools::GetTuelibPath() + "crossref_downloader/notified.db");
     std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
-    if (not (db->open(DB_FILENAME,
-                      kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
+    if (not (db->open(DB_FILENAME, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
         LOG_ERROR("failed to open or create \"" + DB_FILENAME + "\"!");
     return db;
 }
