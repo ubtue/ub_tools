@@ -71,6 +71,7 @@ CREATE TABLE marc_records (
     volume CHAR(40) DEFAULT NULL,
     issue CHAR(40) DEFAULT NULL,
     pages CHAR(20) DEFAULT NULL,
+    resource_type ENUM('print','online','unknown') NOT NULL,
     record BLOB NOT NULL
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 CREATE INDEX marc_records_url_index ON marc_records(url);

@@ -91,6 +91,7 @@ data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.tem
 	cp data/normalise_and_deduplicate_language.conf /usr/local/var/lib/tuelib/
 	cp data/journal_alert_bundles.conf /usr/local/var/lib/tuelib/
 	cp data/zeder_updater.conf /usr/local/var/lib/tuelib/
+	cp data/zts_harvester.conf /usr/local/var/lib/tuelib/
 
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
