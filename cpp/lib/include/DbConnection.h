@@ -34,6 +34,7 @@ class IniFile;
 class DbConnection {
 public:
     enum Type { T_MYSQL, T_SQLITE };
+    enum TimeZone { TZ_SYSTEM, TZ_UTC };
     static const std::string DEFAULT_CONFIG_FILE_PATH;
 private:
     Type type_;
@@ -45,21 +46,22 @@ public:
     enum OpenMode { READONLY, READWRITE, CREATE };
     enum Charset { UTF8MB3, UTF8MB4 };
 public:
-    DbConnection(); // Uses the ub_tools database.
+    explicit DbConnection(const TimeZone time_zone = TZ_SYSTEM); // Uses the ub_tools database.
 
     DbConnection(const std::string &database_name, const std::string &user, const std::string &passwd = "",
-                 const std::string &host = "localhost", const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4)
-        { type_ = T_MYSQL; init(database_name, user, passwd, host, port, charset); }
+                 const std::string &host = "localhost", const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4,
+                 const TimeZone time_zone = TZ_SYSTEM)
+        { type_ = T_MYSQL; init(database_name, user, passwd, host, port, charset, time_zone); }
 
     // Expects to find entries named "sql_database", "sql_username" and "sql_password".  Optionally there may also
     // be an entry named "sql_host".  If this entry is missing a default value of "localhost" will be assumed.
     // Another optional entry is "sql_port".  If that entry is missing the default value MYSQL_PORT will be used.
-    explicit DbConnection(const IniFile &ini_file, const std::string &ini_file_section = "Database");
+    explicit DbConnection(const IniFile &ini_file, const std::string &ini_file_section = "Database", const TimeZone time_zone = TZ_SYSTEM);
 
     DbConnection(const std::string &database_path, const OpenMode open_mode);
 
     /** \brief Attemps to parse something like "mysql://ruschein:xfgYu8z@localhost:3345/vufind" */
-    explicit DbConnection(const std::string &mysql_url, const Charset charset = UTF8MB4);
+    explicit DbConnection(const std::string &mysql_url, const Charset charset = UTF8MB4, const TimeZone time_zone = TZ_SYSTEM);
 
     virtual ~DbConnection();
 
@@ -112,14 +114,15 @@ private:
     /** \note This constructor is for operations which do not require any existing database.
      *        It should only be used in static functions.
      */
-    DbConnection(const std::string &user, const std::string &passwd,
-                 const std::string &host, const unsigned port, const Charset charset)
-    { type_ = T_MYSQL; init(user, passwd, host, port, charset); }
+    DbConnection(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port, const Charset charset)
+        { type_ = T_MYSQL; init(user, passwd, host, port, charset, TZ_SYSTEM); }
 
+    void setTimeZone(const TimeZone time_zone);
     void init(const std::string &database_name, const std::string &user, const std::string &passwd,
-              const std::string &host, const unsigned port, const Charset charset);
+              const std::string &host, const unsigned port, const Charset charset, const TimeZone time_zone);
 
-    void init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port, const Charset charset);
+    void init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port, const Charset charset,
+              const TimeZone time_zone);
 public:
     static void MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
                                     const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
