@@ -35,6 +35,7 @@
 #include "MARC.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -49,7 +50,7 @@ static unsigned record_count(0);
 static unsigned modified_count(0);
 
 
-void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " authority_data_input authority_data_output\n";
     std::exit(EXIT_FAILURE);
 }
@@ -65,9 +66,7 @@ std::string ReplaceAngleBracketsWithParentheses(const std::string &value) {
 }
 
 
-void ExtractTranslations(DbConnection * const db_connection, std::map<std::string,
-                         std::vector<Translation>> * const all_translations)
-{
+void ExtractTranslations(DbConnection * const db_connection, std::map<std::string, std::vector<Translation>> * const all_translations) {
     db_connection->queryOrDie("SELECT DISTINCT ppn FROM keyword_translations");
     DbResultSet ppn_result_set(db_connection->getLastResultSet());
     while (const DbRow ppn_row = ppn_result_set.getNextRow()) {
@@ -183,10 +182,10 @@ void AugmentNormdata(MARC::Reader * const marc_reader, MARC::Writer *marc_writer
 } //unnamed namespace
 
 
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
+const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 
 
-int main(int argc, char **argv) {
+int Main(int argc, char **argv) {
     ::progname = argv[0];
 
     if (argc != 3)
@@ -196,23 +195,21 @@ int main(int argc, char **argv) {
     const std::string marc_output_filename(argv[2]);
 
     if (unlikely(marc_input_filename == marc_output_filename))
-        logger->error("Input file equals output file");
+        LOG_ERROR("Input file equals output file");
 
-    try {
-        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
-        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
 
-        const IniFile ini_file(CONF_FILE_PATH);
-        const std::string sql_database(ini_file.getString("Database", "sql_database"));
-        const std::string sql_username(ini_file.getString("Database", "sql_username"));
-        const std::string sql_password(ini_file.getString("Database", "sql_password"));
-        DbConnection db_connection(sql_database, sql_username, sql_password);
+    const IniFile ini_file(CONF_FILE_PATH);
+    const std::string sql_database(ini_file.getString("Database", "sql_database"));
+    const std::string sql_username(ini_file.getString("Database", "sql_username"));
+    const std::string sql_password(ini_file.getString("Database", "sql_password"));
+    DbConnection db_connection(sql_database, sql_username, sql_password);
 
-        std::map<std::string, std::vector<Translation> > all_translations;
-        ExtractTranslations(&db_connection, &all_translations);
+    std::map<std::string, std::vector<Translation> > all_translations;
+    ExtractTranslations(&db_connection, &all_translations);
 
-        AugmentNormdata(marc_reader.get(), marc_writer.get(), all_translations);
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    AugmentNormdata(marc_reader.get(), marc_writer.get(), all_translations);
+
+    return EXIT_SUCCESS;
 }

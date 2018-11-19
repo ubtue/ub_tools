@@ -31,12 +31,15 @@
 #include "util.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbose] marc_input marc_output\n"
               << "       \"marc_input\" is the file that will be augmented and converted.\n"
               << "       \"marc_input\" will be scoured for titles that\n"
               << "       may be filled into 773$a fields where appropriate.\n"
-              << "       Populates 773$a where it is missing and uplinks exist in 773$x.\n";
+              << "       Populates 773$a where it and 773$t are both missing and uplinks exist in 773$w.\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -44,8 +47,7 @@ void Usage() {
 static std::unordered_map<std::string, std::string> control_numbers_to_titles_map;
 
 
-bool RecordControlNumberToTitleMapping(MARC::Record * const record)
-{
+bool RecordControlNumberToTitleMapping(MARC::Record * const record) {
     for (auto &_245_field : record->getTagRange("245")) {
         std::string title(_245_field.getFirstSubfieldWithCode('a'));
         if (_245_field.hasSubfield('b'))
@@ -74,10 +76,10 @@ void CollectControlNumberToTitleMappings(const bool verbose, MARC::Reader * cons
 static unsigned patch_count;
 
 
-// Looks for the existence of a 773 field.  Iff such a field exists and 773$a is missing, we try to add it.
+// Looks for the existence of a 773 field.  Iff such a field exists and 773$t and 773$a is missing, we try to add it.
 bool PatchUpOne773a(MARC::Record * const record, MARC::Writer * const marc_writer) {
     for (auto &_773_field : record->getTagRange("773")) {
-        if (not _773_field.hasSubfield('a') and _773_field.hasSubfield('w')) {
+        if ((not _773_field.hasSubfield('a') and not _773_field.hasSubfield('t')) and _773_field.hasSubfield('w')) {
             const std::string w_subfield(_773_field.getFirstSubfieldWithCode('w'));
             if (StringUtil::StartsWith(w_subfield, "(DE-576)")) {
                 const std::string parent_control_number(w_subfield.substr(8));
@@ -96,7 +98,7 @@ bool PatchUpOne773a(MARC::Record * const record, MARC::Writer * const marc_write
 }
 
 
-// Iterates over all records in a collection and attempts to in 773$a subfields were they are missing.
+// Iterates over all records in a collection and attempts to insert 773$a subfields were they and the 773$t subfields are missing.
 void PatchUp773aSubfields(const bool verbose, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     while (auto record = marc_reader->read())
         PatchUpOne773a(&record, marc_writer);
@@ -104,6 +106,9 @@ void PatchUp773aSubfields(const bool verbose, MARC::Reader * const marc_reader, 
     if (verbose)
         std::cout << "Added 773$a subfields to " << patch_count << " records.\n";
 }
+
+
+} // unnamed namespace
 
 
 int Main(int argc, char **argv) {
@@ -128,5 +133,6 @@ int Main(int argc, char **argv) {
     CollectControlNumberToTitleMappings(verbose, marc_reader.get());
     marc_reader->rewind();
     PatchUp773aSubfields(verbose, marc_reader.get(), marc_writer.get());
+
     return EXIT_SUCCESS;
 }

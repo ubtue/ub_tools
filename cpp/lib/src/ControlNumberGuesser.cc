@@ -27,11 +27,12 @@
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
 const std::set<std::string> ControlNumberGuesser::EMPTY_SET;
-const std::string ControlNumberGuesser::DATABASE_PATH("/usr/local/var/lib/tuelib/control_number_guesser.sq3");
+const std::string ControlNumberGuesser::DATABASE_PATH(UBTools::GetTuelibPath() + "control_number_guesser.sq3");
 const std::string ControlNumberGuesser::INSTALLER_SCRIPT_PATH("/usr/local/ub_tools/cpp/data/installer/control_number_guesser.sql");
 
 

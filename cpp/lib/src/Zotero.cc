@@ -33,9 +33,10 @@
 #include "StringUtil.h"
 #include "SyndicationFormat.h"
 #include "TimeUtil.h"
-#include "UrlUtil.h"
-#include "ZoteroTransformation.h"
 #include "util.h"
+#include "UBTools.h"
+#include "util.h"
+#include "ZoteroTransformation.h"
 
 
 // Forward declaration:
@@ -66,7 +67,7 @@ namespace TranslationServer {
 
 
 const Url GetUrl() {
-    const IniFile ini("/usr/local/var/lib/tuelib/zotero.conf");
+    const IniFile ini(UBTools::GetTuelibPath() + "zotero.conf");
     return Url(ini.getString("Server", "url"));
 }
 
@@ -85,8 +86,7 @@ bool ResponseCodeIndicatesSuccess(unsigned response_code, const std::string &res
 
 
 bool Export(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
-            const std::string &format, const std::string &json,
-            std::string * const response_body, std::string * const error_message)
+            const std::string &format, const std::string &json, std::string * const response_body, std::string * const error_message)
 {
     const std::string endpoint_url(Url(zts_server_url.toString() + "/export?format=" + format));
     downloader_params.additional_headers_ = { "Content-Type: application/json" };
@@ -523,7 +523,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     const std::string publication_title(node_parameters.publication_title);
     if (not publication_title.empty()) {
         _773_subfields.appendSubfield('i', "In: ");
-        _773_subfields.appendSubfield('a', publication_title);
+        _773_subfields.appendSubfield('t', publication_title);
     }
     const std::string issn(node_parameters.issn);
     if (not issn.empty())

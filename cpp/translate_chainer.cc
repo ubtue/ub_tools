@@ -32,13 +32,12 @@
 #include "Template.h"
 #include "UrlUtil.h"
 #include "WebUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
-void DumpCgiArgs(const std::multimap<std::string, std::string> &cgi_args) {
-    for (const auto &key_and_values : cgi_args)
-        std::cout << key_and_values.first << " = " << key_and_values.second << '\n';
-}
+namespace {
+
 
 const std::string getTranslatorOrEmptyString() {
     return (std::getenv("REMOTE_USER") != nullptr) ? std::getenv("REMOTE_USER") : "";
@@ -142,8 +141,6 @@ std::string GetEnvParameterOrEmptyString(const std::multimap<std::string, std::s
 }
 
 
-
-
 void ParseTranslationsDbToolOutputAndGenerateNewDisplay(
     const std::string &output, const std::string &language_code, const std::string &action,
     const std::string &error_message = "", const std::string &user_translation = "")
@@ -151,7 +148,7 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(
     std::vector<Translation> translations;
     ParseTranslationsDbToolOutput(output, &translations);
     if (translations.empty()) {
-        std::ifstream done_html("/usr/local/var/lib/tuelib/translate_chainer/done_translating.html",
+        std::ifstream done_html(UBTools::GetTuelibPath() + "translate_chainer/done_translating.html",
                                 std::ios::binary);
         std::cout << done_html.rdbuf();
     } else {
@@ -187,7 +184,7 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(
 
         names_to_values_map.insertScalar("translator", getTranslatorOrEmptyString());
 
-        std::ifstream translate_html("/usr/local/var/lib/tuelib/translate_chainer/translate.html", std::ios::binary);
+        std::ifstream translate_html(UBTools::GetTuelibPath() + "translate_chainer/translate.html", std::ios::binary);
         Template::ExpandTemplate(translate_html, std::cout, names_to_values_map);
     }
 }
@@ -210,7 +207,7 @@ void GetExisting(const std::string &language_code, const std::string &category, 
     const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing \"" + language_code
                                            + "\" \"" + category + "\" \"" + index + "\"");
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(GET_EXISTING_COMMAND, output))
-        logger->error("failed to execute \"" + GET_EXISTING_COMMAND + "\" or it returned a non-zero exit code!");
+        LOG_ERROR("failed to execute \"" + GET_EXISTING_COMMAND + "\" or it returned a non-zero exit code!");
 }
 
 
@@ -230,7 +227,7 @@ bool IsValidTranslation(const std::string &ppn, const std::string &new_translati
     std::string validate_command("/usr/local/bin/translation_db_tool validate_keyword " + ppn + " "
                                  + new_translation);
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(validate_command, error_message))
-        logger->error("failed to execute \"" + validate_command + "\" or it returned a non-zero exit code!");
+        LOG_ERROR("failed to execute \"" + validate_command + "\" or it returned a non-zero exit code!");
     return error_message->empty();
 }
 
@@ -262,7 +259,7 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args,
 
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(insert_command, &output))
-        logger->error("failed to execute \"" + insert_command + "\" or it returned a non-zero exit code!");
+        LOG_ERROR("failed to execute \"" + insert_command + "\" or it returned a non-zero exit code!");
 }
 
 
@@ -291,41 +288,42 @@ void Update(const std::multimap<std::string, std::string> &cgi_args, const std::
 
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(update_command, &output))
-        logger->error("failed to execute \"" + update_command + "\" or it returned a non-zero exit code!");
+        LOG_ERROR("failed to execute \"" + update_command + "\" or it returned a non-zero exit code!");
 }
 
 
-int main(int argc, char *argv[]) {
+} // unnamed namespace
+
+
+int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    try {
-        std::multimap<std::string, std::string> cgi_args;
-        WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
+    std::multimap<std::string, std::string> cgi_args;
+    WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
 
-        std::multimap<std::string, std::string> env_args;
-        env_args.insert(std::make_pair("REMOTE_USER", getTranslatorOrEmptyString()));
+    std::multimap<std::string, std::string> env_args;
+    env_args.insert(std::make_pair("REMOTE_USER", getTranslatorOrEmptyString()));
 
-        if (cgi_args.size() == 1) {
-            std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
-            GetMissing(cgi_args);
-        } else if (cgi_args.size() == 3) {
-            std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
-            GetExisting(cgi_args);
-        } else if (cgi_args.size() == 5 or cgi_args.size() == 6) {
-            const std::string action(GetCGIParameterOrDie(cgi_args, "action"));
-            if (action == "insert")
-                Insert(cgi_args, env_args);
-            else if (action == "update")
-                Update(cgi_args, env_args);
-            else
-                logger->error("Unknown action: " + action + "! Expecting 'insert' or 'update'.");
+    if (cgi_args.size() == 1) {
+        std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+        GetMissing(cgi_args);
+    } else if (cgi_args.size() == 3) {
+        std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+        GetExisting(cgi_args);
+    } else if (cgi_args.size() == 5 or cgi_args.size() == 6) {
+        const std::string action(GetCGIParameterOrDie(cgi_args, "action"));
+        if (action == "insert")
+            Insert(cgi_args, env_args);
+        else if (action == "update")
+            Update(cgi_args, env_args);
+        else
+            LOG_ERROR("Unknown action: " + action + "! Expecting 'insert' or 'update'.");
 
-            const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
-            std::cout << "Status: 302 Found\r\n";
-            std::cout << "Location: /cgi-bin/translate_chainer?language_code=" << language_code << "\r\n\r\n";
-        } else
-            logger->error("we should be called w/ either 1 or 5 CGI arguments!");
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+        const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
+        std::cout << "Status: 302 Found\r\n";
+        std::cout << "Location: /cgi-bin/translate_chainer?language_code=" << language_code << "\r\n\r\n";
+    } else
+        LOG_ERROR("we should be called w/ either 1 or 5 CGI arguments!");
+
+    return EXIT_SUCCESS;
 }

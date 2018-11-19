@@ -51,6 +51,7 @@
 #include "SystemdUtil.h"
 #include "Template.h"
 #include "VuFind.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -123,7 +124,6 @@ bool IsDockerEnvironment() {
 
 const std::string UB_TOOLS_DIRECTORY("/usr/local/ub_tools");
 const std::string VUFIND_DIRECTORY("/usr/local/vufind");
-const std::string TUELIB_CONFIG_DIRECTORY("/usr/local/var/lib/tuelib");
 const std::string INSTALLER_DATA_DIRECTORY(UB_TOOLS_DIRECTORY + "/cpp/data/installer");
 const std::string INSTALLER_SCRIPTS_DIRECTORY(INSTALLER_DATA_DIRECTORY + "/scripts");
 
@@ -310,20 +310,21 @@ void InstallUBTools(const bool make_install) {
     ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4", "install" });
 
     // ...then create /usr/local/var/lib/tuelib
-    if (not FileUtil::Exists(TUELIB_CONFIG_DIRECTORY)) {
-        Echo("creating " + TUELIB_CONFIG_DIRECTORY);
-        ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", TUELIB_CONFIG_DIRECTORY });
+    if (not FileUtil::Exists(UBTools::GetTuelibPath())) {
+        Echo("creating " + UBTools::GetTuelibPath());
+        ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", UBTools::GetTuelibPath() });
     }
 
-    if (not FileUtil::Exists(TUELIB_CONFIG_DIRECTORY + "/zotero-enhancement-maps")) {
+    if (not FileUtil::Exists(UBTools::GetTuelibPath() + "/zotero-enhancement-maps")) {
         const std::string git_url("https://github.com/ubtue/zotero-enhancement-maps.git");
-        ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, TUELIB_CONFIG_DIRECTORY + "/zotero-enhancement-maps" });
+        ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, UBTools::GetTuelibPath() + "/zotero-enhancement-maps" });
     }
 
     // Add SELinux permissions for files we need to access via web.
     // Needs to be done exactly for each file, because we might have files with passwords in there!
     if (SELinuxUtil::IsEnabled())
-        SELinuxUtil::FileContext::AddRecordIfMissing(TUELIB_CONFIG_DIRECTORY, "httpd_sys_content_t", TUELIB_CONFIG_DIRECTORY + "/issn_to_misc_bits.map");
+        SELinuxUtil::FileContext::AddRecordIfMissing(UBTools::GetTuelibPath(), "httpd_sys_content_t",
+                                                     UBTools::GetTuelibPath() + "/issn_to_misc_bits.map");
 
     // ...and then install the rest of ub_tools:
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);

@@ -16,14 +16,15 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include <iostream>
+#include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
 #include "GzStream.h"
+#include "IniFile.h"
 #include "MARC.h"
 #include "util.h"
 
@@ -34,6 +35,31 @@ namespace {
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " marc_data\n";
     std::exit(EXIT_FAILURE);
+}
+
+
+// \return one of "print", "online" or "unknown".
+std::string GetISSNType(const std::string &issn) {
+    static std::unordered_set<std::string> print_issns, online_issns;
+    static std::unique_ptr<IniFile> zts_harvester_conf;
+    if (zts_harvester_conf == nullptr) {
+        zts_harvester_conf.reset(new IniFile("zts_harvester.conf"));
+        for (const auto &section : *zts_harvester_conf) {
+            const auto print_issn(section.getString("print_issn", ""));
+            if (not print_issn.empty())
+                print_issns.emplace(print_issn);
+
+            const auto online_issn(section.getString("online_issn", ""));
+            if (not online_issn.empty())
+                online_issns.emplace(online_issn);
+        }
+    }
+
+    if (print_issns.find(issn) != print_issns.cend())
+        return "print";
+    if (online_issns.find(issn) != online_issns.cend())
+        return "online";
+    return "unknown";
 }
 
 
@@ -76,28 +102,36 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
                 pages = "pages=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('h'));
         }
 
-        std::string superior_title;
-        for (const auto &_773_field : record.getTagRange("773")) {
-            superior_title = _773_field.getFirstSubfieldWithCode('a');
-            if (not superior_title.empty())
+        std::string resource_type("unknown");
+        const auto issns(record.getISSNs());
+        for (const auto &issn : issns) {
+            const auto issn_type(GetISSNType(issn));
+            if (issn_type != "unknown") {
+                resource_type = issn_type;
                 break;
+            }
         }
 
+        const std::string superior_title(record.getSuperiorTitle());
         db_connection->queryOrDie("INSERT INTO marc_records SET url=" + db_connection->escapeAndQuoteString(url)
                                   + ",zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) + ",hash="
                                   + db_connection->escapeAndQuoteString(hash) + ",main_title="
-                                  + db_connection->escapeAndQuoteString(record.getMainTitle()) + ",superior_title="
-                                  + db_connection->escapeAndQuoteString(superior_title) + superior_control_number_sql
-                                  + publication_year + volume + issue + pages + ",record="
+                                  + db_connection->escapeAndQuoteString(record.getMainTitle())
+                                  + db_connection->escapeAndQuoteString(superior_title)
+                                  + publication_year + volume + issue + pages + ",resource_type='" + resource_type + "',record="
                                   + db_connection->escapeAndQuoteString(GzStream::CompressString(record_blob, GzStream::GZIP)));
-        record_blob.clear();
+
         db_connection->queryOrDie("SELECT LAST_INSERT_ID() AS id");
         const DbRow id_row(db_connection->getLastResultSet().getNextRow());
         const std::string last_id(id_row["id"]);
-
         for (const auto &author : record.getAllAuthors())
             db_connection->queryOrDie("INSERT INTO marc_authors SET marc_records_id=" + last_id + ",author="
                                       + db_connection->escapeAndQuoteString(author));
+
+        db_connection->queryOrDie("INSERT INTO superior_info SET zeder_id=" + db_connection->escapeAndQuoteString(zeder_id)
+                                  + ",superior_title=" + db_connection->escapeAndQuoteString(superior_title) + superior_control_number_sql);
+
+        record_blob.clear();
     }
 
     std::cout << "Stored " << record_count << " MARC record(s).\n";

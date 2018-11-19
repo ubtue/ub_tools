@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016,2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -31,11 +31,15 @@
 #include "DbRow.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "util.h"
 #include "VuFind.h"
 
 
-void Usage() {
+namespace {
+
+
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " (--update-all-users|user_ID)\n";
     std::exit(EXIT_FAILURE);
 }
@@ -126,7 +130,7 @@ void PermissionParser::skipToEndOfLine() {
         }
     }
 }
-    
+
 
 void PermissionParser::skipCommentsAndWhiteSpace() {
     while (not input_->eof()) {
@@ -311,7 +315,7 @@ bool CanUseTAD(const std::string &email_address, const std::vector<Pattern> &pat
 }
 
 
-const std::string EMAIL_RULES_FILE("/usr/local/var/lib/tuelib/tad_email_acl.yaml");
+const std::string EMAIL_RULES_FILE(UBTools::GetTuelibPath() + "tad_email_acl.yaml");
 
 
 void UpdateSingleUser(DbConnection * const db_connection, const std::vector<Pattern> &patterns,
@@ -338,29 +342,29 @@ void UpdateAllUsers(DbConnection * const db_connection, const std::vector<Patter
 }
 
 
-int main(int argc, char **argv) {
+} // unnamed namespace
+
+
+int Main(int argc, char **argv) {
     progname = argv[0];
 
     if (argc != 2)
         Usage();
 
-    try {
-        const std::string flag_or_user_ID(argv[1]);
+    const std::string flag_or_user_ID(argv[1]);
 
-        std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(EMAIL_RULES_FILE));
-        std::vector<Pattern> patterns;
-        ParseEmailRules(input.get(), &patterns);
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(EMAIL_RULES_FILE));
+    std::vector<Pattern> patterns;
+    ParseEmailRules(input.get(), &patterns);
 
-        std::string mysql_url;
-        VuFind::GetMysqlURL(&mysql_url);
-        DbConnection db_connection(mysql_url);
+    std::string mysql_url;
+    VuFind::GetMysqlURL(&mysql_url);
+    DbConnection db_connection(mysql_url);
 
-        if (flag_or_user_ID == "--update-all-users")
-            UpdateAllUsers(&db_connection, patterns);
-        else
-            UpdateSingleUser(&db_connection, patterns, flag_or_user_ID);
+    if (flag_or_user_ID == "--update-all-users")
+        UpdateAllUsers(&db_connection, patterns);
+    else
+        UpdateSingleUser(&db_connection, patterns, flag_or_user_ID);
 
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    return EXIT_SUCCESS;
 }
