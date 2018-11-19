@@ -282,36 +282,54 @@ public class TuelibMixin extends SolrIndexerMixin {
         return extractedValues;
     }
 
+
+   /**
+     * Get the local 689 topics
+     * LOK = Field |0 689 = Subfield |a Imperialismus = Subfield with local
+     * subject
+     *
+     * @param record
+     *            the record
+     * @return Set topics
+     */
+
+     public Set<String> getLocal689Topics(final Record record) {
+         final Set<String> topics = new TreeSet<>();
+         for (final VariableField variableField : record.getVariableFields("LOK")) {
+             final DataField lokfield = (DataField) variableField;
+             final Subfield subfield0 = lokfield.getSubfield('0');
+             if (subfield0 == null || !subfield0.getData().equals("689  ")) {
+                 continue;
+             }
+             for (final Subfield subfieldA : lokfield.getSubfields('a')) {
+                 if (subfieldA != null && subfieldA.getData() != null && subfieldA.getData().length() > 2) {
+                     topics.add(subfieldA.getData());
+                 }
+             }
+         }
+         return topics;
+     }
+
+
     /**
      * get the local subjects from LOK-tagged fields and get subjects from 936k
      * and 689a subfields
      * <p/>
-     * LOK = Field |0 689 = Subfield |a Imperialismus = Subfield with local
-     * subject
-     *
+         *
      * @param record
      *            the record
      * @return Set of local subjects
      */
     public Set<String> getAllTopics(final Record record) {
         final Set<String> topics = getAllSubfieldsBut(record, "600:610:611:630:650:653:656:689a:936a", '0');
-        for (final VariableField variableField : record.getVariableFields("LOK")) {
-            final DataField lokfield = (DataField) variableField;
-            final Subfield subfield0 = lokfield.getSubfield('0');
-            if (subfield0 == null || !subfield0.getData().equals("689  ")) {
-                continue;
-            }
-            for (final Subfield subfieldA : lokfield.getSubfields('a')) {
-                if (subfieldA != null && subfieldA.getData() != null && subfieldA.getData().length() > 2) {
-                    topics.add(subfieldA.getData());
-                }
-            }
-        }
+        topics.addAll(getLocal689Topics(record));
         return topics;
     }
 
+
     /**
      * Hole das Sachschlagwort aus 689|a (wenn 689|d != z oder f)
+     * und füge auch Schlagwörter aus LOK 689 ein
      *
      * @param record
      *            the record
@@ -340,8 +358,11 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
         }
+        result.addAll(getLocal689Topics(record));
         return result;
     }
+
+
 
     /**
      * Finds the first subfield which is nonempty.
