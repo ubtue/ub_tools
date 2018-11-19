@@ -31,7 +31,9 @@
 #include "util.h"
 
 
-DbConnection::DbConnection(const std::string &mysql_url, const Charset charset): sqlite3_(nullptr), stmt_handle_(nullptr) {
+DbConnection::DbConnection(const std::string &mysql_url, const Charset charset, const TimeZone time_zone)
+    : sqlite3_(nullptr), stmt_handle_(nullptr)
+{
     static RegexMatcher * const mysql_url_matcher(
         RegexMatcher::RegexMatcherFactory("mysql://([^:]+):([^@]+)@([^:/]+)(\\d+:)?/(.+)"));
     std::string err_msg;
@@ -50,15 +52,15 @@ DbConnection::DbConnection(const std::string &mysql_url, const Charset charset):
     else
         port = StringUtil::ToUnsigned(port_plus_colon.substr(0, port_plus_colon.length() - 1));
 
-    init(db_name, user, passwd, host, port, charset);
+    init(db_name, user, passwd, host, port, charset, time_zone);
 }
 
 
-DbConnection::DbConnection(): DbConnection(IniFile(DEFAULT_CONFIG_FILE_PATH), "Database") {
+DbConnection::DbConnection(const TimeZone time_zone): DbConnection(IniFile(DEFAULT_CONFIG_FILE_PATH), "Database", time_zone) {
 }
 
 
-DbConnection::DbConnection(const IniFile &ini_file, const std::string &ini_file_section) {
+DbConnection::DbConnection(const IniFile &ini_file, const std::string &ini_file_section, const TimeZone time_zone) {
     const auto db_section(ini_file.getSection(ini_file_section));
     if (db_section == ini_file.end())
         LOG_ERROR("DbConnection section \"" + ini_file_section +"\" not found in config file \"" + ini_file.getFilename() + "\"!");
@@ -75,7 +77,7 @@ DbConnection::DbConnection(const IniFile &ini_file, const std::string &ini_file_
     };
     const Charset charset(static_cast<Charset>(db_section->getEnum("sql_charset", string_to_value_map, UTF8MB4)));
 
-    init(database, user, password, host, port, charset);
+    init(database, user, password, host, port, charset, time_zone);
 }
 
 
@@ -332,8 +334,21 @@ std::string DbConnection::escapeString(const std::string &unescaped_string, cons
 }
 
 
+void DbConnection::setTimeZone(const TimeZone time_zone) {
+    switch (time_zone) {
+    case TZ_SYSTEM:
+        /* Default => Do nothing! */
+        break;
+    case TZ_UTC:
+        if (not query("SET time_zone = UTC"))
+            LOG_ERROR("failed to set the connection time zone to UTC!");
+        break;
+    }
+}
+
+
 void DbConnection::init(const std::string &database_name, const std::string &user, const std::string &passwd,
-                        const std::string &host, const unsigned port, const Charset charset)
+                        const std::string &host, const unsigned port, const Charset charset, const TimeZone time_zone)
 {
     initialised_ = false;
 
@@ -346,9 +361,9 @@ void DbConnection::init(const std::string &database_name, const std::string &use
                                  + ", host=\"" + host + "\", user=\"" + user + "\", passwd=\"" + passwd + "\", database_name=\""
                                  + database_name + "\", port=" + std::to_string(port) + ")");
     if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
-        throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage()
-                                 + ")");
+        throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
 
+    setTimeZone(time_zone);
     sqlite3_ = nullptr;
     type_ = T_MYSQL;
     initialised_ = true;
@@ -356,7 +371,7 @@ void DbConnection::init(const std::string &database_name, const std::string &use
 
 
 void DbConnection::init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port,
-                        const Charset charset)
+                        const Charset charset, const TimeZone time_zone)
 {
     initialised_ = false;
 
@@ -365,12 +380,11 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
 
     if (::mysql_real_connect(&mysql_, host.c_str(), user.c_str(), passwd.c_str(), nullptr, port,
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
-        throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage()
-                                 + ")");
+        throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage() + ")");
     if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
-        throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage()
-                                 + ")");
+        throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
 
+    setTimeZone(time_zone);
     sqlite3_ = nullptr;
     type_ = T_MYSQL;
     initialised_ = true;
