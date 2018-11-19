@@ -69,7 +69,7 @@ bool ProcessJournal(DbConnection * const db_connection, const time_t old_timesta
                     const std::string &superior_title, const std::string &zeder_url_prefix, const unsigned max_issue_count,
                     std::string * const report)
 {
-    db_connection->queryOrDie("SELECT volume,issue,pages,created_at FROM marc_records WHERE zeder_id="
+    db_connection->queryOrDie("SELECT volume,issue,pages,created_at,resource_type FROM marc_records WHERE zeder_id="
                               + db_connection->escapeAndQuoteString(zeder_id) + " ORDER BY created_at DESC LIMIT "
                               + std::to_string(max_issue_count));
 
@@ -85,7 +85,7 @@ bool ProcessJournal(DbConnection * const db_connection, const time_t old_timesta
             status = "unverändert";
 
         *report += zeder_url_prefix + zeder_id + "," + superior_title + "," + row["volume"] + ";" + row["issue"] + ";" + row["pages"] + ","
-                   + status + "\n";
+                   + status + "," + row["resource_type"] + "\n";
     }
 
     return found_at_least_one_new_issue;
