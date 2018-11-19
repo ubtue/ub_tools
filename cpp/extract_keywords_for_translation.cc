@@ -48,7 +48,7 @@ void Usage() {
 static unsigned keyword_count, translation_count, additional_hits, synonym_count, german_term_count;
 static DbConnection *shared_connection;
 enum Status { RELIABLE, UNRELIABLE, RELIABLE_SYNONYM, UNRELIABLE_SYNONYM };
-const std::string CONF_FILE_PATH(UBTools::TUELIB_PATH + "translations.conf");
+const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 
 
 std::string StatusToString(const Status status) {

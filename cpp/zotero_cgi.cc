@@ -413,7 +413,7 @@ void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_ar
 }
 
 
-const std::string TEMPLATE_DIRECTORY(UBTools::TUELIB_PATH + "zotero_cgi/");
+const std::string TEMPLATE_DIRECTORY(UBTools::GetTuelibPath() + "zotero_cgi/");
 
 
 } // unnamed namespace

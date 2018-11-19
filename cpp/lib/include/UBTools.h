@@ -25,7 +25,7 @@
 namespace UBTools {
 
 
-extern const std::string TUELIB_PATH;
+std::string GetTuelibPath();
 
 
 } // namespace UBTools

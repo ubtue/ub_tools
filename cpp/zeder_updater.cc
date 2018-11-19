@@ -45,7 +45,7 @@ const std::string TIMESTAMP_FILENAME("zeder_updater.timestamp");
 
 // Returns the contents of the timestamp file or 0 if the file does not exist
 time_t ReadTimeStamp() {
-    const std::string TIMESTAMP_PATH(UBTools::TUELIB_PATH + TIMESTAMP_FILENAME);
+    const std::string TIMESTAMP_PATH(UBTools::GetTuelibPath() + TIMESTAMP_FILENAME);
     if (FileUtil::Exists(TIMESTAMP_PATH)) {
         time_t timestamp;
         const auto timestamp_file(FileUtil::OpenInputFileOrDie(TIMESTAMP_PATH));
@@ -58,7 +58,7 @@ time_t ReadTimeStamp() {
 
 
 void WriteTimeStamp(const time_t timestamp) {
-    const std::string TIMESTAMP_PATH(UBTools::TUELIB_PATH + TIMESTAMP_FILENAME);
+    const std::string TIMESTAMP_PATH(UBTools::GetTuelibPath() + TIMESTAMP_FILENAME);
     const auto timestamp_file(FileUtil::OpenOutputFileOrDie(TIMESTAMP_PATH));
     if (timestamp_file->write(reinterpret_cast<const void *>(&timestamp), sizeof timestamp) != sizeof timestamp)
         LOG_ERROR("failed to write " + std::to_string(sizeof timestamp) + " bytes to \"" + TIMESTAMP_PATH + "\"!");

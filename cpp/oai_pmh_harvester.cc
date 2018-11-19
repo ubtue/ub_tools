@@ -186,7 +186,7 @@ std::string MakeRequestURL(const std::string &base_url, const std::string &metad
 }
 
 
-const std::string OAI_DUPS_DB_FILENAME(UBTools::TUELIB_PATH + "oai_dups.db");
+const std::string OAI_DUPS_DB_FILENAME(UBTools::GetTuelibPath() + "oai_dups.db");
 
 
 std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB() {
