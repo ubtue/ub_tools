@@ -340,8 +340,8 @@ void DbConnection::setTimeZone(const TimeZone time_zone) {
         /* Default => Do nothing! */
         break;
     case TZ_UTC:
-        if (not query("SET time_zone = UTC"))
-            LOG_ERROR("failed to set the connection time zone to UTC!");
+        if (::mysql_query(&mysql_, "SET time_zone = '+0:00'") != 0)
+            LOG_ERROR("failed to set the connection time zone to UTC! (" + std::string(::mysql_error(&mysql_)) + ")");
         break;
     }
 }
@@ -363,10 +363,10 @@ void DbConnection::init(const std::string &database_name, const std::string &use
     if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
 
-    setTimeZone(time_zone);
     sqlite3_ = nullptr;
     type_ = T_MYSQL;
     initialised_ = true;
+    setTimeZone(time_zone);
 }
 
 
@@ -384,10 +384,10 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
     if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
 
-    setTimeZone(time_zone);
     sqlite3_ = nullptr;
     type_ = T_MYSQL;
     initialised_ = true;
+    setTimeZone(time_zone);
 }
 
 
