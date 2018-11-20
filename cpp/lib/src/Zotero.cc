@@ -569,7 +569,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         bsz_transform.DetermineKeywordOutputFieldFromISSN(issn, &tag, &subfield);
         if (tag == "650")
             indicator2 = '4';
-        record->insertField(tag, { { subfield, StringUtil::TrimWhite(&keyword) } }, /* indicator1 = */' ', indicator2);
+        record->insertField(tag, { { subfield, TextUtil::CollapseAndTrimWhitespace(&keyword) } }, /* indicator1 = */' ', indicator2);
     }
 
     // SSG numbers
