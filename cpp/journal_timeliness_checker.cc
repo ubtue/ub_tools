@@ -23,6 +23,7 @@
 #include "EmailSender.h"
 #include "IniFile.h"
 #include "SqlUtil.h"
+#include "StringUtil.h"
 #include "UBTools.h"
 #include "util.h"
 
@@ -32,7 +33,8 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--min-log-level=log_level] config_file_path sender_email_address notification_email_address\n";
+              << " [--min-log-level=log_level] [--default-update-window=no_of_days] config_file_path sender_email_address "
+              << "notification_email_address\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -55,10 +57,23 @@ void ProcessJournal(DbConnection * const db_connection, const std::string &journ
 }
 
 
+const unsigned DEFAULT_DEFAULT_UPDATE_WINDOW(60); // days
+
+
 } // unnamed namespace
 
 
 int Main(int argc, char *argv[]) {
+    if (argc < 4)
+        Usage();
+
+    unsigned default_update_window(DEFAULT_DEFAULT_UPDATE_WINDOW);
+    if (StringUtil::StartsWith(argv[1], "--default-update-window=")) {
+        if (not StringUtil::ToUnsigned(argv[1] + __builtin_strlen("--default-update-window=")))
+            LOG_ERROR("invalid default update window: \"" + std::string(argv[1] + __builtin_strlen("--default-update-window=")) + "\"!");
+        --argc, ++argv;
+    }
+
     if (argc != 4)
         Usage();
 
@@ -81,11 +96,12 @@ int Main(int argc, char *argv[]) {
             continue;
         }
 
+        unsigned update_window;
         if (section.find("update_window") == section.end()) {
-            LOG_WARNING("no update window found for \"" + journal_name + "\"!");
-            continue;
-        }
-        const unsigned update_window(section.getUnsigned("update_window"));
+            LOG_WARNING("no update window found for \"" + journal_name + "\", using " + std::to_string(default_update_window) + "!");
+            update_window = default_update_window;
+        } else
+            update_window = section.getUnsigned("update_window");
 
         ProcessJournal(&db_connection, journal_name, journal_ppn, update_window, &tardy_list);
     }
