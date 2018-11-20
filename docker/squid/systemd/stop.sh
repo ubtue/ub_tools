@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-LATEST_RUNNING_CONTAINER_ID=$(docker ps --latest --quiet --filter ancestor=squid)
+LATEST_RUNNING_CONTAINER_ID=$(docker ps --latest --quiet --filter ancestor=squidproxy)
 if [ -z "$LATEST_RUNNING_CONTAINER_ID" ]; then
     echo "no running container detected"
 else

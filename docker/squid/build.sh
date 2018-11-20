@@ -1,3 +1,3 @@
 #!/bin/bash
 #
-docker build -t squid .
+docker build -t squidproxy .
