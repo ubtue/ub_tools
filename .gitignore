@@ -16,6 +16,7 @@ out
 .deps
 LOEPPN-*
 \#*\#
+proxyCA.*
 
 bsz_daten
 bsz_daten_cumulated
