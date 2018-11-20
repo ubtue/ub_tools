@@ -500,11 +500,14 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     if (item_type == "journalArticle" or item_type == "magazineArticle" or item_type == "newspaperArticle") {
         MARC::Subfields _936_subfields;
         const std::string volume(node_parameters.volume);
-        if (not volume.empty())
-            _936_subfields.appendSubfield('d', volume);
         const std::string issue(node_parameters.issue);
-        if (not issue.empty())
-            _936_subfields.appendSubfield('e', issue);
+        if (not volume.empty()) {
+            _936_subfields.appendSubfield('d', volume);
+            if (not issue.empty())
+                _936_subfields.appendSubfield('e', issue);
+        } else if (not issue.empty())
+            _936_subfields.appendSubfield('d', issue);
+
         const std::string pages(node_parameters.pages);
         if (not pages.empty())
             _936_subfields.appendSubfield('h', pages);
