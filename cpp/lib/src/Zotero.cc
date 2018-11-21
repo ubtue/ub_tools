@@ -570,7 +570,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         std::string tag;
         char subfield, indicator2(' ');
         bsz_transform.DetermineKeywordOutputFieldFromISSN(issn, &tag, &subfield);
-        if (tag == "650")
+        if (MARC::IsSubjectAccessTag(tag))
             indicator2 = '4';
         record->insertField(tag, { { subfield, TextUtil::CollapseAndTrimWhitespace(&keyword) } }, /* indicator1 = */' ', indicator2);
     }
