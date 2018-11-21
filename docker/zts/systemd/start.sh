@@ -3,7 +3,7 @@
 LATEST_CONTAINER_ID=$(docker ps --all --latest --quiet --filter ancestor=zts)
 if [ -z "$LATEST_CONTAINER_ID" ]; then
     echo "run new container"
-    docker run -p 1969:1969 -d zts
+    docker run --publish 1969:1969 --network ub --name zts --network-alias=zts --detach zts
     LATEST_CONTAINER_ID=$(docker ps --all --latest --quiet --filter ancestor=zts)
 else
     echo "reuse existing container $LATEST_CONTAINER_ID"
