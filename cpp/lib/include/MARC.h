@@ -998,4 +998,7 @@ std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record);
 Tag GetIndexTag(const std::string &index_term);
 
 
+bool IsSubjectAccessTag(const Tag &tag);
+
+
 } // namespace MARC
