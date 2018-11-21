@@ -2348,4 +2348,10 @@ Tag GetIndexTag(const std::string &index_term) {
 }
 
 
+// See https://www.loc.gov/marc/bibliographic/bd6xx.html to understand our implementation.
+bool IsSubjectAccessTag(const Tag &tag) {
+    return tag.toString()[0] == '6';
+}
+
+
 } // namespace MARC
