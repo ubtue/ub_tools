@@ -8,6 +8,6 @@ else
     docker stop $LATEST_RUNNING_CONTAINER_ID
 fi
 
-if [ -e /var/run/squid.pid ]; then
-    rm /var/run/squid.pid
+if [ -e /var/run/squidproxy.pid ]; then
+    rm /var/run/squidproxy.pid
 fi
