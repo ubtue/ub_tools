@@ -994,4 +994,8 @@ bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const part
 std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record);
 
 
+// Returns the tag where "index_term" should be stored.
+Tag GetIndexTag(const std::string &index_term);
+
+
 } // namespace MARC
