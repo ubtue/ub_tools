@@ -6,9 +6,9 @@ Requires=docker.service
 
 [Service]
 Type=forking
-ExecStart=/usr/local/ub_tools/docker/squid/systemd/start.sh
-ExecStop=/usr/local/ub_tools/docker/squid/systemd/stop.sh
-PIDFile=/var/run/squid.pid
+ExecStart=/usr/local/ub_tools/docker/squidproxy/systemd/start.sh
+ExecStop=/usr/local/ub_tools/docker/squidproxy/systemd/stop.sh
+PIDFile=/var/run/squidproxy.pid
 
 [Install]
 WantedBy=multi-user.target
