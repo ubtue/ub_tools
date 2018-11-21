@@ -28,6 +28,7 @@
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -2313,6 +2314,37 @@ std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record) {
     ExtractCrossReferencePPNsFromTag(record, "775", &partner_ppns);
     ExtractCrossReferencePPNsFromTag(record, "776", &partner_ppns);
     return partner_ppns;
+}
+
+
+static void LoadTermsToTagsMap(std::map<Tag, std::string> * const terms_to_tags_map) {
+    const auto MAP_FILENAME(UBTools::GetTuelibPath() + "tags_and_index_terms.map");
+    const auto map_file(FileUtil::OpenInputFileOrDie(MAP_FILENAME));
+    unsigned line_no(0);
+    while (not map_file->eof()) {
+        std::string line;
+        map_file->getline(&line);
+        ++line_no;
+        StringUtil::TrimWhite(&line);
+        if (line.length() < 4)
+            LOG_ERROR("bad entry on line #" + std::to_string(line_no) + " in \"" + MAP_FILENAME + "\"!");
+
+        const Tag tag(line.substr(0, Record::TAG_LENGTH));
+        (*terms_to_tags_map)[tag] = TextUtil::UTF8ToLower(line.substr(Record::TAG_LENGTH));
+    }
+}
+
+
+Tag GetIndexTag(const std::string &index_term) {
+    static const Tag DEFAULT_TAG("655");
+    static std::map<Tag, std::string> terms_to_tags_map;
+    if (unlikely(terms_to_tags_map.empty()))
+        LoadTermsToTagsMap(&terms_to_tags_map);
+
+    const auto term_and_tag(terms_to_tags_map.find(TextUtil::UTF8ToLower(index_term)));
+    if (term_and_tag == terms_to_tags_map.cend())
+        return DEFAULT_TAG;
+    return term_and_tag->second;
 }
 
 
