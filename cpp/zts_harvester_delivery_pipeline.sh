@@ -83,10 +83,10 @@ declare -a dest_filepaths
 StartPhase "Harvest URLs"
 LOGGER_FORMAT=no_decorations,strip_call_site \
 zts_harvester --min-log-level=INFO \
-              --delivery-mode=$delivery_mode \
-              --output-directory=$harvester_output_directory \
-              --output-filename=$harvester_output_filename \
-              $harvester_config_file >> "${log}" 2>&1
+             --delivery-mode=$delivery_mode \
+             --output-directory=$harvester_output_directory \
+             --output-filename=$harvester_output_filename \
+             $harvester_config_file >> "${log}" 2>&1
 EndPhase
 
 StartPhase "Collate File Paths"
@@ -100,9 +100,10 @@ for d in */ ; do
 
     source_filepaths[$counter]=$harvester_output_directory/$d/$harvester_output_filename
     if [ "$delivery_mode" = "TEST" ]; then
-        dest_filepaths[$counter]=/pub/UBTuebingen_Import_Test/"$d"_Test/$harvester_output_filename
+        dest_filepaths[$counter]=/pub/UBTuebingen_Import_Test/"$d"_Test/
+        echo "dest path: ${dest_filepaths[counter]}"
     elif [ "$delivery_mode" = "LIVE" ]; then
-        dest_filepaths[$counter]=/pub/UBTuebingen_Import/$d/$harvester_output_filename
+        dest_filepaths[$counter]=/pub/UBTuebingen_Import/$d/
     fi
     counter=$((counter+1))
 done
@@ -114,7 +115,6 @@ for source_filepath in "${source_filepaths[@]}"; do
                           $working_directory/$missing_metadata_tracker_output_filename >> "${log}" 2>&1
 done
 EndPhase
-
 
 StartPhase "Upload to BSZ Server"
 counter=0
