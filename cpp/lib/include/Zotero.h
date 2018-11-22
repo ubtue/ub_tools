@@ -366,7 +366,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
  *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
  *          difference (first - second).
  */
-UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
+UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, SimpleCrawler::Params crawler_params,
                          const std::shared_ptr<RegexMatcher> &supported_urls_regex, const std::shared_ptr<HarvestParams> &harvest_params,
                          const SiteParams &site_params, HarvesterErrorLogger * const error_logger, File * const progress_file = nullptr);
 
