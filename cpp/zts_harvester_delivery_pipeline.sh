@@ -29,7 +29,7 @@ fi
 
 
 delivery_mode=$1
-working_directory=/tmp/zts_harvester_pipeline
+working_directory=/tmp/zts_harvester_delivery_pipeline
 
 harvester_output_directory=$working_directory
 harvester_output_filename=zts_harvester-$(date +%y%m%d).xml
