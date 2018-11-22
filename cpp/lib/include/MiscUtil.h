@@ -90,6 +90,7 @@ bool EnvironmentVariableExists(const std::string &name);
 void SetEnv(const std::string &name, const std::string &value, const bool overwrite = true);
 
 /** \brief Parse environment file and set all contained variables.
+ *  \note  File structure: KEY=VALUE, e.g. "ZTS_PROXY=http://localhost:3128"
  *  \param file      The path of the file
  *  \param overwrite Whether or not the given environment variables may be overwritten.
  */

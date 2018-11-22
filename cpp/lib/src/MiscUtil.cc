@@ -144,12 +144,12 @@ void SetEnv(const std::string &name, const std::string &value, const bool overwr
 
 
 void SetEnvFromFile(const std::string &file, const bool overwrite) {
-    std::string data, key, value;
-
+    std::string data;
     if (not FileUtil::ReadString(file, &data))
         LOG_ERROR("env file does not exists: " + file);
 
     data = StringUtil::TrimWhite(data);
+    std::string key, value;
     if (StringUtil::SplitOnString(data, "=", &key, &value))
         MiscUtil::SetEnv(key, value, overwrite);
 }
