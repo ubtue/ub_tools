@@ -2317,7 +2317,7 @@ std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record) {
 }
 
 
-static void LoadTermsToTagsMap(std::map<Tag, std::string> * const terms_to_tags_map) {
+static void LoadTermsToTagsMap(std::unordered_map<Tag, std::string> * const terms_to_tags_map) {
     const auto MAP_FILENAME(UBTools::GetTuelibPath() + "tags_and_index_terms.map");
     const auto map_file(FileUtil::OpenInputFileOrDie(MAP_FILENAME));
     unsigned line_no(0);
@@ -2337,7 +2337,7 @@ static void LoadTermsToTagsMap(std::map<Tag, std::string> * const terms_to_tags_
 
 Tag GetIndexTag(const std::string &index_term) {
     static const Tag DEFAULT_TAG("655");
-    static std::map<Tag, std::string> terms_to_tags_map;
+    static std::unordered_map<Tag, std::string> terms_to_tags_map;
     if (unlikely(terms_to_tags_map.empty()))
         LoadTermsToTagsMap(&terms_to_tags_map);
 
