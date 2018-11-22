@@ -672,6 +672,10 @@ void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_rec
     }
 
     // only track downloads when the delivery mode is set to TEST or LIVE
+    LOG_WARNING("skipping download tracking unconditionally!");
+    marc_writer_->write(new_record);
+    return;
+
     if (delivery_mode == BSZUpload::DeliveryMode::NONE)
         marc_writer_->write(new_record);
     else {
@@ -1004,7 +1008,6 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         LOG_DEBUG("Skipping URL ('" + harvest_url + "' does not match extraction regex)");
         return record_count_and_previously_downloaded_count;
     }
-
     already_harvested_urls.emplace(harvest_url);
     auto error_logger_context(error_logger->newContext(site_params.parent_journal_name_, harvest_url));
 
