@@ -56,6 +56,7 @@ public:
         bool print_redirects_;
         std::string user_agent_;
         std::string url_ignore_pattern_;
+        bool ignore_ssl_certificates_;
         std::string proxy_host_and_port_;
     public:
         explicit Params(const std::string &acceptable_languages = "",
@@ -67,6 +68,7 @@ public:
                         const bool print_redirects = false,
                         const std::string &user_agent = "ub_tools (https://ixtheo.de/docs/user_agents)",
                         const std::string &url_ignore_pattern = "(?i)\\.(js|css|bmp|pdf|jpg|gif|png|tif|tiff)(\\?[^?]*)?$",
+                        const bool ignore_ssl_certificates_ = false,
                         const std::string &proxy_host_and_port = ""
                         );
         ~Params() = default;
