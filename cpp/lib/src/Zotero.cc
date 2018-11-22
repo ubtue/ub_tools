@@ -23,7 +23,6 @@
 #include <chrono>
 #include <ctime>
 #include <uuid/uuid.h>
-#include "BSZTransform.h"
 #include "DbConnection.h"
 #include "FileUtil.h"
 #include "IniFile.h"
@@ -562,15 +561,9 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         record->insertField("773", _773_subfields);
 
     // Keywords
-    BSZTransform::BSZTransform bsz_transform(*(site_params_->global_params_->maps_));
-    for (auto keyword : node_parameters.keywords) {
-        std::string tag;
-        char subfield, indicator2(' ');
-        bsz_transform.DetermineKeywordOutputFieldFromISSN(issn, &tag, &subfield);
-        if (MARC::IsSubjectAccessTag(tag))
-            indicator2 = '4';
-        record->insertField(tag, { { subfield, TextUtil::CollapseAndTrimWhitespace(&keyword) } }, /* indicator1 = */' ', indicator2);
-    }
+    for (const auto &keyword : node_parameters.keywords)
+        record->insertField(MARC::GetIndexTag(keyword), { { 'a', TextUtil::CollapseAndTrimWhitespace(keyword) } },
+                            /* indicator1 = */' ', /* indicator2 = */'4');
 
     // SSG numbers
     const auto ssg_numbers(node_parameters.ssg_numbers);
