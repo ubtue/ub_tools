@@ -49,10 +49,13 @@ inline static BSZUpload::DeliveryMode SqlEnumToDeliveryMode(const std::string &d
 
 bool DownloadTracker::hasAlreadyBeenDownloaded(BSZUpload::DeliveryMode delivery_mode, const std::string &url, const std::string &hash, Entry * const entry) const
 {
-    if (unlikely(delivery_mode == BSZUpload::DeliveryMode::NONE))
-        LOG_ERROR("delivery mode NONE not allowed for url '" + url + "'");
+    std::string truncated_url(url);
+    truncateURL(&truncated_url);
 
-    db_connection_->queryOrDie("SELECT * FROM harvested_urls WHERE url='" + db_connection_->escapeString(url) + "' " +
+    if (unlikely(delivery_mode == BSZUpload::DeliveryMode::NONE))
+        LOG_ERROR("delivery mode NONE not allowed for url '" + truncated_url + "'");
+
+    db_connection_->queryOrDie("SELECT * FROM harvested_urls WHERE url='" + db_connection_->escapeString(truncated_url) + "' " +
                                "AND delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
     auto result_set(db_connection_->getLastResultSet());
     if (result_set.empty())
@@ -73,20 +76,23 @@ bool DownloadTracker::hasAlreadyBeenDownloaded(BSZUpload::DeliveryMode delivery_
 void DownloadTracker::addOrReplace(BSZUpload::DeliveryMode delivery_mode, const std::string &url, const std::string &journal_name,
                                    const std::string &hash, const std::string &error_message)
 {
+    std::string truncated_url(url);
+    truncateURL(&truncated_url);
+
     if (unlikely((hash.empty() and error_message.empty()) or (not hash.empty() and not error_message.empty())))
         LOG_ERROR("exactly one of \"hash\" and \"error_message\" must be non-empty!");
     else if (unlikely(delivery_mode == BSZUpload::DeliveryMode::NONE))
-        LOG_ERROR("delivery mode NONE not allowed for url '" + url + "'");
+        LOG_ERROR("delivery mode NONE not allowed for url '" + truncated_url + "'");
 
     const time_t now(std::time(nullptr));
     const auto timestamp(SqlUtil::TimeTToDatetime(now));
 
-    db_connection_->queryOrDie("SELECT * FROM harvested_urls WHERE url='" + db_connection_->escapeString(url) + "' " +
+    db_connection_->queryOrDie("SELECT * FROM harvested_urls WHERE url='" + db_connection_->escapeString(truncated_url) + "' " +
                                "AND delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
     auto result_set(db_connection_->getLastResultSet());
 
     if (result_set.empty()) {
-        db_connection_->queryOrDie("INSERT INTO harvested_urls SET url='" + db_connection_->escapeString(url) + "',"
+        db_connection_->queryOrDie("INSERT INTO harvested_urls SET url='" + db_connection_->escapeString(truncated_url) + "',"
                                    "last_harvest_time='" + timestamp + "'," +
                                    "journal_name='" + db_connection_->escapeString(journal_name) + "'," +
                                    "checksum='" + hash + "'," +

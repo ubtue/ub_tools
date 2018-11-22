@@ -45,6 +45,8 @@ namespace SqlUtil {
 // As supported by MySQL
 extern const std::string DATETIME_RANGE_MIN;
 extern const std::string DATETIME_RANGE_MAX;
+// As supported by MariaDB on CentOS
+extern const size_t VARCHAR_UTF8_MAX_LENGTH;
 
 
 /** \class TransactionGuard

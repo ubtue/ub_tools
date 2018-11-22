@@ -1,5 +1,5 @@
 /* \brief Loads, manages and stores the timestamps, hashes of previously downloaded metadata records.
- * 
+ *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -19,10 +19,16 @@
 
 #include "DbConnection.h"
 #include "BSZUpload.h"
+#include "SqlUtil.h"
 #include <unordered_map>
 
 class DownloadTracker {
     DbConnection * db_connection_;
+
+    inline void truncateURL(std::string * const url) const {
+        if (url->length() > static_cast<std::size_t>(SqlUtil::VARCHAR_UTF8_MAX_LENGTH))
+            url->erase(SqlUtil::VARCHAR_UTF8_MAX_LENGTH);
+    }
 public:
     struct Entry {
         std::string url_;

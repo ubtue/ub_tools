@@ -50,7 +50,7 @@ CREATE INDEX journal_name_and_metadata_field_name_index ON metadata_presence_tra
 
 CREATE TABLE harvested_urls (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    url VARCHAR(512) NOT NULL,
+    url VARCHAR(191) NOT NULL,
     delivery_mode ENUM('test', 'live') NOT NULL,
     last_harvest_time DATETIME NOT NULL,
     journal_name VARCHAR(191) NOT NULL,
@@ -62,7 +62,7 @@ CREATE INDEX harvested_urls_id_and_journal_name_index on harvested_urls(id, jour
 
 CREATE TABLE marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    url VARCHAR(512) NOT NULL,
+    url VARCHAR(191) NOT NULL,
     hash VARCHAR(40) NOT NULL,
     zeder_id VARCHAR(10) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
