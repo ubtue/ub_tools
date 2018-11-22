@@ -80,10 +80,10 @@ const std::shared_ptr<const JSON::ObjectNode> Query(const std::string &url, cons
 
     const unsigned total_items(root_object->getIntegerValue("totalItems"));
     if (total_items == 0) {
-        LOG_WARNING("empty result for query: " + url);
+        LOG_INFO("empty result for query: " + url);
         return nullptr;
     } else if (not allow_multiple_results and total_items > 1) {
-        LOG_WARNING("multiple results for query: " + url);
+        LOG_INFO("multiple results for query: " + url);
         return nullptr;
     }
 
