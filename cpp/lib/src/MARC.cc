@@ -2205,6 +2205,11 @@ bool IsOpenAccess(const Record &marc_record) {
         }
     }
 
+    for (const auto &_655_field : marc_record.getTagRange("655")) {
+        if (StringUtil::ToLower(_655_field.getFirstSubfieldWithCode('a')) == "open access")
+            return true;
+    }
+
     return false;
 }
 
