@@ -101,7 +101,6 @@ for d in */ ; do
     source_filepaths[$counter]=$harvester_output_directory/$d/$harvester_output_filename
     if [ "$delivery_mode" = "TEST" ]; then
         dest_filepaths[$counter]=/pub/UBTuebingen_Import_Test/"$d"_Test/
-        echo "dest path: ${dest_filepaths[counter]}"
     elif [ "$delivery_mode" = "LIVE" ]; then
         dest_filepaths[$counter]=/pub/UBTuebingen_Import/$d/
     fi
