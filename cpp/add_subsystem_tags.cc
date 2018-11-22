@@ -28,6 +28,7 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "File.h"
+#include "FileUtil.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -36,9 +37,12 @@
 
 namespace {
 
-    
+
 const std::string RELBIB_TAG("REL");
 const std::string BIBSTUDIES_TAG("BIB");
+
+enum SUBSYSTEM {RELBIB, BIBSTUDIES};
+const unsigned NUM_OF_SUBSYSTEMS(2);
 
 
 [[noreturn]] void Usage() {
@@ -191,25 +195,56 @@ void AddSubsystemTag(MARC::Record * const record, const std::string &tag) {
 }
 
 
-void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
-    unsigned int record_count(0), modified_count(0);
+void CollectSuperiorOrParallelWorks(const MARC::Record &record, std::unordered_set<std::string> * superior_or_parallel_works) {
+    const std::set<std::string> parallel(MARC::ExtractCrossReferencePPNs(record));
+    superior_or_parallel_works->insert(parallel.begin(), parallel.end());
+    superior_or_parallel_works->insert(record.getSuperiorControlNumber());
+}
+
+
+// Get set of immediately belonging or superior or parallel records
+void GetSubsystemPPNSet(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                      std::vector<std::unordered_set<std::string>> * const subsystem_sets) {
+    while (MARC::Record record = marc_reader->read()) {
+        if (IsRelBibRecord(record)) {
+            ((*subsystem_sets)[RELBIB]).emplace(record.getControlNumber());
+            CollectSuperiorOrParallelWorks(record, &((*subsystem_sets)[RELBIB]));
+        }
+        if (IsBibStudiesRecord(record)) {
+            ((*subsystem_sets)[BIBSTUDIES]).emplace(record.getControlNumber());
+            CollectSuperiorOrParallelWorks(record, &((*subsystem_sets)[BIBSTUDIES]));
+        }
+        marc_writer->write(record);
+    }
+}
+
+
+void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                      const std::vector<std::unordered_set<std::string>> &subsystem_sets) {
+    unsigned record_count(0), modified_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
         bool modified_record(false);
-        if (IsRelBibRecord(record)) {
+        if ((subsystem_sets[RELBIB]).find(record.getControlNumber()) != subsystem_sets[RELBIB].end()) {
             AddSubsystemTag(&record, RELBIB_TAG);
             modified_record = true;
         }
-        if (IsBibStudiesRecord(record)) {
+        if ((subsystem_sets[BIBSTUDIES]).find(record.getControlNumber()) != subsystem_sets[RELBIB].end()) {
             AddSubsystemTag(&record, BIBSTUDIES_TAG);
             modified_record = true;
         }
-        marc_writer->write(record);
         if (modified_record)
             ++modified_count;
-    }
+         marc_writer->write(record);
 
+    }
     LOG_INFO("Modified " + std::to_string(modified_count) + " of " + std::to_string(record_count) + " records.");
+}
+
+
+void InitializeSubsystemPPNSets(std::vector<std::unordered_set<std::string>> * const subsystem_ppn_sets) {
+    for (unsigned i = 0; i < NUM_OF_SUBSYSTEMS; ++i)
+        subsystem_ppn_sets->push_back(std::unordered_set<std::string>());
 }
 
 
@@ -225,9 +260,18 @@ int Main(int argc, char **argv) {
     if (unlikely(marc_input_filename == marc_output_filename))
         LOG_ERROR("Title data input file name equals output file name!");
 
+    std::vector<std::unordered_set<std::string>> subsystem_sets;
+    InitializeSubsystemPPNSets(&subsystem_sets);
+
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
+    FileUtil::AutoTempFile tmp_marc_file("/dev/shm/", ".mrc");
+    std::unique_ptr<MARC::Writer> marc_tmp_writer(MARC::Writer::Factory(tmp_marc_file.getFilePath()));
+    GetSubsystemPPNSet(marc_reader.get(), marc_tmp_writer.get(), &subsystem_sets);
+    if (not marc_tmp_writer->flush())
+        LOG_ERROR("Could not flush to " + tmp_marc_file.getFilePath());
+    std::unique_ptr<MARC::Reader> marc_tmp_reader(MARC::Reader::Factory(tmp_marc_file.getFilePath()));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
-    AddSubsystemTags(marc_reader.get() , marc_writer.get());
+    AddSubsystemTags(marc_tmp_reader.get(), marc_writer.get(), subsystem_sets);
 
     return EXIT_SUCCESS;
 }
