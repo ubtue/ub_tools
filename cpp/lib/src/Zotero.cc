@@ -949,8 +949,18 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
 
 
 static std::string GetProxyHostAndPort() {
-    if (MiscUtil::EnvironmentVariableExists("ZTS_PROXY"))
-        return MiscUtil::GetEnv("ZTS_PROXY");
+    const std::string ENV_KEY("ZTS_PROXY");
+    const std::string ENV_FILE("/usr/local/etc/zts_proxy.env");
+
+    if (not MiscUtil::EnvironmentVariableExists(ENV_KEY) and FileUtil::Exists(ENV_FILE))
+        MiscUtil::SetEnvFromFile(ENV_FILE);
+
+    if (MiscUtil::EnvironmentVariableExists(ENV_KEY)) {
+        const std::string PROXY(MiscUtil::GetEnv(ENV_KEY));
+        LOG_DEBUG("using proxy: " + PROXY);
+        return PROXY;
+    }
+
     return "";
 }
 
@@ -1082,6 +1092,8 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, SimpleCrawler
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
     LOG_DEBUG("Starting crawl at base URL: " +  site_desc.start_url_);
     crawler_params.proxy_host_and_port_ = GetProxyHostAndPort();
+    if (not crawler_params.proxy_host_and_port_.empty())
+        crawler_params.ignore_ssl_certificates_ = true;
     SimpleCrawler crawler(site_desc, crawler_params);
     SimpleCrawler::PageDetails page_details;
     unsigned processed_url_count(0);
@@ -1211,6 +1223,8 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
 
     Downloader::Params downloader_params;
     downloader_params.proxy_host_and_port_ = GetProxyHostAndPort();
+    if (not downloader_params.proxy_host_and_port_.empty())
+        downloader_params.ignore_ssl_certificates_ = true;
     downloader_params.user_agent_ = harvest_params->user_agent_;
     Downloader downloader(feed_url, downloader_params);
     if (downloader.anErrorOccurred()) {
