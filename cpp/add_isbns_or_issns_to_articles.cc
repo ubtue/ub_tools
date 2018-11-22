@@ -137,12 +137,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(
         }
 
         auto subfields(_773_field->getSubfields());
-        if (subfields.hasSubfield('x')) {
-            marc_writer->write(record);
-            continue;
-        }
-
-        if (not subfields.hasSubfield('w')) {       // Record control number of Host Item Entry.
+        if (not subfields.hasSubfield('w')) { // Record control number of Host Item Entry.
             marc_writer->write(record);
             ++missing_host_record_ctrl_num_count;
             continue;
@@ -151,10 +146,19 @@ void AddMissingISBNsOrISSNsToArticleEntries(
         std::string host_id(subfields.getFirstSubfieldWithCode('w'));
         if (StringUtil::StartsWith(host_id, "(DE-576)"))
             host_id = host_id.substr(8);
-        const auto &parent_isbn_or_issn_iter(parent_id_to_isbn_issn_and_open_access_status_map.find(host_id));
+        const auto parent_isbn_or_issn_iter(parent_id_to_isbn_issn_and_open_access_status_map.find(host_id));
         if (parent_isbn_or_issn_iter == parent_id_to_isbn_issn_and_open_access_status_map.end()) {
             marc_writer->write(record);
             ++missing_isbn_or_issn_count;
+            continue;
+        }
+
+        // If parent is open access and we're not, add it!
+        if (parent_isbn_or_issn_iter->second.is_open_access_ and not MARC::IsOpenAccess(record))
+            record.insertField("655", { { 'a', "Open Access" } }, /* indicator1 = */' ', /* indicator2 = */'4');
+
+        if (subfields.hasSubfield('x')) {
+            marc_writer->write(record);
             continue;
         }
 
@@ -173,18 +177,13 @@ void AddMissingISBNsOrISSNsToArticleEntries(
             }
         }
 
-        // If parent is open access and we're not, add it!
-        if (parent_isbn_or_issn_iter->second.is_open_access_ and not MARC::IsOpenAccess(record))
-            record.insertField("655", { { 'a', "Open Access" } }, /* indicator1 = */' ', /* indicator2 = */'4');
-
         marc_writer->write(record);
     }
 
     LOG_INFO("Read " + std::to_string(count) + " records.");
     LOG_INFO("Added ISBN's to " + std::to_string(isbns_added) + " article record(s).");
     LOG_INFO("Added ISSN's to " + std::to_string(issns_added) + " article record(s).");
-    LOG_INFO(std::to_string(missing_host_record_ctrl_num_count) +
-             " articles had missing host record control number(s).");
+    LOG_INFO(std::to_string(missing_host_record_ctrl_num_count) + " articles had missing host record control number(s).");
     LOG_INFO("For " + std::to_string(missing_isbn_or_issn_count) + " articles no host ISBN nor ISSN was found.");
 }
 
