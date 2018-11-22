@@ -53,7 +53,7 @@ bool DownloadTracker::hasAlreadyBeenDownloaded(BSZUpload::DeliveryMode delivery_
     truncateURL(&truncated_url);
 
     if (unlikely(delivery_mode == BSZUpload::DeliveryMode::NONE))
-        LOG_ERROR("delivery mode NONE not allowed for url '" + truncated_url + "'");
+        LOG_ERROR("delivery mode NONE not allowed for URL '" + truncated_url + "'");
 
     db_connection_->queryOrDie("SELECT * FROM harvested_urls WHERE url='" + db_connection_->escapeString(truncated_url) + "' " +
                                "AND delivery_mode='" + DeliveryModeToSqlEnum(delivery_mode) + "'");
@@ -82,7 +82,7 @@ void DownloadTracker::addOrReplace(BSZUpload::DeliveryMode delivery_mode, const 
     if (unlikely((hash.empty() and error_message.empty()) or (not hash.empty() and not error_message.empty())))
         LOG_ERROR("exactly one of \"hash\" and \"error_message\" must be non-empty!");
     else if (unlikely(delivery_mode == BSZUpload::DeliveryMode::NONE))
-        LOG_ERROR("delivery mode NONE not allowed for url '" + truncated_url + "'");
+        LOG_ERROR("delivery mode NONE not allowed for URL '" + truncated_url + "'");
 
     const time_t now(std::time(nullptr));
     const auto timestamp(SqlUtil::TimeTToDatetime(now));
