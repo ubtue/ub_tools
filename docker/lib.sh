@@ -37,8 +37,11 @@ function get_pidfile {
 # \note     docker container needs to be installed as systemd unit for this to work!
 # \param    $1 The name of the docker image and systemd unit
 function rebuild_and_restart_service {
-    # stop & delete container if exists
+    # stop container if exists
+    echo "stopping systemctl service $1"
     systemctl stop $1
+
+    # delete container if exists
     LATEST_CONTAINER_ID=$(get_latest_container_id $1)
     if [ -z "$LATEST_CONTAINER_ID" ]; then
         echo "no existing container detected"
