@@ -657,8 +657,9 @@ void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParamet
 }
 
 
-void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_record, BSZUpload::DeliveryMode delivery_mode,
-                                                     struct ItemParameters &item_params, unsigned * const previously_downloaded_count) {
+void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_record, const bool disable_tracking,
+                                                     const BSZUpload::DeliveryMode delivery_mode, struct ItemParameters &item_params,
+                                                     unsigned * const previously_downloaded_count) {
 
     std::string url(item_params.url);
     const std::string parent_journal_name(item_params.parent_journal_name);
@@ -671,12 +672,8 @@ void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_rec
             LOG_ERROR("\"url\" has not been set!");
     }
 
-    // only track downloads when the delivery mode is set to TEST or LIVE
-    LOG_WARNING("skipping download tracking unconditionally!");
-    marc_writer_->write(new_record);
-    return;
 
-    if (delivery_mode == BSZUpload::DeliveryMode::NONE)
+    if (disable_tracking)
         marc_writer_->write(new_record);
     else {
         DownloadTracker::Entry tracked_entry;
@@ -693,7 +690,6 @@ void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_rec
 
 std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
     unsigned previously_downloaded_count(0);
-    BSZUpload::DeliveryMode delivery_mode(MarcFormatHandler::getDeliveryMode());
 
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
     CustomNodeParameters custom_node_params;
@@ -703,11 +699,12 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     struct ItemParameters item_parameters;
     ExtractItemParameters(object_node, &item_parameters);
     MergeCustomParametersToItemParameters(&item_parameters, custom_node_params);
+    const BSZUpload::DeliveryMode delivery_mode(site_params_ ? site_params_->delivery_mode_ : BSZUpload::DeliveryMode::NONE);
 
     MARC::Record new_record(std::string(MARC::Record::LEADER_LENGTH, ' ') /*empty dummy leader*/);
     GenerateMarcRecord(&new_record, item_parameters);
 
-    HandleTrackingAndWriteRecord(new_record, delivery_mode, item_parameters, &previously_downloaded_count);
+    HandleTrackingAndWriteRecord(new_record, harvest_params_->disable_tracking_, delivery_mode, item_parameters, &previously_downloaded_count);
     return std::make_pair(/* record count */1, previously_downloaded_count);
 }
 
