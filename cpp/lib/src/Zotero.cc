@@ -682,8 +682,10 @@ void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_rec
         {
             marc_writer_->write(new_record);
             download_tracker_.addOrReplace(delivery_mode, url, parent_journal_name, checksum, /* error_message = */"");
-        } else
+        } else {
             ++(*previously_downloaded_count);
+            LOG_INFO("skipping URL '" + harvest_url + "' - already harvested");
+        }
     }
 }
 
