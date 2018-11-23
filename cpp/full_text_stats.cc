@@ -29,22 +29,17 @@
 #include "util.h"
 
 
-void Usage() __attribute__((noreturn));
+namespace {
 
 
-void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " stats_file_path email_address\n"
               << "       A report will be sent to \"email_address\".\n\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-namespace {
-
-
-void LoadOldStats(const std::string &stats_file_path,
-                  std::vector<std::pair<std::string, unsigned>> * const domains_and_counts)
-{
+void LoadOldStats(const std::string &stats_file_path, std::vector<std::pair<std::string, unsigned>> * const domains_and_counts) {
     if (not FileUtil::Exists(stats_file_path)) // This should only be the case the first time we run this program!
         return;
 
@@ -109,12 +104,15 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
     bool found_one_or_more_problems(false);
     auto old_iter(old_domains_and_counts.cbegin());
     auto new_iter(new_domains_and_counts.cbegin());
+    unsigned added_count(0), disappeared_count(0);
 
     while (old_iter != old_domains_and_counts.cend() or new_iter != new_domains_and_counts.cend()) {
         if (old_iter == old_domains_and_counts.cend()) {
+            added_count += new_iter->second;
             report_text += new_iter->first + " (count: " + std::to_string(new_iter->second) + ") was added.\n";
             ++new_iter;
         } else if (new_iter == new_domains_and_counts.cend()) {
+            disappeared_count += old_iter->second;
             report_text += old_iter->first + " (count: " + std::to_string(old_iter->second) + ") disappeared.\n";
             ++old_iter;
             found_one_or_more_problems = true;
@@ -124,15 +122,20 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
                                + std::to_string(new_iter->second) + "\n";
                 ++new_iter, ++old_iter;
             } else if (old_iter->first < new_iter->first) {
+            disappeared_count += old_iter->second;
                 report_text += old_iter->first + " (count: " + std::to_string(old_iter->second) + ") disappeared.\n";
                 ++old_iter;
                 found_one_or_more_problems = true;
             } else if (old_iter->first > new_iter->first) {
+                added_count += new_iter->second;
                 report_text += new_iter->first + " (count: " + std::to_string(new_iter->second) + ") was added.\n";
                 ++new_iter;
             }
         }
     }
+
+    report_text = "Overall " + std::to_string(added_count) + " new items were added and " + std::to_string(disappeared_count)
+                  + " old items disappeared.\n\n" + report_text;
 
     EmailSender::SendEmail("no-reply@ub.uni-tuebingen.de", email_address, "Full Text Stats", report_text,
                            found_one_or_more_problems ? EmailSender::VERY_HIGH : EmailSender::VERY_LOW);
@@ -154,24 +157,22 @@ void WriteStats(const std::string &stats_filename,
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
+int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 3)
         Usage();
 
-    try {
-        std::vector<std::pair<std::string, unsigned>> old_domains_and_counts;
-        LoadOldStats(argv[1], &old_domains_and_counts);
+    std::vector<std::pair<std::string, unsigned>> old_domains_and_counts;
+    LoadOldStats(argv[1], &old_domains_and_counts);
 
-        std::vector<std::pair<std::string, unsigned>> new_domains_and_counts;
-        DetermineNewStats(&new_domains_and_counts);
+    std::vector<std::pair<std::string, unsigned>> new_domains_and_counts;
+    DetermineNewStats(&new_domains_and_counts);
 
-        CompareStatsAndGenerateReport(argv[2], old_domains_and_counts, new_domains_and_counts);
-        WriteStats(argv[1], new_domains_and_counts);
+    CompareStatsAndGenerateReport(argv[2], old_domains_and_counts, new_domains_and_counts);
+    WriteStats(argv[1], new_domains_and_counts);
 
-        logger->info("finished successfully");
-    } catch (const std::exception &e) {
-        logger->error("caught exception: " + std::string(e.what()));
-    }
+    LOG_INFO("finished successfully");
+
+    return EXIT_SUCCESS;
 }
