@@ -49,6 +49,10 @@ class RegexMatcher;
 namespace FileUtil {
 
 
+/** \brief   Convenient iterator over lines in a file.
+ *  \usage   for (auto line : FileUtil::ReadLines(path)) ...
+ *  \warning The implementation is terrible and does not support any other usage than the suggested one!
+ */
 class ReadLines {
 public:
     enum TrimMode { DO_NOT_TRIM, TRIM_RIGHT, TRIM_LEFT_AND_RIGHT };
