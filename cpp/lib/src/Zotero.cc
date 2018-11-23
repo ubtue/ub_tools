@@ -920,12 +920,8 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
 
 
 const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &map_directory_path) {
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(map_directory_path + "targets.regex"));
-
     std::string combined_regex;
-    while (not input->eof()) {
-        std::string line(input->getline());
-        StringUtil::Trim(&line);
+    for (const auto line : FileUtil::ReadLines(map_directory_path + "targets.regex", FileUtil::ReadLines::TRIM_LEFT_AND_RIGHT)) {
         if (likely(not line.empty())) {
             if (likely(not combined_regex.empty()))
                 combined_regex += '|';
