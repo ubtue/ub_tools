@@ -50,7 +50,7 @@ const std::string DATETIME_RANGE_MAX("9999-12-31 23:59:59");
 // reference count of open transactions
 std::map<DbConnection *, TransactionGuard::Status> TransactionGuard::connection_status_;
 
-    
+
 TransactionGuard::TransactionGuard(DbConnection * const db_connection, const IsolationLevel level)
     : db_connection_(db_connection)
 {
@@ -70,7 +70,7 @@ TransactionGuard::TransactionGuard(DbConnection * const db_connection, const Iso
 }
 
 
-void TransactionGuard::rollback() { 
+void TransactionGuard::rollback() {
     connection_status_[db_connection_].rolled_back_ = true;
 }
 

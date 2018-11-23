@@ -672,6 +672,10 @@ void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_rec
     }
 
     // only track downloads when the delivery mode is set to TEST or LIVE
+    LOG_WARNING("skipping download tracking unconditionally!");
+    marc_writer_->write(new_record);
+    return;
+
     if (delivery_mode == BSZUpload::DeliveryMode::NONE)
         marc_writer_->write(new_record);
     else {
@@ -937,6 +941,23 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
 }
 
 
+static std::string GetProxyHostAndPort() {
+    const std::string ENV_KEY("ZTS_PROXY");
+    const std::string ENV_FILE("/usr/local/etc/zts_proxy.env");
+
+    if (not MiscUtil::EnvironmentVariableExists(ENV_KEY) and FileUtil::Exists(ENV_FILE))
+        MiscUtil::SetEnvFromFile(ENV_FILE);
+
+    if (MiscUtil::EnvironmentVariableExists(ENV_KEY)) {
+        const std::string PROXY(MiscUtil::GetEnv(ENV_KEY));
+        LOG_DEBUG("using proxy: " + PROXY);
+        return PROXY;
+    }
+
+    return "";
+}
+
+
 void PreprocessHarvesterResponse(std::shared_ptr<JSON::ArrayNode> * const response_object_array) {
     // notes returned by the translation server are encoded as separate objects in the response
     // we'll need to iterate through the entires and append individual notes to their parents
@@ -983,7 +1004,6 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         LOG_DEBUG("Skipping URL ('" + harvest_url + "' does not match extraction regex)");
         return record_count_and_previously_downloaded_count;
     }
-
     already_harvested_urls.emplace(harvest_url);
     auto error_logger_context(error_logger->newContext(site_params.parent_journal_name_, harvest_url));
 
@@ -1056,13 +1076,16 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 }
 
 
-UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
+UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, SimpleCrawler::Params crawler_params,
                          const std::shared_ptr<RegexMatcher> &supported_urls_regex,
                          const std::shared_ptr<HarvestParams> &harvest_params, const SiteParams &site_params,
                          HarvesterErrorLogger * const error_logger, File * const progress_file)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
     LOG_DEBUG("Starting crawl at base URL: " +  site_desc.start_url_);
+    crawler_params.proxy_host_and_port_ = GetProxyHostAndPort();
+    if (not crawler_params.proxy_host_and_port_.empty())
+        crawler_params.ignore_ssl_certificates_ = true;
     SimpleCrawler crawler(site_desc, crawler_params);
     SimpleCrawler::PageDetails page_details;
     unsigned processed_url_count(0);
@@ -1191,6 +1214,9 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
         LOG_INFO("Processing URL: " + feed_url);
 
     Downloader::Params downloader_params;
+    downloader_params.proxy_host_and_port_ = GetProxyHostAndPort();
+    if (not downloader_params.proxy_host_and_port_.empty())
+        downloader_params.ignore_ssl_certificates_ = true;
     downloader_params.user_agent_ = harvest_params->user_agent_;
     Downloader downloader(feed_url, downloader_params);
     if (downloader.anErrorOccurred()) {

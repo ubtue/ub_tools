@@ -6,6 +6,7 @@ Requires=docker.service
 
 [Service]
 Type=forking
+EnvironmentFile=-/usr/local/etc/zts_proxy.env
 ExecStart=/usr/local/ub_tools/docker/zts/systemd/start.sh
 ExecStop=/usr/local/ub_tools/docker/zts/systemd/stop.sh
 PIDFile=/var/run/zts.pid
