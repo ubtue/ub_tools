@@ -40,7 +40,7 @@ namespace {
               << "\n"
               << "\tOptions:\n"
               << "\t[--min-log-level=log_level]         Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
-              << "\t[--delivery-mode=mode]              Only sections that have the specific delivery mode (either LIVE or TEST) set will be processed.\n"
+              << "\t[--delivery-mode=mode]              Only sections that have the specific delivery mode (either LIVE or TEST) set will be processed. When this parameter is not specified, tracking is automatically disabled.\n"
               << "\t[--groups=my_groups                 Where groups are a comma-separated list of groups.\n"
               << "\t[--disable-tracking]                Disable tracking harvested RSS feeds, URLs and records.\n"
               << "\t[--ignore-robots-dot-txt]\n"
@@ -311,7 +311,7 @@ int Main(int argc, char *argv[]) {
 
     std::shared_ptr<Zotero::HarvestParams> harvest_params(new Zotero::HarvestParams);
     harvest_params->zts_server_url_ = Zotero::TranslationServer::GetUrl();
-    harvest_params->disable_tracking_ = disable_tracking;
+    harvest_params->disable_tracking_ = disable_tracking || delivery_mode_to_process == BSZUpload::DeliveryMode::NONE;
 
     if (map_directory_path.empty())
         map_directory_path = ini_file.getString("", "map_directory_path");
