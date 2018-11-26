@@ -437,7 +437,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         if (physical_form == "A")
             record->insertField("007", "tu");
         else if (physical_form == "O")
-            record->insertField("007", "cr uuu---uuuuu");
+            record->insertField("007", "cr|||||");
         else
             LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
     }
