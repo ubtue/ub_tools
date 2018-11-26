@@ -28,6 +28,7 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "File.h"
+#include "FileUtil.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -36,9 +37,12 @@
 
 namespace {
 
-    
+
 const std::string RELBIB_TAG("REL");
 const std::string BIBSTUDIES_TAG("BIB");
+
+enum SubSystem { RELBIB, BIBSTUDIES };
+const unsigned NUM_OF_SUBSYSTEMS(2);
 
 
 [[noreturn]] void Usage() {
@@ -62,8 +66,30 @@ bool HasRelBibIxTheoNotation(const MARC::Record &record) {
     static const std::string RELBIB_IXTHEO_NOTATION_PATTERN("^[ABTVXZ][A-Z].*|.*:[ABTVXZ][A-Z].*");
     static RegexMatcher * const relbib_ixtheo_notations_matcher(RegexMatcher::RegexMatcherFactory(RELBIB_IXTHEO_NOTATION_PATTERN));
     for (const auto& field : record.getTagRange("652")) {
-        for (const auto& subfieldA : field.getSubfields().extractSubfields("a")) {
-            if (relbib_ixtheo_notations_matcher->matched(subfieldA))
+        for (const auto &subfield_a : field.getSubfields().extractSubfields("a")) {
+            if (relbib_ixtheo_notations_matcher->matched(subfield_a))
+                return true;
+        }
+    }
+    return false;
+}
+
+
+bool HasPlausibleDDCPrefix(const std::string &ddc_string) {
+    // Exclude records that where the entry in the DCC field is not plausible
+    static const std::string PLAUSIBLE_DDC_PREFIX_PATTERN("^\\d\\d");
+    static RegexMatcher * const plausible_ddc_prefix_matcher(RegexMatcher::RegexMatcherFactoryOrDie(PLAUSIBLE_DDC_PREFIX_PATTERN));
+    return plausible_ddc_prefix_matcher->matched(ddc_string);
+}
+
+
+// Additional criteria that prevent the exclusion of a record that has a 220-289 field
+bool HasAdditionalRelbibAdmissionDDC(const MARC::Record &record) {
+    static const std::string RELBIB_ADMIT_DDC_PATTERN("^([12][01][0-9]|2[9][0-9]|[3-9][0-9][0-9]).*$");
+    static RegexMatcher * const relbib_admit_ddc_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie(RELBIB_ADMIT_DDC_PATTERN));
+    for (const auto &field : record.getTagRange("082")) {
+        for (const auto &subfield_a : field.getSubfields().extractSubfields("a")) {
+            if (HasPlausibleDDCPrefix(subfield_a) and relbib_admit_ddc_range_matcher->matched(subfield_a))
                 return true;
         }
     }
@@ -74,24 +100,31 @@ bool HasRelBibIxTheoNotation(const MARC::Record &record) {
 bool HasRelBibExcludeDDC(const MARC::Record &record) {
     if (not record.hasTag("082"))
         return true;
-    // Exclude records that are obviously not DDC
-    static const std::string PLAUSIBLE_DDC_START_PATTERN("^\\d\\d");
-    static RegexMatcher * const plausible_ddc_start_matcher(RegexMatcher::RegexMatcherFactoryOrDie(PLAUSIBLE_DDC_START_PATTERN));
-    // Exclude DDC 220-289, i.e. do not include if a DDC code of this range occurs anywhere in the DDC code
-    static const std::string RELBIB_EXCLUDE_DDC_RANGE_PATTERN("^2[2-8][0-9][/.]?[^.]*$");
+    // Exclude DDC 220-289
+    static const std::string RELBIB_EXCLUDE_DDC_RANGE_PATTERN("^2[2-8][0-9](/|\\.){0,2}[^.]*$");
     static RegexMatcher * const relbib_exclude_ddc_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie(RELBIB_EXCLUDE_DDC_RANGE_PATTERN));
+
+    // Make sure we have 082-fields to examine
+    if (not record.hasTag("082"))
+        return false;
+
+    // In general we exclude if the exclude range is matched
+    // But we include it anyway if we find another reasonable DDC-code
     for (const auto &field : record.getTagRange("082")) {
-        for (const auto &subfieldA : field.getSubfields().extractSubfields("a")) {
-            if (relbib_exclude_ddc_range_matcher->matched(subfieldA))
-                return true;
+        for (const auto &subfield_a : field.getSubfields().extractSubfields("a")) {
+            if (relbib_exclude_ddc_range_matcher->matched(subfield_a)) {
+                if (not HasAdditionalRelbibAdmissionDDC(record))
+                    return true;
+            }
         }
     }
-    // Exclude item if it has only DDC a 400 or 800 DDC notation
+
+    // Exclude item if it has only a 400 or 800 DDC notation
     static const std::string RELBIB_EXCLUDE_DDC_CATEGORIES_PATTERN("^[48][0-9][0-9]$");
     static RegexMatcher * const relbib_exclude_ddc_categories_matcher(RegexMatcher::RegexMatcherFactoryOrDie(RELBIB_EXCLUDE_DDC_CATEGORIES_PATTERN));
     for (const auto &field : record.getTagRange("082")) {
-        for (const auto &subfieldA : field.getSubfields().extractSubfields('a')) {
-            if (plausible_ddc_start_matcher->matched(subfieldA) and not relbib_exclude_ddc_categories_matcher->matched(subfieldA))
+        for (const auto &subfield_a : field.getSubfields().extractSubfields('a')) {
+            if (HasPlausibleDDCPrefix(subfield_a) and not relbib_exclude_ddc_categories_matcher->matched(subfield_a))
                 return false;
         }
     }
@@ -145,8 +178,8 @@ bool ExcludeBecauseOfRWEX(const MARC::Record &record) {
         for (const auto &subfield0: subfields.extractSubfields('0')) {
             if (not StringUtil::StartsWith(subfield0, "935"))
                 continue;
-            for (const auto &subfieldA : subfields.extractSubfields('a')) {
-                if (subfieldA == "rwex")
+            for (const auto &subfield_a : subfields.extractSubfields('a')) {
+                if (subfield_a == "rwex")
                     return true;
             }
         }
@@ -167,8 +200,8 @@ bool HasBibStudiesIxTheoNotation(const MARC::Record &record) {
     static const std::string BIBSTUDIES_IXTHEO_PATTERN("^[H][A-Z].*|.*:[H][A-Z].*");
     static RegexMatcher * const relbib_ixtheo_notations_matcher(RegexMatcher::RegexMatcherFactory(BIBSTUDIES_IXTHEO_PATTERN));
     for (const auto &field : record.getTagRange("652")) {
-        for (const auto &subfieldA : field.getSubfields().extractSubfields("a")) {
-            if (relbib_ixtheo_notations_matcher->matched(subfieldA))
+        for (const auto &subfield_a : field.getSubfields().extractSubfields("a")) {
+            if (relbib_ixtheo_notations_matcher->matched(subfield_a))
                 return true;
         }
     }
@@ -191,25 +224,55 @@ void AddSubsystemTag(MARC::Record * const record, const std::string &tag) {
 }
 
 
-void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
-    unsigned int record_count(0), modified_count(0);
+void CollectSuperiorOrParallelWorks(const MARC::Record &record, std::unordered_set<std::string> * const superior_or_parallel_works) {
+    const std::set<std::string> parallel(MARC::ExtractCrossReferencePPNs(record));
+    superior_or_parallel_works->insert(parallel.begin(), parallel.end());
+    superior_or_parallel_works->insert(record.getSuperiorControlNumber());
+}
+
+
+// Get set of immediately belonging or superior or parallel records
+void GetSubsystemPPNSet(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                      std::vector<std::unordered_set<std::string>> * const subsystem_sets) {
+    while (const MARC::Record record = marc_reader->read()) {
+        if (IsRelBibRecord(record)) {
+            ((*subsystem_sets)[RELBIB]).emplace(record.getControlNumber());
+            CollectSuperiorOrParallelWorks(record, &((*subsystem_sets)[RELBIB]));
+        }
+        if (IsBibStudiesRecord(record)) {
+            ((*subsystem_sets)[BIBSTUDIES]).emplace(record.getControlNumber());
+            CollectSuperiorOrParallelWorks(record, &((*subsystem_sets)[BIBSTUDIES]));
+        }
+        marc_writer->write(record);
+    }
+}
+
+
+void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                      const std::vector<std::unordered_set<std::string>> &subsystem_sets) {
+    unsigned record_count(0), modified_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
         bool modified_record(false);
-        if (IsRelBibRecord(record)) {
+        if ((subsystem_sets[RELBIB]).find(record.getControlNumber()) != subsystem_sets[RELBIB].end()) {
             AddSubsystemTag(&record, RELBIB_TAG);
             modified_record = true;
         }
-        if (IsBibStudiesRecord(record)) {
+        if ((subsystem_sets[BIBSTUDIES]).find(record.getControlNumber()) != subsystem_sets[RELBIB].end()) {
             AddSubsystemTag(&record, BIBSTUDIES_TAG);
             modified_record = true;
         }
-        marc_writer->write(record);
         if (modified_record)
             ++modified_count;
+         marc_writer->write(record);
     }
-
     LOG_INFO("Modified " + std::to_string(modified_count) + " of " + std::to_string(record_count) + " records.");
+}
+
+
+void InitializeSubsystemPPNSets(std::vector<std::unordered_set<std::string>> * const subsystem_ppn_sets) {
+    for (unsigned i(0); i < NUM_OF_SUBSYSTEMS; ++i)
+        subsystem_ppn_sets->push_back(std::unordered_set<std::string>());
 }
 
 
@@ -225,9 +288,18 @@ int Main(int argc, char **argv) {
     if (unlikely(marc_input_filename == marc_output_filename))
         LOG_ERROR("Title data input file name equals output file name!");
 
+    std::vector<std::unordered_set<std::string>> subsystem_sets;
+    InitializeSubsystemPPNSets(&subsystem_sets);
+
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
+    FileUtil::AutoTempFile tmp_marc_file("/dev/shm/", ".mrc");
+    std::unique_ptr<MARC::Writer> marc_tmp_writer(MARC::Writer::Factory(tmp_marc_file.getFilePath()));
+    GetSubsystemPPNSet(marc_reader.get(), marc_tmp_writer.get(), &subsystem_sets);
+    if (not marc_tmp_writer->flush())
+        LOG_ERROR("Could not flush to " + tmp_marc_file.getFilePath());
+    std::unique_ptr<MARC::Reader> marc_tmp_reader(MARC::Reader::Factory(tmp_marc_file.getFilePath()));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
-    AddSubsystemTags(marc_reader.get() , marc_writer.get());
+    AddSubsystemTags(marc_tmp_reader.get(), marc_writer.get(), subsystem_sets);
 
     return EXIT_SUCCESS;
 }
