@@ -40,8 +40,9 @@ namespace {
               << "\n"
               << "\tOptions:\n"
               << "\t[--min-log-level=log_level]         Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
-              << "\t[--delivery-mode=mode]              Only sections that have the specific delivery mode (either LIVE or TEST) set will be processed.\n"
+              << "\t[--delivery-mode=mode]              Only sections that have the specific delivery mode (either LIVE or TEST) set will be processed. When this parameter is not specified, tracking is automatically disabled.\n"
               << "\t[--groups=my_groups                 Where groups are a comma-separated list of groups.\n"
+              << "\t[--disable-tracking]                Disable tracking harvested RSS feeds, URLs and records.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
               << "\t[--output-directory=output_directory]\n"
@@ -100,8 +101,7 @@ UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const JournalConfig
     const std::string feed_url(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::URL));
     LOG_DEBUG("feed_url: " + feed_url);
 
-    // set to test by default until we figure out how to restructure the RSS related code
-    Zotero::RSSHarvestMode rss_harvest_mode(Zotero::RSSHarvestMode::TEST);
+    Zotero::RSSHarvestMode rss_harvest_mode(harvest_params->disable_tracking_ ? Zotero::RSSHarvestMode::TEST : Zotero::RSSHarvestMode::NORMAL);
     return Zotero::HarvestSyndicationURL(rss_harvest_mode, feed_url, harvest_params, site_params, error_logger, db_connection);
 }
 
@@ -217,7 +217,7 @@ Zotero::FormatHandler *GetFormatHandlerForGroup(
 
 // Parses the command-line arguments.
 void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode * const delivery_mode_to_process,
-                 std::unordered_set<std::string> * const groups_filter, bool * const ignore_robots_dot_txt,
+                 std::unordered_set<std::string> * const groups_filter, bool * const disable_tracking, bool * const ignore_robots_dot_txt,
                  std::string * const map_directory_path, std::string * const output_directory, std::string * const output_filename,
                  std::string * const output_format_string, std::string * const error_report_file)
 {
@@ -236,6 +236,11 @@ void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode 
 
         if (StringUtil::StartsWith((*argv)[1], "--groups=")) {
             StringUtil::SplitThenTrimWhite((*argv)[1] + __builtin_strlen("--groups="), ',', groups_filter);
+            --*argc, ++*argv;
+        }
+
+        if (std::strcmp((*argv)[1], "--disable-tracking") == 0) {
+            *disable_tracking = true;
             --*argc, ++*argv;
         }
 
@@ -287,14 +292,15 @@ int Main(int argc, char *argv[]) {
     // Handle options independent of the order
     BSZUpload::DeliveryMode delivery_mode_to_process(BSZUpload::DeliveryMode::NONE);
     std::unordered_set<std::string> groups_filter;
+    bool disable_tracking(false);
     bool ignore_robots_dot_txt(false);
     std::string map_directory_path;
     std::string output_directory;
     std::string output_filename;
     std::string output_format_string("marc-xml");
     std::string error_report_file;
-    ProcessArgs(&argc, &argv, &delivery_mode_to_process, &groups_filter, &ignore_robots_dot_txt, &map_directory_path, &output_directory,
-                &output_filename, &output_format_string, &error_report_file);
+    ProcessArgs(&argc, &argv, &delivery_mode_to_process, &groups_filter, &disable_tracking, &ignore_robots_dot_txt,
+                &map_directory_path, &output_directory, &output_filename, &output_format_string, &error_report_file);
 
     if (argc < 2)
         Usage();
@@ -305,6 +311,7 @@ int Main(int argc, char *argv[]) {
 
     std::shared_ptr<Zotero::HarvestParams> harvest_params(new Zotero::HarvestParams);
     harvest_params->zts_server_url_ = Zotero::TranslationServer::GetUrl();
+    harvest_params->disable_tracking_ = disable_tracking || delivery_mode_to_process == BSZUpload::DeliveryMode::NONE;
 
     if (map_directory_path.empty())
         map_directory_path = ini_file.getString("", "map_directory_path");
