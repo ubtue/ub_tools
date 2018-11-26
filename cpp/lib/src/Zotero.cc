@@ -459,6 +459,8 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         language = node_parameters.language;
     _008_value += language;
 
+    record->insertField("008", _008_value);
+
     // Authors/Creators (use reverse iterator to keep order, because "insertField" inserts at first possible position)
     const std::string creator_tag((node_parameters.creators.size() == 1) ? "100" : "700");
     for (auto creator(node_parameters.creators.rbegin()); creator != node_parameters.creators.rend(); ++creator) {
@@ -483,22 +485,22 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         LOG_ERROR("No title found");
 
     // Language
-    record->insertField("041", { {'a', language } });
+    record->insertField("041", { { 'a', language } });
 
     // Abstract Note
     const std::string abstract_note(node_parameters.abstract_note);
     if (not abstract_note.empty())
-        record->insertField("520", { {'a', abstract_note } }, /* indicator 1 = */'3');
+        record->insertField("520", { { 'a', abstract_note } }, /* indicator 1 = */'3');
 
     // Date
     const std::string date(node_parameters.date);
     if (not date.empty() and item_type != "journalArticle")
-        record->insertField("362", { {'a', date} });
+        record->insertField("362", { { 'a', date} });
 
     // URL
     const std::string url(node_parameters.url);
     if (not url.empty())
-        record->insertField("856", { {'u', url } }, /* indicator1 = */'4', /* indicator2 = */'0');
+        record->insertField("856", { { 'u', url } }, /* indicator1 = */'4', /* indicator2 = */'0');
 
     // DOI
     const std::string doi(node_parameters.doi);
