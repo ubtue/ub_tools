@@ -263,7 +263,7 @@ std::string GetUserName() {
 }
 
 
-static RegexMatcher * const DOI_MATCHER(RegexMatcher::RegexMatcherFactory("^(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\"&\\'<>])\\S)+)$"));
+static RegexMatcher * const DOI_MATCHER(RegexMatcher::RegexMatcherFactoryOrDie("^(?:http[s]?://[^/]+/|doi:)?(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\"&\\'<>])\\S)+)$"));
 
 
 bool IsDOI(const std::string &doi_candidate) {
@@ -272,7 +272,7 @@ bool IsDOI(const std::string &doi_candidate) {
 
 
 bool NormaliseDOI(const std::string &doi_candidate, std::string * const normalised_doi) {
-    if (DOI_MATCHER->matched(doi_candidate))
+    if (not DOI_MATCHER->matched(doi_candidate))
         return false;
 
     *normalised_doi = (*DOI_MATCHER)[1];
