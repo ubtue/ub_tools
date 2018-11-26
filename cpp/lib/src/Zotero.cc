@@ -430,17 +430,15 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     // -> c.f. last line of this function
 
     const std::string isil(node_parameters.isil);
-    record->insertField("003", isil); // Isil
+    record->insertField("003", isil);
 
-    const std::string physical_form(node_parameters.physical_form); // Physical Form
-    if (not physical_form.empty()) {
-        if (physical_form == "A")
-            record->insertField("007", "tu");
-        else if (physical_form == "O")
-            record->insertField("007", "cr|||||");
-        else
-            LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
-    }
+    const std::string physical_form(node_parameters.physical_form);
+    if (physical_form.empty() or physical_form == "O")
+        record->insertField("007", "cr|||||");
+    else if (physical_form == "A")
+        record->insertField("007", "tu");
+    else
+        LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
 
     // Authors/Creators (use reverse iterator to keep order, because "insertField" inserts at first possible position)
     const std::string creator_tag((node_parameters.creators.size() == 1) ? "100" : "700");
