@@ -228,6 +228,7 @@ struct HarvestParams {
     unsigned harvested_url_count_ = 0;
     std::string user_agent_;
     FormatHandler *format_handler_;
+    bool disable_tracking_;
 };
 
 
@@ -258,7 +259,6 @@ public:
     static std::unique_ptr<FormatHandler> Factory(DbConnection * const db_connection, const std::string &output_format,
                                                   const std::string &output_file,
                                                   const std::shared_ptr<const HarvestParams> &harvest_params);
-     inline BSZUpload::DeliveryMode getDeliveryMode() { return site_params_ == nullptr ? BSZUpload::NONE : site_params_->delivery_mode_; }
 };
 
 
@@ -336,8 +336,8 @@ private:
     void MergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters,
                                                struct CustomNodeParameters &custom_node_params);
 
-    void HandleTrackingAndWriteRecord(const MARC::Record &new_record, BSZUpload::DeliveryMode delivery_mode,
-                                  struct ItemParameters &item_params, unsigned * const previously_downloaded_count);
+    void HandleTrackingAndWriteRecord(const MARC::Record &new_record, const bool disable_tracking, const BSZUpload::DeliveryMode delivery_mode,
+                                      struct ItemParameters &item_params, unsigned * const previously_downloaded_count);
 };
 
 
@@ -366,7 +366,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
  *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
  *          difference (first - second).
  */
-UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
+UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, SimpleCrawler::Params crawler_params,
                          const std::shared_ptr<RegexMatcher> &supported_urls_regex, const std::shared_ptr<HarvestParams> &harvest_params,
                          const SiteParams &site_params, HarvesterErrorLogger * const error_logger, File * const progress_file = nullptr);
 
@@ -379,6 +379,7 @@ UnsignedPair HarvestURL(const std::string &url, const std::shared_ptr<HarvestPar
                         const SiteParams &site_params, HarvesterErrorLogger * const error_logger);
 
 
+// TEST mode disables the tracking of downloaded RSS feeds/entries
 enum class RSSHarvestMode { VERBOSE, TEST, NORMAL };
 
 

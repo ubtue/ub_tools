@@ -23,7 +23,6 @@
 #include <chrono>
 #include <ctime>
 #include <uuid/uuid.h>
-#include "BSZTransform.h"
 #include "DbConnection.h"
 #include "FileUtil.h"
 #include "IniFile.h"
@@ -565,15 +564,9 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         record->insertField("773", _773_subfields);
 
     // Keywords
-    BSZTransform::BSZTransform bsz_transform(*(site_params_->global_params_->maps_));
-    for (auto keyword : node_parameters.keywords) {
-        std::string tag;
-        char subfield, indicator2(' ');
-        bsz_transform.DetermineKeywordOutputFieldFromISSN(issn, &tag, &subfield);
-        if (MARC::IsSubjectAccessTag(tag))
-            indicator2 = '4';
-        record->insertField(tag, { { subfield, TextUtil::CollapseAndTrimWhitespace(&keyword) } }, /* indicator1 = */' ', indicator2);
-    }
+    for (const auto &keyword : node_parameters.keywords)
+        record->insertField(MARC::GetIndexTag(keyword), { { 'a', TextUtil::CollapseAndTrimWhitespace(keyword) } },
+                            /* indicator1 = */' ', /* indicator2 = */'4');
 
     // SSG numbers
     const auto ssg_numbers(node_parameters.ssg_numbers);
@@ -664,8 +657,9 @@ void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParamet
 }
 
 
-void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_record, BSZUpload::DeliveryMode delivery_mode,
-                                                     struct ItemParameters &item_params, unsigned * const previously_downloaded_count) {
+void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_record, const bool disable_tracking,
+                                                     const BSZUpload::DeliveryMode delivery_mode, struct ItemParameters &item_params,
+                                                     unsigned * const previously_downloaded_count) {
 
     std::string url(item_params.url);
     const std::string parent_journal_name(item_params.parent_journal_name);
@@ -678,8 +672,8 @@ void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_rec
             LOG_ERROR("\"url\" has not been set!");
     }
 
-    // only track downloads when the delivery mode is set to TEST or LIVE
-    if (delivery_mode == BSZUpload::DeliveryMode::NONE)
+
+    if (disable_tracking)
         marc_writer_->write(new_record);
     else {
         DownloadTracker::Entry tracked_entry;
@@ -688,15 +682,16 @@ void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_rec
         {
             marc_writer_->write(new_record);
             download_tracker_.addOrReplace(delivery_mode, url, parent_journal_name, checksum, /* error_message = */"");
-        } else
+        } else {
             ++(*previously_downloaded_count);
+            LOG_INFO("skipping URL '" + harvest_url + "' - already harvested");
+        }
     }
 }
 
 
 std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
     unsigned previously_downloaded_count(0);
-    BSZUpload::DeliveryMode delivery_mode(MarcFormatHandler::getDeliveryMode());
 
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
     CustomNodeParameters custom_node_params;
@@ -706,11 +701,12 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     struct ItemParameters item_parameters;
     ExtractItemParameters(object_node, &item_parameters);
     MergeCustomParametersToItemParameters(&item_parameters, custom_node_params);
+    const BSZUpload::DeliveryMode delivery_mode(site_params_ ? site_params_->delivery_mode_ : BSZUpload::DeliveryMode::NONE);
 
     MARC::Record new_record(std::string(MARC::Record::LEADER_LENGTH, ' ') /*empty dummy leader*/);
     GenerateMarcRecord(&new_record, item_parameters);
 
-    HandleTrackingAndWriteRecord(new_record, delivery_mode, item_parameters, &previously_downloaded_count);
+    HandleTrackingAndWriteRecord(new_record, harvest_params_->disable_tracking_, delivery_mode, item_parameters, &previously_downloaded_count);
     return std::make_pair(/* record count */1, previously_downloaded_count);
 }
 
@@ -926,12 +922,8 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
 
 
 const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &map_directory_path) {
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(map_directory_path + "targets.regex"));
-
     std::string combined_regex;
-    while (not input->eof()) {
-        std::string line(input->getline());
-        StringUtil::Trim(&line);
+    for (const auto line : FileUtil::ReadLines(map_directory_path + "targets.regex", FileUtil::ReadLines::TRIM_LEFT_AND_RIGHT)) {
         if (likely(not line.empty())) {
             if (likely(not combined_regex.empty()))
                 combined_regex += '|';
@@ -945,6 +937,23 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
         LOG_ERROR("compilation of the combined regex failed: " + err_msg);
 
     return supported_urls_regex;
+}
+
+
+static std::string GetProxyHostAndPort() {
+    const std::string ENV_KEY("ZTS_PROXY");
+    const std::string ENV_FILE("/usr/local/etc/zts_proxy.env");
+
+    if (not MiscUtil::EnvironmentVariableExists(ENV_KEY) and FileUtil::Exists(ENV_FILE))
+        MiscUtil::SetEnvFromFile(ENV_FILE);
+
+    if (MiscUtil::EnvironmentVariableExists(ENV_KEY)) {
+        const std::string PROXY(MiscUtil::GetEnv(ENV_KEY));
+        LOG_DEBUG("using proxy: " + PROXY);
+        return PROXY;
+    }
+
+    return "";
 }
 
 
@@ -994,7 +1003,6 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         LOG_DEBUG("Skipping URL ('" + harvest_url + "' does not match extraction regex)");
         return record_count_and_previously_downloaded_count;
     }
-
     already_harvested_urls.emplace(harvest_url);
     auto error_logger_context(error_logger->newContext(site_params.parent_journal_name_, harvest_url));
 
@@ -1067,13 +1075,16 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 }
 
 
-UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, const SimpleCrawler::Params &crawler_params,
+UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, SimpleCrawler::Params crawler_params,
                          const std::shared_ptr<RegexMatcher> &supported_urls_regex,
                          const std::shared_ptr<HarvestParams> &harvest_params, const SiteParams &site_params,
                          HarvesterErrorLogger * const error_logger, File * const progress_file)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
     LOG_DEBUG("Starting crawl at base URL: " +  site_desc.start_url_);
+    crawler_params.proxy_host_and_port_ = GetProxyHostAndPort();
+    if (not crawler_params.proxy_host_and_port_.empty())
+        crawler_params.ignore_ssl_certificates_ = true;
     SimpleCrawler crawler(site_desc, crawler_params);
     SimpleCrawler::PageDetails page_details;
     unsigned processed_url_count(0);
@@ -1202,6 +1213,9 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
         LOG_INFO("Processing URL: " + feed_url);
 
     Downloader::Params downloader_params;
+    downloader_params.proxy_host_and_port_ = GetProxyHostAndPort();
+    if (not downloader_params.proxy_host_and_port_.empty())
+        downloader_params.ignore_ssl_certificates_ = true;
     downloader_params.user_agent_ = harvest_params->user_agent_;
     Downloader downloader(feed_url, downloader_params);
     if (downloader.anErrorOccurred()) {

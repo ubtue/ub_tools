@@ -2610,7 +2610,7 @@ outer:  for (final VariableField _935Field : _935Fields) {
         return null;
     }
 
-    /** @return "true" if we have an open access publication, else "false". */
+    /** @return "open-access" if we have an open access publication, else "non-open-access". */
     public String getOpenAccessStatus(final Record record) {
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField dataField = (DataField) variableField;
@@ -2622,6 +2622,14 @@ outer:  for (final VariableField _935Field : _935Fields) {
             }
             for (final Subfield subfieldX : dataField.getSubfields('x')) {
                 if (subfieldX != null && subfieldX.getData().toLowerCase().equals("unpaywall"))
+                   return "open-access";
+            }
+        }
+
+        for (final VariableField variableField : record.getVariableFields("655")) {
+            final DataField dataField = (DataField) variableField;
+            for (final Subfield subfieldA : dataField.getSubfields('a')) {
+                if (subfieldA.getData().toLowerCase().startsWith("open access"))
                    return "open-access";
             }
         }

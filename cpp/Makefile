@@ -83,7 +83,7 @@ data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.tem
 	cp -r data/zotero_cgi /usr/local/var/lib/tuelib/
 	cp data/subscriptions_email.ixtheo.template /usr/local/var/lib/tuelib/
 	cp data/subscriptions_email.relbib.template /usr/local/var/lib/tuelib/
-	cp data/keyword_normalistion.map /usr/local/var/lib/tuelib/
+	cp data/keyword_normalisation.map /usr/local/var/lib/tuelib/
 	cp data/author_normalisation.map /usr/local/var/lib/tuelib/
 	cp data/publisher_normalisation.map /usr/local/var/lib/tuelib/
 	mkdir --parents /usr/local/var/lib/tuelib/crossref_downloader/
