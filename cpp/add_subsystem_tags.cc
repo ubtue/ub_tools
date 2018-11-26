@@ -265,14 +265,13 @@ void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const mar
         if (modified_record)
             ++modified_count;
          marc_writer->write(record);
-
     }
     LOG_INFO("Modified " + std::to_string(modified_count) + " of " + std::to_string(record_count) + " records.");
 }
 
 
 void InitializeSubsystemPPNSets(std::vector<std::unordered_set<std::string>> * const subsystem_ppn_sets) {
-    for (unsigned i = 0; i < NUM_OF_SUBSYSTEMS; ++i)
+    for (unsigned i(0); i < NUM_OF_SUBSYSTEMS; ++i)
         subsystem_ppn_sets->push_back(std::unordered_set<std::string>());
 }
 
