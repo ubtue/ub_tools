@@ -834,7 +834,7 @@ std::string StructTmToString(const struct tm &tm) {
 }
 
 
-struct tm StringToStructTmHelper(std::string date_str, std::string optional_strptime_format) {
+struct tm StringToStructTm(std::string date_str, std::string optional_strptime_format) {
     struct tm tm;
     if (likely(StringToStructTmHelper(date_str, optional_strptime_format, &tm)))
         return tm;
