@@ -1,5 +1,5 @@
 /* \brief Loads, manages and stores the timestamps, hashes of previously downloaded metadata records.
- * 
+ *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -17,12 +17,14 @@
 */
 #pragma once
 
+#include <unordered_map>
 #include "DbConnection.h"
 #include "BSZUpload.h"
-#include <unordered_map>
+#include "SqlUtil.h"
+
 
 class DownloadTracker {
-    DbConnection * db_connection_;
+    DbConnection *db_connection_;
 public:
     struct Entry {
         std::string url_;
@@ -71,6 +73,11 @@ public:
      */
     size_t listOutdatedJournals(BSZUpload::DeliveryMode delivery_mode, const unsigned cutoff_days,
                                 std::unordered_map<std::string, std::map<BSZUpload::DeliveryMode, time_t>> * const outdated_journals);
+private:
+    inline void truncateURL(std::string * const url) const {
+        if (url->length() > static_cast<std::size_t>(SqlUtil::VARCHAR_UTF8_MAX_LENGTH))
+            url->erase(SqlUtil::VARCHAR_UTF8_MAX_LENGTH);
+    }
 };
 
 

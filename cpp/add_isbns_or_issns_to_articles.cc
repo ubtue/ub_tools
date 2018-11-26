@@ -45,9 +45,14 @@ namespace {
 }
 
 
-void PopulateParentIdToISBNAndISSNMap(
-    MARC::Reader * const marc_reader,
-    std::unordered_map<std::string, std::string> * const parent_id_to_isbn_and_issn_map)
+struct RecordInfo {
+    std::string isbn_or_issn_;
+    bool is_open_access_;
+};
+
+
+void PopulateParentIdToISBNAndISSNMap(MARC::Reader * const marc_reader,
+                                      std::unordered_map<std::string, RecordInfo> * const parent_id_to_isbn_issn_and_open_access_status_map)
 {
     LOG_INFO("Starting extraction of ISBN's and ISSN's.");
 
@@ -64,7 +69,7 @@ void PopulateParentIdToISBNAndISSNMap(
         if (field_020 != record.end()) {
             const std::string isbn(field_020->getFirstSubfieldWithCode('a'));
             if (not isbn.empty()) {
-                (*parent_id_to_isbn_and_issn_map)[record.getControlNumber()] = isbn;
+                (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { isbn, MARC::IsOpenAccess(record) };
                 ++extracted_isbn_count;
                 continue;
             }
@@ -83,7 +88,7 @@ void PopulateParentIdToISBNAndISSNMap(
 
             issn = subfields.getFirstSubfieldWithCode('a');
             if (not issn.empty()) {
-                (*parent_id_to_isbn_and_issn_map)[record.getControlNumber()] = issn;
+                (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { issn, MARC::IsOpenAccess(record) };
                 ++extracted_issn_count;
             }
         }
@@ -94,7 +99,7 @@ void PopulateParentIdToISBNAndISSNMap(
             if (field_022 != record.end()) {
                 issn = field_022->getFirstSubfieldWithCode('a');
                 if (not issn.empty()) {
-                    (*parent_id_to_isbn_and_issn_map)[record.getControlNumber()] = issn;
+                    (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { issn, MARC::IsOpenAccess(record) };
                     ++extracted_issn_count;
                 }
             }
@@ -110,14 +115,13 @@ void PopulateParentIdToISBNAndISSNMap(
 }
 
 
-void AddMissingISBNsOrISSNsToArticleEntries(MARC::Reader * const marc_reader,
-                                            MARC::Writer * const marc_writer, const std::unordered_map<std::string,
-                                            std::string> &parent_id_to_isbn_and_issn_map)
+void AddMissingISBNsOrISSNsToArticleEntries(
+    MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+    const std::unordered_map<std::string, RecordInfo> &parent_id_to_isbn_issn_and_open_access_status_map)
 {
     LOG_INFO("Starting augmentation of article entries.");
 
-    unsigned count(0), isbns_added(0), issns_added(0), missing_host_record_ctrl_num_count(0),
-             missing_isbn_or_issn_count(0);
+    unsigned count(0), isbns_added(0), issns_added(0), missing_host_record_ctrl_num_count(0), missing_isbn_or_issn_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++count;
 
@@ -133,12 +137,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(MARC::Reader * const marc_reader,
         }
 
         auto subfields(_773_field->getSubfields());
-        if (subfields.hasSubfield('x')) {
-            marc_writer->write(record);
-            continue;
-        }
-
-        if (not subfields.hasSubfield('w')) {       // Record control number of Host Item Entry.
+        if (not subfields.hasSubfield('w')) { // Record control number of Host Item Entry.
             marc_writer->write(record);
             ++missing_host_record_ctrl_num_count;
             continue;
@@ -147,35 +146,44 @@ void AddMissingISBNsOrISSNsToArticleEntries(MARC::Reader * const marc_reader,
         std::string host_id(subfields.getFirstSubfieldWithCode('w'));
         if (StringUtil::StartsWith(host_id, "(DE-576)"))
             host_id = host_id.substr(8);
-        const auto &parent_isbn_or_issn_iter(parent_id_to_isbn_and_issn_map.find(host_id));
-        if (parent_isbn_or_issn_iter == parent_id_to_isbn_and_issn_map.end()) {
+        const auto parent_isbn_or_issn_iter(parent_id_to_isbn_issn_and_open_access_status_map.find(host_id));
+        if (parent_isbn_or_issn_iter == parent_id_to_isbn_issn_and_open_access_status_map.end()) {
             marc_writer->write(record);
             ++missing_isbn_or_issn_count;
             continue;
         }
 
-        if (MiscUtil::IsPossibleISSN(parent_isbn_or_issn_iter->second)) {
-            subfields.addSubfield('x', parent_isbn_or_issn_iter->second);
+        // If parent is open access and we're not, add it!
+        if (parent_isbn_or_issn_iter->second.is_open_access_ and not MARC::IsOpenAccess(record))
+            record.insertField("655", { { 'a', "Open Access" } }, /* indicator1 = */' ', /* indicator2 = */'4');
+
+        if (subfields.hasSubfield('x')) {
+            marc_writer->write(record);
+            continue;
+        }
+
+        if (MiscUtil::IsPossibleISSN(parent_isbn_or_issn_iter->second.isbn_or_issn_)) {
+            subfields.addSubfield('x', parent_isbn_or_issn_iter->second.isbn_or_issn_);
             _773_field->setSubfields(subfields);
             ++issns_added;
         } else { // Deal with ISBNs.
             auto _020_field(record.findTag("020"));
             if (_020_field == record.end()) {
-                record.insertField("020", { { 'a', parent_isbn_or_issn_iter->second } });
+                record.insertField("020", { { 'a', parent_isbn_or_issn_iter->second.isbn_or_issn_ } });
                 ++isbns_added;
             } else if (_020_field->getFirstSubfieldWithCode('a').empty()) {
-                _020_field->appendSubfield('a', parent_isbn_or_issn_iter->second);
+                _020_field->appendSubfield('a', parent_isbn_or_issn_iter->second.isbn_or_issn_);
                 ++isbns_added;
             }
         }
+
         marc_writer->write(record);
     }
 
     LOG_INFO("Read " + std::to_string(count) + " records.");
     LOG_INFO("Added ISBN's to " + std::to_string(isbns_added) + " article record(s).");
     LOG_INFO("Added ISSN's to " + std::to_string(issns_added) + " article record(s).");
-    LOG_INFO(std::to_string(missing_host_record_ctrl_num_count) +
-             " articles had missing host record control number(s).");
+    LOG_INFO(std::to_string(missing_host_record_ctrl_num_count) + " articles had missing host record control number(s).");
     LOG_INFO("For " + std::to_string(missing_isbn_or_issn_count) + " articles no host ISBN nor ISSN was found.");
 }
 
@@ -195,12 +203,11 @@ int Main(int argc, char **argv) {
     auto marc_reader(MARC::Reader::Factory(marc_input_filename));
     auto marc_writer(MARC::Writer::Factory(marc_output_filename));
 
-    std::unordered_map<std::string, std::string> parent_id_to_isbn_and_issn_map;
-    PopulateParentIdToISBNAndISSNMap(marc_reader.get(), &parent_id_to_isbn_and_issn_map);
+    std::unordered_map<std::string, RecordInfo> parent_id_to_isbn_issn_and_open_access_status_map;
+    PopulateParentIdToISBNAndISSNMap(marc_reader.get(), &parent_id_to_isbn_issn_and_open_access_status_map);
     marc_reader->rewind();
 
-    AddMissingISBNsOrISSNsToArticleEntries(marc_reader.get(), marc_writer.get(),
-                                           parent_id_to_isbn_and_issn_map);
+    AddMissingISBNsOrISSNsToArticleEntries(marc_reader.get(), marc_writer.get(), parent_id_to_isbn_issn_and_open_access_status_map);
 
     return EXIT_SUCCESS;
 }

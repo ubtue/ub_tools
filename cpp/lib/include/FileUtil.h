@@ -49,6 +49,39 @@ class RegexMatcher;
 namespace FileUtil {
 
 
+/** \brief   Convenient iterator over lines in a file.
+ *  \usage   for (auto line : FileUtil::ReadLines(path)) ...
+ *  \warning The implementation is terrible and does not support any other usage than the suggested one!
+ */
+class ReadLines {
+public:
+    enum TrimMode { DO_NOT_TRIM, TRIM_RIGHT, TRIM_LEFT_AND_RIGHT };
+
+    class const_iterator {
+        friend class ReadLines;
+        File * const file_;
+        TrimMode trim_mode_;
+        std::string current_line_;
+    public:
+        std::string operator*();
+        void operator++();
+        bool operator==(const const_iterator &rhs);
+        inline bool operator!=(const const_iterator &rhs) { return not operator==(rhs); }
+    private:
+        const_iterator(File * const file, const TrimMode trim_mode): file_(file), trim_mode_(trim_mode) { }
+    };
+private:
+    File *file_;
+    TrimMode trim_mode_;
+public:
+    explicit ReadLines(const std::string &path, const TrimMode trim_mode = DO_NOT_TRIM);
+    ~ReadLines() { delete file_; }
+
+    const_iterator begin() { return const_iterator(file_, trim_mode_); }
+    const_iterator end() { return const_iterator(nullptr, trim_mode_); }
+};
+
+
 /** \class AutoDeleteFile
  *  \brief Deletes the file, specified by the path that was given in the constructor, when going out of scope.
  */

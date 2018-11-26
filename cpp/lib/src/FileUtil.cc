@@ -45,6 +45,41 @@
 namespace FileUtil {
 
 
+bool ReadLines::const_iterator::operator==(const const_iterator &rhs) {
+    if (file_ == rhs.file_)
+        return true;
+
+    if (rhs.file_ == nullptr)
+        return file_->eof();
+
+    return rhs.file_->eof();
+}
+
+
+std::string ReadLines::const_iterator::operator*() {
+    std::string line;
+    file_->getline(&line);
+
+    switch (trim_mode_) {
+    case DO_NOT_TRIM:
+        return line;
+    case TRIM_RIGHT:
+        return StringUtil::RightTrim(&line);
+    case TRIM_LEFT_AND_RIGHT:
+        return StringUtil::Trim(&line);
+    }
+}
+
+
+void ReadLines::const_iterator::operator++() {
+}
+
+
+ReadLines::ReadLines(const std::string &path, const TrimMode trim_mode): trim_mode_(trim_mode) {
+    file_ = OpenInputFileOrDie(path).release();
+}
+
+
 AutoTempFile::AutoTempFile(const std::string &path_prefix, const std::string &path_suffix, bool automatically_remove)
     : automatically_remove_(automatically_remove)
 {

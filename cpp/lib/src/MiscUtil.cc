@@ -143,6 +143,17 @@ void SetEnv(const std::string &name, const std::string &value, const bool overwr
 }
 
 
+void SetEnvFromFile(const std::string &file, const bool overwrite) {
+    for (const auto line : FileUtil::ReadLines(file, FileUtil::ReadLines::TRIM_LEFT_AND_RIGHT)) {
+        std::string key, value;
+        if (StringUtil::SplitOnString(line, "=", &key, &value))
+            MiscUtil::SetEnv(key, value, overwrite);
+        else
+            LOG_WARNING("could not set environment variable in " + file + ": " + line);
+    }
+}
+
+
 enum EscapeState { NOT_ESCAPED, SINGLE_QUOTED, DOUBLE_QUOTED };
 
 
