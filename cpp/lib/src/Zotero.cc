@@ -440,6 +440,25 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     else
         LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
 
+    // 008 (date, year, language)
+    std::string _008_value, _008_date(node_parameters.date);
+    if (_008_date.empty() or not TimeUtil::ConvertFormat("%Y-%m-%d", "%y%m%d", &_008_date))
+        _008_value += "||||||n";
+    else
+        _008_value += _008_date + "s";
+
+    if (node_parameters.year.empty())
+        _008_value += "||||";
+    else
+        _008_value += node_parameters.year;
+
+    _008_value += "||||";
+
+    std::string language(DEFAULT_LANGUAGE_CODE);
+    if (not node_parameters.language.empty())
+        language = node_parameters.language;
+    _008_value += language;
+
     // Authors/Creators (use reverse iterator to keep order, because "insertField" inserts at first possible position)
     const std::string creator_tag((node_parameters.creators.size() == 1) ? "100" : "700");
     for (auto creator(node_parameters.creators.rbegin()); creator != node_parameters.creators.rend(); ++creator) {
@@ -463,10 +482,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     else
         LOG_ERROR("No title found");
 
-    // Language (inserted uncoditionally)
-    std::string language(node_parameters.language);
-    if (language.empty())
-        language = DEFAULT_LANGUAGE_CODE;
+    // Language
     record->insertField("041", { {'a', language } });
 
     // Abstract Note
