@@ -477,7 +477,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getContainerIdsWithTitles(final Record record) {
         final Set<String> containerIdsTitlesAndOptionalVolumes = new TreeSet<>();
 
-        for (final String tag : new String[] { "800", "810", "830", "773", "776" }) {
+        for (final String tag : new String[] { "773", "776", "800", "810", "830" }) {
             for (final VariableField variableField : record.getVariableFields(tag)) {
                 final DataField field = (DataField) variableField;
                 final Subfield titleSubfield = getFirstNonEmptySubfield(field, 't', 'a');
@@ -500,6 +500,9 @@ public class TuelibMixin extends SolrIndexerMixin {
                 containerIdsTitlesAndOptionalVolumes
                         .add(parentId + (char) 0x1F + titleSubfield.getData()
                              + (char) 0x1F + (volumeSubfield == null ? "" : volumeSubfield.getData()));
+                // We want precisely one superior work at each level
+                // So, abort if we found one
+                return containerIdsTitlesAndOptionalVolumes;
             }
         }
         return containerIdsTitlesAndOptionalVolumes;
@@ -2708,7 +2711,9 @@ outer:  for (final VariableField _935Field : _935Fields) {
 
     // Detect "real" superior_ppns
     public String getSuperiorPPN(final Record record) {
-        Set<String> superiorDescriptors = new HashSet<String>(Arrays.asList("800w:810w:830w:773w:776w".split(":")));
+        // The order of the subfields matters, since 8XX can contain information about the series in which
+        // an article in a volume is published but we do not want this as an immediate superior work
+        Vector<String> superiorDescriptors = new Vector<String>(Arrays.asList("773w:776w:800w:810w:830w".split(":")));
         for (String superiorDescriptor : superiorDescriptors) {
             final List<VariableField> superiorFields = record.getVariableFields(superiorDescriptor.substring(0,3));
             for (final VariableField superiorField : superiorFields) {
