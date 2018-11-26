@@ -74,7 +74,7 @@ private:
     File *file_;
     TrimMode trim_mode_;
 public:
-    explicit ReadLines(const std::string &path, const TrimMode trim_mode = DO_NOT_TRIM);
+    explicit ReadLines(const std::string &path, const TrimMode trim_mode = TRIM_LEFT_AND_RIGHT);
     ~ReadLines() { delete file_; }
 
     const_iterator begin() { return const_iterator(file_, trim_mode_); }
