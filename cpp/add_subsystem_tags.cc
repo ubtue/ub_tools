@@ -41,7 +41,7 @@ namespace {
 const std::string RELBIB_TAG("REL");
 const std::string BIBSTUDIES_TAG("BIB");
 
-enum SUBSYSTEM { RELBIB, BIBSTUDIES };
+enum SubSystem { RELBIB, BIBSTUDIES };
 const unsigned NUM_OF_SUBSYSTEMS(2);
 
 
