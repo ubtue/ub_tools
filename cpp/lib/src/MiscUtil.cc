@@ -144,7 +144,7 @@ void SetEnv(const std::string &name, const std::string &value, const bool overwr
 
 
 void SetEnvFromFile(const std::string &file, const bool overwrite) {
-    for (const auto line : FileUtil::ReadLines(file, FileUtil::ReadLines::TRIM_LEFT_AND_RIGHT)) {
+    for (const auto line : FileUtil::ReadLines(file)) {
         std::string key, value;
         if (StringUtil::SplitOnString(line, "=", &key, &value))
             MiscUtil::SetEnv(key, value, overwrite);

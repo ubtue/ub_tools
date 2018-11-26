@@ -139,6 +139,18 @@ inline std::string TimeTToZuluString(const time_t &the_time)
     { return TimeTToUtcString(the_time, ZULU_FORMAT); }
 
 
+/** \brief Converts "*datetime" from format "from_format" to format "to_format"
+ *  \param  from_format  a strptime format
+ *  \param  to_format    an strftime format
+ *  \param  time_zone  Whether to use local time (the default) or UTC.
+ *  \note The strptime format may be prefixed by a comma-separated list of locale names sourrounded by paretheses.  If more than one
+ *        local has been provided, conversions will be attempted until one succeeds of the list has been exhausted.
+ *  \return True if the input datetime matched "from_format", else false.
+ */
+bool ConvertFormat(const std::string &from_format, const std::string &to_format, std::string * const datetime,
+                   const TimeZone time_zone = LOCAL);
+
+
 /** \brief  Parses an ISO 8601 date/time string into its individual components (see https://en.wikipedia.org/wiki/ISO_8601).
  *  \note   We support three formats: "YYYY-MM-DD hh:mm:ss", "YYYY-MM-DDThh:mm:ssZ", and "YYYY-MM-DD".
  *  \param  possible_date            The string that we suspect to be a date in one of the 3 formats that we support.
@@ -289,6 +301,8 @@ std::string StructTmToString(const struct tm &tm);
  *  \param optional_strptime_format  If empty, a few heuristics will be tried, o/w, you must specify an optional list of
  *         pipe-separated locales (please only pick ones that are supported by all operating systems that we use) in parentheses
  *         followed by a format as documented on the strptime(3) man page.
+ *  \note The strptime format may be prefixed by a comma-separated list of locale names sourrounded by paretheses.  If more than one
+ *        local has been provided, conversions will be attempted until one succeeds of the list has been exhausted.
  */
 struct tm StringToStructTm(std::string date_str, std::string optional_strptime_format = DEFAULT_FORMAT);
 
