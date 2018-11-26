@@ -139,6 +139,14 @@ inline std::string TimeTToZuluString(const time_t &the_time)
     { return TimeTToUtcString(the_time, ZULU_FORMAT); }
 
 
+/** \brief Converts "*datetime" from format "from_format" to format "to_forma"
+ *  \param  time_zone  Whether to use local time (the default) or UTC.
+ *  \return True if the input datetime matched "from_format", else false.
+ */
+bool ConvertFormat(const std::string &from_format, const std::string &to_format, std::string * const datetime,
+                   const TimeZone time_zone = LOCAL);
+
+
 /** \brief  Parses an ISO 8601 date/time string into its individual components (see https://en.wikipedia.org/wiki/ISO_8601).
  *  \note   We support three formats: "YYYY-MM-DD hh:mm:ss", "YYYY-MM-DDThh:mm:ssZ", and "YYYY-MM-DD".
  *  \param  possible_date            The string that we suspect to be a date in one of the 3 formats that we support.
