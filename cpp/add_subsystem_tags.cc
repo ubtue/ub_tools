@@ -66,7 +66,7 @@ bool HasRelBibIxTheoNotation(const MARC::Record &record) {
     static const std::string RELBIB_IXTHEO_NOTATION_PATTERN("^[ABTVXZ][A-Z].*|.*:[ABTVXZ][A-Z].*");
     static RegexMatcher * const relbib_ixtheo_notations_matcher(RegexMatcher::RegexMatcherFactory(RELBIB_IXTHEO_NOTATION_PATTERN));
     for (const auto& field : record.getTagRange("652")) {
-        for (const auto& subfield_a : field.getSubfields().extractSubfields("a")) {
+        for (const auto &subfield_a : field.getSubfields().extractSubfields("a")) {
             if (relbib_ixtheo_notations_matcher->matched(subfield_a))
                 return true;
         }
