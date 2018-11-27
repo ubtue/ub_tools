@@ -46,7 +46,6 @@ struct AugmentMaps {
     std::unordered_map<std::string, std::string> ISSN_to_keyword_field_map_;
     std::unordered_map<std::string, std::string> ISSN_to_language_code_map_;
     std::unordered_map<std::string, std::string> ISSN_to_licence_map_;
-    std::unordered_map<std::string, std::string> ISSN_to_physical_form_map_;
     std::unordered_map<std::string, std::string> ISSN_to_volume_map_;
     std::unordered_map<std::string, std::string> language_to_language_code_map_;
     std::unordered_map<std::string, PPNandTitle> ISSN_to_superior_ppn_and_title_map_;
