@@ -59,11 +59,11 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
                                   Zotero::SiteParams * const site_params)
 {
     const auto section_name(section.getSectionName());
-    site_params->parent_journal_name_ = section_name;
-    site_params->parent_ISSN_print_ = bundle_reader.print(section_name).value(JournalConfig::Print::ISSN, "");
-    site_params->parent_ISSN_online_ = bundle_reader.online(section_name).value(JournalConfig::Online::ISSN, "");
-    site_params->parent_PPN_print_ = bundle_reader.print(section_name).value(JournalConfig::Print::PPN, "");
-    site_params->parent_PPN_online_ = bundle_reader.online(section_name).value(JournalConfig::Online::PPN, "");
+    site_params->journal_name_ = section_name;
+    site_params->ISSN_print_ = bundle_reader.print(section_name).value(JournalConfig::Print::ISSN, "");
+    site_params->ISSN_online_ = bundle_reader.online(section_name).value(JournalConfig::Online::ISSN, "");
+    site_params->PPN_print_ = bundle_reader.print(section_name).value(JournalConfig::Print::PPN, "");
+    site_params->PPN_online_ = bundle_reader.online(section_name).value(JournalConfig::Online::PPN, "");
     site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(bundle_reader.zotero(section_name)
                                          .value(JournalConfig::Zotero::EXTRACTION_REGEX, "")));
 
@@ -90,7 +90,7 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
             site_params->non_standard_metadata_fields_.emplace_back(entry.value_);
     }
 
-    site_params->zeder_id_ = section.getString("zeder_id"); // required field!
+    site_params->zeder_id_ = section.getString("zeder_id", "");
 }
 
 

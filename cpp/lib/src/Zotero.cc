@@ -281,13 +281,13 @@ MarcFormatHandler::MarcFormatHandler(DbConnection * const db_connection, const s
 
 void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::ObjectNode> object_node, ItemParameters * const node_parameters) {
     // Item Type
-    node_parameters->item_type = object_node->getStringValue("itemType");
+    node_parameters->item_type_ = object_node->getStringValue("itemType");
 
     // Title
-    node_parameters->title = object_node->getOptionalStringValue("title");
+    node_parameters->title_ = object_node->getOptionalStringValue("title");
 
     // Short Title
-    node_parameters->short_title = object_node->getOptionalStringValue("shortTitle");
+    node_parameters->short_title_ = object_node->getOptionalStringValue("shortTitle");
 
     // Creators
     const auto creator_nodes(object_node->getOptionalArrayNode("creators"));
@@ -295,48 +295,48 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
         for (const auto creator_node : *creator_nodes) {
             Creator creator;
             auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
-            creator.first_name = creator_object_node->getOptionalStringValue("firstName");
-            creator.last_name = creator_object_node->getOptionalStringValue("lastName");
-            creator.type = creator_object_node->getOptionalStringValue("creatorType");
-            creator.ppn = creator_object_node->getOptionalStringValue("ppn");
-            creator.gnd_number = creator_object_node->getOptionalStringValue("gnd_number");
-            node_parameters->creators.emplace_back(creator);
+            creator.first_name_ = creator_object_node->getOptionalStringValue("firstName");
+            creator.last_name_ = creator_object_node->getOptionalStringValue("lastName");
+            creator.type_ = creator_object_node->getOptionalStringValue("creatorType");
+            creator.ppn_ = creator_object_node->getOptionalStringValue("ppn");
+            creator.gnd_number_ = creator_object_node->getOptionalStringValue("gnd_number");
+            node_parameters->creators_.emplace_back(creator);
         }
     }
 
     // Publication Title
-    node_parameters->publication_title = object_node->getOptionalStringValue("publicationTitle");
+    node_parameters->publication_title_ = object_node->getOptionalStringValue("publicationTitle");
 
     // Serial Short Title
-    node_parameters->abbreviated_publication_title = object_node->getOptionalStringValue("journalAbbreviation");
+    node_parameters->abbreviated_publication_title_ = object_node->getOptionalStringValue("journalAbbreviation");
 
     // DOI
-    node_parameters->doi = object_node->getOptionalStringValue("DOI");
-    if (node_parameters->doi.empty()) {
+    node_parameters->doi_ = object_node->getOptionalStringValue("DOI");
+    if (node_parameters->doi_.empty()) {
         const std::string extra(object_node->getOptionalStringValue("extra"));
         if (not extra.empty()) {
             static RegexMatcher * const doi_matcher(RegexMatcher::RegexMatcherFactory("^DOI:\\s*([0-9a-zA-Z./]+)$"));
             if (doi_matcher->matched(extra))
-                node_parameters->doi = (*doi_matcher)[1];
+                node_parameters->doi_ = (*doi_matcher)[1];
         }
     }
     // Language
-    node_parameters->language = object_node->getOptionalStringValue("language");
+    node_parameters->language_ = object_node->getOptionalStringValue("language");
 
     // Copyright
-    node_parameters->copyright = object_node->getOptionalStringValue("rights");
+    node_parameters->copyright_ = object_node->getOptionalStringValue("rights");
 
     // Date
-    node_parameters->date = object_node->getOptionalStringValue("date");
+    node_parameters->date_ = object_node->getOptionalStringValue("date");
 
     // Volume
-    node_parameters->volume = object_node->getOptionalStringValue("volume");
+    node_parameters->volume_ = object_node->getOptionalStringValue("volume");
 
     // Issue
-    node_parameters->issue = object_node->getOptionalStringValue("issue");
+    node_parameters->issue_ = object_node->getOptionalStringValue("issue");
 
     // Pages
-    node_parameters->pages = object_node->getOptionalStringValue("pages");
+    node_parameters->pages_ = object_node->getOptionalStringValue("pages");
 
     // Keywords
     const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
@@ -352,16 +352,16 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
             else {
                 const std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie("tag", tag_node));
                 const std::string value(string_node->getValue());
-                node_parameters->keywords.emplace_back(value);
+                node_parameters->keywords_.emplace_back(value);
             }
         }
     }
 
     // Abstract Note
-    node_parameters->abstract_note = object_node->getOptionalStringValue("abstractNote");
+    node_parameters->abstract_note_ = object_node->getOptionalStringValue("abstractNote");
 
     // URL
-    node_parameters->url = object_node->getOptionalStringValue("url");
+    node_parameters->url_ = object_node->getOptionalStringValue("url");
 
     // Non-standard metadata:
     const auto notes_nodes(object_node->getOptionalArrayNode("notes"));
@@ -420,8 +420,21 @@ static void ProcessNonStandardMetadata(MARC::Record * const record, const std::m
 }
 
 
+std::string SelectISSN(const std::string &issn_zotero, const std::string &issn_online, const std::string &issn_print) {
+    if (not issn_online.empty() and (issn_zotero.empty() or issn_zotero == issn_online)) {
+        LOG_DEBUG("use online ISSN: " + issn_online);
+        return issn_online;
+    } else if (not issn_online.empty() and (issn_zotero.empty() or issn_zotero == issn_online)) {
+        LOG_DEBUG("use print ISSN: " + issn_print);
+        return issn_print;
+    } else
+        LOG_ERROR("ISSN could not be chosen! online: \"" + issn_online + "\""
+                  + ", print: \"" + issn_print + "\"" + ", zotero: \"" + issn_zotero + "\"");
+}
+
+
 void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters) {
-    const std::string item_type(node_parameters.item_type);
+    const std::string item_type(node_parameters.item_type_);
     *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, Transformation::MapBiblioLevel(item_type));
 
     // Control Fields
@@ -429,65 +442,80 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     // Handle 001 only at the end since we need a proper hash value
     // -> c.f. last line of this function
 
-    const std::string isil(node_parameters.isil);
-    record->insertField("003", isil); // Isil
+    const std::string isil(node_parameters.isil_);
+    record->insertField("003", isil);
 
-    const std::string physical_form(node_parameters.physical_form); // Physical Form
-    if (not physical_form.empty()) {
-        if (physical_form == "A")
-            record->insertField("007", "tu");
-        else if (physical_form == "O")
-            record->insertField("007", "cr uuu---uuuuu");
-        else
-            LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
-    }
+    // ISSN and physical description
+    const std::string issn(SelectISSN(node_parameters.issn_zotero_, node_parameters.issn_zotero_, node_parameters.issn_zotero_));
+    if (issn == node_parameters.issn_print_)
+        record->insertField("007", "tu");
+    else
+        record->insertField("007", "cr|||||");
+
+    // 008 (date, year, language)
+    std::string _008_value, _008_date(node_parameters.date_);
+    if (_008_date.empty() or not TimeUtil::ConvertFormat("%Y-%m-%d", "%y%m%d", &_008_date))
+        _008_value += "||||||n";
+    else
+        _008_value += _008_date + "s";
+
+    if (node_parameters.year_.empty())
+        _008_value += "||||";
+    else
+        _008_value += node_parameters.year_;
+
+    _008_value += "||||";
+
+    std::string language(DEFAULT_LANGUAGE_CODE);
+    if (not node_parameters.language_.empty())
+        language = node_parameters.language_;
+    _008_value += language;
+
+    record->insertField("008", _008_value);
 
     // Authors/Creators (use reverse iterator to keep order, because "insertField" inserts at first possible position)
-    const std::string creator_tag((node_parameters.creators.size() == 1) ? "100" : "700");
-    for (auto creator(node_parameters.creators.rbegin()); creator != node_parameters.creators.rend(); ++creator) {
+    const std::string creator_tag((node_parameters.creators_.size() == 1) ? "100" : "700");
+    for (auto creator(node_parameters.creators_.rbegin()); creator != node_parameters.creators_.rend(); ++creator) {
         MARC::Subfields subfields;
-        if (not creator->ppn.empty())
-            subfields.appendSubfield('0', "(DE-576)" + creator->ppn);
-        if (not creator->gnd_number.empty())
-            subfields.appendSubfield('0', "(DE-588)" + creator->gnd_number);
-        if (not creator->type.empty())
-            subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator->type));
-        subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator->last_name, creator->first_name}), ", "));
+        if (not creator->ppn_.empty())
+            subfields.appendSubfield('0', "(DE-576)" + creator->ppn_);
+        if (not creator->gnd_number_.empty())
+            subfields.appendSubfield('0', "(DE-588)" + creator->gnd_number_);
+        if (not creator->type_.empty())
+            subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator->type_));
+        subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator->last_name_, creator->first_name_}), ", "));
         record->insertField(creator_tag, subfields, /* indicator 1 = */'1');
     }
 
     // Titles
-    std::string title(node_parameters.title);
+    std::string title(node_parameters.title_);
     if (title.empty())
-        title = node_parameters.website_title;
+        title = node_parameters.website_title_;
     if (not title.empty())
         record->insertField("245", { { 'a', title } }, /* indicator 1 = */'0', /* indicator 2 = */'0');
     else
         LOG_ERROR("No title found");
 
-    // Language (inserted uncoditionally)
-    std::string language(node_parameters.language);
-    if (language.empty())
-        language = DEFAULT_LANGUAGE_CODE;
-    record->insertField("041", { {'a', language } });
+    // Language
+    record->insertField("041", { { 'a', language } });
 
     // Abstract Note
-    const std::string abstract_note(node_parameters.abstract_note);
+    const std::string abstract_note(node_parameters.abstract_note_);
     if (not abstract_note.empty())
-        record->insertField("520", { {'a', abstract_note } }, /* indicator 1 = */'3');
+        record->insertField("520", { { 'a', abstract_note } }, /* indicator 1 = */'3');
 
     // Date
-    const std::string date(node_parameters.date);
+    const std::string date(node_parameters.date_);
     if (not date.empty() and item_type != "journalArticle")
-        record->insertField("362", { {'a', date} });
+        record->insertField("362", { { 'a', date} });
 
     // URL
-    const std::string url(node_parameters.url);
+    const std::string url(node_parameters.url_);
     if (not url.empty())
-        record->insertField("856", { {'u', url } }, /* indicator1 = */'4', /* indicator2 = */'0');
+        record->insertField("856", { { 'u', url } }, /* indicator1 = */'4', /* indicator2 = */'0');
 
     // DOI
-    const std::string doi(node_parameters.doi);
+    const std::string doi(node_parameters.doi_);
     if (not doi.empty()) {
         record->insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
         const std::string doi_url("https://doi.org/" + doi);
@@ -498,8 +526,8 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     if (item_type == "journalArticle" or item_type == "magazineArticle" or item_type == "newspaperArticle") {
         MARC::Subfields _936_subfields;
-        const std::string volume(node_parameters.volume);
-        const std::string issue(node_parameters.issue);
+        const std::string volume(node_parameters.volume_);
+        const std::string issue(node_parameters.issue_);
         if (not volume.empty()) {
             _936_subfields.appendSubfield('d', volume);
             if (not issue.empty())
@@ -507,13 +535,13 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         } else if (not issue.empty())
             _936_subfields.appendSubfield('d', issue);
 
-        const std::string pages(node_parameters.pages);
+        const std::string pages(node_parameters.pages_);
         if (not pages.empty())
             _936_subfields.appendSubfield('h', pages);
-        const std::string year(node_parameters.year);
+        const std::string year(node_parameters.year_);
         if (not year.empty())
             _936_subfields.appendSubfield('j', year);
-        const std::string license(node_parameters.license);
+        const std::string license(node_parameters.license_);
         if (license == "l")
             _936_subfields.appendSubfield('z', "Kostenfrei");
         if (not _936_subfields.empty())
@@ -522,18 +550,17 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
 
     // Information about superior work (See BSZ Konkordanz MARC 773)
     MARC::Subfields _773_subfields;
-    const std::string publication_title(node_parameters.publication_title);
+    const std::string publication_title(node_parameters.publication_title_);
     if (not publication_title.empty()) {
         _773_subfields.appendSubfield('i', "In: ");
         _773_subfields.appendSubfield('t', publication_title);
     }
-    const std::string issn(node_parameters.issn);
     if (not issn.empty())
         _773_subfields.appendSubfield('x', issn);
-    const std::string superior_ppn(node_parameters.superior_ppn);
+    const std::string superior_ppn(node_parameters.superior_ppn_);
     if (not superior_ppn.empty())
         _773_subfields.appendSubfield('w', "(DE-576)" + superior_ppn);
-    const std::string volume(node_parameters.volume);
+    const std::string volume(node_parameters.volume_);
 
     // 773g, example: "52(2018), 1, S. 1-40" => <volume>(<year>), <issue>, S. <pages>
     const bool _773_subfields_iaxw_present(not _773_subfields.empty());
@@ -542,15 +569,15 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     if (not volume.empty()) {
         g_content += volume;
 
-        const std::string year(node_parameters.year);
+        const std::string year(node_parameters.year_);
         if (not year.empty())
             g_content += "(" + year + ")";
 
-        const std::string issue(node_parameters.issue);
+        const std::string issue(node_parameters.issue_);
         if (not issue.empty())
             g_content += ", " + issue;
 
-        const std::string pages(node_parameters.pages);
+        const std::string pages(node_parameters.pages_);
         if (not pages.empty())
             g_content += ", S. " + pages;
 
@@ -564,12 +591,12 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         record->insertField("773", _773_subfields);
 
     // Keywords
-    for (const auto &keyword : node_parameters.keywords)
+    for (const auto &keyword : node_parameters.keywords_)
         record->insertField(MARC::GetIndexTag(keyword), { { 'a', TextUtil::CollapseAndTrimWhitespace(keyword) } },
                             /* indicator1 = */' ', /* indicator2 = */'4');
 
     // SSG numbers
-    const auto ssg_numbers(node_parameters.ssg_numbers);
+    const auto ssg_numbers(node_parameters.ssg_numbers_);
     if (not ssg_numbers.empty()) {
         MARC::Subfields _084_subfields;
         for (const auto ssg_number : ssg_numbers)
@@ -580,12 +607,13 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     record->insertField("001", site_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
                         + "#" + StringUtil::ToHexString(MARC::CalcChecksum(*record)));
 
-    InsertAdditionalFields("site params (" + site_params_->parent_journal_name_ + ")", record, site_params_->additional_fields_);
+    InsertAdditionalFields("site params (" + site_params_->journal_name_ + ")", record, site_params_->additional_fields_);
     InsertAdditionalFields("group params (" + site_params_->group_params_->name_ + ")", record,
                            site_params_->group_params_->additional_fields_);
 
     ProcessNonStandardMetadata(record, node_parameters.notes_key_value_pairs_, site_params_->non_standard_metadata_fields_);
 
+    if (not site_params_->zeder_id_.empty())
     record->insertField("ZID", { { 'a', site_params_->zeder_id_} });
 }
 
@@ -595,64 +623,58 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
                                                         custom_node_params)
 {
     const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
-    if (custom_object->getOptionalStringNode("ISSN_untagged"))
-        custom_node_params->issn_normalized = custom_object->getOptionalStringValue("ISSN_untagged");
-    else if (custom_object->getOptionalStringNode("ISSN_online"))
-        custom_node_params->issn_normalized = custom_object->getOptionalStringValue("ISSN_online");
-    else if (custom_object->getOptionalStringNode("ISSN_print"))
-        custom_node_params->issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
-    else
-        LOG_WARNING("No ISSN found for item.");
-
 
     const auto creator_nodes(custom_object->getOptionalArrayNode("creators"));
     if (creator_nodes != nullptr) {
         for (const auto creator_node : *creator_nodes) {
             Creator creator;
-            auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
-            creator.first_name = creator_object_node->getOptionalStringValue("firstName");
-            creator.last_name = creator_object_node->getOptionalStringValue("lastName");
-            creator.type = creator_object_node->getOptionalStringValue("creatorType");
-            creator.ppn = creator_object_node->getOptionalStringValue("ppn");
-            creator.gnd_number = creator_object_node->getOptionalStringValue("gnd_number");
-            custom_node_params->creators.emplace_back(creator);
+            const auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
+            creator.first_name_ = creator_object_node->getOptionalStringValue("firstName");
+            creator.last_name_ = creator_object_node->getOptionalStringValue("lastName");
+            creator.type_ = creator_object_node->getOptionalStringValue("creatorType");
+            creator.ppn_ = creator_object_node->getOptionalStringValue("ppn");
+            creator.gnd_number_ = creator_object_node->getOptionalStringValue("gnd_number");
+            custom_node_params->creators_.emplace_back(creator);
         }
     }
 
-    custom_node_params->parent_journal_name = custom_object->getOptionalStringValue("parent_journal_name");
-    custom_node_params->harvest_url = custom_object->getOptionalStringValue("harvest_url");
-    custom_node_params->physical_form = custom_object->getOptionalStringValue("physicalForm");
-    custom_node_params->volume = custom_object->getOptionalStringValue("volume");
-    custom_node_params->license = custom_object->getOptionalStringValue("licenseCode");
-    custom_node_params->ssg_numbers = custom_object->getOptionalStringValue("ssgNumbers");
-    custom_node_params->date_normalized = custom_object->getOptionalStringValue("date_normalized");
-    custom_node_params->journal_ppn = custom_object->getOptionalStringValue("ppn");
-    custom_node_params->isil = custom_object->getOptionalStringValue("isil");
+    custom_node_params->issn_zotero_ = custom_object->getOptionalStringValue("ISSN_zotero");
+    custom_node_params->issn_online_ = custom_object->getOptionalStringValue("ISSN_online");
+    custom_node_params->issn_print_ = custom_object->getOptionalStringValue("ISSN_print");
+    custom_node_params->journal_name_ = custom_object->getOptionalStringValue("journal_name");
+    custom_node_params->harvest_url_ = custom_object->getOptionalStringValue("harvest_url");
+    custom_node_params->volume_ = custom_object->getOptionalStringValue("volume");
+    custom_node_params->license_ = custom_object->getOptionalStringValue("licenseCode");
+    custom_node_params->ssg_numbers_ = custom_object->getOptionalStringValue("ssgNumbers");
+    custom_node_params->date_normalized_ = custom_object->getOptionalStringValue("date_normalized");
+    custom_node_params->journal_ppn_ = custom_object->getOptionalStringValue("ppn");
+    custom_node_params->isil_ = custom_object->getOptionalStringValue("isil");
 }
 
 
-std::string GetCustomValueIfNotEmpty(const std::string &custom_value, const std::string item_value) {
+std::string GetCustomValueIfNotEmpty(const std::string &custom_value, const std::string &item_value) {
     return (not custom_value.empty()) ? custom_value : item_value;
 }
 
 
 void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters, struct CustomNodeParameters &custom_node_params){
-    item_parameters->issn = GetCustomValueIfNotEmpty(custom_node_params.issn_normalized, item_parameters->issn);
-    item_parameters->parent_journal_name = GetCustomValueIfNotEmpty(item_parameters->parent_journal_name , item_parameters->parent_journal_name);
-    item_parameters->harvest_url = GetCustomValueIfNotEmpty(custom_node_params.harvest_url, item_parameters->harvest_url);
-    item_parameters->physical_form =GetCustomValueIfNotEmpty(custom_node_params.physical_form, item_parameters->physical_form);
-    item_parameters->license = GetCustomValueIfNotEmpty(custom_node_params.license, item_parameters->license);
-    item_parameters->superior_ppn = GetCustomValueIfNotEmpty(custom_node_params.journal_ppn, item_parameters->superior_ppn);
-    item_parameters->ssg_numbers.emplace_back(custom_node_params.ssg_numbers);
+    item_parameters->issn_zotero_ = custom_node_params.issn_zotero_;
+    item_parameters->issn_online_ = custom_node_params.issn_online_;
+    item_parameters->issn_print_ = custom_node_params.issn_print_;
+    item_parameters->journal_name_ = GetCustomValueIfNotEmpty(custom_node_params.journal_name_, item_parameters->journal_name_);
+    item_parameters->harvest_url_ = GetCustomValueIfNotEmpty(custom_node_params.harvest_url_, item_parameters->harvest_url_);
+    item_parameters->license_ = GetCustomValueIfNotEmpty(custom_node_params.license_, item_parameters->license_);
+    item_parameters->superior_ppn_ = GetCustomValueIfNotEmpty(custom_node_params.journal_ppn_, item_parameters->superior_ppn_);
+    item_parameters->ssg_numbers_.emplace_back(custom_node_params.ssg_numbers_);
     // Use the custom creator version if present since it may contain additional information such as a PPN
-    if (custom_node_params.creators.size())
-        item_parameters->creators = custom_node_params.creators;
-    item_parameters->date = GetCustomValueIfNotEmpty(custom_node_params.date_normalized, item_parameters->date);
-    item_parameters->isil = GetCustomValueIfNotEmpty(custom_node_params.isil, item_parameters->isil);
-    if (item_parameters->year.empty() and not custom_node_params.date_normalized.empty()) {
+    if (custom_node_params.creators_.size())
+        item_parameters->creators_ = custom_node_params.creators_;
+    item_parameters->date_ = GetCustomValueIfNotEmpty(custom_node_params.date_normalized_, item_parameters->date_);
+    item_parameters->isil_ = GetCustomValueIfNotEmpty(custom_node_params.isil_, item_parameters->isil_);
+    if (item_parameters->year_.empty() and not custom_node_params.date_normalized_.empty()) {
         unsigned year;
-        if (TimeUtil::StringToYear(custom_node_params.date_normalized, &year))
-            item_parameters->year = StringUtil::ToString(year);
+        if (TimeUtil::StringToYear(custom_node_params.date_normalized_, &year))
+            item_parameters->year_ = StringUtil::ToString(year);
     }
 }
 
@@ -661,9 +683,9 @@ void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_rec
                                                      const BSZUpload::DeliveryMode delivery_mode, struct ItemParameters &item_params,
                                                      unsigned * const previously_downloaded_count) {
 
-    std::string url(item_params.url);
-    const std::string parent_journal_name(item_params.parent_journal_name);
-    const std::string harvest_url(item_params.harvest_url);
+    std::string url(item_params.url_);
+    const std::string journal_name(item_params.journal_name_);
+    const std::string harvest_url(item_params.harvest_url_);
     const std::string checksum(StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
     if (unlikely(url.empty())) {
         if (not harvest_url.empty())
@@ -680,7 +702,7 @@ void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_rec
             not tracked_entry.error_message_.empty())
         {
             marc_writer_->write(new_record);
-            download_tracker_.addOrReplace(delivery_mode, url, parent_journal_name, checksum, /* error_message = */"");
+            download_tracker_.addOrReplace(delivery_mode, url, journal_name, checksum, /* error_message = */"");
         } else {
             ++(*previously_downloaded_count);
             LOG_INFO("skipping URL '" + harvest_url + "' - already harvested");
@@ -755,7 +777,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     LOG_DEBUG("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
-    std::string issn_raw, issn_normalized, parent_ppn;
+    std::string issn_raw, issn_zotero, parent_ppn;
     std::shared_ptr<JSON::StringNode> language_node(nullptr);
     Transformation::TestForUnknownZoteroKey(object_node);
 
@@ -773,16 +795,16 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
             std::shared_ptr<JSON::ArrayNode> creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", key_and_node.second));
             AugmentJsonCreators(creators_array, site_params, &comments);
         } else if (key_and_node.first == "ISSN") {
-            if (not site_params.parent_ISSN_online_.empty() or
-                not site_params.parent_ISSN_print_.empty()) {
+            if (not site_params.ISSN_online_.empty() or
+                not site_params.ISSN_print_.empty()) {
                 continue;   // we'll just use the override
             }
             issn_raw = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
-            if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized))) {
+            if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_zotero))) {
                 // the raw ISSN string probably contains multiple ISSN's that can't be distinguished
                 throw std::runtime_error("\"" + issn_raw + "\" is invalid (multiple ISSN's?)!");
             } else
-                custom_fields.emplace(std::pair<std::string, std::string>("ISSN_untagged", issn_normalized));
+                custom_fields.emplace(std::pair<std::string, std::string>("ISSN_zotero", issn_zotero));
         } else if (key_and_node.first == "date") {
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
@@ -797,42 +819,33 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     }
 
     // use ISSN specified in the config file if any
-    if (not site_params.parent_ISSN_online_.empty()) {
-        issn_normalized = site_params.parent_ISSN_online_;
-        custom_fields.emplace(std::pair<std::string, std::string>("ISSN_online", issn_normalized));
-        LOG_DEBUG("Using default online ISSN \"" + issn_normalized + "\"");
-    } else if (not site_params.parent_ISSN_print_.empty()) {
-        issn_normalized = site_params.parent_ISSN_print_;
-        custom_fields.emplace(std::pair<std::string, std::string>("ISSN_print", issn_normalized));
-        LOG_DEBUG("Using default print ISSN \"" + issn_normalized + "\"");
+    std::string issn_print;
+    if (not site_params.ISSN_print_.empty()) {
+        issn_print = site_params.ISSN_print_;
+        custom_fields.emplace(std::pair<std::string, std::string>("ISSN_print", issn_print));
     }
+    std::string issn_online;
+    if (not site_params.ISSN_online_.empty()) {
+        issn_online = site_params.ISSN_online_;
+        custom_fields.emplace(std::pair<std::string, std::string>("ISSN_online", issn_online));
+    }
+    const std::string issn_selected(SelectISSN(issn_zotero, issn_online, issn_print));
 
-    if (not site_params.parent_PPN_online_.empty()) {
-        parent_ppn = site_params.parent_PPN_online_;
+    if (not site_params.PPN_online_.empty()) {
+        parent_ppn = site_params.PPN_online_;
         custom_fields.emplace(std::pair<std::string, std::string>("ppn", parent_ppn));
         LOG_DEBUG("Using default online PPN \"" + parent_ppn + "\"");
-    } else if (not site_params.parent_PPN_print_.empty()) {
-        parent_ppn = site_params.parent_PPN_print_;
+    } else if (not site_params.PPN_print_.empty()) {
+        parent_ppn = site_params.PPN_print_;
         custom_fields.emplace(std::pair<std::string, std::string>("ppn", parent_ppn));
         LOG_DEBUG("Using default print PPN \"" + parent_ppn + "\"");
     }
 
     // ISSN specific overrides
-    if (not issn_normalized.empty()) {
-
-        // physical form
-        const auto ISSN_and_physical_form(site_params.global_params_->maps_->ISSN_to_physical_form_map_.find(issn_normalized));
-        if (ISSN_and_physical_form != site_params.global_params_->maps_->ISSN_to_physical_form_map_.cend()) {
-            if (ISSN_and_physical_form->second == "A")
-                custom_fields.emplace(std::pair<std::string, std::string>("physicalForm", "A"));
-            else if (ISSN_and_physical_form->second == "O")
-                custom_fields.emplace(std::pair<std::string, std::string>("physicalForm", "O"));
-            else
-                LOG_ERROR("unhandled entry in physical form map: \"" + ISSN_and_physical_form->second + "\"!");
-        }
+    if (not issn_selected.empty()) {
 
         // language
-        const auto ISSN_and_language(site_params.global_params_->maps_->ISSN_to_language_code_map_.find(issn_normalized));
+        const auto ISSN_and_language(site_params.global_params_->maps_->ISSN_to_language_code_map_.find(issn_selected));
         if (ISSN_and_language != site_params.global_params_->maps_->ISSN_to_language_code_map_.cend()) {
             if (language_node != nullptr) {
                 const std::string language_old(language_node->getValue());
@@ -849,7 +862,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         // volume
         const std::string volume(object_node->getOptionalStringValue("volume"));
         if (volume.empty()) {
-            const auto ISSN_and_volume(site_params.global_params_->maps_->ISSN_to_volume_map_.find(issn_normalized));
+            const auto ISSN_and_volume(site_params.global_params_->maps_->ISSN_to_volume_map_.find(issn_selected));
             if (ISSN_and_volume != site_params.global_params_->maps_->ISSN_to_volume_map_.cend()) {
                 if (volume.empty()) {
                     const std::shared_ptr<JSON::JSONNode> volume_node(object_node->getNode("volume"));
@@ -862,7 +875,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         }
 
         // license code
-        const auto ISSN_and_license_code(site_params.global_params_->maps_->ISSN_to_licence_map_.find(issn_normalized));
+        const auto ISSN_and_license_code(site_params.global_params_->maps_->ISSN_to_licence_map_.find(issn_selected));
         if (ISSN_and_license_code != site_params.global_params_->maps_->ISSN_to_licence_map_.end()) {
             if (ISSN_and_license_code->second != "l")
                 LOG_ERROR("ISSN_to_licence.map contains an ISSN that has not been mapped to an \"l\" but \""
@@ -873,7 +886,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         }
 
         // SSG numbers:
-        const auto ISSN_and_SSGN_numbers(site_params.global_params_->maps_->ISSN_to_SSG_map_.find(issn_normalized));
+        const auto ISSN_and_SSGN_numbers(site_params.global_params_->maps_->ISSN_to_SSG_map_.find(issn_selected));
         if (ISSN_and_SSGN_numbers != site_params.global_params_->maps_->ISSN_to_SSG_map_.end())
             custom_fields.emplace(std::pair<std::string, std::string>("ssgNumbers", ISSN_and_SSGN_numbers->second));
 
@@ -882,7 +895,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         LOG_WARNING("No suitable ISSN was found!");
 
     // Add the parent journal name for tracking changes to the harvested URL
-    custom_fields.emplace(std::make_pair("parent_journal_name", site_params.parent_journal_name_));
+    custom_fields.emplace(std::make_pair("journal_name", site_params.journal_name_));
     // save harvest URL in case of a faulty translator that doesn't correctly retrieve it
     custom_fields.emplace(std::make_pair("harvest_url", harvest_url));
     // save delivery mode for URL download tracking
@@ -1003,7 +1016,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         return record_count_and_previously_downloaded_count;
     }
     already_harvested_urls.emplace(harvest_url);
-    auto error_logger_context(error_logger->newContext(site_params.parent_journal_name_, harvest_url));
+    auto error_logger_context(error_logger->newContext(site_params.journal_name_, harvest_url));
 
     LOG_INFO("Harvesting URL: " + harvest_url);
 
@@ -1206,7 +1219,7 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
                                    DbConnection * const db_connection)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
-    auto error_logger_context(error_logger->newContext(site_params.parent_journal_name_, feed_url));
+    auto error_logger_context(error_logger->newContext(site_params.journal_name_, feed_url));
 
     if (mode != RSSHarvestMode::NORMAL)
         LOG_INFO("Processing URL: " + feed_url);
