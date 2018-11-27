@@ -614,18 +614,12 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
                                                         custom_node_params)
 {
     const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
-    if (custom_object->getOptionalStringNode("ISSN_zotero"))
-        custom_node_params->issn_zotero = custom_object->getOptionalStringValue("ISSN_zotero");
-    if (custom_object->getOptionalStringNode("ISSN_online"))
-        custom_node_params->issn_online = custom_object->getOptionalStringValue("ISSN_online");
-    if (custom_object->getOptionalStringNode("ISSN_print"))
-        custom_node_params->issn_print = custom_object->getOptionalStringValue("ISSN_print");
 
     const auto creator_nodes(custom_object->getOptionalArrayNode("creators"));
     if (creator_nodes != nullptr) {
         for (const auto creator_node : *creator_nodes) {
             Creator creator;
-            auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
+            const auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
             creator.first_name = creator_object_node->getOptionalStringValue("firstName");
             creator.last_name = creator_object_node->getOptionalStringValue("lastName");
             creator.type = creator_object_node->getOptionalStringValue("creatorType");
@@ -635,6 +629,9 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
         }
     }
 
+    custom_node_params->issn_zotero = custom_object->getOptionalStringValue("ISSN_zotero");
+    custom_node_params->issn_online = custom_object->getOptionalStringValue("ISSN_online");
+    custom_node_params->issn_print = custom_object->getOptionalStringValue("ISSN_print");
     custom_node_params->parent_journal_name = custom_object->getOptionalStringValue("parent_journal_name");
     custom_node_params->harvest_url = custom_object->getOptionalStringValue("harvest_url");
     custom_node_params->volume = custom_object->getOptionalStringValue("volume");
