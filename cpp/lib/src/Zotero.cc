@@ -657,8 +657,8 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
     custom_node_params->license_ = custom_object->getOptionalStringValue("licenseCode");
     custom_node_params->ssg_numbers_ = custom_object->getOptionalStringValue("ssgNumbers");
     custom_node_params->date_normalized_ = custom_object->getOptionalStringValue("date_normalized");
-    custom_node_params->journal_ppn_online_ = custom_object->getOptionalStringValue("ppn_online");
-    custom_node_params->journal_ppn_print_ = custom_object->getOptionalStringValue("ppn_print");
+    custom_node_params->superior_ppn_online_ = custom_object->getOptionalStringValue("ppn_online");
+    custom_node_params->superior_ppn_print_ = custom_object->getOptionalStringValue("ppn_print");
     custom_node_params->isil_ = custom_object->getOptionalStringValue("isil");
 }
 
@@ -672,8 +672,8 @@ void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParamet
     item_parameters->issn_zotero_ = custom_node_params.issn_zotero_;
     item_parameters->issn_online_ = custom_node_params.issn_online_;
     item_parameters->issn_print_ = custom_node_params.issn_print_;
-    item_parameters->superior_ppn_online_ = custom_node_params.journal_ppn_online_;
-    item_parameters->superior_ppn_print_ = custom_node_params.journal_ppn_print_;
+    item_parameters->superior_ppn_online_ = custom_node_params.superior_ppn_online_;
+    item_parameters->superior_ppn_print_ = custom_node_params.superior_ppn_print_;
     item_parameters->journal_name_ = GetCustomValueIfNotEmpty(custom_node_params.journal_name_, item_parameters->journal_name_);
     item_parameters->harvest_url_ = GetCustomValueIfNotEmpty(custom_node_params.harvest_url_, item_parameters->harvest_url_);
     item_parameters->license_ = GetCustomValueIfNotEmpty(custom_node_params.license_, item_parameters->license_);
