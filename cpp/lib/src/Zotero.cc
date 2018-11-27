@@ -693,7 +693,6 @@ void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_rec
             LOG_ERROR("\"url\" has not been set!");
     }
 
-
     if (disable_tracking)
         marc_writer_->write(new_record);
     else {
