@@ -124,7 +124,7 @@ void ControlNumberGuesser::insertDOI(const std::string &doi, const std::string &
 
     LOG_DEBUG("normalised_doi=\"" + normalised_doi + "\".");
     if (unlikely(normalised_doi.empty()))
-        LOG_WARNING("Empty normalised doi in record w/ control number: " + control_number);
+        LOG_WARNING("Empty normalised doi in record w/ control number: " + control_number + ": " + doi);
     else
         insertNewControlNumber("doi", "doi", normalised_doi, control_number);
 }
