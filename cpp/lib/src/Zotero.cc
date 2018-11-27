@@ -420,16 +420,26 @@ static void ProcessNonStandardMetadata(MARC::Record * const record, const std::m
 }
 
 
-std::string SelectISSN(const std::string &issn_zotero, const std::string &issn_online, const std::string &issn_print) {
+void SelectIssnAndPpn(const std::string &issn_zotero, const std::string &issn_online, const std::string &issn_print,
+                      const std::string &ppn_online, const std::string &ppn_print,
+                      std::string * const issn_selected, std::string * const ppn_selected)
+{
     if (not issn_online.empty() and (issn_zotero.empty() or issn_zotero == issn_online)) {
-        LOG_DEBUG("use online ISSN: " + issn_online);
-        return issn_online;
+        *issn_selected = issn_online;
+        *ppn_selected = ppn_online;
+        if (ppn_online.empty())
+            LOG_ERROR("cannot use online ISSN \"" + issn_online + "\" because no online PPN is given!");
+        LOG_DEBUG("use online ISSN \"" + issn_online + "\" with online PPN \"" + ppn_online + "\"");
     } else if (not issn_online.empty() and (issn_zotero.empty() or issn_zotero == issn_online)) {
-        LOG_DEBUG("use print ISSN: " + issn_print);
-        return issn_print;
+        *issn_selected = issn_print;
+        *ppn_selected = ppn_print;
+        if (ppn_print.empty())
+            LOG_ERROR("cannot use print ISSN \"" + issn_print + "\" because no print PPN is given!");
+        LOG_DEBUG("use print ISSN \"" + issn_print + "\" with print PPN \"" + ppn_print + "\"");
     } else
-        LOG_ERROR("ISSN could not be chosen! online: \"" + issn_online + "\""
-                  + ", print: \"" + issn_print + "\"" + ", zotero: \"" + issn_zotero + "\"");
+        LOG_ERROR("ISSN and PPN could not be chosen! ISSN online: \"" + issn_online + "\""
+                  + ", ISSN print: \"" + issn_print + "\", ISSN zotero: \"" + issn_zotero + "\""
+                  + ", PPN online: \"" + ppn_online + "\", PPN print: \"" + ppn_print + "\"");
 }
 
 
@@ -446,7 +456,9 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     record->insertField("003", isil);
 
     // ISSN and physical description
-    const std::string issn(SelectISSN(node_parameters.issn_zotero_, node_parameters.issn_zotero_, node_parameters.issn_zotero_));
+    std::string superior_ppn, issn;
+    SelectIssnAndPpn(node_parameters.issn_zotero_, node_parameters.issn_online_, node_parameters.issn_print_,
+                     node_parameters.superior_ppn_online_, node_parameters.superior_ppn_print_, &issn, &superior_ppn);
     if (issn == node_parameters.issn_print_)
         record->insertField("007", "tu");
     else
@@ -557,7 +569,6 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     }
     if (not issn.empty())
         _773_subfields.appendSubfield('x', issn);
-    const std::string superior_ppn(node_parameters.superior_ppn_);
     if (not superior_ppn.empty())
         _773_subfields.appendSubfield('w', "(DE-576)" + superior_ppn);
     const std::string volume(node_parameters.volume_);
@@ -637,16 +648,17 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
         }
     }
 
-    custom_node_params->issn_zotero_ = custom_object->getOptionalStringValue("ISSN_zotero");
-    custom_node_params->issn_online_ = custom_object->getOptionalStringValue("ISSN_online");
-    custom_node_params->issn_print_ = custom_object->getOptionalStringValue("ISSN_print");
+    custom_node_params->issn_zotero_ = custom_object->getOptionalStringValue("issn_zotero");
+    custom_node_params->issn_online_ = custom_object->getOptionalStringValue("issn_online");
+    custom_node_params->issn_print_ = custom_object->getOptionalStringValue("issn_print");
     custom_node_params->journal_name_ = custom_object->getOptionalStringValue("journal_name");
     custom_node_params->harvest_url_ = custom_object->getOptionalStringValue("harvest_url");
     custom_node_params->volume_ = custom_object->getOptionalStringValue("volume");
     custom_node_params->license_ = custom_object->getOptionalStringValue("licenseCode");
     custom_node_params->ssg_numbers_ = custom_object->getOptionalStringValue("ssgNumbers");
     custom_node_params->date_normalized_ = custom_object->getOptionalStringValue("date_normalized");
-    custom_node_params->journal_ppn_ = custom_object->getOptionalStringValue("ppn");
+    custom_node_params->journal_ppn_online_ = custom_object->getOptionalStringValue("ppn_online");
+    custom_node_params->journal_ppn_print_ = custom_object->getOptionalStringValue("ppn_print");
     custom_node_params->isil_ = custom_object->getOptionalStringValue("isil");
 }
 
@@ -660,10 +672,11 @@ void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParamet
     item_parameters->issn_zotero_ = custom_node_params.issn_zotero_;
     item_parameters->issn_online_ = custom_node_params.issn_online_;
     item_parameters->issn_print_ = custom_node_params.issn_print_;
+    item_parameters->superior_ppn_online_ = custom_node_params.journal_ppn_online_;
+    item_parameters->superior_ppn_print_ = custom_node_params.journal_ppn_print_;
     item_parameters->journal_name_ = GetCustomValueIfNotEmpty(custom_node_params.journal_name_, item_parameters->journal_name_);
     item_parameters->harvest_url_ = GetCustomValueIfNotEmpty(custom_node_params.harvest_url_, item_parameters->harvest_url_);
     item_parameters->license_ = GetCustomValueIfNotEmpty(custom_node_params.license_, item_parameters->license_);
-    item_parameters->superior_ppn_ = GetCustomValueIfNotEmpty(custom_node_params.journal_ppn_, item_parameters->superior_ppn_);
     item_parameters->ssg_numbers_.emplace_back(custom_node_params.ssg_numbers_);
     // Use the custom creator version if present since it may contain additional information such as a PPN
     if (custom_node_params.creators_.size())
@@ -776,7 +789,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     LOG_DEBUG("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
-    std::string issn_raw, issn_zotero, parent_ppn;
+    std::string issn_raw, issn_zotero;
     std::shared_ptr<JSON::StringNode> language_node(nullptr);
     Transformation::TestForUnknownZoteroKey(object_node);
 
@@ -803,7 +816,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
                 // the raw ISSN string probably contains multiple ISSN's that can't be distinguished
                 throw std::runtime_error("\"" + issn_raw + "\" is invalid (multiple ISSN's?)!");
             } else
-                custom_fields.emplace(std::pair<std::string, std::string>("ISSN_zotero", issn_zotero));
+                custom_fields.emplace(std::pair<std::string, std::string>("issn_zotero", issn_zotero));
         } else if (key_and_node.first == "date") {
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
@@ -817,28 +830,19 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         }
     }
 
-    // use ISSN specified in the config file if any
-    std::string issn_print;
-    if (not site_params.ISSN_print_.empty()) {
-        issn_print = site_params.ISSN_print_;
-        custom_fields.emplace(std::pair<std::string, std::string>("ISSN_print", issn_print));
-    }
-    std::string issn_online;
-    if (not site_params.ISSN_online_.empty()) {
-        issn_online = site_params.ISSN_online_;
-        custom_fields.emplace(std::pair<std::string, std::string>("ISSN_online", issn_online));
-    }
-    const std::string issn_selected(SelectISSN(issn_zotero, issn_online, issn_print));
+    // use ISSN/PPN specified in the config file if any
+    if (not site_params.ISSN_print_.empty())
+        custom_fields.emplace(std::pair<std::string, std::string>("issn_print", site_params.ISSN_print_));
+    if (not site_params.ISSN_online_.empty())
+        custom_fields.emplace(std::pair<std::string, std::string>("issn_online", site_params.ISSN_online_));
+    if (not site_params.PPN_online_.empty())
+        custom_fields.emplace(std::pair<std::string, std::string>("ppn_online", site_params.PPN_online_));
+    if (not site_params.PPN_print_.empty())
+        custom_fields.emplace(std::pair<std::string, std::string>("ppn_print", site_params.PPN_print_));
 
-    if (not site_params.PPN_online_.empty()) {
-        parent_ppn = site_params.PPN_online_;
-        custom_fields.emplace(std::pair<std::string, std::string>("ppn", parent_ppn));
-        LOG_DEBUG("Using default online PPN \"" + parent_ppn + "\"");
-    } else if (not site_params.PPN_print_.empty()) {
-        parent_ppn = site_params.PPN_print_;
-        custom_fields.emplace(std::pair<std::string, std::string>("ppn", parent_ppn));
-        LOG_DEBUG("Using default print PPN \"" + parent_ppn + "\"");
-    }
+    std::string issn_selected, ppn_selected;
+    SelectIssnAndPpn(issn_zotero, site_params.ISSN_online_, site_params.ISSN_print_, site_params.PPN_online_, site_params.PPN_print_,
+                     &issn_selected, &ppn_selected);
 
     // ISSN specific overrides
     if (not issn_selected.empty()) {
