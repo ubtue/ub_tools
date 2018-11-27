@@ -28,6 +28,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
+#include <linux/limits.h>
 #ifdef HAS_SELINUX_HEADERS
 #   include <selinux/selinux.h>
 #endif
@@ -1263,6 +1264,25 @@ bool IsPipeOrFIFO(const std::string &path) {
 void ChangeDirectoryOrDie(const std::string &directory) {
     if (unlikely(::chdir(directory.c_str()) != 0))
         LOG_ERROR("failed to change directory to \"" + directory + "\"!");
+}
+
+
+std::string GetPathFromFileDescriptor(const int fd) {
+    size_t buf_size(0);
+    char *buf(nullptr);
+    for (;;) {
+        buf_size += PATH_MAX;
+        buf = reinterpret_cast<char *>(std::realloc(buf, buf_size));
+
+        const auto path_size(::readlink(("/proc/self/fd/" + std::to_string(fd)).c_str(), buf, buf_size));
+        if (path_size == -1)
+            LOG_ERROR("readlink(2) failed!");
+
+        if (static_cast<size_t>(path_size) < buf_size) {
+            buf[path_size] = '\0';
+            return buf;
+        }
+    }
 }
 
 

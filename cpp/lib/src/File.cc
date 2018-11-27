@@ -35,7 +35,7 @@
 
 
 File::File(const std::string &filename, const std::string &mode, const ThrowOnOpenBehaviour throw_on_error_behaviour)
-    : filename_(filename), buffer_ptr_(buffer_), read_count_(0), file_(nullptr), pushed_back_count_(0), precision_(6)
+    : buffer_ptr_(buffer_), read_count_(0), file_(nullptr), pushed_back_count_(0), precision_(6)
 {
     if (mode == "w")
         open_mode_ = WRITING;
@@ -57,11 +57,12 @@ File::File(const std::string &filename, const std::string &mode, const ThrowOnOp
             throw std::runtime_error("in File::File: could not open \"" + filename + "\" w/ mode \"" + mode + "\"!");
     }
 
+
 }
 
 
 File::File(const int fd, const std::string &mode)
-    : filename_("/proc/self/fd/" + std::to_string(fd)), buffer_ptr_(buffer_), read_count_(0), file_(nullptr),
+    : filename_(FileUtil::GetPathFromFileDescriptor(fd)), buffer_ptr_(buffer_), read_count_(0), file_(nullptr),
       pushed_back_count_(0), precision_(6)
 {
     std::string local_mode;
