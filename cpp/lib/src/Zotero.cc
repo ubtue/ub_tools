@@ -673,7 +673,6 @@ void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_rec
             LOG_ERROR("\"url\" has not been set!");
     }
 
-
     if (disable_tracking)
         marc_writer_->write(new_record);
     else {
@@ -924,7 +923,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
 
 const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &map_directory_path) {
     std::string combined_regex;
-    for (const auto line : FileUtil::ReadLines(map_directory_path + "targets.regex", FileUtil::ReadLines::TRIM_LEFT_AND_RIGHT)) {
+    for (const auto line : FileUtil::ReadLines(map_directory_path + "targets.regex")) {
         if (likely(not line.empty())) {
             if (likely(not combined_regex.empty()))
                 combined_regex += '|';
