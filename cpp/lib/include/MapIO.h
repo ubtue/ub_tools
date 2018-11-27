@@ -2,7 +2,7 @@
  *  \brief  Map-IO-related utility functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -25,6 +25,10 @@
 #include <unordered_map>
 
 
+// Forward declaration:
+class File;
+
+
 namespace MapIO {
 
 
@@ -41,8 +45,9 @@ void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::s
 void SerialiseMap(const std::string &output_filename, const std::unordered_multimap<std::string, std::string> &map);
 
 /** \brief Reads "multimap" from "input_filename".  Aborts on input errors and emits an error message on stderr. */
-void DeserialiseMap(const std::string &input_filename,
-                    std::unordered_multimap<std::string, std::string> * const multimap);
+void DeserialiseMap(const std::string &input_filename, std::unordered_multimap<std::string, std::string> * const multimap);
+
+void WriteEntry(File * const map_file, const std::string &key, const std::string &value);
 
 
 } // namespace MapIO
