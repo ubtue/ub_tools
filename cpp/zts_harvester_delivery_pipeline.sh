@@ -64,6 +64,12 @@ function EndPhase {
 }
 
 
+function EndPipeline {
+    echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes." | tee --append "${log}"
+    echo "*** ZTS_HARVESTER DELIVERY PIPELINE DONE ***" | tee --append "${log}"
+}
+
+
 # Set up the log file:
 logdir=/usr/local/var/log/tuefind
 log_filename=$(basename "$0")
@@ -82,6 +88,7 @@ declare -a dest_filepaths
 
 StartPhase "Harvest URLs"
 LOGGER_FORMAT=no_decorations,strip_call_site \
+BACKTRACE=1 \
 zts_harvester --min-log-level=INFO \
              --delivery-mode=$delivery_mode \
              --output-directory=$harvester_output_directory \
@@ -98,7 +105,13 @@ for d in */ ; do
         continue
     fi
 
-    source_filepaths[$counter]=$harvester_output_directory/$d/$harvester_output_filename
+    current_source_filepath=$harvester_output_directory/$d/$harvester_output_filename
+    record_count=$(marc_size "$current_source_filepath")
+    if [ "$record_count" = "0" ]; then
+        continue    # skip files with zero records
+    fi
+
+    source_filepaths[$counter]=$current_source_filepath
     if [ "$delivery_mode" = "TEST" ]; then
         dest_filepaths[$counter]=/pub/UBTuebingen_Import_Test/"$d"_Test/
     elif [ "$delivery_mode" = "LIVE" ]; then
@@ -106,6 +119,11 @@ for d in */ ; do
     fi
     counter=$((counter+1))
 done
+
+if [ "$counter" = "0" ]; then
+    echo "No new records were harvested!"
+    EndPipeline
+fi
 EndPhase
 
 StartPhase "Validate Generated Records"
@@ -127,5 +145,4 @@ done
 EndPhase
 
 
-echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes." | tee --append "${log}"
-echo "*** ZTS_HARVESTER DELIVERY PIPELINE DONE ***" | tee --append "${log}"
+EndPipeline

@@ -171,6 +171,159 @@ time_t TimeGm(const struct tm &tm) {
 }
 
 
+// Strips out the colon in the date string to preserve compatibility with CentOS.
+static void NormalizeTimeZoneOffset(std::string * const date_str) {
+    static RegexMatcher * const matcher_iso8601(RegexMatcher::RegexMatcherFactory(
+        "[0-9]{4}-[0-9]{2}-[0-9]{2}([[:space:]]|T){1}[0-9]{2}:[0-9]{2}:[0-9]{2}(\\+|\\-|\\s){1}[0-9]{2}(:)[0-9]{2}"));
+
+    if (matcher_iso8601->matched(*date_str))
+        date_str->erase(date_str->length() - 3, 1);
+}
+
+
+// If "format_string" ends with "%Z", we remove it and extract the corresponding time zone name into "*time_zone_name".
+static void ExtractOptionalTimeZoneName(std::string * const date_str, std::string * const format_string, std::string * const time_zone_name) {
+    if (StringUtil::EndsWith(*format_string, "%Z")) {
+        *format_string = StringUtil::RightTrim(format_string->substr(0, format_string->length() - 2));
+        auto ch(date_str->rbegin());
+        while (ch != date_str->rend() and StringUtil::IsUppercaseAsciiLetter(*ch)) {
+            *time_zone_name += *ch;
+            ++ch;
+        }
+
+        date_str->resize(date_str->length() - time_zone_name->length());
+        StringUtil::RightTrim(date_str);
+        std::reverse(time_zone_name->begin(), time_zone_name->end());
+    }
+}
+
+
+// If time_offset refers to a valid RFC 3339 time offset, we adjust *date_time for it and return true.
+// O/w we set *date_time to BAD_TIME_T and return false.
+static bool AdjustForTimeOffset(time_t * const date_time, const char * const time_offset) {
+    if (std::strlen(time_offset) != 6 /* sign + mm:ss */ or time_offset[3] != ':' or not StringUtil::IsDigit(time_offset[1])
+        or not StringUtil::IsDigit(time_offset[2]) or not StringUtil::IsDigit(time_offset[4])
+        or not StringUtil::IsDigit(time_offset[5]))
+    {
+        *date_time = BAD_TIME_T;
+        return false;
+    }
+
+    int offset(0);
+    offset += (time_offset[1] - '0') * 36000; // tens of hours
+    offset += (time_offset[2] - '0') *  3600; // hours
+    offset += (time_offset[4] - '0') *   600; // tens of minutes
+    offset += (time_offset[5] - '0') *    60; // minutes
+
+    if (time_offset[0] == '+')
+        *date_time -= offset;
+    else
+        *date_time += offset;
+
+    return true;
+}
+
+
+static void CorrectForSymbolicTimeZone(struct tm * const tm, const std::string &time_zone_name) {
+    if (time_zone_name == "GMT" or time_zone_name == "UTC")
+        return; // GMT is the same as UTC
+
+    time_t converted_tm(::mktime(tm));
+    const char *offset = "+00:00";
+    if (time_zone_name == "PDT")
+        offset = "-07:00";
+    else
+        LOG_ERROR("Unhandled timezone symbolic name '" + time_zone_name + "'");
+
+    if (not AdjustForTimeOffset(&converted_tm, offset))
+        LOG_ERROR("couldn't adjust time_t " + TimeTToString(converted_tm) + " with offset " + std::string(offset));
+}
+
+
+// Strptime()/CentOS idiosyncrasies:
+//      - Strptime() supports "%Z" to denote time zone names, but it doesn't perfom the time conversion.
+//        Furthermore, the above format specifier is apparently broken on CentOS.
+//        So, we need to override the behaviour on our end.
+//      - "%z" does not support a colon in the time zone offset on CentOS.
+//        So, we need to strip it out before we pass it to the function.
+static bool StringToStructTmHelper(std::string date_str, std::string optional_strptime_format, struct tm * const tm) {
+    time_t unix_time(TimeUtil::BAD_TIME_T);
+    if (optional_strptime_format.empty())
+        unix_time = WebUtil::ParseWebDateAndTime(date_str);
+    else {
+        std::unique_ptr<Locale> locale;
+        // Optional locale specification?
+        if (optional_strptime_format[0] == '(') {
+            const size_t closing_paren_pos(optional_strptime_format.find(')', 1));
+            if (unlikely(closing_paren_pos == std::string::npos or closing_paren_pos == 1))
+                throw std::runtime_error("TimeUtil::StringToStructTm: bad locale specification \"" + optional_strptime_format + "\"!");
+            const std::string locale_specifications(optional_strptime_format.substr(1, closing_paren_pos - 1));
+            std::vector<std::string> locales_list;
+            StringUtil::Split(locale_specifications, '|', &locales_list);
+            for (const auto &locale_specification : locales_list) {
+                Locale *new_locale(new Locale(locale_specification, LC_TIME));
+                if (new_locale->isValid()) {
+                    locale.reset(new_locale);
+                    break;
+                } else
+                    delete new_locale;
+            }
+            if (unlikely(locale == nullptr))
+                LOG_ERROR("no valid locale found in \"" + locale_specifications + "\"!");
+
+            optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
+        }
+
+        NormalizeTimeZoneOffset(&date_str);
+
+        std::unordered_set<std::string> format_string_splits;
+        // try available format strings until a matching one is found
+        if (StringUtil::SplitThenTrimWhite(optional_strptime_format, '|', &format_string_splits)) {
+            for (auto format_string : format_string_splits) {
+                std::string time_zone_name;
+                ExtractOptionalTimeZoneName(&date_str, &format_string, &time_zone_name);
+
+                std::memset(tm, 0, sizeof(*tm));
+                const char * const last_char(::strptime(date_str.c_str(), format_string.c_str(), tm));
+                if (last_char == nullptr or *last_char != '\0')
+                    unix_time = TimeUtil::BAD_TIME_T;
+                else {
+                    if (not time_zone_name.empty())
+                        CorrectForSymbolicTimeZone(tm, time_zone_name);
+
+                    if (tm->tm_mday == 0)
+                        tm->tm_mday = 1;
+                    return true;
+                }
+            }
+        }
+    }
+
+    if (unix_time != TimeUtil::BAD_TIME_T) {
+        if (unlikely(::gmtime_r(&unix_time, tm) == nullptr))
+            return false;
+        return true;
+    }
+
+    return false;
+}
+
+
+bool ConvertFormat(const std::string &from_format, const std::string &to_format, std::string * const datetime, const TimeZone time_zone) {
+    struct tm tm;
+    if (not StringToStructTmHelper(*datetime, from_format, &tm))
+        return false;
+
+    const time_t time(TimeGm(tm));
+    if (unlikely(time == BAD_TIME_T))
+        return false;
+
+    *datetime = TimeTToString(time, to_format, time_zone);
+
+    return true;
+}
+
+
 unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * const year, unsigned * const month,
                                 unsigned * const day, unsigned * const hour, unsigned * const minute,
                                 unsigned * const second, int * const hour_offset, int * const minute_offset,
@@ -624,32 +777,6 @@ bool ParseRFC1123DateTime(const std::string &date_time_candidate, time_t * const
 }
 
 
-// If time_offset refers to a valid RFC 3339 time offset, we adjust *date_time for it and return true.
-// O/w we set *date_time to BAD_TIME_T and return false.
-static bool AdjustForTimeOffset(time_t * const date_time, const char * const time_offset) {
-    if (std::strlen(time_offset) != 6 /* sign + mm:ss */ or time_offset[3] != ':' or not StringUtil::IsDigit(time_offset[1])
-        or not StringUtil::IsDigit(time_offset[2]) or not StringUtil::IsDigit(time_offset[4])
-        or not StringUtil::IsDigit(time_offset[5]))
-    {
-        *date_time = BAD_TIME_T;
-        return false;
-    }
-
-    int offset(0);
-    offset += (time_offset[1] - '0') * 36000; // tens of hours
-    offset += (time_offset[2] - '0') *  3600; // hours
-    offset += (time_offset[4] - '0') *   600; // tens of minutes
-    offset += (time_offset[5] - '0') *    60; // minutes
-
-    if (time_offset[0] == '+')
-        *date_time -= offset;
-    else
-        *date_time += offset;
-
-    return true;
-}
-
-
 bool ParseRFC3339DateTime(const std::string &date_time_candidate, time_t * const date_time) {
     // Convert possible lowercase t and z to uppercase:
     const std::string normalised_date_time_candidate(StringUtil::ToUpper(date_time_candidate));
@@ -707,119 +834,12 @@ std::string StructTmToString(const struct tm &tm) {
 }
 
 
-void CorrectForSymbolicTimeZone(struct tm * const tm, const std::string &time_zone_name) {
-    if (time_zone_name == "GMT" or time_zone_name == "UTC")
-        return; // GMT is the same as UTC
-
-    time_t converted_tm(::mktime(tm));
-    const char *offset = "+00:00";
-    if (time_zone_name == "PDT")
-        offset = "-07:00";
-    else
-        LOG_ERROR("Unhandled timezone symbolic name '" + time_zone_name + "'");
-
-    if (not AdjustForTimeOffset(&converted_tm, offset))
-        LOG_ERROR("couldn't adjust time_t " + TimeTToString(converted_tm) + " with offset " + std::string(offset));
-}
-
-
-// If "format_string" ends with "%Z", we remove it and extract the corresponding time zone name into "*time_zone_name".
-static void ExtractOptionalTimeZoneName(std::string * const date_str, std::string * const format_string, std::string * const time_zone_name) {
-    if (StringUtil::EndsWith(*format_string, "%Z")) {
-        *format_string = StringUtil::RightTrim(format_string->substr(0, format_string->length() - 2));
-        auto ch(date_str->rbegin());
-        while (ch != date_str->rend() and StringUtil::IsUppercaseAsciiLetter(*ch)) {
-            *time_zone_name += *ch;
-            ++ch;
-        }
-
-        date_str->resize(date_str->length() - time_zone_name->length());
-        StringUtil::RightTrim(date_str);
-        std::reverse(time_zone_name->begin(), time_zone_name->end());
-    }
-}
-
-
-// Strips out the colon in the date string to preserve compatibility with CentOS.
-static void NormalizeTimeZoneOffset(std::string * const date_str) {
-    static RegexMatcher * const matcher_iso8601(RegexMatcher::RegexMatcherFactory(
-        "[0-9]{4}-[0-9]{2}-[0-9]{2}([[:space:]]|T){1}[0-9]{2}:[0-9]{2}:[0-9]{2}(\\+|\\-|\\s){1}[0-9]{2}(:)[0-9]{2}"));
-
-    if (matcher_iso8601->matched(*date_str))
-        date_str->erase(date_str->length() - 3, 1);
-}
-
-
-// Strptime()/CentOS idiosyncrasies:
-//      - Strptime() supports "%Z" to denote time zone names, but it doesn't perfom the time conversion.
-//        Furthermore, the above format specifier is apparently broken on CentOS.
-//        So, we need to override the behaviour on our end.
-//      - "%z" does not support a colon in the time zone offset on CentOS.
-//        So, we need to strip it out before we pass it to the function.
 struct tm StringToStructTm(std::string date_str, std::string optional_strptime_format) {
     struct tm tm;
+    if (likely(StringToStructTmHelper(date_str, optional_strptime_format, &tm)))
+        return tm;
 
-    time_t unix_time(TimeUtil::BAD_TIME_T);
-    if (optional_strptime_format.empty())
-        unix_time = WebUtil::ParseWebDateAndTime(date_str);
-    else {
-        std::unique_ptr<Locale> locale;
-        // Optional locale specification?
-        if (optional_strptime_format[0] == '(') {
-            const size_t closing_paren_pos(optional_strptime_format.find(')', 1));
-            if (unlikely(closing_paren_pos == std::string::npos or closing_paren_pos == 1))
-                throw std::runtime_error("TimeUtil::StringToStructTm: bad locale specification \"" + optional_strptime_format + "\"!");
-            const std::string locale_specifications(optional_strptime_format.substr(1, closing_paren_pos - 1));
-            std::vector<std::string> locales_list;
-            StringUtil::Split(locale_specifications, '|', &locales_list);
-            for (const auto &locale_specification : locales_list) {
-                Locale *new_locale(new Locale(locale_specification, LC_TIME));
-                if (new_locale->isValid()) {
-                    locale.reset(new_locale);
-                    break;
-                } else
-                    delete new_locale;
-            }
-            if (unlikely(locale == nullptr))
-                LOG_ERROR("no valid locale found in \"" + locale_specifications + "\"!");
-
-            optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
-        }
-
-        NormalizeTimeZoneOffset(&date_str);
-
-        std::unordered_set<std::string> format_string_splits;
-        // try available format strings until a matching one is found
-        if (StringUtil::SplitThenTrimWhite(optional_strptime_format, '|', &format_string_splits)) {
-            for (auto format_string : format_string_splits) {
-                std::string time_zone_name;
-                ExtractOptionalTimeZoneName(&date_str, &format_string, &time_zone_name);
-
-                std::memset(&tm, 0, sizeof(tm));
-                const char * const last_char(::strptime(date_str.c_str(), format_string.c_str(), &tm));
-                if (last_char == nullptr or *last_char != '\0')
-                    unix_time = TimeUtil::BAD_TIME_T;
-                else {
-                    if (not time_zone_name.empty())
-                        CorrectForSymbolicTimeZone(&tm, time_zone_name);
-
-                    if (tm.tm_mday == 0)
-                        tm.tm_mday = 1;
-                    return tm;
-                }
-            }
-        }
-    }
-
-    if (unix_time != TimeUtil::BAD_TIME_T) {
-        struct tm *tm_ptr(::gmtime(&unix_time));
-        if (unlikely(tm_ptr == nullptr))
-            throw std::runtime_error("TimeUtil::StringToStructTm: gmtime(3) failed to convert a time_t! (" + date_str + ")");
-        return *tm_ptr;
-    }
-
-    throw std::runtime_error("TimeUtil::StringToStructTm: don't know how to convert \"" + date_str
-                             + "\" to a Date instance! (optional_strptime_format = \"" + optional_strptime_format + "\")");
+    throw std::runtime_error("TimeUtil::StringToStructTm: gmtime(3) failed to convert a time_t! (" + date_str + ")");
 }
 
 

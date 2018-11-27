@@ -144,7 +144,7 @@ void SetEnv(const std::string &name, const std::string &value, const bool overwr
 
 
 void SetEnvFromFile(const std::string &file, const bool overwrite) {
-    for (const auto line : FileUtil::ReadLines(file, FileUtil::ReadLines::TRIM_LEFT_AND_RIGHT)) {
+    for (const auto line : FileUtil::ReadLines(file)) {
         std::string key, value;
         if (StringUtil::SplitOnString(line, "=", &key, &value))
             MiscUtil::SetEnv(key, value, overwrite);
@@ -481,60 +481,6 @@ std::vector<std::string> GetCallStack() {
     ::free(reinterpret_cast<void *>(symbols));
 
     return call_stack;
-}
-
-
-static bool ParseLine(const std::string &line, std::string * const key, std::string * const value) {
-    key->clear(), value->clear();
-
-    // Extract the key:
-    auto ch(line.cbegin());
-    while (ch != line.cend() and *ch != '=') {
-        if (unlikely(*ch == '\\')) {
-            ++ch;
-            if (unlikely(ch == line.cend()))
-                return false;
-        }
-        *key += *ch++;
-    }
-    if (unlikely(ch == line.cend()))
-        return false;
-    ++ch; // Skip over the equal-sign.
-
-    // Extract value:
-    while (ch != line.cend() and *ch != '#' /* Comment start. */) {
-        if (unlikely(*ch == '\\')) {
-            ++ch;
-            if (unlikely(ch == line.cend()))
-                return false;
-        }
-        *value += *ch++;
-    }
-    StringUtil::RightTrim(value);
-
-    return not key->empty() and not value->empty();
-}
-
-
-size_t LoadMapFile(const std::string &filename, std::unordered_map<std::string, std::string> * const from_to_map) {
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(filename));
-
-    unsigned line_no(0);
-    while (not input->eof()) {
-        std::string line(input->getline());
-        ++line_no;
-
-        StringUtil::Trim(&line);
-        if (line.empty())
-            continue;
-
-        std::string key, value;
-        if (not ParseLine(line, &key, &value))
-            LOG_ERROR("invalid input on line \"" + std::to_string(line_no) + "\" in \"" + input->getPath() + "\"!");
-        from_to_map->emplace(key, value);
-    }
-
-    return from_to_map->size();
 }
 
 
