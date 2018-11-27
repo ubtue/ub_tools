@@ -251,6 +251,16 @@ bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFie
     } else
         entry->setAttribute(name_resolver.getAttributeName(PARENT_ISSN_ONLINE), issn_online);
 
+    if (entry->hasAttribute(name_resolver.getAttributeName(PARENT_ISSN_ONLINE)) xor
+        entry->hasAttribute(name_resolver.getAttributeName(PARENT_PPN_ONLINE))) {
+        LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | Invalid online ISSN/PPN pair");
+        valid = ignore_invalid_ppn_issn ? valid : false;
+    } else if (entry->hasAttribute(name_resolver.getAttributeName(PARENT_ISSN_PRINT)) xor
+               entry->hasAttribute(name_resolver.getAttributeName(PARENT_PPN_PRINT))) {
+        LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | Invalid print ISSN/PPN pair");
+        valid = ignore_invalid_ppn_issn ? valid : false;
+    }
+
     auto title(entry->getAttribute("tit"));
     StringUtil::Trim(&title);
     entry->setAttribute(name_resolver.getAttributeName(TITLE), title);
@@ -394,7 +404,7 @@ void ParseZederCsv(const std::string &file_path, const ExportFieldNameResolver &
                    const ImporterParams &importer_params, Zeder::EntryCollection * const zeder_config)
 {
     auto postprocessor([importer_params, name_resolver](Zeder::Entry * const entry) -> bool {
-        return PostProcessZederImportedEntry(importer_params, name_resolver, entry);
+        return PostProcessZederImportedEntry(importer_params, name_resolver, entry, /* ignore_invalid_ppn_issn */ false);
     });
     std::unique_ptr<Zeder::Importer::Params> parser_params(new Zeder::Importer::Params(file_path, postprocessor));
     auto parser(Zeder::Importer::Factory(std::move(parser_params)));
