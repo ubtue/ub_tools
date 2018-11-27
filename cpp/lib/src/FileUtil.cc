@@ -1268,13 +1268,16 @@ void ChangeDirectoryOrDie(const std::string &directory) {
 
 
 std::string GetPathFromFileDescriptor(const int fd) {
+    const std::string proc_self_fd_path("/proc/self/fd/" + std::to_string(fd));
     size_t buf_size(0);
     char *buf(nullptr);
     for (;;) {
         buf_size += PATH_MAX;
         buf = reinterpret_cast<char *>(std::realloc(buf, buf_size));
+        if (unlikely(buf == nullptr))
+            LOG_ERROR("realloc(3) failed!");
 
-        const auto path_size(::readlink(("/proc/self/fd/" + std::to_string(fd)).c_str(), buf, buf_size));
+        const auto path_size(::readlink(proc_self_fd_path.c_str(), buf, buf_size));
         if (path_size == -1)
             LOG_ERROR("readlink(2) failed!");
 
