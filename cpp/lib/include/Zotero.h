@@ -57,62 +57,62 @@ const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP { { "RSS", static_ca
 
 
 struct Creator {
-    std::string first_name;
-    std::string last_name;
-    std::string type;
-    std::string ppn;
-    std::string gnd_number;
+    std::string first_name_;
+    std::string last_name_;
+    std::string type_;
+    std::string ppn_;
+    std::string gnd_number_;
 };
 
 
 struct CustomNodeParameters {
-    std::string issn_zotero;
-    std::string issn_online;
-    std::string issn_print;
-    std::string parent_journal_name;
-    std::string harvest_url;
-    std::string year;
-    std::string pages;
-    std::string volume;
-    std::string license;
-    std::string ssg_numbers;
-    std::string journal_ppn;
-    std::vector<Creator> creators;
-    std::string comment;
-    std::string date_normalized;
-    std::string isil;
+    std::string issn_zotero_;
+    std::string issn_online_;
+    std::string issn_print_;
+    std::string journal_name_;
+    std::string harvest_url_;
+    std::string year_;
+    std::string pages_;
+    std::string volume_;
+    std::string license_;
+    std::string ssg_numbers_;
+    std::string journal_ppn_;
+    std::vector<Creator> creators_;
+    std::string comment_;
+    std::string date_normalized_;
+    std::string isil_;
 };
 
 
 struct ItemParameters {
-    std::string item_type;
-    std::string publication_title;
-    std::string abbreviated_publication_title;
-    std::string language;
-    std::string abstract_note;
-    std::string website_title;
-    std::string doi;
-    std::string copyright;
-    std::vector<Creator> creators;
-    std::string url;
-    std::string year;
-    std::string pages;
-    std::string volume;
-    std::string date;
-    std::string title;
-    std::string short_title;
-    std::string issue;
-    std::string isil;
+    std::string item_type_;
+    std::string publication_title_;
+    std::string abbreviated_publication_title_;
+    std::string language_;
+    std::string abstract_note_;
+    std::string website_title_;
+    std::string doi_;
+    std::string copyright_;
+    std::vector<Creator> creators_;
+    std::string url_;
+    std::string year_;
+    std::string pages_;
+    std::string volume_;
+    std::string date_;
+    std::string title_;
+    std::string short_title_;
+    std::string issue_;
+    std::string isil_;
     // Additional item parameters
-    std::string superior_ppn; // Generated on our side
-    std::string issn_zotero;
-    std::string issn_online;
-    std::string issn_print;
-    std::string license;
-    std::vector<std::string> keywords;
-    std::vector<std::string> ssg_numbers;
-    std::string parent_journal_name;
-    std::string harvest_url;
+    std::string superior_ppn_; // Generated on our side
+    std::string issn_zotero_;
+    std::string issn_online_;
+    std::string issn_print_;
+    std::string license_;
+    std::vector<std::string> keywords_;
+    std::vector<std::string> ssg_numbers_;
+    std::string journal_name_;
+    std::string harvest_url_;
     std::map<std::string, std::string> notes_key_value_pairs_; // Abuse of the "notes" field to pass thru non-standard values
 };
 
@@ -199,11 +199,11 @@ struct SiteParams {
     GroupParams *group_params_;
 
     std::string zeder_id_;
-    std::string parent_journal_name_;
-    std::string parent_ISSN_print_;
-    std::string parent_ISSN_online_;
-    std::string parent_PPN_print_;
-    std::string parent_PPN_online_;
+    std::string journal_name_;
+    std::string ISSN_print_;
+    std::string ISSN_online_;
+    std::string PPN_print_;
+    std::string PPN_online_;
     std::string strptime_format_;
     std::unique_ptr<RegexMatcher> extraction_regex_;
     BSZUpload::DeliveryMode delivery_mode_;
