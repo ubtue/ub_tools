@@ -430,7 +430,7 @@ void SelectIssnAndPpn(const std::string &issn_zotero, const std::string &issn_on
         if (ppn_online.empty())
             LOG_ERROR("cannot use online ISSN \"" + issn_online + "\" because no online PPN is given!");
         LOG_DEBUG("use online ISSN \"" + issn_online + "\" with online PPN \"" + ppn_online + "\"");
-    } else if (not issn_online.empty() and (issn_zotero.empty() or issn_zotero == issn_online)) {
+    } else if (not issn_print.empty() and (issn_zotero.empty() or issn_zotero == issn_print)) {
         *issn_selected = issn_print;
         *ppn_selected = ppn_print;
         if (ppn_print.empty())
