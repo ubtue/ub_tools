@@ -90,7 +90,7 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
             site_params->non_standard_metadata_fields_.emplace_back(entry.value_);
     }
 
-    site_params->zeder_id_ = section.getString("zeder_id"); // required field!
+    site_params->zeder_id_ = section.getString("zeder_id", "");
 }
 
 
