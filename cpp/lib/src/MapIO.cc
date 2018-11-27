@@ -2,7 +2,7 @@
  *  \brief  Map-IO-related utility functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "MapIO.h"
+#include "File.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -100,9 +101,7 @@ void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::s
 }
 
 
-void SerialiseMap(const std::string &output_filename,
-                  const std::unordered_multimap<std::string, std::string> &multimap)
-{
+void SerialiseMap(const std::string &output_filename, const std::unordered_multimap<std::string, std::string> &multimap) {
     std::ofstream output(output_filename, std::ofstream::out | std::ofstream::trunc);
     if (output.fail())
         logger->error("in MapIO::SerialiseMap: Failed to open \"" + output_filename + "\" for writing!");
@@ -112,9 +111,7 @@ void SerialiseMap(const std::string &output_filename,
 }
 
 
-void DeserialiseMap(const std::string &input_filename,
-                    std::unordered_multimap<std::string, std::string> * const multimap)
-{
+void DeserialiseMap(const std::string &input_filename, std::unordered_multimap<std::string, std::string> * const multimap) {
     multimap->clear();
 
     std::ifstream input(input_filename, std::ofstream::in);
@@ -162,6 +159,11 @@ void DeserialiseMap(const std::string &input_filename,
                           + std::to_string(line_no) + "!");
         multimap->emplace(key, value);
     }
+}
+
+
+void WriteEntry(File * const map_file, const std::string &key, const std::string &value) {
+    map_file->writeln(Escape(key) + "=" + Escape(value));
 }
 
 
