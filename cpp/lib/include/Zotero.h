@@ -66,10 +66,11 @@ struct Creator {
 
 
 struct CustomNodeParameters {
-    std::string issn_normalized;
+    std::string issn_zotero;
+    std::string issn_online;
+    std::string issn_print;
     std::string parent_journal_name;
     std::string harvest_url;
-    std::string physical_form;
     std::string year;
     std::string pages;
     std::string volume;
@@ -104,11 +105,12 @@ struct ItemParameters {
     std::string isil;
     // Additional item parameters
     std::string superior_ppn; // Generated on our side
-    std::string issn;
+    std::string issn_zotero;
+    std::string issn_online;
+    std::string issn_print;
     std::string license;
     std::vector<std::string> keywords;
     std::vector<std::string> ssg_numbers;
-    std::string physical_form;
     std::string parent_journal_name;
     std::string harvest_url;
     std::map<std::string, std::string> notes_key_value_pairs_; // Abuse of the "notes" field to pass thru non-standard values

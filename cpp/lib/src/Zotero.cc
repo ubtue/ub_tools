@@ -432,13 +432,17 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     const std::string isil(node_parameters.isil);
     record->insertField("003", isil);
 
-    const std::string physical_form(node_parameters.physical_form);
-    if (physical_form.empty() or physical_form == "O")
+    // ISSN and physical description
+    std::string issn;
+    if (not node_parameters.issn_online.empty() and (node_parameters.issn_zotero.empty() or node_parameters.issn_zotero == node_parameters.issn_online)) {
+        issn = node_parameters.issn_online;
         record->insertField("007", "cr|||||");
-    else if (physical_form == "A")
+    } else if (not node_parameters.issn_print.empty() and (node_parameters.issn_zotero.empty() or node_parameters.issn_zotero == node_parameters.issn_print)) {
+        issn = node_parameters.issn_print;
         record->insertField("007", "tu");
-    else
-        LOG_ERROR("unhandled value of physical form: \"" + physical_form + "\"!");
+    } else
+        LOG_ERROR("ISSN could not be chosen! online: \"" + node_parameters.issn_online + "\""
+                  + ", print: \"" + node_parameters.issn_print + "\"" + ", zotero: \"" + node_parameters.issn_zotero + "\"");
 
     // 008 (date, year, language)
     std::string _008_value, _008_date(node_parameters.date);
@@ -543,7 +547,6 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         _773_subfields.appendSubfield('i', "In: ");
         _773_subfields.appendSubfield('t', publication_title);
     }
-    const std::string issn(node_parameters.issn);
     if (not issn.empty())
         _773_subfields.appendSubfield('x', issn);
     const std::string superior_ppn(node_parameters.superior_ppn);
@@ -611,15 +614,12 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
                                                         custom_node_params)
 {
     const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
-    if (custom_object->getOptionalStringNode("ISSN_untagged"))
-        custom_node_params->issn_normalized = custom_object->getOptionalStringValue("ISSN_untagged");
-    else if (custom_object->getOptionalStringNode("ISSN_online"))
-        custom_node_params->issn_normalized = custom_object->getOptionalStringValue("ISSN_online");
-    else if (custom_object->getOptionalStringNode("ISSN_print"))
-        custom_node_params->issn_normalized = custom_object->getOptionalStringValue("ISSN_print");
-    else
-        LOG_WARNING("No ISSN found for item.");
-
+    if (custom_object->getOptionalStringNode("ISSN_zotero"))
+        custom_node_params->issn_zotero = custom_object->getOptionalStringValue("ISSN_zotero");
+    if (custom_object->getOptionalStringNode("ISSN_online"))
+        custom_node_params->issn_online = custom_object->getOptionalStringValue("ISSN_online");
+    if (custom_object->getOptionalStringNode("ISSN_print"))
+        custom_node_params->issn_print = custom_object->getOptionalStringValue("ISSN_print");
 
     const auto creator_nodes(custom_object->getOptionalArrayNode("creators"));
     if (creator_nodes != nullptr) {
@@ -637,7 +637,6 @@ void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::
 
     custom_node_params->parent_journal_name = custom_object->getOptionalStringValue("parent_journal_name");
     custom_node_params->harvest_url = custom_object->getOptionalStringValue("harvest_url");
-    custom_node_params->physical_form = custom_object->getOptionalStringValue("physicalForm");
     custom_node_params->volume = custom_object->getOptionalStringValue("volume");
     custom_node_params->license = custom_object->getOptionalStringValue("licenseCode");
     custom_node_params->ssg_numbers = custom_object->getOptionalStringValue("ssgNumbers");
@@ -653,10 +652,11 @@ std::string GetCustomValueIfNotEmpty(const std::string &custom_value, const std:
 
 
 void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters, struct CustomNodeParameters &custom_node_params){
-    item_parameters->issn = GetCustomValueIfNotEmpty(custom_node_params.issn_normalized, item_parameters->issn);
+    item_parameters->issn_zotero = custom_node_params.issn_zotero;
+    item_parameters->issn_online = custom_node_params.issn_online;
+    item_parameters->issn_print = custom_node_params.issn_print;
     item_parameters->parent_journal_name = GetCustomValueIfNotEmpty(item_parameters->parent_journal_name , item_parameters->parent_journal_name);
     item_parameters->harvest_url = GetCustomValueIfNotEmpty(custom_node_params.harvest_url, item_parameters->harvest_url);
-    item_parameters->physical_form =GetCustomValueIfNotEmpty(custom_node_params.physical_form, item_parameters->physical_form);
     item_parameters->license = GetCustomValueIfNotEmpty(custom_node_params.license, item_parameters->license);
     item_parameters->superior_ppn = GetCustomValueIfNotEmpty(custom_node_params.journal_ppn, item_parameters->superior_ppn);
     item_parameters->ssg_numbers.emplace_back(custom_node_params.ssg_numbers);
@@ -799,7 +799,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
                 // the raw ISSN string probably contains multiple ISSN's that can't be distinguished
                 throw std::runtime_error("\"" + issn_raw + "\" is invalid (multiple ISSN's?)!");
             } else
-                custom_fields.emplace(std::pair<std::string, std::string>("ISSN_untagged", issn_normalized));
+                custom_fields.emplace(std::pair<std::string, std::string>("ISSN_zotero", issn_normalized));
         } else if (key_and_node.first == "date") {
             const std::string date_raw(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
             custom_fields.emplace(std::pair<std::string, std::string>("date_raw", date_raw));
@@ -836,17 +836,6 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
 
     // ISSN specific overrides
     if (not issn_normalized.empty()) {
-
-        // physical form
-        const auto ISSN_and_physical_form(site_params.global_params_->maps_->ISSN_to_physical_form_map_.find(issn_normalized));
-        if (ISSN_and_physical_form != site_params.global_params_->maps_->ISSN_to_physical_form_map_.cend()) {
-            if (ISSN_and_physical_form->second == "A")
-                custom_fields.emplace(std::pair<std::string, std::string>("physicalForm", "A"));
-            else if (ISSN_and_physical_form->second == "O")
-                custom_fields.emplace(std::pair<std::string, std::string>("physicalForm", "O"));
-            else
-                LOG_ERROR("unhandled entry in physical form map: \"" + ISSN_and_physical_form->second + "\"!");
-        }
 
         // language
         const auto ISSN_and_language(site_params.global_params_->maps_->ISSN_to_language_code_map_.find(issn_normalized));
