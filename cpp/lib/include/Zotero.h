@@ -240,7 +240,7 @@ protected:
     std::string output_format_;
     std::string output_file_;
     SiteParams *site_params_;
-    const std::shared_ptr<const HarvestParams> &harvest_params_;
+    const std::shared_ptr<const HarvestParams> harvest_params_;
 protected:
     FormatHandler(DbConnection * const db_connection, const std::string &output_format, const std::string &output_file,
                   const std::shared_ptr<const HarvestParams> &harvest_params)
