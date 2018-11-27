@@ -69,6 +69,8 @@ struct CustomNodeParameters {
     std::string issn_zotero_;
     std::string issn_online_;
     std::string issn_print_;
+    std::string superior_ppn_online_;
+    std::string superior_ppn_print_;
     std::string journal_name_;
     std::string harvest_url_;
     std::string year_;
@@ -76,7 +78,6 @@ struct CustomNodeParameters {
     std::string volume_;
     std::string license_;
     std::string ssg_numbers_;
-    std::string journal_ppn_;
     std::vector<Creator> creators_;
     std::string comment_;
     std::string date_normalized_;
@@ -104,7 +105,8 @@ struct ItemParameters {
     std::string issue_;
     std::string isil_;
     // Additional item parameters
-    std::string superior_ppn_; // Generated on our side
+    std::string superior_ppn_online_;
+    std::string superior_ppn_print_;
     std::string issn_zotero_;
     std::string issn_online_;
     std::string issn_print_;
