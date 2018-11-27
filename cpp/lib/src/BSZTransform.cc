@@ -44,7 +44,6 @@ AugmentMaps::AugmentMaps(const std::string &map_directory_path) {
     MapIO::DeserialiseMap(map_directory_path + "ISSN_to_language_code.map", &ISSN_to_language_code_map_);
     MapIO::DeserialiseMap(map_directory_path + "ISSN_to_licence.map", &ISSN_to_licence_map_);
     MapIO::DeserialiseMap(map_directory_path + "ISSN_to_keyword_field.map", &ISSN_to_keyword_field_map_);
-    MapIO::DeserialiseMap(map_directory_path + "ISSN_to_physical_form.map", &ISSN_to_physical_form_map_);
     MapIO::DeserialiseMap(map_directory_path + "ISSN_to_volume.map", &ISSN_to_volume_map_);
     MapIO::DeserialiseMap(map_directory_path + "ISSN_to_SSG.map", &ISSN_to_SSG_map_);
     LoadISSNToPPNMap(&ISSN_to_superior_ppn_and_title_map_);
