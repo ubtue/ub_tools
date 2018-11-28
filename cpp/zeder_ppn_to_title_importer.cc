@@ -93,7 +93,7 @@ void ParseJSONandWriteMapFile(File * const map_file, const std::string &json_blo
             continue;
         }
 
-        const auto title(journal_object->getStringNode("tit")->toString());
+        const auto title(journal_object->getStringNode("tit")->getValue());
         const auto print_ppn(GetString(journal_object, "pppn"));
         const auto online_ppn(GetString(journal_object, "eppn"));
 
