@@ -47,20 +47,21 @@ def ImportIntoVuFind(title_file_name, authority_file_name, log_file_name):
     # import title data
     title_index = 'biblio'
     ClearSolrIndex(title_index)
-    util.ExecOrDie(vufind_dir + "/import-marc.sh", title_file_name, log_file_name)
+    util.ExecOrDie(vufind_dir + "/import-marc.sh", title_file_name, log_file_name, setsid=False)
     OptimizeSolrIndex(title_index)
-    util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"], log_file_name)
+    util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"],
+                   log_file_name, setsid=False)
 
     # import authority data
     authority_index = 'authority'
     ClearSolrIndex(authority_index)
-    util.ExecOrDie(vufind_dir + "/import-marc-auth.sh", authority_file_name, log_file_name)
+    util.ExecOrDie(vufind_dir + "/import-marc-auth.sh", authority_file_name, log_file_name, setsid=False)
     OptimizeSolrIndex(authority_index)
 
 
 # Create the database for matching fulltext to vufind entries
 def CreateMatchDB(title_marc_data, log_file_name):
-    util.ExecOrDie("/usr/local/bin/create_match_db", title_marc_data, log_file_name);
+    util.ExecOrDie("/usr/local/bin/create_match_db", title_marc_data, log_file_name, setsid=False);
 
 
 def CleanupLogs(pipeline_log_file_name, create_match_db_log_file_name):
@@ -95,7 +96,7 @@ def GetAuthorityFileName(conf):
 
 def ExecutePipeline(pipeline_script_name, marc_title_before_pipeline, conf):
     pipeline_log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
-    #util.ExecOrDie(pipeline_script_name, [ marc_title_before_pipeline  ], pipeline_log_file_name)
+    util.ExecOrDie(pipeline_script_name, [ marc_title_before_pipeline  ], pipeline_log_file_name)
     marc_title_after_pipeline = GetTitleAfterPipelineFileName(conf)
     authority_file_name = GetAuthorityFileName(conf)
     import_vufind_log_file_name = util.MakeLogFileName("import_into_vufind", util.GetLogDirectory())
@@ -108,7 +109,11 @@ def ExecutePipeline(pipeline_script_name, marc_title_before_pipeline, conf):
     create_match_db_process = Process(target=CreateMatchDB,args=(marc_title_after_pipeline, create_match_db_log_file_name))
     create_match_db_process.start()
     import_into_vufind_process.join()
+    if import_into_vufind_process.exitcode != 0:
+        util.Error("The vufind import process failed")
     create_match_db_process.join()
+    if import_into_vufind_process.exitcode != 0:
+        util.Error("The create match db process failed");
     CleanUpLogs(import_vufind_log_file_name, create_match_db_log_file_name)
 
 
@@ -147,10 +152,8 @@ def Main():
         bsz_data = util.ResolveSymlink(link_name)
         if not bsz_data.endswith(".tar.gz"):
             util.Error("BSZ data file must end in .tar.gz!")
-        #file_name_list = util.ExtractAndRenameBSZFiles(bsz_data)
-        temp_pipeline_title_name = "GesamtTiteldaten-181128.mrc"
-        ExecutePipeline(pipeline_script_name, temp_pipeline_title_name, conf)
-        #ExecutePipeline(pipeline_script_name, file_name_list[0], conf)
+        file_name_list = util.ExtractAndRenameBSZFiles(bsz_data)
+        ExecutePipeline(pipeline_script_name, file_name_list[0], conf)
         util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.", priority=5,
                        attachments=[solrmarc_log_summary, import_log_summary])
         util.WriteTimestamp()
