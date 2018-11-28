@@ -330,7 +330,7 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
+StartPhase "Extract Referenced Authors and add BEACON Information"
 (extract_referenced_author_records GesamtTiteldaten-post-pipeline-"${date}".mrc \
                                    Normdaten-"${date}".mrc \
                                    ReferencedAuthors-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
