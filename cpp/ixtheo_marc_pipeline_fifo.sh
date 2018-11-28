@@ -133,12 +133,6 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Create Databases for Title and Author Matching (for article cross-linking)"
-(create_match_db GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-wait
-
-
 StartPhase "Cross Link Articles"
 (add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
