@@ -78,35 +78,27 @@ def CleanupLogs(pipeline_log_file_name, create_match_db_log_file_name):
 
 def GetTitleAfterPipelineFileName(conf):
     title_marc_pattern = conf.get("FileNames", "title_marc_data")
-    title_file_name = [ sorted(glob.glob(title_marc_pattern), reverse=True)[0] ]
-    if len(title_file_name) != 1:
-        util.Error("\"" + title_pattern + "\" matched " + str(len(title_args))
-                   + " files! (Should have matched exactly 1 file!)")
-    return title_file_name
+    return sorted(glob.glob(title_marc_pattern), reverse=True)[0]
 
 
 def GetAuthorityFileName(conf):
     authority_marc_pattern = conf.get("FileNames", "authority_marc_data")
-    authority_file_name = [ sorted(glob.glob(authority_marc_pattern), reverse=True)[0] ]
-    if len(authority_file_name) != 1:
-        util.Error("\"" + authority_pattern + "\" matched " + str(len(authority_file_name))
-                   + " files! (Should have matched exactly 1 file!)")
-    return authority_file_name
+    return sorted(glob.glob(authority_marc_pattern), reverse=True)[0]
 
 
 def ExecutePipeline(pipeline_script_name, marc_title_before_pipeline, conf):
     pipeline_log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
-    util.ExecOrDie(pipeline_script_name, [ marc_title_before_pipeline  ], pipeline_log_file_name)
+    util.ExecOrDie(pipeline_script_name, [ marc_title_before_pipeline ], pipeline_log_file_name)
     marc_title_after_pipeline = GetTitleAfterPipelineFileName(conf)
     authority_file_name = GetAuthorityFileName(conf)
     import_vufind_log_file_name = util.MakeLogFileName("import_into_vufind", util.GetLogDirectory())
     import_into_vufind_process = Process(target=ImportIntoVuFind,
-                                         args=(marc_title_after_pipeline,
-                                               authority_file_name,
+                                         args=([ marc_title_after_pipeline ],
+                                               [ authority_file_name ],
                                                import_vufind_log_file_name))
     import_into_vufind_process.start()
     create_match_db_log_file_name = util.MakeLogFileName("create_match_db", util.GetLogDirectory())
-    create_match_db_process = Process(target=CreateMatchDB,args=(marc_title_after_pipeline, create_match_db_log_file_name))
+    create_match_db_process = Process(target=CreateMatchDB,args=([ marc_title_after_pipeline ], create_match_db_log_file_name))
     create_match_db_process.start()
     import_into_vufind_process.join()
     if import_into_vufind_process.exitcode != 0:
