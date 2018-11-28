@@ -96,7 +96,7 @@ def ExecutePipeline(pipeline_script_name, marc_title_before_pipeline, conf):
                                          args=[ marc_title_after_pipeline, authority_file_name, import_vufind_log_file_name ])
     import_into_vufind_process.start()
     create_match_db_log_file_name = util.MakeLogFileName("create_match_db", util.GetLogDirectory())
-    create_match_db_process = Process(target=CreateMatchDB,args=[ marc_title_after_pipeline, create_match_db_log_file_name ]
+    create_match_db_process = Process(target=CreateMatchDB,args=[ marc_title_after_pipeline, create_match_db_log_file_name ])
     create_match_db_process.start()
     import_into_vufind_process.join()
     if import_into_vufind_process.exitcode != 0:
