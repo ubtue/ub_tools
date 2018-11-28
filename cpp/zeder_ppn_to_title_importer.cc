@@ -114,10 +114,9 @@ void ParseJSONandWriteMapFile(File * const map_file, const std::string &json_blo
 } // unnamed namespace
 
 
-int Main(int argc, char *argv[]) {
+int Main(int argc, char */*argv*/[]) {
     if (argc != 1)
         Usage();
-    const std::string map_file_path(argv[1]);
 
     char path_template[] = "/tmp/XXXXXX";
     const int temp_fd(::mkstemp(path_template));
