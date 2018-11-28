@@ -24,6 +24,7 @@
 #include "FileUtil.h"
 #include "JSON.h"
 #include "MapIO.h"
+#include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
 
@@ -86,25 +87,25 @@ void ParseJSONandWriteMapFile(File * const map_file, const std::string &json_blo
         ++journal_count;
         const auto journal_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
 
-        const auto row_id(journal_object->getIntegerNode("DT_RowId")->getValue());
+        const auto zeder_id(std::to_string(journal_object->getIntegerNode("DT_RowId")->getValue()));
         if (unlikely(not journal_object->hasNode("tit"))) {
             ++bad_count;
-            LOG_WARNING("Zeder entry #" + std::to_string(row_id) + " is missing a title!");
+            LOG_WARNING("Zeder entry #" + zeder_id + " is missing a title!");
             continue;
         }
 
-        const auto title(journal_object->getStringNode("tit")->getValue());
+        const auto title(TextUtil::CollapseAndTrimWhitespace(journal_object->getStringNode("tit")->getValue()));
         const auto print_ppn(GetString(journal_object, "pppn"));
         const auto online_ppn(GetString(journal_object, "eppn"));
 
         if (print_ppn.empty() and online_ppn.empty()) {
             ++bad_count;
-            LOG_WARNING("Zeder entry #" + std::to_string(row_id) + " is missing print and online PPN's!");
+            LOG_WARNING("Zeder entry #" + zeder_id + " is missing print and online PPN's!");
             continue;
         }
 
-        WriteMapEntry(map_file, print_ppn, "print:" + title);
-        WriteMapEntry(map_file, online_ppn, "online:" + title);
+        WriteMapEntry(map_file, print_ppn, zeder_id + ":print:" + title);
+        WriteMapEntry(map_file, online_ppn, zeder_id + ":online:" + title);
     }
 
     LOG_INFO("processed " + std::to_string(journal_count) + " journal entries of which " + std::to_string(bad_count) + " was/were bad.");
