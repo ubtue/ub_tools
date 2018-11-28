@@ -58,9 +58,6 @@ const std::vector<std::string> EXPORT_FORMATS{
     "json", "marc21", "marcxml"
 };
 
-const std::string DEFAULT_SUBFIELD_CODE("eng");
-const std::string DEFAULT_LANGUAGE_CODE("eng");
-
 
 namespace TranslationServer {
 
@@ -488,10 +485,8 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         LOG_ERROR("No title found");
 
     // Language
-    std::string language(DEFAULT_LANGUAGE_CODE);
     if (not node_parameters.language_.empty())
-        language = node_parameters.language_;
-    record->insertField("041", { { 'a', language } });
+        record->insertField("041", { { 'a', node_parameters.language_ } });
 
     // Abstract Note
     const std::string abstract_note(node_parameters.abstract_note_);
