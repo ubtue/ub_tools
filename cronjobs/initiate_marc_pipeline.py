@@ -70,7 +70,7 @@ def CleanupLogs(pipeline_log_file_name, create_match_db_log_file_name):
         util.Error("VUFIND_HOME not set, cannot handle log files")
     util.ExecOrDie("/usr/local/bin/summarize_logs", [vufind_dir + "/import/solrmarc.log", solrmarc_log_summary])
     util.ExecOrDie("/usr/local/bin/log_rotate", [vufind_dir + "/import/", "solrmarc\\.log"])
-    util.ExecOrDie("/usr/local/bin/summarize_logs", [import_log_file_name, import_log_summary])
+    util.ExecOrDie("/usr/local/bin/summarize_logs", [pipeline_log_file_name, import_log_summary])
     util.ExecOrDie("/usr/local/bin/log_rotate", [os.path.dirname(pipeline_log_file_name), os.path.basename(pipeline_log_file_name)])
     util.ExecOrDie("/usr/local/bin/log_rotate", [os.path.dirname(create_match_db_log_file_name),
                                                  os.path.basename(create_match_db_log_file_name)])
