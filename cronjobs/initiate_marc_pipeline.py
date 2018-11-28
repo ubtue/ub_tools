@@ -1,6 +1,7 @@
 #!/bin/python2
 # -*- coding: utf-8 -*-
 
+from multiprocessing import Process
 
 import datetime
 import glob
@@ -38,44 +39,77 @@ solrmarc_log_summary = "/tmp/solrmarc_log.summary"
 import_log_summary = "/tmp/import_into_vufind_log.summary"
 
 
-def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name):
+def ImportIntoVuFind(title_file_name, authority_file_name, log_file_name):
     vufind_dir = os.getenv("VUFIND_HOME");
     if vufind_dir == None:
         util.Error("VUFIND_HOME not set, cannot start solr import!")
 
     # import title data
     title_index = 'biblio'
-    title_args = [ sorted(glob.glob(title_pattern), reverse=True)[0] ]
-    if len(title_args) != 1:
-        util.Error("\"" + title_pattern + "\" matched " + str(len(title_args))
-                   + " files! (Should have matched exactly 1 file!)")
     ClearSolrIndex(title_index)
-    util.ExecOrDie(vufind_dir + "/import-marc.sh", title_args, log_file_name)
+    util.ExecOrDie(vufind_dir + "/import-marc.sh", title_file_name, log_file_name)
     OptimizeSolrIndex(title_index)
     util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"], log_file_name)
 
     # import authority data
     authority_index = 'authority'
-    authority_args = [ sorted(glob.glob(authority_pattern), reverse=True)[0] ]
-    if len(authority_args) != 1:
-        util.Error("\"" + authority_pattern + "\" matched " + str(len(authority_args))
-                   + " files! (Should have matched exactly 1 file!)")
     ClearSolrIndex(authority_index)
-    util.ExecOrDie(vufind_dir + "/import-marc-auth.sh", authority_args, log_file_name)
+    util.ExecOrDie(vufind_dir + "/import-marc-auth.sh", authority_file_name, log_file_name)
     OptimizeSolrIndex(authority_index)
 
-    # cleanup logs
+
+# Create the database for matching fulltext to vufind entries
+def CreateMatchDB(title_marc_data, log_file_name):
+    util.ExecOrDie("/usr/local/bin/create_match_db", title_marc_data, log_file_name);
+
+
+def CleanupLogs(pipeline_log_file_name, create_match_db_log_file_name):
+    vufind_dir = os.getenv("VUFIND_HOME");
+    if vufind_dir == None:
+        util.Error("VUFIND_HOME not set, cannot handle log files")
     util.ExecOrDie("/usr/local/bin/summarize_logs", [vufind_dir + "/import/solrmarc.log", solrmarc_log_summary])
     util.ExecOrDie("/usr/local/bin/log_rotate", [vufind_dir + "/import/", "solrmarc\\.log"])
-    util.ExecOrDie("/usr/local/bin/summarize_logs", [log_file_name, import_log_summary])
-    util.ExecOrDie("/usr/local/bin/log_rotate", [os.path.dirname(log_file_name), os.path.basename(log_file_name)])
+    util.ExecOrDie("/usr/local/bin/summarize_logs", [import_log_file_name, import_log_summary])
+    util.ExecOrDie("/usr/local/bin/log_rotate", [os.path.dirname(pipeline_log_file_name), os.path.basename(pipeline_log_file_name)])
+    util.ExecOrDie("/usr/local/bin/log_rotate", [os.path.dirname(create_match_db_log_file_name),
+                                                 os.path.basename(create_match_db_log_file_name)])
 
 
-def StartPipeline(pipeline_script_name, marc_title, conf):
-    log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
-    util.ExecOrDie(pipeline_script_name, [ marc_title ], log_file_name)
-    log_file_name = util.MakeLogFileName("import_into_vufind", util.GetLogDirectory())
-    ImportIntoVuFind(conf.get("FileNames", "title_marc_data"), conf.get("FileNames", "authority_marc_data"), log_file_name)
+def GetTitleAfterPipelineFileName(conf):
+    title_marc_pattern = conf.get("FileNames", "title_marc_data")
+    title_file_name = [ sorted(glob.glob(title_marc_pattern), reverse=True)[0] ]
+    if len(title_file_name) != 1:
+        util.Error("\"" + title_pattern + "\" matched " + str(len(title_args))
+                   + " files! (Should have matched exactly 1 file!)")
+    return title_file_name
+
+
+def GetAuthorityFileName(conf):
+    authority_marc_pattern = conf.get("FileNames", "authority_marc_data")
+    authority_file_name = [ sorted(glob.glob(authority_marc_pattern), reverse=True)[0] ]
+    if len(authority_file_name) != 1:
+        util.Error("\"" + authority_pattern + "\" matched " + str(len(authority_file_name))
+                   + " files! (Should have matched exactly 1 file!)")
+    return authority_file_name
+
+
+def ExecutePipeline(pipeline_script_name, marc_title_before_pipeline, conf):
+    pipeline_log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
+    #util.ExecOrDie(pipeline_script_name, [ marc_title_before_pipeline  ], pipeline_log_file_name)
+    marc_title_after_pipeline = GetTitleAfterPipelineFileName(conf)
+    authority_file_name = GetAuthorityFileName(conf)
+    import_vufind_log_file_name = util.MakeLogFileName("import_into_vufind", util.GetLogDirectory())
+    import_into_vufind_process = Process(target=ImportIntoVuFind,
+                                         args=(marc_title_after_pipeline,
+                                               authority_file_name,
+                                               import_vufind_log_file_name))
+    import_into_vufind_process.start()
+    create_match_db_log_file_name = util.MakeLogFileName("create_match_db", util.GetLogDirectory())
+    create_match_db_process = Process(target=CreateMatchDB,args=(marc_title_after_pipeline, create_match_db_log_file_name))
+    create_match_db_process.start()
+    import_into_vufind_process.join()
+    create_match_db_process.join()
+    CleanUpLogs(import_vufind_log_file_name, create_match_db_log_file_name)
 
 
 # Returns True if we have no timestamp file or if link_filename's creation time is more recent than
@@ -113,9 +147,10 @@ def Main():
         bsz_data = util.ResolveSymlink(link_name)
         if not bsz_data.endswith(".tar.gz"):
             util.Error("BSZ data file must end in .tar.gz!")
-        file_name_list = util.ExtractAndRenameBSZFiles(bsz_data)
-
-        StartPipeline(pipeline_script_name, file_name_list[0], conf)
+        #file_name_list = util.ExtractAndRenameBSZFiles(bsz_data)
+        temp_pipeline_title_name = "GesamtTiteldaten-181128.mrc"
+        ExecutePipeline(pipeline_script_name, temp_pipeline_title_name, conf)
+        #ExecutePipeline(pipeline_script_name, file_name_list[0], conf)
         util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.", priority=5,
                        attachments=[solrmarc_log_summary, import_log_summary])
         util.WriteTimestamp()
