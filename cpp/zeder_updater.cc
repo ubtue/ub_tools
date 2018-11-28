@@ -17,13 +17,12 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iostream>
-#include <ctime>
+#include <unordered_map>
 #include <cstdlib>
+#include "Compiler.h"
 #include "DbConnection.h"
-#include "DbResultSet.h"
-#include "DbRow.h"
-#include "FileUtil.h"
-#include "IniFile.h"
+#include "MapIO.h"
+#include "MARC.h"
 #include "SqlUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -33,62 +32,73 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " [--min-log-level=log_level] sender_email_address notification_email_address\n";
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=log_level] marc_titles_records\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-const std::string TIMESTAMP_FILENAME("zeder_updater.timestamp");
+const std::string ZEDER_URL_PREFIX("http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo#suche=Z%3D");
 
 
-// Returns the contents of the timestamp file or 0 if the file does not exist
-time_t ReadTimeStamp() {
-    const std::string TIMESTAMP_PATH(UBTools::GetTuelibPath() + TIMESTAMP_FILENAME);
-    if (FileUtil::Exists(TIMESTAMP_PATH)) {
-        time_t timestamp;
-        const auto timestamp_file(FileUtil::OpenInputFileOrDie(TIMESTAMP_PATH));
-        if (timestamp_file->read(reinterpret_cast<void *>(&timestamp), sizeof timestamp) != sizeof timestamp)
-            LOG_ERROR("failed to read " + std::to_string(sizeof timestamp) + " bytes from \"" + TIMESTAMP_PATH + "\"!");
-std::cerr << "Old timestamp: " << SqlUtil::TimeTToDatetime(timestamp) << '\n';
-        return timestamp;
-    } else
-        return 0;
+// We expect value to consist of 3 parts separated by colons: Zeder ID, PPN type ("print" or "online") and title.
+void SplitValue(const std::string &value, std::string * const zeder_id, std::string * const type, std::string * const title) {
+    const auto first_colon_pos(value.find(':'));
+    if (unlikely(first_colon_pos == std::string::npos))
+        LOG_ERROR("colons are missing in: " + value);
+    *zeder_id = value.substr(0, first_colon_pos);
+
+    const auto second_colon_pos(value.find(':', first_colon_pos + 1));
+    if (unlikely(second_colon_pos == std::string::npos))
+        LOG_ERROR("2nd colon is missing in: " + value);
+    *type = value.substr(first_colon_pos + 1, second_colon_pos - first_colon_pos - 1);
+    if (*type == "print")
+        *type = "p";
+    else if (*type == "online")
+        *type = "e";
+    else
+        LOG_ERROR("invalid PPN type in \"" + value + "\"! (Must be \"print\" or \"online\".)");
+
+    *title = value.substr(second_colon_pos + 1);
 }
 
 
-void WriteTimeStamp(const time_t timestamp) {
-    const std::string TIMESTAMP_PATH(UBTools::GetTuelibPath() + TIMESTAMP_FILENAME);
-    const auto timestamp_file(FileUtil::OpenOutputFileOrDie(TIMESTAMP_PATH));
-std::cerr << "New timestamp: " << SqlUtil::TimeTToDatetime(timestamp) << '\n';
-    if (timestamp_file->write(reinterpret_cast<const void *>(&timestamp), sizeof timestamp) != sizeof timestamp)
-        LOG_ERROR("failed to write " + std::to_string(sizeof timestamp) + " bytes to \"" + TIMESTAMP_PATH + "\"!");
-}
+void ProcessRecords(MARC::Reader * const reader, const std::unordered_map<std::string, std::string> &journal_ppn_to_type_and_title_map) {
+    unsigned total_count(0), inserted_count(0);
+    while (const auto record = reader->read()) {
+        ++total_count;
 
+        const std::string superior_control_number(record.getSuperiorControlNumber());
+        if (superior_control_number.empty())
+            continue;
 
-bool ProcessJournal(DbConnection * const db_connection, const time_t old_timestamp, const std::string &zeder_id,
-                    const std::string &superior_title, const std::string &zeder_url_prefix, const unsigned max_issue_count)
-{
-    db_connection->queryOrDie("SELECT volume,issue,pages,created_at,resource_type FROM marc_records WHERE zeder_id="
-                              + db_connection->escapeAndQuoteString(zeder_id) + " ORDER BY created_at DESC LIMIT "
-                              + std::to_string(max_issue_count));
+        const auto journal_ppn_and_type_and_title(journal_ppn_to_type_and_title_map.find(superior_control_number));
+        if (journal_ppn_and_type_and_title == journal_ppn_to_type_and_title_map.cend())
+            continue;
 
-    bool found_at_least_one_new_issue;
-    DbResultSet result_set(db_connection->getLastResultSet());
-    while (const DbRow row = result_set.getNextRow()) {
-        const time_t created_at(SqlUtil::DatetimeToTimeT(row["created_at"]));
-        std::string status;
-        if (created_at > old_timestamp) {
-            found_at_least_one_new_issue = true;
-            status = "neu";
-        } else
-            status = "unverändert";
+        const auto _936_field(record.findTag("936"));
+        if (_936_field == record.end())
+            continue;
 
-        std::cout << zeder_url_prefix << zeder_id << "," << row["created_at"] << "," << superior_title << "," << row["volume"] << ";"
-                  << row["issue"] << ";" << row["pages"] << "," << status << "," << row["resource_type"] << "\n";
+        std::string zeder_id, type, title;
+        SplitValue(journal_ppn_and_type_and_title->second, &zeder_id, &type, &title);
+
+        const std::string pages(_936_field->getFirstSubfieldWithCode('h'));
+        std::string volume;
+        std::string issue(_936_field->getFirstSubfieldWithCode('e'));
+        if (issue.empty())
+            issue = _936_field->getFirstSubfieldWithCode('d');
+        else
+            volume = _936_field->getFirstSubfieldWithCode('d');
+        const std::string year(_936_field->getFirstSubfieldWithCode('j'));
+
+        std::cout << zeder_id << ',' << type << ",\"" << title << ",\"" << pages << "\",\"" << volume << "\",\"" << issue
+                  << "\",\"" << year << "\"\n";
+
+        ++inserted_count;
     }
 
-    return found_at_least_one_new_issue;
+    LOG_INFO("Processed " + std::to_string(total_count) + " records and inserted " + std::to_string(inserted_count)
+             + " into Ingo's database.");
 }
 
 
@@ -96,29 +106,14 @@ bool ProcessJournal(DbConnection * const db_connection, const time_t old_timesta
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
+    if (argc != 2)
         Usage();
 
-    const std::string sender_email_address(argv[1]), notification_email_address(argv[2]);
-    IniFile ini_file;
-    const unsigned max_issue_count(ini_file.getUnsigned("", "max_issue_count"));
-    const std::string zeder_url_prefix(ini_file.getString("", "zeder_url_prefix"));
+    std::unordered_map<std::string, std::string> journal_ppn_to_type_and_title_map;
+    MapIO::DeserialiseMap(UBTools::GetTuelibPath() + "zeder_ppn_to_title.map", &journal_ppn_to_type_and_title_map);
 
-    const time_t old_timestamp(ReadTimeStamp());
-    DbConnection db_connection(DbConnection::TZ_UTC);
-    db_connection.queryOrDie("SELECT DISTINCT marc_records.zeder_id,superior_info.title FROM marc_records "
-                             "LEFT JOIN superior_info ON marc_records.zeder_id=superior_info.zeder_id");
-    DbResultSet result_set(db_connection.getLastResultSet());
-    unsigned journal_count(0), updated_journal_count(0);
-    while (const DbRow row = result_set.getNextRow()) {
-        if (ProcessJournal(&db_connection, old_timestamp, row["zeder_id"], row["title"], zeder_url_prefix, max_issue_count))
-            ++updated_journal_count;
-        ++journal_count;
-    }
-
-    WriteTimeStamp(::time(nullptr));
-
-    LOG_INFO("Found " + std::to_string(updated_journal_count) + " out of " + std::to_string(journal_count) + " journals with new entries.");
+    const auto marc_reader(MARC::Reader::Factory(argv[1]));
+    ProcessRecords(marc_reader.get(), journal_ppn_to_type_and_title_map);
 
     return EXIT_SUCCESS;
 }
