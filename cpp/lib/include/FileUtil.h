@@ -399,9 +399,9 @@ size_t GetFileNameList(const std::string &filename_regex, std::vector<std::strin
  *  \note Sets errno if there was a failure.
  */
 bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target = false,
-                const bool copy_if_cross_device = false);
+                const bool copy_if_cross_device = true);
 void RenameFileOrDie(const std::string &old_name, const std::string &new_name, const bool remove_target = false,
-                     const bool copy_if_cross_device = false);
+                     const bool copy_if_cross_device = true);
 
 /** \brief Opens a file for reading or aborts. */
 std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename);
