@@ -24,6 +24,7 @@
 #include "FileUtil.h"
 #include "JSON.h"
 #include "MapIO.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -31,7 +32,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] map_file_path\n";
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity]\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -68,13 +69,11 @@ void WriteMapEntry(File * const output, const std::string &key, const std::strin
 }
 
 
-void ParseJSONandWriteMapFile(const std::string &map_file_path, const std::string &json_blob) {
+void ParseJSONandWriteMapFile(File * const map_file, const std::string &json_blob) {
     JSON::Parser parser(json_blob);
     std::shared_ptr<JSON::JSONNode> tree_root;
     if (not parser.parse(&tree_root))
         LOG_ERROR("failed to parse the Zeder JSON: " + parser.getErrorMessage());
-
-    const auto map_file(FileUtil::OpenOutputFileOrDie(map_file_path));
 
     const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root));
     if (not root_node->hasNode("daten"))
@@ -94,7 +93,7 @@ void ParseJSONandWriteMapFile(const std::string &map_file_path, const std::strin
             continue;
         }
 
-        const auto title(journal_object->getStringNode("tit")->toString());
+        const auto title(journal_object->getStringNode("tit")->getValue());
         const auto print_ppn(GetString(journal_object, "pppn"));
         const auto online_ppn(GetString(journal_object, "eppn"));
 
@@ -104,8 +103,8 @@ void ParseJSONandWriteMapFile(const std::string &map_file_path, const std::strin
             continue;
         }
 
-        WriteMapEntry(map_file.get(), print_ppn, title);
-        WriteMapEntry(map_file.get(), online_ppn, title);
+        WriteMapEntry(map_file, print_ppn, "print:" + title);
+        WriteMapEntry(map_file, online_ppn, "online:" + title);
     }
 
     LOG_INFO("processed " + std::to_string(journal_count) + " journal entries of which " + std::to_string(bad_count) + " was/were bad.");
@@ -115,14 +114,21 @@ void ParseJSONandWriteMapFile(const std::string &map_file_path, const std::strin
 } // unnamed namespace
 
 
-int Main(int argc, char *argv[]) {
-    if (argc != 2)
+int Main(int argc, char */*argv*/[]) {
+    if (argc != 1)
         Usage();
-    const std::string map_file_path(argv[1]);
+
+    char path_template[] = "/tmp/XXXXXX";
+    const int temp_fd(::mkstemp(path_template));
+    if (temp_fd == -1)
+        LOG_ERROR("failed to create temp file!");
+    File temp_file(temp_fd);
 
     std::string json_blob;
     GetZederJSON(&json_blob);
-    ParseJSONandWriteMapFile(map_file_path, json_blob);
+    ParseJSONandWriteMapFile(&temp_file, json_blob);
+
+    FileUtil::RenameFileOrDie(temp_file.getPath(), UBTools::GetTuelibPath() + "zeder_ppn_to_title.map", /* remove_target = */true);
 
     return EXIT_SUCCESS;
 }
