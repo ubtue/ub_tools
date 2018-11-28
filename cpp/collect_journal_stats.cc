@@ -113,11 +113,9 @@ void ProcessRecords(MARC::Reader * const reader, const std::unordered_map<std::s
                                   + db_connection->escapeAndQuoteString(zeder_id) + ",Zeder_URL="
                                   + db_connection->escapeAndQuoteString(ZEDER_URL_PREFIX + zeder_id) + ",PPN_Typ='" + type
                                   + "',PPN='" + journal_ppn_and_type_and_title->first + "',Jahr=" + std::to_string(YearStringToShort(year))
-                                  + ",Band" + db_connection->escapeAndQuoteString(volume) + ",Heft"
+                                  + ",Band=" + db_connection->escapeAndQuoteString(volume) + ",Heft="
                                   + db_connection->escapeAndQuoteString(issue) + ",Seitenbereich="
                                   + db_connection->escapeAndQuoteString(pages) + ",N_Aufsaetze=1");
-        std::cout << zeder_id << ',' << type << ",\"" << title << ",\"" << pages << "\",\"" << volume << "\",\"" << issue
-                  << "\",\"" << year << "\"\n";
 
         ++inserted_count;
     }
