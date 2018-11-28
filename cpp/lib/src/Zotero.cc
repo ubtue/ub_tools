@@ -464,27 +464,6 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     else
         record->insertField("007", "cr|||||");
 
-    // 008 (date, year, language)
-    std::string _008_value, _008_date(node_parameters.date_);
-    if (_008_date.empty() or not TimeUtil::ConvertFormat("%Y-%m-%d", "%y%m%d", &_008_date))
-        _008_value += "||||||n";
-    else
-        _008_value += _008_date + "s";
-
-    if (node_parameters.year_.empty())
-        _008_value += "||||";
-    else
-        _008_value += node_parameters.year_;
-
-    _008_value += "||||";
-
-    std::string language(DEFAULT_LANGUAGE_CODE);
-    if (not node_parameters.language_.empty())
-        language = node_parameters.language_;
-    _008_value += language;
-
-    record->insertField("008", _008_value);
-
     // Authors/Creators (use reverse iterator to keep order, because "insertField" inserts at first possible position)
     const std::string creator_tag((node_parameters.creators_.size() == 1) ? "100" : "700");
     for (auto creator(node_parameters.creators_.rbegin()); creator != node_parameters.creators_.rend(); ++creator) {
@@ -509,6 +488,9 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         LOG_ERROR("No title found");
 
     // Language
+    std::string language(DEFAULT_LANGUAGE_CODE);
+    if (not node_parameters.language_.empty())
+        language = node_parameters.language_;
     record->insertField("041", { { 'a', language } });
 
     // Abstract Note
@@ -516,10 +498,15 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     if (not abstract_note.empty())
         record->insertField("520", { { 'a', abstract_note } }, /* indicator 1 = */'3');
 
-    // Date
+    // Date & Year
+    std::string year(node_parameters.year_);
+    if (year.empty())
+        year = TimeUtil::GetCurrentYear();
+    record->insertField("264", { { 'c', year } });
+
     const std::string date(node_parameters.date_);
     if (not date.empty() and item_type != "journalArticle")
-        record->insertField("362", { { 'a', date} });
+        record->insertField("362", { { 'a', date } });
 
     // URL
     const std::string url(node_parameters.url_);
@@ -549,9 +536,8 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     const std::string pages(node_parameters.pages_);
     if (not pages.empty())
         _936_subfields.appendSubfield('h', pages);
-    const std::string year(node_parameters.year_);
-    if (not year.empty())
-        _936_subfields.appendSubfield('j', year);
+
+    _936_subfields.appendSubfield('j', year);
     const std::string license(node_parameters.license_);
     if (license == "l")
         _936_subfields.appendSubfield('z', "Kostenfrei");
@@ -569,24 +555,16 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         _773_subfields.appendSubfield('x', issn);
     if (not superior_ppn.empty())
         _773_subfields.appendSubfield('w', "(DE-576)" + superior_ppn);
-    const std::string volume(node_parameters.volume_);
 
     // 773g, example: "52(2018), 1, S. 1-40" => <volume>(<year>), <issue>, S. <pages>
     const bool _773_subfields_iaxw_present(not _773_subfields.empty());
     bool _773_subfield_g_present(false);
     std::string g_content;
     if (not volume.empty()) {
-        g_content += volume;
-
-        const std::string year(node_parameters.year_);
-        if (not year.empty())
-            g_content += "(" + year + ")";
-
-        const std::string issue(node_parameters.issue_);
+        g_content += volume + "(" + year + ")";
         if (not issue.empty())
             g_content += ", " + issue;
 
-        const std::string pages(node_parameters.pages_);
         if (not pages.empty())
             g_content += ", S. " + pages;
 
