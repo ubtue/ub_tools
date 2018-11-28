@@ -61,7 +61,7 @@ def ImportIntoVuFind(title_file_name, authority_file_name, log_file_name):
 
 # Create the database for matching fulltext to vufind entries
 def CreateMatchDB(title_marc_data, log_file_name):
-    util.ExecOrDie("/usr/local/bin/create_match_db", title_marc_data, log_file_name, setsid=False);
+    util.ExecOrDie("/usr/local/bin/create_match_db", [ title_marc_data ], log_file_name, setsid=False);
 
 
 def CleanupLogs(pipeline_log_file_name, create_match_db_log_file_name):
