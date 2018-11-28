@@ -2,6 +2,7 @@ package org.apache.solr.request;
 
 
 import de.uni_tuebingen.ub.ixTheo.common.params.FacetPrefixSortParams;
+import org.apache.lucene.util.BytesRef;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.FacetParams;
 import org.apache.solr.common.params.GroupParams;
@@ -17,12 +18,14 @@ import org.apache.solr.search.DocSet;
 import org.apache.solr.search.facet.FacetDebugInfo;
 import org.apache.solr.search.facet.FacetProcessor;
 import org.apache.solr.request.SimpleFacets;
+import org.apache.solr.request.SubstringBytesRefFilter;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.function.Predicate;
 
 
 public class SimplePrefixSortFacets extends SimpleFacets {
@@ -101,7 +104,7 @@ public class SimplePrefixSortFacets extends SimpleFacets {
 
         final boolean multiToken = sf.multiValued() || ft.multiValuedFieldCache();
 
-        if (ft.getNumericType() != null && !sf.multiValued()) {
+        if (ft.getNumberType() != null && !sf.multiValued()) {
             // the per-segment approach is optimal for numeric field types since there
             // are no global ords to merge and no need to create an expensive
             // top-level reader
@@ -124,7 +127,8 @@ public class SimplePrefixSortFacets extends SimpleFacets {
         }
 
         if (params.getFieldBool(field, GroupParams.GROUP_FACET, false)) {
-            counts = getGroupedCounts(searcher, docs, field, multiToken, offset, limit, mincount, missing, sort, prefix, contains, ignoreCase);
+            final Predicate<BytesRef> termFilter = new SubstringBytesRefFilter(contains, ignoreCase);
+            counts = getGroupedCounts(searcher, docs, field, multiToken, offset, limit, mincount, missing, sort, prefix, termFilter);
         } else {
             assert method != null;
             switch (method) {
@@ -134,7 +138,7 @@ public class SimplePrefixSortFacets extends SimpleFacets {
                     break;
                 case FCS:
                     assert !multiToken;
-                    if (ft.getNumericType() != null && !sf.multiValued()) {
+                    if (ft.getNumberType() != null && !sf.multiValued()) {
                         // force numeric faceting
                         if (prefix != null && !prefix.isEmpty()) {
                             throw new SolrException(SolrException.ErrorCode.BAD_REQUEST, FacetParams.FACET_PREFIX + " is not supported on numeric types");
