@@ -114,7 +114,7 @@ def ExecutePipeline(pipeline_script_name, marc_title_before_pipeline, conf):
     create_match_db_process.join()
     if import_into_vufind_process.exitcode != 0:
         util.Error("The create match db process failed");
-    CleanUpLogs(import_vufind_log_file_name, create_match_db_log_file_name)
+    CleanupLogs(import_vufind_log_file_name, create_match_db_log_file_name)
 
 
 # Returns True if we have no timestamp file or if link_filename's creation time is more recent than
