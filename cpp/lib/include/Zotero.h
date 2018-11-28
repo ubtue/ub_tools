@@ -163,9 +163,6 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 } // namespace TranslationServer
 
 
-extern const std::string DEFAULT_SUBFIELD_CODE;
-
-
 // Default timeout values in milliseconds
 constexpr unsigned DEFAULT_CONVERSION_TIMEOUT = 60000;
 constexpr unsigned DEFAULT_TIMEOUT = 30000;
