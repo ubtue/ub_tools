@@ -47,15 +47,15 @@ def ImportIntoVuFind(title_file_name, authority_file_name, log_file_name):
     # import title data
     title_index = 'biblio'
     ClearSolrIndex(title_index)
-    util.ExecOrDie(vufind_dir + "/import-marc.sh", title_file_name, log_file_name, setsid=False)
+    util.ExecOrDie(vufind_dir + "/import-marc.sh", [ title_file_name ], log_file_name, setsid=False)
     OptimizeSolrIndex(title_index)
-    util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"],
+    util.ExecOrDie(util.Which("sudo"), [ "-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh" ],
                    log_file_name, setsid=False)
 
     # import authority data
     authority_index = 'authority'
     ClearSolrIndex(authority_index)
-    util.ExecOrDie(vufind_dir + "/import-marc-auth.sh", authority_file_name, log_file_name, setsid=False)
+    util.ExecOrDie(vufind_dir + "/import-marc-auth.sh", [ authority_file_name ], log_file_name, setsid=False)
     OptimizeSolrIndex(authority_index)
 
 
@@ -93,12 +93,10 @@ def ExecutePipeline(pipeline_script_name, marc_title_before_pipeline, conf):
     authority_file_name = GetAuthorityFileName(conf)
     import_vufind_log_file_name = util.MakeLogFileName("import_into_vufind", util.GetLogDirectory())
     import_into_vufind_process = Process(target=ImportIntoVuFind,
-                                         args=([ marc_title_after_pipeline ],
-                                               [ authority_file_name ],
-                                               import_vufind_log_file_name))
+                                         args=[ marc_title_after_pipeline, authority_file_name, import_vufind_log_file_name ])
     import_into_vufind_process.start()
     create_match_db_log_file_name = util.MakeLogFileName("create_match_db", util.GetLogDirectory())
-    create_match_db_process = Process(target=CreateMatchDB,args=([ marc_title_after_pipeline ], create_match_db_log_file_name))
+    create_match_db_process = Process(target=CreateMatchDB,args=[ marc_title_after_pipeline, create_match_db_log_file_name ]
     create_match_db_process.start()
     import_into_vufind_process.join()
     if import_into_vufind_process.exitcode != 0:
