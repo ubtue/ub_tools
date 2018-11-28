@@ -145,7 +145,8 @@ public:
                 return entry.value_;
         }
 
-        LOG_ERROR("Couldn't find entry with id " + std::to_string(entry_id));
+        LOG_ERROR("Couldn't find entry with key " + Key(static_cast<const typename Traits::Entries>(entry_id)) +
+                  " (id = '" + std::to_string(entry_id) + "')");
     }
 
     std::string value(const EntryId &entry_id, const std::string &default_value) const {
