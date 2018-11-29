@@ -79,11 +79,11 @@ void ControlNumberGuesser::insertTitle(const std::string &title, const std::stri
 
 
 void ControlNumberGuesser::insertAuthors(const std::set<std::string> &authors, const std::string &control_number) {
-    for (const auto author : authors) {
+    for (const auto &author : authors) {
         const auto normalised_author_name(TextUtil::UTF8ToLower(NormaliseAuthorName(author)));
         LOG_DEBUG("normalised_author_name=\"" + normalised_author_name + "\".");
         if (unlikely(normalised_author_name.empty()))
-            LOG_WARNING("Empty normalised author in record w/ control number: " + control_number);
+            LOG_WARNING("Empty normalised author in record w/ control number: " + control_number + " (orig. \"" + author + "\")");
         else
             insertNewControlNumber("normalised_authors", "author", normalised_author_name, control_number);
     }
