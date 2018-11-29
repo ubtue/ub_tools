@@ -2342,7 +2342,7 @@ static void LoadTermsToTagsMap(std::unordered_map<std::string, Tag> * const term
 
 
 Tag GetIndexTag(const std::string &index_term) {
-    static const Tag DEFAULT_TAG("655");
+    static const Tag DEFAULT_TAG("650");
     static std::unordered_map<std::string, Tag> terms_to_tags_map;
     if (unlikely(terms_to_tags_map.empty()))
         LoadTermsToTagsMap(&terms_to_tags_map);
