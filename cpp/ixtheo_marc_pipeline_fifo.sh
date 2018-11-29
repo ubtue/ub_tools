@@ -223,12 +223,12 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
-StartPhase "Map DDC and RVK to IxTheo Notations"
+StartPhase "Map DDC to IxTheo Notations"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(map_ddc_and_rvk_to_ixtheo_notations \
+(map_ddc_to_ixtheo_notations \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-    ../cpp/data/ddc_ixtheo.map ../cpp/data/ddc_ixtheo.map >> "${log}" 2>&1 && \
+    ../cpp/data/ddc_ixtheo.map >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 

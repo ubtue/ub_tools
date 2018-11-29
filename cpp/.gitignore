@@ -101,7 +101,7 @@
 /lcsh_stats
 /log_rotate
 /make_marc_xml
-/map_ddc_and_rvk_to_ixtheo_notations
+/map_ddc_to_ixtheo_notations
 /marc_augmentor
 /marc_char_filter
 /marc_check
