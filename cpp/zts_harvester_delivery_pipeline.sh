@@ -78,6 +78,7 @@ function EndPipeline {
     echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes." | tee --append "${log}"
     echo "*** ZTS_HARVESTER DELIVERY PIPELINE DONE ***" | tee --append "${log}"
     no_problems_found=0
+    exit 0
 }
 
 
