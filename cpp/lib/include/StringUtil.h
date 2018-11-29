@@ -98,9 +98,13 @@ std::string ToLower(std::string * const s);
 std::string ToLower(const std::string &s);
 
 
+/** \brief Converts the ASCII letters in "s" to lowercase. */
+std::string ASCIIToLower(std::string * const s);
+std::string ASCIIToLower(const std::string &s);
+
+
 /** \brief  Convert a C-style string to lowercase. */
-inline char *strlower(char *s)
-{
+inline char *strlower(char *s) {
     char *ch = s;
     while (*ch != '\0') {
         *ch = static_cast<char>(tolower(*ch));
