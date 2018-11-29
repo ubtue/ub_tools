@@ -1,5 +1,5 @@
-/** \file    map_ddc_and_rvk_to_ixtheo_notations.cc
- *  \brief   Map certain DDC and RVK categories to ixTheo notations and add them to field 652a.
+/** \file    map_ddc_to_ixtheo_notations.cc
+ *  \brief   Map certain DDC categories to ixTheo notations and add them to field 652a.
  *  \author  Dr. Johannes Ruscheinski
  */
 
@@ -35,14 +35,13 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] marc_input marc_output ddc_to_ixtheo_notations_map "
-              << "rvk_to_ixtheo_notations_map\n";
+    std::cerr << "Usage: " << ::progname << " [--verbose] marc_input marc_output ddc_to_ixtheo_notations_map\n";
     std::exit(EXIT_FAILURE);
 }
 
 
 /** \class IxTheoMapper
- *  \brief Maps from a DDC or RVK hierarchy entry to an IxTheo notation.
+ *  \brief Maps from a DDC hierarchy entry to an IxTheo notation.
  */
 class IxTheoMapper {
     std::string from_hierarchy_;
@@ -113,8 +112,7 @@ void UpdateIxTheoNotations(const std::vector<IxTheoMapper> &mappers, const std::
 
 
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    const std::vector<IxTheoMapper> &ddc_to_ixtheo_notation_mappers,
-                    const std::vector<IxTheoMapper> &/*rvk_to_ixtheo_notation_mappers*/)
+                    const std::vector<IxTheoMapper> &ddc_to_ixtheo_notation_mappers)
 {
     unsigned count(0), records_with_ixtheo_notations(0), records_with_new_notations(0), skipped_group_count(0);
     while (MARC::Record record = marc_reader->read()) {
@@ -147,11 +145,6 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         if (not ixtheo_notations_list.empty())
             LOG_DEBUG(record.getControlNumber() + ": " + StringUtil::Join(ddc_values, ',') + " -> " + ixtheo_notations_list);
 
-/*
-        const std::set<std::string> rvk_values(record.getRVKs());
-        UpdateIxTheoNotations(rvk_to_ixtheo_notation_mappers, rvk_values, &ixtheo_notations_list);
-*/
-
         if (not ixtheo_notations_list.empty()) {
             ++records_with_new_notations;
             record.insertField("652", "  ""\x1F""a" + ixtheo_notations_list + "\x1F""bDDCoderRVK");
@@ -171,7 +164,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 
 
 int Main(int argc, char **argv) {
-    if (argc < 5)
+    if (argc < 4)
         Usage();
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
@@ -180,12 +173,6 @@ int Main(int argc, char **argv) {
     std::vector<IxTheoMapper> ddc_to_ixtheo_notation_mappers;
     LoadCSVFile(argv[3], &ddc_to_ixtheo_notation_mappers);
 
-    std::vector<IxTheoMapper> rvk_to_ixtheo_notation_mappers;
-    // The RVK notations were never provided to us by the librarians
-    // So, we don't  use it at the moment
-    //LoadCSVFile(argv[4], &rvk_to_ixtheo_notation_mappers);
-
-    ProcessRecords(marc_reader.get(), marc_writer.get(), ddc_to_ixtheo_notation_mappers,
-                   rvk_to_ixtheo_notation_mappers);
+    ProcessRecords(marc_reader.get(), marc_writer.get(), ddc_to_ixtheo_notation_mappers);
     return EXIT_SUCCESS;
 }
