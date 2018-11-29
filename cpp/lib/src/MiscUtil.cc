@@ -275,7 +275,7 @@ bool NormaliseDOI(const std::string &doi_candidate, std::string * const normalis
     if (not DOI_MATCHER->matched(doi_candidate))
         return false;
 
-    *normalised_doi = (*DOI_MATCHER)[1];
+    *normalised_doi = StringUtil::ASCIIToLower((*DOI_MATCHER)[1]);
     return true;
 }
 
