@@ -662,7 +662,7 @@ std::string Record::getSuperiorControlNumber() const {
 
 
 std::set<std::string> Record::getAllAuthors() const {
-    static const std::vector<std::string> AUTHOR_TAGS { "100", "700" };
+    static const std::vector<std::string> AUTHOR_TAGS { "100", "109", "700" };
 
     std::set<std::string> author_names;
     for (const auto tag : AUTHOR_TAGS) {
