@@ -130,9 +130,51 @@ void ControlNumberGuesser::insertDOI(const std::string &doi, const std::string &
 }
 
 
+void ControlNumberGuesser::insertISSN(const std::string &issn, const std::string &control_number) {
+    std::string normalised_issn;
+    MiscUtil::NormaliseISSN(issn, &normalised_issn);
+
+    LOG_DEBUG("normalised_issn=\"" + normalised_issn + "\".");
+    if (unlikely(normalised_issn.empty()))
+        LOG_WARNING("Empty normalised ISSN in record w/ control number: " + control_number + ": " + issn);
+    else
+        insertNewControlNumber("issn", "issn", normalised_issn, control_number);
+}
+
+
+void ControlNumberGuesser::insertISBN(const std::string &isbn, const std::string &control_number) {
+    if (unlikely(isbn.empty()))
+        LOG_WARNING("Attemting to insert an empty ISBN in record w/ control number: " + control_number);
+    else
+        insertNewControlNumber("isbn", "isbn", isbn, control_number);
+}
+
+
 std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::string &title, const std::set<std::string> &authors,
-                                                                     const std::string &year, const std::string &doi) const
+                                                                     const std::string &year, const std::string &doi,
+                                                                     const std::string &issn, const std::string &isbn) const
 {
+    if (not doi.empty()) {
+        std::set<std::string> doi_control_numbers;
+        lookupDOI(doi, &doi_control_numbers);
+        if (not doi_control_numbers.empty())
+            return doi_control_numbers;
+    }
+
+    if (not issn.empty()) {
+        std::set<std::string> issn_control_numbers;
+        lookupISSN(issn, &issn_control_numbers);
+        if (not issn_control_numbers.empty())
+            return issn_control_numbers;
+    }
+
+    if (not isbn.empty()) {
+        std::set<std::string> isbn_control_numbers;
+        lookupISBN(isbn, &isbn_control_numbers);
+        if (not isbn_control_numbers.empty())
+            return isbn_control_numbers;
+    }
+
     const auto normalised_title(NormaliseTitle(title));
     std::set<std::string> title_control_numbers, all_author_control_numbers, doi_control_numbers;
     std::unordered_set<std::string> year_control_numbers;
@@ -163,13 +205,7 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
         return common_control_numbers;
 
     lookupYear(year, &year_control_numbers);
-    common_control_numbers = MiscUtil::Intersect(common_control_numbers, year_control_numbers);
-
-    if (doi.empty())
-        return common_control_numbers;
-
-    lookupDOI(doi, &doi_control_numbers);
-    return MiscUtil::Intersect(common_control_numbers, doi_control_numbers);
+    return MiscUtil::Intersect(common_control_numbers, year_control_numbers);
 }
 
 
@@ -270,6 +306,26 @@ void ControlNumberGuesser::lookupDOI(const std::string &doi, std::set<std::strin
 }
 
 
+void ControlNumberGuesser::lookupISSN(const std::string &issn, std::set<std::string> * const control_numbers) const {
+    control_numbers->clear();
+
+    std::string normalised_issn;
+    MiscUtil::NormaliseISSN(issn, &normalised_issn);
+    std::string concatenated_control_numbers;
+    lookupControlNumber("issn", "issn", normalised_issn, &concatenated_control_numbers);
+    StringUtil::Split(concatenated_control_numbers, '|', control_numbers);
+}
+
+
+void ControlNumberGuesser::lookupISBN(const std::string &isbn, std::set<std::string> * const control_numbers) const {
+    control_numbers->clear();
+
+    std::string concatenated_control_numbers;
+    lookupControlNumber("isbn", "isbn", isbn, &concatenated_control_numbers);
+    StringUtil::Split(concatenated_control_numbers, '|', control_numbers);
+}
+
+
 std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
     std::wstring wtitle;
     if (unlikely(not TextUtil::UTF8ToWCharString(title, &wtitle)))
@@ -361,7 +417,7 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
 }
 
 void ControlNumberGuesser::insertNewControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
-                                                   const std::string &control_number)
+                                                  const std::string &control_number)
 {
     std::string control_numbers;
     if (lookupControlNumber(table, column_name, column_value, &control_numbers)) {
@@ -392,7 +448,7 @@ bool ControlNumberGuesser::lookupControlNumber(const std::string &table, const s
 
 
 void ControlNumberGuesser::splitControlNumbers(const std::string &concatenated_control_numbers,
-                                              std::unordered_set<std::string> * const control_numbers) const
+                                               std::unordered_set<std::string> * const control_numbers) const
 {
     size_t count(concatenated_control_numbers.size() / (MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating pipe char */));
     control_numbers->reserve(count);
