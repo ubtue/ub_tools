@@ -143,10 +143,14 @@ void ControlNumberGuesser::insertISSN(const std::string &issn, const std::string
 
 
 void ControlNumberGuesser::insertISBN(const std::string &isbn, const std::string &control_number) {
-    if (unlikely(isbn.empty()))
-        LOG_WARNING("Attemting to insert an empty ISBN in record w/ control number: " + control_number);
+    std::string normalised_isbn;
+    MiscUtil::NormaliseISBN(isbn, &normalised_isbn);
+
+    LOG_DEBUG("normalised_isbn=\"" + normalised_isbn + "\".");
+    if (unlikely(normalised_isbn.empty()))
+        LOG_WARNING("Empty normalised ISBN in record w/ control number: " + control_number + ": " + isbn);
     else
-        insertNewControlNumber("isbn", "isbn", isbn, control_number);
+        insertNewControlNumber("isbn", "isbn", normalised_isbn, control_number);
 }
 
 
@@ -320,8 +324,10 @@ void ControlNumberGuesser::lookupISSN(const std::string &issn, std::set<std::str
 void ControlNumberGuesser::lookupISBN(const std::string &isbn, std::set<std::string> * const control_numbers) const {
     control_numbers->clear();
 
+    std::string normalised_isbn;
+    MiscUtil::NormaliseISBN(isbn, &normalised_isbn);
     std::string concatenated_control_numbers;
-    lookupControlNumber("isbn", "isbn", isbn, &concatenated_control_numbers);
+    lookupControlNumber("isbn", "isbn", normalised_isbn, &concatenated_control_numbers);
     StringUtil::Split(concatenated_control_numbers, '|', control_numbers);
 }
 
