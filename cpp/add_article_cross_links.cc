@@ -102,7 +102,7 @@ bool SetContainsOnlyArticlePPNs(const std::set<std::string> &ppns, const std::un
     for (const auto &ppn : ppns) {
         const auto ppn_and_record_info(ppns_to_infos_map.find(ppn));
         if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN "+ ppn + " is missing in ppns_to_infos_map!");
+            LOG_ERROR("PPN "+ ppn + " is missing in ppns_to_infos_map! (1)");
         if (ppn_and_record_info->second.type_ != RecordInfo::ARTICLE)
             return false;
     }
@@ -117,7 +117,7 @@ bool ContainsAtLeastOnePossibleReview(const std::set<std::string> &ppns,
     for (const auto &ppn : ppns) {
         const auto ppn_and_record_info(ppns_to_infos_map.find(ppn));
         if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN "+ ppn + " is missing in ppns_to_infos_map!");
+            LOG_ERROR("PPN "+ ppn + " is missing in ppns_to_infos_map! (2)");
         if (ppn_and_record_info->second.may_be_a_review_)
             return true;
     }
@@ -133,13 +133,13 @@ bool HasAtLeastOneCommonDOI(const std::set<std::string> &ppns, const std::unorde
     auto ppn(ppns.cbegin());
     auto ppn_and_record_info(ppns_to_infos_map.find(*ppn));
     if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-        LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map!");
+        LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map! (3)");
     std::set<std::string> shared_dois(ppn_and_record_info->second.dois_);
 
     for (++ppn; ppn != ppns.cend(); ++ppn) {
         ppn_and_record_info = ppns_to_infos_map.find(*ppn);
         if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map!");
+            LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map! (4)");
         shared_dois = MiscUtil::Intersect(shared_dois, ppn_and_record_info->second.dois_);
     }
 
@@ -154,14 +154,14 @@ bool IsConsistentSet(const std::set<std::string> &ppns, const std::unordered_map
     auto ppn(ppns.cbegin());
     auto ppn_and_record_info(ppns_to_infos_map.find(*ppn));
     if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-        LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map!");
+        LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map! (5)");
     std::string year(ppn_and_record_info->second.year_), volume(ppn_and_record_info->second.volume_),
                 issue(ppn_and_record_info->second.issue_);
 
     for (++ppn; ppn != ppns.cend(); ++ppn) {
         ppn_and_record_info = ppns_to_infos_map.find(*ppn);
         if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map!");
+            LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map! (6)");
         if (ppn_and_record_info->second.year_ != year or ppn_and_record_info->second.volume_ != volume
             or ppn_and_record_info->second.issue_ != issue)
             return false;
