@@ -682,8 +682,8 @@ std::set<std::string> Record::getDOIs() const {
     std::set<std::string> dois;
     for (const auto field : getTagRange("024")) {
         const Subfields subfields(field.getSubfields());
-        if (subfields.getFirstSubfieldWithCode('2') == "doi")
-            dois.emplace(subfields.getFirstSubfieldWithCode('a'));
+        if (field.getIndicator1() == '7' and subfields.getFirstSubfieldWithCode('2') == "doi")
+            dois.emplace(StringUtil::Trim(subfields.getFirstSubfieldWithCode('a')));
     }
 
     return dois;
