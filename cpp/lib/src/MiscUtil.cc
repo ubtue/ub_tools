@@ -334,6 +334,16 @@ bool NormaliseISSN(const std::string &issn_candidate, std::string * const normal
 }
 
 
+bool NormaliseISBN(const std::string &isbn_candidate, std::string * const normalised_isbn) {
+    for (auto ch : isbn_candidate) {
+        if (ch != '-')
+            *normalised_isbn += ch;
+    }
+
+    return isbn_candidate.length() == 10 or isbn_candidate.length() == 13;
+}
+
+
 std::string StringMapToString(const std::map<std::string, std::string> &map) {
     std::string map_as_string;
     for (const auto &key_and_value : map)

@@ -129,6 +129,12 @@ bool IsPossibleISSN(std::string issn_candidate);
 bool NormaliseISSN(const std::string &issn_candidate, std::string * const normalised_issn);
 
 
+/** \brief Strips hyphens from ISBN's
+ *  \return True if the stripped input had a length of 10 or 13 and false o/w.
+ */
+bool NormaliseISBN(const std::string &isbn_candidate, std::string * const normalised_isbn);
+
+
 // \return a string representation of "map".
 std::string StringMapToString(const std::map<std::string, std::string> &map);
 
