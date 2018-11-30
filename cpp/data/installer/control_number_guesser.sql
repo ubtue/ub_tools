@@ -30,13 +30,6 @@ CREATE TABLE doi (
 );
 CREATE INDEX doi_doi_index ON doi(doi);
 
-CREATE TABLE doi (
-    doi TEXT NOT NULL PRIMARY KEY,
-    control_numbers TEXT NOT NULL,
-    UNIQUE (doi)
-);
-CREATE INDEX doi_doi_index ON doi(doi);
-
 CREATE TABLE issn (
     issn TEXT NOT NULL PRIMARY KEY,
     control_numbers TEXT NOT NULL,
