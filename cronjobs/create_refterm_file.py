@@ -148,12 +148,13 @@ def Main():
         title_data_file = RenameTitleDataFile(title_data_file_orig, date_string)
         atexit.register(CleanUp, title_data_file, log_file_name)
         SetupTemporarySolrInstance(title_data_file, conf, log_file_name)
-        create_ref_term_process = Process(target=CreateRefTermFile,
-                                          args=[ ref_data_archive, date_string, conf, log_file_name ])
-        create_serial_sort_term_process = Process(target=CreateSerialSortDate,
-                                                  args=[ title_data_file, date_string, log_file_name ])
+        create_ref_term_process = multiprocessing.Process(target=CreateRefTermFile,
+                                      args=[ ref_data_archive, date_string, conf, log_file_name ])
+        create_serial_sort_term_process = multiprocessing.Process(target=CreateSerialSortDate,
+                                              args=[ title_data_file, date_string, log_file_name ])
         create_match_db_log_file_name = util.MakeLogFileName("create_match_db", util.GetLogDirectory())
-        create_match_db_process = Process(target=CreateMatchDB,args=[ title_data_file, create_match_db_log_file_name ])
+        create_match_db_process = multiprocessing.Process(target=CreateMatchDB,
+                                      args=[ title_data_file, create_match_db_log_file_name ])
         ExecuteInParallel(create_ref_term_process, create_serial_sort_term_process, create_match_db_process)
         end  = datetime.datetime.now()
         duration_in_minutes = str((end - start).seconds / 60.0)
