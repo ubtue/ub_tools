@@ -125,22 +125,8 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Merge Print and Online Superior Records"
-(merge_print_and_online GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
-                        GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                        missing_ppn_partners.list >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-wait
-
-
-StartPhase "Populate ControlNumberGuesser Database"
-(create_match_db GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-wait
-
-
 StartPhase "Cross Link Articles"
-(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                          article_matches.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &
@@ -192,7 +178,7 @@ StartPhase "Extracting Keywords from Titles"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                                 ../cpp/data/stopwords.???  >> "${log}" 2>&1 && \
+                                 /usr/local/var/lib/tuelib/stopwords.???  >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -217,7 +203,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (update_ixtheo_notations \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-    ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1 && \
+    /usr/local/var/lib/tuelib/IxTheo_Notation.csv >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -234,7 +220,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (map_ddc_to_ixtheo_notations \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-    ../cpp/data/ddc_ixtheo.map >> "${log}" 2>&1 && \
+    /usr/local/var/lib/tuelib/ddc_ixtheo.map >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 

@@ -71,7 +71,8 @@ cgi_install: $(CGI_PROGS) Makefile
 
 data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.template data/*.conf \
               data/crossref_journal_list data/keyword_normalisation.map data/author_normalisation.map \
-              data/publisher_normalisation.map Makefile data/tags_and_index_terms.map
+              data/publisher_normalisation.map Makefile data/tags_and_index_terms.map \
+              data/stopwords.* data/ddc_ixtheo.map
 	@echo "Installing data..."
 	mkdir --parents /usr/local/var/lib/tuelib/bibleRef/
 	cp data/books_of_the_bible_to_canonical_form.map data/books_of_the_bible_to_code.map \
@@ -93,6 +94,9 @@ data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.tem
 	cp data/zeder_updater.conf /usr/local/var/lib/tuelib/
 	cp data/zts_harvester.conf /usr/local/var/lib/tuelib/
 	cp data/tags_and_index_terms.map /usr/local/var/lib/tuelib/
+	cp data/stopwords.* /usr/local/var/lib/tuelib/
+	cp data/IxTheo_Notation.csv /usr/local/var/lib/tuelib/
+	cp data/ddc_ixtheo.map /usr/local/var/lib/tuelib/
 
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
