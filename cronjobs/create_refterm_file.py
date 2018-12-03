@@ -1,6 +1,9 @@
 #!/bin/python2
 # -*- coding: utf-8 -*-
 
+from multiprocessing import Process
+
+import atexit
 import datetime
 import glob
 import os
@@ -93,6 +96,11 @@ def CreateSerialSortDate(title_data_file, date_string, log_file_name):
     ExecOrCleanShutdownAndDie("/usr/local/bin/query_serial_sort_data.sh", [title_data_file, serial_ppn_sort_list], log_file_name)
 
 
+# Create the database for matching fulltext to vufind entries
+def CreateMatchDB(title_marc_data, log_file_name):
+    util.ExecOrDie("/usr/local/bin/create_match_db", [ title_marc_data ], log_file_name, setsid=False);
+
+
 def CreateLogFile():
     return util.MakeLogFileName(os.path.basename(__file__), util.GetLogDirectory())
 
@@ -130,10 +138,26 @@ def Main():
         title_data_file_orig = ExtractTitleDataMarcFile(title_data_link_name)
         date_string = GetDateFromFilename(title_data_file_orig)
         title_data_file = RenameTitleDataFile(title_data_file_orig, date_string)
+        atexit.register(CleanUp, title_data_file, log_file_name)
         SetupTemporarySolrInstance(title_data_file, conf, log_file_name)
-        CreateRefTermFile(ref_data_archive, date_string, conf, log_file_name)
-        CreateSerialSortDate(title_data_file, date_string, log_file_name)
-        CleanUp(title_data_file, log_file_name)
+        create_ref_term_process = Process(target=CreateRefTermFile,
+                                          args=[ ref_data_archive, date_string, conf, log_file_name ])
+        create_serial_sort_term_process = Process(target=CreateSerialSortDate,
+                                                  args=[ title_data_file, date_string, log_file_name ])
+        create_match_db_log_file_name = util.MakeLogFileName("create_match_db", util.GetLogDirectory())
+        create_match_db_process = Process(target=CreateMatchDB,args=[ title_data_file, create_match_db_log_file_name ])
+        create_ref_term_process.start()
+        create_serial_sort_term_process.start()
+        create_match_db_process.start()
+        create_ref_term_process.join()
+        if create_ref_term_process.exitcode != 0:
+           util.Error("Create reference term process failed")
+        create_serial_sort_term_process.join()
+        if create_serial_sort_term_process.exitcode != 0:
+           util.Error("Create serial sort term process failed")
+        create_match_db_process.join()
+        if create_match_db_process.exitcode != 0:
+           util.Error("Create reference term process failed")
         end  = datetime.datetime.now()
         duration_in_minutes = str((end - start).seconds / 60.0)
         util.SendEmail("Create Refterm File", "Refterm file successfully created in " + duration_in_minutes + " minutes.", priority=5)
