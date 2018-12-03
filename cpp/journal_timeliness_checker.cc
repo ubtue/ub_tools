@@ -20,6 +20,7 @@
 #include <ctime>
 #include <cstdlib>
 #include "DbConnection.h"
+#include "BSZUpload.h"
 #include "EmailSender.h"
 #include "IniFile.h"
 #include "SqlUtil.h"
@@ -85,6 +86,11 @@ int Main(int argc, char *argv[]) {
     for (const auto &section : ini_file) {
         if (section.find("user_agent") != section.end())
             continue; // Not a journal section.
+
+        const auto delivery_mode(section.getEnum("zotero_delivery_mode", BSZUpload::STRING_TO_DELIVERY_MODE_MAP,
+                                                 BSZUpload::DeliveryMode::NONE));
+        if (delivery_mode != BSZUpload::DeliveryMode::LIVE)
+            continue;
 
         const std::string journal_name(section.getSectionName());
 
