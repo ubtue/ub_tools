@@ -122,16 +122,17 @@ done
 
 # If we did not execute the for-loop at all, $temp_directory is unset and we need to set it to the empty string:
 temp_directory=${temp_directory:-}
+target_filename_unmerged=${target_filename/-merged/}
 
 if [ -z ${temp_directory} ]; then
     if [[ ! -f $target_filename ]]; then
+        cp $input_filename $target_filename_unmerged
         MergePrintAndOnlineArchive $input_filename $target_filename $extraction_directory
     fi
         ln --symbolic --force $target_filename Complete-MARC-current.tar.gz
 else
     rm -r "$extraction_directory"
     cd ${temp_directory}
-    target_filename_unmerged=${target_filename/-merged/}
     tar czf ../$target_filename_unmerged *mrc
     MergePrintAndOnlineFile tit.mrc tit_merged.mrc .
     mv tit_merged.mrc tit.mrc
