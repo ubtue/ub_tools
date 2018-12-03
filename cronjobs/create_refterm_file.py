@@ -1,11 +1,10 @@
 #!/bin/python2
 # -*- coding: utf-8 -*-
 
-from multiprocessing import Process
-
 import atexit
 import datetime
 import glob
+import multiprocessing
 import os
 import struct
 import sys
@@ -111,6 +110,15 @@ def CleanUp(title_data_file, log_file_name):
     if title_data_file is not None:
         util.Remove(title_data_file)
 
+def ExecuteInParallel(*processes):
+    for process in processes:
+        process.start()
+
+    for process in processes:
+        process.join()
+        if process.exitcode != 0:
+            util.Error(process.name + " failed")
+
 
 def Main():
     util.default_email_sender = "create_refterm_file@ub.uni-tuebingen.de"
@@ -146,18 +154,7 @@ def Main():
                                                   args=[ title_data_file, date_string, log_file_name ])
         create_match_db_log_file_name = util.MakeLogFileName("create_match_db", util.GetLogDirectory())
         create_match_db_process = Process(target=CreateMatchDB,args=[ title_data_file, create_match_db_log_file_name ])
-        create_ref_term_process.start()
-        create_serial_sort_term_process.start()
-        create_match_db_process.start()
-        create_ref_term_process.join()
-        if create_ref_term_process.exitcode != 0:
-           util.Error("Create reference term process failed")
-        create_serial_sort_term_process.join()
-        if create_serial_sort_term_process.exitcode != 0:
-           util.Error("Create serial sort term process failed")
-        create_match_db_process.join()
-        if create_match_db_process.exitcode != 0:
-           util.Error("Create reference term process failed")
+        ExecuteInParallel(create_ref_term_process, create_serial_sort_term_process, create_match_db_process)
         end  = datetime.datetime.now()
         duration_in_minutes = str((end - start).seconds / 60.0)
         util.SendEmail("Create Refterm File", "Refterm file successfully created in " + duration_in_minutes + " minutes.", priority=5)
