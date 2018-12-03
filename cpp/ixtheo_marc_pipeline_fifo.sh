@@ -125,16 +125,8 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Merge Print and Online Superior Records"
-(merge_print_and_online GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
-                        GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                        missing_ppn_partners.list >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-wait
-
-
 StartPhase "Cross Link Articles"
-(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                          article_matches.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &
