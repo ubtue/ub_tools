@@ -35,6 +35,29 @@ function CleanUpStaleDirectories() {
 }
 
 
+function MergePrintAndOnlineFile() {
+    local input_filename=$1
+    local output_filename=$2
+    local working_dir=$3
+    merge_print_and_online ${input_filename} ${output_filename} ${working_dir}/missing_ppn_partners.list
+}
+
+
+function MergePrintAndOnlineArchive() {
+    local input_filename=$1
+    local output_filename=$2
+    local extraction_directory=$3
+    echo "Merging Print and Online from archive \"${input_filename}\" and writing to archive \"${output_filename}\""
+    working_dir=$(pwd)
+    cd "$extraction_directory"
+    tar xzf ../"$input_filename"
+    MergePrintAndOnlineFile tit.mrc tit_merged.mrc ${working_dir}
+    mv tit_merged.mrc tit.mrc
+    tar czf ../"$output_filename" *mrc
+    cd -
+}
+
+
 # Argument processing
 KEEP_ITERMEDIATE_FILES=
 if [[ $# > 1 ]]; then
@@ -51,12 +74,11 @@ fi
 email_address=$1
 
 
-target_filename=Complete-MARC-$(date +%y%m%d).tar.gz
+target_filename=Complete-MARC-merged-$(date +%y%m%d).tar.gz
 if [[ -e $target_filename ]]; then
     echo "Nothing to do: ${target_filename} already exists."
     exit 0
 fi
-
 
 echo "Clean up Stale Directories"
 CleanUpStaleDirectories
@@ -102,10 +124,17 @@ done
 temp_directory=${temp_directory:-}
 
 if [ -z ${temp_directory} ]; then
-    ln --symbolic --force $input_filename Complete-MARC-current.tar.gz
+    if [[ ! -f $target_filename ]]; then
+        MergePrintAndOnlineArchive $input_filename $target_filename $extraction_directory
+    fi
+        ln --symbolic --force $target_filename Complete-MARC-current.tar.gz
 else
     rm -r "$extraction_directory"
     cd ${temp_directory}
+    target_filename_unmerged=${target_filename/-merged/}
+    tar czf ../$target_filename_unmerged *mrc
+    MergePrintAndOnlineFile tit.mrc tit_merged.mrc .
+    mv tit_merged.mrc tit.mrc
     tar czf ../$target_filename *mrc
     cd ..
     rm -r ${temp_directory}
