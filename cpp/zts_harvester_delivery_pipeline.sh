@@ -108,6 +108,7 @@ zts_harvester --min-log-level=INFO \
              $harvester_config_file >> "${log}" 2>&1
 EndPhase
 
+
 StartPhase "Collate File Paths"
 cd $harvester_output_directory
 counter=0
@@ -131,12 +132,12 @@ for d in */ ; do
     fi
     counter=$((counter+1))
 done
-
 if [ "$counter" = "0" ]; then
     echo "No new records were harvested!"
     EndPipeline
 fi
 EndPhase
+
 
 StartPhase "Validate Generated Records"
 for source_filepath in "${source_filepaths[@]}"; do
@@ -144,6 +145,7 @@ for source_filepath in "${source_filepaths[@]}"; do
                           $working_directory/$missing_metadata_tracker_output_filename >> "${log}" 2>&1
 done
 EndPhase
+
 
 StartPhase "Upload to BSZ Server"
 counter=0
@@ -156,10 +158,16 @@ while [ "$counter" -lt "$file_count" ]; do
 done
 EndPhase
 
+
 StartPhase "Archive Sent Records"
 for source_filepath in "${source_filepaths[@]}"; do
     archive_sent_records $source_filepath >> "${log}" 2>&1
 done
+EndPhase
+
+
+StartPhase "Check for Overdue Articles"
+journal_timeliness_checker "$harvester_config_file" "journal_timeliness_checker@$(hostname)" "$email_address"
 EndPhase
 
 
