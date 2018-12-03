@@ -276,15 +276,30 @@ MarcFormatHandler::MarcFormatHandler(DbConnection * const db_connection, const s
 }
 
 
+static bool ContainsReview(const std::string &s) {
+    static const std::vector<std::string> review_alternatives{ "review", "rezension" };
+    for (const auto &alternative : review_alternatives) {
+        if (StringUtil::FindCaseInsensitive(s, alternative) != std::string::npos)
+            return true;
+    }
+
+    return false;
+}
+
+
 void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::ObjectNode> object_node, ItemParameters * const node_parameters) {
     // Item Type
     node_parameters->item_type_ = object_node->getStringValue("itemType");
 
     // Title
     node_parameters->title_ = object_node->getOptionalStringValue("title");
+    if (ContainsReview(node_parameters->title_))
+        node_parameters->item_type_ = "review";
 
     // Short Title
     node_parameters->short_title_ = object_node->getOptionalStringValue("shortTitle");
+    if (ContainsReview(node_parameters->short_title_))
+        node_parameters->item_type_ = "review";
 
     // Creators
     const auto creator_nodes(object_node->getOptionalArrayNode("creators"));
@@ -303,9 +318,13 @@ void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::Object
 
     // Publication Title
     node_parameters->publication_title_ = object_node->getOptionalStringValue("publicationTitle");
+    if (ContainsReview(node_parameters->publication_title_))
+        node_parameters->item_type_ = "review";
 
     // Serial Short Title
     node_parameters->abbreviated_publication_title_ = object_node->getOptionalStringValue("journalAbbreviation");
+    if (ContainsReview(node_parameters->abbreviated_publication_title_))
+        node_parameters->item_type_ = "review";
 
     // DOI
     node_parameters->doi_ = object_node->getOptionalStringValue("DOI");
@@ -500,7 +519,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
     record->insertField("264", { { 'c', year } });
 
     const std::string date(node_parameters.date_);
-    if (not date.empty() and item_type != "journalArticle")
+    if (not date.empty() and item_type != "journalArticle" and item_type != "review")
         record->insertField("362", { { 'a', date } });
 
     // URL
@@ -516,6 +535,10 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
         if (doi_url != url)
             record->insertField("856", { { 'u', doi_url } }, /* indicator1 = */'4', /* indicator2 = */'0');
     }
+
+    // review
+    if (item_type == "review")
+        record->insertField("935", { { 'c', "uwre" } });
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     MARC::Subfields _936_subfields;
