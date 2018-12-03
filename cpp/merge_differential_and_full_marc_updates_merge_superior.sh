@@ -34,16 +34,16 @@ function CleanUpStaleDirectories() {
     done
 }
 
-
-function MergePrintAndOnlineFile() {
+# Merges records in a bare, i.e. non-archive file
+function MergePrintAndOnlineTitles() {
     local input_filename=$1
     local output_filename=$2
     local working_dir=$3
     merge_print_and_online ${input_filename} ${output_filename} ${working_dir}/missing_ppn_partners.list
 }
 
-
-function MergePrintAndOnlineArchive() {
+# Replace the tit.mrc in an archive with a version with merged superior works"
+function CreateArchiveWithMergedTitles() {
     local input_filename=$1
     local output_filename=$2
     local extraction_directory=$3
@@ -51,7 +51,7 @@ function MergePrintAndOnlineArchive() {
     working_dir=$(pwd)
     cd "$extraction_directory"
     tar xzf ../"$input_filename"
-    MergePrintAndOnlineFile tit.mrc tit_merged.mrc ${working_dir}
+    MergePrintAndOnlineTitles tit.mrc tit_merged.mrc ${working_dir}
     mv tit_merged.mrc tit.mrc
     tar czf ../"$output_filename" *mrc
     cd -
@@ -127,14 +127,14 @@ target_filename_unmerged=${target_filename/-merged/}
 if [ -z ${temp_directory} ]; then
     if [[ ! -f $target_filename ]]; then
         cp $input_filename $target_filename_unmerged
-        MergePrintAndOnlineArchive $input_filename $target_filename $extraction_directory
+        CreateArchiveWithMergedTitles $input_filename $target_filename $extraction_directory
     fi
         ln --symbolic --force $target_filename Complete-MARC-current.tar.gz
 else
     rm -r "$extraction_directory"
     cd ${temp_directory}
     tar czf ../$target_filename_unmerged *mrc
-    MergePrintAndOnlineFile tit.mrc tit_merged.mrc .
+    MergePrintAndOnlineTitles tit.mrc tit_merged.mrc .
     mv tit_merged.mrc tit.mrc
     tar czf ../$target_filename *mrc
     cd ..
