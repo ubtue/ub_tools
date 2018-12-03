@@ -178,7 +178,7 @@ StartPhase "Extracting Keywords from Titles"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                                 ../cpp/data/stopwords.???  >> "${log}" 2>&1 && \
+                                 /usr/local/ub_tools/cpp/data/stopwords.???  >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -203,7 +203,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (update_ixtheo_notations \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-    ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1 && \
+    /usr/local/ub_tools/cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -220,7 +220,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (map_ddc_to_ixtheo_notations \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-    ../cpp/data/ddc_ixtheo.map >> "${log}" 2>&1 && \
+    /usr/local/ub_tools/cpp/data/ddc_ixtheo.map >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
