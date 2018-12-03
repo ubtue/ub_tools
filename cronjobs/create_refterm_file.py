@@ -110,6 +110,7 @@ def CleanUp(title_data_file, log_file_name):
     if title_data_file is not None:
         util.Remove(title_data_file)
 
+
 def ExecuteInParallel(*processes):
     for process in processes:
         process.start()
@@ -148,12 +149,12 @@ def Main():
         title_data_file = RenameTitleDataFile(title_data_file_orig, date_string)
         atexit.register(CleanUp, title_data_file, log_file_name)
         SetupTemporarySolrInstance(title_data_file, conf, log_file_name)
-        create_ref_term_process = multiprocessing.Process(target=CreateRefTermFile,
+        create_ref_term_process = multiprocessing.Process(target=CreateRefTermFile, name="Create Reference Terms File",
                                       args=[ ref_data_archive, date_string, conf, log_file_name ])
-        create_serial_sort_term_process = multiprocessing.Process(target=CreateSerialSortDate,
+        create_serial_sort_term_process = multiprocessing.Process(target=CreateSerialSortDate, name="Serial Sort Date",
                                               args=[ title_data_file, date_string, log_file_name ])
         create_match_db_log_file_name = util.MakeLogFileName("create_match_db", util.GetLogDirectory())
-        create_match_db_process = multiprocessing.Process(target=CreateMatchDB,
+        create_match_db_process = multiprocessing.Process(target=CreateMatchDB, name="Create Match DB",
                                       args=[ title_data_file, create_match_db_log_file_name ])
         ExecuteInParallel(create_ref_term_process, create_serial_sort_term_process, create_match_db_process)
         end  = datetime.datetime.now()
