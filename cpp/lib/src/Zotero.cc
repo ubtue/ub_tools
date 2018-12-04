@@ -167,12 +167,12 @@ void LoadGroup(const IniFile::Section &section, std::unordered_map<std::string, 
     new_group_params.bsz_upload_group_               = section.getString("bsz_upload_group");
     new_group_params.author_ppn_lookup_url_          = section.getString("author_ppn_lookup_url");
     new_group_params.author_gnd_lookup_query_params_ = section.getString("author_gnd_lookup_query_params", "");
-    group_name_to_params_map->emplace(section.getSectionName(), new_group_params);
-
     for (const auto &entry : section) {
         if (StringUtil::StartsWith(entry.name_, "add_field"))
             new_group_params.additional_fields_.emplace_back(entry.value_);
     }
+
+    group_name_to_params_map->emplace(section.getSectionName(), new_group_params);
 }
 
 
