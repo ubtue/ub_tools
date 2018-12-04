@@ -46,7 +46,10 @@ int Main(int argc, char *argv[]) {
 
     ControlNumberGuesser control_number_guesser;
 
+    unsigned total_count(0), good_count(0);
     for (int arg_no(1); arg_no < argc; ++arg_no) {
+        ++total_count;
+
         const std::string input_filename(argv[arg_no]);
         const auto input_file(FileUtil::OpenInputFileOrDie(input_filename));
 
@@ -60,9 +63,14 @@ int Main(int argc, char *argv[]) {
             LOG_WARNING("failed to associate \"" + input_filename + "\" with any control number!");
         else if (guessed_control_numbers.size() > 1)
             LOG_WARNING("we're in a pickle!");
-        else
+        else {
+            ++good_count;
             LOG_INFO("whoohoo!");
+        }
     }
+
+    LOG_INFO("Processed " + std::to_string(total_count) + " documents of which \"" + std::to_string(good_count)
+             + " could be uniquelt associated with a control number.");
 
     return EXIT_SUCCESS;
 }
