@@ -70,7 +70,7 @@ int Main(int argc, char *argv[]) {
     }
 
     LOG_INFO("Processed " + std::to_string(total_count) + " documents of which \"" + std::to_string(good_count)
-             + " could be uniquelt associated with a control number.");
+             + " could be uniquely associated with a control number.");
 
     return EXIT_SUCCESS;
 }
