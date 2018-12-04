@@ -89,7 +89,7 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
 
 
 size_t CorrelateFullTextData(const std::vector<std::shared_ptr<FullTextData>> &full_text_data,
-                            std::unordered_map<std::string, std::shared_ptr<FullTextData>> * const control_number_to_full_text_data_map)
+                             std::unordered_map<std::string, std::shared_ptr<FullTextData>> * const control_number_to_full_text_data_map)
 {
     size_t exact_matches(0);
     ControlNumberGuesser ppn_guesser;

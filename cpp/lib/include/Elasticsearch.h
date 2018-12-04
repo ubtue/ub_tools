@@ -75,7 +75,7 @@ class Connection {
                                             const std::shared_ptr<const JSON::JSONNode> &data = nullptr);
 public:
     Connection(const Url &host, const std::string &username = "", const std::string &password = "", bool ignore_ssl_certificates = false)
-     : host_(host), username_(username), password_(password), ignore_ssl_certificates_(ignore_ssl_certificates) {}
+        : host_(host), username_(username), password_(password), ignore_ssl_certificates_(ignore_ssl_certificates) {}
 public:
     /** \brief Creates a new document.
     *   \throws std::runtime_error (\see Query)
