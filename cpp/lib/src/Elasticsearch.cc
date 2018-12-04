@@ -69,8 +69,10 @@ std::unordered_map<std::string, std::string> JSONToFields(const std::shared_ptr<
 /** \brief Sends REST queries to Elasticsearch server
 *   \throws std::runtime_error on REST error or if the JSON response contained an error flag.
 */
-std::shared_ptr<JSON::ObjectNode> Connection::query(const std::string &action, const REST::QueryType query_type, const std::shared_ptr<const JSON::JSONNode> &data) {
-    Url url(host_.toString() + "/" + action);
+std::shared_ptr<JSON::ObjectNode> Connection::query(const std::string &action, const REST::QueryType query_type,
+                                                    const std::shared_ptr<const JSON::JSONNode> &data)
+{
+    const Url url(host_.toString() + "/" + action);
     Downloader::Params params;
     params.authentication_username_ = username_;
     params.authentication_password_ = password_;
