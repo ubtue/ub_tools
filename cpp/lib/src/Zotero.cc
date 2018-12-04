@@ -999,13 +999,22 @@ void PreprocessHarvesterResponse(std::shared_ptr<JSON::ArrayNode> * const respon
 
 
 bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry) {
+    static const std::vector<std::string> valid_item_types_for_online_first{
+        "journalArticle", "magazineArticle",  "newspaperArticle", "webpage"
+    };
+
+    const auto item_type(entry->getStringValue("itemType"));
     const auto issue(entry->getOptionalStringValue("issue"));
     const auto volume(entry->getOptionalStringValue("volume"));
     const auto doi(entry->getOptionalStringValue("DOI"));
 
-    if (issue.empty() and volume.empty() and doi.empty()) {
-        LOG_DEBUG("Skipping: online-first article without a DOI");
-        return false;
+    if (std::find(valid_item_types_for_online_first.begin(),
+                  valid_item_types_for_online_first.end(), item_type) != valid_item_types_for_online_first.end())
+    {
+        if (issue.empty() and volume.empty() and doi.empty()) {
+            LOG_DEBUG("Skipping: online-first article without a DOI");
+            return false;
+        }
     }
 
     return true;
