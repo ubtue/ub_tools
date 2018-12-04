@@ -41,7 +41,7 @@ namespace {
 
 
 int Main(int argc, char *argv[]) {
-    if (argc == 0)
+    if (argc == 1)
         Usage();
 
     ControlNumberGuesser control_number_guesser;
