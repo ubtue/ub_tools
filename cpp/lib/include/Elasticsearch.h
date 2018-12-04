@@ -78,63 +78,64 @@ public:
         : host_(host), username_(username), password_(password), ignore_ssl_certificates_(ignore_ssl_certificates) {}
 public:
     /** \brief Creates a new document.
-    *   \throws std::runtime_error (\see Query)
-    */
+     *  \throws std::runtime_error (\see Query)
+     */
     void insertDocument(const std::string &index, const Document &document);
 
     /** \brief Creates a new index
-    *   \throws std::runtime_error (\see Query)
-    */
+     *  \throws std::runtime_error (\see Query)
+     */
     void createIndex(const std::string &index);
 
     /** \brief Deletes an existing document.
-    *   \throws std::runtime_error (\see Query)
-    */
+     *  \throws std::runtime_error (\see Query)
+     */
     void deleteDocument(const std::string &index, const std::string &type, const std::string &id);
 
     /** \brief Deletes the given index.
-    *   \throws std::runtime_error (\see Query)
-    */
+     *  \throws std::runtime_error (\see Query)
+     */
     void deleteIndex(const std::string &index);
 
     /** \brief Gets an existing document
-    *   \throws std::runtime_error (\see Query)
-    */
+     *  \throws std::runtime_error (\see Query)
+     */
     Document getDocument(const std::string &index, const std::string &type, const std::string &id);
 
     /** \brief Get IDs of all existing indices
-    *   \throws std::runtime_error (\see Query)
-    */
+     *  \throws std::runtime_error (\see Query)
+     */
     std::vector<std::string> getIndexList();
 
     /** \brief Get statistics for the given index
-    *   \throws std::runtime_error (\see Query)
-    */
+     *  \throws std::runtime_error (\see Query)
+     */
     IndexStatistics getIndexStatistics(const std::string &index);
 
     /** \brief Check if the given index has an ID with the given document type
-    *   \throws std::runtime_error (\see Query)
+     *  \throws std::runtime_error (\see Query)
     */
     bool hasDocument(const std::string &index, const std::string &type, const std::string &id);
 
     /** \brief copy all documents from source index to target index
-    *   \throws std::runtime_error (\see Query)
-    */
+     *  \throws std::runtime_error (\see Query)
+     */
     void reindex(const std::string &source_index, const std::string &target_index);
 
     /** \brief Search for all documents in the given index. If fields are given, documents need to match all specified fields.
-    *   \throws std::runtime_error (\see Query)
-    */
-    std::unordered_map<std::string, Document> getDocuments(const std::string &index, const std::unordered_map<std::string, std::string> &fields
-                                                           = std::unordered_map<std::string, std::string>());
+     *  \throws std::runtime_error (\see Query)
+     */
+    std::unordered_map<std::string, Document> getDocuments(const std::string &index,
+                                                           const std::unordered_map<std::string, std::string> &fields
+                                                               = std::unordered_map<std::string, std::string>());
 
     /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).
-    *   \throws std::runtime_error (\see Query)
-    */
+     *  \throws std::runtime_error (\see Query)
+     */
     void updateDocument(const std::string &index, const Document &document);
 
     /** \brief Insert document if not exists, else update. On update, only given fields will be updated.
-    *   \throws std::runtime_error (\see Query)
+     *  \throws std::runtime_error (\see Query)
     */
     void updateOrInsertDocument(const std::string &index, const Document &document);
 };
