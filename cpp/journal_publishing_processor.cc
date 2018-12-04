@@ -126,7 +126,9 @@ bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_t
 }
 
 
-void ProcessDocument(const bool normalise_only, const std::string &input_file_path, XMLParser * const xml_parser, File * const plain_text_output) {
+void ProcessDocument(const bool normalise_only, const std::string &input_file_path, XMLParser * const xml_parser,
+                     File * const plain_text_output)
+{
     FullTextImport::FullTextData full_text_metadata;
     ExtractMetadata(xml_parser, &full_text_metadata);
 
