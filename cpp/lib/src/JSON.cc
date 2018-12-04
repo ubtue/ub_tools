@@ -370,6 +370,22 @@ std::string StringNode::toString() const {
 }
 
 
+ObjectNode::ObjectNode(const std::string &object_as_string) {
+    if (object_as_string.empty())
+        return;
+
+    std::shared_ptr<JSONNode> tree_root;
+    Parser parser(object_as_string);
+    if (unlikely(not parser.parse(&tree_root)))
+        LOG_ERROR("failed to construct an ObjectNode instance from a string: " + parser.getErrorMessage());
+
+    if (unlikely(tree_root->getType() != OBJECT_NODE))
+        LOG_ERROR("incompatible JSON node type!");
+
+    entries_.swap(reinterpret_cast<ObjectNode *>(tree_root.get())->entries_);
+}
+
+
 std::shared_ptr<JSONNode> ObjectNode::clone() const {
     std::shared_ptr<ObjectNode> the_clone(new ObjectNode);
     for (const auto &entry : entries_)
