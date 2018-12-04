@@ -74,7 +74,8 @@ const std::map<std::string, MARC::Record::BibliographicLevel> ITEM_TYPE_TO_BIBLI
     { "journalArticle", MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART },
     { "magazineArticle", MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART },
     { "newspaperArticle", MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART },
-    { "webpage", MARC::Record::BibliographicLevel::INTEGRATING_RESOURCE }
+    { "webpage", MARC::Record::BibliographicLevel::INTEGRATING_RESOURCE },
+    { "review", MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART }
 };
 
 
