@@ -287,7 +287,7 @@ static bool ContainsReview(const std::string &s) {
 }
 
 
-void MarcFormatHandler::ExtractItemParameters(std::shared_ptr<const JSON::ObjectNode> object_node, ItemParameters * const node_parameters) {
+void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::ObjectNode> object_node, ItemParameters * const node_parameters) {
     // Item Type
     node_parameters->item_type_ = object_node->getStringValue("itemType");
 
@@ -459,7 +459,7 @@ void SelectIssnAndPpn(const std::string &issn_zotero, const std::string &issn_on
 }
 
 
-void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters) {
+void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters) {
     const std::string item_type(node_parameters.item_type_);
     *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, Transformation::MapBiblioLevel(item_type));
 
@@ -624,7 +624,7 @@ void MarcFormatHandler::GenerateMarcRecord(MARC::Record * const record, const st
 
 
 // Extracts information from the ubtue node
-void MarcFormatHandler::ExtractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node, CustomNodeParameters * const
+void MarcFormatHandler::extractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node, CustomNodeParameters * const
                                                         custom_node_params)
 {
     const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
@@ -663,7 +663,7 @@ std::string GetCustomValueIfNotEmpty(const std::string &custom_value, const std:
 }
 
 
-void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters, struct CustomNodeParameters &custom_node_params){
+void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters, struct CustomNodeParameters &custom_node_params){
     item_parameters->issn_zotero_ = custom_node_params.issn_zotero_;
     item_parameters->issn_online_ = custom_node_params.issn_online_;
     item_parameters->issn_print_ = custom_node_params.issn_print_;
@@ -686,7 +686,7 @@ void MarcFormatHandler::MergeCustomParametersToItemParameters(struct ItemParamet
 }
 
 
-void MarcFormatHandler::HandleTrackingAndWriteRecord(const MARC::Record &new_record, const bool disable_tracking,
+void MarcFormatHandler::handleTrackingAndWriteRecord(const MARC::Record &new_record, const bool disable_tracking,
                                                      const BSZUpload::DeliveryMode delivery_mode, struct ItemParameters &item_params,
                                                      unsigned * const previously_downloaded_count) {
 
@@ -724,17 +724,17 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
     CustomNodeParameters custom_node_params;
     if (custom_node != nullptr)
-        ExtractCustomNodeParameters(custom_node, &custom_node_params);
+        extractCustomNodeParameters(custom_node, &custom_node_params);
 
     struct ItemParameters item_parameters;
-    ExtractItemParameters(object_node, &item_parameters);
-    MergeCustomParametersToItemParameters(&item_parameters, custom_node_params);
+    extractItemParameters(object_node, &item_parameters);
+    mergeCustomParametersToItemParameters(&item_parameters, custom_node_params);
     const BSZUpload::DeliveryMode delivery_mode(site_params_ ? site_params_->delivery_mode_ : BSZUpload::DeliveryMode::NONE);
 
     MARC::Record new_record(std::string(MARC::Record::LEADER_LENGTH, ' ') /*empty dummy leader*/);
-    GenerateMarcRecord(&new_record, item_parameters);
+    generateMarcRecord(&new_record, item_parameters);
 
-    HandleTrackingAndWriteRecord(new_record, harvest_params_->disable_tracking_, delivery_mode, item_parameters, &previously_downloaded_count);
+    handleTrackingAndWriteRecord(new_record, harvest_params_->disable_tracking_, delivery_mode, item_parameters, &previously_downloaded_count);
     return std::make_pair(/* record count */1, previously_downloaded_count);
 }
 
@@ -998,6 +998,20 @@ void PreprocessHarvesterResponse(std::shared_ptr<JSON::ArrayNode> * const respon
 }
 
 
+bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry) {
+    const auto issue(entry->getOptionalStringValue("issue"));
+    const auto volume(entry->getOptionalStringValue("volume"));
+    const auto doi(entry->getOptionalStringValue("DOI"));
+
+    if (issue.empty() and volume.empty() and doi.empty()) {
+        LOG_DEBUG("Skipping: online-first article without a DOI");
+        return false;
+    }
+
+    return true;
+}
+
+
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
                                       const SiteParams &site_params, HarvesterErrorLogger * const error_logger, bool verbose)
 {
@@ -1062,7 +1076,8 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
         try {
             AugmentJson(harvest_url, json_object, site_params);
-            record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
+            if (ValidateAugmentedJSON(json_object))
+                record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
         } catch (const std::exception &x) {
             error_logger_context.autoLog("Couldn't process record! Error: " + std::string(x.what()));
             return record_count_and_previously_downloaded_count;
