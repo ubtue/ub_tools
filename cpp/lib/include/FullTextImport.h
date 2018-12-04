@@ -47,6 +47,8 @@ struct FullTextData {
     std::set<std::string> authors_;
     std::string year_;
     std::string doi_;
+    std::string issn_;
+    std::string isbn_;
     std::vector<std::string> full_text_;
 };
 
@@ -59,7 +61,7 @@ struct FullTextData {
 // Line 5: <full_text>
 void WriteExtractedTextToDisk(const std::string &full_text, const std::string &title,
                               const std::set<std::string> &authors, const std::string &year, const std::string &doi,
-                              File * const output_file);
+                              const std::string &issn, const std::string &isbn, File * const output_file);
 
 
 // Reads in and parses a text file previously written to disk with WriteExtractedTextToDisk() into a FullTextData instance.
@@ -68,7 +70,7 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
 
 // Match full-text data with an existing record's control number, if any. Returns the number of exact matches.
 size_t CorrelateFullTextData(const std::vector<std::shared_ptr<FullTextData>> &full_text_data,
-                            std::unordered_map<std::string, std::shared_ptr<FullTextData>> * const control_number_to_full_text_data_map);
+                             std::unordered_map<std::string, std::shared_ptr<FullTextData>> * const control_number_to_full_text_data_map);
 
 
 } // namespace FullTextImport

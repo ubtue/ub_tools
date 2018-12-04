@@ -294,7 +294,7 @@ public:
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
     MARC::Writer *getWriter() { return marc_writer_.get(); }
 private:
-    inline std::string CreateSubfieldFromStringNode(const std::string &key, const std::shared_ptr<const JSON::JSONNode> node,
+    inline std::string createSubfieldFromStringNode(const std::string &key, const std::shared_ptr<const JSON::JSONNode> node,
                                                     const std::string &tag, const char subfield_code,
                                                     MARC::Record * const marc_record, const char indicator1 = ' ',
                                                     const char indicator2 = ' ')
@@ -305,20 +305,20 @@ private:
         return value;
     }
 
-    inline std::string CreateSubfieldFromStringNode(const std::pair<std::string, std::shared_ptr<JSON::JSONNode>> &key_and_node,
+    inline std::string createSubfieldFromStringNode(const std::pair<std::string, std::shared_ptr<JSON::JSONNode>> &key_and_node,
                                                     const std::string &tag, const char subfield_code,
                                                     MARC::Record * const marc_record, const char indicator1 = ' ',
                                                     const char indicator2 = ' ')
     {
-        return CreateSubfieldFromStringNode(key_and_node.first, key_and_node.second, tag, subfield_code, marc_record,
+        return createSubfieldFromStringNode(key_and_node.first, key_and_node.second, tag, subfield_code, marc_record,
                                             indicator1, indicator2);
     }
 
-    void ExtractKeywords(std::shared_ptr<const JSON::JSONNode> tags_node, const std::string &issn,
+    void extractKeywords(std::shared_ptr<const JSON::JSONNode> tags_node, const std::string &issn,
                          const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
                          MARC::Record * const new_record);
 
-    void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node,
+    void extractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node,
                                         MARC::Record * const new_record);
 
     MARC::Record processJSON(const std::shared_ptr<const JSON::ObjectNode> &object_node, std::string * const url,
@@ -326,18 +326,18 @@ private:
                              std::string * const website_title);
 
     // Extracts information from the ubtue node
-    void ExtractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node,
+    void extractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node,
                                      struct CustomNodeParameters * const custom_node_parameters);
 
-    void ExtractItemParameters(std::shared_ptr<const JSON::ObjectNode> object_node,
+    void extractItemParameters(std::shared_ptr<const JSON::ObjectNode> object_node,
                                struct ItemParameters * const item_parameters);
 
-    void GenerateMarcRecord(MARC::Record * const record, const struct ItemParameters &item_parameters);
+    void generateMarcRecord(MARC::Record * const record, const struct ItemParameters &item_parameters);
 
-    void MergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters,
+    void mergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters,
                                                struct CustomNodeParameters &custom_node_params);
 
-    void HandleTrackingAndWriteRecord(const MARC::Record &new_record, const bool disable_tracking, const BSZUpload::DeliveryMode delivery_mode,
+    void handleTrackingAndWriteRecord(const MARC::Record &new_record, const bool disable_tracking, const BSZUpload::DeliveryMode delivery_mode,
                                       struct ItemParameters &item_params, unsigned * const previously_downloaded_count);
 };
 
