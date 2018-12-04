@@ -1000,7 +1000,7 @@ void PreprocessHarvesterResponse(std::shared_ptr<JSON::ArrayNode> * const respon
 
 bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry) {
     static const std::vector<std::string> valid_item_types_for_online_first{
-        "journalArticle", "magazineArticle",  "newspaperArticle", "webpage"
+        "journalArticle", "magazineArticle"
     };
 
     const auto item_type(entry->getStringValue("itemType"));
