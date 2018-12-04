@@ -32,7 +32,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] [--normalise-only] input1 [input2 .. inputN]\n";
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] input1 [input2 .. inputN]\n";
     std::exit(EXIT_FAILURE);
 }
 
