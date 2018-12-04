@@ -126,7 +126,9 @@ bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_t
 }
 
 
-void ProcessDocument(const bool normalise_only, const std::string &input_file_path, XMLParser * const xml_parser, File * const plain_text_output) {
+void ProcessDocument(const bool normalise_only, const std::string &input_file_path, XMLParser * const xml_parser,
+                     File * const plain_text_output)
+{
     FullTextImport::FullTextData full_text_metadata;
     ExtractMetadata(xml_parser, &full_text_metadata);
 
@@ -156,10 +158,9 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
     if (full_text.empty() and abstract.empty())
         LOG_ERROR("neither full-text nor abstract text was found in file '" + input_file_path + "'");
 
-    FullTextImport::WriteExtractedTextToDisk(not full_text.empty() ? full_text : abstract,
-                                             full_text_metadata.title_, full_text_metadata.authors_,
-                                             full_text_metadata.year_, full_text_metadata.doi_,
-                                             plain_text_output);
+    FullTextImport::WriteExtractedTextToDisk(not full_text.empty() ? full_text : abstract, full_text_metadata.title_,
+                                             full_text_metadata.authors_, full_text_metadata.year_, full_text_metadata.doi_,
+                                             /* ISSN */"", /* ISBN */"", plain_text_output);
 }
 
 
