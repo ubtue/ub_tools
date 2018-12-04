@@ -45,6 +45,7 @@ const std::unordered_map<std::string, Zeder::Entries> Zeder::key_id_resolver_map
     { "id",            Zeder::Entries::ID            },
     { "modified_time", Zeder::Entries::MODIFIED_TIME },
     { "comment",       Zeder::Entries::COMMENT       },
+    { "update_window", Zeder::Entries::UPDATE_WINDOW },
 };
 
 

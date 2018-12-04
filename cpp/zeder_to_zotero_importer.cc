@@ -63,7 +63,7 @@ enum ExportField {
     TYPE, GROUP,
     PARENT_PPN_PRINT, PARENT_PPN_ONLINE, PARENT_ISSN_PRINT, PARENT_ISSN_ONLINE,
     ENTRY_POINT_URL, STRPTIME_FORMAT,
-    EXTRACTION_REGEX, MAX_CRAWL_DEPTH
+    EXTRACTION_REGEX, MAX_CRAWL_DEPTH, ZEDER_UPDATE_WINDOW
 };
 
 
@@ -111,6 +111,7 @@ ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { STRPTIME_FORMAT,          "" /* unused */             },
     { EXTRACTION_REGEX,         "" /* unused */             },
     { MAX_CRAWL_DEPTH,          "" /* unused */             },
+    { ZEDER_UPDATE_WINDOW,      "update_window"             },
 }, ini_keys_{
     { TITLE,                    "" /* exported as the section name */   },
     { ZEDER_ID,                 JournalConfig::ZederBundle::Key(JournalConfig::Zeder::ID)                   },
@@ -126,6 +127,7 @@ ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { STRPTIME_FORMAT,          JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::STRPTIME_FORMAT)    },
     { EXTRACTION_REGEX,         JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::EXTRACTION_REGEX)   },
     { MAX_CRAWL_DEPTH,          JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::MAX_CRAWL_DEPTH)    },
+    { ZEDER_UPDATE_WINDOW,      JournalConfig::ZederBundle::Key(JournalConfig::Zeder::UPDATE_WINDOW)        },
 } {}
 
 
@@ -209,6 +211,17 @@ bool GetHarvesterTypeFromEntry(const Zeder::Entry &entry, const ExportFieldNameR
        return false;
 
     return true;
+}
+
+
+std::string CalculateUpdateWindowFromFrequency(const std::string &frequency) {
+    // Calculate an admissible range in days for a frequency given per year
+    // Right now we simply ignore entries that cannot be suitably converted to float
+    float frequency_as_float;
+    if (not StringUtil::ToFloat(frequency, &frequency_as_float))
+        return "";
+    float admissible_range = (365 / frequency_as_float) * 1.5;
+    return std::to_string(static_cast<int>(std::round(admissible_range)));
 }
 
 
@@ -300,6 +313,18 @@ bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFie
     } else
         entry->setAttribute(name_resolver.getAttributeName(ENTRY_POINT_URL), resolved_url);
 
+    // Extract the frequency and calculate the update window in days
+
+    std::string journal_frequency(entry->getAttribute("freq")); // <- issues per year, can be a fraction
+    if (not journal_frequency.empty()) {
+        const std::string update_window(CalculateUpdateWindowFromFrequency(journal_frequency));
+        if (not update_window.empty())
+            entry->setAttribute(name_resolver.getAttributeName(ZEDER_UPDATE_WINDOW), update_window);
+        else
+            LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | Unable to derive a proper update window from \""
+                                                                       + journal_frequency + "\"");
+    }
+
     // remove the original attributes
     entry->keepAttributes(name_resolver.getAllValidAttributeNames());
 
@@ -309,6 +334,7 @@ bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFie
 
     return valid;
 }
+
 
 bool PostProcessIniImportedEntry(const ImporterParams &params, const ExportFieldNameResolver &name_resolver, Zeder::Entry * const entry) {
     if (not params.entries_to_process_.empty() and
@@ -474,6 +500,7 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
         name_resolver.getAttributeName(TYPE),
         name_resolver.getAttributeName(GROUP),
         name_resolver.getAttributeName(ENTRY_POINT_URL),
+        name_resolver.getAttributeName(ZEDER_UPDATE_WINDOW)
     };
 
     static const std::unordered_map<std::string, std::string> attribute_to_ini_key_map{
@@ -485,6 +512,7 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
         name_resolver.getAttributeNameIniKeyPair(PARENT_ISSN_PRINT),
         name_resolver.getAttributeNameIniKeyPair(PARENT_ISSN_ONLINE),
         name_resolver.getAttributeNameIniKeyPair(ENTRY_POINT_URL),
+        name_resolver.getAttributeNameIniKeyPair(ZEDER_UPDATE_WINDOW)
     };
 
     auto extra_keys_appender([name_resolver](IniFile::Section * const section, const Zeder::Entry &entry) {

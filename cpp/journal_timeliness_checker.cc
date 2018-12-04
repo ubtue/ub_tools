@@ -103,7 +103,7 @@ int Main(int argc, char *argv[]) {
         }
 
         unsigned update_window;
-        if (section.find("update_window") == section.end()) {
+        if (section.find("zeder_update_window") == section.end()) {
             LOG_WARNING("no update window found for \"" + journal_name + "\", using " + std::to_string(default_update_window) + "!");
             update_window = default_update_window;
         } else
