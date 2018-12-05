@@ -317,7 +317,7 @@ void ProcessSingleUser(
     const std::string &sender_email, const std::string &email_subject,
     std::vector<SerialControlNumberAndMaxLastModificationTime> &control_numbers_or_bundle_names_and_last_modification_times)
 {
-    db_connection->queryOrDie("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.user_id WHERE user.id='" + user_id + "'");
+    db_connection->queryOrDie("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id WHERE user.id='" + user_id + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
 
     if (result_set.empty())
@@ -396,7 +396,7 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
     DbResultSet id_result_set(db_connection->getLastResultSet());
     const unsigned user_count(id_result_set.size());
     while (const DbRow id_row = id_result_set.getNextRow()) {
-        const std::string user_id(id_row["id"]);
+        const std::string user_id(id_row["user_id"]);
 
         db_connection->queryOrDie("SELECT journal_control_number_or_bundle_name,max_last_modification_time FROM "
                                   "ixtheo_journal_subscriptions WHERE user_id=" + user_id);
