@@ -389,7 +389,7 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
                           const std::string &solr_host_and_port, const std::string &user_type, const std::string &hostname,
                           const std::string &sender_email, const std::string &email_subject)
 {
-    db_connection->queryOrDie("SELECT DISTINCT id FROM ixtheo_journal_subscriptions WHERE id IN (SELECT id FROM "
+    db_connection->queryOrDie("SELECT DISTINCT user_id FROM ixtheo_journal_subscriptions WHERE user_id IN (SELECT id FROM "
                               "ixtheo_user WHERE ixtheo_user.user_type = '" + user_type  + "')");
 
     unsigned subscription_count(0);
