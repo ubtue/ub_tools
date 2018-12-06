@@ -49,7 +49,9 @@ std::string Query(const Url &url, const QueryType query_type, const std::string 
 }
 
 
-std::shared_ptr<JSON::JSONNode> QueryJSON(const Url &url, const QueryType query_type, const std::shared_ptr<const JSON::JSONNode> &data, const Downloader::Params &params) {
+std::shared_ptr<JSON::JSONNode> QueryJSON(const Url &url, const QueryType query_type, const JSON::JSONNode * const data,
+                                          const Downloader::Params &params)
+{
     std::string json_in;
     if (data != nullptr)
         json_in = data->toString();
