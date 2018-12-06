@@ -292,11 +292,14 @@ void SendNotificationEmail(const bool debug, const std::string &firstname, const
     else {
         const unsigned short response_code(EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents.str(),
                                                                   EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
-        if (response_code == 550)
-            LOG_WARNING("failed to send a notification email to \"" + recipient_email + "\", recipient may not exist!");
-        else
-            LOG_ERROR("failed to send a notification email to \"" + recipient_email + "\"! (response code was: "
-                      + std::to_string(response_code) + ")");
+
+        if (response_code >= 300) {
+            if (response_code == 550)
+                LOG_WARNING("failed to send a notification email to \"" + recipient_email + "\", recipient may not exist!");
+            else
+                LOG_ERROR("failed to send a notification email to \"" + recipient_email + "\"! (response code was: "
+                          + std::to_string(response_code) + ")");
+        }
     }
 }
 
