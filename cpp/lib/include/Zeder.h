@@ -27,6 +27,7 @@
 #include "IniFile.h"
 #include "JSON.h"
 #include "RegexMatcher.h"
+#include "TimeUtil.h"
 #include "util.h"
 
 
@@ -73,7 +74,7 @@ public:
     using iterator = AttributeMap::iterator;
     using const_iterator = AttributeMap::const_iterator;
 public:
-    explicit Entry(const unsigned id = 0): id_(id), last_modified_timestamp_{}, attributes_() {}
+    explicit Entry(const unsigned id = 0): id_(id), last_modified_timestamp_(TimeUtil::GetCurrentTimeGMT()), attributes_() {}
 
     unsigned getId() const { return id_; }
     void setId(unsigned id) { id_ = id; }
@@ -95,17 +96,20 @@ public:
     struct DiffResult {
         // True if the modified revision's timestamp is newer than the source revision's
         bool timestamp_is_newer_;
+
+        // Difference in days between the modified revision and the source revision
+        double timestamp_time_difference_;
+
         // ID of the corresponding entry
         unsigned id_;
+
         // Last modified timestamp of the modified/newer revision
         tm last_modified_timestamp_;
+
         // Attribute => (old value, new value)
         // If the attribute was not present in the source revision, the old value is an empty string
         std::unordered_map<std::string, std::pair<std::string, std::string>> modified_attributes_;
     public:
-        DiffResult(bool timestamp_is_newer, unsigned id, tm last_modified_timestamp)
-            : timestamp_is_newer_(timestamp_is_newer), id_(id), last_modified_timestamp_(last_modified_timestamp), modified_attributes_() {}
-
         void prettyPrint(std::string * const print_buffer) const;
     };
 

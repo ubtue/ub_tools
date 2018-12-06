@@ -67,18 +67,23 @@ unsigned Entry::keepAttributes(const std::vector<std::string> &names_to_keep) {
 void Entry::prettyPrint(std::string * const print_buffer) const {
     *print_buffer = "Entry " + std::to_string(id_) + ":\n";
     for (const auto &attribute : attributes_)
-        print_buffer->append("\t{").append(attribute.first).append("} -> '").append(attribute.second).append("'\n");
+        *print_buffer += std::string("\t{") + attribute.first + "} -> '" + attribute.second + "'\n";
 }
 
 
 void Entry::DiffResult::prettyPrint(std::string * const print_buffer) const {
     *print_buffer = "Diff " + std::to_string(id_) + ":\n";
+
+    char time_string_buffer[100]{};
+    strftime(time_string_buffer, sizeof(time_string_buffer), MODIFIED_TIMESTAMP_FORMAT_STRING, &last_modified_timestamp_);
+    *print_buffer += "\tTimestamp: " + std::string(time_string_buffer) + " (" + (timestamp_is_newer_ ? "newer than the current revision by " :
+                     "older than the current revision by ") + std::to_string(abs(timestamp_time_difference_)) + " days)\n\n";
+
     for (const auto &attribute : modified_attributes_) {
-        if (not attribute.second.first.empty()) {
-            print_buffer->append("\t{").append(attribute.first).append("} -> '").append(attribute.second.first)
-                                       .append("' => '").append(attribute.second.second).append("'\n");
-        } else
-            print_buffer->append("\t{").append(attribute.first).append("} -> '").append(attribute.second.second).append("'\n");
+        if (not attribute.second.first.empty())
+            *print_buffer += std::string("\t{") + attribute.first + "} -> '" + attribute.second.first + "' => '" + attribute.second.second + "'\n";
+        else
+            *print_buffer += std::string("\t{") + attribute.first + "} -> '" + attribute.second.second + "'\n";
     }
 }
 
@@ -88,16 +93,21 @@ Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool ski
         LOG_ERROR("Can only diff revisions of the same entry! LHS = " + std::to_string(lhs.getId()) + ", RHS = "
                   + std::to_string(rhs.getId()));
 
-    DiffResult delta{ false, rhs.getId(), rhs.getLastModifiedTimestamp() };
+    DiffResult delta;
+    delta.id_ = rhs.getId();
+    delta.last_modified_timestamp_ = rhs.getLastModifiedTimestamp();
+    delta.timestamp_time_difference_ = TimeUtil::DiffStructTm(rhs.getLastModifiedTimestamp(), lhs.getLastModifiedTimestamp()) / 3600.f / 24.f;
+    delta.timestamp_is_newer_ = delta.timestamp_time_difference_ >= 0;
+
     if (not skip_timestamp_check) {
-        const auto time_difference(TimeUtil::DiffStructTm(rhs.getLastModifiedTimestamp(), lhs.getLastModifiedTimestamp()));
-        if (time_difference < 0) {
+        if (not delta.timestamp_is_newer_) {
+            const auto time_difference(abs(delta.timestamp_time_difference_));
             LOG_WARNING("The existing entry " + std::to_string(rhs.getId()) + " is newer than the diff by "
-                        + std::to_string(time_difference) + " seconds");
-        } else
-            delta.timestamp_is_newer_ = true;
+                        + std::to_string(time_difference) + " days (was the modified timestamp changed manually?)");
+        }
     } else {
         delta.timestamp_is_newer_ = true;
+        delta.timestamp_time_difference_ = 0.f;
         delta.last_modified_timestamp_ = TimeUtil::GetCurrentTimeGMT();
     }
 
@@ -127,7 +137,7 @@ void Entry::Merge(const DiffResult &delta, Entry * const merge_into) {
     if (not delta.timestamp_is_newer_) {
         const auto time_difference(TimeUtil::DiffStructTm(delta.last_modified_timestamp_, merge_into->getLastModifiedTimestamp()));
         LOG_WARNING("Diff of entry " + std::to_string(delta.id_) + " is not newer than the source revision. " +
-                    "Timestamp difference: " + std::to_string(time_difference) + " seconds");
+                    "Timestamp difference: " + std::to_string(abs(time_difference)) + " days");
     }
 
     merge_into->setModifiedTimestamp(delta.last_modified_timestamp_);
@@ -231,6 +241,7 @@ void IniReader::parse(EntryCollection * const collection) {
         const auto &section(*config_.getSection(section_name));
         Entry new_entry;
 
+        bool has_zeder_id(false), has_zeder_modified_timestamp(false);
         new_entry.setAttribute(params->section_name_attribute_, section_name);
         for (const auto &entry : section) {
             // skip empty lines
@@ -241,11 +252,14 @@ void IniReader::parse(EntryCollection * const collection) {
                 unsigned id(0);
                 if (not StringUtil::ToUnsigned(entry.value_, &id))
                     LOG_WARNING("Couldn't parse Zeder ID in section '" + section_name + "'");
-                else
+                else {
                     new_entry.setId(id);
-            } else if (entry.name_ == params->zeder_last_modified_timestamp_key_)
+                    has_zeder_id = true;
+                }
+            } else if (entry.name_ == params->zeder_last_modified_timestamp_key_) {
                 new_entry.setModifiedTimestamp(TimeUtil::StringToStructTm(entry.value_, MODIFIED_TIMESTAMP_FORMAT_STRING));
-            else {
+                has_zeder_modified_timestamp = true;
+            } else {
                 const auto attribute_name(params->key_to_attribute_map_.find(entry.name_));
                 if (attribute_name == params->key_to_attribute_map_.end()) {
                     LOG_DEBUG("Key '" + entry.name_ + "' has no corresponding Zeder attribute. Section: '" +
@@ -255,9 +269,8 @@ void IniReader::parse(EntryCollection * const collection) {
             }
         }
 
-        struct tm last_modified(new_entry.getLastModifiedTimestamp());
-        if (new_entry.getId() == 0 or std::mktime(&last_modified) == -1) {
-            LOG_WARNING("Mandatory fields were not found in section '" + section_name + "'");
+        if (not has_zeder_id or not has_zeder_modified_timestamp) {
+            LOG_WARNING("Mandatory fields were not found in section '" + section_name + "' (was it manually added?); ignoring section...");
 
             std::string debug_print_buffer;
             new_entry.prettyPrint(&debug_print_buffer);
