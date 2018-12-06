@@ -16,6 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <cmath>
 #include "Zeder.h"
 #include "Downloader.h"
 #include "FileUtil.h"
@@ -67,23 +68,23 @@ unsigned Entry::keepAttributes(const std::vector<std::string> &names_to_keep) {
 void Entry::prettyPrint(std::string * const print_buffer) const {
     *print_buffer = "Entry " + std::to_string(id_) + ":\n";
     for (const auto &attribute : attributes_)
-        *print_buffer += std::string("\t{") + attribute.first + "} -> '" + attribute.second + "'\n";
+        *print_buffer += "\t{" + attribute.first + "} -> '" + attribute.second + "'\n";
 }
 
 
 void Entry::DiffResult::prettyPrint(std::string * const print_buffer) const {
     *print_buffer = "Diff " + std::to_string(id_) + ":\n";
 
-    char time_string_buffer[100]{};
-    strftime(time_string_buffer, sizeof(time_string_buffer), MODIFIED_TIMESTAMP_FORMAT_STRING, &last_modified_timestamp_);
+    char time_string_buffer[20]{};  // YYYY-MM-DD hh:mm:ss
+    std::strftime(time_string_buffer, sizeof(time_string_buffer), MODIFIED_TIMESTAMP_FORMAT_STRING, &last_modified_timestamp_);
     *print_buffer += "\tTimestamp: " + std::string(time_string_buffer) + " (" + (timestamp_is_newer_ ? "newer than the current revision by " :
-                     "older than the current revision by ") + std::to_string(abs(timestamp_time_difference_)) + " days)\n\n";
+                     "older than the current revision by ") + std::to_string(std::fabs(timestamp_time_difference_)) + " days)\n\n";
 
     for (const auto &attribute : modified_attributes_) {
         if (not attribute.second.first.empty())
-            *print_buffer += std::string("\t{") + attribute.first + "} -> '" + attribute.second.first + "' => '" + attribute.second.second + "'\n";
+            *print_buffer += "\t{" + attribute.first + "} -> '" + attribute.second.first + "' => '" + attribute.second.second + "'\n";
         else
-            *print_buffer += std::string("\t{") + attribute.first + "} -> '" + attribute.second.second + "'\n";
+            *print_buffer += "\t{" + attribute.first + "} -> '" + attribute.second.second + "'\n";
     }
 }
 
@@ -96,18 +97,18 @@ Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool ski
     DiffResult delta;
     delta.id_ = rhs.getId();
     delta.last_modified_timestamp_ = rhs.getLastModifiedTimestamp();
-    delta.timestamp_time_difference_ = TimeUtil::DiffStructTm(rhs.getLastModifiedTimestamp(), lhs.getLastModifiedTimestamp()) / 3600.f / 24.f;
+    delta.timestamp_time_difference_ = TimeUtil::DiffStructTm(rhs.getLastModifiedTimestamp(), lhs.getLastModifiedTimestamp()) / 3600 / 24;
     delta.timestamp_is_newer_ = delta.timestamp_time_difference_ >= 0;
 
     if (not skip_timestamp_check) {
         if (not delta.timestamp_is_newer_) {
-            const auto time_difference(abs(delta.timestamp_time_difference_));
+            const auto time_difference(std::fabs(delta.timestamp_time_difference_));
             LOG_WARNING("The existing entry " + std::to_string(rhs.getId()) + " is newer than the diff by "
                         + std::to_string(time_difference) + " days (was the modified timestamp changed manually?)");
         }
     } else {
         delta.timestamp_is_newer_ = true;
-        delta.timestamp_time_difference_ = 0.f;
+        delta.timestamp_time_difference_ = 0;
         delta.last_modified_timestamp_ = TimeUtil::GetCurrentTimeGMT();
     }
 

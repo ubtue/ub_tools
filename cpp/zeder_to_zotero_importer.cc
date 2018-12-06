@@ -372,7 +372,7 @@ unsigned DiffZederEntries(const Zeder::EntryCollection &old_entries, const Zeder
             new_diff.timestamp_time_difference_ = 0;
 
             for (const auto &key_value : new_entry)
-                new_diff.modified_attributes_[key_value.first] = std::make_pair("", key_value.second);
+                new_diff.modified_attributes_[key_value.first] = std::make_pair(std::string(""), key_value.second);
 
             diff_results->push_back(new_diff);
             new_entry_ids->insert(new_entry.getId());
