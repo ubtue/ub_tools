@@ -75,7 +75,7 @@ void Entry::prettyPrint(std::string * const print_buffer) const {
 void Entry::DiffResult::prettyPrint(std::string * const print_buffer) const {
     *print_buffer = "Diff " + std::to_string(id_) + ":\n";
 
-    char time_string_buffer[20]{};  // YYYY-MM-DD hh:mm:ss
+    char time_string_buffer[19 + 1]{};  // YYYY-MM-DD hh:mm:ss
     std::strftime(time_string_buffer, sizeof(time_string_buffer), MODIFIED_TIMESTAMP_FORMAT_STRING, &last_modified_timestamp_);
     *print_buffer += "\tTimestamp: " + std::string(time_string_buffer) + " (" + (timestamp_is_newer_ ? "newer than the current revision by " :
                      "older than the current revision by ") + std::to_string(std::fabs(timestamp_time_difference_)) + " days)\n\n";
