@@ -677,20 +677,13 @@ inline bool IsWhiteSpace(const char ch) {
 }
 
 
-inline std::string OctalEscape(const char ch) {
-    char buf[1 + 3 + 1];
-    std::sprintf(buf, "\\%03o", ch);
-    return buf;
-}
-
-
 std::string EscapeString(const std::string &original_string, const bool also_escape_whitespace) {
     std::string escaped_string;
     escaped_string.reserve(original_string.size() * 2);
 
     for (char ch : original_string) {
         if (std::iscntrl(ch) or (not also_escape_whitespace or IsWhiteSpace(ch)))
-            escaped_string += OctalEscape(ch);
+            escaped_string += StringUtil::ToString(static_cast<unsigned char>(ch), /* radix */8, /* width */3, /* padding_char */'0');
         else
             escaped_string += ch;
     }
@@ -1371,20 +1364,6 @@ static std::string ToUnicodeEscape(const uint32_t code_point) {
 }
 
 
-// \return 3 octal digits representing "ch".
-static std::string ToOctal(unsigned char ch) {
-    std::string as_string;
-
-    unsigned shift_count(6);
-    for (int digit(0); digit < 3; ++digit) {
-        as_string +=  ((ch >> shift_count) & 7u) + '0';
-        shift_count -= 3;
-    }
-
-    return as_string;
-}
-
-
 std::string &CStyleEscape(std::string * const s) {
     std::string escaped_string;
 
@@ -1423,7 +1402,9 @@ std::string &CStyleEscape(std::string * const s) {
                 if (std::isprint(*ch))
                     escaped_string += *ch;
                 else
-                    escaped_string += "\\" + ToOctal(static_cast<unsigned char>(*ch));
+                    escaped_string += "\\"
+                                      + StringUtil::ToString(static_cast<unsigned char>(*ch), /* radix */8, /* width */3,
+                                                             /* padding_char */'0');
             }
             }
         } else { // We found the first byte of a UTF8 byte sequence.
