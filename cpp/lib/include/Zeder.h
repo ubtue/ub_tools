@@ -74,7 +74,7 @@ public:
     using iterator = AttributeMap::iterator;
     using const_iterator = AttributeMap::const_iterator;
 public:
-    explicit Entry(const unsigned id = 0): id_(id), last_modified_timestamp_(TimeUtil::GetCurrentTimeGMT()), attributes_() {}
+    explicit Entry(const unsigned id = 0): id_(id), last_modified_timestamp_{}, attributes_() {}
 
     unsigned getId() const { return id_; }
     void setId(unsigned id) { id_ = id; }
@@ -170,6 +170,7 @@ enum FileType { CSV, JSON, INI };
 FileType GetFileTypeFromPath(const std::string &path, bool check_if_file_exists = true);
 
 
+// Abstract base class for importing Zeder data from different sources
 class Importer {
 public:
     enum MandatoryField { Z, MTIME };
@@ -226,7 +227,9 @@ public:
     class Params : public Importer::Params {
         friend class IniReader;
     protected:
+        // Sections to process.
         std::vector<std::string> valid_section_names_;
+        //
         std::string section_name_attribute_;
         std::string zeder_id_key_;
         std::string zeder_last_modified_timestamp_key_;
