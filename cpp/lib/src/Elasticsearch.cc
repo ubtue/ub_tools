@@ -53,6 +53,11 @@ Elasticsearch::Elasticsearch(const std::string &ini_file_path) {
 }
 
 
+// A general comment as to the strategy we use in this function:
+//
+//    We know that there is an _update API endpoint, but as we insert a bunch of chunks, the number of which can change,
+//    we have to use a "wildcard" strategy to first delete possibly existing chunks as the number of new chunks may be greater or
+//    fewer than what may already be stored.
 void Elasticsearch::insertDocument(const std::string &document_id, const std::vector<std::string> &document_chunks) {
     Downloader::Params downloader_params;
     downloader_params.authentication_username_ = username_;
@@ -68,7 +73,7 @@ void Elasticsearch::insertDocument(const std::string &document_id, const std::ve
     if (result_object->hasNode("error"))
         LOG_ERROR("Elasticsearch delete_by_query failed: " + result_object->getNode("error")->toString());
 
-    const Url insert_url(host_ + "/" + index_ + "/_delete_by_query");
+    const Url insert_url(host_ + "/" + index_ + "/_insert");
     for (const auto &document_chunk : document_chunks) {
         const JSON::ObjectNode payload(JSON::ObjectNode(std::unordered_map<std::string, std::string>{ { "doc", document_chunk } }));
         result = REST::QueryJSON(insert_url, REST::PUT, &payload, downloader_params);
