@@ -112,9 +112,11 @@ int Main(int argc, char *argv[]) {
         ProcessJournal(&db_connection, journal_name, journal_ppn, update_window, &tardy_list);
     }
 
-    if (not tardy_list.empty())
-        EmailSender::SendEmail(sender_email_address, notification_email_address, "Überfällige Zeitschiften",
-                               "Letzte Lieferung ans BSZ\n" + tardy_list, EmailSender::HIGH);
+    if (not tardy_list.empty()) {
+        if (EmailSender::SendEmail(sender_email_address, notification_email_address, "Überfällige Zeitschiften",
+                                   "Letzte Lieferung ans BSZ\n" + tardy_list, EmailSender::HIGH) > 299)
+            LOG_ERROR("failed to send email notofication!");
+    }
 
     return EXIT_SUCCESS;
 }

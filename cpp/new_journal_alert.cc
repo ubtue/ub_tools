@@ -288,11 +288,16 @@ void SendNotificationEmail(const bool debug, const std::string &firstname, const
     Template::ExpandTemplate(input, email_contents, names_to_values_map);
 
     if (debug)
-        std::cerr << "Debug mode, email address is " << sender_email << ", template expanded to:\n" << email_contents.str()
-                  << '\n';
-    else if (unlikely(not EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents.str(),
-                                                 EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
-        LOG_ERROR("failed to send a notification email to \"" + recipient_email + "\"!");
+        std::cerr << "Debug mode, email address is " << sender_email << ", template expanded to:\n" << email_contents.str() << '\n';
+    else {
+        const unsigned short response_code(EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents.str(),
+                                                                  EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
+        if (response_code == 550)
+            LOG_WARNING("failed to send a notification email to \"" + recipient_email + "\", recipient may not exist!");
+        else
+            LOG_ERROR("failed to send a notification email to \"" + recipient_email + "\"! (response code was: "
+                      + std::to_string(response_code) + ")");
+    }
 }
 
 
