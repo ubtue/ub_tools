@@ -218,6 +218,7 @@ public:
     }
 public:
     ObjectNode(const std::string &object_as_string = "");
+    ObjectNode(const std::unordered_map<std::string, std::string> &map);
 
     virtual std::shared_ptr<JSONNode> clone() const override;
     virtual Type getType() const override { return OBJECT_NODE; }
