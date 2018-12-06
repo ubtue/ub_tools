@@ -1371,6 +1371,20 @@ static std::string ToUnicodeEscape(const uint32_t code_point) {
 }
 
 
+// \return 3 octal digits representing "ch".
+static std::string ToOctal(unsigned char ch) {
+    std::string as_string;
+
+    unsigned shift_count(6);
+    for (int digit(0); digit < 3; ++digit) {
+        as_string +=  ((ch >> shift_count) & 7u) + '0';
+        shift_count -= 3;
+    }
+
+    return as_string;
+}
+
+
 std::string &CStyleEscape(std::string * const s) {
     std::string escaped_string;
 
@@ -1405,8 +1419,12 @@ std::string &CStyleEscape(std::string * const s) {
             case '"':
                 escaped_string += "\\\"";
                 break;
-            default:
-                escaped_string += *ch;
+            default: {
+                if (std::isprint(*ch))
+                    escaped_string += *ch;
+                else
+                    escaped_string += "\\" + ToOctal(static_cast<unsigned char>(*ch));
+            }
             }
         } else { // We found the first byte of a UTF8 byte sequence.
             for (;;) {
