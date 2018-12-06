@@ -2,7 +2,7 @@
  *  \brief  Anything relating to our full-text cache.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,6 +20,7 @@
 #pragma once
 
 
+#include <memory>
 #include <string>
 #include <vector>
 #include "DbConnection.h"
@@ -28,11 +29,10 @@
 
 class FullTextCache {
     std::unique_ptr<DbConnection> db_connection_;
-    std::unique_ptr<Elasticsearch::Connection> elasticsearch_connection_;
     std::string elasticsearch_index_;
     std::string elasticsearch_document_type_;
+    std::unique_ptr<Elasticsearch> elasticsearch_;
 public:
-    FullTextCache(const bool use_elasticsearch = false);
     struct Entry {
         std::string id_;
         time_t expiration_;
@@ -56,6 +56,8 @@ public:
         std::string error_message_;
         JoinedEntry example_entry_;
     };
+public:
+    explicit FullTextCache(const bool use_elasticsearch = false);
 
     /** \brief Test whether an entry in the cache has expired or not.
      *  \return True if we don't find "id" in the database, or the entry is older than now-CACHE_EXPIRE_TIME_DELTA,
