@@ -677,20 +677,13 @@ inline bool IsWhiteSpace(const char ch) {
 }
 
 
-inline std::string OctalEscape(const char ch) {
-    char buf[1 + 3 + 1];
-    std::sprintf(buf, "\\%03o", ch);
-    return buf;
-}
-
-
 std::string EscapeString(const std::string &original_string, const bool also_escape_whitespace) {
     std::string escaped_string;
     escaped_string.reserve(original_string.size() * 2);
 
     for (char ch : original_string) {
         if (std::iscntrl(ch) or (not also_escape_whitespace or IsWhiteSpace(ch)))
-            escaped_string += OctalEscape(ch);
+            escaped_string += StringUtil::ToString(static_cast<unsigned char>(ch), /* radix */8, /* width */3, /* padding_char */'0');
         else
             escaped_string += ch;
     }
@@ -1405,8 +1398,14 @@ std::string &CStyleEscape(std::string * const s) {
             case '"':
                 escaped_string += "\\\"";
                 break;
-            default:
-                escaped_string += *ch;
+            default: {
+                if (std::isprint(*ch))
+                    escaped_string += *ch;
+                else
+                    escaped_string += "\\"
+                                      + StringUtil::ToString(static_cast<unsigned char>(*ch), /* radix */8, /* width */3,
+                                                             /* padding_char */'0');
+            }
             }
         } else { // We found the first byte of a UTF8 byte sequence.
             for (;;) {
