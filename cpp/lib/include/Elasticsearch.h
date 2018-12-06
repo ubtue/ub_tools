@@ -1,7 +1,6 @@
 /** \file    Elasticsearch.h
- *  \brief   Various utility functions relating to Elasticsearch.
- *  \author  Mario Trojan
- *  \see     https://www.elastic.co/guide/en/elasticsearch/reference/current/docs.html
+ *  \brief   Interface for the Elasticsearch class.
+ *  \author  Dr. Johannes Ruscheinski
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
@@ -23,122 +22,30 @@
 
 #include <string>
 #include <vector>
-#include "JSON.h"
-#include "REST.h"
-#include "Url.h"
 
 
-namespace Elasticsearch {
-
-
-class Configuration {
-    static const std::string GLOBAL_CONFIG_FILE_PATH;
-public:
-    Url host_;
-    std::string index_;
-    std::string document_type_;
-    std::string username_;
-    std::string password_;
+class Elasticsearch {
+    std::string host_, index_, document_type_, username_, password_;
     bool ignore_ssl_certificates_;
 public:
-    Configuration(const std::string &config_file_path);
-public:
-    /** \brief return Configuration by parsing global "Elasticsearch.conf" config file. */
-    static Configuration GlobalConfig() {
-        return Configuration(GLOBAL_CONFIG_FILE_PATH);
+    /* \param  If provided, the config file must contain a section name "Elasticsearch" w/ entries name "host", "index", "document_type",
+     *         "username" (optional), "password" (optional) and "ignore_ssl_certificates" (optional, defaults to "false").
+     */
+    explicit Elasticsearch(const std::string &ini_file_path = "");
+
+    /** \brief Inserts a logical document into the Elasticsearch index.
+     *  \param document_id      An ID that must be unique per document, e.g. a MARC control number.
+     *  \param document_chunks  Text blobs that make up the contents of a document.
+     *  \note  If a document w/ "document_id" already exists, it will be replaced.
+     */
+    void insertDocument(const std::string &document_id, const std::vector<std::string> &document_chunks);
+
+    /** \brief Inserts a logical document into the Elasticsearch index.
+     *  \param document_id      An ID that must be unique per document, e.g. a MARC control number.
+     *  \param document         A text blob.
+     *  \note  If a document w/ "document_id" already exists, it will be replaced.
+     */
+    inline void insertDocument(const std::string &document_id, const std::string &document) {
+        insertDocument(document_id, std::vector<std::string>{ document });
     }
 };
-
-
-struct Document {
-    std::string id_;
-    std::string type_;
-    std::unordered_map<std::string, std::string> fields_;
-};
-
-
-struct IndexStatistics {
-    unsigned document_count_;
-};
-
-
-class Connection {
-    Url host_;
-    std::string username_;
-    std::string password_;
-    bool ignore_ssl_certificates_;
-
-/** \brief Executes REST Query to Elasticsearch server
-    *   \throws std::runtime_error on REST error or if API reports an error
-    */
-    std::shared_ptr<JSON::ObjectNode> query(const std::string &action, const REST::QueryType query_type,
-                                            const std::shared_ptr<const JSON::JSONNode> &data = nullptr);
-public:
-    Connection(const Url &host, const std::string &username = "", const std::string &password = "", bool ignore_ssl_certificates = false)
-        : host_(host), username_(username), password_(password), ignore_ssl_certificates_(ignore_ssl_certificates) {}
-public:
-    /** \brief Creates a new document.
-     *  \throws std::runtime_error (\see Query)
-     */
-    void insertDocument(const std::string &index, const Document &document);
-
-    /** \brief Creates a new index
-     *  \throws std::runtime_error (\see Query)
-     */
-    void createIndex(const std::string &index);
-
-    /** \brief Deletes an existing document.
-     *  \throws std::runtime_error (\see Query)
-     */
-    void deleteDocument(const std::string &index, const std::string &type, const std::string &id);
-
-    /** \brief Deletes the given index.
-     *  \throws std::runtime_error (\see Query)
-     */
-    void deleteIndex(const std::string &index);
-
-    /** \brief Gets an existing document
-     *  \throws std::runtime_error (\see Query)
-     */
-    Document getDocument(const std::string &index, const std::string &type, const std::string &id);
-
-    /** \brief Get IDs of all existing indices
-     *  \throws std::runtime_error (\see Query)
-     */
-    std::vector<std::string> getIndexList();
-
-    /** \brief Get statistics for the given index
-     *  \throws std::runtime_error (\see Query)
-     */
-    IndexStatistics getIndexStatistics(const std::string &index);
-
-    /** \brief Check if the given index has an ID with the given document type
-     *  \throws std::runtime_error (\see Query)
-    */
-    bool hasDocument(const std::string &index, const std::string &type, const std::string &id);
-
-    /** \brief copy all documents from source index to target index
-     *  \throws std::runtime_error (\see Query)
-     */
-    void reindex(const std::string &source_index, const std::string &target_index);
-
-    /** \brief Search for all documents in the given index. If fields are given, documents need to match all specified fields.
-     *  \throws std::runtime_error (\see Query)
-     */
-    std::unordered_map<std::string, Document> getDocuments(const std::string &index,
-                                                           const std::unordered_map<std::string, std::string> &fields
-                                                               = std::unordered_map<std::string, std::string>());
-
-    /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).
-     *  \throws std::runtime_error (\see Query)
-     */
-    void updateDocument(const std::string &index, const Document &document);
-
-    /** \brief Insert document if not exists, else update. On update, only given fields will be updated.
-     *  \throws std::runtime_error (\see Query)
-    */
-    void updateOrInsertDocument(const std::string &index, const Document &document);
-};
-
-
-} // namespace Elasticsearch
