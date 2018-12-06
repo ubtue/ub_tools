@@ -27,6 +27,7 @@
 #include "IniFile.h"
 #include "JSON.h"
 #include "RegexMatcher.h"
+#include "TimeUtil.h"
 #include "util.h"
 
 
@@ -95,17 +96,20 @@ public:
     struct DiffResult {
         // True if the modified revision's timestamp is newer than the source revision's
         bool timestamp_is_newer_;
+
+        // Difference in days between the modified revision and the source revision
+        double timestamp_time_difference_;
+
         // ID of the corresponding entry
         unsigned id_;
+
         // Last modified timestamp of the modified/newer revision
         tm last_modified_timestamp_;
+
         // Attribute => (old value, new value)
         // If the attribute was not present in the source revision, the old value is an empty string
         std::unordered_map<std::string, std::pair<std::string, std::string>> modified_attributes_;
     public:
-        DiffResult(bool timestamp_is_newer, unsigned id, tm last_modified_timestamp)
-            : timestamp_is_newer_(timestamp_is_newer), id_(id), last_modified_timestamp_(last_modified_timestamp), modified_attributes_() {}
-
         void prettyPrint(std::string * const print_buffer) const;
     };
 
@@ -166,6 +170,7 @@ enum FileType { CSV, JSON, INI };
 FileType GetFileTypeFromPath(const std::string &path, bool check_if_file_exists = true);
 
 
+// Abstract base class for importing Zeder data from different sources
 class Importer {
 public:
     enum MandatoryField { Z, MTIME };
@@ -222,7 +227,9 @@ public:
     class Params : public Importer::Params {
         friend class IniReader;
     protected:
+        // Sections to process.
         std::vector<std::string> valid_section_names_;
+        //
         std::string section_name_attribute_;
         std::string zeder_id_key_;
         std::string zeder_last_modified_timestamp_key_;
