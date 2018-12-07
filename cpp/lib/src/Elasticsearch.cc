@@ -30,8 +30,7 @@ const std::string DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath() + "Elasticse
 
 
 static void LoadIniParameters(const std::string &config_file_path, std::string * const host, std::string * const index,
-                              std::string * const document_type, std::string * const username, std::string * const password,
-                              bool * const ignore_ssl_certificates)
+                              std::string * const username, std::string * const password, bool * const ignore_ssl_certificates)
 {
     if (not FileUtil::Exists(config_file_path))
         LOG_ERROR("Elasticsearch config file missing: " + config_file_path);
@@ -40,7 +39,6 @@ static void LoadIniParameters(const std::string &config_file_path, std::string *
 
     *host                    = ini_file.getString("Elasticsearch", "host");
     *index                   = ini_file.getString("Elasticsearch", "index");
-    *document_type           = ini_file.getString("Elasticsearch", "document_type");
     *username                = ini_file.getString("Elasticsearch", "username", "");
     *password                = ini_file.getString("Elasticsearch", "password", "");
     *ignore_ssl_certificates = ini_file.getBool("Elasticsearch", "ignore_ssl_certificates", false);
@@ -48,7 +46,7 @@ static void LoadIniParameters(const std::string &config_file_path, std::string *
 
 
 Elasticsearch::Elasticsearch(const std::string &ini_file_path) {
-    LoadIniParameters(ini_file_path.empty() ? DEFAULT_CONFIG_FILE_PATH : ini_file_path, &host_, &index_, &document_type_, &username_,
+    LoadIniParameters(ini_file_path.empty() ? DEFAULT_CONFIG_FILE_PATH : ini_file_path, &host_, &index_, &username_,
                       &password_, &ignore_ssl_certificates_);
 }
 

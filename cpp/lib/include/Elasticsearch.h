@@ -25,7 +25,7 @@
 
 
 class Elasticsearch {
-    std::string host_, index_, document_type_, username_, password_;
+    std::string host_, index_, username_, password_;
     bool ignore_ssl_certificates_;
 public:
     /* \param  If provided, the config file must contain a section name "Elasticsearch" w/ entries name "host", "index", "document_type",
