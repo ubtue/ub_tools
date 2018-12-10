@@ -116,6 +116,9 @@ struct Subfield {
     std::string value_;
 public:
     Subfield(const char code, const std::string &value): code_(code), value_(value) { }
+    Subfield(const Subfield &other) = default;
+
+    Subfield &operator=(const Subfield &rhs) = default;
 
     inline std::string toString() const {
         std::string as_string;
@@ -302,13 +305,14 @@ public:
         Tag tag_;
         std::string contents_;
     public:
-        Field(const Field &other) = default;
+        Field(const Field &other): tag_(other.tag_), contents_(other.contents_) { }
         Field(const std::string &tag, const std::string &contents): tag_(tag), contents_(contents) { }
         Field(const Tag &tag, const std::string &contents): tag_(tag), contents_(contents) { }
         Field(const Tag &tag, const char indicator1 = ' ', const char indicator2 = ' ')
             : Field(tag, std::string(1, indicator1) + std::string(1, indicator2)) { }
         Field(const Tag &tag, const Subfields &subfields, const char indicator1 = ' ', const char indicator2 = ' ')
             : Field(tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString()) { }
+        Field &operator=(const Field &rhs) = default;
         inline bool operator==(const Field &rhs) const { return tag_ == rhs.tag_ and contents_ == rhs.contents_; }
         inline bool operator!=(const Field &rhs) const { return not operator==(rhs); }
         bool operator<(const Field &rhs) const;
@@ -994,8 +998,8 @@ bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const part
 std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record);
 
 
-// Returns the tag where "index_term" should be stored.
-Tag GetIndexTag(const std::string &index_term);
+// Returns the field where "index_term" should be stored.
+Record::Field GetIndexField(const std::string &index_term);
 
 
 bool IsSubjectAccessTag(const Tag &tag);
