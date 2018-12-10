@@ -27,6 +27,7 @@
 #include "IniFile.h"
 #include "JSON.h"
 #include "RegexMatcher.h"
+#include "TimeUtil.h"
 #include "util.h"
 
 
@@ -62,7 +63,7 @@ const std::unordered_map<Flavour, std::string> FLAVOUR_TO_STRING_MAP{
 static constexpr auto MODIFIED_TIMESTAMP_FORMAT_STRING = "%Y-%m-%d %H:%M:%S";
 
 
-// A basic entry in a Zeder spreadsheet
+// A basic entry in a Zeder spreadsheet. Each column maps to an attribute.
 class Entry {
     using AttributeMap = std::unordered_map<std::string, std::string>;
 
@@ -95,17 +96,20 @@ public:
     struct DiffResult {
         // True if the modified revision's timestamp is newer than the source revision's
         bool timestamp_is_newer_;
+
+        // Difference in days between the modified revision and the source revision
+        double timestamp_time_difference_;
+
         // ID of the corresponding entry
         unsigned id_;
+
         // Last modified timestamp of the modified/newer revision
         tm last_modified_timestamp_;
+
         // Attribute => (old value, new value)
         // If the attribute was not present in the source revision, the old value is an empty string
         std::unordered_map<std::string, std::pair<std::string, std::string>> modified_attributes_;
     public:
-        DiffResult(bool timestamp_is_newer, unsigned id, tm last_modified_timestamp)
-            : timestamp_is_newer_(timestamp_is_newer), id_(id), last_modified_timestamp_(last_modified_timestamp), modified_attributes_() {}
-
         void prettyPrint(std::string * const print_buffer) const;
     };
 
@@ -116,7 +120,7 @@ public:
 };
 
 
-// A collection of related entries
+// A collection of related entries (from the same Zeder Instance)
 class EntryCollection {
     std::vector<Entry> entries_;
 public:
@@ -166,6 +170,7 @@ enum FileType { CSV, JSON, INI };
 FileType GetFileTypeFromPath(const std::string &path, bool check_if_file_exists = true);
 
 
+// Abstract base class for importing Zeder data from different sources.
 class Importer {
 public:
     enum MandatoryField { Z, MTIME };
@@ -199,6 +204,7 @@ public:
 };
 
 
+// Reader for CSV files exported through the Zeder interface.
 class CsvReader : public Importer {
     friend class Importer;
 
@@ -212,6 +218,7 @@ public:
 };
 
 
+// Reader for zts_harvester compatible INI/config files.
 class IniReader : public Importer {
     friend class Importer;
 
@@ -222,7 +229,9 @@ public:
     class Params : public Importer::Params {
         friend class IniReader;
     protected:
+        // Sections to process.
         std::vector<std::string> valid_section_names_;
+        //
         std::string section_name_attribute_;
         std::string zeder_id_key_;
         std::string zeder_last_modified_timestamp_key_;
@@ -245,6 +254,7 @@ public:
 };
 
 
+// Abstract base class for exporting/serializing Zeder::Entry instances.
 class Exporter {
 public:
     class Params {
@@ -270,6 +280,7 @@ public:
 };
 
 
+// Writer for zts_harvester compatible INI/config files.
 class IniWriter : public Exporter {
     friend class Exporter;
 
@@ -282,11 +293,19 @@ public:
     class Params : public Exporter::Params {
         friend class IniWriter;
     protected:
-        // Ordered list. The ID and the timestamp always go first.
+        // Ordered list of attributes to export. The ID and the timestamp always go first.
         std::vector<std::string> attributes_to_export_;
+
+        // The attribute that should be saved as the section name.
         std::string section_name_attribute_;
+
+        // The INI key for the Zeder ID.
         std::string zeder_id_key_;
+
+        // The INI key for the Zeder last modified timestamp.
         std::string zeder_last_modified_timestamp_key_;
+
+        // Map between attribute names and their corresponding INI keys.
         std::unordered_map<std::string, std::string> attribute_to_key_map_;
 
         // Callback to append extra data. Invoked after all the (exportable) attributes have been exported.
@@ -308,6 +327,7 @@ public:
 };
 
 
+// Writer for CSV files.
 class CsvWriter : public Exporter {
     friend class Exporter;
 
@@ -319,9 +339,13 @@ public:
     class Params : public Exporter::Params {
         friend class CsvWriter;
     protected:
-        // Ordered list. The ID and the timestamp always go first and last respectively.
+        // Ordered list of attributes to export. The ID and the timestamp always go first and last respectively.
         std::vector<std::string> attributes_to_export_;
+
+        // Column name for the Zeder ID.
         std::string zeder_id_column_;
+
+        // Column name for the Zeder last modified timestamp.
         std::string zeder_last_modified_timestamp_column_;
     public:
         Params(const std::string &file_path, const std::vector<std::string> &attributes_to_export,
@@ -338,6 +362,7 @@ public:
 };
 
 
+// Abstract base class for querying and downloading entries from a Zeder instance.
 class EndpointDownloader {
 public:
     enum Type { FULL_DUMP };
@@ -363,6 +388,7 @@ public:
 };
 
 
+// Downloads the entire database of a Zeder instance as a JSON file.
 class FullDumpDownloader : public EndpointDownloader {
     friend class EndpointDownloader;
 private:
@@ -371,9 +397,10 @@ public:
     class Params : public EndpointDownloader::Params {
         friend class FullDumpDownloader;
     protected:
+        // Names of columns to download.
         std::unordered_set<std::string> columns_to_download_;
 
-        // Filters applied to each row. Column name => Filter reg-ex
+        // Filters applied to each row. Column name => Filter reg-ex.
         std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> filter_regexps_;
     public:
         Params(const std::string &endpoint_path, const std::unordered_set<std::string> &columns_to_download,

@@ -46,7 +46,7 @@ std::string Query(const Url &url, const QueryType query_type, const std::string 
  *          (e.g. Downloader problems, or response could not be parsed as JSON)
  */
 std::shared_ptr<JSON::JSONNode> QueryJSON(const Url &url, const QueryType query_type,
-                                          const std::shared_ptr<const JSON::JSONNode> &data = nullptr,
+                                          const JSON::JSONNode * const data = nullptr,
                                           const Downloader::Params &params = Downloader::Params());
 
 
