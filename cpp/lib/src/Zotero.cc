@@ -277,7 +277,7 @@ MarcFormatHandler::MarcFormatHandler(DbConnection * const db_connection, const s
 
 
 static bool ContainsReview(const std::string &s) {
-    static const std::vector<std::string> review_alternatives{ "review", "rezension", "editorial" };
+    static const std::vector<std::string> review_alternatives{ "review", "rezension", "editorial", "ISBN" };
     for (const auto &alternative : review_alternatives) {
         if (StringUtil::FindCaseInsensitive(s, alternative) != std::string::npos)
             return true;

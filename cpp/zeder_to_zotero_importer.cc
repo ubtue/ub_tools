@@ -56,14 +56,18 @@ namespace {
 enum Mode { GENERATE, DIFF, MERGE };
 
 
-// Fields exported to the zts_harvester config file.
+// An enumeration of the fields exported to a zts_harvester compatible config file.
+// This is the primary key used to refer to the corresponding fields throughout this tool.
+
+// Adding a new field involves adding a new entry to this enumeration and updating the ExportFieldNameResolver
+// class with its string identifiers.
 enum ExportField {
     TITLE,
-    ZEDER_ID, ZEDER_MODIFIED_TIMESTAMP, ZEDER_COMMENT,
+    ZEDER_ID, ZEDER_MODIFIED_TIMESTAMP, ZEDER_COMMENT, ZEDER_UPDATE_WINDOW,
     TYPE, GROUP,
     PARENT_PPN_PRINT, PARENT_PPN_ONLINE, PARENT_ISSN_PRINT, PARENT_ISSN_ONLINE,
     ENTRY_POINT_URL, STRPTIME_FORMAT,
-    EXTRACTION_REGEX, MAX_CRAWL_DEPTH, ZEDER_UPDATE_WINDOW
+    EXTRACTION_REGEX, MAX_CRAWL_DEPTH
 };
 
 
@@ -82,6 +86,9 @@ namespace std {
 namespace {
 
 
+// Used to convert export field enumerations to their respective string identifiers.
+// Each export field enumeration has two string identifiers, one of which is use used as an attribute
+// in Zeder::Entry and the other as the INI key in the generated zts_harvester compatible config files
 class ExportFieldNameResolver {
     std::unordered_map<ExportField, std::string> attribute_names_;
     std::unordered_map<ExportField, std::string> ini_keys_;
@@ -96,6 +103,8 @@ public:
 };
 
 
+// Unused attributes correspond to fields that are not stored as attributes in Zeder::Entry
+// INI key identifiers should be fetched using the bundle API in JournalConfig.h/.cc
 ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { TITLE,                    "zts_title"                 },
     { ZEDER_ID,                 "" /* unused */             },      // stored directly in the Entry class
@@ -213,9 +222,9 @@ bool GetHarvesterTypeFromEntry(const Zeder::Entry &entry, const ExportFieldNameR
 }
 
 
+// Calculate an admissible range in days for a frequency given per year
+// Right now we simply ignore entries that cannot be suitably converted to float
 std::string CalculateUpdateWindowFromFrequency(const std::string &frequency) {
-    // Calculate an admissible range in days for a frequency given per year
-    // Right now we simply ignore entries that cannot be suitably converted to float
     float frequency_as_float;
     if (not StringUtil::ToFloat(frequency, &frequency_as_float))
         return "";
@@ -224,8 +233,9 @@ std::string CalculateUpdateWindowFromFrequency(const std::string &frequency) {
 }
 
 
-bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFieldNameResolver &name_resolver,
-                                   Zeder::Entry * const entry, bool ignore_invalid_ppn_issn = true)
+// Validates and normalises the Zeder::Entry generated from a Zeder CSV file.
+bool PostProcessCsvImportedEntry(const ImporterParams &params, const ExportFieldNameResolver &name_resolver,
+                                      Zeder::Entry * const entry, bool ignore_invalid_ppn_issn = true)
 {
     if (not params.entries_to_process_.empty() and
         params.entries_to_process_.find(entry->getId()) == params.entries_to_process_.end())
@@ -313,7 +323,6 @@ bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFie
         entry->setAttribute(name_resolver.getAttributeName(ENTRY_POINT_URL), resolved_url);
 
     // Extract the frequency and calculate the update window in days
-
     std::string journal_frequency(entry->getAttribute("freq")); // <- issues per year, can be a fraction
     if (not journal_frequency.empty()) {
         const std::string update_window(CalculateUpdateWindowFromFrequency(journal_frequency));
@@ -335,6 +344,7 @@ bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFie
 }
 
 
+// Validates a Zeder::Entry generated from a zts_harvester compatible config file.
 bool PostProcessIniImportedEntry(const ImporterParams &params, const ExportFieldNameResolver &name_resolver, Zeder::Entry * const entry) {
     if (not params.entries_to_process_.empty() and
         params.entries_to_process_.find(entry->getId()) == params.entries_to_process_.end())
@@ -434,7 +444,7 @@ void ParseZederCsv(const std::string &file_path, const ExportFieldNameResolver &
                    const ImporterParams &importer_params, Zeder::EntryCollection * const zeder_config)
 {
     auto postprocessor([importer_params, name_resolver](Zeder::Entry * const entry) -> bool {
-        return PostProcessZederImportedEntry(importer_params, name_resolver, entry, /* ignore_invalid_ppn_issn */ false);
+        return PostProcessCsvImportedEntry(importer_params, name_resolver, entry, /* ignore_invalid_ppn_issn */ false);
     });
     std::unique_ptr<Zeder::Importer::Params> parser_params(new Zeder::Importer::Params(file_path, postprocessor));
     auto parser(Zeder::Importer::Factory(std::move(parser_params)));
@@ -495,6 +505,9 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
 }
 
 
+// Writes out the contents of a Zeder::EntryCollection to an INI file. If the path already exists,
+// the entries in the INI file will be overwritten by the corresponding entry in Zeder::EntryCollection.
+// All other existing entries will be preserved.
 void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &name_resolver,
                    const Zeder::EntryCollection &zeder_config)
 {
