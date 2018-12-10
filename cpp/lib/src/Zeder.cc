@@ -138,7 +138,7 @@ void Entry::Merge(const DiffResult &delta, Entry * const merge_into) {
     if (not delta.timestamp_is_newer_) {
         const auto time_difference(TimeUtil::DiffStructTm(delta.last_modified_timestamp_, merge_into->getLastModifiedTimestamp()));
         LOG_WARNING("Diff of entry " + std::to_string(delta.id_) + " is not newer than the source revision. " +
-                    "Timestamp difference: " + std::to_string(abs(time_difference)) + " days");
+                    "Timestamp difference: " + std::to_string(std::abs(time_difference)) + " days");
     }
 
     merge_into->setModifiedTimestamp(delta.last_modified_timestamp_);
