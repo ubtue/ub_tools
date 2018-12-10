@@ -597,8 +597,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
 
     // Keywords
     for (const auto &keyword : node_parameters.keywords_)
-        record->insertField(MARC::GetIndexTag(keyword), { { 'a', TextUtil::CollapseAndTrimWhitespace(keyword) } },
-                            /* indicator1 = */' ', /* indicator2 = */'4');
+        record->insertField(MARC::GetIndexField(TextUtil::CollapseAndTrimWhitespace(keyword)));
 
     // SSG numbers
     const auto ssg_numbers(node_parameters.ssg_numbers_);
