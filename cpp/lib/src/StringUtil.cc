@@ -2483,7 +2483,7 @@ std::string CStyleEscape(const char ch) {
         escaped_text += 'a';
         break;
     default:
-        if (isprint(ch))
+        if (isprint(ch) or static_cast<unsigned char>(ch) > 0x7Fu)
             escaped_text += ch;
         else {
             char buf[10 + 1];
@@ -2538,7 +2538,7 @@ std::string CStyleEscape(const std::string &unescaped_text) {
             escaped_text += 'a';
             break;
         default:
-            if (isprint(*ch))
+            if (isprint(*ch) or static_cast<unsigned char>(*ch) > 0x7Fu)
                 escaped_text += *ch;
             else {
                 char buf[10 + 1];
