@@ -70,9 +70,9 @@ cgi_install: $(CGI_PROGS) Makefile
 	cp $(CGI_PROGS) /var/www/cgi-bin/
 
 data_install: Makefile data/*.conf data/*.map data/IxTheo_Notation.csv data/stopwords.* \
-	      data/subscriptions_email.ixtheo.template data/subscriptions_email.relbib.template \
-	      data/bibleRef/* data/crossref_downloader/* data/full_text_cache_monitor/* \
-	      data/translate_chainer/* data/zotero_cgi/*
+              data/subscriptions_email.ixtheo.template data/subscriptions_email.relbib.template \
+              data/bibleRef/* data/crossref_downloader/* data/full_text_cache_monitor/* \
+              data/translate_chainer/* data/zotero_cgi/*
 	@echo "Installing data..."
 	cp data/*.conf /usr/local/var/lib/tuelib/
 	cp data/*.map /usr/local/var/lib/tuelib/
