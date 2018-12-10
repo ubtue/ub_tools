@@ -32,7 +32,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
- std::cerr << "Usage: " << ::progname << "output_filename\n"
+ std::cerr << "Usage: " << ::progname << "marc_input marc_output\n"
            << "Generate a dummy entry for subscriptions from the congfiguration given in journal_alert_bundles.conf\n";
  std::exit(EXIT_FAILURE);
 }
@@ -72,12 +72,20 @@ void ProcessBundle(MARC::Writer * const marc_writer, const std::string &bundle_n
 
 
 int Main(int argc, char **argv) {
-    if (argc < 2)
+    if (argc < 3)
         Usage();
 
-    const std::string marc_output_filename(argv[1]);
+    const std::string marc_input_filename(argv[1]);
+    const std::string marc_output_filename(argv[2]);
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
+    // Copy other data
+    while (const MARC::Record record = marc_reader.get()->read())
+        marc_writer.get()->write(record);
+
+    // Append our data
     const IniFile bundles_config(UBTools::GetTuelibPath() + "journal_alert_bundles.conf");
+
     for (const auto &bundle_name : bundles_config.getSections()) {
          if (not bundle_name.empty())
              ProcessBundle(marc_writer.get(), bundle_name, bundles_config);
