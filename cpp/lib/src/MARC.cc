@@ -2322,8 +2322,8 @@ std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record) {
 }
 
 
-static void LoadTermsToTagsMap(std::unordered_map<std::string, Tag> * const terms_to_tags_map) {
-    const auto MAP_FILENAME(UBTools::GetTuelibPath() + "tags_and_index_terms.map");
+static void LoadTermsToFieldsMap(std::unordered_map<std::string, Record::Field> * const terms_to_fields_map) {
+    const auto MAP_FILENAME(UBTools::GetTuelibPath() + "tags_and_keyword_fields.map");
     const auto map_file(FileUtil::OpenInputFileOrDie(MAP_FILENAME));
     unsigned line_no(0);
     while (not map_file->eof()) {
@@ -2334,23 +2334,22 @@ static void LoadTermsToTagsMap(std::unordered_map<std::string, Tag> * const term
         if (line.length() < 4)
             LOG_ERROR("bad entry on line #" + std::to_string(line_no) + " in \"" + MAP_FILENAME + "\"!");
 
-        const Tag tag(line.substr(0, Record::TAG_LENGTH));
-        const auto term(TextUtil::UTF8ToLower(line.substr(Record::TAG_LENGTH)));
-        (*terms_to_tags_map)[term] = tag;
+        const Record::Field field(line.substr(0, Record::TAG_LENGTH), StringUtil::CStyleUnescape(line.substr(Record::TAG_LENGTH)));
+        terms_to_fields_map->emplace(field.getFirstSubfieldWithCode('a'), field);
     }
 }
 
 
-Tag GetIndexTag(const std::string &index_term) {
+Record::Field GetIndexField(const std::string &index_term) {
     static const Tag DEFAULT_TAG("650");
-    static std::unordered_map<std::string, Tag> terms_to_tags_map;
-    if (unlikely(terms_to_tags_map.empty()))
-        LoadTermsToTagsMap(&terms_to_tags_map);
+    static std::unordered_map<std::string, Record::Field> terms_to_fields_map;
+    if (unlikely(terms_to_fields_map.empty()))
+        LoadTermsToFieldsMap(&terms_to_fields_map);
 
-    const auto term_and_tag(terms_to_tags_map.find(TextUtil::UTF8ToLower(index_term)));
-    if (term_and_tag == terms_to_tags_map.cend())
-        return DEFAULT_TAG;
-    return term_and_tag->second;
+    const auto term_and_field(terms_to_fields_map.find(TextUtil::UTF8ToLower(index_term)));
+    if (term_and_field == terms_to_fields_map.cend())
+        return Record::Field(Tag(DEFAULT_TAG), { { { 'a', index_term } } }, /* indicator1 = */' ', /* indicator2 = */'4');
+    return term_and_field->second;
 }
 
 
