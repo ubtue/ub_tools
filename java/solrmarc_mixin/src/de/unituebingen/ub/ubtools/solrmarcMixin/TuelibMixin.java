@@ -2385,6 +2385,24 @@ outer:  for (final VariableField _935Field : _935Fields) {
                 break;
         }
 
+        // Determine whether a record is a subscription package, i.e. has "subskriptionspaket" in 935$c
+        for (final VariableField _935Field : _935Fields) {
+            final DataField dataField = (DataField) _935Field;
+            List<Subfield> subfields = dataField.getSubfields();
+            boolean foundMatch = false;
+            for (Subfield subfield : subfields) {
+                if (subfield.getCode() == 'c' && subfield.getData().contains("subskriptionspaket")) {
+                    formats.add("SubscriptionBundle");
+                    foundMatch = true;
+                    break;
+                }
+            }
+            if (foundMatch == true)
+                break;
+        }
+
+
+
         // Rewrite all E-Books as electronic Books
         if (formats.contains("eBook")) {
             formats.remove("eBook");
@@ -2394,6 +2412,9 @@ outer:  for (final VariableField _935Field : _935Fields) {
         // If we classified an object as "DictionaryEntryOrArticle" we don't also want it to be classified as an article:
         if (formats.contains("Article") && formats.contains("DictionaryEntryOrArticle"))
             formats.remove("Article");
+
+        if (formats.contains("Unknown") && formats.size() > 1)
+            formats.remove("Unknown");
 
         return formats;
     }
