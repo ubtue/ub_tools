@@ -2323,7 +2323,7 @@ std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record) {
 
 
 static void LoadTermsToFieldsMap(std::unordered_map<std::string, Record::Field> * const terms_to_fields_map) {
-    const auto MAP_FILENAME(UBTools::GetTuelibPath() + "tags_and_index_terms.map");
+    const auto MAP_FILENAME(UBTools::GetTuelibPath() + "tags_and_keyword_fields.map");
     const auto map_file(FileUtil::OpenInputFileOrDie(MAP_FILENAME));
     unsigned line_no(0);
     while (not map_file->eof()) {
