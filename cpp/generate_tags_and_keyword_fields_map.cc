@@ -33,7 +33,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input map_output\n";
+    std::cerr << "Usage: " << ::progname << " marc_input1 [marc_input2 .. marc_inputN] map_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -50,8 +50,6 @@ void ProcessRecords(MARC::Reader * const reader, std::unordered_map<std::string,
             }
         }
     }
-
-    LOG_INFO("found " + std::to_string(fields_to_tags_map->size()) + " unique (tag, subject term) pairs.");
 }
 
 
@@ -59,14 +57,17 @@ void ProcessRecords(MARC::Reader * const reader, std::unordered_map<std::string,
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
+    if (argc < 3)
         Usage();
 
-    auto marc_reader(MARC::Reader::Factory(argv[1]));
     std::unordered_map<std::string, std::string> fields_to_tags_map;
-    ProcessRecords(marc_reader.get(), &fields_to_tags_map);
+    for (int arg_no(1); arg_no < argc - 1; ++arg_no) {
+        auto marc_reader(MARC::Reader::Factory(argv[arg_no]));
+        ProcessRecords(marc_reader.get(), &fields_to_tags_map);
+    }
+    LOG_INFO("found " + std::to_string(fields_to_tags_map.size()) + " unique (tag, subject term) pairs.");
 
-    const auto output(FileUtil::OpenOutputFileOrDie(argv[2]));
+    const auto output(FileUtil::OpenOutputFileOrDie(argv[argc - 1]));
     for (const auto subject_term_and_tag : fields_to_tags_map)
         (*output) << subject_term_and_tag.second << StringUtil::CStyleEscape(subject_term_and_tag.first) << '\n';
 
