@@ -38,7 +38,7 @@ namespace {
 }
 
 
-void ProcessRecords(MARC::Reader * const reader, std::unordered_map<std::string, std::string>  * const subject_terms_to_tags_map) {
+void ProcessRecords(MARC::Reader * const reader, std::unordered_map<std::string, std::string>  * const fields_to_tags_map) {
     static const std::vector<std::string> SUBJECT_ACCESS_TAGS{ "647", "648", "650", "651" };
 
     while (const auto record = reader->read()) {
@@ -46,12 +46,12 @@ void ProcessRecords(MARC::Reader * const reader, std::unordered_map<std::string,
             for (const auto &field : record.getTagRange(subject_access_tag)) {
                 const auto subject(field.getFirstSubfieldWithCode('a'));
                 if (likely(not subject.empty() and field.getFirstSubfieldWithCode('2') == "gnd"))
-                    (*subject_terms_to_tags_map)[TextUtil::UTF8ToLower(StringUtil::TrimWhite(subject))] = subject_access_tag;
+                    (*fields_to_tags_map)[field.getContents()] = subject_access_tag;
             }
         }
     }
 
-    LOG_INFO("found " + std::to_string(subject_terms_to_tags_map->size()) + " unique (tag, subject term) pairs.");
+    LOG_INFO("found " + std::to_string(fields_to_tags_map->size()) + " unique (tag, subject term) pairs.");
 }
 
 
@@ -63,12 +63,12 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
-    std::unordered_map<std::string, std::string> subject_terms_to_tags_map;
-    ProcessRecords(marc_reader.get(), &subject_terms_to_tags_map);
+    std::unordered_map<std::string, std::string> fields_to_tags_map;
+    ProcessRecords(marc_reader.get(), &fields_to_tags_map);
 
     const auto output(FileUtil::OpenOutputFileOrDie(argv[2]));
-    for (const auto subject_term_and_tag : subject_terms_to_tags_map)
-        (*output) << subject_term_and_tag.second << subject_term_and_tag.first << '\n';
+    for (const auto subject_term_and_tag : fields_to_tags_map)
+        (*output) << subject_term_and_tag.second << StringUtil::CStyleEscape(subject_term_and_tag.first) << '\n';
 
     return EXIT_SUCCESS;
 }

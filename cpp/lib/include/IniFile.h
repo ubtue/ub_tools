@@ -260,9 +260,7 @@ public:
     /** \brief  Construct an IniFile based on the named file.
      *  \param  ini_file_name           The name of the .ini file. (We first look for the basename of this in a subdirectory whose
      *                                  name is the hostname of the system we're on.)
-     *  \param  ignore_failed_includes  If "true", don't throw an exception if an "include" directive can't be
-     *                                  honoured.  The special name "empty" will create an ini_file object without
-     *                                  attempting to open a file
+     *  \param  ignore_failed_includes  If "true", don't throw an exception if an "include" directive can't be honoured.
      *  \param  create_empty            Creates an empty INI file if none is found.
      */
     explicit IniFile(const std::string &ini_file_name, const bool ignore_failed_includes = false,
@@ -300,9 +298,7 @@ public:
      */
     std::string getFilename() const { return ini_file_name_; }
 
-    bool lookup(const std::string &section_name, const std::string &variable_name,
-                std::string * const s) const;
-
+    bool lookup(const std::string &section_name, const std::string &variable_name, std::string * const s) const;
 
     /** \brief   Retrieves an integer value from a configuration file.
      *  \param   section_name   The name of the section to search.
