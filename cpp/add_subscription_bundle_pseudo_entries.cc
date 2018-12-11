@@ -51,7 +51,7 @@ MARC::Record GenerateRecord(const std::string &record_id, const std::string &bun
     record.insertField("001", record_id);
     record.insertField("005", today + "12000000.0:");
     record.insertField("008", today + 's' + TimeUtil::GetCurrentYear());
-    record.insertField("245", MARC::Subfields( { { 'a', bundle_name }, { 'b', "Testentry" }, { 'h', "Subscription Bundle"} }));
+    record.insertField("245", MARC::Subfields( { { 'a', bundle_name }, { 'h', "Subscription Bundle"} }));
     record.insertField("SPR", MARC::Subfields( { { 'a', "1" /* is superior work */ },
                                                  { 'b', "1" /* series has not been completed */ } }));
     record.insertField("935", MARC::Subfields( { { 'c', "subskriptionspaket" } }));
@@ -83,7 +83,7 @@ void GenerateBundleEntry(MARC::Writer * const marc_writer, const std::string &bu
          std::vector<std::string> instances;
          if (not instances_string.empty())
              StringUtil::SplitThenTrim(instances_string, ",", " \t", &instances);
-         marc_writer->write(GenerateRecord(bundle_name, bundle_name, instances));
+         marc_writer->write(GenerateRecord(bundle_name, bundles_config.getString(bundle_name, "display_name"), instances));
 }
 
 
