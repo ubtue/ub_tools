@@ -368,7 +368,6 @@ void ExecuteHarvestAction(const std::string &title, const std::string &output_fo
 
     std::cout << "<tr><td>Command</td><td>" + task.getCommand() + "</td></tr>\r\n";
     std::cout << "<tr><td>Runtime</td><td id=\"runtime\"></td></tr>\r\n";
-    //std::cout << "<tr><td>Progress</td><td><div id=\"progress\">Harvesting...</div></td></tr>\r\n";
     std::cout << std::flush;
 
     // start status monitoring
