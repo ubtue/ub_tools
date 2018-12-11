@@ -89,8 +89,8 @@ void ProcessRecords(const bool verbose, const bool summarize_tags, MARC::Reader 
                 const std::string tag(field.getTag().toString());
                 auto tag_to_subfield_codes_map_iter(tag_to_subfield_codes_map.find(tag));
                 if (tag_to_subfield_codes_map_iter == tag_to_subfield_codes_map.end()) {
-                    tag_to_subfield_codes_map.emplace(tag, std::set<char>());
-                    tag_to_subfield_codes_map_iter = tag_to_subfield_codes_map.find(tag);
+                    const auto emplace_result(tag_to_subfield_codes_map.emplace(tag, std::set<char>()));
+                    tag_to_subfield_codes_map_iter = emplace_result.first;
                 }
 
                 if (not field.isControlField()) {
