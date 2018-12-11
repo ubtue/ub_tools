@@ -1,5 +1,5 @@
-/** \file    generate_subscription_bundle_pseudo_entry.cc
- *  \brief   Generate a record that represents a bundle of alerts
+/** \file    add_subscription_bundle_entries.cc
+ *  \brief   Generate a record that represents a bundle of alerts and tag belonging entries in title data
  *  \author  Johannes Riedl
  */
 
@@ -31,6 +31,9 @@
 namespace {
 
 
+using BundleToPPNPair = std::pair<std::string, std::set<std::string>>;
+using BundleToPPNsMap = std::map<std::string, std::set<std::string>>;
+
 [[noreturn]] void Usage() {
  std::cerr << "Usage: " << ::progname << "marc_input marc_output\n"
            << "Generate a dummy entry for subscriptions from the congfiguration given in journal_alert_bundles.conf\n";
@@ -43,6 +46,7 @@ MARC::Record GenerateRecord(const std::string &record_id, const std::string &bun
     // exclude from ixtheo e.g. because it's a pure relbib list
     const bool exclude_ixtheo(std::find(instances.begin(), instances.end(), "ixtheo") != instances.end() ? false : true);
     const bool include_relbib(std::find(instances.begin(), instances.end(), "relbib") != instances.end() ? true : false);
+    const bool include_bibstudies(std::find(instances.begin(), instances.end(), "bistudies") != instances.end() ? true : false);
     MARC::Record record("00000nac a2200000 u 4500");
     record.insertField("001", record_id);
     record.insertField("005", today + "12000000.0:");
@@ -56,16 +60,46 @@ MARC::Record GenerateRecord(const std::string &record_id, const std::string &bun
         record.addSubfield("935", 'x', std::to_string(exclude_ixtheo));
     if (include_relbib)
         record.insertField("REL", MARC::Subfields( { {'a', "1" } }));
+    if (include_bibstudies)
+        record.insertField("BIB", MARC::Subfields( { {'a', "1" } }));
     return record;
 }
 
 
-void ProcessBundle(MARC::Writer * const marc_writer, const std::string &bundle_name, const IniFile &bundles_config) {
+void ExtractBundlePPNs(const std::string bundle_name, const IniFile &bundles_config, BundleToPPNsMap * const bundle_to_ppns_map) {
+    // Generate PPN vector
+    const std::string bundle_ppns_string(bundles_config.getString(bundle_name, "ppns", ""));
+    if (bundle_ppns_string.empty())
+        return;
+    std::vector<std::string> bundle_ppns;
+    StringUtil::SplitThenTrim(bundle_ppns_string, "," , " \t", &bundle_ppns);
+    // Generate the bundle mapping
+    bundle_to_ppns_map->insert(BundleToPPNPair(bundle_name, std::set<std::string>(bundle_ppns.begin(), bundle_ppns.end())));
+}
+
+
+void GenerateBundleEntry(MARC::Writer * const marc_writer, const std::string &bundle_name, const IniFile &bundles_config) {
          const std::string instances_string(bundles_config.getString(bundle_name, "instances", ""));
          std::vector<std::string> instances;
          if (not instances_string.empty())
              StringUtil::SplitThenTrim(instances_string, ",", " \t", &instances);
-         marc_writer->write(GenerateRecord("bundle_" + bundle_name, bundle_name, instances));
+         marc_writer->write(GenerateRecord(bundle_name, bundle_name, instances));
+}
+
+
+void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                    const BundleToPPNsMap &bundle_to_ppns_map) {
+    while (MARC::Record record = marc_reader->read()) {
+        MARC::Subfields bundle_subfields;
+        for (const auto &bundle_to_ppns : bundle_to_ppns_map) {
+            if (bundle_to_ppns.second.find(record.getControlNumber()) != bundle_to_ppns.second.end())
+               bundle_subfields.addSubfield('a', bundle_to_ppns.first);
+        }
+        if (not bundle_subfields.empty())
+            record.insertField("BSP" /* Bundle Superior */, bundle_subfields);
+        marc_writer->write(record);
+    }
+
 }
 
 } //unnamed namespace
@@ -79,16 +113,17 @@ int Main(int argc, char **argv) {
     const std::string marc_output_filename(argv[2]);
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
-    // Copy other data
-    while (const MARC::Record record = marc_reader.get()->read())
-        marc_writer.get()->write(record);
+    BundleToPPNsMap bundle_to_ppns_map;
 
-    // Append our data
+    // Insert the pseudo entries at the beginning and generate the PPN map
     const IniFile bundles_config(UBTools::GetTuelibPath() + "journal_alert_bundles.conf");
-
     for (const auto &bundle_name : bundles_config.getSections()) {
-         if (not bundle_name.empty())
-             ProcessBundle(marc_writer.get(), bundle_name, bundles_config);
+         if (not bundle_name.empty()) {
+             GenerateBundleEntry(marc_writer.get(), bundle_name, bundles_config);
+             ExtractBundlePPNs(bundle_name, bundles_config, &bundle_to_ppns_map);
+         }
     }
+    // Tag the title data
+    ProcessRecords(marc_reader.get(), marc_writer.get(), bundle_to_ppns_map);
     return EXIT_SUCCESS;
 }
