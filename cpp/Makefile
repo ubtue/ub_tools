@@ -37,6 +37,8 @@ INSTALL_PROGS  = $(PROGS) *.sh
 .PHONY: all .deps tests test install regular_install cgi_install local_clean clean
 
 all: .deps $(PROGS)
+	$(MAKE) -C pipelines
+	$(MAKE) -C marc_tools
 	$(MAKE) -C tests
 	$(MAKE) -C test
 
@@ -59,6 +61,8 @@ tests:
 	$(MAKE) -C test
 
 install: regular_install cgi_install data_install
+	make -C pipelines install
+	make -C marc_tools install
 
 regular_install: $(INSTALL_PROGS) Makefile
 	@echo "Installing programs..."
@@ -90,6 +94,8 @@ local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
 
 clean: local_clean Makefile
+	make -C pipelines clean
+	make -C marc_tools clean
 	make -C lib clean
 	make -C tests clean
 	make -C test clean
