@@ -35,17 +35,18 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] marc_data\n";
+    std::cerr << "Usage: " << ::progname << " [--summarize-tags] [--verbose] marc_data\n";
     std::exit(EXIT_FAILURE);
 }
 
-    
-void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
+
+void ProcessRecords(const bool verbose, const bool summarize_tags, MARC::Reader * const marc_reader) {
     std::string raw_record;
     unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0),
              max_subfield_count(0), cumulative_field_count(0), duplicate_control_number_count(0);
     std::unordered_set<std::string> control_numbers;
     std::map<MARC::Record::RecordType, unsigned> record_types_and_counts;
+    std::map<std::string, std::set<char>> tag_to_subfield_codes_map;
 
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
@@ -83,6 +84,22 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
                 max_subfield_count = subfield_count;
         }
 
+        if (summarize_tags) {
+            for (const auto &field : record) {
+                const std::string tag(field.getTag().toString());
+                auto tag_to_subfield_codes_map_iter(tag_to_subfield_codes_map.find(tag));
+                if (tag_to_subfield_codes_map_iter == tag_to_subfield_codes_map.end()) {
+                    const auto emplace_result(tag_to_subfield_codes_map.emplace(tag, std::set<char>()));
+                    tag_to_subfield_codes_map_iter = emplace_result.first;
+                }
+
+                if (not field.isControlField()) {
+                    for (const auto &subfield : field.getSubfields())
+                        tag_to_subfield_codes_map_iter->second.emplace(subfield.code_);
+                }
+            }
+        }
+
         const auto local_block_starts(record.findStartOfAllLocalDataBlocks());
         const size_t local_block_count(local_block_starts.size());
         if (local_block_count > max_local_block_count)
@@ -112,6 +129,18 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
               << (static_cast<double>(cumulative_field_count) / record_count) << ".\n";
     std::cout << "The average record size in bytes is "
               << (static_cast<double>(FileUtil::GetFileSize(marc_reader->getPath())) / record_count) << ".\n";
+
+    if (summarize_tags) {
+        std::cout << "List of all tags and subfield codes:\n";
+        for (const auto &tag_to_subfield_codes_map_iter : tag_to_subfield_codes_map) {
+            std::cout << tag_to_subfield_codes_map_iter.first;
+            if (tag_to_subfield_codes_map_iter.second.size() > 0)
+                std::cout << "$";
+            for (const auto &subfield_code : tag_to_subfield_codes_map_iter.second)
+                std::cout << subfield_code;
+            std::cout << "\n";
+        }
+    }
 }
 
 
@@ -122,6 +151,10 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
+    const bool summarize_tags(std::strcmp(argv[1], "--summarize-tags") == 0);
+    if (summarize_tags)
+        --argc, ++argv;
+
     const bool verbose(std::strcmp(argv[1], "--verbose") == 0);
     if (verbose)
         --argc, ++argv;
@@ -130,7 +163,7 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
-    ProcessRecords(verbose, marc_reader.get());
+    ProcessRecords(verbose, summarize_tags, marc_reader.get());
 
     return EXIT_SUCCESS;
 }
