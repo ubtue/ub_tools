@@ -2401,8 +2401,6 @@ outer:  for (final VariableField _935Field : _935Fields) {
                 break;
         }
 
-
-
         // Rewrite all E-Books as electronic Books
         if (formats.contains("eBook")) {
             formats.remove("eBook");
