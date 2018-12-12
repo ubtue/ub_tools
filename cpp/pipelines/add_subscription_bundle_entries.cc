@@ -45,25 +45,25 @@ using BundleToPPNsMap = std::map<std::string, std::set<std::string>>;
 
 MARC::Record GenerateBundleRecord(const std::string &record_id, const std::string &bundle_name, const std::vector<std::string> &instances) {
     const std::string today(TimeUtil::GetCurrentDateAndTime("%y%m%d"));
-    // exclude from ixtheo e.g. because it's a pure relbib list
-    const bool exclude_ixtheo(std::find(instances.begin(), instances.end(), "ixtheo") != instances.end() ? false : true);
-    const bool include_relbib(std::find(instances.begin(), instances.end(), "relbib") != instances.end() ? true : false);
+    // exclude from Ixtheo e.g. because it's a pure Relbib list
+    const bool exclude_ixtheo(std::find(instances.begin(), instances.end(), "ixtheo") == instances.end());
+    const bool include_relbib(std::find(instances.begin(), instances.end(), "relbib") != instances.end());
     const bool include_bibstudies(std::find(instances.begin(), instances.end(), "bistudies") != instances.end() ? true : false);
     MARC::Record record("00000nac a2200000 u 4500");
     record.insertField("001", record_id);
     record.insertField("005", today + "12000000.0:");
     record.insertField("008", today + 's' + TimeUtil::GetCurrentYear());
-    record.insertField("245", MARC::Subfields( { { 'a', bundle_name }, { 'h', "Subscription Bundle"} }));
+    record.insertField("245", MARC::Subfields( { { 'a', bundle_name }, { 'h', "Subscription Bundle"} } ));
     record.insertField("SPR", MARC::Subfields( { { 'a', "1" /* is superior work */ },
                                                  { 'b', "1" /* series has not been completed */ } }));
     record.insertField("935", MARC::Subfields( { { 'c', "subskriptionspaket" } }));
 
     if (exclude_ixtheo)
-        record.addSubfield("935", 'x', std::to_string(exclude_ixtheo));
+        record.addSubfield("935", 'x', "1");
     if (include_relbib)
-        record.insertField("REL", MARC::Subfields( { {'a', "1" } }));
+        record.insertField("REL", MARC::Subfields({ { 'a', "1" } }));
     if (include_bibstudies)
-        record.insertField("BIB", MARC::Subfields( { {'a', "1" } }));
+        record.insertField("BIB", MARC::Subfields({ { 'a', "1" } }));
     return record;
 }
 
@@ -81,11 +81,11 @@ void ExtractBundlePPNs(const std::string bundle_name, const IniFile &bundles_con
 
 
 void GenerateBundleEntry(MARC::Writer * const marc_writer, const std::string &bundle_name, const IniFile &bundles_config) {
-         const std::string instances_string(bundles_config.getString(bundle_name, "instances", ""));
-         std::vector<std::string> instances;
-         if (not instances_string.empty())
-             StringUtil::SplitThenTrim(instances_string, ",", " \t", &instances);
-         marc_writer->write(GenerateBundleRecord(bundle_name, bundles_config.getString(bundle_name, "display_name"), instances));
+    const std::string instances_string(bundles_config.getString(bundle_name, "instances", ""));
+    std::vector<std::string> instances;
+    if (not instances_string.empty())
+        StringUtil::SplitThenTrim(instances_string, ",", " \t", &instances);
+    marc_writer->write(GenerateBundleRecord(bundle_name, bundles_config.getString(bundle_name, "display_name"), instances));
 }
 
 
