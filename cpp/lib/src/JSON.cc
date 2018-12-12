@@ -945,7 +945,7 @@ bool IsValidUTF8(const JSONNode &node) {
     }
     case JSONNode::BOOLEAN_NODE:
     case JSONNode::NULL_NODE:
-    case JSONNode:: INT64_NODE:
+    case JSONNode::INT64_NODE:
     case JSONNode::DOUBLE_NODE:
         return true;
     case JSONNode::STRING_NODE:
