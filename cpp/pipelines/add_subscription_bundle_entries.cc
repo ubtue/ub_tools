@@ -53,17 +53,17 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
     record.insertField("001", record_id);
     record.insertField("005", today + "12000000.0:");
     record.insertField("008", today + 's' + TimeUtil::GetCurrentYear());
-    record.insertField("245", MARC::Subfields( { { 'a', bundle_name }, { 'h', "Subscription Bundle"} } ));
-    record.insertField("SPR", MARC::Subfields( { { 'a', "1" /* is superior work */ },
-                                                 { 'b', "1" /* series has not been completed */ } }));
-    record.insertField("935", MARC::Subfields( { { 'c', "subskriptionspaket" } }));
+    record.insertField("245", { { 'a', bundle_name }, { 'h', "Subscription Bundle" } } );
+    record.insertField("SPR", { { 'a', "1" /* is superior work */ },
+                                { 'b', "1" /* series has not been completed */ } });
+    record.insertField("935", { { 'c', "subskriptionspaket" } });
 
     if (exclude_ixtheo)
         record.addSubfield("935", 'x', "1");
     if (include_relbib)
-        record.insertField("REL", MARC::Subfields({ { 'a', "1" } }));
+        record.insertField("REL", { { 'a', "1" } });
     if (include_bibstudies)
-        record.insertField("BIB", MARC::Subfields({ { 'a', "1" } }));
+        record.insertField("BIB", { { 'a', "1" } });
     return record;
 }
 
@@ -90,7 +90,8 @@ void GenerateBundleEntry(MARC::Writer * const marc_writer, const std::string &bu
 
 
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    const BundleToPPNsMap &bundle_to_ppns_map) {
+                    const BundleToPPNsMap &bundle_to_ppns_map)
+    {
     while (MARC::Record record = marc_reader->read()) {
         MARC::Subfields bundle_subfields;
         for (const auto &bundle_to_ppns : bundle_to_ppns_map) {
@@ -101,7 +102,6 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
             record.insertField("BSP" /* Bundle Superior */, bundle_subfields);
         marc_writer->write(record);
     }
-
 }
 
 } //unnamed namespace
