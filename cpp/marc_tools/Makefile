@@ -30,7 +30,8 @@ ifneq ("$(wildcard /usr/include/selinux)","")
   LIBS += -lselinux
 endif
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
-INSTALL_PROGS  = $(PROGS) *.sh
+SCRIPTS        = $(wildcard *.sh)
+INSTALL_PROGS  = $(PROGS) $(SCRIPTS)
 
 
 .PHONY: all .deps install clean
