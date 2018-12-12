@@ -718,7 +718,8 @@ void MarcFormatHandler::handleTrackingAndWriteRecord(const MARC::Record &new_rec
 
 
 std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
-    unsigned previously_downloaded_count(0);
+    if (not JSON::IsValidUTF8(*object_node))
+        LOG_ERROR("bad UTF8 in JSON node!");
 
     std::shared_ptr<const JSON::JSONNode> custom_node(object_node->getNode("ubtue"));
     CustomNodeParameters custom_node_params;
@@ -733,7 +734,9 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     MARC::Record new_record(std::string(MARC::Record::LEADER_LENGTH, ' ') /*empty dummy leader*/);
     generateMarcRecord(&new_record, item_parameters);
 
-    handleTrackingAndWriteRecord(new_record, harvest_params_->disable_tracking_, delivery_mode, item_parameters, &previously_downloaded_count);
+    unsigned previously_downloaded_count(0);
+    handleTrackingAndWriteRecord(new_record, harvest_params_->disable_tracking_, delivery_mode, item_parameters,
+                                 &previously_downloaded_count);
     return std::make_pair(/* record count */1, previously_downloaded_count);
 }
 
