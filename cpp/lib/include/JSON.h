@@ -429,4 +429,7 @@ int64_t LookupInteger(const std::string &path, const std::shared_ptr<const JSONN
 std::string EscapeString(const std::string &unescaped_string);
 
 
+bool IsValidUTF8(const JSONNode &node);
+
+
 } // namespace JSON
