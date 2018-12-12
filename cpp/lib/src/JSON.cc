@@ -930,7 +930,7 @@ bool IsValidUTF8(const JSONNode &node) {
     switch (node.getType()) {
     case JSONNode::OBJECT_NODE: {
         for (const auto &key_and_node : reinterpret_cast<const ObjectNode &>(node)) {
-            if (not TextUtil::IsValidUTF8(key_and_node.first) or not IsValidUTF8(*key_and_node.second))
+            if (unlikely(not TextUtil::IsValidUTF8(key_and_node.first) or not IsValidUTF8(*key_and_node.second)))
                  return false;
         }
         return true;
@@ -938,7 +938,7 @@ bool IsValidUTF8(const JSONNode &node) {
     }
     case JSONNode::ARRAY_NODE: {
         for (const auto &entry : reinterpret_cast<const ArrayNode &>(node)) {
-            if (not IsValidUTF8(*entry))
+            if (unlikely(not IsValidUTF8(*entry)))
                 return false;
         }
         return true;
