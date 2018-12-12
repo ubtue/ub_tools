@@ -1,5 +1,6 @@
 /** \file    add_subscription_bundle_entries.cc
- *  \brief   Generate a record that represents a bundle of alerts and tag belonging entries in title data
+ *  \brief   Generates MARC title records that represent a journal bundle for alerting and 
+ *           inserts link tags into the individual journal records referencing the corresponding bundle records.
  *  \author  Johannes Riedl
  */
 
@@ -34,6 +35,7 @@ namespace {
 using BundleToPPNPair = std::pair<std::string, std::set<std::string>>;
 using BundleToPPNsMap = std::map<std::string, std::set<std::string>>;
 
+
 [[noreturn]] void Usage() {
  std::cerr << "Usage: " << ::progname << "marc_input marc_output\n"
            << "Generate a dummy entry for subscriptions from the congfiguration given in journal_alert_bundles.conf\n";
@@ -41,7 +43,7 @@ using BundleToPPNsMap = std::map<std::string, std::set<std::string>>;
 }
 
 
-MARC::Record GenerateRecord(const std::string &record_id, const std::string &bundle_name, const std::vector<std::string> instances) {
+MARC::Record GenerateBundleRecord(const std::string &record_id, const std::string &bundle_name, const std::vector<std::string> &instances) {
     const std::string today(TimeUtil::GetCurrentDateAndTime("%y%m%d"));
     // exclude from ixtheo e.g. because it's a pure relbib list
     const bool exclude_ixtheo(std::find(instances.begin(), instances.end(), "ixtheo") != instances.end() ? false : true);
@@ -83,7 +85,7 @@ void GenerateBundleEntry(MARC::Writer * const marc_writer, const std::string &bu
          std::vector<std::string> instances;
          if (not instances_string.empty())
              StringUtil::SplitThenTrim(instances_string, ",", " \t", &instances);
-         marc_writer->write(GenerateRecord(bundle_name, bundles_config.getString(bundle_name, "display_name"), instances));
+         marc_writer->write(GenerateBundleRecord(bundle_name, bundles_config.getString(bundle_name, "display_name"), instances));
 }
 
 
