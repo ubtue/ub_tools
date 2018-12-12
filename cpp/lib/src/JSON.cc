@@ -926,4 +926,34 @@ std::string EscapeString(const std::string &unescaped_string) {
 }
 
 
+bool IsValidUTF8(const JSONNode &node) {
+    switch (node.getType()) {
+    case JSONNode::OBJECT_NODE: {
+        for (const auto &key_and_node : reinterpret_cast<const ObjectNode &>(node)) {
+            if (unlikely(not TextUtil::IsValidUTF8(key_and_node.first) or not IsValidUTF8(*key_and_node.second)))
+                 return false;
+        }
+        return true;
+
+    }
+    case JSONNode::ARRAY_NODE: {
+        for (const auto &entry : reinterpret_cast<const ArrayNode &>(node)) {
+            if (unlikely(not IsValidUTF8(*entry)))
+                return false;
+        }
+        return true;
+    }
+    case JSONNode::BOOLEAN_NODE:
+    case JSONNode::NULL_NODE:
+    case JSONNode::INT64_NODE:
+    case JSONNode::DOUBLE_NODE:
+        return true;
+    case JSONNode::STRING_NODE:
+        return TextUtil::IsValidUTF8(reinterpret_cast<const StringNode &>(node).getValue());
+    }
+
+    LOG_ERROR("we should *never* get here!");
+}
+
+
 } // namespace JSON
