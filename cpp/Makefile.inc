@@ -30,5 +30,6 @@ ifneq ("$(wildcard /usr/include/selinux)","")
   LIBS += -lselinux
 endif
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
+SCRIPTS        = $(wildcard *.sh)
 CGI_PROGS      = full_text_cache_monitor full_text_lookup translate_chainer translator_ajax translator display_translate_stats zotero_cgi
-INSTALL_PROGS  = $(PROGS) *.sh
+INSTALL_PROGS  = $(PROGS) $(SCRIPTS)
