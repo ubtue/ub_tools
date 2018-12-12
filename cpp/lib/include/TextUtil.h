@@ -208,15 +208,7 @@ inline bool IsValidSingleUTF16Char(const uint16_t u) {
 }
 
 
-/** \brief Break up text into individual lowercase "words".
- *
- *  \param text             Assumed to be in UTF8.
- *  \param words            The individual words, also in UTF8.
- *  \param min_word_length  Reject chunks that are shorter than this.
- *  \return True if there were no character conversion problems, else false.
- */
-bool ChopIntoWords(const std::string &text, std::unordered_set<std::string> * const words,
-                   const unsigned min_word_length = 1);
+bool IsValidUTF8(const std::string &utf8_candidate);
 
 
 /** \brief Break up text into individual lowercase "words".
@@ -226,8 +218,17 @@ bool ChopIntoWords(const std::string &text, std::unordered_set<std::string> * co
  *  \param min_word_length  Reject chunks that are shorter than this.
  *  \return True if there were no character conversion problems, else false.
  */
-bool ChopIntoWords(const std::string &text, std::vector<std::string> * const words,
-                   const unsigned min_word_length = 1);
+bool ChopIntoWords(const std::string &text, std::unordered_set<std::string> * const words, const unsigned min_word_length = 1);
+
+
+/** \brief Break up text into individual lowercase "words".
+ *
+ *  \param text             Assumed to be in UTF8.
+ *  \param words            The individual words, also in UTF8.
+ *  \param min_word_length  Reject chunks that are shorter than this.
+ *  \return True if there were no character conversion problems, else false.
+ */
+bool ChopIntoWords(const std::string &text, std::vector<std::string> * const words, const unsigned min_word_length = 1);
 
 
 /** \return The position at which "needle" starts in "haystack" or "haystack.cend()" if "needle"
