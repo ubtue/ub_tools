@@ -467,9 +467,7 @@ bool IsNumber(const std::wstring &number_candidate) {
 }
 
 
-template<typename ContainerType> bool ChopIntoWords(const std::string &text, ContainerType * const words,
-                                                    const unsigned min_word_length)
-{
+template<typename ContainerType> bool ChopIntoWords(const std::string &text, ContainerType * const words, const unsigned min_word_length) {
     words->clear();
 
     std::wstring wide_text;
@@ -524,23 +522,46 @@ template<typename ContainerType> bool ChopIntoWords(const std::string &text, Con
 } // unnamed namespace
 
 
-bool ChopIntoWords(const std::string &text, std::unordered_set<std::string> * const words,
-                   const unsigned min_word_length)
-{
+bool ChopIntoWords(const std::string &text, std::unordered_set<std::string> * const words, const unsigned min_word_length) {
     return ChopIntoWords<std::unordered_set<std::string>> (text, words, min_word_length);
 }
 
 
-bool ChopIntoWords(const std::string &text, std::vector<std::string> * const words,
-                   const unsigned min_word_length)
-{
+bool ChopIntoWords(const std::string &text, std::vector<std::string> * const words, const unsigned min_word_length) {
     return ChopIntoWords<std::vector<std::string>> (text, words, min_word_length);
 }
 
 
-std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::string> &haystack,
-                                                       const std::vector<std::string> &needle)
-{
+// See https://en.wikipedia.org/wiki/UTF-8 in order to understand the implementation.
+bool IsValidUTF8(const std::string &utf8_candidate) {
+    for (std::string::const_iterator ch(utf8_candidate.begin()); ch != utf8_candidate.end(); ++ch) {
+        const unsigned char uch(static_cast<unsigned char>(*ch));
+        unsigned sequence_length;
+        if ((uch & 0b10000000) == 0b00000000)
+            sequence_length = 0;
+        else if ((uch & 0b11100000) == 0b11000000)
+            sequence_length = 1;
+        else if ((uch & 0b11110000) == 0b11100000)
+            sequence_length = 2;
+        else if ((uch & 0b11111000) == 0b11110000)
+            sequence_length = 3;
+        else
+            return false;
+
+        for (unsigned i(0); i < sequence_length; ++i) {
+            ++ch;
+            if (unlikely(ch == utf8_candidate.end()))
+                return false;
+            if (unlikely((static_cast<unsigned char>(*ch) & 011000000) != 010000000))
+                return false;
+        }
+    }
+
+    return true;
+}
+
+
+std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::string> &haystack, const std::vector<std::string> &needle) {
     if (needle.empty())
         return haystack.cbegin();
 
@@ -574,9 +595,7 @@ std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::st
 static char base64_symbols[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\0\0";
 
 
-std::string Base64Encode(const std::string &s, const char symbol63, const char symbol64,
-                         const bool use_output_padding)
-{
+std::string Base64Encode(const std::string &s, const char symbol63, const char symbol64, const bool use_output_padding) {
     base64_symbols[62] = symbol63;
     base64_symbols[63] = symbol64;
 

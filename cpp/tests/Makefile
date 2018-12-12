@@ -1,27 +1,8 @@
-INC            = ../lib/include
-LIB_SRCS       = ../lib/src
-CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -O3 -ftrapv \
-                 -Ilib/libstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
-                 -DETC_DIR='"/usr/local/var/lib/tuelib"'
-ifeq ($(CCC),clang++)
-  CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions
-else
-  CCCFLAGS += -std=gnu++11
-endif
-CCC            = clang++
-OBJ            = .
-MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep
-LIBS           = -L../lib -lubtue -L../lib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
-                 -larchive -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt -lssl -lcrypto -lpthread -ldl \
-                 -luuid -llept -ltesseract -lsqlite3 -lxerces-c
-ifneq ("$(wildcard /usr/include/selinux)","")
-  LIBS += -lselinux
-endif
-PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
-CGI_PROGS      = full_text_lookup translate_chainer
-INSTALL_PROGS  = $(filter-out %_test,$(PROGS)) *.sh
+LIB := ../lib
+include ../Makefile.inc
 
-.PHONY: all amd64 install clean
+
+.PHONY: all clean
 
 all: .deps $(PROGS)
 
