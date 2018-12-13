@@ -116,7 +116,7 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
                                   + db_connection->escapeAndQuoteString(GzStream::CompressString(record_blob, GzStream::GZIP)));
 
         db_connection->queryOrDie("SELECT LAST_INSERT_ID() AS id");
-        DbRow id_row(db_connection->getLastResultSet().getNextRow());
+        const DbRow id_row(db_connection->getLastResultSet().getNextRow());
         const std::string last_id(id_row["id"]);
         for (const auto &author : record.getAllAuthors())
             db_connection->queryOrDie("INSERT INTO marc_authors SET marc_records_id=" + last_id + ",author="
