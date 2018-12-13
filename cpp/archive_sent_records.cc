@@ -33,8 +33,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_data\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("marc_data");
 }
 
 
