@@ -86,7 +86,7 @@ TransactionGuard::~TransactionGuard() {
 }
 
 
-std::string TruncateToVarCharMaxLength(const std::string &s){
+std::string TruncateToVarCharMaxLength(const std::string &s) {
     auto truncated(s);
     if (truncated.length() > VARCHAR_UTF8_MAX_LENGTH)
         truncated.erase(VARCHAR_UTF8_MAX_LENGTH);
@@ -95,7 +95,7 @@ std::string TruncateToVarCharMaxLength(const std::string &s){
 }
 
 
-// EscapeBlob -- Escape charcters in a binary string so it can be used as a MySQL BLOB.
+// EscapeBlob -- Escape characters in a binary string so it can be used as a MySQL BLOB.
 //
 std::string &EscapeBlob(std::string * const s) {
     std::string encoded_string;

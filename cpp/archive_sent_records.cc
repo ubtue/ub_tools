@@ -70,7 +70,7 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
 
     std::string record_blob;
 
-    while (MARC::Record record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         const std::string hash(StringUtil::ToHexString(MARC::CalcChecksum(record)));
         const std::string url(record.getFirstSubfieldValue("URL", 'a'));
         const std::string zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
@@ -126,7 +126,7 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
         if (db_connection->getLastResultSet().empty()) {
             const std::string superior_title(record.getSuperiorTitle());
             const auto superior_control_number(record.getSuperiorControlNumber());
-            std::string superior_control_number_sql(superior_control_number.empty() ? "" : ",control_number="
+            const std::string superior_control_number_sql(superior_control_number.empty() ? "" : ",control_number="
                                                     + db_connection->escapeAndQuoteString(superior_control_number));
 
             db_connection->queryOrDie("INSERT INTO superior_info SET zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) +
