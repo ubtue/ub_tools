@@ -618,7 +618,10 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     ProcessNonStandardMetadata(record, node_parameters.notes_key_value_pairs_, site_params_->non_standard_metadata_fields_);
 
     if (not site_params_->zeder_id_.empty())
-    record->insertField("ZID", { { 'a', site_params_->zeder_id_} });
+        record->insertField("ZID", { { 'a', site_params_->zeder_id_ } });
+
+    if (not node_parameters.harvest_url_.empty())
+        record->insertField("URL", { { 'a', node_parameters.harvest_url_ } });
 }
 
 
