@@ -91,6 +91,7 @@ public:
 
     inline bool isTagOfControlField() const { return tag_.as_cstring_[0] == '0' and tag_.as_cstring_[1] == '0'; }
     bool isLocal() const;
+    Tag &swap(Tag &other);
 };
 
 
@@ -414,6 +415,24 @@ public:
         inline Field &front() { return *begin_; }
         inline Field &back() { return *(end_ - 1); }
     };
+
+    class KeywordAndSynonyms {
+        Tag tag_;
+        std::string keyword_;
+        std::vector<std::string> synonyms_;
+    public:
+        KeywordAndSynonyms() = default;
+        KeywordAndSynonyms(const KeywordAndSynonyms &other) = default;
+        KeywordAndSynonyms(const Tag &tag, const std::string &keyword, const std::vector<std::string> &synonyms)
+            : tag_(tag), keyword_(keyword), synonyms_(synonyms) { }
+
+        KeywordAndSynonyms &operator=(const KeywordAndSynonyms &rhs) = default;
+        inline const Tag &getTag() const { return tag_; }
+        inline const std::string &getKeyword() const { return keyword_; }
+        inline std::vector<std::string>::const_iterator begin() const { return synonyms_.begin(); }
+        inline std::vector<std::string>::const_iterator end() const { return synonyms_.end(); }
+        KeywordAndSynonyms &swap(KeywordAndSynonyms &other);
+    };
 private:
     friend class BinaryReader;
     friend class XmlReader;
@@ -501,6 +520,12 @@ public:
     std::set<std::string> getDDCs() const;
     std::set<std::string> getRVKs() const;
 
+    /** \brief  Extracts a keyword and its synonyms from an authority record.
+     *  \note   Aborts if the record is not an authority record.
+     *  \return true if a keyword was found and false o/w.
+     */
+    bool getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_synonyms);
+
     /** \return An iterator pointing to the first field w/ tag "field_tag" or end() if no such field was found. */
     inline const_iterator getFirstField(const Tag &field_tag) const {
         return std::find_if(fields_.cbegin(), fields_.cend(),
@@ -532,7 +557,7 @@ public:
         return "";
     }
 
-    RecordType getRecordType() const {
+    inline RecordType getRecordType() const {
         if (leader_[6] == 'z')
             return RecordType::AUTHORITY;
         if (leader_[6] == 'w')
@@ -621,6 +646,8 @@ public:
         std::stable_sort(begin_field, end_field, [](const Field &lhs, const Field &rhs){ return lhs.tag_ < rhs.tag_; });
     }
 
+    ConstantRange getTagRange(const std::vector<Tag> &tags) const;
+
     /** \return Iterators pointing to the half-open interval of the first range of fields corresponding to the tag "tag".
      *  \remark {
      *     Typical usage of this function looks like this:<br />
@@ -633,7 +660,7 @@ public:
      *     \endcode
      *  }
      */
-    ConstantRange getTagRange(const Tag &tag) const;
+    inline ConstantRange getTagRange(const Tag &tag) const { return getTagRange(std::vector<Tag>{ tag }); }
 
     /** \return Iterators pointing to the half-open interval of the first range of fields corresponding to the tag "tag".
      *  \remark {
