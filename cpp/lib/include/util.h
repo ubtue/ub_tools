@@ -137,3 +137,7 @@ template <typename T> std::string ArrayToString(T* array, size_t count) {
     buffer.append("]");
     return buffer;
 }
+
+
+// \note A single newline will be appended to the message that is emitted on stderr.  Furthermore, "[--min-log-level] " will be prepended.
+[[noreturn]] void Usage(const std::string &usage_message);

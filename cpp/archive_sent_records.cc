@@ -35,8 +35,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level] marc_data\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("marc_data");
 }
 
 
@@ -76,7 +75,8 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
         const std::string zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
         const std::string main_title(record.getMainTitle());
 
-        db_connection->queryOrDie("SELECT * FROM marc_records WHERE main_title=" + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(main_title)));
+        db_connection->queryOrDie("SELECT * FROM marc_records WHERE main_title="
+                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(main_title)));
         if (not db_connection->getLastResultSet().empty()) {
             LOG_INFO("record with title '" + main_title + "' already exists in the database");
             continue;
