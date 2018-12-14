@@ -737,10 +737,28 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     MARC::Record new_record(std::string(MARC::Record::LEADER_LENGTH, ' ') /*empty dummy leader*/);
     generateMarcRecord(&new_record, item_parameters);
 
+    std::string exclusion_string;
+    if (recordMatchesExclusionFilters(new_record, &exclusion_string)) {
+        LOG_INFO("skipping URL '" + item_parameters.harvest_url_ + " - excluded due to filter (" + exclusion_string + ")");
+        return std::make_pair(0, 0);
+    }
+
     unsigned previously_downloaded_count(0);
     handleTrackingAndWriteRecord(new_record, harvest_params_->disable_tracking_, delivery_mode, item_parameters,
                                  &previously_downloaded_count);
     return std::make_pair(/* record count */1, previously_downloaded_count);
+}
+
+
+bool MarcFormatHandler::recordMatchesExclusionFilters(const MARC::Record &new_record, std::string * const exclusion_string) const {
+    for (const auto &filter : site_params_->field_exclusion_filters_) {
+        if (new_record.fieldOrSubfieldMatched(filter.first, filter.second.get())) {
+            *exclusion_string = filter.first + "/" + filter.second->getPattern() + "/";
+            return true;
+        }
+    }
+
+    return false;
 }
 
 
