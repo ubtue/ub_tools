@@ -90,7 +90,8 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
             if (field_name.length() != MARC::Record::TAG_LENGTH && field_name.length() != MARC::Record::TAG_LENGTH + 1)
                 LOG_ERROR("invalid exclusion filter name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
 
-            site_params->field_exclusion_filters_.insert(std::make_pair(field_name, RegexMatcher::RegexMatcherFactoryOrDie(entry.value_)));
+            site_params->field_exclusion_filters_.insert(std::make_pair(field_name,
+                                                         std::unique_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactoryOrDie(entry.value_))));
         }
     }
 
