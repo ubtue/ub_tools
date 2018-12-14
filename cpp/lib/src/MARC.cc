@@ -1154,6 +1154,24 @@ bool Record::isValid(std::string * const error_message) const {
 }
 
 
+bool Record::fieldOrSubfieldMatched(const std::string &field_or_field_and_subfield_code, RegexMatcher * const regex_matcher) const {
+    if (unlikely(field_or_field_and_subfield_code.length() < TAG_LENGTH or field_or_field_and_subfield_code.length() > TAG_LENGTH + 1))
+        LOG_ERROR("\"field_or_field_and_subfield_code\" must be a tag or a tag plus a subfield code!");
+
+    const char subfield_code((field_or_field_and_subfield_code.length() == TAG_LENGTH + 1) ? field_or_field_and_subfield_code[TAG_LENGTH]
+                                                                                           : '\0');
+    for (const auto &field : getTagRange(field_or_field_and_subfield_code.substr(0, TAG_LENGTH))) {
+        if (subfield_code != '\0' and field.hasSubfield(subfield_code)) {
+            if (regex_matcher->matched(field.getFirstSubfieldWithCode(subfield_code)))
+                return true;
+        } else if (regex_matcher->matched(field.getContents()))
+            return true;
+    }
+
+    return false;
+}
+
+
 enum class MediaType { XML, MARC21, OTHER };
 
 
