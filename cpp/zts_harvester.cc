@@ -85,10 +85,10 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
             site_params->additional_fields_.emplace_back(entry.value_);
         else if (StringUtil::StartsWith(entry.name_, "non_standard_metadata_field"))
             site_params->non_standard_metadata_fields_.emplace_back(entry.value_);
-        else if (StringUtil::StartsWith(entry.name_, "exclude_field_")) {
-            const auto field_name(entry.name_.substr(__builtin_strlen("exclude_field_")));
+        else if (StringUtil::StartsWith(entry.name_, "exclusion_filter_")) {
+            const auto field_name(entry.name_.substr(__builtin_strlen("exclusion_filter_")));
             if (field_name.length() != MARC::Record::TAG_LENGTH && field_name.length() != MARC::Record::TAG_LENGTH + 1)
-                LOG_ERROR("invalid exclusion field '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
+                LOG_ERROR("invalid exclusion filter name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
 
             site_params->field_exclusion_filters_.insert(std::make_pair(field_name, RegexMatcher::RegexMatcherFactoryOrDie(entry.value_)));
         }
