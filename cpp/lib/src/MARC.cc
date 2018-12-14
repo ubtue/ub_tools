@@ -66,6 +66,12 @@ bool Tag::isLocal() const {
 }
 
 
+Tag &Tag::swap(Tag &other) {
+    std::swap(tag_.as_int_, other.tag_.as_int_);
+    return *this;
+}
+
+
 Subfields::Subfields(const std::string &field_contents) {
     if (unlikely(field_contents.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
         return;
@@ -312,6 +318,17 @@ void Record::Field::deleteAllSubfieldsWithCode(const char subfield_code) {
 }
 
 
+Record::KeywordAndSynonyms &Record::KeywordAndSynonyms::swap(KeywordAndSynonyms &other) {
+    if (this != &other) {
+        tag_.swap(other.tag_);
+        keyword_.swap(other.keyword_);
+        synonyms_.swap(other.synonyms_);
+    }
+
+    return *this;
+}
+
+
 Record::Record(const std::string &leader): leader_(leader) {
     if (unlikely(leader_.length() != LEADER_LENGTH))
         LOG_ERROR("supposed leader has invalid length!");
@@ -484,14 +501,19 @@ bool Record::isElectronicResource() const {
 }
 
 
-Record::ConstantRange Record::getTagRange(const Tag &tag) const {
+inline static bool MatchAny(const Tag &tag, const std::vector<Tag> &tags) {
+    return std::find_if(tags.cbegin(), tags.cend(), [&tag](const Tag &tag1){ return tag1 == tag; }) != tags.cend();
+}
+
+
+Record::ConstantRange Record::getTagRange(const std::vector<Tag> &tags) const {
     const auto begin(std::find_if(fields_.begin(), fields_.end(),
-                                  [&tag](const Field &field) -> bool { return field.getTag() == tag; }));
+                                  [&tags](const Field &field) -> bool { return MatchAny(field.getTag(), tags); }));
     if (begin == fields_.end())
         return ConstantRange(fields_.end(), fields_.end());
 
     auto end(begin);
-    while (end != fields_.end() and end->getTag() == tag)
+    while (end != fields_.end() and MatchAny(end->getTag(), tags))
         ++end;
 
     return ConstantRange(begin, end);
@@ -726,6 +748,30 @@ std::set<std::string> Record::getRVKs() const {
     }
 
     return rvks;
+}
+
+
+bool Record::getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_synonyms) {
+    if (unlikely(getRecordType() != RecordType::AUTHORITY))
+        LOG_ERROR("this function can only be applied to an authority record!");
+
+    for (const auto &canonical_keyword_field : getTagRange({ "150", "151" })) {
+        if (unlikely(not canonical_keyword_field.hasSubfield('a')))
+            continue;
+
+        std::vector<std::string> synonyms;
+        for (const auto synonym_field : getTagRange("450")) {
+            const std::string synonym(synonym_field.getFirstSubfieldWithCode('a'));
+            if (likely(not synonym.empty()))
+                synonyms.emplace_back(synonym);
+        }
+
+        KeywordAndSynonyms temp(canonical_keyword_field.getTag(), canonical_keyword_field.getFirstSubfieldWithCode('a'), synonyms);
+        keyword_synonyms->swap(temp);
+        return true;
+    }
+
+    return false;
 }
 
 
