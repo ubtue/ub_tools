@@ -756,6 +756,11 @@ public:
 
     void deleteFields(std::vector<size_t> field_indices);
     bool isValid(std::string * const error_message) const;
+
+    /** \brief Match a field or subfield against a regular expression.
+     *  \param field_or_field_and_subfield_code Must be either a field tag or a field tag plus a single subfield code.
+     */
+    bool fieldOrSubfieldMatched(const std::string &field_or_field_and_subfield_code, RegexMatcher * const regex_matcher) const;
 };
 
 
