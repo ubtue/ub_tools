@@ -18,9 +18,9 @@ $(PROGS): % : %.o ../lib/libubtue.a Makefile
 .deps: *.cc $(INC)/*.h
 	$(MAKE_DEPS) -I $(INC) *.cc
 
-install:
+install: $(PROGS)
 	@echo "Installing programs..."
-	cp $(INSTALL_PROGS) /usr/local/bin/
+	cp $(PROGS) marc_grep_multiple.sh /usr/local/bin/
 
 clean:
 	rm -f *.o *~ $(PROGS) .deps
