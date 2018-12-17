@@ -281,7 +281,7 @@ EndPhase || Abort) &
 StartPhase "Add Entries for Subscription Bundles and Tag Journals"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_subscription_bundle_entries GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
