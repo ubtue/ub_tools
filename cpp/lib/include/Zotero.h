@@ -208,6 +208,7 @@ struct SiteParams {
     BSZUpload::DeliveryMode delivery_mode_;
     std::vector<std::string> additional_fields_;
     std::vector<std::string> non_standard_metadata_fields_;
+    std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> field_exclusion_filters_;
 };
 
 
@@ -339,6 +340,8 @@ private:
 
     void handleTrackingAndWriteRecord(const MARC::Record &new_record, const bool disable_tracking, const BSZUpload::DeliveryMode delivery_mode,
                                       struct ItemParameters &item_params, unsigned * const previously_downloaded_count);
+
+    bool recordMatchesExclusionFilters(const MARC::Record &new_record, std::string * const exclusion_string) const;
 };
 
 

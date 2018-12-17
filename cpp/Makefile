@@ -38,11 +38,6 @@ regular_install: $(INSTALL_PROGS) Makefile
 	@echo "Installing programs..."
 	cp $(INSTALL_PROGS) /usr/local/bin/
 
-cgi_install: $(CGI_PROGS) Makefile
-	@echo "Installing CGI programs..."
-	mkdir --parents /var/www/cgi-bin
-	cp $(CGI_PROGS) /var/www/cgi-bin/
-
 data_install: Makefile data/*.conf data/*.map data/IxTheo_Notation.csv data/stopwords.* \
               data/subscriptions_email.ixtheo.template data/subscriptions_email.relbib.template \
               data/bibleRef/* data/crossref_downloader/* data/full_text_cache_monitor/* \
