@@ -19,7 +19,7 @@ $(PROGS): % : %.o ../lib/libubtue.a Makefile
 .deps: *.cc $(INC)/*.h
 	$(MAKE_DEPS) -I $(INC) *.cc
 
-install:
+install: $(PROGS)
 	@echo "Installing CGI programs..."
 	mkdir --parents /var/www/cgi-bin
 	cp $(PROGS) /var/www/cgi-bin/
