@@ -545,15 +545,21 @@ bool IsValidUTF8(const std::string &utf8_candidate) {
             sequence_length = 2;
         else if ((uch & 0b11111000) == 0b11110000)
             sequence_length = 3;
-        else
+        else {
+            LOG_DEBUG("bad sequence start character: 0x" + StringUtil::ToHexString(uch));
             return false;
+        }
 
         for (unsigned i(0); i < sequence_length; ++i) {
             ++ch;
-            if (unlikely(ch == utf8_candidate.end()))
+            if (unlikely(ch == utf8_candidate.end())) {
+                LOG_DEBUG("premature string end in the middle of a UTF8 byte sequence!");
                 return false;
-            if (unlikely((static_cast<unsigned char>(*ch) & 011000000) != 010000000))
+            }
+            if (unlikely((static_cast<unsigned char>(*ch) & 011000000) != 010000000)) {
+                LOG_DEBUG("unexpected upper-bit pattern in a UFT8 sequence: 0x" + StringUtil::ToHexString(static_cast<uint8_t>(*ch)));
                 return false;
+            }
         }
     }
 
