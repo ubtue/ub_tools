@@ -30,9 +30,9 @@ tests:
 	$(MAKE) -C test
 
 install: regular_install data_install
-	make -C pipelines install
-	make -C marc_tools install
-	make -C cgi_progs install
+	$(MAKE) -C pipelines install
+	$(MAKE) -C marc_tools install
+	$(MAKE) -C cgi_progs install
 
 regular_install: $(INSTALL_PROGS) Makefile
 	@echo "Installing programs..."
@@ -59,9 +59,9 @@ local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
 
 clean: local_clean Makefile
-	make -C pipelines clean
-	make -C marc_tools clean
-	make -C cgi_progs clean
-	make -C lib clean
-	make -C tests clean
-	make -C test clean
+	$(MAKE) -C pipelines clean
+	$(MAKE) -C marc_tools clean
+	$(MAKE) -C cgi_progs clean
+	$(MAKE) -C lib clean
+	$(MAKE) -C tests clean
+	$(MAKE) -C test clean
