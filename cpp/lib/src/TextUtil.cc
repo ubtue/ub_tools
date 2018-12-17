@@ -556,7 +556,7 @@ bool IsValidUTF8(const std::string &utf8_candidate) {
                 LOG_DEBUG("premature string end in the middle of a UTF8 byte sequence!");
                 return false;
             }
-            if (unlikely((static_cast<unsigned char>(*ch) & 011000000) != 010000000)) {
+            if (unlikely((static_cast<unsigned char>(*ch) & 0b11000000) != 0b10000000)) {
                 LOG_DEBUG("unexpected upper-bit pattern in a UFT8 sequence: 0x" + StringUtil::ToHexString(static_cast<uint8_t>(*ch)));
                 return false;
             }
