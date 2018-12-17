@@ -352,8 +352,8 @@ public class MultiLanguageQueryParser extends QParser {
         String field = queryCandidate.getField();
         String newFieldName = field + "_" + lang;
         if (schema.getFieldOrNull(newFieldName) != null) {
-            String range = queryCandidate.toString(field);
-            Matcher matcher = RANGE_QUERY_PATTERN.matcher(range);
+            final String range = queryCandidate.toString(field);
+            final Matcher matcher = RANGE_QUERY_PATTERN.matcher(range);
             if (!matcher.matches())
                throw new SolrException(ErrorCode.SERVER_ERROR, "Range \"" + range + "\" did not match our range query pattern");
             final String lower = matcher.group(1);
