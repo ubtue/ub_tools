@@ -26,6 +26,8 @@
 #include "GzStream.h"
 #include "IniFile.h"
 #include "MARC.h"
+#include "SqlUtil.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -33,8 +35,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_data\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("marc_data");
 }
 
 
@@ -67,39 +68,34 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
     unsigned record_count(0);
 
     std::string record_blob;
-    MARC::XmlWriter xml_writer(&record_blob);
 
-    while (MARC::Record record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
+        const std::string hash(StringUtil::ToHexString(MARC::CalcChecksum(record)));
+        const std::string url(record.getFirstSubfieldValue("URL", 'a'));
+        const std::string zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
+        const std::string main_title(record.getMainTitle());
+
+        db_connection->queryOrDie("SELECT * FROM marc_records WHERE main_title="
+                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(main_title)));
+        if (not db_connection->getLastResultSet().empty()) {
+            LOG_INFO("record with title '" + main_title + "' already exists in the database");
+            continue;
+        }
+
         ++record_count;
-
-        const std::string hash(record.getFirstFieldContents("HAS"));
-        const std::string url(record.getFirstFieldContents("URL"));
-        const std::string zeder_id(record.getFirstFieldContents("ZID"));
-
-        // Remove HAS, URL and ZID fields because we don't want to upload them to the BSZ FTP server:
-        record.erase("HAS");
-        record.erase("URL");
-        record.erase("ZID");
-
-        xml_writer.write(record);
-
-        const auto superior_control_number(record.getSuperiorControlNumber());
-        std::string superior_control_number_sql(
-            superior_control_number.empty() ? "" : ",superior_control_number="
-                                                   + db_connection->escapeAndQuoteString(superior_control_number));
 
         std::string publication_year, volume, issue, pages;
         const auto _936_field(record.getFirstField("936"));
         if (_936_field != record.end()) {
             const MARC::Subfields subfields(_936_field->getSubfields());
             if (subfields.hasSubfield('j'))
-                publication_year = "publication_year=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('j'));
+                publication_year = ",publication_year=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('j'));
             if (subfields.hasSubfield('d'))
-                volume = "volume=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('d'));
+                volume = ",volume=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('d'));
             if (subfields.hasSubfield('e'))
-                issue = "issue=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('e'));
+                issue = ",issue=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('e'));
             if (subfields.hasSubfield('h'))
-                pages = "pages=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('h'));
+                pages = ",pages=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('h'));
         }
 
         std::string resource_type("unknown");
@@ -112,12 +108,10 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
             }
         }
 
-        const std::string superior_title(record.getSuperiorTitle());
         db_connection->queryOrDie("INSERT INTO marc_records SET url=" + db_connection->escapeAndQuoteString(url)
                                   + ",zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) + ",hash="
                                   + db_connection->escapeAndQuoteString(hash) + ",main_title="
-                                  + db_connection->escapeAndQuoteString(record.getMainTitle())
-                                  + db_connection->escapeAndQuoteString(superior_title)
+                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(main_title))
                                   + publication_year + volume + issue + pages + ",resource_type='" + resource_type + "',record="
                                   + db_connection->escapeAndQuoteString(GzStream::CompressString(record_blob, GzStream::GZIP)));
 
@@ -128,8 +122,16 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
             db_connection->queryOrDie("INSERT INTO marc_authors SET marc_records_id=" + last_id + ",author="
                                       + db_connection->escapeAndQuoteString(author));
 
-        db_connection->queryOrDie("INSERT INTO superior_info SET zeder_id=" + db_connection->escapeAndQuoteString(zeder_id)
-                                  + ",superior_title=" + db_connection->escapeAndQuoteString(superior_title) + superior_control_number_sql);
+        db_connection->queryOrDie("SELECT * FROM superior_info WHERE zeder_id=" + db_connection->escapeAndQuoteString(zeder_id));
+        if (db_connection->getLastResultSet().empty()) {
+            const std::string superior_title(record.getSuperiorTitle());
+            const auto superior_control_number(record.getSuperiorControlNumber());
+            const std::string superior_control_number_sql(superior_control_number.empty() ? "" : ",control_number="
+                                                    + db_connection->escapeAndQuoteString(superior_control_number));
+
+            db_connection->queryOrDie("INSERT INTO superior_info SET zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) +
+                                      ",title=" + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(superior_title)) + superior_control_number_sql);
+        }
 
         record_blob.clear();
     }
