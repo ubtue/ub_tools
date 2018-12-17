@@ -20,7 +20,7 @@ $(PROGS): % : %.o ../lib/libubtue.a Makefile
 
 install:
 	@echo "Installing programs..."
-	cp $(INSTALL_PROGS) /usr/local/bin/
+	cp $(PROGS) marc_grep_multiple.sh /usr/local/bin/
 
 clean:
 	rm -f *.o *~ $(PROGS) .deps
