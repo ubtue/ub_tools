@@ -23,6 +23,7 @@ import org.apache.lucene.search.SynonymQuery;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.search.WildcardQuery;
+import org.apache.lucene.util.BytesRef;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.SolrException;
@@ -50,6 +51,7 @@ public class MultiLanguageQueryParser extends QParser {
     private String lang;
     private Query newQuery;
     private Pattern LOCAL_PARAMS_PATTERN = Pattern.compile("(\\{![^}]*\\})");
+    private Pattern RANGE_QUERY_PATTERN = Pattern.compile("[\\[\\{](.*)\\s+TO\\s+(.*)[\\]\\}]");
 
 
     public MultiLanguageQueryParser(final String searchString, final SolrParams localParams, final SolrParams params,
@@ -349,13 +351,16 @@ public class MultiLanguageQueryParser extends QParser {
     private Query processSolrRangeQuery(final SolrRangeQuery queryCandidate) {
         String field = queryCandidate.getField();
         String newFieldName = field + "_" + lang;
-        // There does not seem to a proper way to get Upper and Lower Terms of a SolrRangeQuery
-        // without reparsing. Moreover the SolrRangeQuery API is experimental
-        // Range Queries only make sense in the context of numeric fields
-        // which are language independent, so in practice there should never the need to rewrite
-        // So throw an exception if we really encounter this esoteric case
+        // Ranges are also possible with strings...
         if (schema.getFieldOrNull(newFieldName) != null) {
-            throw new SolrException(ErrorCode.SERVER_ERROR, "Language dependent SolrRangeQueries are currently not supported");
+            String range = queryCandidate.toString(field);
+            Matcher matcher = RANGE_QUERY_PATTERN.matcher(range);
+            if (!matcher.matches())
+               throw new SolrException(ErrorCode.SERVER_ERROR, "Range \"" + range + "\" did not match our range query pattern");
+            String lower = matcher.group(1);
+            String upper = matcher.group(2);
+            return new SolrRangeQuery(newFieldName, new BytesRef(lower), new BytesRef(upper),
+                                      queryCandidate.includeLower(), queryCandidate.includeUpper());
         }
         return queryCandidate;
     }
