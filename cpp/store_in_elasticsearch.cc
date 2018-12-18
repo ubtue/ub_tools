@@ -32,7 +32,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--verbose] fulltext_file1 [fulltext_file2 .. fulltext_fileN]");
+    ::Usage("fulltext_file1 [fulltext_file2 .. fulltext_fileN]");
 }
 
 
@@ -55,13 +55,6 @@ bool ImportDocument(ControlNumberGuesser &control_number_guesser, Elasticsearch 
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 2)
-        Usage();
-
-    const bool verbose(std::strcmp(argv[1], "--verbose") == 0);
-    if (verbose)
-        --argc, ++argv;
-
     if (argc < 2)
         Usage();
 
