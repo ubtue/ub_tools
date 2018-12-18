@@ -30,7 +30,8 @@ const std::string DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath() + "Elasticse
 
 
 static void LoadIniParameters(const std::string &config_file_path, std::string * const host, std::string * const index,
-                              std::string * const username, std::string * const password, bool * const ignore_ssl_certificates)
+                              std::string * const type, std::string * const username, std::string * const password,
+                              bool * const ignore_ssl_certificates)
 {
     if (not FileUtil::Exists(config_file_path))
         LOG_ERROR("Elasticsearch config file missing: " + config_file_path);
@@ -39,6 +40,7 @@ static void LoadIniParameters(const std::string &config_file_path, std::string *
 
     *host                    = ini_file.getString("Elasticsearch", "host");
     *index                   = ini_file.getString("Elasticsearch", "index");
+    *type                    = ini_file.getString("Elasticsearch", "type");
     *username                = ini_file.getString("Elasticsearch", "username", "");
     *password                = ini_file.getString("Elasticsearch", "password", "");
     *ignore_ssl_certificates = ini_file.getBool("Elasticsearch", "ignore_ssl_certificates", false);
@@ -46,7 +48,7 @@ static void LoadIniParameters(const std::string &config_file_path, std::string *
 
 
 Elasticsearch::Elasticsearch(const std::string &ini_file_path) {
-    LoadIniParameters(ini_file_path.empty() ? DEFAULT_CONFIG_FILE_PATH : ini_file_path, &host_, &index_, &username_,
+    LoadIniParameters(ini_file_path.empty() ? DEFAULT_CONFIG_FILE_PATH : ini_file_path, &host_, &index_, &type_, &username_,
                       &password_, &ignore_ssl_certificates_);
 }
 
@@ -63,7 +65,7 @@ void Elasticsearch::insertDocument(const std::string &document_id, const std::ve
     downloader_params.ignore_ssl_certificates_ = ignore_ssl_certificates_;
     downloader_params.additional_headers_.push_back("Content-Type: application/json");
 
-    const Url delete_url(host_ + "/" + index_ + "/_delete_by_query");
+    const Url delete_url(host_ + "/" + index_ + "/" + type_ + "/_delete_by_query");
     const JSON::ObjectNode match_node("{ \"query\": { \"match\": { \"document_id\": \"" + JSON::EscapeString(document_id) + "\" } } }");
 
     std::shared_ptr<JSON::JSONNode> result(REST::QueryJSON(delete_url, REST::POST, &match_node, downloader_params));
@@ -71,9 +73,13 @@ void Elasticsearch::insertDocument(const std::string &document_id, const std::ve
     if (result_object->hasNode("error"))
         LOG_ERROR("Elasticsearch delete_by_query failed: " + result_object->getNode("error")->toString());
 
-    const Url insert_url(host_ + "/" + index_ + "/_insert");
+    const Url insert_url(host_ + "/" + index_ + "/" + type_ + "/_insert");
     for (const auto &document_chunk : document_chunks) {
-        const JSON::ObjectNode payload(JSON::ObjectNode(std::unordered_map<std::string, std::string>{ { "doc", document_chunk } }));
+        const JSON::ObjectNode payload(
+            JSON::ObjectNode(std::unordered_map<std::string, std::string>{
+                    { "document_id",    document_id    },
+                    { "document_chunk", document_chunk }
+                }));
         result = REST::QueryJSON(insert_url, REST::PUT, &payload, downloader_params);
     }
 }

@@ -5,11 +5,12 @@ include Makefile.inc
 .PHONY: all .deps tests test install regular_install local_clean clean
 
 all: .deps $(PROGS)
-	$(MAKE) -C pipelines
-	$(MAKE) -C marc_tools
+	$(MAKE) -C elasticsearch
 	$(MAKE) -C cgi_progs
-	$(MAKE) -C tests
+	$(MAKE) -C marc_tools
+	$(MAKE) -C pipelines
 	$(MAKE) -C test
+	$(MAKE) -C tests
 
 %.o: %.cc Makefile
 	@echo "Compiling $< $(OPTIMISATIONS_STATE)..."
@@ -30,9 +31,10 @@ tests:
 	$(MAKE) -C test
 
 install: regular_install data_install
-	$(MAKE) -C pipelines install
-	$(MAKE) -C marc_tools install
+	$(MAKE) -C elasticsearch install
 	$(MAKE) -C cgi_progs install
+	$(MAKE) -C marc_tools install
+	$(MAKE) -C pipelines install
 
 regular_install: $(INSTALL_PROGS) Makefile
 	@echo "Installing programs..."
@@ -59,9 +61,10 @@ local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
 
 clean: local_clean Makefile
-	$(MAKE) -C pipelines clean
-	$(MAKE) -C marc_tools clean
+	$(MAKE) -C elasticsearch clean
 	$(MAKE) -C cgi_progs clean
 	$(MAKE) -C lib clean
-	$(MAKE) -C tests clean
+	$(MAKE) -C marc_tools clean
+	$(MAKE) -C pipelines clean
 	$(MAKE) -C test clean
+	$(MAKE) -C tests clean
