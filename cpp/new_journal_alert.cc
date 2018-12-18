@@ -288,11 +288,19 @@ void SendNotificationEmail(const bool debug, const std::string &firstname, const
     Template::ExpandTemplate(input, email_contents, names_to_values_map);
 
     if (debug)
-        std::cerr << "Debug mode, email address is " << sender_email << ", template expanded to:\n" << email_contents.str()
-                  << '\n';
-    else if (unlikely(not EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents.str(),
-                                                 EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
-        LOG_ERROR("failed to send a notification email to \"" + recipient_email + "\"!");
+        std::cerr << "Debug mode, email address is " << sender_email << ", template expanded to:\n" << email_contents.str() << '\n';
+    else {
+        const unsigned short response_code(EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents.str(),
+                                                                  EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
+
+        if (response_code >= 300) {
+            if (response_code == 550)
+                LOG_WARNING("failed to send a notification email to \"" + recipient_email + "\", recipient may not exist!");
+            else
+                LOG_ERROR("failed to send a notification email to \"" + recipient_email + "\"! (response code was: "
+                          + std::to_string(response_code) + ")");
+        }
+    }
 }
 
 
@@ -305,8 +313,11 @@ void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &
         return;
     }
 
-    for (const auto &entry : *section)
-        control_numbers->emplace_back(entry.value_);
+    const std::string bundle_ppns_string(bundles_config.getString(bundle_name, "ppns", ""));
+    std::vector<std::string> bundle_ppns;
+    StringUtil::SplitThenTrim(bundle_ppns_string, "," , " \t", &bundle_ppns);
+    for (const auto &bundle_ppn : bundle_ppns)
+            control_numbers->emplace_back(bundle_ppn);
 }
 
 
@@ -317,7 +328,7 @@ void ProcessSingleUser(
     const std::string &sender_email, const std::string &email_subject,
     std::vector<SerialControlNumberAndMaxLastModificationTime> &control_numbers_or_bundle_names_and_last_modification_times)
 {
-    db_connection->queryOrDie("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.user_id WHERE user.id='" + user_id + "'");
+    db_connection->queryOrDie("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id WHERE user.id='" + user_id + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
 
     if (result_set.empty())
@@ -389,14 +400,14 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
                           const std::string &solr_host_and_port, const std::string &user_type, const std::string &hostname,
                           const std::string &sender_email, const std::string &email_subject)
 {
-    db_connection->queryOrDie("SELECT DISTINCT id FROM ixtheo_journal_subscriptions WHERE id IN (SELECT id FROM "
+    db_connection->queryOrDie("SELECT DISTINCT user_id FROM ixtheo_journal_subscriptions WHERE user_id IN (SELECT id FROM "
                               "ixtheo_user WHERE ixtheo_user.user_type = '" + user_type  + "')");
 
     unsigned subscription_count(0);
     DbResultSet id_result_set(db_connection->getLastResultSet());
     const unsigned user_count(id_result_set.size());
     while (const DbRow id_row = id_result_set.getNextRow()) {
-        const std::string user_id(id_row["id"]);
+        const std::string user_id(id_row["user_id"]);
 
         db_connection->queryOrDie("SELECT journal_control_number_or_bundle_name,max_last_modification_time FROM "
                                   "ixtheo_journal_subscriptions WHERE user_id=" + user_id);

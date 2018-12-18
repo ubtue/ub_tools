@@ -35,17 +35,20 @@ enum Format { PLAIN_TEXT, HTML };
  *        form "Name<email_address>".  Also "subject" and "message_body" are assumed to be in UTF-8.  Also, at least
  *        one of "sender" or "reply_to" have to be specified.
  *  \note The message body must be UTF-8!
+ *  \return In order to understand the sigificance of the return codes, read https://www.ietf.org/rfc/rfc5321.txt especially starting
+ *          at the section titled "Reply Code Severities and Theory" (4.2.1.).
+ *  \note It is probably Ok to test for test for <= 299 as a successful return code.
  */
-bool SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
-               const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
-               const std::string &subject, const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
-               const Format format = PLAIN_TEXT, const std::string &reply_to = "", const bool use_ssl = true,
-               const bool use_authentication = true);
+unsigned short SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
+                         const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
+                         const std::string &subject, const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
+                         const Format format = PLAIN_TEXT, const std::string &reply_to = "", const bool use_ssl = true,
+                         const bool use_authentication = true);
 
-inline bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
-                      const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
-                      const Format format = PLAIN_TEXT, const std::string &reply_to = "", const bool use_ssl = true,
-                      const bool use_authentication = true)
+inline unsigned short SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
+                                const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
+                                const Format format = PLAIN_TEXT, const std::string &reply_to = "", const bool use_ssl = true,
+                                const bool use_authentication = true)
 {
     return SendEmail(sender, { recipient }, /* cc_recipients = */ { }, /* bcc_recipients = */ { }, subject, message_body,
                      priority, format, reply_to, use_ssl, use_authentication);

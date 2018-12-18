@@ -467,9 +467,7 @@ bool IsNumber(const std::wstring &number_candidate) {
 }
 
 
-template<typename ContainerType> bool ChopIntoWords(const std::string &text, ContainerType * const words,
-                                                    const unsigned min_word_length)
-{
+template<typename ContainerType> bool ChopIntoWords(const std::string &text, ContainerType * const words, const unsigned min_word_length) {
     words->clear();
 
     std::wstring wide_text;
@@ -524,23 +522,52 @@ template<typename ContainerType> bool ChopIntoWords(const std::string &text, Con
 } // unnamed namespace
 
 
-bool ChopIntoWords(const std::string &text, std::unordered_set<std::string> * const words,
-                   const unsigned min_word_length)
-{
+bool ChopIntoWords(const std::string &text, std::unordered_set<std::string> * const words, const unsigned min_word_length) {
     return ChopIntoWords<std::unordered_set<std::string>> (text, words, min_word_length);
 }
 
 
-bool ChopIntoWords(const std::string &text, std::vector<std::string> * const words,
-                   const unsigned min_word_length)
-{
+bool ChopIntoWords(const std::string &text, std::vector<std::string> * const words, const unsigned min_word_length) {
     return ChopIntoWords<std::vector<std::string>> (text, words, min_word_length);
 }
 
 
-std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::string> &haystack,
-                                                       const std::vector<std::string> &needle)
-{
+// See https://en.wikipedia.org/wiki/UTF-8 in order to understand the implementation.
+bool IsValidUTF8(const std::string &utf8_candidate) {
+    for (std::string::const_iterator ch(utf8_candidate.begin()); ch != utf8_candidate.end(); ++ch) {
+        const unsigned char uch(static_cast<unsigned char>(*ch));
+        unsigned sequence_length;
+        if ((uch & 0b10000000) == 0b00000000)
+            sequence_length = 0;
+        else if ((uch & 0b11100000) == 0b11000000)
+            sequence_length = 1;
+        else if ((uch & 0b11110000) == 0b11100000)
+            sequence_length = 2;
+        else if ((uch & 0b11111000) == 0b11110000)
+            sequence_length = 3;
+        else {
+            LOG_DEBUG("bad sequence start character: 0x" + StringUtil::ToHexString(uch));
+            return false;
+        }
+
+        for (unsigned i(0); i < sequence_length; ++i) {
+            ++ch;
+            if (unlikely(ch == utf8_candidate.end())) {
+                LOG_DEBUG("premature string end in the middle of a UTF8 byte sequence!");
+                return false;
+            }
+            if (unlikely((static_cast<unsigned char>(*ch) & 0b11000000) != 0b10000000)) {
+                LOG_DEBUG("unexpected upper-bit pattern in a UFT8 sequence: 0x" + StringUtil::ToHexString(static_cast<uint8_t>(*ch)));
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+
+std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::string> &haystack, const std::vector<std::string> &needle) {
     if (needle.empty())
         return haystack.cbegin();
 
@@ -574,9 +601,7 @@ std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::st
 static char base64_symbols[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\0\0";
 
 
-std::string Base64Encode(const std::string &s, const char symbol63, const char symbol64,
-                         const bool use_output_padding)
-{
+std::string Base64Encode(const std::string &s, const char symbol63, const char symbol64, const bool use_output_padding) {
     base64_symbols[62] = symbol63;
     base64_symbols[63] = symbol64;
 
@@ -677,20 +702,13 @@ inline bool IsWhiteSpace(const char ch) {
 }
 
 
-inline std::string OctalEscape(const char ch) {
-    char buf[1 + 3 + 1];
-    std::sprintf(buf, "\\%03o", ch);
-    return buf;
-}
-
-
 std::string EscapeString(const std::string &original_string, const bool also_escape_whitespace) {
     std::string escaped_string;
     escaped_string.reserve(original_string.size() * 2);
 
     for (char ch : original_string) {
         if (std::iscntrl(ch) or (not also_escape_whitespace or IsWhiteSpace(ch)))
-            escaped_string += OctalEscape(ch);
+            escaped_string += StringUtil::ToString(static_cast<unsigned char>(ch), /* radix */8, /* width */3, /* padding_char */'0');
         else
             escaped_string += ch;
     }
@@ -1405,8 +1423,14 @@ std::string &CStyleEscape(std::string * const s) {
             case '"':
                 escaped_string += "\\\"";
                 break;
-            default:
-                escaped_string += *ch;
+            default: {
+                if (std::isprint(*ch))
+                    escaped_string += *ch;
+                else
+                    escaped_string += "\\"
+                                      + StringUtil::ToString(static_cast<unsigned char>(*ch), /* radix */8, /* width */3,
+                                                             /* padding_char */'0');
+            }
             }
         } else { // We found the first byte of a UTF8 byte sequence.
             for (;;) {

@@ -179,15 +179,17 @@ int Main(int argc, char *argv[]) {
 
     if (expand_newline_escapes)
         message_body = ExpandNewlineEscapes(message_body);
-    if (not EmailSender::SendEmail(sender, SplitRecipients(recipients), SplitRecipients(cc_recipients),
-                                   SplitRecipients(bcc_recipients), subject, message_body, priority, format, reply_to))
-    {
-        if (not MiscUtil::EnvironmentVariableExists("ENABLE_SMPT_CLIENT_PERFORM_LOGGING"))
-            LOG_ERROR("failed to send your email! (You may want to set the ENABLE_SMPT_CLIENT_PERFORM_LOGGING to debug the problem.)");
-        else
-            LOG_ERROR("failed to send your email!");
-    }
 
+    const unsigned short response_code(EmailSender::SendEmail(sender, SplitRecipients(recipients), SplitRecipients(cc_recipients),
+                                                              SplitRecipients(bcc_recipients), subject, message_body, priority, format,
+                                                              reply_to));
+    if (response_code >= 300) {
+        if (not MiscUtil::EnvironmentVariableExists("ENABLE_SMPT_CLIENT_PERFORM_LOGGING"))
+            LOG_ERROR("failed to send your email, the response code was: " + std::to_string(response_code)
+                      + " (You may want to set the ENABLE_SMPT_CLIENT_PERFORM_LOGGING to debug the problem.)");
+        else
+            LOG_ERROR("failed to send your email, the response code was: " + std::to_string(response_code));
+    }
 
     return EXIT_SUCCESS;
 }

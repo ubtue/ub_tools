@@ -20,24 +20,25 @@
 
 #include <map>
 
+
 namespace BSZUpload {
+
 
 enum DeliveryMode { NONE, TEST, LIVE };
 
 
 const std::map<std::string, int> STRING_TO_DELIVERY_MODE_MAP {
-    { "NONE", static_cast<int>(BSZUpload::DeliveryMode::NONE) },
-    { "TEST", static_cast<int>(BSZUpload::DeliveryMode::TEST) },
-    { "LIVE", static_cast<int>(BSZUpload::DeliveryMode::LIVE) }
+    { "NONE", static_cast<int>(DeliveryMode::NONE) },
+    { "TEST", static_cast<int>(DeliveryMode::TEST) },
+    { "LIVE", static_cast<int>(DeliveryMode::LIVE) }
 };
 
 
 const std::map<int, std::string> DELIVERY_MODE_TO_STRING_MAP {
-    { static_cast<int>(BSZUpload::DeliveryMode::NONE), "NONE" },
-    { static_cast<int>(BSZUpload::DeliveryMode::TEST), "TEST" },
-    { static_cast<int>(BSZUpload::DeliveryMode::LIVE), "LIVE" }
+    { static_cast<int>(DeliveryMode::NONE), "NONE" },
+    { static_cast<int>(DeliveryMode::TEST), "TEST" },
+    { static_cast<int>(DeliveryMode::LIVE), "LIVE" }
 };
 
 
 } // namespace BSZUpload
-

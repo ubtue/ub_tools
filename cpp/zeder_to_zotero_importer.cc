@@ -56,10 +56,14 @@ namespace {
 enum Mode { GENERATE, DIFF, MERGE };
 
 
-// Fields exported to the zts_harvester config file.
+// An enumeration of the fields exported to a zts_harvester compatible config file.
+// This is the primary key used to refer to the corresponding fields throughout this tool.
+
+// Adding a new field involves adding a new entry to this enumeration and updating the ExportFieldNameResolver
+// class with its string identifiers.
 enum ExportField {
     TITLE,
-    ZEDER_ID, ZEDER_MODIFIED_TIMESTAMP, ZEDER_COMMENT,
+    ZEDER_ID, ZEDER_MODIFIED_TIMESTAMP, ZEDER_COMMENT, ZEDER_UPDATE_WINDOW,
     TYPE, GROUP,
     PARENT_PPN_PRINT, PARENT_PPN_ONLINE, PARENT_ISSN_PRINT, PARENT_ISSN_ONLINE,
     ENTRY_POINT_URL, STRPTIME_FORMAT,
@@ -82,6 +86,9 @@ namespace std {
 namespace {
 
 
+// Used to convert export field enumerations to their respective string identifiers.
+// Each export field enumeration has two string identifiers, one of which is use used as an attribute
+// in Zeder::Entry and the other as the INI key in the generated zts_harvester compatible config files
 class ExportFieldNameResolver {
     std::unordered_map<ExportField, std::string> attribute_names_;
     std::unordered_map<ExportField, std::string> ini_keys_;
@@ -96,11 +103,14 @@ public:
 };
 
 
+// Unused attributes correspond to fields that are not stored as attributes in Zeder::Entry
+// INI key identifiers should be fetched using the bundle API in JournalConfig.h/.cc
 ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { TITLE,                    "zts_title"                 },
     { ZEDER_ID,                 "" /* unused */             },      // stored directly in the Entry class
     { ZEDER_MODIFIED_TIMESTAMP, "" /* unused */             },      // same as above
     { ZEDER_COMMENT,            "zts_zeder_comment"         },
+    { ZEDER_UPDATE_WINDOW,      "zts_update_window"         },
     { TYPE,                     "zts_type"                  },
     { GROUP,                    "zts_group"                 },
     { PARENT_PPN_PRINT,         "zts_parent_ppn_print"      },
@@ -116,6 +126,7 @@ ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { ZEDER_ID,                 JournalConfig::ZederBundle::Key(JournalConfig::Zeder::ID)                   },
     { ZEDER_MODIFIED_TIMESTAMP, JournalConfig::ZederBundle::Key(JournalConfig::Zeder::MODIFIED_TIME)        },
     { ZEDER_COMMENT,            JournalConfig::ZederBundle::Key(JournalConfig::Zeder::COMMENT)              },
+    { ZEDER_UPDATE_WINDOW,      JournalConfig::ZederBundle::Key(JournalConfig::Zeder::UPDATE_WINDOW)        },
     { TYPE,                     JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::TYPE)               },
     { GROUP,                    JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::GROUP)              },
     { PARENT_PPN_PRINT,         JournalConfig::PrintBundle::Key(JournalConfig::Print::PPN)                  },
@@ -191,7 +202,6 @@ ImporterParams::ImporterParams(const std::string &config_file_path, const std::s
             entries_to_process_.insert(converted_id);
         }
     }
-
 }
 
 
@@ -212,8 +222,20 @@ bool GetHarvesterTypeFromEntry(const Zeder::Entry &entry, const ExportFieldNameR
 }
 
 
-bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFieldNameResolver &name_resolver,
-                                   Zeder::Entry * const entry, bool ignore_invalid_ppn_issn = true)
+// Calculate an admissible range in days for a frequency given per year
+// Right now we simply ignore entries that cannot be suitably converted to float
+std::string CalculateUpdateWindowFromFrequency(const std::string &frequency) {
+    float frequency_as_float;
+    if (not StringUtil::ToFloat(frequency, &frequency_as_float))
+        return "";
+    float admissible_range = (365 / frequency_as_float) * 1.5;
+    return std::to_string(static_cast<int>(std::round(admissible_range)));
+}
+
+
+// Validates and normalises the Zeder::Entry generated from a Zeder CSV file.
+bool PostProcessCsvImportedEntry(const ImporterParams &params, const ExportFieldNameResolver &name_resolver,
+                                      Zeder::Entry * const entry, bool ignore_invalid_ppn_issn = true)
 {
     if (not params.entries_to_process_.empty() and
         params.entries_to_process_.find(entry->getId()) == params.entries_to_process_.end())
@@ -300,6 +322,17 @@ bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFie
     } else
         entry->setAttribute(name_resolver.getAttributeName(ENTRY_POINT_URL), resolved_url);
 
+    // Extract the frequency and calculate the update window in days
+    std::string journal_frequency(entry->getAttribute("freq")); // <- issues per year, can be a fraction
+    if (not journal_frequency.empty()) {
+        const std::string update_window(CalculateUpdateWindowFromFrequency(journal_frequency));
+        if (not update_window.empty())
+            entry->setAttribute(name_resolver.getAttributeName(ZEDER_UPDATE_WINDOW), update_window);
+        else
+            LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | Unable to derive a proper update window from \""
+                                                                       + journal_frequency + "\"");
+    }
+
     // remove the original attributes
     entry->keepAttributes(name_resolver.getAllValidAttributeNames());
 
@@ -310,6 +343,8 @@ bool PostProcessZederImportedEntry(const ImporterParams &params, const ExportFie
     return valid;
 }
 
+
+// Validates a Zeder::Entry generated from a zts_harvester compatible config file.
 bool PostProcessIniImportedEntry(const ImporterParams &params, const ExportFieldNameResolver &name_resolver, Zeder::Entry * const entry) {
     if (not params.entries_to_process_.empty() and
         params.entries_to_process_.find(entry->getId()) == params.entries_to_process_.end())
@@ -327,23 +362,29 @@ bool PostProcessIniImportedEntry(const ImporterParams &params, const ExportField
 
 
 unsigned DiffZederEntries(const Zeder::EntryCollection &old_entries, const Zeder::EntryCollection &new_entries,
-                          const ExportFieldNameResolver &name_resolver,
-                          std::vector<Zeder::Entry::DiffResult> * const diff_results, std::unordered_set<unsigned> * const new_entry_ids,
-                          const bool skip_timestamp_check = false)
+                          const ExportFieldNameResolver &name_resolver, std::vector<Zeder::Entry::DiffResult> * const diff_results,
+                          std::unordered_set<unsigned> * const new_entry_ids, const bool skip_timestamp_check = false)
 {
     static const std::vector<std::string> immutable_fields{
         name_resolver.getAttributeName(TYPE),
-        name_resolver.getAttributeName(TITLE)
+        name_resolver.getAttributeName(TITLE),
+        name_resolver.getAttributeName(GROUP)
     };
 
     for (const auto &new_entry : new_entries) {
         const auto old_entry(old_entries.find(new_entry.getId()));
         if (old_entry == old_entries.end()) {
             // it's a new entry altogether
-            diff_results->emplace_back(true, new_entry.getId(), new_entry.getLastModifiedTimestamp());
-            for (const auto &key_value : new_entry)
-                diff_results->back().modified_attributes_[key_value.first] = std::make_pair("", key_value.second);
+            Zeder::Entry::DiffResult new_diff;
+            new_diff.id_ = new_entry.getId();
+            new_diff.timestamp_is_newer_ = true;
+            new_diff.last_modified_timestamp_ = new_entry.getLastModifiedTimestamp();
+            new_diff.timestamp_time_difference_ = 0;
 
+            for (const auto &key_value : new_entry)
+                new_diff.modified_attributes_[key_value.first] = std::make_pair(std::string(""), key_value.second);
+
+            diff_results->push_back(new_diff);
             new_entry_ids->insert(new_entry.getId());
             continue;
         }
@@ -355,14 +396,15 @@ unsigned DiffZederEntries(const Zeder::EntryCollection &old_entries, const Zeder
 
             if (modified_immutable_field != diff.modified_attributes_.end()) {
                 LOG_WARNING("Entry " + std::to_string(diff.id_) + " | Field '" + immutable_field +
-                            "' was unexpectedly modified from '" + modified_immutable_field->second.first + "' to '" +
-                            modified_immutable_field->second.second + "'");
+                            "' was unexpectedly modified");
                 unexpected_modifications = true;
-
-                std::string debug_print_buffer;
-                diff.prettyPrint(&debug_print_buffer);
-                LOG_WARNING(debug_print_buffer);
             }
+        }
+
+        if (unexpected_modifications) {
+            std::string debug_print_buffer;
+            diff.prettyPrint(&debug_print_buffer);
+            LOG_WARNING(debug_print_buffer);
         }
 
         if (not unexpected_modifications and not diff.modified_attributes_.empty())
@@ -373,9 +415,7 @@ unsigned DiffZederEntries(const Zeder::EntryCollection &old_entries, const Zeder
 }
 
 
-void MergeZederEntries(Zeder::EntryCollection * const merge_into,
-                       const std::vector<Zeder::Entry::DiffResult> &diff_results)
-{
+void MergeZederEntries(Zeder::EntryCollection * const merge_into, const std::vector<Zeder::Entry::DiffResult> &diff_results) {
     for (const auto &diff : diff_results) {
         if (not diff.timestamp_is_newer_) {
             LOG_DEBUG("Skiping diff for entry " + std::to_string(diff.id_));
@@ -404,7 +444,7 @@ void ParseZederCsv(const std::string &file_path, const ExportFieldNameResolver &
                    const ImporterParams &importer_params, Zeder::EntryCollection * const zeder_config)
 {
     auto postprocessor([importer_params, name_resolver](Zeder::Entry * const entry) -> bool {
-        return PostProcessZederImportedEntry(importer_params, name_resolver, entry, /* ignore_invalid_ppn_issn */ false);
+        return PostProcessCsvImportedEntry(importer_params, name_resolver, entry, /* ignore_invalid_ppn_issn */ false);
     });
     std::unique_ptr<Zeder::Importer::Params> parser_params(new Zeder::Importer::Params(file_path, postprocessor));
     auto parser(Zeder::Importer::Factory(std::move(parser_params)));
@@ -431,9 +471,9 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
         return;
 
     // select the sections that are Zeder-compatible, i.e., that were exported by this tool
-    std::vector<std::string> valid_section_names, groups;
-    StringUtil::Split(ini.getString("", "groups", ""), ',', &groups);
+    std::vector<std::string> groups, valid_section_names;
 
+    StringUtil::Split(ini.getString("", "groups", ""), ',', &groups);
     for (const auto &section : ini) {
         const auto section_name(section.getSectionName());
         if (section_name.empty())
@@ -445,7 +485,10 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
             continue;
         }
 
-        valid_section_names.emplace_back(section_name);
+        // only read in sections that are pertinent to the importer's invocation flavour
+        const auto group(section.getString(name_resolver.getIniKey(GROUP)));
+        if (group == Zeder::FLAVOUR_TO_STRING_MAP.at(params.flavour_))
+            valid_section_names.emplace_back(section_name);
     }
 
     auto postprocessor([params, name_resolver](Zeder::Entry * const entry) -> bool {
@@ -462,6 +505,9 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
 }
 
 
+// Writes out the contents of a Zeder::EntryCollection to an INI file. If the path already exists,
+// the entries in the INI file will be overwritten by the corresponding entry in Zeder::EntryCollection.
+// All other existing entries will be preserved.
 void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &name_resolver,
                    const Zeder::EntryCollection &zeder_config)
 {
@@ -474,6 +520,7 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
         name_resolver.getAttributeName(TYPE),
         name_resolver.getAttributeName(GROUP),
         name_resolver.getAttributeName(ENTRY_POINT_URL),
+        name_resolver.getAttributeName(ZEDER_UPDATE_WINDOW)
     };
 
     static const std::unordered_map<std::string, std::string> attribute_to_ini_key_map{
@@ -485,6 +532,7 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
         name_resolver.getAttributeNameIniKeyPair(PARENT_ISSN_PRINT),
         name_resolver.getAttributeNameIniKeyPair(PARENT_ISSN_ONLINE),
         name_resolver.getAttributeNameIniKeyPair(ENTRY_POINT_URL),
+        name_resolver.getAttributeNameIniKeyPair(ZEDER_UPDATE_WINDOW)
     };
 
     auto extra_keys_appender([name_resolver](IniFile::Section * const section, const Zeder::Entry &entry) {
@@ -516,7 +564,7 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
 
 
 void PrintZederDiffs(const std::vector<Zeder::Entry::DiffResult> &diff_results, const std::unordered_set<unsigned> &new_entry_ids) {
-    LOG_INFO("\nDifferences ========================>");
+    LOG_INFO("\nDifferences:");
 
     std::string modified_entry_ids_string, new_entry_ids_string;
     for (const auto &diff : diff_results) {
@@ -596,15 +644,15 @@ int Main(int argc, char *argv[]) {
     case Mode::DIFF:
     case Mode::MERGE: {
         const std::string new_ini_path(argv[3]), old_ini_path(argv[4]);
-        Zeder::EntryCollection old_data, new_data;
 
+        Zeder::EntryCollection old_data, new_data;
         ParseZederIni(old_ini_path, name_resolver, importer_params, &old_data);
         ParseZederIni(new_ini_path, name_resolver, importer_params, &new_data);
 
         std::vector<Zeder::Entry::DiffResult> diff_results;
         std::unordered_set<unsigned> new_entry_ids;
-        const auto num_modified_entries(DiffZederEntries(old_data, new_data, name_resolver,
-                                                         &diff_results, &new_entry_ids, skip_timestamp_check));
+        const auto num_modified_entries(DiffZederEntries(old_data, new_data, name_resolver, &diff_results,
+                                                         &new_entry_ids, skip_timestamp_check));
 
         if (num_modified_entries > 0) {
             PrintZederDiffs(diff_results, new_entry_ids);

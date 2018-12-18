@@ -51,8 +51,11 @@ public:
     void insertAuthors(const std::set<std::string> &authors, const std::string &control_number);
     void insertYear(const std::string &year, const std::string &control_number);
     void insertDOI(const std::string &doi, const std::string &control_number);
+    void insertISSN(const std::string &issn, const std::string &control_number);
+    void insertISBN(const std::string &isbn, const std::string &control_number);
     std::set<std::string> getGuessedControlNumbers(const std::string &title, const std::set<std::string> &authors,
-                                                   const std::string &year = "", const std::string &doi = "") const;
+                                                   const std::string &year = "", const std::string &doi = "",
+                                                   const std::string &issn = "", const std::string &isbn = "") const;
 
     bool getNextTitle(std::string * const title, std::set<std::string> * const control_numbers) const;
     bool getNextAuthor(std::string * const author_name, std::set<std::string> * const control_numbers) const;
@@ -62,6 +65,8 @@ public:
     void lookupAuthor(const std::string &author_name, std::set<std::string> * const control_numbers) const;
     void lookupYear(const std::string &year, std::unordered_set<std::string> * const control_numbers) const;
     void lookupDOI(const std::string &doi, std::set<std::string> * const control_numbers) const;
+    void lookupISSN(const std::string &issn, std::set<std::string> * const control_numbers) const;
+    void lookupISBN(const std::string &isbn, std::set<std::string> * const control_numbers) const;
 
     /** For testing purposes. */
     static std::string NormaliseTitle(const std::string &title);

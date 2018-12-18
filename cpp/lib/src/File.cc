@@ -35,7 +35,7 @@
 
 
 File::File(const std::string &filename, const std::string &mode, const ThrowOnOpenBehaviour throw_on_error_behaviour)
-    : buffer_ptr_(buffer_), read_count_(0), file_(nullptr), pushed_back_count_(0), precision_(6)
+    : filename_(filename), buffer_ptr_(buffer_), read_count_(0), file_(nullptr), pushed_back_count_(0), precision_(6)
 {
     if (mode == "w")
         open_mode_ = WRITING;

@@ -64,6 +64,12 @@ void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::R
 
         for (const auto &doi : record.getDOIs())
             control_number_guesser->insertDOI(doi, control_number);
+
+        for (const auto &issn : record.getISSNs())
+            control_number_guesser->insertISSN(issn, control_number);
+
+        for (const auto &isbn : record.getISBNs())
+            control_number_guesser->insertISBN(isbn, control_number);
     }
     control_number_guesser->endUpdate();
 

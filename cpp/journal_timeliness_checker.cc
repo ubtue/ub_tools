@@ -20,6 +20,7 @@
 #include <ctime>
 #include <cstdlib>
 #include "DbConnection.h"
+#include "BSZUpload.h"
 #include "EmailSender.h"
 #include "IniFile.h"
 #include "SqlUtil.h"
@@ -86,6 +87,11 @@ int Main(int argc, char *argv[]) {
         if (section.find("user_agent") != section.end())
             continue; // Not a journal section.
 
+        const auto delivery_mode(section.getEnum("zotero_delivery_mode", BSZUpload::STRING_TO_DELIVERY_MODE_MAP,
+                                                 BSZUpload::DeliveryMode::NONE));
+        if (delivery_mode != BSZUpload::DeliveryMode::LIVE)
+            continue;
+
         const std::string journal_name(section.getSectionName());
 
         std::string journal_ppn(section.getString("online_ppn", ""));
@@ -97,7 +103,7 @@ int Main(int argc, char *argv[]) {
         }
 
         unsigned update_window;
-        if (section.find("update_window") == section.end()) {
+        if (section.find("zeder_update_window") == section.end()) {
             LOG_WARNING("no update window found for \"" + journal_name + "\", using " + std::to_string(default_update_window) + "!");
             update_window = default_update_window;
         } else
@@ -106,9 +112,11 @@ int Main(int argc, char *argv[]) {
         ProcessJournal(&db_connection, journal_name, journal_ppn, update_window, &tardy_list);
     }
 
-    if (not tardy_list.empty())
-        EmailSender::SendEmail(sender_email_address, notification_email_address, "Überfällige Zeitschiften",
-                               "Letzte Lieferung ans BSZ\n" + tardy_list, EmailSender::HIGH);
+    if (not tardy_list.empty()) {
+        if (EmailSender::SendEmail(sender_email_address, notification_email_address, "Überfällige Zeitschiften",
+                                   "Letzte Lieferung ans BSZ\n" + tardy_list, EmailSender::HIGH) > 299)
+            LOG_ERROR("failed to send email notofication!");
+    }
 
     return EXIT_SUCCESS;
 }

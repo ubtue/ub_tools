@@ -275,7 +275,7 @@ bool NormaliseDOI(const std::string &doi_candidate, std::string * const normalis
     if (not DOI_MATCHER->matched(doi_candidate))
         return false;
 
-    *normalised_doi = (*DOI_MATCHER)[1];
+    *normalised_doi = StringUtil::ASCIIToLower((*DOI_MATCHER)[1]);
     return true;
 }
 
@@ -331,6 +331,16 @@ bool NormaliseISSN(const std::string &issn_candidate, std::string * const normal
     }
 
     return false;
+}
+
+
+bool NormaliseISBN(const std::string &isbn_candidate, std::string * const normalised_isbn) {
+    for (auto ch : isbn_candidate) {
+        if (ch != '-')
+            *normalised_isbn += ch;
+    }
+
+    return isbn_candidate.length() == 10 or isbn_candidate.length() == 13;
 }
 
 

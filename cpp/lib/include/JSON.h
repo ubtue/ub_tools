@@ -217,7 +217,8 @@ public:
         return std::static_pointer_cast<NodeType>(entry->second)->getValue();
     }
 public:
-    ObjectNode() { }
+    ObjectNode(const std::string &object_as_string = "");
+    ObjectNode(const std::unordered_map<std::string, std::string> &map);
 
     virtual std::shared_ptr<JSONNode> clone() const override;
     virtual Type getType() const override { return OBJECT_NODE; }
@@ -426,6 +427,9 @@ int64_t LookupInteger(const std::string &path, const std::shared_ptr<const JSONN
 
 // Escapes control codes, backslashes, double quotes, form feeds, newlines, carriage returns, and tab characters.
 std::string EscapeString(const std::string &unescaped_string);
+
+
+bool IsValidUTF8(const JSONNode &node);
 
 
 } // namespace JSON

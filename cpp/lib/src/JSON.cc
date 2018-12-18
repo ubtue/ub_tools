@@ -370,6 +370,30 @@ std::string StringNode::toString() const {
 }
 
 
+ObjectNode::ObjectNode(const std::string &object_as_string) {
+    if (object_as_string.empty())
+        return;
+
+    std::shared_ptr<JSONNode> tree_root;
+    Parser parser(object_as_string);
+    if (unlikely(not parser.parse(&tree_root)))
+        LOG_ERROR("failed to construct an ObjectNode instance from a string: " + parser.getErrorMessage());
+
+    if (unlikely(tree_root->getType() != OBJECT_NODE))
+        LOG_ERROR("incompatible JSON node type!");
+
+    entries_.swap(reinterpret_cast<ObjectNode *>(tree_root.get())->entries_);
+}
+
+
+ObjectNode::ObjectNode(const std::unordered_map<std::string, std::string> &map) {
+    for (const auto &key_and_value : map) {
+        std::shared_ptr<JSON::StringNode> value_node(new JSON::StringNode(JSON::EscapeString(key_and_value.second)));
+        insert(key_and_value.first, value_node);
+    }
+}
+
+
 std::shared_ptr<JSONNode> ObjectNode::clone() const {
     std::shared_ptr<ObjectNode> the_clone(new ObjectNode);
     for (const auto &entry : entries_)
@@ -899,6 +923,36 @@ std::string EscapeString(const std::string &unescaped_string) {
     }
 
     return escaped_string;
+}
+
+
+bool IsValidUTF8(const JSONNode &node) {
+    switch (node.getType()) {
+    case JSONNode::OBJECT_NODE: {
+        for (const auto &key_and_node : reinterpret_cast<const ObjectNode &>(node)) {
+            if (unlikely(not TextUtil::IsValidUTF8(key_and_node.first) or not IsValidUTF8(*key_and_node.second)))
+                 return false;
+        }
+        return true;
+
+    }
+    case JSONNode::ARRAY_NODE: {
+        for (const auto &entry : reinterpret_cast<const ArrayNode &>(node)) {
+            if (unlikely(not IsValidUTF8(*entry)))
+                return false;
+        }
+        return true;
+    }
+    case JSONNode::BOOLEAN_NODE:
+    case JSONNode::NULL_NODE:
+    case JSONNode::INT64_NODE:
+    case JSONNode::DOUBLE_NODE:
+        return true;
+    case JSONNode::STRING_NODE:
+        return TextUtil::IsValidUTF8(reinterpret_cast<const StringNode &>(node).getValue());
+    }
+
+    LOG_ERROR("we should *never* get here!");
 }
 
 
