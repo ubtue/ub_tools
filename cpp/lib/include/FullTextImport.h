@@ -69,7 +69,7 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
 
 
 // \brief Match full-text data with an existing record's control number, if any.
-// ]return the number of exact matches.
+// \return the number of exact matches.
 bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, const FullTextData &full_text_data,
                            std::string * const control_number);
 
