@@ -97,6 +97,23 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
 }
 
 
+bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, const FullTextData &full_text_data,
+                           std::string * const control_number)
+{
+    const auto matching_ppns(control_number_guesser.getGuessedControlNumbers(full_text_data.title_, full_text_data.authors_,
+                                                                             full_text_data.year_, full_text_data.doi_,
+                                                                             full_text_data.issn_, full_text_data.isbn_));
+    if (matching_ppns.empty())
+        return false;
+
+    if (matching_ppns.size() > 1)
+        LOG_WARNING(std::to_string(matching_ppns.size()) + " matching PPNs found!");
+
+    *control_number = *matching_ppns.cbegin();
+    return true;
+}
+
+
 size_t CorrelateFullTextData(const std::vector<std::shared_ptr<FullTextData>> &full_text_data,
                              std::unordered_map<std::string, std::shared_ptr<FullTextData>> * const control_number_to_full_text_data_map)
 {
