@@ -678,11 +678,19 @@ uint64_t IniFile::getUint64T(const std::string &section_name, const std::string 
 }
 
 
-
 long IniFile::getInteger(const std::string &section_name, const std::string &variable_name) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.cend())
         LOG_ERROR("no such section: \"" + section_name + "\"!");
+
+    return section->getInteger(variable_name);
+}
+
+
+long IniFile::getInteger(const std::string &section_name, const std::string &variable_name, const long default_value) const {
+    const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
+    if (section == sections_.cend() or not section->hasEntry(variable_name))
+        return default_value;
 
     return section->getInteger(variable_name);
 }
@@ -699,7 +707,7 @@ double IniFile::getDouble(const std::string &section_name, const std::string &va
 
 double IniFile::getDouble(const std::string &section_name, const std::string &variable_name, const double &default_value) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
-    if (section == sections_.cend())
+    if (section == sections_.cend() or not section->hasEntry(variable_name))
         return default_value;
 
     return section->getDouble(variable_name);
@@ -717,7 +725,7 @@ std::string IniFile::getString(const std::string &section_name, const std::strin
 
 std::string IniFile::getString(const std::string &section_name, const std::string &variable_name, const std::string &default_value) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
-    if (section == sections_.cend())
+    if (section == sections_.cend() or not section->hasEntry(variable_name))
         return default_value;
 
     return section->getString(variable_name, default_value);
@@ -735,7 +743,7 @@ char IniFile::getChar(const std::string &section_name, const std::string &variab
 
 char IniFile::getChar(const std::string &section_name, const std::string &variable_name, const char default_value) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
-    if (section == sections_.cend())
+    if (section == sections_.cend() or not section->hasEntry(variable_name))
         return default_value;
 
     return section->getChar(variable_name);
@@ -753,7 +761,7 @@ bool IniFile::getBool(const std::string &section_name, const std::string &variab
 
 bool IniFile::getBool(const std::string &section_name, const std::string &variable_name, const bool default_value) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
-    if (section == sections_.cend())
+    if (section == sections_.cend() or not section->hasEntry(variable_name))
          return default_value;
 
     return section->getBool(variable_name);
@@ -775,7 +783,7 @@ int IniFile::getEnum(const std::string &section_name, const std::string &variabl
                      const std::map<std::string, int> &string_to_value_map, const int default_value) const
 {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
-    if (section == sections_.cend())
+    if (section == sections_.cend() or not section->hasEntry(variable_name))
         return default_value;
 
     return section->getEnum(variable_name, string_to_value_map, default_value);
