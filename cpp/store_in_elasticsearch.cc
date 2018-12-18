@@ -31,8 +31,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] fulltext_file1 [fulltext_file2 .. fulltext_fileN]\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("[--verbose] fulltext_file1 [fulltext_file2 .. fulltext_fileN]");
 }
 
 
