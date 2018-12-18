@@ -132,6 +132,13 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
     FullTextImport::FullTextData full_text_metadata;
     ExtractMetadata(xml_parser, &full_text_metadata);
 
+    if (normalise_only) {
+        std::cout << ControlNumberGuesser::NormaliseTitle(full_text_metadata.title_) << '\n';
+        for (const auto &article_author : full_text_metadata.authors_)
+            std::cout << ControlNumberGuesser::NormaliseAuthorName(article_author) << '\n';
+        return;
+    }
+
     if (full_text_metadata.title_.empty())
         LOG_ERROR("no article title found in file '" + input_file_path + "'");
 
@@ -143,13 +150,6 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
 
     if (full_text_metadata.doi_.empty())
         LOG_WARNING("no doi found in file '" + input_file_path + "'");
-
-    if (normalise_only) {
-        std::cout << ControlNumberGuesser::NormaliseTitle(full_text_metadata.title_) << '\n';
-        for (const auto &article_author : full_text_metadata.authors_)
-            std::cout << ControlNumberGuesser::NormaliseAuthorName(article_author) << '\n';
-        return;
-    }
 
     std::string full_text, abstract;
     if (not ExtractText(xml_parser, "body", &full_text))

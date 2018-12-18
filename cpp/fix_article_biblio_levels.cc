@@ -3,7 +3,7 @@
  *
  *  A tool for patching up the bibliographic level of article records.
  *  Many, possibly all, article records that we get have an 'a' in leader position 7 instead of a 'b'.
- *  If the referenced parent is no a monograph this tool changes the 'a' to a 'b'.
+ *  If the referenced parent is not a monograph this tool changes the 'a' to a 'b'.
  */
 
 /*
