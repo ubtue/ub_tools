@@ -59,7 +59,7 @@ std::shared_ptr<JSON::JSONNode> QueryJSON(const Url &url, const QueryType query_
     JSON::Parser parser(json_out);
     std::shared_ptr<JSON::JSONNode> tree_root;
     if (not parser.parse(&tree_root))
-        throw std::runtime_error("in REST::QueryJSON: could not parse JSON response");
+        throw std::runtime_error("in REST::QueryJSON: could not parse JSON response: " + json_out);
 
     return tree_root;
 }
