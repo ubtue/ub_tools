@@ -74,9 +74,4 @@ bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, c
                            std::string * const control_number);
 
 
-// Match full-text data with an existing record's control number, if any. Returns the number of exact matches.
-size_t CorrelateFullTextData(const std::vector<std::shared_ptr<FullTextData>> &full_text_data,
-                             std::unordered_map<std::string, std::shared_ptr<FullTextData>> * const control_number_to_full_text_data_map);
-
-
 } // namespace FullTextImport
