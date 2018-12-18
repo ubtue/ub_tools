@@ -3,21 +3,30 @@
 set -o errexit -o nounset
 
 
-function ExitHandler {
-    echo "*** ZTS_HARVESTER DELIVERY PIPELINE FAILED ***" | tee --append "${log}"
-    exit 1
+no_problems_found=1
+function SendEmail {
+    if [[ $no_problems_found -eq 0 ]]; then
+        send_email --recipients="$email_address" --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
+        exit 0
+    else
+        send_email --priority=high --recipients="$email_address" --subject="$0 failed on $(hostname)" \
+                   --message-body="Check /usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log for details."
+        echo "*** ZTS_HARVESTER DELIVERY PIPELINE FAILED ***" | tee --append "${log}"
+        exit 1
+    fi
 }
-trap ExitHandler SIGINT SIGTERM
+trap SendEmail EXIT
 
 
 function Usage {
-    echo "usage: $0 mode"
+    echo "usage: $0 mode email"
     echo "       mode = TEST|LIVE"
+    echo "       email = email address to which notifications are sent upon (un)successful completion of the delivery pipeline"
     exit 1
 }
 
 
-if [ $# != 1 ]; then
+if [ $# != 2 ]; then
     Usage
 fi
 
@@ -29,6 +38,7 @@ fi
 
 
 delivery_mode=$1
+email_address=$2
 working_directory=/tmp/zts_harvester_delivery_pipeline
 
 harvester_output_directory=$working_directory
@@ -67,6 +77,8 @@ function EndPhase {
 function EndPipeline {
     echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes." | tee --append "${log}"
     echo "*** ZTS_HARVESTER DELIVERY PIPELINE DONE ***" | tee --append "${log}"
+    no_problems_found=0
+    exit 0
 }
 
 
@@ -96,6 +108,7 @@ zts_harvester --min-log-level=INFO \
              $harvester_config_file >> "${log}" 2>&1
 EndPhase
 
+
 StartPhase "Collate File Paths"
 cd $harvester_output_directory
 counter=0
@@ -119,12 +132,12 @@ for d in */ ; do
     fi
     counter=$((counter+1))
 done
-
 if [ "$counter" = "0" ]; then
     echo "No new records were harvested!"
     EndPipeline
 fi
 EndPhase
+
 
 StartPhase "Validate Generated Records"
 for source_filepath in "${source_filepaths[@]}"; do
@@ -132,6 +145,7 @@ for source_filepath in "${source_filepaths[@]}"; do
                           $working_directory/$missing_metadata_tracker_output_filename >> "${log}" 2>&1
 done
 EndPhase
+
 
 StartPhase "Upload to BSZ Server"
 counter=0
@@ -142,6 +156,18 @@ while [ "$counter" -lt "$file_count" ]; do
                                 ${dest_filepaths[counter]} >> "${log}" 2>&1
     counter=$((counter+1))
 done
+EndPhase
+
+
+StartPhase "Archive Sent Records"
+for source_filepath in "${source_filepaths[@]}"; do
+    archive_sent_records $source_filepath >> "${log}" 2>&1
+done
+EndPhase
+
+
+StartPhase "Check for Overdue Articles"
+journal_timeliness_checker "$harvester_config_file" "journal_timeliness_checker@$(hostname)" "$email_address"
 EndPhase
 
 

@@ -18,7 +18,7 @@
 /append_marc_xml
 /apply_differential_update
 /archive_delete_ids
-/archive_records
+/archive_sent_records
 /augment_773a
 /augment_authority_data_with_translations
 /augment_bible_references
@@ -28,6 +28,7 @@
 /bib_ref_to_codes_tool
 /categorise_marc
 /clean_tag_db
+/collect_journal_stats
 /collect_solr_stats_data
 /control_number_filter
 /control_number_guesser
@@ -75,12 +76,13 @@
 /flag_article_collections
 /full_text_cache_cleaner
 /full_text_cache_monitor
+/full_text_importer
 /full_text_lookup
 /full_text_stats
 /generate_issn_to_misc_bits_map
 /generate_large_marc_record
 /generate_merge_order
-/generate_tags_and_index_terms_map
+/generate_tags_and_keyword_fields_map
 /generate_title_and_author_list
 /generate_vufind_translation_files
 /get_essay_collection_pdfs
@@ -100,7 +102,7 @@
 /lcsh_stats
 /log_rotate
 /make_marc_xml
-/map_ddc_and_rvk_to_ixtheo_notations
+/map_ddc_to_ixtheo_notations
 /marc_augmentor
 /marc_char_filter
 /marc_check
@@ -159,7 +161,6 @@
 /zeder_ppn_to_title_importer
 /zeder_to_zotero_importer
 /zeder_to_zotero_pipeline
-/zeder_updater
 /zotero_cgi
 /ztracker_tool
 /zts_harvester

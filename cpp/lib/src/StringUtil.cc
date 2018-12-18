@@ -76,7 +76,7 @@ bool InitializeLocale() {
 
 
 bool dummy(InitializeLocale());
-    
+
 
 char ToHexChar(const unsigned u) {
     switch (u) {
@@ -125,8 +125,8 @@ namespace StringUtil {
 
 
 std::string ToLower(std::string * const s) {
-    for (std::string::iterator ch(s->begin()); ch != s->end(); ++ch)
-        *ch = tolower(*ch);
+    for (auto &ch : *s)
+        ch = tolower(ch);
 
     return *s;
 }
@@ -134,10 +134,23 @@ std::string ToLower(std::string * const s) {
 
 std::string ToLower(const std::string &s) {
     std::string result(s);
-    for (std::string::iterator ch(result.begin()); ch != result.end(); ++ch)
-        *ch = tolower(*ch);
+    return ToLower(&result);
+}
 
-    return result;
+
+std::string ASCIIToLower(std::string * const s) {
+    for (auto &ch : *s) {
+        if (ch >= 65 and ch <= 92)
+            ch += 32;
+    }
+
+    return *s;
+}
+
+
+std::string ASCIIToLower(const std::string &s) {
+    std::string result(s);
+    return ASCIIToLower(&result);
 }
 
 
@@ -2470,7 +2483,7 @@ std::string CStyleEscape(const char ch) {
         escaped_text += 'a';
         break;
     default:
-        if (isprint(ch))
+        if (isprint(ch) or static_cast<unsigned char>(ch) > 0x7Fu)
             escaped_text += ch;
         else {
             char buf[10 + 1];
@@ -2525,7 +2538,7 @@ std::string CStyleEscape(const std::string &unescaped_text) {
             escaped_text += 'a';
             break;
         default:
-            if (isprint(*ch))
+            if (isprint(*ch) or static_cast<unsigned char>(*ch) > 0x7Fu)
                 escaped_text += *ch;
             else {
                 char buf[10 + 1];

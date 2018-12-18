@@ -76,6 +76,10 @@ public:
 };
 
 
+/* Returns the string truncated to the maximum number of UTF-8 characters supported by our codebase */
+std::string TruncateToVarCharMaxLength(const std::string &s);
+
+
 /** \brief   Escape special characters in a MySQL BLOB
  *  \param   s  The BLOB to escape
  *  \return  A pointer to the new, escaped s.

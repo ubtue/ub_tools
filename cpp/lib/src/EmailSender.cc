@@ -69,7 +69,7 @@ std::string Base64Encode(const std::string &s) {
                 continue;
             else {
                 ::BIO_free_all(b64);
-                throw std::runtime_error("in Base64Encode(EmailSender.cc): encoding error!");
+                LOG_ERROR("encoding error!");
             }
         } else // success!
             done = true;
@@ -147,10 +147,32 @@ std::string GetServerPassword() {
 }
 
 
+class SMTPException {
+    unsigned short response_code_;
+    std::string description_;
+public:
+    SMTPException(const unsigned short response_code, const std::string &description)
+        : response_code_(response_code), description_(description) { }
+
+    unsigned short getResponseCode() const { return response_code_; }
+    const std::string &getDescription() const { return description_; }
+};
+
+
+// \return the server response if it is a numeric code or 500 o/w.
+unsigned short ServerResponseToUnsignedShort(const std::string &server_response) {
+    unsigned short numeric_code;
+    if (StringUtil::ToUnsignedShort(server_response.substr(0, 3), &numeric_code))
+        return numeric_code;
+    return 500;
+}
+
+
 void CheckResponse(const std::string &command, const std::string &server_response, const std::string &expected) {
     if (not StringUtil::Match(expected, server_response))
-        throw std::runtime_error("in EmailSender.cc: did not receive expected server response to \"" + command
-                                 + "\" but instead got \"" + server_response + "\"!");
+        throw SMTPException(ServerResponseToUnsignedShort(server_response),
+                            "in EmailSender.cc: did not receive expected server response to \"" + command + "\" but instead got \""
+                            + server_response + "\"!");
 }
 
 
@@ -161,15 +183,17 @@ std::string PerformExchange(const int socket_fd, const TimeLimit &time_limit, co
     if (perform_logging)
         std::clog << "In PerformExchange: sending: " << command << '\n';
     if (unlikely(SocketUtil::TimedWrite(socket_fd, time_limit, command + "\r\n", ssl_connection) == -1))
-        throw std::runtime_error("in PerformExchange(EmailSender.cc) SocketUtil::TimedWrite failed! (sent: "
-                                 + command + ", error: "+ std::string(strerror(errno)) + ")");
+        throw SMTPException(523,
+                            "in PerformExchange(EmailSender.cc) SocketUtil::TimedWrite failed! (sent: " + command + ", error: "
+                            + std::string(strerror(errno)) + ")");
 
     // Read the response:
     ssize_t response_size;
     char buf[1000];
     if ((response_size = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf), ssl_connection)) <= 0)
-        throw std::runtime_error("in PerformExchange(EmailSender.cc): Can't read SMTP server's response to \""
-                                 + command + "\"! (" + std::string(strerror(errno)) + ")");
+        throw SMTPException(524,
+                            "in PerformExchange(EmailSender.cc): Can't read SMTP server's response to \"" + command + "\"! ("
+                            + std::string(strerror(errno)) + ")");
     buf[std::min(static_cast<size_t>(response_size), sizeof(buf) - 1)] = NUL;
     if (perform_logging)
         std::clog << "In PerformExchange: received: " << buf << '\n';
@@ -185,8 +209,7 @@ void Authenticate(const int socket_fd, const TimeLimit &time_limit, SslConnectio
         std::clog << "Decoded server response: " << TextUtil::Base64Decode(server_response.substr(4)) << '\n';
         std::clog << "Sending user name: " << local_server_user << '\n';
     }
-    server_response = PerformExchange(socket_fd, time_limit, Base64Encode(local_server_user), "3[0-9][0-9]*",
-                                      ssl_connection);
+    server_response = PerformExchange(socket_fd, time_limit, Base64Encode(local_server_user), "3[0-9][0-9]*", ssl_connection);
     const std::string local_server_password(GetServerPassword());
     if (perform_logging) {
         std::clog << "Decoded server response: " << TextUtil::Base64Decode(server_response.substr(4)) << '\n';
@@ -286,13 +309,13 @@ bool ProcessRecipients(const int socket_fd, const TimeLimit &time_limit, const s
 namespace EmailSender {
 
 
-bool SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
-               const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
-               const std::string &subject, const std::string &message_body, const Priority priority, const Format format,
-               const std::string &reply_to, const bool use_ssl, const bool use_authentication)
+unsigned short SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
+                         const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
+                         const std::string &subject, const std::string &message_body, const Priority priority, const Format format,
+                         const std::string &reply_to, const bool use_ssl, const bool use_authentication)
 {
     if (unlikely(sender.empty() and reply_to.empty()))
-        logger->error("in EmailSender::SendEmail: both \"sender\" and \"reply_to\" can't be empty!");
+        LOG_ERROR("both \"sender\" and \"reply_to\" can't be empty!");
 
     const TimeLimit time_limit(10000 /* ms */);
 
@@ -304,17 +327,16 @@ bool SendEmail(const std::string &sender, const std::vector<std::string> &recipi
     const FileDescriptor socket_fd(
         SocketUtil::TcpConnect(GetSmtpServer(), PORT, time_limit, &error_message, SocketUtil::DISABLE_NAGLE));
     if (socket_fd == -1) {
-        throw std::runtime_error("in EmailSender::SendEmail: can't connect to SMTP server \"" + GetSmtpServer() + ":"
-                + std::to_string(PORT) + " (" + error_message + ")!");
-        return false;
+        LOG_WARNING("can't connect to SMTP server \"" + GetSmtpServer() + ":" + std::to_string(PORT) + " (" + error_message + ")!");
+        return 521;
     }
 
     // Read the welcome message:
     char buf[1000];
     ssize_t response_size;
     if ((response_size = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf))) <= 0) {
-        logger->warning("in EmailSender::SendEmail: Can't read SMTP server's welcome message!");
-        return false;
+        LOG_WARNING("can't read SMTP server's welcome message!");
+        return 522;
     }
     if (perform_logging) {
         buf[std::min(static_cast<size_t>(response_size), sizeof(buf) - 1)] = NUL;
@@ -330,14 +352,12 @@ bool SendEmail(const std::string &sender, const std::vector<std::string> &recipi
             ssl_connection.reset(new SslConnection(socket_fd));
         }
 
-        PerformExchange(socket_fd, time_limit, "EHLO " + DnsUtil::GetHostname(), "2[0-9][0-9]*",
-                        ssl_connection.get());
+        PerformExchange(socket_fd, time_limit, "EHLO " + DnsUtil::GetHostname(), "2[0-9][0-9]*", ssl_connection.get());
 
         if (use_authentication)
             Authenticate(socket_fd, time_limit, ssl_connection.get());
 
-        PerformExchange(socket_fd, time_limit, "MAIL FROM:<" + sender + ">", "2[0-9][0-9]*",
-                        ssl_connection.get());
+        PerformExchange(socket_fd, time_limit, "MAIL FROM:<" + sender + ">", "2[0-9][0-9]*", ssl_connection.get());
 
         // Send email to each recipient:
         if (unlikely(recipients.empty() and cc_recipients.empty() and bcc_recipients.empty()))
@@ -355,13 +375,13 @@ bool SendEmail(const std::string &sender, const std::vector<std::string> &recipi
                                            message_body) + "\r\n.",
                         "2[0-9][0-9]*", ssl_connection.get());
         PerformExchange(socket_fd, time_limit, "QUIT", "2[0-9][0-9]*", ssl_connection.get());
-    } catch (const std::exception &x) {
+    } catch (const SMTPException &smtp_exception) {
         if (perform_logging)
-            std::clog << x.what() << '\n';
-        return false;
+            std::clog << smtp_exception.getDescription() << '\n';
+        return smtp_exception.getResponseCode();
     }
 
-    return true;
+    return 200;
 }
 
 

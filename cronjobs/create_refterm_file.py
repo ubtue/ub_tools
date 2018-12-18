@@ -1,8 +1,10 @@
 #!/bin/python2
 # -*- coding: utf-8 -*-
 
+import atexit
 import datetime
 import glob
+import multiprocessing
 import os
 import struct
 import sys
@@ -17,7 +19,7 @@ def ExecOrCleanShutdownAndDie(cmd_name, args, log_file_name=None):
     if log_file_name is None:
         log_file_name = "/proc/self/fd/2" # stderr
     if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,
-                             new_stderr=log_file_name, append_stdout=True, append_stderr=True) == 0:
+                             new_stderr=log_file_name, append_stdout=True, append_stderr=True, setsid=False) == 0:
         CleanUp(None, log_file_name)
         util.SendEmail("util.ExecOrDie", "Failed to execute \"" + cmd_name + "\".\nSee logfile \"" + log_file_name
                   + "\" for the reason.", priority=1)
@@ -93,6 +95,11 @@ def CreateSerialSortDate(title_data_file, date_string, log_file_name):
     ExecOrCleanShutdownAndDie("/usr/local/bin/query_serial_sort_data.sh", [title_data_file, serial_ppn_sort_list], log_file_name)
 
 
+# Create the database for matching fulltext to vufind entries
+def CreateMatchDB(title_marc_data, log_file_name):
+    util.ExecOrDie("/usr/local/bin/create_match_db", [ title_marc_data ], log_file_name, setsid=False);
+
+
 def CreateLogFile():
     return util.MakeLogFileName(os.path.basename(__file__), util.GetLogDirectory())
 
@@ -102,6 +109,16 @@ def CleanUp(title_data_file, log_file_name):
     # Clean up temporary title data
     if title_data_file is not None:
         util.Remove(title_data_file)
+
+
+def ExecuteInParallel(*processes):
+    for process in processes:
+        process.start()
+
+    for process in processes:
+        process.join()
+        if process.exitcode != 0:
+            util.Error(process.name + " failed")
 
 
 def Main():
@@ -130,10 +147,16 @@ def Main():
         title_data_file_orig = ExtractTitleDataMarcFile(title_data_link_name)
         date_string = GetDateFromFilename(title_data_file_orig)
         title_data_file = RenameTitleDataFile(title_data_file_orig, date_string)
+        atexit.register(CleanUp, title_data_file, log_file_name)
         SetupTemporarySolrInstance(title_data_file, conf, log_file_name)
-        CreateRefTermFile(ref_data_archive, date_string, conf, log_file_name)
-        CreateSerialSortDate(title_data_file, date_string, log_file_name)
-        CleanUp(title_data_file, log_file_name)
+        create_ref_term_process = multiprocessing.Process(target=CreateRefTermFile, name="Create Reference Terms File",
+                                      args=[ ref_data_archive, date_string, conf, log_file_name ])
+        create_serial_sort_term_process = multiprocessing.Process(target=CreateSerialSortDate, name="Serial Sort Date",
+                                              args=[ title_data_file, date_string, log_file_name ])
+        create_match_db_log_file_name = util.MakeLogFileName("create_match_db", util.GetLogDirectory())
+        create_match_db_process = multiprocessing.Process(target=CreateMatchDB, name="Create Match DB",
+                                      args=[ title_data_file, create_match_db_log_file_name ])
+        ExecuteInParallel(create_ref_term_process, create_serial_sort_term_process, create_match_db_process)
         end  = datetime.datetime.now()
         duration_in_minutes = str((end - start).seconds / 60.0)
         util.SendEmail("Create Refterm File", "Refterm file successfully created in " + duration_in_minutes + " minutes.", priority=5)

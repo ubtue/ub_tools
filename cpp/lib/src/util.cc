@@ -20,6 +20,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "util.h"
+#include <iostream>
 #include <iterator>
 #include <stdexcept>
 #include <cctype>
@@ -314,4 +315,10 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
             values->emplace_back(ReadNonQuotedValue(input_, field_separator_));
         }
     }
+}
+
+
+[[noreturn]] void Usage(const std::string &usage_message) {
+    std::cerr << "Usage: " << ::progname << " [--min-log-level] " << usage_message << '\n';
+    std::exit(EXIT_FAILURE);
 }

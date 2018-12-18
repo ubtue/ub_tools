@@ -125,22 +125,8 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Merge Print and Online Superior Records"
-(merge_print_and_online GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
-                        GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                        missing_ppn_partners.list >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-wait
-
-
-StartPhase "Create Databases for Title and Author Matching (for article cross-linking)"
-(create_match_db GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-wait
-
-
 StartPhase "Cross Link Articles"
-(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                          article_matches.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &
@@ -192,7 +178,7 @@ StartPhase "Extracting Keywords from Titles"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                                 ../cpp/data/stopwords.???  >> "${log}" 2>&1 && \
+                                 /usr/local/var/lib/tuelib/stopwords.???  >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -217,7 +203,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (update_ixtheo_notations \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-    ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1 && \
+    /usr/local/var/lib/tuelib/IxTheo_Notation.csv >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -229,12 +215,12 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
-StartPhase "Map DDC and RVK to IxTheo Notations"
+StartPhase "Map DDC to IxTheo Notations"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(map_ddc_and_rvk_to_ixtheo_notations \
+(map_ddc_to_ixtheo_notations \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-    ../cpp/data/ddc_ixtheo.map ../cpp/data/ddc_ixtheo.map >> "${log}" 2>&1 && \
+    /usr/local/var/lib/tuelib/ddc_ixtheo.map >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -288,6 +274,13 @@ StartPhase "Tag Records that are Available in Tübingen with an ITA Field"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (flag_records_as_available_in_tuebingen \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
+StartPhase "Add Entries for Subscription Bundles and Tag Journals"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(add_subscription_bundle_entries GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 

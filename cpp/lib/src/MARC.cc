@@ -66,6 +66,12 @@ bool Tag::isLocal() const {
 }
 
 
+Tag &Tag::swap(Tag &other) {
+    std::swap(tag_.as_int_, other.tag_.as_int_);
+    return *this;
+}
+
+
 Subfields::Subfields(const std::string &field_contents) {
     if (unlikely(field_contents.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
         return;
@@ -312,6 +318,17 @@ void Record::Field::deleteAllSubfieldsWithCode(const char subfield_code) {
 }
 
 
+Record::KeywordAndSynonyms &Record::KeywordAndSynonyms::swap(KeywordAndSynonyms &other) {
+    if (this != &other) {
+        tag_.swap(other.tag_);
+        keyword_.swap(other.keyword_);
+        synonyms_.swap(other.synonyms_);
+    }
+
+    return *this;
+}
+
+
 Record::Record(const std::string &leader): leader_(leader) {
     if (unlikely(leader_.length() != LEADER_LENGTH))
         LOG_ERROR("supposed leader has invalid length!");
@@ -484,14 +501,19 @@ bool Record::isElectronicResource() const {
 }
 
 
-Record::ConstantRange Record::getTagRange(const Tag &tag) const {
+inline static bool MatchAny(const Tag &tag, const std::vector<Tag> &tags) {
+    return std::find_if(tags.cbegin(), tags.cend(), [&tag](const Tag &tag1){ return tag1 == tag; }) != tags.cend();
+}
+
+
+Record::ConstantRange Record::getTagRange(const std::vector<Tag> &tags) const {
     const auto begin(std::find_if(fields_.begin(), fields_.end(),
-                                  [&tag](const Field &field) -> bool { return field.getTag() == tag; }));
+                                  [&tags](const Field &field) -> bool { return MatchAny(field.getTag(), tags); }));
     if (begin == fields_.end())
         return ConstantRange(fields_.end(), fields_.end());
 
     auto end(begin);
-    while (end != fields_.end() and end->getTag() == tag)
+    while (end != fields_.end() and MatchAny(end->getTag(), tags))
         ++end;
 
     return ConstantRange(begin, end);
@@ -662,7 +684,7 @@ std::string Record::getSuperiorControlNumber() const {
 
 
 std::set<std::string> Record::getAllAuthors() const {
-    static const std::vector<std::string> AUTHOR_TAGS { "100", "700" };
+    static const std::vector<std::string> AUTHOR_TAGS { "100", "109", "700" };
 
     std::set<std::string> author_names;
     for (const auto tag : AUTHOR_TAGS) {
@@ -682,8 +704,8 @@ std::set<std::string> Record::getDOIs() const {
     std::set<std::string> dois;
     for (const auto field : getTagRange("024")) {
         const Subfields subfields(field.getSubfields());
-        if (subfields.getFirstSubfieldWithCode('2') == "doi")
-            dois.emplace(subfields.getFirstSubfieldWithCode('a'));
+        if (field.getIndicator1() == '7' and subfields.getFirstSubfieldWithCode('2') == "doi")
+            dois.emplace(StringUtil::Trim(subfields.getFirstSubfieldWithCode('a')));
     }
 
     return dois;
@@ -726,6 +748,30 @@ std::set<std::string> Record::getRVKs() const {
     }
 
     return rvks;
+}
+
+
+bool Record::getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_synonyms) {
+    if (unlikely(getRecordType() != RecordType::AUTHORITY))
+        LOG_ERROR("this function can only be applied to an authority record!");
+
+    for (const auto &canonical_keyword_field : getTagRange({ "150", "151" })) {
+        if (unlikely(not canonical_keyword_field.hasSubfield('a')))
+            continue;
+
+        std::vector<std::string> synonyms;
+        for (const auto synonym_field : getTagRange("450")) {
+            const std::string synonym(synonym_field.getFirstSubfieldWithCode('a'));
+            if (likely(not synonym.empty()))
+                synonyms.emplace_back(synonym);
+        }
+
+        KeywordAndSynonyms temp(canonical_keyword_field.getTag(), canonical_keyword_field.getFirstSubfieldWithCode('a'), synonyms);
+        keyword_synonyms->swap(temp);
+        return true;
+    }
+
+    return false;
 }
 
 
@@ -1105,6 +1151,24 @@ bool Record::isValid(std::string * const error_message) const {
     }
 
     return true;
+}
+
+
+bool Record::fieldOrSubfieldMatched(const std::string &field_or_field_and_subfield_code, RegexMatcher * const regex_matcher) const {
+    if (unlikely(field_or_field_and_subfield_code.length() < TAG_LENGTH or field_or_field_and_subfield_code.length() > TAG_LENGTH + 1))
+        LOG_ERROR("\"field_or_field_and_subfield_code\" must be a tag or a tag plus a subfield code!");
+
+    const char subfield_code((field_or_field_and_subfield_code.length() == TAG_LENGTH + 1) ? field_or_field_and_subfield_code[TAG_LENGTH]
+                                                                                           : '\0');
+    for (const auto &field : getTagRange(field_or_field_and_subfield_code.substr(0, TAG_LENGTH))) {
+        if (subfield_code != '\0' and field.hasSubfield(subfield_code)) {
+            if (regex_matcher->matched(field.getFirstSubfieldWithCode(subfield_code)))
+                return true;
+        } else if (regex_matcher->matched(field.getContents()))
+            return true;
+    }
+
+    return false;
 }
 
 
@@ -2322,8 +2386,8 @@ std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record) {
 }
 
 
-static void LoadTermsToTagsMap(std::unordered_map<std::string, Tag> * const terms_to_tags_map) {
-    const auto MAP_FILENAME(UBTools::GetTuelibPath() + "tags_and_index_terms.map");
+static void LoadTermsToFieldsMap(std::unordered_map<std::string, Record::Field> * const terms_to_fields_map) {
+    const auto MAP_FILENAME(UBTools::GetTuelibPath() + "tags_and_keyword_fields.map");
     const auto map_file(FileUtil::OpenInputFileOrDie(MAP_FILENAME));
     unsigned line_no(0);
     while (not map_file->eof()) {
@@ -2334,23 +2398,22 @@ static void LoadTermsToTagsMap(std::unordered_map<std::string, Tag> * const term
         if (line.length() < 4)
             LOG_ERROR("bad entry on line #" + std::to_string(line_no) + " in \"" + MAP_FILENAME + "\"!");
 
-        const Tag tag(line.substr(0, Record::TAG_LENGTH));
-        const auto term(TextUtil::UTF8ToLower(line.substr(Record::TAG_LENGTH)));
-        (*terms_to_tags_map)[term] = tag;
+        const Record::Field field(line.substr(0, Record::TAG_LENGTH), StringUtil::CStyleUnescape(line.substr(Record::TAG_LENGTH)));
+        terms_to_fields_map->emplace(field.getFirstSubfieldWithCode('a'), field);
     }
 }
 
 
-Tag GetIndexTag(const std::string &index_term) {
-    static const Tag DEFAULT_TAG("655");
-    static std::unordered_map<std::string, Tag> terms_to_tags_map;
-    if (unlikely(terms_to_tags_map.empty()))
-        LoadTermsToTagsMap(&terms_to_tags_map);
+Record::Field GetIndexField(const std::string &index_term) {
+    static const Tag DEFAULT_TAG("650");
+    static std::unordered_map<std::string, Record::Field> terms_to_fields_map;
+    if (unlikely(terms_to_fields_map.empty()))
+        LoadTermsToFieldsMap(&terms_to_fields_map);
 
-    const auto term_and_tag(terms_to_tags_map.find(TextUtil::UTF8ToLower(index_term)));
-    if (term_and_tag == terms_to_tags_map.cend())
-        return DEFAULT_TAG;
-    return term_and_tag->second;
+    const auto term_and_field(terms_to_fields_map.find(TextUtil::UTF8ToLower(index_term)));
+    if (term_and_field == terms_to_fields_map.cend())
+        return Record::Field(Tag(DEFAULT_TAG), { { { 'a', index_term } } }, /* indicator1 = */' ', /* indicator2 = */'4');
+    return term_and_field->second;
 }
 
 

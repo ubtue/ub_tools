@@ -21,9 +21,12 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "DbConnection.h"
+#include "DnsUtil.h"
+#include "IniFile.h"
 #include "MapIO.h"
 #include "MARC.h"
 #include "SqlUtil.h"
+#include "StringUtil.h"
 #include "UBTools.h"
 #include "util.h"
 
@@ -62,7 +65,21 @@ void SplitValue(const std::string &value, std::string * const zeder_id, std::str
 }
 
 
-void ProcessRecords(MARC::Reader * const reader, const std::unordered_map<std::string, std::string> &journal_ppn_to_type_and_title_map) {
+// \return the year as a small integer or 0 if we could not parse it.
+unsigned short YearStringToShort(const std::string &year_as_string) {
+    unsigned short year_as_unsigned_short;
+    if (not StringUtil::ToUnsignedShort(year_as_string, &year_as_unsigned_short))
+        return 0;
+    return year_as_unsigned_short;
+}
+
+
+void ProcessRecords(MARC::Reader * const reader, const std::unordered_map<std::string, std::string> &journal_ppn_to_type_and_title_map,
+                    DbConnection * const db_connection)
+{
+    const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
+    const auto HOSTNAME(DnsUtil::GetHostname());
+
     unsigned total_count(0), inserted_count(0);
     while (const auto record = reader->read()) {
         ++total_count;
@@ -91,8 +108,14 @@ void ProcessRecords(MARC::Reader * const reader, const std::unordered_map<std::s
             volume = _936_field->getFirstSubfieldWithCode('d');
         const std::string year(_936_field->getFirstSubfieldWithCode('j'));
 
-        std::cout << zeder_id << ',' << type << ",\"" << title << ",\"" << pages << "\",\"" << volume << "\",\"" << issue
-                  << "\",\"" << year << "\"\n";
+        db_connection->queryOrDie("INSERT INTO zeder.erschliessung SET timestamp=" + JOB_START_TIME + ",Quellrechner="
+                                  + db_connection->escapeAndQuoteString(HOSTNAME) + ",Systemtyp='ixtheo',Zeder_ID="
+                                  + db_connection->escapeAndQuoteString(zeder_id) + ",Zeder_URL="
+                                  + db_connection->escapeAndQuoteString(ZEDER_URL_PREFIX + zeder_id) + ",PPN_Typ='" + type
+                                  + "',PPN='" + journal_ppn_and_type_and_title->first + "',Jahr=" + std::to_string(YearStringToShort(year))
+                                  + ",Band=" + db_connection->escapeAndQuoteString(volume) + ",Heft="
+                                  + db_connection->escapeAndQuoteString(issue) + ",Seitenbereich="
+                                  + db_connection->escapeAndQuoteString(pages) + ",N_Aufsaetze=1");
 
         ++inserted_count;
     }
@@ -112,8 +135,11 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, std::string> journal_ppn_to_type_and_title_map;
     MapIO::DeserialiseMap(UBTools::GetTuelibPath() + "zeder_ppn_to_title.map", &journal_ppn_to_type_and_title_map);
 
+    IniFile ini_file;
+    DbConnection db_connection(ini_file);
+
     const auto marc_reader(MARC::Reader::Factory(argv[1]));
-    ProcessRecords(marc_reader.get(), journal_ppn_to_type_and_title_map);
+    ProcessRecords(marc_reader.get(), journal_ppn_to_type_and_title_map, &db_connection);
 
     return EXIT_SUCCESS;
 }
