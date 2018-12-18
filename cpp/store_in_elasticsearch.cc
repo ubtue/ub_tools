@@ -22,6 +22,7 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
+#include "Elasticsearch.h"
 #include "FileUtil.h"
 #include "FullTextImport.h"
 #include "util.h"
@@ -35,7 +36,7 @@ namespace {
 }
 
 
-bool ImportDocument(ControlNumberGuesser &control_number_guesser, const std::string &filename) {
+bool ImportDocument(ControlNumberGuesser &control_number_guesser, Elasticsearch * const elasticsearch, const std::string &filename) {
     const auto input(FileUtil::OpenInputFileOrDie(filename));
     FullTextImport::FullTextData full_text_data;
     FullTextImport::ReadExtractedTextFromDisk(input.get(), &full_text_data);
@@ -43,6 +44,8 @@ bool ImportDocument(ControlNumberGuesser &control_number_guesser, const std::str
     std::string ppn;
     if (not FullTextImport::CorrelateFullTextData(control_number_guesser, full_text_data, &ppn))
         return false;
+
+    elasticsearch->insertDocument(ppn, full_text_data.full_text_);
 
     return true;
 }
@@ -63,11 +66,12 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     ControlNumberGuesser control_number_guesser;
+    Elasticsearch elasticsearch;
 
     unsigned total_count(0), failure_count(0);
     for (int arg_no(1); arg_no < argc; ++arg_no) {
         ++total_count;
-        if (not ImportDocument(control_number_guesser, argv[arg_no]))
+        if (not ImportDocument(control_number_guesser, &elasticsearch, argv[arg_no]))
             ++failure_count;
     }
 
