@@ -76,7 +76,6 @@
 /flag_article_collections
 /full_text_cache_cleaner
 /full_text_cache_monitor
-/full_text_importer
 /full_text_lookup
 /full_text_stats
 /generate_issn_to_misc_bits_map
