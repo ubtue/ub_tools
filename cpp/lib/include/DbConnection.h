@@ -45,6 +45,7 @@ private:
 public:
     enum OpenMode { READONLY, READWRITE, CREATE };
     enum Charset { UTF8MB3, UTF8MB4 };
+    enum DuplicateKeyBehaviour { DKB_FAIL, DKB_IGNORE, DKB_REPLACE };
 public:
     explicit DbConnection(const TimeZone time_zone = TZ_SYSTEM); // Uses the ub_tools database.
 
@@ -92,7 +93,8 @@ public:
      */
     void queryFileOrDie(const std::string &filename);
 
-    void insertIntoTableOrDie(const std::string &table_name, const std::map<std::string, std::string> &column_names_to_values_map);
+    void insertIntoTableOrDie(const std::string &table_name, const std::map<std::string, std::string> &column_names_to_values_map,
+                              const DuplicateKeyBehaviour duplicate_key_behaviour = DKB_FAIL);
 
     DbResultSet getLastResultSet();
     inline std::string getLastErrorMessage() const
