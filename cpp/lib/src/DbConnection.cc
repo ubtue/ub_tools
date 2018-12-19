@@ -288,9 +288,13 @@ void DbConnection::queryFileOrDie(const std::string &filename) {
 
 
 void DbConnection::insertIntoTableOrDie(const std::string &table_name,
-                                        const std::map<std::string, std::string> &column_names_to_values_map)
+                                        const std::map<std::string, std::string> &column_names_to_values_map,
+                                        const DuplicateKeyBehaviour duplicate_key_behaviour)
 {
-    std::string insert_stmt("INSERT INTO " + table_name + " (");
+    std::string insert_stmt(duplicate_key_behaviour == DKB_REPLACE ? "REPLACE" : "INSERT");
+    if (duplicate_key_behaviour == DKB_IGNORE)
+        insert_stmt += (type_ == T_MYSQL) ? " IGNORE" : " OR IGNORE";
+    insert_stmt += " INTO " + table_name + " (";
 
     const char column_name_quote(type_ == T_MYSQL ? '`' : '"');
 
