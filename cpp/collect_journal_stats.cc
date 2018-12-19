@@ -108,14 +108,21 @@ void ProcessRecords(MARC::Reader * const reader, const std::unordered_map<std::s
             volume = _936_field->getFirstSubfieldWithCode('d');
         const std::string year(_936_field->getFirstSubfieldWithCode('j'));
 
-        db_connection->queryOrDie("INSERT INTO zeder.erschliessung SET timestamp=" + JOB_START_TIME + ",Quellrechner="
-                                  + db_connection->escapeAndQuoteString(HOSTNAME) + ",Systemtyp='ixtheo',Zeder_ID="
-                                  + db_connection->escapeAndQuoteString(zeder_id) + ",Zeder_URL="
-                                  + db_connection->escapeAndQuoteString(ZEDER_URL_PREFIX + zeder_id) + ",PPN_Typ='" + type
-                                  + "',PPN='" + journal_ppn_and_type_and_title->first + "',Jahr=" + std::to_string(YearStringToShort(year))
-                                  + ",Band=" + db_connection->escapeAndQuoteString(volume) + ",Heft="
-                                  + db_connection->escapeAndQuoteString(issue) + ",Seitenbereich="
-                                  + db_connection->escapeAndQuoteString(pages) + ",N_Aufsaetze=1");
+        db_connection->insertIntoTableOrDie( "zeder.erschliessung",
+                                            {
+                                                { "timestamp=",    "JOB_START_TIME"                        },
+                                                { "Quellrechner=", HOSTNAME                                },
+                                                { "Systemtyp",     "ixtheo",                               },
+                                                { "Zeder_ID",      zeder_id                                },
+                                                { "Zeder_URL",     ZEDER_URL_PREFIX + zeder_id             },
+                                                { "PPN_Typ",       type                                    },
+                                                { "PPN",           journal_ppn_and_type_and_title->first   },
+                                                { "Jahr",          std::to_string(YearStringToShort(year)) },
+                                                { "Band",          volume                                  },
+                                                { "Heft",          issue                                   },
+                                                { "Seitenbereich", pages                                   },
+                                                { "N_Aufsaetze",   "1"                                     }
+                                            });
 
         ++inserted_count;
     }
