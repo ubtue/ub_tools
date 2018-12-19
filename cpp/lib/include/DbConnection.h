@@ -92,6 +92,8 @@ public:
      */
     void queryFileOrDie(const std::string &filename);
 
+    void insertIntoTableOrDie(const std::string &table_name, const std::map<std::string, std::string> &column_names_to_values_map);
+
     DbResultSet getLastResultSet();
     inline std::string getLastErrorMessage() const
         { return (type_ == T_MYSQL) ? ::mysql_error(&mysql_) : ::sqlite3_errmsg(sqlite3_); }
