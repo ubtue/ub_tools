@@ -55,10 +55,8 @@ void SigHupHandler(int /* signum */) {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " [--min-log-level=min_verbosity] [--test]  [--strptime-format=format] xml_output_path\n"
-              << "       When --test has been specified no data will be stored.\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("[--test]  [--strptime-format=format] xml_output_path\n"
+            "       When --test has been specified no data will be stored.");
 }
 
 
@@ -122,21 +120,29 @@ std::unordered_map<std::string, uint64_t> section_name_to_ticks_map;
 
 
 // \return the number of new items.
-unsigned ProcessSection(const IniFile::Section &section, const SyndicationFormat::AugmentParams &augment_params,
+unsigned ProcessSection(const bool test, const IniFile::Section &section, const SyndicationFormat::AugmentParams &augment_params,
                         Downloader * const downloader, DbConnection * const db_connection, const unsigned default_downloader_time_limit,
                         const unsigned default_poll_interval, const uint64_t now)
 {
     const std::string feed_url(section.getString("feed_url"));
     const unsigned poll_interval(section.getUnsigned("poll_interval", default_poll_interval));
     const unsigned downloader_time_limit(section.getUnsigned("downloader_time_limit", default_downloader_time_limit) * 1000);
-
     const std::string &section_name(section.getSectionName());
+
+    if (test) {
+        std::cout << "Processing section \"" << section_name << "\":\n"
+                  << "\tfeed_url: " << feed_url << '\n'
+                  << "\tpoll_interval: " << poll_interval << " (ignored)\n"
+                  << "\tdownloader_time_limit: " << downloader_time_limit << "\n\n";
+    }
+
     const auto section_name_and_ticks(section_name_to_ticks_map.find(section_name));
     if (section_name_and_ticks != section_name_to_ticks_map.end()) {
         if (section_name_and_ticks->second + poll_interval < now) {
             LOG_DEBUG(section_name + ": not yet time to do work, last work was done at " + std::to_string(section_name_and_ticks->second)
                       + ".");
-            return 0;
+            if (not test)
+                return 0;
         }
     }
 
@@ -146,7 +152,8 @@ unsigned ProcessSection(const IniFile::Section &section, const SyndicationFormat
         LOG_WARNING(section_name + ": failed to download the feed: " + downloader->getLastErrorMessage());
     else {
         sigterm_blocker.unblock();
-        CheckForSigTermAndExitIfSeen();
+        if (not test)
+            CheckForSigTermAndExitIfSeen();
 
         std::string error_message;
         std::unique_ptr<SyndicationFormat> syndication_format(
@@ -155,7 +162,8 @@ unsigned ProcessSection(const IniFile::Section &section, const SyndicationFormat
             LOG_WARNING("failed to parse feed: " + error_message);
         else {
             for (const auto &item : *syndication_format) {
-                CheckForSigTermAndExitIfSeen();
+                if (not test)
+                    CheckForSigTermAndExitIfSeen();
                 SignalUtil::SignalBlocker sigterm_blocker2(SIGTERM);
 
                 if (ProcessRSSItem(item, section_name,  db_connection))
@@ -182,6 +190,7 @@ int Main(int argc, char *argv[]) {
     if (argc > 2) {
         if (std::strcmp(argv[1], "--test") == 0) {
             test = true;
+            logger->setMinimumLogLevel(Logger::LL_DEBUG);
             --argc, ++argv;
         } else
             Usage();
@@ -239,7 +248,7 @@ int Main(int argc, char *argv[]) {
                 already_seen_sections.emplace(section_name);
 
                 LOG_INFO("Processing section \"" + section_name + "\".");
-                const unsigned new_item_count(ProcessSection(section, augment_params, &downloader, &db_connection,
+                const unsigned new_item_count(ProcessSection(test, section, augment_params, &downloader, &db_connection,
                                                              DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL, ticks));
                 LOG_INFO("found " + std::to_string(new_item_count) + " new items.");
             }
