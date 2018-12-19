@@ -38,7 +38,7 @@ using BundleToPPNsMap = std::map<std::string, std::set<std::string>>;
 
 [[noreturn]] void Usage() {
  std::cerr << "Usage: " << ::progname << "marc_input marc_output\n"
-           << "Generate a dummy entry for subscriptions from the congfiguration given in journal_alert_bundles.conf\n";
+           << "Generate a dummy entry for subscriptions from the configuration given in journal_alert_bundles.conf\n";
  std::exit(EXIT_FAILURE);
 }
 
@@ -51,7 +51,7 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
     const bool include_bibstudies(std::find(instances.begin(), instances.end(), "bistudies") != instances.end() ? true : false);
     MARC::Record record("00000nac a2200000 u 4500");
     record.insertField("001", record_id);
-    record.insertField("005", today + "12000000.0:");
+    record.insertField("005", "20" + today + "12000000.0:");
     record.insertField("008", today + 's' + TimeUtil::GetCurrentYear());
     record.insertField("245", { { 'a', bundle_name }, { 'h', "Subscription Bundle" } } );
     record.insertField("SPR", { { 'a', "1" /* is superior work */ },
