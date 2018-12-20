@@ -273,6 +273,7 @@ bool SetBlocking(const int fd);
  *  \param  basename  Will hold the filename part.
  */
 void DirnameAndBasename(const std::string &path, std::string * const dirname, std::string * const basename);
+std::string GetDirname(const std::string &path);
 std::string GetBasename(const std::string &path);
 
 

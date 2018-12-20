@@ -28,11 +28,13 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "Downloader.h"
+#include "FileUtil.h"
 #include "IniFile.h"
 #include "SignalUtil.h"
 #include "StringUtil.h"
 #include "SyndicationFormat.h"
 #include "util.h"
+#include "XmlWriter.h"
 
 
 namespace {
@@ -67,7 +69,7 @@ const size_t MAX_SERIAL_NAME_LENGTH(200);
 
 
 // \return true if the item was new, else false.
-bool ProcessRSSItem(const bool test, const SyndicationFormat::Item &item, const std::string &section_name,
+bool ProcessRSSItem(const bool test, XmlWriter * const xml_writer, const SyndicationFormat::Item &item, const std::string &section_name,
                     DbConnection * const db_connection)
 {
     const std::string item_id(item.getId());
@@ -90,6 +92,13 @@ bool ProcessRSSItem(const bool test, const SyndicationFormat::Item &item, const 
         if (not description.empty())
             title_and_or_description += " (" + description + ")";
     }
+
+    xml_writer->openTag("item");
+    xml_writer->writeTagsWithEscapedData("title", section_name);
+    xml_writer->writeTagsWithEscapedData("link", item_url);
+    xml_writer->writeTagsWithEscapedData("description", title_and_or_description);
+    xml_writer->writeTagsWithEscapedData("guid", item_id);
+    xml_writer->closeTag("item");
 
     if (not test)
         db_connection->insertIntoTableOrDie("rss_aggregator",
@@ -125,8 +134,9 @@ std::unordered_map<std::string, uint64_t> section_name_to_ticks_map;
 
 
 // \return the number of new items.
-unsigned ProcessSection(const bool test, const IniFile::Section &section, const SyndicationFormat::AugmentParams &augment_params,
-                        Downloader * const downloader, DbConnection * const db_connection, const unsigned default_downloader_time_limit,
+unsigned ProcessSection(const bool test, XmlWriter * const xml_writer, const IniFile::Section &section,
+                        const SyndicationFormat::AugmentParams &augment_params, Downloader * const downloader,
+                        DbConnection * const db_connection, const unsigned default_downloader_time_limit,
                         const unsigned default_poll_interval, const uint64_t now)
 {
     const std::string feed_url(section.getString("feed_url"));
@@ -171,7 +181,7 @@ unsigned ProcessSection(const bool test, const IniFile::Section &section, const 
                     CheckForSigTermAndExitIfSeen();
                 SignalUtil::SignalBlocker sigterm_blocker2(SIGTERM);
 
-                if (ProcessRSSItem(test, item, section_name,  db_connection))
+                if (ProcessRSSItem(test, xml_writer, item, section_name,  db_connection))
                     ++new_item_count;
             }
         }
@@ -180,6 +190,23 @@ unsigned ProcessSection(const bool test, const IniFile::Section &section, const 
     section_name_to_ticks_map[section_name] = now;
     return new_item_count;
 }
+
+
+// Returns a file descriptor to a temporary file that resides on the same device as "xml_output_filename".
+// (We require this because we need to atomically rename this file to "xml_output_filename" later on.)
+std::unique_ptr<File> MakeTempFile(const std::string &xml_output_filename) {
+    return FileUtil::OpenTempFileOrDie(FileUtil::GetDirname(xml_output_filename), ".xml");
+}
+
+
+void WriteChannelHeaderXML(XmlWriter * const xml_writer, const IniFile &ini_file) {
+    xml_writer->writeTagsWithEscapedData("title", ini_file.getString("Channel", "title"));
+    xml_writer->writeTagsWithEscapedData("link", ini_file.getString("Channel", "link"));
+    xml_writer->writeTagsWithEscapedData("description", ini_file.getString("Channel", "description"));
+}
+
+
+const unsigned DEFAULT_XML_INDENT_AMOUNT(2);
 
 
 } // unnamed namespace
@@ -228,14 +255,21 @@ int Main(int argc, char *argv[]) {
             LOG_ERROR("we failed to deamonize our process!");
     }
 
+    const std::string xml_output_filename(argv[1]);
+
     uint64_t ticks(0);
     Downloader downloader;
     for (;;) {
         LOG_DEBUG("now we're at " + std::to_string(ticks) + ".");
 
         CheckForSigHupAndReloadIniFileIfSeen(&ini_file);
-
         const time_t before(std::time(nullptr));
+
+        const auto temp_output(MakeTempFile(xml_output_filename));
+        XmlWriter xml_writer(temp_output.get(), XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
+        xml_writer.openTag("rss", { { "version", "2.0" } });
+        xml_writer.openTag("channel");
+        WriteChannelHeaderXML(&xml_writer, ini_file);
 
         std::unordered_set<std::string> already_seen_sections;
         for (const auto &section : ini_file) {
@@ -247,17 +281,21 @@ int Main(int argc, char *argv[]) {
             SignalUtil::SignalBlocker sighup_blocker(SIGHUP);
 
             const std::string &section_name(section.getSectionName());
-            if (not section_name.empty() and section_name != "CGI Params" and section_name != "Database") {
+            if (not section_name.empty() and section_name != "CGI Params" and section_name != "Database" and section_name != "Channel") {
                 if (unlikely(already_seen_sections.find(section_name) != already_seen_sections.end()))
                     LOG_ERROR("duplicate section: \"" + section_name + "\"!");
                 already_seen_sections.emplace(section_name);
 
                 LOG_INFO("Processing section \"" + section_name + "\".");
-                const unsigned new_item_count(ProcessSection(test, section, augment_params, &downloader, &db_connection,
+                const unsigned new_item_count(ProcessSection(test, &xml_writer, section, augment_params, &downloader, &db_connection,
                                                              DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL, ticks));
                 LOG_INFO("found " + std::to_string(new_item_count) + " new items.");
             }
         }
+        xml_writer.closeTag("channel");
+        xml_writer.closeTag("rss");
+        temp_output->flush();
+        FileUtil::RenameFileOrDie(temp_output->getPath(), xml_output_filename, /* copy_if_cross_device = */false);
 
         if (test) // -> only run through our loop once
             return EXIT_SUCCESS;
