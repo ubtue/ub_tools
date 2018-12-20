@@ -978,6 +978,17 @@ std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename) {
 }
 
 
+std::unique_ptr<File> OpenTempFileOrDie(const std::string &path_prefix, const std::string &path_suffix) {
+    std::string path_template(path_prefix + "XXXXXX" + path_suffix);
+    const int fd(::mkstemps(const_cast<char *>(path_template.c_str()), path_suffix.length()));
+    if (fd == -1)
+        LOG_ERROR("mkstemps(3) for template \"" + path_template + "\" failed! (" + std::string(::strerror(errno)) + ")");
+
+    std::unique_ptr<File> file(new File(fd));
+    return file;
+}
+
+
 std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "a"));
     if (file->fail())
