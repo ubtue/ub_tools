@@ -67,7 +67,9 @@ const size_t MAX_SERIAL_NAME_LENGTH(200);
 
 
 // \return true if the item was new, else false.
-bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &section_name, DbConnection * const db_connection) {
+bool ProcessRSSItem(const bool test, const SyndicationFormat::Item &item, const std::string &section_name,
+                    DbConnection * const db_connection)
+{
     const std::string item_id(item.getId());
     db_connection->queryOrDie("SELECT insertion_time FROM rss_aggregator WHERE item_id='" + db_connection->escapeString(item_id) + "'");
     const DbResultSet result_set(db_connection->getLastResultSet());
@@ -89,11 +91,14 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
             title_and_or_description += " (" + description + ")";
     }
 
-    db_connection->queryOrDie("INSERT INTO rss_aggregator SET item_id='"
-                              + db_connection->escapeString(StringUtil::Truncate(MAX_ITEM_ID_LENGTH, item_id)) + "'," + "item_url='"
-                              + db_connection->escapeString(StringUtil::Truncate(MAX_ITEM_URL_LENGTH, item_url))
-                              + "',title_and_or_description='" + db_connection->escapeString(title_and_or_description) + ", serial_name='"
-                              + db_connection->escapeString(StringUtil::Truncate(MAX_SERIAL_NAME_LENGTH, section_name)) + "'");
+    if (not test)
+        db_connection->insertIntoTableOrDie("rss_aggregator",
+                                            {
+                                                { "item_id",                  StringUtil::Truncate(MAX_ITEM_ID_LENGTH, item_id)          },
+                                                { "item_url",                 StringUtil::Truncate(MAX_ITEM_URL_LENGTH, item_url)        },
+                                                { "title_and_or_description", title_and_or_description                                   },
+                                                { "serial_name",              StringUtil::Truncate(MAX_SERIAL_NAME_LENGTH, section_name) }
+                                            });
 
     return true;
 }
@@ -166,7 +171,7 @@ unsigned ProcessSection(const bool test, const IniFile::Section &section, const 
                     CheckForSigTermAndExitIfSeen();
                 SignalUtil::SignalBlocker sigterm_blocker2(SIGTERM);
 
-                if (ProcessRSSItem(item, section_name,  db_connection))
+                if (ProcessRSSItem(test, item, section_name,  db_connection))
                     ++new_item_count;
             }
         }
