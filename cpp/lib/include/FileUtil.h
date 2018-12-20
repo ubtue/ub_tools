@@ -403,12 +403,17 @@ bool RenameFile(const std::string &old_name, const std::string &new_name, const 
 void RenameFileOrDie(const std::string &old_name, const std::string &new_name, const bool remove_target = false,
                      const bool copy_if_cross_device = true);
 
+
 /** \brief Opens a file for reading or aborts. */
 std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename);
 
 
 /** \brief Opens a file for writing or aborts. */
 std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename);
+
+
+/** \brief Opens a file for writing or aborts. */
+std::unique_ptr<File> OpenTempFileOrDie(const std::string &path_prefix = "/tmp/ATF", const std::string &path_suffix = "");
 
 
 /** \brief Opens a file for appending or aborts. */
