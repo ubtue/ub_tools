@@ -530,12 +530,12 @@ bool SetBlocking(const int fd) {
 // DirnameAndBasename -- Split a path into a directory name part and filename part.
 //
 void DirnameAndBasename(const std::string &path, std::string * const dirname, std::string * const basename) {
-    if (unlikely(path.length() == 0)) {
+    if (unlikely(path.empty())) {
         *dirname = *basename = "";
         return;
     }
 
-    std::string::size_type last_slash_pos = path.rfind('/');
+    const auto last_slash_pos(path.rfind('/'));
     if (last_slash_pos == std::string::npos) {
         *dirname  = "";
         *basename = path;
@@ -547,13 +547,24 @@ void DirnameAndBasename(const std::string &path, std::string * const dirname, st
 
 
 std::string GetBasename(const std::string &path) {
-    if (unlikely(path.length() == 0))
+    if (unlikely(path.empty()))
         return "";
 
-    std::string::size_type last_slash_pos = path.rfind('/');
+    const auto last_slash_pos(path.rfind('/'));
     if (last_slash_pos == std::string::npos)
         return path;
     return path.substr(last_slash_pos + 1);
+}
+
+
+std::string GetDirname(const std::string &path) {
+    if (unlikely(path.empty()))
+        return "";
+
+    const auto last_slash_pos(path.rfind('/'));
+    if (last_slash_pos == std::string::npos)
+        return "";
+    return path.substr(0, last_slash_pos);
 }
 
 
