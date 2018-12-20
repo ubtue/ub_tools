@@ -247,7 +247,7 @@ int Main(int argc, char *argv[]) {
             SignalUtil::SignalBlocker sighup_blocker(SIGHUP);
 
             const std::string &section_name(section.getSectionName());
-            if (not section_name.empty() and section_name != "CGI Params") {
+            if (not section_name.empty() and section_name != "CGI Params" and section_name != "Database") {
                 if (unlikely(already_seen_sections.find(section_name) != already_seen_sections.end()))
                     LOG_ERROR("duplicate section: \"" + section_name + "\"!");
                 already_seen_sections.emplace(section_name);
