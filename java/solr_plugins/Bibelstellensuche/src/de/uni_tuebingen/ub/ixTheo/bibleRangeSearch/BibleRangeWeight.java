@@ -26,7 +26,7 @@ public class BibleRangeWeight extends ConstantScoreWeight {
     private final Weight weight;
 
     public BibleRangeWeight(final BibleRangeQuery query, final BibleRange[] ranges, final Weight weight) {
-        super(query);
+        super(query, 1.0F);
         this.ranges = ranges;
         this.weight = weight;
         boolean isSearchingForBooks = false;
@@ -96,5 +96,10 @@ public class BibleRangeWeight extends ConstantScoreWeight {
         } else {
             return null;
         }
+    }
+
+    @Override
+    public final boolean isCacheable(LeafReaderContext context) {
+        return false;
     }
 }
