@@ -195,7 +195,7 @@ unsigned ProcessSection(const bool test, XmlWriter * const xml_writer, const Ini
 // Returns a file descriptor to a temporary file that resides on the same device as "xml_output_filename".
 // (We require this because we need to atomically rename this file to "xml_output_filename" later on.)
 std::unique_ptr<File> MakeTempFile(const std::string &xml_output_filename) {
-    return FileUtil::OpenTempFileOrDie(FileUtil::GetDirname(xml_output_filename), ".xml");
+    return FileUtil::OpenTempFileOrDie(FileUtil::GetDirname(xml_output_filename) + "/", ".xml");
 }
 
 
@@ -265,8 +265,9 @@ int Main(int argc, char *argv[]) {
         CheckForSigHupAndReloadIniFileIfSeen(&ini_file);
         const time_t before(std::time(nullptr));
 
-        const auto temp_output(MakeTempFile(xml_output_filename));
-        XmlWriter xml_writer(temp_output.get(), XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
+        auto temp_output(MakeTempFile(xml_output_filename));
+        const auto temp_output_filename(temp_output->getPath());
+        XmlWriter xml_writer(temp_output.release(), XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
         xml_writer.openTag("rss", { { "version", "2.0" } });
         xml_writer.openTag("channel");
         WriteChannelHeaderXML(&xml_writer, ini_file);
@@ -294,8 +295,7 @@ int Main(int argc, char *argv[]) {
         }
         xml_writer.closeTag("channel");
         xml_writer.closeTag("rss");
-        temp_output->flush();
-        FileUtil::RenameFileOrDie(temp_output->getPath(), xml_output_filename, /* remove_target = */true, /* copy_if_cross_device = */false);
+        FileUtil::RenameFileOrDie(temp_output_filename, xml_output_filename, /* remove_target = */true, /* copy_if_cross_device = */false);
 
         if (test) // -> only run through our loop once
             return EXIT_SUCCESS;
