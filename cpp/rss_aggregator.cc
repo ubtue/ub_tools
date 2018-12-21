@@ -295,7 +295,7 @@ int Main(int argc, char *argv[]) {
         xml_writer.closeTag("channel");
         xml_writer.closeTag("rss");
         temp_output->flush();
-        FileUtil::RenameFileOrDie(temp_output->getPath(), xml_output_filename, /* copy_if_cross_device = */false);
+        FileUtil::RenameFileOrDie(temp_output->getPath(), xml_output_filename, /* remove_target = */true, /* copy_if_cross_device = */false);
 
         if (test) // -> only run through our loop once
             return EXIT_SUCCESS;
