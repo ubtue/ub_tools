@@ -61,7 +61,11 @@ Logger::Logger()
 void Logger::error(const std::string &msg) {
     std::lock_guard<std::mutex> mutex_locker(mutex_);
 
-    writeString("SEVERE", msg);
+    std::string error_message_string;
+    if (errno != 0)
+        error_message_string = " (" + std::string(std::strerror(errno)) + ")";
+
+    writeString("SEVERE", msg + error_message_string);
     if (::getenv("BACKTRACE") != nullptr) {
         const bool saved_log_no_decorations(log_no_decorations_);
         log_no_decorations_ = true;
