@@ -52,7 +52,7 @@ private:
     Attributes next_attributes_;
 public:
     /** \brief  Instantiate an XmlWriter object.
-     *  \param  output_file                      Where to write the generated XML to.
+     *  \param  output_file                      Where to write the generated XML to. Assumes ownership of the pointer.
      *  \param  xml_declaration_write_behaviour  Whether to write an XML declaration or not.
      *  \param  indent_amount                    How many leading spaces to add per indentation level.
      *  \param  text_conversion_type             What kind, if any, of text conversion to apply on output.

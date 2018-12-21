@@ -1305,7 +1305,10 @@ std::string GetPathFromFileDescriptor(const int fd) {
 
         if (static_cast<size_t>(path_size) < buf_size) {
             buf[path_size] = '\0';
-            return buf;
+
+            const std::string str_buf(buf);
+            std::free(buf);
+            return str_buf;
         }
     }
 }
