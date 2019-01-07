@@ -255,12 +255,16 @@ int Main(int argc, char *argv[]) {
         test = true;
         --argc, ++argv;
     }
+    if (argc < 2)
+        Usage();
 
     bool sort_by_date(false);
     if (std::strcmp(argv[1], "--sort-by-date") == 0) {
         sort_by_date = true;
         --argc, ++argv;
     }
+    if (argc < 2)
+        Usage();
 
     std::string config_file_path(UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf");
     if (StringUtil::StartsWith(argv[1], "--config-file=")) {
