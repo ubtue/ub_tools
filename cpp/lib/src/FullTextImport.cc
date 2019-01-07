@@ -97,41 +97,20 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
 }
 
 
-size_t CorrelateFullTextData(const std::vector<std::shared_ptr<FullTextData>> &full_text_data,
-                             std::unordered_map<std::string, std::shared_ptr<FullTextData>> * const control_number_to_full_text_data_map)
+bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, const FullTextData &full_text_data,
+                           std::string * const control_number)
 {
-    size_t exact_matches(0);
-    ControlNumberGuesser ppn_guesser;
-    for (const auto &full_text : full_text_data) {
-        const auto matching_ppns(ppn_guesser.getGuessedControlNumbers(full_text->title_, full_text->authors_, full_text->year_,
-                                                                      full_text->doi_, full_text->issn_, full_text->isbn_));
-        if (matching_ppns.empty())
-            continue;
-        else if (matching_ppns.size() != 1) {
-            LOG_DEBUG("multiple control numbers found for full-text with title '" + full_text->title_ + "', authors '" +
-                      StringUtil::Join(full_text->authors_, ",") + "'");
-            LOG_DEBUG("control numbers: " + StringUtil::Join(matching_ppns, ","));
+    const auto matching_ppns(control_number_guesser.getGuessedControlNumbers(full_text_data.title_, full_text_data.authors_,
+                                                                             full_text_data.year_, full_text_data.doi_,
+                                                                             full_text_data.issn_, full_text_data.isbn_));
+    if (matching_ppns.empty())
+        return false;
 
-            continue;
-        }
+    if (matching_ppns.size() > 1)
+        LOG_WARNING(std::to_string(matching_ppns.size()) + " matching PPNs found!");
 
-        ++exact_matches;
-        const auto &exact_ppn(*matching_ppns.begin());
-        const auto existing_match(control_number_to_full_text_data_map->find(exact_ppn));
-        if (existing_match != control_number_to_full_text_data_map->end() and
-            (existing_match->second->title_ != full_text->title_ or existing_match->second->authors_ != full_text->authors_))
-        {
-            LOG_WARNING("control number '" + exact_ppn + "' has multiple full-text data matches");
-            LOG_WARNING("\texisting data: title '" + existing_match->second->title_ + "', authors '" +
-                        StringUtil::Join(existing_match->second->authors_, ",") + "'");
-            LOG_WARNING("\tincoming data: title '" + full_text->title_ + "', authors '" +
-                        StringUtil::Join(full_text->authors_, ",") + "'");
-        }
-
-        (*control_number_to_full_text_data_map)[exact_ppn] = full_text;
-    }
-
-    return exact_matches;
+    *control_number = *matching_ppns.cbegin();
+    return true;
 }
 
 

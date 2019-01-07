@@ -233,6 +233,8 @@ public:
                              { return entry.name_ == variable_name; });
         }
 
+        inline bool hasEntry(const std::string &variable_name) const { return find(variable_name) != end(); }
+
         bool deleteEntry(const std::string &entry_name);
         const std::string &getComment(const std::string &entry_name) const;
     private:
@@ -307,6 +309,15 @@ public:
      *  \throws  A std::runtime_error if the variable is not found or the value cannot be converted to an integer.
      */
     long getInteger(const std::string &section_name, const std::string &variable_name) const;
+
+    /** \brief   Retrieves an integer value from a configuration file.
+     *  \param   section_name   The name of the section to search.
+     *  \param   variable_name  The name of the section entry to read.
+     *  \param   default_value  A default to return if the variable is not defined.
+     *  \return  The value of the string in the specified section.
+     *  \throws  A std::runtime_error if the variable is not found or the value cannot be converted to an integer.
+     */
+    long getInteger(const std::string &section_name, const std::string &variable_name, const long default_value) const;
 
     /** \brief   Retrieves a floating point value from a configuration file.
      *  \param   section_name   The name of the section to search.

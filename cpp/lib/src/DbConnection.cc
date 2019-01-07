@@ -287,6 +287,47 @@ void DbConnection::queryFileOrDie(const std::string &filename) {
 }
 
 
+void DbConnection::insertIntoTableOrDie(const std::string &table_name,
+                                        const std::map<std::string, std::string> &column_names_to_values_map,
+                                        const DuplicateKeyBehaviour duplicate_key_behaviour)
+{
+    std::string insert_stmt(duplicate_key_behaviour == DKB_REPLACE ? "REPLACE" : "INSERT");
+    if (duplicate_key_behaviour == DKB_IGNORE)
+        insert_stmt += (type_ == T_MYSQL) ? " IGNORE" : " OR IGNORE";
+    insert_stmt += " INTO " + table_name + " (";
+
+    const char column_name_quote(type_ == T_MYSQL ? '`' : '"');
+
+    bool first(true);
+    for (const auto &column_name_and_value : column_names_to_values_map) {
+        if (not first)
+            insert_stmt += ',';
+        else
+            first = false;
+
+        insert_stmt += column_name_quote;
+        insert_stmt += column_name_and_value.first;
+        insert_stmt += column_name_quote;
+    }
+
+    insert_stmt += ") VALUES (";
+
+    first = true;
+    for (const auto &column_name_and_value : column_names_to_values_map) {
+        if (not first)
+            insert_stmt += ',';
+        else
+            first = false;
+
+        insert_stmt += escapeAndQuoteString(column_name_and_value.second);
+    }
+
+    insert_stmt += ')';
+
+    queryOrDie(insert_stmt);
+}
+
+
 DbResultSet DbConnection::getLastResultSet() {
     if (sqlite3_ == nullptr) {
         MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
