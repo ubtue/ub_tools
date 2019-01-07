@@ -59,7 +59,7 @@ void SigHupHandler(int /* signum */) {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--test] [--sort-by-date] [--strptime-format=format] [--config-file=config_file_path] xml_output_path\n"
+    ::Usage("[--test] [--sort-by-date] [--config-file=config_file_path] xml_output_path\n"
             "       When --test has been specified no data will be stored.\n"
             "       The default config file path is \"" + UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf\".");
 }
@@ -181,13 +181,15 @@ std::unordered_map<std::string, uint64_t> section_name_to_ticks_map;
 
 // \return the number of new items.
 unsigned ProcessSection(const bool test, std::vector<HarvestedRSSItem> * const harvested_items, const IniFile::Section &section,
-                        const SyndicationFormat::AugmentParams &augment_params, Downloader * const downloader,
-                        DbConnection * const db_connection, const unsigned default_downloader_time_limit,
+                        Downloader * const downloader, DbConnection * const db_connection, const unsigned default_downloader_time_limit,
                         const unsigned default_poll_interval, const uint64_t now)
 {
+    SyndicationFormat::AugmentParams augment_params;
+
     const std::string feed_url(section.getString("feed_url"));
     const unsigned poll_interval(section.getUnsigned("poll_interval", default_poll_interval));
     const unsigned downloader_time_limit(section.getUnsigned("downloader_time_limit", default_downloader_time_limit) * 1000);
+    augment_params.strptime_format_ = section.getString("strptime_format", "");
     const std::string &section_name(section.getSectionName());
 
     if (test) {
@@ -260,12 +262,6 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
-    SyndicationFormat::AugmentParams augment_params;
-    if (std::strcmp(argv[1], "--strptime-format=") == 0) {
-        augment_params.strptime_format_ = argv[1] + __builtin_strlen("--strptime-format=");
-        --argc, ++argv;
-    }
-
     std::string config_file_path(UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf");
     if (StringUtil::StartsWith(argv[1], "--config-file=")) {
         config_file_path = argv[1] + __builtin_strlen("--config-file=");
@@ -319,7 +315,7 @@ int Main(int argc, char *argv[]) {
                 already_seen_sections.emplace(section_name);
 
                 LOG_INFO("Processing section \"" + section_name + "\".");
-                const unsigned new_item_count(ProcessSection(test, &harvested_items, section, augment_params, &downloader, &db_connection,
+                const unsigned new_item_count(ProcessSection(test, &harvested_items, section, &downloader, &db_connection,
                                                              DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL, ticks));
                 LOG_INFO("found " + std::to_string(new_item_count) + " new items.");
             }
