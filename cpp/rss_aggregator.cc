@@ -34,6 +34,7 @@
 #include "SignalUtil.h"
 #include "StringUtil.h"
 #include "SyndicationFormat.h"
+#include "UBTools.h"
 #include "util.h"
 #include "XmlWriter.h"
 
@@ -58,8 +59,9 @@ void SigHupHandler(int /* signum */) {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--test] [--sort-by-date] [--strptime-format=format] xml_output_path\n"
-            "       When --test has been specified no data will be stored.");
+    ::Usage("[--test] [--sort-by-date] [--config-file=config_file_path] xml_output_path\n"
+            "       When --test has been specified no data will be stored.\n"
+            "       The default config file path is \"" + UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf\".");
 }
 
 
@@ -91,26 +93,27 @@ void WriteRSSFeedXMLOutput(const bool sort_by_date, const IniFile &ini_file, std
 
     xml_writer->openTag("rss", { { "version", "2.0" }, { "xmlns:tuefind", "https://github.com/ubtue/tuefind" } });
     xml_writer->openTag("channel");
-    {
-        xml_writer->writeTagsWithEscapedData("title", ini_file.getString("Channel", "title"));
-        xml_writer->writeTagsWithEscapedData("link", ini_file.getString("Channel", "link"));
-        xml_writer->writeTagsWithEscapedData("description", ini_file.getString("Channel", "description"));
+    xml_writer->writeTagsWithEscapedData("title", ini_file.getString("Channel", "title"));
+    xml_writer->writeTagsWithEscapedData("link", ini_file.getString("Channel", "link"));
+    xml_writer->writeTagsWithEscapedData("description", ini_file.getString("Channel", "description"));
 
-        for (const auto &harvested_item : *harvested_items) {
-            const auto description(harvested_item.item_.getDescription().empty() ? harvested_item.item_.getTitle() :
-                                   harvested_item.item_.getDescription());
+    for (const auto &harvested_item : *harvested_items) {
+        const auto description(harvested_item.item_.getDescription().empty() ? harvested_item.item_.getTitle()
+                                                                             : harvested_item.item_.getDescription());
 
-            xml_writer->openTag("item");
-            xml_writer->writeTagsWithEscapedData("title", harvested_item.item_.getTitle());
-            xml_writer->writeTagsWithEscapedData("link", harvested_item.item_.getLink());
-            xml_writer->writeTagsWithEscapedData("description", description);
-            xml_writer->writeTagsWithEscapedData("pubDate", TimeUtil::TimeTToUtcString(harvested_item.item_.getPubDate()));
-            xml_writer->writeTagsWithEscapedData("guid", harvested_item.item_id_);
-            xml_writer->writeTagsWithEscapedData("tuefind:rss_title", harvested_item.feed_title_);
-            xml_writer->writeTagsWithEscapedData("tuefind:rss_url", harvested_item.feed_url_);
-            xml_writer->closeTag("item", /* suppress_indent */ false);
-        }
+        xml_writer->openTag("item");
+        xml_writer->writeTagsWithEscapedData("title", harvested_item.item_.getTitle());
+        xml_writer->writeTagsWithEscapedData("link", harvested_item.item_.getLink());
+        xml_writer->writeTagsWithEscapedData("description", description);
+        xml_writer->writeTagsWithEscapedData("pubDate",
+                                             TimeUtil::TimeTToString(harvested_item.item_.getPubDate(), TimeUtil::RFC822_FORMAT,
+                                                                     TimeUtil::UTC));
+        xml_writer->writeTagsWithEscapedData("guid", harvested_item.item_id_);
+        xml_writer->writeTagsWithEscapedData("tuefind:rss_title", harvested_item.feed_title_);
+        xml_writer->writeTagsWithEscapedData("tuefind:rss_url", harvested_item.feed_url_);
+        xml_writer->closeTag("item", /* suppress_indent */ false);
     }
+
     xml_writer->closeTag("channel");
     xml_writer->closeTag("rss");
 }
@@ -178,13 +181,15 @@ std::unordered_map<std::string, uint64_t> section_name_to_ticks_map;
 
 // \return the number of new items.
 unsigned ProcessSection(const bool test, std::vector<HarvestedRSSItem> * const harvested_items, const IniFile::Section &section,
-                        const SyndicationFormat::AugmentParams &augment_params, Downloader * const downloader,
-                        DbConnection * const db_connection, const unsigned default_downloader_time_limit,
+                        Downloader * const downloader, DbConnection * const db_connection, const unsigned default_downloader_time_limit,
                         const unsigned default_poll_interval, const uint64_t now)
 {
+    SyndicationFormat::AugmentParams augment_params;
+
     const std::string feed_url(section.getString("feed_url"));
     const unsigned poll_interval(section.getUnsigned("poll_interval", default_poll_interval));
     const unsigned downloader_time_limit(section.getUnsigned("downloader_time_limit", default_downloader_time_limit) * 1000);
+    augment_params.strptime_format_ = section.getString("strptime_format", "");
     const std::string &section_name(section.getSectionName());
 
     if (test) {
@@ -250,16 +255,20 @@ int Main(int argc, char *argv[]) {
         test = true;
         --argc, ++argv;
     }
+    if (argc < 2)
+        Usage();
 
     bool sort_by_date(false);
     if (std::strcmp(argv[1], "--sort-by-date") == 0) {
         sort_by_date = true;
         --argc, ++argv;
     }
+    if (argc < 2)
+        Usage();
 
-    SyndicationFormat::AugmentParams augment_params;
-    if (std::strcmp(argv[1], "--strptime-format") == 0) {
-        augment_params.strptime_format_ = argv[1] + __builtin_strlen("--strptime-format");
+    std::string config_file_path(UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf");
+    if (StringUtil::StartsWith(argv[1], "--config-file=")) {
+        config_file_path = argv[1] + __builtin_strlen("--config-file=");
         --argc, ++argv;
     }
 
@@ -310,7 +319,7 @@ int Main(int argc, char *argv[]) {
                 already_seen_sections.emplace(section_name);
 
                 LOG_INFO("Processing section \"" + section_name + "\".");
-                const unsigned new_item_count(ProcessSection(test, &harvested_items, section, augment_params, &downloader, &db_connection,
+                const unsigned new_item_count(ProcessSection(test, &harvested_items, section, &downloader, &db_connection,
                                                              DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL, ticks));
                 LOG_INFO("found " + std::to_string(new_item_count) + " new items.");
             }
