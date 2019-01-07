@@ -368,7 +368,7 @@ std::unordered_set<unsigned> FindActivePrograms(const std::string &program_name)
 bool SetProcessName(char *argv0, const std::string &new_process_name) {
     if (new_process_name.length() > std::strlen(argv0))
         return false;
-    constexpr size_t MAX_PR_SET_NAME_LENGTH(16 -1);
+    constexpr size_t MAX_PR_SET_NAME_LENGTH(16 - 1);
     if (new_process_name.length() > MAX_PR_SET_NAME_LENGTH)
         return false;
 
