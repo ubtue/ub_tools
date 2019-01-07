@@ -530,12 +530,12 @@ bool SetBlocking(const int fd) {
 // DirnameAndBasename -- Split a path into a directory name part and filename part.
 //
 void DirnameAndBasename(const std::string &path, std::string * const dirname, std::string * const basename) {
-    if (unlikely(path.length() == 0)) {
+    if (unlikely(path.empty())) {
         *dirname = *basename = "";
         return;
     }
 
-    std::string::size_type last_slash_pos = path.rfind('/');
+    const auto last_slash_pos(path.rfind('/'));
     if (last_slash_pos == std::string::npos) {
         *dirname  = "";
         *basename = path;
@@ -547,13 +547,24 @@ void DirnameAndBasename(const std::string &path, std::string * const dirname, st
 
 
 std::string GetBasename(const std::string &path) {
-    if (unlikely(path.length() == 0))
+    if (unlikely(path.empty()))
         return "";
 
-    std::string::size_type last_slash_pos = path.rfind('/');
+    const auto last_slash_pos(path.rfind('/'));
     if (last_slash_pos == std::string::npos)
         return path;
     return path.substr(last_slash_pos + 1);
+}
+
+
+std::string GetDirname(const std::string &path) {
+    if (unlikely(path.empty()))
+        return "";
+
+    const auto last_slash_pos(path.rfind('/'));
+    if (last_slash_pos == std::string::npos)
+        return "";
+    return path.substr(0, last_slash_pos);
 }
 
 
@@ -978,6 +989,17 @@ std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename) {
 }
 
 
+std::unique_ptr<File> OpenTempFileOrDie(const std::string &path_prefix, const std::string &path_suffix) {
+    std::string path_template(path_prefix + "XXXXXX" + path_suffix);
+    const int fd(::mkstemps(const_cast<char *>(path_template.c_str()), path_suffix.length()));
+    if (fd == -1)
+        LOG_ERROR("mkstemps(3) for template \"" + path_template + "\" failed! (" + std::string(::strerror(errno)) + ")");
+
+    std::unique_ptr<File> file(new File(fd));
+    return file;
+}
+
+
 std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "a"));
     if (file->fail())
@@ -1283,7 +1305,10 @@ std::string GetPathFromFileDescriptor(const int fd) {
 
         if (static_cast<size_t>(path_size) < buf_size) {
             buf[path_size] = '\0';
-            return buf;
+
+            const std::string str_buf(buf);
+            std::free(buf);
+            return str_buf;
         }
     }
 }

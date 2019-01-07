@@ -6,6 +6,7 @@
 /*
  *  Copyright 2005-2007 Project iVia.
  *  Copyright 2005-2007 The Regents of The University of California.
+ *  Copyright 2018 Universitätsbiblothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -162,6 +163,34 @@ void XmlWriter::closeAllTags() {
 
         active_tags_.pop();
     }
+}
+
+
+void XmlWriter::writeTagsWithData(const std::string &tag_name, const std::string &characters, const bool suppress_newline) {
+    openTag(tag_name, /* suppress_newline = */true);
+    write(characters);
+
+    const auto saved_indent_amount_(indent_amount_);
+    indent_amount_ = 0;
+
+    closeTag(tag_name, suppress_newline);
+
+    indent_amount_ = saved_indent_amount_;
+}
+
+
+void XmlWriter::writeTagsWithEscapedData(const std::string &tag_name, const Attributes &attribs, const std::string &characters,
+                                         const bool suppress_newline, const XmlWriter::TextConversionType text_conversion_type)
+{
+    openTag(tag_name, attribs, /* suppress_newline = */true);
+    write(XmlWriter::XmlEscape(characters, text_conversion_type));
+
+    const auto saved_indent_amount_(indent_amount_);
+    indent_amount_ = 0;
+
+    closeTag(tag_name, suppress_newline);
+
+    indent_amount_ = saved_indent_amount_;
 }
 
 
