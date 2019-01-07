@@ -317,7 +317,7 @@ void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &
     std::vector<std::string> bundle_ppns;
     StringUtil::SplitThenTrim(bundle_ppns_string, "," , " \t", &bundle_ppns);
     for (const auto &bundle_ppn : bundle_ppns)
-         control_numbers->emplace_back(bundle_ppn);
+            control_numbers->emplace_back(bundle_ppn);
 }
 
 
@@ -351,9 +351,9 @@ void ProcessSingleUser(
     std::vector<NewIssueInfo> new_issue_infos;
     for (auto &control_number_or_bundle_name_and_last_modification_time : control_numbers_or_bundle_names_and_last_modification_times) {
         std::string max_last_modification_time(control_number_or_bundle_name_and_last_modification_time.last_modification_time_);
-        if (StringUtil::StartsWith(control_number_or_bundle_name_and_last_modification_time.serial_control_number_, "bundle")) {
+        if (StringUtil::StartsWith(control_number_or_bundle_name_and_last_modification_time.serial_control_number_, "bundle:")) {
             const std::string bundle_name(
-                control_number_or_bundle_name_and_last_modification_time.serial_control_number_);
+                control_number_or_bundle_name_and_last_modification_time.serial_control_number_.substr(__builtin_strlen("bundle:")));
             std::vector<std::string> bundle_control_numbers;
             LoadBundleControlNumbers(bundles_config, bundle_name, &bundle_control_numbers);
             for (const auto &bundle_control_number : bundle_control_numbers) {
