@@ -125,4 +125,13 @@ void FindActivePrograms(const std::string &program_name, std::unordered_set<unsi
 std::unordered_set<unsigned> FindActivePrograms(const std::string &program_name);
 
 
+/** \brief Change the name of the current process.
+ *  \param argv0             The address of the current process name, i.e. argv[0].
+ *  \param new_process_name  The new process name.
+ *  \note The new process name has some severe limitations: 1) It may not be longer than 15 bytes and 2) it must not exceed the
+ *        length of the original process name.
+ */
+bool SetProcessName(char *argv0, const std::string &new_process_name);
+
+
 } // namespace ExecUtil
