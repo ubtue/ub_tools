@@ -56,7 +56,13 @@ data_install: Makefile data/*.conf data/*.map data/IxTheo_Notation.csv data/stop
 	cp -r data/full_text_cache_monitor /usr/local/var/lib/tuelib/
 	cp -r data/translate_chainer /usr/local/var/lib/tuelib/
 	cp -r data/zotero_cgi /usr/local/var/lib/tuelib/
-
+	@echo "Installing services..."
+	cp data/*.service /usr/local/lib/systemd/system/
+	systemctl daemon-reload
+	if [ $(TUEFIND_FLAVOUR) = "ixtheo" ]; then\
+	    systemctl enable rss_aggregator_relbib;\
+	    systemctl restart rss_aggregator_relbib;\
+	fi
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
 
