@@ -32,6 +32,7 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "SignalUtil.h"
+#include "SqlUtil.h"
 #include "StringUtil.h"
 #include "SyndicationFormat.h"
 #include "UBTools.h"
@@ -59,7 +60,7 @@ void SigHupHandler(int /* signum */) {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--test] [--sort-by-date] [--config-file=config_file_path] xml_output_path\n"
+    ::Usage("[--test] [--sort-by-date] [--config-file=config_file_path] [--process-name=new_process_name] xml_output_path\n"
             "       When --test has been specified no data will be stored.\n"
             "       The default config file path is \"" + UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf\".");
 }
@@ -152,7 +153,8 @@ bool ProcessRSSItem(const bool test, std::vector<HarvestedRSSItem> * const harve
                                                 { "item_id",                  StringUtil::Truncate(MAX_ITEM_ID_LENGTH, item_id)          },
                                                 { "item_url",                 StringUtil::Truncate(MAX_ITEM_URL_LENGTH, item_url)        },
                                                 { "title_and_or_description", title_and_or_description                                   },
-                                                { "serial_name",              StringUtil::Truncate(MAX_SERIAL_NAME_LENGTH, section_name) }
+                                                { "serial_name",              StringUtil::Truncate(MAX_SERIAL_NAME_LENGTH, section_name) },
+                                                { "pub_date",                 SqlUtil::TimeTToDatetime(item.getPubDate())                }
                                             });
 
     return true;
@@ -328,7 +330,7 @@ int Main(int argc, char *argv[]) {
         // scoped here so that we flush and close the output file right away
         {
             XmlWriter xml_writer(FileUtil::OpenOutputFileOrDie(xml_output_filename).release(),
-                                XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
+                                 XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
             WriteRSSFeedXMLOutput(sort_by_date, ini_file, &harvested_items, &xml_writer);
         }
 
