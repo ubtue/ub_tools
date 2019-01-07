@@ -76,9 +76,7 @@ SyndicationFormatType GetFormatType(const std::string &xml_document) {
 }
 
 
-static std::string ExtractText(XMLParser &parser, const std::string &closing_tag,
-                               const std::string &extra = "")
-{
+static std::string ExtractText(XMLParser &parser, const std::string &closing_tag, const std::string &extra = "") {
     XMLParser::XMLPart part;
     if (unlikely(not parser.getNext(&part)))
         throw std::runtime_error("in ExtractText(SyndicationFormat.cc): parse error while looking for characters for \""
@@ -97,7 +95,8 @@ static std::string ExtractText(XMLParser &parser, const std::string &closing_tag
                                  + closing_tag + "\" tag!" + extra);
     if (not parser.getNext(&part)
         or part.type_ != XMLParser::XMLPart::CLOSING_TAG or part.data_ != closing_tag)
-        throw std::runtime_error("in ExtractText(SyndicationFormat.cc): " + closing_tag + " closing tag not found!" + extra + " found instead: " + XMLParser::XMLPart::TypeToString(part.type_) + " '" + part.data_ + "'");
+        throw std::runtime_error("in ExtractText(SyndicationFormat.cc): " + closing_tag + " closing tag not found!" + extra
+                                 + " found instead: " + XMLParser::XMLPart::TypeToString(part.type_) + " '" + part.data_ + "'");
 
     return extracted_text;
 }

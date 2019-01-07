@@ -59,6 +59,10 @@ const std::string DEFAULT_FORMAT("%Y-%m-%d %T");
 const std::string ZULU_FORMAT("%Y-%m-%dT%TZ");
 
 
+/** The strftime(3) format string for representing the UTC "Zulu" representation. */
+const std::string RFC822_FORMAT("%a, %d %b %Y %H:%M:%S %z");
+
+
 /** \enum   TimeZone
  *  \brief  Differentiate between UTC and the local timezone.
  */
