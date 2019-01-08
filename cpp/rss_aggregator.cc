@@ -231,8 +231,9 @@ const unsigned HARVEST_TIME_WINDOW(60); // days
 
 
 size_t SelectItems(DbConnection * const db_connection, std::vector<HarvestedRSSItem> * const harvested_items) {
-    db_connection->queryOrDie("SELECT * FROM rss_aggregator WHERE pub_date >= NOW() - " + std::to_string(HARVEST_TIME_WINDOW)
-                              + "* 86400 ORDER BY pub_date DESC");
+    const auto now(std::time(nullptr));
+    db_connection->queryOrDie("SELECT * FROM rss_aggregator WHERE pub_date >= '"
+                              + SqlUtil::TimeTToDatetime(now - HARVEST_TIME_WINDOW * 86400) + "' ORDER BY pub_date DESC");
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const DbRow row = result_set.getNextRow())
         harvested_items->emplace_back(SyndicationFormat::Item(row["item_title"], row["item_description"], row["item_url"], row["item_id"],
@@ -313,12 +314,12 @@ int Main(int argc, char *argv[]) {
                 LOG_INFO("Processing section \"" + section_name + "\".");
                 const unsigned new_item_count(ProcessSection(one_shot, section, &downloader, &db_connection,
                                                              DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL, ticks));
-                LOG_INFO("found " + std::to_string(new_item_count) + " new items.");
+                LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
             }
         }
 
         std::vector<HarvestedRSSItem> harvested_items;
-        SelectItems(&db_connection, &harvested_items);
+        const auto feed_item_count(SelectItems(&db_connection, &harvested_items));
 
         // scoped here so that we flush and close the output file right away
         {
@@ -326,6 +327,8 @@ int Main(int argc, char *argv[]) {
                                  XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
             WriteRSSFeedXMLOutput(ini_file, &harvested_items, &xml_writer);
         }
+        LOG_INFO("Created our feed with " + std::to_string(feed_item_count) + " items from the last " + std::to_string(HARVEST_TIME_WINDOW)
+                 + " days.");
 
         if (one_shot) // -> only run through our loop once
             return EXIT_SUCCESS;
