@@ -128,6 +128,8 @@ private:
     void init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port, const Charset charset,
               const TimeZone time_zone);
 public:
+    static std::string CharsetToString(const Charset charset);
+
     static void MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
                                     const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
                                     const Charset charset = UTF8MB4);
