@@ -155,7 +155,7 @@ std::unique_ptr<SyndicationFormat> SyndicationFormat::Factory(const std::string 
 
 RSS20::RSS20(const std::string &xml_document, const AugmentParams &augment_params): SyndicationFormat(xml_document, augment_params) {
     XMLParser::XMLPart part;
-    while (xml_parser_.getNext(&part)) {
+    while (xml_parser_.peek(&part)) {
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "item")
             return;
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "image") {
@@ -348,10 +348,14 @@ RDF::RDF(const std::string &xml_document, const AugmentParams &augment_params): 
     ExtractNamespaces(xml_parser_, &rss_namespace_, &dc_namespace_, &prism_namespace_);
 
     XMLParser::XMLPart part;
-    while (xml_parser_.getNext(&part)) {
+    // peek instead of consuming the tag directly so that the first getNextItem() call
+    // correctly parses the first <item> opening tag
+    while (xml_parser_.peek(&part)) {
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == rss_namespace_ + "item")
             return;
-        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == rss_namespace_ + "image") {
+
+        xml_parser_.getNext(&part);
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == rss_namespace_ + "image") {
             if (unlikely(not xml_parser_.skipTo(XMLParser::XMLPart::CLOSING_TAG, rss_namespace_ + "image")))
                 throw std::runtime_error("in RDF::RDF: closing image tag not found!");
         } else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == rss_namespace_ + "title")
