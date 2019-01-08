@@ -91,13 +91,18 @@ void WriteRSSFeedXMLOutput(const IniFile &ini_file, std::vector<HarvestedRSSItem
     xml_writer->writeTagsWithEscapedData("description", ini_file.getString("Channel", "description"));
 
     for (const auto &harvested_item : *harvested_items) {
-        const auto description(harvested_item.item_.getDescription().empty() ? harvested_item.item_.getTitle()
-                                                                             : harvested_item.item_.getDescription());
-
         xml_writer->openTag("item");
-        xml_writer->writeTagsWithEscapedData("title", harvested_item.item_.getTitle());
+
+        const auto title(harvested_item.item_.getTitle());
+        if (not title.empty())
+            xml_writer->writeTagsWithEscapedData("title", harvested_item.item_.getTitle());
+
         xml_writer->writeTagsWithEscapedData("link", harvested_item.item_.getLink());
-        xml_writer->writeTagsWithEscapedData("description", description);
+
+        const auto description(harvested_item.item_.getDescription());
+        if (not description.empty())
+            xml_writer->writeTagsWithEscapedData("description", description);
+
         xml_writer->writeTagsWithEscapedData("pubDate",
                                              TimeUtil::TimeTToString(harvested_item.item_.getPubDate(), TimeUtil::RFC822_FORMAT,
                                                                      TimeUtil::UTC));
