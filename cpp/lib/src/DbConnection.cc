@@ -422,7 +422,7 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
     if (::mysql_real_connect(&mysql_, host.c_str(), user.c_str(), passwd.c_str(), nullptr, port,
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage() + ")");
-    if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
+    if (::mysql_set_character_set(&mysql_, CharsetToString(charset).c_str()) != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
 
     sqlite3_ = nullptr;
@@ -432,12 +432,22 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
 }
 
 
+std::string DbConnection::CharsetToString(const Charset charset) {
+    switch (charset) {
+    case UTF8MB3:
+        return "utf8";
+    case UTF8MB4:
+        return "utf8mb4";
+    }
+}
+
+
 void DbConnection::MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user,
                                        const std::string &admin_passwd, const std::string &host,
                                        const unsigned port, const Charset charset)
 {
     DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-    db_connection.queryOrDie("CREATE DATABASE " + database_name + ";");
+    db_connection.queryOrDie("CREATE DATABASE " + database_name + " CHARACTER SET " + CharsetToString(charset) + ";");
 }
 
 
