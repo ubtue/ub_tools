@@ -353,7 +353,7 @@ void ProcessSingleUser(
         std::string max_last_modification_time(control_number_or_bundle_name_and_last_modification_time.last_modification_time_);
         if (StringUtil::StartsWith(control_number_or_bundle_name_and_last_modification_time.serial_control_number_, "bundle:")) {
             const std::string bundle_name(
-                control_number_or_bundle_name_and_last_modification_time.serial_control_number_.substr(__builtin_strlen("bundle:")));
+                control_number_or_bundle_name_and_last_modification_time.serial_control_number_);
             std::vector<std::string> bundle_control_numbers;
             LoadBundleControlNumbers(bundles_config, bundle_name, &bundle_control_numbers);
             for (const auto &bundle_control_number : bundle_control_numbers) {

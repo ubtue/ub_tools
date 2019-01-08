@@ -1,0 +1,9 @@
+[Unit]
+Description=RSS Aggregator (RelBib)
+
+[Service]
+Type=forking
+ExecStart=/usr/local/bin/rss_aggregator --sort-by-date /usr/local/vufind/public/relbib_docs/news.rss
+
+[Install]
+WantedBy=multi-user.target
