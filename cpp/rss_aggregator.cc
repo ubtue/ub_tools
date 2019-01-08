@@ -32,6 +32,7 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "SignalUtil.h"
+#include "SqlUtil.h"
 #include "StringUtil.h"
 #include "SyndicationFormat.h"
 #include "UBTools.h"
@@ -59,38 +60,29 @@ void SigHupHandler(int /* signum */) {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--test] [--sort-by-date] [--config-file=config_file_path] xml_output_path\n"
-            "       When --test has been specified no data will be stored.\n"
+    ::Usage("[--one-shot] [--config-file=config_file_path] [--process-name=new_process_name] xml_output_path\n"
+            "       When --one-shot has been specified the program does not daemonise and exits after generating the feed XML.\n"
             "       The default config file path is \"" + UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf\".");
 }
-
 
 // These must be in sync with the sizes in data/ub_tools.sql (rss_aggregator table)
 const size_t MAX_ITEM_ID_LENGTH(100);
 const size_t MAX_ITEM_URL_LENGTH(512);
+const size_t MAX_ITEM_TITLE_LENGTH(200);
 const size_t MAX_SERIAL_NAME_LENGTH(200);
 
 
 struct HarvestedRSSItem {
     SyndicationFormat::Item item_;
-    std::string item_id_;
     std::string feed_title_;
     std::string feed_url_;
 
-    HarvestedRSSItem(const SyndicationFormat::Item item, const std::string item_id, const std::string feed_title, const std::string feed_url)
-        : item_(item), item_id_(item_id), feed_title_(feed_title), feed_url_(feed_url) {}
+    HarvestedRSSItem(const SyndicationFormat::Item item, const std::string feed_title, const std::string feed_url)
+        : item_(item), feed_title_(feed_title), feed_url_(feed_url) {}
 };
 
 
-void WriteRSSFeedXMLOutput(const bool sort_by_date, const IniFile &ini_file, std::vector<HarvestedRSSItem> * const harvested_items,
-                           XmlWriter * const xml_writer)
-{
-    if (sort_by_date) {
-        std::sort(harvested_items->begin(), harvested_items->end(), [](const HarvestedRSSItem &a, const HarvestedRSSItem &b) {
-            return a.item_.getPubDate() > b.item_.getPubDate();
-        });
-    }
-
+void WriteRSSFeedXMLOutput(const IniFile &ini_file, std::vector<HarvestedRSSItem> * const harvested_items, XmlWriter * const xml_writer) {
     xml_writer->openTag("rss", { { "version", "2.0" }, { "xmlns:tuefind", "https://github.com/ubtue/tuefind" } });
     xml_writer->openTag("channel");
     xml_writer->writeTagsWithEscapedData("title", ini_file.getString("Channel", "title"));
@@ -98,17 +90,22 @@ void WriteRSSFeedXMLOutput(const bool sort_by_date, const IniFile &ini_file, std
     xml_writer->writeTagsWithEscapedData("description", ini_file.getString("Channel", "description"));
 
     for (const auto &harvested_item : *harvested_items) {
-        const auto description(harvested_item.item_.getDescription().empty() ? harvested_item.item_.getTitle()
-                                                                             : harvested_item.item_.getDescription());
-
         xml_writer->openTag("item");
-        xml_writer->writeTagsWithEscapedData("title", harvested_item.item_.getTitle());
+
+        const auto title(harvested_item.item_.getTitle());
+        if (not title.empty())
+            xml_writer->writeTagsWithEscapedData("title", harvested_item.item_.getTitle());
+
         xml_writer->writeTagsWithEscapedData("link", harvested_item.item_.getLink());
-        xml_writer->writeTagsWithEscapedData("description", description);
+
+        const auto description(harvested_item.item_.getDescription());
+        if (not description.empty())
+            xml_writer->writeTagsWithEscapedData("description", description);
+
         xml_writer->writeTagsWithEscapedData("pubDate",
                                              TimeUtil::TimeTToString(harvested_item.item_.getPubDate(), TimeUtil::RFC822_FORMAT,
                                                                      TimeUtil::UTC));
-        xml_writer->writeTagsWithEscapedData("guid", harvested_item.item_id_);
+        xml_writer->writeTagsWithEscapedData("guid", harvested_item.item_.getId());
         xml_writer->writeTagsWithEscapedData("tuefind:rss_title", harvested_item.feed_title_);
         xml_writer->writeTagsWithEscapedData("tuefind:rss_url", harvested_item.feed_url_);
         xml_writer->closeTag("item", /* suppress_indent */ false);
@@ -120,8 +117,8 @@ void WriteRSSFeedXMLOutput(const bool sort_by_date, const IniFile &ini_file, std
 
 
 // \return true if the item was new, else false.
-bool ProcessRSSItem(const bool test, std::vector<HarvestedRSSItem> * const harvested_items, const SyndicationFormat::Item &item,
-                    const std::string &section_name, const std::string &feed_url, DbConnection * const db_connection)
+bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &section_name, const std::string &feed_url,
+                    DbConnection * const db_connection)
 {
     const std::string item_id(item.getId());
     db_connection->queryOrDie("SELECT insertion_time FROM rss_aggregator WHERE item_id='" + db_connection->escapeString(item_id) + "'");
@@ -135,25 +132,16 @@ bool ProcessRSSItem(const bool test, std::vector<HarvestedRSSItem> * const harve
         return false;
     }
 
-    std::string title_and_or_description(item.getTitle());
-    if (title_and_or_description.empty())
-        title_and_or_description = item.getDescription();
-    else {
-        const std::string description(item.getDescription());
-        if (not description.empty())
-            title_and_or_description += " (" + description + ")";
-    }
-
-    harvested_items->emplace_back(item, item_id, section_name, feed_url);
-
-    if (not test)
-        db_connection->insertIntoTableOrDie("rss_aggregator",
-                                            {
-                                                { "item_id",                  StringUtil::Truncate(MAX_ITEM_ID_LENGTH, item_id)          },
-                                                { "item_url",                 StringUtil::Truncate(MAX_ITEM_URL_LENGTH, item_url)        },
-                                                { "title_and_or_description", title_and_or_description                                   },
-                                                { "serial_name",              StringUtil::Truncate(MAX_SERIAL_NAME_LENGTH, section_name) }
-                                            });
+    db_connection->insertIntoTableOrDie("rss_aggregator",
+                                        {
+                                            { "item_id",          StringUtil::Truncate(MAX_ITEM_ID_LENGTH, item_id)            },
+                                            { "item_url",         StringUtil::Truncate(MAX_ITEM_URL_LENGTH, item_url)          },
+                                            { "item_title",       StringUtil::Truncate(MAX_ITEM_TITLE_LENGTH, item.getTitle()) },
+                                            { "item_description", item.getDescription()                                        },
+                                            { "serial_name",      StringUtil::Truncate(MAX_SERIAL_NAME_LENGTH, section_name)   },
+                                            { "feed_url",         StringUtil::Truncate(MAX_ITEM_URL_LENGTH, feed_url)          },
+                                            { "pub_date",         SqlUtil::TimeTToDatetime(item.getPubDate())                  }
+                                        });
 
     return true;
 }
@@ -180,7 +168,7 @@ std::unordered_map<std::string, uint64_t> section_name_to_ticks_map;
 
 
 // \return the number of new items.
-unsigned ProcessSection(const bool test, std::vector<HarvestedRSSItem> * const harvested_items, const IniFile::Section &section,
+unsigned ProcessSection(const bool one_shot, const IniFile::Section &section,
                         Downloader * const downloader, DbConnection * const db_connection, const unsigned default_downloader_time_limit,
                         const unsigned default_poll_interval, const uint64_t now)
 {
@@ -192,7 +180,7 @@ unsigned ProcessSection(const bool test, std::vector<HarvestedRSSItem> * const h
     augment_params.strptime_format_ = section.getString("strptime_format", "");
     const std::string &section_name(section.getSectionName());
 
-    if (test) {
+    if (one_shot) {
         std::cout << "Processing section \"" << section_name << "\":\n"
                   << "\tfeed_url: " << feed_url << '\n'
                   << "\tpoll_interval: " << poll_interval << " (ignored)\n"
@@ -204,8 +192,7 @@ unsigned ProcessSection(const bool test, std::vector<HarvestedRSSItem> * const h
         if (section_name_and_ticks->second + poll_interval < now) {
             LOG_DEBUG(section_name + ": not yet time to do work, last work was done at " + std::to_string(section_name_and_ticks->second)
                       + ".");
-            if (not test)
-                return 0;
+            return 0;
         }
     }
 
@@ -215,7 +202,7 @@ unsigned ProcessSection(const bool test, std::vector<HarvestedRSSItem> * const h
         LOG_WARNING(section_name + ": failed to download the feed: " + downloader->getLastErrorMessage());
     else {
         sigterm_blocker.unblock();
-        if (not test)
+        if (not one_shot)
             CheckForSigTermAndExitIfSeen();
 
         std::string error_message;
@@ -225,11 +212,11 @@ unsigned ProcessSection(const bool test, std::vector<HarvestedRSSItem> * const h
             LOG_WARNING("failed to parse feed: " + error_message);
         else {
             for (const auto &item : *syndication_format) {
-                if (not test)
+                if (not one_shot)
                     CheckForSigTermAndExitIfSeen();
                 SignalUtil::SignalBlocker sigterm_blocker2(SIGTERM);
 
-                if (ProcessRSSItem(test, harvested_items, item, section_name, feed_url, db_connection))
+                if (ProcessRSSItem(item, section_name, feed_url, db_connection))
                     ++new_item_count;
             }
         }
@@ -237,6 +224,21 @@ unsigned ProcessSection(const bool test, std::vector<HarvestedRSSItem> * const h
 
     section_name_to_ticks_map[section_name] = now;
     return new_item_count;
+}
+
+
+const unsigned HARVEST_TIME_WINDOW(60); // days
+
+
+size_t SelectItems(DbConnection * const db_connection, std::vector<HarvestedRSSItem> * const harvested_items) {
+    db_connection->queryOrDie("SELECT * FROM rss_aggregator WHERE pub_date >= NOW() - " + std::to_string(HARVEST_TIME_WINDOW)
+                              + "* 86400 ORDER BY pub_date DESC");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    while (const DbRow row = result_set.getNextRow())
+        harvested_items->emplace_back(SyndicationFormat::Item(row["item_title"], row["item_description"], row["item_url"], row["item_id"],
+                                                              SqlUtil::DatetimeToTimeT(row["pub_date"])),
+                                      row["serial_name"], row["item_url"]);
+    return result_set.size();
 }
 
 
@@ -250,17 +252,9 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
-    bool test(false);
-    if (std::strcmp(argv[1], "--test") == 0) {
-        test = true;
-        --argc, ++argv;
-    }
-    if (argc < 2)
-        Usage();
-
-    bool sort_by_date(false);
-    if (std::strcmp(argv[1], "--sort-by-date") == 0) {
-        sort_by_date = true;
+    bool one_shot(false);
+    if (std::strcmp(argv[1], "--one-shot") == 0) {
+        one_shot = true;
         --argc, ++argv;
     }
     if (argc < 2)
@@ -282,7 +276,7 @@ int Main(int argc, char *argv[]) {
     const unsigned DEFAULT_DOWNLOADER_TIME_LIMIT(ini_file.getUnsigned("", "default_downloader_time_limit"));
     const unsigned UPDATE_INTERVAL(ini_file.getUnsigned("", "update_interval"));
 
-    if (not test) {
+    if (not one_shot) {
         SignalUtil::InstallHandler(SIGTERM, SigTermHandler);
         SignalUtil::InstallHandler(SIGHUP, SigHupHandler);
 
@@ -291,7 +285,6 @@ int Main(int argc, char *argv[]) {
     }
 
     const std::string xml_output_filename(argv[1]);
-    std::vector<HarvestedRSSItem> harvested_items;
 
     uint64_t ticks(0);
     Downloader downloader;
@@ -299,7 +292,6 @@ int Main(int argc, char *argv[]) {
         LOG_DEBUG("now we're at " + std::to_string(ticks) + ".");
 
         CheckForSigHupAndReloadIniFileIfSeen(&ini_file);
-        harvested_items.clear();
 
         const time_t before(std::time(nullptr));
 
@@ -319,20 +311,23 @@ int Main(int argc, char *argv[]) {
                 already_seen_sections.emplace(section_name);
 
                 LOG_INFO("Processing section \"" + section_name + "\".");
-                const unsigned new_item_count(ProcessSection(test, &harvested_items, section, &downloader, &db_connection,
+                const unsigned new_item_count(ProcessSection(one_shot, section, &downloader, &db_connection,
                                                              DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL, ticks));
                 LOG_INFO("found " + std::to_string(new_item_count) + " new items.");
             }
         }
 
+        std::vector<HarvestedRSSItem> harvested_items;
+        SelectItems(&db_connection, &harvested_items);
+
         // scoped here so that we flush and close the output file right away
         {
             XmlWriter xml_writer(FileUtil::OpenOutputFileOrDie(xml_output_filename).release(),
-                                XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
-            WriteRSSFeedXMLOutput(sort_by_date, ini_file, &harvested_items, &xml_writer);
+                                 XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
+            WriteRSSFeedXMLOutput(ini_file, &harvested_items, &xml_writer);
         }
 
-        if (test) // -> only run through our loop once
+        if (one_shot) // -> only run through our loop once
             return EXIT_SUCCESS;
 
         const time_t after(std::time(nullptr));
