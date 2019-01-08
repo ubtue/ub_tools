@@ -155,7 +155,7 @@ std::unique_ptr<SyndicationFormat> SyndicationFormat::Factory(const std::string 
 
 RSS20::RSS20(const std::string &xml_document, const AugmentParams &augment_params): SyndicationFormat(xml_document, augment_params) {
     XMLParser::XMLPart part;
-    while (xml_parser_.peek(&part)) {
+    while (xml_parser_.getNext(&part)) {
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "item")
             return;
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "image") {
