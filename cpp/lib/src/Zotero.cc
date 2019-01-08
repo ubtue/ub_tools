@@ -1305,7 +1305,8 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
 
     const std::string feed_id(mode == RSSHarvestMode::TEST ? "" : GetFeedID(mode, db_connection, feed_url));
     for (const auto &item : *syndication_format) {
-        if (mode != RSSHarvestMode::TEST and ItemAlreadyProcessed(db_connection, feed_id, item.getId()))
+        const auto item_id(item.getId());
+        if (mode != RSSHarvestMode::TEST and ItemAlreadyProcessed(db_connection, feed_id, item_id))
             continue;
 
         const std::string title(item.getTitle());
@@ -1318,8 +1319,7 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
 
         if (mode != RSSHarvestMode::TEST)
             db_connection->queryOrDie("INSERT INTO rss_items SET feed_id='" + feed_id + "',item_id='"
-                                      + db_connection->escapeString(item.getId()) + "'");
-
+                                      + SqlUtil::TruncateToVarCharMaxLength(db_connection->escapeString(item_id)) + "'");
     }
     if (mode != RSSHarvestMode::TEST)
         UpdateLastBuildDate(db_connection, feed_url, last_build_date);
