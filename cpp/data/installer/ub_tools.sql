@@ -11,7 +11,7 @@ CREATE TABLE rss_aggregator (
     item_description TEXT NOT NULL,
     serial_name VARCHAR(200) NOT NULL,
     feed_url VARCHAR(512) NOT NULL,
-    pub_date TIMESTAMP NOT NULL,
+    pub_date DATETIME NOT NULL,
     insertion_time TIMESTAMP DEFAULT NOW() NOT NULL,
     UNIQUE (item_id)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
