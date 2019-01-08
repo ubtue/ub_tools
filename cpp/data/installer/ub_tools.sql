@@ -79,7 +79,6 @@ CREATE INDEX marc_records_hash_index ON marc_records(hash);
 CREATE INDEX marc_records_zeder_id_index ON marc_records(zeder_id);
 CREATE INDEX marc_records_created_at_index ON marc_records(created_at);
 CREATE INDEX marc_records_main_title_index ON marc_records(main_title);
-CREATE INDEX marc_records_superior_control_number_index ON marc_records(superior_control_number);
 
 CREATE TABLE superior_info (
     zeder_id VARCHAR(10) PRIMARY KEY,
