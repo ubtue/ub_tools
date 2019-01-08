@@ -60,11 +60,10 @@ void SigHupHandler(int /* signum */) {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--test] [--config-file=config_file_path] [--process-name=new_process_name] xml_output_path\n"
-            "       When --test has been specified no data will be stored.\n"
+    ::Usage("[--one-shot] [--config-file=config_file_path] [--process-name=new_process_name] xml_output_path\n"
+            "       When --one-shot has been specified the program does not daemonise and exits after generating the feed XML.\n"
             "       The default config file path is \"" + UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf\".");
 }
-
 
 // These must be in sync with the sizes in data/ub_tools.sql (rss_aggregator table)
 const size_t MAX_ITEM_ID_LENGTH(100);
@@ -169,7 +168,7 @@ std::unordered_map<std::string, uint64_t> section_name_to_ticks_map;
 
 
 // \return the number of new items.
-unsigned ProcessSection(const bool test, const IniFile::Section &section,
+unsigned ProcessSection(const bool one_shot, const IniFile::Section &section,
                         Downloader * const downloader, DbConnection * const db_connection, const unsigned default_downloader_time_limit,
                         const unsigned default_poll_interval, const uint64_t now)
 {
@@ -181,7 +180,7 @@ unsigned ProcessSection(const bool test, const IniFile::Section &section,
     augment_params.strptime_format_ = section.getString("strptime_format", "");
     const std::string &section_name(section.getSectionName());
 
-    if (test) {
+    if (one_shot) {
         std::cout << "Processing section \"" << section_name << "\":\n"
                   << "\tfeed_url: " << feed_url << '\n'
                   << "\tpoll_interval: " << poll_interval << " (ignored)\n"
@@ -203,7 +202,7 @@ unsigned ProcessSection(const bool test, const IniFile::Section &section,
         LOG_WARNING(section_name + ": failed to download the feed: " + downloader->getLastErrorMessage());
     else {
         sigterm_blocker.unblock();
-        if (not test)
+        if (not one_shot)
             CheckForSigTermAndExitIfSeen();
 
         std::string error_message;
@@ -213,7 +212,7 @@ unsigned ProcessSection(const bool test, const IniFile::Section &section,
             LOG_WARNING("failed to parse feed: " + error_message);
         else {
             for (const auto &item : *syndication_format) {
-                if (not test)
+                if (not one_shot)
                     CheckForSigTermAndExitIfSeen();
                 SignalUtil::SignalBlocker sigterm_blocker2(SIGTERM);
 
@@ -253,9 +252,9 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
-    bool test(false);
-    if (std::strcmp(argv[1], "--test") == 0) {
-        test = true;
+    bool one_shot(false);
+    if (std::strcmp(argv[1], "--one-shot") == 0) {
+        one_shot = true;
         --argc, ++argv;
     }
     if (argc < 2)
@@ -277,7 +276,7 @@ int Main(int argc, char *argv[]) {
     const unsigned DEFAULT_DOWNLOADER_TIME_LIMIT(ini_file.getUnsigned("", "default_downloader_time_limit"));
     const unsigned UPDATE_INTERVAL(ini_file.getUnsigned("", "update_interval"));
 
-    if (not test) {
+    if (not one_shot) {
         SignalUtil::InstallHandler(SIGTERM, SigTermHandler);
         SignalUtil::InstallHandler(SIGHUP, SigHupHandler);
 
@@ -312,7 +311,7 @@ int Main(int argc, char *argv[]) {
                 already_seen_sections.emplace(section_name);
 
                 LOG_INFO("Processing section \"" + section_name + "\".");
-                const unsigned new_item_count(ProcessSection(test, section, &downloader, &db_connection,
+                const unsigned new_item_count(ProcessSection(one_shot, section, &downloader, &db_connection,
                                                              DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL, ticks));
                 LOG_INFO("found " + std::to_string(new_item_count) + " new items.");
             }
@@ -328,7 +327,7 @@ int Main(int argc, char *argv[]) {
             WriteRSSFeedXMLOutput(ini_file, &harvested_items, &xml_writer);
         }
 
-        if (test) // -> only run through our loop once
+        if (one_shot) // -> only run through our loop once
             return EXIT_SUCCESS;
 
         const time_t after(std::time(nullptr));
