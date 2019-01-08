@@ -34,6 +34,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <signal.h>
+#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -361,6 +362,19 @@ std::unordered_set<unsigned> FindActivePrograms(const std::string &program_name)
     std::unordered_set<unsigned> pids;
     FindActivePrograms(program_name, &pids);
     return pids;
+}
+
+
+bool SetProcessName(char *argv0, const std::string &new_process_name) {
+    if (new_process_name.length() > std::strlen(argv0))
+        return false;
+    constexpr size_t MAX_PR_SET_NAME_LENGTH(16 - 1);
+    if (new_process_name.length() > MAX_PR_SET_NAME_LENGTH)
+        return false;
+
+    std::memset(argv0, 0, std::strlen(argv0));
+    std::strcpy(argv0, new_process_name.c_str());
+    return ::prctl(PR_SET_NAME, (unsigned long)new_process_name.c_str(), 0) == 0;
 }
 
 
