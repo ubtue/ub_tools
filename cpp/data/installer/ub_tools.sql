@@ -86,10 +86,3 @@ CREATE TABLE superior_info (
     title VARCHAR(191) NOT NULL,
     CONSTRAINT zeder_id FOREIGN KEY (zeder_id) REFERENCES marc_records (zeder_id) ON DELETE CASCADE
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-
-CREATE TABLE marc_authors (
-    marc_records_id INT AUTO_INCREMENT PRIMARY KEY,
-    author VARCHAR(191) NOT NULL,
-    CONSTRAINT marc_records_id FOREIGN KEY (marc_records_id) REFERENCES marc_records (id) ON DELETE CASCADE
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE INDEX marc_authors_author_index ON marc_authors(author);

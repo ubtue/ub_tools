@@ -1306,9 +1306,6 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
     const std::string feed_id(mode == RSSHarvestMode::TEST ? "" : GetFeedID(mode, db_connection, feed_url));
     for (const auto &item : *syndication_format) {
         std::string item_id(item.getId());
-        if (item_id.empty())
-            item_id = item.getLink();   // ensure that the item id is never empty
-
         if (mode != RSSHarvestMode::TEST and ItemAlreadyProcessed(db_connection, feed_id, item_id))
             continue;
 
