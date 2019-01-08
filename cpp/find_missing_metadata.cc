@@ -1,7 +1,7 @@
 /** \brief Utility for finding missing metadata that we used to get in the past.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -115,8 +115,7 @@ void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, con
                                          JournalInfo * const journal_info)
 {
     db_connection->queryOrDie("SELECT metadata_field_name,field_presence FROM metadata_presence_tracer WHERE journal_name='"
-                              + db_connection->escapeString(journal_name)
-                              + "'");
+                              + db_connection->escapeString(journal_name) + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty()) {
         LOG_INFO("\"" + journal_name + "\" was not yet in the database.");
@@ -131,12 +130,22 @@ void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, con
 }
 
 
+const std::map<MARC::Tag, MARC::Tag> EQUIVALENT_TAGS_MAP{
+    { "700", "100" },
+};
+
+
 void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record, JournalInfo * const journal_info) {
     std::unordered_set<std::string> seen_tags;
     MARC::Tag last_tag;
     for (const auto &field : record) {
-        const auto current_tag(field.getTag());
-        if (current_tag == last_tag)
+        auto current_tag(field.getTag());
+
+        const auto tag_and_replacement_tag(EQUIVALENT_TAGS_MAP.find(current_tag));
+        if (tag_and_replacement_tag != EQUIVALENT_TAGS_MAP.cend())
+            current_tag = tag_and_replacement_tag->second;
+
+        if (seen_tags.find(current_tag.toString()) != seen_tags.cend())
             continue;
         seen_tags.emplace(current_tag.toString());
 
