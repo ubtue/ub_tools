@@ -7,8 +7,10 @@
 CREATE TABLE rss_aggregator (
     item_id VARCHAR(191) NOT NULL,
     item_url VARCHAR(512) NOT NULL,
-    title_and_or_description TEXT NOT NULL,
+    item_title VARCHAR(200) NOT NULL,
+    item_description TEXT NOT NULL,
     serial_name VARCHAR(200) NOT NULL,
+    feed_url VARCHAR(512) NOT NULL,
     pub_date TIMESTAMP NOT NULL,
     insertion_time TIMESTAMP DEFAULT NOW() NOT NULL,
     UNIQUE (item_id)

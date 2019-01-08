@@ -36,9 +36,8 @@ public:
         time_t pub_date_;
         std::unordered_map<std::string, std::string> dc_and_prism_data_;
     public:
-        Item(const std::string &title, const std::string &description, const std::string &link, const std::string &id,
-             const time_t pub_date, const std::unordered_map<std::string, std::string> &dc_and_prism_data
-             = std::unordered_map<std::string, std::string>())
+        Item(const std::string &title, const std::string &description, const std::string &link, const std::string &id, const time_t pub_date,
+             const std::unordered_map<std::string, std::string> &dc_and_prism_data = std::unordered_map<std::string, std::string>())
             : title_(title), description_(description), link_(link), id_(id), pub_date_(pub_date),
               dc_and_prism_data_(dc_and_prism_data) { }
         inline bool operator==(const Item &rhs) const { return pub_date_ == rhs.pub_date_ and description_ == rhs.description_; }
