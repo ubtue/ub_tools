@@ -27,8 +27,8 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage("username password db_name sql_file\n\n"
-            "\tCompare an existing MySQL Database against a sql file with CREATE TABLE statements.\n"
-            "\tUses \"mysqldiff\" from \"mysql-utilities\".");
+            "Compare an existing MySQL Database against a sql file with CREATE TABLE statements.\n"
+            "Uses \"mysqldiff\" from \"mysql-utilities\".");
 }
 
 
@@ -64,9 +64,12 @@ int Main(int argc, char *argv[]) {
     db_connection.mySQLSelectDatabase(temporary_database_name);
     db_connection.queryFileOrDie(sql_file);
 
-    const int exec_result(ExecUtil::Exec(MYSQLDIFF_EXECUTABLE, { "--force",
-                                                                 "--server1=" + user + ":" + passwd + "@" + host + ":" + std::to_string(port),
-                                                                 database_name + ":" + temporary_database_name }));
+    const int exec_result(ExecUtil::Exec(MYSQLDIFF_EXECUTABLE,
+                                         {
+                                             "--force",
+                                             "--server1=" + user + ":" + passwd + "@" + host + ":" + std::to_string(port),
+                                             database_name + ":" + temporary_database_name
+                                          }));
 
     CleanupTemporaryDatabase(db_connection, temporary_database_name);
     return exec_result;

@@ -56,6 +56,8 @@ data_install: Makefile data/*.conf data/*.map data/IxTheo_Notation.csv data/stop
 	cp -r data/full_text_cache_monitor /usr/local/var/lib/tuelib/
 	cp -r data/translate_chainer /usr/local/var/lib/tuelib/
 	cp -r data/zotero_cgi /usr/local/var/lib/tuelib/
+	mkdir --parents /usr/local/var/lib/tuelib/language_models
+	cp data/language_models/*.lm /usr/local/var/lib/tuelib/language_models
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
 
