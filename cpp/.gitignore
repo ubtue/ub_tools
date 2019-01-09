@@ -121,6 +121,7 @@
 /merge_print_and_online
 /missing_metadata_db_tool
 /mpi_stats
+/mysql_schema_diff
 /new_journal_alert
 /normalise_and_deduplicate_language
 /normalise_author_name
