@@ -142,6 +142,10 @@ public:
                                     const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
                                     const Charset charset = UTF8MB4);
 
+    static bool MySQLDropDatabase(const std::string &database_name, const std::string &user, const std::string &passwd,
+                                  const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                  const Charset charset = UTF8MB4);
+
     static void MySQLImportFile(const std::string &sql_file, const std::string &database_name, const std::string &user,
                                 const std::string &passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
                                 const Charset charset = UTF8MB4);
