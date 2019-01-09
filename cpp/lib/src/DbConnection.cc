@@ -493,6 +493,19 @@ bool DbConnection::MySQLDatabaseExists(const std::string &database_name, const s
 }
 
 
+bool DbConnection::MySQLDropDatabase(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
+                                     const std::string &host, const unsigned port, const Charset charset)
+{
+    if (not MySQLDatabaseExists(database_name, admin_user, admin_passwd, host, port, charset))
+        return false;
+
+    DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
+    db_connection.queryOrDie("DROP DATABASE " + database_name + ";");
+
+    return (not MySQLDatabaseExists(database_name, admin_user, admin_passwd, host, port, charset));
+}
+
+
 void DbConnection::MySQLImportFile(const std::string &sql_file, const std::string &database_name, const std::string &user,
                                    const std::string &passwd, const std::string &host, const unsigned port, const Charset charset)
 {
