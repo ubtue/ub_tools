@@ -126,9 +126,13 @@ public:
 
     std::vector<std::string> mySQLGetDatabaseList();
 
+    std::vector<std::string> mySQLGetTableList();
+
     void mySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user);
 
     void mySQLSelectDatabase(const std::string &database_name);
+
+    void mySQLSyncMultipleResults();
 private:
     /** \note This constructor is for operations which do not require any existing database.
      *        It should only be used in static functions.
