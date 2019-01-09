@@ -255,9 +255,12 @@ bool DbConnection::queryFile(const std::string &filename) {
     if (not FileUtil::ReadString(filename, &statements))
         LOG_ERROR("failed to read \"" + filename + "\"!");
 
-    if (type_ == T_MYSQL)
-        return query(StringUtil::TrimWhite(&statements));
-    else {
+    if (type_ == T_MYSQL) {
+        const bool query_result(query(StringUtil::TrimWhite(&statements)));
+        if (query_result)
+            mySQLSyncMultipleResults();
+        return query_result;
+    } else {
         std::vector<std::string> individual_statements;
         SplitSqliteStatements(statements, &individual_statements);
         for (const auto &statement : individual_statements) {
@@ -275,9 +278,10 @@ void DbConnection::queryFileOrDie(const std::string &filename) {
     if (not FileUtil::ReadString(filename, &statements))
         LOG_ERROR("failed to read \"" + filename + "\"!");
 
-    if (type_ == T_MYSQL)
-        return queryOrDie(StringUtil::TrimWhite(&statements));
-    else {
+    if (type_ == T_MYSQL) {
+        queryOrDie(StringUtil::TrimWhite(&statements));
+        mySQLSyncMultipleResults();
+    } else {
         std::vector<std::string> individual_statements;
         SplitSqliteStatements(statements, &individual_statements);
         for (const auto &statement : individual_statements)
@@ -471,9 +475,21 @@ std::vector<std::string> DbConnection::mySQLGetDatabaseList() {
     std::vector<std::string> databases;
     DbResultSet result_set(getLastResultSet());
     while (const DbRow result_row = result_set.getNextRow())
-        databases.emplace_back(result_row["Database"]);
+        databases.emplace_back(result_row[0]);
 
     return databases;
+}
+
+
+std::vector<std::string> DbConnection::mySQLGetTableList() {
+    queryOrDie("SHOW TABLES;");
+
+    std::vector<std::string> tables;
+    DbResultSet result_set(getLastResultSet());
+    while (const DbRow result_row = result_set.getNextRow())
+        tables.emplace_back(result_row[0]);
+
+    return tables;
 }
 
 
@@ -487,6 +503,17 @@ void DbConnection::mySQLSelectDatabase(const std::string& database_name) {
 }
 
 
+void DbConnection::mySQLSyncMultipleResults() {
+    int next_result_exists;
+    do {
+        MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
+        if (result_set != nullptr)
+            ::mysql_free_result(result_set);
+        next_result_exists = ::mysql_next_result(&mysql_);
+    } while (next_result_exists == 0);
+}
+
+
 void DbConnection::MySQLImportFile(const std::string &sql_file, const std::string &database_name, const std::string &user,
                                    const std::string &passwd, const std::string &host, const unsigned port, const Charset charset)
 {
@@ -496,4 +523,5 @@ void DbConnection::MySQLImportFile(const std::string &sql_file, const std::strin
     DbConnection db_connection(database_name, user, passwd, host, port, charset);
     ::mysql_set_server_option(&db_connection.mysql_, MYSQL_OPTION_MULTI_STATEMENTS_ON);
     db_connection.queryOrDie(sql_data);
+    db_connection.mySQLSyncMultipleResults();
 }
