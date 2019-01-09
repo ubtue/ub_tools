@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -19,7 +19,6 @@
  */
 #include "DbConnection.h"
 #include <stdexcept>
-#include <vector>
 #include <cstdlib>
 #include "FileUtil.h"
 #include "IniFile.h"
@@ -422,7 +421,7 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
     if (::mysql_real_connect(&mysql_, host.c_str(), user.c_str(), passwd.c_str(), nullptr, port,
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage() + ")");
-    if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
+    if (::mysql_set_character_set(&mysql_, CharsetToString(charset).c_str()) != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
 
     sqlite3_ = nullptr;
@@ -432,54 +431,59 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
 }
 
 
-void DbConnection::MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user,
-                                       const std::string &admin_passwd, const std::string &host,
-                                       const unsigned port, const Charset charset)
-{
-    DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-    db_connection.queryOrDie("CREATE DATABASE " + database_name + ";");
+std::string DbConnection::CharsetToString(const Charset charset) {
+    switch (charset) {
+    case UTF8MB3:
+        return "utf8";
+    case UTF8MB4:
+        return "utf8mb4";
+    }
 }
 
 
-void DbConnection::MySQLCreateUser(const std::string &new_user, const std::string &new_passwd,
-                                   const std::string &admin_user, const std::string &admin_passwd,
-                                   const std::string &host, const unsigned port, const Charset charset)
-{
-    DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-    db_connection.queryOrDie("CREATE USER " + new_user + " IDENTIFIED BY '" + new_passwd + "';");
+void DbConnection::mySQLCreateDatabase(const std::string &database_name, const Charset charset) {
+    queryOrDie("CREATE DATABASE " + database_name + " CHARACTER SET " + CharsetToString(charset) + ";");
 }
 
 
-void DbConnection::MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user,
-                                           const std::string &admin_user, const std::string &admin_passwd,
-                                           const std::string &host, const unsigned port, const Charset charset)
-{
-    DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-    db_connection.queryOrDie("GRANT ALL PRIVILEGES ON " + database_name + ".* TO '" + database_user + "';");
+void DbConnection::mySQLCreateUser(const std::string &new_user, const std::string &new_passwd) {
+    queryOrDie("CREATE USER " + new_user + " IDENTIFIED BY '" + new_passwd + "';");
 }
 
 
-std::vector<std::string> DbConnection::MySQLGetDatabaseList(const std::string &admin_user, const std::string &admin_passwd,
-                                                            const std::string &host, const unsigned port, const Charset charset)
-{
-    DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-    db_connection.queryOrDie("SHOW DATABASES;");
+bool DbConnection::mySQLDatabaseExists(const std::string &database_name) {
+    std::vector<std::string> databases(mySQLGetDatabaseList());
+    return (std::find(databases.begin(), databases.end(), database_name) != databases.end());
+}
+
+
+bool DbConnection::mySQLDropDatabase(const std::string &database_name) {
+    if (not mySQLDatabaseExists(database_name))
+        return false;
+    queryOrDie("DROP DATABASE " + database_name + ";");
+    return (not mySQLDatabaseExists(database_name));
+}
+
+
+std::vector<std::string> DbConnection::mySQLGetDatabaseList() {
+    queryOrDie("SHOW DATABASES;");
 
     std::vector<std::string> databases;
-    DbResultSet result_set(db_connection.getLastResultSet());
-    while (const DbRow result_row = result_set.getNextRow()) {
+    DbResultSet result_set(getLastResultSet());
+    while (const DbRow result_row = result_set.getNextRow())
         databases.emplace_back(result_row["Database"]);
-    }
 
     return databases;
 }
 
 
-bool DbConnection::MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
-                                       const std::string &host, const unsigned port, const Charset charset)
-{
-    std::vector<std::string> databases(DbConnection::MySQLGetDatabaseList(admin_user, admin_passwd, host, port, charset));
-    return (std::find(databases.begin(), databases.end(), database_name) != databases.end());
+void DbConnection::mySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user) {
+    queryOrDie("GRANT ALL PRIVILEGES ON " + database_name + ".* TO '" + database_user + "';");
+}
+
+
+void DbConnection::mySQLSelectDatabase(const std::string& database_name) {
+    ::mysql_select_db(&mysql_, database_name.c_str());
 }
 
 
