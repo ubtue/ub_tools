@@ -1,0 +1,54 @@
+# File: Makefile -- makefile for creating documentation in the .../share/language_models directory.
+#
+# Copyright 2002-2006 Project Infomine.
+# Copyright 2002-2006 The Regents of The University of California.
+#
+# This file is part of the libiViaCore package.
+#
+# The libiViaCore package is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public License as
+# published by the Free Software Foundation; either version 2 of the License,
+# or (at your option) any later version.
+#
+# libiViaCore is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+
+top_srcdir    = @top_srcdir@
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+datarootdir   = @datarootdir@
+distdir       = $(top_srcdir)/@PACKAGE@-@VERSION@/share/language_models
+installdir    = @prefix@/share/iViaCore/language_models
+
+INSTALL_FILES = COPYRIGHT *.lm
+DIST_FILES    = Makefile.in $(INSTALL_FILES)
+SUBDIRS       =
+
+# special targets:
+.PHONY: all clean distclean distdir dist install
+
+all:
+
+clean:
+	rm -f *~ .*~
+	$(foreach dir,$(SUBDIRS),$(MAKE) -C $(dir) clean &&) true
+
+distclean: clean
+
+distdir:
+	$(mkinstalldirs) $(distdir)
+	@INSTALL@ -m600 $(DIST_FILES) $(distdir)
+	$(foreach dir,$(SUBDIRS),$(mkinstalldirs) $(distdir)/$(dir) && $(MAKE) -C $(dir) distdir &&) true
+
+dist: distdir
+
+install:
+	$(mkinstalldirs) $(installdir)
+	@INSTALL@ -m600 $(INSTALL_FILES) $(installdir)
+	$(foreach dir,$(SUBDIRS),$(mkinstalldirs) $(installdir)/$(dir) && $(MAKE) -C $(dir) install &&) true
