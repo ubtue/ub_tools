@@ -49,7 +49,7 @@ void GetWhiteSpace(std::string * const whitespace) {
         }
     }
 
-    *whitespace = whitespace_chars;
+    *whitespace += whitespace_chars;
 }
 
 
