@@ -17,7 +17,6 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include <iostream>
 #include "DbConnection.h"
 #include "ExecUtil.h"
 #include "util.h"
@@ -27,8 +26,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " username password db_name sql_file\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("username password db_name sql_file");
 }
 
 
@@ -54,19 +52,19 @@ int Main(int argc, char *argv[]) {
     const std::string database_name(argv[3]);
     const std::string sql_file(argv[4]);
     const std::string host("localhost");
-    const std::string port("3306");
+    const unsigned port(MYSQL_PORT);
 
-    const std::string database_name_temporary(database_name + "_tempdiff");
+    const std::string temporary_database_name(database_name + "_tempdiff");
 
     DbConnection db_connection(database_name, user, passwd);
-    CleanupTemporaryDatabase(db_connection, database_name_temporary);
-    db_connection.mySQLCreateDatabase(database_name_temporary);
-    DbConnection::MySQLImportFile(sql_file, database_name_temporary, user, passwd);
+    CleanupTemporaryDatabase(db_connection, temporary_database_name);
+    db_connection.mySQLCreateDatabase(temporary_database_name);
+    DbConnection::MySQLImportFile(sql_file, temporary_database_name, user, passwd);
 
-    int exec_result(ExecUtil::Exec(MYSQLDIFF_EXECUTABLE, { "--force",
-                                                           "--server1=" + user + ":" + passwd + "@" + host + ":" + port,
-                                                           database_name + ":" + database_name_temporary }));
+    const int exec_result(ExecUtil::Exec(MYSQLDIFF_EXECUTABLE, { "--force",
+                                                                 "--server1=" + user + ":" + passwd + "@" + host + ":" + std::to_string(port),
+                                                                 database_name + ":" + temporary_database_name }));
 
-    CleanupTemporaryDatabase(db_connection, database_name_temporary);
+    CleanupTemporaryDatabase(db_connection, temporary_database_name);
     return exec_result;
 }
