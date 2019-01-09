@@ -29,6 +29,7 @@
 #include <signal.h>
 #include "Compiler.h"
 #include "MiscUtil.h"
+#include "StringUtil.h"
 #include "TimeUtil.h"
 
 
@@ -323,6 +324,16 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
 
 
 [[noreturn]] void Usage(const std::string &usage_message) {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level] " << usage_message << '\n';
+    std::vector<std::string> lines;
+    StringUtil::SplitThenTrimWhite(usage_message, '\n', &lines);
+    auto line(lines.begin());
+    if (unlikely(line == lines.cend()))
+        LOG_ERROR("missing usage message!");
+
+    std::cerr << "Usage: " << ::progname << " [--min-log-level] " << *line << '\n';
+    const std::string padding(__builtin_strlen("Usage: ") + __builtin_strlen(::progname) + 1, ' ');
+    for (++line; line != lines.cend(); ++line)
+        std::cerr << padding << *line << '\n';
+
     std::exit(EXIT_FAILURE);
 }
