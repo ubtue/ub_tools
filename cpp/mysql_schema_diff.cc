@@ -63,7 +63,10 @@ int Main(int argc, char *argv[]) {
     db_connection.mySQLCreateDatabase(database_name_temporary);
     DbConnection::MySQLImportFile(sql_file, database_name_temporary, user, passwd);
 
-    return ExecUtil::Exec(MYSQLDIFF_EXECUTABLE, { "--force",
-                                                  "--server1=" + user + ":" + passwd + "@" + host + ":" + port,
-                                                  database_name + ":" + database_name_temporary });
+    int exec_result(ExecUtil::Exec(MYSQLDIFF_EXECUTABLE, { "--force",
+                                                           "--server1=" + user + ":" + passwd + "@" + host + ":" + port,
+                                                           database_name + ":" + database_name_temporary }));
+
+    CleanupTemporaryDatabase(db_connection, database_name_temporary);
+    return exec_result;
 }
