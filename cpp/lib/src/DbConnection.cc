@@ -256,7 +256,7 @@ bool DbConnection::queryFile(const std::string &filename) {
         LOG_ERROR("failed to read \"" + filename + "\"!");
 
     if (type_ == T_MYSQL) {
-        bool query_result(query(StringUtil::TrimWhite(&statements)));
+        const bool query_result(query(StringUtil::TrimWhite(&statements)));
         if (query_result)
             mySQLSyncMultipleResults();
         return query_result;
@@ -506,8 +506,8 @@ void DbConnection::mySQLSelectDatabase(const std::string& database_name) {
 void DbConnection::mySQLSyncMultipleResults() {
     int next_result_exists;
     do {
-        MYSQL_RES * const result_set (::mysql_store_result(&mysql_));
-        if (result_set)
+        MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
+        if (result_set != nullptr)
             ::mysql_free_result(result_set);
         next_result_exists = ::mysql_next_result(&mysql_);
     } while (next_result_exists == 0);
