@@ -41,10 +41,15 @@ namespace {
 //                  "whitespace".
 //
 void GetWhiteSpace(std::string * const whitespace) {
-    for (int ch = CHAR_MIN; ch <= CHAR_MAX; ++ch) {
-        if (isspace(ch))
-            *whitespace += static_cast<char>(ch);
+    static std::string whitespace_chars;
+    if (unlikely(whitespace_chars.empty())) {
+        for (int ch = CHAR_MIN; ch <= CHAR_MAX; ++ch) {
+            if (isspace(ch))
+                whitespace_chars += static_cast<char>(ch);
+        }
     }
+
+    *whitespace = whitespace_chars;
 }
 
 
