@@ -61,7 +61,8 @@ int Main(int argc, char *argv[]) {
     DbConnection db_connection(database_name, user, passwd);
     CleanupTemporaryDatabase(db_connection, temporary_database_name);
     db_connection.mySQLCreateDatabase(temporary_database_name);
-    DbConnection::MySQLImportFile(sql_file, temporary_database_name, user, passwd);
+    db_connection.mySQLSelectDatabase(temporary_database_name);
+    db_connection.queryFileOrDie(sql_file);
 
     const int exec_result(ExecUtil::Exec(MYSQLDIFF_EXECUTABLE, { "--force",
                                                                  "--server1=" + user + ":" + passwd + "@" + host + ":" + std::to_string(port),
