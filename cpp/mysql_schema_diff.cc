@@ -26,7 +26,9 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("username password db_name sql_file");
+    ::Usage("username password db_name sql_file\n\n"
+            "\tCompare an existing MySQL Database against a sql file with CREATE TABLE statements.\n"
+            "\tUses \"mysqldiff\" from \"mysql-utilities\".");
 }
 
 
