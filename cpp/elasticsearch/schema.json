@@ -1,0 +1,12 @@
+{
+   "docs": {
+      "properties": {
+        "document_id": {
+          "type": "string"
+        },
+        "document_chunk": {
+          "type": "string"
+        }
+      }
+   }
+}

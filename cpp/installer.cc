@@ -135,16 +135,6 @@ void ChangeDirectoryOrDie(const std::string &new_working_directory) {
 }
 
 
-std::string GetPassword(const std::string &prompt) {
-    errno = 0;
-    const std::string password(::getpass((prompt + " > ").c_str()));
-    if (errno != 0)
-        Error("failed to read the password from the terminal!");
-
-    return password;
-}
-
-
 class TemporaryChDir {
     std::string old_working_dir_;
 public:
@@ -162,6 +152,20 @@ TemporaryChDir::TemporaryChDir(const std::string &new_working_dir)
 
 TemporaryChDir::~TemporaryChDir() {
     ChangeDirectoryOrDie(old_working_dir_);
+}
+
+
+void GitActivateCustomHooks(const std::string &repository) {
+    const std::string original_git_directory(repository + "/.git");
+    const std::string original_hooks_directory(original_git_directory + "/hooks");
+    const std::string custom_hooks_directory(repository + "/git-config/hooks");
+
+    if (FileUtil::IsDirectory(custom_hooks_directory) and FileUtil::IsDirectory(original_hooks_directory)) {
+        Echo("Activating custom git hooks in " + repository);
+        FileUtil::RemoveDirectory(original_hooks_directory);
+        TemporaryChDir tmp1(original_git_directory);
+        FileUtil::CreateSymlink(custom_hooks_directory, "hooks");
+    }
 }
 
 
@@ -187,7 +191,7 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
         Echo("Department drive already mounted");
     else {
         const std::string role_account(vufind_system_type == KRIMDOK ? "qubob15" : "qubob16");
-        const std::string password(GetPassword("Enter password for " + role_account));
+        const std::string password(MiscUtil::GetPassword("Enter password for " + role_account));
         const std::string credentials_file("/root/.smbcredentials");
         if (unlikely(not FileUtil::WriteString(credentials_file, "username=" + role_account + "\npassword=" + password
                                               + "\n")))
@@ -213,12 +217,16 @@ void CreateUbToolsDatabase() {
     const std::string sql_username(section->getString("sql_username"));
     const std::string sql_password(section->getString("sql_password"));
 
-    if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
-        std::cout << "creating ub_tools database\n";
-        DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
+    if (not DbConnection::MySQLUserExists(sql_username, root_username, root_password)) {
+        std::cout << "creating ub_tools MySQL user\n";
         DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
+    }
+
+    if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
+        std::cout << "creating ub_tools MySQL database\n";
+        DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
-        DbConnection::MySQLImportFile(sql_database, INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", root_username, root_password);
+        DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, root_username, root_password);
     }
 }
 
@@ -315,16 +323,24 @@ void InstallUBTools(const bool make_install) {
         ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", UBTools::GetTuelibPath() });
     }
 
-    if (not FileUtil::Exists(UBTools::GetTuelibPath() + "/zotero-enhancement-maps")) {
+    const std::string ZOTERO_ENHANCEMENT_MAPS_DIRECTORY(UBTools::GetTuelibPath() + "/zotero-enhancement-maps");
+    if (not FileUtil::Exists(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY)) {
         const std::string git_url("https://github.com/ubtue/zotero-enhancement-maps.git");
-        ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, UBTools::GetTuelibPath() + "/zotero-enhancement-maps" });
+        ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, ZOTERO_ENHANCEMENT_MAPS_DIRECTORY });
     }
 
-    // Add SELinux permissions for files we need to access via web.
+    // build issn_to_misc_bits.map (else SELinuxUtil cannot verify file permissions)
+    const std::string ISSN_TO_MISC_BITS_MAP_PATH(UBTools::GetTuelibPath() + "issn_to_misc_bits.map");
+    ExecUtil::ExecOrDie(UB_TOOLS_DIRECTORY + "/cronjobs/combine_issn_to_misc_bits_map.sh");
+
+    // Add SELinux permissions for files we need to access via the Web.
     // Needs to be done exactly for each file, because we might have files with passwords in there!
-    if (SELinuxUtil::IsEnabled())
-        SELinuxUtil::FileContext::AddRecordIfMissing(UBTools::GetTuelibPath(), "httpd_sys_content_t",
-                                                     UBTools::GetTuelibPath() + "/issn_to_misc_bits.map");
+    if (SELinuxUtil::IsEnabled()) {
+        SELinuxUtil::FileContext::AddRecordIfMissing(ISSN_TO_MISC_BITS_MAP_PATH, "httpd_sys_content_t",
+                                                     ISSN_TO_MISC_BITS_MAP_PATH);
+        SELinuxUtil::FileContext::AddRecordIfMissing(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY, "httpd_sys_content_t",
+                                                     ZOTERO_ENHANCEMENT_MAPS_DIRECTORY + "(/.*)?");
+    }
 
     // ...and then install the rest of ub_tools:
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
@@ -334,6 +350,7 @@ void InstallUBTools(const bool make_install) {
         ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4" });
 
     CreateUbToolsDatabase();
+    GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
 
     Echo("Installed ub_tools.");
 }
@@ -433,11 +450,7 @@ void DownloadVuFind() {
         Echo("Downloading TueFind git repository");
         const std::string git_url("https://github.com/ubtue/tuefind.git");
         ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, VUFIND_DIRECTORY });
-
-        Echo("Activating custom git hooks");
-        FileUtil::RemoveDirectory(VUFIND_DIRECTORY + "/.git/hooks");
-        TemporaryChDir tmp1(VUFIND_DIRECTORY + "/.git");
-        FileUtil::CreateSymlink("../git-config/hooks", "hooks");
+        GitActivateCustomHooks(VUFIND_DIRECTORY);
 
         TemporaryChDir tmp2(VUFIND_DIRECTORY);
         ExecUtil::ExecOrDie(ExecUtil::Which("composer"), { "install" });

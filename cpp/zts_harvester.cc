@@ -42,7 +42,7 @@ namespace {
               << "\t[--min-log-level=log_level]         Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
               << "\t[--delivery-mode=mode]              Only sections that have the specific delivery mode (either LIVE or TEST) set will be processed. When this parameter is not specified, tracking is automatically disabled.\n"
               << "\t[--groups=my_groups                 Where groups are a comma-separated list of groups.\n"
-              << "\t[--disable-tracking]                Disable tracking harvested RSS feeds, URLs and records.\n"
+              << "\t[--keep-delivered-records]          Do not discard records that have already been delivered to the BSZ.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
               << "\t[--output-directory=output_directory]\n"
@@ -67,7 +67,7 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
     site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(bundle_reader.zotero(section_name)
                                          .value(JournalConfig::Zotero::EXTRACTION_REGEX, "")));
 
-    // append the common time format string to the site-specific override
+    // Append the common time format string to the site-specific override
     site_params->strptime_format_ = bundle_reader.zotero(section_name).value(JournalConfig::Zotero::STRPTIME_FORMAT, "");
 
     const auto common_strptime_format(ini_file.getString("", "common_strptime_format"));
@@ -79,6 +79,9 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
             site_params->strptime_format_ += '|';
         site_params->strptime_format_ += common_strptime_format;
     }
+
+    const auto expected_languages(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::EXPECTED_LANGUAGES, ""));
+    StringUtil::Split(expected_languages, ',', &site_params->expected_languages_);
 
     for (const auto &entry : section) {
         if (StringUtil::StartsWith(entry.name_, "add_field"))
@@ -106,8 +109,9 @@ UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const JournalConfig
     const std::string feed_url(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::URL));
     LOG_DEBUG("feed_url: " + feed_url);
 
-    Zotero::RSSHarvestMode rss_harvest_mode(harvest_params->disable_tracking_ ? Zotero::RSSHarvestMode::TEST : Zotero::RSSHarvestMode::NORMAL);
-    return Zotero::HarvestSyndicationURL(rss_harvest_mode, feed_url, harvest_params, site_params, error_logger, db_connection);
+    // always disable RSS tracking for the zts_harvester as we only care about delivered records
+    return Zotero::HarvestSyndicationURL(Zotero::RSSHarvestMode::DISABLE_TRACKING, feed_url, harvest_params,
+                                         site_params, error_logger, db_connection);
 }
 
 
@@ -222,7 +226,7 @@ Zotero::FormatHandler *GetFormatHandlerForGroup(
 
 // Parses the command-line arguments.
 void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode * const delivery_mode_to_process,
-                 std::unordered_set<std::string> * const groups_filter, bool * const disable_tracking, bool * const ignore_robots_dot_txt,
+                 std::unordered_set<std::string> * const groups_filter, bool * const keep_delivered_records, bool * const ignore_robots_dot_txt,
                  std::string * const map_directory_path, std::string * const output_directory, std::string * const output_filename,
                  std::string * const output_format_string, std::string * const error_report_file)
 {
@@ -244,8 +248,8 @@ void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode 
             --*argc, ++*argv;
         }
 
-        if (std::strcmp((*argv)[1], "--disable-tracking") == 0) {
-            *disable_tracking = true;
+        if (std::strcmp((*argv)[1], "--keep-delivered-records") == 0) {
+            *keep_delivered_records = true;
             --*argc, ++*argv;
         }
 
@@ -297,14 +301,14 @@ int Main(int argc, char *argv[]) {
     // Handle options independent of the order
     BSZUpload::DeliveryMode delivery_mode_to_process(BSZUpload::DeliveryMode::NONE);
     std::unordered_set<std::string> groups_filter;
-    bool disable_tracking(false);
+    bool keep_delivered_records(false);
     bool ignore_robots_dot_txt(false);
     std::string map_directory_path;
     std::string output_directory;
     std::string output_filename;
     std::string output_format_string("marc-xml");
     std::string error_report_file;
-    ProcessArgs(&argc, &argv, &delivery_mode_to_process, &groups_filter, &disable_tracking, &ignore_robots_dot_txt,
+    ProcessArgs(&argc, &argv, &delivery_mode_to_process, &groups_filter, &keep_delivered_records, &ignore_robots_dot_txt,
                 &map_directory_path, &output_directory, &output_filename, &output_format_string, &error_report_file);
 
     if (argc < 2)
@@ -316,7 +320,7 @@ int Main(int argc, char *argv[]) {
 
     std::shared_ptr<Zotero::HarvestParams> harvest_params(new Zotero::HarvestParams);
     harvest_params->zts_server_url_ = Zotero::TranslationServer::GetUrl();
-    harvest_params->disable_tracking_ = disable_tracking || delivery_mode_to_process == BSZUpload::DeliveryMode::NONE;
+    harvest_params->keep_delivered_records_ = keep_delivered_records;
 
     if (map_directory_path.empty())
         map_directory_path = ini_file.getString("", "map_directory_path");
