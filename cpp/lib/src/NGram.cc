@@ -26,6 +26,7 @@
  */
 #include "NGram.h"
 #include <algorithm>
+#include <iostream>//XXX
 #include <fstream>
 #include <unordered_set>
 #include <climits>
@@ -71,16 +72,20 @@ void LoadLanguageModel(const std::string &path_name, NGram::NGramCounts * const 
     size_t entry_count;
     BinaryIO::ReadOrDie(*input, &entry_count);
     ngram_counts->reserve(entry_count);
+std::cerr << path_name << " constains " << entry_count << " entries.\n";
 
     for (unsigned i(0); i < entry_count; ++i) {
         std::wstring ngram;
+std::cerr << "About to read the ngram\n";
         BinaryIO::ReadOrDie(*input, &ngram);
 
+std::cerr << "About to read the score\n";
         double score;
         BinaryIO::ReadOrDie(*input, &score);
 
         (*ngram_counts)[ngram] = score;
     }
+std::cerr << "Done.\n\n\n";
 }
 
 
@@ -298,7 +303,7 @@ void CreateLanguageModel(std::istream &input, NGramCounts * const ngram_counts,
 
 
 void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_languages, const std::set<std::string> &considered_languages,
-		      const DistanceType distance_type, const unsigned ngram_number_threshold, const unsigned topmost_use_count,
+                      const DistanceType distance_type, const unsigned ngram_number_threshold, const unsigned topmost_use_count,
                       const double alternative_cutoff_factor, const std::string &override_language_models_directory)
 {
     // Determine the language models directroy:
