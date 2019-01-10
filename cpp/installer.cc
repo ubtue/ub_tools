@@ -311,11 +311,11 @@ void InstallUBTools(const bool make_install) {
         ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, ZOTERO_ENHANCEMENT_MAPS_DIRECTORY });
     }
 
-    // build issn_to_misc_bits.map (else SELinux call will fail)
+    // build issn_to_misc_bits.map (else SELinuxUtil cannot verify file permissions)
     const std::string ISSN_TO_MISC_BITS_MAP_PATH(UBTools::GetTuelibPath() + "issn_to_misc_bits.map");
     ExecUtil::ExecOrDie(UB_TOOLS_DIRECTORY + "/cronjobs/combine_issn_to_misc_bits_map.sh");
 
-    // Add SELinux permissions for files we need to access via web.
+    // Add SELinux permissions for files we need to access via the Web.
     // Needs to be done exactly for each file, because we might have files with passwords in there!
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(ISSN_TO_MISC_BITS_MAP_PATH, "httpd_sys_content_t",
