@@ -141,6 +141,8 @@ public:
     }
 
     void mySQLSyncMultipleResults();
+
+    bool mySQLUserExists(const std::string &user, const std::string &host);
 private:
     /** \note This constructor is for operations which do not require any existing database.
      *        It should only be used in static functions.
@@ -203,6 +205,14 @@ public:
     {
         DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
         return db_connection.mySQLGrantAllPrivileges(database_name, database_user);
+    }
+
+    static bool MySQLUserExists(const std::string &database_user, const std::string &admin_user, const std::string &admin_passwd,
+                                const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                const Charset charset = UTF8MB4)
+    {
+        DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
+        return db_connection.mySQLUserExists(database_user, host);
     }
 
     /** \note This function will enable "multiple statement execution support".
