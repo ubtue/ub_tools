@@ -167,7 +167,7 @@ double LanguageModel::distance(const std::string &ngram, const int position) con
 bool LoadLanguageModels(const std::string &language_models_directory, const NGram::DistanceType distance_type,
                         const unsigned topmost_use_count, std::vector<LanguageModel> * const language_models)
 {
-    FileUtil::Directory directory(language_models_directory, "*.lm");
+    FileUtil::Directory directory(language_models_directory, ".+\\.lm");
     bool found_at_least_one_language_model(false);
     for (const auto &dir_entry : directory) {
         NGram::NGramCounts language_model;
