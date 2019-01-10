@@ -160,7 +160,7 @@ void GitActivateCustomHooks(const std::string &repository) {
     const std::string original_hooks_directory(original_git_directory + "/hooks");
     const std::string custom_hooks_directory(repository + "/git-config/hooks");
 
-    if (FileUtil::IsDirectory(custom_hooks_directory) && FileUtil::IsDirectory(original_hooks_directory)) {
+    if (FileUtil::IsDirectory(custom_hooks_directory) and FileUtil::IsDirectory(original_hooks_directory)) {
         Echo("Activating custom git hooks in " + repository);
         FileUtil::RemoveDirectory(original_hooks_directory);
         TemporaryChDir tmp1(original_git_directory);

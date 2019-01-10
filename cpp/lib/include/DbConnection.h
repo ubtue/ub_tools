@@ -142,7 +142,7 @@ public:
 
     void mySQLSyncMultipleResults();
 
-    bool mySQLUserExists(const std::string &user, const std::string host);
+    bool mySQLUserExists(const std::string &user, const std::string &host);
 private:
     /** \note This constructor is for operations which do not require any existing database.
      *        It should only be used in static functions.
