@@ -2,7 +2,7 @@
  *  \brief  Central repository for all journal-related config data
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -53,13 +53,14 @@ const std::string Zeder::prefix("zeder");
 
 
 const std::unordered_map<std::string, Zotero::Entries> Zotero::key_id_resolver_map{
-    { "type",             Zotero::Entries::TYPE             },
-    { "group",            Zotero::Entries::GROUP            },
-    { "url",              Zotero::Entries::URL              },
-    { "strptime_format",  Zotero::Entries::STRPTIME_FORMAT  },
-    { "extraction_regex", Zotero::Entries::EXTRACTION_REGEX },
-    { "max_crawl_depth",  Zotero::Entries::MAX_CRAWL_DEPTH  },
-    { "delivery_mode",    Zotero::Entries::DELIVERY_MODE    },
+    { "type",               Zotero::Entries::TYPE               },
+    { "group",              Zotero::Entries::GROUP              },
+    { "url",                Zotero::Entries::URL                },
+    { "strptime_format",    Zotero::Entries::STRPTIME_FORMAT    },
+    { "extraction_regex",   Zotero::Entries::EXTRACTION_REGEX   },
+    { "max_crawl_depth",    Zotero::Entries::MAX_CRAWL_DEPTH    },
+    { "delivery_mode",      Zotero::Entries::DELIVERY_MODE      },
+    { "expected_languages", Zotero::Entries::EXPECTED_LANGUAGES },
 };
 
 
