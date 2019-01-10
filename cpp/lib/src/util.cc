@@ -325,7 +325,7 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
 
 [[noreturn]] void Usage(const std::string &usage_message) {
     std::vector<std::string> lines;
-    StringUtil::SplitThenTrimWhite(usage_message, '\n', &lines);
+    StringUtil::SplitThenTrimWhite(usage_message, '\n', &lines, /* suppress_empty_words */ false);
     auto line(lines.begin());
     if (unlikely(line == lines.cend()))
         LOG_ERROR("missing usage message!");
