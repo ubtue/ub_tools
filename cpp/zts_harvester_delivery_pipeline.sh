@@ -134,7 +134,7 @@ for d in */ ; do
 done
 
 if [ "$counter" = "0" ]; then
-    echo -e "No new records were harvested"
+    echo "No new records were harvested"
     EndPipeline
 fi
 EndPhase
