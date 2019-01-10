@@ -33,7 +33,7 @@ namespace {
             "Compare an existing MySQL Database against a sql file with CREATE TABLE statements.\n"
             "Uses \"mysqldiff\" from \"mysql-utilities\".\n"
             "\n"
-            "If --password is not given, it will be prompted.");
+            "If --password is not given, it will be prompted for.");
 }
 
 
@@ -55,11 +55,14 @@ int Main(int argc, char *argv[]) {
         LOG_ERROR("Dependency \"mysqldiff\" is missing, please install \"mysql-utilities\"-package first!");
 
     std::string passwd;
-    if (StringUtil::StartsWith(argv[1], "--password=")) {
-        passwd = std::string(argv[1] + __builtin_strlen("--password="));
-        --argc; ++argv;
+    if (argc == 5) {
+        if (StringUtil::StartsWith(argv[1], "--password=")) {
+            passwd = std::string(argv[1] + __builtin_strlen("--password="));
+            --argc; ++argv;
+        } else
+            Usage();
     } else
-        passwd = MiscUtil::GetPassword("please enter mysql password:");
+        passwd = MiscUtil::GetPassword("Please enter MySQL password:");
 
     const std::string user(argv[1]);
     const std::string database_name(argv[2]);
