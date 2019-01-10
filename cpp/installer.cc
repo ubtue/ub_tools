@@ -135,16 +135,6 @@ void ChangeDirectoryOrDie(const std::string &new_working_directory) {
 }
 
 
-std::string GetPassword(const std::string &prompt) {
-    errno = 0;
-    const std::string password(::getpass((prompt + " > ").c_str()));
-    if (errno != 0)
-        Error("failed to read the password from the terminal!");
-
-    return password;
-}
-
-
 class TemporaryChDir {
     std::string old_working_dir_;
 public:
@@ -187,7 +177,7 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
         Echo("Department drive already mounted");
     else {
         const std::string role_account(vufind_system_type == KRIMDOK ? "qubob15" : "qubob16");
-        const std::string password(GetPassword("Enter password for " + role_account));
+        const std::string password(MiscUtil::GetPassword("Enter password for " + role_account));
         const std::string credentials_file("/root/.smbcredentials");
         if (unlikely(not FileUtil::WriteString(credentials_file, "username=" + role_account + "\npassword=" + password
                                               + "\n")))
