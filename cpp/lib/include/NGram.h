@@ -27,6 +27,7 @@
 #pragma once
 
 
+#include <set>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -69,9 +70,9 @@ private:
  *  \param  topmost_use_count       The topmost number of ngrams that should be used.
  */
 void CreateLanguageModel(std::istream &input, NGramCounts * const ngram_counts,
-			 SortedNGramCounts * const top_ngrams,
-			 const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
-			 const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT);
+                         SortedNGramCounts * const top_ngrams,
+                         const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
+                         const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT);
 
 
 /** \brief  Tell which language(s) "input_text" might be.
@@ -99,6 +100,8 @@ enum DistanceType { SIMPLE_DISTANCE, WEIGHTED_DISTANCE };
 /** \brief  Tell which language(s) "input" might contain.
  *  \param  input                      Where to read the to be classified text from.
  *  \param  top_languages              The list of most likely languages with the most likely language first.
+ *  \param  considered_languages       If non-empty only the specified languages will be used for classification o/w all
+ *                                     languages will be considered.
  *  \param  distance_type              ?
  *  \param  ngram_number_threshold     Don't used ngrams that occur less than this many times.
  *                                     A value of 0 means: use all ngrams.
@@ -111,16 +114,19 @@ enum DistanceType { SIMPLE_DISTANCE, WEIGHTED_DISTANCE };
  *  \note    By default, the language models are located in the libiViCore share/language_models directory.
  */
 void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_languages,
-		      const DistanceType distance_type = SIMPLE_DISTANCE,
-		      const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
-		      const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT,
-		      const double alternative_cutoff_factor = DEFAULT_ALTERNATIVE_CUTOFF_FACTOR,
-		      const std::string &override_language_models_directory = "");
+                      const std::set<std::string> &considered_languages = { },
+                      const DistanceType distance_type = SIMPLE_DISTANCE,
+                      const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
+                      const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT,
+                      const double alternative_cutoff_factor = DEFAULT_ALTERNATIVE_CUTOFF_FACTOR,
+                      const std::string &override_language_models_directory = "");
 
 
 /** \brief  Tell which language(s) "input_text" might be.
  *  \param  input_text                 The text to classify.
  *  \param  top_languages              The list of most likely languages with the most likely language first.
+ *  \param  considered_languages       If non-empty only the specified languages will be used for classification o/w all
+ *                                     languages will be considered.
  *  \param  distance_type              ?
  *  \param  ngram_number_threshold     Don't used ngrams that occur less than this many times.
  *                                     A value of 0 means: use all ngrams.
@@ -133,15 +139,16 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
  *  \note   By default, the language models are located in the libiViaCore share/language_models directory.
  */
 inline void ClassifyLanguage(const std::string &input_text, std::vector<std::string> * const top_languages,
-			     const DistanceType distance_type = SIMPLE_DISTANCE,
-			     const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
-			     const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT,
-			     const double alternative_cutoff_factor = DEFAULT_ALTERNATIVE_CUTOFF_FACTOR,
-			     const std::string &override_language_models_directory = "")
+                             const std::set<std::string> &considered_languages = { },
+                             const DistanceType distance_type = SIMPLE_DISTANCE,
+                             const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
+                             const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT,
+                             const double alternative_cutoff_factor = DEFAULT_ALTERNATIVE_CUTOFF_FACTOR,
+                             const std::string &override_language_models_directory = "")
 {
     std::istringstream input(input_text);
-    ClassifyLanguage(input, top_languages, distance_type, ngram_number_threshold, topmost_use_count, alternative_cutoff_factor,
-                     override_language_models_directory);
+    ClassifyLanguage(input, top_languages, considered_languages, distance_type, ngram_number_threshold, topmost_use_count,
+                     alternative_cutoff_factor, override_language_models_directory);
 }
 
 
