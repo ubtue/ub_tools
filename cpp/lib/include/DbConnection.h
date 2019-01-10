@@ -116,9 +116,13 @@ public:
         return escapeString(unescaped_string, /* add_quotes = */true);
     }
 
-    void mySQLCreateDatabase(const std::string &database_name, const Charset charset = UTF8MB4);
+    void mySQLCreateDatabase(const std::string &database_name, const Charset charset = UTF8MB4) {
+        queryOrDie("CREATE DATABASE " + database_name + " CHARACTER SET " + CharsetToString(charset) + ";");
+    }
 
-    void mySQLCreateUser(const std::string &new_user, const std::string &new_passwd, const std::string &new_host = "localhost");
+    void mySQLCreateUser(const std::string &new_user, const std::string &new_passwd, const std::string &host = "localhost") {
+        queryOrDie("CREATE USER " + new_user + "@" + host + " IDENTIFIED BY '" + new_passwd + "';");
+    }
 
     bool mySQLDatabaseExists(const std::string &database_name);
 
@@ -128,9 +132,13 @@ public:
 
     std::vector<std::string> mySQLGetTableList();
 
-    void mySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user);
+    void mySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user) {
+        queryOrDie("GRANT ALL PRIVILEGES ON " + database_name + ".* TO '" + database_user + "';");
+    }
 
-    void mySQLSelectDatabase(const std::string &database_name);
+    void mySQLSelectDatabase(const std::string &database_name) {
+        ::mysql_select_db(&mysql_, database_name.c_str());
+    }
 
     void mySQLSyncMultipleResults();
 private:
