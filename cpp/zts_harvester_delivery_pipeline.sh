@@ -158,16 +158,18 @@ while [ "$counter" -lt "$file_count" ]; do
 done
 EndPhase
 
-# End the pipeline early for test deliveries
-if [ "$delivery_mode" = "TEST"]; then
-    EndPipeline
-fi
 
 StartPhase "Archive Sent Records"
 for source_filepath in "${source_filepaths[@]}"; do
     archive_sent_records $source_filepath >> "${log}" 2>&1
 done
 EndPhase
+
+
+# End the pipeline early for test deliveries
+if [ "$delivery_mode" = "TEST"]; then
+    EndPipeline
+fi
 
 
 StartPhase "Check for Overdue Articles"
