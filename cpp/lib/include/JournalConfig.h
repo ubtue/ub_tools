@@ -2,7 +2,7 @@
  *  \brief  Central repository for all journal-related config data
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -222,7 +222,7 @@ struct Zeder {
 using ZederBundle = EntryBundle<Zeder>;
 
 struct Zotero {
-    enum Entries : EntryId { TYPE, GROUP, URL, STRPTIME_FORMAT, EXTRACTION_REGEX, MAX_CRAWL_DEPTH, DELIVERY_MODE };
+    enum Entries : EntryId { TYPE, GROUP, URL, STRPTIME_FORMAT, EXTRACTION_REGEX, MAX_CRAWL_DEPTH, DELIVERY_MODE, EXPECTED_LANGUAGES };
 
     static const std::unordered_map<std::string, Zotero::Entries> key_id_resolver_map;
     static const std::string prefix;

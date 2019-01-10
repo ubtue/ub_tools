@@ -132,6 +132,7 @@ for d in */ ; do
     fi
     counter=$((counter+1))
 done
+
 if [ "$counter" = "0" ]; then
     echo "No new records were harvested"
     EndPipeline
@@ -145,7 +146,6 @@ for source_filepath in "${source_filepaths[@]}"; do
                           $working_directory/$missing_metadata_tracker_output_filename >> "${log}" 2>&1
 done
 EndPhase
-
 
 StartPhase "Upload to BSZ Server"
 counter=0
@@ -164,6 +164,12 @@ for source_filepath in "${source_filepaths[@]}"; do
     archive_sent_records $source_filepath >> "${log}" 2>&1
 done
 EndPhase
+
+
+# End the pipeline early for test deliveries
+if [ "$delivery_mode" = "TEST"]; then
+    EndPipeline
+fi
 
 
 StartPhase "Check for Overdue Articles"
