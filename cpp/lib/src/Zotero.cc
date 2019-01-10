@@ -4,7 +4,7 @@
  *  \author Dr. Johannes Ruscheinski
  *  \author Mario Trojan
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -338,6 +338,10 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
     }
     // Language
     node_parameters->language_ = object_node->getOptionalStringValue("language");
+    if (node_parameters->language_.empty() and not site_params_->expected_languages_.empty()) {
+        // attempt to automatically detect the language
+
+    }
 
     // Copyright
     node_parameters->copyright_ = object_node->getOptionalStringValue("rights");
@@ -622,6 +626,9 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
 
     if (not node_parameters.harvest_url_.empty())
         record->insertField("URL", { { 'a', node_parameters.harvest_url_ } });
+
+    if (not node_parameters.journal_name_.empty())
+        record->insertField("JOU", { { 'a', node_parameters.journal_name_ } });
 }
 
 
@@ -688,34 +695,19 @@ void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParamet
 }
 
 
-void MarcFormatHandler::handleTrackingAndWriteRecord(const MARC::Record &new_record, const bool disable_tracking,
-                                                     const BSZUpload::DeliveryMode delivery_mode, struct ItemParameters &item_params,
-                                                     unsigned * const previously_downloaded_count) {
-
-    std::string url(item_params.url_);
-    const std::string journal_name(item_params.journal_name_);
+void MarcFormatHandler::handleTrackingAndWriteRecord(const MARC::Record &new_record, const bool keep_delivered_records,
+                                                     struct ItemParameters &item_params, unsigned * const previously_downloaded_count)
+{
     const std::string harvest_url(item_params.harvest_url_);
     const std::string checksum(StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
-    if (unlikely(url.empty())) {
-        if (not harvest_url.empty())
-            url = harvest_url;
-        else
-            LOG_ERROR("\"url\" has not been set!");
-    }
+    if (harvest_url.empty())
+        LOG_ERROR("\"harvest_url\" has not been set!");
 
-    if (disable_tracking)
+    if (keep_delivered_records or not delivery_tracker_.hasAlreadyBeenDelivered(harvest_url, checksum))
         marc_writer_->write(new_record);
     else {
-        DownloadTracker::Entry tracked_entry;
-        if (not download_tracker_.hasAlreadyBeenDownloaded(delivery_mode, url, checksum, &tracked_entry) or
-            not tracked_entry.error_message_.empty())
-        {
-            marc_writer_->write(new_record);
-            download_tracker_.addOrReplace(delivery_mode, url, journal_name, checksum, /* error_message = */"");
-        } else {
-            ++(*previously_downloaded_count);
-            LOG_INFO("skipping URL '" + harvest_url + "' - already harvested");
-        }
+        ++(*previously_downloaded_count);
+        LOG_INFO("skipping URL '" + harvest_url + "' - already delivered");
     }
 }
 
@@ -732,7 +724,6 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     struct ItemParameters item_parameters;
     extractItemParameters(object_node, &item_parameters);
     mergeCustomParametersToItemParameters(&item_parameters, custom_node_params);
-    const BSZUpload::DeliveryMode delivery_mode(site_params_ ? site_params_->delivery_mode_ : BSZUpload::DeliveryMode::NONE);
 
     MARC::Record new_record(std::string(MARC::Record::LEADER_LENGTH, ' ') /*empty dummy leader*/);
     generateMarcRecord(&new_record, item_parameters);
@@ -744,8 +735,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     }
 
     unsigned previously_downloaded_count(0);
-    handleTrackingAndWriteRecord(new_record, harvest_params_->disable_tracking_, delivery_mode, item_parameters,
-                                 &previously_downloaded_count);
+    handleTrackingAndWriteRecord(new_record, harvest_params_->keep_delivered_records_, item_parameters, &previously_downloaded_count);
     return std::make_pair(/* record count */1, previously_downloaded_count);
 }
 
@@ -919,12 +909,6 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     custom_fields.emplace(std::make_pair("journal_name", site_params.journal_name_));
     // save harvest URL in case of a faulty translator that doesn't correctly retrieve it
     custom_fields.emplace(std::make_pair("harvest_url", harvest_url));
-    // save delivery mode for URL download tracking
-    const auto delivery_mode_buffer(site_params.delivery_mode_); // can't capture the member variable directly in the lambda when using C++11
-    const auto delivery_mode_string(std::find_if(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.begin(), BSZUpload::STRING_TO_DELIVERY_MODE_MAP.end(),
-                                           [delivery_mode_buffer](const std::pair<std::string, int> &entry) -> bool { return static_cast<int>
-                                           (delivery_mode_buffer) == entry.second; })->first);
-    custom_fields.emplace(std::make_pair("delivery_mode", delivery_mode_string));
 
     // Add ISIL for later use
     const std::string isil(site_params.group_params_->isil_);
@@ -1193,9 +1177,8 @@ bool FeedContainsNoNewItems(const RSSHarvestMode mode, DbConnection * const db_c
         else
             date_string = SqlUtil::TimeTToDatetime(last_build_date);
 
-        if (mode == RSSHarvestMode::VERBOSE)
-            LOG_DEBUG("Creating new feed entry in rss_feeds table for \"" + feed_url + "\".");
-        if (mode != RSSHarvestMode::TEST)
+        LOG_DEBUG("Creating new feed entry in rss_feeds table for \"" + feed_url + "\".");
+        if (mode != RSSHarvestMode::DISABLE_TRACKING)
             db_connection->queryOrDie("INSERT INTO rss_feeds SET feed_url='" + db_connection->escapeString(feed_url)
                                       + "',last_build_date='" + date_string + "'");
         return false;
@@ -1217,7 +1200,7 @@ std::string GetFeedID(const RSSHarvestMode mode, DbConnection * const db_connect
                               + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (unlikely(result_set.empty())) {
-        if (mode == RSSHarvestMode::TEST)
+        if (mode == RSSHarvestMode::DISABLE_TRACKING)
             return "-1"; // Must be an INT.
         LOG_ERROR("unexpected missing feed for URL \"" + feed_url + "\".");
     }
@@ -1266,7 +1249,7 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
     auto error_logger_context(error_logger->newContext(site_params.journal_name_, feed_url));
 
-    if (mode != RSSHarvestMode::NORMAL)
+    if (mode != RSSHarvestMode::ENABLE_TRACKING)
         LOG_INFO("Processing URL: " + feed_url);
 
     Downloader::Params downloader_params;
@@ -1291,37 +1274,35 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
     }
 
     const time_t last_build_date(syndication_format->getLastBuildDate());
-    if (mode == RSSHarvestMode::VERBOSE) {
-        LOG_DEBUG(feed_url + " (" + syndication_format->getFormatName() + "):");
-        LOG_DEBUG("\tTitle: " + syndication_format->getTitle());
-        if (last_build_date != TimeUtil::BAD_TIME_T)
-            LOG_DEBUG("\tLast build date: " + TimeUtil::TimeTToUtcString(last_build_date));
-        LOG_DEBUG("\tLink: " + syndication_format->getLink());
-        LOG_DEBUG("\tDescription: " + syndication_format->getDescription());
-   }
+    LOG_DEBUG(feed_url + " (" + syndication_format->getFormatName() + "):");
+    LOG_DEBUG("\tTitle: " + syndication_format->getTitle());
+    if (last_build_date != TimeUtil::BAD_TIME_T)
+        LOG_DEBUG("\tLast build date: " + TimeUtil::TimeTToUtcString(last_build_date));
+    LOG_DEBUG("\tLink: " + syndication_format->getLink());
+    LOG_DEBUG("\tDescription: " + syndication_format->getDescription());
 
-    if (mode != RSSHarvestMode::TEST and FeedContainsNoNewItems(mode, db_connection, feed_url, last_build_date))
+    if (mode != RSSHarvestMode::DISABLE_TRACKING and FeedContainsNoNewItems(mode, db_connection, feed_url, last_build_date))
         return total_record_count_and_previously_downloaded_record_count;
 
-    const std::string feed_id(mode == RSSHarvestMode::TEST ? "" : GetFeedID(mode, db_connection, feed_url));
+    const std::string feed_id(mode == RSSHarvestMode::DISABLE_TRACKING ? "" : GetFeedID(mode, db_connection, feed_url));
     for (const auto &item : *syndication_format) {
         const auto item_id(item.getId());
-        if (mode != RSSHarvestMode::TEST and ItemAlreadyProcessed(db_connection, feed_id, item_id))
+        if (mode != RSSHarvestMode::DISABLE_TRACKING and ItemAlreadyProcessed(db_connection, feed_id, item_id))
             continue;
 
         const std::string title(item.getTitle());
-        if (not title.empty() and mode == RSSHarvestMode::VERBOSE)
+        if (not title.empty())
             LOG_DEBUG("\t\tTitle: " + title);
 
         const auto record_count_and_previously_downloaded_count(
-            Harvest(item.getLink(), harvest_params, site_params, error_logger, /* verbose = */ mode != RSSHarvestMode::NORMAL));
+            Harvest(item.getLink(), harvest_params, site_params, error_logger, /* verbose = */ mode != RSSHarvestMode::ENABLE_TRACKING));
         total_record_count_and_previously_downloaded_record_count += record_count_and_previously_downloaded_count;
 
-        if (mode != RSSHarvestMode::TEST)
+        if (mode != RSSHarvestMode::DISABLE_TRACKING)
             db_connection->queryOrDie("INSERT INTO rss_items SET feed_id='" + feed_id + "',item_id='"
                                       + SqlUtil::TruncateToVarCharMaxLength(db_connection->escapeString(item_id)) + "'");
     }
-    if (mode != RSSHarvestMode::TEST)
+    if (mode != RSSHarvestMode::DISABLE_TRACKING)
         UpdateLastBuildDate(db_connection, feed_url, last_build_date);
 
     return total_record_count_and_previously_downloaded_record_count;
