@@ -74,6 +74,9 @@ std::string SafeGetEnv(const char * const name);
 inline std::string SafeGetEnv(const std::string &name) { return SafeGetEnv(name.c_str()); }
 
 
+std::string GetPassword(const std::string &prompt);
+
+
 /** \brief Checks for existence of an environment variable
  *  \param  name  The name of an environment variable.
  *  \return true of the variable exists, false otherwise.
