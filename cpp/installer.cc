@@ -305,16 +305,24 @@ void InstallUBTools(const bool make_install) {
         ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", UBTools::GetTuelibPath() });
     }
 
-    if (not FileUtil::Exists(UBTools::GetTuelibPath() + "/zotero-enhancement-maps")) {
+    const std::string ZOTERO_ENHANCEMENT_MAPS_DIRECTORY(UBTools::GetTuelibPath() + "/zotero-enhancement-maps");
+    if (not FileUtil::Exists(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY)) {
         const std::string git_url("https://github.com/ubtue/zotero-enhancement-maps.git");
-        ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, UBTools::GetTuelibPath() + "/zotero-enhancement-maps" });
+        ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, ZOTERO_ENHANCEMENT_MAPS_DIRECTORY });
     }
+
+    // build issn_to_misc_bits.map (else SELinux call will fail)
+    const std::string ISSN_TO_MISC_BITS_MAP_PATH(UBTools::GetTuelibPath() + "issn_to_misc_bits.map");
+    ExecUtil::ExecOrDie(UB_TOOLS_DIRECTORY + "/cronjobs/combine_issn_to_misc_bits_map.sh");
 
     // Add SELinux permissions for files we need to access via web.
     // Needs to be done exactly for each file, because we might have files with passwords in there!
-    if (SELinuxUtil::IsEnabled())
-        SELinuxUtil::FileContext::AddRecordIfMissing(UBTools::GetTuelibPath(), "httpd_sys_content_t",
-                                                     UBTools::GetTuelibPath() + "/issn_to_misc_bits.map");
+    if (SELinuxUtil::IsEnabled()) {
+        SELinuxUtil::FileContext::AddRecordIfMissing(ISSN_TO_MISC_BITS_MAP_PATH, "httpd_sys_content_t",
+                                                     ISSN_TO_MISC_BITS_MAP_PATH);
+        SELinuxUtil::FileContext::AddRecordIfMissing(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY, "httpd_sys_content_t",
+                                                     ZOTERO_ENHANCEMENT_MAPS_DIRECTORY + "(/.*)?");
+    }
 
     // ...and then install the rest of ub_tools:
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
