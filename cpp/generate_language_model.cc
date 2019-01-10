@@ -20,6 +20,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <cstdlib>
+#include "BinaryIO.h"
 #include "FileUtil.h"
 #include "NGram.h"
 #include "util.h"
@@ -40,8 +41,11 @@ int Main(int argc, char *argv[]) {
     NGram::CreateLanguageModel(input, &ngram_counts, &sorted_ngram_counts);
 
     const auto output(FileUtil::OpenOutputFileOrDie(argv[2]));
-    for (const auto &ngram_and_frequency : sorted_ngram_counts)
-        *output << ngram_and_frequency.first << '\t' << ngram_and_frequency.second << '\n';
+    BinaryIO::WriteOrDie(*output, ngram_counts.size());
+    for (const auto &ngram_and_rank : sorted_ngram_counts) {
+        BinaryIO::WriteOrDie(*output, ngram_and_rank.first);
+        BinaryIO::WriteOrDie(*output, ngram_and_rank.second);
+    }
 
     return EXIT_SUCCESS;
 }

@@ -523,4 +523,5 @@ bool IsSymlink(const std::string &path);
 void ChangeDirectoryOrDie(const std::string &directory);
 std::string GetPathFromFileDescriptor(const int fd);
 
+
 } // namespace FileUtil

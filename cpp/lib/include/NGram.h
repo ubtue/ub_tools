@@ -44,18 +44,18 @@ const unsigned DEFAULT_TOPMOST_USE_COUNT       = 400;
 const double DEFAULT_ALTERNATIVE_CUTOFF_FACTOR = 1.0; // textcat = 1.05
 
 
-typedef std::unordered_map<std::string, double> NGramCounts;
+typedef std::unordered_map<std::wstring, double> NGramCounts;
 
 
-class SortedNGramCounts: public std::vector<std::pair<std::string, double>> {
+class SortedNGramCounts: public std::vector<std::pair<std::wstring, double>> {
 public:
 	enum SortOrder { ASCENDING_ORDER, DESCENDING_ORDER };
 public:
-	SortedNGramCounts(): std::vector<std::pair<std::string, double>>() { }
+	SortedNGramCounts(): std::vector<std::pair<std::wstring, double>>() { }
 	explicit SortedNGramCounts(const NGramCounts &ngram_counts, const SortOrder sort_order);
 private:
-	static bool IsLessThan(const std::pair<std::string, double> &lhs, const std::pair<std::string, double> &rhs);
-	static bool IsGreaterThan(const std::pair<std::string, double> &lhs, const std::pair<std::string, double> &rhs);
+	static bool IsLessThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs);
+	static bool IsGreaterThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs);
 };
 
 

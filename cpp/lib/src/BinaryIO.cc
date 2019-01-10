@@ -80,6 +80,21 @@ bool Write(std::ostream &output, const std::string &s) {
 }
 
 
+bool Write(std::ostream &output, const std::wstring &s) {
+    uint32_t size(s.size());
+    size = htonl(size);
+    output.write(reinterpret_cast<const char *>(&size), sizeof size);
+    if (output.fail())
+        return false;
+
+    output.write(reinterpret_cast<const char *>(s.data()), s.size() * sizeof(wchar_t));
+    if (output.fail())
+        return false;
+
+    return true;
+}
+
+
 bool Read(std::istream &input, std::string * const s) {
     uint32_t size;
     input.read(reinterpret_cast<char *>(&size), sizeof size);
@@ -93,6 +108,24 @@ bool Read(std::istream &input, std::string * const s) {
         return false;
 
     *s = std::string(buf, size);
+
+    return true;
+}
+
+
+bool Read(std::istream &input, std::wstring * const s) {
+    uint32_t size;
+    input.read(reinterpret_cast<char *>(&size), sizeof size);
+    if (input.fail())
+        return false;
+
+    size = ntohl(size);
+    wchar_t buf[size];
+    input.read(reinterpret_cast<char *>(buf), size * sizeof(wchar_t));
+    if (input.fail())
+        return false;
+
+    *s = std::wstring(buf, size);
 
     return true;
 }
@@ -314,6 +347,21 @@ bool Write(File &output, const std::string &s) {
 }
 
 
+bool Write(File &output, const std::wstring &s) {
+    uint32_t size(s.size());
+    size = htonl(size);
+    output.write(reinterpret_cast<const char *>(&size), sizeof size);
+    if (output.fail())
+        return false;
+
+    output.write(reinterpret_cast<const char *>(s.data()), s.size() * sizeof(wchar_t));
+    if (output.fail())
+        return false;
+
+    return true;
+}
+
+
 bool Read(File &input, std::string * const s) {
     uint32_t size;
     input.read(reinterpret_cast<char *>(&size), sizeof size);
@@ -327,6 +375,24 @@ bool Read(File &input, std::string * const s) {
         return false;
 
     *s = std::string(buf, size);
+
+    return true;
+}
+
+
+bool Read(File &input, std::wstring * const s) {
+    uint32_t size;
+    input.read(reinterpret_cast<char *>(&size), sizeof size);
+    if (input.fail())
+        return false;
+
+    size = ntohl(size);
+    wchar_t buf[size];
+    input.read(reinterpret_cast<char *>(buf), size * sizeof(wchar_t));
+    if (input.fail())
+        return false;
+
+    *s = std::wstring(buf, size);
 
     return true;
 }
