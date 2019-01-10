@@ -116,9 +116,13 @@ public:
         return escapeString(unescaped_string, /* add_quotes = */true);
     }
 
-    void mySQLCreateDatabase(const std::string &database_name, const Charset charset = UTF8MB4);
+    void mySQLCreateDatabase(const std::string &database_name, const Charset charset = UTF8MB4) {
+        queryOrDie("CREATE DATABASE " + database_name + " CHARACTER SET " + CharsetToString(charset) + ";");
+    }
 
-    void mySQLCreateUser(const std::string &new_user, const std::string &new_passwd);
+    void mySQLCreateUser(const std::string &new_user, const std::string &new_passwd, const std::string &host = "localhost") {
+        queryOrDie("CREATE USER " + new_user + "@" + host + " IDENTIFIED BY '" + new_passwd + "';");
+    }
 
     bool mySQLDatabaseExists(const std::string &database_name);
 
@@ -128,11 +132,17 @@ public:
 
     std::vector<std::string> mySQLGetTableList();
 
-    void mySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user);
+    void mySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user) {
+        queryOrDie("GRANT ALL PRIVILEGES ON " + database_name + ".* TO '" + database_user + "';");
+    }
 
-    void mySQLSelectDatabase(const std::string &database_name);
+    void mySQLSelectDatabase(const std::string &database_name) {
+        ::mysql_select_db(&mysql_, database_name.c_str());
+    }
 
     void mySQLSyncMultipleResults();
+
+    bool mySQLUserExists(const std::string &user, const std::string &host);
 private:
     /** \note This constructor is for operations which do not require any existing database.
      *        It should only be used in static functions.
@@ -162,7 +172,7 @@ public:
                                 const Charset charset = UTF8MB4)
     {
         DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-        db_connection.mySQLCreateUser(new_user, new_passwd);
+        db_connection.mySQLCreateUser(new_user, new_passwd, host);
     }
 
     static bool MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
@@ -195,6 +205,14 @@ public:
     {
         DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
         return db_connection.mySQLGrantAllPrivileges(database_name, database_user);
+    }
+
+    static bool MySQLUserExists(const std::string &database_user, const std::string &admin_user, const std::string &admin_passwd,
+                                const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                const Charset charset = UTF8MB4)
+    {
+        DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
+        return db_connection.mySQLUserExists(database_user, host);
     }
 
     /** \note This function will enable "multiple statement execution support".

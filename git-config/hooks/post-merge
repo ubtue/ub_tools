@@ -1,0 +1,19 @@
+#!/bin/bash
+#
+# Git hook for updating TueFind configuration
+# (only if TueFind is already installed)
+#
+CHANGED_FILES="$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD)"
+DIR="$(dirname $(readlink --canonicalize "$0"))"
+
+# $1 - command
+# $2 - grep pattern
+# $3 - message
+run_if_file_changed() {
+    echo "$CHANGED_FILES" | grep --quiet "$2" && echo $3 && eval "$1"
+}
+
+MYSQL_SCHEMA_PATH=$DIR/../../cpp/data/installer/ub_tools.sql
+MYSQL_SCHEMA_DIFF_CMD="mysql_schema_diff root ub_tools "$MYSQL_SCHEMA_PATH""
+MYSQL_SCHEMA_DIFF_MSG="MySQL schema has changed, starting mysql_schema_diff against existing DB (no automatic changes will be done)"
+run_if_file_changed "$MYSQL_SCHEMA_DIFF_CMD" "ub_tools.sql" "$MYSQL_SCHEMA_DIFF_MSG"

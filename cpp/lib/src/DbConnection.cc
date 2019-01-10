@@ -445,16 +445,6 @@ std::string DbConnection::CharsetToString(const Charset charset) {
 }
 
 
-void DbConnection::mySQLCreateDatabase(const std::string &database_name, const Charset charset) {
-    queryOrDie("CREATE DATABASE " + database_name + " CHARACTER SET " + CharsetToString(charset) + ";");
-}
-
-
-void DbConnection::mySQLCreateUser(const std::string &new_user, const std::string &new_passwd) {
-    queryOrDie("CREATE USER " + new_user + " IDENTIFIED BY '" + new_passwd + "';");
-}
-
-
 bool DbConnection::mySQLDatabaseExists(const std::string &database_name) {
     std::vector<std::string> databases(mySQLGetDatabaseList());
     return (std::find(databases.begin(), databases.end(), database_name) != databases.end());
@@ -493,16 +483,6 @@ std::vector<std::string> DbConnection::mySQLGetTableList() {
 }
 
 
-void DbConnection::mySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user) {
-    queryOrDie("GRANT ALL PRIVILEGES ON " + database_name + ".* TO '" + database_user + "';");
-}
-
-
-void DbConnection::mySQLSelectDatabase(const std::string& database_name) {
-    ::mysql_select_db(&mysql_, database_name.c_str());
-}
-
-
 void DbConnection::mySQLSyncMultipleResults() {
     int next_result_exists;
     do {
@@ -524,4 +504,12 @@ void DbConnection::MySQLImportFile(const std::string &sql_file, const std::strin
     ::mysql_set_server_option(&db_connection.mysql_, MYSQL_OPTION_MULTI_STATEMENTS_ON);
     db_connection.queryOrDie(sql_data);
     db_connection.mySQLSyncMultipleResults();
+}
+
+
+bool DbConnection::mySQLUserExists(const std::string &user, const std::string &host) {
+    queryOrDie("SELECT COUNT(*) as user_count FROM mysql.user WHERE User='" + user + "' AND Host='" + host + "';");
+    DbResultSet result_set(getLastResultSet());
+    const DbRow result_row(result_set.getNextRow());
+    return result_row["user_count"] != "0";
 }
