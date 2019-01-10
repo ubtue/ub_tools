@@ -140,11 +140,11 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
  */
 inline void ClassifyLanguage(const std::string &input_text, std::vector<std::string> * const top_languages,
                              const std::set<std::string> &considered_languages = { },
-			     const DistanceType distance_type = SIMPLE_DISTANCE,
-			     const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
-			     const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT,
-			     const double alternative_cutoff_factor = DEFAULT_ALTERNATIVE_CUTOFF_FACTOR,
-			     const std::string &override_language_models_directory = "")
+                             const DistanceType distance_type = SIMPLE_DISTANCE,
+                             const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
+                             const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT,
+                             const double alternative_cutoff_factor = DEFAULT_ALTERNATIVE_CUTOFF_FACTOR,
+                             const std::string &override_language_models_directory = "")
 {
     std::istringstream input(input_text);
     ClassifyLanguage(input, top_languages, considered_languages, distance_type, ngram_number_threshold, topmost_use_count,
