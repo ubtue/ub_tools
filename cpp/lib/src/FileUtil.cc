@@ -1283,6 +1283,14 @@ bool IsPipeOrFIFO(const std::string &path) {
 }
 
 
+bool IsSymlink(const std::string &path) {
+    struct stat buf;
+    if (::stat(path.c_str(), &buf) != 0)
+        LOG_ERROR("stat(2) on \"" + path + "\" failed!");
+    return S_ISLNK(buf.st_mode);
+}
+
+
 void ChangeDirectoryOrDie(const std::string &directory) {
     if (unlikely(::chdir(directory.c_str()) != 0))
         LOG_ERROR("failed to change directory to \"" + directory + "\"!");
