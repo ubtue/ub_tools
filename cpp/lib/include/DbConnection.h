@@ -118,7 +118,7 @@ public:
 
     void mySQLCreateDatabase(const std::string &database_name, const Charset charset = UTF8MB4);
 
-    void mySQLCreateUser(const std::string &new_user, const std::string &new_passwd);
+    void mySQLCreateUser(const std::string &new_user, const std::string &new_passwd, const std::string &new_host = "localhost");
 
     bool mySQLDatabaseExists(const std::string &database_name);
 
@@ -162,7 +162,7 @@ public:
                                 const Charset charset = UTF8MB4)
     {
         DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-        db_connection.mySQLCreateUser(new_user, new_passwd);
+        db_connection.mySQLCreateUser(new_user, new_passwd, host);
     }
 
     static bool MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,

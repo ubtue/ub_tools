@@ -208,7 +208,7 @@ void CreateUbToolsDatabase() {
         DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
         DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
-        DbConnection::MySQLImportFile(sql_database, INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", root_username, root_password);
+        DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, root_username, root_password);
     }
 }
 
