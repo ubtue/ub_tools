@@ -137,6 +137,16 @@ std::string SafeGetEnv(const char * const name) {
 }
 
 
+std::string GetPassword(const std::string &prompt) {
+    errno = 0;
+    const std::string password(::getpass((prompt + " > ").c_str()));
+    if (errno != 0)
+        LOG_ERROR("failed to read the password from the terminal!");
+
+    return password;
+}
+
+
 void SetEnv(const std::string &name, const std::string &value, const bool overwrite) {
     if (unlikely(::setenv(name.c_str(), value.c_str(), overwrite ? 1 : 0) != 0))
         throw std::runtime_error("in MiscUtil::SetEnv: setenv(3) failed!");
