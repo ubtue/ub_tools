@@ -203,10 +203,14 @@ void CreateUbToolsDatabase() {
     const std::string sql_username(section->getString("sql_username"));
     const std::string sql_password(section->getString("sql_password"));
 
-    if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
-        std::cout << "creating ub_tools database\n";
-        DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
+    if (not DbConnection::MySQLUserExists(sql_username, root_username, root_password)) {
+        std::cout << "creating ub_tools MySQL user\n";
         DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
+    }
+
+    if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
+        std::cout << "creating ub_tools MySQL database\n";
+        DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
         DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, root_username, root_password);
     }

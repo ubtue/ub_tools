@@ -505,3 +505,11 @@ void DbConnection::MySQLImportFile(const std::string &sql_file, const std::strin
     db_connection.queryOrDie(sql_data);
     db_connection.mySQLSyncMultipleResults();
 }
+
+
+bool DbConnection::mySQLUserExists(const std::string &user, const std::string host) {
+    queryOrDie("SELECT COUNT(*) as user_count FROM mysql.user WHERE User='" + user + "' AND Host='" + host + "';");
+    DbResultSet result_set(getLastResultSet());
+    const DbRow result_row = result_set.getNextRow();
+    return result_row["user_count"] != "0";
+}
