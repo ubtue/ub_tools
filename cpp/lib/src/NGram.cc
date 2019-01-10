@@ -27,6 +27,7 @@
 #include "NGram.h"
 #include <algorithm>
 #include <fstream>
+#include <unordered_set>
 #include <climits>
 #include "BinaryIO.h"
 #include "FileUtil.h"
@@ -296,10 +297,9 @@ void CreateLanguageModel(std::istream &input, NGramCounts * const ngram_counts,
 }
 
 
-void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_languages,
-		      const DistanceType distance_type, const unsigned ngram_number_threshold,
-		      const unsigned topmost_use_count, const double alternative_cutoff_factor,
-		      const std::string &override_language_models_directory)
+void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_languages, const std::set<std::string> &considered_languages,
+		      const DistanceType distance_type, const unsigned ngram_number_threshold, const unsigned topmost_use_count,
+                      const double alternative_cutoff_factor, const std::string &override_language_models_directory)
 {
     // Determine the language models directroy:
     const std::string language_models_directory(override_language_models_directory.empty() ? UBTools::GetTuelibPath() + "/language_models"
@@ -317,8 +317,23 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
             LOG_ERROR("no language models available in \"" + language_models_directory + "\"!");
     }
 
+    // Verify that we do have models for all requested languages:
+    if (not considered_languages.empty()) {
+        std::unordered_set<std::string> all_languages;
+        for (const auto &language_model : language_models)
+            all_languages.emplace(language_model.getLanguage());
+
+        for (const auto &requested_language : considered_languages) {
+            if (unlikely(all_languages.find(requested_language) == all_languages.cend()))
+                LOG_ERROR("considered language \"" + requested_language + "\" is not supported!");
+        }
+    }
+
     std::vector<std::pair<std::string, double>> languages_and_scores;
     for (const auto &language_model : language_models) {
+        if (not considered_languages.empty() and considered_languages.find(language_model.getLanguage()) == considered_languages.cend())
+            continue;
+
         // Compare the known language model with the unknown language model:
         double distance(0.0);
         for (unsigned i(0); i < sorted_unknown_language_model.size(); ++i)
