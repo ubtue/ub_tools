@@ -27,6 +27,7 @@
 /base64_coder
 /bib_ref_to_codes_tool
 /categorise_marc
+/classify_language
 /clean_tag_db
 /collect_journal_stats
 /collect_solr_stats_data
