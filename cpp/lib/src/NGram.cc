@@ -26,7 +26,9 @@
  */
 #include "NGram.h"
 #include <algorithm>
+#include <iostream>//XXX
 #include <fstream>
+#include <unordered_set>
 #include <climits>
 #include "BinaryIO.h"
 #include "FileUtil.h"
@@ -70,16 +72,20 @@ void LoadLanguageModel(const std::string &path_name, NGram::NGramCounts * const 
     size_t entry_count;
     BinaryIO::ReadOrDie(*input, &entry_count);
     ngram_counts->reserve(entry_count);
+std::cerr << path_name << " constains " << entry_count << " entries.\n";
 
     for (unsigned i(0); i < entry_count; ++i) {
         std::wstring ngram;
+std::cerr << "About to read the ngram\n";
         BinaryIO::ReadOrDie(*input, &ngram);
 
+std::cerr << "About to read the score\n";
         double score;
         BinaryIO::ReadOrDie(*input, &score);
 
         (*ngram_counts)[ngram] = score;
     }
+std::cerr << "Done.\n\n\n";
 }
 
 
@@ -296,10 +302,9 @@ void CreateLanguageModel(std::istream &input, NGramCounts * const ngram_counts,
 }
 
 
-void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_languages,
-		      const DistanceType distance_type, const unsigned ngram_number_threshold,
-		      const unsigned topmost_use_count, const double alternative_cutoff_factor,
-		      const std::string &override_language_models_directory)
+void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_languages, const std::set<std::string> &considered_languages,
+                      const DistanceType distance_type, const unsigned ngram_number_threshold, const unsigned topmost_use_count,
+                      const double alternative_cutoff_factor, const std::string &override_language_models_directory)
 {
     // Determine the language models directroy:
     const std::string language_models_directory(override_language_models_directory.empty() ? UBTools::GetTuelibPath() + "/language_models"
@@ -317,8 +322,23 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
             LOG_ERROR("no language models available in \"" + language_models_directory + "\"!");
     }
 
+    // Verify that we do have models for all requested languages:
+    if (not considered_languages.empty()) {
+        std::unordered_set<std::string> all_languages;
+        for (const auto &language_model : language_models)
+            all_languages.emplace(language_model.getLanguage());
+
+        for (const auto &requested_language : considered_languages) {
+            if (unlikely(all_languages.find(requested_language) == all_languages.cend()))
+                LOG_ERROR("considered language \"" + requested_language + "\" is not supported!");
+        }
+    }
+
     std::vector<std::pair<std::string, double>> languages_and_scores;
     for (const auto &language_model : language_models) {
+        if (not considered_languages.empty() and considered_languages.find(language_model.getLanguage()) == considered_languages.cend())
+            continue;
+
         // Compare the known language model with the unknown language model:
         double distance(0.0);
         for (unsigned i(0); i < sorted_unknown_language_model.size(); ++i)
