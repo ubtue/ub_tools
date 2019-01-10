@@ -56,7 +56,7 @@ CREATE TABLE delivered_marc_records (
     url VARCHAR(191) NOT NULL,
     hash VARCHAR(40) NOT NULL,
     zeder_id VARCHAR(10) NOT NULL,
-    delivered_at DATETIME NOT NULL DEFAULT NOW(),
+    delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
     journal_name VARCHAR(191) NOT NULL,
     main_title VARCHAR(191) NOT NULL,
     publication_year CHAR(4) DEFAULT NULL,
