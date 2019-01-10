@@ -87,7 +87,12 @@ bool Write(std::ostream &output, const std::wstring &s) {
     if (output.fail())
         return false;
 
-    output.write(reinterpret_cast<const char *>(s.data()), s.size() * sizeof(wchar_t));
+    // Fix byte order:
+    std::wstring s2;
+    for (auto &wch : s2)
+        wch = htonl(wch);
+
+    output.write(reinterpret_cast<const char *>(s2.data()), s2.size() * sizeof(wchar_t));
     if (output.fail())
         return false;
 
@@ -126,6 +131,10 @@ bool Read(std::istream &input, std::wstring * const s) {
         return false;
 
     *s = std::wstring(buf, size);
+
+    // Fix byte order:
+    for (auto &wch : *s)
+        wch = ntohl(wch);
 
     return true;
 }
