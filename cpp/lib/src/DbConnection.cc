@@ -450,8 +450,8 @@ void DbConnection::mySQLCreateDatabase(const std::string &database_name, const C
 }
 
 
-void DbConnection::mySQLCreateUser(const std::string &new_user, const std::string &new_passwd) {
-    queryOrDie("CREATE USER " + new_user + " IDENTIFIED BY '" + new_passwd + "';");
+void DbConnection::mySQLCreateUser(const std::string &new_user, const std::string &new_passwd, const std::string &new_host) {
+    queryOrDie("CREATE USER " + new_user + "@" + new_host + " IDENTIFIED BY '" + new_passwd + "';");
 }
 
 
