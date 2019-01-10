@@ -1044,9 +1044,9 @@ template<typename InsertableContainer> inline unsigned SplitThenTrim(const std::
     unsigned count = 0;
     std::string::const_iterator ch(s.begin());
     while (ch != s.end()) {
-        // Skip over separators:
-        while (ch != s.end() and *ch == field_separator)
-                ++ch;
+        // Skip over separator:
+        if (*ch == field_separator)
+            ++ch;
 
         // Bail out if we're at the end:
         if (ch == s.end())
