@@ -7,8 +7,11 @@
 CREATE TABLE rss_aggregator (
     item_id VARCHAR(191) NOT NULL,
     item_url VARCHAR(512) NOT NULL,
-    title_and_or_description TEXT NOT NULL,
+    item_title VARCHAR(200) NOT NULL,
+    item_description TEXT NOT NULL,
     serial_name VARCHAR(200) NOT NULL,
+    feed_url VARCHAR(512) NOT NULL,
+    pub_date DATETIME NOT NULL,
     insertion_time TIMESTAMP DEFAULT NOW() NOT NULL,
     UNIQUE (item_id)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
@@ -48,24 +51,13 @@ CREATE TABLE metadata_presence_tracer (
 CREATE INDEX journal_name_and_metadata_field_name_index ON metadata_presence_tracer(journal_name, metadata_field_name);
 
 
-CREATE TABLE harvested_urls (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    url VARCHAR(191) NOT NULL,
-    delivery_mode ENUM('test', 'live') NOT NULL,
-    last_harvest_time DATETIME NOT NULL,
-    journal_name VARCHAR(191) NOT NULL,
-    checksum CHAR(40),
-    error_message VARCHAR(191),
-    CONSTRAINT url_and_delivery_mode UNIQUE (url, delivery_mode)
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE INDEX harvested_urls_id_and_journal_name_index on harvested_urls(id, journal_name);
-
-CREATE TABLE marc_records (
+CREATE TABLE delivered_marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
     url VARCHAR(191) NOT NULL,
     hash VARCHAR(40) NOT NULL,
     zeder_id VARCHAR(10) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    journal_name VARCHAR(191) NOT NULL,
     main_title VARCHAR(191) NOT NULL,
     publication_year CHAR(4) DEFAULT NULL,
     volume CHAR(40) DEFAULT NULL,
@@ -74,23 +66,16 @@ CREATE TABLE marc_records (
     resource_type ENUM('print','online','unknown') NOT NULL,
     record BLOB NOT NULL
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE INDEX marc_records_url_index ON marc_records(url);
-CREATE INDEX marc_records_hash_index ON marc_records(hash);
-CREATE INDEX marc_records_zeder_id_index ON marc_records(zeder_id);
-CREATE INDEX marc_records_created_at_index ON marc_records(created_at);
-CREATE INDEX marc_records_main_title_index ON marc_records(main_title);
-CREATE INDEX marc_records_superior_control_number_index ON marc_records(superior_control_number);
+CREATE INDEX delivered_marc_records_url_index ON delivered_marc_records(url);
+CREATE INDEX delivered_marc_records_hash_index ON delivered_marc_records(hash);
+CREATE INDEX delivered_marc_records_zeder_id_index ON delivered_marc_records(zeder_id);
+CREATE INDEX delivered_marc_records_delivered_at_index ON delivered_marc_records(delivered_at);
+CREATE INDEX delivered_marc_records_journal_name_index ON delivered_marc_records(journal_name);
+CREATE INDEX delivered_marc_records_main_title_index ON delivered_marc_records(main_title);
 
-CREATE TABLE superior_info (
+CREATE TABLE delivered_marc_records_superior_info (
     zeder_id VARCHAR(10) PRIMARY KEY,
     control_number VARCHAR(20) DEFAULT NULL,
     title VARCHAR(191) NOT NULL,
-    CONSTRAINT zeder_id FOREIGN KEY (zeder_id) REFERENCES marc_records (zeder_id) ON DELETE CASCADE
+    CONSTRAINT zeder_id FOREIGN KEY (zeder_id) REFERENCES delivered_marc_records (zeder_id) ON DELETE CASCADE
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-
-CREATE TABLE marc_authors (
-    marc_records_id INT AUTO_INCREMENT PRIMARY KEY,
-    author VARCHAR(191) NOT NULL,
-    CONSTRAINT marc_records_id FOREIGN KEY (marc_records_id) REFERENCES marc_records (id) ON DELETE CASCADE
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE INDEX marc_authors_author_index ON marc_authors(author);

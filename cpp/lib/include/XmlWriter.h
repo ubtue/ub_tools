@@ -42,8 +42,7 @@ class XmlWriter {
     File * const output_file_;
     std::string *output_string_;
     std::stack<std::string> active_tags_;
-    const unsigned indent_amount_;
-    unsigned nesting_level_;
+    unsigned indent_amount_, nesting_level_;
 public:
     enum TextConversionType { NoConversion, ConvertFromIso8859_15 };
     enum XmlDeclarationWriteBehaviour { WriteTheXmlDeclaration, DoNotWriteTheXmlDeclaration };
@@ -53,7 +52,7 @@ private:
     Attributes next_attributes_;
 public:
     /** \brief  Instantiate an XmlWriter object.
-     *  \param  output_file                      Where to write the generated XML to.
+     *  \param  output_file                      Where to write the generated XML to. Assumes ownership of the pointer.
      *  \param  xml_declaration_write_behaviour  Whether to write an XML declaration or not.
      *  \param  indent_amount                    How many leading spaces to add per indentation level.
      *  \param  text_conversion_type             What kind, if any, of text conversion to apply on output.
@@ -94,47 +93,6 @@ public:
          addAttribute(). */
     void openTag(const std::string &tag_name, const Attributes &attribs, const bool suppress_newline = false);
 
-    /** Write character data. */
-    void write(const std::string &characters) { (*this) << characters; }
-
-    /** Write character data between an opening and closing tag pair. */
-    void writeTagsWithData(const std::string &tag_name, const std::string &characters,
-                           const bool suppress_indent = false)
-    {
-        openTag(tag_name, suppress_indent);
-        write(characters);
-        closeTag(tag_name, suppress_indent);
-    }
-
-    /** Write character data between an opening and closing tag pair. */
-    void writeTagsWithEscapedData(const std::string &tag_name, const Attributes &attribs,
-                                  const std::string &characters, const bool suppress_indent = false,
-                                  const XmlWriter::TextConversionType text_conversion_type = NoConversion)
-    {
-        openTag(tag_name, attribs, suppress_indent);
-        write(XmlWriter::XmlEscape(characters, text_conversion_type));
-        closeTag(tag_name, suppress_indent);
-    }
-
-    /** Write character data between an opening and closing tag pair. */
-    void writeTagsWithEscapedData(const std::string &tag_name, const std::string &characters,
-                                  const bool suppress_indent = false,
-                                  const XmlWriter::TextConversionType text_conversion_type = NoConversion)
-    {
-        openTag(tag_name, suppress_indent);
-        write(XmlWriter::XmlEscape(characters, text_conversion_type));
-        closeTag(tag_name, suppress_indent);
-    }
-
-    /** Write character data between an opening and closing tag pair. */
-    void writeTagsWithData(const std::string &tag_name, const Attributes &attribs, const std::string &characters,
-                           const bool suppress_indent = false)
-    {
-        openTag(tag_name, attribs, suppress_indent);
-        write(characters);
-        closeTag(tag_name, suppress_indent);
-    }
-
     /** \brief  Writes a closing tag at the approriate indentation level.
      *  \param  tag_name         If empty, we close the last open tag otherwise we close tags until we find a tag that
      *                           matches tag_name which we also close.
@@ -149,6 +107,32 @@ public:
 
     /** Calls closeTag() until all open tags are closed. */
     void closeAllTags();
+
+    /** Write character data. */
+    void write(const std::string &characters) { (*this) << characters; }
+
+    /** Write character data between an opening and closing tag pair. */
+    void writeTagsWithData(const std::string &tag_name, const std::string &characters, const bool suppress_newline = false);
+
+    /** Write character data between an opening and closing tag pair. */
+    void writeTagsWithEscapedData(const std::string &tag_name, const Attributes &attribs,
+                                  const std::string &characters, const bool suppress_newline = false,
+                                  const XmlWriter::TextConversionType text_conversion_type = NoConversion);
+
+    /** Write character data between an opening and closing tag pair. */
+    inline void writeTagsWithEscapedData(const std::string &tag_name, const std::string &characters,
+                                         const bool suppress_indent = false,
+                                         const XmlWriter::TextConversionType text_conversion_type = NoConversion)
+        { writeTagsWithEscapedData(tag_name, { }, characters, suppress_indent, text_conversion_type); }
+
+    /** Write character data between an opening and closing tag pair. */
+    void writeTagsWithData(const std::string &tag_name, const Attributes &attribs, const std::string &characters,
+                           const bool suppress_indent = false)
+    {
+        openTag(tag_name, attribs, suppress_indent);
+        write(characters);
+        closeTag(tag_name, suppress_indent);
+    }
 
     /** Emits the number of spaces corresponding to the current nesting level to the output file. */
     void indent();

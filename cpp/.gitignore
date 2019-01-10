@@ -27,6 +27,7 @@
 /base64_coder
 /bib_ref_to_codes_tool
 /categorise_marc
+/classify_language
 /clean_tag_db
 /collect_journal_stats
 /collect_solr_stats_data
@@ -76,10 +77,10 @@
 /flag_article_collections
 /full_text_cache_cleaner
 /full_text_cache_monitor
-/full_text_importer
 /full_text_lookup
 /full_text_stats
 /generate_issn_to_misc_bits_map
+/generate_language_model
 /generate_large_marc_record
 /generate_merge_order
 /generate_tags_and_keyword_fields_map
@@ -121,6 +122,7 @@
 /merge_print_and_online
 /missing_metadata_db_tool
 /mpi_stats
+/mysql_schema_diff
 /new_journal_alert
 /normalise_and_deduplicate_language
 /normalise_author_name
@@ -144,6 +146,7 @@
 /send_email
 /set_tad_access_flag
 /simple_crawler
+/store_in_elasticsearch
 /string_info
 /subfield_code_replacer
 /suggest_bib_refs

@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -19,7 +19,6 @@
  */
 #include "DbConnection.h"
 #include <stdexcept>
-#include <vector>
 #include <cstdlib>
 #include "FileUtil.h"
 #include "IniFile.h"
@@ -256,9 +255,12 @@ bool DbConnection::queryFile(const std::string &filename) {
     if (not FileUtil::ReadString(filename, &statements))
         LOG_ERROR("failed to read \"" + filename + "\"!");
 
-    if (type_ == T_MYSQL)
-        return query(StringUtil::TrimWhite(&statements));
-    else {
+    if (type_ == T_MYSQL) {
+        const bool query_result(query(StringUtil::TrimWhite(&statements)));
+        if (query_result)
+            mySQLSyncMultipleResults();
+        return query_result;
+    } else {
         std::vector<std::string> individual_statements;
         SplitSqliteStatements(statements, &individual_statements);
         for (const auto &statement : individual_statements) {
@@ -276,14 +278,56 @@ void DbConnection::queryFileOrDie(const std::string &filename) {
     if (not FileUtil::ReadString(filename, &statements))
         LOG_ERROR("failed to read \"" + filename + "\"!");
 
-    if (type_ == T_MYSQL)
-        return queryOrDie(StringUtil::TrimWhite(&statements));
-    else {
+    if (type_ == T_MYSQL) {
+        queryOrDie(StringUtil::TrimWhite(&statements));
+        mySQLSyncMultipleResults();
+    } else {
         std::vector<std::string> individual_statements;
         SplitSqliteStatements(statements, &individual_statements);
         for (const auto &statement : individual_statements)
             queryOrDie(statement);
     }
+}
+
+
+void DbConnection::insertIntoTableOrDie(const std::string &table_name,
+                                        const std::map<std::string, std::string> &column_names_to_values_map,
+                                        const DuplicateKeyBehaviour duplicate_key_behaviour)
+{
+    std::string insert_stmt(duplicate_key_behaviour == DKB_REPLACE ? "REPLACE" : "INSERT");
+    if (duplicate_key_behaviour == DKB_IGNORE)
+        insert_stmt += (type_ == T_MYSQL) ? " IGNORE" : " OR IGNORE";
+    insert_stmt += " INTO " + table_name + " (";
+
+    const char column_name_quote(type_ == T_MYSQL ? '`' : '"');
+
+    bool first(true);
+    for (const auto &column_name_and_value : column_names_to_values_map) {
+        if (not first)
+            insert_stmt += ',';
+        else
+            first = false;
+
+        insert_stmt += column_name_quote;
+        insert_stmt += column_name_and_value.first;
+        insert_stmt += column_name_quote;
+    }
+
+    insert_stmt += ") VALUES (";
+
+    first = true;
+    for (const auto &column_name_and_value : column_names_to_values_map) {
+        if (not first)
+            insert_stmt += ',';
+        else
+            first = false;
+
+        insert_stmt += escapeAndQuoteString(column_name_and_value.second);
+    }
+
+    insert_stmt += ')';
+
+    queryOrDie(insert_stmt);
 }
 
 
@@ -381,7 +425,7 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
     if (::mysql_real_connect(&mysql_, host.c_str(), user.c_str(), passwd.c_str(), nullptr, port,
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage() + ")");
-    if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
+    if (::mysql_set_character_set(&mysql_, CharsetToString(charset).c_str()) != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
 
     sqlite3_ = nullptr;
@@ -391,54 +435,62 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
 }
 
 
-void DbConnection::MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user,
-                                       const std::string &admin_passwd, const std::string &host,
-                                       const unsigned port, const Charset charset)
-{
-    DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-    db_connection.queryOrDie("CREATE DATABASE " + database_name + ";");
+std::string DbConnection::CharsetToString(const Charset charset) {
+    switch (charset) {
+    case UTF8MB3:
+        return "utf8";
+    case UTF8MB4:
+        return "utf8mb4";
+    }
 }
 
 
-void DbConnection::MySQLCreateUser(const std::string &new_user, const std::string &new_passwd,
-                                   const std::string &admin_user, const std::string &admin_passwd,
-                                   const std::string &host, const unsigned port, const Charset charset)
-{
-    DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-    db_connection.queryOrDie("CREATE USER " + new_user + " IDENTIFIED BY '" + new_passwd + "';");
+bool DbConnection::mySQLDatabaseExists(const std::string &database_name) {
+    std::vector<std::string> databases(mySQLGetDatabaseList());
+    return (std::find(databases.begin(), databases.end(), database_name) != databases.end());
 }
 
 
-void DbConnection::MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user,
-                                           const std::string &admin_user, const std::string &admin_passwd,
-                                           const std::string &host, const unsigned port, const Charset charset)
-{
-    DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-    db_connection.queryOrDie("GRANT ALL PRIVILEGES ON " + database_name + ".* TO '" + database_user + "';");
+bool DbConnection::mySQLDropDatabase(const std::string &database_name) {
+    if (not mySQLDatabaseExists(database_name))
+        return false;
+    queryOrDie("DROP DATABASE " + database_name + ";");
+    return (not mySQLDatabaseExists(database_name));
 }
 
 
-std::vector<std::string> DbConnection::MySQLGetDatabaseList(const std::string &admin_user, const std::string &admin_passwd,
-                                                            const std::string &host, const unsigned port, const Charset charset)
-{
-    DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-    db_connection.queryOrDie("SHOW DATABASES;");
+std::vector<std::string> DbConnection::mySQLGetDatabaseList() {
+    queryOrDie("SHOW DATABASES;");
 
     std::vector<std::string> databases;
-    DbResultSet result_set(db_connection.getLastResultSet());
-    while (const DbRow result_row = result_set.getNextRow()) {
-        databases.emplace_back(result_row["Database"]);
-    }
+    DbResultSet result_set(getLastResultSet());
+    while (const DbRow result_row = result_set.getNextRow())
+        databases.emplace_back(result_row[0]);
 
     return databases;
 }
 
 
-bool DbConnection::MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
-                                       const std::string &host, const unsigned port, const Charset charset)
-{
-    std::vector<std::string> databases(DbConnection::MySQLGetDatabaseList(admin_user, admin_passwd, host, port, charset));
-    return (std::find(databases.begin(), databases.end(), database_name) != databases.end());
+std::vector<std::string> DbConnection::mySQLGetTableList() {
+    queryOrDie("SHOW TABLES;");
+
+    std::vector<std::string> tables;
+    DbResultSet result_set(getLastResultSet());
+    while (const DbRow result_row = result_set.getNextRow())
+        tables.emplace_back(result_row[0]);
+
+    return tables;
+}
+
+
+void DbConnection::mySQLSyncMultipleResults() {
+    int next_result_exists;
+    do {
+        MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
+        if (result_set != nullptr)
+            ::mysql_free_result(result_set);
+        next_result_exists = ::mysql_next_result(&mysql_);
+    } while (next_result_exists == 0);
 }
 
 
@@ -451,4 +503,13 @@ void DbConnection::MySQLImportFile(const std::string &sql_file, const std::strin
     DbConnection db_connection(database_name, user, passwd, host, port, charset);
     ::mysql_set_server_option(&db_connection.mysql_, MYSQL_OPTION_MULTI_STATEMENTS_ON);
     db_connection.queryOrDie(sql_data);
+    db_connection.mySQLSyncMultipleResults();
+}
+
+
+bool DbConnection::mySQLUserExists(const std::string &user, const std::string &host) {
+    queryOrDie("SELECT COUNT(*) as user_count FROM mysql.user WHERE User='" + user + "' AND Host='" + host + "';");
+    DbResultSet result_set(getLastResultSet());
+    const DbRow result_row(result_set.getNextRow());
+    return result_row["user_count"] != "0";
 }

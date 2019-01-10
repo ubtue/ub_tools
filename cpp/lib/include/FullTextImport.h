@@ -68,9 +68,10 @@ void WriteExtractedTextToDisk(const std::string &full_text, const std::string &t
 void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const full_text_data);
 
 
-// Match full-text data with an existing record's control number, if any. Returns the number of exact matches.
-size_t CorrelateFullTextData(const std::vector<std::shared_ptr<FullTextData>> &full_text_data,
-                             std::unordered_map<std::string, std::shared_ptr<FullTextData>> * const control_number_to_full_text_data_map);
+// \brief Match full-text data with an existing record's control number, if any.
+// \return the number of exact matches.
+bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, const FullTextData &full_text_data,
+                           std::string * const control_number);
 
 
 } // namespace FullTextImport
