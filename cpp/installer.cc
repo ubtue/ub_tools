@@ -155,6 +155,20 @@ TemporaryChDir::~TemporaryChDir() {
 }
 
 
+void GitActivateCustomHooks(const std::string &repository) {
+    const std::string original_git_directory(repository + "/.git");
+    const std::string original_hooks_directory(original_git_directory + "/hooks");
+    const std::string custom_hooks_directory(repository + "/git-config/hooks");
+
+    if (FileUtil::IsDirectory(custom_hooks_directory) and FileUtil::IsDirectory(original_hooks_directory)) {
+        Echo("Activating custom git hooks in " + repository);
+        FileUtil::RemoveDirectory(original_hooks_directory);
+        TemporaryChDir tmp1(original_git_directory);
+        FileUtil::CreateSymlink(custom_hooks_directory, "hooks");
+    }
+}
+
+
 bool FileContainsLineStartingWith(const std::string &path, const std::string &prefix) {
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(path));
     while (not input->eof()) {
@@ -203,10 +217,14 @@ void CreateUbToolsDatabase() {
     const std::string sql_username(section->getString("sql_username"));
     const std::string sql_password(section->getString("sql_password"));
 
-    if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
-        std::cout << "creating ub_tools database\n";
-        DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
+    if (not DbConnection::MySQLUserExists(sql_username, root_username, root_password)) {
+        std::cout << "creating ub_tools MySQL user\n";
         DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
+    }
+
+    if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
+        std::cout << "creating ub_tools MySQL database\n";
+        DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
         DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, root_username, root_password);
     }
@@ -332,6 +350,7 @@ void InstallUBTools(const bool make_install) {
         ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4" });
 
     CreateUbToolsDatabase();
+    GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
 
     Echo("Installed ub_tools.");
 }
@@ -431,11 +450,7 @@ void DownloadVuFind() {
         Echo("Downloading TueFind git repository");
         const std::string git_url("https://github.com/ubtue/tuefind.git");
         ExecUtil::ExecOrDie(ExecUtil::Which("git"), { "clone", git_url, VUFIND_DIRECTORY });
-
-        Echo("Activating custom git hooks");
-        FileUtil::RemoveDirectory(VUFIND_DIRECTORY + "/.git/hooks");
-        TemporaryChDir tmp1(VUFIND_DIRECTORY + "/.git");
-        FileUtil::CreateSymlink("../git-config/hooks", "hooks");
+        GitActivateCustomHooks(VUFIND_DIRECTORY);
 
         TemporaryChDir tmp2(VUFIND_DIRECTORY);
         ExecUtil::ExecOrDie(ExecUtil::Which("composer"), { "install" });

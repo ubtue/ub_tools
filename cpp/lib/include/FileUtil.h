@@ -519,6 +519,7 @@ std::string StripLastPathComponent(const std::string &path);
 
 bool IsEmpty(const std::string &path);
 bool IsPipeOrFIFO(const std::string &path);
+bool IsSymlink(const std::string &path);
 void ChangeDirectoryOrDie(const std::string &directory);
 std::string GetPathFromFileDescriptor(const int fd);
 
