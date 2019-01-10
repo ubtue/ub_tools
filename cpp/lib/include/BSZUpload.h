@@ -1,6 +1,6 @@
 /*  \brief Functionality referring to the Upload functionality of BSZ
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -19,6 +19,9 @@
 #pragma once
 
 #include <map>
+#include <unordered_map>
+#include "DbConnection.h"
+#include "SqlUtil.h"
 
 
 namespace BSZUpload {
@@ -38,6 +41,37 @@ const std::map<int, std::string> DELIVERY_MODE_TO_STRING_MAP {
     { static_cast<int>(DeliveryMode::NONE), "NONE" },
     { static_cast<int>(DeliveryMode::TEST), "TEST" },
     { static_cast<int>(DeliveryMode::LIVE), "LIVE" }
+};
+
+
+// Tracks records that have been uploaded to the BSZ server.
+class DeliveryTracker {
+    DbConnection *db_connection_;
+public:
+    struct Entry {
+        std::string url_;
+        std::string journal_name_;
+        time_t delivered_at_;
+        std::string hash_;
+    };
+public:
+    explicit DeliveryTracker(DbConnection * const db): db_connection_(db) {}
+    ~DeliveryTracker() = default;
+public:
+    /** \brief Checks if "url" or ("url", "hash") have already been uploaded.
+     *  \return True if we have find an entry for "url" or ("url", "hash"), else false.
+     */
+    bool hasAlreadyBeenDelivered(const std::string &url, const std::string &hash = "", Entry * const entry = nullptr) const;
+
+    /** \brief Lists all journals that haven't had a single URL delivered for a given number of days.
+     *  \return The number of outdated journals.
+     */
+    size_t listOutdatedJournals(const unsigned cutoff_days, std::unordered_map<std::string, time_t> * const outdated_journals);
+private:
+    inline void truncateURL(std::string * const url) const {
+        if (url->length() > static_cast<std::size_t>(SqlUtil::VARCHAR_UTF8_MAX_LENGTH))
+            url->erase(SqlUtil::VARCHAR_UTF8_MAX_LENGTH);
+    }
 };
 
 

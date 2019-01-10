@@ -59,7 +59,7 @@ std::string DownloadAuthorPPN(const std::string &author, const std::string &auth
         static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("<SMALL>PPN</SMALL>.*<div><SMALL>([0-9X]+)"));
         Downloader downloader(LOOKUP_URL);
         if (downloader.anErrorOccurred())
-            LOG_ERROR(downloader.getLastErrorMessage());
+            LOG_WARNING("couldn't download author PPN! downloader error: " + downloader.getLastErrorMessage());
         else if (matcher->matched(downloader.getMessageBody())) {
             url_to_lookup_result_cache.emplace(LOOKUP_URL, (*matcher)[1]);
             return (*matcher)[1];

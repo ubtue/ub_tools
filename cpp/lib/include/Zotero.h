@@ -3,7 +3,7 @@
  *           https://github.com/zotero/zotero/blob/master/chrome/locale/de/zotero/zotero.properties#L409
  *  \author Mario Trojan
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -26,9 +26,9 @@
 #include <kchashdb.h>
 #include <unordered_map>
 #include "BSZTransform.h"
+#include "BSZUpload.h"
 #include "DbConnection.h"
 #include "Downloader.h"
-#include "DownloadTracker.h"
 #include "IniFile.h"
 #include "JSON.h"
 #include "MARC.h"
@@ -206,6 +206,7 @@ struct SiteParams {
     std::string strptime_format_;
     std::unique_ptr<RegexMatcher> extraction_regex_;
     BSZUpload::DeliveryMode delivery_mode_;
+    std::unordered_set<std::string> expected_languages_;
     std::vector<std::string> additional_fields_;
     std::vector<std::string> non_standard_metadata_fields_;
     std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> field_exclusion_filters_;
@@ -230,13 +231,13 @@ struct HarvestParams {
     unsigned harvested_url_count_ = 0;
     std::string user_agent_;
     FormatHandler *format_handler_;
-    bool disable_tracking_;
+    bool keep_delivered_records_;
 };
 
 
 class FormatHandler {
 protected:
-    DownloadTracker download_tracker_;
+    BSZUpload::DeliveryTracker delivery_tracker_;
     std::string output_format_;
     std::string output_file_;
     SiteParams *site_params_;
@@ -244,14 +245,14 @@ protected:
 protected:
     FormatHandler(DbConnection * const db_connection, const std::string &output_format, const std::string &output_file,
                   const std::shared_ptr<const HarvestParams> &harvest_params)
-        : download_tracker_(db_connection), output_format_(output_format), output_file_(output_file),
+        : delivery_tracker_(db_connection), output_format_(output_format), output_file_(output_file),
           site_params_(nullptr), harvest_params_(harvest_params)
         { }
 public:
     virtual ~FormatHandler() = default;
 
     inline void setAugmentParams(SiteParams * const new_site_params) { site_params_ = new_site_params; }
-    inline DownloadTracker &getDownloadTracker() { return download_tracker_; }
+    inline BSZUpload::DeliveryTracker &getDeliveryTracker() { return delivery_tracker_; }
 
     /** \brief Convert & write single record to output file */
     virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) = 0;
@@ -338,7 +339,7 @@ private:
     void mergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters,
                                                struct CustomNodeParameters &custom_node_params);
 
-    void handleTrackingAndWriteRecord(const MARC::Record &new_record, const bool disable_tracking, const BSZUpload::DeliveryMode delivery_mode,
+    void handleTrackingAndWriteRecord(const MARC::Record &new_record, const bool keep_delivered_records,
                                       struct ItemParameters &item_params, unsigned * const previously_downloaded_count);
 
     bool recordMatchesExclusionFilters(const MARC::Record &new_record, std::string * const exclusion_string) const;
@@ -383,8 +384,7 @@ UnsignedPair HarvestURL(const std::string &url, const std::shared_ptr<HarvestPar
                         const SiteParams &site_params, HarvesterErrorLogger * const error_logger);
 
 
-// TEST mode disables the tracking of downloaded RSS feeds/entries
-enum class RSSHarvestMode { VERBOSE, TEST, NORMAL };
+enum class RSSHarvestMode { DISABLE_TRACKING, ENABLE_TRACKING };
 
 
 /** \brief Harvest metadata from URL's referenced in an RSS or Atom feed.
