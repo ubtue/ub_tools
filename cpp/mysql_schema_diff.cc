@@ -19,6 +19,8 @@
 */
 #include "DbConnection.h"
 #include "ExecUtil.h"
+#include "MiscUtil.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -26,9 +28,12 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("username password db_name sql_file\n\n"
+    ::Usage("[--password=password] username db_name sql_file\n"
+            "\n"
             "Compare an existing MySQL Database against a sql file with CREATE TABLE statements.\n"
-            "Uses \"mysqldiff\" from \"mysql-utilities\".");
+            "Uses \"mysqldiff\" from \"mysql-utilities\".\n"
+            "\n"
+            "If --password is not given, it will be prompted.");
 }
 
 
@@ -42,17 +47,23 @@ void CleanupTemporaryDatabase(DbConnection &db_connection, const std::string &da
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 5)
+    if (argc < 4 or argc > 5)
         Usage();
 
     const std::string MYSQLDIFF_EXECUTABLE(ExecUtil::Which("mysqldiff"));
     if (MYSQLDIFF_EXECUTABLE.empty())
         LOG_ERROR("Dependency \"mysqldiff\" is missing, please install \"mysql-utilities\"-package first!");
 
+    std::string passwd;
+    if (StringUtil::StartsWith(argv[1], "--password=")) {
+        passwd = std::string(argv[1] + __builtin_strlen("--password="));
+        --argc; ++argv;
+    } else
+        passwd = MiscUtil::GetPassword("please enter mysql password:");
+
     const std::string user(argv[1]);
-    const std::string passwd(argv[2]);
-    const std::string database_name(argv[3]);
-    const std::string sql_file(argv[4]);
+    const std::string database_name(argv[2]);
+    const std::string sql_file(argv[3]);
     const std::string host("localhost");
     const unsigned port(MYSQL_PORT);
 
