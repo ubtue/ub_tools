@@ -132,8 +132,9 @@ for d in */ ; do
     fi
     counter=$((counter+1))
 done
+
 if [ "$counter" = "0" ]; then
-    echo "No new records were harvested"
+    echo -e "No new records were harvested"
     EndPipeline
 fi
 EndPhase
@@ -146,7 +147,6 @@ for source_filepath in "${source_filepaths[@]}"; do
 done
 EndPhase
 
-
 StartPhase "Upload to BSZ Server"
 counter=0
 file_count=${#source_filepaths[@]}
@@ -158,6 +158,10 @@ while [ "$counter" -lt "$file_count" ]; do
 done
 EndPhase
 
+# End the pipeline early for test deliveries
+if [ "$delivery_mode" = "TEST"]; then
+    EndPipeline
+fi
 
 StartPhase "Archive Sent Records"
 for source_filepath in "${source_filepaths[@]}"; do
