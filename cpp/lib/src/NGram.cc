@@ -199,6 +199,14 @@ SortedNGramCounts::SortedNGramCounts(const NGramCounts &ngram_counts, const Sort
 }
 
 
+void SortedNGramCounts::prettyPrint(std::ostream &output) const {
+    output << "#entries = " << size() << '\n';
+    for (const auto &ngram_and_core : *this)
+        output << '\'' << TextUtil::WCharToUTF8StringOrDie(ngram_and_core.first) << "' = " << ngram_and_core.second << '\n';
+    output << '\n';
+}
+
+
 bool SortedNGramCounts::IsLessThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs) {
     if (lhs.second == rhs.second)
         return lhs.first > rhs.first ;
@@ -308,6 +316,7 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
     NGramCounts unknown_language_model;
     SortedNGramCounts sorted_unknown_language_model;
     CreateLanguageModel(input, &unknown_language_model, &sorted_unknown_language_model, ngram_number_threshold, topmost_use_count);
+    LOG_DEBUG("unknown language model has " + std::to_string(sorted_unknown_language_model.size()) + " entries.");
 
     static bool models_already_loaded(false);
     static std::vector<LanguageModel> language_models;
@@ -315,6 +324,7 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
         models_already_loaded = true;
         if (not LoadLanguageModels(language_models_directory, distance_type, topmost_use_count, &language_models))
             LOG_ERROR("no language models available in \"" + language_models_directory + "\"!");
+        LOG_DEBUG("loaded " + std::to_string(language_models.size()) + " language models.");
     }
 
     // Verify that we do have models for all requested languages:
@@ -340,6 +350,7 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
             distance += language_model.distance(sorted_unknown_language_model[i].first, i);
 
         languages_and_scores.emplace_back(language_model.getLanguage(), distance);
+        LOG_DEBUG(language_model.getLanguage() + " scored + " + std::to_string(distance));
     }
     std::sort(languages_and_scores.begin(), languages_and_scores.end(),
               [](const std::pair<std::string, double> &a, const std::pair<std::string, double> &b){ return a.second > b.second; });
