@@ -287,6 +287,14 @@ bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_stri
 }
 
 
+std::string WCharToUTF8StringOrDie(const std::wstring &wchar_string) {
+    std::string utf8_string;
+    if (unlikely(not WCharToUTF8String(wchar_string, &utf8_string)))
+        LOG_ERROR("failed to cpnvert a wide character string to an UTF8 string!");
+    return utf8_string;
+}
+
+
 bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string) {
     const std::wstring wchar_string(1, wchar);
     return WCharToUTF8String(wchar_string, utf8_string);

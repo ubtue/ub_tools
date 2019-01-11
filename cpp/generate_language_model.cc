@@ -41,7 +41,7 @@ int Main(int argc, char *argv[]) {
     NGram::CreateLanguageModel(input, &ngram_counts, &sorted_ngram_counts);
 
     const auto output(FileUtil::OpenOutputFileOrDie(argv[2]));
-    BinaryIO::WriteOrDie(*output, ngram_counts.size());
+    BinaryIO::WriteOrDie(*output, sorted_ngram_counts.size());
     for (const auto &ngram_and_rank : sorted_ngram_counts) {
         BinaryIO::WriteOrDie(*output, ngram_and_rank.first);
         BinaryIO::WriteOrDie(*output, ngram_and_rank.second);
