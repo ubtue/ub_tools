@@ -46,6 +46,7 @@ private:
 public:
     enum OpenMode { READONLY, READWRITE, CREATE };
     enum Charset { UTF8MB3, UTF8MB4 };
+    enum Collation { UTF8MB3_BIN, UTF8MB4_BIN };
     enum DuplicateKeyBehaviour { DKB_FAIL, DKB_IGNORE, DKB_REPLACE };
 public:
     explicit DbConnection(const TimeZone time_zone = TZ_SYSTEM); // Uses the ub_tools database.
@@ -116,8 +117,8 @@ public:
         return escapeString(unescaped_string, /* add_quotes = */true);
     }
 
-    void mySQLCreateDatabase(const std::string &database_name, const Charset charset = UTF8MB4) {
-        queryOrDie("CREATE DATABASE " + database_name + " CHARACTER SET " + CharsetToString(charset) + ";");
+    void mySQLCreateDatabase(const std::string &database_name, const Charset charset = UTF8MB4, const Collation collation = UTF8MB4_BIN) {
+        queryOrDie("CREATE DATABASE " + database_name + " CHARACTER SET " + CharsetToString(charset) + " COLLATE " + CollationToString(collation) + ";");
     }
 
     void mySQLCreateUser(const std::string &new_user, const std::string &new_passwd, const std::string &host = "localhost") {
@@ -159,12 +160,14 @@ private:
 public:
     static std::string CharsetToString(const Charset charset);
 
+    static std::string CollationToString(const Collation collation);
+
     static void MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
                                     const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
-                                    const Charset charset = UTF8MB4)
+                                    const Charset charset = UTF8MB4, const Collation collation = UTF8MB4_BIN)
     {
         DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-        db_connection.mySQLCreateDatabase(database_name, charset);
+        db_connection.mySQLCreateDatabase(database_name, charset, collation);
     }
 
     static void MySQLCreateUser(const std::string &new_user, const std::string &new_passwd, const std::string &admin_user,
