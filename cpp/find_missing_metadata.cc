@@ -130,8 +130,9 @@ void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, con
 }
 
 
-const std::map<MARC::Tag, MARC::Tag> EQUIVALENT_TAGS_MAP{
-    { "700", "100" },
+// Two-way mapping required as the map is uni-directional
+const std::map<std::string, std::string> EQUIVALENT_TAGS_MAP{
+    { "700", "100" }, { "100", "700" }
 };
 
 
@@ -140,13 +141,9 @@ void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record
     MARC::Tag last_tag;
     for (const auto &field : record) {
         auto current_tag(field.getTag());
-
-        const auto tag_and_replacement_tag(EQUIVALENT_TAGS_MAP.find(current_tag));
-        if (tag_and_replacement_tag != EQUIVALENT_TAGS_MAP.cend())
-            current_tag = tag_and_replacement_tag->second;
-
-        if (seen_tags.find(current_tag.toString()) != seen_tags.cend())
+        if (current_tag == last_tag)
             continue;
+
         seen_tags.emplace(current_tag.toString());
 
         if (first_record)
@@ -177,7 +174,15 @@ bool RecordMeetsExpectations(const MARC::Record &record, const std::string &jour
 
     bool missed_at_least_one_expectation(false);
     for (const auto &field_info : journal_info) {
-        if (seen_tags.find(field_info.name_) == seen_tags.end() and field_info.presence_ == ALWAYS) {
+        if (field_info.presence_ != ALWAYS)
+            continue;   // we only care about required fields that are missing
+
+        const auto equivalent_tag(EQUIVALENT_TAGS_MAP.find(field_info.name_));
+        if (seen_tags.find(field_info.name_) != seen_tags.end())
+            ;// required tag found
+        else if (equivalent_tag != EQUIVALENT_TAGS_MAP.end() and seen_tags.find(equivalent_tag->second) != seen_tags.end())
+            ;// equivalent tag found
+        else {
             LOG_INFO("Record w/ control number " + record.getControlNumber() + " in \"" + journal_name
                      + "\" is missing the always expected " + field_info.name_ + " field.");
             missed_at_least_one_expectation = true;
