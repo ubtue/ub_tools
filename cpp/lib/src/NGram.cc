@@ -26,7 +26,6 @@
  */
 #include "NGram.h"
 #include <algorithm>
-#include <iostream>//XXX
 #include <fstream>
 #include <unordered_set>
 #include <climits>
@@ -72,20 +71,16 @@ void LoadLanguageModel(const std::string &path_name, NGram::NGramCounts * const 
     size_t entry_count;
     BinaryIO::ReadOrDie(*input, &entry_count);
     ngram_counts->reserve(entry_count);
-std::cerr << path_name << " constains " << entry_count << " entries.\n";
 
     for (unsigned i(0); i < entry_count; ++i) {
         std::wstring ngram;
-std::cerr << "About to read the ngram\n";
         BinaryIO::ReadOrDie(*input, &ngram);
 
-std::cerr << "About to read the score\n";
         double score;
         BinaryIO::ReadOrDie(*input, &score);
 
         (*ngram_counts)[ngram] = score;
     }
-std::cerr << "Done.\n\n\n";
 }
 
 
