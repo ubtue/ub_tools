@@ -35,7 +35,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_file missed_expectations_list\n";
+    std::cerr << "Usage: " << ::progname << " marc_file\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -164,9 +164,7 @@ void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record
 }
 
 
-bool RecordMeetsExpectations(const MARC::Record &record, File * const output, const std::string &journal_name,
-                             const JournalInfo &journal_info)
-{
+bool RecordMeetsExpectations(const MARC::Record &record, const std::string &journal_name, const JournalInfo &journal_info) {
     std::unordered_set<std::string> seen_tags;
     MARC::Tag last_tag;
     for (const auto &field : record) {
@@ -180,8 +178,8 @@ bool RecordMeetsExpectations(const MARC::Record &record, File * const output, co
     bool missed_at_least_one_expectation(false);
     for (const auto &field_info : journal_info) {
         if (seen_tags.find(field_info.name_) == seen_tags.end() and field_info.presence_ == ALWAYS) {
-            (*output) << "Record w/ control number " + record.getControlNumber() + " in \"" << journal_name
-                      << "\" is missing the always expected " << field_info.name_ << " field.\n";
+            LOG_INFO("Record w/ control number " + record.getControlNumber() + " in \"" + journal_name
+                     + "\" is missing the always expected " + field_info.name_ + " field.");
             missed_at_least_one_expectation = true;
         }
     }
@@ -202,12 +200,11 @@ void WriteToDatabase(DbConnection * const db_connection, const std::string &jour
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
+    if (argc != 2)
         Usage();
 
     DbConnection db_connection;
     auto reader (MARC::Reader::Factory(argv[1]));
-    auto missed_expectations_list(FileUtil::OpenOutputFileOrDie(argv[2]));
     std::map<std::string, JournalInfo> journal_name_to_info_map;
 
     unsigned total_record_count(0), new_record_count(0), missed_expectation_count(0);
@@ -226,8 +223,7 @@ int Main(int argc, char *argv[]) {
         }
 
         if (journal_name_and_info->second.isInDatabase()) {
-            if (not RecordMeetsExpectations(record, missed_expectations_list.get(), journal_name_and_info->first,
-                                            journal_name_and_info->second))
+            if (not RecordMeetsExpectations(record, journal_name_and_info->first, journal_name_and_info->second))
                 ++missed_expectation_count;
         } else {
             AnalyseNewJournalRecord(record, first_record, &journal_name_and_info->second);
