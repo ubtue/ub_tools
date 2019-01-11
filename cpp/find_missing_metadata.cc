@@ -34,9 +34,9 @@
 namespace {
 
 
-[[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_file\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]]
+void Usage() {
+   ::Usage("marc_file");
 }
 
 
@@ -183,7 +183,7 @@ bool RecordMeetsExpectations(const MARC::Record &record, const std::string &jour
         else if (equivalent_tag != EQUIVALENT_TAGS_MAP.end() and seen_tags.find(equivalent_tag->second) != seen_tags.end())
             ;// equivalent tag found
         else {
-            LOG_INFO("Record w/ control number " + record.getControlNumber() + " in \"" + journal_name
+            LOG_WARNING("Record w/ control number " + record.getControlNumber() + " in \"" + journal_name
                      + "\" is missing the always expected " + field_info.name_ + " field.");
             missed_at_least_one_expectation = true;
         }
