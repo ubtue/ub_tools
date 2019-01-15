@@ -445,6 +445,16 @@ std::string DbConnection::CharsetToString(const Charset charset) {
 }
 
 
+std::string DbConnection::CollationToString(const Collation collation) {
+    switch (collation) {
+    case UTF8MB3_BIN:
+        return "utf8_bin";
+    case UTF8MB4_BIN:
+        return "utf8mb4_bin";
+    }
+}
+
+
 bool DbConnection::mySQLDatabaseExists(const std::string &database_name) {
     std::vector<std::string> databases(mySQLGetDatabaseList());
     return (std::find(databases.begin(), databases.end(), database_name) != databases.end());
