@@ -142,8 +142,7 @@ EndPhase
 
 StartPhase "Validate Generated Records"
 for source_filepath in "${source_filepaths[@]}"; do
-    find_missing_metadata $source_filepath \
-                          $working_directory/$missing_metadata_tracker_output_filename >> "${log}" 2>&1
+    find_missing_metadata $source_filepath >> "${log}" 2>&1
 done
 EndPhase
 
