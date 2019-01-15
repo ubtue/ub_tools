@@ -146,6 +146,7 @@ for source_filepath in "${source_filepaths[@]}"; do
 done
 EndPhase
 
+
 StartPhase "Upload to BSZ Server"
 counter=0
 file_count=${#source_filepaths[@]}
