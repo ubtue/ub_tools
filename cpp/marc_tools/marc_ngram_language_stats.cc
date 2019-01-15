@@ -53,7 +53,7 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader, const 
             continue;
         }
 
-        const std::string text(record.getCompleteTitle() + record.getSummary());
+        const std::string text(record.getCompleteTitle() + " " + record.getSummary());
         std::vector<std::string> top_languages;
         NGram::ClassifyLanguage(text, &top_languages, considered_languages, distance_type);
         if (top_languages.empty())
