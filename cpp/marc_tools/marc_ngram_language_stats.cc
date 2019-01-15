@@ -37,6 +37,7 @@ namespace {
     ::Usage( "[--verbose] [--distance-type=(simple|weighted)] marc_data [language_code1 language_code2 .. language_codeN]");
 }
 
+
 void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader, const NGram::DistanceType distance_type,
                     const std::set<std::string> &considered_languages,
                     std::unordered_map<std::string, unsigned> * const mismatched_assignments_to_counts_map)
@@ -53,16 +54,12 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader, const 
             ++untagged_count;
             continue;
         }
-        if (StringUtil::TrimWhite(&language_code).empty())
-            LOG_ERROR("D'oh!");
 
         const std::string complete_title(record.getCompleteTitle());
         std::vector<std::string> top_languages;
         NGram::ClassifyLanguage(complete_title, &top_languages, considered_languages, distance_type);
         if (top_languages.empty())
             continue;
-        if (unlikely(top_languages.front().empty()))
-            LOG_ERROR("WTF?!");
 
         if (top_languages.front() == language_code)
             ++agreed_count;
