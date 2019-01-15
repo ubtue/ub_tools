@@ -27,8 +27,8 @@
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 2)
-        ::Usage("text | --file=filename");
+    if (argc != 2 and argc != 3)
+        ::Usage("text | --file=filename [comma_separated_language_codes_list]");
 
     std::string text;
     if (StringUtil::StartsWith(argv[1], "--file="))
@@ -36,8 +36,12 @@ int Main(int argc, char *argv[]) {
     else
         text = argv[1];
 
+    std::set<std::string> language_codes_list;
+    if (argc == 3)
+        StringUtil::Split(std::string(argv[2]), ',', &language_codes_list);
+
     std::vector<std::string> top_languages;
-    NGram::ClassifyLanguage(text, &top_languages);
+    NGram::ClassifyLanguage(text, &top_languages, language_codes_list, NGram::SIMPLE_DISTANCE, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
 
     for (const auto &language : top_languages)
         std::cout << language << '\n';
