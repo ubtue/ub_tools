@@ -113,6 +113,7 @@
 /marc_filter
 /marc_grep
 /marc_info
+/marc_ngram_language_stats
 /marc_remove_dups
 /marc21_scramble
 /marc_size
