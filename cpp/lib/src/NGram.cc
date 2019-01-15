@@ -306,22 +306,6 @@ void CreateLanguageModel(std::istream &input, NGramCounts * const ngram_counts,
 }
 
 
-#if 0
-double HackDistance(const std::wstring &ngram, const unsigned index, const SortedNGramCounts &known_language_model) {
-    unsigned i(0);
-    for (auto ngram_and_score(known_language_model.cbegin()); ngram_and_score != known_language_model.cend(); ++ngram_and_score, ++i) {
-        if (ngram_and_score->first == ngram) {
-            if (i < index)
-                return index - i;
-            return i - index;
-        }
-    }
-
-    return 400.0;
-}
-#endif
-
-
 void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_languages, const std::set<std::string> &considered_languages,
                       const DistanceType distance_type, const unsigned ngram_number_threshold, const unsigned topmost_use_count,
                       const double alternative_cutoff_factor, const std::string &override_language_models_directory)
