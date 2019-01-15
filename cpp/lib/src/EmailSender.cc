@@ -372,7 +372,7 @@ unsigned short SendEmail(const std::string &sender, const std::vector<std::strin
         PerformExchange(socket_fd, time_limit, "DATA", "3[0-9][0-9]*", ssl_connection.get());
         PerformExchange(socket_fd, time_limit,
                         CreateEmailMessage(priority, format, sender, recipients, cc_recipients, bcc_recipients, subject,
-                                           message_body) + "\r\n.",
+                                           message_body) + "\r\n",
                         "2[0-9][0-9]*", ssl_connection.get());
         PerformExchange(socket_fd, time_limit, "QUIT", "2[0-9][0-9]*", ssl_connection.get());
     } catch (const SMTPException &smtp_exception) {

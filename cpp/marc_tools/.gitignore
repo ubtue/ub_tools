@@ -1,4 +1,5 @@
 append_marc_xml
+categorise_marc
 control_number_filter
 delete_ids
 enumerate_non_standard_tags
@@ -17,4 +18,5 @@ marc_remove_dups
 marc_size
 marc_split
 marc_tag_grep
+replace_marc_records
 subfield_code_replacer
