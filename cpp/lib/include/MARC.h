@@ -512,6 +512,9 @@ public:
     /** \return The control number of the superior work, if found, else the empty string. */
     std::string getSuperiorControlNumber() const;
 
+    /** \return A "summary" (could be an abstract etc.), if found, else the empty string. */
+    std::string getSummary() const;
+
     /** \return All author names in fields 100$a and 700$a. */
     std::set<std::string> getAllAuthors() const;
     std::set<std::string> getDOIs() const;
