@@ -46,8 +46,6 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader, const 
 
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
-        if (record_count == 1000)
-            break;
 
         std::string language_code(MARC::GetLanguageCode(record));
         if (language_code.empty()) {
@@ -55,9 +53,9 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader, const 
             continue;
         }
 
-        const std::string complete_title(record.getCompleteTitle());
+        const std::string text(record.getCompleteTitle() + record.getSummary());
         std::vector<std::string> top_languages;
-        NGram::ClassifyLanguage(complete_title, &top_languages, considered_languages, distance_type);
+        NGram::ClassifyLanguage(text, &top_languages, considered_languages, distance_type);
         if (top_languages.empty())
             continue;
 
@@ -66,7 +64,7 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader, const 
         else {
             const std::string key(language_code + ":" + top_languages.front());
             if (verbose)
-                std::cout << key << "  " << complete_title << '\n';
+                std::cout << key << "  " << text << '\n';
             const auto mismatched_assignment_and_count(mismatched_assignments_to_counts_map->find(key));
             if (mismatched_assignment_and_count == mismatched_assignments_to_counts_map->end())
                 mismatched_assignments_to_counts_map->emplace(key, 1u);
