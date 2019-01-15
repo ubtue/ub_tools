@@ -105,6 +105,7 @@ public:
                   const NGram::DistanceType distance_type, const unsigned topmost_use_count);
     std::string getLanguage() const { return language_; }
     double distance(const std::wstring &ngram, const int position) const;
+    inline double getMaxDistance() const { return max_distance_; }
 };
 
 
@@ -115,9 +116,9 @@ LanguageModel::LanguageModel(const std::string &language, const NGram::NGramCoun
     if (topmost_use_count > ngram_counts.size())
         LOG_ERROR("request to use more ngrams than are available cannot be satisfied!");
 
-    int position(1);
+    int position(0);
     double total_distance(0.0);
-    for (auto ngram_count(ngram_counts.begin()); ngram_count != ngram_counts.end(); ++ngram_count, ++position) {
+    for (auto ngram_count(ngram_counts.cbegin()); ngram_count != ngram_counts.cend(); ++ngram_count, ++position) {
         emplace(ngram_count->first, IndexAndRelFrequency(position, ngram_count->second));
         total_distance += ngram_count->second;
     }
@@ -196,6 +197,14 @@ SortedNGramCounts::SortedNGramCounts(const NGramCounts &ngram_counts, const Sort
     else
         sort_func = IsGreaterThan;
     std::sort(begin(), end(), sort_func);
+}
+
+
+void SortedNGramCounts::prettyPrint(std::ostream &output) const {
+    output << "#entries = " << size() << '\n';
+    for (const auto &ngram_and_core : *this)
+        output << '\'' << TextUtil::WCharToUTF8StringOrDie(ngram_and_core.first) << "' = " << ngram_and_core.second << '\n';
+    output << '\n';
 }
 
 
@@ -315,6 +324,7 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
         models_already_loaded = true;
         if (not LoadLanguageModels(language_models_directory, distance_type, topmost_use_count, &language_models))
             LOG_ERROR("no language models available in \"" + language_models_directory + "\"!");
+        LOG_DEBUG("loaded " + std::to_string(language_models.size()) + " language models.");
     }
 
     // Verify that we do have models for all requested languages:
@@ -340,9 +350,10 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
             distance += language_model.distance(sorted_unknown_language_model[i].first, i);
 
         languages_and_scores.emplace_back(language_model.getLanguage(), distance);
+        LOG_DEBUG(language_model.getLanguage() + " scored + " + std::to_string(distance));
     }
     std::sort(languages_and_scores.begin(), languages_and_scores.end(),
-              [](const std::pair<std::string, double> &a, const std::pair<std::string, double> &b){ return a.second > b.second; });
+              [](const std::pair<std::string, double> &a, const std::pair<std::string, double> &b){ return a.second < b.second; });
 
     // Select the top scoring language and anything that's close (as defined by alternative_cutoff_factor):
     const double high_score(languages_and_scores[0].second);

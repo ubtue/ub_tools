@@ -18,19 +18,26 @@
 */
 
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 #include <cstdlib>
 #include "BinaryIO.h"
 #include "FileUtil.h"
 #include "NGram.h"
+#include "TextUtil.h"
 #include "util.h"
+
+
+[[noreturn]] void Usage() {
+    ::Usage("language_blob language_model\n"
+            "The \"language_blob\" should be a file containing example text w/o markup in whatever language.\n"
+            "\"language_model\" should be named after the language followed by \".lm\".\n");
+}
 
 
 int Main(int argc, char *argv[]) {
     if (argc != 3)
-        ::Usage("language_blob language_model\n"
-                "The \"language_blob\" should be a file containing example text w/o markup in whatever language.\n"
-                "\"language_model\" should be named after the language followed by \".lm\".\n");
+        Usage();
 
     std::ifstream input(argv[1]);
     if (not input)
@@ -43,6 +50,7 @@ int Main(int argc, char *argv[]) {
     const auto output(FileUtil::OpenOutputFileOrDie(argv[2]));
     BinaryIO::WriteOrDie(*output, sorted_ngram_counts.size());
     for (const auto &ngram_and_rank : sorted_ngram_counts) {
+        LOG_DEBUG("\"" + TextUtil::WCharToUTF8StringOrDie(ngram_and_rank.first) + "\" = " + std::to_string(ngram_and_rank.second));
         BinaryIO::WriteOrDie(*output, ngram_and_rank.first);
         BinaryIO::WriteOrDie(*output, ngram_and_rank.second);
     }

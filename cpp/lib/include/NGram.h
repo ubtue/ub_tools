@@ -27,6 +27,7 @@
 #pragma once
 
 
+#include <ostream>
 #include <set>
 #include <sstream>
 #include <string>
@@ -50,10 +51,11 @@ typedef std::unordered_map<std::wstring, double> NGramCounts;
 
 class SortedNGramCounts: public std::vector<std::pair<std::wstring, double>> {
 public:
-	enum SortOrder { ASCENDING_ORDER, DESCENDING_ORDER };
+    enum SortOrder { ASCENDING_ORDER, DESCENDING_ORDER };
 public:
-	SortedNGramCounts(): std::vector<std::pair<std::wstring, double>>() { }
-	explicit SortedNGramCounts(const NGramCounts &ngram_counts, const SortOrder sort_order);
+    SortedNGramCounts(): std::vector<std::pair<std::wstring, double>>() { }
+    explicit SortedNGramCounts(const NGramCounts &ngram_counts, const SortOrder sort_order);
+    void prettyPrint(std::ostream &output) const;
 private:
 	static bool IsLessThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs);
 	static bool IsGreaterThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs);
