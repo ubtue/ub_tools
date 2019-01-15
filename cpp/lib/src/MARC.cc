@@ -683,6 +683,21 @@ std::string Record::getSuperiorControlNumber() const {
 }
 
 
+std::string Record::getSummary() const {
+    std::string summary;
+    for (const auto &field : getTagRange("520")) {
+        const auto a_subfield(field.getFirstSubfieldWithCode('a'));
+        if (unlikely(not a_subfield.empty())) {
+            if (not summary.empty())
+                summary += ' ';
+            summary += a_subfield;
+        }
+    }
+
+    return summary;
+}
+
+
 std::set<std::string> Record::getAllAuthors() const {
     static const std::vector<std::string> AUTHOR_TAGS { "100", "109", "700" };
 
@@ -1871,7 +1886,7 @@ std::string GetLanguageCode(const Record &record) {
     if (_008_contents.length() < 38)
         return "";
 
-    return _008_contents.substr(35, 3);
+    return _008_contents.substr(35, 3) == "   " ? "" : _008_contents.substr(35, 3);
 }
 
 
