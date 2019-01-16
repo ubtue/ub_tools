@@ -21,10 +21,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
-#include "BinaryIO.h"
-#include "FileUtil.h"
 #include "NGram.h"
-#include "TextUtil.h"
 #include "util.h"
 
 
@@ -43,17 +40,7 @@ int Main(int argc, char *argv[]) {
     if (not input)
         LOG_ERROR("failed to open \"" + std::string(argv[1]) + "\" for reading!");
 
-    NGram::NGramCounts ngram_counts;
-    NGram::SortedNGramCounts sorted_ngram_counts;
-    NGram::CreateLanguageModel(input, &ngram_counts, &sorted_ngram_counts);
-
-    const auto output(FileUtil::OpenOutputFileOrDie(argv[2]));
-    BinaryIO::WriteOrDie(*output, sorted_ngram_counts.size());
-    for (const auto &ngram_and_rank : sorted_ngram_counts) {
-        LOG_DEBUG("\"" + TextUtil::WCharToUTF8StringOrDie(ngram_and_rank.first) + "\" = " + std::to_string(ngram_and_rank.second));
-        BinaryIO::WriteOrDie(*output, ngram_and_rank.first);
-        BinaryIO::WriteOrDie(*output, ngram_and_rank.second);
-    }
+    NGram::CreateAndWriteLanguageModel(input, argv[2]);
 
     return EXIT_SUCCESS;
 }
