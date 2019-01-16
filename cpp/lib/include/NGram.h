@@ -154,4 +154,32 @@ inline void ClassifyLanguage(const std::string &input_text, std::vector<std::str
 }
 
 
+/** \brief  Tell which language(s) "input_text" might be.
+ *  \param  input                   Where to read the to be classified text from.
+ *  \param  output_path             Where to write the model.
+ *  \param  ngram_number_threshold  Don't used ngrams that occur less than this many times.
+ *                                  A value of 0 means: use all ngrams.
+ *  \param  topmost_use_count       The topmost number of ngrams that should be used.
+ */
+void CreateAndWriteLanguageModel(std::istream &input, const std::string &output_path,
+                                 const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
+                                 const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT);
+
+
+/** \brief  Tell which language(s) "input_text" might be.
+ *  \param  input_text              The input text.
+ *  \param  output_path             Where to write the model.
+ *  \param  ngram_number_threshold  Don't used ngrams that occur less than this many times.
+ *                                  A value of 0 means: use all ngrams.
+ *  \param  topmost_use_count       The topmost number of ngrams that should be used.
+ */
+inline void CreateAndWriteLanguageModel(const std::string &input_text, const std::string &output_path,
+                                        const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
+                                        const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT)
+{
+    std::istringstream input(input_text);
+    CreateAndWriteLanguageModel(input, output_path, ngram_number_threshold, topmost_use_count);
+}
+
+
 } // namespace NGram
