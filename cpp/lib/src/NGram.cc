@@ -363,4 +363,21 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
 }
 
 
+void CreateAndWriteLanguageModel(std::istream &input, const std::string &output_path, const unsigned ngram_number_threshold,
+                                 const unsigned topmost_use_count)
+{
+    NGramCounts ngram_counts;
+    SortedNGramCounts sorted_ngram_counts;
+    CreateLanguageModel(input, &ngram_counts, &sorted_ngram_counts, ngram_number_threshold, topmost_use_count);
+
+    const auto output(FileUtil::OpenOutputFileOrDie(output_path));
+    BinaryIO::WriteOrDie(*output, sorted_ngram_counts.size());
+    for (const auto &ngram_and_rank : sorted_ngram_counts) {
+        LOG_DEBUG("\"" + TextUtil::WCharToUTF8StringOrDie(ngram_and_rank.first) + "\" = " + std::to_string(ngram_and_rank.second));
+        BinaryIO::WriteOrDie(*output, ngram_and_rank.first);
+        BinaryIO::WriteOrDie(*output, ngram_and_rank.second);
+    }
+}
+
+
 } // namespace NGram
