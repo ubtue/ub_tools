@@ -206,7 +206,7 @@ struct SiteParams {
     std::string strptime_format_;
     std::unique_ptr<RegexMatcher> extraction_regex_;
     BSZUpload::DeliveryMode delivery_mode_;
-    std::unordered_set<std::string> expected_languages_;
+    std::set<std::string> expected_languages_;
     std::vector<std::string> additional_fields_;
     std::vector<std::string> non_standard_metadata_fields_;
     std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> field_exclusion_filters_;
