@@ -73,13 +73,13 @@ void Elasticsearch::insertDocument(const std::string &document_id, const std::ve
     if (result_object->hasNode("error"))
         LOG_ERROR("Elasticsearch delete_by_query failed: " + result_object->getNode("error")->toString());
 
-    const Url insert_url(host_ + "/" + index_ + "/" + type_ + "/_insert");
+    const Url insert_url(host_ + "/" + index_ + "/" + type_);
     for (const auto &document_chunk : document_chunks) {
         const JSON::ObjectNode payload(
             JSON::ObjectNode(std::unordered_map<std::string, std::string>{
                     { "document_id",    document_id    },
                     { "document_chunk", document_chunk }
                 }));
-        result = REST::QueryJSON(insert_url, REST::PUT, &payload, downloader_params);
+        result = REST::QueryJSON(insert_url, REST::POST, &payload, downloader_params);
     }
 }
