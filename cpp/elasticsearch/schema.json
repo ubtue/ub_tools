@@ -1,12 +1,14 @@
 {
-   "docs": {
+  "mappings": {
+    "_doc": { 
       "properties": {
         "document_id": {
-          "type": "string"
+          "type": "keyword"
         },
         "document_chunk": {
-          "type": "string"
+          "type": "text"
         }
       }
-   }
+    }
+  }
 }
