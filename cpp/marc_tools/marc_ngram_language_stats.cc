@@ -22,6 +22,7 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include "MARC.h"
@@ -34,18 +35,23 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage( "[--verbose] [--distance-type=(simple|weighted)] marc_data [language_code1 language_code2 .. language_codeN]");
+    ::Usage( "[--verbose] [--limit-count=count] [--distance-type=(simple|weighted)] [--cross-valiatdion-chunks=N] marc_data "
+             "[language_code1 language_code2 .. language_codeN]\n"
+             "If \"--limit-count\" has been specified only the first \"count\" records will be considered.\n"
+             "If \"--cross-valiatdion-chunks\" has been specified, N sets will be used.");
 }
 
 
-void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader, const NGram::DistanceType distance_type,
-                    const std::set<std::string> &considered_languages,
+void ProcessRecords(const bool verbose, const unsigned limit_count, MARC::Reader * const marc_reader,
+                    const NGram::DistanceType distance_type, const std::set<std::string> &considered_languages,
                     std::unordered_map<std::string, unsigned> * const mismatched_assignments_to_counts_map)
 {
     unsigned record_count(0), untagged_count(0), agreed_count(0);
 
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
+        if (record_count == limit_count)
+            break;
 
         std::string language_code(MARC::GetLanguageCode(record));
         if (language_code.empty()) {
@@ -73,7 +79,7 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader, const 
         }
     }
 
-    std::cout << "Data set contains " << record_count << " MARC record(s) of which " << untagged_count << " had no language and "
+    std::cout << "Used " << record_count << " MARC record(s) of which " << untagged_count << " had no language and "
               << (agreed_count * 100.0) / (record_count - untagged_count) << "% of  which had matching languages.\n";
 }
 
@@ -88,6 +94,15 @@ int Main(int argc, char *argv[]) {
     bool verbose(false);
     if (std::strcmp(argv[1], "--verbose") == 0) {
         verbose = true;
+        --argc, ++argv;
+    }
+
+    if (argc < 2)
+        Usage();
+
+    unsigned limit_count(UINT_MAX);
+    if (StringUtil::StartsWith(argv[1], "--limit-count=")) {
+        limit_count = StringUtil::ToUnsigned(argv[1] + __builtin_strlen("--limit-count="));
         --argc, ++argv;
     }
 
@@ -115,7 +130,7 @@ int Main(int argc, char *argv[]) {
         considered_languages.emplace(argv[arg_no]);
 
     std::unordered_map<std::string, unsigned> mismatched_assignments_to_counts_map;
-    ProcessRecords(verbose, marc_reader.get(), distance_type, considered_languages, &mismatched_assignments_to_counts_map);
+    ProcessRecords(verbose, limit_count, marc_reader.get(), distance_type, considered_languages, &mismatched_assignments_to_counts_map);
 
     std::vector<std::pair<std::string, unsigned>> mismatched_assignments_and_counts;
     mismatched_assignments_and_counts.reserve(mismatched_assignments_to_counts_map.size());
