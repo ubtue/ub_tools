@@ -10,5 +10,5 @@ type=$(inifile_lookup $CONFIG_FILE Elasticsearch type)
 
 
 # Delete the index:
-curl -X DELETE "${host_and_port}/${index}"
+curl -X DELETE -H 'Content-Type: application/json' "${host_and_port}/${index}"
 echo
