@@ -45,7 +45,6 @@ void DownloadFullDump(const Zeder::Flavour flavour, const std::unordered_map<std
                       Zeder::EntryCollection * const downloaded_entries)
 {
     const auto endpoint_url(Zeder::GetFullDumpEndpointPath(flavour));
-    // we only care about the journals flagged for auomatic harvesting
     std::unique_ptr<Zeder::FullDumpDownloader::Params> downloader_params(new Zeder::FullDumpDownloader::Params(endpoint_url,
                                                                          {}, filter_regexps));
 
