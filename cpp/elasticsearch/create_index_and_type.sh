@@ -9,8 +9,5 @@ index=$(inifile_lookup $CONFIG_FILE Elasticsearch index)
 type=$(inifile_lookup $CONFIG_FILE Elasticsearch type)
 
 
-# Create the index:
-curl -X PUT "${host_and_port}/${index}"
-
-# Create the type:
-curl -X POST "${host_and_port}/${index}/_mappings/${type}" -d@schema.json
+# Create the index and type
+curl -X PUT -H 'Content-Type: application/json' "${host_and_port}/${index}" -d@schema.json
