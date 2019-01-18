@@ -27,6 +27,7 @@
 #pragma once
 
 
+#include <ostream>
 #include <set>
 #include <sstream>
 #include <string>
@@ -50,10 +51,11 @@ typedef std::unordered_map<std::wstring, double> NGramCounts;
 
 class SortedNGramCounts: public std::vector<std::pair<std::wstring, double>> {
 public:
-	enum SortOrder { ASCENDING_ORDER, DESCENDING_ORDER };
+    enum SortOrder { ASCENDING_ORDER, DESCENDING_ORDER };
 public:
-	SortedNGramCounts(): std::vector<std::pair<std::wstring, double>>() { }
-	explicit SortedNGramCounts(const NGramCounts &ngram_counts, const SortOrder sort_order);
+    SortedNGramCounts(): std::vector<std::pair<std::wstring, double>>() { }
+    explicit SortedNGramCounts(const NGramCounts &ngram_counts, const SortOrder sort_order);
+    void prettyPrint(std::ostream &output) const;
 private:
 	static bool IsLessThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs);
 	static bool IsGreaterThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs);
@@ -149,6 +151,34 @@ inline void ClassifyLanguage(const std::string &input_text, std::vector<std::str
     std::istringstream input(input_text);
     ClassifyLanguage(input, top_languages, considered_languages, distance_type, ngram_number_threshold, topmost_use_count,
                      alternative_cutoff_factor, override_language_models_directory);
+}
+
+
+/** \brief  Tell which language(s) "input_text" might be.
+ *  \param  input                   Where to read the to be classified text from.
+ *  \param  output_path             Where to write the model.
+ *  \param  ngram_number_threshold  Don't used ngrams that occur less than this many times.
+ *                                  A value of 0 means: use all ngrams.
+ *  \param  topmost_use_count       The topmost number of ngrams that should be used.
+ */
+void CreateAndWriteLanguageModel(std::istream &input, const std::string &output_path,
+                                 const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
+                                 const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT);
+
+
+/** \brief  Tell which language(s) "input_text" might be.
+ *  \param  input_text              The input text.
+ *  \param  output_path             Where to write the model.
+ *  \param  ngram_number_threshold  Don't used ngrams that occur less than this many times.
+ *                                  A value of 0 means: use all ngrams.
+ *  \param  topmost_use_count       The topmost number of ngrams that should be used.
+ */
+inline void CreateAndWriteLanguageModel(const std::string &input_text, const std::string &output_path,
+                                        const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
+                                        const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT)
+{
+    std::istringstream input(input_text);
+    CreateAndWriteLanguageModel(input, output_path, ngram_number_threshold, topmost_use_count);
 }
 
 

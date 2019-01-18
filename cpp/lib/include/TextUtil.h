@@ -122,6 +122,7 @@ bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_stri
 
 /** \brief Convert wide characters to UTF8. */
 bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string);
+std::string WCharToUTF8StringOrDie(const std::wstring &wchar_string);
 
 
 /** \brief Convert a wide character to UTF8. */

@@ -34,9 +34,9 @@
 namespace {
 
 
-[[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_file missed_expectations_list\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]]
+void Usage() {
+   ::Usage("marc_file");
 }
 
 
@@ -130,8 +130,9 @@ void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, con
 }
 
 
-const std::map<MARC::Tag, MARC::Tag> EQUIVALENT_TAGS_MAP{
-    { "700", "100" },
+// Two-way mapping required as the map is uni-directional
+const std::map<std::string, std::string> EQUIVALENT_TAGS_MAP{
+    { "700", "100" }, { "100", "700" }
 };
 
 
@@ -140,13 +141,9 @@ void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record
     MARC::Tag last_tag;
     for (const auto &field : record) {
         auto current_tag(field.getTag());
-
-        const auto tag_and_replacement_tag(EQUIVALENT_TAGS_MAP.find(current_tag));
-        if (tag_and_replacement_tag != EQUIVALENT_TAGS_MAP.cend())
-            current_tag = tag_and_replacement_tag->second;
-
-        if (seen_tags.find(current_tag.toString()) != seen_tags.cend())
+        if (current_tag == last_tag)
             continue;
+
         seen_tags.emplace(current_tag.toString());
 
         if (first_record)
@@ -164,9 +161,7 @@ void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record
 }
 
 
-bool RecordMeetsExpectations(const MARC::Record &record, File * const output, const std::string &journal_name,
-                             const JournalInfo &journal_info)
-{
+bool RecordMeetsExpectations(const MARC::Record &record, const std::string &journal_name, const JournalInfo &journal_info) {
     std::unordered_set<std::string> seen_tags;
     MARC::Tag last_tag;
     for (const auto &field : record) {
@@ -179,9 +174,17 @@ bool RecordMeetsExpectations(const MARC::Record &record, File * const output, co
 
     bool missed_at_least_one_expectation(false);
     for (const auto &field_info : journal_info) {
-        if (seen_tags.find(field_info.name_) == seen_tags.end() and field_info.presence_ == ALWAYS) {
-            (*output) << "Record w/ control number " + record.getControlNumber() + " in \"" << journal_name
-                      << "\" is missing the always expected " << field_info.name_ << " field.\n";
+        if (field_info.presence_ != ALWAYS)
+            continue;   // we only care about required fields that are missing
+
+        const auto equivalent_tag(EQUIVALENT_TAGS_MAP.find(field_info.name_));
+        if (seen_tags.find(field_info.name_) != seen_tags.end())
+            ;// required tag found
+        else if (equivalent_tag != EQUIVALENT_TAGS_MAP.end() and seen_tags.find(equivalent_tag->second) != seen_tags.end())
+            ;// equivalent tag found
+        else {
+            LOG_WARNING("Record w/ control number " + record.getControlNumber() + " in \"" + journal_name
+                     + "\" is missing the always expected " + field_info.name_ + " field.");
             missed_at_least_one_expectation = true;
         }
     }
@@ -202,12 +205,11 @@ void WriteToDatabase(DbConnection * const db_connection, const std::string &jour
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
+    if (argc != 2)
         Usage();
 
     DbConnection db_connection;
     auto reader (MARC::Reader::Factory(argv[1]));
-    auto missed_expectations_list(FileUtil::OpenOutputFileOrDie(argv[2]));
     std::map<std::string, JournalInfo> journal_name_to_info_map;
 
     unsigned total_record_count(0), new_record_count(0), missed_expectation_count(0);
@@ -226,8 +228,7 @@ int Main(int argc, char *argv[]) {
         }
 
         if (journal_name_and_info->second.isInDatabase()) {
-            if (not RecordMeetsExpectations(record, missed_expectations_list.get(), journal_name_and_info->first,
-                                            journal_name_and_info->second))
+            if (not RecordMeetsExpectations(record, journal_name_and_info->first, journal_name_and_info->second))
                 ++missed_expectation_count;
         } else {
             AnalyseNewJournalRecord(record, first_record, &journal_name_and_info->second);

@@ -41,7 +41,6 @@ namespace {
 
 
 void ProcessRecords(const bool verbose, const bool summarize_tags, MARC::Reader * const marc_reader) {
-    std::string raw_record;
     unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0),
              max_subfield_count(0), cumulative_field_count(0), duplicate_control_number_count(0);
     std::unordered_set<std::string> control_numbers;

@@ -28,6 +28,7 @@
 #include "IniFile.h"
 #include "LobidUtil.h"
 #include "MiscUtil.h"
+#include "NGram.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
 #include "SyndicationFormat.h"
@@ -340,7 +341,15 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
     node_parameters->language_ = object_node->getOptionalStringValue("language");
     if (node_parameters->language_.empty() and not site_params_->expected_languages_.empty()) {
         // attempt to automatically detect the language
+        std::vector<std::string> top_languages;
+        const auto record_text(node_parameters->title_ + " " + node_parameters->abstract_note_);
+        NGram::ClassifyLanguage(record_text, &top_languages, site_params_->expected_languages_, NGram::SIMPLE_DISTANCE,
+                                NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
 
+        if (not top_languages.empty()) {
+            node_parameters->language_ = top_languages.front();
+            LOG_INFO("automatically detected language to be '" + node_parameters->language_);
+        }
     }
 
     // Copyright
@@ -1344,8 +1353,9 @@ void HarvesterErrorLogger::log(ErrorType error, const std::string &journal_name,
 void HarvesterErrorLogger::autoLog(const std::string &journal_name, const std::string &harvest_url, const std::string &message,
                                    const bool write_to_std_error)
 {
-    static const std::unordered_map<ErrorType, RegexMatcher *> error_regexp_map{
+    static const std::unordered_multimap<ErrorType, RegexMatcher *> error_regexp_map{
         { BAD_STRPTIME_FORMAT,      RegexMatcher::RegexMatcherFactoryOrDie("StringToStructTm\\: don't know how to convert \\\"(.+?)\\\"") },
+        { BAD_STRPTIME_FORMAT,      RegexMatcher::RegexMatcherFactoryOrDie("StringToStructTm\\: gmtime\\(3\\) failed to convert a time_t! \\((.+?)\\)") },
     };
 
     HarvesterError error{ UNKNOWN, "" };

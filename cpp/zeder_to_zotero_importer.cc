@@ -167,6 +167,7 @@ std::pair<std::string, std::string> ExportFieldNameResolver::getAttributeNameIni
 
 struct ImporterParams {
     Zeder::Flavour flavour_;
+    bool ignore_invalid_ppn_issn_;
     std::vector<std::string> url_field_priority_;   // highest to lowest
     std::unordered_set<unsigned> entries_to_process_;
 public:
@@ -185,6 +186,7 @@ ImporterParams::ImporterParams(const std::string &config_file_path, const std::s
         LOG_ERROR("Unknown Zeder flavour '" + flavour_string + "'");
 
     const IniFile config(config_file_path);
+    ignore_invalid_ppn_issn_ = config.getBool("", "ignore_invalid_ppn_issn");
     const auto section(config.getSection(Zeder::FLAVOUR_TO_STRING_MAP.at(flavour_)));
 
     const auto url_field_priority(section->getString("url_field_priority"));
@@ -444,7 +446,7 @@ void ParseZederCsv(const std::string &file_path, const ExportFieldNameResolver &
                    const ImporterParams &importer_params, Zeder::EntryCollection * const zeder_config)
 {
     auto postprocessor([importer_params, name_resolver](Zeder::Entry * const entry) -> bool {
-        return PostProcessCsvImportedEntry(importer_params, name_resolver, entry, /* ignore_invalid_ppn_issn */ false);
+        return PostProcessCsvImportedEntry(importer_params, name_resolver, entry, importer_params.ignore_invalid_ppn_issn_);
     });
     std::unique_ptr<Zeder::Importer::Params> parser_params(new Zeder::Importer::Params(file_path, postprocessor));
     auto parser(Zeder::Importer::Factory(std::move(parser_params)));
