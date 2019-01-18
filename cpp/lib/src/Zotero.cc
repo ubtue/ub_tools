@@ -1353,8 +1353,9 @@ void HarvesterErrorLogger::log(ErrorType error, const std::string &journal_name,
 void HarvesterErrorLogger::autoLog(const std::string &journal_name, const std::string &harvest_url, const std::string &message,
                                    const bool write_to_std_error)
 {
-    static const std::unordered_map<ErrorType, RegexMatcher *> error_regexp_map{
+    static const std::unordered_multimap<ErrorType, RegexMatcher *> error_regexp_map{
         { BAD_STRPTIME_FORMAT,      RegexMatcher::RegexMatcherFactoryOrDie("StringToStructTm\\: don't know how to convert \\\"(.+?)\\\"") },
+        { BAD_STRPTIME_FORMAT,      RegexMatcher::RegexMatcherFactoryOrDie("StringToStructTm\\: gmtime\\(3\\) failed to convert a time_t! \\((.+?)\\)") },
     };
 
     HarvesterError error{ UNKNOWN, "" };
