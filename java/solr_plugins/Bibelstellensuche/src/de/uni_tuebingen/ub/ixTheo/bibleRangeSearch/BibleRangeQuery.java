@@ -22,8 +22,18 @@ class BibleRangeQuery extends Query {
     }
 
     @Override
-    public Weight createWeight(final IndexSearcher searcher, final boolean needsScores) throws IOException {
-        final Weight weight = BibleRangeQuery.this.query.rewrite(searcher.getIndexReader()).createWeight(searcher, needsScores);
+    public Weight createWeight(final IndexSearcher searcher, final boolean needsScores, final float boost) throws IOException {
+        // query rewriting is necessary before createWeight delivers any usable result.
+        // rewrite needs to be called multiple times, until derived Query class no longer changes.
+        // see https://issues.apache.org/jira/browse/LUCENE-6785?jql=text%20~%20%22createWeight%22
+        Query rewrite_query = BibleRangeQuery.this.query;
+        Query rewritten_query = rewrite_query;
+        do {
+            rewrite_query = rewritten_query;
+            rewritten_query = rewrite_query.rewrite(searcher.getIndexReader());
+        } while(rewrite_query.getClass() != rewritten_query.getClass());
+
+        final Weight weight = rewritten_query.createWeight(searcher, needsScores, boost);
         return new BibleRangeWeight(this, ranges, weight);
     }
 
