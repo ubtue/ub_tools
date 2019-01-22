@@ -557,7 +557,7 @@ std::string GetFullDumpEndpointPath(Flavour zeder_flavour) {
 }
 
 
-Flavour ParseFlavour(const std::string &flavour, bool case_sensitive) {
+Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
     std::string ixtheo_str(FLAVOUR_TO_STRING_MAP.at(IXTHEO));
     std::string krimdok_str(FLAVOUR_TO_STRING_MAP.at(KRIMDOK));
 
