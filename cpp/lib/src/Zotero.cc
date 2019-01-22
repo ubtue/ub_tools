@@ -551,7 +551,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
 
     // Review-specific modifications
     if (item_type == "review") {
-        record->insertField("655", { { 'a', "!209083166!" }, { '0', "(DE-576)"} }, /* indicator1 = */ ' ', /* indicator2 = */ '7');
+        record->insertField("655", { { 'a', "!209083166!" }, { '0', "(DE-576)" } }, /* indicator1 = */ ' ', /* indicator2 = */ '7');
         record->insertField("935", { { 'c', "uwre" } });
     }
 
