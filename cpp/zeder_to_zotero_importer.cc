@@ -543,7 +543,7 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
         name_resolver.getAttributeNameIniKeyPair(ZEDER_UPDATE_WINDOW)
     };
 
-    // remove
+    // remove existing output config file, if any
     if (create_file_anew)
         ::unlink(file_path.c_str());
 
