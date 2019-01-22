@@ -308,8 +308,8 @@ IniWriter::IniWriter(std::unique_ptr<Exporter::Params> params): Exporter(std::mo
 void IniWriter::writeEntry(IniFile::Section * const section, const std::string &name, const std::string &value) const {
     // merge existing comments
     const auto existing_entry(section->find(name));
-    section->insert(name, value, existing_entry != section->end() ? existing_entry->comment_ : "",
-                    IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+    const auto existing_entry_comment(existing_entry != section->end() ? existing_entry->comment_ : "");
+    section->insert(name, value, existing_entry_comment, IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
 }
 
 
