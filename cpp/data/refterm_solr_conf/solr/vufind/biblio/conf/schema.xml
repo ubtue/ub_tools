@@ -105,7 +105,4 @@
    <field name="publishDateSort" type="string" indexed="true" stored="true"/>
  </fields>
  <uniqueKey>id</uniqueKey>
- <defaultSearchField>id</defaultSearchField>
- <!-- Default Boolean Operator -->
- <solrQueryParser defaultOperator="AND"/>
 </schema>
