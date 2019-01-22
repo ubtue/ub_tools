@@ -26,7 +26,6 @@
 #include <csignal>
 #include <cstring>
 #include <unistd.h>
-#include "FileUtil.h"
 #include "IniFile.h"
 #include "JournalConfig.h"
 #include "MiscUtil.h"
