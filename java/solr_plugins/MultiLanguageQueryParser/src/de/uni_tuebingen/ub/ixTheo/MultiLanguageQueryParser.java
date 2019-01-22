@@ -393,7 +393,7 @@ public class MultiLanguageQueryParser extends QParser {
            throw new MultiLanguageQueryParserException("Only one q-parameter is supported [1]");
 
         try {
-            QParser tmpParser = new ExtendedDismaxQParser(searchString, localParams, newParams, this.newRequest);
+            LuceneQParser tmpParser = new LuceneQParser(searchString, localParams, newParams, this.newRequest);
             newQuery = tmpParser.getQuery();
             newQuery = newQuery.rewrite(request.getSearcher().getIndexReader());
             if (newQuery instanceof BooleanQuery)
