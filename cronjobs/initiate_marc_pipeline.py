@@ -17,7 +17,7 @@ import util
 def ClearSolrIndex(index):
     try:
         request = urllib2.Request(
-            "http://localhost:8080/solr/" + index + "/update?stream.body=%3Cdelete%3E%3Cquery%3E*:*%3C/query%3E%3C/delete%3E")
+            "http://localhost:8080/solr/" + index + "/update?wt=xml&stream.body=%3Cdelete%3E%3Cquery%3E*:*%3C/query%3E%3C/delete%3E")
         response = urllib2.urlopen(request, timeout=60)
     except:
         util.SendEmail("MARC-21 Pipeline", "Failed to clear the SOLR index \"" + index + "\"!", priority=1)
