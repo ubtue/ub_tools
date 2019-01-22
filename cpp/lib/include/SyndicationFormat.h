@@ -42,7 +42,7 @@ public:
               dc_and_prism_data_(dc_and_prism_data)
         {
             if (id_.empty()) {
-                LOG_WARNING("invalid id for rss item! title = '" + title_ + "', link = '" + link_ + "'");
+                LOG_WARNING("invalid ID for RSS item! title = '" + title_ + "', link = '" + link_ + "'");
                 // use the link as the fallback option
                 id_ = link_;
             }
