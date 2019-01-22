@@ -428,7 +428,7 @@ public:
 
 std::string GetFullDumpEndpointPath(Flavour zeder_flavour);
 
-Flavour ParseFlavour(const std::string &flavour, bool case_sensitive = false);
+Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive = false);
 
 
 } // namespace Zeder

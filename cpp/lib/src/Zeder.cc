@@ -448,7 +448,7 @@ void FullDumpDownloader::parseColumnMetadata(const std::shared_ptr<JSON::JSONNod
         column_metadata.column_type_ = column_type;
         for (const auto &option : *metadata_wrapper->getArrayNode("Optionen")) {
             const auto option_wrapper(JSON::JSONNode::CastToObjectNodeOrDie("entry", option));
-            column_metadata.ordinal_to_value_map_[option_wrapper->getIntegerValue("id")] = option_wrapper->getOptionalStringValue("wert", "");
+            column_metadata.ordinal_to_value_map_[option_wrapper->getIntegerValue("id")] = option_wrapper->getOptionalStringValue("wert");
         }
 
         column_to_metadata_map->insert(std::make_pair(column_name, column_metadata));
@@ -557,7 +557,7 @@ std::string GetFullDumpEndpointPath(Flavour zeder_flavour) {
 }
 
 
-Flavour ParseFlavour(const std::string &flavour, bool case_sensitive/* = false*/) {
+Flavour ParseFlavour(const std::string &flavour, bool case_sensitive) {
     std::string ixtheo_str(FLAVOUR_TO_STRING_MAP.at(IXTHEO));
     std::string krimdok_str(FLAVOUR_TO_STRING_MAP.at(KRIMDOK));
 
