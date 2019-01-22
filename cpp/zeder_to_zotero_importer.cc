@@ -287,6 +287,11 @@ bool PostProcessCsvImportedEntry(const ImporterParams &params, const ExportField
 
     auto title(entry->getAttribute("tit"));
     StringUtil::Trim(&title);
+    const auto comment_char(title.find("#"));
+    if (comment_char != std::string::npos) {
+        LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | Stripping comment delimiter from journal name");
+        StringUtil::RemoveChars("#", &title);
+    }
     entry->setAttribute(name_resolver.getAttributeName(TITLE), title);
 
     Zotero::HarvesterType harvester_type(Zotero::HarvesterType::CRAWL);
@@ -511,7 +516,7 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
 // the entries in the INI file will be overwritten by the corresponding entry in Zeder::EntryCollection.
 // All other existing entries will be preserved.
 void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &name_resolver,
-                   const Zeder::EntryCollection &zeder_config)
+                   const Zeder::EntryCollection &zeder_config, const bool create_file_anew = false)
 {
     static const std::vector<std::string> attributes_to_export{
         name_resolver.getAttributeName(ZEDER_COMMENT),
@@ -536,6 +541,10 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
         name_resolver.getAttributeNameIniKeyPair(ENTRY_POINT_URL),
         name_resolver.getAttributeNameIniKeyPair(ZEDER_UPDATE_WINDOW)
     };
+
+    // remove existing output config file, if any
+    if (create_file_anew)
+        ::unlink(file_path.c_str());
 
     auto extra_keys_appender([name_resolver](IniFile::Section * const section, const Zeder::Entry &entry) {
         Zotero::HarvesterType harvester_type;
@@ -637,7 +646,7 @@ int Main(int argc, char *argv[]) {
         Zeder::EntryCollection parsed_config;
 
         ParseZederCsv(zeder_export_path, name_resolver, importer_params, &parsed_config);
-        WriteZederIni(output_ini_path, name_resolver, parsed_config);
+        WriteZederIni(output_ini_path, name_resolver, parsed_config, /*create_file_anew =*/ true);
 
         LOG_INFO("Created " + std::to_string(parsed_config.size()) + " entries");
 
