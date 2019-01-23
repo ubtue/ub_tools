@@ -2,7 +2,8 @@ package de.unituebingen.ub.elasticsearch;
 
 
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.apache.logging.log4j.LogManager;
+//import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 import org.elasticsearch.search.fetch.subphase.highlight.Highlighter;
@@ -53,11 +54,11 @@ import static org.apache.lucene.search.uhighlight.CustomUnifiedHighlighter.MULTI
 
 public class TueFindHighlighter extends UnifiedHighlighter {
     public static final String NAME = "tuefind";
-    private static final Logger log = ESLoggerFactory.getLogger(TueFindHighlighter.class);
+    private static final Logger log = LogManager.getLogger(TueFindHighlighter.class);
 
 
     @Override
-    public boolean canHighlight(FieldMapper field) {
+    public boolean canHighlight(MappedFieldType field) {
         return true;
     }
 
@@ -65,11 +66,11 @@ public class TueFindHighlighter extends UnifiedHighlighter {
     public HighlightField highlight(HighlighterContext highlighterContext) {
         log.error("ENTERING TueFindHighlighter.highlight()");
         //The following is based on UnifiedHighligther.highlight()
-        FieldMapper fieldMapper = highlighterContext.mapper;
+        MappedFieldType fieldType = highlighterContext.fieldType;
         SearchContextHighlight.Field field = highlighterContext.field;
         SearchContext context = highlighterContext.context;
         FetchSubPhase.HitContext hitContext = highlighterContext.hitContext;
-        Encoder encoder = field.fieldOptions().encoder().equals("html") ? new SimpleHTMLEncoder() : new DefaultEncoder();
+        Encoder encoder = field.fieldOptions().encoder().equals("html") ?  HighlightUtils.Encoders.HTML : HighlightUtils.Encoders.DEFAULT;
 
         CustomPassageFormatter passageFormatter = new CustomPassageFormatter(field.fieldOptions().preTags()[0],
             field.fieldOptions().postTags()[0], encoder);
@@ -80,15 +81,16 @@ public class TueFindHighlighter extends UnifiedHighlighter {
         try {
 
             final Analyzer analyzer =
-                getAnalyzer(context.mapperService().documentMapper(hitContext.hit().getType()), fieldMapper.fieldType());
-            List<Object> fieldValues = HighlightUtils.loadFieldValues(field, fieldMapper, context, hitContext);
-            fieldValues = fieldValues.stream()
-                .map((s) -> convertFieldValue(fieldMapper.fieldType(), s))
-                .collect(Collectors.toList());
+                getAnalyzer(context.mapperService().documentMapper(hitContext.hit().getType()), fieldType);
+            List<Object> fieldValues = loadFieldValues(fieldType, field, context, hitContext);
+            if (fieldValues.size() == 0) {
+                return null;
+            }
+
             final IndexSearcher searcher = new IndexSearcher(hitContext.reader());
             final CustomUnifiedHighlighter highlighter;
             final String fieldValue = mergeFieldValues(fieldValues, MULTIVAL_SEP_CHAR);
-            final OffsetSource offsetSource = getOffsetSource(fieldMapper.fieldType());
+            final OffsetSource offsetSource = getOffsetSource(fieldType);
             if (field.fieldOptions().numberOfFragments() == 0) {
                 // we use a control char to separate values, which is the only char that the custom break iterator
                 // breaks the text on, so we don't lose the distinction between the different values of a field and we
@@ -144,7 +146,7 @@ public class TueFindHighlighter extends UnifiedHighlighter {
     }
 
 
-    private BreakIterator getBreakIterator(SearchContextHighlight.Field field) {
+    protected BreakIterator getBreakIterator(SearchContextHighlight.Field field) {
 log.error("ENTERING getBreakIterator!!!");
         final SearchContextHighlight.FieldOptions fieldOptions = field.fieldOptions();
         final Locale locale =
@@ -169,7 +171,7 @@ log.error("ENTERING getBreakIterator!!!");
     }
 
 
-    private static List<Snippet> filterSnippets(List<Snippet> snippets, int numberOfFragments) {
+    protected static List<Snippet> filterSnippets(List<Snippet> snippets, int numberOfFragments) {
 
 
         //We need to filter the snippets as due to no_match_size we could have
@@ -203,42 +205,5 @@ log.error("ENTERING getBreakIterator!!!");
         }
 
         return filteredSnippets;
-    }
-
-
-    static Analyzer getAnalyzer(DocumentMapper docMapper, MappedFieldType type) {
-        if (type instanceof KeywordFieldMapper.KeywordFieldType) {
-            KeywordFieldMapper.KeywordFieldType keywordFieldType = (KeywordFieldMapper.KeywordFieldType) type;
-            if (keywordFieldType.normalizer() != null) {
-                return  keywordFieldType.normalizer();
-            }
-        }
-        return docMapper.mappers().indexAnalyzer();
-    }
-
-    static String convertFieldValue(MappedFieldType type, Object value) {
-        if (value instanceof BytesRef) {
-            return type.valueForDisplay(value).toString();
-        } else {
-            return value.toString();
-        }
-    }
-
-
-    private static String mergeFieldValues(List<Object> fieldValues, char valuesSeparator) {
-        //postings highlighter accepts all values in a single string, as offsets etc. need to match with content
-        //loaded from stored fields, we merge all values using a proper separator
-        String rawValue = Strings.collectionToDelimitedString(fieldValues, String.valueOf(valuesSeparator));
-        return rawValue.substring(0, Math.min(rawValue.length(), Integer.MAX_VALUE - 1));
-    }
-
-    private OffsetSource getOffsetSource(MappedFieldType fieldType) {
-        if (fieldType.indexOptions() == IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS) {
-            return fieldType.storeTermVectors() ? OffsetSource.POSTINGS_WITH_TERM_VECTORS : OffsetSource.POSTINGS;
-        }
-        if (fieldType.storeTermVectorOffsets()) {
-            return OffsetSource.TERM_VECTORS;
-        }
-        return OffsetSource.ANALYSIS;
     }
 }

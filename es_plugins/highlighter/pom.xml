@@ -6,12 +6,12 @@
 
     <groupId>de.unituebingen.ub.elasticsearch</groupId>
     <artifactId>TueFind-Highlighter</artifactId>
-    <version>6.2.4</version>
+    <version>6.5.4</version>
     <name>Plugin: Highlighter: TueFind</name>
     <description>Test Plugin Highlighter for elasticsearch</description>
 
     <properties>
-        <elasticsearch.version>6.2.4</elasticsearch.version>
+        <elasticsearch.version>6.5.4</elasticsearch.version>
         <maven.compiler.source>1.6</maven.compiler.source>
         <maven.compiler.target>1.6</maven.compiler.target>
     </properties>
