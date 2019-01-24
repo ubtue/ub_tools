@@ -340,6 +340,7 @@ public:
         friend class CsvWriter;
     protected:
         // Ordered list of attributes to export. The ID and the timestamp always go first and last respectively.
+        // If empty, all attributes are exported in an indeterminate order.
         std::vector<std::string> attributes_to_export_;
 
         // Column name for the Zeder ID.
@@ -397,14 +398,16 @@ public:
     class Params : public EndpointDownloader::Params {
         friend class FullDumpDownloader;
     protected:
-        // Names of columns to download.
+        // Zeder IDs of entries to download. If empty, all entries are downloaded.
+        std::unordered_set<unsigned> entries_to_download_;
+        // Names of columns to download. If empty, all columns are downloaded.
         std::unordered_set<std::string> columns_to_download_;
 
         // Filters applied to each row. Column name => Filter reg-ex.
         std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> filter_regexps_;
     public:
-        Params(const std::string &endpoint_path, const std::unordered_set<std::string> &columns_to_download,
-               const std::unordered_map<std::string, std::string> &filter_regexps);
+        Params(const std::string &endpoint_path, const std::unordered_set<unsigned> &entries_to_download,
+               const std::unordered_set<std::string> &columns_to_download, const std::unordered_map<std::string, std::string> &filter_regexps);
         virtual ~Params() = default;
     };
 private:

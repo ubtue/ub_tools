@@ -317,6 +317,9 @@ void IniWriter::write(const EntryCollection &collection) {
     const auto params(dynamic_cast<IniWriter::Params * const>(input_params_.get()));
     char time_buffer[100]{};
 
+    if (collection.empty())
+        LOG_ERROR("attempting to serialize empty Zeder EntryCollection");
+
     // we assume that the entries are sorted at this point
     for (const auto &entry : collection) {
         config_->appendSection(entry.getAttribute(params->section_name_attribute_));
@@ -346,6 +349,16 @@ void IniWriter::write(const EntryCollection &collection) {
 void CsvWriter::write(const EntryCollection &collection) {
     const auto params(dynamic_cast<CsvWriter::Params * const>(input_params_.get()));
     char time_buffer[100]{};
+
+    if (collection.empty())
+        LOG_ERROR("attempting to serialize empty Zeder EntryCollection");
+
+    if (params->attributes_to_export_.empty()) {
+        // add all attributes in the order of iteration
+        const auto first_entry(collection.begin());
+        for (const auto &attribute_entry : *first_entry)
+            params->attributes_to_export_.emplace_back(attribute_entry.first);
+    }
 
     std::string header;
     header += TextUtil::CSVEscape(params->zeder_id_column_) + ",";
@@ -390,9 +403,11 @@ std::unique_ptr<EndpointDownloader> EndpointDownloader::Factory(Type downloader_
 }
 
 
-FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::unordered_set<std::string> &columns_to_download,
+FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::unordered_set<unsigned> &entries_to_download,
+                                   const std::unordered_set<std::string> &columns_to_download,
                                    const std::unordered_map<std::string, std::string> &filter_regexps)
-                                   : EndpointDownloader::Params(endpoint_path), columns_to_download_(columns_to_download)
+                                   : EndpointDownloader::Params(endpoint_path), entries_to_download_(entries_to_download),
+                                     columns_to_download_(columns_to_download)
 {
     for (const auto &filter_pair : filter_regexps) {
         std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(filter_pair.second));
@@ -465,6 +480,9 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
         const auto data_wrapper(JSON::JSONNode::CastToObjectNodeOrDie("entry", data));
         const auto row_id(data_wrapper->getIntegerValue("DT_RowId"));
         const auto mtime(data_wrapper->getStringValue("Mtime"));
+
+        if (not params.entries_to_download_.empty() and params.entries_to_download_.find(row_id) == params.entries_to_download_.end())
+            continue;
 
         Entry new_entry;
         new_entry.setId(row_id);
