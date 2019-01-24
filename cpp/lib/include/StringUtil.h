@@ -11,7 +11,7 @@
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
  *  Copyright 2002-2004 Dr. Johannes Ruscheinski.
- *  Copyright 2015-2018 Universitätsbibliothek Tübingen
+ *  Copyright 2015-2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -88,14 +88,6 @@ const std::string IVIA_STANDARD_LOCALE("en_US.utf8");
 const std::string IVIA_FALLBACK_LOCALE("en_US.UTF-8");
 const std::string EmptyString;
 const std::string WHITE_SPACE(" \t\n\v\r\f");
-
-
-/** \brief  Convert a string to lowercase (modifies its argument). */
-std::string ToLower(std::string * const s);
-
-
-/** \brief  Convert a string to lowercase (does not modify its argument). */
-std::string ToLower(const std::string &s);
 
 
 /** \brief Converts the ASCII letters in "s" to lowercase. */
@@ -1446,11 +1438,10 @@ template<typename StringContainer> unsigned UnescapeAndSplit(const std::string &
 }
 
 
-/** \brief Remove duplicate string values from a list of strings.
+/** \brief Remove duplicate string values (ignoring case and assuming UTF8) from a list of strings.
  *  \param  values  The list from which duplicates are to be removed.
  *
- *  The first of each value will be left in the list, and any
- *  subsequent occurences removed.  The items that are not removed
+ *  The first of each value will be left in the list, and any subsequent occurences removed.  The items that are not removed
  *  will not be reordered.
  */
 void RemoveDuplicatesFromList(std::list<std::string> * const values);

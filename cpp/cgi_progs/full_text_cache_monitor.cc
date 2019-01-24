@@ -170,9 +170,10 @@ void ShowPageErrorList(FullTextCache * const cache, std::string * const body) {
 
     std::vector<std::string> ids;
     std::vector<std::string> urls;
-    std::vector<FullTextCache::JoinedEntry> entries = cache->getJoinedEntriesByDomainAndErrorMessage(domain, error_message);
+    const std::vector<FullTextCache::EntryUrl> entries(cache->getJoinedEntriesByDomainAndErrorMessage(domain, error_message));
     for (const auto &entry : entries) {
-        ids.emplace_back("<a href=\"?page=id_details&id=" + UrlUtil::UrlEncode(entry.id_) + "\">" + HtmlUtil::HtmlEscape(entry.id_) + "</a>");
+        ids.emplace_back("<a href=\"?page=id_details&id=" + UrlUtil::UrlEncode(entry.id_) + "\">" + HtmlUtil::HtmlEscape(entry.id_)
+                         + "</a>");
         urls.emplace_back("<a href=\"" + entry.url_ + "\">" + entry.url_ + "</a>");
     }
 
