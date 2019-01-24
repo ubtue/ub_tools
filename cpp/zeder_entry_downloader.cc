@@ -98,6 +98,7 @@ int Main(int argc, char *argv[]) {
     const Zeder::Flavour flavour(Zeder::ParseFlavour(argv[1]));
     const std::string output_csv(argv[2]);
     argc -= 2;
+    argv += 2;
 
     std::unordered_set<unsigned> entries_to_download;
     std::unordered_map<std::string, std::string> column_filter_regexps;

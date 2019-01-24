@@ -86,6 +86,7 @@ public:
     void removeAttribute(const std::string &name);
     unsigned keepAttributes(const std::vector<std::string> &names_to_keep);
     void prettyPrint(std::string * const print_buffer) const;
+    std::string prettyPrint() const;
 
     iterator begin() { return attributes_.begin(); }
     iterator end() { return attributes_.end(); }
@@ -111,6 +112,7 @@ public:
         std::unordered_map<std::string, std::pair<std::string, std::string>> modified_attributes_;
     public:
         void prettyPrint(std::string * const print_buffer) const;
+        std::string prettyPrint() const;
     };
 
     // Compares the LHS (old revision) with the RHS (new revision) and returns the differences
