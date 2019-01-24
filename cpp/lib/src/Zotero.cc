@@ -399,8 +399,10 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
             auto note_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, note_node));
             const std::string key_value_pair(note_object_node->getStringValue("note"));
             const auto first_colon_pos(key_value_pair.find(':'));
-            if (unlikely(first_colon_pos == std::string::npos))
-                LOG_ERROR("additional metadata in \"notes\" is missing a colon!");
+            if (unlikely(first_colon_pos == std::string::npos)) {
+                LOG_WARNING("additional metadata in \"notes\" is missing a colon! data: '" + key_value_pair + "'");
+                continue;   // could be a valid note added by the translator
+            }
             node_parameters->notes_key_value_pairs_[key_value_pair.substr(0, first_colon_pos)] = key_value_pair.substr(first_colon_pos + 1);
         }
     }
