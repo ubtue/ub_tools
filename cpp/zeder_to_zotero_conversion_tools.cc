@@ -1,5 +1,4 @@
-/** \file   zeder_to_zotero_conversion_tools.cc
- *  \brief  Tools to convert data downloaded from Zeder into ZTS harvester file formats
+/** \brief  Tools to convert data downloaded from Zeder into ZTS harvester file formats
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
  *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -582,22 +581,26 @@ void PrintZederDiffs(const std::vector<Zeder::Entry::DiffResult> &diff_results, 
         diff.prettyPrint(&attribute_print_buffer);
 
         if (is_new_entry) {
-            new_entry_ids_string += std::to_string(diff.id_) + ",";
+            new_entry_ids_string += " " + std::to_string(diff.id_) + ",";
             LOG_INFO("[NEW] " + attribute_print_buffer);
         }
         else {
-            modified_entry_ids_string += std::to_string(diff.id_) + ",";
+            modified_entry_ids_string += " " + std::to_string(diff.id_) + ",";
             LOG_INFO("[MOD] " + attribute_print_buffer);
         }
     }
 
     LOG_INFO("\n\n");
 
-    if (not modified_entry_ids_string.empty())
+    if (not modified_entry_ids_string.empty()) {
+        modified_entry_ids_string.erase(modified_entry_ids_string.length() - 1);
         LOG_INFO("Modified entries: " + modified_entry_ids_string);
+    }
 
-    if (not new_entry_ids_string.empty())
+    if (not new_entry_ids_string.empty()) {
+        new_entry_ids_string.erase(new_entry_ids_string.length() - 1);
         LOG_INFO("New entries: " + new_entry_ids_string);
+    }
 
     LOG_INFO("\n\n");
 }

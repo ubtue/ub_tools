@@ -1,7 +1,7 @@
-/** \brief Interaction with the Zeder collaboration tool
- *  \author Madeesh Kannan
+/** \brief API to interact with the Zeder collaboration tool
+ *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as

@@ -1,7 +1,7 @@
-/** \brief Interaction with the Zeder collaboration tool
- *  \author Madeesh Kannan
+/** \brief API to interact with the Zeder collaboration tool
+ *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -363,9 +363,13 @@ void CsvWriter::write(const EntryCollection &collection) {
 
     if (params->attributes_to_export_.empty() and not collection.empty()) {
         // add all attributes in the order of iteration
-        const auto first_entry(collection.begin());
-        for (const auto &attribute_entry : *first_entry)
-            params->attributes_to_export_.emplace_back(attribute_entry.first);
+        std::set<std::string> attributes;
+        for (const auto &entry : collection)
+            for (const auto &attribute_entry : entry)
+                attributes.insert(attribute_entry.first);
+
+        for (const auto &attribute : attributes)
+            params->attributes_to_export_.emplace_back(attribute);
     }
 
     std::string header;
