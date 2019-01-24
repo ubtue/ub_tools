@@ -72,6 +72,13 @@ void Entry::prettyPrint(std::string * const print_buffer) const {
 }
 
 
+std::string Entry::prettyPrint() const {
+    std::string buffer;
+    prettyPrint(&buffer);
+    return buffer;
+}
+
+
 void Entry::DiffResult::prettyPrint(std::string * const print_buffer) const {
     *print_buffer = "Diff " + std::to_string(id_) + ":\n";
 
@@ -86,6 +93,13 @@ void Entry::DiffResult::prettyPrint(std::string * const print_buffer) const {
         else
             *print_buffer += "\t{" + attribute.first + "} -> '" + attribute.second.second + "'\n";
     }
+}
+
+
+std::string Entry::DiffResult::prettyPrint() const {
+    std::string buffer;
+    prettyPrint(&buffer);
+    return buffer;
 }
 
 
@@ -493,44 +507,46 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
 
         for (const auto &field : *data_wrapper) {
             std::string column_name(field.first);
-            if (column_name == "DT_RowId" || column_name == "Mtime")
+            if (not params.columns_to_download_.empty() and params.columns_to_download_.find(column_name) == params.columns_to_download_.end())
+                continue;
+            else if (column_name == "DT_RowId" || column_name == "Mtime")
                 continue;
 
             const auto column_metadata(column_to_metadata_map.find(column_name));
             if (column_metadata == column_to_metadata_map.end())
                 LOG_ERROR("Unknown column '" + column_name + "'");
 
-            if (not params.columns_to_download_.empty() and
-                params.columns_to_download_.find(column_name) != params.columns_to_download_.end())
-            {
-                if (column_metadata->second.column_type_ == "multi")
+            if (column_metadata->second.column_type_ == "multi") {
+                if (params.columns_to_download_.empty())
+                    continue;
+                else
                     LOG_ERROR("Columns with multiple values are not supported! Invalid column: " + column_name);
-
-                auto resolved_value(JSON::JSONNode::CastToStringNodeOrDie(column_name, field.second)->getValue());
-                if (column_metadata->second.column_type_ == "dropdown" and not resolved_value.empty()) {
-                    const auto ordinal(StringUtil::ToInt64T(resolved_value));
-                    const auto match(column_metadata->second.ordinal_to_value_map_.find(ordinal));
-                    if (match == column_metadata->second.ordinal_to_value_map_.end())
-                        LOG_ERROR("Unknown value ordinal " + std::to_string(ordinal) + " in column '" + column_name + "'");
-
-                    resolved_value = match->second;
-                }
-
-                resolved_value = StringUtil::Trim(resolved_value);
-                auto filter_regex(params.filter_regexps_.find(column_name));
-                if (filter_regex != params.filter_regexps_.end()) {
-                    ++filtered_columns;
-
-                    if (not filter_regex->second->matched(resolved_value)) {
-                        LOG_DEBUG("Skipping row " + std::to_string(row_id) + " on column '" + column_name + "' reg-ex mismatch");
-                        skip_entry = true;
-                        break;
-                    }
-                }
-
-                if (not resolved_value.empty())
-                    new_entry.setAttribute(column_name, resolved_value);
             }
+
+            auto resolved_value(JSON::JSONNode::CastToStringNodeOrDie(column_name, field.second)->getValue());
+            if (column_metadata->second.column_type_ == "dropdown" and not resolved_value.empty()) {
+                const auto ordinal(StringUtil::ToInt64T(resolved_value));
+                const auto match(column_metadata->second.ordinal_to_value_map_.find(ordinal));
+                if (match == column_metadata->second.ordinal_to_value_map_.end())
+                    LOG_ERROR("Unknown value ordinal " + std::to_string(ordinal) + " in column '" + column_name + "'");
+
+                resolved_value = match->second;
+            }
+
+            resolved_value = StringUtil::Trim(resolved_value);
+            auto filter_regex(params.filter_regexps_.find(column_name));
+            if (filter_regex != params.filter_regexps_.end()) {
+                ++filtered_columns;
+
+                if (not filter_regex->second->matched(resolved_value)) {
+                    LOG_DEBUG("Skipping row " + std::to_string(row_id) + " on column '" + column_name + "' reg-ex mismatch");
+                    skip_entry = true;
+                    break;
+                }
+            }
+
+            if (not resolved_value.empty())
+                new_entry.setAttribute(column_name, resolved_value);
         }
 
         if (filtered_columns != params.filter_regexps_.size()) {
