@@ -1,7 +1,7 @@
 /** \brief Interaction with the Zeder collaboration tool
  *  \author Madeesh Kannan
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -562,8 +562,8 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
     std::string krimdok_str(FLAVOUR_TO_STRING_MAP.at(KRIMDOK));
 
     if (not case_sensitive) {
-        StringUtil::ToLower(&ixtheo_str);
-        StringUtil::ToLower(&krimdok_str);
+        StringUtil::ASCIIToLower(&ixtheo_str);
+        StringUtil::ASCIIToLower(&krimdok_str);
     }
 
     if (flavour == ixtheo_str)

@@ -1,7 +1,7 @@
 /** \brief Utility for augmenting MARC records with links to a local full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -43,9 +43,8 @@ static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--pdf-extraction-timeout=timeout] [--use-elasticsearch] file_offset marc_input marc_output\n"
+    std::cerr << "Usage: " << ::progname << " [--pdf-extraction-timeout=timeout]file_offset marc_input marc_output\n"
               << "       \"--pdf-extraction-timeout\" timeout in seconds (default " << PdfUtil::DEFAULT_PDF_EXTRACTION_TIMEOUT << ").\n"
-              << "       \"--use-elasticsearch\" means that fulltexts will be stored in Elasticsearch.\n"
               << "       \"file_offset\" Where to start reading a MARC data set from in marc_input.\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -205,9 +204,7 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
 }
 
 
-bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extraction_timeout,
-                       const bool use_elasticsearch)
-{
+bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extraction_timeout) {
     const std::string ppn(record->getControlNumber());
     std::vector<std::string> urls;
 
@@ -225,7 +222,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
     }
 
     // Get or create cache entry
-    FullTextCache cache(use_elasticsearch);
+    FullTextCache cache;
     std::string combined_text_final;
     bool success(false);
     if (not cache.entryExpired(ppn, urls)) {
@@ -285,12 +282,10 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
 }
 
 
-bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_filename,
-                   const unsigned pdf_extraction_timeout, const bool use_elasticsearch)
-{
+bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_filename, const unsigned pdf_extraction_timeout) {
     bool success(false);
     try {
-        success = ProcessRecordUrls(record, pdf_extraction_timeout, use_elasticsearch);
+        success = ProcessRecordUrls(record, pdf_extraction_timeout);
     } catch (const std::exception &x) {
         LOG_WARNING("caught exception: " + std::string(x.what()));
     }
@@ -305,12 +300,11 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
 
 
 // Returns true if text has been successfully extracted, else false.
-bool ProcessRecord(MARC::Reader * const marc_reader, const std::string &marc_output_filename,
-                   const unsigned pdf_extraction_timeout, const bool use_elasticsearch) {
+bool ProcessRecord(MARC::Reader * const marc_reader, const std::string &marc_output_filename, const unsigned pdf_extraction_timeout) {
     MARC::Record record(marc_reader->read());
     try {
         LOG_INFO("processing record " + record.getControlNumber());
-        return ProcessRecord(&record, marc_output_filename, pdf_extraction_timeout, use_elasticsearch);
+        return ProcessRecord(&record, marc_output_filename, pdf_extraction_timeout);
     } catch (const std::exception &x) {
         throw std::runtime_error(x.what() + std::string(" (PPN: ") + record.getControlNumber() + ")");
     }
@@ -331,12 +325,6 @@ int main(int argc, char *argv[]) {
         ++argv, --argc;
     }
 
-    bool use_elasticsearch(false);
-    if (argc > 1 and std::strcmp(argv[1], "--use-elasticsearch") == 0) {
-        use_elasticsearch = true;
-        ++argv, --argc;
-    }
-
     if (argc != 4)
         Usage();
 
@@ -349,7 +337,7 @@ int main(int argc, char *argv[]) {
         LOG_ERROR("failed to position " + marc_reader->getPath() + " at offset " + std::to_string(offset) + "!");
 
     try {
-        return ProcessRecord(marc_reader.get(), argv[3], pdf_extraction_timeout, use_elasticsearch) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return ProcessRecord(marc_reader.get(), argv[3], pdf_extraction_timeout) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
         LOG_ERROR("While reading \"" + marc_reader->getPath() + "\" starting at offset \""
               + std::string(argv[1]) + "\", caught exception: " + std::string(e.what()));

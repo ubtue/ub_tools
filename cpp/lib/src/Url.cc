@@ -38,6 +38,7 @@
 #include "Downloader.h"
 #include "HttpHeader.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "UrlUtil.h"
 
 
@@ -107,7 +108,7 @@ Url::Url(const std::string &scheme, const std::string &username_password, const 
          const std::string &fragment, const unsigned creation_flags, const RobotsDotTxtOption robots_dot_txt_option,
          const unsigned timeout, const std::string &user_agent)
     : robots_dot_txt_option_(robots_dot_txt_option), timeout_(timeout), user_agent_(user_agent), scheme_(scheme),
-      username_password_(username_password), authority_(StringUtil::ToLower(authority)), port_(port), path_(path),
+      username_password_(username_password), authority_(TextUtil::UTF8ToLower(authority)), port_(port), path_(path),
     params_(params), query_(query), fragment_((creation_flags & REMOVE_FRAGMENT) ? "" : fragment),
     state_(HAS_BEEN_PARSED), throw_exceptions_(creation_flags & THROW_EXCEPTIONS)
 {
@@ -199,7 +200,7 @@ uint64_t Url::getHash(const HashBehaviour hash_behaviour) const {
     char lowercase_url[canonised_url.length() + 1];
     #pragma GCC diagnostic warning "-Wvla"
     std::strcpy(lowercase_url, canonised_url.c_str());
-    const char *c_string = StringUtil::strlower(lowercase_url);
+    const char * const c_string(StringUtil::strlower(lowercase_url));
 
     // Hash the protocol ignoring slashes
     const char *start_pos = std::strchr(c_string, ':');
@@ -1216,7 +1217,7 @@ bool Url::cleanUp() {
         return true;
 
     // Clean up case
-    StringUtil::ToLower(&authority_);
+    TextUtil::UTF8ToLower(&authority_);
     StringUtil::Trim(&authority_);
     UppercaseHexEscapes(&username_password_);
     UppercaseHexEscapes(&path_);
@@ -1243,16 +1244,16 @@ bool Url::cleanUp() {
 
 
 void Url::toLower() {
-    StringUtil::ToLower(&url_);
-    StringUtil::ToLower(&default_base_url_);
-    StringUtil::ToLower(&scheme_);
-    StringUtil::ToLower(&username_password_);
-    StringUtil::ToLower(&authority_);
-    StringUtil::ToLower(&port_);
-    StringUtil::ToLower(&path_);
-    StringUtil::ToLower(&params_);
-    StringUtil::ToLower(&query_);
-    StringUtil::ToLower(&fragment_);
+    TextUtil::UTF8ToLower(&url_);
+    TextUtil::UTF8ToLower(&default_base_url_);
+    TextUtil::UTF8ToLower(&scheme_);
+    TextUtil::UTF8ToLower(&username_password_);
+    TextUtil::UTF8ToLower(&authority_);
+    TextUtil::UTF8ToLower(&port_);
+    TextUtil::UTF8ToLower(&path_);
+    TextUtil::UTF8ToLower(&params_);
+    TextUtil::UTF8ToLower(&query_);
+    TextUtil::UTF8ToLower(&fragment_);
 }
 
 
@@ -1318,7 +1319,7 @@ bool Url::makeValid() {
             }
         }
 
-        StringUtil::ToLower(&authority_);
+        TextUtil::UTF8ToLower(&authority_);
         UppercaseHexEscapes(&username_password_);
         UppercaseHexEscapes(&path_);
         UppercaseHexEscapes(&params_);
@@ -1623,7 +1624,7 @@ std::string Url::getSite() const {
     }
 
     std::string lowercase_authority(authority_);
-    StringUtil::ToLower(&lowercase_authority);
+    TextUtil::UTF8ToLower(&lowercase_authority);
 
     std::string site;
     if (scheme_ == "http" or scheme_ == "http") {
@@ -1989,7 +1990,7 @@ bool RestLessThan(const std::string &rest1, const std::string &rest2) {
 
     // Prefer all-lowercase: if rest1 is all-lowercase, it comes before rest2
     else if (::strcasecmp(rest1.c_str(), rest2.c_str()) == 0)
-        return (rest1 != rest2) and (rest1 == StringUtil::ToLower(rest1));
+        return (rest1 != rest2) and (rest1 == TextUtil::UTF8ToLower(rest1));
 
     // If all else fails, sort alphabetically.
     else
@@ -2060,7 +2061,7 @@ bool Url::SuggestPotentialCanonicalUrls(const std::string &original_url, std::li
             {
                 if (proper_hostname->find('.') == std::string::npos)
                     continue;
-                possible_hosts.insert(StringUtil::ToLower(&(*proper_hostname)));
+                possible_hosts.insert(TextUtil::UTF8ToLower(&(*proper_hostname)));
                 possible_hosts.insert(GetSuggestedWwwHost(*proper_hostname));
             }
         }
@@ -2075,7 +2076,7 @@ bool Url::SuggestPotentialCanonicalUrls(const std::string &original_url, std::li
     possible_paths.insert(path);
 
     // Microsoft path hack (attempt to lowercase path if server seems to be on an M$ OS):
-    std::string lowercase_path = StringUtil::ToLower(path);
+    std::string lowercase_path = TextUtil::UTF8ToLower(path);
     const bool lowercase_is_different(path != lowercase_path);
     if (lowercase_is_different) {
         UppercaseHexEscapes(&lowercase_path);
