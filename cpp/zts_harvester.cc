@@ -42,6 +42,7 @@ namespace {
               << "\t[--min-log-level=log_level]         Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
               << "\t[--delivery-mode=mode]              Only sections that have the specific delivery mode (either LIVE or TEST) set will be processed. When this parameter is not specified, tracking is automatically disabled.\n"
               << "\t[--groups=my_groups                 Where groups are a comma-separated list of groups.\n"
+              << "\t[--zeder-ids=my_zeder_ids           Where IDs are a comma-separated list of groups Zeder IDs.\n"
               << "\t[--keep-delivered-records]          Do not discard records that have already been delivered to the BSZ.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
@@ -226,7 +227,8 @@ Zotero::FormatHandler *GetFormatHandlerForGroup(
 
 // Parses the command-line arguments.
 void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode * const delivery_mode_to_process,
-                 std::unordered_set<std::string> * const groups_filter, bool * const keep_delivered_records, bool * const ignore_robots_dot_txt,
+                 std::unordered_set<std::string> * const groups_filter, std::unordered_set<std::string> * const zeder_ids_filter,
+                 bool * const keep_delivered_records, bool * const ignore_robots_dot_txt,
                  std::string * const map_directory_path, std::string * const output_directory, std::string * const output_filename,
                  std::string * const output_format_string, std::string * const error_report_file)
 {
@@ -245,6 +247,11 @@ void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode 
 
         if (StringUtil::StartsWith((*argv)[1], "--groups=")) {
             StringUtil::SplitThenTrimWhite((*argv)[1] + __builtin_strlen("--groups="), ',', groups_filter);
+            --*argc, ++*argv;
+        }
+
+        if (StringUtil::StartsWith((*argv)[1], "--zeder-ids=")) {
+            StringUtil::SplitThenTrimWhite((*argv)[1] + __builtin_strlen("--zeder-ids="), ',', zeder_ids_filter);
             --*argc, ++*argv;
         }
 
@@ -300,7 +307,7 @@ int Main(int argc, char *argv[]) {
 
     // Handle options independent of the order
     BSZUpload::DeliveryMode delivery_mode_to_process(BSZUpload::DeliveryMode::NONE);
-    std::unordered_set<std::string> groups_filter;
+    std::unordered_set<std::string> groups_filter, zeder_ids_filter;
     bool keep_delivered_records(false);
     bool ignore_robots_dot_txt(false);
     std::string map_directory_path;
@@ -308,7 +315,7 @@ int Main(int argc, char *argv[]) {
     std::string output_filename;
     std::string output_format_string("marc-xml");
     std::string error_report_file;
-    ProcessArgs(&argc, &argv, &delivery_mode_to_process, &groups_filter, &keep_delivered_records, &ignore_robots_dot_txt,
+    ProcessArgs(&argc, &argv, &delivery_mode_to_process, &groups_filter, &zeder_ids_filter, &keep_delivered_records, &ignore_robots_dot_txt,
                 &map_directory_path, &output_directory, &output_filename, &output_format_string, &error_report_file);
 
     if (argc < 2)
@@ -383,6 +390,10 @@ int Main(int argc, char *argv[]) {
                 continue;
             section_name_and_found_flag->second = true;
         }
+
+        const auto zeder_id(bundle_reader.zeder(section_name).value(JournalConfig::Zeder::ID, ""));
+        if (not zeder_ids_filter.empty() and zeder_ids_filter.find(zeder_id) == zeder_ids_filter.end())
+            continue;
 
         LOG_INFO("Processing section \"" + section_name + "\".");
         ++processed_section_count;
