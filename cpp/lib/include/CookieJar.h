@@ -6,7 +6,7 @@
 /*
  *  \copyright 2007 Project iVia.
  *  \copyright 2007 The Regents of The University of California.
- *  \copyright 2017 Universitätsbibliothek Tübingen.
+ *  \copyright 2017,2019 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -30,7 +30,7 @@
 #include <string>
 #include <unordered_map>
 #include <ctime>
-#include "StringUtil.h"
+#include "TextUtil.h"
 
 
 // Forward declartion:
@@ -65,7 +65,7 @@ public:
               discard_(false), expiration_time_(expiration_time) { }
         bool empty() const { return name_.empty(); }
         std::string getCookieHeader() const;
-        std::string getKey() const { return StringUtil::ToLower(name_) + " " + domain_ + " " + path_; }
+        std::string getKey() const { return TextUtil::UTF8ToLower(name_) + " " + domain_ + " " + path_; }
         std::string toString() const;
         bool setDomain(const std::string &domain, const std::string &request_host);
     };

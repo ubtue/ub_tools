@@ -1,7 +1,7 @@
 /** \brief Utility for monitoring our full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -70,10 +70,8 @@ void DetermineNewStats(std::vector<std::pair<std::string, unsigned>> * const dom
     domains_and_counts->clear();
 
     FullTextCache cache;
-    std::vector<std::string> domains = cache.getDomains();
     std::unordered_map<std::string, unsigned> domains_to_counts_map;
-    for (std::vector<std::string>::iterator it = domains.begin(); it < domains.end(); it++) {
-        const std::string domain = *it;
+    for (const auto &domain : cache.getDomains()) {
         const auto domain_and_count_iter(domains_to_counts_map.find(domain));
         if (domain_and_count_iter == domains_to_counts_map.end())
             domains_to_counts_map[domain] = 1;
