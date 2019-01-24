@@ -2,7 +2,7 @@
  *  \brief  Implementation of file related utility classes and functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -39,6 +39,7 @@
 #include "FileDescriptor.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "RegexMatcher.h"
 #include "util.h"
 
@@ -763,7 +764,7 @@ FileUtil::FileType GuessFileType(const std::string &filename) {
         return FILE_TYPE_UNKNOWN;
 
     std::string file_extension = filename.substr(extension_pos + 1);
-    StringUtil::ToLower(&file_extension);
+    TextUtil::UTF8ToLower(&file_extension);
     if (file_extension.find("htm") != std::string::npos) // .phtml, .shtml, .html
         return FILE_TYPE_HTML;
 
@@ -1253,7 +1254,7 @@ std::string GetExtension(const std::string &filename, const bool to_lowercase) {
     else if (not to_lowercase)
         return filename.substr(last_dot_pos + 1);
     else
-        return StringUtil::ToLower(filename.substr(last_dot_pos + 1));
+        return TextUtil::UTF8ToLower(filename.substr(last_dot_pos + 1));
 
 }
 

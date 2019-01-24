@@ -2276,16 +2276,16 @@ bool UBTueIsElectronicResource(const Record &marc_record) {
 bool IsOpenAccess(const Record &marc_record) {
     for (const auto &_856_field : marc_record.getTagRange("856")) {
         const Subfields subfields(_856_field.getSubfields());
-        const std::string subfield_z_contents(StringUtil::ToLower(subfields.getFirstSubfieldWithCode('z')));
+        const std::string subfield_z_contents(TextUtil::UTF8ToLower(subfields.getFirstSubfieldWithCode('z')));
         if (StringUtil::StartsWith(subfield_z_contents, "kostenfrei")) {
-            const std::string subfield_3_contents(StringUtil::ToLower(subfields.getFirstSubfieldWithCode('3')));
+            const std::string subfield_3_contents(TextUtil::UTF8ToLower(subfields.getFirstSubfieldWithCode('3')));
             if (subfield_3_contents == "volltext")
                 return true;
         }
     }
 
     for (const auto &_655_field : marc_record.getTagRange("655")) {
-        if (StringUtil::ToLower(_655_field.getFirstSubfieldWithCode('a')) == "open access")
+        if (TextUtil::UTF8ToLower(_655_field.getFirstSubfieldWithCode('a')) == "open access")
             return true;
     }
 

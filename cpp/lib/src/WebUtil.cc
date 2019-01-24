@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
- *  Copyright 2017 Universitätsbibliothek Tübingen
+ *  Copyright 2017,2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -188,7 +188,7 @@ const int BAD_MONTH(-1);
  */
 int MonthToInt(const std::string &const_month) {
     std::string month(const_month);
-    StringUtil::ToLower(&month);
+    TextUtil::UTF8ToLower(&month);
 
     if (month == "jan")
         return 0;
@@ -310,7 +310,7 @@ std::string ConvertToLatin9(const HttpHeader &http_header, const std::string &or
             character_encoding = HttpHeader::GetCharsetFromContentType(extracted_data.front().second);
     }
 
-    StringUtil::ToLower(&character_encoding);
+    StringUtil::ASCIIToLower(&character_encoding);
 
     // If we can't find any character encoding information or we already have Latin-9 we just give up in disgust and
     // return the original document:

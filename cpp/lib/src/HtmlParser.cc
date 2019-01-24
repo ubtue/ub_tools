@@ -894,7 +894,7 @@ std::string HtmlParser::extractTagName() {
     if (likely(not endOfStream()))
         ungetChar();
 
-    return StringUtil::ToLower(&tag_name);
+    return StringUtil::ASCIIToLower(&tag_name);
 }
 
 
@@ -931,7 +931,7 @@ bool HtmlParser::extractAttribute(const std::string &tag_name, std::string * con
         return false;
 
     // cannonize the name:
-    StringUtil::ToLower(attribute_name);
+    StringUtil::ASCIIToLower(attribute_name);
 
     skipWhiteSpace();
 
@@ -1243,18 +1243,16 @@ void MetaTagExtractor::notify(const Chunk &chunk) {
         if (name_attrib == chunk.attribute_map_->end())
             return; // malformed meta tag (has no "name" attribute)
         std::string current_tag(name_attrib->second);
-        StringUtil::ToLower(&current_tag);
+        StringUtil::ASCIIToLower(&current_tag);
 
         // Make sure this is one of the META tags we are looking for
         bool name_matches_list(false);
-        for (std::list<std::string>::const_iterator meta_tag_name(meta_tag_names_.begin()); meta_tag_name != meta_tag_names_.end();
-             ++meta_tag_name)
-            {
-                if (::strcasecmp(current_tag.c_str(), meta_tag_name->c_str()) == 0) {
-                    name_matches_list = true;
-                    break;
-                }
+        for (const auto &meta_tag_name : meta_tag_names_) {
+            if (::strcasecmp(current_tag.c_str(), meta_tag_name.c_str()) == 0) {
+                name_matches_list = true;
+                break;
             }
+        }
         if (not name_matches_list)
             return;
 
@@ -1274,18 +1272,16 @@ void HttpEquivExtractor::notify(const Chunk &chunk) {
         if (name_attrib == chunk.attribute_map_->end())
             return; // malformed meta tag (has no "name" attribute)
         std::string current_tag(name_attrib->second);
-        StringUtil::ToLower(&current_tag);
+        StringUtil::ASCIIToLower(&current_tag);
 
         // Make sure this is one of the META tags we are looking for
         bool name_matches_list(false);
-        for (std::list<std::string>::const_iterator meta_tag_name(meta_tag_names_.begin()); meta_tag_name != meta_tag_names_.end();
-             ++meta_tag_name)
-            {
-                if (::strcasecmp(current_tag.c_str(), meta_tag_name->c_str()) == 0) {
-                    name_matches_list = true;
-                    break;
-                }
+        for (const auto &meta_tag_name : meta_tag_names_) {
+            if (::strcasecmp(current_tag.c_str(), meta_tag_name.c_str()) == 0) {
+                name_matches_list = true;
+                break;
             }
+        }
         if (not name_matches_list)
             return;
 
