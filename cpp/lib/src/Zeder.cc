@@ -531,7 +531,7 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
                 resolved_value = match->second;
             }
 
-            resolved_value = StringUtil::Trim(resolved_value);
+            resolved_value = TextUtil::CollapseAndTrimWhitespace(resolved_value);
             auto filter_regex(params.filter_regexps_.find(column_name));
             if (filter_regex != params.filter_regexps_.end()) {
                 ++filtered_columns;
