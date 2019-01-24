@@ -331,9 +331,6 @@ void IniWriter::write(const EntryCollection &collection) {
     const auto params(dynamic_cast<IniWriter::Params * const>(input_params_.get()));
     char time_buffer[100]{};
 
-    if (collection.empty())
-        LOG_ERROR("attempting to serialize empty Zeder EntryCollection");
-
     // we assume that the entries are sorted at this point
     for (const auto &entry : collection) {
         config_->appendSection(entry.getAttribute(params->section_name_attribute_));
@@ -364,10 +361,7 @@ void CsvWriter::write(const EntryCollection &collection) {
     const auto params(dynamic_cast<CsvWriter::Params * const>(input_params_.get()));
     char time_buffer[100]{};
 
-    if (collection.empty())
-        LOG_ERROR("attempting to serialize empty Zeder EntryCollection");
-
-    if (params->attributes_to_export_.empty()) {
+    if (params->attributes_to_export_.empty() and not collection.empty()) {
         // add all attributes in the order of iteration
         const auto first_entry(collection.begin());
         for (const auto &attribute_entry : *first_entry)
