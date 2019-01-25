@@ -6,7 +6,7 @@
 /*
  *  \copyright 2007 Project iVia.
  *  \copyright 2007 The Regents of The University of California.
- *  \copyright 2017 Universitätsbibliothek Tübingen.
+ *  \copyright 2017,2019 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -32,6 +32,7 @@
 #include "DnsUtil.h"
 #include "HttpHeader.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "WebUtil.h"
 
 
@@ -142,12 +143,11 @@ void CookieJar::addCookies(const HttpHeader &http_header, const std::string &def
         throw std::runtime_error("in CookieJar::addCookies: default domain \"" + default_domain
                                  + "\" must be a valid hostname!");
 
-    const std::string lowercase_default_domain(StringUtil::ToLower(default_domain));
+    const std::string lowercase_default_domain(TextUtil::UTF8ToLower(default_domain));
 
     const std::vector<std::string> raw_cookies(http_header.getCookies());
-    for (std::vector<std::string>::const_iterator raw_cookie(raw_cookies.begin()); raw_cookie != raw_cookies.end();
-         ++raw_cookie)
-        parseCookie(*raw_cookie, lowercase_default_domain);
+    for (const auto &raw_cookie : raw_cookies)
+        parseCookie(raw_cookie, lowercase_default_domain);
 }
 
 
@@ -166,7 +166,7 @@ void CookieJar::getCookieHeaders(const std::string &domain_name, const std::stri
                                  std::string * const cookie_headers) const
 {
     cookie_headers->clear();
-    const std::string lowercase_domain_name(StringUtil::ToLower(domain_name));
+    const std::string lowercase_domain_name(TextUtil::UTF8ToLower(domain_name));
     const std::string normalised_path(path.empty() ? "/" : path);
 
     const time_t now(std::time(nullptr));
@@ -258,13 +258,12 @@ bool ExtractAttribAndValue(std::string::const_iterator &ch, const std::string::c
 enum AttribType { COOKIE_NAME, KNOWN_ATTRIB, DOMAIN_ATTRIB, RESERVED_ATTRIB };
 AttribType GetAttribType(const std::string &attrib_name) {
     if (unlikely(attrib_name.empty()))
-        throw std::runtime_error("in GetAttribType (CookieJar.cc): can't determine the type of name of an empty "
-                                 "string!");
+        throw std::runtime_error("in GetAttribType (CookieJar.cc): can't determine the type of name of an empty string!");
 
     if (attrib_name[0] == '$')
         return RESERVED_ATTRIB;
 
-    const std::string lowercase_attrib_name(StringUtil::ToLower(attrib_name));
+    const std::string lowercase_attrib_name(StringUtil::ASCIIToLower(attrib_name));
     if (lowercase_attrib_name == "comment")
         return KNOWN_ATTRIB;
     if (lowercase_attrib_name == "domain")
@@ -300,10 +299,8 @@ bool PortListIsValid(const std::string &port_list_candidate) {
     std::vector<std::string> port_candidates;
     StringUtil::SplitThenTrimWhite(port_list_candidate, " \t", &port_candidates);
 
-    for (std::vector<std::string>::const_iterator port_candidate(port_candidates.begin());
-         port_candidate != port_candidates.end(); ++port_candidate)
-    {
-        if (unlikely(not StringUtil::IsUnsignedNumber(*port_candidate)))
+    for (const auto &port_candidate : port_candidates) {
+        if (unlikely(not StringUtil::IsUnsignedNumber(port_candidate)))
             return false;
     }
 
@@ -311,10 +308,8 @@ bool PortListIsValid(const std::string &port_list_candidate) {
 }
 
 
-bool UpdateKnownAttrib(const std::string &attrib_name, const std::string &attrib_value,
-                       CookieJar::Cookie * const cookie)
-{
-    const std::string lowercase_attrib_name(StringUtil::ToLower(attrib_name));
+bool UpdateKnownAttrib(const std::string &attrib_name, const std::string &attrib_value, CookieJar::Cookie * const cookie) {
+    const std::string lowercase_attrib_name(StringUtil::ASCIIToLower(attrib_name));
     if (lowercase_attrib_name == "comment") {
         if (unlikely(attrib_value.empty()))
             return false;

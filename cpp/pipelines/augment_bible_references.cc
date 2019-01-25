@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015-2018, Library of the University of Tübingen
+    Copyright (C) 2015-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -63,7 +63,7 @@ void LoadBibleOrderMap(File * const input, std::unordered_map<std::string, std::
         const size_t equal_pos(line.find('='));
         if (equal_pos == std::string::npos)
             LOG_ERROR("malformed line #" + std::to_string(line_no) + " in the bible-order map file!");
-        (*books_of_the_bible_to_code_map)[StringUtil::ToLower(line.substr(0, equal_pos))] =
+        (*books_of_the_bible_to_code_map)[TextUtil::UTF8ToLower(line.substr(0, equal_pos))] =
             line.substr(equal_pos + 1);
     }
 
@@ -248,7 +248,7 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
             if (subfields.hasSubfieldWithValue('9', "g:Buch"))
                 book_name_candidate = "makkabäer";
         } else
-            book_name_candidate = StringUtil::ToLower(subfields.getFirstSubfieldWithCode('p'));
+            book_name_candidate = TextUtil::UTF8ToLower(subfields.getFirstSubfieldWithCode('p'));
 
         const auto pair(book_alias_map.find(book_name_candidate));
         if (pair != book_alias_map.cend())
