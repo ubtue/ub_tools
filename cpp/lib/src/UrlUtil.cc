@@ -32,6 +32,7 @@
 #include "IniFile.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "Url.h"
 
 
@@ -479,7 +480,7 @@ bool ParseUrl(const std::string &url, std::string * const scheme, std::string * 
             *authority = url.substr(authority_start, path_start - authority_start);
     }
 
-    StringUtil::ToLower(authority);
+    TextUtil::UTF8ToLower(authority);
 
     // If the path is empty, we're done:
     if (path_start == std::string::npos)
@@ -524,7 +525,7 @@ bool ParseUrl(const std::string &url, std::string * const scheme, std::string * 
 
 
 std::string CanoniseUrlAsKey(const std::string &url) {
-    std::string key(StringUtil::ToLower(url));
+    std::string key(TextUtil::UTF8ToLower(url));
 
     // Deal with fragments:
     const std::string::size_type hash_pos(key.find('#'));
