@@ -45,12 +45,12 @@ public:
 
     void simpleInsert(const std::map<std::string, std::string> &fields_and_values);
 
-    /** \brief Inserts a logical document into the Elasticsearch index.
+    /** \brief Inserts or replaces logical document into the Elasticsearch index.
      *  \param document_id  An ID that must be unique per document, e.g. a MARC control number.
      *  \param document     A text blob that makes up the contents of a document.
      *  \note  If a document w/ "document_id" already exists, it will be replaced.
      */
-    void insertDocument(const std::string &document_id, const std::string &document);
+    void insertOrUpdateDocument(const std::string &document_id, const std::string &document);
 
     bool deleteDocument(const std::string &document_id);
 

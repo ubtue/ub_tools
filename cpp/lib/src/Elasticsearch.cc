@@ -70,7 +70,7 @@ query("_doc", REST::POST, payload);
 //    We know that there is an _update API endpoint, but as we insert a bunch of chunks, the number of which can change,
 //    we have to use a "wildcard" strategy to first delete possibly existing chunks as the number of new chunks may be greater or
 //    fewer than what may already be stored.
-void Elasticsearch::insertDocument(const std::string &document_id, const std::string &document) {
+void Elasticsearch::insertOrUpdateDocument(const std::string &document_id, const std::string &document) {
     deleteDocument(document_id);
     simpleInsert({ { "id", document_id }, { "document", document } });
 }
