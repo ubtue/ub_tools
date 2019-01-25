@@ -42,8 +42,27 @@ namespace {
 }
 
 
-void ProcessRecords(const bool verbose, const unsigned limit_count, MARC::Reader * const marc_reader,
-                    const NGram::DistanceType distance_type, const std::set<std::string> &considered_languages,
+#if 0
+void GenerateModels(const bool verbose, const unsigned limit_count, const unsigned cross_validation_chunk_count,
+                    const unsigned leave_out_index, MARC::Reader * const marc_reader, const NGram::DistanceType distance_type,
+                    const std::set<std::string> &considered_languages)
+{
+    unsigned record_count(0);
+    while (const MARC::Record record = marc_reader->read()) {
+        ++record_count;
+        if (record_count == limit_count)
+            break;
+
+        if (record_count % cross_validation_chunk_count == leave_out_index)
+            continue;
+    }
+}
+#endif
+
+
+void ProcessRecords(const bool verbose, const unsigned limit_count, const unsigned /*cross_validation_chunk_count*/,
+                    MARC::Reader * const marc_reader, const NGram::DistanceType distance_type,
+                    const std::set<std::string> &considered_languages,
                     std::unordered_map<std::string, unsigned> * const mismatched_assignments_to_counts_map)
 {
     unsigned record_count(0), untagged_count(0), agreed_count(0);
@@ -123,6 +142,15 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
+    unsigned cross_validation_chunk_count(0);
+    if (StringUtil::StartsWith(argv[1], "--cross-valiatdion-chunks=")) {
+        cross_validation_chunk_count = StringUtil::ToUnsigned(argv[1] + __builtin_strlen("--cross-valiatdion-chunks="));
+        --argc, ++argv;
+    }
+
+    if (argc < 2)
+        Usage();
+
     auto marc_reader(MARC::Reader::Factory(argv[1]));
 
     std::set<std::string> considered_languages;
@@ -130,7 +158,8 @@ int Main(int argc, char *argv[]) {
         considered_languages.emplace(argv[arg_no]);
 
     std::unordered_map<std::string, unsigned> mismatched_assignments_to_counts_map;
-    ProcessRecords(verbose, limit_count, marc_reader.get(), distance_type, considered_languages, &mismatched_assignments_to_counts_map);
+    ProcessRecords(verbose, limit_count, cross_validation_chunk_count, marc_reader.get(), distance_type, considered_languages,
+                   &mismatched_assignments_to_counts_map);
 
     std::vector<std::pair<std::string, unsigned>> mismatched_assignments_and_counts;
     mismatched_assignments_and_counts.reserve(mismatched_assignments_to_counts_map.size());

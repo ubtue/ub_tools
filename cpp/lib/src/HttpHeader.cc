@@ -8,6 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
+ *  Copyright 2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -125,7 +126,7 @@ HttpHeader::HttpHeader(const std::string &header) {
         if (server_header == lines.end() or server_header->length() <= 18)
             content_encoding_ = "";
         else
-            content_encoding_ = StringUtil::ToLower(StringUtil::Trim(server_header->substr(18)));
+            content_encoding_ = StringUtil::ASCIIToLower(StringUtil::Trim(server_header->substr(18)));
 
         server_header = find_if(lines.begin(), lines.end(), StartsWith("Location:"));
         if (server_header == lines.end() or server_header->length() <= 10)
@@ -278,7 +279,7 @@ std::string HttpHeader::toString() const {
 
 
 void HttpHeader::setContentEncoding(const std::string &new_content_encoding) {
-    content_encoding_ = StringUtil::ToLower(StringUtil::Trim(new_content_encoding));
+    content_encoding_ = StringUtil::ASCIIToLower(StringUtil::Trim(new_content_encoding));
 }
 
 
@@ -308,7 +309,7 @@ LanguageMatch::LanguageMatch(const std::string &language_to_match): language_to_
     // Trim a possible trailing hyphen:
     if (not language_to_match_.empty() and language_to_match_[language_to_match_.length() - 1] == '-')
         language_to_match_.resize(language_to_match_.size() - 1);
-    StringUtil::ToLower(&language_to_match_);
+    StringUtil::ASCIIToLower(&language_to_match_);
 }
 
 
@@ -337,7 +338,7 @@ bool HttpHeader::hasAcceptableLanguage(const std::string &acceptable_languages) 
         return true;
 
     std::vector<std::string> acceptable_languages_set;
-    StringUtil::SplitThenTrimWhite(StringUtil::ToLower(acceptable_languages), ',', &acceptable_languages_set);
+    StringUtil::SplitThenTrimWhite(StringUtil::ASCIIToLower(acceptable_languages), ',', &acceptable_languages_set);
     if (unlikely(acceptable_languages_set.empty()))
         return true;
 
@@ -372,7 +373,7 @@ bool HttpHeader::IsProbablyNotEnglish(const std::string &charset, const std::str
     if (charset.empty())
         return false;
 
-    const std::string lc_charset(StringUtil::ToLower(charset));
+    const std::string lc_charset(StringUtil::ASCIIToLower(charset));
     if (std::strcmp(lc_charset.c_str(), "us-ascii") == 0
         or std::strcmp(lc_charset.c_str(), "usascii") == 0
         or std::strcmp(lc_charset.c_str(), "iso-8859-1") == 0
@@ -412,7 +413,7 @@ std::string HttpHeader::GetLanguagePrimarySubtag(const std::string &language_tag
         primary_subtag += *ch;
     }
 
-    StringUtil::ToLower(&primary_subtag);
+    StringUtil::ASCIIToLower(&primary_subtag);
 
     // Canonise certain strings:
     if (primary_subtag == "english" or primary_subtag == "eng")

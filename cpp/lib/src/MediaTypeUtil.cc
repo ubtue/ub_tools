@@ -187,7 +187,7 @@ std::string GetMediaType(const std::string &page_header, const std::string &page
     if (http_header.isValid()) {
         std::string media_type(http_header.getMediaType());
         if (not media_type.empty()) {
-            StringUtil::ToLower(&media_type);
+            StringUtil::ASCIIToLower(&media_type);
             if (auto_simplify)
                 SimplifyMediaType(&media_type);
             return media_type;
@@ -237,7 +237,7 @@ std::string GetMediaType(const HttpHeader &http_header, const std::string &page_
     if (http_header.isValid()) {
         media_type = http_header.getMediaType();
         if (not media_type.empty()) {
-            StringUtil::ToLower(&media_type);
+            StringUtil::ASCIIToLower(&media_type);
             if (auto_simplify)
                 SimplifyMediaType(&media_type);
             return media_type;

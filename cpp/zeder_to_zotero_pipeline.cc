@@ -3,7 +3,7 @@
  *          into the Zotero Harvester pipeline
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -34,6 +34,7 @@
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "TimeUtil.h"
 #include "util.h"
 #include "Zeder.h"
@@ -153,7 +154,7 @@ std::string GenerateConfigForNewAndUpdatedEntries(const PipelineParams &params, 
     std::vector<std::string> importer_args{
         "--min-log-level=WARNING",
         "--mode=generate",
-        StringUtil::ToLower(Zeder::FLAVOUR_TO_STRING_MAP.at(params.flavour_)),
+        TextUtil::UTF8ToLower(Zeder::FLAVOUR_TO_STRING_MAP.at(params.flavour_)),
         params.zeder_to_zoter_importer_config_file_,
         buffer_csv_file_path,
         buffer_conf_file_path
@@ -167,17 +168,19 @@ std::string GenerateConfigForNewAndUpdatedEntries(const PipelineParams &params, 
 
 
 void DiffGeneratedConfigAgainstZtsHarvesterConfig(const PipelineParams &params, const std::string &generated_config_file_path,
-                                                  std::unordered_set<unsigned> * const new_entry_ids, std::unordered_set<unsigned> * const modified_entry_ids)
+                                                  std::unordered_set<unsigned> * const new_entry_ids,
+                                                  std::unordered_set<unsigned> * const modified_entry_ids)
 {
-    static const std::unique_ptr<RegexMatcher> modified_entries_matcher(RegexMatcher::RegexMatcherFactoryOrDie("\\n+Modified entries\\:((?:\\s{1}\\d+)*)\\n*"));
-    static const std::unique_ptr<RegexMatcher> new_entries_matcher(RegexMatcher::RegexMatcherFactoryOrDie("\\n+New entries\\:((?:\\s{1}\\d+)*)\\n*"));
-
+    static const std::unique_ptr<RegexMatcher> modified_entries_matcher(
+        RegexMatcher::RegexMatcherFactoryOrDie("\\n+Modified entries\\:((?:\\s{1}\\d+)*)\\n*"));
+    static const std::unique_ptr<RegexMatcher> new_entries_matcher(
+        RegexMatcher::RegexMatcherFactoryOrDie("\\n+New entries\\:((?:\\s{1}\\d+)*)\\n*"));
 
     std::string stderr_capture, stdout_capture;
     std::vector<std::string> importer_args{
         "--min-log-level=INFO",
         "--mode=diff",
-        StringUtil::ToLower(Zeder::FLAVOUR_TO_STRING_MAP.at(params.flavour_)),
+        TextUtil::UTF8ToLower(Zeder::FLAVOUR_TO_STRING_MAP.at(params.flavour_)),
         params.zeder_to_zoter_importer_config_file_,
         generated_config_file_path,
         params.harvester_config_file_
@@ -212,7 +215,7 @@ std::string GenerateTempMergedZtsHarvesterConfig(const PipelineParams &params, c
     std::vector<std::string> importer_args{
         "--min-log-level=WARNING",
         "--mode=merge",
-        StringUtil::ToLower(Zeder::FLAVOUR_TO_STRING_MAP.at(params.flavour_)),
+        TextUtil::UTF8ToLower(Zeder::FLAVOUR_TO_STRING_MAP.at(params.flavour_)),
         params.zeder_to_zoter_importer_config_file_,
         generated_config_file_path,
         buffer_merged_conf_file_path
