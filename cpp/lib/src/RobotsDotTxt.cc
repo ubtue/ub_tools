@@ -322,8 +322,10 @@ void RobotsDotTxt::reinitialize(const std::string &robots_dot_txt) {
             } else {
                 if (temp_descriptor.getNoOfUserAgentPatterns() > 0)
                     user_agent_descriptors_.push_back(temp_descriptor);
-                if (wild_card_seen)
+                if (wild_card_seen) {
                     wild_card_user_agent.copyRules(temp_descriptor);
+                    wild_card_user_agent.setCrawlDelay(temp_descriptor.getCrawlDelay());
+                }
                 wild_card_seen = false;
                 temp_descriptor.clear();
 
@@ -343,8 +345,10 @@ void RobotsDotTxt::reinitialize(const std::string &robots_dot_txt) {
 
     if (temp_descriptor.getNoOfUserAgentPatterns() > 0)
         user_agent_descriptors_.push_back(temp_descriptor);
-    if (wild_card_seen)
+    if (wild_card_seen) {
         wild_card_user_agent.copyRules(temp_descriptor);
+        wild_card_user_agent.setCrawlDelay(temp_descriptor.getCrawlDelay());
+    }
 
     user_agent_descriptors_.push_back(wild_card_user_agent);
 }
