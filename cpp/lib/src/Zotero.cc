@@ -1068,7 +1068,6 @@ void ApplyCrawlDelay(const std::string &harvest_url) {
             return;
         }
 
-        LOG_DEBUG("robots.txt for '" + hostname + "': " + robots_txt_downloader.getMessageBody());
         CrawlDelayParams new_delay_params(robots_txt_downloader.getMessageBody());
         HOSTNAME_TO_DELAY_PARAMS_MAP.insert(std::make_pair(hostname, new_delay_params));
         delay_params = HOSTNAME_TO_DELAY_PARAMS_MAP.find(hostname);
