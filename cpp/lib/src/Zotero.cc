@@ -1041,6 +1041,50 @@ bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry) {
 }
 
 
+void ApplyCrawlDelay(const std::string &harvest_url) {
+    struct CrawlDelayParams {
+        RobotsDotTxt robots_dot_txt_;
+        TimeLimit crawl_timeout_;
+    public:
+        CrawlDelayParams(const std::string &robots_dot_txt)
+         : robots_dot_txt_(robots_dot_txt), crawl_timeout_(robots_dot_txt_.getCrawlDelay("*") * 1000) {}
+        CrawlDelayParams(const TimeLimit &crawl_timeout) : crawl_timeout_(crawl_timeout) {}
+    };
+
+    static std::unordered_map<std::string, CrawlDelayParams> HOSTNAME_TO_DELAY_PARAMS_MAP;
+
+    const Url parsed_url(harvest_url);
+    const auto hostname(parsed_url.getAuthority());
+    auto delay_params(HOSTNAME_TO_DELAY_PARAMS_MAP.find(hostname));
+
+    if (delay_params == HOSTNAME_TO_DELAY_PARAMS_MAP.end()) {
+        Downloader robots_txt_downloader(parsed_url.getRobotsDotTxtUrl());
+        if (robots_txt_downloader.anErrorOccurred()) {
+            // ignore for the rest of the session by giving it a very low delay
+            CrawlDelayParams default_delay_params(1);
+            HOSTNAME_TO_DELAY_PARAMS_MAP.insert(std::make_pair(hostname, default_delay_params));
+
+            LOG_WARNING("couldn't retrieve robots.txt for domain '" + hostname + "'");
+            return;
+        }
+
+        LOG_DEBUG("robots.txt for '" + hostname + "': " + robots_txt_downloader.getMessageBody());
+        CrawlDelayParams new_delay_params(robots_txt_downloader.getMessageBody());
+        HOSTNAME_TO_DELAY_PARAMS_MAP.insert(std::make_pair(hostname, new_delay_params));
+        delay_params = HOSTNAME_TO_DELAY_PARAMS_MAP.find(hostname);
+
+        LOG_INFO("set crawl-delay for domain '" + hostname + "' to " +
+                 std::to_string(new_delay_params.crawl_timeout_.getLimit()) + " ms");
+    }
+
+    auto &current_delay_params(delay_params->second);
+
+    LOG_DEBUG("sleeping for " + std::to_string(current_delay_params.crawl_timeout_.getLimit()) + " ms...");
+    current_delay_params.crawl_timeout_.restart();
+    current_delay_params.crawl_timeout_.sleepUntilExpired();
+}
+
+
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
                                       const SiteParams &site_params, HarvesterErrorLogger * const error_logger, bool verbose)
 {
@@ -1056,6 +1100,8 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         LOG_DEBUG("Skipping URL ('" + harvest_url + "' does not match extraction regex)");
         return record_count_and_previously_downloaded_count;
     }
+
+    ApplyCrawlDelay(harvest_url);
     already_harvested_urls.emplace(harvest_url);
     auto error_logger_context(error_logger->newContext(site_params.journal_name_, harvest_url));
 
