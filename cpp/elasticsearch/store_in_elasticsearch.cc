@@ -1,7 +1,7 @@
 /** \brief Importer for full text documents.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -22,8 +22,8 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
-#include "Elasticsearch.h"
 #include "FileUtil.h"
+#include "FullTextCache.h"
 #include "FullTextImport.h"
 #include "util.h"
 
@@ -36,7 +36,7 @@ namespace {
 }
 
 
-bool ImportDocument(ControlNumberGuesser &control_number_guesser, Elasticsearch * const elasticsearch, const std::string &filename) {
+bool ImportDocument(ControlNumberGuesser &control_number_guesser, FullTextCache * const full_text_cache, const std::string &filename) {
     const auto input(FileUtil::OpenInputFileOrDie(filename));
     FullTextImport::FullTextData full_text_data;
     FullTextImport::ReadExtractedTextFromDisk(input.get(), &full_text_data);
@@ -45,7 +45,7 @@ bool ImportDocument(ControlNumberGuesser &control_number_guesser, Elasticsearch 
     if (not FullTextImport::CorrelateFullTextData(control_number_guesser, full_text_data, &ppn))
         return false;
 
-    elasticsearch->insertDocument(ppn, full_text_data.full_text_);
+    full_text_cache->insertEntry(ppn, full_text_data.full_text_, /* entry_urls = */{});
 
     return true;
 }
@@ -59,12 +59,12 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     ControlNumberGuesser control_number_guesser;
-    Elasticsearch elasticsearch;
+    FullTextCache full_text_cache;
 
     unsigned total_count(0), failure_count(0);
     for (int arg_no(1); arg_no < argc; ++arg_no) {
         ++total_count;
-        if (not ImportDocument(control_number_guesser, &elasticsearch, argv[arg_no]))
+        if (not ImportDocument(control_number_guesser, &full_text_cache, argv[arg_no]))
             ++failure_count;
     }
 

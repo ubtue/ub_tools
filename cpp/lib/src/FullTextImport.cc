@@ -44,7 +44,6 @@ void WriteExtractedTextToDisk(const std::string &full_text, const std::string &t
 
 void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const full_text_data) {
     unsigned line_no(1);
-    std::string full_text;
     while (not input_file->eof()) {
         const auto line(input_file->getline());
 
@@ -68,32 +67,11 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
             full_text_data->isbn_ = line;
             break;
         default:
-            full_text += line + "\n";
+            full_text_data->full_text_ += line + "\n";
         }
 
         ++line_no;
     }
-
-    // split the full-text into sections
-    size_t chunk_search_start_index(0);
-    size_t chunk_delimiter_index(full_text.find(CHUNK_DELIMITER));
-
-    if (chunk_delimiter_index == std::string::npos) {
-        // just one big chunk
-        full_text_data->full_text_.emplace_back(full_text);
-        return;
-    }
-
-    do {
-        const auto chunk(StringUtil::Trim(full_text.substr(chunk_search_start_index,
-                                                           chunk_delimiter_index - chunk_search_start_index), '\n'));
-        if (chunk.length() != 0)
-            full_text_data->full_text_.emplace_back(chunk);
-
-        chunk_search_start_index = chunk_delimiter_index + CHUNK_DELIMITER.length();
-        chunk_delimiter_index = full_text.find(CHUNK_DELIMITER, chunk_search_start_index);
-
-    } while (chunk_delimiter_index != std::string::npos);
 }
 
 

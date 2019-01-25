@@ -2,7 +2,7 @@
  *  \brief  Implementation of functions relating to our full-text cache.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -19,11 +19,11 @@
  */
 #include "FullTextCache.h"
 #include <algorithm>
+#include <tuple>
 #include <ctime>
 #include "Compiler.h"
 #include "DbRow.h"
 #include "Random.h"
-#include "SqlUtil.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
 #include "UrlUtil.h"
@@ -35,38 +35,14 @@ constexpr unsigned MIN_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60); // About 1 month 
 constexpr unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 months in seconds.
 
 
-FullTextCache::FullTextCache(const bool use_elasticsearch) {
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    db_connection_.reset(new DbConnection(mysql_url));
-    if (use_elasticsearch)
-        elasticsearch_.reset(new Elasticsearch);
-}
-
-
-bool FullTextCache::getDomainFromUrl(const std::string &url, std::string * const domain) {
+bool FullTextCache::getDomainFromUrl(const std::string &url, std::string * const domain) const {
     std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
-
-    bool result = UrlUtil::ParseUrl(url, &scheme, &username_password, &authority, &port, &path, &params, &query, &fragment, &relative_url);
-
+    const bool result(UrlUtil::ParseUrl(url, &scheme, &username_password, &authority, &port, &path, &params, &query,
+                                        &fragment, &relative_url));
     if (result)
         *domain = authority;
 
     return result;
-}
-
-
-std::vector<std::string> FullTextCache::getDomains() {
-    db_connection_->queryOrDie("SELECT url FROM full_text_cache_urls");
-
-    DbResultSet result_set(db_connection_->getLastResultSet());
-    std::vector<std::string> domains;
-    while (const DbRow row = result_set.getNextRow()) {
-        std::string domain;
-        FullTextCache::getDomainFromUrl(row["url"], &domain);
-        domains.emplace_back(domain);
-    }
-    return domains;
 }
 
 
@@ -84,169 +60,170 @@ bool FullTextCache::entryExpired(const std::string &id, std::vector<std::string>
             return false;
     }
 
-    db_connection_->queryOrDie("DELETE FROM full_text_cache WHERE id=\"" + db_connection_->escapeString(id) + "\"");
-    return true;
+    return full_text_cache_urls_.deleteDocument(id);
 }
 
 
 void FullTextCache::expireEntries() {
-    db_connection_->queryOrDie("DELETE FROM full_text_cache WHERE expiration IS NOT NULL AND expiration < NOW()");
+    full_text_cache_urls_.deleteRange("expiration", Elasticsearch::RO_LTE, "now");
 }
 
 
-bool FullTextCache::getEntry(const std::string &id, Entry * const entry) {
-    db_connection_->queryOrDie("SELECT expiration FROM full_text_cache WHERE id=\""
-                              + db_connection_->escapeString(id) + "\"");
-    DbResultSet result_set(db_connection_->getLastResultSet());
-    if (result_set.empty())
+bool FullTextCache::getEntry(const std::string &id, Entry * const entry) const {
+    const auto results(full_text_cache_urls_.simpleSelect({ "expiration" }, "id", id));
+    if (results.empty())
         return false;
 
-    const DbRow row(result_set.getNextRow());
     entry->id_ = id;
-    if (row["expiration"].empty())
+    if (results.front().find("expiration") == results.front().cend())
         entry->expiration_ = TimeUtil::BAD_TIME_T;
     else
-        entry->expiration_ = SqlUtil::DatetimeToTimeT(row["expiration"]);
+        entry->expiration_ = TimeUtil::Iso8601StringToTimeT(results.front().find("expiration")->second);
     return true;
 }
 
 
-std::vector<FullTextCache::EntryUrl> FullTextCache::getEntryUrls(const std::string &id) {
-    db_connection_->queryOrDie("SELECT url, domain, error_message FROM full_text_cache_urls "
-                               "WHERE id=\"" + db_connection_->escapeString(id) + "\"");
+inline std::string GetValueOrEmptyString(const std::map<std::string, std::string> &map, const std::string &key) {
+    const auto pair(map.find(key));
+    return pair == map.cend() ? "" : pair->second;
+}
 
-    DbResultSet result_set(db_connection_->getLastResultSet());
+
+std::vector<FullTextCache::EntryUrl> FullTextCache::getEntryUrls(const std::string &id) const {
+    const auto results(full_text_cache_urls_.simpleSelect({ "url", "domain", "error_message" }, "id", id));
+
     std::vector<EntryUrl> entry_urls;
-    while (const DbRow row = result_set.getNextRow()) {
+    entry_urls.reserve(results.size());
+    for (const auto &map : results) {
         EntryUrl entry_url;
-        entry_url.id_ = id;
-        entry_url.url_ = row["url"];
-        entry_url.domain_ = row["domain"];
-        entry_url.error_message_ = row["error_message"];
+        entry_url.id_            = id;
+        entry_url.url_           = GetValueOrEmptyString(map, "url");
+        entry_url.domain_        = GetValueOrEmptyString(map, "domain");
+        entry_url.error_message_ = GetValueOrEmptyString(map, "error_message");
         entry_urls.emplace_back(entry_url);
     }
     return entry_urls;
 }
 
 
-std::vector<std::string> FullTextCache::getEntryUrlsAsStrings(const std::string &id) {
-    db_connection_->queryOrDie("SELECT url FROM full_text_cache_urls "
-                               "WHERE id=\"" + db_connection_->escapeString(id) + "\"");
+std::vector<std::string> FullTextCache::getEntryUrlsAsStrings(const std::string &id) const {
+    const auto results(full_text_cache_urls_.simpleSelect({ "url" }, "id", id));
 
-    DbResultSet result_set(db_connection_->getLastResultSet());
     std::vector<std::string> urls;
-    while (const DbRow row = result_set.getNextRow()) {
-        urls.emplace_back(row["url"]);
+    for (const auto &map : results) {
+        const auto url(GetValueOrEmptyString(map, "url"));
+        if (not url.empty())
+            urls.emplace_back(url);
     }
     return urls;
 }
 
 
-unsigned FullTextCache::getErrorCount() {
-    db_connection_->queryOrDie("SELECT count(*) AS count FROM ("
-                                    "SELECT cache.id FROM full_text_cache_urls AS urls "
-                                    "LEFT JOIN full_text_cache AS cache "
-                                    "ON cache.id = urls.id "
-                                    "WHERE error_message IS NOT NULL "
-                                    "GROUP BY cache.id "
-                               ") AS subselect");
+unsigned FullTextCache::getErrorCount() const {
+    const auto results(full_text_cache_urls_.simpleSelect({ "id", "error_message" }));
 
-    DbResultSet result_set(db_connection_->getLastResultSet());
-    const DbRow row(result_set.getNextRow());
-    return StringUtil::ToUnsigned(row["count"]);
+    std::unordered_set<std::string> unique_ids;
+    for (const auto &map : results) {
+        if (map.find("error_message") != map.cend())
+            unique_ids.emplace(map.find("id")->second);
+    }
+
+    return static_cast<unsigned>(unique_ids.size());
 }
 
 
-bool FullTextCache::getFullText(const std::string &id, std::string * const full_text) {
-    db_connection_->queryOrDie("SELECT full_text FROM full_text_cache "
-                               "WHERE id=\"" + db_connection_->escapeString(id) + "\"");
+bool FullTextCache::getFullText(const std::string &id, std::string * const full_text) const {
+    const auto results(full_text_cache_.simpleSelect({ "full_text" }, "id", id));
 
-    DbResultSet result_set(db_connection_->getLastResultSet());
-    if (result_set.empty())
+    if (results.empty())
         return false;
 
-    const DbRow row(result_set.getNextRow());
-    *full_text = row["full_text"];
+    *full_text = GetValueOrEmptyString(results.front(), "full_text");
     return true;
 }
 
 
-std::vector<FullTextCache::EntryGroup> FullTextCache::getEntryGroupsByDomainAndErrorMessage() {
-    std::vector<EntryGroup> groups;
+const std::string US("\x1F"); // ASCII unit separator
 
-    // In a group statement you can only select fields that are part of the group.
-    // Get first part.
-    db_connection_->queryOrDie("SELECT domain, error_message, count(*) AS count FROM full_text_cache_urls AS urls "
-                               "LEFT JOIN full_text_cache AS cache ON cache.id = urls.id WHERE urls.error_message IS NOT NULL "
-                               "GROUP BY urls.error_message, urls.domain ORDER BY count DESC ");
-    { // Indented block because DbResultSet needs to get out of scope for connection to be free again.
-        DbResultSet result_set(db_connection_->getLastResultSet());
-        while (const DbRow row = result_set.getNextRow()) {
-            EntryGroup group;
 
-            group.count_ = StringUtil::ToUnsigned(row["count"]);
-            group.domain_ = row["domain"];
-            group.error_message_ = row["error_message"];
+std::vector<FullTextCache::EntryGroup> FullTextCache::getEntryGroupsByDomainAndErrorMessage() const {
+    const auto results(full_text_cache_urls_.simpleSelect({ "url", "domain", "error_message", "id" }));
 
-            groups.emplace_back(group);
-        }
+    std::unordered_map<std::string, std::tuple<std::string, unsigned>> urls_and_domains_to_ids_and_counts_map;
+    for (const auto &map : results) {
+        const auto url_pair(map.find("url"));
+        const auto domain_pair(map.find("domain"));
+        const auto error_message_pair(map.find("error_message"));
+        if (url_pair != map.cend() or domain_pair != map.cend() or error_message_pair != map.cend())
+            continue;
+
+        const auto id_pair(map.find("id"));
+        const auto key(url_pair->second + US + domain_pair->second + US + error_message_pair->second);
+        auto url_and_domain_and_id_and_count(urls_and_domains_to_ids_and_counts_map.find(key));
+        if (url_and_domain_and_id_and_count != urls_and_domains_to_ids_and_counts_map.end())
+            ++std::get<1>(url_and_domain_and_id_and_count->second);
+        else
+            urls_and_domains_to_ids_and_counts_map[key] = std::make_tuple(id_pair->second, 1);
     }
 
-    // get example entry
-    for (auto &group : groups)
-        group.example_entry_ = getJoinedEntryByDomainAndErrorMessage(group.domain_, group.error_message_);
+    std::vector<EntryGroup> groups;
+    groups.reserve(urls_and_domains_to_ids_and_counts_map.size());
+    for (const auto &url_and_domain_and_id_and_count : urls_and_domains_to_ids_and_counts_map) {
+        std::vector<std::string> parts;
+        StringUtil::Split(url_and_domain_and_id_and_count.first, US, &parts);
+        const std::string &url(parts[0]);
+        const std::string &domain(parts[1]);
+        const std::string &error_message(parts[2]);
 
+        groups.emplace_back(EntryGroup(std::get<1>(url_and_domain_and_id_and_count.second), domain, error_message,
+                                       std::get<0>(url_and_domain_and_id_and_count.second), url));
+    }
+
+    std::sort(groups.begin(), groups.end(), [](const EntryGroup &eg1, const EntryGroup &eg2){ return eg1.count_ < eg2.count_;});
     return groups;
 }
 
 
-std::vector<FullTextCache::JoinedEntry> FullTextCache::getJoinedEntriesByDomainAndErrorMessage(const std::string &domain,
-                                                                                               const std::string &error_message)
+std::vector<FullTextCache::EntryUrl> FullTextCache::getJoinedEntriesByDomainAndErrorMessage(const std::string &domain_,
+                                                                                            const std::string &error_message_) const
 {
-    std::vector<JoinedEntry> entries;
-    db_connection_->queryOrDie("SELECT cache.id, url FROM full_text_cache_urls AS urls LEFT JOIN full_text_cache AS cache "
-                               "ON cache.id = urls.id WHERE urls.error_message='" + db_connection_->escapeString(error_message) + "' "
-                               "AND urls.domain='" + db_connection_->escapeString(domain) + "' ");
+    const auto results(full_text_cache_urls_.simpleSelect({ "url", "domain", "error_message", "id" },
+                                                          { { "domain", domain_ }, { "error_message", error_message_ } }));
 
-    DbResultSet result_set(db_connection_->getLastResultSet());
-    while (const DbRow row = result_set.getNextRow()) {
-        JoinedEntry entry;
+    std::vector<EntryUrl> entries;
+    for (const auto &map : results) {
+        const std::string url(GetValueOrEmptyString(map, "url"));
+        const std::string domain(GetValueOrEmptyString(map, "domain"));
+        const std::string error_message(GetValueOrEmptyString(map, "error_message"));
+        const std::string id(GetValueOrEmptyString(map, "id"));
 
-        entry.id_ = row["id"];
-        entry.url_ = row["url"];
-        entry.domain_ = domain;
-        entry.error_message_ = error_message;
-
-        entries.emplace_back(entry);
+        entries.emplace_back(EntryUrl(id, url, domain, error_message));
     }
 
     return entries;
 }
 
 
-FullTextCache::JoinedEntry FullTextCache::getJoinedEntryByDomainAndErrorMessage(const std::string &domain, const std::string &error_message)
+FullTextCache::EntryUrl FullTextCache::getJoinedEntryByDomainAndErrorMessage(const std::string &domain_, const std::string &error_message_)
+    const
 {
-    db_connection_->queryOrDie("SELECT cache.id, url FROM full_text_cache_urls AS urls LEFT JOIN full_text_cache AS cache "
-                               "ON cache.id = urls.id WHERE urls.error_message='" + db_connection_->escapeString(error_message) + "' "
-                               "AND urls.domain='" + db_connection_->escapeString(domain) + "' LIMIT 1 ");
+    const auto results(full_text_cache_urls_.simpleSelect({ "url", "domain", "error_message", "id" },
+                                                          { { "domain", domain_ }, { "error_message", error_message_ } },
+                                                          /* max_count = */1));
+    if (unlikely(results.size() != 1))
+        LOG_ERROR("failed to get one entry!");
 
-    DbResultSet result_set(db_connection_->getLastResultSet());
-    if (unlikely(result_set.empty()))
-        LOG_ERROR("we need at least a single result! (domain: " + domain + ")");
-    const DbRow row(result_set.getNextRow());
+    const std::string url(GetValueOrEmptyString(results.front(), "url"));
+    const std::string domain(GetValueOrEmptyString(results.front(), "domain"));
+    const std::string error_message(GetValueOrEmptyString(results.front(), "error_message"));
+    const std::string id(GetValueOrEmptyString(results.front(), "id"));
 
-    JoinedEntry entry;
-    entry.id_ = row["id"];
-    entry.url_ = row["url"];
-    entry.domain_ = domain;
-    entry.error_message_ = error_message;
-
-    return entry;
+    return EntryUrl(id, url, domain, error_message);
 }
 
 
-unsigned FullTextCache::getSize() {
-    return SqlUtil::GetTableSize(db_connection_.get(), "full_text_cache");
+unsigned FullTextCache::getSize() const {
+    return full_text_cache_.size();
 }
 
 
@@ -262,27 +239,18 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
             expiration = now + MIN_CACHE_EXPIRE_TIME_ON_ERROR + rand(MAX_CACHE_EXPIRE_TIME_ON_ERROR - MIN_CACHE_EXPIRE_TIME_ON_ERROR);
     }
 
-    if (elasticsearch_ != nullptr) {
-        LOG_DEBUG("updating Elasticsearch fulltext for " + id);
-        elasticsearch_->insertDocument(id, full_text);
-    } else {
-        std::string expiration_string;
-        if (expiration == TimeUtil::BAD_TIME_T)
-            expiration_string = "NULL";
+    std::string expiration_string;
+    if (expiration == TimeUtil::BAD_TIME_T)
+        full_text_cache_.simpleInsert({ { "id", id } });
+    else
+        full_text_cache_.simpleInsert({ { "id", id }, { "expiration", TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT) } });
+        expiration_string = "\"" + TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT) + "\"";
+
+    for (const auto &entry_url : entry_urls) {
+        if (entry_url.error_message_.empty())
+            full_text_cache_urls_.simpleInsert({ { "id", id }, { "url", entry_url.url_ }, { "domain", entry_url.domain_ } });
         else
-            expiration_string = "\"" + SqlUtil::TimeTToDatetime(expiration) + "\"";
-
-        const std::string escaped_id(db_connection_->escapeString(id));
-        db_connection_->queryOrDie("INSERT INTO full_text_cache SET id=\"" + escaped_id + "\",expiration=" + expiration_string + ","
-                                   "full_text=\"" + db_connection_->escapeString(full_text) + "\"");
-
-        for (const auto &entry_url : entry_urls) {
-            db_connection_->queryOrDie("INSERT INTO full_text_cache_urls SET id=\"" + escaped_id + "\",url=\""
-                                       + db_connection_->escapeString(entry_url.url_) + "\",domain=\""
-                                       + db_connection_->escapeString(entry_url.domain_) + "\""
-                                       + (entry_url.error_message_.empty()
-                                              ? ""
-                                              : ", error_message=\"" + db_connection_->escapeString(entry_url.error_message_) + "\""));
-        }
+            full_text_cache_urls_.simpleInsert({ { "id", id }, { "url", entry_url.url_ }, { "domain", entry_url.domain_ },
+                                                 { "error_message", entry_url.error_message_ } });
     }
 }

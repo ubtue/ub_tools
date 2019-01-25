@@ -1,0 +1,20 @@
+{
+    "mappings": {
+        "_doc": {
+            "properties": {
+                "id": {
+                    "type": "keyword"
+                },
+                "url": {
+                    "type": "keyword"
+                },
+                "domain": {
+                    "type": "keyword"
+                },
+                "error_message": {
+                    "type": "keyword"
+                }
+            }
+        }
+    }
+}

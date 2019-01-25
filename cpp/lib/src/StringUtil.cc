@@ -11,7 +11,7 @@
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
  *  Copyright 2002-2005 Dr. Johannes Ruscheinski.
- *  Copyright 2017,2018 Universitätsbibliothek Tübingen
+ *  Copyright 2017-2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -122,20 +122,6 @@ char ToHexChar(const unsigned u) {
 
 
 namespace StringUtil {
-
-
-std::string ToLower(std::string * const s) {
-    for (auto &ch : *s)
-        ch = tolower(ch);
-
-    return *s;
-}
-
-
-std::string ToLower(const std::string &s) {
-    std::string result(s);
-    return ToLower(&result);
-}
 
 
 std::string ASCIIToLower(std::string * const s) {
@@ -2103,7 +2089,7 @@ void RemoveDuplicatesFromList(std::list<std::string> * const values) {
     std::list<std::string>::iterator value(values->begin());
     while (value != values->end()) {
         std::string lowercase_value(*value);
-        StringUtil::ToLower(&lowercase_value);
+        TextUtil::UTF8ToLower(&lowercase_value);
 
         if (seen.find(lowercase_value) != seen.end())
             value = values->erase(value);
@@ -2118,9 +2104,7 @@ void RemoveDuplicatesFromList(std::list<std::string> * const values) {
 // RemoveHead -- Remove front of string up to a certain delimiter and return the removed part.
 //               delimiter_string removed completely.
 //
-std::string ExtractHead(std::string * const tail, const std::string &delimiter_string,
-                        const std::string::size_type start)
-{
+std::string ExtractHead(std::string * const tail, const std::string &delimiter_string, const std::string::size_type start) {
     if (unlikely(delimiter_string.empty()))
         return "";
 

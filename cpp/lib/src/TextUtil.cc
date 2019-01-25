@@ -1,5 +1,5 @@
-/** \file    TextUtil.h
- *  \brief   Declarations of text related utility functions.
+/** \file    TextUtil.cc
+ *  \brief   Implementation of text related utility functions.
  *  \author  Dr. Johannes Ruscheinski
  *  \author  Jiangtao Hu
  */
@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2015,2017,2018 Universitätsbibliothek Tübingen.
+ *  Copyright 2015,2017-2019 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -63,13 +63,13 @@ void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
             extracted_text_ += " ";
         extracted_text_ += chunk.text_;
     } else if (charset_.empty() and chunk.type_ == HtmlParser::OPENING_TAG
-             and StringUtil::ToLower(chunk.text_) == "meta") {
+             and StringUtil::ASCIIToLower(chunk.text_) == "meta") {
 
         auto key_and_value(chunk.attribute_map_->find("charset"));
         if (key_and_value != chunk.attribute_map_->end()) {
             charset_ = key_and_value->second;
         } else if (((key_and_value = chunk.attribute_map_->find("http-equiv")) != chunk.attribute_map_->end())
-                     and (StringUtil::ToLower(key_and_value->second) == "content-type")
+                     and (StringUtil::ASCIIToLower(key_and_value->second) == "content-type")
                      and ((key_and_value = chunk.attribute_map_->find("content")) != chunk.attribute_map_->end())) {
 
             static RegexMatcher *matcher(nullptr);
@@ -1483,7 +1483,7 @@ std::string InitialCaps(const std::string &text) {
 
 
 std::string CanonizeCharset(std::string charset) {
-    StringUtil::ToLower(&charset);
+    StringUtil::ASCIIToLower(&charset);
     StringUtil::RemoveChars("- ", &charset);
     return charset;
 }

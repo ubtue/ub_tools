@@ -1,7 +1,7 @@
 /** \brief A tool for adding keywords extracted from titles to MARC records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -53,7 +53,7 @@ void LoadStopwords(const bool verbose, File * const input, std::unordered_set<st
         if (line.empty() or line[0] == ';') // Empty or comment line?
             continue;
 
-        stopwords_set->insert(StringUtil::ToLower(line));
+        stopwords_set->insert(TextUtil::UTF8ToLower(line));
         ++count;
     }
 
@@ -65,7 +65,7 @@ void LoadStopwords(const bool verbose, File * const input, std::unordered_set<st
 void LowercaseSet(std::unordered_set<std::string> * const words) {
     std::unordered_set<std::string> lowercase_set;
     for (const auto &word : *words)
-        lowercase_set.insert(StringUtil::ToLower(word));
+        lowercase_set.insert(TextUtil::UTF8ToLower(word));
     std::swap(lowercase_set, *words);
 }
 

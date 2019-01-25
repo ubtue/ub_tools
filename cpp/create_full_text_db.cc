@@ -1,7 +1,7 @@
 /** \brief Utility for augmenting MARC records with links to a local full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -43,15 +43,14 @@ constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 120; // seconds
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout] [--only-open-access] [--use-elasticsearch] marc_input marc_output\n"
+              << " [--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout] [--only-open-access] marc_input marc_output\n"
               << "       \"--process-count-low-and-high-watermarks\" sets the maximum and minimum number of spawned\n"
               << "           child processes.  When we hit the high water mark we wait for child processes to exit\n"
               << "           until we reach the low watermark.\n"
               << "       \"--pdf-extraction-timeout\" which has a default of " << DEFAULT_PDF_EXTRACTION_TIMEOUT << '\n'
               << "           seconds is the maximum amount of time spent by a subprocess in attemting text extraction from a\n"
               << "           downloaded PDF document.\n"
-              << "       \"--only-open-access\" means that only open access texts will be processed.\n"
-              << "       \"--use-elasticsearch\" means that fulltexts will be stored in Elasticsearch.\n\n";
+              << "       \"--only-open-access\" means that only open access texts will be processed.\n\n";
 
     std::exit(EXIT_FAILURE);
 }
@@ -141,8 +140,7 @@ void CleanUpZombies(const unsigned no_of_zombies_to_collect,
 const std::string UPDATE_FULL_TEXT_DB_PATH("/usr/local/bin/update_full_text_db");
 
 
-void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_record_start,
-                        const unsigned pdf_extraction_timeout, const bool use_elasticsearch,
+void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_record_start, const unsigned pdf_extraction_timeout,
                         const std::string &marc_input_filename, const std::string &marc_output_filename,
                         std::map<std::string, unsigned> * const hostname_to_outstanding_request_count_map,
                         std::map<int, std::string> * const process_id_to_hostname_map,
@@ -167,8 +165,6 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
 
     std::vector<std::string> args;
     args.emplace_back("--pdf-extraction-timeout=" + std::to_string(pdf_extraction_timeout));
-    if (use_elasticsearch)
-        args.emplace_back("--use-elasticsearch");
     args.emplace_back(std::to_string(marc_record_start));
     args.emplace_back(marc_input_filename);
     args.emplace_back(marc_output_filename);
@@ -183,7 +179,7 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
 
 
 void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                            const unsigned pdf_extraction_timeout, const bool use_elasticsearch,
+                            const unsigned pdf_extraction_timeout,
                             const std::vector<std::pair<off_t, std::string>> &download_record_offsets_and_urls,
                             const unsigned process_count_low_watermark, const unsigned process_count_high_watermark)
 {
@@ -210,7 +206,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
             continue;
         }
 
-        ScheduleSubprocess(authority, offset_and_url.first, pdf_extraction_timeout, use_elasticsearch, marc_reader->getPath(),
+        ScheduleSubprocess(authority, offset_and_url.first, pdf_extraction_timeout, marc_reader->getPath(),
                            marc_writer->getFile().getPath(), &hostname_to_outstanding_request_count_map,
                            &process_id_to_hostname_map, &child_reported_failure_count, &active_child_count);
 
@@ -281,12 +277,6 @@ int main(int argc, char **argv) {
         ++argv, --argc;
     }
 
-    bool use_elasticsearch(false);
-    if (argc > 1 and std::strcmp(argv[1], "--use-elasticsearch") == 0) {
-        use_elasticsearch = true;
-        ++argv, --argc;
-    }
-
     if (argc != 3)
         Usage();
 
@@ -305,8 +295,8 @@ int main(int argc, char **argv) {
         // Try to prevent clumps of URL's from the same server:
         std::random_shuffle(download_record_offsets_and_urls.begin(), download_record_offsets_and_urls.end());
 
-        ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), pdf_extraction_timeout, use_elasticsearch,
-                               download_record_offsets_and_urls, process_count_low_watermark, process_count_high_watermark);
+        ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), pdf_extraction_timeout, download_record_offsets_and_urls,
+                               process_count_low_watermark, process_count_high_watermark);
     } catch (const std::exception &e) {
         LOG_ERROR("Caught exception: " + std::string(e.what()));
     }

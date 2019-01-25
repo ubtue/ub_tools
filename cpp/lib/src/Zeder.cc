@@ -594,8 +594,8 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
     std::string krimdok_str(FLAVOUR_TO_STRING_MAP.at(KRIMDOK));
 
     if (not case_sensitive) {
-        StringUtil::ToLower(&ixtheo_str);
-        StringUtil::ToLower(&krimdok_str);
+        StringUtil::ASCIIToLower(&ixtheo_str);
+        StringUtil::ASCIIToLower(&krimdok_str);
     }
 
     if (flavour == ixtheo_str)
