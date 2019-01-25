@@ -227,7 +227,6 @@ class HarvesterErrorLogger;
 
 struct HarvestParams {
     Url zts_server_url_;
-    TimeLimit min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
     unsigned harvested_url_count_ = 0;
     std::string user_agent_;
     FormatHandler *format_handler_;
