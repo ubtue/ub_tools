@@ -29,11 +29,12 @@
 
 namespace {
 
+
 [[noreturn]] void Usage() {
     ::Usage("flavour output_csv [entry_ids] [filter_regexps]\n"
-            "         entry_ids - Whitespace-separated list of Zeder IDs to download.\n"
+            "         entry_ids - Whitespace-separated list of Zeder ID's to download.\n"
             "    filter_regexps - Whitespace-separated regex filter expressions for Zeder columns.\n"
-            "                     Format: <column-1>:<regex-1> <column-2>:<regex-2>\n");
+            "                     Format: <column-1>:<regex-1> <column-2>:<regex-2>...\n");
     std::exit(EXIT_FAILURE);
 }
 
@@ -43,10 +44,10 @@ void ParseArgs(const int argc, char * const argv[], std::unordered_set<unsigned>
 {
     bool parse_as_filter(false);
 
-    for (int i = 1; i < argc; ++i) {
+    for (int i(1); i < argc; ++i) {
         const std::string current_arg(argv[i]);
         unsigned entry_id(0);
-        // keep parsing arguments as entry IDs until the parse fails
+        // keep parsing arguments as entry ID's until the parse fails
         if (not StringUtil::ToUnsigned(current_arg, &entry_id))
             parse_as_filter = true;
 
@@ -66,7 +67,7 @@ void ParseArgs(const int argc, char * const argv[], std::unordered_set<unsigned>
 
 
 void DownloadEntries(const Zeder::Flavour flavour, const std::unordered_set<unsigned> entries_to_download,
-                      const std::unordered_map<std::string, std::string> &filter_regexps, Zeder::EntryCollection * const downloaded_entries)
+                     const std::unordered_map<std::string, std::string> &filter_regexps, Zeder::EntryCollection * const downloaded_entries)
 {
     const auto endpoint_url(Zeder::GetFullDumpEndpointPath(flavour));
     const std::unordered_set<std::string> columns_to_download;  // intentionally empty
