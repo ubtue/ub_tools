@@ -2,7 +2,7 @@
  *  \brief  Anything relating to our full-text cache.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -23,15 +23,11 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "DbConnection.h"
 #include "Elasticsearch.h"
 
 
 class FullTextCache {
-    std::unique_ptr<DbConnection> db_connection_;
-    std::string elasticsearch_index_;
-    std::string elasticsearch_document_type_;
-    std::unique_ptr<Elasticsearch> elasticsearch_;
+    Elasticsearch full_text_cache_, full_text_cache_urls_;
 public:
     struct Entry {
         std::string id_;
@@ -42,22 +38,24 @@ public:
         std::string url_;
         std::string domain_;
         std::string error_message_;
-    };
-    struct JoinedEntry {
-        std::string id_;
-        time_t expiration_;
-        std::string url_;
-        std::string domain_;
-        std::string error_message_;
+    public:
+        EntryUrl() = default;
+        EntryUrl(const std::string &id, const std::string &url, const std::string &domain, const std::string &error_message)
+            : id_(id), url_(url), domain_(domain), error_message_(error_message) { }
     };
     struct EntryGroup {
         unsigned count_;
         std::string domain_;
         std::string error_message_;
-        JoinedEntry example_entry_;
+        EntryUrl example_entry_;
+    public:
+        EntryGroup() = default;
+        EntryGroup(const unsigned count, const std::string &domain, const std::string &error_message,
+                   const std::string &id, const std::string &url)
+            : count_(count), domain_(domain), error_message_(error_message), example_entry_(id, url, domain, error_message) { }
     };
 public:
-    explicit FullTextCache(const bool use_elasticsearch = false);
+    FullTextCache(): full_text_cache_("full_text_cache"), full_text_cache_urls_("full_text_cache_urls") { }
 
     /** \brief Test whether an entry in the cache has expired or not.
      *  \return True if we don't find "id" in the database, or the entry is older than now-CACHE_EXPIRE_TIME_DELTA,
@@ -68,35 +66,34 @@ public:
 
     /** \brief Delete all records whose expiration field is in the past */
     void expireEntries();
-    std::vector<std::string> getDomains();
-    bool getDomainFromUrl(const std::string &url, std::string * const domain);
-    bool getEntry(const std::string &id, Entry * const entry);
-    std::vector<EntryUrl> getEntryUrls(const std::string &id);
-    std::vector<std::string> getEntryUrlsAsStrings(const std::string &id);
+    inline std::unordered_set<std::string> getDomains() const { return full_text_cache_urls_.selectAll("domain"); }
+    bool getDomainFromUrl(const std::string &url, std::string * const domain) const;
+    bool getEntry(const std::string &id, Entry * const entry) const;
+    std::vector<EntryUrl> getEntryUrls(const std::string &id) const;
+    std::vector<std::string> getEntryUrlsAsStrings(const std::string &id) const;
 
     /** \brief Get the number of cache entries with at least one error */
-    unsigned getErrorCount();
+    unsigned getErrorCount() const;
 
     /** \brief Get the full text (as string) for the given id */
-    bool getFullText(const std::string &id, std::string * const full_text);
+    bool getFullText(const std::string &id, std::string * const full_text) const;
 
-    /** \brief Get all entries grouped by domain and error message */
-    std::vector<EntryGroup> getEntryGroupsByDomainAndErrorMessage();
+    /** \brief Get all entries grouped by domain and error message.
+     *  \note  The returned entries are sorted in descending order of the count_ field of the EntryGroup structs.
+     */
+    std::vector<EntryGroup> getEntryGroupsByDomainAndErrorMessage() const;
 
     /** \brief Get all entries for a domain and error message */
-    std::vector<JoinedEntry> getJoinedEntriesByDomainAndErrorMessage(const std::string &domain,
-                                                                     const std::string &error_message);
+    std::vector<EntryUrl> getJoinedEntriesByDomainAndErrorMessage(const std::string &domain, const std::string &error_message) const;
 
     /** \brief Get an example entry for a domain and error message */
-    JoinedEntry getJoinedEntryByDomainAndErrorMessage(const std::string &domain,
-                                                      const std::string &error_message);
+    EntryUrl getJoinedEntryByDomainAndErrorMessage(const std::string &domain, const std::string &error_message) const;
 
     /** \brief Get the number of datasets in full_text_cache table */
-    unsigned getSize();
+    unsigned getSize() const;
 
     /* \note If "data" is empty only an entry will be made in the SQL database but not in the key/value store.  Also
      *       either "data" must be non-empty or "error_message" must be non-empty.
      */
-    void insertEntry(const std::string &id, const std::string &full_text,
-                     const std::vector<EntryUrl> &entry_urls);
+    void insertEntry(const std::string &id, const std::string &full_text, const std::vector<EntryUrl> &entry_urls);
 };

@@ -14,6 +14,7 @@ marc_diff
 marc_filter
 marc_grep
 marc_info
+marc_ngram_language_stats
 marc_remove_dups
 marc_size
 marc_split

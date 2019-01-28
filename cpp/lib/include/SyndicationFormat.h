@@ -41,8 +41,11 @@ public:
             : title_(title), description_(description), link_(link), id_(id), pub_date_(pub_date),
               dc_and_prism_data_(dc_and_prism_data)
         {
-            if (id_.empty())
-                LOG_ERROR("invalid id for rss item! title = '" + title_ + "', link = '" + link_ + "'");
+            if (id_.empty()) {
+                LOG_WARNING("invalid ID for RSS item! title = '" + title_ + "', link = '" + link_ + "'");
+                // use the link as the fallback option
+                id_ = link_;
+            }
         }
         inline bool operator==(const Item &rhs) const { return pub_date_ == rhs.pub_date_ and description_ == rhs.description_; }
         inline const std::string &getTitle() const { return title_; }

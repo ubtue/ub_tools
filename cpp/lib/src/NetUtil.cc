@@ -6,6 +6,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
+ *  Copyright 2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -34,6 +35,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "util.h"
 
 
@@ -296,7 +298,7 @@ const struct {
 
 std::string GetQuasiTopLevelDomainName(const std::string &domain_name) {
     std::list<std::string> labels;
-    StringUtil::SplitThenTrim(StringUtil::ToLower(domain_name), ".", " \t\n\r\v", &labels);
+    StringUtil::SplitThenTrim(TextUtil::UTF8ToLower(domain_name), ".", " \t\n\r\v", &labels);
     if (unlikely(labels.empty()))
         return "";
 

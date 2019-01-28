@@ -1,7 +1,7 @@
 /** \brief A MARC-21 filter utility that selects records based on Library of Congress Subject Headings.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -25,6 +25,7 @@
 #include "FileUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "util.h"
 
 
@@ -53,7 +54,7 @@ void LoadSubjectHeadings(File * const input, std::unordered_set<std::string> * c
 bool Matched(const MARC::Record &record, const std::unordered_set<std::string> &loc_subject_headings) {
     for (const auto &field : record.getTagRange("650")) {
         const auto subfields(field.getSubfields());
-        std::string subfield_a(StringUtil::ToLower(subfields.getFirstSubfieldWithCode('a')));
+        std::string subfield_a(TextUtil::UTF8ToLower(subfields.getFirstSubfieldWithCode('a')));
         StringUtil::RightTrim(" .", &subfield_a);
         if (loc_subject_headings.find(subfield_a) != loc_subject_headings.cend())
             return true;

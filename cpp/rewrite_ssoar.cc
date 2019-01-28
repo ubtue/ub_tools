@@ -159,8 +159,9 @@ void Assemble936Book(MARC::Subfields * const _936subfields, const std::string &y
 }
 
 
-void Parse500Content(const std::string &_500a_content, MARC::Subfields * const _773subfields,
-                  MARC::Subfields * const _936subfields) {
+void Parse500Content(MARC::Record * const record, bool * const modified_record, const std::string &_500a_content,
+                     MARC::Subfields * const _773subfields, MARC::Subfields * const _936subfields)
+{
      // Belegung nach BSZ-Konkordanz
      // 773 $a "Geistiger Schöpfer"
      // 773 08 $i "Beziehungskennzeichnung" (== Übergerordnetes Werk)
@@ -228,6 +229,12 @@ void Parse500Content(const std::string &_500a_content, MARC::Subfields * const _
          const std::string page((*article_matcher_1)[3]);
          Assemble773Article(_773subfields, title, "", page, volinfo, "");
          Assemble936Article(_936subfields, "", page, volinfo, "");
+
+         // Flag the record as an article:
+         if (record->getBibliographicLevel() != MARC::Record::SERIAL_COMPONENT_PART) {
+             record->setBibliographicLevel(MARC::Record::SERIAL_COMPONENT_PART);
+             *modified_record = true;
+         }
      } else if (article_matcher_2->matched(_500a_content)) {
          // See whether we can extract further information
          const std::string title_and_spec((*article_matcher_2)[1]);
@@ -244,14 +251,27 @@ void Parse500Content(const std::string &_500a_content, MARC::Subfields * const _
             Assemble773Article(_773subfields, title_and_spec, "", pages);
             Assemble936Article(_936subfields, "", pages);
          }
+
+         // Flag the record as an article:
+         if (record->getBibliographicLevel() != MARC::Record::SERIAL_COMPONENT_PART) {
+             record->setBibliographicLevel(MARC::Record::SERIAL_COMPONENT_PART);
+             *modified_record = true;
+         }
      } else if (article_matcher_3->matched(_500a_content)) {
          const std::string title((*article_matcher_3)[1]);
          const std::string year((*article_matcher_3)[2]);
          Assemble773Article(_773subfields, title, year);
          Assemble936Article(_936subfields, year);
+
+         // Flag the record as an article:
+         if (record->getBibliographicLevel() != MARC::Record::SERIAL_COMPONENT_PART) {
+             record->setBibliographicLevel(MARC::Record::SERIAL_COMPONENT_PART);
+             *modified_record = true;
+         }
      } else
          LOG_WARNING("No matching regex for " + _500a_content);
 }
+
 
 void InsertSigilInto003And852(MARC::Record * const record, bool * const modified_record) {
     static const std::string ISIL_KRIMDOK("DE-2619");
@@ -356,7 +376,7 @@ void Create773And936From500(MARC::Record * const record, bool * const modified_r
                 MARC::Subfields new_773_Subfields;
                 MARC::Subfields new_936_Subfields;
                 // Parse Field Contents
-                Parse500Content((*superior_matcher)[1], &new_773_Subfields, &new_936_Subfields);
+                Parse500Content(record, modified_record, (*superior_matcher)[1], &new_773_Subfields, &new_936_Subfields);
                 if (not new_773_Subfields.empty())
                     new_773_fields.emplace_back(new_773_Subfields.toString());
                 if (not new_936_Subfields.empty())

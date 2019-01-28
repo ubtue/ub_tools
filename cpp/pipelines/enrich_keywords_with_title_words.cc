@@ -1,6 +1,6 @@
 // A tool for adding keywords extracted from titles to MARC records.
 /*
-    Copyright (C) 2015-2018, Library of the University of Tübingen
+    Copyright (C) 2015-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -47,9 +47,7 @@ namespace {
 }
 
 
-void LoadStopwords(File * const input, const std::string &language_code,
-                   std::unordered_set<std::string> * const stopwords_set)
-{
+void LoadStopwords(File * const input, const std::string &language_code, std::unordered_set<std::string> * const stopwords_set) {
     LOG_INFO("Starting loading of stopwords for language: " + language_code);
 
     unsigned count(0);
@@ -58,8 +56,8 @@ void LoadStopwords(File * const input, const std::string &language_code,
         if (line.empty() or line[0] == ';') // Empty or comment line?
             continue;
 
-        std::string word(StringUtil::ToLower(line));
-        stopwords_set->insert(StringUtil::ToLower(line));
+        std::string word(TextUtil::UTF8ToLower(line));
+        stopwords_set->insert(TextUtil::UTF8ToLower(line));
         ++count;
     }
 
