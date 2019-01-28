@@ -133,6 +133,7 @@
 /notify_users
 /oai_pmh_harvester
 /oai_pmh_list_formats
+/patch_up_ppns_for_k10plus
 /populate_in_tuebingen_available
 /regex_matcher
 /refterm_augmentor
