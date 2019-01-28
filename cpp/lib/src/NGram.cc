@@ -61,29 +61,6 @@ void Split(const std::wstring &s, std::vector<std::wstring> * const words) {
 }
 
 
-// LoadLanguageModel -- loads a language model from "path_name" into "ngram_counts".
-//
-void LoadLanguageModel(const std::string &path_name, NGram::NGramCounts * const ngram_counts) {
-    const auto input(FileUtil::OpenInputFileOrDie(path_name));
-    if (input->fail())
-        LOG_ERROR("can't open language model file \"" + path_name + "\" for reading!");
-
-    size_t entry_count;
-    BinaryIO::ReadOrDie(*input, &entry_count);
-    ngram_counts->reserve(entry_count);
-
-    for (unsigned i(0); i < entry_count; ++i) {
-        std::wstring ngram;
-        BinaryIO::ReadOrDie(*input, &ngram);
-
-        double score;
-        BinaryIO::ReadOrDie(*input, &score);
-
-        (*ngram_counts)[ngram] = score;
-    }
-}
-
-
 struct IndexAndRelFrequency {
     int index_;
     double rel_frequency_;
@@ -141,17 +118,55 @@ double LanguageModel::distance(const std::wstring &ngram, const int position) co
 }
 
 
+static std::string GetLoadLanguageModelDirectory(const std::string &override_language_models_directory) {
+    return override_language_models_directory.empty() ? UBTools::GetTuelibPath() + "/language_models"
+                                                      : override_language_models_directory;
+}
+
+
+// LoadLanguageModel -- loads a language model from "path_name" into "ngram_counts".
+//
+void LoadLanguageModel(const std::string &language, NGram::NGramCounts * const ngram_counts,
+                       const std::string &override_language_models_directory)
+{
+    // Determine the language models directroy:
+    const std::string language_models_directory(override_language_models_directory.empty() ? UBTools::GetTuelibPath() + "/language_models/"
+                                                                                           : override_language_models_directory + "/");
+
+    const std::string model_path(GetLoadLanguageModelDirectory(override_language_models_directory) + "/" + language + ".lm");
+    const auto input(FileUtil::OpenInputFileOrDie(model_path));
+    if (input->fail())
+        LOG_ERROR("can't open language model file \"" + model_path + "\" for reading!");
+
+    size_t entry_count;
+    BinaryIO::ReadOrDie(*input, &entry_count);
+    ngram_counts->reserve(entry_count);
+
+    for (unsigned i(0); i < entry_count; ++i) {
+        std::wstring ngram;
+        BinaryIO::ReadOrDie(*input, &ngram);
+
+        double score;
+        BinaryIO::ReadOrDie(*input, &score);
+
+        (*ngram_counts)[ngram] = score;
+    }
+}
+
+
 // LoadLanguageModels -- returns true if at least one language model was loaded
 //                       from "language_models_directory"
 //
-bool LoadLanguageModels(const std::string &language_models_directory, const NGram::DistanceType distance_type,
-                        const unsigned topmost_use_count, std::vector<LanguageModel> * const language_models)
+bool LoadLanguageModels(const NGram::DistanceType distance_type,
+                        const unsigned topmost_use_count, std::vector<LanguageModel> * const language_models,
+                        const std::string &override_language_models_directory)
 {
-    FileUtil::Directory directory(language_models_directory, ".+\\.lm");
+    FileUtil::Directory directory(GetLoadLanguageModelDirectory(override_language_models_directory), ".+\\.lm");
     bool found_at_least_one_language_model(false);
     for (const auto &dir_entry : directory) {
         NGram::NGramCounts language_model;
-        LoadLanguageModel(language_models_directory + "/" + dir_entry.getName(), &language_model);
+        LoadLanguageModel(dir_entry.getName().substr(dir_entry.getName().length() - 3 /* strip off ".lm" */), &language_model,
+                          override_language_models_directory);
 
         const std::string language(dir_entry.getName().substr(0, dir_entry.getName().length() - 3));
         language_models->push_back(LanguageModel(language, language_model, distance_type, topmost_use_count));
@@ -310,10 +325,6 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
                       const DistanceType distance_type, const unsigned ngram_number_threshold, const unsigned topmost_use_count,
                       const double alternative_cutoff_factor, const std::string &override_language_models_directory)
 {
-    // Determine the language models directroy:
-    const std::string language_models_directory(override_language_models_directory.empty() ? UBTools::GetTuelibPath() + "/language_models"
-                                                                                           : override_language_models_directory);
-
     NGramCounts unknown_language_model;
     SortedNGramCounts sorted_unknown_language_model;
     CreateLanguageModel(input, &unknown_language_model, &sorted_unknown_language_model, ngram_number_threshold, topmost_use_count);
@@ -322,8 +333,8 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
     static std::vector<LanguageModel> language_models;
     if (not models_already_loaded) {
         models_already_loaded = true;
-        if (not LoadLanguageModels(language_models_directory, distance_type, topmost_use_count, &language_models))
-            LOG_ERROR("no language models available in \"" + language_models_directory + "\"!");
+        if (not LoadLanguageModels(distance_type, topmost_use_count, &language_models, override_language_models_directory))
+            LOG_ERROR("no language models available in \"" + GetLoadLanguageModelDirectory(override_language_models_directory) + "\"!");
         LOG_DEBUG("loaded " + std::to_string(language_models.size()) + " language models.");
     }
 
