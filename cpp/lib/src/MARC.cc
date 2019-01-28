@@ -394,7 +394,7 @@ static std::string TypeOfRecordToString(const Record::TypeOfRecord type_of_recor
 }
 
 
-static std::string BibliographicLevelToString(const Record::BibliographicLevel bibliographic_level) {
+std::string Record::BibliographicLevelToString(const Record::BibliographicLevel bibliographic_level) {
     switch (bibliographic_level) {
     case Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART:
         return std::string(1, 'a');
@@ -524,7 +524,7 @@ enum Record::BibliographicLevel Record::getBibliographicLevel() {
 }
 
 
-void Record::setBibliographicLevel(enum Record::BibliographicLevel new_bibliographic_level) {
+void Record::setBibliographicLevel(const Record::BibliographicLevel new_bibliographic_level) {
     leader_[7] = BibliographicLevelToString(new_bibliographic_level)[0];
 }
 
