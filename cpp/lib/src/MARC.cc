@@ -501,6 +501,11 @@ bool Record::isElectronicResource() const {
 }
 
 
+void Record::setBibliographicLevel(const enum Record::BibliographicLevel new_bibliographic_level) {
+    leader_[7] = BibliographicLevelToString(new_bibliographic_level)[0];
+}
+
+
 inline static bool MatchAny(const Tag &tag, const std::vector<Tag> &tags) {
     return std::find_if(tags.cbegin(), tags.cend(), [&tag](const Tag &tag1){ return tag1 == tag; }) != tags.cend();
 }
