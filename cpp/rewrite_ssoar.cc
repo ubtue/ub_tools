@@ -536,7 +536,7 @@ void FixArticleLeader(MARC::Record * const record,  bool * const modified_record
           if (not StringUtil::StartsWith(_500_a_subfield, "In:"))
               continue;
           if (not is_book_component_matcher->matched(_500_a_subfield)) {
-              record->setBibliographicLevel('b');
+              record->setBibliographicLevel(MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART);
               *modified_record = true;
               return;
           }
