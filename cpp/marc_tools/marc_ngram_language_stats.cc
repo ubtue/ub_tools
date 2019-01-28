@@ -35,10 +35,12 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage( "[--verbose] [--limit-count=count] [--distance-type=(simple|weighted)] [--cross-valiatdion-chunks=N] marc_data "
+    ::Usage( "[--verbose] [--limit-count=count] [--distance-type=(simple|weighted)] [--cross-valiatdion-chunks=N] "
+             "[--topmost-use-count=count] marc_data "
              "[language_code1 language_code2 .. language_codeN]\n"
              "If \"--limit-count\" has been specified only the first \"count\" records will be considered.\n"
-             "If \"--cross-valiatdion-chunks\" has been specified, N sets will be used.");
+             "If \"--cross-valiatdion-chunks\" has been specified, N sets will be used.\n"
+             "The default for --topmost-use-count is " + std::to_string(NGram::DEFAULT_TOPMOST_USE_COUNT) + ".");
 }
 
 
@@ -61,7 +63,7 @@ void GenerateModels(const bool verbose, const unsigned limit_count, const unsign
 
 
 void ProcessRecords(const bool verbose, const unsigned limit_count, const unsigned /*cross_validation_chunk_count*/,
-                    MARC::Reader * const marc_reader, const NGram::DistanceType distance_type,
+                    const unsigned topmost_use_count, MARC::Reader * const marc_reader, const NGram::DistanceType distance_type,
                     const std::set<std::string> &considered_languages,
                     std::unordered_map<std::string, unsigned> * const mismatched_assignments_to_counts_map)
 {
@@ -80,7 +82,8 @@ void ProcessRecords(const bool verbose, const unsigned limit_count, const unsign
 
         const std::string text(record.getCompleteTitle() + " " + record.getSummary());
         std::vector<std::string> top_languages;
-        NGram::ClassifyLanguage(text, &top_languages, considered_languages, distance_type);
+        NGram::ClassifyLanguage(text, &top_languages, considered_languages, distance_type, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD,
+                                topmost_use_count);
         if (top_languages.empty())
             continue;
 
@@ -151,6 +154,15 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
+    unsigned topmost_use_count(NGram::DEFAULT_TOPMOST_USE_COUNT);
+    if (StringUtil::StartsWith(argv[1], "--topmost-use-count=")) {
+        topmost_use_count = StringUtil::ToUnsigned(argv[1] + __builtin_strlen("--topmost-use-count="));
+        --argc, ++argv;
+    }
+
+    if (argc < 2)
+        Usage();
+
     auto marc_reader(MARC::Reader::Factory(argv[1]));
 
     std::set<std::string> considered_languages;
@@ -158,8 +170,8 @@ int Main(int argc, char *argv[]) {
         considered_languages.emplace(argv[arg_no]);
 
     std::unordered_map<std::string, unsigned> mismatched_assignments_to_counts_map;
-    ProcessRecords(verbose, limit_count, cross_validation_chunk_count, marc_reader.get(), distance_type, considered_languages,
-                   &mismatched_assignments_to_counts_map);
+    ProcessRecords(verbose, limit_count, cross_validation_chunk_count, topmost_use_count, marc_reader.get(), distance_type,
+                   considered_languages, &mismatched_assignments_to_counts_map);
 
     std::vector<std::pair<std::string, unsigned>> mismatched_assignments_and_counts;
     mismatched_assignments_and_counts.reserve(mismatched_assignments_to_counts_map.size());
