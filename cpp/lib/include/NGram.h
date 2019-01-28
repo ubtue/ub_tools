@@ -57,8 +57,8 @@ public:
     explicit SortedNGramCounts(const NGramCounts &ngram_counts, const SortOrder sort_order);
     void prettyPrint(std::ostream &output) const;
 private:
-	static bool IsLessThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs);
-	static bool IsGreaterThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs);
+    static bool IsLessThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs);
+    static bool IsGreaterThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs);
 };
 
 
