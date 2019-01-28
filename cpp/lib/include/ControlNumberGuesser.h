@@ -68,6 +68,9 @@ public:
     void lookupISSN(const std::string &issn, std::set<std::string> * const control_numbers) const;
     void lookupISBN(const std::string &isbn, std::set<std::string> * const control_numbers) const;
 
+    /** \return The number of entries w/ at least one change. */
+    unsigned swapControlNumbers(const std::unordered_map<std::string, std::string> &old_to_new_map);
+
     /** For testing purposes. */
     static std::string NormaliseTitle(const std::string &title);
     static std::string NormaliseAuthorName(const std::string &author_name);
@@ -77,4 +80,6 @@ private:
     bool lookupControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
                              std::string * const control_numbers) const;
     void splitControlNumbers(const std::string &concatenated_control_numbers, std::unordered_set<std::string> * const control_numbers) const;
+    unsigned swapControlNumbers(const std::string &table_name, const std::string &primary_key,
+                                const std::unordered_map<std::string, std::string> &old_to_new_map);
 };

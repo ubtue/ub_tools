@@ -41,6 +41,7 @@ ControlNumberGuesser::~ControlNumberGuesser() {
         db_connection_->queryOrDie("COMMIT");
 }
 
+
 void ControlNumberGuesser::clearDatabase() {
     db_connection_.reset();
 
@@ -51,7 +52,7 @@ void ControlNumberGuesser::clearDatabase() {
 
 
 void ControlNumberGuesser::beginUpdate() {
-    if (transaction_in_progress_)
+    if (unlikely(transaction_in_progress_))
         LOG_ERROR("transaction already in progress!");
 
     db_connection_->queryOrDie("BEGIN TRANSACTION");
@@ -60,7 +61,7 @@ void ControlNumberGuesser::beginUpdate() {
 
 
 void ControlNumberGuesser::endUpdate() {
-    if (not transaction_in_progress_)
+    if (unlikely(not transaction_in_progress_))
         LOG_ERROR("transaction has yet to begin!");
 
     db_connection_->queryOrDie("COMMIT");
@@ -332,6 +333,18 @@ void ControlNumberGuesser::lookupISBN(const std::string &isbn, std::set<std::str
 }
 
 
+unsigned ControlNumberGuesser::swapControlNumbers(const std::unordered_map<std::string, std::string> &old_to_new_map) {
+    unsigned changed_row_count(0);
+    changed_row_count += swapControlNumbers("normalised_titles",  "title",  old_to_new_map);
+    changed_row_count += swapControlNumbers("normalised_authors", "author", old_to_new_map);
+    changed_row_count += swapControlNumbers("publication_year",   "year",   old_to_new_map);
+    changed_row_count += swapControlNumbers("doi",                "doi",    old_to_new_map);
+    changed_row_count += swapControlNumbers("isbn",               "isbn",   old_to_new_map);
+    changed_row_count += swapControlNumbers("issn",               "issn",   old_to_new_map);
+    return changed_row_count;
+}
+
+
 std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
     std::wstring wtitle;
     if (unlikely(not TextUtil::UTF8ToWCharString(title, &wtitle)))
@@ -422,6 +435,7 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
     return utf8_normalised_author_name;
 }
 
+
 void ControlNumberGuesser::insertNewControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
                                                   const std::string &control_number)
 {
@@ -463,4 +477,41 @@ void ControlNumberGuesser::splitControlNumbers(const std::string &concatenated_c
         control_number.erase(std::remove(control_number.begin(), control_number.end(), '|'), control_number.end());
         control_numbers->emplace(control_number);
     }
+}
+
+
+unsigned ControlNumberGuesser::swapControlNumbers(const std::string &table_name, const std::string &primary_key,
+                                                  const std::unordered_map<std::string, std::string> &old_to_new_map)
+{
+    unsigned changed_row_count(0);
+    db_connection_->queryOrDie("SELECT " + primary_key + ", control_numbers FROM " + table_name);
+    DbResultSet result_set(db_connection_->getLastResultSet());
+
+    while (const DbRow row = result_set.getNextRow()) {
+        std::unordered_set<std::string> control_numbers;
+        splitControlNumbers(row["control_numbers"], &control_numbers);
+
+        std::map<std::string, std::string> replacements;
+        for (const auto &control_number : control_numbers) {
+            const auto old_and_new_control_numbers(old_to_new_map.find(control_number));
+            if (old_and_new_control_numbers != old_to_new_map.cend())
+                replacements[control_number] = old_and_new_control_numbers->second;
+        }
+
+        if (replacements.empty())
+            continue;
+
+        for (const auto &replacement : replacements) {
+            control_numbers.erase(replacement.first);
+            control_numbers.emplace(replacement.second);
+        }
+
+        db_connection_->queryOrDie("UPDATE " + table_name + " " + row[primary_key] + " SET control_numbers='"
+                                   + StringUtil::Join(control_numbers, '|') + "' WHERE " + primary_key + "="
+                                   + db_connection_->escapeAndQuoteString(row[primary_key]));
+
+        ++changed_row_count;
+    }
+
+    return changed_row_count;
 }
