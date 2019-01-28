@@ -129,10 +129,6 @@ static std::string GetLoadLanguageModelDirectory(const std::string &override_lan
 void LoadLanguageModel(const std::string &language, NGram::NGramCounts * const ngram_counts,
                        const std::string &override_language_models_directory)
 {
-    // Determine the language models directroy:
-    const std::string language_models_directory(override_language_models_directory.empty() ? UBTools::GetTuelibPath() + "/language_models/"
-                                                                                           : override_language_models_directory + "/");
-
     const std::string model_path(GetLoadLanguageModelDirectory(override_language_models_directory) + "/" + language + ".lm");
     const auto input(FileUtil::OpenInputFileOrDie(model_path));
     if (input->fail())
