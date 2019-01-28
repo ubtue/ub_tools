@@ -569,7 +569,7 @@ public:
     }
 
     enum BibliographicLevel getBibliographicLevel();
-    void setBibliographicLevel(const enum Record::BibliographicLevel new_bibliographic_level);
+    void setBibliographicLevel(const Record::BibliographicLevel new_bibliographic_level);
     inline bool hasFieldWithTag(const MARC::Tag &tag) const { return findTag(tag) != end(); }
     inline Field getField(const size_t field_index) { return fields_[field_index]; }
     inline const Field &getField(const size_t field_index) const { return fields_[field_index]; }
@@ -763,7 +763,10 @@ public:
      *  \param field_or_field_and_subfield_code Must be either a field tag or a field tag plus a single subfield code.
      */
     bool fieldOrSubfieldMatched(const std::string &field_or_field_and_subfield_code, RegexMatcher * const regex_matcher) const;
+
+    static std::string BibliographicLevelToString(const BibliographicLevel bibliographic_level);
 };
+
 
 
 enum class FileType { AUTO, BINARY, XML };
