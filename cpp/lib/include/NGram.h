@@ -62,6 +62,13 @@ private:
 };
 
 
+/** \brief Loads a language model from a file.
+ *  \override_language_models_directory  If empty the default directory for language models will be used.
+ */
+void LoadLanguageModel(const std::string &language, NGram::NGramCounts * const ngram_counts,
+                       const std::string &override_language_models_directory = "");
+
+
 /** \brief  Tell which language(s) "input" might be.
  *  \param  input                   Where to read the input text from.
  *  \param  ngram_counts            A map from resulting ngrams to their respective counts.
