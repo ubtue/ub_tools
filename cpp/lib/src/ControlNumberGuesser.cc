@@ -3,7 +3,7 @@
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -50,7 +50,7 @@ void ControlNumberGuesser::clearDatabase() {
 }
 
 
-void ControlNumberGuesser::beingUpdate() {
+void ControlNumberGuesser::beginUpdate() {
     if (transaction_in_progress_)
         LOG_ERROR("transaction already in progress!");
 
