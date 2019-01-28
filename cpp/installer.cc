@@ -544,6 +544,12 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
     ExecUtil::ExecOrDie(ExecUtil::Which("chown"),
                         { "-R", USER_AND_GROUP_NAME + ":" + USER_AND_GROUP_NAME, VUFIND_DIRECTORY + "/import" });
 
+    const std::string solr_security_settings("solr hard nofile 65535\n"
+                                             "solr soft nofile 65535\n"
+                                             "solr hard nproc 65535\n"
+                                             "solr soft nproc 65535\n");
+    FileUtil::WriteString("/etc/security/limits.d/20-solr.conf", solr_security_settings);
+
     // systemctl: we do enable as well as daemon-reload and restart
     // to achieve an idempotent installation
     if (install_systemctl) {

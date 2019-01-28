@@ -49,7 +49,7 @@ struct FullTextData {
     std::string doi_;
     std::string issn_;
     std::string isbn_;
-    std::vector<std::string> full_text_;
+    std::string full_text_;
 };
 
 

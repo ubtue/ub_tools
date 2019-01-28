@@ -1,7 +1,7 @@
-/** \brief Interaction with the Zeder collaboration tool
- *  \author Madeesh Kannan
+/** \brief API to interact with the Zeder collaboration tool
+ *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -72,6 +72,13 @@ void Entry::prettyPrint(std::string * const print_buffer) const {
 }
 
 
+std::string Entry::prettyPrint() const {
+    std::string buffer;
+    prettyPrint(&buffer);
+    return buffer;
+}
+
+
 void Entry::DiffResult::prettyPrint(std::string * const print_buffer) const {
     *print_buffer = "Diff " + std::to_string(id_) + ":\n";
 
@@ -86,6 +93,13 @@ void Entry::DiffResult::prettyPrint(std::string * const print_buffer) const {
         else
             *print_buffer += "\t{" + attribute.first + "} -> '" + attribute.second.second + "'\n";
     }
+}
+
+
+std::string Entry::DiffResult::prettyPrint() const {
+    std::string buffer;
+    prettyPrint(&buffer);
+    return buffer;
 }
 
 
@@ -308,8 +322,8 @@ IniWriter::IniWriter(std::unique_ptr<Exporter::Params> params): Exporter(std::mo
 void IniWriter::writeEntry(IniFile::Section * const section, const std::string &name, const std::string &value) const {
     // merge existing comments
     const auto existing_entry(section->find(name));
-    section->insert(name, value, existing_entry != section->end() ? existing_entry->comment_ : "",
-                    IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+    const auto existing_entry_comment(existing_entry != section->end() ? existing_entry->comment_ : "");
+    section->insert(name, value, existing_entry_comment, IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
 }
 
 
@@ -346,6 +360,17 @@ void IniWriter::write(const EntryCollection &collection) {
 void CsvWriter::write(const EntryCollection &collection) {
     const auto params(dynamic_cast<CsvWriter::Params * const>(input_params_.get()));
     char time_buffer[100]{};
+
+    if (params->attributes_to_export_.empty() and not collection.empty()) {
+        // add all attributes in the order of iteration
+        std::set<std::string> attributes;
+        for (const auto &entry : collection)
+            for (const auto &attribute_entry : entry)
+                attributes.insert(attribute_entry.first);
+
+        for (const auto &attribute : attributes)
+            params->attributes_to_export_.emplace_back(attribute);
+    }
 
     std::string header;
     header += TextUtil::CSVEscape(params->zeder_id_column_) + ",";
@@ -390,9 +415,11 @@ std::unique_ptr<EndpointDownloader> EndpointDownloader::Factory(Type downloader_
 }
 
 
-FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::unordered_set<std::string> &columns_to_download,
+FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::unordered_set<unsigned> &entries_to_download,
+                                   const std::unordered_set<std::string> &columns_to_download,
                                    const std::unordered_map<std::string, std::string> &filter_regexps)
-                                   : EndpointDownloader::Params(endpoint_path), columns_to_download_(columns_to_download)
+                                   : EndpointDownloader::Params(endpoint_path), entries_to_download_(entries_to_download),
+                                     columns_to_download_(columns_to_download)
 {
     for (const auto &filter_pair : filter_regexps) {
         std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(filter_pair.second));
@@ -448,7 +475,7 @@ void FullDumpDownloader::parseColumnMetadata(const std::shared_ptr<JSON::JSONNod
         column_metadata.column_type_ = column_type;
         for (const auto &option : *metadata_wrapper->getArrayNode("Optionen")) {
             const auto option_wrapper(JSON::JSONNode::CastToObjectNodeOrDie("entry", option));
-            column_metadata.ordinal_to_value_map_[option_wrapper->getIntegerValue("id")] = option_wrapper->getStringValue("wert");
+            column_metadata.ordinal_to_value_map_[option_wrapper->getIntegerValue("id")] = option_wrapper->getOptionalStringValue("wert");
         }
 
         column_to_metadata_map->insert(std::make_pair(column_name, column_metadata));
@@ -466,6 +493,9 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
         const auto row_id(data_wrapper->getIntegerValue("DT_RowId"));
         const auto mtime(data_wrapper->getStringValue("Mtime"));
 
+        if (not params.entries_to_download_.empty() and params.entries_to_download_.find(row_id) == params.entries_to_download_.end())
+            continue;
+
         Entry new_entry;
         new_entry.setId(row_id);
         new_entry.setModifiedTimestamp(TimeUtil::StringToStructTm(mtime, MODIFIED_TIMESTAMP_FORMAT_STRING));
@@ -475,44 +505,46 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
 
         for (const auto &field : *data_wrapper) {
             std::string column_name(field.first);
-            if (column_name == "DT_RowId" || column_name == "Mtime")
+            if (not params.columns_to_download_.empty() and params.columns_to_download_.find(column_name) == params.columns_to_download_.end())
+                continue;
+            else if (column_name == "DT_RowId" || column_name == "Mtime")
                 continue;
 
             const auto column_metadata(column_to_metadata_map.find(column_name));
             if (column_metadata == column_to_metadata_map.end())
                 LOG_ERROR("Unknown column '" + column_name + "'");
 
-            if (not params.columns_to_download_.empty() and
-                params.columns_to_download_.find(column_name) != params.columns_to_download_.end())
-            {
-                if (column_metadata->second.column_type_ == "multi")
+            if (column_metadata->second.column_type_ == "multi") {
+                if (params.columns_to_download_.empty())
+                    continue;
+                else
                     LOG_ERROR("Columns with multiple values are not supported! Invalid column: " + column_name);
-
-                auto resolved_value(JSON::JSONNode::CastToStringNodeOrDie(column_name, field.second)->getValue());
-                if (column_metadata->second.column_type_ == "dropdown" and not resolved_value.empty()) {
-                    const auto ordinal(StringUtil::ToInt64T(resolved_value));
-                    const auto match(column_metadata->second.ordinal_to_value_map_.find(ordinal));
-                    if (match == column_metadata->second.ordinal_to_value_map_.end())
-                        LOG_ERROR("Unknown value ordinal " + std::to_string(ordinal) + " in column '" + column_name + "'");
-
-                    resolved_value = match->second;
-                }
-
-                resolved_value = StringUtil::Trim(resolved_value);
-                auto filter_regex(params.filter_regexps_.find(column_name));
-                if (filter_regex != params.filter_regexps_.end()) {
-                    ++filtered_columns;
-
-                    if (not filter_regex->second->matched(resolved_value)) {
-                        LOG_DEBUG("Skipping row " + std::to_string(row_id) + " on column '" + column_name + "' reg-ex mismatch");
-                        skip_entry = true;
-                        break;
-                    }
-                }
-
-                if (not resolved_value.empty())
-                    new_entry.setAttribute(column_name, resolved_value);
             }
+
+            auto resolved_value(JSON::JSONNode::CastToStringNodeOrDie(column_name, field.second)->getValue());
+            if (column_metadata->second.column_type_ == "dropdown" and not resolved_value.empty()) {
+                const auto ordinal(StringUtil::ToInt64T(resolved_value));
+                const auto match(column_metadata->second.ordinal_to_value_map_.find(ordinal));
+                if (match == column_metadata->second.ordinal_to_value_map_.end())
+                    LOG_ERROR("Unknown value ordinal " + std::to_string(ordinal) + " in column '" + column_name + "'");
+
+                resolved_value = match->second;
+            }
+
+            resolved_value = TextUtil::CollapseAndTrimWhitespace(resolved_value);
+            auto filter_regex(params.filter_regexps_.find(column_name));
+            if (filter_regex != params.filter_regexps_.end()) {
+                ++filtered_columns;
+
+                if (not filter_regex->second->matched(resolved_value)) {
+                    LOG_DEBUG("Skipping row " + std::to_string(row_id) + " on column '" + column_name + "' reg-ex mismatch");
+                    skip_entry = true;
+                    break;
+                }
+            }
+
+            if (not resolved_value.empty())
+                new_entry.setAttribute(column_name, resolved_value);
         }
 
         if (filtered_columns != params.filter_regexps_.size()) {
@@ -554,6 +586,24 @@ std::string GetFullDumpEndpointPath(Flavour zeder_flavour) {
     default:
         LOG_ERROR("we should *never* get here! (zeder_flavour=" + std::to_string(zeder_flavour) + ")");
     }
+}
+
+
+Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
+    std::string ixtheo_str(FLAVOUR_TO_STRING_MAP.at(IXTHEO));
+    std::string krimdok_str(FLAVOUR_TO_STRING_MAP.at(KRIMDOK));
+
+    if (not case_sensitive) {
+        StringUtil::ASCIIToLower(&ixtheo_str);
+        StringUtil::ASCIIToLower(&krimdok_str);
+    }
+
+    if (flavour == ixtheo_str)
+        return IXTHEO;
+    else if (flavour == krimdok_str)
+        return KRIMDOK;
+    else
+        LOG_ERROR("unknown Zeder flavour '" + flavour + "'");
 }
 
 

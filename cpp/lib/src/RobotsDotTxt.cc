@@ -6,7 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
- *  Copyright 2018 Universitätsbibliothek Tübingen
+ *  Copyright 2018,2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -30,10 +30,11 @@
 #include <sstream>
 #include <unordered_set>
 #include <cstring>
-#include <Compiler.h>
-#include <DbConnection.h>
-#include <DbRow.h>
-#include <StringUtil.h>
+#include "Compiler.h"
+#include "DbConnection.h"
+#include "DbRow.h"
+#include "StringUtil.h"
+#include "TextUtil.h"
 
 
 namespace {
@@ -321,8 +322,10 @@ void RobotsDotTxt::reinitialize(const std::string &robots_dot_txt) {
             } else {
                 if (temp_descriptor.getNoOfUserAgentPatterns() > 0)
                     user_agent_descriptors_.push_back(temp_descriptor);
-                if (wild_card_seen)
+                if (wild_card_seen) {
                     wild_card_user_agent.copyRules(temp_descriptor);
+                    wild_card_user_agent.setCrawlDelay(temp_descriptor.getCrawlDelay());
+                }
                 wild_card_seen = false;
                 temp_descriptor.clear();
 
@@ -342,8 +345,10 @@ void RobotsDotTxt::reinitialize(const std::string &robots_dot_txt) {
 
     if (temp_descriptor.getNoOfUserAgentPatterns() > 0)
         user_agent_descriptors_.push_back(temp_descriptor);
-    if (wild_card_seen)
+    if (wild_card_seen) {
         wild_card_user_agent.copyRules(temp_descriptor);
+        wild_card_user_agent.setCrawlDelay(temp_descriptor.getCrawlDelay());
+    }
 
     user_agent_descriptors_.push_back(wild_card_user_agent);
 }
@@ -377,7 +382,7 @@ void RobotsMetaTagExtractor::notify(const Chunk &chunk) {
             iter = chunk.attribute_map_->find("content");
             if (iter != chunk.attribute_map_->end()) {
                 std::vector<std::string> values;
-                const std::string lowercase_content(StringUtil::ToLower(iter->second));
+                const std::string lowercase_content(StringUtil::ASCIIToLower(iter->second));
                 StringUtil::SplitThenTrim(lowercase_content, ",", " \t\r\f", &values);
                 for (const auto &value : values) {
                     if (value == "index")
@@ -415,7 +420,7 @@ void RobotsDotTxtCache::insert(const std::string &new_hostname, const std::strin
     if (unlikely(hostname_to_robots_dot_txt_map_.size() == max_cache_size_))
         nonThreadSafeClear();
 
-    hostname_to_robots_dot_txt_map_.insert(std::make_pair<std::string, RobotsDotTxt *>(StringUtil::ToLower(new_hostname),
+    hostname_to_robots_dot_txt_map_.insert(std::make_pair<std::string, RobotsDotTxt *>(TextUtil::UTF8ToLower(new_hostname),
                                                                                        new RobotsDotTxt(new_robots_dot_txt)));
 }
 
@@ -424,11 +429,11 @@ void RobotsDotTxtCache::addAlias(const std::string &original_hostname, const std
     std::lock_guard<std::mutex>mutex_locker(mutex_);
 
     std::unordered_map<std::string, RobotsDotTxt *>::const_iterator entry(
-        hostname_to_robots_dot_txt_map_.find(StringUtil::ToLower(original_hostname)));
+        hostname_to_robots_dot_txt_map_.find(TextUtil::UTF8ToLower(original_hostname)));
     if (unlikely(entry == hostname_to_robots_dot_txt_map_.end()))
         throw std::runtime_error("in RobotsDotTxtCache::addAlias: can't add an additional hostname reference for a "
                                  "non-existent entry!");
-    hostname_to_robots_dot_txt_map_.insert(std::make_pair(StringUtil::ToLower(new_hostname), entry->second));
+    hostname_to_robots_dot_txt_map_.insert(std::make_pair(TextUtil::UTF8ToLower(new_hostname), entry->second));
 }
 
 
@@ -455,7 +460,7 @@ const RobotsDotTxt *RobotsDotTxtCache::getRobotsDotTxt(const std::string &hostna
     std::lock_guard<std::mutex> mutex_locker(mutex_);
 
     std::unordered_map<std::string, RobotsDotTxt *>::const_iterator entry(
-        hostname_to_robots_dot_txt_map_.find(StringUtil::ToLower(hostname)));
+        hostname_to_robots_dot_txt_map_.find(TextUtil::UTF8ToLower(hostname)));
     return entry == hostname_to_robots_dot_txt_map_.end() ? nullptr : entry->second;
 }
 

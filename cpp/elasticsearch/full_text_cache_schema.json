@@ -1,0 +1,18 @@
+{
+    "mappings": {
+        "_doc": {
+            "properties": {
+                "id": {
+                    "type": "keyword"
+                },
+                "full_text": {
+                    "type": "text"
+                },
+                "expiration": {
+                    "type": "date",
+                    "format": "strict_date_optional_time"
+                }
+            }
+        }
+    }
+}
