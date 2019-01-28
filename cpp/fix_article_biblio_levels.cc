@@ -107,7 +107,7 @@ void PatchUpBookComponentParts(MARC::Reader * const marc_reader, MARC::Writer * 
     unsigned patch_count(0);
     while (auto record = marc_reader->read()) {
         if (record.isArticle() and not HasAtLeastOneMonographParent("800w:810w:830w:773w", record, monograph_control_numbers)) {
-            record.setBibliographicLevel('b');
+            record.setBibliographicLevel(MARC::Record::SERIAL_COMPONENT_PART);
             ++patch_count;
         }
         marc_writer->write(record);
