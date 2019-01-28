@@ -506,7 +506,7 @@ unsigned ControlNumberGuesser::swapControlNumbers(const std::string &table_name,
             control_numbers.emplace(replacement.second);
         }
 
-        db_connection_->queryOrDie("UPDATE " + table_name + " " + row[primary_key] + " SET control_numbers='"
+        db_connection_->queryOrDie("UPDATE " + table_name + " SET control_numbers='"
                                    + StringUtil::Join(control_numbers, '|') + "' WHERE " + primary_key + "="
                                    + db_connection_->escapeAndQuoteString(row[primary_key]));
 
