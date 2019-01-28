@@ -120,7 +120,7 @@ fi
 ##################################################
 # Set Command Options
 ##################################################
-JAR_FILE="/mnt/zram/import/solrmarc_core_tuefind.jar"
+for i in $VUFIND_HOME/import/solrmarc_core_*.jar; do JAR_FILE="$i"; done
 
 #####################################################
 # Verify that JAR_FILE exists
