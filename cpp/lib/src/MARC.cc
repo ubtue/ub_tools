@@ -417,7 +417,6 @@ static std::string BibliographicLevelToString(const Record::BibliographicLevel b
     }
 }
 
-
 Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
                const std::string &control_number)
 {
@@ -501,7 +500,31 @@ bool Record::isElectronicResource() const {
 }
 
 
-void Record::setBibliographicLevel(const enum Record::BibliographicLevel new_bibliographic_level) {
+enum Record::BibliographicLevel Record::getBibliographicLevel() {
+    switch (leader_[7]) {
+    case 'a':
+        return Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
+    case 'b':
+        return Record::BibliographicLevel::SERIAL_COMPONENT_PART;
+    case 'c':
+        return Record::BibliographicLevel::COLLECTION;
+    case 'd':
+        return Record::BibliographicLevel::SUBUNIT;
+    case 'i':
+        return Record::BibliographicLevel::INTEGRATING_RESOURCE;
+    case 'm':
+        return Record::BibliographicLevel::MONOGRAPH_OR_ITEM;
+    case 's':
+        return Record::BibliographicLevel::SERIAL;
+    case ' ':
+        return Record::BibliographicLevel::UNDEFINED;
+    default:
+        LOG_ERROR("unknown bibliographic level: " + std::string(1, leader_[0]) + "!");
+    }
+}
+
+
+void Record::setBibliographicLevel(enum Record::BibliographicLevel new_bibliographic_level) {
     leader_[7] = BibliographicLevelToString(new_bibliographic_level)[0];
 }
 
