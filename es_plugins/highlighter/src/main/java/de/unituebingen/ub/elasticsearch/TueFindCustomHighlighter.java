@@ -34,6 +34,7 @@ import org.apache.lucene.search.spans.SpanNearQuery;
 import org.apache.lucene.search.spans.SpanOrQuery;
 import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.search.spans.SpanTermQuery;
+import org.apache.lucene.search.uhighlight.UHComponents;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.automaton.CharacterRunAutomaton;
 import org.elasticsearch.common.Nullable;
@@ -130,8 +131,9 @@ public class TueFindCustomHighlighter extends CustomUnifiedHighlighter {
         OffsetSource offsetSource = getOptimizedOffsetSource(field, terms, phraseHelper, automata);
         BreakIterator breakIterator = new TueFindSplittingBreakIterator(getBreakIterator(field),
             UnifiedHighlighter.MULTIVAL_SEP_CHAR);
+        UHComponents components = new UHComponents(field, getFieldMatcher(field), query, terms, phraseHelper, automata, highlightFlags);
         FieldOffsetStrategy strategy =
-            getOffsetStrategy(offsetSource, field, terms, phraseHelper, automata, highlightFlags);
+            getOffsetStrategy(offsetSource, components);
         return new TueFindCustomFieldHighlighter(field, strategy, breakIteratorLocale, breakIterator,
             getScorer(field), maxPassages, (noMatchSize > 0 ? 1 : 0), getFormatter(field), noMatchSize, fieldValue);
     }
