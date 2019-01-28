@@ -43,6 +43,7 @@
 /create_match_db
 /crossref_downloader
 /db_lookup
+/decode_ngram_file
 /delete_ids
 /delete_obsolete_author_references
 /delete_unused_local_data

@@ -124,32 +124,6 @@ static std::string GetLoadLanguageModelDirectory(const std::string &override_lan
 }
 
 
-// LoadLanguageModel -- loads a language model from "path_name" into "ngram_counts".
-//
-void LoadLanguageModel(const std::string &language, NGram::NGramCounts * const ngram_counts,
-                       const std::string &override_language_models_directory)
-{
-    const std::string model_path(GetLoadLanguageModelDirectory(override_language_models_directory) + "/" + language + ".lm");
-    const auto input(FileUtil::OpenInputFileOrDie(model_path));
-    if (input->fail())
-        LOG_ERROR("can't open language model file \"" + model_path + "\" for reading!");
-
-    size_t entry_count;
-    BinaryIO::ReadOrDie(*input, &entry_count);
-    ngram_counts->reserve(entry_count);
-
-    for (unsigned i(0); i < entry_count; ++i) {
-        std::wstring ngram;
-        BinaryIO::ReadOrDie(*input, &ngram);
-
-        double score;
-        BinaryIO::ReadOrDie(*input, &score);
-
-        (*ngram_counts)[ngram] = score;
-    }
-}
-
-
 // LoadLanguageModels -- returns true if at least one language model was loaded
 //                       from "language_models_directory"
 //
@@ -161,8 +135,8 @@ bool LoadLanguageModels(const NGram::DistanceType distance_type,
     bool found_at_least_one_language_model(false);
     for (const auto &dir_entry : directory) {
         NGram::NGramCounts language_model;
-        LoadLanguageModel(dir_entry.getName().substr(dir_entry.getName().length() - 3 /* strip off ".lm" */), &language_model,
-                          override_language_models_directory);
+        NGram::LoadLanguageModel(dir_entry.getName().substr(dir_entry.getName().length() - 3 /* strip off ".lm" */), &language_model,
+                                 override_language_models_directory);
 
         const std::string language(dir_entry.getName().substr(0, dir_entry.getName().length() - 3));
         language_models->push_back(LanguageModel(language, language_model, distance_type, topmost_use_count));
@@ -230,6 +204,32 @@ bool SortedNGramCounts::IsGreaterThan(const std::pair<std::wstring, double> &lhs
     if (lhs.second == rhs.second)
         return lhs.first < rhs.first ;
     return lhs.second > rhs.second;
+}
+
+
+// LoadLanguageModel -- loads a language model from "path_name" into "ngram_counts".
+//
+void LoadLanguageModel(const std::string &language, NGram::NGramCounts * const ngram_counts,
+                       const std::string &override_language_models_directory)
+{
+    const std::string model_path(GetLoadLanguageModelDirectory(override_language_models_directory) + "/" + language + ".lm");
+    const auto input(FileUtil::OpenInputFileOrDie(model_path));
+    if (input->fail())
+        LOG_ERROR("can't open language model file \"" + model_path + "\" for reading!");
+
+    size_t entry_count;
+    BinaryIO::ReadOrDie(*input, &entry_count);
+    ngram_counts->reserve(entry_count);
+
+    for (unsigned i(0); i < entry_count; ++i) {
+        std::wstring ngram;
+        BinaryIO::ReadOrDie(*input, &ngram);
+
+        double score;
+        BinaryIO::ReadOrDie(*input, &score);
+
+        (*ngram_counts)[ngram] = score;
+    }
 }
 
 
