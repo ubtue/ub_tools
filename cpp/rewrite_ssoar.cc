@@ -417,6 +417,8 @@ void RewriteExisting773FieldAndAdd936(MARC::Record * const record, bool * const 
         field.deleteAllSubfieldsWithCode('g');
         field.insertOrReplaceSubfield('g', new_g_subfield_map["volume"] + " (" + new_g_subfield_map["year"] + ") " +
                                            new_g_subfield_map["number"] + "; " +  new_g_subfield_map["pages"]);
+        field.deleteAllSubfieldsWithCode('i');
+        field.insertOrReplaceSubfield('i', "In:");
 
 
         MARC::Subfields new_936_subfields;
