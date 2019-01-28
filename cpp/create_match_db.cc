@@ -2,7 +2,7 @@
  *  \brief   Creates mapping databases from normalised author names and titles to control numbers.
  *  \author  Dr. Johannes Ruscheinski
  *
- *  Copyright (C) 2018, Library of the University of Tübingen
+ *  Copyright (C) 2018,2019 Library of the University of Tübingen
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -40,7 +40,7 @@ namespace {
 
 void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::Reader * const reader) {
     control_number_guesser->clearDatabase();
-    control_number_guesser->beingUpdate();
+    control_number_guesser->beginUpdate();
 
     unsigned processed_record_count(0), records_with_empty_titles(0);
     while (const auto record = reader->read()) {
