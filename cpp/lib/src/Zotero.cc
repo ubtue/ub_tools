@@ -343,8 +343,7 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
         // attempt to automatically detect the language
         std::vector<std::string> top_languages;
         const auto record_text(node_parameters->title_ + " " + node_parameters->abstract_note_);
-        NGram::ClassifyLanguage(record_text, &top_languages, site_params_->expected_languages_, NGram::SIMPLE_DISTANCE,
-                                NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
+        NGram::ClassifyLanguage(record_text, &top_languages, site_params_->expected_languages_, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
 
         if (not top_languages.empty()) {
             node_parameters->language_ = top_languages.front();
