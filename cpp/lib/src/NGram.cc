@@ -27,6 +27,7 @@
 #include "NGram.h"
 #include <algorithm>
 #include <fstream>
+#include <unordered_map>
 #include <unordered_set>
 #include <climits>
 #include "BinaryIO.h"
@@ -167,12 +168,14 @@ SortedNGramCounts::SortedNGramCounts(const NGramCounts &ngram_counts, const Sort
 
 
 double SortedNGramCounts::dotProduct(const SortedNGramCounts &rhs) const {
+    std::unordered_map<std::wstring, double> rhs_map;
+    for (const auto &rhs_ngram_and_weight : rhs)
+        rhs_map.emplace(rhs_ngram_and_weight);
+
     double dot_product(0.0);
     for (const auto &ngram_and_weight : *this) {
-        const auto rhs_ngram_and_weight(
-            std::find_if(rhs.cbegin(), rhs.cend(),
-                         [&ngram_and_weight](const std::pair<std::wstring, double> &pair){ return pair.first == ngram_and_weight.first; }));
-        if (rhs_ngram_and_weight != rhs.cend())
+        const auto rhs_ngram_and_weight(rhs_map.find(ngram_and_weight.first));
+        if (rhs_ngram_and_weight != rhs_map.cend())
             dot_product += ngram_and_weight.second * rhs_ngram_and_weight->second;
     }
 
@@ -229,8 +232,7 @@ void LoadLanguageModel(const std::string &language, NGram::NGramCounts * const n
 
 
 void CreateLanguageModel(std::istream &input, NGramCounts * const ngram_counts,
-			 SortedNGramCounts * const top_ngrams, const unsigned ngram_number_threshold,
-			 const unsigned topmost_use_count)
+                         SortedNGramCounts * const top_ngrams, const unsigned ngram_number_threshold, const unsigned topmost_use_count)
 {
     const std::string file_contents(std::istreambuf_iterator<char>(input), {});
     const std::wstring filtered_text(PreprocessText(file_contents));
