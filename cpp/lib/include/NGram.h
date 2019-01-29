@@ -54,7 +54,8 @@ public:
     enum SortOrder { ASCENDING_ORDER, DESCENDING_ORDER };
 public:
     SortedNGramCounts(): std::vector<std::pair<std::wstring, double>>() { }
-    explicit SortedNGramCounts(const NGramCounts &ngram_counts, const SortOrder sort_order);
+    explicit SortedNGramCounts(const NGramCounts &ngram_counts, const SortOrder sort_order, const bool normalise = true);
+    double dotProduct(const SortedNGramCounts &rhs) const;
     void prettyPrint(std::ostream &output) const;
 private:
     static bool IsLessThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs);
