@@ -35,8 +35,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage( "[--verbose] [--limit-count=count] [--distance-type=(simple|weighted)] [--cross-valiatdion-chunks=N] "
-             "[--topmost-use-count=count] marc_data "
+    ::Usage( "[--verbose] [--limit-count=count] [--cross-valiatdion-chunks=N] [--topmost-use-count=count] marc_data "
              "[language_code1 language_code2 .. language_codeN]\n"
              "If \"--limit-count\" has been specified only the first \"count\" records will be considered.\n"
              "If \"--cross-valiatdion-chunks\" has been specified, N sets will be used.\n"
@@ -63,8 +62,7 @@ void GenerateModels(const bool verbose, const unsigned limit_count, const unsign
 
 
 void ProcessRecords(const bool verbose, const unsigned limit_count, const unsigned /*cross_validation_chunk_count*/,
-                    const unsigned topmost_use_count, MARC::Reader * const marc_reader, const NGram::DistanceType distance_type,
-                    const std::set<std::string> &considered_languages,
+                    const unsigned topmost_use_count, MARC::Reader * const marc_reader, const std::set<std::string> &considered_languages,
                     std::unordered_map<std::string, unsigned> * const mismatched_assignments_to_counts_map)
 {
     unsigned record_count(0), untagged_count(0), agreed_count(0);
@@ -82,8 +80,7 @@ void ProcessRecords(const bool verbose, const unsigned limit_count, const unsign
 
         const std::string text(record.getCompleteTitle() + " " + record.getSummary());
         std::vector<std::string> top_languages;
-        NGram::ClassifyLanguage(text, &top_languages, considered_languages, distance_type, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD,
-                                topmost_use_count);
+        NGram::ClassifyLanguage(text, &top_languages, considered_languages, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD, topmost_use_count);
         if (top_languages.empty())
             continue;
 
@@ -131,20 +128,6 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
-    NGram::DistanceType distance_type(NGram::SIMPLE_DISTANCE);
-    if (StringUtil::StartsWith(argv[1], "--distance-type=")) {
-        if (std::strcmp(argv[1], "--distance-type=simple") == 0)
-            distance_type = NGram::SIMPLE_DISTANCE;
-        else if (std::strcmp(argv[1], "--distance-type=weighted") == 0)
-            distance_type = NGram::WEIGHTED_DISTANCE;
-        else
-            Usage();
-        --argc, ++argv;
-    }
-
-    if (argc < 2)
-        Usage();
-
     unsigned cross_validation_chunk_count(0);
     if (StringUtil::StartsWith(argv[1], "--cross-valiatdion-chunks=")) {
         cross_validation_chunk_count = StringUtil::ToUnsigned(argv[1] + __builtin_strlen("--cross-valiatdion-chunks="));
@@ -170,7 +153,7 @@ int Main(int argc, char *argv[]) {
         considered_languages.emplace(argv[arg_no]);
 
     std::unordered_map<std::string, unsigned> mismatched_assignments_to_counts_map;
-    ProcessRecords(verbose, limit_count, cross_validation_chunk_count, topmost_use_count, marc_reader.get(), distance_type,
+    ProcessRecords(verbose, limit_count, cross_validation_chunk_count, topmost_use_count, marc_reader.get(),
                    considered_languages, &mismatched_assignments_to_counts_map);
 
     std::vector<std::pair<std::string, unsigned>> mismatched_assignments_and_counts;
