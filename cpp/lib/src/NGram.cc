@@ -81,7 +81,7 @@ public:
     LanguageModel(const std::string &language, const NGram::NGramCounts &ngram_counts,
                   const NGram::DistanceType distance_type, const unsigned topmost_use_count);
     std::string getLanguage() const { return language_; }
-    double distance(const std::wstring &ngram, const int position) const;
+    double similarity(const std::wstring &ngram, const int position) const;
     inline double getMaxDistance() const { return max_distance_; }
 };
 
@@ -104,17 +104,17 @@ LanguageModel::LanguageModel(const std::string &language, const NGram::NGramCoun
 }
 
 
-double LanguageModel::distance(const std::wstring &ngram, const int position) const {
+double LanguageModel::similarity(const std::wstring &ngram, const int position) const {
     const_iterator iter(find(ngram));
     if (iter == end() or iter->second.index_ >= topmost_use_count_)
-        return max_distance_;
+        return 2.0 * max_distance_;
     else if (distance_type_ == NGram::WEIGHTED_DISTANCE) {
         double total_distance(0.0);
         for (int i(std::min(position, iter->second.index_)); i < std::max(position, iter->second.index_); ++i)
             total_distance += iter->second.rel_frequency_;
         return total_distance;
     } else
-        return std::abs(iter->second.index_ - position);
+        return std::abs(iter->second.index_ - position) + (max_distance_ - iter->second.index_);
 }
 
 
@@ -134,11 +134,9 @@ bool LoadLanguageModels(const NGram::DistanceType distance_type,
     FileUtil::Directory directory(GetLoadLanguageModelDirectory(override_language_models_directory), ".+\\.lm");
     bool found_at_least_one_language_model(false);
     for (const auto &dir_entry : directory) {
+        const std::string language(dir_entry.getName().substr(0, dir_entry.getName().length() - 3 /* strip off ".lm" */));
         NGram::NGramCounts language_model;
-        NGram::LoadLanguageModel(dir_entry.getName().substr(dir_entry.getName().length() - 3 /* strip off ".lm" */), &language_model,
-                                 override_language_models_directory);
-
-        const std::string language(dir_entry.getName().substr(0, dir_entry.getName().length() - 3));
+        NGram::LoadLanguageModel(language, &language_model, override_language_models_directory);
         language_models->push_back(LanguageModel(language, language_model, distance_type, topmost_use_count));
         found_at_least_one_language_model = true;
     }
@@ -170,7 +168,7 @@ std::wstring PreprocessText(const std::string &utf8_string) {
 namespace NGram {
 
 
-SortedNGramCounts::SortedNGramCounts(const NGramCounts &ngram_counts, const SortOrder sort_order) {
+SortedNGramCounts::SortedNGramCounts(const NGramCounts &ngram_counts, const SortOrder sort_order, const bool normalise) {
     resize(ngram_counts.size());
     unsigned i = 0;
     for (NGramCounts::const_iterator entry(ngram_counts.begin()); entry != ngram_counts.end();
@@ -182,6 +180,31 @@ SortedNGramCounts::SortedNGramCounts(const NGramCounts &ngram_counts, const Sort
     else
         sort_func = IsGreaterThan;
     std::sort(begin(), end(), sort_func);
+
+    if (normalise) {
+        double sum(0.0);
+        for (const auto &ngram_and_weight : *this)
+            sum += ngram_and_weight.second;
+
+        if (sum != 0.0) {
+            for (auto &ngram_and_weight : *this)
+                ngram_and_weight.second /= sum;
+        }
+    }
+}
+
+
+double SortedNGramCounts::dotProduct(const SortedNGramCounts &rhs) const {
+    double dot_product(0.0);
+    for (const auto &ngram_and_weight : *this) {
+        const auto rhs_ngram_and_weight(
+            std::find_if(rhs.cbegin(), rhs.cend(),
+                         [&ngram_and_weight](const std::pair<std::wstring, double> &pair){ return pair.first == ngram_and_weight.first; }));
+        if (rhs_ngram_and_weight != rhs.cend())
+            dot_product += ngram_and_weight.second * rhs_ngram_and_weight->second;
+    }
+
+    return dot_product;
 }
 
 
@@ -354,7 +377,7 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
         // Compare the known language model with the unknown language model:
         double distance(0.0);
         for (unsigned i(0); i < sorted_unknown_language_model.size(); ++i)
-            distance += language_model.distance(sorted_unknown_language_model[i].first, i);
+            distance += language_model.similarity(sorted_unknown_language_model[i].first, i);
 
         languages_and_scores.emplace_back(language_model.getLanguage(), distance);
         LOG_DEBUG(language_model.getLanguage() + " scored + " + std::to_string(distance));
