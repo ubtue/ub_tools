@@ -41,7 +41,7 @@ int Main(int argc, char *argv[]) {
         StringUtil::Split(std::string(argv[2]), ',', &language_codes_list);
 
     std::vector<std::string> top_languages;
-    NGram::ClassifyLanguage(text, &top_languages, language_codes_list, NGram::SIMPLE_DISTANCE, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
+    NGram::ClassifyLanguage(text, &top_languages, language_codes_list, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
 
     for (const auto &language : top_languages)
         std::cout << language << '\n';
