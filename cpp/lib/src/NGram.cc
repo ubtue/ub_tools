@@ -184,7 +184,7 @@ void LoadLanguageModel(const std::string &language, LanguageModel * const langua
 }
 
 
-void CreateLanguageModel(std::istream &input, LanguageModel * const language_model, const unsigned /*ngram_number_threshold*/,
+void CreateLanguageModel(std::istream &input, LanguageModel * const language_model, const unsigned ngram_number_threshold,
                          const unsigned topmost_use_count)
 {
     const std::string file_contents(std::istreambuf_iterator<char>(input), {});
@@ -250,8 +250,8 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
         }
     }
 
-    if (ngram_counts_map.size() < topmost_use_count)
-        LOG_ERROR("generated too few ngrams (< " + std::to_string(topmost_use_count) + ")!");
+    if (unlikely(ngram_counts_map.size() < topmost_use_count))
+        LOG_ERROR("generated too few ngrams (< " + std::to_string(topmost_use_count) + ") (1)!");
 
     NGramCounts ngram_counts_vector;
     ngram_counts_vector.reserve(ngram_counts_map.size());
@@ -260,7 +260,18 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
 
     std::sort(ngram_counts_vector.begin(), ngram_counts_vector.end(),
               [](const std::pair<std::wstring, double> &a, const std::pair<std::wstring, double> &b){ return a.second > b.second; });
-    if (ngram_counts_vector.size() > topmost_use_count)
+
+    // Eliminate all entries that have a count < ngram_number_threshold:
+    auto iter(ngram_counts_vector.rbegin());
+    for (/* Intentionally empty! */; iter != ngram_counts_vector.rend(); ++iter) {
+        if (iter->second > ngram_number_threshold)
+            break;
+    }
+    ngram_counts_vector.resize(ngram_counts_vector.rend() - iter);
+    if (unlikely(ngram_counts_map.size() < topmost_use_count))
+        LOG_ERROR("generated too few ngrams (< " + std::to_string(topmost_use_count) + ") (2)!");
+
+    if (ngram_counts_vector.size() >= topmost_use_count)
         ngram_counts_vector.resize(topmost_use_count);
 
     *language_model = LanguageModel("unknown", ngram_counts_vector);
