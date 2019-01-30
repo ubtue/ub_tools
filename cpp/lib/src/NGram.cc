@@ -30,6 +30,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <climits>
+#include <cmath>
 #include "BinaryIO.h"
 #include "FileUtil.h"
 #include "TextUtil.h"
@@ -155,13 +156,14 @@ SortedNGramCounts::SortedNGramCounts(const NGramCounts &ngram_counts, const Sort
     std::sort(begin(), end(), sort_func);
 
     if (normalise) {
-        double sum(0.0);
+        double norm_squared(0.0);
         for (const auto &ngram_and_weight : *this)
-            sum += ngram_and_weight.second;
+            norm_squared += ngram_and_weight.second;
 
-        if (sum != 0.0) {
+        if (norm_squared != 0.0) {
+            const double norm(std::sqrt(norm_squared));
             for (auto &ngram_and_weight : *this)
-                ngram_and_weight.second /= sum;
+                ngram_and_weight.second /= norm;
         }
     }
 }
