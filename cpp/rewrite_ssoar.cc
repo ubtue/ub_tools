@@ -417,6 +417,8 @@ void RewriteExisting773FieldAndAdd936(MARC::Record * const record, bool * const 
         field.deleteAllSubfieldsWithCode('g');
         field.insertOrReplaceSubfield('g', new_g_subfield_map["volume"] + " (" + new_g_subfield_map["year"] + ") " +
                                            new_g_subfield_map["number"] + "; " +  new_g_subfield_map["pages"]);
+        field.deleteAllSubfieldsWithCode('i');
+        field.insertOrReplaceSubfield('i', "In:");
 
 
         MARC::Subfields new_936_subfields;
@@ -534,7 +536,7 @@ void FixArticleLeader(MARC::Record * const record,  bool * const modified_record
           if (not StringUtil::StartsWith(_500_a_subfield, "In:"))
               continue;
           if (not is_book_component_matcher->matched(_500_a_subfield)) {
-              record->setBibliographicLevel('b');
+              record->setBibliographicLevel(MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART);
               *modified_record = true;
               return;
           }
