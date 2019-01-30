@@ -114,7 +114,7 @@ namespace NGram {
 UnitVector::UnitVector(const NGramCounts &ngram_counts): std::vector<std::pair<std::wstring, double>>(ngram_counts) {
     double norm_squared(0.0);
     for (const auto &ngram_and_weight : *this)
-        norm_squared += ngram_and_weight.second;
+        norm_squared += ngram_and_weight.second * ngram_and_weight.second;
 
     if (norm_squared != 0.0) {
         const double norm(std::sqrt(norm_squared));
@@ -125,8 +125,8 @@ UnitVector::UnitVector(const NGramCounts &ngram_counts): std::vector<std::pair<s
     if (logger->getMinimumLogLevel() == Logger::LL_DEBUG) {
         double norm_squared2(0.0);
         for (auto &ngram_and_weight : *this)
-            norm_squared2 += ngram_and_weight.second;
-        LOG_DEBUG("norm  sqared is " + std::to_string(std::sqrt(norm_squared2)));
+            norm_squared2 += ngram_and_weight.second * ngram_and_weight.second;
+        LOG_DEBUG("norm is " + std::to_string(std::sqrt(norm_squared2)));
     }
 }
 
@@ -184,6 +184,18 @@ void LoadLanguageModel(const std::string &language, LanguageModel * const langua
 }
 
 
+static inline void ExtractAndCountNGram(const std::wstring &word, const size_t offset, const size_t prefix_length,
+                                        std::unordered_map<std::wstring, double> * const ngram_counts_map)
+{
+    const std::wstring ngram(word.substr(offset, prefix_length));
+    auto ngram_count(ngram_counts_map->find(ngram));
+    if (ngram_count == ngram_counts_map->end())
+        (*ngram_counts_map)[ngram] = 1.0;
+    else
+        ++(*ngram_counts_map)[ngram];
+}
+
+
 void CreateLanguageModel(std::istream &input, LanguageModel * const language_model, const unsigned ngram_number_threshold,
                          const unsigned topmost_use_count)
 {
@@ -194,64 +206,26 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
     Split(filtered_text, &words);
 
     std::unordered_map<std::wstring, double> ngram_counts_map;
-    unsigned total_ngram_count(0);
     for (std::vector<std::wstring>::const_iterator word(words.begin()); word != words.end(); ++word) {
         const std::wstring funny_word(L"_" + *word + L"_");
         const std::wstring::size_type funny_word_length(funny_word.length());
         std::wstring::size_type length(funny_word_length);
-        for (unsigned i = 0; i < funny_word_length; ++i, --length) {
-            if (length > 4) {
-                const std::wstring ngram(funny_word.substr(i, 5));
-                auto ngram_count(ngram_counts_map.find(ngram));
-                if (ngram_count == ngram_counts_map.end())
-                    ngram_counts_map[ngram] = 1.0;
-                else
-                    ++ngram_counts_map[ngram];
-                ++total_ngram_count;
-            }
-
-            if (length > 3) {
-                const std::wstring ngram(funny_word.substr(i, 4));
-                auto ngram_count(ngram_counts_map.find(ngram));
-                if (ngram_count == ngram_counts_map.end())
-                    ngram_counts_map[ngram] = 1.0;
-                else
-                    ++ngram_counts_map[ngram];
-                ++total_ngram_count;
-            }
-
-            if (length > 2) {
-                const std::wstring ngram(funny_word.substr(i, 3));
-                auto ngram_count(ngram_counts_map.find(ngram));
-                if (ngram_count == ngram_counts_map.end())
-                    ngram_counts_map[ngram] = 1.0;
-                else
-                    ++ngram_counts_map[ngram];
-                ++total_ngram_count;
-            }
-
-            if (length > 1) {
-                const std::wstring ngram(funny_word.substr(i, 2));
-                auto ngram_count(ngram_counts_map.find(ngram));
-                if (ngram_count == ngram_counts_map.end())
-                    ngram_counts_map[ngram] = 1.0;
-                else
-                    ++ngram_counts_map[ngram];
-                ++total_ngram_count;
-            }
-
-            const std::wstring ngram(funny_word.substr(i, 1));
-            auto ngram_count(ngram_counts_map.find(ngram));
-            if (ngram_count == ngram_counts_map.end())
-                ngram_counts_map[ngram] = 1.0;
-            else
-                ++ngram_counts_map[ngram];
-            ++total_ngram_count;
+        for (unsigned i(0); i < funny_word_length; ++i, --length) {
+            if (length > 4)
+                ExtractAndCountNGram(funny_word, i, 5, &ngram_counts_map);
+            if (length > 3)
+                ExtractAndCountNGram(funny_word, i, 4, &ngram_counts_map);
+            if (length > 2)
+                ExtractAndCountNGram(funny_word, i, 3, &ngram_counts_map);
+            if (length > 1)
+                ExtractAndCountNGram(funny_word, i, 2, &ngram_counts_map);
+            ExtractAndCountNGram(funny_word, i, 1, &ngram_counts_map);
         }
     }
 
     if (unlikely(ngram_counts_map.size() < topmost_use_count))
-        LOG_ERROR("generated too few ngrams (< " + std::to_string(topmost_use_count) + ") (1)!");
+        LOG_ERROR("generated too few ngrams (" + std::to_string(ngram_counts_map.size()) + " < " + std::to_string(topmost_use_count)
+                  + ") (1)!");
 
     NGramCounts ngram_counts_vector;
     ngram_counts_vector.reserve(ngram_counts_map.size());
@@ -268,8 +242,9 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
             break;
     }
     ngram_counts_vector.resize(ngram_counts_vector.rend() - iter);
-    if (unlikely(ngram_counts_map.size() < topmost_use_count))
-        LOG_ERROR("generated too few ngrams (< " + std::to_string(topmost_use_count) + ") (2)!");
+    if (unlikely(ngram_counts_vector.size() < topmost_use_count))
+        LOG_ERROR("generated too few ngrams (" + std::to_string(ngram_counts_vector.size()) + " < " + std::to_string(topmost_use_count)
+                  + ") (2)!");
 
     if (ngram_counts_vector.size() >= topmost_use_count)
         ngram_counts_vector.resize(topmost_use_count);
