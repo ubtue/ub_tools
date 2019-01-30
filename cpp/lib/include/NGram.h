@@ -36,6 +36,10 @@
 #include <vector>
 
 
+// Forward declaration:
+class File;
+
+
 namespace NGram {
 
 
@@ -66,6 +70,8 @@ public:
     inline const std::string &getLanguage() const { return language_; }
     inline void setLanguage(const std::string &language) { language_ = language; }
     inline double similarity(const NGram::UnitVector &rhs) const { return dotProduct(rhs); }
+    void serialise(File &output) const;
+    void deserialise(File &input);
 };
 
 
@@ -109,9 +115,6 @@ inline void CreateLanguageModel(const std::string &input_text, LanguageModel * c
  *  \param  top_languages              The list of most likely languages with the most likely language first.
  *  \param  considered_languages       If non-empty only the specified languages will be used for classification o/w all
  *                                     languages will be considered.
- *  \param  ngram_number_threshold     Don't used ngrams that occur less than this many times.
- *                                     A value of 0 means: use all ngrams.
- *  \param  topmost_use_count          ?
  *  \param  alternative_cutoff_factor  Include languages in "top_languages" that received scores no less
  *                                     than "alternative_cutoff_factor" * alternative_language's_score/
  *                                     score_of_highest_scoring_language.
@@ -121,8 +124,6 @@ inline void CreateLanguageModel(const std::string &input_text, LanguageModel * c
  */
 void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_languages,
                       const std::set<std::string> &considered_languages = { },
-                      const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
-                      const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT,
                       const double alternative_cutoff_factor = DEFAULT_ALTERNATIVE_CUTOFF_FACTOR,
                       const std::string &override_language_models_directory = "");
 
@@ -132,9 +133,6 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
  *  \param  top_languages              The list of most likely languages with the most likely language first.
  *  \param  considered_languages       If non-empty only the specified languages will be used for classification o/w all
  *                                     languages will be considered.
- *  \param  ngram_number_threshold     Don't used ngrams that occur less than this many times.
- *                                     A value of 0 means: use all ngrams.
- *  \param  topmost_use_count          ?
  *  \param  alternative_cutoff_factor  Include languages in "top_languages" that received scores no less
  *                                     than "alternative_cutoff_factor" * alternative_language's_score/
  *                                     score_of_highest_scoring_language.
@@ -144,14 +142,11 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
  */
 inline void ClassifyLanguage(const std::string &input_text, std::vector<std::string> * const top_languages,
                              const std::set<std::string> &considered_languages = { },
-                             const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
-                             const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT,
                              const double alternative_cutoff_factor = DEFAULT_ALTERNATIVE_CUTOFF_FACTOR,
                              const std::string &override_language_models_directory = "")
 {
     std::istringstream input(input_text);
-    ClassifyLanguage(input, top_languages, considered_languages, ngram_number_threshold, topmost_use_count,
-                     alternative_cutoff_factor, override_language_models_directory);
+    ClassifyLanguage(input, top_languages, considered_languages, alternative_cutoff_factor, override_language_models_directory);
 }
 
 
