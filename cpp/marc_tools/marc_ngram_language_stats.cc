@@ -68,10 +68,10 @@ void ProcessRecords(const bool verbose, const unsigned limit_count, const unsign
     unsigned record_count(0), untagged_count(0), agreed_count(0);
 
     while (const MARC::Record record = marc_reader->read()) {
-        ++record_count;
         if (record_count > limit_count)
             break;
-
+        
+        ++record_count;
         std::string language_code(MARC::GetLanguageCode(record));
         if (language_code.empty()) {
             ++untagged_count;
