@@ -46,61 +46,61 @@ const unsigned DEFAULT_TOPMOST_USE_COUNT       = 400;
 const double DEFAULT_ALTERNATIVE_CUTOFF_FACTOR = 1.0; // textcat = 1.05
 
 
-typedef std::unordered_map<std::wstring, double> NGramCounts;
+typedef std::vector<std::pair<std::wstring, double>> NGramCounts;
 
 
-class SortedNGramCounts: public std::vector<std::pair<std::wstring, double>> {
+class UnitVector: public NGramCounts {
 public:
-    enum SortOrder { ASCENDING_ORDER, DESCENDING_ORDER };
-public:
-    SortedNGramCounts(): std::vector<std::pair<std::wstring, double>>() { }
-    explicit SortedNGramCounts(const NGramCounts &ngram_counts, const SortOrder sort_order = DESCENDING_ORDER, const bool normalise = true);
-    double dotProduct(const SortedNGramCounts &rhs) const;
+    UnitVector() = default;
+    explicit UnitVector(const NGramCounts &ngram_counts);
+    double dotProduct(const UnitVector &rhs) const;
     void prettyPrint(std::ostream &output) const;
-private:
-    static bool IsLessThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs);
-    static bool IsGreaterThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs);
+};
+
+
+class LanguageModel: public UnitVector {
+    std::string language_;
+public:
+    LanguageModel() = default;
+    LanguageModel(const std::string &language, const NGramCounts &ngram_counts): UnitVector(ngram_counts), language_(language) { }
+    inline const std::string &getLanguage() const { return language_; }
+    inline void setLanguage(const std::string &language) { language_ = language; }
+    inline double similarity(const NGram::UnitVector &rhs) const { return dotProduct(rhs); }
 };
 
 
 /** \brief Loads a language model from a file.
  *  \override_language_models_directory  If empty the default directory for language models will be used.
  */
-void LoadLanguageModel(const std::string &language, NGram::NGramCounts * const ngram_counts,
+void LoadLanguageModel(const std::string &language, LanguageModel * const language_model,
                        const std::string &override_language_models_directory = "");
 
 
-/** \brief  Tell which language(s) "input" might be.
+/** \brief  Create a language model from the input.
  *  \param  input                   Where to read the input text from.
- *  \param  ngram_counts            A map from resulting ngrams to their respective counts.
- *  \param  top_ngrams              The most frequent ngrams and their counts, sorted in decreasing
- *                                  order of frequency.
+ *  \param  language_model          Nomen est omen.
  *  \param  ngram_number_threshold  Don't used ngrams that occur less than this many times.
  *                                  A value of 0 means: use all ngrams.
  *  \param  topmost_use_count       The topmost number of ngrams that should be used.
  */
-void CreateLanguageModel(std::istream &input, NGramCounts * const ngram_counts,
-                         SortedNGramCounts * const top_ngrams,
+void CreateLanguageModel(std::istream &input, LanguageModel * const language_model,
                          const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
                          const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT);
 
 
-/** \brief  Tell which language(s) "input_text" might be.
+/** \brief  Create a language model from the input.
  *  \param  input_text              The input text.
- *  \param  ngram_counts            A map from resulting ngrams to their respective counts.
- *  \param  top_ngrams              The most frequent ngrams and their counts, sorted in decreasing
- *                                  order of frequency.
+ *  \param  language_model          Nomen est omen.
  *  \param  ngram_number_threshold  Don't used ngrams that occur less than this many times.
  *                                  A value of 0 means: use all ngrams.
  *  \param  topmost_use_count       The topmost number of ngrams that should be used.
  */
-inline void CreateLanguageModel(const std::string &input_text, NGramCounts * const ngram_counts,
-				SortedNGramCounts * const top_ngrams,
+inline void CreateLanguageModel(const std::string &input_text, LanguageModel * const language_model,
 				const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
 				const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT)
 {
     std::istringstream input(input_text);
-    CreateLanguageModel(input, ngram_counts, top_ngrams, ngram_number_threshold, topmost_use_count);
+    CreateLanguageModel(input, language_model, ngram_number_threshold, topmost_use_count);
 }
 
 
