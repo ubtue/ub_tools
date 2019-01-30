@@ -29,11 +29,10 @@ namespace {
 
 
 void DecodeFile(const std::string &language) {
-    NGram::NGramCounts ngram_counts;
-    NGram::LoadLanguageModel(language, &ngram_counts);
+    NGram::LanguageModel language_model;
+    NGram::LoadLanguageModel(language, &language_model);
 
-    const NGram::SortedNGramCounts sorted_ngram_counts(ngram_counts, NGram::SortedNGramCounts::DESCENDING_ORDER);
-    for (const auto &ngram_and_frequency : sorted_ngram_counts)
+    for (const auto &ngram_and_frequency : language_model)
         std::cout << TextUtil::WCharToUTF8StringOrDie(ngram_and_frequency.first) << ": " << ngram_and_frequency.second << '\n';
 }
 

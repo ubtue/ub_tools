@@ -27,6 +27,7 @@
 #include "NGram.h"
 #include <algorithm>
 #include <fstream>
+#include <numeric>
 #include <unordered_map>
 #include <unordered_set>
 #include <climits>
@@ -63,36 +64,6 @@ void Split(const std::wstring &s, std::vector<std::wstring> * const words) {
 }
 
 
-struct IndexAndRelFrequency {
-    int index_;
-    double rel_frequency_;
-    double max_distance_;
-public:
-    IndexAndRelFrequency() = default;
-    IndexAndRelFrequency(const IndexAndRelFrequency &other) = default;
-    IndexAndRelFrequency(const int index, const double rel_frequency): index_(index), rel_frequency_(rel_frequency) { }
-};
-
-
-class LanguageModel: public NGram::SortedNGramCounts {
-    std::string language_;
-public:
-    LanguageModel(const std::string &language, const NGram::NGramCounts &ngram_counts, const unsigned topmost_use_count);
-    inline const std::string &getLanguage() const { return language_; }
-    inline double similarity(const NGram::SortedNGramCounts &rhs) const { return dotProduct(rhs); }
-};
-
-
-LanguageModel::LanguageModel(const std::string &language, const NGram::NGramCounts &ngram_counts, const unsigned topmost_use_count)
-    : SortedNGramCounts(ngram_counts), language_(language)
-{
-    if (unlikely(size() < topmost_use_count))
-        LOG_ERROR("fewer elements (" + std::to_string(size()) + ") then topmost_use_count (" + std::to_string(topmost_use_count) + ")!");
-    if (size() > topmost_use_count)
-        resize(topmost_use_count);
-}
-
-
 static std::string GetLoadLanguageModelDirectory(const std::string &override_language_models_directory) {
     return override_language_models_directory.empty() ? UBTools::GetTuelibPath() + "/language_models"
                                                       : override_language_models_directory;
@@ -102,16 +73,14 @@ static std::string GetLoadLanguageModelDirectory(const std::string &override_lan
 // LoadLanguageModels -- returns true if at least one language model was loaded
 //                       from "language_models_directory"
 //
-bool LoadLanguageModels(const unsigned topmost_use_count, std::vector<LanguageModel> * const language_models,
-                        const std::string &override_language_models_directory)
-{
+bool LoadLanguageModels(std::vector<NGram::LanguageModel> * const language_models, const std::string &override_language_models_directory) {
     FileUtil::Directory directory(GetLoadLanguageModelDirectory(override_language_models_directory), ".+\\.lm");
     bool found_at_least_one_language_model(false);
     for (const auto &dir_entry : directory) {
         const std::string language(dir_entry.getName().substr(0, dir_entry.getName().length() - 3 /* strip off ".lm" */));
-        NGram::NGramCounts language_model;
+        NGram::LanguageModel language_model;
         NGram::LoadLanguageModel(language, &language_model, override_language_models_directory);
-        language_models->push_back(LanguageModel(language, language_model, topmost_use_count));
+        language_models->push_back(language_model);
         found_at_least_one_language_model = true;
     }
 
@@ -142,34 +111,27 @@ std::wstring PreprocessText(const std::string &utf8_string) {
 namespace NGram {
 
 
-SortedNGramCounts::SortedNGramCounts(const NGramCounts &ngram_counts, const SortOrder sort_order, const bool normalise) {
-    resize(ngram_counts.size());
-    unsigned i = 0;
-    for (NGramCounts::const_iterator entry(ngram_counts.begin()); entry != ngram_counts.end();
-         ++entry, ++i)
-        (*this)[i] = std::pair<std::wstring, double>(entry->first, entry->second);
-    bool (*sort_func)(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs);
-    if (sort_order == ASCENDING_ORDER)
-        sort_func = IsLessThan;
-    else
-        sort_func = IsGreaterThan;
-    std::sort(begin(), end(), sort_func);
+UnitVector::UnitVector(const NGramCounts &ngram_counts): std::vector<std::pair<std::wstring, double>>(ngram_counts) {
+    double norm_squared(0.0);
+    for (const auto &ngram_and_weight : *this)
+        norm_squared += ngram_and_weight.second;
 
-    if (normalise) {
-        double norm_squared(0.0);
-        for (const auto &ngram_and_weight : *this)
-            norm_squared += ngram_and_weight.second;
+    if (norm_squared != 0.0) {
+        const double norm(std::sqrt(norm_squared));
+        for (auto &ngram_and_weight : *this)
+            ngram_and_weight.second /= norm;
+    }
 
-        if (norm_squared != 0.0) {
-            const double norm(std::sqrt(norm_squared));
-            for (auto &ngram_and_weight : *this)
-                ngram_and_weight.second /= norm;
-        }
+    if (logger->getMinimumLogLevel() == Logger::LL_DEBUG) {
+        double norm_squared2(0.0);
+        for (auto &ngram_and_weight : *this)
+            norm_squared2 += ngram_and_weight.second;
+        LOG_DEBUG("norm  sqared is " + std::to_string(std::sqrt(norm_squared2)));
     }
 }
 
 
-double SortedNGramCounts::dotProduct(const SortedNGramCounts &rhs) const {
+double UnitVector::dotProduct(const UnitVector &rhs) const {
     std::unordered_map<std::wstring, double> rhs_map;
     for (const auto &rhs_ngram_and_weight : rhs)
         rhs_map.emplace(rhs_ngram_and_weight);
@@ -185,7 +147,7 @@ double SortedNGramCounts::dotProduct(const SortedNGramCounts &rhs) const {
 }
 
 
-void SortedNGramCounts::prettyPrint(std::ostream &output) const {
+void UnitVector::prettyPrint(std::ostream &output) const {
     output << "#entries = " << size() << '\n';
     for (const auto &ngram_and_core : *this)
         output << '\'' << TextUtil::WCharToUTF8StringOrDie(ngram_and_core.first) << "' = " << ngram_and_core.second << '\n';
@@ -193,23 +155,9 @@ void SortedNGramCounts::prettyPrint(std::ostream &output) const {
 }
 
 
-bool SortedNGramCounts::IsLessThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs) {
-    if (lhs.second == rhs.second)
-        return lhs.first > rhs.first ;
-    return lhs.second < rhs.second;
-}
-
-
-bool SortedNGramCounts::IsGreaterThan(const std::pair<std::wstring, double> &lhs, const std::pair<std::wstring, double> &rhs) {
-    if (lhs.second == rhs.second)
-        return lhs.first < rhs.first ;
-    return lhs.second > rhs.second;
-}
-
-
-// LoadLanguageModel -- loads a language model from "path_name" into "ngram_counts".
+// LoadLanguageModel -- loads a language model from "path_name" into "language_model".
 //
-void LoadLanguageModel(const std::string &language, NGram::NGramCounts * const ngram_counts,
+void LoadLanguageModel(const std::string &language, LanguageModel * const language_model,
                        const std::string &override_language_models_directory)
 {
     const std::string model_path(GetLoadLanguageModelDirectory(override_language_models_directory) + "/" + language + ".lm");
@@ -219,7 +167,8 @@ void LoadLanguageModel(const std::string &language, NGram::NGramCounts * const n
 
     size_t entry_count;
     BinaryIO::ReadOrDie(*input, &entry_count);
-    ngram_counts->reserve(entry_count);
+    NGramCounts ngram_counts;
+    ngram_counts.reserve(entry_count);
 
     for (unsigned i(0); i < entry_count; ++i) {
         std::wstring ngram;
@@ -228,13 +177,15 @@ void LoadLanguageModel(const std::string &language, NGram::NGramCounts * const n
         double score;
         BinaryIO::ReadOrDie(*input, &score);
 
-        (*ngram_counts)[ngram] = score;
+        ngram_counts.emplace_back(ngram, score);
     }
+
+    *language_model = LanguageModel(language, ngram_counts);
 }
 
 
-void CreateLanguageModel(std::istream &input, NGramCounts * const ngram_counts,
-                         SortedNGramCounts * const top_ngrams, const unsigned ngram_number_threshold, const unsigned topmost_use_count)
+void CreateLanguageModel(std::istream &input, LanguageModel * const language_model, const unsigned /*ngram_number_threshold*/,
+                         const unsigned topmost_use_count)
 {
     const std::string file_contents(std::istreambuf_iterator<char>(input), {});
     const std::wstring filtered_text(PreprocessText(file_contents));
@@ -242,6 +193,7 @@ void CreateLanguageModel(std::istream &input, NGramCounts * const ngram_counts,
     std::vector<std::wstring> words;
     Split(filtered_text, &words);
 
+    std::unordered_map<std::wstring, double> ngram_counts_map;
     unsigned total_ngram_count(0);
     for (std::vector<std::wstring>::const_iterator word(words.begin()); word != words.end(); ++word) {
         const std::wstring funny_word(L"_" + *word + L"_");
@@ -250,69 +202,68 @@ void CreateLanguageModel(std::istream &input, NGramCounts * const ngram_counts,
         for (unsigned i = 0; i < funny_word_length; ++i, --length) {
             if (length > 4) {
                 const std::wstring ngram(funny_word.substr(i, 5));
-                NGramCounts::iterator ngram_count = ngram_counts->find(ngram);
-                if (ngram_count == ngram_counts->end())
-                    (*ngram_counts)[ngram] = 1.0;
+                auto ngram_count(ngram_counts_map.find(ngram));
+                if (ngram_count == ngram_counts_map.end())
+                    ngram_counts_map[ngram] = 1.0;
                 else
-                    ++(*ngram_counts)[ngram];
+                    ++ngram_counts_map[ngram];
                 ++total_ngram_count;
             }
 
             if (length > 3) {
                 const std::wstring ngram(funny_word.substr(i, 4));
-                NGramCounts::iterator ngram_count = ngram_counts->find(ngram);
-                if (ngram_count == ngram_counts->end())
-                    (*ngram_counts)[ngram] = 1.0;
+                auto ngram_count(ngram_counts_map.find(ngram));
+                if (ngram_count == ngram_counts_map.end())
+                    ngram_counts_map[ngram] = 1.0;
                 else
-                    ++(*ngram_counts)[ngram];
+                    ++ngram_counts_map[ngram];
                 ++total_ngram_count;
             }
 
             if (length > 2) {
                 const std::wstring ngram(funny_word.substr(i, 3));
-                NGramCounts::iterator ngram_count = ngram_counts->find(ngram);
-                if (ngram_count == ngram_counts->end())
-                    (*ngram_counts)[ngram] = 1.0;
+                auto ngram_count(ngram_counts_map.find(ngram));
+                if (ngram_count == ngram_counts_map.end())
+                    ngram_counts_map[ngram] = 1.0;
                 else
-                    ++(*ngram_counts)[ngram];
+                    ++ngram_counts_map[ngram];
                 ++total_ngram_count;
             }
 
             if (length > 1) {
                 const std::wstring ngram(funny_word.substr(i, 2));
-                NGramCounts::iterator ngram_count = ngram_counts->find(ngram);
-                if (ngram_count == ngram_counts->end())
-                    (*ngram_counts)[ngram] = 1.0;
+                auto ngram_count(ngram_counts_map.find(ngram));
+                if (ngram_count == ngram_counts_map.end())
+                    ngram_counts_map[ngram] = 1.0;
                 else
-                    ++(*ngram_counts)[ngram];
+                    ++ngram_counts_map[ngram];
                 ++total_ngram_count;
             }
 
             const std::wstring ngram(funny_word.substr(i, 1));
-            NGramCounts::iterator ngram_count = ngram_counts->find(ngram);
-            if (ngram_count == ngram_counts->end())
-                (*ngram_counts)[ngram] = 1.0;
+            auto ngram_count(ngram_counts_map.find(ngram));
+            if (ngram_count == ngram_counts_map.end())
+                ngram_counts_map[ngram] = 1.0;
             else
-                ++(*ngram_counts)[ngram];
+                ++ngram_counts_map[ngram];
             ++total_ngram_count;
         }
     }
 
-    // Normalise the ngram frequencies:
-    for (NGramCounts::iterator ngram_count(ngram_counts->begin()); ngram_count != ngram_counts->end(); ++ngram_count)
-        ngram_count->second /= total_ngram_count;
+    if (ngram_counts_map.size() < topmost_use_count)
+        LOG_ERROR("generated too few ngrams (< " + std::to_string(topmost_use_count) + ")!");
 
-    // Remove entries that occur less than "ngram_number_threshold" times:
-    for (NGramCounts::iterator entry(ngram_counts->begin()); entry != ngram_counts->end(); ++entry)
-        if (entry->second < ngram_number_threshold)
-            ngram_counts->erase(entry->first);
+    NGramCounts ngram_counts_vector;
+    ngram_counts_vector.reserve(ngram_counts_map.size());
+    for (const auto &ngram_and_count : ngram_counts_map)
+        ngram_counts_vector.emplace_back(ngram_and_count);
 
-    // Create a sorted list of winners from "ngram_counts":
-    *top_ngrams = SortedNGramCounts(*ngram_counts, SortedNGramCounts::DESCENDING_ORDER);
+    std::sort(ngram_counts_vector.begin(), ngram_counts_vector.end(),
+              [](const std::pair<std::wstring, double> &a, const std::pair<std::wstring, double> &b){ return a.second > b.second; });
+    if (ngram_counts_vector.size() > topmost_use_count)
+        ngram_counts_vector.resize(topmost_use_count);
 
-    // If "topmost_use_count" has been set, return at most "topmost_use_count" winners:
-    if (topmost_use_count != 0 and top_ngrams->size() > topmost_use_count)
-        top_ngrams->resize(topmost_use_count);
+    *language_model = LanguageModel("unknown", ngram_counts_vector);
 }
 
 
@@ -320,15 +271,14 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
                       const unsigned ngram_number_threshold, const unsigned topmost_use_count, const double alternative_cutoff_factor,
                       const std::string &override_language_models_directory)
 {
-    NGramCounts unknown_language_model;
-    SortedNGramCounts sorted_unknown_language_model;
-    CreateLanguageModel(input, &unknown_language_model, &sorted_unknown_language_model, ngram_number_threshold, topmost_use_count);
+    LanguageModel unknown_language_model;
+    CreateLanguageModel(input, &unknown_language_model, ngram_number_threshold, topmost_use_count);
 
     static bool models_already_loaded(false);
     static std::vector<LanguageModel> language_models;
     if (not models_already_loaded) {
         models_already_loaded = true;
-        if (not LoadLanguageModels(topmost_use_count, &language_models, override_language_models_directory))
+        if (not LoadLanguageModels(&language_models, override_language_models_directory))
             LOG_ERROR("no language models available in \"" + GetLoadLanguageModelDirectory(override_language_models_directory) + "\"!");
         LOG_DEBUG("loaded " + std::to_string(language_models.size()) + " language models.");
     }
@@ -350,7 +300,7 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
         if (not considered_languages.empty() and considered_languages.find(language_model.getLanguage()) == considered_languages.cend())
             continue;
 
-        const double similarity(language_model.similarity(sorted_unknown_language_model));
+        const double similarity(language_model.similarity(unknown_language_model));
         languages_and_scores.emplace_back(language_model.getLanguage(), similarity);
         LOG_DEBUG(language_model.getLanguage() + " scored + " + std::to_string(similarity));
     }
@@ -368,13 +318,12 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
 void CreateAndWriteLanguageModel(std::istream &input, const std::string &output_path, const unsigned ngram_number_threshold,
                                  const unsigned topmost_use_count)
 {
-    NGramCounts ngram_counts;
-    SortedNGramCounts sorted_ngram_counts;
-    CreateLanguageModel(input, &ngram_counts, &sorted_ngram_counts, ngram_number_threshold, topmost_use_count);
+    LanguageModel language_model;
+    CreateLanguageModel(input, &language_model, ngram_number_threshold, topmost_use_count);
 
     const auto output(FileUtil::OpenOutputFileOrDie(output_path));
-    BinaryIO::WriteOrDie(*output, sorted_ngram_counts.size());
-    for (const auto &ngram_and_rank : sorted_ngram_counts) {
+    BinaryIO::WriteOrDie(*output, language_model.size());
+    for (const auto &ngram_and_rank : language_model) {
         LOG_DEBUG("\"" + TextUtil::WCharToUTF8StringOrDie(ngram_and_rank.first) + "\" = " + std::to_string(ngram_and_rank.second));
         BinaryIO::WriteOrDie(*output, ngram_and_rank.first);
         BinaryIO::WriteOrDie(*output, ngram_and_rank.second);
