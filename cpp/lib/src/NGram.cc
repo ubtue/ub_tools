@@ -260,10 +260,8 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
     LanguageModel unknown_language_model;
     CreateLanguageModel(input, &unknown_language_model, ngram_number_threshold, topmost_use_count);
 
-    static bool models_already_loaded(false);
     static std::vector<LanguageModel> language_models;
-    if (not models_already_loaded) {
-        models_already_loaded = true;
+    if (language_models.empty()) {
         if (not LoadLanguageModels(&language_models, override_language_models_directory))
             LOG_ERROR("no language models available in \"" + GetLoadLanguageModelDirectory(override_language_models_directory) + "\"!");
         LOG_DEBUG("loaded " + std::to_string(language_models.size()) + " language models.");
