@@ -616,15 +616,17 @@ void Filter(const std::vector<FilterDescriptor> &filters, MARC::Reader * const m
                     continue;
                 }
             } else if (filter.getFilterType() == FilterType::DROP_BIBLIOGRAPHIC_LEVEL) {
-                if (std::strchr(filter.getBiblioLevels().c_str(), record.getBibliographicLevel())
+                if (std::strchr(filter.getBiblioLevels().c_str(),
+                                MARC::Record::BibliographicLevelToString(record.getBibliographicLevel())[0])
                     != nullptr)
                 {
                     deleted_record = true;
                     continue;
                 }
             } else if (filter.getFilterType() == FilterType::KEEP_BIBLIOGRAPHIC_LEVEL) {
-                if (std::strchr(filter.getBiblioLevels().c_str(), record.getBibliographicLevel())
-                                != nullptr)
+                if (std::strchr(filter.getBiblioLevels().c_str(),
+                                MARC::Record::BibliographicLevelToString(record.getBibliographicLevel())[0])
+                    != nullptr)
                 {
                     deleted_record = true;
                     continue;
