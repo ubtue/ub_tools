@@ -35,7 +35,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage( "[--verbose] [--limit-count=count] [--cross-valiatdion-chunks=N] [--topmost-use-count=count] marc_data "
+    ::Usage( "[--verbose] [--limit-count=count] [--cross-valiatdion-chunks=N] marc_data "
              "[language_code1 language_code2 .. language_codeN]\n"
              "If \"--limit-count\" has been specified only the first \"count\" records will be considered.\n"
              "If \"--cross-valiatdion-chunks\" has been specified, N sets will be used.\n"
@@ -62,7 +62,7 @@ void GenerateModels(const bool verbose, const unsigned limit_count, const unsign
 
 
 void ProcessRecords(const bool verbose, const unsigned limit_count, const unsigned /*cross_validation_chunk_count*/,
-                    const unsigned topmost_use_count, MARC::Reader * const marc_reader, const std::set<std::string> &considered_languages,
+                    MARC::Reader * const marc_reader, const std::set<std::string> &considered_languages,
                     std::unordered_map<std::string, unsigned> * const mismatched_assignments_to_counts_map)
 {
     unsigned record_count(0), untagged_count(0), agreed_count(0);
@@ -70,7 +70,7 @@ void ProcessRecords(const bool verbose, const unsigned limit_count, const unsign
     while (const MARC::Record record = marc_reader->read()) {
         if (record_count > limit_count)
             break;
-        
+
         ++record_count;
         std::string language_code(MARC::GetLanguageCode(record));
         if (language_code.empty()) {
@@ -80,7 +80,7 @@ void ProcessRecords(const bool verbose, const unsigned limit_count, const unsign
 
         const std::string text(record.getCompleteTitle() + " " + record.getSummary());
         std::vector<std::string> top_languages;
-        NGram::ClassifyLanguage(text, &top_languages, considered_languages, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD, topmost_use_count);
+        NGram::ClassifyLanguage(text, &top_languages, considered_languages);
         if (top_languages.empty())
             continue;
 
@@ -99,7 +99,7 @@ void ProcessRecords(const bool verbose, const unsigned limit_count, const unsign
     }
 
     std::cout << "Used " << record_count << " MARC record(s) of which " << untagged_count << " had no language and "
-              << (agreed_count * 100.0) / (record_count - untagged_count) << "% of  which had matching languages.\n";
+              << (agreed_count * 100.0) / (record_count - untagged_count) << "% of which had matching languages.\n";
 }
 
 
@@ -137,15 +137,6 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
-    unsigned topmost_use_count(NGram::DEFAULT_TOPMOST_USE_COUNT);
-    if (StringUtil::StartsWith(argv[1], "--topmost-use-count=")) {
-        topmost_use_count = StringUtil::ToUnsigned(argv[1] + __builtin_strlen("--topmost-use-count="));
-        --argc, ++argv;
-    }
-
-    if (argc < 2)
-        Usage();
-
     auto marc_reader(MARC::Reader::Factory(argv[1]));
 
     std::set<std::string> considered_languages;
@@ -153,8 +144,8 @@ int Main(int argc, char *argv[]) {
         considered_languages.emplace(argv[arg_no]);
 
     std::unordered_map<std::string, unsigned> mismatched_assignments_to_counts_map;
-    ProcessRecords(verbose, limit_count, cross_validation_chunk_count, topmost_use_count, marc_reader.get(),
-                   considered_languages, &mismatched_assignments_to_counts_map);
+    ProcessRecords(verbose, limit_count, cross_validation_chunk_count, marc_reader.get(), considered_languages,
+                   &mismatched_assignments_to_counts_map);
 
     std::vector<std::pair<std::string, unsigned>> mismatched_assignments_and_counts;
     mismatched_assignments_and_counts.reserve(mismatched_assignments_to_counts_map.size());

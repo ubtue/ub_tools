@@ -155,6 +155,34 @@ void UnitVector::prettyPrint(std::ostream &output) const {
 }
 
 
+void LanguageModel::serialise(File &output) const {
+    BinaryIO::WriteOrDie(output, size());
+    for (const auto &ngram_and_rank : *this) {
+        BinaryIO::WriteOrDie(output, ngram_and_rank.first);
+        BinaryIO::WriteOrDie(output, ngram_and_rank.second);
+    }
+}
+
+
+void LanguageModel::deserialise(File &input) {
+    clear();
+
+    size_t entry_count;
+    BinaryIO::ReadOrDie(input, &entry_count);
+    reserve(entry_count);
+
+    for (unsigned i(0); i < entry_count; ++i) {
+        std::wstring ngram;
+        BinaryIO::ReadOrDie(input, &ngram);
+
+        double score;
+        BinaryIO::ReadOrDie(input, &score);
+
+        emplace_back(ngram, score);
+    }
+}
+
+
 // LoadLanguageModel -- loads a language model from "path_name" into "language_model".
 //
 void LoadLanguageModel(const std::string &language, LanguageModel * const language_model,
@@ -164,23 +192,7 @@ void LoadLanguageModel(const std::string &language, LanguageModel * const langua
     const auto input(FileUtil::OpenInputFileOrDie(model_path));
     if (input->fail())
         LOG_ERROR("can't open language model file \"" + model_path + "\" for reading!");
-
-    size_t entry_count;
-    BinaryIO::ReadOrDie(*input, &entry_count);
-    NGramCounts ngram_counts;
-    ngram_counts.reserve(entry_count);
-
-    for (unsigned i(0); i < entry_count; ++i) {
-        std::wstring ngram;
-        BinaryIO::ReadOrDie(*input, &ngram);
-
-        double score;
-        BinaryIO::ReadOrDie(*input, &score);
-
-        ngram_counts.emplace_back(ngram, score);
-    }
-
-    *language_model = LanguageModel(language, ngram_counts);
+    language_model->deserialise(*input);
 }
 
 
@@ -254,11 +266,10 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
 
 
 void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_languages, const std::set<std::string> &considered_languages,
-                      const unsigned ngram_number_threshold, const unsigned topmost_use_count, const double alternative_cutoff_factor,
-                      const std::string &override_language_models_directory)
+                      const double alternative_cutoff_factor, const std::string &override_language_models_directory)
 {
     LanguageModel unknown_language_model;
-    CreateLanguageModel(input, &unknown_language_model, ngram_number_threshold, topmost_use_count);
+    CreateLanguageModel(input, &unknown_language_model, /* ngram_number_threshold = */0, /* topmost_use_count = */1);
 
     static std::vector<LanguageModel> language_models;
     if (language_models.empty()) {
@@ -306,12 +317,7 @@ void CreateAndWriteLanguageModel(std::istream &input, const std::string &output_
     CreateLanguageModel(input, &language_model, ngram_number_threshold, topmost_use_count);
 
     const auto output(FileUtil::OpenOutputFileOrDie(output_path));
-    BinaryIO::WriteOrDie(*output, language_model.size());
-    for (const auto &ngram_and_rank : language_model) {
-        LOG_DEBUG("\"" + TextUtil::WCharToUTF8StringOrDie(ngram_and_rank.first) + "\" = " + std::to_string(ngram_and_rank.second));
-        BinaryIO::WriteOrDie(*output, ngram_and_rank.first);
-        BinaryIO::WriteOrDie(*output, ngram_and_rank.second);
-    }
+    language_model.serialise(*output);
 }
 
 

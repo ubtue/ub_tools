@@ -31,9 +31,7 @@ namespace {
 void DecodeFile(const std::string &language) {
     NGram::LanguageModel language_model;
     NGram::LoadLanguageModel(language, &language_model);
-
-    for (const auto &ngram_and_frequency : language_model)
-        std::cout << TextUtil::WCharToUTF8StringOrDie(ngram_and_frequency.first) << ": " << ngram_and_frequency.second << '\n';
+    language_model.prettyPrint(std::cout);
 }
 
 
