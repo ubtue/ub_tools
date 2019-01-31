@@ -228,6 +228,7 @@ std::string CalculateUpdateWindowFromFrequency(const std::string &frequency) {
 
 
 // Validates and normalises the Zeder::Entry generated from a Zeder CSV file.
+// The significance of the imported attributes can be found in the Zeder manual.
 bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFieldNameResolver &name_resolver,
                                       Zeder::Entry * const entry, bool ignore_invalid_ppn_issn = true)
 {
