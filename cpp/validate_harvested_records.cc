@@ -1,4 +1,4 @@
-/** \brief Utility for validating and fixes up records harvested by zts_harvester
+/** \brief Utility for validating and fixing up records harvested by zts_harvester
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
