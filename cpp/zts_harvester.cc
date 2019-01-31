@@ -42,7 +42,7 @@ namespace {
               << "\t[--min-log-level=log_level]         Possible log levels are ERROR, WARNING, INFO, and DEBUG with the default being WARNING.\n"
               << "\t[--delivery-mode=mode]              Only sections that have the specific delivery mode (either LIVE or TEST) set will be processed. When this parameter is not specified, tracking is automatically disabled.\n"
               << "\t[--groups=my_groups                 Where groups are a comma-separated list of groups.\n"
-              << "\t[--zeder-ids=my_zeder_ids           Where IDs are a comma-separated list of groups Zeder IDs.\n"
+              << "\t[--zeder-ids=my_zeder_ids           Where IDs are a comma-separated list of Zeder IDs.\n"
               << "\t[--keep-delivered-records]          Do not discard records that have already been delivered to the BSZ.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
