@@ -175,12 +175,7 @@ public:
 ConversionParams::ConversionParams(const std::string &config_file_path, const std::string &flavour_string, const std::string &entry_ids_string)
     : url_field_priority_(), entries_to_process_()
 {
-    if (flavour_string == "krimdok")
-        flavour_ = Zeder::KRIMDOK;
-    else if (flavour_string == "ixtheo")
-        flavour_ = Zeder::IXTHEO;
-    else
-        LOG_ERROR("Unknown Zeder flavour '" + flavour_string + "'");
+    flavour_ = Zeder::ParseFlavour(flavour_string);
 
     const IniFile config(config_file_path);
     ignore_invalid_ppn_issn_ = config.getBool("", "ignore_invalid_ppn_issn");
@@ -233,6 +228,7 @@ std::string CalculateUpdateWindowFromFrequency(const std::string &frequency) {
 
 
 // Validates and normalises the Zeder::Entry generated from a Zeder CSV file.
+// The significance of the imported attributes can be found in the Zeder manual.
 bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFieldNameResolver &name_resolver,
                                       Zeder::Entry * const entry, bool ignore_invalid_ppn_issn = true)
 {
@@ -305,7 +301,8 @@ bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFie
 
     entry->setAttribute(name_resolver.getAttributeName(TYPE), Zotero::HARVESTER_TYPE_TO_STRING_MAP.at(harvester_type));
     entry->setAttribute(name_resolver.getAttributeName(GROUP), Zeder::FLAVOUR_TO_STRING_MAP.at(params.flavour_));
-    entry->setAttribute(name_resolver.getAttributeName(ZEDER_COMMENT), entry->getAttribute("b_zot"));
+    if (entry->hasAttribute("b_zot"))
+        entry->setAttribute(name_resolver.getAttributeName(ZEDER_COMMENT), entry->getAttribute("b_zot"));
 
     // resolve URL based on the importer's config
     std::string resolved_url;
