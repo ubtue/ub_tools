@@ -72,7 +72,6 @@
 /flag_records_as_available_in_tuebingen
 /test_chop_into_words
 /find_latest_journal_year
-/find_missing_metadata
 /fix_article_biblio_levels
 /fix_iso_8859_1_garbage
 /flag_article_collections
@@ -164,6 +163,7 @@
 /update_full_text_db
 /update_ixtheo_notations
 /urlencode
+/validate_harvested_records
 /zeder_count_imported
 /zeder_entry_downloader
 /zeder_ppn_to_title_importer
