@@ -6,10 +6,12 @@ set -o errexit -o nounset
 no_problems_found=1
 function SendEmail {
     if [[ $no_problems_found -eq 0 ]]; then
-        send_email --recipients="$email_address" --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
+        send_email --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
+                   --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
         exit 0
     else
-        send_email --priority=high --recipients="$email_address" --subject="$0 failed on $(hostname)" \
+        send_email --priority=high --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
+                   --subject="$0 failed on $(hostname)" \
                    --message-body="Check /usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log for details."
         echo "*** ZTS_HARVESTER DELIVERY PIPELINE FAILED ***" | tee --append "${log}"
         exit 1
