@@ -205,11 +205,9 @@ void WriteToDatabase(DbConnection * const db_connection, const std::string &jour
 
 
 void SendEmail(const std::string &email_address, const std::string &message_body) {
-    static const IniFile DEFAULT_SMPT_CONFIG(UBTools::GetTuelibPath() + "cronjobs/smtp_server.conf");
-
-    const auto sender(DEFAULT_SMPT_CONFIG.getString("SMTPServer", "server_user") + "@uni-tuebingen.de");
-    const auto reply_code(EmailSender::SendEmail(sender, email_address,
-                          "validate_harvested_records encountered problems", message_body, EmailSender::MEDIUM));
+    const auto reply_code(EmailSender::SendEmail("zts_harvester_delivery_pipeline@uni-tuebingen.de",
+                          email_address, "validate_harvested_records encountered problems", message_body,
+                          EmailSender::MEDIUM));
 
     if (reply_code >= 300)
         LOG_ERROR("failed to send email, the response code was: " + std::to_string(reply_code));
