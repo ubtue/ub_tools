@@ -3,6 +3,7 @@ categorise_marc
 control_number_filter
 delete_ids
 enumerate_non_standard_tags
+lcsh_filter
 make_marc_xml
 marc21_scramble
 marc21_size
