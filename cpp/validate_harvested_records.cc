@@ -26,9 +26,11 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
+#include "EmailSender.h"
 #include "FileUtil.h"
+#include "IniFile.h"
 #include "MARC.h"
-#include "ExecUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -203,12 +205,14 @@ void WriteToDatabase(DbConnection * const db_connection, const std::string &jour
 
 
 void SendEmail(const std::string &email_address, const std::string &message_body) {
-    std::vector<std::string> email_sender_args;
-    email_sender_args.emplace_back("--priority=medium");
-    email_sender_args.emplace_back("--recipients=" + email_address);
-    email_sender_args.emplace_back("--subject=\"validate_harvested_records encountered problems\"");
-    email_sender_args.emplace_back("--message-body=" + message_body);
-    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("send_email"), email_sender_args);
+    static const IniFile DEFAULT_SMPT_CONFIG(UBTools::GetTuelibPath() + "cronjobs/smtp_server.conf");
+
+    const auto sender(DEFAULT_SMPT_CONFIG.getString("SMTPServer", "server_user") + "@uni-tuebingen.de");
+    const auto reply_code(EmailSender::SendEmail(sender, email_address,
+                          "validate_harvested_records encountered problems", message_body, EmailSender::MEDIUM));
+
+    if (reply_code >= 300)
+        LOG_ERROR("failed to send email, the response code was: " + std::to_string(reply_code));
 }
 
 
