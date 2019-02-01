@@ -66,13 +66,15 @@ const std::shared_ptr<const JSON::ObjectNode> Query(const std::string &url, cons
         return url_and_lookup_result->second;
 
     Downloader downloader(url);
-    if (downloader.anErrorOccurred())
-        LOG_ERROR("failed to lookup using Lobid API. downloader error: " + downloader.getLastErrorMessage());
+    if (downloader.anErrorOccurred()) {
+        LOG_WARNING("failed to lookup using Lobid API. downloader error: " + downloader.getLastErrorMessage());
+        return nullptr;
+    }
 
     JSON::Parser json_parser(downloader.getMessageBody());
     std::shared_ptr<JSON::JSONNode> root_node;
     if (not (json_parser.parse(&root_node))) {
-        LOG_DEBUG("failed to parse returned JSON: " + json_parser.getErrorMessage() + "(input was: "
+        LOG_WARNING("failed to parse returned JSON: " + json_parser.getErrorMessage() + "(input was: "
                   + downloader.getMessageBody() + ")");
         return nullptr;
     }
