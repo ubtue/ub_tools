@@ -184,8 +184,10 @@ public:
     /** \brief  Extracts text between an opening and closing tag pair.
      *  \param  tag   The opening and closing tag name.
      *  \param  text  The extracted text.
-     *  \param  guard_tags  If not empty, we give up looking for "tag" if we see any of these tags but we do not sip over them.
+     *  \param  guard_tags  If not empty, we give up looking for "tag" if we see any of these tags but we do not skip over them.
      *  \return True if we found the opening and closing "tag", o/w false.
+     *  \note   This function does not deal well with tags that are nested, e.g. <x><x>text</x></x>.  Here we'd return after having
+     *          processed the first closing x.
      */
     bool extractTextBetweenTags(const std::string &tag, std::string * const text, const std::set<std::string> &guard_tags = {});
 };
