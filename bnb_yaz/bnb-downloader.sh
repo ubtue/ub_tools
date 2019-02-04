@@ -8,7 +8,7 @@ EMAIL=johannes.ruscheinski@ub.uni-tuebingen.de
 cd /usr/local/ub_tools/bnb_yaz
 
 
-username_password=$(<bnb_username_password.conf)
+username_password=$(</usr/local/var/lib/tuefind/bnb_username_password.conf)
 cat bnb.yaz \
     | sed "s/USERNAME_PASSWORD/$username_password/; s/YYYYMM/$(date +'%Y%m' -d 'last month')/" \
     | yaz-client \
