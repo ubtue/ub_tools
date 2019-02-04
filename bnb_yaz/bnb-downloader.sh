@@ -1,10 +1,11 @@
 #!/bin/bash
 
 
-EMAIL=XXX
+BIN=/usr/local/bin
+EMAIL=johannes.ruscheinski@ub.uni-tuebingen.de
 
 
-cd /usr/local/ub_tools/bnb_jaz
+cd /usr/local/ub_tools/bnb_yaz
 
 
 username_password=$(<bnb_username_password.conf)
@@ -17,5 +18,5 @@ if [[ $? == 0 ]]; then
     "$BIN/send_email" --priority=normal --recipients=$EMAIL --subject="BNB Data Download Succeeded" --message-body="See bnb-downloader.log"
 else
     "$BIN/send_email" --priority=high --recipients=$EMAIL --subject="BNB Data Download Failed" \
-                      --message-body="Number of downloaded records:"$(cat bnb-downloader.log|grep 'Records: '|cut -d: -f2)"
+                      --message-body="Number of downloaded records:$(cat bnb-downloader.log|grep 'Records: '|cut -d: -f2)"
 fi
