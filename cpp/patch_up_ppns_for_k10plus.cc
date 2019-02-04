@@ -27,25 +27,43 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "ControlNumberGuesser.h"
+#include "MARC.h"
+#include "StringUtil.h"
 #include "util.h"
 #include "VuFind.h"
 
 
-[[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] user_id journal_ppn1 [journal_ppn2 .. journal_ppnN]\n";
-    std::exit(EXIT_FAILURE);
+namespace {
+
+
+void LoadMapping(MARC::Reader * const marc_reader, std::unordered_map<std::string, std::string> * const old_to_new_map) {
+    while (const auto record = marc_reader->read()) {
+        for (const auto &field : record.getTagRange("035")) {
+            const auto subfield_a(field.getFirstSubfieldWithCode('a'));
+            if (StringUtil::StartsWith(subfield_a, "(DE-576)"))
+                old_to_new_map->emplace(subfield_a.substr(__builtin_strlen("(DE-576)")), record.getControlNumber());
+        }
+    }
+
+    LOG_INFO("Found " + std::to_string(old_to_new_map->size()) + " mappings of old PPN's to new PPN's in \"" + marc_reader->getPath()
+             + "\".\n");
 }
 
 
-void LoadMapping(std::unordered_map<std::string, std::string> * const /*old_to_new_map*/) {
-}
+} // unnamed namespace
 
 
-int Main(int /*argc*/, char **argv) {
+int Main(int argc, char **argv) {
     ::progname = argv[0];
 
+    if (argc < 2)
+        ::Usage("marc_input1 [marc_input2 .. marc_inputN]");
+
     std::unordered_map<std::string, std::string> old_to_new_map;
-    LoadMapping(&old_to_new_map);
+    for (int arg_no(1); arg_no < argc; ++arg_no) {
+        const auto marc_reader(MARC::Reader::Factory(argv[arg_no]));
+        LoadMapping(marc_reader.get(), &old_to_new_map);
+    }
 
     ControlNumberGuesser control_number_guesser;
     control_number_guesser.swapControlNumbers(old_to_new_map);
