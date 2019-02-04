@@ -2,7 +2,7 @@
  *  \brief  Wrapper class for Xerces XML parser
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -173,11 +173,19 @@ public:
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
     inline bool skipTo(const XMLPart::Type expected_type, const std::string &expected_tag = "",
-                XMLPart * const part = nullptr, std::string * const skipped_data = nullptr)
-        {
-            if (expected_tag.empty())
-                return skipTo(expected_type, std::set<std::string>{}, part, skipped_data);
-            else
-                return skipTo(expected_type, std::set<std::string>{ expected_tag }, part, skipped_data);
-        }
+                       XMLPart * const part = nullptr, std::string * const skipped_data = nullptr)
+    {
+        if (expected_tag.empty())
+            return skipTo(expected_type, std::set<std::string>{}, part, skipped_data);
+        else
+            return skipTo(expected_type, std::set<std::string>{ expected_tag }, part, skipped_data);
+    }
+
+    /** \brief  Extracts text between an opening and closing tag pair.
+     *  \param  tag   The opening and closing tag name.
+     *  \param  text  The extracted text.
+     *  \param  guard_tags  If not empty, we give up looking for "tag" if we see any of these tags but we do not sip over them.
+     *  \return True if we found the opening and closing "tag", o/w false.
+     */
+    bool extractTextBetweenTags(const std::string &tag, std::string * const text, const std::set<std::string> &guard_tags = {});
 };
