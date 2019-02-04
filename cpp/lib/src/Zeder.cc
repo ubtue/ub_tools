@@ -590,17 +590,19 @@ std::string GetFullDumpEndpointPath(Flavour zeder_flavour) {
 
 
 Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
+    std::string flavour_str(flavour);
     std::string ixtheo_str(FLAVOUR_TO_STRING_MAP.at(IXTHEO));
     std::string krimdok_str(FLAVOUR_TO_STRING_MAP.at(KRIMDOK));
 
     if (not case_sensitive) {
+        StringUtil::ASCIIToLower(&flavour_str);
         StringUtil::ASCIIToLower(&ixtheo_str);
         StringUtil::ASCIIToLower(&krimdok_str);
     }
 
-    if (flavour == ixtheo_str)
+    if (flavour_str == ixtheo_str)
         return IXTHEO;
-    else if (flavour == krimdok_str)
+    else if (flavour_str == krimdok_str)
         return KRIMDOK;
     else
         LOG_ERROR("unknown Zeder flavour '" + flavour + "'");

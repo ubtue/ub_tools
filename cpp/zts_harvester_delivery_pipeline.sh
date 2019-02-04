@@ -6,10 +6,12 @@ set -o errexit -o nounset
 no_problems_found=1
 function SendEmail {
     if [[ $no_problems_found -eq 0 ]]; then
-        send_email --recipients="$email_address" --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
+        send_email --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
+                   --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
         exit 0
     else
-        send_email --priority=high --recipients="$email_address" --subject="$0 failed on $(hostname)" \
+        send_email --priority=high --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
+                   --subject="$0 failed on $(hostname)" \
                    --message-body="Check /usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log for details."
         echo "*** ZTS_HARVESTER DELIVERY PIPELINE FAILED ***" | tee --append "${log}"
         exit 1
@@ -109,7 +111,7 @@ zts_harvester --min-log-level=INFO \
 EndPhase
 
 
-StartPhase "Collate File Paths"
+StartPhase "Validate Generated Records"
 cd $harvester_output_directory
 counter=0
 for d in */ ; do
@@ -119,6 +121,8 @@ for d in */ ; do
     fi
 
     current_source_filepath=$harvester_output_directory/$d/$harvester_output_filename
+    validate_harvested_records $current_source_filepath $email_address >> "${log}" 2>&1
+
     record_count=$(marc_size "$current_source_filepath")
     if [ "$record_count" = "0" ]; then
         continue    # skip files with zero records
@@ -137,13 +141,6 @@ if [ "$counter" = "0" ]; then
     echo "No new records were harvested"
     EndPipeline
 fi
-EndPhase
-
-
-StartPhase "Validate Generated Records"
-for source_filepath in "${source_filepaths[@]}"; do
-    find_missing_metadata $source_filepath >> "${log}" 2>&1
-done
 EndPhase
 
 
