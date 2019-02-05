@@ -70,6 +70,8 @@ std::string ReadLines::const_iterator::operator*() {
     case TRIM_LEFT_AND_RIGHT:
         return StringUtil::Trim(&line);
     }
+
+    __builtin_unreachable();
 }
 
 
