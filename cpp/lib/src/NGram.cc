@@ -210,7 +210,7 @@ static inline void ExtractAndCountNGram(const std::wstring &word, const size_t o
 
 
 void CreateLanguageModel(std::istream &input, LanguageModel * const language_model, const unsigned ngram_number_threshold,
-                         const unsigned topmost_use_count)
+                         const unsigned topmost_use_count )
 {
     const std::string file_contents(std::istreambuf_iterator<char>(input), {});
     const std::wstring filtered_text(PreprocessText(file_contents));
@@ -243,14 +243,14 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
             ngram_counts_vector.emplace_back(ngram_and_count);
     }
 
-    if (unlikely(ngram_counts_map.size() < topmost_use_count))
-        LOG_ERROR("generated too few ngrams (" + std::to_string(ngram_counts_map.size()) + " < " + std::to_string(topmost_use_count)
-                  + ")!");
-
     std::sort(ngram_counts_vector.begin(), ngram_counts_vector.end(),
               [](const std::pair<std::wstring, double> &a, const std::pair<std::wstring, double> &b){ return a.second > b.second; });
 
-    ngram_counts_vector.resize(topmost_use_count);
+    if (unlikely(ngram_counts_map.size() < topmost_use_count))
+        LOG_WARNING("generated too few ngrams (" + std::to_string(ngram_counts_map.size()) + " < " + std::to_string(topmost_use_count)
+                    + ")!");
+    else
+        ngram_counts_vector.resize(topmost_use_count);
 
     *language_model = LanguageModel("unknown", ngram_counts_vector);
 }
@@ -260,7 +260,7 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
                       const double alternative_cutoff_factor, const std::string &override_language_models_directory)
 {
     LanguageModel unknown_language_model;
-    CreateLanguageModel(input, &unknown_language_model, /* ngram_number_threshold = */0, /* topmost_use_count = */1);
+    CreateLanguageModel(input, &unknown_language_model);
 
     static std::vector<LanguageModel> language_models;
     if (language_models.empty()) {
@@ -291,7 +291,7 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
         LOG_DEBUG(language_model.getLanguage() + " scored :" + std::to_string(similarity));
     }
     std::sort(languages_and_scores.begin(), languages_and_scores.end(),
-              [](const std::pair<std::string, double> &a, const std::pair<std::string, double> &b){ return a.second < b.second; });
+              [](const std::pair<std::string, double> &a, const std::pair<std::string, double> &b){ return a.second > b.second; });
 
     // Select the top scoring language and anything that's close (as defined by alternative_cutoff_factor):
     const double high_score(languages_and_scores[0].second);
