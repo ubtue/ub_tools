@@ -219,20 +219,17 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
     Split(filtered_text, &words);
 
     std::unordered_map<std::wstring, double> ngram_counts_map;
-    for (std::vector<std::wstring>::const_iterator word(words.begin()); word != words.end(); ++word) {
-        const std::wstring funny_word(L"_" + *word + L"_");
+    for (const auto &word : words) {
+        const std::wstring funny_word(L"_" + word + L"_");
         const std::wstring::size_type funny_word_length(funny_word.length());
         std::wstring::size_type length(funny_word_length);
         for (unsigned i(0); i < funny_word_length; ++i, --length) {
-            if (length > 4)
-                ExtractAndCountNGram(funny_word, i, 5, &ngram_counts_map);
-            if (length > 3)
-                ExtractAndCountNGram(funny_word, i, 4, &ngram_counts_map);
             if (length > 2)
                 ExtractAndCountNGram(funny_word, i, 3, &ngram_counts_map);
             if (length > 1)
                 ExtractAndCountNGram(funny_word, i, 2, &ngram_counts_map);
-            ExtractAndCountNGram(funny_word, i, 1, &ngram_counts_map);
+            if (funny_word[i] != '_') // Ignore single spaces!
+                ExtractAndCountNGram(funny_word, i, 1, &ngram_counts_map);
         }
     }
 
@@ -243,14 +240,14 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
             ngram_counts_vector.emplace_back(ngram_and_count);
     }
 
-    if (unlikely(ngram_counts_map.size() < topmost_use_count))
-        LOG_ERROR("generated too few ngrams (" + std::to_string(ngram_counts_map.size()) + " < " + std::to_string(topmost_use_count)
-                  + ")!");
-
     std::sort(ngram_counts_vector.begin(), ngram_counts_vector.end(),
               [](const std::pair<std::wstring, double> &a, const std::pair<std::wstring, double> &b){ return a.second > b.second; });
 
-    ngram_counts_vector.resize(topmost_use_count);
+    if (unlikely(ngram_counts_map.size() < topmost_use_count))
+        LOG_WARNING("generated too few ngrams (" + std::to_string(ngram_counts_map.size()) + " < " + std::to_string(topmost_use_count)
+                    + ")!");
+    else
+        ngram_counts_vector.resize(topmost_use_count);
 
     *language_model = LanguageModel("unknown", ngram_counts_vector);
 }
@@ -260,7 +257,7 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
                       const double alternative_cutoff_factor, const std::string &override_language_models_directory)
 {
     LanguageModel unknown_language_model;
-    CreateLanguageModel(input, &unknown_language_model, /* ngram_number_threshold = */0, /* topmost_use_count = */1);
+    CreateLanguageModel(input, &unknown_language_model);
 
     static std::vector<LanguageModel> language_models;
     if (language_models.empty()) {
@@ -291,7 +288,7 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
         LOG_DEBUG(language_model.getLanguage() + " scored :" + std::to_string(similarity));
     }
     std::sort(languages_and_scores.begin(), languages_and_scores.end(),
-              [](const std::pair<std::string, double> &a, const std::pair<std::string, double> &b){ return a.second < b.second; });
+              [](const std::pair<std::string, double> &a, const std::pair<std::string, double> &b){ return a.second > b.second; });
 
     // Select the top scoring language and anything that's close (as defined by alternative_cutoff_factor):
     const double high_score(languages_and_scores[0].second);
