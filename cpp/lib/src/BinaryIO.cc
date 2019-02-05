@@ -108,12 +108,12 @@ bool Read(std::istream &input, std::string * const s) {
         return false;
 
     size = ntohl(size);
-    char * const buf(reinterpret_cast<char *>(::alloca(size * sizeof(char))));
-    input.read(buf, size);
+    std::string buf(size, '\0');
+    input.read(&buf.front(), size);
     if (input.fail())
         return false;
 
-    *s = std::string(buf, size);
+    s->swap(buf);
 
     return true;
 }
@@ -126,12 +126,12 @@ bool Read(std::istream &input, std::wstring * const s) {
         return false;
 
     size = ntohl(size);
-    wchar_t * const buf(reinterpret_cast<wchar_t *>(::alloca(size * sizeof(wchar_t))));
-    input.read(reinterpret_cast<char *>(buf), size * sizeof(wchar_t));
+    std::wstring buf(size, L'\0');
+    input.read((char *)buf.data(), size * sizeof(wchar_t));
     if (input.fail())
         return false;
 
-    *s = std::wstring(buf, size);
+    s->swap(buf);
 
     // Fix byte order:
     for (auto &wch : *s)
@@ -379,12 +379,12 @@ bool Read(File &input, std::string * const s) {
         return false;
 
     size = ntohl(size);
-    char * const buf(reinterpret_cast<char * const>(::alloca(size * sizeof(char))));
-    input.read(buf, size);
+    std::string buf(size, '\0');
+    input.read(&buf.front(), size);
     if (input.fail())
         return false;
 
-    *s = std::string(buf, size);
+    s->swap(buf);
 
     return true;
 }
@@ -397,12 +397,12 @@ bool Read(File &input, std::wstring * const s) {
         return false;
 
     size = ntohl(size);
-    wchar_t * const buf(reinterpret_cast<wchar_t * const>(::alloca(size * sizeof(wchar_t))));
-    input.read(reinterpret_cast<char *>(buf), size * sizeof(wchar_t));
+    std::wstring buf(size, L'\0');
+    input.read((char *)buf.data(), size * sizeof(wchar_t));
     if (input.fail())
         return false;
 
-    *s = std::wstring(buf, size);
+    s->swap(buf);
 
     return true;
 }
