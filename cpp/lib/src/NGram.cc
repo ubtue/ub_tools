@@ -210,7 +210,7 @@ static inline void ExtractAndCountNGram(const std::wstring &word, const size_t o
 
 
 void CreateLanguageModel(std::istream &input, LanguageModel * const language_model, const unsigned ngram_number_threshold,
-                         const unsigned topmost_use_count )
+                         const unsigned topmost_use_count)
 {
     const std::string file_contents(std::istreambuf_iterator<char>(input), {});
     const std::wstring filtered_text(PreprocessText(file_contents));
@@ -224,15 +224,12 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
         const std::wstring::size_type funny_word_length(funny_word.length());
         std::wstring::size_type length(funny_word_length);
         for (unsigned i(0); i < funny_word_length; ++i, --length) {
-            if (length > 4)
-                ExtractAndCountNGram(funny_word, i, 5, &ngram_counts_map);
-            if (length > 3)
-                ExtractAndCountNGram(funny_word, i, 4, &ngram_counts_map);
             if (length > 2)
                 ExtractAndCountNGram(funny_word, i, 3, &ngram_counts_map);
             if (length > 1)
                 ExtractAndCountNGram(funny_word, i, 2, &ngram_counts_map);
-            ExtractAndCountNGram(funny_word, i, 1, &ngram_counts_map);
+            if (funny_word[i] != '_') // Ignore single spaces!
+                ExtractAndCountNGram(funny_word, i, 1, &ngram_counts_map);
         }
     }
 
