@@ -28,6 +28,7 @@
 #include "BinaryIO.h"
 #include <cfloat>
 #include <cmath>
+#include <alloca.h>
 #include <netinet/in.h>
 #include "File.h"
 
@@ -107,7 +108,7 @@ bool Read(std::istream &input, std::string * const s) {
         return false;
 
     size = ntohl(size);
-    char buf[size];
+    char * const buf(reinterpret_cast<char *>(::alloca(size * sizeof(char))));
     input.read(buf, size);
     if (input.fail())
         return false;
@@ -125,7 +126,7 @@ bool Read(std::istream &input, std::wstring * const s) {
         return false;
 
     size = ntohl(size);
-    wchar_t buf[size];
+    wchar_t * const buf(reinterpret_cast<wchar_t *>(::alloca(size * sizeof(wchar_t))));
     input.read(reinterpret_cast<char *>(buf), size * sizeof(wchar_t));
     if (input.fail())
         return false;
@@ -378,7 +379,7 @@ bool Read(File &input, std::string * const s) {
         return false;
 
     size = ntohl(size);
-    char buf[size];
+    char * const buf(reinterpret_cast<char * const>(::alloca(size * sizeof(char))));
     input.read(buf, size);
     if (input.fail())
         return false;
@@ -396,7 +397,7 @@ bool Read(File &input, std::wstring * const s) {
         return false;
 
     size = ntohl(size);
-    wchar_t buf[size];
+    wchar_t * const buf(reinterpret_cast<wchar_t * const>(::alloca(size * sizeof(wchar_t))));
     input.read(reinterpret_cast<char *>(buf), size * sizeof(wchar_t));
     if (input.fail())
         return false;
