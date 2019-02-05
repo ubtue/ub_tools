@@ -19,6 +19,7 @@
  */
 #include "XMLParser.h"
 #include <xercesc/framework/MemBufInputSource.hpp>
+#include <cassert>
 #include "FileUtil.h"
 #include "StringUtil.h"
 #include "XmlUtil.h"
@@ -295,4 +296,38 @@ bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::st
     }
 
     return return_value;
+}
+
+
+bool XMLParser::extractTextBetweenTags(const std::string &tag, std::string * const text, const std::set<std::string> &guard_tags) {
+    text->clear();
+
+    XMLPart xml_part;
+
+    // Look for the opening tag:
+    for (;;) {
+        if (not peek(&xml_part))
+            return false;
+
+        if (not guard_tags.empty() and guard_tags.find(xml_part.data_) != guard_tags.cend())
+            return false;
+
+        assert(getNext(&xml_part));
+        if (xml_part.data_ == tag) {
+            if (unlikely(xml_part.type_ != XMLPart::OPENING_TAG))
+                return false;
+            break;
+        }
+    }
+
+    // Extract the text:
+    while (getNext(&xml_part)) {
+        if (xml_part.data_ == tag and xml_part.type_ == XMLPart::CLOSING_TAG)
+            return true;
+
+        if (xml_part.type_ == XMLPart::CHARACTERS)
+            text->append(xml_part.data_);
+    }
+
+    return false;
 }

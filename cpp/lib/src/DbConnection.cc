@@ -442,6 +442,8 @@ std::string DbConnection::CharsetToString(const Charset charset) {
     case UTF8MB4:
         return "utf8mb4";
     }
+
+    __builtin_unreachable();
 }
 
 
@@ -452,6 +454,8 @@ std::string DbConnection::CollationToString(const Collation collation) {
     case UTF8MB4_BIN:
         return "utf8mb4_bin";
     }
+
+    __builtin_unreachable();
 }
 
 
