@@ -219,8 +219,8 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
     Split(filtered_text, &words);
 
     std::unordered_map<std::wstring, double> ngram_counts_map;
-    for (std::vector<std::wstring>::const_iterator word(words.begin()); word != words.end(); ++word) {
-        const std::wstring funny_word(L"_" + *word + L"_");
+    for (const auto &word : words) {
+        const std::wstring funny_word(L"_" + word + L"_");
         const std::wstring::size_type funny_word_length(funny_word.length());
         std::wstring::size_type length(funny_word_length);
         for (unsigned i(0); i < funny_word_length; ++i, --length) {
