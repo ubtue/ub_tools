@@ -26,6 +26,8 @@
 #include <cstring>
 #include "Compiler.h"
 #include "DbConnection.h"
+#include "DbResultSet.h"
+#include "DbRow.h"
 #include "ControlNumberGuesser.h"
 #include "MARC.h"
 #include "StringUtil.h"
@@ -50,6 +52,23 @@ void LoadMapping(MARC::Reader * const marc_reader, std::unordered_map<std::strin
 }
 
 
+void PatchKeywordTranslations(DbConnection * const db_connection, const std::unordered_map<std::string, std::string> &old_to_new_map) {
+    db_connection->queryOrDie("SELECT DISTINCT ppn FROM ixtheo.keyword_translations");
+    auto result_set(db_connection->getLastResultSet());
+    unsigned replacement_count(0);
+    while (const DbRow row = result_set.getNextRow()) {
+        const auto old_and_new(old_to_new_map.find(row["ppn"]));
+        if (old_and_new != old_to_new_map.cend()) {
+            db_connection->queryOrDie("UPDATE IGNORE ixtheo.keyword_translations SET ppn='" + old_and_new->second
+                                      + "' WHERE ppn='" + old_and_new->first + "'");
+            ++replacement_count;
+        }
+    }
+
+    LOG_INFO("Replaced " + std::to_string(replacement_count) + " PPN's in ixtheo.keyword_translations.");
+}
+
+
 } // unnamed namespace
 
 
@@ -71,6 +90,8 @@ int Main(int argc, char **argv) {
     std::string mysql_url;
     VuFind::GetMysqlURL(&mysql_url);
     DbConnection db_connection(mysql_url);
+
+    PatchKeywordTranslations(&db_connection, old_to_new_map);
 
     return EXIT_SUCCESS;
 }
