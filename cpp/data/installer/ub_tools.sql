@@ -35,7 +35,7 @@ CREATE TABLE rss_items (
     item_id VARCHAR(191) NOT NULL,
     creation_datetime TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE KEY feed_url_and_item_id(feed_id,item_id),
-    CONSTRAINT feed_id FOREIGN KEY (feed_id) REFERENCES rss_feeds (id) ON DELETE CASCADE
+    CONSTRAINT feed_id FOREIGN KEY (feed_id) REFERENCES rss_feeds (id) ON DELETE CASCADE ON UPDATE CASCADE
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 CREATE INDEX rss_items_feed_id_and_item_id_index ON rss_items(feed_id,item_id);
 CREATE INDEX rss_items_creation_datetime_index ON rss_items(creation_datetime);
@@ -77,5 +77,5 @@ CREATE TABLE delivered_marc_records_superior_info (
     zeder_id VARCHAR(10) PRIMARY KEY,
     control_number VARCHAR(20) DEFAULT NULL,
     title VARCHAR(191) NOT NULL,
-    CONSTRAINT zeder_id FOREIGN KEY (zeder_id) REFERENCES delivered_marc_records (zeder_id) ON DELETE CASCADE
+    CONSTRAINT zeder_id FOREIGN KEY (zeder_id) REFERENCES delivered_marc_records (zeder_id) ON DELETE CASCADE ON UPDATE CASCADE
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
