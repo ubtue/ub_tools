@@ -128,19 +128,25 @@ UnitVector::UnitVector(const NGramCounts &ngram_counts): std::vector<std::pair<s
             norm_squared2 += ngram_and_weight.second * ngram_and_weight.second;
         LOG_DEBUG("norm is " + std::to_string(std::sqrt(norm_squared2)));
     }
+
+    std::sort(begin(), end(),
+              [](const std::pair<std::wstring, double> &a, const std::pair<std::wstring, double> &b){ return a.first < b.first; });
 }
 
 
 double UnitVector::dotProduct(const UnitVector &rhs) const {
-    std::unordered_map<std::wstring, double> rhs_map;
-    for (const auto &rhs_ngram_and_weight : rhs)
-        rhs_map.emplace(rhs_ngram_and_weight);
+    auto lhs_ngram_and_weight(cbegin()), rhs_ngram_and_weight(rhs.cbegin());
 
     double dot_product(0.0);
-    for (const auto &ngram_and_weight : *this) {
-        const auto rhs_ngram_and_weight(rhs_map.find(ngram_and_weight.first));
-        if (rhs_ngram_and_weight != rhs_map.cend())
-            dot_product += ngram_and_weight.second * rhs_ngram_and_weight->second;
+    while (lhs_ngram_and_weight != cend() and rhs_ngram_and_weight != rhs.cend()) {
+        if (lhs_ngram_and_weight->first < rhs_ngram_and_weight->first)
+            ++lhs_ngram_and_weight;
+        else if (rhs_ngram_and_weight->first < lhs_ngram_and_weight->first)
+            ++rhs_ngram_and_weight;
+        else {
+            dot_product += lhs_ngram_and_weight->second * rhs_ngram_and_weight->second;
+            ++lhs_ngram_and_weight, ++rhs_ngram_and_weight;
+        }
     }
 
     return dot_product;
