@@ -52,15 +52,17 @@ void LoadMapping(MARC::Reader * const marc_reader, std::unordered_map<std::strin
 }
 
 
-void PatchKeywordTranslations(DbConnection * const db_connection, const std::unordered_map<std::string, std::string> &old_to_new_map) {
-    db_connection->queryOrDie("SELECT DISTINCT ppn FROM ixtheo.keyword_translations");
+void PatchTable(DbConnection * const db_connection, const std::string &table, const std::string &column,
+                const std::unordered_map<std::string, std::string> &old_to_new_map)
+{
+    db_connection->queryOrDie("SELECT DISTINCT " + column + " FROM " + table);
     auto result_set(db_connection->getLastResultSet());
     unsigned replacement_count(0);
     while (const DbRow row = result_set.getNextRow()) {
-        const auto old_and_new(old_to_new_map.find(row["ppn"]));
+        const auto old_and_new(old_to_new_map.find(row[column]));
         if (old_and_new != old_to_new_map.cend()) {
-            db_connection->queryOrDie("UPDATE IGNORE ixtheo.keyword_translations SET ppn='" + old_and_new->second
-                                      + "' WHERE ppn='" + old_and_new->first + "'");
+            db_connection->queryOrDie("UPDATE IGNORE " + table + " SET " + column + "='" + old_and_new->second
+                                      + "' WHERE " + column + "='" + old_and_new->first + "'");
             ++replacement_count;
         }
     }
@@ -91,7 +93,9 @@ int Main(int argc, char **argv) {
     VuFind::GetMysqlURL(&mysql_url);
     DbConnection db_connection(mysql_url);
 
-    PatchKeywordTranslations(&db_connection, old_to_new_map);
+    PatchTable(&db_connection, "ixtheo.keyword_translations", "ppn", old_to_new_map);
+    PatchTable(&db_connection, "vufind.resource", "record_id", old_to_new_map);
+    PatchTable(&db_connection, "vufind.record", "record_id", old_to_new_map);
 
     return EXIT_SUCCESS;
 }
