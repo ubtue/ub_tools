@@ -230,6 +230,10 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
         const std::wstring::size_type funny_word_length(funny_word.length());
         std::wstring::size_type length(funny_word_length);
         for (unsigned i(0); i < funny_word_length; ++i, --length) {
+            if (length > 4)
+                ExtractAndCountNGram(funny_word, i, 5, &ngram_counts_map);
+            if (length > 3)
+                ExtractAndCountNGram(funny_word, i, 4, &ngram_counts_map);
             if (length > 2)
                 ExtractAndCountNGram(funny_word, i, 3, &ngram_counts_map);
             if (length > 1)
