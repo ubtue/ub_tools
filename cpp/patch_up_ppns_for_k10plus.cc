@@ -96,6 +96,15 @@ int Main(int argc, char **argv) {
     PatchTable(&db_connection, "ixtheo.keyword_translations", "ppn", old_to_new_map);
     PatchTable(&db_connection, "vufind.resource", "record_id", old_to_new_map);
     PatchTable(&db_connection, "vufind.record", "record_id", old_to_new_map);
+    if (VuFind::GetTueFindFlavour() == "ixtheo") {
+        PatchTable(&db_connection, "vufind.ixtheo_journal_subscriptions", "journal_control_number_or_bundle_name", old_to_new_map);
+        PatchTable(&db_connection, "vufind.ixtheo_pda_subscriptions", "book_ppn", old_to_new_map);
+        PatchTable(&db_connection, "vufind.relbib_ids", "record_id", old_to_new_map);
+        PatchTable(&db_connection, "vufind.bibstudies_ids", "record_id", old_to_new_map);
+    } else {
+        PatchTable(&db_connection, "vufind.full_text_cache", "id", old_to_new_map);
+        PatchTable(&db_connection, "vufind.full_text_cache_urls", "id", old_to_new_map);
+    }
 
     return EXIT_SUCCESS;
 }
