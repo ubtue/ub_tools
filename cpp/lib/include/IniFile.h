@@ -75,6 +75,7 @@ public:
         inline bool operator==(const std::string &section_name) const { return section_name == section_name_; }
 
         inline const std::string &getSectionName() const { return section_name_; }
+        inline void setSectionName(const std::string &section_name) { section_name_ = section_name; }
 
         inline const_iterator begin() const { return entries_.cbegin(); }
         inline const_iterator end() const { return entries_.cend(); }
