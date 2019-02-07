@@ -266,7 +266,7 @@ std::string CreateEmailMessage(const EmailSender::Priority priority, const Email
         message += "X-Priority: " + std::to_string(priority) + "\r\n";
 
     message += "\r\n";
-    message += GetDotStuffedMessage(message_body) + ".\r\n";
+    message += GetDotStuffedMessage(message_body) + "\r\n.";
 
     return message;
 }
@@ -317,7 +317,7 @@ unsigned short SendEmail(const std::string &sender, const std::vector<std::strin
     if (unlikely(sender.empty() and reply_to.empty()))
         LOG_ERROR("both \"sender\" and \"reply_to\" can't be empty!");
 
-    const TimeLimit time_limit(10000 /* ms */);
+    const TimeLimit time_limit(20000 /* ms */);
 
     perform_logging = not MiscUtil::SafeGetEnv("ENABLE_SMPT_CLIENT_PERFORM_LOGGING").empty();
 
@@ -372,7 +372,7 @@ unsigned short SendEmail(const std::string &sender, const std::vector<std::strin
         PerformExchange(socket_fd, time_limit, "DATA", "3[0-9][0-9]*", ssl_connection.get());
         PerformExchange(socket_fd, time_limit,
                         CreateEmailMessage(priority, format, sender, recipients, cc_recipients, bcc_recipients, subject,
-                                           message_body) + "\r\n",
+                                           message_body),
                         "2[0-9][0-9]*", ssl_connection.get());
         PerformExchange(socket_fd, time_limit, "QUIT", "2[0-9][0-9]*", ssl_connection.get());
     } catch (const SMTPException &smtp_exception) {
