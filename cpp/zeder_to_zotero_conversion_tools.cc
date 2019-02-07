@@ -278,13 +278,10 @@ bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFie
         valid = ignore_invalid_ppn_issn ? valid : false;
     }
 
+    // replace special characters in the title with underscores
     auto title(entry->getAttribute("tit"));
     StringUtil::Trim(&title);
-    const auto comment_char(title.find("#"));
-    if (comment_char != std::string::npos) {
-        LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | Stripping comment delimiter from journal name");
-        StringUtil::RemoveChars("#", &title);
-    }
+    title = StringUtil::Map(title, "'#\"", "___");
     entry->setAttribute(name_resolver.getAttributeName(TITLE), title);
 
     Zotero::HarvesterType harvester_type(Zotero::HarvesterType::CRAWL);
