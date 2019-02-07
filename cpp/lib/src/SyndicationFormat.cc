@@ -24,6 +24,7 @@
 #include "Compiler.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "TimeUtil.h"
 #include "util.h"
 
@@ -169,7 +170,8 @@ RSS20::RSS20(const std::string &xml_document, const AugmentParams &augment_param
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
             description_ = ExtractText(xml_parser_, "description", " (RSS20::RSS20)");
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "lastBuildDate") {
-            const std::string last_build_date(ExtractText(xml_parser_, "lastBuildDate", " (RSS20::RSS20)"));
+            const std::string last_build_date(TextUtil::CollapseAndTrimWhitespace(ExtractText(xml_parser_,
+                                              "lastBuildDate", " (RSS20::RSS20)")));
             if (augment_params_.strptime_format_.empty()) {
                 if (not ParseRFC1123DateTimeAndPrefixes(last_build_date, &last_build_date_))
                     LOG_ERROR("failed to parse \"" + last_build_date + "\" as an RFC1123 datetime!");
@@ -199,7 +201,7 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
         } else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "guid")
             id = ExtractText(xml_parser_, "guid", " (RSS20::getNextItem)");
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "pubDate") {
-            const std::string pub_date_string(ExtractText(xml_parser_, "pubDate"));
+            const std::string pub_date_string(TextUtil::CollapseAndTrimWhitespace(ExtractText(xml_parser_, "pubDate")));
             if (augment_params_.strptime_format_.empty()) {
                 if (unlikely(not ParseRFC1123DateTimeAndPrefixes(pub_date_string, &pub_date)))
                     LOG_WARNING("couldn't parse \"" + pub_date_string + "\"!");
@@ -223,7 +225,8 @@ RSS091::RSS091(const std::string &xml_document, const AugmentParams &augment_par
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
             description_ = ExtractText(xml_parser_, "description", " (RSS091::RSS091)");
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "lastBuildDate") {
-            const std::string last_build_date(ExtractText(xml_parser_, "lastBuildDate", " (RSS091::RSS091)"));
+            const std::string last_build_date(TextUtil::CollapseAndTrimWhitespace(ExtractText(xml_parser_,
+                                              "lastBuildDate", " (RSS091::RSS091)")));
             if (augment_params_.strptime_format_.empty()) {
                 if (not ParseRFC1123DateTimeAndPrefixes(last_build_date, &last_build_date_))
                     LOG_ERROR("failed to parse \"" + last_build_date + "\" as an RFC1123 datetime!");
@@ -271,7 +274,7 @@ Atom::Atom(const std::string &xml_document, const AugmentParams &augment_params)
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
             description_ = ExtractText(xml_parser_, "description", " (Atom::Atom)");
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "updated") {
-            const std::string last_build_date(ExtractText(xml_parser_, "updated", " (Atom::Atom)"));
+            const std::string last_build_date(TextUtil::CollapseAndTrimWhitespace(ExtractText(xml_parser_, "updated", " (Atom::Atom)")));
             if (augment_params_.strptime_format_.empty()) {
                 if (not TimeUtil::ParseRFC3339DateTime(last_build_date, &last_build_date_))
                     LOG_ERROR("failed to parse \"" + last_build_date + "\" as an RFC3339 datetime!");
@@ -300,7 +303,7 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
         } else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "id")
             id = ExtractText(xml_parser_, "id", " (Atom::getNextItem)");
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "updated") {
-            const std::string updated_string(ExtractText(xml_parser_, "updated"));
+            const std::string updated_string(TextUtil::CollapseAndTrimWhitespace(ExtractText(xml_parser_, "updated")));
             if (augment_params_.strptime_format_.empty()) {
                 updated = TimeUtil::Iso8601StringToTimeT(updated_string, TimeUtil::UTC);
             } else
@@ -431,7 +434,7 @@ std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
                 if (link.empty() and part.attributes_.find("href") != part.attributes_.cend())
                     link = part.attributes_["href"];
             } else if (part.data_ == rss_namespace_ + "pubDate") {
-                const std::string pub_date_string(ExtractText(xml_parser_, rss_namespace_ + "pubDate"));
+                const std::string pub_date_string(TextUtil::CollapseAndTrimWhitespace(ExtractText(xml_parser_, rss_namespace_ + "pubDate")));
                 if (augment_params_.strptime_format_.empty()) {
                     if (unlikely(not ParseRFC1123DateTimeAndPrefixes(pub_date_string, &pub_date)))
                         LOG_WARNING("couldn't parse \"" + pub_date_string + "\"!");

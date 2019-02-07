@@ -42,7 +42,6 @@
 #include "PerlCompatRegExp.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
-#include "TextUtil.h"
 #include "WebUtil.h"
 #include "util.h"
 
@@ -251,7 +250,6 @@ static void CorrectForSymbolicTimeZone(struct tm * const tm, const std::string &
 //        So, we need to strip it out before we pass it to the function.
 static bool StringToStructTmHelper(std::string date_str, std::string optional_strptime_format, struct tm * const tm) {
     time_t unix_time(TimeUtil::BAD_TIME_T);
-    date_str = TextUtil::CollapseAndTrimWhitespace(date_str);
 
     if (optional_strptime_format.empty())
         unix_time = WebUtil::ParseWebDateAndTime(date_str);
