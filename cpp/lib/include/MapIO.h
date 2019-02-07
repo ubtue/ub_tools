@@ -2,7 +2,7 @@
  *  \brief  Map-IO-related utility functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -39,7 +39,8 @@ std::string Escape(const std::string &s);
 void SerialiseMap(const std::string &output_filename, const std::unordered_map<std::string, std::string> &map);
 
 /** \brief Reads "map: from "input_filename".  Aborts on input errors and emits an error message on stderr. */
-void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::string, std::string> * const map);
+void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::string, std::string> * const map,
+                    const bool revert_keys_and_values = false);
 
 /** \brief Writes "multimap" to "output_filename" in a format that can be red in by DeserialiseMap(). */
 void SerialiseMap(const std::string &output_filename, const std::unordered_multimap<std::string, std::string> &map);
