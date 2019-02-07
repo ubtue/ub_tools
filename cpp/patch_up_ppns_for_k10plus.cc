@@ -95,6 +95,7 @@ int Main(int argc, char **argv) {
 
     PatchTable(&db_connection, "vufind.resource", "record_id", old_to_new_map);
     PatchTable(&db_connection, "vufind.record", "record_id", old_to_new_map);
+    PatchTable(&db_connection, "vufind.change_tracker", "id", old_to_new_map);
     if (VuFind::GetTueFindFlavour() == "ixtheo") {
         PatchTable(&db_connection, "ixtheo.keyword_translations", "ppn", old_to_new_map);
         PatchTable(&db_connection, "vufind.ixtheo_journal_subscriptions", "journal_control_number_or_bundle_name", old_to_new_map);
