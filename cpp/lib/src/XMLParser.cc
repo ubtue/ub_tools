@@ -252,8 +252,15 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
                     buffer_.emplace_front(peek);
             }
 
-            if (options_.ignore_whitespace_ and next != nullptr and next->type_ == XMLPart::CHARACTERS and StringUtil::IsWhitespace(next->data_))
+            if (options_.ignore_whitespace_ and next != nullptr and next->type_ == XMLPart::CHARACTERS
+                and StringUtil::IsWhitespace(next->data_))
                 return getNext(next);
+        }
+
+        if (next->type_ == XMLPart::OPENING_TAG or next->type_ == XMLPart::CLOSING_TAG) {
+            const auto alias_tag_and_canonical_tag(tag_aliases_to_canonical_tags_map_.find(next->data_));
+            if (alias_tag_and_canonical_tag != tag_aliases_to_canonical_tags_map_.cend())
+                next->data_ = alias_tag_and_canonical_tag->second;
         }
     } catch (xercesc::RuntimeException &exc) {
         ConvertAndThrowException(exc);
@@ -276,7 +283,8 @@ bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::st
             if (expected_type == XMLPart::OPENING_TAG or expected_type == XMLPart::CLOSING_TAG) {
                 if (expected_tags.empty())
                     return_value = true;
-                else if (expected_tags.find(xml_part.data_) != expected_tags.end())
+                else if (expected_tags.find(xml_part.data_) != expected_tags.end()
+                         or tag_aliases_to_canonical_tags_map_.find(xml_part.data_) != tag_aliases_to_canonical_tags_map_.cend())
                     return_value = true;
             } else
                 return_value = true;
@@ -309,7 +317,8 @@ bool XMLParser::extractTextBetweenTags(const std::string &tag, std::string * con
         if (not peek(&xml_part))
             return false;
 
-        if (not guard_tags.empty() and guard_tags.find(xml_part.data_) != guard_tags.cend())
+        if (not guard_tags.empty()
+            and (guard_tags.find(xml_part.data_) != guard_tags.cend() or tag_aliases_to_canonical_tags_map_.find(xml_part.data_) != tag_aliases_to_canonical_tags_map_.cend()))
             return false;
 
         assert(getNext(&xml_part));
