@@ -1,7 +1,7 @@
-/** \brief Tool for title, author and full-text extraction from XMl files corresponding to the Journal Publishing DTD.
+/** \brief Tool for title, author and full-text extraction from XMl files corresponding to the ONIX XML format.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,7 +24,9 @@
 #include <vector>
 #include "FileUtil.h"
 #include "FullTextImport.h"
+#include "MapIO.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "util.h"
 #include "XMLParser.h"
 
@@ -39,6 +41,7 @@ namespace {
 }
 
 
+/*
 std::string ReadCharactersUntilNextClosingTag(XMLParser * const xml_parser) {
     XMLParser::XMLPart xml_part;
     std::string extracted_data;
@@ -75,9 +78,11 @@ void ExtractAuthor(XMLParser * const xml_parser, std::set<std::string> * const a
         }
     }
 }
+*/
 
 
-void ExtractMetadata(XMLParser * const xml_parser, FullTextImport::FullTextData * const metadata) {
+void ExtractMetadata(XMLParser * const /*xml_parser*/, FullTextImport::FullTextData * const /*metadata*/) {
+/*
     XMLParser::XMLPart xml_part;
 
     while (xml_parser->getNext(&xml_part)) {
@@ -96,6 +101,7 @@ void ExtractMetadata(XMLParser * const xml_parser, FullTextImport::FullTextData 
                 metadata->doi_ = ReadCharactersUntilNextClosingTag(xml_parser);
         }
     }
+*/
 }
 
 
@@ -160,7 +166,7 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
 
     FullTextImport::WriteExtractedTextToDisk(not full_text.empty() ? full_text : abstract, full_text_metadata.title_,
                                              full_text_metadata.authors_, full_text_metadata.year_, full_text_metadata.doi_,
-                                             /* ISSN */"", /* ISBN */"", plain_text_output);
+                                             full_text_metadata.issn_, full_text_metadata.isbn_, plain_text_output);
 }
 
 
@@ -180,9 +186,37 @@ int Main(int argc, char *argv[]) {
     if (argc != 3)
         Usage();
 
+    std::unordered_map<std::string, std::string> onix_short_tags_to_reference_map;
+    MapIO::DeserialiseMap(UBTools::GetTuelibPath() + "onix_reference_to_short_tags.map", &onix_short_tags_to_reference_map,
+                          /* revert_keys_and_values = */true);
+
     XMLParser xml_parser (argv[1], XMLParser::XML_FILE);
-    auto plain_text_output(normalise_only ? nullptr : FileUtil::OpenOutputFileOrDie(argv[2]));
-    ProcessDocument(normalise_only, argv[1], &xml_parser, plain_text_output.get());
+    xml_parser.setTagAliases(onix_short_tags_to_reference_map);
+    const auto plain_text_output(normalise_only ? nullptr : FileUtil::OpenOutputFileOrDie(argv[2]));
+
+    unsigned count(0);
+    for (;;) {
+        std::string record_reference;
+        if (not xml_parser.extractTextBetweenTags("RecordReference", &record_reference))
+            break;
+        LOG_DEBUG("record_reference = " + record_reference);
+
+        std::string notification_type;
+        if (not xml_parser.extractTextBetweenTags("NotificationType", &notification_type))
+            LOG_ERROR("missing NotificationType after RecordReference \"" + record_reference + "\"!");
+        LOG_DEBUG("notification_type = " + notification_type);
+
+        if (unlikely(notification_type == "05")) {
+            if (not xml_parser.skipTo(XMLParser::XMLPart::CLOSING_TAG, "Product"))
+                break;
+            continue;
+        }
+
+        ProcessDocument(normalise_only, argv[1], &xml_parser, plain_text_output.get());
+        ++count;
+    }
+
+    LOG_INFO("Processed " + std::to_string(count) + " relevant record(s).");
 
     return EXIT_SUCCESS;
 }
