@@ -319,13 +319,9 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Publication Title
     node_parameters->publication_title_ = object_node->getOptionalStringValue("publicationTitle");
-    if (ContainsReview(node_parameters->publication_title_))
-        node_parameters->item_type_ = "review";
 
     // Serial Short Title
     node_parameters->abbreviated_publication_title_ = object_node->getOptionalStringValue("journalAbbreviation");
-    if (ContainsReview(node_parameters->abbreviated_publication_title_))
-        node_parameters->item_type_ = "review";
 
     // DOI
     node_parameters->doi_ = object_node->getOptionalStringValue("DOI");
