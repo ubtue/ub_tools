@@ -26,6 +26,7 @@
 #include <deque>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <xercesc/framework/XMLPScanToken.hpp>
 #include <xercesc/parsers/SAXParser.hpp>
 #include <xercesc/sax/HandlerBase.hpp>
@@ -42,6 +43,7 @@ class XMLParser final {
     bool prolog_parsing_done_ = false;
     bool body_has_more_contents_;
     unsigned open_elements_;
+    std::unordered_map<std::string, std::string> tag_alisases_;
 public:
     class Error : public std::runtime_error {
     public:
@@ -143,6 +145,10 @@ public:
     inline unsigned getLineNo() { return static_cast<unsigned>(locator_->getLineNumber()); }
     inline unsigned getColumnNo() { return static_cast<unsigned>(locator_->getColumnNumber()); }
 
+    /** \brief Add a mapping for tag names.
+     *  \note After a call to this function, keys and values in "tag_alisases" will be considered as equivalent.
+     */
+    inline void setTagAliases(const std::unordered_map<std::string, std::string> &tag_alisases) { tag_alisases_ = tag_alisases; }
 
     /** \return true if there are more elements to parse, o/w false.
      *  \note   parsing is done in progressive mode, meaning that the document is
