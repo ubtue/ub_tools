@@ -1085,11 +1085,17 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
     static std::unordered_set<std::string> already_harvested_urls;
     if (already_harvested_urls.find(harvest_url) != already_harvested_urls.end()) {
-        LOG_DEBUG("Skipping URL (already harvested): " + harvest_url);
+        LOG_DEBUG("Skipping URL (already harvested during this session): " + harvest_url);
         return record_count_and_previously_downloaded_count;
     } else if (site_params.extraction_regex_ and not site_params.extraction_regex_->matched(harvest_url)) {
-        LOG_DEBUG("Skipping URL ('" + harvest_url + "' does not match extraction regex)");
+        LOG_DEBUG("Skipping URL (does not match extraction regex): " + harvest_url);
         return record_count_and_previously_downloaded_count;
+    } else if (not harvest_params->keep_delivered_records_ and site_params.delivery_mode_ == BSZUpload::DeliveryMode::LIVE) {
+        auto delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
+        if (delivery_tracker.hasAlreadyBeenDelivered(harvest_url)) {
+            LOG_DEBUG("Skipping URL (already delivered to the BSZ production server): " + harvest_url);
+            return record_count_and_previously_downloaded_count;
+        }
     }
 
     ApplyCrawlDelay(harvest_url);
