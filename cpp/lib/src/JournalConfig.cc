@@ -58,6 +58,7 @@ const std::unordered_map<std::string, Zotero::Entries> Zotero::key_id_resolver_m
     { "url",                Zotero::Entries::URL                },
     { "strptime_format",    Zotero::Entries::STRPTIME_FORMAT    },
     { "extraction_regex",   Zotero::Entries::EXTRACTION_REGEX   },
+    { "review_regex",       Zotero::Entries::REVIEW_REGEX       },
     { "max_crawl_depth",    Zotero::Entries::MAX_CRAWL_DEPTH    },
     { "delivery_mode",      Zotero::Entries::DELIVERY_MODE      },
     { "expected_languages", Zotero::Entries::EXPECTED_LANGUAGES },
