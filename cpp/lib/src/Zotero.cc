@@ -277,29 +277,18 @@ MarcFormatHandler::MarcFormatHandler(DbConnection * const db_connection, const s
 }
 
 
-static bool ContainsReview(const std::string &s) {
-    static const std::vector<std::string> review_alternatives{ "review", "rezension", "editorial", "ISBN" };
-    for (const auto &alternative : review_alternatives) {
-        if (StringUtil::FindCaseInsensitive(s, alternative) != std::string::npos)
-            return true;
-    }
-
-    return false;
-}
-
-
 void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::ObjectNode> object_node, ItemParameters * const node_parameters) {
     // Item Type
     node_parameters->item_type_ = object_node->getStringValue("itemType");
 
     // Title
     node_parameters->title_ = object_node->getOptionalStringValue("title");
-    if (ContainsReview(node_parameters->title_))
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->title_))
         node_parameters->item_type_ = "review";
 
     // Short Title
     node_parameters->short_title_ = object_node->getOptionalStringValue("shortTitle");
-    if (ContainsReview(node_parameters->short_title_))
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->short_title_))
         node_parameters->item_type_ = "review";
 
     // Creators
@@ -319,12 +308,12 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Publication Title
     node_parameters->publication_title_ = object_node->getOptionalStringValue("publicationTitle");
-    if (ContainsReview(node_parameters->publication_title_))
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->publication_title_))
         node_parameters->item_type_ = "review";
 
     // Serial Short Title
     node_parameters->abbreviated_publication_title_ = object_node->getOptionalStringValue("journalAbbreviation");
-    if (ContainsReview(node_parameters->abbreviated_publication_title_))
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abbreviated_publication_title_))
         node_parameters->item_type_ = "review";
 
     // DOI
