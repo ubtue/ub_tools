@@ -1,7 +1,7 @@
 /** \brief Handles crawling as well as RSS feeds.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -65,8 +65,10 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
     site_params->ISSN_online_ = bundle_reader.online(section_name).value(JournalConfig::Online::ISSN, "");
     site_params->PPN_print_ = bundle_reader.print(section_name).value(JournalConfig::Print::PPN, "");
     site_params->PPN_online_ = bundle_reader.online(section_name).value(JournalConfig::Online::PPN, "");
-    site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(bundle_reader.zotero(section_name)
-                                         .value(JournalConfig::Zotero::EXTRACTION_REGEX, "")));
+    site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(
+                                             bundle_reader.zotero(section_name).value(JournalConfig::Zotero::EXTRACTION_REGEX, "")));
+    site_params->review_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(
+                                        bundle_reader.zotero(section_name).value(JournalConfig::Zotero::REVIEW_REGEX, "")));
 
     // Append the common time format string to the site-specific override
     site_params->strptime_format_ = bundle_reader.zotero(section_name).value(JournalConfig::Zotero::STRPTIME_FORMAT, "");
