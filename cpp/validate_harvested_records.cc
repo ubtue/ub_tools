@@ -255,10 +255,10 @@ int Main(int argc, char *argv[]) {
             ++new_record_count;
         }
 
-        if (not missed_expectation)
-            valid_records_writer->write(record);
-        else
+        if (missed_expectation)
             delinquent_records_writer->write(record);
+        else
+            valid_records_writer->write(record);
     }
 
     for (const auto &journal_name_and_info : journal_name_to_info_map) {
