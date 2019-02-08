@@ -786,10 +786,6 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
 }
 
 
-/* Improve JSON result delivered by Zotero Translation Server
- * Note on ISSN's: Some pages might contain multiple ISSN's (for each publication medium and/or a linking ISSN).
- *                In such cases, the Zotero translator must return tags to distinguish between them.
- */
 void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::ObjectNode> &object_node, const SiteParams &site_params) {
     LOG_DEBUG("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
