@@ -39,7 +39,7 @@ namespace {
 
 [[noreturn]]
 void Usage() {
-   ::Usage("marc_file email_address");
+   ::Usage("marc_file missed_expectations_file email_address");
 }
 
 
@@ -224,9 +224,10 @@ int Main(int argc, char *argv[]) {
     DbConnection db_connection;
     auto reader(MARC::Reader::Factory(argv[1]));
     FileUtil::AutoTempFile temp_output_file("/tmp/ATF", ".xml");
-    auto writer(MARC::Writer::Factory(temp_output_file.getFilePath()));
+    auto valid_records_writer(MARC::Writer::Factory(temp_output_file.getFilePath()));
+    auto delinquent_records_writer(MARC::Writer::Factory(argv[2]));
     std::map<std::string, JournalInfo> journal_name_to_info_map;
-    const std::string email_address(argv[2]);
+    const std::string email_address(argv[3]);
 
     unsigned total_record_count(0), new_record_count(0), missed_expectation_count(0);
     while (const auto record = reader->read()) {
@@ -254,8 +255,10 @@ int Main(int argc, char *argv[]) {
             ++new_record_count;
         }
 
-        if (not missed_expectation)
-            writer->write(record);
+        if (missed_expectation)
+            delinquent_records_writer->write(record);
+        else
+            valid_records_writer->write(record);
     }
 
     for (const auto &journal_name_and_info : journal_name_to_info_map) {
@@ -266,7 +269,7 @@ int Main(int argc, char *argv[]) {
     // replace the original file with the modified, temporary one
     if (missed_expectation_count > 0) {
         reader.reset();
-        writer.reset();
+        valid_records_writer.reset();
 
         const auto absolute_source_file_path(FileUtil::MakeAbsolutePath(argv[1]));
         FileUtil::CopyOrDie(temp_output_file.getFilePath(), absolute_source_file_path);
@@ -274,6 +277,10 @@ int Main(int argc, char *argv[]) {
         // send notification to the email address
         SendEmail(email_address, "Some records missed expectations with respect to MARC fields. Check "
                   "/usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log for details.");
+    } else {
+        // remove the empty file
+        delinquent_records_writer.reset();
+        FileUtil::DeleteFile(argv[2]);
     }
 
     LOG_INFO("Processed " + std::to_string(total_record_count) + " record(s) of which " + std::to_string(new_record_count)

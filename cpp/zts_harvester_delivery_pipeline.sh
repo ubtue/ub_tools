@@ -46,7 +46,7 @@ working_directory=/tmp/zts_harvester_delivery_pipeline
 harvester_output_directory=$working_directory
 harvester_output_filename=zts_harvester-$(date +%y%m%d).xml
 harvester_config_file=/usr/local/ub_tools/cpp/data/zts_harvester.conf
-missing_metadata_tracker_output_filename=zts_harvester-$(date +%y%m%d)-missing-metadata.log
+records_with_missing_metadata_output_filename=zts_harvester-$(date +%y%m%d)-records-with-missing-metadata.xml
 
 
 function StartPhase {
@@ -121,7 +121,7 @@ for d in */ ; do
     fi
 
     current_source_filepath=$harvester_output_directory/$d/$harvester_output_filename
-    validate_harvested_records $current_source_filepath $email_address >> "${log}" 2>&1
+    validate_harvested_records $current_source_filepath $records_with_missing_metadata_output_filename $email_address >> "${log}" 2>&1
 
     record_count=$(marc_size "$current_source_filepath")
     if [ "$record_count" = "0" ]; then
