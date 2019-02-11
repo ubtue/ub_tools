@@ -131,7 +131,9 @@ private:
 public:
     explicit XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
     ~XMLParser() { delete parser_; delete handler_; delete error_handler_; xercesc::XMLPlatformUtils::Terminate(); }
-    void rewind();
+
+    /** \brief Restarts parsing of a new file or string. */
+    void reset(const std::string &xml_filename_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
 
     bool peek(XMLPart * const xml_part);
 

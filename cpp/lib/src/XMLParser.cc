@@ -132,15 +132,9 @@ void XMLParser::Handler::setDocumentLocator(const xercesc::Locator * const locat
 }
 
 
-XMLParser::XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options) {
-    xml_filename_or_string_ = xml_filename_or_string;
-    type_ = type;
-    options_ = options;
-    rewind();
-}
-
-
-void XMLParser::rewind() {
+XMLParser::XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options)
+    : xml_filename_or_string_(xml_filename_or_string), type_(type), options_(options)
+{
     xercesc::XMLPlatformUtils::Initialize();
     parser_  = new xercesc::SAXParser();
 
@@ -155,6 +149,16 @@ void XMLParser::rewind() {
     parser_->setDoSchema(options_.do_schema_);
     parser_->setCalculateSrcOfs(true);
 
+    open_elements_ = 0;
+    locator_ = nullptr;
+    prolog_parsing_done_ = false;
+}
+
+
+void XMLParser::reset(const std::string &xml_filename_or_string, const Type type, const Options &options) {
+    xml_filename_or_string_ = xml_filename_or_string;
+    type_ = type;
+    options_ = options;
     open_elements_ = 0;
     locator_ = nullptr;
     prolog_parsing_done_ = false;
@@ -174,7 +178,7 @@ bool XMLParser::peek(XMLPart * const xml_part) {
 void XMLParser::seek(const off_t offset, const int whence) {
     if (whence == SEEK_SET) {
         if (offset < tell())
-            rewind();
+            reset(xml_filename_or_string_, type_, options_);
 
         XMLPart xml_part;
         while (getNext(&xml_part)) {
