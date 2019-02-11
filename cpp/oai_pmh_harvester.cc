@@ -147,7 +147,7 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
     XMLParser xml_parser(message_body, XMLParser::XML_STRING);
     const unsigned record_count(ExtractEncapsulatedRecordData(&xml_parser, &extracted_records));
     if (record_count == 0) {
-        xml_parser.reset(message_body, XMLParser::XML_STRING);
+        xml_parser.rewind();
         XMLParser::XMLPart xml_part;
         if (not xml_parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "error", &xml_part))
             return 0;

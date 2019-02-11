@@ -135,6 +135,8 @@ public:
     /** \brief Restarts parsing of a new file or string. */
     void reset(const std::string &xml_filename_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
 
+    inline void rewind() { reset(xml_filename_or_string_, type_, options_); }
+
     bool peek(XMLPart * const xml_part);
 
     /** \brief  seeks for the given offset in the underlying string or file.
@@ -148,8 +150,8 @@ public:
     inline unsigned getColumnNo() { return static_cast<unsigned>(locator_->getColumnNumber()); }
 
     /** \brief Add a mapping for tag names.
-     *  \note After a call to this function, keys and values in "tag_aliases_to_canonical_tags_map" will be considered as equivalent.  All returned tag
-     *        names will be the canonical names.
+     *  \note After a call to this function, keys and values in "tag_aliases_to_canonical_tags_map" will be considered as equivalent.
+     *        All returned tag names will be the canonical names.
      */
     inline void setTagAliases(const std::unordered_map<std::string, std::string> &tag_aliases_to_canonical_tags_map)
         { tag_aliases_to_canonical_tags_map_ = tag_aliases_to_canonical_tags_map; }
