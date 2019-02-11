@@ -1,7 +1,7 @@
 /** \file oai_pmh_harvester.cc
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -147,7 +147,7 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
     XMLParser xml_parser(message_body, XMLParser::XML_STRING);
     const unsigned record_count(ExtractEncapsulatedRecordData(&xml_parser, &extracted_records));
     if (record_count == 0) {
-        xml_parser.rewind();
+        xml_parser.reset(message_body, XMLParser::XML_STRING);
         XMLParser::XMLPart xml_part;
         if (not xml_parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "error", &xml_part))
             return 0;
