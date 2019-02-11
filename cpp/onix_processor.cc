@@ -106,8 +106,6 @@ void ExtractMetadata(XMLParser * const /*xml_parser*/, FullTextImport::FullTextD
 
 
 bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_tag, std::string * const text) {
-    xml_parser->rewind();
-
     XMLParser::XMLPart xml_part;
     if (not xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, { text_opening_tag }, &xml_part))
         return false;
