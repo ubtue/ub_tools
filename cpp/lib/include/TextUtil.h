@@ -498,4 +498,7 @@ std::wstring RemoveDiacritics(const std::wstring &string);
 std::string RemoveDiacritics(const std::string &utf8_string);
 
 
+bool ConvertToUTF8(const std::string &encoding, const std::string &text, std::string * const utf8_text);
+
+
 } // namespace TextUtil

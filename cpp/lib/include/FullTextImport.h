@@ -2,7 +2,7 @@
  *  \brief   Interface to upload metadata-augmented full-text to Elasticsearch
  *  \author  Madeeswaran Kannan
  *
- *  Copyright (C) 2018, Library of the University of Tübingen
+ *  Copyright (c) 2018,2019 Library of the University of Tübingen
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -50,6 +50,8 @@ struct FullTextData {
     std::string issn_;
     std::string isbn_;
     std::string full_text_;
+public:
+    std::string toString(const char separator = ',') const;
 };
 
 
