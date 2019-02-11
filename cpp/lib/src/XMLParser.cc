@@ -2,7 +2,7 @@
  *  \brief  Wrapper class for Xerces XML parser
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -179,7 +179,7 @@ bool XMLParser::peek(XMLPart * const xml_part) {
 void XMLParser::seek(const off_t offset, const int whence) {
     if (whence == SEEK_SET) {
         if (offset < tell())
-            reset(xml_filename_or_string_, type_, options_);
+            rewind();
 
         XMLPart xml_part;
         while (getNext(&xml_part)) {
