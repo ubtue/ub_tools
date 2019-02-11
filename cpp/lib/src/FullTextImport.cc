@@ -1,8 +1,8 @@
- /*
+/*
  *  \brief   Implementation of classes and functions related to the importing of full-text into Elasticsearch
  *  \author  Madeeswaran Kannan
  *
- *  Copyright (C) 2018, Library of the University of Tübingen
+ *  Copyright (c) 2018,2019 Library of the University of Tübingen
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -19,9 +19,33 @@
  */
 
 #include "FullTextImport.h"
+#include "StringUtil.h"
 
 
 namespace FullTextImport {
+
+
+std::string FullTextData::toString(const char separator) const {
+    const std::string SEPARATOR(1, separator);
+    std::string as_string;
+    as_string += "FullTextData:" + SEPARATOR;
+    if (not title_.empty())
+        as_string += "title: \"" + title_ + "\"" + SEPARATOR;
+    if (not authors_.empty())
+        as_string += "authors: \"" + StringUtil::Join(authors_, ',') + "\"" + SEPARATOR;
+    if (not year_.empty())
+        as_string += "year: " + year_ + SEPARATOR;
+    if (not doi_.empty())
+        as_string += "doi: " + doi_ + SEPARATOR;
+    if (not issn_.empty())
+        as_string += "issn: " + issn_ + SEPARATOR;
+    if (not isbn_.empty())
+        as_string += "isbn: " + isbn_ + SEPARATOR;
+    if (not full_text_.empty())
+        as_string += "full text: \"" + full_text_ + "\"" + SEPARATOR;
+
+    return as_string;
+}
 
 
 const std::string CHUNK_DELIMITER("\n\n\n");
