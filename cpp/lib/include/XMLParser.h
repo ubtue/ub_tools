@@ -12,7 +12,7 @@
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Affero %General Public License for more details.
+ *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -146,8 +146,9 @@ public:
 
     off_t tell();
 
-    inline unsigned getLineNo() { return static_cast<unsigned>(locator_->getLineNumber()); }
-    inline unsigned getColumnNo() { return static_cast<unsigned>(locator_->getColumnNumber()); }
+    inline std::string getXmlFilenameOrString() const { return xml_filename_or_string_; }
+    inline unsigned getLineNo() const { return static_cast<unsigned>(locator_->getLineNumber()); }
+    inline unsigned getColumnNo() const { return static_cast<unsigned>(locator_->getColumnNumber()); }
 
     /** \brief Add a mapping for tag names.
      *  \note After a call to this function, keys and values in "tag_aliases_to_canonical_tags_map" will be considered as equivalent.

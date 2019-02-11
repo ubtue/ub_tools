@@ -25,7 +25,9 @@
 #include "FileUtil.h"
 #include "FullTextImport.h"
 #include "MapIO.h"
+#include "ONIX.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
 #include "XMLParser.h"
@@ -35,103 +37,63 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] [--normalise-only] xml_input full_text_output\n"
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] [--normalise-only] [--full-text-encoding=encoding] xml_input full_text_output\n"
               << "       When specifying --normalise-only we only require the input filename!\n\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-/*
-std::string ReadCharactersUntilNextClosingTag(XMLParser * const xml_parser) {
+void ExtractMetadata(XMLParser * const xml_parser, FullTextImport::FullTextData * const metadata) {
     XMLParser::XMLPart xml_part;
-    std::string extracted_data;
 
+    bool in_series(false);
     while (xml_parser->getNext(&xml_part)) {
-        if (xml_part.isClosingTag())
-            break;
-        else if (xml_part.type_ == XMLParser::XMLPart::CHARACTERS)
-            extracted_data += xml_part.data_;
-    }
-
-    return extracted_data;
-}
-
-
-void ExtractAuthor(XMLParser * const xml_parser, std::set<std::string> * const article_authors) {
-    if (not xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, "surname"))
-        return;
-
-    XMLParser::XMLPart xml_part;
-    if (not xml_parser->getNext(&xml_part) or xml_part.type_ != XMLParser::XMLPart::CHARACTERS)
-        return;
-    const std::string surname(xml_part.data_);
-
-    while (xml_parser->getNext(&xml_part)) {
-        if (xml_part.type_ == XMLParser::XMLPart::CLOSING_TAG and xml_part.data_ == "contrib") {
-            article_authors->insert(surname);
-            return;
-        } else if (xml_part.type_ == XMLParser::XMLPart::OPENING_TAG and xml_part.data_ == "given-names") {
-            if (not xml_parser->getNext(&xml_part) or xml_part.type_ != XMLParser::XMLPart::CHARACTERS)
-                return;
-            article_authors->insert(xml_part.data_ + " " + surname);
-            return;
+        if (xml_part.isOpeningTag("ProductIdentifier")) {
+            std::string product_id_type;
+            if (xml_parser->extractTextBetweenTags("ProductIDType", &product_id_type)) {
+                if (StringUtil::ToUnsigned(product_id_type) == static_cast<unsigned>(ONIX::ProductIDType::DOI)) {
+                    std::string doi;
+                    xml_parser->extractTextBetweenTags("IDValue", &doi);
+                    metadata->doi_ = doi;
+                } else if (StringUtil::ToUnsigned(product_id_type) == static_cast<unsigned>(ONIX::ProductIDType::ISBN_13)) {
+                    std::string isbn;
+                    xml_parser->extractTextBetweenTags("IDValue", &isbn);
+                    metadata->isbn_ = isbn;
+                }
+            }
+        } else if (xml_part.isOpeningTag("Contributor")) {
+            std::string contributer_role;
+            xml_parser->extractTextBetweenTags("ContributorRole", &contributer_role);
+            if (contributer_role == "A01") {
+                std::string author;
+                xml_parser->extractTextBetweenTags("PersonName", &author);
+                metadata->authors_.emplace(author);
+            }
+        } else if (xml_part.isOpeningTag("Series"))
+            in_series = true;
+        else if (xml_part.isClosingTag("Series"))
+            in_series = false;
+        else if (not in_series and xml_part.isOpeningTag("Title")) {
+            std::string title_type;
+            xml_parser->extractTextBetweenTags("TitleType", &title_type);
+            if (StringUtil::ToUnsigned(title_type) ==  static_cast<unsigned>(ONIX::TitleType::DISTINCTIVE_TITLE)) {
+                std::string title_text;
+                xml_parser->extractTextBetweenTags("TitleText", &title_text);
+                metadata->title_ = title_text;
+            }
+        } else if (xml_part.isOpeningTag("YearOfAnnual")) {
+            if (unlikely(not xml_parser->getNext(&xml_part) or xml_part.type_ != XMLParser::XMLPart::CHARACTERS))
+                LOG_ERROR("unexpected end-of-input or missing YearOfAnnual!");
+            metadata->year_ = xml_part.data_;
         }
     }
-}
-*/
 
-
-void ExtractMetadata(XMLParser * const /*xml_parser*/, FullTextImport::FullTextData * const /*metadata*/) {
-/*
-    XMLParser::XMLPart xml_part;
-
-    while (xml_parser->getNext(&xml_part)) {
-        if (xml_part.isOpeningTag("article-title"))
-            metadata->title_ = ReadCharactersUntilNextClosingTag(xml_parser);
-        else if (xml_part.isOpeningTag("contrib")) {
-            const auto contrib_type_and_value(xml_part.attributes_.find("contrib-type"));
-            if (contrib_type_and_value != xml_part.attributes_.cend() and contrib_type_and_value->second == "author")
-                ExtractAuthor(xml_parser, &metadata->authors_);
-        } else if (xml_part.isOpeningTag("pub-date")) {
-            if (xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, "year"))
-                metadata->year_ = ReadCharactersUntilNextClosingTag(xml_parser);
-        } else if (xml_part.isOpeningTag("article-id")) {
-            const auto id_type_and_value(xml_part.attributes_.find("pub-id-type"));
-            if (id_type_and_value != xml_part.attributes_.cend() and id_type_and_value->second == "doi")
-                metadata->doi_ = ReadCharactersUntilNextClosingTag(xml_parser);
-        }
-    }
-*/
+    std::cerr << metadata->toString('\n');
 }
 
 
-bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_tag, std::string * const text) {
-    XMLParser::XMLPart xml_part;
-    if (not xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, { text_opening_tag }, &xml_part))
-        return false;
-
-    do {
-        if (xml_part.isClosingTag(text_opening_tag))
-            break;
-
-        // format the text as it's read in
-        if (xml_part.isClosingTag("sec"))
-            *text += FullTextImport::CHUNK_DELIMITER;
-        else if (xml_part.isClosingTag("label"))
-            *text += ": ";
-        else if (xml_part.isClosingTag("title") or xml_part.isClosingTag("p"))
-            *text += FullTextImport::PARAGRAPH_DELIMITER;
-        else if (xml_part.isCharacters())
-            *text += xml_part.data_;
-
-    } while (xml_parser->getNext(&xml_part));
-
-    return not text->empty();
-}
-
-
-void ProcessDocument(const bool normalise_only, const std::string &input_file_path, XMLParser * const xml_parser,
-                     File * const plain_text_output)
+void ProcessDocument(const bool normalise_only, const std::string &input_file_path, const std::string &full_text_encoding,
+                     XMLParser * const xml_parser, File * const plain_text_output)
 {
     FullTextImport::FullTextData full_text_metadata;
     ExtractMetadata(xml_parser, &full_text_metadata);
@@ -155,16 +117,24 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
     if (full_text_metadata.doi_.empty())
         LOG_WARNING("no doi found in file '" + input_file_path + "'");
 
-    std::string full_text, abstract;
-    if (not ExtractText(xml_parser, "body", &full_text))
-        ExtractText(xml_parser, "abstract", &abstract);
+    if (full_text_metadata.isbn_.empty())
+        LOG_ERROR("missing ISBN!");
 
-    if (full_text.empty() and abstract.empty())
-        LOG_ERROR("neither full-text nor abstract text was found in file '" + input_file_path + "'");
+    const std::string full_text_filename(FileUtil::GetDirname(xml_parser->getXmlFilenameOrString()) + "/"
+                                         + full_text_metadata.isbn_ + ".txt");
 
-    FullTextImport::WriteExtractedTextToDisk(not full_text.empty() ? full_text : abstract, full_text_metadata.title_,
-                                             full_text_metadata.authors_, full_text_metadata.year_, full_text_metadata.doi_,
-                                             full_text_metadata.issn_, full_text_metadata.isbn_, plain_text_output);
+    std::string full_text;
+    FileUtil::ReadStringOrDie(full_text_filename, &full_text);
+
+    if (not full_text_encoding.empty()) {
+        std::string utf8_full_text;
+        if (not TextUtil::ConvertToUTF8(full_text_encoding, full_text, &utf8_full_text))
+            LOG_ERROR("failed to convert the contents of \"" + full_text_filename + "\" from \"" + full_text_encoding + " to UTF-8!");
+        utf8_full_text.swap(full_text);
+    }
+
+    FullTextImport::WriteExtractedTextToDisk(full_text, full_text_metadata.title_, full_text_metadata.authors_, full_text_metadata.year_,
+                                             full_text_metadata.doi_, full_text_metadata.issn_, full_text_metadata.isbn_, plain_text_output);
 }
 
 
@@ -178,6 +148,12 @@ int Main(int argc, char *argv[]) {
     bool normalise_only(false);
     if (std::strcmp(argv[1], "--normalise-only") == 0) {
         normalise_only = true;
+        ++argc, ++argv;
+    }
+
+    std::string full_text_encoding;
+    if (StringUtil::StartsWith(argv[1], "--full-text-encoding=")) {
+        full_text_encoding = argv[1] + __builtin_strlen("--full-text-encoding=");
         ++argc, ++argv;
     }
 
@@ -210,7 +186,7 @@ int Main(int argc, char *argv[]) {
             continue;
         }
 
-        ProcessDocument(normalise_only, argv[1], &xml_parser, plain_text_output.get());
+        ProcessDocument(normalise_only, argv[1], full_text_encoding, &xml_parser, plain_text_output.get());
         ++count;
     }
 

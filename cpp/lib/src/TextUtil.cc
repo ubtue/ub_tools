@@ -1686,4 +1686,17 @@ std::string RemoveDiacritics(const std::string &utf8_string) {
 }
 
 
+bool ConvertToUTF8(const std::string &encoding, const std::string &text, std::string * const utf8_text) {
+    utf8_text->clear();
+
+    std::string error_message;
+    const auto to_utf8_converter(EncodingConverter::Factory(encoding, "UTF-8", &error_message));
+    if (to_utf8_converter.get() == nullptr)
+        return false;
+
+    return to_utf8_converter->convert(text, utf8_text);
+}
+
+
+
 } // namespace TextUtil
