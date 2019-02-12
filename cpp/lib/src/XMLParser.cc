@@ -2,7 +2,7 @@
  *  \brief  Wrapper class for Xerces XML parser
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -132,15 +132,9 @@ void XMLParser::Handler::setDocumentLocator(const xercesc::Locator * const locat
 }
 
 
-XMLParser::XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options) {
-    xml_filename_or_string_ = xml_filename_or_string;
-    type_ = type;
-    options_ = options;
-    rewind();
-}
-
-
-void XMLParser::rewind() {
+XMLParser::XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options)
+    : xml_filename_or_string_(xml_filename_or_string), type_(type), options_(options)
+{
     xercesc::XMLPlatformUtils::Initialize();
     parser_  = new xercesc::SAXParser();
 
@@ -156,6 +150,17 @@ void XMLParser::rewind() {
     parser_->setCalculateSrcOfs(true);
 
     open_elements_ = 0;
+    locator_ = nullptr;
+    prolog_parsing_done_ = false;
+}
+
+
+void XMLParser::reset(const std::string &xml_filename_or_string, const Type type, const Options &options) {
+    xml_filename_or_string_ = xml_filename_or_string;
+    type_ = type;
+    options_ = options;
+    open_elements_ = 0;
+    delete locator_;
     locator_ = nullptr;
     prolog_parsing_done_ = false;
     buffer_.clear();

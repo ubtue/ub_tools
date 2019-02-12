@@ -218,7 +218,7 @@ void SendEmail(const std::string &email_address, const std::string &message_body
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
+    if (argc != 4)
         Usage();
 
     DbConnection db_connection;

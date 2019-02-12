@@ -12,7 +12,7 @@
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Affero %General Public License for more details.
+ *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -131,7 +131,11 @@ private:
 public:
     explicit XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
     ~XMLParser() { delete parser_; delete handler_; delete error_handler_; xercesc::XMLPlatformUtils::Terminate(); }
-    void rewind();
+
+    /** \brief Restarts parsing of a new file or string. */
+    void reset(const std::string &xml_filename_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
+
+    inline void rewind() { reset(xml_filename_or_string_, type_, options_); }
 
     bool peek(XMLPart * const xml_part);
 
@@ -142,12 +146,13 @@ public:
 
     off_t tell();
 
-    inline unsigned getLineNo() { return static_cast<unsigned>(locator_->getLineNumber()); }
-    inline unsigned getColumnNo() { return static_cast<unsigned>(locator_->getColumnNumber()); }
+    inline std::string getXmlFilenameOrString() const { return xml_filename_or_string_; }
+    inline unsigned getLineNo() const { return static_cast<unsigned>(locator_->getLineNumber()); }
+    inline unsigned getColumnNo() const { return static_cast<unsigned>(locator_->getColumnNumber()); }
 
     /** \brief Add a mapping for tag names.
-     *  \note After a call to this function, keys and values in "tag_aliases_to_canonical_tags_map" will be considered as equivalent.  All returned tag
-     *        names will be the canonical names.
+     *  \note After a call to this function, keys and values in "tag_aliases_to_canonical_tags_map" will be considered as equivalent.
+     *        All returned tag names will be the canonical names.
      */
     inline void setTagAliases(const std::unordered_map<std::string, std::string> &tag_aliases_to_canonical_tags_map)
         { tag_aliases_to_canonical_tags_map_ = tag_aliases_to_canonical_tags_map; }
