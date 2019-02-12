@@ -21,6 +21,7 @@
 
 
 #include <string>
+#include <map>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -219,6 +220,8 @@ public:
 public:
     ObjectNode(const std::string &object_as_string = "");
     ObjectNode(const std::unordered_map<std::string, std::string> &map);
+    ObjectNode(const std::map<std::string, std::string> &map);
+
 
     virtual std::shared_ptr<JSONNode> clone() const override;
     virtual Type getType() const override { return OBJECT_NODE; }
