@@ -394,6 +394,13 @@ ObjectNode::ObjectNode(const std::unordered_map<std::string, std::string> &map) 
 }
 
 
+ObjectNode::ObjectNode(const std::map<std::string, std::string> &map) {
+    for (const auto &key_and_value : map) {
+        std::shared_ptr<JSON::StringNode> value_node(new JSON::StringNode(JSON::EscapeString(key_and_value.second)));
+        insert(key_and_value.first, value_node);
+    }
+}
+
 std::shared_ptr<JSONNode> ObjectNode::clone() const {
     std::shared_ptr<ObjectNode> the_clone(new ObjectNode);
     for (const auto &entry : entries_)
