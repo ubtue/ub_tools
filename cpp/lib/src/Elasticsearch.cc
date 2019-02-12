@@ -54,14 +54,13 @@ size_t Elasticsearch::size() const {
 
 
 void Elasticsearch::simpleInsert(const std::map<std::string, std::string> &fields_and_values) {
-    std::string payload("{");
+    std::string payload;
     for (const auto &field_and_value : fields_and_values)
         payload += "{ \"" + JSON::EscapeDoubleQuotes(field_and_value.first) + "\": \"" + JSON::EscapeDoubleQuotes(field_and_value.second)
                    + "\" },\n";
     if (likely(not fields_and_values.empty()))
-        payload.resize(payload.size() - 1); // Remove the last comma and newline.
-
-query("_doc", REST::POST, payload);
+        payload.resize(payload.size() - 2); // Remove the last comma and newline.
+    query("_doc", REST::POST, JSON::ObjectNode(payload));
 }
 
 
