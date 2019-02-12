@@ -283,12 +283,12 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Title
     node_parameters->title_ = object_node->getOptionalStringValue("title");
-    if (not site_params_->review_regex_->getPattern().empty() and site_params_->review_regex_->matched(node_parameters->title_))
+    if (site_params_->review_regex_ and site_params_->review_regex_->matched(node_parameters->title_))
         node_parameters->item_type_ = "review";
 
     // Short Title
     node_parameters->short_title_ = object_node->getOptionalStringValue("shortTitle");
-    if (not site_params_->review_regex_->getPattern().empty() and site_params_->review_regex_->matched(node_parameters->short_title_))
+    if (site_params_->review_regex_ and site_params_->review_regex_->matched(node_parameters->short_title_))
         node_parameters->item_type_ = "review";
 
     // Creators
