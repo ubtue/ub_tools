@@ -65,10 +65,14 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
     site_params->ISSN_online_ = bundle_reader.online(section_name).value(JournalConfig::Online::ISSN, "");
     site_params->PPN_print_ = bundle_reader.print(section_name).value(JournalConfig::Print::PPN, "");
     site_params->PPN_online_ = bundle_reader.online(section_name).value(JournalConfig::Online::PPN, "");
-    site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(
-                                             bundle_reader.zotero(section_name).value(JournalConfig::Zotero::EXTRACTION_REGEX, "")));
-    site_params->review_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(
-                                        bundle_reader.zotero(section_name).value(JournalConfig::Zotero::REVIEW_REGEX, "")));
+
+    const auto extraction_regex(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::EXTRACTION_REGEX, ""));
+    if (not extraction_regex.empty())
+        site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(extraction_regex));
+
+    const auto review_regex(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::REVIEW_REGEX, ""));
+    if (not review_regex.empty())
+        site_params->review_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(review_regex));
 
     // Append the common time format string to the site-specific override
     site_params->strptime_format_ = bundle_reader.zotero(section_name).value(JournalConfig::Zotero::STRPTIME_FORMAT, "");
