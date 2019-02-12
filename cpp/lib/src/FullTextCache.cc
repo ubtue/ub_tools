@@ -240,11 +240,11 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
     }
 
     std::string expiration_string;
-    if (expiration == TimeUtil::BAD_TIME_T)
-        full_text_cache_.simpleInsert({ { "id", id } });
-    else {
-        full_text_cache_.simpleInsert({ { "id", id }, { "expiration", TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT) } });
+    if (expiration == TimeUtil::BAD_TIME_T) {
+        full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text } });
+    } else {
         expiration_string = "\"" + TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT) + "\"";
+        full_text_cache_.simpleInsert({ { "id", id }, { "expiration", expiration_string }, { "full_text", full_text } });
     }
 
     for (const auto &entry_url : entry_urls) {
