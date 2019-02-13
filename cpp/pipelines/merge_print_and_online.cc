@@ -62,6 +62,33 @@ std::string ExtractUplinkPPN(const MARC::Record::Field &field) {
 }
 
 
+void SerializeMap(const std::string &output_filename, const std::unordered_map<std::string, std::string> &map) {
+    const auto map_file(FileUtil::OpenOutputFileOrDie(output_filename));
+    for (const auto &key_and_value : map)
+        *map_file << key_and_value.first << " -> " << key_and_value.second << '\n';
+}
+
+
+void SerializeMultimap(const std::string &output_filename, const std::unordered_multimap<std::string, std::string> &multimap) {
+    const auto map_file(FileUtil::OpenOutputFileOrDie(output_filename));
+    if (multimap.empty())
+        return;
+
+    auto key_and_value(multimap.cbegin());
+    std::string last_key(key_and_value->first);
+    *map_file << key_and_value->first << " -> " << key_and_value->second;
+    for (/* Intentionally empty! */; key_and_value != multimap.cend(); ++key_and_value) {
+        if (key_and_value->first == last_key)
+            *map_file << ',' << key_and_value->second;
+        else {
+            last_key = key_and_value->first;
+            *map_file << '\n' << key_and_value->first << " -> " << key_and_value->second;
+        }
+    }
+    *map_file << '\n';
+}
+
+
 void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(const bool debug,
     MARC::Reader * const marc_reader, std::unordered_set<std::string> * const superior_ppns,
     std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
@@ -129,11 +156,13 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(const bool debug,
     }
 
     if (debug) {
-        const std::string MAP_FILENAME("ppn_to_canonical_ppn.map");
-        const auto map_file(FileUtil::OpenOutputFileOrDie(MAP_FILENAME));
-        for (const auto &non_canonical_ppn_and_canonical_ppn : *ppn_to_canonical_ppn_map)
-            *map_file << non_canonical_ppn_and_canonical_ppn.first << " -> " << non_canonical_ppn_and_canonical_ppn.second << '\n';
-        std::cerr << "Wrote the mapping from non-canonical PPN's to canonical PPN's to \"" + MAP_FILENAME + "\"!";
+        std::string map_filename("ppn_to_canonical_ppn.map");
+        SerializeMap(map_filename, *ppn_to_canonical_ppn_map);
+        std::cerr << "Wrote the mapping from non-canonical PPN's to canonical PPN's to \"" + map_filename + "\"!";
+
+        map_filename = "canonical_ppn_to_ppn.map";
+        SerializeMultimap(map_filename, *canonical_ppn_to_ppn_map);
+        std::cerr << "Wrote the mapping from canonical PPN's to non-canonical PPN's to \"" + map_filename + "\"!";
     }
 
     LOG_INFO("Found " + std::to_string(record_count) + " record(s).");
