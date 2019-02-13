@@ -54,7 +54,7 @@ size_t Elasticsearch::size() const {
 
 
 void Elasticsearch::simpleInsert(const std::map<std::string, std::string> &fields_and_values) {
-    query("_doc", REST::POST, JSON::ObjectNode(fields_and_values));
+    query("", REST::POST, JSON::ObjectNode(fields_and_values));
 }
 
 
@@ -72,7 +72,7 @@ void Elasticsearch::insertOrUpdateDocument(const std::string &document_id, const
 bool Elasticsearch::deleteDocument(const std::string &document_id) {
     const JSON::ObjectNode match_node("{ \"query\":"
                                       "    { \"match\":"
-                                      "        { \"document_id\": \"" + JSON::EscapeString(document_id) + "\" }"
+                                      "        { \"id\": \"" + JSON::EscapeString(document_id) + "\" }"
                                       "    }"
                                       "}");
     const auto result_node(query("_delete_by_query", REST::POST, match_node));
@@ -112,11 +112,11 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(cons
     if (filter.empty())
         query_string += " \"match_all\" {}";
     else {
-        query_string += "\"constant_score\": { \"filter\": { \"bool\": { \"must\" : [\n"; // N.B. "must" is an AND query.
+        query_string += "\"bool\" : { \"filter\": [\n";
         for (const auto &field_and_value : filter)
-            query_string += "        \"term\": { \"" + field_and_value.first + "\": \"" + field_and_value.second + "\"},\n";
+            query_string += "       { \"term\": { \"" + field_and_value.first + "\": \"" + field_and_value.second + "\"} },\n";
         query_string.resize(query_string.size() - 2); // Remove the last comma and newline.
-        query_string += "\n    ] } } }";
+        query_string += "\n    ] }";
     }
 
     query_string += "    },\n";
@@ -190,7 +190,6 @@ std::shared_ptr<JSON::ObjectNode> Elasticsearch::query(const std::string &action
     downloader_params.authentication_password_ = password_;
     downloader_params.ignore_ssl_certificates_ = ignore_ssl_certificates_;
     downloader_params.additional_headers_.push_back("Content-Type: application/json");
-
     const Url url(host_ + "/" + index_ + "/" + type_ + (action.empty() ? "" : "/" + action));
     std::shared_ptr<JSON::JSONNode> result(REST::QueryJSON(url, query_type, &data, downloader_params));
     std::shared_ptr<JSON::ObjectNode> result_object(JSON::JSONNode::CastToObjectNodeOrDie("Elasticsearch result", result));
