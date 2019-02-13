@@ -1,7 +1,7 @@
 /** \brief Utility for merging print and online editions into single records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -62,7 +62,7 @@ std::string ExtractUplinkPPN(const MARC::Record::Field &field) {
 }
 
 
-void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(
+void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(const bool debug,
     MARC::Reader * const marc_reader, std::unordered_set<std::string> * const superior_ppns,
     std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
     std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map,
@@ -126,6 +126,14 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(
         }
 
         last_offset = marc_reader->tell();
+    }
+
+    if (debug) {
+        const std::string MAP_FILENAME("ppn_to_canonical_ppn.map");
+        const auto map_file(FileUtil::OpenOutputFileOrDie(MAP_FILENAME));
+        for (const auto &non_canonical_ppn_and_canonical_ppn : *ppn_to_canonical_ppn_map)
+            *map_file << non_canonical_ppn_and_canonical_ppn.first << " -> " << non_canonical_ppn_and_canonical_ppn.second << '\n';
+        std::cerr << "Wrote the mapping from non-canonical PPN's to canonical PPN's to \"" + MAP_FILENAME + "\"!";
     }
 
     LOG_INFO("Found " + std::to_string(record_count) + " record(s).");
@@ -655,7 +663,7 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, off_t> ppn_to_offset_map;
     std::unordered_map<std::string, std::string> ppn_to_canonical_ppn_map;
     std::unordered_multimap<std::string, std::string> canonical_ppn_to_ppn_map;
-    CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(marc_reader.get(), &superior_ppns, &ppn_to_offset_map,
+    CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(debug, marc_reader.get(), &superior_ppns, &ppn_to_offset_map,
                                                             &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
 
     EliminateDanglingOrUnreferencedCrossLinks(superior_ppns, ppn_to_offset_map, &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
