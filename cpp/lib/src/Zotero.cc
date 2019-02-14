@@ -327,7 +327,17 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
     if (node_parameters->language_.empty() and not site_params_->expected_languages_.empty()) {
         // attempt to automatically detect the language
         std::vector<std::string> top_languages;
-        const auto record_text(node_parameters->title_ + " " + node_parameters->abstract_note_);
+        std::string record_text;
+
+        if (site_params_->expected_languages_text_fields_.empty())
+            record_text = node_parameters->title_ + " " + node_parameters->abstract_note_;
+        else if (site_params_->expected_languages_text_fields_ == "title")
+            record_text = node_parameters->title_;
+        else if (site_params_->expected_languages_text_fields_ == "abstract")
+            record_text = node_parameters->abstract_note_;
+        else
+            LOG_ERROR("unknown text field '" + site_params_->expected_languages_text_fields_ + "' for language detection");
+
         NGram::ClassifyLanguage(record_text, &top_languages, site_params_->expected_languages_, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
 
         if (not top_languages.empty()) {
@@ -372,6 +382,8 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Abstract Note
     node_parameters->abstract_note_ = object_node->getOptionalStringValue("abstractNote");
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abstract_note_))
+        node_parameters->item_type_ = "review";
 
     // URL
     node_parameters->url_ = object_node->getOptionalStringValue("url");
