@@ -335,9 +335,9 @@ bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFie
     }
 
     if (entry->hasAttribute("spr")) {
-       auto expected_languages(entry->getAttribute("spr"));
-       StringUtil::Trim(&expected_languages);
-       entry->setAttribute(name_resolver.getAttributeName(EXPECTED_LANGUAGES), expected_languages);
+        auto expected_languages(entry->getAttribute("spr"));
+        StringUtil::Trim(&expected_languages);
+        entry->setAttribute(name_resolver.getAttributeName(EXPECTED_LANGUAGES), expected_languages);
     }
 
     // remove the original attributes
@@ -471,6 +471,7 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
         name_resolver.getIniKeyAttributeNamePair(PARENT_ISSN_PRINT),
         name_resolver.getIniKeyAttributeNamePair(PARENT_ISSN_ONLINE),
         name_resolver.getIniKeyAttributeNamePair(ENTRY_POINT_URL),
+        name_resolver.getIniKeyAttributeNamePair(EXPECTED_LANGUAGES),
     };
 
     IniFile ini(file_path);
@@ -520,6 +521,7 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
 {
     static const std::vector<std::string> attributes_to_export{
         name_resolver.getAttributeName(ZEDER_COMMENT),
+        name_resolver.getAttributeName(ZEDER_UPDATE_WINDOW),
         name_resolver.getAttributeName(PARENT_PPN_PRINT),
         name_resolver.getAttributeName(PARENT_ISSN_PRINT),
         name_resolver.getAttributeName(PARENT_PPN_ONLINE),
@@ -527,7 +529,7 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
         name_resolver.getAttributeName(TYPE),
         name_resolver.getAttributeName(GROUP),
         name_resolver.getAttributeName(ENTRY_POINT_URL),
-        name_resolver.getAttributeName(ZEDER_UPDATE_WINDOW)
+        name_resolver.getAttributeName(EXPECTED_LANGUAGES),
     };
 
     static const std::unordered_map<std::string, std::string> attribute_to_ini_key_map{
@@ -539,7 +541,8 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
         name_resolver.getAttributeNameIniKeyPair(PARENT_ISSN_PRINT),
         name_resolver.getAttributeNameIniKeyPair(PARENT_ISSN_ONLINE),
         name_resolver.getAttributeNameIniKeyPair(ENTRY_POINT_URL),
-        name_resolver.getAttributeNameIniKeyPair(ZEDER_UPDATE_WINDOW)
+        name_resolver.getAttributeNameIniKeyPair(ZEDER_UPDATE_WINDOW),
+        name_resolver.getAttributeNameIniKeyPair(EXPECTED_LANGUAGES),
     };
 
     // remove existing output config file, if any
