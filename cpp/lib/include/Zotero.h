@@ -208,6 +208,7 @@ struct SiteParams {
     std::unique_ptr<RegexMatcher> review_regex_;
     BSZUpload::DeliveryMode delivery_mode_;
     std::set<std::string> expected_languages_;
+    std::string expected_languages_text_fields_;
     std::vector<std::string> additional_fields_;
     std::vector<std::string> non_standard_metadata_fields_;
     std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> field_exclusion_filters_;
