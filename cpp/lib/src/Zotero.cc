@@ -331,9 +331,9 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
         if (site_params_->expected_languages_text_fields_.empty())
             record_text = node_parameters->title_ + " " + node_parameters->abstract_note_;
-        else if (site_params_->expected_languages_text_fields_ == "tit")
+        else if (site_params_->expected_languages_text_fields_ == "title")
             record_text = node_parameters->title_;
-        else if (site_params_->expected_languages_text_fields_ == "abs")
+        else if (site_params_->expected_languages_text_fields_ == "abstract")
             record_text = node_parameters->abstract_note_;
         else
             LOG_ERROR("unknown text field '" + site_params_->expected_languages_text_fields_ + "' for language detection");
