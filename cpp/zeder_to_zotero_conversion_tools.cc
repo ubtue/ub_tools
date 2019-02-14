@@ -63,7 +63,7 @@ enum ExportField {
     ZEDER_ID, ZEDER_MODIFIED_TIMESTAMP, ZEDER_COMMENT, ZEDER_UPDATE_WINDOW,
     TYPE, GROUP,
     PARENT_PPN_PRINT, PARENT_PPN_ONLINE, PARENT_ISSN_PRINT, PARENT_ISSN_ONLINE,
-    ENTRY_POINT_URL, STRPTIME_FORMAT,
+    ENTRY_POINT_URL, STRPTIME_FORMAT, EXPECTED_LANGUAGES,
     EXTRACTION_REGEX, MAX_CRAWL_DEPTH
 };
 
@@ -116,6 +116,7 @@ ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { PARENT_ISSN_ONLINE,       "zts_parent_issn_online"    },
     { ENTRY_POINT_URL,          "zts_entry_point_url"       },
     { STRPTIME_FORMAT,          "" /* unused */             },
+    { EXPECTED_LANGUAGES,       "zts_expected_languages"    },
     { EXTRACTION_REGEX,         "" /* unused */             },
     { MAX_CRAWL_DEPTH,          "" /* unused */             },
 }, ini_keys_{
@@ -132,6 +133,7 @@ ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { PARENT_ISSN_ONLINE,       JournalConfig::OnlineBundle::Key(JournalConfig::Online::ISSN)               },
     { ENTRY_POINT_URL,          JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::URL)                },
     { STRPTIME_FORMAT,          JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::STRPTIME_FORMAT)    },
+    { EXPECTED_LANGUAGES,       JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::EXPECTED_LANGUAGES) },
     { EXTRACTION_REGEX,         JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::EXTRACTION_REGEX)   },
     { MAX_CRAWL_DEPTH,          JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::MAX_CRAWL_DEPTH)    },
 } {}
@@ -329,6 +331,12 @@ bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFie
         else
             LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | Unable to derive a proper update window from \""
                                                                        + journal_frequency + "\"");
+    }
+
+    if (entry->hasAttribute("spr")) {
+       auto expected_languages(entry->getAttribute("spr"));
+       StringUtil::Trim(&expected_languages);
+       entry->setAttribute(name_resolver.getAttributeName(EXPECTED_LANGUAGES), expected_languages);
     }
 
     // remove the original attributes
