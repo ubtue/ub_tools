@@ -88,10 +88,10 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
     }
 
     auto expected_languages(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::EXPECTED_LANGUAGES, ""));
-    const auto field_separator(expected_languages.find(':'));
-    if (field_separator != std::string::npos) {
-        site_params->expected_languages_text_fields_ = expected_languages.substr(0, field_separator);
-        expected_languages = expected_languages.substr(field_separator + 1);
+    const auto field_separator_pos(expected_languages.find(':'));
+    if (field_separator_pos != std::string::npos) {
+        site_params->expected_languages_text_fields_ = expected_languages.substr(0, field_separator_pos);
+        expected_languages = expected_languages.substr(field_separator_pos + 1);
     }
     StringUtil::Split(expected_languages, ',', &site_params->expected_languages_);
 
