@@ -123,7 +123,7 @@ Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool ski
     } else {
         delta.timestamp_is_newer_ = true;
         delta.timestamp_time_difference_ = 0;
-        delta.last_modified_timestamp_ = TimeUtil::GetCurrentTimeGMT();
+        delta.last_modified_timestamp_ = lhs.getLastModifiedTimestamp();
     }
 
     for (const auto &key_value : rhs) {
