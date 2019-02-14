@@ -43,9 +43,10 @@ namespace {
             "     generate - Converts the .csv file exported from Zeder into a zts_harvester-compatible .conf file.\n"                          "                The first path points to the .csv file and the second to the output .conf file.\n"
             "         diff - Compares the values of entries in a pair of zts_harvester-compatible .conf files.\n"
             "                The first path points to the source/updated .conf file and the second to the destination/old .conf.\n"
-            "        merge - Same as above but additionally merges any changes into the destination/old .conf.\n"
-            "Flavour: Either 'ixtheo' or 'krimdok'.\n"
-            "Entry IDs: Comma-seperated list of entries IDs to process. All other entries will be ignored.\n");
+            "        merge - Same as above but additionally merges any changes into the destination/old .conf.\n\n"
+            " --skip-timestamp-check\t\tIgnore the Zeder modified timestamp when diff'ing entries.\n"
+            "   flavour\t\tEither 'ixtheo' or 'krimdok'.\n"
+            "   entry_ids\t\tComma-separated list of entries IDs to process. All other entries will be ignored.\n");
     std::exit(EXIT_FAILURE);
 }
 
@@ -170,7 +171,7 @@ struct ConversionParams {
     std::vector<std::string> url_field_priority_;   // highest to lowest
     std::unordered_set<unsigned> entries_to_process_;
 public:
-    ConversionParams(const std::string &config_file_path, const std::string &flavour_string, const std::string &entry_ids_string = "");
+    ConversionParams(const std::string &config_file_path, const std::string &flavour_string, const std::string &entry_ids_string);
 };
 
 
@@ -640,12 +641,18 @@ int Main(int argc, char *argv[]) {
     if (argc != 5 and argc != 6)
         Usage();
 
-    ConversionParams conversion_params(argv[2], argv[1], argc == 6 ? argv[5] : "");
+    const auto flavour(argv[1]);
+    const auto config_path(argv[2]);
+    const auto first_path(argv[3]);
+    const auto second_path(argv[4]);
+    const auto entries_to_process(argc == 6 ? argv[5] : "");
+
+    ConversionParams conversion_params(config_path, flavour, entries_to_process);
     ExportFieldNameResolver name_resolver;
 
     switch (current_mode) {
     case Mode::GENERATE: {
-        const std::string zeder_export_path(argv[3]), output_ini_path(argv[4]);
+        const std::string zeder_export_path(first_path), output_ini_path(second_path);
         Zeder::EntryCollection parsed_config;
 
         ParseZederCsv(zeder_export_path, name_resolver, conversion_params, &parsed_config);
@@ -657,7 +664,7 @@ int Main(int argc, char *argv[]) {
     }
     case Mode::DIFF:
     case Mode::MERGE: {
-        const std::string new_ini_path(argv[3]), old_ini_path(argv[4]);
+        const std::string new_ini_path(first_path), old_ini_path(second_path);
 
         Zeder::EntryCollection old_data, new_data;
         ParseZederIni(old_ini_path, name_resolver, conversion_params, &old_data);
