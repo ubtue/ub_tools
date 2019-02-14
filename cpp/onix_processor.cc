@@ -120,8 +120,8 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
     if (full_text_metadata.isbn_.empty())
         LOG_ERROR("missing ISBN!");
 
-    const std::string full_text_filename(FileUtil::GetDirname(xml_parser->getXmlFilenameOrString()) + "/"
-                                         + full_text_metadata.isbn_ + ".txt");
+    const auto directory_prefix(FileUtil::GetDirname(xml_parser->getXmlFilenameOrString()));
+    const std::string full_text_filename((directory_prefix.empty() ? "." : directory_prefix) + "/" + full_text_metadata.isbn_ + ".txt");
 
     std::string full_text;
     FileUtil::ReadStringOrDie(full_text_filename, &full_text);
