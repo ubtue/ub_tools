@@ -1936,6 +1936,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         _935a_to_format_map = Collections.unmodifiableMap(tempMap);
     }
 
+    private final static String electronicRessource = "Electronic";
+    private final static String nonElectronicRessource = "Non-Electronic";
+
     /**
      * Determine Record Formats
      *
@@ -1960,7 +1963,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         final VariableField electronicField = record.getVariableField("ELC");
         if (electronicField != null)
-            result.add("Electronic");
+            result.add(electronicRessource);
 
         // check the 007 - this is a repeating field
         List<VariableField> fields = record.getVariableFields("007");
@@ -2009,7 +2012,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                         break;
                     case 'R':
                         // Do not return - this will cause anything with an
-                        // 856 field to be labeled as "Electronic"
+                        // 856 field to be labeled as electronicRessource
                         break;
                     default:
                         result.add("Software");
@@ -2279,6 +2282,18 @@ public class TuelibMixin extends SolrIndexerMixin {
         return getMultipleFormats(record);
     }
 
+    private boolean foundInSubfield(final List<VariableField> fields, final char subfieldCode, final String subfieldContents) {
+        for (final VariableField field : fields) {
+            final DataField dataField = (DataField) field;
+            for (final Subfield subfield : dataField.getSubfields()) {
+                if (subfield.getCode() == subfieldCode && subfield.getData().contains(subfieldContents))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Determine Record Format(s) including the electronic tag The electronic
      * category is filtered out in the actual getFormat function but needed to
@@ -2301,7 +2316,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         final VariableField electronicField = record.getVariableField("ELC");
         if (electronicField != null)
-            formats.add("Electronic");
+            formats.add(electronicRessource);
 
         // Evaluate topic fields in some cases
         final List<VariableField> _655Fields = record.getVariableFields("655");
@@ -2330,76 +2345,29 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        // A review can also be indicated if 935$c set to "uwre"
         final List<VariableField> _935Fields = record.getVariableFields("935");
-outer:  for (final VariableField _935Field : _935Fields) {
-            final DataField dataField = (DataField) _935Field;
-            for (final Subfield subfield : dataField.getSubfields()) {
-                if (subfield.getCode() == 'c' && subfield.getData().contains("uwre")) {
-                    formats.remove("Article");
-                    formats.add("Review");
-                    break outer;
-                }
-            }
+
+        // A review can also be indicated if 935$c set to "uwre"
+        if (foundInSubfield(_935Fields, 'c', "uwre")) {
+            formats.remove("Article");
+            formats.add("Review");
         }
 
         // Determine whether record is a 'Festschrift', i.e. has "fe" in 935$c
-        for (final VariableField _935Field : _935Fields) {
-            final DataField dataField = (DataField) _935Field;
-            final Subfield cSubfield = dataField.getSubfield('c');
-            if (cSubfield != null && cSubfield.getData().contains("fe")) {
-                formats.add("Festschrift");
-                break;
-            }
-        }
+        if (foundInSubfield(_935Fields, 'c', "fe"))
+            formats.add("Festschrift");
 
         // Determine whether record is a Website, i.e. has "website" in 935$c
-        for (final VariableField _935Field : _935Fields) {
-            final DataField dataField = (DataField) _935Field;
-            List<Subfield> subfields = dataField.getSubfields();
-            boolean foundMatch = false;
-            for (Subfield subfield : subfields) {
-                if (subfield.getCode() == 'c' && subfield.getData().contains("website")) {
-                    formats.add("Website");
-                    foundMatch = true;
-                    break;
-                }
-            }
-            if (foundMatch == true)
-                break;
-        }
+        if (foundInSubfield(_935Fields, 'c', "website"))
+            formats.add("Website");
 
         // Determine whether a record is a database, i.e. has "daten" in 935$c
-        for (final VariableField _935Field : _935Fields) {
-            final DataField dataField = (DataField) _935Field;
-            List<Subfield> subfields = dataField.getSubfields();
-            boolean foundMatch = false;
-            for (Subfield subfield : subfields) {
-                if (subfield.getCode() == 'c' && subfield.getData().contains("daten")) {
-                    formats.add("Database");
-                    foundMatch = true;
-                    break;
-                }
-            }
-            if (foundMatch == true)
-                break;
-        }
+        if (foundInSubfield(_935Fields, 'c', "daten"))
+            formats.add("Database");
 
         // Determine whether a record is a subscription package, i.e. has "subskriptionspaket" in 935$c
-        for (final VariableField _935Field : _935Fields) {
-            final DataField dataField = (DataField) _935Field;
-            List<Subfield> subfields = dataField.getSubfields();
-            boolean foundMatch = false;
-            for (Subfield subfield : subfields) {
-                if (subfield.getCode() == 'c' && subfield.getData().contains("subskriptionspaket")) {
-                    formats.add("SubscriptionBundle");
-                    foundMatch = true;
-                    break;
-                }
-            }
-            if (foundMatch == true)
-                break;
-        }
+        if (foundInSubfield(_935Fields, 'c', "subskriptionspaket"))
+            formats.add("SubscriptionBundle");
 
         // Rewrite all E-Books as electronic Books
         if (formats.contains("eBook")) {
@@ -2430,12 +2398,9 @@ outer:  for (final VariableField _935Field : _935Fields) {
 
         // Since we now have an additional facet mediatype we remove the
         // electronic label
-        formats.remove("Electronic");
+        formats.remove(electronicRessource);
         return formats;
     }
-
-    private final static String electronicRessource = "Electronic";
-    private final static String nonElectronicRessource = "Non-Electronic";
 
     private boolean isPrintResource(final Record record) {
         for (final VariableField _935_field : record.getVariableFields("935")) {
