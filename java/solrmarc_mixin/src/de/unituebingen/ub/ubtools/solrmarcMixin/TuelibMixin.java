@@ -2434,14 +2434,16 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         final Set<String> formats = getFormatIncludingElectronic(record);
 
-        if (formats.contains(electronicRessource)) {
+        if (formats.contains(electronicRessource))
             mediatypes.add(electronicRessource);
-            if (isPrintResource(record))
-                mediatypes.add(nonElectronicRessource);
-        } else
+        else {
             mediatypes.add(nonElectronicRessource);
-        if (!getDOIs(record).isEmpty())
-            mediatypes.add(electronicRessource);
+            if (!getDOIs(record).isEmpty())
+                mediatypes.add(electronicRessource);
+        }
+
+        if (isPrintResource(record))
+            mediatypes.add(nonElectronicRessource);
 
         return mediatypes;
     }
