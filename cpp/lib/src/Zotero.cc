@@ -322,6 +322,12 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
                 node_parameters->doi_ = (*doi_matcher)[1];
         }
     }
+
+    // Abstract Note
+    node_parameters->abstract_note_ = object_node->getOptionalStringValue("abstractNote");
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abstract_note_))
+        node_parameters->item_type_ = "review";
+
     // Language
     node_parameters->language_ = object_node->getOptionalStringValue("language");
     if (node_parameters->language_.empty()) {
@@ -387,11 +393,6 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
             }
         }
     }
-
-    // Abstract Note
-    node_parameters->abstract_note_ = object_node->getOptionalStringValue("abstractNote");
-    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abstract_note_))
-        node_parameters->item_type_ = "review";
 
     // URL
     node_parameters->url_ = object_node->getOptionalStringValue("url");
