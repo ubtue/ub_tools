@@ -2678,6 +2678,26 @@ outer:  for (final VariableField _935Field : _935Fields) {
         return "0";
     }
 
+
+    public String getVolumeSort(final Record record) {
+        for (final VariableField variableField : record.getVariableFields("936")) {
+            final DataField dataField = (DataField) variableField;
+            final Subfield subfieldD = dataField.getSubfield('d');
+            if (subfieldD == null)
+                return "0";
+            final String volumeString = subfieldD.getData();
+            if (volumeString.matches("^\\d+$"))
+                return volumeString;
+            // Handle Some known special cases
+            if (volumeString.matches("[\\[]\\d+[\\]]"))
+                return volumeString.replaceAll("[\\[\\]]","");
+            if (volumeString.matches("\\d+/\\d+"))
+                return volumeString.split("/")[0];
+        }
+        return "0";
+    }
+
+
     public Set<String> getRVKs(final Record record) {
         final Set<String> result = new TreeSet<String>();
 
