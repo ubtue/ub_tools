@@ -162,7 +162,10 @@ public:
      *          still being parsed during consecutive getNext() calls.
      *  \throws XMLParser::Error
      */
-    bool getNext(XMLPart * const next, bool combine_consecutive_characters = true);
+    bool getNext(XMLPart * const next, const bool combine_consecutive_characters = true, const std::set<std::string> &guard_tags = {});
+
+    inline bool getNext(XMLPart * const next, const std::set<std::string> &guard_tags, const bool combine_consecutive_characters = true)
+        { return getNext(next, combine_consecutive_characters, guard_tags); }
 
 
     /** \brief Skip forward until we encounter a certain element.
