@@ -80,7 +80,7 @@ void ExtractAuthor(XMLParser * const xml_parser, std::set<std::string> * const a
 void ExtractMetadata(XMLParser * const xml_parser, FullTextImport::FullTextData * const metadata) {
     XMLParser::XMLPart xml_part;
 
-    while (xml_parser->getNext(&xml_part)) {
+    while (xml_parser->getNext(&xml_part, std::set<std::string>{ "body" })) {
         if (xml_part.isOpeningTag("article-title"))
             metadata->title_ = ReadCharactersUntilNextClosingTag(xml_parser);
         else if (xml_part.isOpeningTag("contrib")) {
@@ -172,10 +172,10 @@ int Main(int argc, char *argv[]) {
     bool normalise_only(false);
     if (std::strcmp(argv[1], "--normalise-only") == 0) {
         normalise_only = true;
-        ++argc, ++argv;
+        --argc, ++argv;
     }
 
-    if (argc != 3)
+    if ((normalise_only and argc != 2) or (not normalise_only and argc != 3))
         Usage();
 
     XMLParser xml_parser (argv[1], XMLParser::XML_FILE);
