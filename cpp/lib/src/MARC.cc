@@ -2425,6 +2425,8 @@ std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record) {
     std::set<std::string> partner_ppns;
     ExtractCrossReferencePPNsFromTag(record, "775", &partner_ppns);
     ExtractCrossReferencePPNsFromTag(record, "776", &partner_ppns);
+    ExtractCrossReferencePPNsFromTag(record, "780", &partner_ppns);
+    ExtractCrossReferencePPNsFromTag(record, "785", &partner_ppns);
     return partner_ppns;
 }
 
