@@ -2398,7 +2398,7 @@ static const std::set<std::string> CROSS_LINK_FIELDS{ "775", "776", "780", "785"
 
 
 bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const partner_control_number) {
-    if (not field.hasSubfield('w') or (CROSS_LINK_FIELDS.find(field.getTag().toString()) != CROSS_LINK_FIELDS.cend()))
+    if (not field.hasSubfield('w') or (CROSS_LINK_FIELDS.find(field.getTag().toString()) == CROSS_LINK_FIELDS.cend()))
         return false;
 
     const MARC::Subfields subfields(field.getSubfields());
