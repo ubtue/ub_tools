@@ -2394,8 +2394,11 @@ bool PossiblyAReviewArticle(const Record &record) {
 }
 
 
+static const std::set<std::string> CROSS_LINK_FIELDS{ "775", "776", "780", "785" };
+
+
 bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const partner_control_number) {
-    if ((field.getTag() != "775" and field.getTag() != "776") or not field.hasSubfield('w'))
+    if (not field.hasSubfield('w') or (CROSS_LINK_FIELDS.find(field.getTag().toString()) == CROSS_LINK_FIELDS.cend()))
         return false;
 
     const MARC::Subfields subfields(field.getSubfields());
@@ -2423,10 +2426,8 @@ static void ExtractCrossReferencePPNsFromTag(const MARC::Record &record, const s
 
 std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record) {
     std::set<std::string> partner_ppns;
-    ExtractCrossReferencePPNsFromTag(record, "775", &partner_ppns);
-    ExtractCrossReferencePPNsFromTag(record, "776", &partner_ppns);
-    ExtractCrossReferencePPNsFromTag(record, "780", &partner_ppns);
-    ExtractCrossReferencePPNsFromTag(record, "785", &partner_ppns);
+    for (const auto &cross_link_field : CROSS_LINK_FIELDS)
+        ExtractCrossReferencePPNsFromTag(record, cross_link_field, &partner_ppns);
     return partner_ppns;
 }
 
