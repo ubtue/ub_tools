@@ -159,7 +159,7 @@ public:
 
     /** \return true if there are more elements to parse, o/w false.
      *  \param  guard_opening_tags  Contains a set of opening tags.  If any of these tags is encountered, parsing will stop and this
-     *                              function returns false.  The next call will then return the previously encountered opening tag.
+     *                              function returns false.  The next call will then return the previously encountered guard opening tag.
      *  \note   parsing is done in progressive mode, meaning that the document is
      *          still being parsed during consecutive getNext() calls.
      *  \throws XMLParser::Error
