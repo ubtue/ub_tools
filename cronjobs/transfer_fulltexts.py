@@ -53,20 +53,20 @@ def GetExistingFiles(local_top_dir):
     return FindFilesByPattern('*', local_top_dir)
 
 
-def GetFulltextDirectoriesToTransfer(local_top_dir, full_files_path):
+def GetFulltextDirectoriesToTransfer(local_top_dir, fulltext_files_path):
     os.chdir(local_top_dir)
-    stripped_paths = list(map(lambda path:StripPathPrefix(path, local_top_dir), full_files_path))
+    stripped_paths = list(map(lambda path:StripPathPrefix(path, local_top_dir), fulltext_files_path))
     directory_set = set(list(map(ExtractDirectories, stripped_paths)))
     return directory_set
 
 
-def CleanUpFiles(FulltextDirs):
+def CleanUpFiles(fulltext_dirs):
     today = datetime.datetime.today().strftime('%y%m%d')
     backup_dir = "/usr/local/tmp/webdav_backup/" + today
     if not os.path.exists(backup_dir):
         os.makedirs(backup_dir)
-        for FulltextDir in FulltextDirs:
-            shutil.move(FulltextDir, backup_dir)
+        for fulltext_dir in fulltext_dirs:
+            shutil.move(fulltext_dir, backup_dir)
     else:
         util.SendEmail("Transfer Fulltexts", "Did not move directory to backup since directory for this day already present")
         return
