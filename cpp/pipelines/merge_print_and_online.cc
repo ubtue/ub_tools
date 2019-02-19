@@ -89,7 +89,7 @@ void SerializeMultimap(const std::string &output_filename, const std::unordered_
 }
 
 
-void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(const bool debug,
+void CollectRecordOffsetsAndCrosslinks(const bool debug,
     MARC::Reader * const marc_reader, std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
     std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map,
     std::unordered_multimap<std::string, std::string> * const canonical_ppn_to_ppn_map)
@@ -695,8 +695,8 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, off_t> ppn_to_offset_map;
     std::unordered_map<std::string, std::string> ppn_to_canonical_ppn_map;
     std::unordered_multimap<std::string, std::string> canonical_ppn_to_ppn_map;
-    CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(debug, marc_reader.get(), &ppn_to_offset_map,
-                                                            &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
+    CollectRecordOffsetsAndCrosslinks(debug, marc_reader.get(), &ppn_to_offset_map,
+                                      &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
 
     EliminateDanglingOrUnreferencedCrossLinks(debug, ppn_to_offset_map, &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
 
