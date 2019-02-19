@@ -628,7 +628,7 @@ void PatchSerialSubscriptions(DbConnection * connection, const std::unordered_ma
                                "journal_control_number_or_bundle_name='" + ppn_and_ppn.first + "'");
         DbResultSet ppn_first_result_set(connection->getLastResultSet());
         while (const DbRow ppn_first_row = ppn_first_result_set.getNextRow()) {
-            const std::string user_id(ppn_first_row["id"]);
+            const std::string user_id(ppn_first_row["user_id"]);
             connection->queryOrDie("SELECT max_last_modification_time FROM ixtheo_journal_subscriptions "
                                    "WHERE user_id='" + user_id + "' AND journal_control_number_or_bundle_name='" + ppn_and_ppn.second + "'");
             DbResultSet ppn_second_result_set(connection->getLastResultSet());
@@ -649,7 +649,7 @@ void PatchSerialSubscriptions(DbConnection * connection, const std::unordered_ma
                     ? ppn_second_row["max_last_modification_time"]
                     : ppn_first_row["max_last_modification_time"]);
             connection->queryOrDie("DELETE FROM ixtheo_journal_subscriptions WHERE journal_control_number_or_bundle_name='"
-                                   + ppn_and_ppn.first + "' and id='" + user_id + "'");
+                                   + ppn_and_ppn.first + "' and user_id='" + user_id + "'");
             if (ppn_first_row["max_last_modification_time"] > min_max_last_modification_time)
                 connection->queryOrDie("UPDATE ixtheo_journal_subscriptions SET max_last_modification_time='"
                                        + min_max_last_modification_time + "' WHERE journal_control_number_or_bundle_name='"
