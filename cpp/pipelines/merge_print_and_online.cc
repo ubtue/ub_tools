@@ -381,23 +381,7 @@ bool SubfieldPrefixIsIdentical(const MARC::Record::Field &field1, const MARC::Re
 }
 
 
-void CollectZWI_PPNs(const MARC::Record &record, std::set<std::string> * const zwi_ppns) {
-    const auto zwi_field(record.getFirstField("ZWI"));
-    if (zwi_field != record.end()) {
-        for (const auto &subfield : zwi_field->getSubfields()) {
-            if (subfield.code_ == 'b')
-                zwi_ppns->emplace(subfield.value_);
-        }
-    }
-}
-
-
-// Add or update a ZWI field in "*record" w/ all ZWI PPN's from "*record" and "record2".
-void AddMergedPPNs(MARC::Record * const record, const MARC::Record &record2) {
-    std::set<std::string> merged_ppns{ record2.getControlNumber() };
-    CollectZWI_PPNs(*record, &merged_ppns);
-    CollectZWI_PPNs(record2, &merged_ppns);
-
+void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &merged_ppns) {
     MARC::Subfields zwi_subfields;
     zwi_subfields.addSubfield('a', "1");
     for (const auto &merged_ppn : merged_ppns)
@@ -526,8 +510,6 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
             merged_record.appendField(*record2_field);
     }
 
-    // Mark the record as being both "print" as well as "electronic" and store the PPN's of the dropped records:
-    AddMergedPPNs(&merged_record, record2);
     LOG_INFO("Merged records with PPN's " + record1.getControlNumber() + " and " + record2.getControlNumber() + ".");
 
     return merged_record;
@@ -591,6 +573,7 @@ void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc
 
         auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map.find(record.getControlNumber()));
         if (canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend()) {
+            std::set<std::string> merged_ppns{ record.getControlNumber() };
             for (/* Intentionally empty! */;
                  canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend() and canonical_ppn_and_ppn->first == record.getControlNumber();
                  ++canonical_ppn_and_ppn)
@@ -599,11 +582,16 @@ void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc
                 if (unlikely(record2_ppn_and_offset == ppn_to_offset_map.cend()))
                     LOG_ERROR("this should *never* happen! missing PPN in ppn_to_offset_map: " + canonical_ppn_and_ppn->second);
                 MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, record2_ppn_and_offset->second));
+                merged_ppns.emplace(record2.getControlNumber());
                 record = MergeRecordPair(Patch246i(&record), Patch246i(&record2));
                 ++merged_count;
                 unprocessed_ppns.erase(canonical_ppn_and_ppn->second);
             }
             DeleteCrossLinkFields(&record);
+
+            // Mark the record as being both "print" as well as "electronic" and store the PPN's of the dropped records:
+            merged_ppns.erase(*merged_ppns.rbegin()); // Remove max element
+            UpdateMergedPPNs(&record, merged_ppns);
         }
 
         patched_uplink_count += PatchUplinks(&record, ppn_to_canonical_ppn_map);
