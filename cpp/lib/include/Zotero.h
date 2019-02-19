@@ -233,6 +233,7 @@ struct HarvestParams {
     std::string user_agent_;
     FormatHandler *format_handler_;
     bool keep_delivered_records_;
+    std::unique_ptr<RegexMatcher> harvest_url_regex_;
 };
 
 

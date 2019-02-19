@@ -254,7 +254,7 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
               [](const std::pair<std::wstring, double> &a, const std::pair<std::wstring, double> &b){ return a.second > b.second; });
 
     if (unlikely(ngram_counts_map.size() < topmost_use_count))
-        LOG_WARNING("generated too few ngrams (" + std::to_string(ngram_counts_map.size()) + " < " + std::to_string(topmost_use_count)
+        LOG_DEBUG("generated too few ngrams (" + std::to_string(ngram_counts_map.size()) + " < " + std::to_string(topmost_use_count)
                     + ")!");
     else
         ngram_counts_vector.resize(topmost_use_count);
