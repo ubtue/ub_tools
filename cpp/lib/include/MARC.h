@@ -1,7 +1,7 @@
 /** \brief Various classes, functions etc. having to do with the Library of Congress MARC bibliographic format.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -601,6 +601,14 @@ public:
     void appendField(const Tag &new_field_tag, const std::string &field_contents, const char indicator1 = ' ', const char indicator2 = ' ');
     void appendField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ', const char indicator2 = ' ');
     void appendField(const Field &field);
+
+    /** \brief Replaces the first field w/ tag "field_tag".
+     *  \note  If no field w/ tag "field_tag" exists, a new field will be inserted.
+     */
+    void replaceField(const Tag &field_tag, const std::string &field_contents, const char indicator1 = ' ', const char indicator2 = ' ');
+    inline void replaceField(const Tag &field_tag, const Subfields &subfields, const char indicator1 = ' ', const char indicator2 = ' ') {
+        replaceField(field_tag, subfields.toString(), indicator1, indicator2);
+    }
 
     /** \brief  Adds a subfield to the first existing field with tag "field_tag".
      *  \return True if a field with field tag "field_tag" existed and false if no such field was found.
