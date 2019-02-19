@@ -91,8 +91,8 @@ def Main():
         util.Error("failed to read config file! (" + str(e) + ")")
 
     # Check directories with new Data
-    fulltextFiles = GetExistingFiles(local_directory)
-    dirs_to_transfer = GetFulltextDirectoriesToTransfer(local_directory, fulltextFiles)
+    fulltext_files = GetExistingFiles(local_directory)
+    dirs_to_transfer = GetFulltextDirectoriesToTransfer(local_directory, fulltext_files)
 
     # If nothing to do
     if not dirs_to_transfer:
@@ -104,9 +104,9 @@ def Main():
                    [sftp_host, sftp_user, sftp_keyfile, local_directory, directory_on_sftp_server]
                    + list(dirs_to_transfer))
     # Clean up on the server
-    CleanUpFiles(fulltextFiles)
+    CleanUpFiles(fulltext_files)
     email_msg_body = ("Found Files:\n\n" +
-                       string.join(fulltextFiles, "\n") +
+                       string.join(fulltext_files, "\n") +
                        "\n\nTransferred directories:\n\n" +
                        string.join(dirs_to_transfer, "\n"))
     util.SendEmail("Transfer Fulltexts", email_msg_body, priority=5)
