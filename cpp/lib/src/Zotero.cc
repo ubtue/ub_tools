@@ -1109,7 +1109,11 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
     static std::unordered_set<std::string> already_harvested_urls;
-    if (already_harvested_urls.find(harvest_url) != already_harvested_urls.end()) {
+
+    if (harvest_params->harvest_url_regex_ != nullptr and not harvest_params->harvest_url_regex_->matched(harvest_url)) {
+        LOG_DEBUG("Skipping URL (does not match harvest URL regex): " + harvest_url);
+        return record_count_and_previously_downloaded_count;
+    } else if (already_harvested_urls.find(harvest_url) != already_harvested_urls.end()) {
         LOG_DEBUG("Skipping URL (already harvested during this session): " + harvest_url);
         return record_count_and_previously_downloaded_count;
     } else if (site_params.extraction_regex_ and not site_params.extraction_regex_->matched(harvest_url)) {
