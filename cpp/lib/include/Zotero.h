@@ -328,6 +328,8 @@ private:
                              std::string * const publication_title, std::string * const abbreviated_publication_title,
                              std::string * const website_title);
 
+    void identifyMissingLanguage(ItemParameters * const node_parameters);
+
     // Extracts information from the ubtue node
     void extractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node,
                                      struct CustomNodeParameters * const custom_node_parameters);

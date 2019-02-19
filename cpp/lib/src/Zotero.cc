@@ -277,6 +277,34 @@ MarcFormatHandler::MarcFormatHandler(DbConnection * const db_connection, const s
 }
 
 
+void MarcFormatHandler::identifyMissingLanguage(ItemParameters * const node_parameters) {
+    if (site_params_->expected_languages_.size() == 1) {
+        node_parameters->language_ = *site_params_->expected_languages_.begin();
+        LOG_INFO("language set to default language '" + node_parameters->language_ + "'");
+    } else if (not site_params_->expected_languages_.empty()) {
+        // attempt to automatically detect the language
+        std::vector<std::string> top_languages;
+        std::string record_text;
+
+        if (site_params_->expected_languages_text_fields_.empty())
+            record_text = node_parameters->title_ + " " + node_parameters->abstract_note_;
+        else if (site_params_->expected_languages_text_fields_ == "title")
+            record_text = node_parameters->title_;
+        else if (site_params_->expected_languages_text_fields_ == "abstract")
+            record_text = node_parameters->abstract_note_;
+        else
+            LOG_ERROR("unknown text field '" + site_params_->expected_languages_text_fields_ + "' for language detection");
+
+        NGram::ClassifyLanguage(record_text, &top_languages, site_params_->expected_languages_, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
+
+        if (not top_languages.empty()) {
+            node_parameters->language_ = top_languages.front();
+            LOG_INFO("automatically detected language to be '" + node_parameters->language_);
+        }
+    }
+}
+
+
 void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::ObjectNode> object_node, ItemParameters * const node_parameters) {
     // Item Type
     node_parameters->item_type_ = object_node->getStringValue("itemType");
@@ -322,28 +350,22 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
                 node_parameters->doi_ = (*doi_matcher)[1];
         }
     }
+
+    // Abstract Note
+    node_parameters->abstract_note_ = object_node->getOptionalStringValue("abstractNote");
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abstract_note_))
+        node_parameters->item_type_ = "review";
+
+    if (node_parameters->item_type_ == "review")
+        LOG_DEBUG("tagged as review");
+
     // Language
     node_parameters->language_ = object_node->getOptionalStringValue("language");
-    if (node_parameters->language_.empty() and not site_params_->expected_languages_.empty()) {
-        // attempt to automatically detect the language
-        std::vector<std::string> top_languages;
-        std::string record_text;
-
-        if (site_params_->expected_languages_text_fields_.empty())
-            record_text = node_parameters->title_ + " " + node_parameters->abstract_note_;
-        else if (site_params_->expected_languages_text_fields_ == "title")
-            record_text = node_parameters->title_;
-        else if (site_params_->expected_languages_text_fields_ == "abstract")
-            record_text = node_parameters->abstract_note_;
-        else
-            LOG_ERROR("unknown text field '" + site_params_->expected_languages_text_fields_ + "' for language detection");
-
-        NGram::ClassifyLanguage(record_text, &top_languages, site_params_->expected_languages_, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
-
-        if (not top_languages.empty()) {
-            node_parameters->language_ = top_languages.front();
-            LOG_INFO("automatically detected language to be '" + node_parameters->language_);
-        }
+    if (node_parameters->language_.empty())
+        identifyMissingLanguage(node_parameters);
+    else if (site_params_->expected_languages_.size() == 1 and *site_params_->expected_languages_.begin() != node_parameters->language_) {
+        LOG_WARNING("expected language '" + *site_params_->expected_languages_.begin() + "' but found '"
+                    + node_parameters->language_ + "'");
     }
 
     // Copyright
@@ -379,11 +401,6 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
             }
         }
     }
-
-    // Abstract Note
-    node_parameters->abstract_note_ = object_node->getOptionalStringValue("abstractNote");
-    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abstract_note_))
-        node_parameters->item_type_ = "review";
 
     // URL
     node_parameters->url_ = object_node->getOptionalStringValue("url");
