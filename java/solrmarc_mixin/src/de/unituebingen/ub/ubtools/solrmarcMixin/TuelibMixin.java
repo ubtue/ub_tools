@@ -2645,7 +2645,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return "0";
     }
 
-    // Returns a canonized number for volume sorting"
+    // Returns a canonized number for volume sorting
     public String getVolumeSort(final Record record) {
         for (final VariableField variableField : record.getVariableFields("936")) {
             final DataField dataField = (DataField) variableField;
