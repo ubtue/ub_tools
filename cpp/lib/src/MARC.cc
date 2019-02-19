@@ -1,7 +1,7 @@
 /** \brief Various classes, functions etc. having to do with the Library of Congress MARC bibliographic format.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -1006,6 +1006,28 @@ void Record::appendField(const Field &field) {
     if (unlikely(not fields_.empty() and fields_.back().getTag() == field.getTag() and not IsRepeatableField(field.getTag())))
         LOG_ERROR("attempt to append a second non-repeatable\"" + field.getTag().toString() + "\" field! (3)");
     fields_.emplace_back(field);
+}
+
+
+void Record::replaceField(const Tag &field_tag, const std::string &field_contents, const char indicator1, const char indicator2) {
+    std::string new_field_value;
+    new_field_value += indicator1;
+    new_field_value += indicator2;
+    new_field_value += field_contents;
+
+    auto insertion_location(fields_.begin());
+    while (insertion_location != fields_.end() and field_tag > insertion_location->getTag())
+        ++insertion_location;
+
+    if (insertion_location != fields_.end()) {
+        record_size_ += new_field_value.size();
+        record_size_ -= insertion_location->getContents().size();
+        insertion_location->setContents(new_field_value);
+        return;
+    }
+
+    fields_.emplace(insertion_location, field_tag, new_field_value);
+    record_size_ += DIRECTORY_ENTRY_LENGTH + new_field_value.length() + 1 /* field separator */;
 }
 
 
