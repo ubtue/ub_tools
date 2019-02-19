@@ -393,8 +393,8 @@ void CollectZWI_PPNs(const MARC::Record &record, std::set<std::string> * const z
 
 
 // Add or update a ZWI field in "*record" w/ all ZWI PPN's from "*record" and "record2".
-void AddMergedPPNs(MARC::Record * const record, const MARC::Record &record2) {
-    std::set<std::string> merged_ppns{ record2.getControlNumber() };
+void AddMergedPPNs(MARC::Record * const record, const MARC::Record &record2, const std::string &new_merged_ppn) {
+    std::set<std::string> merged_ppns{ new_merged_ppn };
     CollectZWI_PPNs(*record, &merged_ppns);
     CollectZWI_PPNs(record2, &merged_ppns);
 
@@ -527,7 +527,7 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
     }
 
     // Mark the record as being both "print" as well as "electronic" and store the PPN's of the dropped records:
-    AddMergedPPNs(&merged_record, record2);
+    AddMergedPPNs(&merged_record, record2, std::min(record1.getControlNumber(), record2.getControlNumber()));
     LOG_INFO("Merged records with PPN's " + record1.getControlNumber() + " and " + record2.getControlNumber() + ".");
 
     return merged_record;
