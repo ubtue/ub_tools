@@ -39,13 +39,14 @@
 #include "util.h"
 #include "WebUtil.h"
 #include "XMLParser.h"
+#include <iostream>
 
 
 namespace MediaTypeUtil {
 
 
 std::string GetHtmlMediaType(const std::string &document) {
-    static const PerlCompatRegExp doctype_regexp("^\\s*<(?:!DOCTYPE\\s+HTML\\s+PUBLIC\\s+\"-//W3C//DTD\\s+){0,1}(X?HTML)",
+    static const PerlCompatRegExp doctype_regexp("^\\s*<(?:!DOCTYPE\\s+HTML\\s+PUBLIC\\s+\"-//W3C//DTD\\s+){0,1}(X?HTML)|<html>",
                                                  PerlCompatRegExp::OPTIMIZE_FOR_MULTIPLE_USE, PCRE_CASELESS);
 
     // If we have a match we have either HTML or XHTML...
@@ -117,9 +118,8 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
 
 std::string GetMediaType(const std::string &document, std::string * const subtype, const bool auto_simplify) {
     std::string media_type(GetMediaType(document, auto_simplify));
-
     // also include "text/html" which is reported by libmagic if xml prolog is missing
-    if (media_type == "text/xml" or media_type == "text/html") {
+    if (media_type == "text/xml" or (media_type == "text/html" and not (GetHtmlMediaType(document) == "text/html"))) {
         XMLParser parser(document, XMLParser::XML_STRING);
         XMLParser::XMLPart part;
         if (parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "", &part)) {
