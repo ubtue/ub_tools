@@ -221,7 +221,7 @@ off_t XMLParser::getMaxOffset() {
 }
 
 
-bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_characters) {
+bool XMLParser::getNext(XMLPart * const next, const bool combine_consecutive_characters, const std::set<std::string> &guard_opening_tags) {
     try {
         if (not prolog_parsing_done_) {
             parser_->setLoadExternalDTD(options_.load_external_dtds_);
@@ -245,7 +245,16 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
             body_has_more_contents_ = parser_->parseNext(token_);
 
         if (not buffer_.empty()) {
-            buffer_.front();
+            if (buffer_.front().type_ == XMLPart::OPENING_TAG or buffer_.front().type_ == XMLPart::CLOSING_TAG) {
+                const auto alias_tag_and_canonical_tag(tag_aliases_to_canonical_tags_map_.find(buffer_.front().data_));
+                if (alias_tag_and_canonical_tag != tag_aliases_to_canonical_tags_map_.cend())
+                    buffer_.front().data_ = alias_tag_and_canonical_tag->second;
+
+                if (buffer_.front().type_ == XMLPart::OPENING_TAG
+                    and guard_opening_tags.find(buffer_.front().data_) != guard_opening_tags.cend())
+                    return false;
+            }
+
             if (next != nullptr)
                 *next = buffer_.front();
             buffer_.pop_front();
@@ -259,13 +268,7 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
 
             if (options_.ignore_whitespace_ and next != nullptr and next->type_ == XMLPart::CHARACTERS
                 and StringUtil::IsWhitespace(next->data_))
-                return getNext(next);
-        }
-
-        if (next->type_ == XMLPart::OPENING_TAG or next->type_ == XMLPart::CLOSING_TAG) {
-            const auto alias_tag_and_canonical_tag(tag_aliases_to_canonical_tags_map_.find(next->data_));
-            if (alias_tag_and_canonical_tag != tag_aliases_to_canonical_tags_map_.cend())
-                next->data_ = alias_tag_and_canonical_tag->second;
+                return getNext(next, combine_consecutive_characters, guard_opening_tags);
         }
     } catch (xercesc::RuntimeException &exc) {
         ConvertAndThrowException(exc);
@@ -323,7 +326,8 @@ bool XMLParser::extractTextBetweenTags(const std::string &tag, std::string * con
             return false;
 
         if (not guard_tags.empty()
-            and (guard_tags.find(xml_part.data_) != guard_tags.cend() or tag_aliases_to_canonical_tags_map_.find(xml_part.data_) != tag_aliases_to_canonical_tags_map_.cend()))
+            and (guard_tags.find(xml_part.data_) != guard_tags.cend() or tag_aliases_to_canonical_tags_map_.find(xml_part.data_)
+                 != tag_aliases_to_canonical_tags_map_.cend()))
             return false;
 
         assert(getNext(&xml_part));

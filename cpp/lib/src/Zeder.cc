@@ -123,7 +123,7 @@ Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool ski
     } else {
         delta.timestamp_is_newer_ = true;
         delta.timestamp_time_difference_ = 0;
-        delta.last_modified_timestamp_ = TimeUtil::GetCurrentTimeGMT();
+        delta.last_modified_timestamp_ = lhs.getLastModifiedTimestamp();
     }
 
     for (const auto &key_value : rhs) {
@@ -514,21 +514,34 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
             if (column_metadata == column_to_metadata_map.end())
                 LOG_ERROR("Unknown column '" + column_name + "'");
 
-            if (column_metadata->second.column_type_ == "multi") {
-                if (params.columns_to_download_.empty())
-                    continue;
-                else
-                    LOG_ERROR("Columns with multiple values are not supported! Invalid column: " + column_name);
-            }
+            std::string resolved_value;
+            if (column_metadata->second.column_type_ == "text")
+                resolved_value = JSON::JSONNode::CastToStringNodeOrDie(column_name, field.second)->getValue();
+            else if (column_metadata->second.column_type_ == "dropdown") {
+                resolved_value = JSON::JSONNode::CastToStringNodeOrDie(column_name, field.second)->getValue();
+                if (not resolved_value.empty()) {
+                    const auto ordinal(StringUtil::ToInt64T(resolved_value));
+                    const auto match(column_metadata->second.ordinal_to_value_map_.find(ordinal));
+                    if (match == column_metadata->second.ordinal_to_value_map_.end())
+                        LOG_ERROR("Unknown value ordinal " + std::to_string(ordinal) + " in column '" + column_name + "'");
 
-            auto resolved_value(JSON::JSONNode::CastToStringNodeOrDie(column_name, field.second)->getValue());
-            if (column_metadata->second.column_type_ == "dropdown" and not resolved_value.empty()) {
-                const auto ordinal(StringUtil::ToInt64T(resolved_value));
-                const auto match(column_metadata->second.ordinal_to_value_map_.find(ordinal));
-                if (match == column_metadata->second.ordinal_to_value_map_.end())
-                    LOG_ERROR("Unknown value ordinal " + std::to_string(ordinal) + " in column '" + column_name + "'");
+                    resolved_value = match->second;
+                }
+            } else if (column_metadata->second.column_type_ == "multi") {
+                const auto selected_values(JSON::JSONNode::CastToArrayNodeOrDie(column_name, field.second));
+                std::vector<std::string> resolved_items;
 
-                resolved_value = match->second;
+                for (const auto &entry : *selected_values) {
+                    const auto value_string(JSON::JSONNode::CastToStringNodeOrDie("entry", entry)->getValue());
+                    const auto ordinal(StringUtil::ToInt64T(value_string));
+                    const auto match(column_metadata->second.ordinal_to_value_map_.find(ordinal));
+                    if (match == column_metadata->second.ordinal_to_value_map_.end())
+                        LOG_ERROR("Unknown value ordinal " + std::to_string(ordinal) + " in column '" + column_name + "'");
+
+                    resolved_items.emplace_back(match->second);
+                }
+
+                resolved_value = StringUtil::Join(resolved_items, ',');
             }
 
             resolved_value = TextUtil::CollapseAndTrimWhitespace(resolved_value);

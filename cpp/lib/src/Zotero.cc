@@ -327,7 +327,17 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
     if (node_parameters->language_.empty() and not site_params_->expected_languages_.empty()) {
         // attempt to automatically detect the language
         std::vector<std::string> top_languages;
-        const auto record_text(node_parameters->title_ + " " + node_parameters->abstract_note_);
+        std::string record_text;
+
+        if (site_params_->expected_languages_text_fields_.empty())
+            record_text = node_parameters->title_ + " " + node_parameters->abstract_note_;
+        else if (site_params_->expected_languages_text_fields_ == "title")
+            record_text = node_parameters->title_;
+        else if (site_params_->expected_languages_text_fields_ == "abstract")
+            record_text = node_parameters->abstract_note_;
+        else
+            LOG_ERROR("unknown text field '" + site_params_->expected_languages_text_fields_ + "' for language detection");
+
         NGram::ClassifyLanguage(record_text, &top_languages, site_params_->expected_languages_, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
 
         if (not top_languages.empty()) {
@@ -372,6 +382,8 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Abstract Note
     node_parameters->abstract_note_ = object_node->getOptionalStringValue("abstractNote");
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abstract_note_))
+        node_parameters->item_type_ = "review";
 
     // URL
     node_parameters->url_ = object_node->getOptionalStringValue("url");
@@ -786,10 +798,6 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
 }
 
 
-/* Improve JSON result delivered by Zotero Translation Server
- * Note on ISSN's: Some pages might contain multiple ISSN's (for each publication medium and/or a linking ISSN).
- *                In such cases, the Zotero translator must return tags to distinguish between them.
- */
 void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::ObjectNode> &object_node, const SiteParams &site_params) {
     LOG_DEBUG("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
@@ -1085,11 +1093,17 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
     static std::unordered_set<std::string> already_harvested_urls;
     if (already_harvested_urls.find(harvest_url) != already_harvested_urls.end()) {
-        LOG_DEBUG("Skipping URL (already harvested): " + harvest_url);
+        LOG_DEBUG("Skipping URL (already harvested during this session): " + harvest_url);
         return record_count_and_previously_downloaded_count;
     } else if (site_params.extraction_regex_ and not site_params.extraction_regex_->matched(harvest_url)) {
-        LOG_DEBUG("Skipping URL ('" + harvest_url + "' does not match extraction regex)");
+        LOG_DEBUG("Skipping URL (does not match extraction regex): " + harvest_url);
         return record_count_and_previously_downloaded_count;
+    } else if (not harvest_params->keep_delivered_records_ and site_params.delivery_mode_ == BSZUpload::DeliveryMode::LIVE) {
+        auto delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
+        if (delivery_tracker.hasAlreadyBeenDelivered(harvest_url)) {
+            LOG_DEBUG("Skipping URL (already delivered to the BSZ production server): " + harvest_url);
+            return record_count_and_previously_downloaded_count;
+        }
     }
 
     ApplyCrawlDelay(harvest_url);
