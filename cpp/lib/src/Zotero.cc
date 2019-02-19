@@ -278,14 +278,6 @@ MarcFormatHandler::MarcFormatHandler(DbConnection * const db_connection, const s
 
 
 void MarcFormatHandler::identifyMissingLanguage(ItemParameters * const node_parameters) {
-    if (not node_parameters->language_.empty()) {
-        if (site_params_->expected_languages_.size() == 1 and *site_params_->expected_languages_.begin() != node_parameters->language_) {
-            LOG_WARNING("expected language '" + *site_params_->expected_languages_.begin() + "' but found '"
-                        + node_parameters->language_ + "'");
-        }
-        return;
-    }
-
     if (site_params_->expected_languages_.size() == 1) {
         node_parameters->language_ = *site_params_->expected_languages_.begin();
         LOG_INFO("language set to default language '" + node_parameters->language_ + "'");
@@ -369,7 +361,13 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Language
     node_parameters->language_ = object_node->getOptionalStringValue("language");
-    identifyMissingLanguage(node_parameters);
+    if (not node_parameters->language_.empty()) {
+        if (site_params_->expected_languages_.size() == 1 and *site_params_->expected_languages_.begin() != node_parameters->language_) {
+            LOG_WARNING("expected language '" + *site_params_->expected_languages_.begin() + "' but found '"
+                        + node_parameters->language_ + "'");
+        }
+    } else
+        identifyMissingLanguage(node_parameters);
 
     // Copyright
     node_parameters->copyright_ = object_node->getOptionalStringValue("rights");
