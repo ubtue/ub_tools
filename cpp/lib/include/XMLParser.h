@@ -158,11 +158,18 @@ public:
         { tag_aliases_to_canonical_tags_map_ = tag_aliases_to_canonical_tags_map; }
 
     /** \return true if there are more elements to parse, o/w false.
+     *  \param  guard_opening_tags  Contains a set of opening tags.  If any of these tags is encountered, parsing will stop and this
+     *                              function returns false.  The next call will then return the previously encountered guard opening tag.
      *  \note   parsing is done in progressive mode, meaning that the document is
      *          still being parsed during consecutive getNext() calls.
      *  \throws XMLParser::Error
      */
-    bool getNext(XMLPart * const next, bool combine_consecutive_characters = true);
+    bool getNext(XMLPart * const next, const bool combine_consecutive_characters = true,
+                 const std::set<std::string> &guard_opening_tags = {});
+
+    inline bool getNext(XMLPart * const next, const std::set<std::string> &guard_opening_tags,
+                        const bool combine_consecutive_characters = true)
+        { return getNext(next, combine_consecutive_characters, guard_opening_tags); }
 
 
     /** \brief Skip forward until we encounter a certain element.

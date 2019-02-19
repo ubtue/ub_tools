@@ -1,7 +1,7 @@
 /** \brief Utility for merging print and online editions into single records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -62,7 +62,34 @@ std::string ExtractUplinkPPN(const MARC::Record::Field &field) {
 }
 
 
-void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(
+template<typename ValueType>void SerializeMap(const std::string &output_filename, const std::unordered_map<std::string, ValueType> &map) {
+    const auto map_file(FileUtil::OpenOutputFileOrDie(output_filename));
+    for (const auto &key_and_value : map)
+        *map_file << key_and_value.first << " -> " << key_and_value.second << '\n';
+}
+
+
+void SerializeMultimap(const std::string &output_filename, const std::unordered_multimap<std::string, std::string> &multimap) {
+    const auto map_file(FileUtil::OpenOutputFileOrDie(output_filename));
+    if (multimap.empty())
+        return;
+
+    auto key_and_value(multimap.cbegin());
+    std::string last_key(key_and_value->first);
+    *map_file << key_and_value->first << " -> " << key_and_value->second;
+    for (/* Intentionally empty! */; key_and_value != multimap.cend(); ++key_and_value) {
+        if (key_and_value->first == last_key)
+            *map_file << ',' << key_and_value->second;
+        else {
+            last_key = key_and_value->first;
+            *map_file << '\n' << key_and_value->first << " -> " << key_and_value->second;
+        }
+    }
+    *map_file << '\n';
+}
+
+
+void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(const bool debug,
     MARC::Reader * const marc_reader, std::unordered_set<std::string> * const superior_ppns,
     std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
     std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map,
@@ -84,6 +111,8 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(
                     superior_ppns->emplace(uplink_ppn);
             }
         }
+
+        last_offset = marc_reader->tell();
 
         // We only want to merge serials!
         if (not record.isSerial())
@@ -124,8 +153,20 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(
                 }
             }
         }
+    }
 
-        last_offset = marc_reader->tell();
+    if (debug) {
+        std::string map_filename("ppn_to_canonical_ppn.map");
+        SerializeMap(map_filename, *ppn_to_canonical_ppn_map);
+        std::cerr << "Wrote the mapping from non-canonical PPN's to canonical PPN's to \"" + map_filename + "\"!";
+
+        map_filename = "canonical_ppn_to_ppn.map";
+        SerializeMultimap(map_filename, *canonical_ppn_to_ppn_map);
+        std::cerr << "Wrote the mapping from canonical PPN's to non-canonical PPN's to \"" + map_filename + "\"!";
+
+        map_filename = "ppn_to_offset.map";
+        SerializeMap(map_filename, *ppn_to_offset_map);
+        std::cerr << "Wrote the mapping from canonical PPN's to non-canonical PPN's to \"" + map_filename + "\"!";
     }
 
     LOG_INFO("Found " + std::to_string(record_count) + " record(s).");
@@ -133,7 +174,7 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(
 }
 
 
-void EliminateDanglingOrUnreferencedCrossLinks(const std::unordered_set<std::string> &superior_ppns,
+void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unordered_set<std::string> &superior_ppns,
                                                const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
                                                std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map,
                                                std::unordered_multimap<std::string, std::string> * const canonical_ppn_to_ppn_map)
@@ -182,6 +223,16 @@ void EliminateDanglingOrUnreferencedCrossLinks(const std::unordered_set<std::str
 
         if (not drop_group)
             ++canonical_ppn_and_ppn;
+    }
+
+    if (debug) {
+        std::string map_filename("ppn_to_canonical_ppn2.map");
+        SerializeMap(map_filename, *ppn_to_canonical_ppn_map);
+        std::cerr << "Wrote the mapping from non-canonical PPN's to canonical PPN's to \"" + map_filename + "\"!";
+
+        map_filename = "canonical_ppn_to_ppn2.map";
+        SerializeMultimap(map_filename, *canonical_ppn_to_ppn_map);
+        std::cerr << "Wrote the mapping from canonical PPN's to non-canonical PPN's to \"" + map_filename + "\"!";
     }
 
     LOG_INFO("Dropped " + std::to_string(dropped_count) + " cross link(s) because at least one end was not a superior work or is missing.");
@@ -655,10 +706,11 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, off_t> ppn_to_offset_map;
     std::unordered_map<std::string, std::string> ppn_to_canonical_ppn_map;
     std::unordered_multimap<std::string, std::string> canonical_ppn_to_ppn_map;
-    CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(marc_reader.get(), &superior_ppns, &ppn_to_offset_map,
+    CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(debug, marc_reader.get(), &superior_ppns, &ppn_to_offset_map,
                                                             &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
 
-    EliminateDanglingOrUnreferencedCrossLinks(superior_ppns, ppn_to_offset_map, &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
+    EliminateDanglingOrUnreferencedCrossLinks(debug, superior_ppns, ppn_to_offset_map, &ppn_to_canonical_ppn_map,
+                                              &canonical_ppn_to_ppn_map);
 
     marc_reader->rewind();
     MergeRecordsAndPatchUplinks(debug, marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
