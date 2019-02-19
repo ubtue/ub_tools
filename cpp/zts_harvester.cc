@@ -50,6 +50,7 @@ namespace {
               << "\t[--output-filename=output_filename] Overrides the automatically-generated filename based on the current date/time.\n"
               << "\t[--output-format=output_format]     Either \"marc-21\" or \"marc-xml\" or \"json\", with the default being \"marc-xml\"\n"
               << "\t[--error-report-file=error_report_file]\n"
+              << "\t[--harvest-url-regex=regex]         For testing purposes. When set, only those URLs that match this regex will be harvested\n"
               << "\n"
               << "\tIf any section names have been provided, only those will be processed o/w all sections will be processed.\n\n";
     std::exit(EXIT_FAILURE);
@@ -241,7 +242,7 @@ void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode 
                  std::unordered_set<std::string> * const groups_filter, std::unordered_set<std::string> * const zeder_ids_filter,
                  bool * const keep_delivered_records, bool * const ignore_robots_dot_txt,
                  std::string * const map_directory_path, std::string * const output_directory, std::string * const output_filename,
-                 std::string * const output_format_string, std::string * const error_report_file)
+                 std::string * const output_format_string, std::string * const error_report_file, std::string * const harvest_url_regex)
 {
     while (StringUtil::StartsWith((*argv)[1], "--")) {
         if (StringUtil::StartsWith((*argv)[1], "--delivery-mode=")) {
@@ -305,6 +306,12 @@ void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode 
             *error_report_file = (*argv)[1] + ERROR_REPORT_FILE_FLAG_PREFIX.length();
             --*argc, ++*argv;
         }
+
+        const std::string HARVEST_URL_REGEX_PREFIX("--harvest-url-regex=");
+        if (StringUtil::StartsWith((*argv)[1], HARVEST_URL_REGEX_PREFIX)) {
+            *harvest_url_regex = (*argv)[1] + HARVEST_URL_REGEX_PREFIX.length();
+            --*argc, ++*argv;
+        }
     }
 }
 
@@ -326,8 +333,9 @@ int Main(int argc, char *argv[]) {
     std::string output_filename;
     std::string output_format_string("marc-xml");
     std::string error_report_file;
+    std::string harvest_url_regex;
     ProcessArgs(&argc, &argv, &delivery_mode_to_process, &groups_filter, &zeder_ids_filter, &keep_delivered_records, &ignore_robots_dot_txt,
-                &map_directory_path, &output_directory, &output_filename, &output_format_string, &error_report_file);
+                &map_directory_path, &output_directory, &output_filename, &output_format_string, &error_report_file, &harvest_url_regex);
 
     if (argc < 2)
         Usage();
@@ -339,6 +347,8 @@ int Main(int argc, char *argv[]) {
     std::shared_ptr<Zotero::HarvestParams> harvest_params(new Zotero::HarvestParams);
     harvest_params->zts_server_url_ = Zotero::TranslationServer::GetUrl();
     harvest_params->keep_delivered_records_ = keep_delivered_records;
+    if (not harvest_url_regex.empty())
+        harvest_params->harvest_url_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(harvest_url_regex));
 
     if (map_directory_path.empty())
         map_directory_path = ini_file.getString("", "map_directory_path");
