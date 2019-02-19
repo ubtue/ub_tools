@@ -381,8 +381,23 @@ bool SubfieldPrefixIsIdentical(const MARC::Record::Field &field1, const MARC::Re
 }
 
 
-// Add or update a ZWI field
-void AddMergedPPNs(MARC::Record * const record, const std::set<std::string> &merged_ppns) {
+void CollectZWI_PPNs(const MARC::Record &record, std::set<std::string> * const zwi_ppns) {
+    const auto zwi_field(record.getFirstField("ZWI"));
+    if (zwi_field != record.end()) {
+        for (const auto &subfield : zwi_field->getSubfields()) {
+            if (subfield.code_ == 'b')
+                zwi_ppns->emplace(subfield.value_);
+        }
+    }
+}
+
+
+// Add or update a ZWI field in "*record" w/ all ZWI PPN's from "*record" and "record2".
+void AddMergedPPNs(MARC::Record * const record, const MARC::Record &record2) {
+    std::set<std::string> merged_ppns{ record2.getControlNumber() };
+    CollectZWI_PPNs(*record, &merged_ppns);
+    CollectZWI_PPNs(record2, &merged_ppns);
+
     MARC::Subfields zwi_subfields;
     zwi_subfields.addSubfield('a', "1");
     for (const auto &merged_ppn : merged_ppns)
@@ -512,15 +527,7 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
     }
 
     // Mark the record as being both "print" as well as "electronic" and store the PPN's of the dropped records:
-    std::set<std::string> merged_ppns{ record2.getControlNumber() };
-    const auto zwi_field(record2.getFirstField("ZWI"));
-    if (zwi_field != record2.end()) {
-        for (const auto &subfield : zwi_field->getSubfields()) {
-            if (subfield.code_ == 'b')
-                merged_ppns.emplace(subfield.value_);
-        }
-    }
-    AddMergedPPNs(&merged_record, merged_ppns);
+    AddMergedPPNs(&merged_record, record2);
     LOG_INFO("Merged records with PPN's " + record1.getControlNumber() + " and " + record2.getControlNumber() + ".");
 
     return merged_record;
