@@ -286,12 +286,12 @@ void MarcFormatHandler::identifyMissingLanguage(ItemParameters * const node_para
         std::vector<std::string> top_languages;
         std::string record_text;
 
-        if (site_params_->expected_languages_text_fields_.empty())
-            record_text = node_parameters->title_ + " " + node_parameters->abstract_note_;
-        else if (site_params_->expected_languages_text_fields_ == "title")
+        if (site_params_->expected_languages_text_fields_.empty() or site_params_->expected_languages_text_fields_ == "title")
             record_text = node_parameters->title_;
         else if (site_params_->expected_languages_text_fields_ == "abstract")
             record_text = node_parameters->abstract_note_;
+        else if (site_params_->expected_languages_text_fields_ == "title+abstract")
+            record_text = node_parameters->title_ + " " + node_parameters->abstract_note_;
         else
             LOG_ERROR("unknown text field '" + site_params_->expected_languages_text_fields_ + "' for language detection");
 
