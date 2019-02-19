@@ -89,9 +89,8 @@ void SerializeMultimap(const std::string &output_filename, const std::unordered_
 }
 
 
-void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(const bool debug,
-    MARC::Reader * const marc_reader, std::unordered_set<std::string> * const superior_ppns,
-    std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
+void CollectRecordOffsetsAndCrosslinks(const bool debug,
+    MARC::Reader * const marc_reader, std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
     std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map,
     std::unordered_multimap<std::string, std::string> * const canonical_ppn_to_ppn_map)
 {
@@ -104,13 +103,6 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(const bool debug,
             LOG_ERROR("duplicate PPN \"" + record.getControlNumber() + "\" in input file \"" + marc_reader->getPath() + "\"!");
 
         (*ppn_to_offset_map)[record.getControlNumber()] = last_offset;
-        for (const auto &field : record) {
-            if (UPLINK_TAGS.find(field.getTag()) != UPLINK_TAGS.cend()) {
-                const std::string uplink_ppn(ExtractUplinkPPN(field));
-                if (not uplink_ppn.empty())
-                    superior_ppns->emplace(uplink_ppn);
-            }
-        }
 
         last_offset = marc_reader->tell();
 
@@ -118,8 +110,8 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(const bool debug,
         if (not record.isSerial())
             continue;
 
-        // in the following lines, we get all cross referenced PPNs and check the maps for their references as well.
-        // we then determine the new superior PPN for all cross refences and overwrite all existing mapping entries.
+        // In the following lines, we get all cross referenced PPN's and check the maps for their references as well.
+        // We then determine the new superior PPN for all cross refences and overwrite all existing mapping entries.
         auto cross_link_ppns(MARC::ExtractCrossReferencePPNs(record));
         if (not cross_link_ppns.empty()) {
 
@@ -135,7 +127,7 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(const bool debug,
             }
             cross_link_ppns.emplace(record.getControlNumber());
 
-            // get new max PPN, which will be winner for merging
+            // The max PPN, will be the winner for merging, IOW, it will be the PPN of the merged record.
             const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(),
                                                         [](std::string a, std::string b) -> bool { return a < b; }));
 
@@ -174,8 +166,7 @@ void CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(const bool debug,
 }
 
 
-void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unordered_set<std::string> &superior_ppns,
-                                               const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
+void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
                                                std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map,
                                                std::unordered_multimap<std::string, std::string> * const canonical_ppn_to_ppn_map)
 {
@@ -192,8 +183,7 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
             or next_canonical_ppn_and_ppn->first != canonical_ppn)
         {
             // Decide to drop group either if PPN for merging is not a superior PPN or doesn't exist...
-            drop_group = (superior_ppns.find(canonical_ppn) == superior_ppns.end()
-                          or ppn_to_offset_map.find(canonical_ppn) == ppn_to_offset_map.end());
+            drop_group = ppn_to_offset_map.find(canonical_ppn) == ppn_to_offset_map.end();
 
             // ... or at least one of the PPN's doesn't exist
             if (not drop_group) {
@@ -702,15 +692,13 @@ int Main(int argc, char *argv[]) {
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
     std::unique_ptr<File> missing_partners(FileUtil::OpenOutputFileOrDie(argv[3]));
 
-    std::unordered_set<std::string> superior_ppns;
     std::unordered_map<std::string, off_t> ppn_to_offset_map;
     std::unordered_map<std::string, std::string> ppn_to_canonical_ppn_map;
     std::unordered_multimap<std::string, std::string> canonical_ppn_to_ppn_map;
-    CollectReferencedSuperiorPPNsRecordOffsetsAndCrosslinks(debug, marc_reader.get(), &superior_ppns, &ppn_to_offset_map,
-                                                            &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
+    CollectRecordOffsetsAndCrosslinks(debug, marc_reader.get(), &ppn_to_offset_map,
+                                      &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
 
-    EliminateDanglingOrUnreferencedCrossLinks(debug, superior_ppns, ppn_to_offset_map, &ppn_to_canonical_ppn_map,
-                                              &canonical_ppn_to_ppn_map);
+    EliminateDanglingOrUnreferencedCrossLinks(debug, ppn_to_offset_map, &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
 
     marc_reader->rewind();
     MergeRecordsAndPatchUplinks(debug, marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
