@@ -361,13 +361,12 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Language
     node_parameters->language_ = object_node->getOptionalStringValue("language");
-    if (not node_parameters->language_.empty()) {
-        if (site_params_->expected_languages_.size() == 1 and *site_params_->expected_languages_.begin() != node_parameters->language_) {
-            LOG_WARNING("expected language '" + *site_params_->expected_languages_.begin() + "' but found '"
-                        + node_parameters->language_ + "'");
-        }
-    } else
+    if (node_parameters->language_.empty())
         identifyMissingLanguage(node_parameters);
+    else if (site_params_->expected_languages_.size() == 1 and *site_params_->expected_languages_.begin() != node_parameters->language_) {
+        LOG_WARNING("expected language '" + *site_params_->expected_languages_.begin() + "' but found '"
+                    + node_parameters->language_ + "'");
+    }
 
     // Copyright
     node_parameters->copyright_ = object_node->getOptionalStringValue("rights");
