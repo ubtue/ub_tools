@@ -1019,7 +1019,7 @@ void Record::replaceField(const Tag &field_tag, const std::string &field_content
     while (insertion_location != fields_.end() and field_tag > insertion_location->getTag())
         ++insertion_location;
 
-    if (insertion_location != fields_.end()) {
+    if (insertion_location != fields_.end() and field_tag == insertion_location->getTag()) {
         record_size_ += new_field_value.size();
         record_size_ -= insertion_location->getContents().size();
         insertion_location->setContents(new_field_value);
