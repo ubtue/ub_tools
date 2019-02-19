@@ -328,6 +328,9 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
     if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abstract_note_))
         node_parameters->item_type_ = "review";
 
+    if (node_parameters->item_type_ == "review")
+        LOG_DEBUG("tagged as review");
+
     // Language
     node_parameters->language_ = object_node->getOptionalStringValue("language");
     if (node_parameters->language_.empty()) {
