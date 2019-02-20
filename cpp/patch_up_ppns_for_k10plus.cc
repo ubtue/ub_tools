@@ -121,9 +121,7 @@ void StoreNewAlreadyProcessedPPNs(const std::unordered_set<std::string> &alread_
 void PatchNotifiedDB(const std::string &user_type, const std::unordered_map<std::string, std::string> &old_to_new_map) {
     const std::string DB_FILENAME(UBTools::GetTuelibPath() + user_type + "_notified.db");
     std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
-    if (not (db->open(DB_FILENAME,
-                      kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
-    {
+    if (not (db->open(DB_FILENAME, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER))) {
         LOG_INFO("\"" + DB_FILENAME + "\" not found!");
         return;
     }
