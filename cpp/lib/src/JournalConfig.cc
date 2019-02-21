@@ -53,16 +53,15 @@ const std::string Zeder::prefix("zeder");
 
 
 const std::unordered_map<std::string, Zotero::Entries> Zotero::key_id_resolver_map{
-    { "type",                       Zotero::Entries::TYPE                       },
-    { "group",                      Zotero::Entries::GROUP                      },
-    { "url",                        Zotero::Entries::URL                        },
-    { "strptime_format",            Zotero::Entries::STRPTIME_FORMAT            },
-    { "extraction_regex",           Zotero::Entries::EXTRACTION_REGEX           },
-    { "review_regex",               Zotero::Entries::REVIEW_REGEX               },
-    { "max_crawl_depth",            Zotero::Entries::MAX_CRAWL_DEPTH            },
-    { "delivery_mode",              Zotero::Entries::DELIVERY_MODE              },
-    { "record_suppression_regexes", Zotero::Entries::RECORD_SUPPRESSION_REGEXES },
-    { "expected_languages",         Zotero::Entries::EXPECTED_LANGUAGES         },
+    { "type",               Zotero::Entries::TYPE               },
+    { "group",              Zotero::Entries::GROUP              },
+    { "url",                Zotero::Entries::URL                },
+    { "strptime_format",    Zotero::Entries::STRPTIME_FORMAT    },
+    { "extraction_regex",   Zotero::Entries::EXTRACTION_REGEX   },
+    { "review_regex",       Zotero::Entries::REVIEW_REGEX       },
+    { "max_crawl_depth",    Zotero::Entries::MAX_CRAWL_DEPTH    },
+    { "delivery_mode",      Zotero::Entries::DELIVERY_MODE      },
+    { "expected_languages", Zotero::Entries::EXPECTED_LANGUAGES },
 };
 
 

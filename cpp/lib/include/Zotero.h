@@ -2,8 +2,6 @@
  *         - For a list of Zotero field types ("itemFields") in JSON, see
  *           https://github.com/zotero/zotero/blob/master/chrome/locale/de/zotero/zotero.properties#L409
  *  \author Mario Trojan
- *  \author Madeesh Kannan
- *  \author Dr. Johannes Ruscheinski
  *
  *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
@@ -214,7 +212,6 @@ struct SiteParams {
     std::vector<std::string> additional_fields_;
     std::vector<std::string> non_standard_metadata_fields_;
     std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> field_exclusion_filters_;
-    std::map<std::string, std::unique_ptr<RegexMatcher>> record_suppression_filters_;
 };
 
 
