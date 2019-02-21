@@ -3,7 +3,6 @@
  *         see https://github.com/zotero/translation-server
  *  \author Dr. Johannes Ruscheinski
  *  \author Mario Trojan
- *  \author Madeesh Kannan
  *
  *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
@@ -1102,21 +1101,6 @@ void ApplyCrawlDelay(const std::string &harvest_url) {
 }
 
 
-static bool RecordIsNotSuppressed(const std::shared_ptr<JSON::ObjectNode> &entry,
-                                  const std::map<std::string, std::unique_ptr<RegexMatcher>> &record_suppression_filters)
-{
-    for (const auto &field_and_regex : record_suppression_filters) {
-        if (field_and_regex.first == "title") {
-            if (field_and_regex.second->matched(entry->getOptionalStringValue("title")))
-                return false;
-        } else
-            LOG_ERROR("not implemented: \"" + field_and_regex.first + "\"!");
-    }
-
-    return true;
-}
-
-
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
                                       const SiteParams &site_params, HarvesterErrorLogger * const error_logger, bool verbose)
 {
@@ -1191,7 +1175,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
         try {
             AugmentJson(harvest_url, json_object, site_params);
-            if (ValidateAugmentedJSON(json_object) and RecordIsNotSuppressed(json_object, site_params.record_suppression_filters_))
+            if (ValidateAugmentedJSON(json_object))
                 record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
         } catch (const std::exception &x) {
             error_logger_context.autoLog("Couldn't process record! Error: " + std::string(x.what()));

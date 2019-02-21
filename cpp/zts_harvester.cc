@@ -57,58 +57,6 @@ namespace {
 }
 
 
-// The expected syntax is a sequence of field:regex terms separated by semicolons.  The escape character is the backslash.
-static void ParseSupressionRegexes(const std::string &section, const std::string &expression,
-                                   std::map<std::string, std::unique_ptr<RegexMatcher>> * const fields_and_regexes)
-{
-    fields_and_regexes->clear();
-
-    std::string field, regex;
-    bool in_field(true), escaped(false);
-    for (const auto ch : expression) {
-        if (escaped) {
-            escaped = false;
-            if (in_field)
-                field += ch;
-            else
-                regex += ch;
-        } else if (ch == '\\')
-            escaped = true;
-        else if (ch == ':') {
-            if (unlikely(field.empty()))
-                LOG_ERROR("missing field in record_suppression_regexes entry in section \"" + section + "\"!");
-            in_field = false;
-        } else if (ch == ';') {
-            if (unlikely(regex.empty()))
-                LOG_ERROR("missing regex in record_suppression_regexes entry in section \"" + section + "\"!");
-            std::string err_msg;
-            const auto compiled_regex(RegexMatcher::RegexMatcherFactory(regex, &err_msg));
-            if (unlikely(compiled_regex == nullptr))
-                LOG_ERROR("bad regex in record_suppression_regexes entry in section \"" + section + "\"! (" + err_msg + ")");
-            fields_and_regexes->emplace(field, compiled_regex);
-            in_field = true;
-        } else {
-            if (in_field)
-                field += ch;
-            else
-                regex += ch;
-        }
-    }
-
-    if (unlikely(escaped))
-        LOG_ERROR("bad escape in record_suppression_regexes entry in section \"" + section + "\"!");
-    if (not field.empty()) {
-        if (unlikely(regex.empty()))
-            LOG_ERROR("missing regex in record_suppression_regexes entry in section \"" + section + "\"!");
-        std::string err_msg;
-        const auto compiled_regex(RegexMatcher::RegexMatcherFactory(regex, &err_msg));
-        if (unlikely(compiled_regex == nullptr))
-            LOG_ERROR("bad regex in record_suppression_regexes entry in section \"" + section + "\"! (" + err_msg + ")");
-        fields_and_regexes->emplace(std::make_pair(field, compiled_regex));
-    }
-}
-
-
 void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Section &section, const JournalConfig::Reader &bundle_reader,
                                   Zotero::SiteParams * const site_params)
 {
@@ -133,7 +81,7 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
     const auto common_strptime_format(ini_file.getString("", "common_strptime_format"));
     if (not common_strptime_format.empty()) {
         if (common_strptime_format[0] == '(')
-            LOG_ERROR("Cannot specify locale in common_strptime_formatin section \"" + section.getSectionName() + "\"!");
+            LOG_ERROR("Cannot specify locale in common_strptime_format");
 
         if (not site_params->strptime_format_.empty())
             site_params->strptime_format_ += '|';
@@ -158,15 +106,10 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
             if (field_name.length() != MARC::Record::TAG_LENGTH && field_name.length() != MARC::Record::TAG_LENGTH + 1)
                 LOG_ERROR("invalid exclusion filter name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
 
-            site_params->field_exclusion_filters_.insert(
-                std::make_pair(field_name,
-                               std::unique_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactoryOrDie(entry.value_))));
+            site_params->field_exclusion_filters_.insert(std::make_pair(field_name,
+                                                         std::unique_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactoryOrDie(entry.value_))));
         }
     }
-
-    const auto record_suppression_regexes(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::RECORD_SUPPRESSION_REGEXES, ""));
-    if (not record_suppression_regexes.empty())
-        ParseSupressionRegexes(record_suppression_regexes, section.getSectionName(), &(site_params->record_suppression_filters_));
 
     site_params->zeder_id_ = section.getString("zeder_id", "");
 }
@@ -479,9 +422,9 @@ int Main(int argc, char *argv[]) {
         Zotero::GobalAugmentParams global_augment_params(&augment_maps);
 
         Zotero::SiteParams site_params;
-        site_params.global_params_ = &global_augment_params;
-        site_params.group_params_  = &group_name_and_params->second;
-        site_params.delivery_mode_ = delivery_mode;
+        site_params.global_params_          = &global_augment_params;
+        site_params.group_params_           = &group_name_and_params->second;
+        site_params.delivery_mode_          = delivery_mode;
         ReadGenericSiteAugmentParams(ini_file, section, bundle_reader, &site_params);
 
         harvest_params->format_handler_ = GetFormatHandlerForGroup(site_params.group_params_->name_,
