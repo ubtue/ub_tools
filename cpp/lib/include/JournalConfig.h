@@ -62,7 +62,8 @@ class EntryBundle {
 
     std::vector<Entry> entries_;
 
-    static bool ResolveKeyId(const KeyIdResolutionMap &key_id_resolver_map, const std::string &key, typename Traits::Entries * const entry_id)
+    static bool ResolveKeyId(const KeyIdResolutionMap &key_id_resolver_map, const std::string &key,
+                             typename Traits::Entries * const entry_id)
     {
         const auto match(key_id_resolver_map.find(key));
         if (match == key_id_resolver_map.end())
@@ -223,7 +224,7 @@ using ZederBundle = EntryBundle<Zeder>;
 
 struct Zotero {
     enum Entries : EntryId { TYPE, GROUP, URL, STRPTIME_FORMAT, EXTRACTION_REGEX, REVIEW_REGEX, MAX_CRAWL_DEPTH, DELIVERY_MODE,
-                             EXPECTED_LANGUAGES };
+                             EXPECTED_LANGUAGES, RECORD_SUPPRESSION_REGEXES };
 
     static const std::unordered_map<std::string, Zotero::Entries> key_id_resolver_map;
     static const std::string prefix;
