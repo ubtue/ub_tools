@@ -1,7 +1,7 @@
 /** \brief Various classes, functions etc. having to do with the Library of Congress MARC bibliographic format.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -1006,6 +1006,28 @@ void Record::appendField(const Field &field) {
     if (unlikely(not fields_.empty() and fields_.back().getTag() == field.getTag() and not IsRepeatableField(field.getTag())))
         LOG_ERROR("attempt to append a second non-repeatable\"" + field.getTag().toString() + "\" field! (3)");
     fields_.emplace_back(field);
+}
+
+
+void Record::replaceField(const Tag &field_tag, const std::string &field_contents, const char indicator1, const char indicator2) {
+    std::string new_field_value;
+    new_field_value += indicator1;
+    new_field_value += indicator2;
+    new_field_value += field_contents;
+
+    auto insertion_location(fields_.begin());
+    while (insertion_location != fields_.end() and field_tag > insertion_location->getTag())
+        ++insertion_location;
+
+    if (insertion_location != fields_.end() and field_tag == insertion_location->getTag()) {
+        record_size_ += new_field_value.size();
+        record_size_ -= insertion_location->getContents().size();
+        insertion_location->setContents(new_field_value);
+        return;
+    }
+
+    fields_.emplace(insertion_location, field_tag, new_field_value);
+    record_size_ += DIRECTORY_ENTRY_LENGTH + new_field_value.length() + 1 /* field separator */;
 }
 
 
@@ -2394,11 +2416,12 @@ bool PossiblyAReviewArticle(const Record &record) {
 }
 
 
-static const std::set<std::string> CROSS_LINK_FIELDS{ "775", "776", "780", "785" };
+static const std::vector<Tag> CROSS_LINK_FIELDS{ Tag("775"), Tag("776"), Tag("780"), Tag("785") };
 
 
 bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const partner_control_number) {
-    if (not field.hasSubfield('w') or (CROSS_LINK_FIELDS.find(field.getTag().toString()) == CROSS_LINK_FIELDS.cend()))
+    if (not field.hasSubfield('w')
+        or std::find(CROSS_LINK_FIELDS.cbegin(), CROSS_LINK_FIELDS.cend(), field.getTag().toString()) == CROSS_LINK_FIELDS.cend())
         return false;
 
     const MARC::Subfields subfields(field.getSubfields());
@@ -2413,21 +2436,17 @@ bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const part
 }
 
 
-// Returns a partner PPN or the empty string if none was found.
-static void ExtractCrossReferencePPNsFromTag(const MARC::Record &record, const std::string &tag, std::set<std::string> * const partner_ppns)
-{
-    for (const auto &field : record.getTagRange(tag)) {
-        std::string partner_control_number;
-        if (IsCrossLinkField(field, &partner_control_number))
-            partner_ppns->emplace(partner_control_number);
-    }
-}
-
-
 std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record) {
     std::set<std::string> partner_ppns;
-    for (const auto &cross_link_field : CROSS_LINK_FIELDS)
-        ExtractCrossReferencePPNsFromTag(record, cross_link_field, &partner_ppns);
+    for (const auto &field : record) {
+        if (std::find(CROSS_LINK_FIELDS.cbegin(), CROSS_LINK_FIELDS.cend(), field.getTag()) == CROSS_LINK_FIELDS.cend())
+            continue;
+
+        std::string partner_control_number;
+        if (IsCrossLinkField(field, &partner_control_number))
+            partner_ppns.emplace(partner_control_number);
+    }
+
     return partner_ppns;
 }
 
