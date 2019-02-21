@@ -456,7 +456,7 @@ static void ProcessNonStandardMetadata(MARC::Record * const record, const std::m
 
     for (auto non_standard_metadata_field : non_standard_metadata_fields) {
         if (not placeholder_matcher->matched(non_standard_metadata_field))
-            LOG_WARNING("non-standard metadata field '" + non_standard_metadata_field + "' has not placeholders");
+            LOG_WARNING("non-standard metadata field '" + non_standard_metadata_field + "' has no placeholders");
         else {
             std::string first_missing_placeholder;
             for (unsigned i(1); i < placeholder_matcher->getLastMatchCount(); ++i) {
@@ -472,7 +472,7 @@ static void ProcessNonStandardMetadata(MARC::Record * const record, const std::m
             }
 
             if (not first_missing_placeholder.empty()) {
-                LOG_WARNING("non-standard metadata field '" + non_standard_metadata_field + "' has missing placeholder(s) '" +
+                LOG_DEBUG("non-standard metadata field '" + non_standard_metadata_field + "' has missing placeholder(s) '" +
                             first_missing_placeholder + "'");
                 break;
             }
