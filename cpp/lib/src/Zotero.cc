@@ -690,6 +690,7 @@ void MarcFormatHandler::extractCustomNodeParameters(std::shared_ptr<const JSON::
     custom_node_params->superior_ppn_online_ = custom_object->getOptionalStringValue("ppn_online");
     custom_node_params->superior_ppn_print_ = custom_object->getOptionalStringValue("ppn_print");
     custom_node_params->isil_ = custom_object->getOptionalStringValue("isil");
+    custom_node_params->issn_mapped_language_ = custom_object->getOptionalStringValue("issn_language");
 }
 
 
@@ -717,6 +718,10 @@ void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParamet
         unsigned year;
         if (TimeUtil::StringToYear(custom_node_params.date_normalized_, &year))
             item_parameters->year_ = StringUtil::ToString(year);
+    }
+    if (item_parameters->language_.empty()) {
+        item_parameters->language_ = custom_node_params.issn_mapped_language_;
+        LOG_INFO("set language to ISSN-mapped value '" + item_parameters->language_ + "'");
     }
 }
 
@@ -876,20 +881,11 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
 
     // ISSN specific overrides
     if (not issn_selected.empty()) {
-
         // language
         const auto ISSN_and_language(site_params.global_params_->maps_->ISSN_to_language_code_map_.find(issn_selected));
         if (ISSN_and_language != site_params.global_params_->maps_->ISSN_to_language_code_map_.cend()) {
-            if (language_node != nullptr) {
-                const std::string language_old(language_node->getValue());
-                language_node->setValue(ISSN_and_language->second);
-                comments.emplace_back("changed \"language\" from \"" + language_old + "\" to \"" + ISSN_and_language->second
-                                      + "\" due to ISSN map");
-            } else {
-                language_node = std::make_shared<JSON::StringNode>(ISSN_and_language->second);
-                object_node->insert("language", language_node);
-                comments.emplace_back("added \"language\" \"" + ISSN_and_language->second + "\" due to ISSN map");
-            }
+            // this will be consumed in the later stages depending on the results of the language detection heuristic
+            custom_fields.emplace(std::make_pair("issn_language", ISSN_and_language->second));
         }
 
         // volume
