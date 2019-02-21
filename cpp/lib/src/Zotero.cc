@@ -452,13 +452,35 @@ static void InsertAdditionalFields(const std::string &parameter_source, MARC::Re
 static void ProcessNonStandardMetadata(MARC::Record * const record, const std::map<std::string, std::string> &notes_key_value_pairs,
                                        const std::vector<std::string> &non_standard_metadata_fields)
 {
-    for (const auto &key_and_value : notes_key_value_pairs) {
-        const std::string key("%" + key_and_value.first + "%");
-        for (const auto &non_standard_metadata_field : non_standard_metadata_fields) {
-            if (non_standard_metadata_field.find(key) != std::string::npos) {
-                if (not InsertAdditionalField(record, StringUtil::ReplaceString(key, key_and_value.second, non_standard_metadata_field)))
-                    LOG_ERROR("failed to add non-standard metadata field! (Pattern was \"" + non_standard_metadata_field + "\")");
+    static auto placeholder_matcher(RegexMatcher::RegexMatcherFactoryOrDie("%(.+)%"));
+
+    for (auto non_standard_metadata_field : non_standard_metadata_fields) {
+        if (not placeholder_matcher->matched(non_standard_metadata_field))
+            LOG_WARNING("non-standard metadata field '" + non_standard_metadata_field + "' has not placeholders");
+        else {
+            std::string first_missing_placeholder;
+            for (unsigned i(1); i < placeholder_matcher->getLastMatchCount(); ++i) {
+                const auto placeholder((*placeholder_matcher)[i]);
+                const auto note_match(notes_key_value_pairs.find(placeholder));
+                if (note_match == notes_key_value_pairs.end()) {
+                    first_missing_placeholder = placeholder;
+                    break;
+                }
+
+                non_standard_metadata_field = StringUtil::ReplaceString((*placeholder_matcher)[0], note_match->second,
+                                                                        non_standard_metadata_field);
             }
+
+            if (not first_missing_placeholder.empty()) {
+                LOG_WARNING("non-standard metadata field '" + non_standard_metadata_field + "' has missing placeholder(s) '" +
+                            first_missing_placeholder + "'");
+                break;
+            }
+
+            if (InsertAdditionalField(record, non_standard_metadata_field))
+                LOG_DEBUG("inserted non-standard metadata field '" + non_standard_metadata_field + "'");
+            else
+                LOG_ERROR("failed to add non-standard metadata field! (Content was \"" + non_standard_metadata_field + "\")");
         }
     }
 }
