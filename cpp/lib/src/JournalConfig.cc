@@ -62,7 +62,7 @@ const std::unordered_map<std::string, Zotero::Entries> Zotero::key_id_resolver_m
     { "max_crawl_depth",            Zotero::Entries::MAX_CRAWL_DEPTH            },
     { "delivery_mode",              Zotero::Entries::DELIVERY_MODE              },
     { "record_suppression_regexes", Zotero::Entries::RECORD_SUPPRESSION_REGEXES },
-    { "",                           Zotero::Entries::EXPECTED_LANGUAGES         },
+    { "expected_languages",         Zotero::Entries::EXPECTED_LANGUAGES         },
 };
 
 
