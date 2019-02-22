@@ -233,8 +233,9 @@ struct HarvestParams {
     unsigned harvested_url_count_ = 0;
     std::string user_agent_;
     FormatHandler *format_handler_;
-    bool keep_delivered_records_;
+    bool force_downloads_;
     std::unique_ptr<RegexMatcher> harvest_url_regex_;
+    unsigned journal_rss_harvest_threshold_;
 };
 
 
