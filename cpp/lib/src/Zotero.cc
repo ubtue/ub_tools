@@ -1068,22 +1068,22 @@ bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry) {
 }
 
 
-void ApplyCrawlDelay(const std::string &harvest_url) {
-    static const unsigned int MINIMUM_CRAWL_DELAY_TIME = 1000;  // in ms
-
+void ApplyCrawlDelay(const std::string &harvest_url, const std::shared_ptr<HarvestParams> &harvest_params) {
     struct CrawlDelayParams {
         RobotsDotTxt robots_dot_txt_;
         TimeLimit crawl_timeout_;
     public:
-        CrawlDelayParams(const std::string &robots_dot_txt)
+        CrawlDelayParams(const std::shared_ptr<HarvestParams> &harvest_params, const std::string &robots_dot_txt)
          : robots_dot_txt_(robots_dot_txt), crawl_timeout_(robots_dot_txt_.getCrawlDelay("*") * 1000)
         {
-            if (crawl_timeout_.getLimit() < MINIMUM_CRAWL_DELAY_TIME)
-                crawl_timeout_ = MINIMUM_CRAWL_DELAY_TIME;
+            if (crawl_timeout_.getLimit() < harvest_params->default_crawl_delay_time_)
+                crawl_timeout_ = harvest_params->default_crawl_delay_time_;
         }
-        CrawlDelayParams(const TimeLimit &crawl_timeout) : crawl_timeout_(crawl_timeout) {
-            if (crawl_timeout_.getLimit() < MINIMUM_CRAWL_DELAY_TIME)
-                crawl_timeout_ = MINIMUM_CRAWL_DELAY_TIME;
+        CrawlDelayParams(const std::shared_ptr<HarvestParams> &harvest_params, const TimeLimit &crawl_timeout)
+         : crawl_timeout_(crawl_timeout)
+        {
+            if (crawl_timeout_.getLimit() < harvest_params->default_crawl_delay_time_)
+                crawl_timeout_ = harvest_params->default_crawl_delay_time_;
         }
     };
 
@@ -1096,14 +1096,14 @@ void ApplyCrawlDelay(const std::string &harvest_url) {
     if (delay_params == HOSTNAME_TO_DELAY_PARAMS_MAP.end()) {
         Downloader robots_txt_downloader(parsed_url.getRobotsDotTxtUrl());
         if (robots_txt_downloader.anErrorOccurred()) {
-            CrawlDelayParams default_delay_params(MINIMUM_CRAWL_DELAY_TIME);
+            CrawlDelayParams default_delay_params(harvest_params, harvest_params->default_crawl_delay_time_);
             HOSTNAME_TO_DELAY_PARAMS_MAP.insert(std::make_pair(hostname, default_delay_params));
 
             LOG_DEBUG("couldn't retrieve robots.txt for domain '" + hostname + "'");
             return;
         }
 
-        CrawlDelayParams new_delay_params(robots_txt_downloader.getMessageBody());
+        CrawlDelayParams new_delay_params(harvest_params, robots_txt_downloader.getMessageBody());
         HOSTNAME_TO_DELAY_PARAMS_MAP.insert(std::make_pair(hostname, new_delay_params));
         delay_params = HOSTNAME_TO_DELAY_PARAMS_MAP.find(hostname);
 
@@ -1119,7 +1119,7 @@ void ApplyCrawlDelay(const std::string &harvest_url) {
 }
 
 
-std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
+std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> &harvest_params,
                                       const SiteParams &site_params, HarvesterErrorLogger * const error_logger)
 {
     if (harvest_url.empty())
@@ -1145,7 +1145,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         }
     }
 
-    ApplyCrawlDelay(harvest_url);
+    ApplyCrawlDelay(harvest_url, harvest_params);
     already_harvested_urls.emplace(harvest_url);
     auto error_logger_context(error_logger->newContext(site_params.journal_name_, harvest_url));
 

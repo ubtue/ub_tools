@@ -339,6 +339,7 @@ int Main(int argc, char *argv[]) {
     harvest_params->zts_server_url_ = Zotero::TranslationServer::GetUrl();
     harvest_params->force_downloads_ = force_downloads;
     harvest_params->journal_rss_harvest_threshold_ = ini_file.getUnsigned("", "journal_rss_harvest_threshold");
+    harvest_params->default_crawl_delay_time_ = ini_file.getUnsigned("", "default_crawl_delay_time");
     if (not harvest_url_regex.empty())
         harvest_params->harvest_url_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(harvest_url_regex));
 

@@ -236,6 +236,7 @@ struct HarvestParams {
     bool force_downloads_;
     std::unique_ptr<RegexMatcher> harvest_url_regex_;
     unsigned journal_rss_harvest_threshold_;
+    unsigned default_crawl_delay_time_;
 };
 
 
@@ -359,7 +360,7 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
  *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
  *          difference (first - second).
  */
-std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
+std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> &harvest_params,
                                       const SiteParams &site_params, HarvesterErrorLogger * const error_logger);
 
 
