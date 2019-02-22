@@ -356,21 +356,11 @@ const std::shared_ptr<RegexMatcher> LoadSupportedURLsRegex(const std::string &ma
 
 
 /** \brief  Harvest a single URL.
- *  \param  harvest_url         The URL to harvest.
- *  \param  extraction_regex    Regex matcher for URLs that can be harvested.
- *  \param  harvest_params      The parameters for downloading.
- *  \param  site_params      Parameter for augmenting the Zotero JSON result.
- *  \param  harvested_html      If not empty, the HTML will be used for harvesting
- *                              instead of downloading the URL again.
- *                              However, if the page contains a list of multiple
- *                              items (e.g. HTML page with a search result),
- *                              all results will be downloaded.
- *  \param  log                 If true, additional statistics will be logged.
  *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
  *          difference (first - second).
  */
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
-                                      const SiteParams &site_params, HarvesterErrorLogger * const error_logger, const bool verbose = true);
+                                      const SiteParams &site_params, HarvesterErrorLogger * const error_logger);
 
 
 /** \brief Harvest metadate from a single site.
@@ -390,20 +380,12 @@ UnsignedPair HarvestURL(const std::string &url, const std::shared_ptr<HarvestPar
                         const SiteParams &site_params, HarvesterErrorLogger * const error_logger);
 
 
-enum class RSSHarvestMode { DISABLE_TRACKING, ENABLE_TRACKING };
-
-
 /** \brief Harvest metadata from URL's referenced in an RSS or Atom feed.
- *  \param feed_url       Where to download the RSS feed.
- *  \param db_connection  A connection to a database w/ the structure as specified by .../cpp/data/ub_tools.sql. Not used when "mode"
- *                        is set to TEST.
  *  \return count of all records / previously downloaded records => The number of newly downloaded records is the
  *          difference (first - second).
  */
-UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string &feed_url,
-                                   const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                                   const SiteParams &site_params, HarvesterErrorLogger * const error_logger,
-                                   DbConnection * const db_connection);
+UnsignedPair HarvestSyndicationURL(const std::string &feed_url, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
+                                   const SiteParams &site_params, HarvesterErrorLogger * const error_logger);
 
 
 class HarvesterErrorLogger {

@@ -116,14 +116,13 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
 
 UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const JournalConfig::Reader &bundle_reader,
                             const std::shared_ptr<Zotero::HarvestParams> &harvest_params, const Zotero::SiteParams &site_params,
-                            DbConnection * const db_connection, Zotero::HarvesterErrorLogger * const error_logger)
+                            Zotero::HarvesterErrorLogger * const error_logger)
 {
     const std::string feed_url(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::URL));
     LOG_DEBUG("feed_url: " + feed_url);
 
-    // always disable RSS tracking for the zts_harvester as we only care about delivered records
-    return Zotero::HarvestSyndicationURL(Zotero::RSSHarvestMode::DISABLE_TRACKING, feed_url, harvest_params,
-                                         site_params, error_logger, db_connection);
+    return Zotero::HarvestSyndicationURL(feed_url, harvest_params,
+                                         site_params, error_logger);
 }
 
 
@@ -430,8 +429,7 @@ int Main(int argc, char *argv[]) {
                                                                             .value (JournalConfig::Zotero::TYPE))));
         if (type == Zotero::HarvesterType::RSS) {
             total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section, bundle_reader,harvest_params,
-                                                                                        site_params, db_connection.get(),
-                                                                                        &harvester_error_logger);
+                                                                                        site_params, &harvester_error_logger);
         } else if (type == Zotero::HarvesterType::CRAWL) {
             SimpleCrawler::Params crawler_params;
             crawler_params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
