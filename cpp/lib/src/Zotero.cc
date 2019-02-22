@@ -1120,7 +1120,7 @@ void ApplyCrawlDelay(const std::string &harvest_url) {
 
 
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
-                                      const SiteParams &site_params, HarvesterErrorLogger * const error_logger, bool verbose)
+                                      const SiteParams &site_params, HarvesterErrorLogger * const error_logger)
 {
     if (harvest_url.empty())
         LOG_ERROR("empty URL passed to Zotero::Harvest");
@@ -1206,13 +1206,11 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
     ++harvest_params->harvested_url_count_;
 
-    if (verbose) {
-        LOG_DEBUG("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
-                  + harvest_url + '\n' + "of which "
-                  + StringUtil::ToString(record_count_and_previously_downloaded_count.first
-                                        - record_count_and_previously_downloaded_count.second)
-                  + " records were new records.");
-    }
+    LOG_DEBUG("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
+                + harvest_url + '\n' + "of which "
+                + StringUtil::ToString(record_count_and_previously_downloaded_count.first
+                                    - record_count_and_previously_downloaded_count.second)
+                + " records were new records.");
     return record_count_and_previously_downloaded_count;
 }
 
@@ -1258,90 +1256,6 @@ UnsignedPair HarvestURL(const std::string &url, const std::shared_ptr<HarvestPar
 }
 
 
-namespace {
-
-
-// Returns true if we can determine that the last_build_date column value stored in the rss_feeds table for the feed identified
-// by "feed_url" is no older than the "last_build_date" time_t passed into this function.  (This is somewhat complicated by the
-// fact that both, the column value as well as the time_t value may contain indeterminate values.)
-bool FeedContainsNoNewItems(const RSSHarvestMode mode, DbConnection * const db_connection, const std::string &feed_url,
-                            const time_t last_build_date)
-{
-    db_connection->queryOrDie("SELECT last_build_date FROM rss_feeds WHERE feed_url='" + db_connection->escapeString(feed_url)
-                              + "'");
-    DbResultSet result_set(db_connection->getLastResultSet());
-
-    std::string date_string;
-    if (result_set.empty()) {
-        if (last_build_date == TimeUtil::BAD_TIME_T)
-            date_string = SqlUtil::DATETIME_RANGE_MIN;
-        else
-            date_string = SqlUtil::TimeTToDatetime(last_build_date);
-
-        LOG_DEBUG("Creating new feed entry in rss_feeds table for \"" + feed_url + "\".");
-        if (mode != RSSHarvestMode::DISABLE_TRACKING)
-            db_connection->queryOrDie("INSERT INTO rss_feeds SET feed_url='" + db_connection->escapeString(feed_url)
-                                      + "',last_build_date='" + date_string + "'");
-        return false;
-    }
-
-    const DbRow first_row(result_set.getNextRow());
-    date_string = first_row["last_build_date"];
-    if (date_string != SqlUtil::DATETIME_RANGE_MIN and last_build_date != TimeUtil::BAD_TIME_T
-        and SqlUtil::DatetimeToTimeT(date_string) >= last_build_date)
-        return true;
-
-    return false;
-}
-
-
-// Returns the feed ID for the URL "feed_url".
-std::string GetFeedID(const RSSHarvestMode mode, DbConnection * const db_connection, const std::string &feed_url) {
-    db_connection->queryOrDie("SELECT id FROM rss_feeds WHERE feed_url='" + db_connection->escapeString(feed_url)
-                              + "'");
-    DbResultSet result_set(db_connection->getLastResultSet());
-    if (unlikely(result_set.empty())) {
-        if (mode == RSSHarvestMode::DISABLE_TRACKING)
-            return "-1"; // Must be an INT.
-        LOG_ERROR("unexpected missing feed for URL \"" + feed_url + "\".");
-    }
-    const DbRow first_row(result_set.getNextRow());
-    return first_row["id"];
-}
-
-
-// Returns true if the item with item ID "item_id" and feed ID "feed_id" were found in the rss_items table, else
-// returns false.
-bool ItemAlreadyProcessed(DbConnection * const db_connection, const std::string &feed_id, const std::string &item_id) {
-    db_connection->queryOrDie("SELECT creation_datetime FROM rss_items WHERE feed_id='"
-                              + feed_id + "' AND item_id='" + db_connection->escapeString(item_id) + "'");
-    DbResultSet result_set(db_connection->getLastResultSet());
-    if (result_set.empty())
-        return false;
-
-    if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG) {
-        const DbRow first_row(result_set.getNextRow());
-        LOG_DEBUG("Previously retrieved item w/ ID \"" + item_id + "\" at " + first_row["creation_datetime"] + ".");
-    }
-
-    return true;
-}
-
-
-void UpdateLastBuildDate(DbConnection * const db_connection, const std::string &feed_url, const time_t last_build_date) {
-    std::string last_build_date_string;
-    if (last_build_date == TimeUtil::BAD_TIME_T)
-        last_build_date_string = SqlUtil::DATETIME_RANGE_MIN;
-    else
-        last_build_date_string = SqlUtil::TimeTToDatetime(last_build_date);
-    db_connection->queryOrDie("UPDATE rss_feeds SET last_build_date='" + last_build_date_string + "' WHERE feed_url='"
-                              + db_connection->escapeString(feed_url) + "'");
-}
-
-
-} // unnamed namespace
-
-
 bool FeedNeedsToBeHarvested(const std::string &feed_contents, const std::shared_ptr<HarvestParams> &harvest_params,
                             const SiteParams &site_params, const SyndicationFormat::AugmentParams &syndication_format_site_params)
 {
@@ -1380,16 +1294,13 @@ bool FeedNeedsToBeHarvested(const std::string &feed_contents, const std::shared_
 }
 
 
-UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string &feed_url,
-                                   const std::shared_ptr<HarvestParams> &harvest_params,
-                                   const SiteParams &site_params, HarvesterErrorLogger * const error_logger,
-                                   DbConnection * const db_connection)
+UnsignedPair HarvestSyndicationURL(const std::string &feed_url, const std::shared_ptr<HarvestParams> &harvest_params,
+                                   const SiteParams &site_params, HarvesterErrorLogger * const error_logger)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
     auto error_logger_context(error_logger->newContext(site_params.journal_name_, feed_url));
 
-    if (mode != RSSHarvestMode::ENABLE_TRACKING)
-        LOG_INFO("Processing URL: " + feed_url);
+    LOG_INFO("Processing URL: " + feed_url);
 
     Downloader::Params downloader_params;
     downloader_params.proxy_host_and_port_ = GetProxyHostAndPort();
@@ -1423,29 +1334,15 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
     LOG_DEBUG("\tLink: " + syndication_format->getLink());
     LOG_DEBUG("\tDescription: " + syndication_format->getDescription());
 
-    if (mode != RSSHarvestMode::DISABLE_TRACKING and FeedContainsNoNewItems(mode, db_connection, feed_url, last_build_date))
-        return total_record_count_and_previously_downloaded_record_count;
-
-    const std::string feed_id(mode == RSSHarvestMode::DISABLE_TRACKING ? "" : GetFeedID(mode, db_connection, feed_url));
     for (const auto &item : *syndication_format) {
         const auto item_id(item.getId());
-        if (mode != RSSHarvestMode::DISABLE_TRACKING and ItemAlreadyProcessed(db_connection, feed_id, item_id))
-            continue;
-
         const std::string title(item.getTitle());
         if (not title.empty())
             LOG_DEBUG("\t\tTitle: " + title);
 
-        const auto record_count_and_previously_downloaded_count(
-            Harvest(item.getLink(), harvest_params, site_params, error_logger, /* verbose = */ mode != RSSHarvestMode::ENABLE_TRACKING));
+        const auto record_count_and_previously_downloaded_count(Harvest(item.getLink(), harvest_params, site_params, error_logger));
         total_record_count_and_previously_downloaded_record_count += record_count_and_previously_downloaded_count;
-
-        if (mode != RSSHarvestMode::DISABLE_TRACKING)
-            db_connection->queryOrDie("INSERT INTO rss_items SET feed_id='" + feed_id + "',item_id='"
-                                      + SqlUtil::TruncateToVarCharMaxLength(db_connection->escapeString(item_id)) + "'");
     }
-    if (mode != RSSHarvestMode::DISABLE_TRACKING)
-        UpdateLastBuildDate(db_connection, feed_url, last_build_date);
 
     return total_record_count_and_previously_downloaded_record_count;
 }
