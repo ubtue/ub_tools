@@ -346,7 +346,7 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
 
     std::vector<std::string> args;
     args.emplace_back("--min-log-level=DEBUG");
-    args.emplace_back("--keep-delivered-records");
+    args.emplace_back("--force-downloads");
     args.emplace_back("--map-directory=" + local_maps_directory);
     args.emplace_back("--output-directory=" + auto_temp_dir_.getDirectoryPath());
     args.emplace_back("--output-filename=" + basename);

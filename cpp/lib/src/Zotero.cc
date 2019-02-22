@@ -788,7 +788,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     }
 
     unsigned previously_downloaded_count(0);
-    handleTrackingAndWriteRecord(new_record, harvest_params_->keep_delivered_records_, item_parameters, &previously_downloaded_count);
+    handleTrackingAndWriteRecord(new_record, harvest_params_->force_downloads_, item_parameters, &previously_downloaded_count);
     return std::make_pair(/* record count */1, previously_downloaded_count);
 }
 
@@ -1137,7 +1137,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     } else if (site_params.extraction_regex_ and not site_params.extraction_regex_->matched(harvest_url)) {
         LOG_DEBUG("Skipping URL (does not match extraction regex): " + harvest_url);
         return record_count_and_previously_downloaded_count;
-    } else if (not harvest_params->keep_delivered_records_ and site_params.delivery_mode_ == BSZUpload::DeliveryMode::LIVE) {
+    } else if (not harvest_params->force_downloads_ and site_params.delivery_mode_ == BSZUpload::DeliveryMode::LIVE) {
         auto delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
         if (delivery_tracker.hasAlreadyBeenDelivered(harvest_url)) {
             LOG_DEBUG("Skipping URL (already delivered to the BSZ production server): " + harvest_url);
@@ -1342,6 +1342,44 @@ void UpdateLastBuildDate(DbConnection * const db_connection, const std::string &
 } // unnamed namespace
 
 
+bool FeedNeedsToBeHarvested(const std::string &feed_contents, const std::shared_ptr<HarvestParams> &harvest_params,
+                            const SiteParams &site_params, const SyndicationFormat::AugmentParams &syndication_format_site_params)
+{
+    if (harvest_params->force_downloads_)
+        return true;
+
+    const auto last_harvest_timestamp(harvest_params->format_handler_->getDeliveryTracker().getLastDeliveryTime(site_params.journal_name_));
+    if (last_harvest_timestamp == TimeUtil::BAD_TIME_T) {
+        LOG_DEBUG("feed will be harvested for the first time");
+        return true;
+    }
+    else if (abs(::difftime(time(nullptr), last_harvest_timestamp) / 86400.0) >= harvest_params->journal_rss_harvest_threshold_) {
+        LOG_DEBUG("feed older than " + std::to_string(harvest_params->journal_rss_harvest_threshold_) +
+                 " days. flagging for mandatory harvesting");
+        return true;
+    }
+
+    // needs to be parsed again as iterating over a SyndicationFormat instance will consume its items
+    std::string err_msg;
+    const auto syndication_format(SyndicationFormat::Factory(feed_contents, syndication_format_site_params, &err_msg));
+    for (const auto &item : *syndication_format) {
+        const auto pub_date(item.getPubDate());
+        if (pub_date == TimeUtil::BAD_TIME_T) {
+            LOG_DEBUG("URL '" + item.getLink() + "' has no date of publication. flagging for mandatory harvesting");
+            return true;
+        }
+
+        if (::difftime(item.getPubDate(), last_harvest_timestamp) > 0) {
+            LOG_DEBUG("URL '" + item.getLink() + "' was updated since the last harvest of this RSS feed. flagging for harvesting");
+            return true;
+        }
+    }
+
+    LOG_INFO("no new, harvestable entries in feed. skipping...");
+    return false;
+}
+
+
 UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string &feed_url,
                                    const std::shared_ptr<HarvestParams> &harvest_params,
                                    const SiteParams &site_params, HarvesterErrorLogger * const error_logger,
@@ -1373,6 +1411,9 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
         error_logger_context.autoLog("Problem parsing XML document for \"" + feed_url + "\": " + err_msg);
         return total_record_count_and_previously_downloaded_record_count;
     }
+
+    if (not FeedNeedsToBeHarvested(downloader.getMessageBody(), harvest_params, site_params, syndication_format_site_params))
+        return total_record_count_and_previously_downloaded_record_count;
 
     const time_t last_build_date(syndication_format->getLastBuildDate());
     LOG_DEBUG(feed_url + " (" + syndication_format->getFormatName() + "):");
