@@ -182,6 +182,28 @@ bool Elasticsearch::deleteRange(const std::string &field, const RangeOperator op
 }
 
 
+bool Elasticsearch::fieldWithValueExists(const std::string &field, const std::string &value) {
+
+   const auto result_node(
+         query("_search", REST::GET,
+              "{"
+              "    \"query\": {"
+              "        \"match\" : { \"" + field + "\" : \"" + value + "\" }"
+              "    }"
+              "}"
+         ));
+
+   const auto hits_node(result_node->getObjectNode("hits"));
+   if (hits_node == nullptr)
+       LOG_ERROR("No \"hits\" node in results");
+
+   const auto total_node = hits_node->getIntegerNode("total");
+   if (total_node == nullptr)
+       LOG_ERROR("No \"total\" node found");
+   return total_node->getValue() == 0 ? false : true;
+}
+
+
 std::shared_ptr<JSON::ObjectNode> Elasticsearch::query(const std::string &action, const REST::QueryType query_type,
                                                        const JSON::ObjectNode &data) const
 {
