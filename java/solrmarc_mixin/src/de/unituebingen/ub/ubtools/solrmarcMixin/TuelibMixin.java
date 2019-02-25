@@ -2406,7 +2406,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final VariableField _935_field : record.getVariableFields("935")) {
             final DataField data_field = (DataField) _935_field;
             for (final Subfield subfield_b : data_field.getSubfields('b')) {
-                if (subfield_b.equals("druck"))
+                if (subfield_b.getData().equals("druck"))
                     return true;
             }
         }
