@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015-2017, Library of the University of Tübingen
+    Copyright (C) 2015-2017,2019 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -217,7 +217,9 @@ int main(int argc, char **argv) {
     if (argc != 6)
         Usage();
 
-    std::string bible_reference_candidate(StringUtil::Trim(TextUtil::CollapseWhitespace(TextUtil::UTF8ToLower(argv[1]))));
+    std::string query(argv[1]);
+    TextUtil::NormaliseDashes(&query);
+    std::string bible_reference_candidate(StringUtil::Trim(TextUtil::CollapseWhitespace(TextUtil::UTF8ToLower(query))));
     const std::string bible_aliases_map_filename(map_file_path + argv[2]);
     const std::string books_of_the_bible_to_code_map_filename(map_file_path + argv[3]);
     const std::string books_of_the_bible_to_canonical_form_map_filename(map_file_path + argv[4]);
