@@ -1538,6 +1538,24 @@ bool IsSomeKindOfDash(const uint32_t ch) {
 }
 
 
+std::string &NormaliseDashes(std::string * const s) {
+    std::vector<uint32_t> utf32_string;
+    if (unlikely(not UTF8ToUTF32(*s, &utf32_string)))
+        LOG_ERROR("can't convert from UTF-8 to UTF-32!");
+
+    for (auto &utf32_char :  utf32_string) {
+        if (IsSomeKindOfDash(utf32_char))
+            utf32_char = '-'; // ASCII minus sign.
+    }
+
+    s->clear();
+    for (const auto utf32_char :  utf32_string)
+        s->append(UTF32ToUTF8(utf32_char));
+
+    return *s;
+}
+
+
 static const std::map<wchar_t, std::pair<wchar_t, wchar_t>> ligature_to_expansion_map{
     {L'æ', { 'a', 'e' }},
     {L'Æ', { 'A', 'E' }},
