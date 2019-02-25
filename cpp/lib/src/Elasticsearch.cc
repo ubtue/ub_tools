@@ -185,7 +185,7 @@ bool Elasticsearch::deleteRange(const std::string &field, const RangeOperator op
 bool Elasticsearch::fieldWithValueExists(const std::string &field, const std::string &value) {
 
    const auto result_node(
-         query("_search", REST::GET,
+         query("_search", REST::POST,
               "{"
               "    \"query\": {"
               "        \"match\" : { \"" + field + "\" : \"" + value + "\" }"
