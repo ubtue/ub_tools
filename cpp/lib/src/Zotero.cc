@@ -278,6 +278,8 @@ MarcFormatHandler::MarcFormatHandler(DbConnection * const db_connection, const s
 
 
 void MarcFormatHandler::identifyMissingLanguage(ItemParameters * const node_parameters) {
+    static const unsigned MINIMUM_TOKEN_COUNT = 5;
+
     if (site_params_->expected_languages_.size() == 1) {
         node_parameters->language_ = *site_params_->expected_languages_.begin();
         LOG_INFO("language set to default language '" + node_parameters->language_ + "'");
@@ -286,9 +288,15 @@ void MarcFormatHandler::identifyMissingLanguage(ItemParameters * const node_para
         std::vector<std::string> top_languages;
         std::string record_text;
 
-        if (site_params_->expected_languages_text_fields_.empty() or site_params_->expected_languages_text_fields_ == "title")
+        if (site_params_->expected_languages_text_fields_.empty() or site_params_->expected_languages_text_fields_ == "title") {
             record_text = node_parameters->title_;
-        else if (site_params_->expected_languages_text_fields_ == "abstract")
+            // use naive tokenization to count tokens in the title
+            // additionaly use abstract if we have too few tokens in the title
+            if (StringUtil::CharCount(record_text, ' ') < MINIMUM_TOKEN_COUNT) {
+                record_text += " " + node_parameters->abstract_note_;
+                LOG_DEBUG("too few tokens in title. applying heuristic on the abstract as well");
+            }
+        } else if (site_params_->expected_languages_text_fields_ == "abstract")
             record_text = node_parameters->abstract_note_;
         else if (site_params_->expected_languages_text_fields_ == "title+abstract")
             record_text = node_parameters->title_ + " " + node_parameters->abstract_note_;
