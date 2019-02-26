@@ -921,13 +921,8 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         if (volume.empty()) {
             const auto ISSN_and_volume(site_params.global_params_->maps_->ISSN_to_volume_map_.find(issn_selected));
             if (ISSN_and_volume != site_params.global_params_->maps_->ISSN_to_volume_map_.cend()) {
-                if (volume.empty()) {
-                    const std::shared_ptr<JSON::JSONNode> volume_node(object_node->getNode("volume"));
-                    JSON::JSONNode::CastToStringNodeOrDie("volume", volume_node)->setValue(ISSN_and_volume->second);
-                } else {
-                    std::shared_ptr<JSON::StringNode> volume_node(new JSON::StringNode(ISSN_and_volume->second));
-                    object_node->insert("volume", volume_node);
-                }
+                std::shared_ptr<JSON::StringNode> volume_node(new JSON::StringNode(ISSN_and_volume->second));
+                object_node->insert("volume", volume_node);
             }
         }
 
