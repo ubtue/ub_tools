@@ -30,6 +30,8 @@
 #include "util.h"
 #include "VuFind.h"
 
+#include <iostream>
+
 
 constexpr unsigned MIN_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60); // About 1 month in seconds.
 constexpr unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 months in seconds.
@@ -240,8 +242,12 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
     }
 
     std::string expiration_string;
-    if (expiration == TimeUtil::BAD_TIME_T)
-        full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text } });
+    if (expiration == TimeUtil::BAD_TIME_T) {
+        if (!full_text_cache_.fieldWithValueExists("id", id))
+            full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text } });
+        else
+            LOG_INFO("ID \"" + id + "\" already present, skipping insertion...");
+    }
     else {
         expiration_string = "\"" + TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT) + "\"";
         full_text_cache_.simpleInsert({ { "id", id }, { "expiration", expiration_string }, { "full_text", full_text } });

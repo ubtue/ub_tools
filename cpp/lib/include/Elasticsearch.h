@@ -74,6 +74,8 @@ public:
     /** \note Specify one or two range conditions. */
     bool deleteRange(const std::string &field, const RangeOperator operator1, const std::string &operand1,
                      const RangeOperator operator2 = RO_NOOP, const std::string &operand2 = "");
+
+    bool fieldWithValueExists(const std::string &field, const std::string &value);
 private:
     /** \brief A powerful general query.
      */
