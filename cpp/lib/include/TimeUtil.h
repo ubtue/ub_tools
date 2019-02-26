@@ -51,6 +51,9 @@ constexpr time_t MAX_TIME_T = std::numeric_limits<time_t>::max();
 const std::string ISO_8601_FORMAT("%Y-%m-%d %T");
 
 
+const std::string DATE_OPTIONAL_TIME_FORMAT("%Y-%m-%dT%T");
+
+
 /** The default strftime(3) format string for representing dates and times. */
 const std::string DEFAULT_FORMAT("%Y-%m-%d %T");
 
