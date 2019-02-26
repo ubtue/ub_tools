@@ -62,6 +62,9 @@ const std::unordered_map<Flavour, std::string> FLAVOUR_TO_STRING_MAP{
 
 static constexpr auto MODIFIED_TIMESTAMP_FORMAT_STRING = "%Y-%m-%d %H:%M:%S";
 
+// Characters that need to be stripped from attribute( value)s imported from Zeder before they are (de)serialised
+const std::string ATTRIBUTE_INVALID_CHARS = "#\"";
+
 
 // A basic entry in a Zeder spreadsheet. Each column maps to an attribute.
 class Entry {
@@ -81,6 +84,8 @@ public:
     const tm &getLastModifiedTimestamp() const { return last_modified_timestamp_; }
     void setModifiedTimestamp(const tm &timestamp) { std::memcpy(&last_modified_timestamp_, &timestamp, sizeof(timestamp)); }
     const std::string &getAttribute(const std::string &name) const;
+
+    // Invalid characters (as found in 'ATTRIBUTE_INVALID_CHARS') in 'value' will be replaced with '_'.
     void setAttribute(const std::string &name, const std::string &value, bool overwrite = false);
     bool hasAttribute(const std::string &name) const { return attributes_.find(name) != attributes_.end(); }
     void removeAttribute(const std::string &name);
