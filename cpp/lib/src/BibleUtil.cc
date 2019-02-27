@@ -2,7 +2,7 @@
  *  \brief  Implementation of a bible reference parser that generates numeric code ranges.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2017,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -427,15 +427,17 @@ bool SplitIntoBooksAndChaptersAndVerses(const std::string &bible_reference_query
     std::vector<std::string> bible_reference_candidates;
 
     static const std::string OR(" OR ");
-    size_t start_pos(0), found_pos;
+    size_t start_pos(0), found_pos, last_found_pos;
     while ((found_pos = StringUtil::FindCaseInsensitive(bible_reference_query, OR, start_pos)) != std::string::npos) {
+        last_found_pos = found_pos;
+        std::cerr << ">>>In LOOP<<<\n";
         bible_reference_candidates.emplace_back(bible_reference_query.substr(start_pos, found_pos - start_pos));
         start_pos = found_pos + OR.length();
     }
     if (bible_reference_candidates.empty())
         bible_reference_candidates.emplace_back(bible_reference_query);
     else
-        bible_reference_candidates.emplace_back(bible_reference_query.substr(found_pos + OR.length()));
+        bible_reference_candidates.emplace_back(bible_reference_query.substr(last_found_pos + OR.length()));
 
     for (const auto &bible_reference_candidate : bible_reference_candidates) {
         book_candidates->resize(book_candidates->size() + 1);
