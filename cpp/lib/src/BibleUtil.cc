@@ -418,29 +418,30 @@ static bool SplitIntoBookAndChaptersAndVerses(const std::string &bible_reference
 
 
 bool SplitIntoBooksAndChaptersAndVerses(const std::string &bible_reference_query,
-                                        std::vector<std::string> * const book_candidate,
-                                        std::vector<std::string> * const chapters_and_verses_candidate)
+                                        std::vector<std::string> * const book_candidates,
+                                        std::vector<std::string> * const chapters_and_verses_candidates)
 {
-    book_candidate->clear();
-    chapters_and_verses_candidate->clear();
+    book_candidates->clear();
+    chapters_and_verses_candidates->clear();
 
     std::vector<std::string> bible_reference_candidates;
 
+    static const std::string OR(" OR ");
     size_t start_pos(0), found_pos;
-    while ((found_pos = StringUtil::FindCaseInsensitive(bible_reference_query, " OR ", start_pos)) != std::string::npos) {
+    while ((found_pos = StringUtil::FindCaseInsensitive(bible_reference_query, OR, start_pos)) != std::string::npos) {
         bible_reference_candidates.emplace_back(bible_reference_query.substr(start_pos, found_pos - start_pos));
-        start_pos = found_pos + 4;
+        start_pos = found_pos + OR.length();
     }
     if (bible_reference_candidates.empty())
         bible_reference_candidates.emplace_back(bible_reference_query);
     else
-        bible_reference_candidates.emplace_back(bible_reference_query.substr(found_pos + 4));
+        bible_reference_candidates.emplace_back(bible_reference_query.substr(found_pos + OR.length()));
 
     for (const auto &bible_reference_candidate : bible_reference_candidates) {
-        book_candidate->resize(book_candidate->size() + 1);
-        chapters_and_verses_candidate->resize(chapters_and_verses_candidate->size() + 1);
-        if (not SplitIntoBookAndChaptersAndVerses(bible_reference_candidate, &book_candidate->back(),
-                                                  &chapters_and_verses_candidate->back()))
+        book_candidates->resize(book_candidates->size() + 1);
+        chapters_and_verses_candidates->resize(chapters_and_verses_candidates->size() + 1);
+        if (not SplitIntoBookAndChaptersAndVerses(bible_reference_candidate, &book_candidates->back(),
+                                                  &chapters_and_verses_candidates->back()))
             return false;
     }
 
