@@ -137,8 +137,16 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(cons
         std::map<std::string, std::string> new_map;
         const auto entry_object_node(JSON::JSONNode::CastToObjectNodeOrDie("entry_object_node", entry_node));
         for (const auto &entry : *entry_object_node) {
-            if (fields.empty() or fields.find(entry.first) != fields.cend())
-                new_map[entry.first] = JSON::JSONNode::CastToStringNodeOrDie("new_map[entry.first]", entry.second)->getValue();
+            if (fields.empty() or fields.find(entry.first) != fields.cend() or entry.first == "_source") {
+                // Copy existing fields but flatten the contents of _source
+                if (entry.first == "_source") {
+                    const auto source_object_node(JSON::JSONNode::CastToObjectNodeOrDie("source_object_node", entry.second));
+                    for (const auto source_entry : *source_object_node)
+                         new_map[source_entry.first] = JSON::JSONNode::CastToStringNodeOrDie("new_map[source_entry.first]",
+                                                                                             source_entry.second)->getValue();
+                } else
+                    new_map[entry.first] = JSON::JSONNode::CastToStringNodeOrDie("new_map[entry.first]", entry.second)->getValue();
+            }
         }
 
         search_results.resize(search_results.size() + 1);
