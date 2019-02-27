@@ -37,10 +37,7 @@
 namespace {
 
 
-void Usage() __attribute__((noreturn));
-
-
-void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--debug|--query] [--map-file-directory=path] bible_reference_candidate\n";
     std::cerr << "          bible_aliases_map books_of_the_bible_to_code_map\n";
     std::cerr << "          books_of_the_bible_to_canonical_form_map pericopes_to_codes_map\n";
@@ -101,7 +98,7 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
     unsigned ending_volume;
     if (not StringUtil::ToUnsigned((*matcher)[2], &ending_volume) or ending_volume > 3
         or ending_volume <= starting_volume)
-        logger->error("\"" + (*matcher)[2] + "\" is not a valid ending volume!");
+        LOG_ERROR("\"" + (*matcher)[2] + "\" is not a valid ending volume!");
 
     const std::string non_canonical_book_name((*matcher)[3]);
     BibleUtil::BibleBookCanoniser bible_book_canoniser(books_of_the_bible_to_canonical_form_map_filename);
@@ -133,25 +130,17 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
 }
 
 
-void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query,
-                              const std::string &bible_reference_candidate,
+void GenerateQuery(const bool verbose, const bool generate_solr_query, std::string book_candidate,
+                   const std::string &chapters_and_verses_candidate,
                               const std::string &books_of_the_bible_to_code_map_filename,
-                              const std::string &books_of_the_bible_to_canonical_form_map_filename)
+                   const std::string &books_of_the_bible_to_canonical_form_map_filename)
 {
-    std::string book_candidate, chapters_and_verses_candidate;
-    BibleUtil::SplitIntoBookAndChaptersAndVerses(
-        bible_reference_candidate, &book_candidate, &chapters_and_verses_candidate);
-    if (verbose) {
-        std::cerr << "book_candidate = \"" << book_candidate << "\"\n";
-        std::cerr << "chapters_and_verses_candidate = \"" << chapters_and_verses_candidate << "\"\n";
-    }
-
     BibleUtil::BibleBookCanoniser bible_book_canoniser(books_of_the_bible_to_canonical_form_map_filename);
     book_candidate = bible_book_canoniser.canonise(book_candidate, verbose);
     BibleUtil::BibleBookToCodeMapper bible_book_to_code_mapper(books_of_the_bible_to_code_map_filename);
     const std::string book_code(bible_book_to_code_mapper.mapToCode(book_candidate, verbose));
     if (book_code.empty())
-        logger->error("failed to map \"" + book_candidate + "\" to a bible code!");
+        LOG_ERROR("failed to map \"" + book_candidate + "\" to a bible code!");
     if (verbose)
         std::cerr << "book code = \"" << book_code << "\"\n";
     if (chapters_and_verses_candidate.empty()) {
@@ -181,8 +170,29 @@ void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query
         } else
             std::cout << pair.first << ':' << pair.second << '\n';
     }
+}
+
+
+void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query,
+                              const std::string &bible_reference_candidate,
+                              const std::string &books_of_the_bible_to_code_map_filename,
+                              const std::string &books_of_the_bible_to_canonical_form_map_filename)
+{
+    std::vector<std::string> book_candidate, chapters_and_verses_candidate;
+    BibleUtil::SplitIntoBooksAndChaptersAndVerses(bible_reference_candidate, &book_candidate, &chapters_and_verses_candidate);
+    if (verbose) {
+        for (unsigned i(0); i < book_candidate.size(); ++i) {
+            std::cerr << "book_candidate[" << i << "] = \"" << book_candidate[i] << "\"\n";
+            std::cerr << "chapters_and_verses_candidate[" << i << "] = \"" << chapters_and_verses_candidate[i] << "\"\n";
+        }
+    }
+
+    for (unsigned i(0); i < book_candidate.size(); ++i)
+        GenerateQuery(verbose, generate_solr_query, book_candidate[i], chapters_and_verses_candidate[i],
+                      books_of_the_bible_to_code_map_filename, books_of_the_bible_to_canonical_form_map_filename);
+
     if (generate_solr_query)
-        std::cout << query << '\n';
+        std::cout << '\n';
 }
 
 

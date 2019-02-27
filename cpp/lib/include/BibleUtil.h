@@ -2,7 +2,7 @@
  *  \brief  Declaration of bits related to our bible reference parser.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,6 +24,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 
 namespace BibleUtil {
@@ -52,9 +53,9 @@ bool ParseBibleReference(std::string bib_ref_candidate, const std::string &book_
 bool CanParseBibleReference(const std::string &bib_ref_candidate);
 
 
-void SplitIntoBookAndChaptersAndVerses(const std::string &bible_reference_candidate,
-                                       std::string * const book_candidate,
-                                       std::string * const chapters_and_verses_candidate);
+bool SplitIntoBooksAndChaptersAndVerses(const std::string &bible_reference_query,
+                                        std::vector<std::string> * const book_candidate,
+                                        std::vector<std::string> * const chapters_and_verses_candidate);
 
 
 class BibleBookCanoniser {
