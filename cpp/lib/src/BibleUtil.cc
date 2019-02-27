@@ -430,7 +430,6 @@ bool SplitIntoBooksAndChaptersAndVerses(const std::string &bible_reference_query
     size_t start_pos(0), found_pos, last_found_pos;
     while ((found_pos = StringUtil::FindCaseInsensitive(bible_reference_query, OR, start_pos)) != std::string::npos) {
         last_found_pos = found_pos;
-        std::cerr << ">>>In LOOP<<<\n";
         bible_reference_candidates.emplace_back(bible_reference_query.substr(start_pos, found_pos - start_pos));
         start_pos = found_pos + OR.length();
     }
