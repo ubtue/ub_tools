@@ -3,7 +3,7 @@
 
 BIN=/usr/local/bin
 EMAIL=johannes.ruscheinski@ub.uni-tuebingen.de
-MARC_FILENAME=bnb.mrc
+MARC_FILENAME=bnb-$(date +%y%m%d).mrc
 
 
 cd /usr/local/ub_tools/bnb_yaz
