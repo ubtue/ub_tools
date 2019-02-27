@@ -53,9 +53,10 @@ bool ParseBibleReference(std::string bib_ref_candidate, const std::string &book_
 bool CanParseBibleReference(const std::string &bib_ref_candidate);
 
 
+// Parses an OR'ed together sequence of simple bible references.
 bool SplitIntoBooksAndChaptersAndVerses(const std::string &bible_reference_query,
-                                        std::vector<std::string> * const book_candidate,
-                                        std::vector<std::string> * const chapters_and_verses_candidate);
+                                        std::vector<std::string> * const book_candidates,
+                                        std::vector<std::string> * const chapters_and_verses_candidates);
 
 
 class BibleBookCanoniser {
