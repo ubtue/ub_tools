@@ -2686,8 +2686,8 @@ static inline bool CaseInsensitiveEqual(const char ch1, const char ch2) {
 }
 
 
-size_t FindCaseInsensitive(const std::string &haystack, const std::string &needle) {
-    const auto iter(std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(),
+size_t FindCaseInsensitive(const std::string &haystack, const std::string &needle, const size_t search_start_pos) {
+    const auto iter(std::search(haystack.begin() + search_start_pos, haystack.end(), needle.begin(), needle.end(),
                                 CaseInsensitiveEqual));
     return iter == haystack.end() ? std::string::npos : iter - haystack.begin();
 }
