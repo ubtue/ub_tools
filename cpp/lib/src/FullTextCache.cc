@@ -245,7 +245,7 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
         full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text } });
     }
     else {
-        expiration_string = TimeUtil::TimeTToString(expiration, TimeUtil::DATE_OPTIONAL_TIME_FORMAT);
+        expiration_string = TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT);
         full_text_cache_.simpleInsert({ { "id", id }, { "expiration", expiration_string }, { "full_text", full_text } });
     }
 

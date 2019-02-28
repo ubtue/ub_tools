@@ -8,7 +8,7 @@
 /*
  *  Copyright 2003-2008 Project iVia.
  *  Copyright 2003-2008 The Regents of The University of California.
- *  Copyright 2018 Universitätsbibliothek Tübingen
+ *  Copyright 2018,2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -48,10 +48,7 @@ constexpr time_t BAD_TIME_T = static_cast<time_t>(-1);
 constexpr time_t MAX_TIME_T = std::numeric_limits<time_t>::max();
 
 
-const std::string ISO_8601_FORMAT("%Y-%m-%d %T");
-
-
-const std::string DATE_OPTIONAL_TIME_FORMAT("%Y-%m-%dT%T");
+const std::string ISO_8601_FORMAT("%Y-%m-%dT%T");
 
 
 /** The default strftime(3) format string for representing dates and times. */
