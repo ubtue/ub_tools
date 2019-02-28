@@ -2,7 +2,7 @@
  *  \brief  Implementation of JSON-related functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -366,7 +366,7 @@ std::string DoubleNode::toString() const {
 
 
 std::string StringNode::toString() const {
-    return "\"" + EscapeString(value_) + "\"";
+    return "\"" + value_ + "\"";
 }
 
 
@@ -388,7 +388,7 @@ ObjectNode::ObjectNode(const std::string &object_as_string) {
 
 ObjectNode::ObjectNode(const std::unordered_map<std::string, std::string> &map) {
     for (const auto &key_and_value : map) {
-        std::shared_ptr<JSON::StringNode> value_node(new JSON::StringNode(JSON::EscapeString(key_and_value.second)));
+        std::shared_ptr<JSON::StringNode> value_node(new JSON::StringNode(key_and_value.second));
         insert(key_and_value.first, value_node);
     }
 }
@@ -396,7 +396,7 @@ ObjectNode::ObjectNode(const std::unordered_map<std::string, std::string> &map) 
 
 ObjectNode::ObjectNode(const std::map<std::string, std::string> &map) {
     for (const auto &key_and_value : map) {
-        std::shared_ptr<JSON::StringNode> value_node(new JSON::StringNode(JSON::EscapeString(key_and_value.second)));
+        std::shared_ptr<JSON::StringNode> value_node(new JSON::StringNode(key_and_value.second));
         insert(key_and_value.first, value_node);
     }
 }
