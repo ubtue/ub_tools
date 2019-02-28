@@ -1268,7 +1268,7 @@ bool FeedNeedsToBeHarvested(const std::string &feed_contents, const std::shared_
         LOG_DEBUG("feed will be harvested for the first time");
         return true;
     } else {
-        const auto diff(static_cast<unsigned>(abs(::difftime(time(nullptr), last_harvest_timestamp) / 86400)));
+        const auto diff(static_cast<unsigned>(std::abs(::difftime(time(nullptr), last_harvest_timestamp) / 86400)));
         const auto harvest_threshold(site_params.journal_update_window_ > 0 ? site_params.journal_update_window_ : harvest_params->journal_rss_harvest_threshold_);
         LOG_DEBUG("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
         LOG_DEBUG("feed harvest threshold: " + std::to_string(harvest_threshold) + " days | diff: " + std::to_string(diff) + " days");
