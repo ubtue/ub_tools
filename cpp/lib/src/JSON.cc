@@ -366,7 +366,7 @@ std::string DoubleNode::toString() const {
 
 
 std::string StringNode::toString() const {
-    return "\"" + value_ + "\"";
+    return "\"" + EscapeString(value_) + "\"";
 }
 
 
