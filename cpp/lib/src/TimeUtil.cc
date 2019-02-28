@@ -133,16 +133,17 @@ std::string FormatTime(const double time_in_millisecs, const std::string &separa
 
 // GetCurrentTime -- Get the current date and time as a string
 //
-std::string GetCurrentDateAndTime(const std::string &format, const TimeZone time_zone) {
+std::string GetCurrentDateAndTime(const std::string &format, const TimeZone time_zone, const std::string &time_locale) {
     time_t now;
     std::time(&now);
-    return TimeTToString(now, format, time_zone);
+    return TimeTToString(now, format, time_zone, time_locale);
 }
 
 
 // TimeTToLocalTimeString -- Convert a time from a time_t to a string.
 //
-std::string TimeTToString(const time_t &the_time, const std::string &format, const TimeZone time_zone) {
+std::string TimeTToString(const time_t &the_time, const std::string &format, const TimeZone time_zone, const std::string &time_locale) {
+    Locale locale(time_locale, LC_TIME);
     char time_buf[50 + 1];
     std::strftime(time_buf, sizeof(time_buf), format.c_str(),
                   (time_zone == LOCAL ? std::localtime(&the_time) : std::gmtime(&the_time)));

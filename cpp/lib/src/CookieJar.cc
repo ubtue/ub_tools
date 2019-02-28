@@ -81,8 +81,7 @@ std::string CookieJar::Cookie::toString() const {
             cookie_as_string += "\tDiscard\n";
         if (http_only_)
             cookie_as_string += "\tHttpOnly\n";
-        cookie_as_string += "\tExpires: " + TimeUtil::TimeTToString(expiration_time_, TimeUtil::ISO_8601_FORMAT,
-                                                                    TimeUtil::UTC) + "\n";
+        cookie_as_string += "\tExpires: " + TimeUtil::TimeTToString(expiration_time_, "%a, %d %b %Y %T GMT", TimeUtil::UTC) + "\n";
     }
 
     return cookie_as_string;
