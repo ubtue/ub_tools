@@ -1269,7 +1269,7 @@ bool FeedNeedsToBeHarvested(const std::string &feed_contents, const std::shared_
         return true;
     } else {
         const auto diff((time(nullptr) - last_harvest_timestamp) / 86400);
-        if (diff < 0)
+        if (unlikely(diff < 0))
             LOG_ERROR("unexpected negative time difference '" + std::to_string(diff) + "'");
 
         const auto harvest_threshold(site_params.journal_update_window_ > 0 ? site_params.journal_update_window_ : harvest_params->journal_harvest_interval_);
