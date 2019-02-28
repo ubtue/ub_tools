@@ -141,7 +141,7 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(cons
                 // Copy existing fields but flatten the contents of _source
                 if (entry.first == "_source") {
                     const auto source_object_node(JSON::JSONNode::CastToObjectNodeOrDie("source_object_node", entry.second));
-                    for (const auto source_entry : *source_object_node)
+                    for (const auto &source_entry : *source_object_node)
                          new_map[source_entry.first] = JSON::JSONNode::CastToStringNodeOrDie("new_map[source_entry.first]",
                                                                                              source_entry.second)->getValue();
                 } else
