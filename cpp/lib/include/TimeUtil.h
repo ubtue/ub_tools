@@ -48,7 +48,7 @@ constexpr time_t BAD_TIME_T = static_cast<time_t>(-1);
 constexpr time_t MAX_TIME_T = std::numeric_limits<time_t>::max();
 
 
-const std::string ISO_8601_FORMAT("%Y-%m-%dT%T");
+const std::string ISO_8601_FORMAT("%Y-%m-%dT%T"); // This is only one of several possible ISO 8601 date/time formats!
 
 
 /** The default strftime(3) format string for representing dates and times. */
