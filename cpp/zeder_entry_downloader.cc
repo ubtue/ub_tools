@@ -70,7 +70,7 @@ void DownloadEntries(const Zeder::Flavour flavour, const std::unordered_set<unsi
                      const std::unordered_map<std::string, std::string> &filter_regexps, Zeder::EntryCollection * const downloaded_entries)
 {
     const auto endpoint_url(Zeder::GetFullDumpEndpointPath(flavour));
-    const std::unordered_set<std::string> columns_to_download;  // intentionally empty
+    const std::unordered_set<std::string> columns_to_download {};  // intentionally empty
     std::unique_ptr<Zeder::FullDumpDownloader::Params> downloader_params(new Zeder::FullDumpDownloader::Params(endpoint_url,
                                                                          entries_to_download, columns_to_download, filter_regexps));
 
