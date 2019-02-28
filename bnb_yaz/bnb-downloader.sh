@@ -3,7 +3,7 @@
 
 BIN=/usr/local/bin
 EMAIL=johannes.ruscheinski@ub.uni-tuebingen.de
-MARC_FILENAME=bnb.mrc
+MARC_FILENAME=bnb-$(date +%y%m%d).mrc
 
 
 cd /usr/local/ub_tools/bnb_yaz
@@ -11,8 +11,9 @@ rm --force "$MARC_FILENAME"
 
 
 username_password=$(</usr/local/var/lib/tuelib/bnb_username_password.conf)
+escaped_username_password=$(echo $username_password | sed 's;/;\\/;g') # Escape slashes for sed in the next statement.
 cat bnb.yaz \
-    | sed "s/USERNAME_PASSWORD/$username_password/; s/YYYYMM/$(date +'%Y%m' -d 'last month')/; s/MARC_FILENAME/$MARC_FILENAME/" \
+    | sed "s/USERNAME_PASSWORD/$escaped_username_password/; s/YYYYMM/$(date +'%Y%m' -d 'last month')/; s/MARC_FILENAME/$MARC_FILENAME/" \
     | yaz-client \
     | sed '/error/{q1}' > bnb-downloader.log # Quit w/ exit code 1 if the output of yaz-client contains the string "error"
 

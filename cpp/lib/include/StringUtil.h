@@ -2365,7 +2365,7 @@ inline std::string &Pad(std::string * const s, const std::string::size_type min_
 
 
 /** \return If "needle" was found in "haystack", the starting position in "haystack" else std::string::npos. */
-size_t FindCaseInsensitive(const std::string &haystack, const std::string &needle);
+size_t FindCaseInsensitive(const std::string &haystack, const std::string &needle, const size_t search_start_pos = 0);
 
 
 /** Removes all occurrences of any of the characters in "remove_set" from "source"
