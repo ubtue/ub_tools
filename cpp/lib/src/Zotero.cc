@@ -1074,17 +1074,17 @@ void ApplyCrawlDelay(const std::string &harvest_url, const std::shared_ptr<Harve
         RobotsDotTxt robots_dot_txt_;
         TimeLimit crawl_timeout_;
     public:
-        CrawlDelayParams(const std::shared_ptr<HarvestParams> &harvest_params, const std::string &robots_dot_txt)
+        CrawlDelayParams(const std::shared_ptr<HarvestParams> &harvest_parameters, const std::string &robots_dot_txt)
          : robots_dot_txt_(robots_dot_txt), crawl_timeout_(robots_dot_txt_.getCrawlDelay("*") * 1000)
         {
-            if (crawl_timeout_.getLimit() < harvest_params->default_crawl_delay_time_)
-                crawl_timeout_ = harvest_params->default_crawl_delay_time_;
+            if (crawl_timeout_.getLimit() < harvest_parameters->default_crawl_delay_time_)
+                crawl_timeout_ = harvest_parameters->default_crawl_delay_time_;
         }
-        CrawlDelayParams(const std::shared_ptr<HarvestParams> &harvest_params, const TimeLimit &crawl_timeout)
+        CrawlDelayParams(const std::shared_ptr<HarvestParams> &harvest_parameters, const TimeLimit &crawl_timeout)
          : crawl_timeout_(crawl_timeout)
         {
-            if (crawl_timeout_.getLimit() < harvest_params->default_crawl_delay_time_)
-                crawl_timeout_ = harvest_params->default_crawl_delay_time_;
+            if (crawl_timeout_.getLimit() < harvest_parameters->default_crawl_delay_time_)
+                crawl_timeout_ = harvest_parameters->default_crawl_delay_time_;
         }
     };
 
@@ -1267,8 +1267,9 @@ bool FeedNeedsToBeHarvested(const std::string &feed_contents, const std::shared_
     if (last_harvest_timestamp == TimeUtil::BAD_TIME_T) {
         LOG_DEBUG("feed will be harvested for the first time");
         return true;
-    }
-    else if (abs(::difftime(time(nullptr), last_harvest_timestamp) / 86400.0) >= harvest_params->journal_rss_harvest_threshold_) {
+    } else if (static_cast<unsigned>(abs(::difftime(time(nullptr), last_harvest_timestamp) / 86400)) >=
+               harvest_params->journal_rss_harvest_threshold_)
+    {
         LOG_DEBUG("feed older than " + std::to_string(harvest_params->journal_rss_harvest_threshold_) +
                  " days. flagging for mandatory harvesting");
         return true;
