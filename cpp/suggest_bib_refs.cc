@@ -1,7 +1,7 @@
 /** \brief Utility for flagging PPNs that may need to be augmented with bible references.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -98,16 +98,18 @@ std::string GetPossibleBibleReference(const std::string &normalised_title,
         return "";
 
     const std::string bible_reference_candidate((*matcher)[0]);
-    std::string book_candidate, chapters_and_verses_candidate;
-    BibleUtil::SplitIntoBookAndChaptersAndVerses(bible_reference_candidate, &book_candidate, &chapters_and_verses_candidate);
+    std::vector<std::string> book_candidates, chapters_and_verses_candidates;
+    BibleUtil::SplitIntoBooksAndChaptersAndVerses(bible_reference_candidate, &book_candidates, &chapters_and_verses_candidates);
+    if (book_candidates.empty())
+        return "";
 
-    book_candidate = bible_book_canoniser.canonise(book_candidate, /* verbose = */false);
+    std::string book_candidate(bible_book_canoniser.canonise(book_candidates.front(), /* verbose = */false));
     const std::string book_code(bible_book_to_code_mapper.mapToCode(book_candidate, /* verbose = */false));
     if (book_code.empty())
         return "";
 
     std::set<std::pair<std::string, std::string>> start_end;
-    return BibleUtil::ParseBibleReference(chapters_and_verses_candidate, book_code, &start_end) ? bible_reference_candidate : "";
+    return BibleUtil::ParseBibleReference(chapters_and_verses_candidates.front(), book_code, &start_end) ? bible_reference_candidate : "";
 }
 
 
@@ -138,8 +140,7 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader, File *
         const std::string normalised_title(NormaliseTitle(title));
         std::string bib_ref_candidate(GetPericope(normalised_title, pericopes_to_codes_map));
         if (bib_ref_candidate.empty())
-            bib_ref_candidate = GetPossibleBibleReference(normalised_title, bible_book_canoniser,
-                                                          bible_book_to_code_mapper);
+            bib_ref_candidate = GetPossibleBibleReference(normalised_title, bible_book_canoniser, bible_book_to_code_mapper);
         StringUtil::TrimWhite(&bib_ref_candidate);
         if (not bib_ref_candidate.empty()) {
             ++ppn_candidate_count;

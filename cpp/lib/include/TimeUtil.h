@@ -8,7 +8,7 @@
 /*
  *  Copyright 2003-2008 Project iVia.
  *  Copyright 2003-2008 The Regents of The University of California.
- *  Copyright 2018 Universitätsbibliothek Tübingen
+ *  Copyright 2018,2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -48,7 +48,7 @@ constexpr time_t BAD_TIME_T = static_cast<time_t>(-1);
 constexpr time_t MAX_TIME_T = std::numeric_limits<time_t>::max();
 
 
-const std::string ISO_8601_FORMAT("%Y-%m-%d %T");
+const std::string ISO_8601_FORMAT("%Y-%m-%dT%T"); // This is only one of several possible ISO 8601 date/time formats!
 
 
 /** The default strftime(3) format string for representing dates and times. */
@@ -85,7 +85,8 @@ std::string FormatTime(const double time_in_millisecs, const std::string &separa
 /** \brief   Get the current date time as a string
  *  \return  A string representing the current date and time.
  */
-std::string GetCurrentDateAndTime(const std::string &format = DEFAULT_FORMAT, const TimeZone time_zone = LOCAL);
+std::string GetCurrentDateAndTime(const std::string &format = DEFAULT_FORMAT, const TimeZone time_zone = LOCAL,
+                                  const std::string &time_locale = "en_US");
 
 
 /** \brief   Get the current time as a string.
@@ -106,8 +107,8 @@ inline std::string GetCurrentYear(const TimeZone time_zone = LOCAL) { return Get
  *  \param  time_zone  Whether to use local time (the default) or UTC.
  *  \return The converted time.
  */
-std::string TimeTToString(const time_t &the_time, const std::string &format = DEFAULT_FORMAT,
-                          const TimeZone time_zone = LOCAL);
+std::string TimeTToString(const time_t &the_time, const std::string &format = DEFAULT_FORMAT, const TimeZone time_zone = LOCAL,
+                          const std::string &time_locale = "en_US");
 
 
 /** \brief  Inverse of gmtime(3).

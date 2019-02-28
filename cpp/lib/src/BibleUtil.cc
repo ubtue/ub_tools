@@ -2,7 +2,7 @@
  *  \brief  Implementation of a bible reference parser that generates numeric code ranges.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2017,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -391,16 +391,11 @@ static std::string InsertSpaceAtFirstLetterDigitBoundary(const std::string &s) {
 }
 
 
-void SplitIntoBookAndChaptersAndVerses(const std::string &bible_reference_candidate,
-                                       std::string * const book_candidate,
-                                       std::string * const chapters_and_verses_candidate)
+static bool SplitIntoBookAndChaptersAndVerses(const std::string &bible_reference_candidate, std::string * const book_candidate,
+                                              std::string * const chapters_and_verses_candidate)
 {
-    book_candidate->clear();
-    chapters_and_verses_candidate->clear();
-
-    std::string normalised_bible_reference_candidate(bible_reference_candidate);
-    normalised_bible_reference_candidate = CanoniseLeadingNumber(InsertSpaceAtFirstLetterDigitBoundary(
-        StringUtil::RemoveChars(" \t", &normalised_bible_reference_candidate)));
+    std::string normalised_bible_reference_candidate(CanoniseLeadingNumber(InsertSpaceAtFirstLetterDigitBoundary(
+        StringUtil::RemoveChars(" \t", bible_reference_candidate))));
     const size_t len(normalised_bible_reference_candidate.length());
     if (len <= 3)
         *book_candidate = normalised_bible_reference_candidate;
@@ -417,6 +412,41 @@ void SplitIntoBookAndChaptersAndVerses(const std::string &bible_reference_candid
         }
     } else
         *book_candidate = normalised_bible_reference_candidate;
+
+    return not book_candidate->empty();
+}
+
+
+bool SplitIntoBooksAndChaptersAndVerses(const std::string &bible_reference_query,
+                                        std::vector<std::string> * const book_candidates,
+                                        std::vector<std::string> * const chapters_and_verses_candidates)
+{
+    book_candidates->clear();
+    chapters_and_verses_candidates->clear();
+
+    std::vector<std::string> bible_reference_candidates;
+
+    static const std::string OR(" OR ");
+    size_t start_pos(0), found_pos, last_found_pos;
+    while ((found_pos = StringUtil::FindCaseInsensitive(bible_reference_query, OR, start_pos)) != std::string::npos) {
+        last_found_pos = found_pos;
+        bible_reference_candidates.emplace_back(bible_reference_query.substr(start_pos, found_pos - start_pos));
+        start_pos = found_pos + OR.length();
+    }
+    if (bible_reference_candidates.empty())
+        bible_reference_candidates.emplace_back(bible_reference_query);
+    else
+        bible_reference_candidates.emplace_back(bible_reference_query.substr(last_found_pos + OR.length()));
+
+    for (const auto &bible_reference_candidate : bible_reference_candidates) {
+        book_candidates->resize(book_candidates->size() + 1);
+        chapters_and_verses_candidates->resize(chapters_and_verses_candidates->size() + 1);
+        if (not SplitIntoBookAndChaptersAndVerses(bible_reference_candidate, &book_candidates->back(),
+                                                  &chapters_and_verses_candidates->back()))
+            return false;
+    }
+
+    return true;
 }
 
 
