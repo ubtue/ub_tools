@@ -108,7 +108,6 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> all_journal_groups;
     std::vector<std::string> all_journal_delivery_modes;
     std::vector<std::string> all_journal_zeder_ids;
-    std::vector<std::string> all_journal_zeder_comments;
     std::vector<std::string> all_journal_zeder_urls;
     std::vector<std::string> all_urls;
 
@@ -165,7 +164,6 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
         const std::string url(bundle_reader.zotero(title).value(JournalConfig::Zotero::URL));
         const std::string strptime_format(bundle_reader.zotero(title).value(JournalConfig::Zotero::STRPTIME_FORMAT, ""));
         const std::string zeder_id(bundle_reader.zeder(title).value(JournalConfig::Zeder::ID, ""));
-        const std::string zeder_comment(bundle_reader.zeder(title).value(JournalConfig::Zeder::COMMENT, ""));
 
         std::string zeder_url;
         if (not zeder_id.empty()) {
@@ -186,7 +184,6 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
         all_journal_groups.emplace_back(group);
         all_journal_methods.emplace_back(harvest_type_raw);
         all_journal_zeder_ids.emplace_back(zeder_id);
-        all_journal_zeder_comments.emplace_back(zeder_comment);
         all_journal_zeder_urls.emplace_back(zeder_url);
 
         journal_name_to_group_name_map->insert(std::make_pair(title, group));
@@ -239,7 +236,6 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("all_journal_groups", all_journal_groups);
     names_to_values_map->insertArray("all_journal_delivery_modes", all_journal_delivery_modes);
     names_to_values_map->insertArray("all_journal_zeder_ids", all_journal_zeder_ids);
-    names_to_values_map->insertArray("all_journal_zeder_comments", all_journal_zeder_comments);
     names_to_values_map->insertArray("all_journal_zeder_urls", all_journal_zeder_urls);
     names_to_values_map->insertArray("all_urls", all_urls);
 
