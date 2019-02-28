@@ -92,7 +92,9 @@ rm -f "${log}"
 
 # Cleanup files/folders from a previous run
 mkdir -p $harvester_output_directory
-rm -r -f -d $harvester_output_directory/*
+rm -r -f -d $harvester_output_directory/ixtheo
+rm -r -f -d $harvester_output_directory/krimdok
+rm -r -f -d $harvester_output_directory/ubtuebingen
 
 
 OVERALL_START=$(date +%s.%N)
