@@ -1074,17 +1074,17 @@ void ApplyCrawlDelay(const std::string &harvest_url, const std::shared_ptr<Harve
         RobotsDotTxt robots_dot_txt_;
         TimeLimit crawl_timeout_;
     public:
-        CrawlDelayParams(const std::shared_ptr<HarvestParams> &harvest_params, const std::string &robots_dot_txt)
+        CrawlDelayParams(const std::shared_ptr<HarvestParams> &harvest_parameters, const std::string &robots_dot_txt)
          : robots_dot_txt_(robots_dot_txt), crawl_timeout_(robots_dot_txt_.getCrawlDelay("*") * 1000)
         {
-            if (crawl_timeout_.getLimit() < harvest_params->default_crawl_delay_time_)
-                crawl_timeout_ = harvest_params->default_crawl_delay_time_;
+            if (crawl_timeout_.getLimit() < harvest_parameters->default_crawl_delay_time_)
+                crawl_timeout_ = harvest_parameters->default_crawl_delay_time_;
         }
-        CrawlDelayParams(const std::shared_ptr<HarvestParams> &harvest_params, const TimeLimit &crawl_timeout)
+        CrawlDelayParams(const std::shared_ptr<HarvestParams> &harvest_parameters, const TimeLimit &crawl_timeout)
          : crawl_timeout_(crawl_timeout)
         {
-            if (crawl_timeout_.getLimit() < harvest_params->default_crawl_delay_time_)
-                crawl_timeout_ = harvest_params->default_crawl_delay_time_;
+            if (crawl_timeout_.getLimit() < harvest_parameters->default_crawl_delay_time_)
+                crawl_timeout_ = harvest_parameters->default_crawl_delay_time_;
         }
     };
 
@@ -1267,11 +1267,20 @@ bool FeedNeedsToBeHarvested(const std::string &feed_contents, const std::shared_
     if (last_harvest_timestamp == TimeUtil::BAD_TIME_T) {
         LOG_DEBUG("feed will be harvested for the first time");
         return true;
-    }
-    else if (abs(::difftime(time(nullptr), last_harvest_timestamp) / 86400.0) >= harvest_params->journal_rss_harvest_threshold_) {
-        LOG_DEBUG("feed older than " + std::to_string(harvest_params->journal_rss_harvest_threshold_) +
-                 " days. flagging for mandatory harvesting");
-        return true;
+    } else {
+        const auto diff((time(nullptr) - last_harvest_timestamp) / 86400);
+        if (unlikely(diff < 0))
+            LOG_ERROR("unexpected negative time difference '" + std::to_string(diff) + "'");
+
+        const auto harvest_threshold(site_params.journal_update_window_ > 0 ? site_params.journal_update_window_ : harvest_params->journal_harvest_interval_);
+        LOG_DEBUG("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
+        LOG_DEBUG("feed harvest threshold: " + std::to_string(harvest_threshold) + " days | diff: " + std::to_string(diff) + " days");
+
+        if (diff >= harvest_threshold) {
+            LOG_DEBUG("feed older than " + std::to_string(harvest_threshold) +
+                      " days. flagging for mandatory harvesting");
+            return true;
+        }
     }
 
     // needs to be parsed again as iterating over a SyndicationFormat instance will consume its items
@@ -1279,13 +1288,8 @@ bool FeedNeedsToBeHarvested(const std::string &feed_contents, const std::shared_
     const auto syndication_format(SyndicationFormat::Factory(feed_contents, syndication_format_site_params, &err_msg));
     for (const auto &item : *syndication_format) {
         const auto pub_date(item.getPubDate());
-        if (pub_date == TimeUtil::BAD_TIME_T) {
-            LOG_DEBUG("URL '" + item.getLink() + "' has no date of publication. flagging for mandatory harvesting");
-            return true;
-        }
-
-        if (::difftime(item.getPubDate(), last_harvest_timestamp) > 0) {
-            LOG_DEBUG("URL '" + item.getLink() + "' was updated since the last harvest of this RSS feed. flagging for harvesting");
+        if (pub_date != TimeUtil::BAD_TIME_T and std::difftime(item.getPubDate(), last_harvest_timestamp) > 0) {
+            LOG_DEBUG("URL '" + item.getLink() + "' was added/updated since the last harvest of this RSS feed. flagging for harvesting");
             return true;
         }
     }
@@ -1301,7 +1305,7 @@ UnsignedPair HarvestSyndicationURL(const std::string &feed_url, const std::share
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
     auto error_logger_context(error_logger->newContext(site_params.journal_name_, feed_url));
 
-    LOG_INFO("Processing URL: " + feed_url);
+    LOG_INFO("Processing feed URL: " + feed_url);
 
     Downloader::Params downloader_params;
     downloader_params.proxy_host_and_port_ = GetProxyHostAndPort();
