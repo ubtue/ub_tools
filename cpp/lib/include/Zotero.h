@@ -236,7 +236,7 @@ struct HarvestParams {
     FormatHandler *format_handler_;
     bool force_downloads_;
     std::unique_ptr<RegexMatcher> harvest_url_regex_;
-    unsigned journal_rss_harvest_threshold_;
+    unsigned journal_harvest_interval_;
     unsigned default_crawl_delay_time_;
 };
 

@@ -1268,8 +1268,8 @@ bool FeedNeedsToBeHarvested(const std::string &feed_contents, const std::shared_
         LOG_DEBUG("feed will be harvested for the first time");
         return true;
     } else {
-        const auto diff(static_cast<unsigned>(std::abs(::difftime(time(nullptr), last_harvest_timestamp) / 86400)));
-        const auto harvest_threshold(site_params.journal_update_window_ > 0 ? site_params.journal_update_window_ : harvest_params->journal_rss_harvest_threshold_);
+        const auto diff(static_cast<unsigned>(std::abs(std::difftime(time(nullptr), last_harvest_timestamp) / 86400)));
+        const auto harvest_threshold(site_params.journal_update_window_ > 0 ? site_params.journal_update_window_ : harvest_params->journal_harvest_interval_);
         LOG_DEBUG("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
         LOG_DEBUG("feed harvest threshold: " + std::to_string(harvest_threshold) + " days | diff: " + std::to_string(diff) + " days");
 
@@ -1285,7 +1285,7 @@ bool FeedNeedsToBeHarvested(const std::string &feed_contents, const std::shared_
     const auto syndication_format(SyndicationFormat::Factory(feed_contents, syndication_format_site_params, &err_msg));
     for (const auto &item : *syndication_format) {
         const auto pub_date(item.getPubDate());
-        if (pub_date != TimeUtil::BAD_TIME_T and ::difftime(item.getPubDate(), last_harvest_timestamp) > 0) {
+        if (pub_date != TimeUtil::BAD_TIME_T and std::difftime(item.getPubDate(), last_harvest_timestamp) > 0) {
             LOG_DEBUG("URL '" + item.getLink() + "' was added/updated since the last harvest of this RSS feed. flagging for harvesting");
             return true;
         }
