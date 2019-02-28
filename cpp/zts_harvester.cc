@@ -110,7 +110,10 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
         }
     }
 
-    site_params->zeder_id_ = section.getString("zeder_id", "");
+    site_params->zeder_id_ = bundle_reader.zeder(section_name).value(JournalConfig::Zeder::ID, "");
+    site_params->journal_update_window_ = 0;
+    StringUtil::ToUnsigned(bundle_reader.zeder(section_name).value(JournalConfig::Zeder::UPDATE_WINDOW, ""),
+                           &site_params->journal_update_window_);
 }
 
 
