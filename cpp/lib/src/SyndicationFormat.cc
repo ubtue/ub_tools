@@ -187,10 +187,9 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
     time_t pub_date(TimeUtil::BAD_TIME_T);
     XMLParser::XMLPart part;
     while (xml_parser_.getNext(&part)) {
-        if (part.type_ == XMLParser::XMLPart::CLOSING_TAG and part.data_ == "item") {
-            LOG_DEBUG("found new item: " + title + ", URL: " + link);
+        if (part.type_ == XMLParser::XMLPart::CLOSING_TAG and part.data_ == "item")
             return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, id, pub_date));
-        } else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "title")
+        else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "title")
             title = ExtractText(xml_parser_, "title", " (RSS20::getNextItem)");
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
             description = ExtractText(xml_parser_, "description", " (RSS20::getNextItem)");

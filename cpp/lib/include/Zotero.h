@@ -213,6 +213,7 @@ struct SiteParams {
     std::vector<std::string> additional_fields_;
     std::vector<std::string> non_standard_metadata_fields_;
     std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> field_exclusion_filters_;
+    unsigned journal_update_window_;
 };
 
 
@@ -235,7 +236,7 @@ struct HarvestParams {
     FormatHandler *format_handler_;
     bool force_downloads_;
     std::unique_ptr<RegexMatcher> harvest_url_regex_;
-    unsigned journal_rss_harvest_threshold_;
+    unsigned journal_harvest_interval_;
     unsigned default_crawl_delay_time_;
 };
 
