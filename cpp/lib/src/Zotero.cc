@@ -1267,7 +1267,7 @@ bool FeedNeedsToBeHarvested(const std::string &feed_contents, const std::shared_
     if (last_harvest_timestamp == TimeUtil::BAD_TIME_T) {
         LOG_DEBUG("feed will be harvested for the first time");
         return true;
-    } else if (static_cast<unsigned>(abs(::difftime(time(nullptr), last_harvest_timestamp) / 86400)) >=
+    } else if (static_cast<unsigned>(std::abs(::difftime(time(nullptr), last_harvest_timestamp) / 86400)) >=
                harvest_params->journal_rss_harvest_threshold_)
     {
         LOG_DEBUG("feed older than " + std::to_string(harvest_params->journal_rss_harvest_threshold_) +
