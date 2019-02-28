@@ -587,7 +587,7 @@ public:
 
     inline bool insertField(const Field &field) { return insertField(field.getTag(), field.getContents()); }
 
-    inline bool insertField(const Tag &new_field_tag, std::vector<Subfield> subfields, const char indicator1 = ' ',
+    inline bool insertField(const Tag &new_field_tag, const std::vector<Subfield> &subfields, const char indicator1 = ' ',
                             const char indicator2 = ' ')
     {
         std::string new_field_value;

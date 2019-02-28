@@ -82,6 +82,7 @@ struct CustomNodeParameters {
     std::string comment_;
     std::string date_normalized_;
     std::string isil_;
+    std::string issn_mapped_language_;
 };
 
 

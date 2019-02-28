@@ -452,13 +452,35 @@ static void InsertAdditionalFields(const std::string &parameter_source, MARC::Re
 static void ProcessNonStandardMetadata(MARC::Record * const record, const std::map<std::string, std::string> &notes_key_value_pairs,
                                        const std::vector<std::string> &non_standard_metadata_fields)
 {
-    for (const auto &key_and_value : notes_key_value_pairs) {
-        const std::string key("%" + key_and_value.first + "%");
-        for (const auto &non_standard_metadata_field : non_standard_metadata_fields) {
-            if (non_standard_metadata_field.find(key) != std::string::npos) {
-                if (not InsertAdditionalField(record, StringUtil::ReplaceString(key, key_and_value.second, non_standard_metadata_field)))
-                    LOG_ERROR("failed to add non-standard metadata field! (Pattern was \"" + non_standard_metadata_field + "\")");
+    static auto placeholder_matcher(RegexMatcher::RegexMatcherFactoryOrDie("%(.+)%"));
+
+    for (auto non_standard_metadata_field : non_standard_metadata_fields) {
+        if (not placeholder_matcher->matched(non_standard_metadata_field))
+            LOG_WARNING("non-standard metadata field '" + non_standard_metadata_field + "' has no placeholders");
+        else {
+            std::string first_missing_placeholder;
+            for (unsigned i(1); i < placeholder_matcher->getLastMatchCount(); ++i) {
+                const auto placeholder((*placeholder_matcher)[i]);
+                const auto note_match(notes_key_value_pairs.find(placeholder));
+                if (note_match == notes_key_value_pairs.end()) {
+                    first_missing_placeholder = placeholder;
+                    break;
+                }
+
+                non_standard_metadata_field = StringUtil::ReplaceString((*placeholder_matcher)[0], note_match->second,
+                                                                        non_standard_metadata_field);
             }
+
+            if (not first_missing_placeholder.empty()) {
+                LOG_DEBUG("non-standard metadata field '" + non_standard_metadata_field + "' has missing placeholder(s) '" +
+                            first_missing_placeholder + "'");
+                break;
+            }
+
+            if (InsertAdditionalField(record, non_standard_metadata_field))
+                LOG_DEBUG("inserted non-standard metadata field '" + non_standard_metadata_field + "'");
+            else
+                LOG_ERROR("failed to add non-standard metadata field! (Content was \"" + non_standard_metadata_field + "\")");
         }
     }
 }
@@ -565,10 +587,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     }
 
     // Review-specific modifications
-    if (item_type == "review") {
+    if (item_type == "review")
         record->insertField("655", { { 'a', "!209083166!" }, { '0', "(DE-576)" } }, /* indicator1 = */' ', /* indicator2 = */'7');
-        record->insertField("935", { { 'c', "uwre" } });
-    }
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     MARC::Subfields _936_subfields;
@@ -690,6 +710,7 @@ void MarcFormatHandler::extractCustomNodeParameters(std::shared_ptr<const JSON::
     custom_node_params->superior_ppn_online_ = custom_object->getOptionalStringValue("ppn_online");
     custom_node_params->superior_ppn_print_ = custom_object->getOptionalStringValue("ppn_print");
     custom_node_params->isil_ = custom_object->getOptionalStringValue("isil");
+    custom_node_params->issn_mapped_language_ = custom_object->getOptionalStringValue("issn_language");
 }
 
 
@@ -717,6 +738,10 @@ void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParamet
         unsigned year;
         if (TimeUtil::StringToYear(custom_node_params.date_normalized_, &year))
             item_parameters->year_ = StringUtil::ToString(year);
+    }
+    if (item_parameters->language_.empty()) {
+        item_parameters->language_ = custom_node_params.issn_mapped_language_;
+        LOG_INFO("set language to ISSN-mapped value '" + item_parameters->language_ + "'");
     }
 }
 
@@ -876,20 +901,11 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
 
     // ISSN specific overrides
     if (not issn_selected.empty()) {
-
         // language
         const auto ISSN_and_language(site_params.global_params_->maps_->ISSN_to_language_code_map_.find(issn_selected));
         if (ISSN_and_language != site_params.global_params_->maps_->ISSN_to_language_code_map_.cend()) {
-            if (language_node != nullptr) {
-                const std::string language_old(language_node->getValue());
-                language_node->setValue(ISSN_and_language->second);
-                comments.emplace_back("changed \"language\" from \"" + language_old + "\" to \"" + ISSN_and_language->second
-                                      + "\" due to ISSN map");
-            } else {
-                language_node = std::make_shared<JSON::StringNode>(ISSN_and_language->second);
-                object_node->insert("language", language_node);
-                comments.emplace_back("added \"language\" \"" + ISSN_and_language->second + "\" due to ISSN map");
-            }
+            // this will be consumed in the later stages depending on the results of the language detection heuristic
+            custom_fields.emplace(std::make_pair("issn_language", ISSN_and_language->second));
         }
 
         // volume
