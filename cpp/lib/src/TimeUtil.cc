@@ -149,8 +149,8 @@ std::string TimeTToString(const time_t &the_time, const std::string &format, con
     if (unlikely((time_zone == LOCAL ? ::localtime_r(&the_time, &tm) : ::gmtime_r(&the_time, &tm)) == nullptr))
         LOG_ERROR("time conversion error!");
     char time_buf[50 + 1];
-    std::strftime(time_buf, sizeof(time_buf), format.c_str(), &tm);
-
+    if (unlikely(std::strftime(time_buf, sizeof(time_buf), format.c_str(), &tm) == 0))
+        LOG_ERROR("strftime(3) failed! (format: " + format + ")");
     return time_buf;
 }
 
