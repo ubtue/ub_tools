@@ -150,7 +150,7 @@ std::string TimeTToString(const time_t &the_time, const std::string &format, con
         LOG_ERROR("time conversion error!");
     char time_buf[50 + 1];
     errno = 0;
-    if (unlikely(errno != 0 or std::strftime(time_buf, sizeof(time_buf), format.c_str(), &tm) == 0))
+    if (unlikely(std::strftime(time_buf, sizeof(time_buf), format.c_str(), &tm) == 0 or errno != 0))
         LOG_ERROR("strftime(3) failed! (format: " + format + ")");
     return time_buf;
 }
