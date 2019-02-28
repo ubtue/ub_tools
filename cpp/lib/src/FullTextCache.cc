@@ -114,7 +114,7 @@ std::vector<std::string> FullTextCache::getEntryUrlsAsStrings(const std::string 
 
         const auto url(GetValueOrEmptyString(map, "url"));
         if (not url.empty())
-            urls.emplace_back(TextUtil::CStyleUnescape(url));
+            urls.emplace_back(url);
     }
     return urls;
 }
@@ -242,10 +242,7 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
 
     std::string expiration_string;
     if (expiration == TimeUtil::BAD_TIME_T) {
-        if (not full_text_cache_.fieldWithValueExists("id", id))
-            full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text } });
-        else
-            LOG_INFO("ID \"" + id + "\" already present, skipping insertion...");
+        full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text } });
     }
     else {
         expiration_string = TimeUtil::TimeTToString(expiration, TimeUtil::DATE_OPTIONAL_TIME_FORMAT);
