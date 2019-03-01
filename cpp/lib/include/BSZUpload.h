@@ -71,7 +71,7 @@ public:
     /** \brief Returns when the last URL of the given journal was delivered to the BSZ.
      *  \return Timestamp of the last delivery if found, TimeUtil::BAD_TIME_T otherwise.
      */
-     time_t getLastDeliveryTime(const std::string &journal_name) const;
+    time_t getLastDeliveryTime(const std::string &journal_name) const;
 private:
     inline void truncateURL(std::string * const url) const {
         if (url->length() > static_cast<std::size_t>(SqlUtil::VARCHAR_UTF8_MAX_LENGTH))
