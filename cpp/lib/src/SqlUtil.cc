@@ -8,7 +8,7 @@
 /*
  *  \copyright 2002-2009 Project iVia.
  *  \copyright 2002-2009 The Regents of The University of California.
- *  \copyright 2016,2017 Universitätsbibliothek Tübingen.
+ *  \copyright 2016,2017,2019 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -37,6 +37,7 @@
 #include "DbResultSet.h"
 #include "DbRow.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include "util.h"
 
 
@@ -176,7 +177,11 @@ tm DatetimeToTm(const std::string &datetime) {
 
 time_t DatetimeToTimeT(const std::string &datetime) {
     tm time_struct(DatetimeToTm(datetime));
-    return mktime(&time_struct);
+    errno = 0;
+    const time_t ret_val(::mktime(&time_struct));
+    if (unlikely(errno != 0))
+        return TimeUtil::BAD_TIME_T;
+    return ret_val;
 }
 
 

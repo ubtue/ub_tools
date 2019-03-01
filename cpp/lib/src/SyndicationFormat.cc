@@ -1,7 +1,7 @@
 /** \brief Interface of the SyndicationFormat class and descendents thereof.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -241,8 +241,7 @@ std::unique_ptr<SyndicationFormat::Item> RSS091::getNextItem() {
     XMLParser::XMLPart part;
     while (xml_parser_.getNext(&part)) {
         if (part.type_ == XMLParser::XMLPart::CLOSING_TAG and part.data_ == "item")
-            return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, /* id = */"",
-                                                                     TimeUtil::BAD_TIME_T));
+            return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, /* id = */"", TimeUtil::BAD_TIME_T));
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "title")
             title = ExtractText(xml_parser_, "title");
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
