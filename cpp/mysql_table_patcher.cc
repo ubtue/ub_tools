@@ -82,11 +82,12 @@ void LoadAndSortUpdateFilenames(const std::string &directory_path, std::vector<s
 
 void ApplyUpdate(DbConnection * const db_connection, const std::string &database, const std::string &table, const unsigned version) {
     unsigned current_version(0);
-    db_connection->queryOrDie("SELECT version FROM ub_tools.table_versions WHERE table_name='" + db_connection->escapeString(table) + "'");
+    db_connection->queryOrDie("SELECT version FROM ub_tools.table_versions WHERE database_name='"
+                              + db_connection->escapeString(database) + "',table_name='" + db_connection->escapeString(table) + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty())
-        db_connection->queryOrDie("INSERT INTO ub_tools.table_versions SET table_name='" + db_connection->escapeString(table)
-                                  + "',version=0");
+        db_connection->queryOrDie("INSERT INTO ub_tools.table_versions SET database_name='" + db_connection->escapeString(database)
+                                  + ",table_name='" + db_connection->escapeString(table) + "',version=0");
     else
         current_version = StringUtil::ToUnsigned(result_set.getNextRow()["version"]);
     if (version <= current_version)
@@ -122,8 +123,9 @@ int Main(int argc, char *argv[]) {
 
     DbConnection db_connection;
     if (not db_connection.tableExists("ub_tools", "table_versions"))
-        db_connection.queryOrDie("CREATE TABLE ub_tools.table_versions (version INT UNSIGNED NOT NULL, table_name VARCHAR(64) NOT NULL, "
-                                 "UNIQUE(table_name)) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin");
+        db_connection.queryOrDie("CREATE TABLE ub_tools.table_versions (version INT UNSIGNED NOT NULL, database_name VARCHAR(64) NOT NULL, "
+                                 "table_name VARCHAR(64) NOT NULL, UNIQUE(database_name,table_name)) "
+                                 "CHARACTER SET utf8mb4 COLLATE utf8mb4_bin");
 
     ApplyUpdates(&db_connection, update_filenames);
 
