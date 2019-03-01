@@ -80,7 +80,11 @@ void LoadAndSortUpdateFilenames(const std::string &directory_path, std::vector<s
 }
 
 
-void ApplyUpdate(DbConnection * const db_connection, const std::string &database, const std::string &table, const unsigned version) {
+void ApplyUpdate(DbConnection * const db_connection, const std::string &update_filename) {
+    std::string database, table;
+    unsigned version;
+    SplitIntoDatabaseTableAndVersion(update_filename, &database, &table, &version);
+
     unsigned current_version(0);
     db_connection->queryOrDie("SELECT version FROM ub_tools.table_versions WHERE database_name='"
                               + db_connection->escapeString(database) + "',table_name='" + db_connection->escapeString(table) + "'");
@@ -98,16 +102,13 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &database
                   + " for table \"" + database + "." + table + "\"!");
 
     LOG_INFO("applying update \"" + database + "." + table + "." + std::to_string(version) + "\".");
-}
-
-
-void ApplyUpdates(DbConnection * const db_connection, const std::vector<std::string> &update_filenames) {
-    for (const auto &update_filename : update_filenames) {
-        std::string database, table;
-        unsigned version;
-        SplitIntoDatabaseTableAndVersion(update_filename, &database, &table, &version);
-        ApplyUpdate(db_connection, database, table, version);
-    }
+    std::string update_statement;
+    FileUtil::ReadStringOrDie(update_filename, &update_statement);
+    db_connection->queryOrDie("START TRANSACTION");
+    db_connection->queryOrDie("UPDATE TABLE ub_tools.table_versions SET version=" + std::to_string(version)
+                              + " WHERE database_name='" + db_connection->escapeString(database) + "' AND table_name='"
+                              + db_connection->escapeString(table) + "'");
+    db_connection->queryOrDie("COMMIT");
 }
 
 
@@ -127,7 +128,8 @@ int Main(int argc, char *argv[]) {
                                  "table_name VARCHAR(64) NOT NULL, UNIQUE(database_name,table_name)) "
                                  "CHARACTER SET utf8mb4 COLLATE utf8mb4_bin");
 
-    ApplyUpdates(&db_connection, update_filenames);
+    for (const auto &update_filename : update_filenames)
+        ApplyUpdate(&db_connection, update_filename);
 
     return EXIT_SUCCESS;
 }
