@@ -304,11 +304,8 @@ void MarcFormatHandler::identifyMissingLanguage(ItemParameters * const node_para
             LOG_ERROR("unknown text field '" + site_params_->expected_languages_text_fields_ + "' for language detection");
 
         NGram::ClassifyLanguage(record_text, &top_languages, site_params_->expected_languages_, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
-
-        if (not top_languages.empty()) {
-            node_parameters->language_ = top_languages.front();
-            LOG_INFO("automatically detected language to be '" + node_parameters->language_);
-        }
+        node_parameters->language_ = top_languages.front();
+        LOG_INFO("automatically detected language to be '" + node_parameters->language_ + "'");
     }
 }
 
@@ -369,9 +366,11 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Language
     node_parameters->language_ = object_node->getOptionalStringValue("language");
-    if (node_parameters->language_.empty())
+    if (node_parameters->language_.empty() or site_params_->force_automatic_language_detection_) {
+        if (site_params_->force_automatic_language_detection_)
+            LOG_DEBUG("forcing automatic language detection");
         identifyMissingLanguage(node_parameters);
-    else if (site_params_->expected_languages_.size() == 1 and *site_params_->expected_languages_.begin() != node_parameters->language_) {
+    } else if (site_params_->expected_languages_.size() == 1 and *site_params_->expected_languages_.begin() != node_parameters->language_) {
         LOG_WARNING("expected language '" + *site_params_->expected_languages_.begin() + "' but found '"
                     + node_parameters->language_ + "'");
     }
