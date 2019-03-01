@@ -33,12 +33,6 @@
 namespace {
 
 
-[[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] update_directory_path\n";
-    std::exit(EXIT_FAILURE);
-}
-
-
 void SplitIntoDatabaseTableAndVersion(const std::string &update_filename, std::string * const database, std::string * const table,
                                       unsigned * const version)
 {
@@ -117,7 +111,7 @@ void ApplyUpdates(DbConnection * const db_connection, const std::vector<std::str
 
 int Main(int argc, char *argv[]) {
     if (argc != 2)
-        Usage();
+        ::Usage("[--verbose] update_directory_path");
 
     std::vector<std::string> update_filenames;
     LoadAndSortUpdateFilenames(argv[1], &update_filenames);
