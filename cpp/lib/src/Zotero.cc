@@ -1149,7 +1149,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     already_harvested_urls.emplace(harvest_url);
     auto error_logger_context(error_logger->newContext(site_params.journal_name_, harvest_url));
 
-    LOG_INFO("Harvesting URL: " + harvest_url);
+    LOG_INFO("\nHarvesting URL: " + harvest_url);
 
     std::string response_body, error_message;
     unsigned response_code;
@@ -1207,7 +1207,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     ++harvest_params->harvested_url_count_;
 
     LOG_DEBUG("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
-                + harvest_url + '\n' + "of which "
+                + harvest_url + " of which "
                 + StringUtil::ToString(record_count_and_previously_downloaded_count.first
                                     - record_count_and_previously_downloaded_count.second)
                 + " records were new records.");
@@ -1221,7 +1221,7 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, SimpleCrawler
                          HarvesterErrorLogger * const error_logger, File * const progress_file)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
-    LOG_DEBUG("Starting crawl at base URL: " +  site_desc.start_url_);
+    LOG_DEBUG("\n\nStarting crawl at base URL: " +  site_desc.start_url_);
     crawler_params.proxy_host_and_port_ = GetProxyHostAndPort();
     if (not crawler_params.proxy_host_and_port_.empty())
         crawler_params.ignore_ssl_certificates_ = true;
@@ -1304,7 +1304,7 @@ UnsignedPair HarvestSyndicationURL(const std::string &feed_url, const std::share
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
     auto error_logger_context(error_logger->newContext(site_params.journal_name_, feed_url));
 
-    LOG_INFO("Processing feed URL: " + feed_url);
+    LOG_INFO("\n\nProcessing feed URL: " + feed_url);
 
     Downloader::Params downloader_params;
     downloader_params.proxy_host_and_port_ = GetProxyHostAndPort();
@@ -1342,7 +1342,7 @@ UnsignedPair HarvestSyndicationURL(const std::string &feed_url, const std::share
         const auto item_id(item.getId());
         const std::string title(item.getTitle());
         if (not title.empty())
-            LOG_DEBUG("\t\tTitle: " + title);
+            LOG_DEBUG("\n\nFeed Item: " + title);
 
         const auto record_count_and_previously_downloaded_count(Harvest(item.getLink(), harvest_params, site_params, error_logger));
         total_record_count_and_previously_downloaded_record_count += record_count_and_previously_downloaded_count;
