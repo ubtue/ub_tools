@@ -80,29 +80,33 @@ void LoadAndSortUpdateFilenames(const std::string &directory_path, std::vector<s
 }
 
 
-void ApplyUpdate(DbConnection * const /*db_connection*/, const std::string &database, const std::string &table, const unsigned version) {
+void ApplyUpdate(DbConnection * const db_connection, const std::string &database, const std::string &table, const unsigned version) {
+    unsigned current_version(0);
+    db_connection->queryOrDie("SELECT version FROM ub_tools.table_versions WHERE table_name='" + db_connection->escapeString(table) + "'");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    if (result_set.empty())
+        db_connection->queryOrDie("INSERT INTO ub_tools.table_versions SET table_name='" + db_connection->escapeString(table)
+                                  + "',version=0");
+    else
+        current_version = StringUtil::ToUnsigned(result_set.getNextRow()["version"]);
+    if (version <= current_version)
+        return;
+
+    if (unlikely(version + 1 != current_version))
+        LOG_ERROR("update version is " + std::to_string(version) + ", current version is " + std::to_string(current_version)
+                  + " for table \"" + database + "." + table + "\"!");
+
     LOG_INFO("applying update \"" + database + "." + table + "." + std::to_string(version) + "\".");
 }
 
 
 void ApplyUpdates(DbConnection * const db_connection, const std::vector<std::string> &update_filenames) {
-    std::string previous_database, previous_table;
-    unsigned previous_version;
-
     for (const auto &update_filename : update_filenames) {
-        std::string current_database, current_table;
-        unsigned current_version;
-        SplitIntoDatabaseTableAndVersion(update_filename, &current_database, &current_table, &current_version);
-        if (not previous_database.empty() and (previous_database != current_database or previous_table != current_table))
-            ApplyUpdate(db_connection, previous_database, previous_table, previous_version);
-
-        previous_database = current_database;
-        previous_table    = current_table;
-        previous_version  = current_version;
+        std::string database, table;
+        unsigned version;
+        SplitIntoDatabaseTableAndVersion(update_filename, &database, &table, &version);
+        ApplyUpdate(db_connection, database, table, version);
     }
-
-    if (not previous_database.empty())
-        ApplyUpdate(db_connection, previous_database, previous_table, previous_version);
 }
 
 
