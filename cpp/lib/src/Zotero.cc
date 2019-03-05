@@ -1394,13 +1394,13 @@ void HarvesterErrorLogger::autoLog(const std::string &journal_name, const std::s
     HarvesterError error{ UNKNOWN, "" };
     for (const auto &error_regexp : error_regexp_map) {
         if (error_regexp.second->matched(message)) {
-            error.type = error_regexp.first;
-            error.message = (*error_regexp.second)[1];
+            error.type_ = error_regexp.first;
+            error.message_ = (*error_regexp.second)[1];
             break;
         }
     }
 
-    log(error.type, journal_name, harvest_url, error.type == UNKNOWN ? message : error.message, write_to_std_error);
+    log(error.type_, journal_name, harvest_url, error.type_ == UNKNOWN ? message : error.message_, write_to_std_error);
 }
 
 
@@ -1419,21 +1419,21 @@ void HarvesterErrorLogger::writeReport(const std::string &report_file_path) cons
         report.appendSection(journal_name);
 
         for (const auto &url_error : journal_error.second.url_errors_) {
-            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(url_error.second.type));
+            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(url_error.second.type_));
             // we cannot cache the section pointer as it can get invalidated after appending a new section
             report.getSection(journal_name)->insert(url_error.first, error_string);
             report.appendSection(error_string);
-            report.getSection(error_string)->insert(url_error.first, url_error.second.message);
+            report.getSection(error_string)->insert(url_error.first, url_error.second.message_);
         }
 
         int i(1);
         for (const auto &non_url_error : journal_error.second.non_url_errors_) {
-            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(non_url_error.type));
+            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(non_url_error.type_));
             const auto error_key(journal_name + "-non_url_error-" + std::to_string(i));
 
             report.getSection(journal_name)->insert(error_key, error_string);
             report.appendSection(error_string);
-            report.getSection(error_string)->insert(error_key, non_url_error.message);
+            report.getSection(error_string)->insert(error_key, non_url_error.message_);
             ++i;
         }
     }
