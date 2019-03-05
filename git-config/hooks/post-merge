@@ -21,7 +21,7 @@ run_if_file_changed "$MYSQL_SCHEMA_DIFF_CMD" "ub_tools.sql" "$MYSQL_SCHEMA_DIFF_
 
 TABLE_PATCHER=/usr/local/bin/mysql_table_patcher
 if [[ echo "$CHANGED_FILES" | grep --quiet /usr/local/ub_tools/cpp/data/sql_updates ]]; then
-    if [[ -e $TABLE_PATCHER ]]; then
+    if [[ -x $TABLE_PATCHER ]]; then
         $TABLE_PATCHER
     else
         echo "You need to install $TABLE_PATCHER and execute it!."
