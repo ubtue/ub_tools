@@ -361,6 +361,28 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
     if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abstract_note_))
         node_parameters->item_type_ = "review";
 
+    // Keywords
+    const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
+    if (tags_node != nullptr) {
+        const std::shared_ptr<const JSON::ArrayNode> tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
+        for (const auto &tag : *tags) {
+            const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
+            const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
+            if (tag_node == nullptr)
+                LOG_ERROR("unexpected: tag object does not contain a \"tag\" entry!");
+            else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
+                LOG_ERROR("unexpected: tag object's \"tag\" entry is not a string node!");
+            else {
+                const std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie("tag", tag_node));
+                const std::string value(string_node->getValue());
+                node_parameters->keywords_.emplace_back(value);
+
+                if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(value))
+                    node_parameters->item_type_ = "review";
+            }
+        }
+    }
+
     if (node_parameters->item_type_ == "review")
         LOG_DEBUG("tagged as review");
 
@@ -389,25 +411,6 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Pages
     node_parameters->pages_ = object_node->getOptionalStringValue("pages");
-
-    // Keywords
-    const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
-    if (tags_node != nullptr) {
-        const std::shared_ptr<const JSON::ArrayNode> tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
-        for (const auto &tag : *tags) {
-            const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
-            const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
-            if (tag_node == nullptr)
-                LOG_ERROR("unexpected: tag object does not contain a \"tag\" entry!");
-            else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
-                LOG_ERROR("unexpected: tag object's \"tag\" entry is not a string node!");
-            else {
-                const std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie("tag", tag_node));
-                const std::string value(string_node->getValue());
-                node_parameters->keywords_.emplace_back(value);
-            }
-        }
-    }
 
     // URL
     node_parameters->url_ = object_node->getOptionalStringValue("url");
