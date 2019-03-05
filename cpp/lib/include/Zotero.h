@@ -215,6 +215,9 @@ struct SiteParams {
     std::vector<std::string> non_standard_metadata_fields_;
     std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> field_exclusion_filters_;
     unsigned journal_update_window_;
+
+    SiteParams()
+        : global_params_(nullptr), group_params_(nullptr), force_automatic_language_detection_(false), journal_update_window_(0) {}
 };
 
 
@@ -232,13 +235,16 @@ class HarvesterErrorLogger;
 
 struct HarvestParams {
     Url zts_server_url_;
-    unsigned harvested_url_count_ = 0;
+    unsigned harvested_url_count_;
     std::string user_agent_;
     FormatHandler *format_handler_;
     bool force_downloads_;
     std::unique_ptr<RegexMatcher> harvest_url_regex_;
     unsigned journal_harvest_interval_;
     unsigned default_crawl_delay_time_;
+
+    HarvestParams()
+        : harvested_url_count_(0), format_handler_(nullptr), force_downloads_(false), journal_harvest_interval_(0), default_crawl_delay_time_(0) {}
 };
 
 
