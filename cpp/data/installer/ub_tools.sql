@@ -4,6 +4,13 @@
 -- diacritical marks => we need to override it and use utf8mb4_bin.
 
 -- The sizes here must be in sync with the constants defined in rss_aggregator.cc!
+CREATE TABLE ub_tools.table_versions (
+    version INT UNSIGNED NOT NULL,
+    database_name VARCHAR(64) NOT NULL,
+    table_name VARCHAR(64) NOT NULL,
+    UNIQUE(database_name,table_name)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+
 CREATE TABLE rss_aggregator (
     item_id VARCHAR(191) NOT NULL,
     item_url VARCHAR(512) NOT NULL,
