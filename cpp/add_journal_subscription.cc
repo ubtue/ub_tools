@@ -112,10 +112,7 @@ int main(int argc, char **argv) {
     }
 
     try {
-        std::string mysql_url;
-        VuFind::GetMysqlURL(&mysql_url);
-        DbConnection db_connection(mysql_url);
-
+        DbConnection db_connection(VuFind::GetMysqlURL());
         AddSubscriptions(verbose, &db_connection, user_id, parent_ppns);
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));

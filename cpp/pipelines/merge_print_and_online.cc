@@ -708,9 +708,7 @@ int Main(int argc, char *argv[]) {
                                 canonical_ppn_to_ppn_map);
 
     if (not debug) {
-        std::string mysql_url;
-        VuFind::GetMysqlURL(&mysql_url);
-        DbConnection db_connection(mysql_url);
+        DbConnection db_connection(VuFind::GetMysqlURL());
         PatchSerialSubscriptions(&db_connection, ppn_to_canonical_ppn_map);
         PatchPDASubscriptions(&db_connection, ppn_to_canonical_ppn_map);
         PatchResourceTable(&db_connection, ppn_to_canonical_ppn_map);

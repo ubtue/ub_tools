@@ -141,10 +141,7 @@ int Main(int argc, char **argv) {
 
     ControlNumberGuesser control_number_guesser;
     control_number_guesser.swapControlNumbers(old_to_new_map);
-
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    DbConnection db_connection(mysql_url);
+    DbConnection db_connection(VuFind::GetMysqlURL());
 
     PatchTable(&db_connection, "vufind.resource", "record_id", old_to_new_map);
     PatchTable(&db_connection, "vufind.record", "record_id", old_to_new_map);

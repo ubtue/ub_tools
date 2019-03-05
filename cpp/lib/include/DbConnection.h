@@ -34,8 +34,12 @@ class IniFile;
 
 class DbConnection {
 public:
-    enum Type { T_MYSQL, T_SQLITE };
+    enum Charset { UTF8MB3, UTF8MB4 };
+    enum Collation { UTF8MB3_BIN, UTF8MB4_BIN };
+    enum DuplicateKeyBehaviour { DKB_FAIL, DKB_IGNORE, DKB_REPLACE };
+    enum OpenMode { READONLY, READWRITE, CREATE };
     enum TimeZone { TZ_SYSTEM, TZ_UTC };
+    enum Type { T_MYSQL, T_SQLITE };
     static const std::string DEFAULT_CONFIG_FILE_PATH;
 private:
     Type type_;
@@ -43,11 +47,13 @@ private:
     sqlite3_stmt *stmt_handle_;
     mutable MYSQL mysql_;
     bool initialised_;
-public:
-    enum OpenMode { READONLY, READWRITE, CREATE };
-    enum Charset { UTF8MB3, UTF8MB4 };
-    enum Collation { UTF8MB3_BIN, UTF8MB4_BIN };
-    enum DuplicateKeyBehaviour { DKB_FAIL, DKB_IGNORE, DKB_REPLACE };
+    std::string database_name_;
+    std::string user_;
+    std::string passwd_;
+    std::string host_;
+    unsigned port_;
+    Charset charset_;
+    TimeZone time_zone_;
 public:
     explicit DbConnection(const TimeZone time_zone = TZ_SYSTEM); // Uses the ub_tools database.
 
@@ -69,6 +75,14 @@ public:
     virtual ~DbConnection();
 
     inline Type getType() const { return type_; }
+    inline std::string getDbName() const { return database_name_; }
+    inline std::string getUser() const { return user_; }
+    inline std::string getPasswd() const { return passwd_; }
+    inline std::string getHost() const { return host_; }
+    inline unsigned getPort() const { return port_; }
+    inline Charset getCharset() const { return charset_; }
+    inline TimeZone getTimeZone() const { return time_zone_; }
+
 
     /** \note If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be
      *        logged to /usr/local/var/log/tuefind/sql_debug.log.
