@@ -38,11 +38,8 @@ int main(int argc, char *argv[]) {
         Usage();
 
     try {
-        std::string mysql_url;
-        VuFind::GetMysqlURL(&mysql_url);
-
         // The following definition would throw an exception if the "mysql_url" was invalid:
-        DbConnection db_connection(mysql_url);
+        DbConnection db_connection(VuFind::GetMysqlURL());
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
