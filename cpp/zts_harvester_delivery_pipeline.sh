@@ -105,7 +105,7 @@ declare -a dest_filepaths
 StartPhase "Harvest URLs"
 LOGGER_FORMAT=no_decorations,strip_call_site \
 BACKTRACE=1 \
-zts_harvester --min-log-level=INFO \
+zts_harvester --min-log-level=DEBUG \
              --delivery-mode=$delivery_mode \
              --output-directory=$harvester_output_directory \
              --output-filename=$harvester_output_filename \

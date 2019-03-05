@@ -73,9 +73,9 @@ enum class ExecMode {
 };
 
 
-int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
-         const std::string &new_stdout, const std::string &new_stderr, const ExecMode exec_mode,
-         unsigned timeout_in_seconds, const int tardy_child_signal)
+int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin, const std::string &new_stdout,
+         const std::string &new_stderr, const ExecMode exec_mode, unsigned timeout_in_seconds, const int tardy_child_signal,
+         const std::unordered_map<std::string, std::string> &envs)
 {
     errno = 0;
     if (::access(command.c_str(), X_OK) != 0)
@@ -122,6 +122,10 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
                 ::_exit(-1);
             ::close(new_stderr_fd);
         }
+
+        // Set environment variables
+        for (const auto &env : envs)
+            ::setenv(env.first.c_str(), env.second.c_str(), 1);
 
         // Build the argument list for execve(2):
         #pragma GCC diagnostic ignored "-Wvla"
@@ -220,30 +224,30 @@ SignalBlocker::~SignalBlocker() {
 }
 
 
-int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
-         const std::string &new_stdout, const std::string &new_stderr, const unsigned timeout_in_seconds,
-         const int tardy_child_signal)
+int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin, const std::string &new_stdout,
+         const std::string &new_stderr, const unsigned timeout_in_seconds, const int tardy_child_signal,
+         const std::unordered_map<std::string, std::string> &envs)
 {
     return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::WAIT, timeout_in_seconds,
-                  tardy_child_signal);
+                  tardy_child_signal, envs);
 }
 
 
-void ExecOrDie(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
-               const std::string &new_stdout, const std::string &new_stderr, const unsigned timeout_in_seconds,
-               const int tardy_child_signal)
+void ExecOrDie(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin, const std::string &new_stdout,
+               const std::string &new_stderr, const unsigned timeout_in_seconds, const int tardy_child_signal,
+               const std::unordered_map<std::string, std::string> &envs)
 {
     int exit_code;
-    if ((exit_code = Exec(command, args, new_stdin, new_stdout, new_stderr, timeout_in_seconds, tardy_child_signal)) != 0)
+    if ((exit_code = Exec(command, args, new_stdin, new_stdout, new_stderr, timeout_in_seconds, tardy_child_signal, envs)) != 0)
         LOG_ERROR("Failed to execute \"" + command + "\"! (exit code was " + std::to_string(exit_code) + ")");
 }
 
 
-pid_t Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
-          const std::string &new_stdout , const std::string &new_stderr)
+pid_t Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin, const std::string &new_stdout,
+            const std::string &new_stderr, const std::unordered_map<std::string, std::string> &envs)
 {
     return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::DETACH, 0,
-                  SIGKILL /* Not used because the timeout is 0. */);
+                  SIGKILL /* Not used because the timeout is 0. */, envs);
 }
 
 

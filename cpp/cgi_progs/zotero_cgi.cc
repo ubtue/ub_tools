@@ -350,9 +350,14 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
     args.emplace_back(ZTS_HARVESTER_CONF_FILE);
     args.emplace_back(section);
 
+    std::unordered_map<std::string, std::string> envs {
+        { "LOGGER_FORMAT",  "no_decorations,strip_call_site" },
+        { "BACKTRACE",      "1"                              },
+    };
+
     command_ = BuildCommandString(executable_, args);
     const std::string log_path(auto_temp_dir_.getDirectoryPath() + "/log");
-    pid_ = ExecUtil::Spawn(executable_, args, "", log_path_.getFilePath(), log_path_.getFilePath());
+    pid_ = ExecUtil::Spawn(executable_, args, "", log_path_.getFilePath(), log_path_.getFilePath(), envs);
 }
 
 
