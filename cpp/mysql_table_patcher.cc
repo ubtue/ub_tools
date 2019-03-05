@@ -82,8 +82,8 @@ void LoadAndSortUpdateFilenames(const std::string &directory_path, std::vector<s
 
 void ApplyUpdate(DbConnection * const db_connection, const std::string &update_filename) {
     std::string database, table;
-    unsigned version;
-    SplitIntoDatabaseTableAndVersion(update_filename, &database, &table, &version);
+    unsigned update_version;
+    SplitIntoDatabaseTableAndVersion(update_filename, &database, &table, &update_version);
 
     unsigned current_version(0);
     db_connection->queryOrDie("SELECT version FROM ub_tools.table_versions WHERE database_name='"
@@ -94,18 +94,18 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_f
                                   + ",table_name='" + db_connection->escapeString(table) + "',version=0");
     else
         current_version = StringUtil::ToUnsigned(result_set.getNextRow()["version"]);
-    if (version <= current_version)
+    if (update_version <= current_version)
         return;
 
-    if (unlikely(version + 1 != current_version))
-        LOG_ERROR("update version is " + std::to_string(version) + ", current version is " + std::to_string(current_version)
+    if (unlikely(update_version != current_version + 1))
+        LOG_ERROR("update version is " + std::to_string(update_version) + ", current version is " + std::to_string(current_version)
                   + " for table \"" + database + "." + table + "\"!");
 
-    LOG_INFO("applying update \"" + database + "." + table + "." + std::to_string(version) + "\".");
+    LOG_INFO("applying update \"" + database + "." + table + "." + std::to_string(update_version) + "\".");
     std::string update_statement;
     FileUtil::ReadStringOrDie(update_filename, &update_statement);
     db_connection->queryOrDie("START TRANSACTION");
-    db_connection->queryOrDie("UPDATE TABLE ub_tools.table_versions SET version=" + std::to_string(version)
+    db_connection->queryOrDie("UPDATE TABLE ub_tools.table_versions SET version=" + std::to_string(update_version)
                               + " WHERE database_name='" + db_connection->escapeString(database) + "' AND table_name='"
                               + db_connection->escapeString(table) + "'");
     db_connection->queryOrDie("COMMIT");
