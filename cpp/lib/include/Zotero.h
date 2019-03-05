@@ -432,8 +432,8 @@ private:
     static const std::unordered_map<ErrorType, std::string> ERROR_KIND_TO_STRING_MAP;
 
     struct HarvesterError {
-    ErrorType type;
-        std::string message;
+        ErrorType type_;
+        std::string message_;
     };
 
     struct JournalErrors {
