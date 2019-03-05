@@ -215,9 +215,10 @@ struct SiteParams {
     std::vector<std::string> non_standard_metadata_fields_;
     std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> field_exclusion_filters_;
     unsigned journal_update_window_;
-
+public:
     SiteParams()
-        : global_params_(nullptr), group_params_(nullptr), force_automatic_language_detection_(false), journal_update_window_(0) {}
+        : global_params_(nullptr), group_params_(nullptr), delivery_mode_(BSZUpload::DeliveryMode::NONE),
+          force_automatic_language_detection_(false), journal_update_window_(0) {}
 };
 
 
@@ -242,7 +243,7 @@ struct HarvestParams {
     std::unique_ptr<RegexMatcher> harvest_url_regex_;
     unsigned journal_harvest_interval_;
     unsigned default_crawl_delay_time_;
-
+public:
     HarvestParams()
         : harvested_url_count_(0), format_handler_(nullptr), force_downloads_(false), journal_harvest_interval_(0), default_crawl_delay_time_(0) {}
 };
@@ -431,7 +432,7 @@ private:
     static const std::unordered_map<ErrorType, std::string> ERROR_KIND_TO_STRING_MAP;
 
     struct HarvesterError {
-        ErrorType type;
+    ErrorType type;
         std::string message;
     };
 
