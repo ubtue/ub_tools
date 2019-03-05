@@ -304,11 +304,8 @@ void MarcFormatHandler::identifyMissingLanguage(ItemParameters * const node_para
             LOG_ERROR("unknown text field '" + site_params_->expected_languages_text_fields_ + "' for language detection");
 
         NGram::ClassifyLanguage(record_text, &top_languages, site_params_->expected_languages_, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
-
-        if (not top_languages.empty()) {
-            node_parameters->language_ = top_languages.front();
-            LOG_INFO("automatically detected language to be '" + node_parameters->language_);
-        }
+        node_parameters->language_ = top_languages.front();
+        LOG_INFO("automatically detected language to be '" + node_parameters->language_ + "'");
     }
 }
 
@@ -369,9 +366,11 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Language
     node_parameters->language_ = object_node->getOptionalStringValue("language");
-    if (node_parameters->language_.empty())
+    if (node_parameters->language_.empty() or site_params_->force_automatic_language_detection_) {
+        if (site_params_->force_automatic_language_detection_)
+            LOG_DEBUG("forcing automatic language detection");
         identifyMissingLanguage(node_parameters);
-    else if (site_params_->expected_languages_.size() == 1 and *site_params_->expected_languages_.begin() != node_parameters->language_) {
+    } else if (site_params_->expected_languages_.size() == 1 and *site_params_->expected_languages_.begin() != node_parameters->language_) {
         LOG_WARNING("expected language '" + *site_params_->expected_languages_.begin() + "' but found '"
                     + node_parameters->language_ + "'");
     }
@@ -1150,7 +1149,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     already_harvested_urls.emplace(harvest_url);
     auto error_logger_context(error_logger->newContext(site_params.journal_name_, harvest_url));
 
-    LOG_INFO("Harvesting URL: " + harvest_url);
+    LOG_INFO("\nHarvesting URL: " + harvest_url);
 
     std::string response_body, error_message;
     unsigned response_code;
@@ -1208,10 +1207,9 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     ++harvest_params->harvested_url_count_;
 
     LOG_DEBUG("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
-                + harvest_url + '\n' + "of which "
-                + StringUtil::ToString(record_count_and_previously_downloaded_count.first
-                                    - record_count_and_previously_downloaded_count.second)
-                + " records were new records.");
+              + harvest_url + " of which "
+              + StringUtil::ToString(record_count_and_previously_downloaded_count.first - record_count_and_previously_downloaded_count.second)
+              + " records were new records.");
     return record_count_and_previously_downloaded_count;
 }
 
@@ -1222,7 +1220,7 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, SimpleCrawler
                          HarvesterErrorLogger * const error_logger, File * const progress_file)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
-    LOG_DEBUG("Starting crawl at base URL: " +  site_desc.start_url_);
+    LOG_DEBUG("\n\nStarting crawl at base URL: " +  site_desc.start_url_);
     crawler_params.proxy_host_and_port_ = GetProxyHostAndPort();
     if (not crawler_params.proxy_host_and_port_.empty())
         crawler_params.ignore_ssl_certificates_ = true;
@@ -1305,7 +1303,7 @@ UnsignedPair HarvestSyndicationURL(const std::string &feed_url, const std::share
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
     auto error_logger_context(error_logger->newContext(site_params.journal_name_, feed_url));
 
-    LOG_INFO("Processing feed URL: " + feed_url);
+    LOG_INFO("\n\nProcessing feed URL: " + feed_url);
 
     Downloader::Params downloader_params;
     downloader_params.proxy_host_and_port_ = GetProxyHostAndPort();
@@ -1343,7 +1341,7 @@ UnsignedPair HarvestSyndicationURL(const std::string &feed_url, const std::share
         const auto item_id(item.getId());
         const std::string title(item.getTitle());
         if (not title.empty())
-            LOG_DEBUG("\t\tTitle: " + title);
+            LOG_DEBUG("\n\nFeed Item: " + title);
 
         const auto record_count_and_previously_downloaded_count(Harvest(item.getLink(), harvest_params, site_params, error_logger));
         total_record_count_and_previously_downloaded_record_count += record_count_and_previously_downloaded_count;
@@ -1396,13 +1394,13 @@ void HarvesterErrorLogger::autoLog(const std::string &journal_name, const std::s
     HarvesterError error{ UNKNOWN, "" };
     for (const auto &error_regexp : error_regexp_map) {
         if (error_regexp.second->matched(message)) {
-            error.type = error_regexp.first;
-            error.message = (*error_regexp.second)[1];
+            error.type_ = error_regexp.first;
+            error.message_ = (*error_regexp.second)[1];
             break;
         }
     }
 
-    log(error.type, journal_name, harvest_url, error.type == UNKNOWN ? message : error.message, write_to_std_error);
+    log(error.type_, journal_name, harvest_url, error.type_ == UNKNOWN ? message : error.message_, write_to_std_error);
 }
 
 
@@ -1421,21 +1419,21 @@ void HarvesterErrorLogger::writeReport(const std::string &report_file_path) cons
         report.appendSection(journal_name);
 
         for (const auto &url_error : journal_error.second.url_errors_) {
-            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(url_error.second.type));
+            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(url_error.second.type_));
             // we cannot cache the section pointer as it can get invalidated after appending a new section
             report.getSection(journal_name)->insert(url_error.first, error_string);
             report.appendSection(error_string);
-            report.getSection(error_string)->insert(url_error.first, url_error.second.message);
+            report.getSection(error_string)->insert(url_error.first, url_error.second.message_);
         }
 
         int i(1);
         for (const auto &non_url_error : journal_error.second.non_url_errors_) {
-            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(non_url_error.type));
+            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(non_url_error.type_));
             const auto error_key(journal_name + "-non_url_error-" + std::to_string(i));
 
             report.getSection(journal_name)->insert(error_key, error_string);
             report.appendSection(error_string);
-            report.getSection(error_string)->insert(error_key, non_url_error.message);
+            report.getSection(error_string)->insert(error_key, non_url_error.message_);
             ++i;
         }
     }
