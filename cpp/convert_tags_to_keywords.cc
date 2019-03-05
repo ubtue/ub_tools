@@ -140,9 +140,7 @@ int Main(int argc, char *argv[]) {
     auto reader(MARC::Reader::Factory(argv[1]));
     auto writer(MARC::Writer::Factory(argv[2]));
 
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    DbConnection db_connection(mysql_url);
+    DbConnection db_connection(VuFind::GetMysqlURL());
 
     std::unordered_map<std::string, std::string> resource_id_to_record_id_map;
     PopulateResourceIdToRecordIdMap(&db_connection, &resource_id_to_record_id_map);

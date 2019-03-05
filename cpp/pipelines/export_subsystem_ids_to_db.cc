@@ -130,10 +130,7 @@ int Main(int argc, char **argv) {
 
     const std::string marc_input_filename(argv[1]);
     unsigned imported_count(0);
-
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    DbConnection db_connection(mysql_url);
+    DbConnection db_connection(VuFind::GetMysqlURL());
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
     std::vector<std::set<std::string>> subsystems_ids;

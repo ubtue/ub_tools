@@ -39,7 +39,7 @@ std::string GetDefaultDatabaseConf() {
 }
 
 
-void GetMysqlURL(std::string * const mysql_url, const std::string &vufind_config_file_path) {
+std::string GetMysqlURL(const std::string &vufind_config_file_path) {
     const std::string database_conf_filename(vufind_config_file_path.empty()
                                              ? GetDefaultDatabaseConf() : vufind_config_file_path);
     File database_conf(database_conf_filename, "r", File::THROW_ON_ERROR);
@@ -47,8 +47,9 @@ void GetMysqlURL(std::string * const mysql_url, const std::string &vufind_config
     const size_t schema_pos(line.find("mysql://"));
     if (schema_pos == std::string::npos)
         throw std::runtime_error("MySQL schema not found in \"" + database_conf_filename + "\"!");
-    *mysql_url = StringUtil::RightTrim(line.substr(schema_pos));
-    mysql_url->resize(mysql_url->size() - 1); // Remove trailing double quote.
+    std::string mysql_url(StringUtil::RightTrim(line.substr(schema_pos)));
+    mysql_url.resize(mysql_url.size() - 1); // Remove trailing double quote.
+    return mysql_url;
 }
 
 

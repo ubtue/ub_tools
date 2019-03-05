@@ -356,10 +356,7 @@ int Main(int argc, char **argv) {
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(EMAIL_RULES_FILE));
     std::vector<Pattern> patterns;
     ParseEmailRules(input.get(), &patterns);
-
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    DbConnection db_connection(mysql_url);
+    DbConnection db_connection(VuFind::GetMysqlURL());
 
     if (flag_or_user_ID == "--update-all-users")
         UpdateAllUsers(&db_connection, patterns);

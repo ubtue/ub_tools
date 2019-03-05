@@ -484,9 +484,7 @@ int Main(int argc, char **argv) {
 
     std::unique_ptr<kyotocabinet::HashDB> notified_db(CreateOrOpenKeyValueDB(user_type));
 
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    DbConnection db_connection(mysql_url);
+    DbConnection db_connection(VuFind::GetMysqlURL());
 
     const IniFile bundles_config(UBTools::GetTuelibPath() + "journal_alert_bundles.conf");
 
