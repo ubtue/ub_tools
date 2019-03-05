@@ -1207,10 +1207,9 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     ++harvest_params->harvested_url_count_;
 
     LOG_DEBUG("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
-                + harvest_url + " of which "
-                + StringUtil::ToString(record_count_and_previously_downloaded_count.first
-                                    - record_count_and_previously_downloaded_count.second)
-                + " records were new records.");
+              + harvest_url + " of which "
+              + StringUtil::ToString(record_count_and_previously_downloaded_count.first - record_count_and_previously_downloaded_count.second)
+              + " records were new records.");
     return record_count_and_previously_downloaded_count;
 }
 
