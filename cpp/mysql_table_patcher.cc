@@ -100,7 +100,6 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
 
     db_connection->queryOrDie("START TRANSACTION");
 
-    db_connection->queryFileOrDie(update_directory_path + "/" + update_filename);
 
     bool can_update(true);
     for (const auto &table : GetAllTableNames(tables)) {
@@ -132,7 +131,11 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
         LOG_INFO("applying update \"" + database + "." + table + "." + std::to_string(update_version) + "\".");
     }
 
-    db_connection->queryOrDie("COMMIT");
+    if (can_update) {
+        db_connection->queryFileOrDie(update_directory_path + "/" + update_filename);
+        db_connection->queryOrDie("COMMIT");
+    } else
+        db_connection->queryOrDie("ROLLBACK");
 }
 
 
