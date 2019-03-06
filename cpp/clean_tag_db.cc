@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2018, Library of the University of Tübingen
+    Copyright (C) 2018-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <vector>
 #include <cstdlib>
 #include "DbConnection.h"
@@ -104,7 +105,7 @@ void RemoveUnreferencedEntries(DbConnection * const db_connection) {
     const std::string DELETE_UNREFERENCED_RESOURCES_ENTRIES(
         "DELETE FROM resource WHERE id NOT IN (SELECT resource_id FROM resource_tags) \
          AND id NOT IN (SELECT resource_id FROM user_resource)");
-        
+
     db_connection->queryOrDie(DELETE_UNREFERENCED_RESOURCES_ENTRIES);
 }
 
@@ -118,16 +119,14 @@ int Main(int argc, char **argv) {
 
     const std::string marc_input_filename(argv[1]);
 
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    DbConnection db_connection(mysql_url);
+    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
     std::unordered_set<std::string> all_record_ids;
     ExtractAllRecordIDs(marc_reader.get(), &all_record_ids);
     std::vector<std::string> unreferenced_ppns;
-    GetUnreferencedPPNsFromDB(&db_connection, all_record_ids, &unreferenced_ppns);
-    CreateTemporaryUnreferencedPPNTable(&db_connection, unreferenced_ppns);
-    RemoveUnreferencedEntries(&db_connection);
+    GetUnreferencedPPNsFromDB(db_connection.get(), all_record_ids, &unreferenced_ppns);
+    CreateTemporaryUnreferencedPPNTable(db_connection.get(), unreferenced_ppns);
+    RemoveUnreferencedEntries(db_connection.get());
     LOG_INFO("Removed superfluous references for " + std::to_string(unreferenced_ppns.size()) +  " PPN(s)");
 
     return EXIT_SUCCESS;

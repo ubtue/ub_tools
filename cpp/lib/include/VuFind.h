@@ -2,7 +2,7 @@
  *  \brief  VuFind-related constants and utility functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,17 +20,31 @@
 #pragma once
 
 
+#include <memory>
 #include <string>
+
+
+// Forward declaration:
+class DbConnection;
 
 
 namespace VuFind {
 
 
-/** \brief Extracts the MySQL connection URL from a VuFind config file.
- *  \param mysql_url                Here the MySQL authentication/access URL will be returned.
- *  \param vufind_config_file_path  If not specified, $VUFIND_HOME + "/" + VuFind::DATABASE_CONF will be used.
+/**
+ * \return path to database config file in local_overrides directory.
  */
-void GetMysqlURL(std::string * const mysql_url, const std::string &vufind_config_file_path = "");
+std::string GetDefaultDatabaseConf();
+
+
+/** \brief Extracts the MySQL connection URL from a VuFind config file.
+ *  \param vufind_config_file_path  If not specified, $VUFIND_HOME + "/" + VuFind::DATABASE_CONF will be used.
+ *  \return The extracted URL
+ */
+std::string GetMysqlURL(const std::string &vufind_config_file_path = "");
+
+
+std::shared_ptr<DbConnection> GetDbConnection();
 
 
 /** \brief Get TueFind Flavour from ENV variable or empty string if not set. */

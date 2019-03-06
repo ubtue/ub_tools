@@ -21,6 +21,7 @@
 */
 
 #include <iostream>
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <cstdlib>
@@ -169,23 +170,20 @@ int Main(int argc, char **argv) {
 
     ControlNumberGuesser control_number_guesser;
     control_number_guesser.swapControlNumbers(old_to_new_map);
+    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
 
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    DbConnection db_connection(mysql_url);
-
-    PatchTable(&db_connection, "vufind.resource", "record_id", old_to_new_map);
-    PatchTable(&db_connection, "vufind.record", "record_id", old_to_new_map);
-    PatchTable(&db_connection, "vufind.change_tracker", "id", old_to_new_map);
+    PatchTable(db_connection.get(), "vufind.resource", "record_id", old_to_new_map);
+    PatchTable(db_connection.get(), "vufind.record", "record_id", old_to_new_map);
+    PatchTable(db_connection.get(), "vufind.change_tracker", "id", old_to_new_map);
     if (VuFind::GetTueFindFlavour() == "ixtheo") {
-        PatchTable(&db_connection, "ixtheo.keyword_translations", "ppn", old_to_new_map);
-        PatchTable(&db_connection, "vufind.ixtheo_journal_subscriptions", "journal_control_number_or_bundle_name", old_to_new_map);
-        PatchTable(&db_connection, "vufind.ixtheo_pda_subscriptions", "book_ppn", old_to_new_map);
-        PatchTable(&db_connection, "vufind.relbib_ids", "record_id", old_to_new_map);
-        PatchTable(&db_connection, "vufind.bibstudies_ids", "record_id", old_to_new_map);
+        PatchTable(db_connection.get(), "ixtheo.keyword_translations", "ppn", old_to_new_map);
+        PatchTable(db_connection.get(), "vufind.ixtheo_journal_subscriptions", "journal_control_number_or_bundle_name", old_to_new_map);
+        PatchTable(db_connection.get(), "vufind.ixtheo_pda_subscriptions", "book_ppn", old_to_new_map);
+        PatchTable(db_connection.get(), "vufind.relbib_ids", "record_id", old_to_new_map);
+        PatchTable(db_connection.get(), "vufind.bibstudies_ids", "record_id", old_to_new_map);
     } else {
-        PatchTable(&db_connection, "vufind.full_text_cache", "id", old_to_new_map);
-        PatchTable(&db_connection, "vufind.full_text_cache_urls", "id", old_to_new_map);
+        PatchTable(db_connection.get(), "vufind.full_text_cache", "id", old_to_new_map);
+        PatchTable(db_connection.get(), "vufind.full_text_cache_urls", "id", old_to_new_map);
     }
 
     StoreNewAlreadyProcessedPPNs(alread_processed_ppns, old_to_new_map);

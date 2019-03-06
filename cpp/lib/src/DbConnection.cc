@@ -388,6 +388,7 @@ void DbConnection::setTimeZone(const TimeZone time_zone) {
             LOG_ERROR("failed to set the connection time zone to UTC! (" + std::string(::mysql_error(&mysql_)) + ")");
         break;
     }
+    time_zone_ = time_zone;
 }
 
 
@@ -411,6 +412,12 @@ void DbConnection::init(const std::string &database_name, const std::string &use
     type_ = T_MYSQL;
     initialised_ = true;
     setTimeZone(time_zone);
+    database_name_ = database_name;
+    user_ = user;
+    passwd_ = passwd;
+    host_ = host;
+    port_ = port;
+    charset_ = charset;
 }
 
 
@@ -432,6 +439,11 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
     type_ = T_MYSQL;
     initialised_ = true;
     setTimeZone(time_zone);
+    user_ = user;
+    passwd_ = passwd;
+    host_ = host;
+    port_ = port;
+    charset_ = charset;
 }
 
 
