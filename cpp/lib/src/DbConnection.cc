@@ -252,13 +252,17 @@ void SplitSqliteStatements(const std::string &compound_statement, std::vector<st
 
 bool DbConnection::queryFile(const std::string &filename) {
     std::string statements;
-    if (not FileUtil::ReadString(filename, &statements))
-        LOG_ERROR("failed to read \"" + filename + "\"!");
+    if (not FileUtil::ReadString(filename, &statements)) {
+        LOG_WARNING("failed to read \"" + filename + "\"!");
+        return false;
+    }
 
     if (type_ == T_MYSQL) {
+        ::mysql_set_server_option(&mysql_, MYSQL_OPTION_MULTI_STATEMENTS_ON);
         const bool query_result(query(StringUtil::TrimWhite(&statements)));
         if (query_result)
             mySQLSyncMultipleResults();
+        ::mysql_set_server_option(&mysql_, MYSQL_OPTION_MULTI_STATEMENTS_OFF);
         return query_result;
     } else {
         std::vector<std::string> individual_statements;
@@ -274,19 +278,8 @@ bool DbConnection::queryFile(const std::string &filename) {
 
 
 void DbConnection::queryFileOrDie(const std::string &filename) {
-    std::string statements;
-    if (not FileUtil::ReadString(filename, &statements))
-        LOG_ERROR("failed to read \"" + filename + "\"!");
-
-    if (type_ == T_MYSQL) {
-        queryOrDie(StringUtil::TrimWhite(&statements));
-        mySQLSyncMultipleResults();
-    } else {
-        std::vector<std::string> individual_statements;
-        SplitSqliteStatements(statements, &individual_statements);
-        for (const auto &statement : individual_statements)
-            queryOrDie(statement);
-    }
+    if (not queryFile(filename))
+        LOG_ERROR("failed to execute statements from \"" + filename + "\"!");
 }
 
 
@@ -537,13 +530,8 @@ void DbConnection::mySQLSyncMultipleResults() {
 void DbConnection::MySQLImportFile(const std::string &sql_file, const std::string &database_name, const std::string &user,
                                    const std::string &passwd, const std::string &host, const unsigned port, const Charset charset)
 {
-    std::string sql_data;
-    FileUtil::ReadStringOrDie(sql_file, &sql_data);
-
     DbConnection db_connection(database_name, user, passwd, host, port, charset);
-    ::mysql_set_server_option(&db_connection.mysql_, MYSQL_OPTION_MULTI_STATEMENTS_ON);
-    db_connection.queryOrDie(sql_data);
-    db_connection.mySQLSyncMultipleResults();
+    db_connection.queryFileOrDie(sql_file);
 }
 
 
