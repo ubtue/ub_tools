@@ -19,6 +19,7 @@
  */
 #include "VuFind.h"
 #include <stdexcept>
+#include "DbConnection.h"
 #include "File.h"
 #include "FileUtil.h"
 #include "MiscUtil.h"
@@ -30,6 +31,11 @@ namespace VuFind {
 
 static const std::string DATABASE_CONF("local/config/vufind/local_overrides/database.conf");
 static const std::string DATABASE_CONF_ALTERNATIVE("local/tuefind/local_overrides/database.conf");
+
+
+std::shared_ptr<DbConnection> GetDbConnection() {
+    return std::make_shared<DbConnection>(GetMysqlURL());
+}
 
 
 std::string GetDefaultDatabaseConf() {
