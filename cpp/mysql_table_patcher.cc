@@ -88,22 +88,7 @@ void LoadAndSortUpdateFilenames(const std::string &directory_path, std::vector<s
 
 std::vector<std::string> GetAllTableNames(const std::string &compound_table_name) {
     std::vector<std::string> all_table_names;
-
-    std::string current_table_name;
-    for (const char ch : compound_table_name) {
-        if (ch == '+') {
-            if (unlikely(current_table_name.empty()))
-                LOG_ERROR("bad compound table name \"" + compound_table_name + "\"! (2)");
-            all_table_names.emplace_back(current_table_name);
-            current_table_name.clear();
-        } else
-            current_table_name += ch;
-    }
-
-    if (unlikely(current_table_name.empty()))
-        LOG_ERROR("bad compound table name \"" + compound_table_name + "\"! (2)");
-
-    all_table_names.emplace_back(current_table_name);
+    StringUtil::Split(compound_table_name, '+', &all_table_names);
     return all_table_names;
 }
 
