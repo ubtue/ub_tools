@@ -114,11 +114,11 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
         } else
             current_version = StringUtil::ToUnsigned(result_set.getNextRow()["version"]);
         if (update_version <= current_version) {
-            if (unlikely(not can_update))
-                LOG_ERROR("inconsistent updates for tables \"" + tables + "\"!");
             can_update = false;
             continue;
         }
+        if (unlikely(not can_update))
+            LOG_ERROR("inconsistent updates for tables \"" + tables + "\"!");
 
         db_connection->queryOrDie("UPDATE ub_tools.table_versions SET version=" + std::to_string(update_version)
                                   + " WHERE database_name='" + db_connection->escapeString(database) + "' AND table_name='"
