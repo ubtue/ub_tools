@@ -430,12 +430,12 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
             ++record1_field, ++record2_field;
         } else if (record1_field->getTag() == record2_field->getTag() and record1_field->getTag() == "022") {
             // Special handling for the ISSN's.
-
             MARC::Record::Field record1_022_field(*record1_field);
             if (record1.isElectronicResource())
                 record1_022_field.insertOrReplaceSubfield('2', "electronic");
             else
                 record1_022_field.insertOrReplaceSubfield('2', "print");
+            record1_022_field.insertOrReplaceSubfield('9', record1.getMainTitle());
             merged_record.appendField(record1_022_field);
 
             MARC::Record::Field record2_022_field(*record2_field);
@@ -443,6 +443,7 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
                 record2_022_field.insertOrReplaceSubfield('2', "electronic");
             else
                 record2_022_field.insertOrReplaceSubfield('2', "print");
+            record2_022_field.insertOrReplaceSubfield('9', record2.getMainTitle());
             merged_record.appendField(record2_022_field);
 
             ++record1_field, ++record2_field;

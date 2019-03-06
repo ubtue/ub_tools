@@ -45,7 +45,7 @@ namespace MediaTypeUtil {
 
 
 std::string GetHtmlMediaType(const std::string &document) {
-    static const PerlCompatRegExp doctype_regexp("^\\s*<(?:!DOCTYPE\\s+HTML\\s+PUBLIC\\s+\"-//W3C//DTD\\s+){0,1}(X?HTML)|<html>",
+    static const PerlCompatRegExp doctype_regexp("^\\s*<(?:!DOCTYPE\\s+HTML\\s+PUBLIC\\s+\"-//W3C//DTD\\s+){0,1}(X?HTML)|<(HTML)[^>]*>",
                                                  PerlCompatRegExp::OPTIMIZE_FOR_MULTIPLE_USE, PCRE_CASELESS);
 
     // If we have a match we have either HTML or XHTML...

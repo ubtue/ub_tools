@@ -19,6 +19,7 @@
 #include "BSZUpload.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include <memory>
 
 
@@ -78,6 +79,17 @@ size_t DeliveryTracker::listOutdatedJournals(const unsigned cutoff_days, std::un
     }
 
     return outdated_journals->size();
+}
+
+
+time_t DeliveryTracker::getLastDeliveryTime(const std::string &journal_name) const {
+    db_connection_->queryOrDie("SELECT delivered_at FROM delivered_marc_records WHERE journal_name='" +
+                                db_connection_->escapeString(journal_name) + "' ORDER BY delivered_at DESC");
+    auto result_set(db_connection_->getLastResultSet());
+    if (result_set.empty())
+        return TimeUtil::BAD_TIME_T;
+
+    return SqlUtil::DatetimeToTimeT(result_set.getNextRow()["delivered_at"]);
 }
 
 

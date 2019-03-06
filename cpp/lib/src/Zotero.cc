@@ -278,6 +278,8 @@ MarcFormatHandler::MarcFormatHandler(DbConnection * const db_connection, const s
 
 
 void MarcFormatHandler::identifyMissingLanguage(ItemParameters * const node_parameters) {
+    static const unsigned MINIMUM_TOKEN_COUNT = 5;
+
     if (site_params_->expected_languages_.size() == 1) {
         node_parameters->language_ = *site_params_->expected_languages_.begin();
         LOG_INFO("language set to default language '" + node_parameters->language_ + "'");
@@ -286,9 +288,15 @@ void MarcFormatHandler::identifyMissingLanguage(ItemParameters * const node_para
         std::vector<std::string> top_languages;
         std::string record_text;
 
-        if (site_params_->expected_languages_text_fields_.empty() or site_params_->expected_languages_text_fields_ == "title")
+        if (site_params_->expected_languages_text_fields_.empty() or site_params_->expected_languages_text_fields_ == "title") {
             record_text = node_parameters->title_;
-        else if (site_params_->expected_languages_text_fields_ == "abstract")
+            // use naive tokenization to count tokens in the title
+            // additionaly use abstract if we have too few tokens in the title
+            if (StringUtil::CharCount(record_text, ' ') < MINIMUM_TOKEN_COUNT) {
+                record_text += " " + node_parameters->abstract_note_;
+                LOG_DEBUG("too few tokens in title. applying heuristic on the abstract as well");
+            }
+        } else if (site_params_->expected_languages_text_fields_ == "abstract")
             record_text = node_parameters->abstract_note_;
         else if (site_params_->expected_languages_text_fields_ == "title+abstract")
             record_text = node_parameters->title_ + " " + node_parameters->abstract_note_;
@@ -296,11 +304,8 @@ void MarcFormatHandler::identifyMissingLanguage(ItemParameters * const node_para
             LOG_ERROR("unknown text field '" + site_params_->expected_languages_text_fields_ + "' for language detection");
 
         NGram::ClassifyLanguage(record_text, &top_languages, site_params_->expected_languages_, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
-
-        if (not top_languages.empty()) {
-            node_parameters->language_ = top_languages.front();
-            LOG_INFO("automatically detected language to be '" + node_parameters->language_);
-        }
+        node_parameters->language_ = top_languages.front();
+        LOG_INFO("automatically detected language to be '" + node_parameters->language_ + "'");
     }
 }
 
@@ -361,9 +366,11 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Language
     node_parameters->language_ = object_node->getOptionalStringValue("language");
-    if (node_parameters->language_.empty())
+    if (node_parameters->language_.empty() or site_params_->force_automatic_language_detection_) {
+        if (site_params_->force_automatic_language_detection_)
+            LOG_DEBUG("forcing automatic language detection");
         identifyMissingLanguage(node_parameters);
-    else if (site_params_->expected_languages_.size() == 1 and *site_params_->expected_languages_.begin() != node_parameters->language_) {
+    } else if (site_params_->expected_languages_.size() == 1 and *site_params_->expected_languages_.begin() != node_parameters->language_) {
         LOG_WARNING("expected language '" + *site_params_->expected_languages_.begin() + "' but found '"
                     + node_parameters->language_ + "'");
     }
@@ -452,13 +459,35 @@ static void InsertAdditionalFields(const std::string &parameter_source, MARC::Re
 static void ProcessNonStandardMetadata(MARC::Record * const record, const std::map<std::string, std::string> &notes_key_value_pairs,
                                        const std::vector<std::string> &non_standard_metadata_fields)
 {
-    for (const auto &key_and_value : notes_key_value_pairs) {
-        const std::string key("%" + key_and_value.first + "%");
-        for (const auto &non_standard_metadata_field : non_standard_metadata_fields) {
-            if (non_standard_metadata_field.find(key) != std::string::npos) {
-                if (not InsertAdditionalField(record, StringUtil::ReplaceString(key, key_and_value.second, non_standard_metadata_field)))
-                    LOG_ERROR("failed to add non-standard metadata field! (Pattern was \"" + non_standard_metadata_field + "\")");
+    static auto placeholder_matcher(RegexMatcher::RegexMatcherFactoryOrDie("%(.+)%"));
+
+    for (auto non_standard_metadata_field : non_standard_metadata_fields) {
+        if (not placeholder_matcher->matched(non_standard_metadata_field))
+            LOG_WARNING("non-standard metadata field '" + non_standard_metadata_field + "' has no placeholders");
+        else {
+            std::string first_missing_placeholder;
+            for (unsigned i(1); i < placeholder_matcher->getLastMatchCount(); ++i) {
+                const auto placeholder((*placeholder_matcher)[i]);
+                const auto note_match(notes_key_value_pairs.find(placeholder));
+                if (note_match == notes_key_value_pairs.end()) {
+                    first_missing_placeholder = placeholder;
+                    break;
+                }
+
+                non_standard_metadata_field = StringUtil::ReplaceString((*placeholder_matcher)[0], note_match->second,
+                                                                        non_standard_metadata_field);
             }
+
+            if (not first_missing_placeholder.empty()) {
+                LOG_DEBUG("non-standard metadata field '" + non_standard_metadata_field + "' has missing placeholder(s) '" +
+                            first_missing_placeholder + "'");
+                break;
+            }
+
+            if (InsertAdditionalField(record, non_standard_metadata_field))
+                LOG_DEBUG("inserted non-standard metadata field '" + non_standard_metadata_field + "'");
+            else
+                LOG_ERROR("failed to add non-standard metadata field! (Content was \"" + non_standard_metadata_field + "\")");
         }
     }
 }
@@ -565,10 +594,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     }
 
     // Review-specific modifications
-    if (item_type == "review") {
-        record->insertField("655", { { 'a', "!209083166!" }, { '0', "(DE-576)" } }, /* indicator1 = */' ', /* indicator2 = */'7');
-        record->insertField("935", { { 'c', "uwre" } });
-    }
+    if (item_type == "review")
+        record->insertField("655", { { 'a', "Rezension" } }, /* indicator1 = */' ', /* indicator2 = */'7');
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     MARC::Subfields _936_subfields;
@@ -690,6 +717,7 @@ void MarcFormatHandler::extractCustomNodeParameters(std::shared_ptr<const JSON::
     custom_node_params->superior_ppn_online_ = custom_object->getOptionalStringValue("ppn_online");
     custom_node_params->superior_ppn_print_ = custom_object->getOptionalStringValue("ppn_print");
     custom_node_params->isil_ = custom_object->getOptionalStringValue("isil");
+    custom_node_params->issn_mapped_language_ = custom_object->getOptionalStringValue("issn_language");
 }
 
 
@@ -717,6 +745,10 @@ void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParamet
         unsigned year;
         if (TimeUtil::StringToYear(custom_node_params.date_normalized_, &year))
             item_parameters->year_ = StringUtil::ToString(year);
+    }
+    if (item_parameters->language_.empty()) {
+        item_parameters->language_ = custom_node_params.issn_mapped_language_;
+        LOG_INFO("set language to ISSN-mapped value '" + item_parameters->language_ + "'");
     }
 }
 
@@ -761,7 +793,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     }
 
     unsigned previously_downloaded_count(0);
-    handleTrackingAndWriteRecord(new_record, harvest_params_->keep_delivered_records_, item_parameters, &previously_downloaded_count);
+    handleTrackingAndWriteRecord(new_record, harvest_params_->force_downloads_, item_parameters, &previously_downloaded_count);
     return std::make_pair(/* record count */1, previously_downloaded_count);
 }
 
@@ -876,20 +908,11 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
 
     // ISSN specific overrides
     if (not issn_selected.empty()) {
-
         // language
         const auto ISSN_and_language(site_params.global_params_->maps_->ISSN_to_language_code_map_.find(issn_selected));
         if (ISSN_and_language != site_params.global_params_->maps_->ISSN_to_language_code_map_.cend()) {
-            if (language_node != nullptr) {
-                const std::string language_old(language_node->getValue());
-                language_node->setValue(ISSN_and_language->second);
-                comments.emplace_back("changed \"language\" from \"" + language_old + "\" to \"" + ISSN_and_language->second
-                                      + "\" due to ISSN map");
-            } else {
-                language_node = std::make_shared<JSON::StringNode>(ISSN_and_language->second);
-                object_node->insert("language", language_node);
-                comments.emplace_back("added \"language\" \"" + ISSN_and_language->second + "\" due to ISSN map");
-            }
+            // this will be consumed in the later stages depending on the results of the language detection heuristic
+            custom_fields.emplace(std::make_pair("issn_language", ISSN_and_language->second));
         }
 
         // volume
@@ -897,13 +920,8 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         if (volume.empty()) {
             const auto ISSN_and_volume(site_params.global_params_->maps_->ISSN_to_volume_map_.find(issn_selected));
             if (ISSN_and_volume != site_params.global_params_->maps_->ISSN_to_volume_map_.cend()) {
-                if (volume.empty()) {
-                    const std::shared_ptr<JSON::JSONNode> volume_node(object_node->getNode("volume"));
-                    JSON::JSONNode::CastToStringNodeOrDie("volume", volume_node)->setValue(ISSN_and_volume->second);
-                } else {
-                    std::shared_ptr<JSON::StringNode> volume_node(new JSON::StringNode(ISSN_and_volume->second));
-                    object_node->insert("volume", volume_node);
-                }
+                std::shared_ptr<JSON::StringNode> volume_node(new JSON::StringNode(ISSN_and_volume->second));
+                object_node->insert("volume", volume_node);
             }
         }
 
@@ -1050,22 +1068,22 @@ bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry) {
 }
 
 
-void ApplyCrawlDelay(const std::string &harvest_url) {
-    static const unsigned int MINIMUM_CRAWL_DELAY_TIME = 1000;  // in ms
-
+void ApplyCrawlDelay(const std::string &harvest_url, const std::shared_ptr<HarvestParams> &harvest_params) {
     struct CrawlDelayParams {
         RobotsDotTxt robots_dot_txt_;
         TimeLimit crawl_timeout_;
     public:
-        CrawlDelayParams(const std::string &robots_dot_txt)
+        CrawlDelayParams(const std::shared_ptr<HarvestParams> &harvest_parameters, const std::string &robots_dot_txt)
          : robots_dot_txt_(robots_dot_txt), crawl_timeout_(robots_dot_txt_.getCrawlDelay("*") * 1000)
         {
-            if (crawl_timeout_.getLimit() < MINIMUM_CRAWL_DELAY_TIME)
-                crawl_timeout_ = MINIMUM_CRAWL_DELAY_TIME;
+            if (crawl_timeout_.getLimit() < harvest_parameters->default_crawl_delay_time_)
+                crawl_timeout_ = harvest_parameters->default_crawl_delay_time_;
         }
-        CrawlDelayParams(const TimeLimit &crawl_timeout) : crawl_timeout_(crawl_timeout) {
-            if (crawl_timeout_.getLimit() < MINIMUM_CRAWL_DELAY_TIME)
-                crawl_timeout_ = MINIMUM_CRAWL_DELAY_TIME;
+        CrawlDelayParams(const std::shared_ptr<HarvestParams> &harvest_parameters, const TimeLimit &crawl_timeout)
+         : crawl_timeout_(crawl_timeout)
+        {
+            if (crawl_timeout_.getLimit() < harvest_parameters->default_crawl_delay_time_)
+                crawl_timeout_ = harvest_parameters->default_crawl_delay_time_;
         }
     };
 
@@ -1078,14 +1096,14 @@ void ApplyCrawlDelay(const std::string &harvest_url) {
     if (delay_params == HOSTNAME_TO_DELAY_PARAMS_MAP.end()) {
         Downloader robots_txt_downloader(parsed_url.getRobotsDotTxtUrl());
         if (robots_txt_downloader.anErrorOccurred()) {
-            CrawlDelayParams default_delay_params(MINIMUM_CRAWL_DELAY_TIME);
+            CrawlDelayParams default_delay_params(harvest_params, harvest_params->default_crawl_delay_time_);
             HOSTNAME_TO_DELAY_PARAMS_MAP.insert(std::make_pair(hostname, default_delay_params));
 
             LOG_DEBUG("couldn't retrieve robots.txt for domain '" + hostname + "'");
             return;
         }
 
-        CrawlDelayParams new_delay_params(robots_txt_downloader.getMessageBody());
+        CrawlDelayParams new_delay_params(harvest_params, robots_txt_downloader.getMessageBody());
         HOSTNAME_TO_DELAY_PARAMS_MAP.insert(std::make_pair(hostname, new_delay_params));
         delay_params = HOSTNAME_TO_DELAY_PARAMS_MAP.find(hostname);
 
@@ -1101,8 +1119,8 @@ void ApplyCrawlDelay(const std::string &harvest_url) {
 }
 
 
-std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> harvest_params,
-                                      const SiteParams &site_params, HarvesterErrorLogger * const error_logger, bool verbose)
+std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std::shared_ptr<HarvestParams> &harvest_params,
+                                      const SiteParams &site_params, HarvesterErrorLogger * const error_logger)
 {
     if (harvest_url.empty())
         LOG_ERROR("empty URL passed to Zotero::Harvest");
@@ -1119,7 +1137,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     } else if (site_params.extraction_regex_ and not site_params.extraction_regex_->matched(harvest_url)) {
         LOG_DEBUG("Skipping URL (does not match extraction regex): " + harvest_url);
         return record_count_and_previously_downloaded_count;
-    } else if (not harvest_params->keep_delivered_records_ and site_params.delivery_mode_ == BSZUpload::DeliveryMode::LIVE) {
+    } else if (not harvest_params->force_downloads_ and site_params.delivery_mode_ == BSZUpload::DeliveryMode::LIVE) {
         auto delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
         if (delivery_tracker.hasAlreadyBeenDelivered(harvest_url)) {
             LOG_DEBUG("Skipping URL (already delivered to the BSZ production server): " + harvest_url);
@@ -1127,11 +1145,11 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         }
     }
 
-    ApplyCrawlDelay(harvest_url);
+    ApplyCrawlDelay(harvest_url, harvest_params);
     already_harvested_urls.emplace(harvest_url);
     auto error_logger_context(error_logger->newContext(site_params.journal_name_, harvest_url));
 
-    LOG_INFO("Harvesting URL: " + harvest_url);
+    LOG_INFO("\nHarvesting URL: " + harvest_url);
 
     std::string response_body, error_message;
     unsigned response_code;
@@ -1188,13 +1206,10 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
     ++harvest_params->harvested_url_count_;
 
-    if (verbose) {
-        LOG_DEBUG("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
-                  + harvest_url + '\n' + "of which "
-                  + StringUtil::ToString(record_count_and_previously_downloaded_count.first
-                                        - record_count_and_previously_downloaded_count.second)
-                  + " records were new records.");
-    }
+    LOG_DEBUG("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
+              + harvest_url + " of which "
+              + StringUtil::ToString(record_count_and_previously_downloaded_count.first - record_count_and_previously_downloaded_count.second)
+              + " records were new records.");
     return record_count_and_previously_downloaded_count;
 }
 
@@ -1205,7 +1220,7 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, SimpleCrawler
                          HarvesterErrorLogger * const error_logger, File * const progress_file)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
-    LOG_DEBUG("Starting crawl at base URL: " +  site_desc.start_url_);
+    LOG_DEBUG("\n\nStarting crawl at base URL: " +  site_desc.start_url_);
     crawler_params.proxy_host_and_port_ = GetProxyHostAndPort();
     if (not crawler_params.proxy_host_and_port_.empty())
         crawler_params.ignore_ssl_certificates_ = true;
@@ -1240,100 +1255,55 @@ UnsignedPair HarvestURL(const std::string &url, const std::shared_ptr<HarvestPar
 }
 
 
-namespace {
-
-
-// Returns true if we can determine that the last_build_date column value stored in the rss_feeds table for the feed identified
-// by "feed_url" is no older than the "last_build_date" time_t passed into this function.  (This is somewhat complicated by the
-// fact that both, the column value as well as the time_t value may contain indeterminate values.)
-bool FeedContainsNoNewItems(const RSSHarvestMode mode, DbConnection * const db_connection, const std::string &feed_url,
-                            const time_t last_build_date)
+bool FeedNeedsToBeHarvested(const std::string &feed_contents, const std::shared_ptr<HarvestParams> &harvest_params,
+                            const SiteParams &site_params, const SyndicationFormat::AugmentParams &syndication_format_site_params)
 {
-    db_connection->queryOrDie("SELECT last_build_date FROM rss_feeds WHERE feed_url='" + db_connection->escapeString(feed_url)
-                              + "'");
-    DbResultSet result_set(db_connection->getLastResultSet());
-
-    std::string date_string;
-    if (result_set.empty()) {
-        if (last_build_date == TimeUtil::BAD_TIME_T)
-            date_string = SqlUtil::DATETIME_RANGE_MIN;
-        else
-            date_string = SqlUtil::TimeTToDatetime(last_build_date);
-
-        LOG_DEBUG("Creating new feed entry in rss_feeds table for \"" + feed_url + "\".");
-        if (mode != RSSHarvestMode::DISABLE_TRACKING)
-            db_connection->queryOrDie("INSERT INTO rss_feeds SET feed_url='" + db_connection->escapeString(feed_url)
-                                      + "',last_build_date='" + date_string + "'");
-        return false;
-    }
-
-    const DbRow first_row(result_set.getNextRow());
-    date_string = first_row["last_build_date"];
-    if (date_string != SqlUtil::DATETIME_RANGE_MIN and last_build_date != TimeUtil::BAD_TIME_T
-        and SqlUtil::DatetimeToTimeT(date_string) >= last_build_date)
+    if (harvest_params->force_downloads_)
         return true;
 
+    const auto last_harvest_timestamp(harvest_params->format_handler_->getDeliveryTracker().getLastDeliveryTime(site_params.journal_name_));
+    if (last_harvest_timestamp == TimeUtil::BAD_TIME_T) {
+        LOG_DEBUG("feed will be harvested for the first time");
+        return true;
+    } else {
+        const auto diff((time(nullptr) - last_harvest_timestamp) / 86400);
+        if (unlikely(diff < 0))
+            LOG_ERROR("unexpected negative time difference '" + std::to_string(diff) + "'");
+
+        const auto harvest_threshold(site_params.journal_update_window_ > 0 ? site_params.journal_update_window_ : harvest_params->journal_harvest_interval_);
+        LOG_DEBUG("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
+        LOG_DEBUG("feed harvest threshold: " + std::to_string(harvest_threshold) + " days | diff: " + std::to_string(diff) + " days");
+
+        if (diff >= harvest_threshold) {
+            LOG_DEBUG("feed older than " + std::to_string(harvest_threshold) +
+                      " days. flagging for mandatory harvesting");
+            return true;
+        }
+    }
+
+    // needs to be parsed again as iterating over a SyndicationFormat instance will consume its items
+    std::string err_msg;
+    const auto syndication_format(SyndicationFormat::Factory(feed_contents, syndication_format_site_params, &err_msg));
+    for (const auto &item : *syndication_format) {
+        const auto pub_date(item.getPubDate());
+        if (pub_date != TimeUtil::BAD_TIME_T and std::difftime(item.getPubDate(), last_harvest_timestamp) > 0) {
+            LOG_DEBUG("URL '" + item.getLink() + "' was added/updated since the last harvest of this RSS feed. flagging for harvesting");
+            return true;
+        }
+    }
+
+    LOG_INFO("no new, harvestable entries in feed. skipping...");
     return false;
 }
 
 
-// Returns the feed ID for the URL "feed_url".
-std::string GetFeedID(const RSSHarvestMode mode, DbConnection * const db_connection, const std::string &feed_url) {
-    db_connection->queryOrDie("SELECT id FROM rss_feeds WHERE feed_url='" + db_connection->escapeString(feed_url)
-                              + "'");
-    DbResultSet result_set(db_connection->getLastResultSet());
-    if (unlikely(result_set.empty())) {
-        if (mode == RSSHarvestMode::DISABLE_TRACKING)
-            return "-1"; // Must be an INT.
-        LOG_ERROR("unexpected missing feed for URL \"" + feed_url + "\".");
-    }
-    const DbRow first_row(result_set.getNextRow());
-    return first_row["id"];
-}
-
-
-// Returns true if the item with item ID "item_id" and feed ID "feed_id" were found in the rss_items table, else
-// returns false.
-bool ItemAlreadyProcessed(DbConnection * const db_connection, const std::string &feed_id, const std::string &item_id) {
-    db_connection->queryOrDie("SELECT creation_datetime FROM rss_items WHERE feed_id='"
-                              + feed_id + "' AND item_id='" + db_connection->escapeString(item_id) + "'");
-    DbResultSet result_set(db_connection->getLastResultSet());
-    if (result_set.empty())
-        return false;
-
-    if (logger->getMinimumLogLevel() >= Logger::LL_DEBUG) {
-        const DbRow first_row(result_set.getNextRow());
-        LOG_DEBUG("Previously retrieved item w/ ID \"" + item_id + "\" at " + first_row["creation_datetime"] + ".");
-    }
-
-    return true;
-}
-
-
-void UpdateLastBuildDate(DbConnection * const db_connection, const std::string &feed_url, const time_t last_build_date) {
-    std::string last_build_date_string;
-    if (last_build_date == TimeUtil::BAD_TIME_T)
-        last_build_date_string = SqlUtil::DATETIME_RANGE_MIN;
-    else
-        last_build_date_string = SqlUtil::TimeTToDatetime(last_build_date);
-    db_connection->queryOrDie("UPDATE rss_feeds SET last_build_date='" + last_build_date_string + "' WHERE feed_url='"
-                              + db_connection->escapeString(feed_url) + "'");
-}
-
-
-} // unnamed namespace
-
-
-UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string &feed_url,
-                                   const std::shared_ptr<HarvestParams> &harvest_params,
-                                   const SiteParams &site_params, HarvesterErrorLogger * const error_logger,
-                                   DbConnection * const db_connection)
+UnsignedPair HarvestSyndicationURL(const std::string &feed_url, const std::shared_ptr<HarvestParams> &harvest_params,
+                                   const SiteParams &site_params, HarvesterErrorLogger * const error_logger)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
     auto error_logger_context(error_logger->newContext(site_params.journal_name_, feed_url));
 
-    if (mode != RSSHarvestMode::ENABLE_TRACKING)
-        LOG_INFO("Processing URL: " + feed_url);
+    LOG_INFO("\n\nProcessing feed URL: " + feed_url);
 
     Downloader::Params downloader_params;
     downloader_params.proxy_host_and_port_ = GetProxyHostAndPort();
@@ -1356,6 +1326,9 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
         return total_record_count_and_previously_downloaded_record_count;
     }
 
+    if (not FeedNeedsToBeHarvested(downloader.getMessageBody(), harvest_params, site_params, syndication_format_site_params))
+        return total_record_count_and_previously_downloaded_record_count;
+
     const time_t last_build_date(syndication_format->getLastBuildDate());
     LOG_DEBUG(feed_url + " (" + syndication_format->getFormatName() + "):");
     LOG_DEBUG("\tTitle: " + syndication_format->getTitle());
@@ -1364,29 +1337,15 @@ UnsignedPair HarvestSyndicationURL(const RSSHarvestMode mode, const std::string 
     LOG_DEBUG("\tLink: " + syndication_format->getLink());
     LOG_DEBUG("\tDescription: " + syndication_format->getDescription());
 
-    if (mode != RSSHarvestMode::DISABLE_TRACKING and FeedContainsNoNewItems(mode, db_connection, feed_url, last_build_date))
-        return total_record_count_and_previously_downloaded_record_count;
-
-    const std::string feed_id(mode == RSSHarvestMode::DISABLE_TRACKING ? "" : GetFeedID(mode, db_connection, feed_url));
     for (const auto &item : *syndication_format) {
         const auto item_id(item.getId());
-        if (mode != RSSHarvestMode::DISABLE_TRACKING and ItemAlreadyProcessed(db_connection, feed_id, item_id))
-            continue;
-
         const std::string title(item.getTitle());
         if (not title.empty())
-            LOG_DEBUG("\t\tTitle: " + title);
+            LOG_DEBUG("\n\nFeed Item: " + title);
 
-        const auto record_count_and_previously_downloaded_count(
-            Harvest(item.getLink(), harvest_params, site_params, error_logger, /* verbose = */ mode != RSSHarvestMode::ENABLE_TRACKING));
+        const auto record_count_and_previously_downloaded_count(Harvest(item.getLink(), harvest_params, site_params, error_logger));
         total_record_count_and_previously_downloaded_record_count += record_count_and_previously_downloaded_count;
-
-        if (mode != RSSHarvestMode::DISABLE_TRACKING)
-            db_connection->queryOrDie("INSERT INTO rss_items SET feed_id='" + feed_id + "',item_id='"
-                                      + SqlUtil::TruncateToVarCharMaxLength(db_connection->escapeString(item_id)) + "'");
     }
-    if (mode != RSSHarvestMode::DISABLE_TRACKING)
-        UpdateLastBuildDate(db_connection, feed_url, last_build_date);
 
     return total_record_count_and_previously_downloaded_record_count;
 }
@@ -1435,13 +1394,13 @@ void HarvesterErrorLogger::autoLog(const std::string &journal_name, const std::s
     HarvesterError error{ UNKNOWN, "" };
     for (const auto &error_regexp : error_regexp_map) {
         if (error_regexp.second->matched(message)) {
-            error.type = error_regexp.first;
-            error.message = (*error_regexp.second)[1];
+            error.type_ = error_regexp.first;
+            error.message_ = (*error_regexp.second)[1];
             break;
         }
     }
 
-    log(error.type, journal_name, harvest_url, error.type == UNKNOWN ? message : error.message, write_to_std_error);
+    log(error.type_, journal_name, harvest_url, error.type_ == UNKNOWN ? message : error.message_, write_to_std_error);
 }
 
 
@@ -1460,21 +1419,21 @@ void HarvesterErrorLogger::writeReport(const std::string &report_file_path) cons
         report.appendSection(journal_name);
 
         for (const auto &url_error : journal_error.second.url_errors_) {
-            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(url_error.second.type));
+            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(url_error.second.type_));
             // we cannot cache the section pointer as it can get invalidated after appending a new section
             report.getSection(journal_name)->insert(url_error.first, error_string);
             report.appendSection(error_string);
-            report.getSection(error_string)->insert(url_error.first, url_error.second.message);
+            report.getSection(error_string)->insert(url_error.first, url_error.second.message_);
         }
 
         int i(1);
         for (const auto &non_url_error : journal_error.second.non_url_errors_) {
-            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(non_url_error.type));
+            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(non_url_error.type_));
             const auto error_key(journal_name + "-non_url_error-" + std::to_string(i));
 
             report.getSection(journal_name)->insert(error_key, error_string);
             report.appendSection(error_string);
-            report.getSection(error_string)->insert(error_key, non_url_error.message);
+            report.getSection(error_string)->insert(error_key, non_url_error.message_);
             ++i;
         }
     }

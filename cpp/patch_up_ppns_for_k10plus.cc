@@ -26,6 +26,7 @@
 #include <unordered_set>
 #include <cstdlib>
 #include <cstring>
+#include <kchashdb.h>
 #include "Compiler.h"
 #include "ControlNumberGuesser.h"
 #include "DbConnection.h"
@@ -118,6 +119,30 @@ void StoreNewAlreadyProcessedPPNs(const std::unordered_set<std::string> &alread_
 }
 
 
+void PatchNotifiedDB(const std::string &user_type, const std::unordered_map<std::string, std::string> &old_to_new_map) {
+    const std::string DB_FILENAME(UBTools::GetTuelibPath() + user_type + "_notified.db");
+    std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
+    if (not (db->open(DB_FILENAME, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER))) {
+        LOG_INFO("\"" + DB_FILENAME + "\" not found!");
+        return;
+    }
+
+    unsigned updated_count(0);
+    for (const auto &old_and_new : old_to_new_map) {
+        std::string value;
+        if (db->get(old_and_new.first, &value)) {
+            if (unlikely(not db->remove(old_and_new.first)))
+                LOG_ERROR("failed to remove key \"" + old_and_new.first + "\" from \"" + DB_FILENAME + "\"!");
+            if (unlikely(not db->add(old_and_new.second, value)))
+                LOG_ERROR("failed to add key \"" + old_and_new.second + "\" from \"" + DB_FILENAME + "\"!");
+            ++updated_count;
+        }
+    }
+
+    LOG_INFO("Updated " + std::to_string(updated_count) + " entries in \"" + DB_FILENAME + "\".");
+}
+
+
 } // unnamed namespace
 
 
@@ -139,6 +164,9 @@ int Main(int argc, char **argv) {
         LOG_INFO("nothing to do!");
         return EXIT_SUCCESS;
     }
+
+    PatchNotifiedDB("ixtheo", old_to_new_map);
+    PatchNotifiedDB("relbib", old_to_new_map);
 
     ControlNumberGuesser control_number_guesser;
     control_number_guesser.swapControlNumbers(old_to_new_map);
