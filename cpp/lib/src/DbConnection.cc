@@ -252,10 +252,8 @@ void SplitSqliteStatements(const std::string &compound_statement, std::vector<st
 
 bool DbConnection::queryFile(const std::string &filename) {
     std::string statements;
-    if (not FileUtil::ReadString(filename, &statements)) {
-        LOG_WARNING("failed to read \"" + filename + "\"!");
+    if (not FileUtil::ReadString(filename, &statements))
         return false;
-    }
 
     if (type_ == T_MYSQL) {
         ::mysql_set_server_option(&mysql_, MYSQL_OPTION_MULTI_STATEMENTS_ON);
