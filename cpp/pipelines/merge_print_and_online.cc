@@ -18,6 +18,7 @@
 */
 
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
@@ -708,10 +709,10 @@ int Main(int argc, char *argv[]) {
                                 canonical_ppn_to_ppn_map);
 
     if (not debug) {
-        DbConnection db_connection(VuFind::GetMysqlURL());
-        PatchSerialSubscriptions(&db_connection, ppn_to_canonical_ppn_map);
-        PatchPDASubscriptions(&db_connection, ppn_to_canonical_ppn_map);
-        PatchResourceTable(&db_connection, ppn_to_canonical_ppn_map);
+        std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
+        PatchSerialSubscriptions(db_connection.get(), ppn_to_canonical_ppn_map);
+        PatchPDASubscriptions(db_connection.get(), ppn_to_canonical_ppn_map);
+        PatchResourceTable(db_connection.get(), ppn_to_canonical_ppn_map);
     }
 
     return EXIT_SUCCESS;

@@ -17,6 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <memory>
 #include "DbConnection.h"
 #include "ExecUtil.h"
 #include "MiscUtil.h"
@@ -57,7 +58,7 @@ int Main(int argc, char *argv[]) {
     if (MYSQLDIFF_EXECUTABLE.empty())
         LOG_ERROR("Dependency \"mysqldiff\" is missing, please install \"mysql-utilities\"-package first!");
 
-    DbConnection *db_connection(nullptr);
+    std::shared_ptr<DbConnection> db_connection;
     const std::string db_name(argv[1]);
     if (argc >= 4) {
         const std::string user(argv[2]);
@@ -68,18 +69,18 @@ int Main(int argc, char *argv[]) {
         } else
             password = MiscUtil::GetPassword("Please enter MySQL password:");
 
-        db_connection = new DbConnection(db_name, user, password);
+        db_connection.reset(new DbConnection(db_name, user, password));
         --argc, ++argv;
     } else if (std::strcmp(db_name.c_str(), "vufind") == 0)
-        db_connection = new DbConnection(VuFind::GetMysqlURL());
+        db_connection.reset(new DbConnection(VuFind::GetMysqlURL()));
     else if (std::strcmp(db_name.c_str(), "ub_tools") == 0)
-        db_connection = new DbConnection();
+        db_connection.reset(new DbConnection());
     else
         LOG_ERROR("You need to specify username and password for the database \"" + db_name +"\"!");
     const std::string sql_file(argv[2]);
     const std::string temporary_db_name(db_name + "_tempdiff");
 
-    CleanupTemporaryDatabase(db_connection, temporary_db_name);
+    CleanupTemporaryDatabase(db_connection.get(), temporary_db_name);
     db_connection->mySQLCreateDatabase(temporary_db_name);
     db_connection->mySQLSelectDatabase(temporary_db_name);
     db_connection->queryFileOrDie(sql_file);
@@ -92,7 +93,6 @@ int Main(int argc, char *argv[]) {
                                              db_name + ":" + temporary_db_name
                                           }));
 
-    CleanupTemporaryDatabase(db_connection, temporary_db_name);
-    delete db_connection;
+    CleanupTemporaryDatabase(db_connection.get(), temporary_db_name);
     return exec_result;
 }

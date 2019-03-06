@@ -21,6 +21,11 @@
 
 
 #include <string>
+#include <memory>
+
+
+// Forward declaration:
+class DbConnection;
 
 
 namespace VuFind {
@@ -37,6 +42,9 @@ std::string GetDefaultDatabaseConf();
  *  \return The extracted URL
  */
 std::string GetMysqlURL(const std::string &vufind_config_file_path = "");
+
+
+std::shared_ptr<DbConnection> GetDbConnection();
 
 
 /** \brief Get TueFind Flavour from ENV variable or empty string if not set. */
