@@ -134,8 +134,7 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
     if (can_update) {
         db_connection->queryFileOrDie(update_directory_path + "/" + update_filename);
         db_connection->queryOrDie("COMMIT");
-    } else
-        db_connection->queryOrDie("ROLLBACK");
+    }
 }
 
 
