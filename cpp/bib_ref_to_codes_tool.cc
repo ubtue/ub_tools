@@ -131,7 +131,7 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
 
 void GenerateQuery(const bool verbose, const bool generate_solr_query, std::string book_candidate,
                    const std::string &chapters_and_verses_candidate,
-                              const std::string &books_of_the_bible_to_code_map_filename,
+                   const std::string &books_of_the_bible_to_code_map_filename,
                    const std::string &books_of_the_bible_to_canonical_form_map_filename)
 {
     BibleUtil::BibleBookCanoniser bible_book_canoniser(books_of_the_bible_to_canonical_form_map_filename);
@@ -160,23 +160,17 @@ void GenerateQuery(const bool verbose, const bool generate_solr_query, std::stri
         std::exit(EXIT_FAILURE);
     }
 
-    std::string query;
-    for (const auto &pair : start_end) {
-        if (generate_solr_query) {
-            if (not query.empty())
-                query += ' ';
-            query += pair.first + "_" + pair.second;
-        } else
-            std::cout << pair.first << ':' << pair.second << '\n';
-    }
+    const char separator(generate_solr_query ? '_' : ':');
+    for (const auto &pair : start_end)
+        std::cout << pair.first << separator << pair.second << '\n';
 }
 
 
-void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query,
-                              const std::string &bible_query_candidate,
+void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query, const std::string &bible_query_candidate,
                               const std::string &books_of_the_bible_to_code_map_filename,
                               const std::string &books_of_the_bible_to_canonical_form_map_filename)
 {
+    LOG_DEBUG("Entering HandleOrdinaryReferences.");
     std::vector<std::string> book_candidate, chapters_and_verses_candidate;
     BibleUtil::SplitIntoBooksAndChaptersAndVerses(bible_query_candidate, &book_candidate, &chapters_and_verses_candidate);
     if (verbose) {
@@ -189,9 +183,6 @@ void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query
     for (unsigned i(0); i < book_candidate.size(); ++i)
         GenerateQuery(verbose, generate_solr_query, book_candidate[i], chapters_and_verses_candidate[i],
                       books_of_the_bible_to_code_map_filename, books_of_the_bible_to_canonical_form_map_filename);
-
-    if (generate_solr_query)
-        std::cout << '\n';
 }
 
 
