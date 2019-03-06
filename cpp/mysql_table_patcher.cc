@@ -80,18 +80,18 @@ void LoadAndSortUpdateFilenames(const std::string &directory_path, std::vector<s
 }
 
 
-void ApplyUpdate(DbConnection * const db_connection, const std::string &update_filename) {
+void ApplyUpdate(DbConnection * const db_connection, const std::string &update_directory_path, const std::string &update_filename) {
     std::string database, table;
     unsigned update_version;
     SplitIntoDatabaseTableAndVersion(update_filename, &database, &table, &update_version);
 
     unsigned current_version(0);
     db_connection->queryOrDie("SELECT version FROM ub_tools.table_versions WHERE database_name='"
-                              + db_connection->escapeString(database) + "',table_name='" + db_connection->escapeString(table) + "'");
+                              + db_connection->escapeString(database) + "' AND table_name='" + db_connection->escapeString(table) + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty()) {
-        db_connection->queryOrDie("INSERT INTO ub_tools.table_versions SET database_name='" + db_connection->escapeString(database)
-                                  + ",table_name='" + db_connection->escapeString(table) + "',version=0");
+        db_connection->queryOrDie("INSERT INTO ub_tools.table_versions (database_name,table_name,version) VALUES ('" + db_connection->escapeString(database)
+                                  + "','" + db_connection->escapeString(table) + "',0)");
         LOG_INFO("Created a new entry for " + database + "." + table + " in ub_tools.table_versions.");
     } else
         current_version = StringUtil::ToUnsigned(result_set.getNextRow()["version"]);
@@ -104,9 +104,10 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_f
 
     LOG_INFO("applying update \"" + database + "." + table + "." + std::to_string(update_version) + "\".");
     std::string update_statement;
-    FileUtil::ReadStringOrDie(update_filename, &update_statement);
+    FileUtil::ReadStringOrDie(update_directory_path + "/" + update_filename, &update_statement);
     db_connection->queryOrDie("START TRANSACTION");
-    db_connection->queryOrDie("UPDATE TABLE ub_tools.table_versions SET version=" + std::to_string(update_version)
+    db_connection->queryOrDie(update_statement);
+    db_connection->queryOrDie("UPDATE ub_tools.table_versions SET version=" + std::to_string(update_version)
                               + " WHERE database_name='" + db_connection->escapeString(database) + "' AND table_name='"
                               + db_connection->escapeString(table) + "'");
     db_connection->queryOrDie("COMMIT");
@@ -121,7 +122,8 @@ int Main(int argc, char *argv[]) {
         ::Usage("[--verbose] update_directory_path");
 
     std::vector<std::string> update_filenames;
-    LoadAndSortUpdateFilenames(argv[1], &update_filenames);
+    const std::string update_directory_path(argv[1]);
+    LoadAndSortUpdateFilenames(update_directory_path, &update_filenames);
 
     DbConnection db_connection;
     if (not db_connection.tableExists("ub_tools", "table_versions")) {
@@ -132,7 +134,7 @@ int Main(int argc, char *argv[]) {
     }
 
     for (const auto &update_filename : update_filenames)
-        ApplyUpdate(&db_connection, update_filename);
+        ApplyUpdate(&db_connection, update_directory_path, update_filename);
 
     return EXIT_SUCCESS;
 }
