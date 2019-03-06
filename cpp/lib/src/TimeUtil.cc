@@ -8,7 +8,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2018 Universitätsbibliothek Tübingen
+ *  Copyright 2018,2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -133,32 +133,41 @@ std::string FormatTime(const double time_in_millisecs, const std::string &separa
 
 // GetCurrentTime -- Get the current date and time as a string
 //
-std::string GetCurrentDateAndTime(const std::string &format, const TimeZone time_zone) {
+std::string GetCurrentDateAndTime(const std::string &format, const TimeZone time_zone, const std::string &time_locale) {
     time_t now;
     std::time(&now);
-    return TimeTToString(now, format, time_zone);
+    return TimeTToString(now, format, time_zone, time_locale);
 }
 
 
 // TimeTToLocalTimeString -- Convert a time from a time_t to a string.
 //
-std::string TimeTToString(const time_t &the_time, const std::string &format, const TimeZone time_zone) {
+std::string TimeTToString(const time_t &the_time, const std::string &format, const TimeZone time_zone, const std::string &time_locale) {
+    Locale locale(time_locale, LC_TIME);
+
+    struct tm tm;
+    if (unlikely((time_zone == LOCAL ? ::localtime_r(&the_time, &tm) : ::gmtime_r(&the_time, &tm)) == nullptr))
+        LOG_ERROR("time conversion error!");
     char time_buf[50 + 1];
-    std::strftime(time_buf, sizeof(time_buf), format.c_str(),
-                  (time_zone == LOCAL ? std::localtime(&the_time) : std::gmtime(&the_time)));
+    errno = 0;
+    if (unlikely(std::strftime(time_buf, sizeof(time_buf), format.c_str(), &tm) == 0 or errno != 0))
+        LOG_ERROR("strftime(3) failed! (format: " + format + ")");
     return time_buf;
 }
 
 
 time_t TimeGm(const struct tm &tm) {
-    const char * const saved_time_zone = ::getenv("TZ");
+    const char * const saved_time_zone(::getenv("TZ"));
 
     // Set the time zone to UTC:
     ::setenv("TZ", "UTC", /* overwrite = */true);
     ::tzset();
 
     struct tm temp_tm(tm);
-    const time_t ret_val = ::mktime(&temp_tm);
+    errno = 0;
+    time_t ret_val(::mktime(&temp_tm));
+    if (unlikely(errno != 0))
+        ret_val = BAD_TIME_T;
 
     // Restore the original time zone:
     if (saved_time_zone != nullptr)
@@ -228,7 +237,11 @@ static void CorrectForSymbolicTimeZone(struct tm * const tm, const std::string &
     if (time_zone_name == "GMT" or time_zone_name == "UTC")
         return; // GMT is the same as UTC
 
+    errno = 0;
     time_t converted_tm(::mktime(tm));
+    if (unlikely(errno != 0))
+        LOG_ERROR("bad time conversion!");
+
     const char *offset = "+00:00";
     if (time_zone_name == "PDT")
         offset = "-07:00";
@@ -448,7 +461,11 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
         if (time_zone == LOCAL) {
             ::tzset();
             tm_struct.tm_isdst = -1;
+
+            errno = 0;
             *converted_time = std::mktime(&tm_struct);
+            if (unlikely(errno != 0))
+                LOG_ERROR("bad time conversion! (2)");
         }
         else
             *converted_time = TimeGm(tm_struct);
@@ -466,9 +483,12 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
         if (time_zone == LOCAL) {
             ::tzset();
             tm_struct.tm_isdst = -1;
+
+            errno = 0;
             *converted_time = std::mktime(&tm_struct);
-        }
-        else
+            if (unlikely(errno != 0))
+                LOG_ERROR("bad time conversion! (3)");
+        } else
             *converted_time = ::timegm(&tm_struct);
         if (*converted_time == static_cast<time_t>(-1)) {
             *err_msg = "cannot convert '" + iso_time + "' to a time_t!";
@@ -596,7 +616,12 @@ time_t ConvertHumanDateTimeToTimeT(const std::string &human_date) {
     if (not found)
         return BAD_TIME_T;
 
-    return std::mktime(&time_elements);
+    errno = 0;
+    const time_t ret_val(std::mktime(&time_elements));
+    if (unlikely(errno != 0))
+        return BAD_TIME_T;
+
+    return ret_val;
 }
 
 

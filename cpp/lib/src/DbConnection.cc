@@ -477,6 +477,20 @@ bool DbConnection::mySQLDatabaseExists(const std::string &database_name) {
 }
 
 
+bool DbConnection::tableExists(const std::string &database_name, const std::string &table_name) {
+    if (type_ == T_MYSQL) {
+        queryOrDie("SELECT EXISTS(SELECT * FROM information_schema.tables WHERE table_schema = '" + escapeString(database_name)
+                   + "' AND table_name = '" + escapeString(table_name) + "')");
+        DbResultSet result_set(getLastResultSet());
+        return result_set.getNextRow()[0] == "1";
+    } else { // Sqlite
+        DbConnection connection(database_name, READONLY);
+        connection.queryOrDie("SELECT name FROM sqlite_master WHERE type='table' AND name='" + connection.escapeString(table_name) + "'");
+        return not connection.getLastResultSet().empty();
+    }
+}
+
+
 bool DbConnection::mySQLDropDatabase(const std::string &database_name) {
     if (not mySQLDatabaseExists(database_name))
         return false;

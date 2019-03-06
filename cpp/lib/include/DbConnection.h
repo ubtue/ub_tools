@@ -141,6 +141,8 @@ public:
 
     bool mySQLDatabaseExists(const std::string &database_name);
 
+    bool tableExists(const std::string &database_name, const std::string &table_name);
+
     bool mySQLDropDatabase(const std::string &database_name);
 
     std::vector<std::string> mySQLGetDatabaseList();

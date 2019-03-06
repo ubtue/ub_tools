@@ -43,13 +43,12 @@ namespace {
               << "\t[--delivery-mode=mode]              Only sections that have the specific delivery mode (either LIVE or TEST) set will be processed. When this parameter is not specified, tracking is automatically disabled.\n"
               << "\t[--groups=my_groups                 Where groups are a comma-separated list of groups.\n"
               << "\t[--zeder-ids=my_zeder_ids           Where IDs are a comma-separated list of Zeder IDs.\n"
-              << "\t[--keep-delivered-records]          Do not discard records that have already been delivered to the BSZ.\n"
+              << "\t[--force-downloads]                 Download all records regardless of their 'delivered' status.\n"
               << "\t[--ignore-robots-dot-txt]\n"
               << "\t[--map-directory=map_directory]\n"
               << "\t[--output-directory=output_directory]\n"
               << "\t[--output-filename=output_filename] Overrides the automatically-generated filename based on the current date/time.\n"
               << "\t[--output-format=output_format]     Either \"marc-21\" or \"marc-xml\" or \"json\", with the default being \"marc-xml\"\n"
-              << "\t[--error-report-file=error_report_file]\n"
               << "\t[--harvest-url-regex=regex]         For testing purposes. When set, only those URLs that match this regex will be harvested\n"
               << "\n"
               << "\tIf any section names have been provided, only those will be processed o/w all sections will be processed.\n\n";
@@ -89,6 +88,10 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
     }
 
     auto expected_languages(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::EXPECTED_LANGUAGES, ""));
+    if (not expected_languages.empty() and expected_languages[0] == '*') {
+        site_params->force_automatic_language_detection_ = true;
+        expected_languages = expected_languages.substr(1);
+    }
     const auto field_separator_pos(expected_languages.find(':'));
     if (field_separator_pos != std::string::npos) {
         site_params->expected_languages_text_fields_ = expected_languages.substr(0, field_separator_pos);
@@ -111,20 +114,22 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
         }
     }
 
-    site_params->zeder_id_ = section.getString("zeder_id", "");
+    site_params->zeder_id_ = bundle_reader.zeder(section_name).value(JournalConfig::Zeder::ID, "");
+    site_params->journal_update_window_ = 0;
+    StringUtil::ToUnsigned(bundle_reader.zeder(section_name).value(JournalConfig::Zeder::UPDATE_WINDOW, ""),
+                           &site_params->journal_update_window_);
 }
 
 
 UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const JournalConfig::Reader &bundle_reader,
                             const std::shared_ptr<Zotero::HarvestParams> &harvest_params, const Zotero::SiteParams &site_params,
-                            DbConnection * const db_connection, Zotero::HarvesterErrorLogger * const error_logger)
+                            Zotero::HarvesterErrorLogger * const error_logger)
 {
     const std::string feed_url(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::URL));
     LOG_DEBUG("feed_url: " + feed_url);
 
-    // always disable RSS tracking for the zts_harvester as we only care about delivered records
-    return Zotero::HarvestSyndicationURL(Zotero::RSSHarvestMode::DISABLE_TRACKING, feed_url, harvest_params,
-                                         site_params, error_logger, db_connection);
+    return Zotero::HarvestSyndicationURL(feed_url, harvest_params,
+                                         site_params, error_logger);
 }
 
 
@@ -240,9 +245,9 @@ Zotero::FormatHandler *GetFormatHandlerForGroup(
 // Parses the command-line arguments.
 void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode * const delivery_mode_to_process,
                  std::unordered_set<std::string> * const groups_filter, std::unordered_set<std::string> * const zeder_ids_filter,
-                 bool * const keep_delivered_records, bool * const ignore_robots_dot_txt,
+                 bool * const force_downloads, bool * const ignore_robots_dot_txt,
                  std::string * const map_directory_path, std::string * const output_directory, std::string * const output_filename,
-                 std::string * const output_format_string, std::string * const error_report_file, std::string * const harvest_url_regex)
+                 std::string * const output_format_string, std::string * const harvest_url_regex)
 {
     while (StringUtil::StartsWith((*argv)[1], "--")) {
         if (StringUtil::StartsWith((*argv)[1], "--delivery-mode=")) {
@@ -267,8 +272,8 @@ void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode 
             --*argc, ++*argv;
         }
 
-        if (std::strcmp((*argv)[1], "--keep-delivered-records") == 0) {
-            *keep_delivered_records = true;
+        if (std::strcmp((*argv)[1], "--force-downloads") == 0) {
+            *force_downloads = true;
             --*argc, ++*argv;
         }
 
@@ -301,12 +306,6 @@ void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode 
             --*argc, ++*argv;
         }
 
-        const std::string ERROR_REPORT_FILE_FLAG_PREFIX("--error-report-file=");
-        if (StringUtil::StartsWith((*argv)[1], ERROR_REPORT_FILE_FLAG_PREFIX)) {
-            *error_report_file = (*argv)[1] + ERROR_REPORT_FILE_FLAG_PREFIX.length();
-            --*argc, ++*argv;
-        }
-
         const std::string HARVEST_URL_REGEX_PREFIX("--harvest-url-regex=");
         if (StringUtil::StartsWith((*argv)[1], HARVEST_URL_REGEX_PREFIX)) {
             *harvest_url_regex = (*argv)[1] + HARVEST_URL_REGEX_PREFIX.length();
@@ -326,16 +325,15 @@ int Main(int argc, char *argv[]) {
     // Handle options independent of the order
     BSZUpload::DeliveryMode delivery_mode_to_process(BSZUpload::DeliveryMode::NONE);
     std::unordered_set<std::string> groups_filter, zeder_ids_filter;
-    bool keep_delivered_records(false);
+    bool force_downloads(false);
     bool ignore_robots_dot_txt(false);
     std::string map_directory_path;
     std::string output_directory;
     std::string output_filename;
     std::string output_format_string("marc-xml");
-    std::string error_report_file;
     std::string harvest_url_regex;
-    ProcessArgs(&argc, &argv, &delivery_mode_to_process, &groups_filter, &zeder_ids_filter, &keep_delivered_records, &ignore_robots_dot_txt,
-                &map_directory_path, &output_directory, &output_filename, &output_format_string, &error_report_file, &harvest_url_regex);
+    ProcessArgs(&argc, &argv, &delivery_mode_to_process, &groups_filter, &zeder_ids_filter, &force_downloads, &ignore_robots_dot_txt,
+                &map_directory_path, &output_directory, &output_filename, &output_format_string, &harvest_url_regex);
 
     if (argc < 2)
         Usage();
@@ -346,7 +344,9 @@ int Main(int argc, char *argv[]) {
 
     std::shared_ptr<Zotero::HarvestParams> harvest_params(new Zotero::HarvestParams);
     harvest_params->zts_server_url_ = Zotero::TranslationServer::GetUrl();
-    harvest_params->keep_delivered_records_ = keep_delivered_records;
+    harvest_params->force_downloads_ = force_downloads;
+    harvest_params->journal_harvest_interval_ = ini_file.getUnsigned("", "journal_harvest_interval");
+    harvest_params->default_crawl_delay_time_ = ini_file.getUnsigned("", "default_crawl_delay_time");
     if (not harvest_url_regex.empty())
         harvest_params->harvest_url_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(harvest_url_regex));
 
@@ -437,8 +437,7 @@ int Main(int argc, char *argv[]) {
                                                                             .value (JournalConfig::Zotero::TYPE))));
         if (type == Zotero::HarvesterType::RSS) {
             total_record_count_and_previously_downloaded_record_count += ProcessRSSFeed(section, bundle_reader,harvest_params,
-                                                                                        site_params, db_connection.get(),
-                                                                                        &harvester_error_logger);
+                                                                                        site_params, &harvester_error_logger);
         } else if (type == Zotero::HarvesterType::CRAWL) {
             SimpleCrawler::Params crawler_params;
             crawler_params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
@@ -465,8 +464,6 @@ int Main(int argc, char *argv[]) {
             std::cerr << '\t' << section_name_and_found_flag.first << '\n';
     }
 
-    if (not error_report_file.empty())
-        harvester_error_logger.writeReport(error_report_file);
 
     return EXIT_SUCCESS;
 }

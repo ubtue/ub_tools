@@ -29,6 +29,7 @@
 
 
 #include <unordered_set>
+#include <unordered_map>
 #include <string>
 #include <vector>
 #include <signal.h>
@@ -57,16 +58,19 @@ public:
  *  \param  timeout_in_seconds  If not zero, the subprocess will be killed if the timeout expires before
  *                              the process terminates.
  *  \param  tardy_child_signal  The signal to send to our offspring if there was a timeout.
+ *  \param  envs                The environment variables to be set in the child process.
  *  \note   in case of a timeout, we set errno to ETIME and return -1
  *  \return The exit code of the subcommand or an error code if there was a failure along the way.
  */
 int Exec(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
-         const std::string &new_stdout = "", const std::string &new_stderr = "",
-         const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL);
+         const std::string &new_stdout = "", const std::string &new_stderr = "", const unsigned timeout_in_seconds = 0,
+         const int tardy_child_signal = SIGKILL,
+         const std::unordered_map<std::string, std::string> &envs = std::unordered_map<std::string, std::string>());
 
 void ExecOrDie(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
-               const std::string &new_stdout = "", const std::string &new_stderr = "",
-               const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL);
+               const std::string &new_stdout = "", const std::string &new_stderr = "", const unsigned timeout_in_seconds = 0,
+               const int tardy_child_signal = SIGKILL,
+               const std::unordered_map<std::string, std::string> &envs = std::unordered_map<std::string, std::string>());
 
 /** \brief  Kicks off a subcommand and returns.
  *  \param  command             The path to the command that should be executed.
@@ -74,10 +78,12 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &args 
  *  \param  new_stdin           An optional replacement file path for stdin.
  *  \param  new_stdout          An optional replacement file path for stdout.
  *  \param  new_stderr          An optional replacement file path for stderr.
+ *  \param  envs                The environment variables to be set in the child process.
  *  \return The PID of the child.
  */
 pid_t Spawn(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
-            const std::string &new_stdout = "", const std::string &new_stderr = "");
+            const std::string &new_stdout = "", const std::string &new_stderr = "",
+            const std::unordered_map<std::string, std::string> &envs = std::unordered_map<std::string, std::string>());
 
 
 /** \brief Tries to find a path, with the help of the environment variable PATH, to "executable_candidate".

@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2015,2017,2018 Universitätsbibliothek Tübingen.
+ *  Copyright 2015,2017-2019 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -487,6 +487,13 @@ double CalcTextSimilarity(const std::string &text1, const std::string &text2, co
 
 
 bool IsSomeKindOfDash(const uint32_t ch);
+
+
+/** \brief Replaces various hyphens and dashes with minus signs.
+ *  \param  s  A UFT-8 string that will be modified in place.
+ *  \return A reference to the modified argument.
+ */
+std::string &NormaliseDashes(std::string * const s);
 
 
 std::wstring ExpandLigatures(const std::wstring &string);

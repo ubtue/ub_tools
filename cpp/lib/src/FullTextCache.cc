@@ -50,10 +50,10 @@ bool FullTextCache::entryExpired(const std::string &id, std::vector<std::string>
     Entry entry;
     if (not getEntry(id, &entry))
         return true;
-
     const time_t now(std::time(nullptr));
     if (entry.expiration_ == TimeUtil::BAD_TIME_T or now < entry.expiration_) {
         std::vector<std::string> existing_urls(FullTextCache::getEntryUrlsAsStrings(id));
+
         std::sort(existing_urls.begin(), existing_urls.end());
         std::sort(urls.begin(), urls.end());
         if (urls == existing_urls)
@@ -70,7 +70,7 @@ void FullTextCache::expireEntries() {
 
 
 bool FullTextCache::getEntry(const std::string &id, Entry * const entry) const {
-    const auto results(full_text_cache_urls_.simpleSelect({ "expiration" }, "id", id));
+    const auto results(full_text_cache_.simpleSelect({ "expiration" }, "id", id));
     if (results.empty())
         return false;
 
@@ -111,6 +111,7 @@ std::vector<std::string> FullTextCache::getEntryUrlsAsStrings(const std::string 
 
     std::vector<std::string> urls;
     for (const auto &map : results) {
+
         const auto url(GetValueOrEmptyString(map, "url"));
         if (not url.empty())
             urls.emplace_back(url);
@@ -240,10 +241,11 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
     }
 
     std::string expiration_string;
-    if (expiration == TimeUtil::BAD_TIME_T)
+    if (expiration == TimeUtil::BAD_TIME_T) {
         full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text } });
+    }
     else {
-        expiration_string = "\"" + TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT) + "\"";
+        expiration_string = TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT);
         full_text_cache_.simpleInsert({ { "id", id }, { "expiration", expiration_string }, { "full_text", full_text } });
     }
 

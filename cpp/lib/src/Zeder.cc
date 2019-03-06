@@ -37,7 +37,7 @@ const std::string &Entry::getAttribute(const std::string &name) const {
 
 void Entry::setAttribute(const std::string &name, const std::string &value, bool overwrite) {
     if (attributes_.find(name) == attributes_.end() or overwrite)
-        attributes_[name] = value;
+        attributes_[name] = StringUtil::Map(value, Zeder::ATTRIBUTE_INVALID_CHARS, std::string(Zeder::ATTRIBUTE_INVALID_CHARS.length(), '_'));
     else
         LOG_ERROR("Attribute '" + name + "' already exists in entry " + std::to_string(id_));
 }
@@ -221,6 +221,16 @@ void CsvReader::parse(EntryCollection * const collection) {
                 LOG_ERROR("Mandatory fields were not found in the first and last columns!");
 
             continue;
+        }
+
+        if (splits.size() != columns.size()) {
+            std::string debug_data("column\tvalue\n\n");
+            for (unsigned i(0); i < columns.size(); ++i)
+                debug_data += columns.at(i) + "\t" + (i < splits.size() ? splits.at(i) : "<MISSING>") + "\n";
+
+            LOG_ERROR("column length mismatch on line " + std::to_string(line) + "! expected " +
+                      std::to_string(columns.size()) + ", found " + std::to_string(splits.size()) +
+                      ". debug data:\n" + debug_data);
         }
 
         // the first and last columns are Z and Mtime respectively

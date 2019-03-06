@@ -126,7 +126,7 @@ public:
         unsigned char type_;
     public:
         Entry(const Entry &other);
-        inline std::string getName() const { return name_; }
+        inline const std::string &getName() const { return name_; }
         inline SELinuxFileContext getSELinuxFileContext() const { return SELinuxFileContext(dirname_ + "/" + name_); }
 
         // \return One of DT_BLK(block device), DT_CHR(character device), DT_DIR(directory), DT_FIFO(named pipe),

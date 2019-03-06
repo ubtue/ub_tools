@@ -137,8 +137,16 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(cons
         std::map<std::string, std::string> new_map;
         const auto entry_object_node(JSON::JSONNode::CastToObjectNodeOrDie("entry_object_node", entry_node));
         for (const auto &entry : *entry_object_node) {
-            if (fields.empty() or fields.find(entry.first) != fields.cend())
-                new_map[entry.first] = JSON::JSONNode::CastToStringNodeOrDie("new_map[entry.first]", entry.second)->getValue();
+            if (fields.empty() or fields.find(entry.first) != fields.cend() or entry.first == "_source") {
+                // Copy existing fields but flatten the contents of _source
+                if (entry.first == "_source") {
+                    const auto source_object_node(JSON::JSONNode::CastToObjectNodeOrDie("source_object_node", entry.second));
+                    for (const auto &source_entry : *source_object_node)
+                         new_map[source_entry.first] = JSON::JSONNode::CastToStringNodeOrDie("new_map[source_entry.first]",
+                                                                                             source_entry.second)->getValue();
+                } else
+                    new_map[entry.first] = JSON::JSONNode::CastToStringNodeOrDie("new_map[entry.first]", entry.second)->getValue();
+            }
         }
 
         search_results.resize(search_results.size() + 1);
@@ -179,6 +187,28 @@ bool Elasticsearch::deleteRange(const std::string &field, const RangeOperator op
                                     "");
     const auto result_node(query("_delete", REST::POST, range_node));
     return result_node->getIntegerNode("deleted")->getValue() > 0;
+}
+
+
+bool Elasticsearch::fieldWithValueExists(const std::string &field, const std::string &value) {
+
+   const auto result_node(
+         query("_search", REST::POST,
+              "{"
+              "    \"query\": {"
+              "        \"match\" : { \"" + field + "\" : \"" + value + "\" }"
+              "    }"
+              "}"
+         ));
+
+   const auto hits_node(result_node->getObjectNode("hits"));
+   if (hits_node == nullptr)
+       LOG_ERROR("No \"hits\" node in results");
+
+   const auto total_node = hits_node->getIntegerNode("total");
+   if (total_node == nullptr)
+       LOG_ERROR("No \"total\" node found");
+   return total_node->getValue() == 0 ? false : true;
 }
 
 
