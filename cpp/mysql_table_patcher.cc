@@ -103,10 +103,8 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
                   + " for table \"" + database + "." + table + "\"!");
 
     LOG_INFO("applying update \"" + database + "." + table + "." + std::to_string(update_version) + "\".");
-    std::string update_statement;
-    FileUtil::ReadStringOrDie(update_directory_path + "/" + update_filename, &update_statement);
     db_connection->queryOrDie("START TRANSACTION");
-    db_connection->queryOrDie(update_statement);
+    db_connection->queryFileOrDie(update_directory_path + "/" + update_filename);
     db_connection->queryOrDie("UPDATE ub_tools.table_versions SET version=" + std::to_string(update_version)
                               + " WHERE database_name='" + db_connection->escapeString(database) + "' AND table_name='"
                               + db_connection->escapeString(table) + "'");
