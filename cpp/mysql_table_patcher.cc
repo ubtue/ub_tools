@@ -45,6 +45,12 @@ void SplitIntoDatabaseTableAndVersion(const std::string &update_filename, std::s
 }
 
 
+__attribute__((__const__)) inline std::string GetFirstTableName(const std::string &compound_table_name) {
+    const auto first_plus_pos(compound_table_name.find('+'));
+    return (first_plus_pos == std::string::npos) ? compound_table_name : compound_table_name.substr(0, first_plus_pos);
+}
+
+
 // The filenames being compared are assumed to have the "structure database.table.version"
 bool FileNameCompare(const std::string &filename1, const std::string &filename2) {
     std::string database1, table1;
@@ -62,9 +68,9 @@ bool FileNameCompare(const std::string &filename1, const std::string &filename2)
         return false;
 
     // Compare table names:
-    if (table1 < table2)
+    if (GetFirstTableName(table1) < GetFirstTableName(table2))
         return true;
-    if (table1 > table2)
+    if (GetFirstTableName(table1) > GetFirstTableName(table2))
         return false;
 
     return version1 < version2;
@@ -80,34 +86,67 @@ void LoadAndSortUpdateFilenames(const std::string &directory_path, std::vector<s
 }
 
 
+std::vector<std::string> GetAllTableNames(const std::string &compound_table_name) {
+    std::vector<std::string> all_table_names;
+
+    std::string current_table_name;
+    for (const char ch : compound_table_name) {
+        if (ch == '+') {
+            if (unlikely(current_table_name.empty()))
+                LOG_ERROR("bad compound table name \"" + compound_table_name + "\"! (2)");
+            all_table_names.emplace_back(current_table_name);
+            current_table_name.clear();
+        } else
+            current_table_name += ch;
+    }
+
+    if (unlikely(current_table_name.empty()))
+        LOG_ERROR("bad compound table name \"" + compound_table_name + "\"! (2)");
+
+    all_table_names.emplace_back(current_table_name);
+    return all_table_names;
+}
+
+
 void ApplyUpdate(DbConnection * const db_connection, const std::string &update_directory_path, const std::string &update_filename) {
-    std::string database, table;
+    std::string database, tables;
     unsigned update_version;
-    SplitIntoDatabaseTableAndVersion(update_filename, &database, &table, &update_version);
+    SplitIntoDatabaseTableAndVersion(update_filename, &database, &tables, &update_version);
 
-    unsigned current_version(0);
-    db_connection->queryOrDie("SELECT version FROM ub_tools.table_versions WHERE database_name='"
-                              + db_connection->escapeString(database) + "' AND table_name='" + db_connection->escapeString(table) + "'");
-    DbResultSet result_set(db_connection->getLastResultSet());
-    if (result_set.empty()) {
-        db_connection->queryOrDie("INSERT INTO ub_tools.table_versions (database_name,table_name,version) VALUES ('" + db_connection->escapeString(database)
-                                  + "','" + db_connection->escapeString(table) + "',0)");
-        LOG_INFO("Created a new entry for " + database + "." + table + " in ub_tools.table_versions.");
-    } else
-        current_version = StringUtil::ToUnsigned(result_set.getNextRow()["version"]);
-    if (update_version <= current_version)
-        return;
-
-    if (unlikely(update_version != current_version + 1))
-        LOG_ERROR("update version is " + std::to_string(update_version) + ", current version is " + std::to_string(current_version)
-                  + " for table \"" + database + "." + table + "\"!");
-
-    LOG_INFO("applying update \"" + database + "." + table + "." + std::to_string(update_version) + "\".");
     db_connection->queryOrDie("START TRANSACTION");
+
     db_connection->queryFileOrDie(update_directory_path + "/" + update_filename);
-    db_connection->queryOrDie("UPDATE ub_tools.table_versions SET version=" + std::to_string(update_version)
-                              + " WHERE database_name='" + db_connection->escapeString(database) + "' AND table_name='"
-                              + db_connection->escapeString(table) + "'");
+
+    bool can_update(true);
+    for (const auto &table : GetAllTableNames(tables)) {
+        unsigned current_version(0);
+        db_connection->queryOrDie("SELECT version FROM ub_tools.table_versions WHERE database_name='"
+                                  + db_connection->escapeString(database) + "' AND table_name='" + db_connection->escapeString(table) + "'");
+        DbResultSet result_set(db_connection->getLastResultSet());
+        if (result_set.empty()) {
+            db_connection->queryOrDie("INSERT INTO ub_tools.table_versions (database_name,table_name,version) VALUES ('"
+                                      + db_connection->escapeString(database) + "','" + db_connection->escapeString(table) + "',0)");
+            LOG_INFO("Created a new entry for " + database + "." + table + " in ub_tools.table_versions.");
+        } else
+            current_version = StringUtil::ToUnsigned(result_set.getNextRow()["version"]);
+        if (update_version <= current_version) {
+            if (unlikely(not can_update))
+                LOG_ERROR("inconsistent updates for tables \"" + tables + "\"!");
+            can_update = false;
+            continue;
+        }
+
+        db_connection->queryOrDie("UPDATE ub_tools.table_versions SET version=" + std::to_string(update_version)
+                                  + " WHERE database_name='" + db_connection->escapeString(database) + "' AND table_name='"
+                                  + db_connection->escapeString(table) + "'");
+
+        if (unlikely(update_version != current_version + 1))
+            LOG_ERROR("update version is " + std::to_string(update_version) + ", current version is " + std::to_string(current_version)
+                      + " for table \"" + database + "." + table + "\"!");
+
+        LOG_INFO("applying update \"" + database + "." + table + "." + std::to_string(update_version) + "\".");
+    }
+
     db_connection->queryOrDie("COMMIT");
 }
 
