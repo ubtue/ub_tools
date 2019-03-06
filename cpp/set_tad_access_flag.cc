@@ -218,7 +218,7 @@ std::string PermissionParser::ToString(const TokenType token) {
         return "END_OF_INPUT";
     }
 
-    LOG_ERROR("in PermissionParser::ToString: we should *never* get here!");
+    LOG_ERROR("we should *never* get here!");
 }
 
 
@@ -273,7 +273,7 @@ void ParseRule(PermissionParser * const parser, std::vector<Pattern> * const pat
             token = parser->getToken();
             if (unlikely(token != PermissionParser::STRING_CONST))
                 LOG_ERROR("on line "  + std::to_string(parser->getCurrentLineNumber())
-                              + ": expected a string constant but found " + PermissionParser::ToString(token) + "!");
+                          + ": expected a string constant but found " + PermissionParser::ToString(token) + "!");
             patterns->emplace_back(parser->getLastStringConstant(), allow);
 
             token = parser->getToken();
@@ -282,11 +282,11 @@ void ParseRule(PermissionParser * const parser, std::vector<Pattern> * const pat
                 return;
             } else if (unlikely(token != PermissionParser::COMMA))
                 LOG_ERROR("on line "  + std::to_string(parser->getCurrentLineNumber())
-                              + ": expected ']' or ',' but found " + PermissionParser::ToString(token) + "!");
+                          + ": expected ']' or ',' but found " + PermissionParser::ToString(token) + "!");
         }
     } else
         LOG_ERROR("on line " + std::to_string(parser->getCurrentLineNumber()) + " unexpected token "
-                      + PermissionParser::ToString(token) + "!");
+                  + PermissionParser::ToString(token) + "!");
 }
 
 
@@ -301,7 +301,7 @@ void ParseEmailRules(File * const input, std::vector<Pattern> * const patterns) 
             ParseRule(&parser, patterns);
         else
             LOG_ERROR("unexpected token " + PermissionParser::ToString(token) + " on line "
-                          + std::to_string(parser.getCurrentLineNumber()) + "!");
+                      + std::to_string(parser.getCurrentLineNumber()) + "!");
     }
 }
 
