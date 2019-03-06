@@ -160,18 +160,9 @@ void GenerateQuery(const bool verbose, const bool generate_solr_query, std::stri
         std::exit(EXIT_FAILURE);
     }
 
-    if (generate_solr_query) {
-        std::string query;
-        for (const auto &pair : start_end) {
-            if (not query.empty())
-                query += ' ';
-            query += pair.first + "_" + pair.second;
-        }
-        std::cout << query << '\n';
-    } else {
-        for (const auto &pair : start_end)
-            std::cout << pair.first << ':' << pair.second << '\n';
-    }
+    const char separator(generate_solr_query ? '_' : ':');
+    for (const auto &pair : start_end)
+        std::cout << pair.first << separator << pair.second << '\n';
 }
 
 
