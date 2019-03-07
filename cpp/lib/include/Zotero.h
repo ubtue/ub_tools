@@ -243,9 +243,11 @@ struct HarvestParams {
     std::unique_ptr<RegexMatcher> harvest_url_regex_;
     unsigned journal_harvest_interval_;
     unsigned default_crawl_delay_time_;
+    bool skip_online_first_articles_unconditionally_;
 public:
     HarvestParams()
-        : harvested_url_count_(0), format_handler_(nullptr), force_downloads_(false), journal_harvest_interval_(0), default_crawl_delay_time_(0) {}
+        : harvested_url_count_(0), format_handler_(nullptr), force_downloads_(false), journal_harvest_interval_(0),
+          default_crawl_delay_time_(0), skip_online_first_articles_unconditionally_(false) {}
 };
 
 
