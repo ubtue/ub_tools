@@ -347,7 +347,7 @@ int Main(int argc, char *argv[]) {
     harvest_params->force_downloads_ = force_downloads;
     harvest_params->journal_harvest_interval_ = ini_file.getUnsigned("", "journal_harvest_interval");
     harvest_params->default_crawl_delay_time_ = ini_file.getUnsigned("", "default_crawl_delay_time");
-    harvest_params->skip_online_first_articles_ = ini_file.getBool("", "skip_online_first_articles");
+    harvest_params->skip_online_first_articles_unconditionally_ = ini_file.getBool("", "skip_online_first_articles_unconditionally");
     if (not harvest_url_regex.empty())
         harvest_params->harvest_url_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(harvest_url_regex));
 

@@ -1067,7 +1067,7 @@ bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry, const
                   valid_item_types_for_online_first.end(), item_type) != valid_item_types_for_online_first.end())
     {
         if (issue.empty() and volume.empty()) {
-            if (harvest_params->skip_online_first_articles_) {
+            if (harvest_params->skip_online_first_articles_unconditionally_) {
                 LOG_DEBUG("Skipping: online-first article unconditionally");
                 return false;
             } else if (doi.empty()) {
