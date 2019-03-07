@@ -1,5 +1,9 @@
 Place SQL schema changes here.  The file name pattern has to be as follows:
 
-    database_name.table_name.patch_level
+    database_name.table_name;patch_level(\+table_name;patch_level)*
 
-where patch_level is a positive integer.
+where patch_level is a positive integer.  Two examples follow:
+
+    db1.table1;14         # Bump table1 in database db1 from version 13 to 14.
+    db2.table1;2+table2;4 # Bump table1 in database db2 from version 1 to 2 and simultaneously bump table2 from version 3 to version 4.
+

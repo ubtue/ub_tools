@@ -45,7 +45,8 @@ void SplitIntoDatabaseTablesAndVersions(const std::string &update_filename, std:
 
     std::vector<std::string> parts;
     if (unlikely(StringUtil::Split(update_filename, '.', &parts, /* suppress_empty_components = */false) != 2))
-        LOG_ERROR("failed to split \"" + update_filename + "\" into \"database.table;version[+table;version]*\"! (1)");
+        LOG_ERROR("failed to split \"" + update_filename + "\" into \"database.table;version[+table;version]*\"! (# of parts = "
+                  + std::to_string(parts.size()) + ")");
     *database = parts[0];
 
     std::vector<std::string> parts2;
@@ -53,9 +54,9 @@ void SplitIntoDatabaseTablesAndVersions(const std::string &update_filename, std:
 
     for (const auto &part : parts2) {
         std::vector<std::string> parts3;
-        if (unlikely(StringUtil::Split(part, '.', &parts3, /* suppress_empty_components = */false) != 2
+        if (unlikely(StringUtil::Split(part, ';', &parts3, /* suppress_empty_components = */false) != 2
                      or parts3[0].empty() or parts3[1].empty()))
-            LOG_ERROR("failed to split \"" + update_filename + "\" into \"database.table;version[+table;version]*\"! (1)");
+            LOG_ERROR("failed to split \"" + part + "\" into table and version!");
         tables_and_versions->emplace_back(std::make_pair(parts3[0], StringUtil::ToUnsigned(parts3[1])));
     }
 }
@@ -106,7 +107,7 @@ bool FileNameCompare(const std::string &filename1, const std::string &filename2)
 
 
 void LoadAndSortUpdateFilenames(const bool test, const std::string &directory_path, std::vector<std::string> * const update_filenames) {
-    FileUtil::Directory directory(directory_path, "[^.]+\\.[^.]+\\.\\d+");
+    FileUtil::Directory directory(directory_path, "[^.]+\\.[^.;]+;\\d+(?:\\+[^.;]+;\\d+)*");
     for (const auto &entry : directory)
         update_filenames->emplace_back(entry.getName());
 
