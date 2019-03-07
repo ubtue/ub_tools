@@ -1053,7 +1053,7 @@ void PreprocessHarvesterResponse(std::shared_ptr<JSON::ArrayNode> * const respon
 }
 
 
-bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry) {
+bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry, const std::shared_ptr<HarvestParams> &harvest_params) {
     static const std::vector<std::string> valid_item_types_for_online_first{
         "journalArticle", "magazineArticle"
     };
@@ -1066,9 +1066,14 @@ bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry) {
     if (std::find(valid_item_types_for_online_first.begin(),
                   valid_item_types_for_online_first.end(), item_type) != valid_item_types_for_online_first.end())
     {
-        if (issue.empty() and volume.empty() and doi.empty()) {
-            LOG_DEBUG("Skipping: online-first article without a DOI");
-            return false;
+        if (issue.empty() and volume.empty()) {
+            if (harvest_params->skip_online_first_articles_) {
+                LOG_DEBUG("Skipping: online-first article unconditionally");
+                return false;
+            } else if (doi.empty()) {
+                LOG_DEBUG("Skipping: online-first article without a DOI");
+                return false;
+            }
         }
     }
 
