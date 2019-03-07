@@ -316,13 +316,17 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Title
     node_parameters->title_ = object_node->getOptionalStringValue("title");
-    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->title_))
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->title_)) {
+        LOG_DEBUG("title matched review pattern");
         node_parameters->item_type_ = "review";
+    }
 
     // Short Title
     node_parameters->short_title_ = object_node->getOptionalStringValue("shortTitle");
-    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->short_title_))
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->short_title_)) {
+        LOG_DEBUG("short title matched review pattern");
         node_parameters->item_type_ = "review";
+    }
 
     // Creators
     const auto creator_nodes(object_node->getOptionalArrayNode("creators"));
@@ -358,8 +362,10 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Abstract Note
     node_parameters->abstract_note_ = object_node->getOptionalStringValue("abstractNote");
-    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abstract_note_))
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abstract_note_)) {
+        LOG_DEBUG("abstract matched review pattern");
         node_parameters->item_type_ = "review";
+    }
 
     // Keywords
     const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
@@ -377,14 +383,13 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
                 const std::string value(string_node->getValue());
                 node_parameters->keywords_.emplace_back(value);
 
-                if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(value))
+                if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(value)) {
+                    LOG_DEBUG("keyword '" + value + "' matched review pattern");
                     node_parameters->item_type_ = "review";
+                }
             }
         }
     }
-
-    if (node_parameters->item_type_ == "review")
-        LOG_DEBUG("tagged as review");
 
     // Language
     node_parameters->language_ = object_node->getOptionalStringValue("language");
