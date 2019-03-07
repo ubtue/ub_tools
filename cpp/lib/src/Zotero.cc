@@ -316,13 +316,17 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Title
     node_parameters->title_ = object_node->getOptionalStringValue("title");
-    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->title_))
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->title_)) {
+        LOG_DEBUG("title matched review pattern");
         node_parameters->item_type_ = "review";
+    }
 
     // Short Title
     node_parameters->short_title_ = object_node->getOptionalStringValue("shortTitle");
-    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->short_title_))
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->short_title_)) {
+        LOG_DEBUG("short title matched review pattern");
         node_parameters->item_type_ = "review";
+    }
 
     // Creators
     const auto creator_nodes(object_node->getOptionalArrayNode("creators"));
@@ -358,11 +362,34 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Abstract Note
     node_parameters->abstract_note_ = object_node->getOptionalStringValue("abstractNote");
-    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abstract_note_))
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abstract_note_)) {
+        LOG_DEBUG("abstract matched review pattern");
         node_parameters->item_type_ = "review";
+    }
 
-    if (node_parameters->item_type_ == "review")
-        LOG_DEBUG("tagged as review");
+    // Keywords
+    const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
+    if (tags_node != nullptr) {
+        const std::shared_ptr<const JSON::ArrayNode> tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
+        for (const auto &tag : *tags) {
+            const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
+            const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
+            if (tag_node == nullptr)
+                LOG_ERROR("unexpected: tag object does not contain a \"tag\" entry!");
+            else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
+                LOG_ERROR("unexpected: tag object's \"tag\" entry is not a string node!");
+            else {
+                const std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie("tag", tag_node));
+                const std::string value(string_node->getValue());
+                node_parameters->keywords_.emplace_back(value);
+
+                if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(value)) {
+                    LOG_DEBUG("keyword '" + value + "' matched review pattern");
+                    node_parameters->item_type_ = "review";
+                }
+            }
+        }
+    }
 
     // Language
     node_parameters->language_ = object_node->getOptionalStringValue("language");
@@ -389,25 +416,6 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Pages
     node_parameters->pages_ = object_node->getOptionalStringValue("pages");
-
-    // Keywords
-    const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
-    if (tags_node != nullptr) {
-        const std::shared_ptr<const JSON::ArrayNode> tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
-        for (const auto &tag : *tags) {
-            const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
-            const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
-            if (tag_node == nullptr)
-                LOG_ERROR("unexpected: tag object does not contain a \"tag\" entry!");
-            else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
-                LOG_ERROR("unexpected: tag object's \"tag\" entry is not a string node!");
-            else {
-                const std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie("tag", tag_node));
-                const std::string value(string_node->getValue());
-                node_parameters->keywords_.emplace_back(value);
-            }
-        }
-    }
 
     // URL
     node_parameters->url_ = object_node->getOptionalStringValue("url");
@@ -1045,7 +1053,7 @@ void PreprocessHarvesterResponse(std::shared_ptr<JSON::ArrayNode> * const respon
 }
 
 
-bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry) {
+bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry, const std::shared_ptr<HarvestParams> &harvest_params) {
     static const std::vector<std::string> valid_item_types_for_online_first{
         "journalArticle", "magazineArticle"
     };
@@ -1058,9 +1066,14 @@ bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry) {
     if (std::find(valid_item_types_for_online_first.begin(),
                   valid_item_types_for_online_first.end(), item_type) != valid_item_types_for_online_first.end())
     {
-        if (issue.empty() and volume.empty() and doi.empty()) {
-            LOG_DEBUG("Skipping: online-first article without a DOI");
-            return false;
+        if (issue.empty() and volume.empty()) {
+            if (harvest_params->skip_online_first_articles_unconditionally_) {
+                LOG_DEBUG("Skipping: online-first article unconditionally");
+                return false;
+            } else if (doi.empty()) {
+                LOG_DEBUG("Skipping: online-first article without a DOI");
+                return false;
+            }
         }
     }
 
@@ -1193,7 +1206,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
         try {
             AugmentJson(harvest_url, json_object, site_params);
-            if (ValidateAugmentedJSON(json_object))
+            if (ValidateAugmentedJSON(json_object, harvest_params))
                 record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
         } catch (const std::exception &x) {
             error_logger_context.autoLog("Couldn't process record! Error: " + std::string(x.what()));

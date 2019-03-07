@@ -60,7 +60,6 @@ const std::string BuildUrl(const std::string &base_url, const std::unordered_map
 
 
 const std::shared_ptr<const JSON::ObjectNode> Query(const std::string &url, const bool allow_multiple_results) {
-    LOG_DEBUG(url);
     const auto url_and_lookup_result(url_to_lookup_result_cache.find(url));
     if (url_and_lookup_result != url_to_lookup_result_cache.end())
         return url_and_lookup_result->second;
@@ -83,10 +82,9 @@ const std::shared_ptr<const JSON::ObjectNode> Query(const std::string &url, cons
     url_to_lookup_result_cache.emplace(url, root_object);
 
     const unsigned total_items(root_object->getIntegerValue("totalItems"));
-    if (total_items == 0) {
-        LOG_DEBUG("empty result for query: " + url);
+    if (total_items == 0)
         return nullptr;
-    } else if (not allow_multiple_results and total_items > 1) {
+    else if (not allow_multiple_results and total_items > 1) {
         LOG_DEBUG("multiple results for query: " + url);
         return nullptr;
     }
