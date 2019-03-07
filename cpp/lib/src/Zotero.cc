@@ -568,7 +568,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             subfields.appendSubfield('a', creator->first_name_);
             subfields.appendSubfield('c', creator->last_name_);
         } else
-            subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator->last_name_, creator->first_name_}), ", "));
+            subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({ creator->last_name_, creator->first_name_ }), ", "));
         record->insertField(creator_tag, subfields, /* indicator 1 = */'1');
     }
 
