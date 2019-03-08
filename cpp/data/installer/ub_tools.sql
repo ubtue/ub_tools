@@ -19,20 +19,20 @@ CREATE TABLE rss_aggregator (
     feed_url VARCHAR(512) NOT NULL,
     pub_date DATETIME NOT NULL,
     insertion_time TIMESTAMP DEFAULT NOW() NOT NULL,
-    UNIQUE (item_id)
+    UNIQUE (item_id),
+    INDEX item_id_index(item_id),
+    INDEX item_url_index(item_url),
+    INDEX insertion_time_index(insertion_time)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE INDEX item_id_index ON rss_aggregator(item_id);
-CREATE INDEX item_url_index ON rss_aggregator(item_url);
-CREATE INDEX insertion_time_index ON rss_aggregator(insertion_time);
 
 -- Table to be used w/ our validate_harvested_records tool:
 CREATE TABLE metadata_presence_tracer (
        journal_name VARCHAR(191) NOT NULL,
        metadata_field_name VARCHAR(191) NOT NULL,
        field_presence ENUM('always', 'sometimes', 'ignore') NOT NULL,
-       UNIQUE(journal_name, metadata_field_name)
+       UNIQUE(journal_name, metadata_field_name),
+       INDEX journal_name_and_metadata_field_name_index(journal_name, metadata_field_name)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE INDEX journal_name_and_metadata_field_name_index ON metadata_presence_tracer(journal_name, metadata_field_name);
 
 
 CREATE TABLE delivered_marc_records (
@@ -48,14 +48,14 @@ CREATE TABLE delivered_marc_records (
     issue CHAR(40) DEFAULT NULL,
     pages CHAR(20) DEFAULT NULL,
     resource_type ENUM('print','online','unknown') NOT NULL,
-    record BLOB NOT NULL
+    record BLOB NOT NULL,
+    INDEX delivered_marc_records_url_index(url),
+    INDEX delivered_marc_records_hash_index(hash),
+    INDEX delivered_marc_records_zeder_id_index(zeder_id),
+    INDEX delivered_marc_records_delivered_at_index(delivered_at),
+    INDEX delivered_marc_records_journal_name_index(journal_name),
+    INDEX delivered_marc_records_main_title_index(main_title)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE INDEX delivered_marc_records_url_index ON delivered_marc_records(url);
-CREATE INDEX delivered_marc_records_hash_index ON delivered_marc_records(hash);
-CREATE INDEX delivered_marc_records_zeder_id_index ON delivered_marc_records(zeder_id);
-CREATE INDEX delivered_marc_records_delivered_at_index ON delivered_marc_records(delivered_at);
-CREATE INDEX delivered_marc_records_journal_name_index ON delivered_marc_records(journal_name);
-CREATE INDEX delivered_marc_records_main_title_index ON delivered_marc_records(main_title);
 
 CREATE TABLE delivered_marc_records_superior_info (
     zeder_id VARCHAR(10) PRIMARY KEY,
