@@ -13,12 +13,13 @@ run_if_file_changed() {
     echo "$CHANGED_FILES" | grep --quiet "$2" && echo "$3" && eval "$1"
 }
 
-TABLE_PATCHER=/usr/local/bin/mysql_table_patcher
-if ( echo "$CHANGED_FILES" | grep --quiet /usr/local/ub_tools/cpp/data/sql_updates ); then
-    if [[ -x $TABLE_PATCHER ]]; then
-        $TABLE_PATCHER /usr/local/ub_tools/cpp/data/sql_updates
+MYSQL_SCHEMA_UPDATES_PATH=/usr/local/ub_tools/cpp/data/sql_updates
+MYSQL_DATABASE_PATCHER=/usr/local/bin/mysql_database_patcher
+if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH ); then
+    if [[ -x $MYSQL_DATABASE_PATCHER ]]; then
+        $MYSQL_DATABASE_PATCHER $MYSQL_SCHEMA_UPDATES_PATH
     else
-        echo "You need to install $TABLE_PATCHER and execute it!."
+        echo "You need to install $MYSQL_DATABASE_PATCHER and execute it!."
     fi
 fi
 
