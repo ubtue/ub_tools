@@ -141,10 +141,12 @@ int Main(int argc, char *argv[]) {
     LoadAndSortUpdateFilenames(test, update_directory_path, &update_filenames);
 
     DbConnection db_connection;
-    if (not db_connection.tableExists("ub_tools", "table_versions")) {
-        db_connection.queryOrDie("CREATE TABLE ub_tools.database_versions (version INT UNSIGNED NOT NULL, database_name VARCHAR(64) NOT NULL"
-                                 "UNIQUE) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin");
-        LOG_INFO("Created the ub_tools.table_versions table.");
+    const std::string system_table_name("database_versions");
+    if (not db_connection.tableExists("ub_tools", system_table_name)) {
+        db_connection.queryOrDie("CREATE TABLE ub_tools." + system_table_name + " (version INT UNSIGNED NOT NULL,"
+                                 "database_name VARCHAR(64) NOT NULL,UNIQUE (database_name)) "
+                                 "CHARACTER SET utf8mb4 COLLATE utf8mb4_bin");
+        LOG_INFO("Created the ub_tools." + system_table_name + " table.");
     }
 
     for (const auto &update_filename : update_filenames)
