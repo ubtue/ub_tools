@@ -38,39 +38,27 @@ namespace {
 }
 
 
-void SplitIntoDatabaseTablesAndVersions(const std::string &update_filename, std::string * const database,
-                                        std::vector<std::pair<std::string, unsigned>> * const tables_and_versions)
-{
-    tables_and_versions->clear();
+void SplitIntoDatabaseAndVersion(const std::string &update_filename, std::string * const database, unsigned * const version) {
+    const auto first_dot_pos(update_filename.find('.'));
+    if (first_dot_pos == std::string::npos or first_dot_pos == 0 or first_dot_pos == update_filename.length() - 1)
+        LOG_ERROR("invalid update filename \"" + update_filename + "\"!");
 
-    std::vector<std::string> parts;
-    if (unlikely(StringUtil::Split(update_filename, '.', &parts, /* suppress_empty_components = */false) != 2))
-        LOG_ERROR("failed to split \"" + update_filename + "\" into \"database.table;version[+table;version]*\"! (# of parts = "
-                  + std::to_string(parts.size()) + ")");
-    *database = parts[0];
+    if (not StringUtil::ToUnsigned(update_filename.substr(first_dot_pos + 1), version))
+        LOG_ERROR("bad or missing version in update filename \"" + update_filename + "\"!");
 
-    std::vector<std::string> parts2;
-    StringUtil::Split(parts[1], '+', &parts2, /* suppress_empty_components = */false);
-
-    for (const auto &part : parts2) {
-        std::vector<std::string> parts3;
-        if (unlikely(StringUtil::Split(part, ';', &parts3, /* suppress_empty_components = */false) != 2
-                     or parts3[0].empty() or parts3[1].empty()))
-            LOG_ERROR("failed to split \"" + part + "\" into table and version!");
-        tables_and_versions->emplace_back(std::make_pair(parts3[0], StringUtil::ToUnsigned(parts3[1])));
-    }
+    *database = update_filename.substr(0, first_dot_pos);
 }
 
 
-// The filenames being compared are assumed to have the "structure database.table;version[+table;version]*"
+// The filenames being compared are assumed to have the "structure database.version]*"
 bool FileNameCompare(const std::string &filename1, const std::string &filename2) {
     std::string database1;
-    std::vector<std::pair<std::string, unsigned>> tables_and_versions1;
-    SplitIntoDatabaseTablesAndVersions(filename1, &database1, &tables_and_versions1);
+    unsigned version1;
+    SplitIntoDatabaseAndVersion(filename1, &database1, &version1);
 
     std::string database2;
-    std::vector<std::pair<std::string, unsigned>> tables_and_versions2;
-    SplitIntoDatabaseTablesAndVersions(filename2, &database2, &tables_and_versions2);
+    unsigned version2;
+    SplitIntoDatabaseAndVersion(filename2, &database2, &version2);
 
     // Compare database names:
     if (database1 < database2)
@@ -78,31 +66,7 @@ bool FileNameCompare(const std::string &filename1, const std::string &filename2)
     if (database1 > database2)
         return false;
 
-    // Compare table names and versions.  If we have more than one common table name, the ordering has to be the same for all
-    // shared table names or we have an unresolvable situation!
-    unsigned one_before_two(0), two_before_one(0); // Ordering between shared table names.
-    for (const auto &table_and_version1 : tables_and_versions1) {
-        const auto table_and_version2(std::find_if(tables_and_versions2.cbegin(), tables_and_versions2.cend(),
-                                                   [&table_and_version1](const std::pair<std::string, unsigned> &table_and_version)
-                                                   { return table_and_version.first == table_and_version1.first; }));
-        if (table_and_version2 != tables_and_versions2.cend()) {
-            if (unlikely(table_and_version1.second == table_and_version2->second))
-                LOG_ERROR("impossible filename comparsion \"" + filename1 + "\" with \"" + filename2 + "\"! (1)");
-            else if (table_and_version1.second < table_and_version2->second)
-                ++one_before_two;
-            else
-                ++two_before_one;
-        }
-    }
-    if (unlikely(one_before_two > 0 and two_before_one > 0))
-        LOG_ERROR("impossible filename comparsion \"" + filename1 + "\" with \"" + filename2 + "\"! (2)");
-    else if (one_before_two > 0)
-        return true;
-    else if (two_before_one > 0)
-        return false;
-
-    // ...fall back on alphanumeric comparison:
-    return tables_and_versions1[0].first < tables_and_versions2[0].first;
+    return version1 < version2;
 }
 
 
@@ -124,47 +88,36 @@ void LoadAndSortUpdateFilenames(const bool test, const std::string &directory_pa
 
 void ApplyUpdate(DbConnection * const db_connection, const std::string &update_directory_path, const std::string &update_filename) {
     std::string database;
-    std::vector<std::pair<std::string, unsigned>> tables_and_versions;
-    SplitIntoDatabaseTablesAndVersions(update_filename, &database, &tables_and_versions);
+    unsigned update_version;
+    SplitIntoDatabaseAndVersion(update_filename, &database, &update_version);
 
     db_connection->queryOrDie("START TRANSACTION");
 
-    bool can_update(true);
-    for (const auto &table_and_version : tables_and_versions) {
-        unsigned current_version(0);
-        db_connection->queryOrDie("SELECT version FROM ub_tools.table_versions WHERE database_name='"
-                                  + db_connection->escapeString(database) + "' AND table_name='"
-                                  + db_connection->escapeString(table_and_version.first) + "'");
-        DbResultSet result_set(db_connection->getLastResultSet());
-        if (result_set.empty()) {
-            db_connection->queryOrDie("INSERT INTO ub_tools.table_versions (database_name,table_name,version) VALUES ('"
-                                      + db_connection->escapeString(database) + "','"
-                                      + db_connection->escapeString(table_and_version.first) + "',0)");
-            LOG_INFO("Created a new entry for " + database + "." + table_and_version.first + " in ub_tools.table_versions.");
-        } else
-            current_version = StringUtil::ToUnsigned(result_set.getNextRow()["version"]);
-        if (table_and_version.second <= current_version) {
-            can_update = false;
-            continue;
-        }
-        if (unlikely(not can_update))
-            LOG_ERROR("inconsistent update \"" + update_filename + "\"!");
+    unsigned current_version(0);
+    db_connection->queryOrDie("SELECT version FROM ub_tools.database_versions WHERE database_name='"
+                              + db_connection->escapeString(database) + "'");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    if (result_set.empty()) {
+        db_connection->queryOrDie("INSERT INTO ub_tools.database_versions (database_name,version) VALUES ('"
+                                  + db_connection->escapeString(database) + "',0)");
+            LOG_INFO("Created a new entry for database \"" + database + " in ub_tools.database_versions.");
+    } else
+        current_version = StringUtil::ToUnsigned(result_set.getNextRow()["version"]);
+    if (update_version <= current_version)
+        return;
 
-        db_connection->queryOrDie("UPDATE ub_tools.table_versions SET version=" + std::to_string(table_and_version.second)
-                                  + " WHERE database_name='" + db_connection->escapeString(database) + "' AND table_name='"
-                                  + db_connection->escapeString(table_and_version.first) + "'");
+    // Sanity check:
+    if (unlikely(update_version != current_version + 1))
+        LOG_ERROR("update version is " + std::to_string(update_version) + ", current version is "
+                  + std::to_string(current_version) + " for database \"" + database + "\"!");
 
-        if (unlikely(table_and_version.second != current_version + 1))
-            LOG_ERROR("update version is " + std::to_string(table_and_version.second) + ", current version is "
-                      + std::to_string(current_version) + " for table \"" + database + "." + table_and_version.first + "\"!");
+    db_connection->queryOrDie("UPDATE ub_tools.database_versions SET version=" + std::to_string(update_version)
+                              + " WHERE database_name='" + db_connection->escapeString(database) + "'");
 
-        LOG_INFO("applying update \"" + database + "." + table_and_version.first + "." + std::to_string(table_and_version.second) + "\".");
-    }
+    LOG_INFO("applying update " + std::to_string(update_version) + " to database \"" + database + "\".");
+    db_connection->queryFileOrDie(update_directory_path + "/" + update_filename);
 
-    if (can_update) {
-        db_connection->queryFileOrDie(update_directory_path + "/" + update_filename);
-        db_connection->queryOrDie("COMMIT");
-    }
+    db_connection->queryOrDie("COMMIT");
 }
 
 
@@ -189,9 +142,8 @@ int Main(int argc, char *argv[]) {
 
     DbConnection db_connection;
     if (not db_connection.tableExists("ub_tools", "table_versions")) {
-        db_connection.queryOrDie("CREATE TABLE ub_tools.table_versions (version INT UNSIGNED NOT NULL, database_name VARCHAR(64) NOT NULL, "
-                                 "table_name VARCHAR(64) NOT NULL, UNIQUE(database_name,table_name)) "
-                                 "CHARACTER SET utf8mb4 COLLATE utf8mb4_bin");
+        db_connection.queryOrDie("CREATE TABLE ub_tools.database_versions (version INT UNSIGNED NOT NULL, database_name VARCHAR(64) NOT NULL"
+                                 "UNIQUE) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin");
         LOG_INFO("Created the ub_tools.table_versions table.");
     }
 
