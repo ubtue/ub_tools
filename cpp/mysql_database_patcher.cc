@@ -71,7 +71,7 @@ bool FileNameCompare(const std::string &filename1, const std::string &filename2)
 
 
 void LoadAndSortUpdateFilenames(const bool test, const std::string &directory_path, std::vector<std::string> * const update_filenames) {
-    FileUtil::Directory directory(directory_path, "[^.]+\\.[^.;]+;\\d+(?:\\+[^.;]+;\\d+)*");
+    FileUtil::Directory directory(directory_path, "[^.]+\\.\\d+");
     for (const auto &entry : directory)
         update_filenames->emplace_back(entry.getName());
 
