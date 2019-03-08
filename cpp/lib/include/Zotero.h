@@ -214,6 +214,7 @@ struct SiteParams {
     std::vector<std::string> additional_fields_;
     std::vector<std::string> non_standard_metadata_fields_;
     std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> field_exclusion_filters_;
+    std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> field_removal_filters_;
     unsigned journal_update_window_;
 public:
     SiteParams()

@@ -703,6 +703,17 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
 
     if (not node_parameters.journal_name_.empty())
         record->insertField("JOU", { { 'a', node_parameters.journal_name_ } });
+
+    // remove any fields that match removal patterns
+    for (const auto &filter : site_params_->field_removal_filters_) {
+        auto field(filter.first);
+        if (record->fieldOrSubfieldMatched(filter.first, filter.second.get())) {
+            if (field.length() != 3)
+                field.erase(3);
+            record->erase(field);
+            LOG_DEBUG("erased field '" + field + "' due to removal filter '" + filter.second->getPattern() + "'");
+        }
+    }
 }
 
 

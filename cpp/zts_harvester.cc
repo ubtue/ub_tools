@@ -111,6 +111,13 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
 
             site_params->field_exclusion_filters_.insert(std::make_pair(field_name,
                                                          std::unique_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactoryOrDie(entry.value_))));
+        } else if (StringUtil::StartsWith(entry.name_, "remove_field_")) {
+            const auto field_name(entry.name_.substr(__builtin_strlen("remove_field_")));
+            if (field_name.length() != MARC::Record::TAG_LENGTH && field_name.length() != MARC::Record::TAG_LENGTH + 1)
+                LOG_ERROR("invalid removal filter name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
+
+            site_params->field_removal_filters_.insert(std::make_pair(field_name,
+                                                       std::unique_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactoryOrDie(entry.value_))));
         }
     }
 
