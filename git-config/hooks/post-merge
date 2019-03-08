@@ -23,6 +23,6 @@ if ( echo "$CHANGED_FILES" | grep --quiet /usr/local/ub_tools/cpp/data/sql_updat
 fi
 
 MYSQL_SCHEMA_PATH=$DIR/../../cpp/data/installer/ub_tools.sql
-MYSQL_SCHEMA_DIFF_CMD="mysql_schema_diff ub_tools "$MYSQL_SCHEMA_PATH""
+MYSQL_SCHEMA_DIFF_CMD="mysql_schema_diff ub_tools root "$MYSQL_SCHEMA_PATH""
 MYSQL_SCHEMA_DIFF_MSG="MySQL schema has changed, starting mysql_schema_diff against existing DB (no automatic changes will be done)"
 run_if_file_changed "$MYSQL_SCHEMA_DIFF_CMD" "ub_tools.sql" "$MYSQL_SCHEMA_DIFF_MSG"
