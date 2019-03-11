@@ -1,4 +1,4 @@
-package de.uni_tuebingen.ub.ixTheo.bibleRangeSearch;
+package de.uni_tuebingen.ub.ixTheo.rangeSearch;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -6,7 +6,7 @@ import java.util.Arrays;
 /**
  * \class Range represents a range in a hierarchy of ranges.  An example would be parts of the Bible.
  */
-class Range {
+public class Range {
     private int lower;
     private int upper;
 
