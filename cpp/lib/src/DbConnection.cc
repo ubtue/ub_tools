@@ -393,8 +393,10 @@ void DbConnection::init(const std::string &database_name, const std::string &use
 
     if (::mysql_real_connect(&mysql_, host.c_str(), user.c_str(), passwd.c_str(), database_name.c_str(), port,
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
+
+        // password is intentionally omitted here!
         throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage()
-                                 + ", host=\"" + host + "\", user=\"" + user + "\", passwd=\"" + passwd + "\", database_name=\""
+                                 + ", host=\"" + host + "\", user=\"" + user + "\", passwd=\"********\", database_name=\""
                                  + database_name + "\", port=" + std::to_string(port) + ")");
     if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
