@@ -47,24 +47,28 @@ class BibleRangeQuery extends Query {
         return "BibleRangeQuery(Query:" + query.toString() + ", Ranges:" + Range.toString(ranges) + ")";
     }
 
-    /**
-     * We don't want to get cached. Otherwise we will get the same results regardless of the query.
-     *
-     * @param obj the other object
-     * @return always false.
-     */
     @Override
     public boolean equals(final Object obj) {
-        return false;
+        if (!(obj instanceof BibleRangeQuery))
+            return false;
+
+        final BibleRangeQuery otherQuery = (BibleRangeQuery)obj;
+        if (otherQuery.ranges.length != ranges.length)
+            return false;
+
+        for (int i = 0; i < ranges.length; ++i) {
+            if (!ranges[i].equals(otherQuery.ranges[i]))
+                return false;
+        }
+
+        return true;
     }
 
-    /**
-     * We don't want to get cached. Otherwise we will get the same results regardless of the query.
-     *
-     * @return a random number.
-     */
     @Override
     public int hashCode() {
-        return (int) (Math.random() * Integer.MAX_VALUE);
+        int combinedHashCode = 0;
+        for (final BibleRange range : ranges)
+            combinedHashCode ^= range.hashCode();
+        return combinedHashCode;
     }
 }
