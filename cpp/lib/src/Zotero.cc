@@ -524,6 +524,14 @@ void SelectIssnAndPpn(const std::string &issn_zotero, const std::string &issn_on
 }
 
 
+bool IsCreatorLastNameATitle(const std::string &last_name) {
+    static const std::unordered_set<std::string> VALID_TITLES {
+        "Jr", "Jr.", "Sr", "Sr."
+    };
+    return VALID_TITLES.find(last_name) != VALID_TITLES.end();
+}
+
+
 void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters) {
     const std::string item_type(node_parameters.item_type_);
     *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, Transformation::MapBiblioLevel(item_type));
@@ -555,7 +563,12 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             subfields.appendSubfield('0', "(DE-588)" + creator->gnd_number_);
         if (not creator->type_.empty())
             subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator->type_));
-        subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator->last_name_, creator->first_name_}), ", "));
+
+        if (IsCreatorLastNameATitle(creator->last_name_)) {
+            subfields.appendSubfield('a', creator->first_name_);
+            subfields.appendSubfield('c', creator->last_name_);
+        } else
+            subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({ creator->last_name_, creator->first_name_ }), ", "));
         record->insertField(creator_tag, subfields, /* indicator 1 = */'1');
     }
 

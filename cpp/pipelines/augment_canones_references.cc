@@ -186,7 +186,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
 
 int Main(int argc, char **argv) {
     if (argc != 4)
-        ::Usage("ix_theo_titles authority_records augmented_ix_theo_titles");
+        ::Usage("ixtheo_titles authority_records augmented_ixtheo_titles");
 
     const std::string title_input_filename(argv[1]);
     const std::string authority_filename(argv[2]);

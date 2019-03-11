@@ -13,16 +13,21 @@ run_if_file_changed() {
     echo "$CHANGED_FILES" | grep --quiet "$2" && echo "$3" && eval "$1"
 }
 
-TABLE_PATCHER=/usr/local/bin/mysql_table_patcher
-if ( echo "$CHANGED_FILES" | grep --quiet /usr/local/ub_tools/cpp/data/sql_updates ); then
-    if [[ -x $TABLE_PATCHER ]]; then
-        $TABLE_PATCHER /usr/local/ub_tools/cpp/data/sql_updates
+MYSQL_SCHEMA_UPDATES_PATH=/usr/local/ub_tools/cpp/data/sql_updates
+MYSQL_SCHEMA_UPDATES_PATH_LOCAL=cpp/data/sql_updates
+MYSQL_DATABASE_PATCHER=/usr/local/bin/mysql_database_patcher
+if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); then
+    if [[ -x $MYSQL_DATABASE_PATCHER ]]; then
+	echo "Executing MYSQL schema updates tool"
+        $MYSQL_DATABASE_PATCHER $MYSQL_SCHEMA_UPDATES_PATH
     else
-        echo "You need to install $TABLE_PATCHER and execute it!."
+        echo "You need to install $MYSQL_DATABASE_PATCHER and execute it!."
     fi
+else
+	echo "No explicit MYSQL schema updates detected"
 fi
 
 MYSQL_SCHEMA_PATH=$DIR/../../cpp/data/installer/ub_tools.sql
-MYSQL_SCHEMA_DIFF_CMD="mysql_schema_diff ub_tools "$MYSQL_SCHEMA_PATH""
+MYSQL_SCHEMA_DIFF_CMD="mysql_schema_diff ub_tools root "$MYSQL_SCHEMA_PATH""
 MYSQL_SCHEMA_DIFF_MSG="MySQL schema has changed, starting mysql_schema_diff against existing DB (no automatic changes will be done)"
 run_if_file_changed "$MYSQL_SCHEMA_DIFF_CMD" "ub_tools.sql" "$MYSQL_SCHEMA_DIFF_MSG"
