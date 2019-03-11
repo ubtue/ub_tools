@@ -2734,7 +2734,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return Boolean.toString(field != null);
     }
 
-
     public String hasUnpaywallEntry(final Record record) {
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField dataField = (DataField) variableField;
@@ -2743,5 +2742,16 @@ public class TuelibMixin extends SolrIndexerMixin {
                 return Boolean.TRUE.toString();
         }
         return Boolean.FALSE.toString();
+    }
+
+    public String getOldPPN(final Record record) {
+        for (final VariableField variableField : record.getVariableFields("035")) {
+            final DataField dataField = (DataField) variableField;
+            final Subfield subfield_a = dataField.getSubfield('a');
+            if (subfield_a != null && subfield_a.getData().startsWith("(DE-576)"))
+                subfield_a.getData().substring(8);
+        }
+
+        return null;
     }
 }
