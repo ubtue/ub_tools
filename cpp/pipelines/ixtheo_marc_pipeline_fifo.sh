@@ -198,6 +198,14 @@ cp pericopes_to_codes.map /usr/local/var/lib/tuelib/bibleRef/ && \
 EndPhase || Abort) &
 
 
+StartPhase "Augment Canon law References"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(augment_canones_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                            Normdaten-"${date}".mrc \
+                            GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Update IxTheo Notations"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (update_ixtheo_notations \
