@@ -12,8 +12,8 @@ import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.FixedBitSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
+import de.uni_tuebingen.ub.ixTheo.rangeSearch.Range;
 
 
 public class BibleRangeWeight extends ConstantScoreWeight {
