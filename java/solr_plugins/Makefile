@@ -1,4 +1,4 @@
-SUBDIRS = Bibelstellensuche PrefixSortFacetten MultiLanguageDocTransformer MultiLanguageQueryParser
+SUBDIRS = RangedSearches PrefixSortFacetten MultiLanguageDocTransformer MultiLanguageQueryParser
 
 all: 
 	for dir in $(SUBDIRS); do \
