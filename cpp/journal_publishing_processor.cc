@@ -24,6 +24,7 @@
 #include <vector>
 #include "FileUtil.h"
 #include "FullTextImport.h"
+#include "PdfUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 #include "XMLParser.h"
@@ -94,6 +95,10 @@ void ExtractMetadata(XMLParser * const xml_parser, FullTextImport::FullTextData 
             const auto id_type_and_value(xml_part.attributes_.find("pub-id-type"));
             if (id_type_and_value != xml_part.attributes_.cend() and id_type_and_value->second == "doi")
                 metadata->doi_ = ReadCharactersUntilNextClosingTag(xml_parser);
+        } else if (xml_part.isOpeningTag("self-uri")) {
+            const auto fulltext_location(xml_part.attributes_.find("xlink:href"));
+            if (fulltext_location != xml_part.attributes_.cend())
+                metadata->full_text_location_ = fulltext_location->second;
         }
     }
 }
@@ -124,6 +129,19 @@ bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_t
 }
 
 
+void ExtractPDFFulltext(const std::string &fulltext_location, std::string * const full_text) {
+    if (not StringUtil::EndsWith(fulltext_location, ".pdf", true))
+        LOG_ERROR("Don't know how to handle file \"" + fulltext_location + "\"");
+    std::string pdf_document;
+    if (not FileUtil::ReadString(fulltext_location, &pdf_document))
+        LOG_ERROR("Could not read \"" + fulltext_location + "\"");
+    if (not PdfUtil::PdfDocContainsNoText(pdf_document))
+        PdfUtil::ExtractText(pdf_document, full_text);
+    else
+        LOG_ERROR("Apparently no text in \"" + fulltext_location + "\"");
+}
+
+
 void ProcessDocument(const bool normalise_only, const std::string &input_file_path, XMLParser * const xml_parser,
                      File * const plain_text_output)
 {
@@ -150,8 +168,12 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
         LOG_WARNING("no doi found in file '" + input_file_path + "'");
 
     std::string full_text, abstract;
-    if (not ExtractText(xml_parser, "body", &full_text))
-        ExtractText(xml_parser, "abstract", &abstract);
+
+    if (full_text_metadata.full_text_location_.empty()) {
+        if (not ExtractText(xml_parser, "body", &full_text))
+            ExtractText(xml_parser, "abstract", &abstract);
+    } else
+        ExtractPDFFulltext(full_text_metadata.full_text_location_, &full_text);
 
     if (full_text.empty() and abstract.empty())
         LOG_ERROR("neither full-text nor abstract text was found in file '" + input_file_path + "'");
