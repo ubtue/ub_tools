@@ -304,11 +304,8 @@ void MarcFormatHandler::identifyMissingLanguage(ItemParameters * const node_para
             LOG_ERROR("unknown text field '" + site_params_->expected_languages_text_fields_ + "' for language detection");
 
         NGram::ClassifyLanguage(record_text, &top_languages, site_params_->expected_languages_, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
-
-        if (not top_languages.empty()) {
-            node_parameters->language_ = top_languages.front();
-            LOG_INFO("automatically detected language to be '" + node_parameters->language_);
-        }
+        node_parameters->language_ = top_languages.front();
+        LOG_INFO("automatically detected language to be '" + node_parameters->language_ + "'");
     }
 }
 
@@ -319,13 +316,17 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Title
     node_parameters->title_ = object_node->getOptionalStringValue("title");
-    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->title_))
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->title_)) {
+        LOG_DEBUG("title matched review pattern");
         node_parameters->item_type_ = "review";
+    }
 
     // Short Title
     node_parameters->short_title_ = object_node->getOptionalStringValue("shortTitle");
-    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->short_title_))
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->short_title_)) {
+        LOG_DEBUG("short title matched review pattern");
         node_parameters->item_type_ = "review";
+    }
 
     // Creators
     const auto creator_nodes(object_node->getOptionalArrayNode("creators"));
@@ -361,17 +362,42 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Abstract Note
     node_parameters->abstract_note_ = object_node->getOptionalStringValue("abstractNote");
-    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abstract_note_))
+    if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(node_parameters->abstract_note_)) {
+        LOG_DEBUG("abstract matched review pattern");
         node_parameters->item_type_ = "review";
+    }
 
-    if (node_parameters->item_type_ == "review")
-        LOG_DEBUG("tagged as review");
+    // Keywords
+    const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
+    if (tags_node != nullptr) {
+        const std::shared_ptr<const JSON::ArrayNode> tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
+        for (const auto &tag : *tags) {
+            const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
+            const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
+            if (tag_node == nullptr)
+                LOG_ERROR("unexpected: tag object does not contain a \"tag\" entry!");
+            else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
+                LOG_ERROR("unexpected: tag object's \"tag\" entry is not a string node!");
+            else {
+                const std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie("tag", tag_node));
+                const std::string value(string_node->getValue());
+                node_parameters->keywords_.emplace_back(value);
+
+                if (site_params_->review_regex_ != nullptr and site_params_->review_regex_->matched(value)) {
+                    LOG_DEBUG("keyword '" + value + "' matched review pattern");
+                    node_parameters->item_type_ = "review";
+                }
+            }
+        }
+    }
 
     // Language
     node_parameters->language_ = object_node->getOptionalStringValue("language");
-    if (node_parameters->language_.empty())
+    if (node_parameters->language_.empty() or site_params_->force_automatic_language_detection_) {
+        if (site_params_->force_automatic_language_detection_)
+            LOG_DEBUG("forcing automatic language detection");
         identifyMissingLanguage(node_parameters);
-    else if (site_params_->expected_languages_.size() == 1 and *site_params_->expected_languages_.begin() != node_parameters->language_) {
+    } else if (site_params_->expected_languages_.size() == 1 and *site_params_->expected_languages_.begin() != node_parameters->language_) {
         LOG_WARNING("expected language '" + *site_params_->expected_languages_.begin() + "' but found '"
                     + node_parameters->language_ + "'");
     }
@@ -390,25 +416,6 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
 
     // Pages
     node_parameters->pages_ = object_node->getOptionalStringValue("pages");
-
-    // Keywords
-    const std::shared_ptr<const JSON::JSONNode>tags_node(object_node->getNode("tags"));
-    if (tags_node != nullptr) {
-        const std::shared_ptr<const JSON::ArrayNode> tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
-        for (const auto &tag : *tags) {
-            const std::shared_ptr<const JSON::ObjectNode> tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
-            const std::shared_ptr<const JSON::JSONNode> tag_node(tag_object->getNode("tag"));
-            if (tag_node == nullptr)
-                LOG_ERROR("unexpected: tag object does not contain a \"tag\" entry!");
-            else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
-                LOG_ERROR("unexpected: tag object's \"tag\" entry is not a string node!");
-            else {
-                const std::shared_ptr<const JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie("tag", tag_node));
-                const std::string value(string_node->getValue());
-                node_parameters->keywords_.emplace_back(value);
-            }
-        }
-    }
 
     // URL
     node_parameters->url_ = object_node->getOptionalStringValue("url");
@@ -517,6 +524,14 @@ void SelectIssnAndPpn(const std::string &issn_zotero, const std::string &issn_on
 }
 
 
+bool IsCreatorLastNameATitle(const std::string &last_name) {
+    static const std::unordered_set<std::string> VALID_TITLES {
+        "Jr", "Jr.", "Sr", "Sr."
+    };
+    return VALID_TITLES.find(last_name) != VALID_TITLES.end();
+}
+
+
 void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters) {
     const std::string item_type(node_parameters.item_type_);
     *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, Transformation::MapBiblioLevel(item_type));
@@ -548,7 +563,12 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             subfields.appendSubfield('0', "(DE-588)" + creator->gnd_number_);
         if (not creator->type_.empty())
             subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator->type_));
-        subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({creator->last_name_, creator->first_name_}), ", "));
+
+        if (IsCreatorLastNameATitle(creator->last_name_)) {
+            subfields.appendSubfield('a', creator->first_name_);
+            subfields.appendSubfield('c', creator->last_name_);
+        } else
+            subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({ creator->last_name_, creator->first_name_ }), ", "));
         record->insertField(creator_tag, subfields, /* indicator 1 = */'1');
     }
 
@@ -596,7 +616,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
 
     // Review-specific modifications
     if (item_type == "review")
-        record->insertField("655", { { 'a', "!209083166!" }, { '0', "(DE-576)" } }, /* indicator1 = */' ', /* indicator2 = */'7');
+        record->insertField("655", { { 'a', "Rezension" } }, /* indicator1 = */' ', /* indicator2 = */'7');
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     MARC::Subfields _936_subfields;
@@ -1046,7 +1066,7 @@ void PreprocessHarvesterResponse(std::shared_ptr<JSON::ArrayNode> * const respon
 }
 
 
-bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry) {
+bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry, const std::shared_ptr<HarvestParams> &harvest_params) {
     static const std::vector<std::string> valid_item_types_for_online_first{
         "journalArticle", "magazineArticle"
     };
@@ -1059,9 +1079,14 @@ bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry) {
     if (std::find(valid_item_types_for_online_first.begin(),
                   valid_item_types_for_online_first.end(), item_type) != valid_item_types_for_online_first.end())
     {
-        if (issue.empty() and volume.empty() and doi.empty()) {
-            LOG_DEBUG("Skipping: online-first article without a DOI");
-            return false;
+        if (issue.empty() and volume.empty()) {
+            if (harvest_params->skip_online_first_articles_unconditionally_) {
+                LOG_DEBUG("Skipping: online-first article unconditionally");
+                return false;
+            } else if (doi.empty()) {
+                LOG_DEBUG("Skipping: online-first article without a DOI");
+                return false;
+            }
         }
     }
 
@@ -1150,7 +1175,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     already_harvested_urls.emplace(harvest_url);
     auto error_logger_context(error_logger->newContext(site_params.journal_name_, harvest_url));
 
-    LOG_INFO("Harvesting URL: " + harvest_url);
+    LOG_INFO("\nHarvesting URL: " + harvest_url);
 
     std::string response_body, error_message;
     unsigned response_code;
@@ -1194,7 +1219,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
 
         try {
             AugmentJson(harvest_url, json_object, site_params);
-            if (ValidateAugmentedJSON(json_object))
+            if (ValidateAugmentedJSON(json_object, harvest_params))
                 record_count_and_previously_downloaded_count = harvest_params->format_handler_->processRecord(json_object);
         } catch (const std::exception &x) {
             error_logger_context.autoLog("Couldn't process record! Error: " + std::string(x.what()));
@@ -1208,10 +1233,9 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     ++harvest_params->harvested_url_count_;
 
     LOG_DEBUG("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
-                + harvest_url + '\n' + "of which "
-                + StringUtil::ToString(record_count_and_previously_downloaded_count.first
-                                    - record_count_and_previously_downloaded_count.second)
-                + " records were new records.");
+              + harvest_url + " of which "
+              + StringUtil::ToString(record_count_and_previously_downloaded_count.first - record_count_and_previously_downloaded_count.second)
+              + " records were new records.");
     return record_count_and_previously_downloaded_count;
 }
 
@@ -1222,7 +1246,7 @@ UnsignedPair HarvestSite(const SimpleCrawler::SiteDesc &site_desc, SimpleCrawler
                          HarvesterErrorLogger * const error_logger, File * const progress_file)
 {
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
-    LOG_DEBUG("Starting crawl at base URL: " +  site_desc.start_url_);
+    LOG_DEBUG("\n\nStarting crawl at base URL: " +  site_desc.start_url_);
     crawler_params.proxy_host_and_port_ = GetProxyHostAndPort();
     if (not crawler_params.proxy_host_and_port_.empty())
         crawler_params.ignore_ssl_certificates_ = true;
@@ -1305,7 +1329,7 @@ UnsignedPair HarvestSyndicationURL(const std::string &feed_url, const std::share
     UnsignedPair total_record_count_and_previously_downloaded_record_count;
     auto error_logger_context(error_logger->newContext(site_params.journal_name_, feed_url));
 
-    LOG_INFO("Processing feed URL: " + feed_url);
+    LOG_INFO("\n\nProcessing feed URL: " + feed_url);
 
     Downloader::Params downloader_params;
     downloader_params.proxy_host_and_port_ = GetProxyHostAndPort();
@@ -1343,7 +1367,7 @@ UnsignedPair HarvestSyndicationURL(const std::string &feed_url, const std::share
         const auto item_id(item.getId());
         const std::string title(item.getTitle());
         if (not title.empty())
-            LOG_DEBUG("\t\tTitle: " + title);
+            LOG_DEBUG("\n\nFeed Item: " + title);
 
         const auto record_count_and_previously_downloaded_count(Harvest(item.getLink(), harvest_params, site_params, error_logger));
         total_record_count_and_previously_downloaded_record_count += record_count_and_previously_downloaded_count;
@@ -1396,13 +1420,13 @@ void HarvesterErrorLogger::autoLog(const std::string &journal_name, const std::s
     HarvesterError error{ UNKNOWN, "" };
     for (const auto &error_regexp : error_regexp_map) {
         if (error_regexp.second->matched(message)) {
-            error.type = error_regexp.first;
-            error.message = (*error_regexp.second)[1];
+            error.type_ = error_regexp.first;
+            error.message_ = (*error_regexp.second)[1];
             break;
         }
     }
 
-    log(error.type, journal_name, harvest_url, error.type == UNKNOWN ? message : error.message, write_to_std_error);
+    log(error.type_, journal_name, harvest_url, error.type_ == UNKNOWN ? message : error.message_, write_to_std_error);
 }
 
 
@@ -1421,21 +1445,21 @@ void HarvesterErrorLogger::writeReport(const std::string &report_file_path) cons
         report.appendSection(journal_name);
 
         for (const auto &url_error : journal_error.second.url_errors_) {
-            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(url_error.second.type));
+            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(url_error.second.type_));
             // we cannot cache the section pointer as it can get invalidated after appending a new section
             report.getSection(journal_name)->insert(url_error.first, error_string);
             report.appendSection(error_string);
-            report.getSection(error_string)->insert(url_error.first, url_error.second.message);
+            report.getSection(error_string)->insert(url_error.first, url_error.second.message_);
         }
 
         int i(1);
         for (const auto &non_url_error : journal_error.second.non_url_errors_) {
-            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(non_url_error.type));
+            const auto error_string(ERROR_KIND_TO_STRING_MAP.at(non_url_error.type_));
             const auto error_key(journal_name + "-non_url_error-" + std::to_string(i));
 
             report.getSection(journal_name)->insert(error_key, error_string);
             report.appendSection(error_string);
-            report.getSection(error_string)->insert(error_key, non_url_error.message);
+            report.getSection(error_string)->insert(error_key, non_url_error.message_);
             ++i;
         }
     }

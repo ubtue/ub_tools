@@ -1,4 +1,4 @@
-SUBDIRS = Bibelstellensuche PrefixSortFacetten MultiLanguageDocTransformer MultiLanguageQueryParser
+SUBDIRS = RangedSearches PrefixSortFacetten MultiLanguageDocTransformer MultiLanguageQueryParser
 
 all: 
 	for dir in $(SUBDIRS); do \
@@ -17,5 +17,5 @@ clean:
 
 testjar:
 	jar cfm run.jar META-INF/MANIFEST.MF \
-            -C Bibelstellensuche/bin de/uni_tuebingen/ub/ixTheo/bibleRangeSearch/Range.class \
-            -C Bibelstellensuche/bin de/uni_tuebingen/ub/ixTheo/bibleRangeSearch/BibleRange.class
+            -C RangedSearches/bin de/uni_tuebingen/ub/ixTheo/bibleRangeSearch/Range.class \
+            -C RangedSearches/bin de/uni_tuebingen/ub/ixTheo/bibleRangeSearch/BibleRange.class

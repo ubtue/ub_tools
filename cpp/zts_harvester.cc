@@ -88,6 +88,10 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
     }
 
     auto expected_languages(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::EXPECTED_LANGUAGES, ""));
+    if (not expected_languages.empty() and expected_languages[0] == '*') {
+        site_params->force_automatic_language_detection_ = true;
+        expected_languages = expected_languages.substr(1);
+    }
     const auto field_separator_pos(expected_languages.find(':'));
     if (field_separator_pos != std::string::npos) {
         site_params->expected_languages_text_fields_ = expected_languages.substr(0, field_separator_pos);
@@ -343,6 +347,7 @@ int Main(int argc, char *argv[]) {
     harvest_params->force_downloads_ = force_downloads;
     harvest_params->journal_harvest_interval_ = ini_file.getUnsigned("", "journal_harvest_interval");
     harvest_params->default_crawl_delay_time_ = ini_file.getUnsigned("", "default_crawl_delay_time");
+    harvest_params->skip_online_first_articles_unconditionally_ = ini_file.getBool("", "skip_online_first_articles_unconditionally");
     if (not harvest_url_regex.empty())
         harvest_params->harvest_url_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(harvest_url_regex));
 

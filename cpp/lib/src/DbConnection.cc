@@ -253,12 +253,14 @@ void SplitSqliteStatements(const std::string &compound_statement, std::vector<st
 bool DbConnection::queryFile(const std::string &filename) {
     std::string statements;
     if (not FileUtil::ReadString(filename, &statements))
-        LOG_ERROR("failed to read \"" + filename + "\"!");
+        return false;
 
     if (type_ == T_MYSQL) {
+        ::mysql_set_server_option(&mysql_, MYSQL_OPTION_MULTI_STATEMENTS_ON);
         const bool query_result(query(StringUtil::TrimWhite(&statements)));
         if (query_result)
             mySQLSyncMultipleResults();
+        ::mysql_set_server_option(&mysql_, MYSQL_OPTION_MULTI_STATEMENTS_OFF);
         return query_result;
     } else {
         std::vector<std::string> individual_statements;
@@ -274,19 +276,8 @@ bool DbConnection::queryFile(const std::string &filename) {
 
 
 void DbConnection::queryFileOrDie(const std::string &filename) {
-    std::string statements;
-    if (not FileUtil::ReadString(filename, &statements))
-        LOG_ERROR("failed to read \"" + filename + "\"!");
-
-    if (type_ == T_MYSQL) {
-        queryOrDie(StringUtil::TrimWhite(&statements));
-        mySQLSyncMultipleResults();
-    } else {
-        std::vector<std::string> individual_statements;
-        SplitSqliteStatements(statements, &individual_statements);
-        for (const auto &statement : individual_statements)
-            queryOrDie(statement);
-    }
+    if (not queryFile(filename))
+        LOG_ERROR("failed to execute statements from \"" + filename + "\"!");
 }
 
 
@@ -388,6 +379,7 @@ void DbConnection::setTimeZone(const TimeZone time_zone) {
             LOG_ERROR("failed to set the connection time zone to UTC! (" + std::string(::mysql_error(&mysql_)) + ")");
         break;
     }
+    time_zone_ = time_zone;
 }
 
 
@@ -401,8 +393,10 @@ void DbConnection::init(const std::string &database_name, const std::string &use
 
     if (::mysql_real_connect(&mysql_, host.c_str(), user.c_str(), passwd.c_str(), database_name.c_str(), port,
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
+
+        // password is intentionally omitted here!
         throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage()
-                                 + ", host=\"" + host + "\", user=\"" + user + "\", passwd=\"" + passwd + "\", database_name=\""
+                                 + ", host=\"" + host + "\", user=\"" + user + "\", passwd=\"********\", database_name=\""
                                  + database_name + "\", port=" + std::to_string(port) + ")");
     if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
@@ -411,6 +405,12 @@ void DbConnection::init(const std::string &database_name, const std::string &use
     type_ = T_MYSQL;
     initialised_ = true;
     setTimeZone(time_zone);
+    database_name_ = database_name;
+    user_ = user;
+    passwd_ = passwd;
+    host_ = host;
+    port_ = port;
+    charset_ = charset;
 }
 
 
@@ -432,6 +432,11 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
     type_ = T_MYSQL;
     initialised_ = true;
     setTimeZone(time_zone);
+    user_ = user;
+    passwd_ = passwd;
+    host_ = host;
+    port_ = port;
+    charset_ = charset;
 }
 
 
@@ -525,13 +530,8 @@ void DbConnection::mySQLSyncMultipleResults() {
 void DbConnection::MySQLImportFile(const std::string &sql_file, const std::string &database_name, const std::string &user,
                                    const std::string &passwd, const std::string &host, const unsigned port, const Charset charset)
 {
-    std::string sql_data;
-    FileUtil::ReadStringOrDie(sql_file, &sql_data);
-
     DbConnection db_connection(database_name, user, passwd, host, port, charset);
-    ::mysql_set_server_option(&db_connection.mysql_, MYSQL_OPTION_MULTI_STATEMENTS_ON);
-    db_connection.queryOrDie(sql_data);
-    db_connection.mySQLSyncMultipleResults();
+    db_connection.queryFileOrDie(sql_file);
 }
 
 

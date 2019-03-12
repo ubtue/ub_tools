@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2018 Library of the University of Tübingen
+    Copyright (C) 2016-2019 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -484,14 +484,12 @@ int Main(int argc, char **argv) {
 
     std::unique_ptr<kyotocabinet::HashDB> notified_db(CreateOrOpenKeyValueDB(user_type));
 
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    DbConnection db_connection(mysql_url);
+    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
 
     const IniFile bundles_config(UBTools::GetTuelibPath() + "journal_alert_bundles.conf");
 
     std::unordered_set<std::string> new_notification_ids;
-    ProcessSubscriptions(debug, &db_connection, notified_db, bundles_config, &new_notification_ids, solr_host_and_port, user_type, hostname,
+    ProcessSubscriptions(debug, db_connection.get(), notified_db, bundles_config, &new_notification_ids, solr_host_and_port, user_type, hostname,
                          sender_email, email_subject);
     if (not debug)
         RecordNewlyNotifiedIds(notified_db, new_notification_ids);

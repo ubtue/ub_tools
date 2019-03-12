@@ -210,10 +210,15 @@ struct SiteParams {
     BSZUpload::DeliveryMode delivery_mode_;
     std::set<std::string> expected_languages_;
     std::string expected_languages_text_fields_;
+    bool force_automatic_language_detection_;
     std::vector<std::string> additional_fields_;
     std::vector<std::string> non_standard_metadata_fields_;
     std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> field_exclusion_filters_;
     unsigned journal_update_window_;
+public:
+    SiteParams()
+        : global_params_(nullptr), group_params_(nullptr), delivery_mode_(BSZUpload::DeliveryMode::NONE),
+          force_automatic_language_detection_(false), journal_update_window_(0) {}
 };
 
 
@@ -231,13 +236,18 @@ class HarvesterErrorLogger;
 
 struct HarvestParams {
     Url zts_server_url_;
-    unsigned harvested_url_count_ = 0;
+    unsigned harvested_url_count_;
     std::string user_agent_;
     FormatHandler *format_handler_;
     bool force_downloads_;
     std::unique_ptr<RegexMatcher> harvest_url_regex_;
     unsigned journal_harvest_interval_;
     unsigned default_crawl_delay_time_;
+    bool skip_online_first_articles_unconditionally_;
+public:
+    HarvestParams()
+        : harvested_url_count_(0), format_handler_(nullptr), force_downloads_(false), journal_harvest_interval_(0),
+          default_crawl_delay_time_(0), skip_online_first_articles_unconditionally_(false) {}
 };
 
 
@@ -424,8 +434,8 @@ private:
     static const std::unordered_map<ErrorType, std::string> ERROR_KIND_TO_STRING_MAP;
 
     struct HarvesterError {
-        ErrorType type;
-        std::string message;
+        ErrorType type_;
+        std::string message_;
     };
 
     struct JournalErrors {

@@ -436,7 +436,7 @@ void AugmentBibleRefs(MARC::Reader * const marc_reader, MARC::Writer * const mar
                 }
 
                 // Put the data into the $a subfield:
-                record.insertField(BibleUtil::BIB_REF_RANGE_TAG, { { 'a', range_string } });
+                record.insertField(BibleUtil::BIB_REF_RANGE_TAG, { { 'a', range_string }, { 'b', "biblesearch" } });
             }
 
             marc_writer->write(record);
