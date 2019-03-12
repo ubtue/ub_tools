@@ -706,12 +706,10 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
 
     // remove any fields that match removal patterns
     for (const auto &filter : site_params_->field_removal_filters_) {
-        auto field(filter.first);
+        auto tag_and_subfield_code(filter.first);
         if (record->fieldOrSubfieldMatched(filter.first, filter.second.get())) {
-            if (field.length() != 3)
-                field.erase(3);
-            record->erase(field);
-            LOG_DEBUG("erased field '" + field + "' due to removal filter '" + filter.second->getPattern() + "'");
+            record->erase(tag_and_subfield_code.erase(MARC::Record::TAG_LENGTH));  // remove the entire field
+            LOG_DEBUG("erased field '" + tag_and_subfield_code + "' due to removal filter '" + filter.second->getPattern() + "'");
         }
     }
 }
