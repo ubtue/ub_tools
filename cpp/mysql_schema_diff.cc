@@ -17,10 +17,12 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <memory>
 #include "DbConnection.h"
 #include "ExecUtil.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
+#include "VuFind.h"
 #include "util.h"
 
 
@@ -28,18 +30,20 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--password=password] username db_name sql_file\n"
-            "\n"
+    ::Usage("db_name [username [password]] sql_file\n"
             "Compare an existing MySQL Database against a sql file with CREATE TABLE statements.\n"
             "Uses \"mysqldiff\" from \"mysql-utilities\".\n"
             "\n"
-            "If --password is not given, it will be prompted for.");
+            "For specific values of db_name, username and password will be read from the following files if not provided:\n"
+            "- ub_tools: " + DbConnection::DEFAULT_CONFIG_FILE_PATH + ".\n"
+            "- vufind: " + VuFind::GetDefaultDatabaseConf() + ".\n"
+            "\n");
 }
 
 
-void CleanupTemporaryDatabase(DbConnection &db_connection, const std::string &database_name_temporary) {
-    if (db_connection.mySQLDatabaseExists(database_name_temporary))
-        db_connection.mySQLDropDatabase(database_name_temporary);
+void CleanupTemporaryDatabase(DbConnection * const db_connection, const std::string &temporary_db_name) {
+    if (db_connection->mySQLDatabaseExists(temporary_db_name))
+        db_connection->mySQLDropDatabase(temporary_db_name);
 }
 
 
@@ -47,44 +51,48 @@ void CleanupTemporaryDatabase(DbConnection &db_connection, const std::string &da
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 4 or argc > 5)
+    if (argc < 3 or argc > 5)
         Usage();
 
     const std::string MYSQLDIFF_EXECUTABLE(ExecUtil::Which("mysqldiff"));
     if (MYSQLDIFF_EXECUTABLE.empty())
         LOG_ERROR("Dependency \"mysqldiff\" is missing, please install \"mysql-utilities\"-package first!");
 
-    std::string passwd;
-    if (argc == 5) {
-        if (StringUtil::StartsWith(argv[1], "--password=")) {
-            passwd = std::string(argv[1] + __builtin_strlen("--password="));
-            --argc; ++argv;
+    std::shared_ptr<DbConnection> db_connection;
+    const std::string db_name(argv[1]);
+    if (argc >= 4) {
+        const std::string user(argv[2]);
+        std::string password;
+        if (argc >= 5) {
+            password = argv[3];
+            --argc, ++argv;
         } else
-            Usage();
-    } else
-        passwd = MiscUtil::GetPassword("Please enter MySQL password:");
+            password = MiscUtil::GetPassword("Please enter MySQL password:");
 
-    const std::string user(argv[1]);
-    const std::string database_name(argv[2]);
-    const std::string sql_file(argv[3]);
-    const std::string host("localhost");
-    const unsigned port(MYSQL_PORT);
+        db_connection.reset(new DbConnection(db_name, user, password));
+        --argc, ++argv;
+    } else if (std::strcmp(db_name.c_str(), "vufind") == 0)
+        db_connection.reset(new DbConnection(VuFind::GetMysqlURL()));
+    else if (std::strcmp(db_name.c_str(), "ub_tools") == 0)
+        db_connection.reset(new DbConnection());
+    else
+        LOG_ERROR("You need to specify username and password for the database \"" + db_name +"\"!");
+    const std::string sql_file(argv[2]);
+    const std::string temporary_db_name(db_name + "_tempdiff");
 
-    const std::string temporary_database_name(database_name + "_tempdiff");
-
-    DbConnection db_connection(database_name, user, passwd);
-    CleanupTemporaryDatabase(db_connection, temporary_database_name);
-    db_connection.mySQLCreateDatabase(temporary_database_name);
-    db_connection.mySQLSelectDatabase(temporary_database_name);
-    db_connection.queryFileOrDie(sql_file);
+    CleanupTemporaryDatabase(db_connection.get(), temporary_db_name);
+    db_connection->mySQLCreateDatabase(temporary_db_name);
+    db_connection->mySQLSelectDatabase(temporary_db_name);
+    db_connection->queryFileOrDie(sql_file);
 
     const int exec_result(ExecUtil::Exec(MYSQLDIFF_EXECUTABLE,
                                          {
                                              "--force",
-                                             "--server1=" + user + ":" + passwd + "@" + host + ":" + std::to_string(port),
-                                             database_name + ":" + temporary_database_name
+                                             "--server1=" + db_connection->getUser() + ":" + db_connection->getPasswd()
+                                             + "@" + db_connection->getHost() + ":" + std::to_string(db_connection->getPort()),
+                                             db_name + ":" + temporary_db_name
                                           }));
 
-    CleanupTemporaryDatabase(db_connection, temporary_database_name);
+    CleanupTemporaryDatabase(db_connection.get(), temporary_db_name);
     return exec_result;
 }

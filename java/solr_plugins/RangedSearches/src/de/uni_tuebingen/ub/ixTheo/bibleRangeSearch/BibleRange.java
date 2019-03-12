@@ -3,6 +3,7 @@ package de.uni_tuebingen.ub.ixTheo.bibleRangeSearch;
 
 import java.util.ArrayList;
 import java.util.List;
+import de.uni_tuebingen.ub.ixTheo.rangeSearch.Range;
 
 
 public class BibleRange extends Range {

@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2018, Library of the University of Tübingen
+    Copyright (C) 2018-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -23,6 +23,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
@@ -130,17 +131,14 @@ int Main(int argc, char **argv) {
 
     const std::string marc_input_filename(argv[1]);
     unsigned imported_count(0);
-
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    DbConnection db_connection(mysql_url);
+    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
     std::vector<std::set<std::string>> subsystems_ids;
     InitSubsystemsIDsVector(&subsystems_ids);
     ExtractIDsForSubsystems(marc_reader.get(), &subsystems_ids);
     for (const auto subsystem : SUBSYSTEMS) {
-        InsertIntoSql(&db_connection, subsystem, subsystems_ids[subsystem]);
+        InsertIntoSql(db_connection.get(), subsystem, subsystems_ids[subsystem]);
         imported_count += subsystems_ids[subsystem].size();
     }
 

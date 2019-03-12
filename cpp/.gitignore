@@ -22,6 +22,7 @@
 /augment_773a
 /augment_authority_data_with_translations
 /augment_bible_references
+/augment_canones_references
 /augment_pda
 /base_tar_unpacker
 /base64_coder
@@ -123,6 +124,7 @@
 /merge_print_and_online
 /missing_metadata_db_tool
 /mpi_stats
+/mysql_database_patcher
 /mysql_schema_diff
 /new_journal_alert
 /normalise_and_deduplicate_language

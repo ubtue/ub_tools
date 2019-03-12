@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016,2017, Library of the University of Tübingen
+    Copyright (C) 2016-2019 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -21,6 +21,7 @@
 */
 
 #include <iostream>
+#include <memory>
 #include <vector>
 #include <cstdlib>
 #include <cstring>
@@ -67,7 +68,7 @@ void AddSubscription(const bool verbose, DbConnection * const db_connection, con
                                   + ",last_issue_date='" + ZuluNow() + "',journal_control_number='" + parent_ppn
                                   + "'");
     if (unlikely(not db_connection->query(INSERT_STMT)))
-        logger->error("Replace failed: " + INSERT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+        LOG_ERROR("Replace failed: " + INSERT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 }
 
 
@@ -77,7 +78,7 @@ void AddSubscriptions(const bool verbose, DbConnection * const db_connection, co
     db_connection->queryOrDie("SELECT id FROM user WHERE id=" + user_id);
     DbResultSet id_result_set(db_connection->getLastResultSet());
     if (id_result_set.empty())
-        logger->error(user_id + " is an unknown user ID!");
+        LOG_ERROR(user_id + " is an unknown user ID!");
 
     for (const auto &parent_ppn : parent_ppns)
         AddSubscription(verbose, db_connection, user_id, parent_ppn);
@@ -101,23 +102,20 @@ int main(int argc, char **argv) {
 
     const std::string user_id(argv[1]);
     if (not StringUtil::IsUnsignedNumber(user_id))
-        logger->error("\"" + user_id + "\" is not a valid numeric user ID!");
+        LOG_ERROR("\"" + user_id + "\" is not a valid numeric user ID!");
 
     std::vector<std::string> parent_ppns;
     for (int arg_no(2); arg_no < argc; ++arg_no) {
         const std::string ppn_candidate(argv[arg_no]);
         if (not MiscUtil::IsValidPPN(ppn_candidate))
-            logger->error("\"" + ppn_candidate + "\" is not a valid PPN!");
+            LOG_ERROR("\"" + ppn_candidate + "\" is not a valid PPN!");
         parent_ppns.emplace_back(ppn_candidate);
     }
 
     try {
-        std::string mysql_url;
-        VuFind::GetMysqlURL(&mysql_url);
-        DbConnection db_connection(mysql_url);
-
-        AddSubscriptions(verbose, &db_connection, user_id, parent_ppns);
+        std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
+        AddSubscriptions(verbose, db_connection.get(), user_id, parent_ppns);
     } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }
