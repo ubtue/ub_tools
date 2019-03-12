@@ -41,15 +41,15 @@ void ParseRanges(const std::string &ppn, const std::string &ranges, unsigned * c
     static RegexMatcher *matcher1(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+),(\\d+),(\\d+)"));
     if (matcher1->matched(ranges)) {
         const unsigned part1(StringUtil::ToUnsigned((*matcher1)[1]));
-        if (unlikely(part1 == 0 or part1 > 10000))
+        if (unlikely(part1 == 0 or part1 >= 10000))
             LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
 
         const unsigned part2(StringUtil::ToUnsigned((*matcher1)[2]));
-        if (unlikely(part2 == 0 or part2 > 100))
+        if (unlikely(part2 == 0 or part2 >= 100))
             LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
 
         const unsigned part3(StringUtil::ToUnsigned((*matcher1)[3]));
-        if (unlikely(part3 == 0 or part3 > 100))
+        if (unlikely(part3 == 0 or part3 >= 100))
             LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
 
         *range_start = *range_end = part1 * 10000 + part2 * 100 + part3;
@@ -58,7 +58,7 @@ void ParseRanges(const std::string &ppn, const std::string &ranges, unsigned * c
 
     unsigned canones;
     if (StringUtil::ToUnsigned(ranges, &canones)) {
-        if (unlikely(canones == 0 or canones > 10000))
+        if (unlikely(canones == 0 or canones >= 10000))
             LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
 
         *range_start = canones * 10000;
@@ -69,11 +69,11 @@ void ParseRanges(const std::string &ppn, const std::string &ranges, unsigned * c
     static RegexMatcher *matcher2(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+)-(\\d+)"));
     if (matcher2->matched(ranges)) {
         const unsigned canones1(StringUtil::ToUnsigned((*matcher2)[1]));
-        if (unlikely(canones1 == 0 or canones1 > 10000))
+        if (unlikely(canones1 == 0 or canones1 >= 10000))
             LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
 
         const unsigned canones2(StringUtil::ToUnsigned((*matcher2)[2]));
-        if (unlikely(canones2 == 0 or canones2 > 10000))
+        if (unlikely(canones2 == 0 or canones2 >= 10000))
             LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
 
         *range_start = canones1 * 10000;
@@ -84,11 +84,11 @@ void ParseRanges(const std::string &ppn, const std::string &ranges, unsigned * c
     static RegexMatcher *matcher3(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+),(\\d+)"));
     if (matcher3->matched(ranges)) {
         const unsigned part1(StringUtil::ToUnsigned((*matcher3)[1]));
-        if (unlikely(part1 == 0 or part1 > 10000))
+        if (unlikely(part1 == 0 or part1 >= 10000))
             LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
 
         const unsigned part2(StringUtil::ToUnsigned((*matcher3)[2]));
-        if (unlikely(part2 == 0 or part2 > 100))
+        if (unlikely(part2 == 0 or part2 >= 100))
             LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
 
         *range_start = *range_end = part1 * 10000 + part2 * 100 + 99;
