@@ -14,8 +14,10 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <set>
 #include "BSZTransform.h"
 #include "Downloader.h"
+#include "FileUtil.h"
 #include "MapIO.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -89,6 +91,41 @@ void BSZTransform::DetermineKeywordOutputFieldFromISSN(const std::string &issn, 
     }
     *tag = "650";
     *subfield = 'a';
+}
+
+
+void ParseAuthor(const std::string &author, std::string * const first_name, std::string * const last_name) {
+    const auto normalised_author(TextUtil::CollapseAndTrimWhitespace(author));
+    const auto name_separator(normalised_author.rfind(" "));
+    if (name_separator != std::string::npos) {
+        *first_name = normalised_author.substr(0, name_separator);
+        *last_name = normalised_author.substr(name_separator + 1);
+    } else {
+        *first_name = normalised_author;
+        *last_name = "";
+    }
+}
+
+
+bool StripCatholicOrdersFromAuthorName(std::string * const first_name, std::string * const last_name) {
+    static std::unordered_set<std::string> abbr_catholic_orders;
+    if (abbr_catholic_orders.empty()) {
+        auto string_data(FileUtil::ReadStringOrDie(CATHOLIC_ORDERS_ABBR_PATH));
+        TextUtil::UTF8ToLower(&string_data);
+        StringUtil::Split(string_data, '\n', &abbr_catholic_orders);
+    }
+
+    const auto normalised_last_name(TextUtil::UTF8ToLower(last_name));
+    if (abbr_catholic_orders.find(normalised_last_name) == abbr_catholic_orders.end())
+        return false;
+
+    // try to reparse the name from the content of the first name
+    const auto first_name_contents(*first_name);
+    ParseAuthor(first_name_contents, first_name, last_name);
+
+    LOG_DEBUG("strip catholic order abbr. '" + normalised_last_name + "' from author (last)name");
+    LOG_DEBUG("new first name: '" + *first_name + "', new last name: '" + *last_name + "'");
+    return true;
 }
 
 
