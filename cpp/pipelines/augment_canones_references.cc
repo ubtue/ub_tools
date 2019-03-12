@@ -24,9 +24,11 @@
 #include <string>
 #include <unordered_map>
 #include <cstdlib>
+#include <strings.h>
 #include "BibleUtil.h"
 #include "Compiler.h"
 #include "MARC.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -36,47 +38,60 @@ namespace {
 
 
 void ParseRanges(const std::string &ppn, const std::string &ranges, unsigned * const range_start, unsigned * const range_end) {
-    std::vector<std::string> parts;
-    if (unlikely(StringUtil::SplitThenTrimWhite(ranges, ',', &parts, /* suppress_empty_components = */false) > 3))
-        LOG_ERROR("bad codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
+    static RegexMatcher *matcher1(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+),(\\d+),(\\d+)"));
+    if (matcher1->matched(ranges)) {
+        const unsigned part1(StringUtil::ToUnsigned((*matcher1)[1]));
+        if (unlikely(part1 == 0 or part1 >= 10000))
+            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
+
+        const unsigned part2(StringUtil::ToUnsigned((*matcher1)[2]));
+        if (unlikely(part2 == 0 or part2 >= 100))
+            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
+
+        const unsigned part3(StringUtil::ToUnsigned((*matcher1)[3]));
+        if (unlikely(part3 == 0 or part3 >= 100))
+            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
+
+        *range_start = *range_end = part1 * 10000 + part2 * 100 + part3;
+        return;
+    }
 
     unsigned canones;
-    if (parts.size() == 1) {
-        const auto dash_pos(parts[0].find('-'));
-        if (dash_pos == std::string::npos) {
-            if (unlikely(not StringUtil::ToUnsigned(parts[0], &canones)))
-                LOG_ERROR("bad codex canones \"" + parts[0] + "\"! (PPN: " + ppn + ")");
-            *range_start = canones * 10000;
-            *range_end   = canones * 10000 + 9999;
-        } else {
-            if (unlikely(not StringUtil::ToUnsigned(parts[0].substr(0, dash_pos), range_start)
-                         or not StringUtil::ToUnsigned(parts[0].substr(dash_pos + 1), range_end)))
-                LOG_ERROR("bad canones range \"" + parts[0] + "\"! (PPN: " + ppn + ")");
-            *range_start *= 10000;
-            *range_end   *= 10000;
-        }
+    if (StringUtil::ToUnsigned(ranges, &canones)) {
+        if (unlikely(canones == 0 or canones >= 10000))
+            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
 
+        *range_start = canones * 10000;
+        *range_end   = canones * 10000 + 9999;
         return;
-    } else if (parts.size() == 2) {
-        if (unlikely(not StringUtil::ToUnsigned(parts[0], &canones)))
-            LOG_ERROR("bad codex canones \"" + parts[0] + "\"! (PPN: " + ppn + ")");
+    }
 
-        const auto dash_pos(parts[1].find('-'));
-        if (dash_pos == std::string::npos) {
-            unsigned pars;
-            if (unlikely(not StringUtil::ToUnsigned(parts[1], &pars)))
-                LOG_ERROR("bad codex pars \"" + parts[1] + "\"! (PPN: " + ppn + ")");
-            *range_start = canones * 10000 + pars * 100;
-            *range_end   = canones * 10000 + 9999;
-        } else {
-            unsigned start_pars, end_pars;
-            if (unlikely(not StringUtil::ToUnsigned(parts[1].substr(0, dash_pos), &start_pars)
-                         or not StringUtil::ToUnsigned(parts[1].substr(dash_pos + 1), &end_pars)))
-                LOG_ERROR("bad pars range \"" + parts[1] + "\"! (PPN: " + ppn + ")");
-            *range_start = canones * 10000 + start_pars * 100;
-            *range_end   = canones * 10000 + end_pars   * 100 + 99;
-        }
+    static RegexMatcher *matcher2(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+)-(\\d+)"));
+    if (matcher2->matched(ranges)) {
+        const unsigned canones1(StringUtil::ToUnsigned((*matcher2)[1]));
+        if (unlikely(canones1 == 0 or canones1 >= 10000))
+            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
 
+        const unsigned canones2(StringUtil::ToUnsigned((*matcher2)[2]));
+        if (unlikely(canones2 == 0 or canones2 >= 10000))
+            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
+
+        *range_start = canones1 * 10000;
+        *range_end   = canones2 * 10000 + 9999;
+        return;
+    }
+
+    static RegexMatcher *matcher3(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+),(\\d+)"));
+    if (matcher3->matched(ranges)) {
+        const unsigned part1(StringUtil::ToUnsigned((*matcher3)[1]));
+        if (unlikely(part1 == 0 or part1 >= 10000))
+            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
+
+        const unsigned part2(StringUtil::ToUnsigned((*matcher3)[2]));
+        if (unlikely(part2 == 0 or part2 >= 100))
+            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
+
+        *range_start = *range_end = part1 * 10000 + part2 * 100 + 99;
         return;
     }
 
@@ -91,7 +106,7 @@ std::string FieldToCanonLawCode(const std::string &ppn, const MARC::Record::Fiel
     const std::string p_subfield(_110_field.getFirstSubfieldWithCode('p'));
 
     enum Codex { CIC1917, CIC1983, CCEO } codex;
-    if (t_subfield == "Codex canonum ecclesiarum orientalium")
+    if (::strcasecmp(t_subfield.c_str(), "Codex canonum ecclesiarum orientalium") == 0)
         codex = CCEO;
     else {
         if (unlikely(year.empty()))
@@ -130,11 +145,12 @@ void LoadAuthorityData(MARC::Reader * const reader,
         ++total_count;
 
         const auto _110_field(record.findTag("110"));
-        if (_110_field == record.end() or _110_field->getFirstSubfieldWithCode('a') != "Katholische Kirche")
+        if (_110_field == record.end() or ::strcasecmp(_110_field->getFirstSubfieldWithCode('a').c_str(), "Katholische Kirche") != 0)
             continue;
 
         const std::string t_subfield(_110_field->getFirstSubfieldWithCode('t'));
-        if (t_subfield != "Codex Iuris Canonici" and t_subfield != "Codex canonum ecclesiarum orientalium")
+        if (::strcasecmp(t_subfield.c_str(),"Codex Iuris Canonici") != 0
+            and ::strcasecmp(t_subfield.c_str(), "Codex canonum ecclesiarum orientalium") != 0)
             continue;
 
         (*authority_ppns_to_canon_law_codes_map)[record.getControlNumber()] = FieldToCanonLawCode(record.getControlNumber(), *_110_field);
