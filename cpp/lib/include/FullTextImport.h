@@ -50,6 +50,7 @@ struct FullTextData {
     std::string issn_;
     std::string isbn_;
     std::string full_text_;
+    std::string full_text_location_;
 public:
     std::string toString(const char separator = ',') const;
 };
