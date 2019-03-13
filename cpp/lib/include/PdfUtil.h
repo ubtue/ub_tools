@@ -53,5 +53,9 @@ bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_
 bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tesseract_language_code,
                          std::string * const extracted_text, unsigned timeout=DEFAULT_PDF_EXTRACTION_TIMEOUT /* in s */);
 
+/** \brief Convert pdf to image and then attempt tesseract OCR. */
+bool GetOCRedTextFromPDF(const std::string &pdf_document_path, const std::string &tesseract_language_code,
+                         std::string * const extracted_text, unsigned timeout=DEFAULT_PDF_EXTRACTION_TIMEOUT);
+
 
 } // namespace PdfUtil

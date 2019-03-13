@@ -34,7 +34,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] [--normalise-only] xml_input full_text_output\n"
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] [--normalise-only|--force-ocr] xml_input full_text_output\n"
               << "       When specifying --normalise-only we only require the input filename!\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -129,20 +129,26 @@ bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_t
 }
 
 
-void ExtractPDFFulltext(const std::string &fulltext_location, std::string * const full_text) {
+void ExtractPDFFulltext(const bool force_ocr, const std::string &fulltext_location, std::string * const full_text) {
     if (not StringUtil::EndsWith(fulltext_location, ".pdf", true))
         LOG_ERROR("Don't know how to handle file \"" + fulltext_location + "\"");
     std::string pdf_document;
     if (not FileUtil::ReadString(fulltext_location, &pdf_document))
         LOG_ERROR("Could not read \"" + fulltext_location + "\"");
-    if (not PdfUtil::PdfDocContainsNoText(pdf_document))
-        PdfUtil::ExtractText(pdf_document, full_text);
-    else
-        LOG_ERROR("Apparently no text in \"" + fulltext_location + "\"");
+    if (not force_ocr) {
+        if (not PdfUtil::PdfDocContainsNoText(pdf_document))
+            PdfUtil::ExtractText(pdf_document, full_text);
+        else
+            LOG_ERROR("Apparently no text in \"" + fulltext_location + "\"");
+    } else {
+        if (not PdfUtil::GetOCRedTextFromPDF(fulltext_location, "eng+grc+heb", full_text, 120))
+            LOG_ERROR("Could not extract text from \"" + fulltext_location + "\"");
+    }
+
 }
 
 
-void ProcessDocument(const bool normalise_only, const std::string &input_file_path, XMLParser * const xml_parser,
+void ProcessDocument(const bool normalise_only, const bool force_ocr, const std::string &input_file_path, XMLParser * const xml_parser,
                      File * const plain_text_output)
 {
     FullTextImport::FullTextData full_text_metadata;
@@ -173,7 +179,7 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
         if (not ExtractText(xml_parser, "body", &full_text))
             ExtractText(xml_parser, "abstract", &abstract);
     } else
-        ExtractPDFFulltext(full_text_metadata.full_text_location_, &full_text);
+        ExtractPDFFulltext(force_ocr, full_text_metadata.full_text_location_, &full_text);
 
     if (full_text.empty() and abstract.empty())
         LOG_ERROR("neither full-text nor abstract text was found in file '" + input_file_path + "'");
@@ -192,17 +198,22 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     bool normalise_only(false);
+    bool force_ocr(false);
     if (std::strcmp(argv[1], "--normalise-only") == 0) {
         normalise_only = true;
         --argc, ++argv;
+    } else if (std::strcmp(argv[1], "--force-ocr") == 0) {
+        force_ocr = true;
+        --argc, ++argv;
     }
 
-    if ((normalise_only and argc != 2) or (not normalise_only and argc != 3))
+
+    if ((normalise_only and argc != 2) or (not normalise_only and not force_ocr and argc != 3))
         Usage();
 
     XMLParser xml_parser (argv[1], XMLParser::XML_FILE);
     auto plain_text_output(normalise_only ? nullptr : FileUtil::OpenOutputFileOrDie(argv[2]));
-    ProcessDocument(normalise_only, argv[1], &xml_parser, plain_text_output.get());
+    ProcessDocument(normalise_only, force_ocr, argv[1], &xml_parser, plain_text_output.get());
 
     return EXIT_SUCCESS;
 }
