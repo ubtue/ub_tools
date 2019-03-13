@@ -115,6 +115,7 @@
 /marc_grep
 /marc_info
 /marc_ngram_language_stats
+/marc_ppn_patcher
 /marc_remove_dups
 /marc21_scramble
 /marc_size
