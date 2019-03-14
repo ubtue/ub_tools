@@ -4,9 +4,10 @@ test
 
 BibleRangeParser-*.jar
 FacetPrefixSortComponent-*.jar
-KeywordChainParser-*.jar
 MultiLanguageDocTransformerFactory-0.0.1.jar
 MultiLanguageQueryParser-0.0.1.jar
+KeywordChainParser-*.jar
+RangedSearches.jar
 SolrmarcMixin-*.jar
 solr_plugins/build.xml
 solr_plugins/Bibelstellensuche/bin/

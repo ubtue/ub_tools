@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.YearMonth;
@@ -14,6 +15,18 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.apache.http.HttpEntity;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
@@ -2743,6 +2756,45 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
         return Boolean.FALSE.toString();
     }
+
+
+    protected String extractFullTextFromJSON(final String responseString) {
+        StringBuilder fulltextBuilder = new StringBuilder();
+        try {
+            JSONObject responseObject = (JSONObject) new JSONParser().parse(responseString);
+            JSONObject hits = (JSONObject) responseObject.get("hits");
+            JSONArray results = (JSONArray) hits.get("hits");
+            for (final Object obj : results) {
+                JSONObject hit = (JSONObject) obj;
+                JSONObject _source = (JSONObject) hit.get("_source");
+                fulltextBuilder.append(_source.get("full_text"));
+            }
+        } catch(ParseException e) {
+           e.printStackTrace();
+        }
+
+        return fulltextBuilder.toString();
+    }
+
+
+    public String getFullTextElasticsearch(final Record record) throws IOException {
+        CloseableHttpClient httpclient = HttpClients.createDefault();
+        HttpPost httpPost = new HttpPost("http://localhost:9200/full_text_cache/_search");
+        String fulltextById = "{ \"query\" : { \"match\" : { \"id\" : \"" + record.getControlNumber() + "\" } } }";
+        StringEntity stringEntity = new StringEntity(fulltextById);
+        httpPost.setEntity(stringEntity);
+        httpPost.setHeader("Accept", "application/json");
+        httpPost.setHeader("Content-type", "application/json");
+        CloseableHttpResponse response = httpclient.execute(httpPost);
+        try {
+            HttpEntity entity = response.getEntity();
+            String responseString = EntityUtils.toString(entity, StandardCharsets.UTF_8);
+            return extractFullTextFromJSON(responseString);
+        } finally {
+            response.close();
+        }
+    }
+
 
     public String getOldPPN(final Record record) {
         for (final VariableField variableField : record.getVariableFields("035")) {
