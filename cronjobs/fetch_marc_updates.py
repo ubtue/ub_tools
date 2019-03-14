@@ -304,12 +304,22 @@ def DownloadData(config, section, ftp, download_cutoff_date, msg):
 
 def DownloadCompleteData(config, ftp, download_cutoff_date, msg):
     downloaded_files = DownloadData(config, "Kompletter Abzug", ftp, download_cutoff_date, msg)
-    if len(downloaded_files) == 1:
-        return downloaded_files[0]
-    elif len(downloaded_files) == 0:
-        return None
+    complete_filename_pattern = config.get("Kompletter Abzug", "filename_pattern")
+    if not NeedsBothInstances(re.compile(complete_filename_pattern)):
+        if len(downloaded_files) == 1:
+            return downloaded_files
+        elif len(downloaded_files) == 0:
+            return None
+        else:
+            util.Error("downloaded multiple complete date tar files!")
     else:
-        util.Error("downloaded multiple complete date tar files!")
+        if not downloaded_files:
+            return None
+        remote_file_date = ExtractDateFromFilename(downloaded_files[0])
+        for filename in downloaded_files:
+            if ExtractDateFromFilename(filename) != remote_file_date:
+               util.error("We have a complete data dump set with differing dates")
+        return downloaded_files
 
 
 def ShiftDateToTenDaysBefore(date_to_shift):
@@ -335,9 +345,9 @@ def Main():
     msg = []
 
     download_cutoff_date = IncrementStringDate(GetCutoffDateForDownloads(config))
-    complete_data_filename = DownloadCompleteData(config, ftp, download_cutoff_date, msg)
-    if complete_data_filename is not None:
-        download_cutoff_date = ExtractDateFromFilename(complete_data_filename)
+    complete_data_filenames = DownloadCompleteData(config, ftp, download_cutoff_date, msg)
+    if complete_data_filenames is not None:
+        download_cutoff_date = ExtractDateFromFilename(complete_data_filenames[0])
     DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
     DownloadData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     if config.has_section("Loeschlisten2"):
