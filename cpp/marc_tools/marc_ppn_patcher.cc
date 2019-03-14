@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <kchashdb.h>
+#include "FileUtil.h"
 #include "JSON.h"
 #include "MARC.h"
 #include "Solr.h"
@@ -34,14 +35,25 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("old_ppns_to_new_ppns_map_path marc_input marc_output field_and_subfield_code1 "
+    ::Usage("old_ppns_to_new_ppns_map_directory marc_input marc_output field_and_subfield_code1 "
             "[field_and_subfield_code2 .. field_and_subfield_codeN]\n"
             "For field_and_subfield_code an example would be 773w.");
 }
 
 
+void OpenAllDBs(const std::string &old_ppns_to_new_ppns_map_directory, std::vector<kyotocabinet::HashDB *> * const dbs) {
+    FileUtil::Directory directory(old_ppns_to_new_ppns_map_directory, "\\.db$");
+    for (const auto &entry : directory) {
+        dbs->emplace_back(new kyotocabinet::HashDB);
+        if (not dbs->back()->open(entry.getName(), kyotocabinet::HashDB::OREADER))
+            LOG_ERROR("Failed to open database \"" + entry.getName() + "\" for reading ("
+                      + std::string(dbs->back()->error().message()) + ")!");
+    }
+}
+
+
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    const std::vector<std::string> &tags_and_subfield_codes, kyotocabinet::HashDB * const db)
+                    const std::vector<std::string> &tags_and_subfield_codes, const std::vector<kyotocabinet::HashDB *> &dbs)
 {
     unsigned total_record_count(0), patched_record_count(0);
     while (MARC::Record record = marc_reader->read()) {
@@ -63,13 +75,14 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
                         else
                             old_ppn_candidate = subfield.value_;
 
-
-                        std::string new_ppn;
-                        if (not db->get(old_ppn_candidate, &new_ppn))
-                            continue;
-
-                        subfield.value_ = new_ppn;
-                        patched_field = true;
+                        for (const auto &db : dbs) {
+                            std::string new_ppn;
+                            if (db->get(old_ppn_candidate, &new_ppn)) {
+                                subfield.value_ = new_ppn;
+                                patched_field = true;
+                                break;
+                            }
+                        }
                     }
 
                     if (patched_field) {
@@ -96,9 +109,8 @@ int Main(int argc, char *argv[]) {
     if (argc < 4)
         Usage();
 
-    kyotocabinet::HashDB db;
-    if (not db.open(argv[1], kyotocabinet::HashDB::OREADER))
-        LOG_ERROR("Failed to open database \"" + std::string(argv[1]) + "\" for reading (" + std::string(db.error().message()) + ")!");
+    std::vector<kyotocabinet::HashDB *> dbs;
+    OpenAllDBs(argv[1], &dbs);
 
     std::vector<std::string> tags_and_subfield_codes;
     for (int arg_no(3); arg_no < argc; ++arg_no) {
@@ -110,7 +122,7 @@ int Main(int argc, char *argv[]) {
 
     const auto marc_reader(MARC::Reader::Factory(argv[1]));
     const auto marc_writer(MARC::Writer::Factory(argv[2]));
-    ProcessRecords(marc_reader.get(), marc_writer.get(), tags_and_subfield_codes, &db);
+    ProcessRecords(marc_reader.get(), marc_writer.get(), tags_and_subfield_codes, dbs);
 
     return EXIT_SUCCESS;
 }
