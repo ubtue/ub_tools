@@ -96,13 +96,13 @@ void BSZTransform::DetermineKeywordOutputFieldFromISSN(const std::string &issn, 
 
 void ParseAuthor(const std::string &author, std::string * const first_name, std::string * const last_name) {
     const auto normalised_author(TextUtil::CollapseAndTrimWhitespace(author));
-    const auto name_separator(normalised_author.rfind(" "));
+    const auto name_separator(normalised_author.rfind(' '));
     if (name_separator != std::string::npos) {
         *first_name = normalised_author.substr(0, name_separator);
         *last_name = normalised_author.substr(name_separator + 1);
     } else {
         *first_name = normalised_author;
-        *last_name = "";
+        last_name->clear();
     }
 }
 
