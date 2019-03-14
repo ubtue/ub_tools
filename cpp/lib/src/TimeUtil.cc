@@ -347,14 +347,15 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
 {
     *hour_offset = *minute_offset = 0;
     char plus_or_minus[1 + 1];
+    char space_or_t[1 + 1];
 
     // First check for a simple time and date (can be local or UTC):
     if (possible_date.length() == 19
-        and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u %2u:%2u:%2u",
-                        year, month, day, hour, minute, second) == 6)
+        and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u%[T ]%2u:%2u:%2u",
+                        year, month, day, space_or_t, hour, minute, second) == 7)
     {
         *is_definitely_zulu_time = false;
-        return 6;
+        return 7;
     }
     // Check for ISO 8601 w/ offset:
     else if (possible_date.length() == 25
@@ -409,7 +410,6 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
     bool is_definitely_zulu_time;
     const unsigned match_count = StringToBrokenDownTime(iso_time, &year, &month, &day, &hour, &minute, &second,
                                                         &hour_offset, &minute_offset, &is_definitely_zulu_time);
-
     // First check for Zulu time format w/ an offset
     if (match_count == 9) {
         if (time_zone == LOCAL) {
@@ -451,7 +451,7 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
     }
 
     // Check for a simple time and date (can be local or UTC):
-    else if (match_count == 6) {
+    else if (match_count == 7) {
         tm_struct.tm_year  = year - 1900;
         tm_struct.tm_mon   = month - 1;
         tm_struct.tm_mday  = day;
