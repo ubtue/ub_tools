@@ -108,22 +108,22 @@ void ParseAuthor(const std::string &author, std::string * const first_name, std:
 
 
 bool StripCatholicOrdersFromAuthorName(std::string * const first_name, std::string * const last_name) {
-    static std::unordered_set<std::string> abbr_catholic_orders;
-    if (abbr_catholic_orders.empty()) {
-        auto string_data(FileUtil::ReadStringOrDie(CATHOLIC_ORDERS_ABBR_PATH));
+    static std::unordered_set<std::string> abbreviations_catholic_orders;
+    if (abbreviations_catholic_orders.empty()) {
+        auto string_data(FileUtil::ReadStringOrDie(CATHOLIC_ORDERS_ABBREVIATIONS_PATH));
         TextUtil::UTF8ToLower(&string_data);
-        StringUtil::Split(string_data, '\n', &abbr_catholic_orders);
+        StringUtil::Split(string_data, '\n', &abbreviations_catholic_orders);
     }
 
     const auto normalised_last_name(TextUtil::UTF8ToLower(last_name));
-    if (abbr_catholic_orders.find(normalised_last_name) == abbr_catholic_orders.end())
+    if (abbreviations_catholic_orders.find(normalised_last_name) == abbreviations_catholic_orders.end())
         return false;
 
     // try to reparse the name from the content of the first name
     const auto first_name_contents(*first_name);
     ParseAuthor(first_name_contents, first_name, last_name);
 
-    LOG_DEBUG("stripped catholic order abbr. '" + normalised_last_name + "' from author (last)name");
+    LOG_DEBUG("stripped Catholic order abbr. '" + normalised_last_name + "' from author (last)name");
     LOG_DEBUG("new first name: '" + *first_name + "', new last name: '" + *last_name + "'");
     return true;
 }
