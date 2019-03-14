@@ -48,6 +48,7 @@ data_install: Makefile data/*.conf data/*.map data/IxTheo_Notation.csv data/stop
 	cp data/*.conf /usr/local/var/lib/tuelib/
 	cp data/*.map /usr/local/var/lib/tuelib/
 	cp data/IxTheo_Notation.csv /usr/local/var/lib/tuelib/
+	cp data/abbr_catholic_orders.txt /usr/local/var/lib/tuelib/
 	cp data/stopwords.* /usr/local/var/lib/tuelib/
 	cp data/subscriptions_email.ixtheo.template /usr/local/var/lib/tuelib/
 	cp data/subscriptions_email.relbib.template /usr/local/var/lib/tuelib/
