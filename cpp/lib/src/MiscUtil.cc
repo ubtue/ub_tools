@@ -545,7 +545,17 @@ unsigned LevenshteinDistance(const std::wstring &s1, const std::wstring &s2) {
 
 
 bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start, unsigned * const range_end) {
-    static RegexMatcher *matcher1(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+),(\\d+),(\\d+)"));
+    unsigned canones;
+    if (StringUtil::ToUnsigned(ranges, &canones)) {
+        if (unlikely(canones == 0 or canones >= 10000))
+            return false;
+
+        *range_start = canones * 10000;
+        *range_end   = canones * 10000 + 9999;
+        return true;
+    }
+
+    static RegexMatcher *matcher1(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+),(\\d+),(\\d+)$"));
     if (matcher1->matched(ranges)) {
         const unsigned part1(StringUtil::ToUnsigned((*matcher1)[1]));
         if (unlikely(part1 == 0 or part1 >= 10000))
@@ -563,17 +573,7 @@ bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start
         return true;
     }
 
-    unsigned canones;
-    if (StringUtil::ToUnsigned(ranges, &canones)) {
-        if (unlikely(canones == 0 or canones >= 10000))
-            return false;
-
-        *range_start = canones * 10000;
-        *range_end   = canones * 10000 + 9999;
-        return true;
-    }
-
-    static RegexMatcher *matcher2(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+)-(\\d+)"));
+    static RegexMatcher *matcher2(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+)-(\\d+)$"));
     if (matcher2->matched(ranges)) {
         const unsigned canones1(StringUtil::ToUnsigned((*matcher2)[1]));
         if (unlikely(canones1 == 0 or canones1 >= 10000))
@@ -588,7 +588,7 @@ bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start
         return true;
     }
 
-    static RegexMatcher *matcher3(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+),(\\d+)"));
+    static RegexMatcher *matcher3(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+),(\\d+)$"));
     if (matcher3->matched(ranges)) {
         const unsigned part1(StringUtil::ToUnsigned((*matcher3)[1]));
         if (unlikely(part1 == 0 or part1 >= 10000))

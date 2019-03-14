@@ -30,6 +30,7 @@
 /categorise_marc
 /classify_language
 /clean_tag_db
+/canon_law_to_codes_tool
 /collect_journal_stats
 /collect_solr_stats_data
 /control_number_filter
