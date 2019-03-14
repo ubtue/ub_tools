@@ -67,12 +67,12 @@ public:
 };
 
 
-const std::string CATHOLIC_ORDERS_ABBR_PATH(UBTools::GetTuelibPath() + "abbr_catholic_orders.txt");
+const std::string CATHOLIC_ORDERS_ABBREVIATIONS_PATH(UBTools::GetTuelibPath() + "abbr_catholic_orders.txt");
 
 
-/* \brief   Strips abbreviations of catholic orders from the author's (last)name.
+/* \brief   Strips abbreviations of Catholic orders from the author's (last)name.
  * \return  true if names were changed.
- * \note    Author names in the metadata returned by Zotero sometimes contain abbreviations of catholic orders,
+ * \note    Author names in the metadata returned by Zotero sometimes contain abbreviations of Catholic orders,
  *          amongst other extraneous information. In such cases, the abbreviation is incorrectly interpreted as
  *          the last name (and the full name as the first name).
 */
