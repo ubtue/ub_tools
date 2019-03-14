@@ -123,7 +123,7 @@ bool StripCatholicOrdersFromAuthorName(std::string * const first_name, std::stri
     const auto first_name_contents(*first_name);
     ParseAuthor(first_name_contents, first_name, last_name);
 
-    LOG_DEBUG("strip catholic order abbr. '" + normalised_last_name + "' from author (last)name");
+    LOG_DEBUG("stripped catholic order abbr. '" + normalised_last_name + "' from author (last)name");
     LOG_DEBUG("new first name: '" + *first_name + "', new last name: '" + *last_name + "'");
     return true;
 }
