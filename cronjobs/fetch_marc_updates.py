@@ -131,30 +131,27 @@ def DownLoadFile(ftp, remote_filename):
 
 # For IxTheo our setup requires that we obtain both the files with and without local data because otherwise
 # we get data inconsistencies
-def AreBothInstancesPresent(config, remote_files):
-     complete_dump_pattern = config.get("Kompletter Abzug", "filename_pattern")
-     complete_dump_regex = re.compile(complete_dump_pattern)
-     differential_dump_pattern = config.get("Differenzabzug", "filename_pattern")
-     differential_dump_pattern = re.compile(differential_dump_pattern)
-     complete_remote_files = filter(complete_dump_regex.match, remote_files)
-     differential_remote_files = filter(differential_dump_regex.match, remote_files)
-     return True if len(complete_remote_files) % 2 and len(differential_remote_files) % 2 else False
+def AreBothInstancesPresent(filename_regex, remote_files):
+     if not remote_files:
+        return True
+     matching_remote_files = filter(filename_regex.match, remote_files)
+     return True if len(matching_remote_files) % 2 == 0 else False
+
 
 # Check whether all the instances are needed
-def NeedsBothInstances(config):
-     without_localdata_pattern = "_o[)]?-[(]?\d\d\d\d\d\d[)]?"
+def NeedsBothInstances(filename_regex):
+     without_localdata_pattern = "_o[)]?-[(]?.*[)]?"
      without_localdata_regex = re.compile(without_localdata_pattern)
-     filename_pattern = config.get("Kompletter Abzug", "filename_pattern")
-     return without_localdata_regex.match(filename_pattern)
+     return without_localdata_regex.search(filename_regex.pattern) is not None
 
 
 # Downloads matching files found in "remote_directory" on the FTP server that have a datestamp
-# more recent than "download_cutoff_date".
+# more recent than "download_cutoff_date" if some consistency check succeeds
 def DownloadRemoteFiles(config, ftp, filename_regex, remote_directory, download_cutoff_date):
     filenames = GetListOfRemoteFiles(ftp, filename_regex, remote_directory, download_cutoff_date)
-    if NeedsBothInstances(config):
-        if not AreBothInstancesPresent(config, filenames):
-            util.Error("Skip downloading of file since not both data with and with local data present")
+    if NeedsBothInstances(filename_regex):
+        if not AreBothInstancesPresent(filename_regex, filenames):
+            util.Error("Skip downloading of files since apparently generation is not complete")
     for filename in filenames:
         DownLoadFile(ftp, filename)
     return filenames
