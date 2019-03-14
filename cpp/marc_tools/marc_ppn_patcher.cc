@@ -42,7 +42,7 @@ namespace {
 
 
 void OpenAllDBs(const std::string &old_ppns_to_new_ppns_map_directory, std::vector<kyotocabinet::HashDB *> * const dbs) {
-    FileUtil::Directory directory(old_ppns_to_new_ppns_map_directory, ".*\\.db");
+    FileUtil::Directory directory(old_ppns_to_new_ppns_map_directory, "\\.db$");
     for (const auto &entry : directory) {
         dbs->emplace_back(new kyotocabinet::HashDB);
         if (not dbs->back()->open(entry.getName(), kyotocabinet::HashDB::OREADER))
