@@ -52,12 +52,6 @@ int Main(int argc, char **argv) {
     } else
         LOG_ERROR("can't determine codes!");
 
-    if (not range.empty()) {
-        if (range[0] != 'p')
-            LOG_ERROR("invalid canon law reference!");
-        range = range.substr(1);
-    }
-
     unsigned range_start, range_end;
     if (range.empty()) {
         range_start = 0;
