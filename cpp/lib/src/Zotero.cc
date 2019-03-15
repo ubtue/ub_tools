@@ -888,7 +888,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
 
 
 void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::ObjectNode> &object_node, const SiteParams &site_params) {
-    static std::unique_ptr<RegexMatcher> same_page_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+)-(\\d+)"));
+    static std::unique_ptr<RegexMatcher> same_page_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+)-(\\d+)$"));
 
     LOG_DEBUG("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
