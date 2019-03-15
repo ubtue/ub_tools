@@ -56,7 +56,8 @@ MARC::Record::const_iterator GetFirstPrimaryField(const MARC::Record& authority_
 
 
 bool GetAuthorityRecordFromPPN(const std::string &bsz_authority_ppn, MARC::Record * const authority_record,
-                               MARC::Reader * const authority_reader, const std::unordered_map<std::string, off_t> &authority_offsets)
+                               MARC::Reader * const authority_reader, const std::unordered_map<std::string, off_t> &authority_offsets,
+                               const MARC::Record * const record)
 {
     auto authority_offset(authority_offsets.find(bsz_authority_ppn));
     if (authority_offset != authority_offsets.end()) {
@@ -69,9 +70,11 @@ bool GetAuthorityRecordFromPPN(const std::string &bsz_authority_ppn, MARC::Recor
             else
                 return true;
         } else
-            LOG_ERROR("Unable to seek to record for authority PPN " + bsz_authority_ppn);
+            LOG_ERROR("Unable to seek to record for authority PPN " + bsz_authority_ppn
+                      + " referenced in title PPN " + record->getControlNumber());
     } else {
-        LOG_WARNING("Unable to find offset for authority PPN " + bsz_authority_ppn);
+        LOG_WARNING("Unable to find offset for authority PPN " + bsz_authority_ppn
+                    + " referenced in title PPN " + record->getControlNumber());
         return false;
     }
     std::runtime_error("Logical flaw in GetAuthorityRecordFromPPN");
@@ -118,7 +121,7 @@ void AugmentAuthors(MARC::Record * const record, MARC::Reader * const authority_
             std::string _author_content(field.getContents());
             if (matcher->matched(_author_content)) {
                 MARC::Record authority_record(std::string(MARC::Record::LEADER_LENGTH, ' '));
-                if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets)) {
+                if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets, record)) {
                     UpdateTitleDataField(&field, authority_record);
                     *modified_record = true;
                 }
@@ -136,7 +139,7 @@ void AugmentKeywords(MARC::Record * const record, MARC::Reader * const authority
         std::string _689_content(field.getContents());
         if (matcher->matched(_689_content)) {
              MARC::Record authority_record(std::string(MARC::Record::LEADER_LENGTH, ' '));
-             if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets)) {
+             if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets, record)) {
                  UpdateTitleDataField(&field, authority_record);
                  *modified_record = true;
              }
