@@ -43,6 +43,30 @@
 namespace {
 
 
+void UpdateKyotokabinetDB(const std::string &db_path, const std::unordered_map<std::string, std::string> &old_to_new_map) {
+    kyotocabinet::HashDB db;
+    if (not (db.open(db_path, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
+        LOG_ERROR("Failed to open or create \"" + db_path + "\"!");
+
+    unsigned new_entry_count(0);
+    for (const auto &old_and_new : old_to_new_map) {
+        std::string value;
+        if (db.get(old_and_new.first, &value)) {
+            if (unlikely(value != old_and_new.second))
+                LOG_ERROR("entry for key \"" + old_and_new.first + "\" in database \"" + value + "\" is different from new new PPN \""
+                          + old_and_new.second + "\"!");
+        } else {
+            if (unlikely(not db.add(old_and_new.first, old_and_new.second)))
+                LOG_ERROR("failed to insert a new entry (\"" + old_and_new.first + "\",\"" + old_and_new.second + "\") into \"" + db_path
+                          + "\"!");
+            ++new_entry_count;
+        }
+    }
+
+    LOG_INFO("Updated \"" + db_path + "\" with " + std::to_string(new_entry_count) + " entry/entries.");
+}
+
+
 const std::string OLD_PPN_LIST_FILE(UBTools::GetTuelibPath() + "alread_replaced_old_ppns.blob");
 
 
@@ -149,8 +173,8 @@ void PatchNotifiedDB(const std::string &user_type, const std::unordered_map<std:
 int Main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc < 2)
-        ::Usage("marc_input1 [marc_input2 .. marc_inputN]");
+    if (argc < 3)
+        ::Usage("kyotokabinet_db_path marc_input1 [marc_input2 .. marc_inputN]");
 
     std::unordered_set<std::string> alread_processed_ppns;
     LoadAlreadyProcessedPPNs(&alread_processed_ppns);
@@ -164,6 +188,8 @@ int Main(int argc, char **argv) {
         LOG_INFO("nothing to do!");
         return EXIT_SUCCESS;
     }
+
+    UpdateKyotokabinetDB(argv[1], old_to_new_map);
 
     PatchNotifiedDB("ixtheo", old_to_new_map);
     PatchNotifiedDB("relbib", old_to_new_map);
