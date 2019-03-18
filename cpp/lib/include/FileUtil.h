@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  Copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -126,7 +126,10 @@ public:
         unsigned char type_;
     public:
         Entry(const Entry &other);
+
+        /** \return the full name of the entry, i.e., including the directory path. */
         inline const std::string &getName() const { return name_; }
+
         inline SELinuxFileContext getSELinuxFileContext() const { return SELinuxFileContext(dirname_ + "/" + name_); }
 
         // \return One of DT_BLK(block device), DT_CHR(character device), DT_DIR(directory), DT_FIFO(named pipe),

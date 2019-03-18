@@ -28,6 +28,7 @@
 #include "BibleUtil.h"
 #include "Compiler.h"
 #include "MARC.h"
+#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UBTools.h"
@@ -35,68 +36,6 @@
 
 
 namespace {
-
-
-void ParseRanges(const std::string &ppn, const std::string &ranges, unsigned * const range_start, unsigned * const range_end) {
-    static RegexMatcher *matcher1(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+),(\\d+),(\\d+)"));
-    if (matcher1->matched(ranges)) {
-        const unsigned part1(StringUtil::ToUnsigned((*matcher1)[1]));
-        if (unlikely(part1 == 0 or part1 >= 10000))
-            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
-
-        const unsigned part2(StringUtil::ToUnsigned((*matcher1)[2]));
-        if (unlikely(part2 == 0 or part2 >= 100))
-            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
-
-        const unsigned part3(StringUtil::ToUnsigned((*matcher1)[3]));
-        if (unlikely(part3 == 0 or part3 >= 100))
-            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
-
-        *range_start = *range_end = part1 * 10000 + part2 * 100 + part3;
-        return;
-    }
-
-    unsigned canones;
-    if (StringUtil::ToUnsigned(ranges, &canones)) {
-        if (unlikely(canones == 0 or canones >= 10000))
-            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
-
-        *range_start = canones * 10000;
-        *range_end   = canones * 10000 + 9999;
-        return;
-    }
-
-    static RegexMatcher *matcher2(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+)-(\\d+)"));
-    if (matcher2->matched(ranges)) {
-        const unsigned canones1(StringUtil::ToUnsigned((*matcher2)[1]));
-        if (unlikely(canones1 == 0 or canones1 >= 10000))
-            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
-
-        const unsigned canones2(StringUtil::ToUnsigned((*matcher2)[2]));
-        if (unlikely(canones2 == 0 or canones2 >= 10000))
-            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
-
-        *range_start = canones1 * 10000;
-        *range_end   = canones2 * 10000 + 9999;
-        return;
-    }
-
-    static RegexMatcher *matcher3(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+),(\\d+)"));
-    if (matcher3->matched(ranges)) {
-        const unsigned part1(StringUtil::ToUnsigned((*matcher3)[1]));
-        if (unlikely(part1 == 0 or part1 >= 10000))
-            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
-
-        const unsigned part2(StringUtil::ToUnsigned((*matcher3)[2]));
-        if (unlikely(part2 == 0 or part2 >= 100))
-            LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
-
-        *range_start = *range_end = part1 * 10000 + part2 * 100 + 99;
-        return;
-    }
-
-    LOG_ERROR("don't know how to parse codex parts \"" + ranges + "\"! (PPN: " + ppn + ")");
-}
 
 
 // To understand this code read https://github.com/ubtue/tuefind/wiki/Codices
@@ -123,8 +62,8 @@ std::string FieldToCanonLawCode(const std::string &ppn, const MARC::Record::Fiel
     if (p_subfield.empty()) {
         range_start = 0;
         range_end = 99999999;
-    } else
-        ParseRanges(ppn, p_subfield, &range_start, &range_end);
+    } else if (not MiscUtil::ParseCanonLawRanges(p_subfield, &range_start, &range_end))
+        LOG_ERROR("don't know how to parse codex parts \"" + p_subfield + "\"! (PPN: " + ppn + ")");
 
     switch (codex) {
     case CIC1917:
@@ -164,26 +103,31 @@ void LoadAuthorityData(MARC::Reader * const reader,
 void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                     const std::unordered_map<std::string, std::string> &authority_ppns_to_canon_law_codes_map)
 {
-    unsigned total_count(0), augmented_count(0);
+    unsigned total_count(0), augmented_count(0), reference_count(0);
     while (auto record = reader->read()) {
         ++total_count;
 
         bool augmented_record(false);
         for (const auto &_689_field : record.getTagRange("689")) {
-            if (_689_field.getFirstSubfieldWithCode('2') != "gnd")
-                continue;
+            const MARC::Subfields subfields(_689_field.getSubfields());
 
             std::vector<std::string> authority_ppns;
-            for (const auto &subfield : _689_field.getSubfields()) {
-                if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-576)"))
+            bool found_gnd_subfield2(false);
+            for (const auto &subfield : subfields) {
+                if (subfield.code_ == '2' and subfield.value_ == "gnd")
+                    found_gnd_subfield2 = true;
+                else if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-576)"))
                     authority_ppns.emplace_back(subfield.value_.substr(__builtin_strlen("(DE-576)")));
             }
+            if (not found_gnd_subfield2)
+                continue;
 
             for (const auto &authority_ppn : authority_ppns) {
                 const auto ppn_and_canon_law_code(authority_ppns_to_canon_law_codes_map.find(authority_ppn));
                 if (ppn_and_canon_law_code != authority_ppns_to_canon_law_codes_map.cend()) {
                     record.insertField("CAL", { { 'a', ppn_and_canon_law_code->second } });
                     augmented_record = true;
+                    ++reference_count;
                 }
             }
         }
@@ -193,7 +137,8 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
         writer->write(record);
     }
 
-    LOG_INFO("augmented " + std::to_string(augmented_count) + " of " + std::to_string(total_count) + " records.");
+    LOG_INFO("augmented " + std::to_string(augmented_count) + " of " + std::to_string(total_count) + " records. ("
+             + std::to_string(reference_count) + " references)");
 }
 
 

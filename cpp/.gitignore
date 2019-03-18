@@ -30,6 +30,7 @@
 /categorise_marc
 /classify_language
 /clean_tag_db
+/canon_law_to_codes_tool
 /collect_journal_stats
 /collect_solr_stats_data
 /control_number_filter
@@ -115,6 +116,7 @@
 /marc_grep
 /marc_info
 /marc_ngram_language_stats
+/marc_ppn_patcher
 /marc_remove_dups
 /marc21_scramble
 /marc_size
