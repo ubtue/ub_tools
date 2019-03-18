@@ -29,7 +29,7 @@ default_config_file_dir = "/usr/local/var/lib/tuelib/cronjobs/"
 
 # @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the lowest priority.
 # @param attachment A path to the file that should be attached. Can be string or list of strings.
-def SendEmail(subject, msg, sender=None, recipient=None, cc=None, priority=None, attachments=None):
+def SendEmail(subject, msg, sender=None, recipient=None, cc=None, priority=None, attachments=None, log=True):
     subject = os.path.basename(sys.argv[0]) +  ": " + subject + " (from: " + socket.gethostname() + ")"
     if recipient is None:
         recipient = default_email_recipient
@@ -79,6 +79,16 @@ def SendEmail(subject, msg, sender=None, recipient=None, cc=None, priority=None,
         Info("Failed to send your email: " + str(e), file=sys.stderr)
         sys.exit(-1)
     server.quit()
+
+    if log:
+        message = "Sent email " + subject
+        if sender is not None:
+            message += ", sender: " + sender
+        if recipient is not None:
+            message += ", recipient: " + recipient
+        if cc is not None:
+            message += ", cc: " + cc
+        Info(message)
 
 
 def Error(msg):

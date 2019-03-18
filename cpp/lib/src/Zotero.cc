@@ -853,13 +853,14 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
     for (size_t i(0); i < creators_array->size(); ++i) {
         const std::shared_ptr<JSON::ObjectNode> creator_object(creators_array->getObjectNode(i));
 
-        const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
-        if (last_name_node != nullptr) {
-            std::string name(creator_object->getStringValue("lastName"));
-
-            const std::shared_ptr<const JSON::JSONNode> first_name_node(creator_object->getNode("firstName"));
-            if (first_name_node != nullptr)
-                name += ", " + creator_object->getStringValue("firstName");
+        auto first_name_node(creator_object->getNode("firstName"));
+        auto last_name_node(creator_object->getNode("lastName"));
+        auto first_name(creator_object->getOptionalStringValue("firstName"));
+        auto last_name(creator_object->getOptionalStringValue("lastName"));
+        if (not last_name.empty()) {
+            std::string name(last_name);
+            if (not first_name.empty())
+                name += ", " + first_name;
 
             const std::string PPN(BSZTransform::DownloadAuthorPPN(name, site_params.group_params_->author_ppn_lookup_url_));
             if (not PPN.empty()) {
@@ -873,11 +874,22 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
                 creator_object->insert("gnd_number", std::make_shared<JSON::StringNode>(gnd_number));
             }
         }
+
+        if (not first_name.empty() and not last_name.empty()) {
+            if (BSZTransform::StripCatholicOrdersFromAuthorName(&first_name, &last_name)) {
+                if (first_name_node != nullptr)
+                    JSON::JSONNode::CastToStringNodeOrDie("firstName", first_name_node)->setValue(first_name);
+                if (last_name_node != nullptr)
+                    JSON::JSONNode::CastToStringNodeOrDie("lastName", last_name_node)->setValue(last_name);
+            }
+        }
     }
 }
 
 
 void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::ObjectNode> &object_node, const SiteParams &site_params) {
+    static std::unique_ptr<RegexMatcher> same_page_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+)-(\\d+)$"));
+
     LOG_DEBUG("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
@@ -919,6 +931,10 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
             std::shared_ptr<JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second));
             if (string_node->getValue() == "0")
                 string_node->setValue("");
+        } else if (key_and_node.first == "pages") {
+            auto pages_node(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second));
+            if (same_page_range_matcher->matched(pages_node->getValue()) and (*same_page_range_matcher)[1] == (*same_page_range_matcher)[2])
+                pages_node->setValue((*same_page_range_matcher)[1]);
         }
     }
 

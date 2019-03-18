@@ -6,7 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
- *  Copyright 2016-2018 Universitätsbibliothek Tübingen.
+ *  Copyright 2016-2019 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -217,6 +217,9 @@ template<typename ElementType> std::set<ElementType> Intersect(const std::unorde
                           std::inserter(result, result.begin()));
     return result;
 }
+
+
+bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start, unsigned * const range_end);
 
 
 } // namespace MiscUtil
