@@ -130,7 +130,7 @@ bool ExtractText(XMLParser * const xml_parser, const std::string &text_opening_t
 
 
 void ExtractPDFFulltext(const bool force_ocr, const std::string &fulltext_location, std::string * const full_text) {
-    if (not StringUtil::EndsWith(fulltext_location, ".pdf", true))
+    if (not StringUtil::EndsWith(fulltext_location, ".pdf", true /* ignore case */))
         LOG_ERROR("Don't know how to handle file \"" + fulltext_location + "\"");
     std::string pdf_document;
     if (not FileUtil::ReadString(fulltext_location, &pdf_document))
@@ -144,7 +144,6 @@ void ExtractPDFFulltext(const bool force_ocr, const std::string &fulltext_locati
         if (not PdfUtil::GetOCRedTextFromPDF(fulltext_location, "eng+grc+heb", full_text, 120))
             LOG_ERROR("Could not extract text from \"" + fulltext_location + "\"");
     }
-
 }
 
 
