@@ -153,4 +153,25 @@ bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tes
 }
 
 
+bool GetOCRedTextFromPDF(const std::string &pdf_document_path, const std::string &tesseract_language_code,
+                         std::string * const extracted_text, unsigned timeout) {
+    extracted_text->clear();
+    static std::string pdf_to_image_command(ExecUtil::LocateOrDie("convert"));
+    const FileUtil::AutoTempDirectory auto_temp_dir;
+    const std::string &image_dirname(auto_temp_dir.getDirectoryPath());
+    const std::string temp_image_location = image_dirname + "/img.tiff";
+    if (ExecUtil::Exec(pdf_to_image_command, { "-density", "300", pdf_document_path, "-depth", "8", "-strip" ,
+                                               "-background", "white", "-alpha", "off", temp_image_location
+                                             }, "", "", "", timeout) != 0) {
+        LOG_WARNING("failed to convert PDF to image!");
+        return false;
+    }
+    if (not GetTextFromImage(temp_image_location, tesseract_language_code, extracted_text))
+        LOG_WARNING("failed to extract OCRed text");
+
+    *extracted_text = StringUtil::TrimWhite(*extracted_text);
+    return not extracted_text->empty();
+}
+
+
 } // namespace PdfUtil
