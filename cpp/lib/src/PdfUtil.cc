@@ -177,7 +177,6 @@ bool GetOCRedTextFromPDF(const std::string &pdf_document_path, const std::string
     static std::string pdf_to_image_command(ExecUtil::LocateOrDie("convert"));
     const FileUtil::AutoTempDirectory auto_temp_dir;
     const std::string &image_dirname(auto_temp_dir.getDirectoryPath());
-    (void) &image_dirname;
     const std::string temp_image_location = image_dirname + "/img.tiff";
     if (ExecUtil::Exec(pdf_to_image_command, { "-density", "300", pdf_document_path, "-depth", "8", "-strip",
                                                "-background", "white", "-alpha", "off", temp_image_location
