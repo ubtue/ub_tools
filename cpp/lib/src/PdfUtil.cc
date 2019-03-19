@@ -22,9 +22,9 @@
 #include <tesseract/baseapi.h>
 #include "ExecUtil.h"
 #include "FileUtil.h"
+#include "MediaTypeUtil.h"
 #include "StringUtil.h"
 #include "util.h"
-
 
 namespace PdfUtil {
 
@@ -97,18 +97,36 @@ bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_
         return false;
     }
 
-    Pix *image(pixRead(img_path.c_str()));
-    api->SetImage(image);
+    const std::string filetype(MediaTypeUtil::GetFileMediaType(img_path));
 
-    char *utf8_text(api->GetUTF8Text());
-    *extracted_text = utf8_text;
-    delete[] utf8_text;
+    // Special Handling for tiff multipages
+    if (filetype == "image/tiff") {
+        extracted_text->clear();
+        Pixa *multipage_image(pixaReadMultipageTiff(img_path.c_str()));
+        for (l_int32 offset(0); offset < multipage_image->n; ++offset) {
+             LOG_INFO("Extracting page " + std::to_string(offset + 1));
+             api->SetImage(multipage_image->pix[offset]);
+             char *utf8_page(api->GetUTF8Text());
+             extracted_text->append(utf8_page);
+             delete[] utf8_page;
+        }
+        api->End();
+        delete api;
+        pixaDestroy(&multipage_image);
+        delete multipage_image;
 
-    api->End();
-    delete api;
-    pixDestroy(&image);
-    delete image;
+    } else {
+        Pix *image(pixRead(img_path.c_str()));
+        api->SetImage(image);
+        char *utf8_text(api->GetUTF8Text());
+        *extracted_text = utf8_text;
+        delete[] utf8_text;
+        api->End();
+        delete api;
+        pixDestroy(&image);
+        delete image;
 
+    }
     return not extracted_text->empty();
 }
 
@@ -159,8 +177,9 @@ bool GetOCRedTextFromPDF(const std::string &pdf_document_path, const std::string
     static std::string pdf_to_image_command(ExecUtil::LocateOrDie("convert"));
     const FileUtil::AutoTempDirectory auto_temp_dir;
     const std::string &image_dirname(auto_temp_dir.getDirectoryPath());
+    (void) &image_dirname;
     const std::string temp_image_location = image_dirname + "/img.tiff";
-    if (ExecUtil::Exec(pdf_to_image_command, { "-density", "300", pdf_document_path, "-depth", "8", "-strip" ,
+    if (ExecUtil::Exec(pdf_to_image_command, { "-density", "300", pdf_document_path, "-depth", "8", "-strip",
                                                "-background", "white", "-alpha", "off", temp_image_location
                                              }, "", "", "", timeout) != 0) {
         LOG_WARNING("failed to convert PDF to image!");
