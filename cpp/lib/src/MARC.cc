@@ -2416,12 +2416,12 @@ bool PossiblyAReviewArticle(const Record &record) {
 }
 
 
-static const std::vector<Tag> CROSS_LINK_FIELDS{ Tag("775"), Tag("776"), Tag("780"), Tag("785") };
+const std::vector<Tag> CROSS_LINK_FIELDS{ Tag("775"), Tag("776"), Tag("780"), Tag("785") };
 
 
-bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const partner_control_number) {
+bool IsCrossLinkField (const MARC::Record::Field &field, std::string * const partner_control_number, const std::vector<MARC::Tag> &cross_link_fields) {
     if (not field.hasSubfield('w')
-        or std::find(CROSS_LINK_FIELDS.cbegin(), CROSS_LINK_FIELDS.cend(), field.getTag().toString()) == CROSS_LINK_FIELDS.cend())
+        or std::find(cross_link_fields.cbegin(), cross_link_fields.cend(), field.getTag().toString()) == cross_link_fields.cend())
         return false;
 
     const MARC::Subfields subfields(field.getSubfields());
