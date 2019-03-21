@@ -772,6 +772,10 @@ public:
      */
     bool fieldOrSubfieldMatched(const std::string &field_or_field_and_subfield_code, RegexMatcher * const regex_matcher) const;
 
+    /** \return A vector of iterators to fields that match the regular expression.
+     */
+    std::vector<iterator> getMatchedFields(const std::string &field_or_field_and_subfield_code, RegexMatcher * const regex_matcher);
+
     static std::string BibliographicLevelToString(const BibliographicLevel bibliographic_level);
 };
 
