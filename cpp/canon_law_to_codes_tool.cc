@@ -34,7 +34,7 @@ namespace {
 
 int Main(int argc, char **argv) {
     if (argc != 2)
-        ::Usage("canon_law_reference_candidate");;
+        ::Usage("canon_law_reference_candidate");
 
     const std::string canon_law_reference_candidate(StringUtil::TrimWhite(argv[1]));
     std::string range;

@@ -707,8 +707,9 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     // remove any fields that match removal patterns
     for (const auto &filter : site_params_->field_removal_filters_) {
         auto tag_and_subfield_code(filter.first);
-        if (record->fieldOrSubfieldMatched(filter.first, filter.second.get())) {
-            record->erase(tag_and_subfield_code.erase(MARC::Record::TAG_LENGTH));  // remove the entire field
+        const auto matched_fields(record->getMatchedFields(filter.first, filter.second.get()));
+        for (const auto &matched_field : matched_fields) {
+            record->erase(matched_field);
             LOG_DEBUG("erased field '" + tag_and_subfield_code + "' due to removal filter '" + filter.second->getPattern() + "'");
         }
     }
