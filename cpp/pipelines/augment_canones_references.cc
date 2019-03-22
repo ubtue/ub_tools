@@ -134,7 +134,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                     if (ppn_and_canon_law_code != authority_ppns_to_canon_law_codes_map.cend()) {
                         record.insertField("CAL", { { 'a', ppn_and_canon_law_code->second } });
                         augmented_record = true;
-                        reference_counts[linking_tag] += 1;
+                        ++reference_counts[linking_tag];
                     }
                 }
             }
@@ -161,7 +161,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                     const auto range(FieldToCanonLawCode(record.getControlNumber(), subfield_codex, subfield_year, subfield_part));
                     record.insertField("CAL", { { 'a', range } });
                     augmented_record = true;
-                    reference_counts["689*"] += 1;
+                    ++reference_counts["689*"];
                 }
             }
         }
