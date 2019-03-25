@@ -411,7 +411,7 @@ HtmlParser::HtmlParser(const std::string &input_string, const std::string &http_
     if (not http_header_charset.empty()) {
         std::string error_message;
         encoding_converter_ = TextUtil::EncodingConverter::Factory(http_header_charset,
-                                                                   TextUtil::EncodingConverter::CANONICAL_UTF8_NAME,
+                                                                   TextUtil::EncodingConverter::CANONICAL_UTF8_NAME + "//TRANSLIT",
                                                                    &error_message);
         if (encoding_converter_.get() == nullptr)
             LOG_WARNING(error_message);
