@@ -30,7 +30,8 @@ yum --assumeyes install curl epel-release wget
 
 # additional repos (shibboleth = libcurl-openssl-devel.x86_64)
 cd /etc/yum.repos.d/
-wget http://download.opensuse.org/repositories/security:shibboleth/CentOS_7/security:shibboleth.repo
+wget --timestamping http://download.opensuse.org/repositories/security:shibboleth/CentOS_7/security:shibboleth.repo
+wget --timestamping https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/elasticsearch.repo
 yum --assumeyes update
 
 # basic dependencies
@@ -46,6 +47,8 @@ yum --assumeyes install \
 ### TUEFIND ###
 if [[ $1 == "tuefind" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
+
+    InstallIfMissing elasticsearch
 
     # special handling for php+composer: standard php needs to be replaced by php71w
     # (standard is installed as dependancy)
