@@ -1,7 +1,7 @@
 #!/bin/bash
 if [[ $# > 1 ]]; then
     echo "usage: $0 [system_type]"
-    echo "          tuefind: Also install tuefind dependencies"
+    echo "          ixtheo|krimdok: Also install specific dependencies"
     exit 1
 fi
 
@@ -30,22 +30,27 @@ yum --assumeyes install curl epel-release wget
 
 # additional repos (shibboleth = libcurl-openssl-devel.x86_64)
 cd /etc/yum.repos.d/
-wget http://download.opensuse.org/repositories/security:shibboleth/CentOS_7/security:shibboleth.repo
+wget --timestamping http://download.opensuse.org/repositories/security:shibboleth/CentOS_7/security:shibboleth.repo
+wget --timestamping https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/elasticsearch.repo
 yum --assumeyes update
 
 # basic dependencies
 InstallIfMissing "ca-certificates"
 yum --assumeyes install \
     ant bc cifs-utils clang crontabs ftp gcc-c++.x86_64 git glibc-static java-*-openjdk-devel make sudo \
-    curl-openssl file-devel kyotocabinet-devel leptonica libarchive-devel libcurl-openssl-devel libsq3-devel libuuid-devel libwebp libxml2-devel.x86_64 libxml2 lsof lz4 mariadb mariadb-devel.x86_64 mariadb-server mawk mod_ssl mysql-utilities openjpeg-libs openssl-devel pcre-devel policycoreutils-python poppler poppler-utils tokyocabinet-devel unzip xerces-c-devel \
+    curl-openssl file-devel kyotocabinet kyotocabinet-devel leptonica libarchive-devel libcurl-openssl-devel libsq3-devel libuuid-devel libwebp libxml2-devel.x86_64 libxml2 lsof lz4 mariadb mariadb-devel.x86_64 mariadb-server mawk mod_ssl mysql-utilities openjpeg-libs openssl-devel pcre-devel policycoreutils-python poppler poppler-utils tokyocabinet-devel unzip xerces-c-devel \
     tesseract tesseract-devel tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe
 
 # in CentOS, there is no "tesseract-langpack-eng", it seems to be part of the default installation
 
 
 ### TUEFIND ###
-if [[ $1 == "tuefind" ]]; then
+if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
+
+    if [[ $1 == "krimdok" ]]; then
+        InstallIfMissing elasticsearch
+    fi
 
     # special handling for php+composer: standard php needs to be replaced by php71w
     # (standard is installed as dependancy)
