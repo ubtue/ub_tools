@@ -1,7 +1,7 @@
 #!/bin/bash
 if [[ $# > 1 ]]; then
     echo "usage: $0 [system_type]"
-    echo "          tuefind: Also install tuefind dependencies"
+    echo "          ixtheo|krimdok: Also install specific dependencies"
     exit 1
 fi
 
@@ -45,10 +45,12 @@ yum --assumeyes install \
 
 
 ### TUEFIND ###
-if [[ $1 == "tuefind" ]]; then
+if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
 
-    InstallIfMissing elasticsearch
+    if [[ $1 == "krimdok" ]]; then
+        InstallIfMissing elasticsearch
+    fi
 
     # special handling for php+composer: standard php needs to be replaced by php71w
     # (standard is installed as dependancy)

@@ -207,7 +207,17 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
 }
 
 
+void AssureMysqlServerIsRunning() {
+    std::unordered_set<unsigned> running_pids(ExecUtil::FindActivePrograms("mysqld"));
+    if (running_pids.size() == 0) {
+        ExecUtil::Spawn("mysqld_safe", { "--daemonize" });
+    }
+}
+
+
 void CreateUbToolsDatabase() {
+    AssureMysqlServerIsRunning();
+
     const std::string root_username("root");
     const std::string root_password("");
 
@@ -232,6 +242,8 @@ void CreateUbToolsDatabase() {
 
 
 void CreateVuFindDatabase(VuFindSystemType vufind_system_type) {
+    AssureMysqlServerIsRunning();
+
     const std::string root_username("root");
     const std::string root_password("");
 
@@ -269,7 +281,9 @@ void SystemdEnableAndRunUnit(const std::string unit) {
 }
 
 
-void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tools_only, bool install_systemctl) {
+void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::string vufind_system_type_string,
+                                 bool ub_tools_only, bool install_systemctl)
+{
     // install / update dependencies
     std::string script;
     if (os_system_type == UBUNTU)
@@ -280,7 +294,7 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tool
     if (ub_tools_only)
         ExecUtil::ExecOrDie(script);
     else
-        ExecUtil::ExecOrDie(script, { "tuefind" });
+        ExecUtil::ExecOrDie(script, { vufind_system_type_string });
 
     // check systemd configuration
     if (install_systemctl) {
@@ -631,6 +645,7 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
 
 int Main(int argc, char **argv) {
     bool ub_tools_only(false);
+    std::string vufind_system_type_string;
     VuFindSystemType vufind_system_type;
     bool omit_cronjobs(false);
     bool omit_systemctl(false);
@@ -643,18 +658,19 @@ int Main(int argc, char **argv) {
         if (argc > 2)
             Usage();
     } else {
-        std::string type(argv[1]);
-        if (::strcasecmp(type.c_str(), "auto") == 0) {
-            type = VuFind::GetTueFindFlavour();
-            if (not type.empty())
-                std::cout << "using auto-detected tuefind installation type \"" + type + "\"\n";
+        vufind_system_type_string = argv[1];
+        if (::strcasecmp(vufind_system_type_string.c_str(), "auto") == 0) {
+            vufind_system_type_string = VuFind::GetTueFindFlavour();
+            if (not vufind_system_type_string.empty())
+                std::cout << "using auto-detected tuefind installation type \""
+                             + vufind_system_type_string + "\"\n";
             else
                 Error("could not auto-detect tuefind installation type");
         }
 
-        if (::strcasecmp(type.c_str(), "krimdok") == 0)
+        if (::strcasecmp(vufind_system_type_string.c_str(), "krimdok") == 0)
             vufind_system_type = KRIMDOK;
-        else if (::strcasecmp(type.c_str(), "ixtheo") == 0)
+        else if (::strcasecmp(vufind_system_type_string.c_str(), "ixtheo") == 0)
             vufind_system_type = IXTHEO;
         else
             Usage();
@@ -680,7 +696,8 @@ int Main(int argc, char **argv) {
 
     // Install dependencies before vufind
     // correct PHP version for composer dependancies
-    InstallSoftwareDependencies(os_system_type, ub_tools_only, not omit_systemctl);
+    InstallSoftwareDependencies(os_system_type, vufind_system_type_string,
+                                ub_tools_only, not omit_systemctl);
 
     if (not ub_tools_only) {
         MountDeptDriveOrDie(vufind_system_type);

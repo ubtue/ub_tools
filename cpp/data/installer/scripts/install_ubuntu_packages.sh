@@ -1,7 +1,7 @@
 #!/bin/bash
 if [[ $# > 1 ]]; then
     echo "usage: $0 [system_type]"
-    echo "          tuefind: Also install tuefind dependencies"
+    echo "          ixtheo|krimdok: Also install specific dependencies"
     exit 1
 fi
 
@@ -50,10 +50,12 @@ mkdir -p /var/run/mysqld
 chown -R mysql:mysql /var/run/mysqld
 
 #---------------------------------- TUEFIND ---------------------------------#
-if [[ $1 == "tuefind" ]]; then
+if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
 
-    apt-get --quiet --yes install elasticsearch
+    if [[ $1 == "krimdok" ]]; then
+        apt-get --quiet --yes install elasticsearch
+    fi
 
     apt-get --quiet --yes install \
         composer \
