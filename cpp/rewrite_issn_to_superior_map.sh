@@ -41,4 +41,4 @@ else
 fi
 
 # Parse the file and use index approach since there can be several # in the comment section
-cat ${issn_to_superior_map} | awk -F'[=#]' '{st = index($0, "#"); printf "%s=%s#%s\n",$1, system("kchashmgr get '${KCNAME}' " $2), substr($0, st+1);}' > ${outfile}
+cat ISSN_to_superior_ppn.map |  awk -F'[=#]' '{st = index($0, "#"); "kchashmgr get '${KCNAME}' " $2 | getline new_ppn;  printf "%s=%s #%s\n",$1, new_ppn, substr($0, st+1)}' > ${outfile}
