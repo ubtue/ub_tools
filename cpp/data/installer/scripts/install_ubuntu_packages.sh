@@ -21,6 +21,8 @@ apt-get --yes update
 
 # install software-properties-common for apt-add-repository
 apt-get --yes install software-properties-common
+wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
+apt-add-repository --yes --update 'deb https://artifacts.elastic.co/packages/6.x/apt stable main'
 
 # main installation
 apt-get --quiet --yes --allow-unauthenticated install \
@@ -50,6 +52,8 @@ chown -R mysql:mysql /var/run/mysqld
 #---------------------------------- TUEFIND ---------------------------------#
 if [[ $1 == "tuefind" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
+
+    apt-get --quiet --yes install elasticsearch
 
     apt-get --quiet --yes install \
         composer \
