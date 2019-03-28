@@ -130,7 +130,7 @@ inline std::vector<std::string> GetMapValueOrEmptyString(const std::map<std::str
 }
 
 void WriteSynonymEntry(MARC::Record * const record, std::string tag, unsigned indicator2,
-                                    const char subfield_code, const std::string &synonyms) {
+                       const char subfield_code, const std::string &synonyms) {
       if (record->hasTagWithIndicators(tag, '0', indicator2 + '0'))
                     LOG_ERROR("in ProcessRecord: Could not insert field " + tag + " with indicators \'0\' and \'" +
                               std::to_string(indicator2) + "\' for PPN "  + record->getControlNumber() + '!');
@@ -161,11 +161,11 @@ void ProcessRecordGermanSynonyms(
                 // Look up synonyms in all categories
                 for (auto &synonym_map : synonym_maps) {
                     const auto &synonym_tag_and_subfield_codes(GetMapValueOrEmptyString(synonym_map, searchterm));
-                        if (not synonym_tag_and_subfield_codes.empty()) {
-                            synonym_values.push_back(synonym_tag_and_subfield_codes);
-                        }
-                 }
-             }
+                    if (not synonym_tag_and_subfield_codes.empty()) {
+                        synonym_values.push_back(synonym_tag_and_subfield_codes);
+                    }
+                }
+            }
         }
         if (synonym_values.empty())
            continue;
@@ -201,7 +201,7 @@ void ProcessRecordGermanSynonyms(
                  current_length += synonym_it->length() + (synonyms_empty ? 0 : 3);
                  ++synonym_it;
             } else if (synonym_it->length() > MARC_MAX_PAYLOAD_LENGTH) {
-                 // Split the string at the longes possible word boundary and write back
+                 // Split the string at the longest possible word boundary and write back
                  // We only support two bunches at the moment
                  size_t last_admissible_word_offset((*synonym_it).rfind(" ", MARC_MAX_PAYLOAD_LENGTH));
                  if (last_admissible_word_offset == std::string::npos)
