@@ -110,7 +110,7 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(cons
     query_string += "    \"query\": {";
 
     if (filter.empty())
-        query_string += " \"match_all\" {}";
+        query_string += " \"match_all\": {}";
     else {
         query_string += "\"bool\" : { \"filter\": [\n";
         for (const auto &field_and_value : filter)
