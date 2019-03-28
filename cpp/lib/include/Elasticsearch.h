@@ -79,5 +79,6 @@ public:
 private:
     /** \brief A powerful general query.
      */
-    std::shared_ptr<JSON::ObjectNode> query(const std::string &action, const REST::QueryType query_type, const JSON::ObjectNode &data) const;
+    std::shared_ptr<JSON::ObjectNode> query(const std::string &action, const REST::QueryType query_type,
+                                            const JSON::ObjectNode &data, const bool add_type=true) const;
 };
