@@ -131,10 +131,10 @@ inline std::vector<std::string> GetMapValueOrEmptyString(const std::map<std::str
 
 void WriteSynonymEntry(MARC::Record * const record, std::string tag, unsigned indicator2,
                        const char subfield_code, const std::string &synonyms) {
-      if (record->hasTagWithIndicators(tag, '0', indicator2 + '0'))
-                    LOG_ERROR("in ProcessRecord: Could not insert field " + tag + " with indicators \'0\' and \'" +
-                              std::to_string(indicator2) + "\' for PPN "  + record->getControlNumber() + '!');
-      record->insertField(tag, { MARC::Subfield(subfield_code, synonyms) }, '0', indicator2 + '0');
+    if (record->hasTagWithIndicators(tag, '0', indicator2 + '0'))
+        LOG_ERROR("in ProcessRecord: Could not insert field " + tag + " with indicators \'0\' and \'" +
+                  std::to_string(indicator2) + "\' for PPN "  + record->getControlNumber() + '!');
+    record->insertField(tag, { MARC::Subfield(subfield_code, synonyms) }, '0', indicator2 + '0');
 }
 
 
