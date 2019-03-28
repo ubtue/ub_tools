@@ -2043,6 +2043,7 @@ static std::unordered_map<Tag, bool> tag_to_repeatable_map{
     { Tag("001"), false },
     { Tag("003"), false },
     { Tag("005"), false },
+    { Tag("006"), true  },
     { Tag("007"), true  },
     { Tag("008"), false },
     { Tag("010"), false },
