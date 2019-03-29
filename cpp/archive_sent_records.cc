@@ -80,8 +80,7 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
                                   + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(main_title)));
         auto existing_records_with_title(db_connection->getLastResultSet());
         if (not existing_records_with_title.empty()) {
-            DbRow row;
-            while ((row = existing_records_with_title.getNextRow())) {
+            while (auto row = existing_records_with_title.getNextRow()) {
                 const auto existing_hash(row["hash"]), existing_url(row["url"]);
                 if (existing_hash == hash and existing_url == url) {
                     LOG_WARNING("hash+url collision! record title: '" + main_title + "'\n"
