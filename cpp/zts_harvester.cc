@@ -424,10 +424,10 @@ int Main(int argc, char *argv[]) {
         if (not zeder_ids_filter.empty() and zeder_ids_filter.find(zeder_id) == zeder_ids_filter.end())
             continue;
 
-        LOG_INFO("Processing section \"" + section_name + "\".");
+        LOG_INFO("\n\nProcessing section \"" + section_name + "\".");
         ++processed_section_count;
 
-        Zotero::GobalAugmentParams global_augment_params(&augment_maps);
+        Zotero::GlobalAugmentParams global_augment_params(&augment_maps);
 
         Zotero::SiteParams site_params;
         site_params.global_params_          = &global_augment_params;
