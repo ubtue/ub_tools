@@ -209,9 +209,8 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
 
 void AssureMysqlServerIsRunning() {
     std::unordered_set<unsigned> running_pids(ExecUtil::FindActivePrograms("mysqld"));
-    if (running_pids.size() == 0) {
-        ExecUtil::Spawn("mysqld_safe", { "--daemonize" });
-    }
+    if (running_pids.size() == 0)
+        ExecUtil::Spawn(ExecUtil::Which("mysqld_safe"), { "--daemonize" });
 }
 
 
@@ -307,17 +306,15 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
 
     // check systemd configuration
     if (install_systemctl) {
-        std::string apache_unit_name, mysql_unit_name, mysql_docker_command;
+        std::string apache_unit_name, mysql_unit_name;
         switch(os_system_type) {
             case UBUNTU:
                 apache_unit_name = "apache2";
                 mysql_unit_name = "mysql";
-                mysql_docker_command = ExecUtil::Which("mysqld_safe");
                 break;
             case CENTOS:
                 apache_unit_name = "httpd";
                 mysql_unit_name = "mariadb";
-                mysql_docker_command = ExecUtil::Which("mysqld_safe");
 
                 if (not FileUtil::Exists("/etc/my.cnf"))
                     ExecUtil::ExecOrDie(ExecUtil::Which("mysql_install_db"), { "--user=mysql", "--ldata=/var/lib/mysql/", "--basedir=/usr" });
@@ -326,7 +323,7 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
 
         // we need to make sure that at least mysql is running, to be able to create databases
         if (IsDockerEnvironment())
-            ExecUtil::Spawn(mysql_docker_command);
+            AssureMysqlServerIsRunning();
         else if(SystemdUtil::IsAvailable()) {
             SystemdEnableAndRunUnit(apache_unit_name);
             SystemdEnableAndRunUnit(mysql_unit_name);
