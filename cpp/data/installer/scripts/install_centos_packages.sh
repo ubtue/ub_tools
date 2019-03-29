@@ -17,7 +17,7 @@ function InstallIfMissing {
     fi
 }
 
-if [[ $1 != "" && $1 != "tuefind" ]]; then
+if [[ $1 != "" && $1 != "ixtheo" && $1 != "krimdok" ]]; then
     ColorEcho "invalid system_type \"$1\"!"
     exit 1
 fi

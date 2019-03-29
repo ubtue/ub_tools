@@ -9,7 +9,7 @@ function ColorEcho {
     echo -e "\033[1;34m" $1 "\033[0m"
 }
 
-if [[ $1 != "" && $1 != "tuefind" ]]; then
+if [[ $1 != "" && $1 != "ixtheo" && $1 != "krimdok" ]]; then
     ColorEcho "invalid system_type \"$1\"!"
     exit 1
 fi
