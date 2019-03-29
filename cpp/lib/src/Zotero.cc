@@ -1189,10 +1189,20 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     } else if (site_params.extraction_regex_ and not site_params.extraction_regex_->matched(harvest_url)) {
         LOG_DEBUG("Skipping URL (does not match extraction regex): " + harvest_url);
         return record_count_and_previously_downloaded_count;
-    } else if (not harvest_params->force_downloads_ and site_params.delivery_mode_ == BSZUpload::DeliveryMode::LIVE) {
-        auto delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
+    } else if (not harvest_params->force_downloads_) {
+        auto &delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
         if (delivery_tracker.hasAlreadyBeenDelivered(harvest_url)) {
-            LOG_DEBUG("Skipping URL (already delivered to the BSZ production server): " + harvest_url);
+            const auto delivery_mode(site_params.delivery_mode_);
+            switch (delivery_mode) {
+            case BSZUpload::DeliveryMode::TEST:
+            case BSZUpload::DeliveryMode::LIVE:
+                LOG_DEBUG("Skipping URL (already delivered to the BSZ " +
+                          BSZUpload::DELIVERY_MODE_TO_STRING_MAP.at(delivery_mode) + " server): " + harvest_url);
+                break;
+            default:
+                LOG_DEBUG("Skipping URL (delivery mode set to NONE but URL has already been delivered?!): " + harvest_url);
+                break;
+            }
             return record_count_and_previously_downloaded_count;
         }
     }
