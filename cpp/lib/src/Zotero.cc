@@ -1193,7 +1193,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         auto &delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
         if (delivery_tracker.hasAlreadyBeenDelivered(harvest_url)) {
             const auto delivery_mode(site_params.delivery_mode_);
-            switch () {
+            switch (delivery_mode) {
             case BSZUpload::DeliveryMode::TEST:
             case BSZUpload::DeliveryMode::LIVE:
                 LOG_DEBUG("Skipping URL (already delivered to the BSZ " +
