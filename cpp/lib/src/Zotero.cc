@@ -1190,7 +1190,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         LOG_DEBUG("Skipping URL (does not match extraction regex): " + harvest_url);
         return record_count_and_previously_downloaded_count;
     } else if (not harvest_params->force_downloads_ and site_params.delivery_mode_ == BSZUpload::DeliveryMode::LIVE) {
-        auto delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
+        auto &delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
         if (delivery_tracker.hasAlreadyBeenDelivered(harvest_url)) {
             LOG_DEBUG("Skipping URL (already delivered to the BSZ production server): " + harvest_url);
             return record_count_and_previously_downloaded_count;
