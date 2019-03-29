@@ -215,6 +215,14 @@ void AssureMysqlServerIsRunning() {
 }
 
 
+void MySQLImportFileIfExists(const std::string &sql_database, const std::string &sql_file,
+                             const std::string &root_username, const std::string &root_password)
+{
+    if (FileUtil::Exists(sql_file))
+        DbConnection::MySQLImportFile(sql_database, sql_file, root_username, root_password);
+}
+
+
 void CreateUbToolsDatabase() {
     AssureMysqlServerIsRunning();
 
@@ -257,12 +265,13 @@ void CreateVuFindDatabase(VuFindSystemType vufind_system_type) {
         DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
         DbConnection::MySQLImportFile(sql_database, VUFIND_DIRECTORY + "/module/VuFind/sql/mysql.sql", root_username, root_password);
+        MySQLImportFileIfExists(sql_database, VUFIND_DIRECTORY + "/module/TueFind/sql/mysql.sql", root_username, root_password);
         switch(vufind_system_type) {
             case IXTHEO:
-                DbConnection::MySQLImportFile(sql_database, VUFIND_DIRECTORY + "/module/IxTheo/sql/mysql.sql", root_username, root_password);
+                MySQLImportFileIfExists(sql_database, VUFIND_DIRECTORY + "/module/IxTheo/sql/mysql.sql", root_username, root_password);
                 break;
             case KRIMDOK:
-                DbConnection::MySQLImportFile(sql_database, VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", root_username, root_password);
+                MySQLImportFileIfExists(sql_database, VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", root_username, root_password);
                 break;
         }
     }
