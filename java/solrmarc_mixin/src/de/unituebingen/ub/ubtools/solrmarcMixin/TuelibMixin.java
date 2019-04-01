@@ -46,11 +46,9 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
     private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
 
-    private final static String ISIL_BSZ = "DE-576";
     private final static String ISIL_GND = "DE-588";
     private final static String ISIL_K10PLUS = "DE-627";
 
-    private final static String ISIL_PREFIX_BSZ = "(" + ISIL_BSZ + ")";
     private final static String ISIL_PREFIX_GND = "(" + ISIL_GND + ")";
     private final static String ISIL_PREFIX_K10PLUS = "(" + ISIL_K10PLUS + ")";
 
@@ -64,7 +62,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
     private final static Pattern UNICODE_QUOTATION_MARKS_PATTERN = Pattern.compile("[«‹»›„‚ʺ“‟‘‛”’ʻ\"❛❜❟❝❞❮❯⹂〝〞〟＂¿¡…]");
-    private final static Pattern SUPERIOR_PPN_PATTERN = Pattern.compile("\\s*." + ISIL_BSZ + ".(.*)");
+    private final static Pattern SUPERIOR_PPN_PATTERN = Pattern.compile("\\s*." + ISIL_K10PLUS + ".(.*)");
     private final static Pattern NON_SUPERIOR_SUBFIELD_I_CONTENT = Pattern.compile("\\s*Erscheint auch als.*|\\s*Elektronische Reproduktion.*|\\s*Äquivalent.*|\\s*Reproduktion von.*|\\s*Reproduziert als*");
 
     // TODO: This should be in a translation mapping file
