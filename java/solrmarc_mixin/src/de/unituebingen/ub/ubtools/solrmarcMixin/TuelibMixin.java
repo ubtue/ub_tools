@@ -2801,7 +2801,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             final DataField dataField = (DataField) variableField;
             final Subfield subfield_a = dataField.getSubfield('a');
             if (subfield_a != null && subfield_a.getData().startsWith("(DE-576)"))
-                subfield_a.getData().substring(8);
+                return subfield_a.getData().substring(8);
         }
 
         return null;
