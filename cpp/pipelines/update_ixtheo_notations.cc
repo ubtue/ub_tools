@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015,2017,2018 Library of the University of Tübingen
+    Copyright (C) 2015,2017-2019 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -25,6 +25,7 @@
 #include <cctype>
 #include <cstdlib>
 #include "MARC.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -61,10 +62,10 @@ void LoadCodeToDescriptionMap(File * const code_to_description_map_file,
 }
 
 
-bool LocalBlockIsFromUbTueTheologians(const MARC::Record::const_iterator &local_block_start, const MARC::Record &record) {
+bool LocalBlockIsFromIxTheoTheologians(const MARC::Record::const_iterator &local_block_start, const MARC::Record &record) {
     for (const auto &_852_local_field : record.findFieldsInLocalBlock("852", local_block_start, /*indicator1*/' ', /*indicator2*/' ')) {
         const MARC::Subfields subfields(_852_local_field.getSubfields());
-        if (subfields.hasSubfieldWithValue('a', "Tü 135"))
+        if (subfields.hasSubfieldWithValue('a', "Tü 135") or subfields.hasSubfieldWithValue('a', "Tü 135/1"))
             return true;
     }
 
@@ -74,22 +75,15 @@ bool LocalBlockIsFromUbTueTheologians(const MARC::Record::const_iterator &local_
 
 unsigned ExtractIxTheoNotations(const MARC::Record::const_iterator &local_block_start, const MARC::Record &record,
                                 const std::unordered_map<std::string, std::string> &code_to_description_map,
-                                std::string * const ixtheo_notations_list)
+                                std::set<std::string> * const ixtheo_notations_set)
 {
-    size_t found_count(0);
     for (const auto &_936_local_field : record.findFieldsInLocalBlock("936", local_block_start, /*indicator1*/'l', /*indicator2*/'n')) {
         const MARC::Subfields subfields(_936_local_field.getSubfields());
         const std::string ixtheo_notation_candidate(subfields.getFirstSubfieldWithCode('a'));
-        if (code_to_description_map.find(ixtheo_notation_candidate) != code_to_description_map.end()) {
-            ++found_count;
-            if (ixtheo_notations_list->empty())
-                *ixtheo_notations_list = ixtheo_notation_candidate;
-            else
-                *ixtheo_notations_list += ":" + ixtheo_notation_candidate;
-        }
+        if (code_to_description_map.find(ixtheo_notation_candidate) != code_to_description_map.end())
+            ixtheo_notations_set->emplace(ixtheo_notation_candidate);
     }
-
-    return found_count;
+    return ixtheo_notations_set->size();
 }
 
 
@@ -100,21 +94,21 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
     while (MARC::Record record = marc_reader->read()) {
         ++count;
 
+        std::set<std::string> ixtheo_notations_set;
         std::string ixtheo_notations_list; // Colon-separated list of ixTheo notations.
         for (const auto &local_block_start_iter : record.findStartOfAllLocalDataBlocks()) {
-            if (not LocalBlockIsFromUbTueTheologians(local_block_start_iter, record))
+            if (not LocalBlockIsFromIxTheoTheologians(local_block_start_iter, record))
                 continue;
 
-            const unsigned notation_count(ExtractIxTheoNotations(local_block_start_iter, record, code_to_description_map,
-                                                                 &ixtheo_notations_list));
-            if (notation_count > 0) {
-                ++records_with_ixtheo_notations;
-                ixtheo_notation_count += notation_count;
-            }
+            ExtractIxTheoNotations(local_block_start_iter, record, code_to_description_map,
+                                   &ixtheo_notations_set);
         }
 
-        if (not ixtheo_notations_list.empty()) // Insert a new 652 field w/ a $a subfield.
+        if (not ixtheo_notations_set.empty()) { // Insert a new 652 field w/ a $a subfield.
+            ixtheo_notation_count += StringUtil::Join(ixtheo_notations_set, ':', &ixtheo_notations_list);
+            ++records_with_ixtheo_notations;
             record.insertField("652", { { 'a', ixtheo_notations_list } });
+        }
         marc_writer->write(record);
     }
 

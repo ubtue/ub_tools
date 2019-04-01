@@ -49,7 +49,7 @@ Elasticsearch::Elasticsearch(const std::string &index, const std::string &type):
 
 
 size_t Elasticsearch::size() const {
-    return JSON::LookupInteger("/_all/primaries/docs/count", query("_stats", REST::GET, JSON::ObjectNode()));
+    return JSON::LookupInteger("/indices/" + index_ + "/total/count", query("_stats", REST::GET, JSON::ObjectNode(), /* add_type */ false));
 }
 
 
@@ -110,7 +110,7 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(cons
     query_string += "    \"query\": {";
 
     if (filter.empty())
-        query_string += " \"match_all\" {}";
+        query_string += " \"match_all\": {}";
     else {
         query_string += "\"bool\" : { \"filter\": [\n";
         for (const auto &field_and_value : filter)
@@ -213,14 +213,19 @@ bool Elasticsearch::fieldWithValueExists(const std::string &field, const std::st
 
 
 std::shared_ptr<JSON::ObjectNode> Elasticsearch::query(const std::string &action, const REST::QueryType query_type,
-                                                       const JSON::ObjectNode &data) const
+                                                       const JSON::ObjectNode &data, const bool add_type) const
 {
     Downloader::Params downloader_params;
     downloader_params.authentication_username_ = username_;
     downloader_params.authentication_password_ = password_;
     downloader_params.ignore_ssl_certificates_ = ignore_ssl_certificates_;
     downloader_params.additional_headers_.push_back("Content-Type: application/json");
-    const Url url(host_ + "/" + index_ + "/" + type_ + (action.empty() ? "" : "/" + action));
+    Url url;
+    if (add_type)
+        url = Url(host_ + "/" + index_ + "/" + type_ + (action.empty() ? "" : "/" + action));
+    else
+        url = Url(host_ + "/" + index_ + (action.empty() ? "" : "/" + action));
+    
     std::shared_ptr<JSON::JSONNode> result(REST::QueryJSON(url, query_type, &data, downloader_params));
     std::shared_ptr<JSON::ObjectNode> result_object(JSON::JSONNode::CastToObjectNodeOrDie("Elasticsearch result", result));
     if (result_object->hasNode("error"))

@@ -707,8 +707,9 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     // remove any fields that match removal patterns
     for (const auto &filter : site_params_->field_removal_filters_) {
         auto tag_and_subfield_code(filter.first);
-        if (record->fieldOrSubfieldMatched(filter.first, filter.second.get())) {
-            record->erase(tag_and_subfield_code.erase(MARC::Record::TAG_LENGTH));  // remove the entire field
+        const auto matched_fields(record->getMatchedFields(filter.first, filter.second.get()));
+        for (const auto &matched_field : matched_fields) {
+            record->erase(matched_field);
             LOG_DEBUG("erased field '" + tag_and_subfield_code + "' due to removal filter '" + filter.second->getPattern() + "'");
         }
     }
@@ -853,13 +854,14 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
     for (size_t i(0); i < creators_array->size(); ++i) {
         const std::shared_ptr<JSON::ObjectNode> creator_object(creators_array->getObjectNode(i));
 
-        const std::shared_ptr<const JSON::JSONNode> last_name_node(creator_object->getNode("lastName"));
-        if (last_name_node != nullptr) {
-            std::string name(creator_object->getStringValue("lastName"));
-
-            const std::shared_ptr<const JSON::JSONNode> first_name_node(creator_object->getNode("firstName"));
-            if (first_name_node != nullptr)
-                name += ", " + creator_object->getStringValue("firstName");
+        auto first_name_node(creator_object->getNode("firstName"));
+        auto last_name_node(creator_object->getNode("lastName"));
+        auto first_name(creator_object->getOptionalStringValue("firstName"));
+        auto last_name(creator_object->getOptionalStringValue("lastName"));
+        if (not last_name.empty()) {
+            std::string name(last_name);
+            if (not first_name.empty())
+                name += ", " + first_name;
 
             const std::string PPN(BSZTransform::DownloadAuthorPPN(name, site_params.group_params_->author_ppn_lookup_url_));
             if (not PPN.empty()) {
@@ -873,11 +875,22 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
                 creator_object->insert("gnd_number", std::make_shared<JSON::StringNode>(gnd_number));
             }
         }
+
+        if (not first_name.empty() and not last_name.empty()) {
+            if (BSZTransform::StripCatholicOrdersFromAuthorName(&first_name, &last_name)) {
+                if (first_name_node != nullptr)
+                    JSON::JSONNode::CastToStringNodeOrDie("firstName", first_name_node)->setValue(first_name);
+                if (last_name_node != nullptr)
+                    JSON::JSONNode::CastToStringNodeOrDie("lastName", last_name_node)->setValue(last_name);
+            }
+        }
     }
 }
 
 
 void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::ObjectNode> &object_node, const SiteParams &site_params) {
+    static std::unique_ptr<RegexMatcher> same_page_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+)-(\\d+)$"));
+
     LOG_DEBUG("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
     std::vector<std::string> comments;
@@ -919,6 +932,10 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
             std::shared_ptr<JSON::StringNode> string_node(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second));
             if (string_node->getValue() == "0")
                 string_node->setValue("");
+        } else if (key_and_node.first == "pages") {
+            auto pages_node(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second));
+            if (same_page_range_matcher->matched(pages_node->getValue()) and (*same_page_range_matcher)[1] == (*same_page_range_matcher)[2])
+                pages_node->setValue((*same_page_range_matcher)[1]);
         }
     }
 
@@ -1172,10 +1189,20 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     } else if (site_params.extraction_regex_ and not site_params.extraction_regex_->matched(harvest_url)) {
         LOG_DEBUG("Skipping URL (does not match extraction regex): " + harvest_url);
         return record_count_and_previously_downloaded_count;
-    } else if (not harvest_params->force_downloads_ and site_params.delivery_mode_ == BSZUpload::DeliveryMode::LIVE) {
-        auto delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
+    } else if (not harvest_params->force_downloads_) {
+        auto &delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
         if (delivery_tracker.hasAlreadyBeenDelivered(harvest_url)) {
-            LOG_DEBUG("Skipping URL (already delivered to the BSZ production server): " + harvest_url);
+            const auto delivery_mode(site_params.delivery_mode_);
+            switch (delivery_mode) {
+            case BSZUpload::DeliveryMode::TEST:
+            case BSZUpload::DeliveryMode::LIVE:
+                LOG_DEBUG("Skipping URL (already delivered to the BSZ " +
+                          BSZUpload::DELIVERY_MODE_TO_STRING_MAP.at(delivery_mode) + " server): " + harvest_url);
+                break;
+            default:
+                LOG_DEBUG("Skipping URL (delivery mode set to NONE but URL has already been delivered?!): " + harvest_url);
+                break;
+            }
             return record_count_and_previously_downloaded_count;
         }
     }

@@ -207,7 +207,24 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
 }
 
 
+void AssureMysqlServerIsRunning() {
+    std::unordered_set<unsigned> running_pids(ExecUtil::FindActivePrograms("mysqld"));
+    if (running_pids.size() == 0)
+        ExecUtil::Spawn(ExecUtil::Which("mysqld_safe"), { "--daemonize" });
+}
+
+
+void MySQLImportFileIfExists(const std::string &sql_database, const std::string &sql_file,
+                             const std::string &root_username, const std::string &root_password)
+{
+    if (FileUtil::Exists(sql_file))
+        DbConnection::MySQLImportFile(sql_database, sql_file, root_username, root_password);
+}
+
+
 void CreateUbToolsDatabase() {
+    AssureMysqlServerIsRunning();
+
     const std::string root_username("root");
     const std::string root_password("");
 
@@ -232,6 +249,8 @@ void CreateUbToolsDatabase() {
 
 
 void CreateVuFindDatabase(VuFindSystemType vufind_system_type) {
+    AssureMysqlServerIsRunning();
+
     const std::string root_username("root");
     const std::string root_password("");
 
@@ -245,12 +264,13 @@ void CreateVuFindDatabase(VuFindSystemType vufind_system_type) {
         DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
         DbConnection::MySQLImportFile(sql_database, VUFIND_DIRECTORY + "/module/VuFind/sql/mysql.sql", root_username, root_password);
+        MySQLImportFileIfExists(sql_database, VUFIND_DIRECTORY + "/module/TueFind/sql/mysql.sql", root_username, root_password);
         switch(vufind_system_type) {
             case IXTHEO:
-                DbConnection::MySQLImportFile(sql_database, VUFIND_DIRECTORY + "/module/IxTheo/sql/mysql.sql", root_username, root_password);
+                MySQLImportFileIfExists(sql_database, VUFIND_DIRECTORY + "/module/IxTheo/sql/mysql.sql", root_username, root_password);
                 break;
             case KRIMDOK:
-                DbConnection::MySQLImportFile(sql_database, VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", root_username, root_password);
+                MySQLImportFileIfExists(sql_database, VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", root_username, root_password);
                 break;
         }
     }
@@ -269,7 +289,9 @@ void SystemdEnableAndRunUnit(const std::string unit) {
 }
 
 
-void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tools_only, bool install_systemctl) {
+void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::string vufind_system_type_string,
+                                 bool ub_tools_only, bool install_systemctl)
+{
     // install / update dependencies
     std::string script;
     if (os_system_type == UBUNTU)
@@ -280,21 +302,19 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tool
     if (ub_tools_only)
         ExecUtil::ExecOrDie(script);
     else
-        ExecUtil::ExecOrDie(script, { "tuefind" });
+        ExecUtil::ExecOrDie(script, { vufind_system_type_string });
 
     // check systemd configuration
     if (install_systemctl) {
-        std::string apache_unit_name, mysql_unit_name, mysql_docker_command;
+        std::string apache_unit_name, mysql_unit_name;
         switch(os_system_type) {
             case UBUNTU:
                 apache_unit_name = "apache2";
                 mysql_unit_name = "mysql";
-                mysql_docker_command = ExecUtil::Which("mysqld_safe");
                 break;
             case CENTOS:
                 apache_unit_name = "httpd";
                 mysql_unit_name = "mariadb";
-                mysql_docker_command = ExecUtil::Which("mysqld_safe");
 
                 if (not FileUtil::Exists("/etc/my.cnf"))
                     ExecUtil::ExecOrDie(ExecUtil::Which("mysql_install_db"), { "--user=mysql", "--ldata=/var/lib/mysql/", "--basedir=/usr" });
@@ -303,7 +323,7 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tool
 
         // we need to make sure that at least mysql is running, to be able to create databases
         if (IsDockerEnvironment())
-            ExecUtil::Spawn(mysql_docker_command);
+            AssureMysqlServerIsRunning();
         else if(SystemdUtil::IsAvailable()) {
             SystemdEnableAndRunUnit(apache_unit_name);
             SystemdEnableAndRunUnit(mysql_unit_name);
@@ -631,6 +651,7 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
 
 int Main(int argc, char **argv) {
     bool ub_tools_only(false);
+    std::string vufind_system_type_string;
     VuFindSystemType vufind_system_type;
     bool omit_cronjobs(false);
     bool omit_systemctl(false);
@@ -643,18 +664,19 @@ int Main(int argc, char **argv) {
         if (argc > 2)
             Usage();
     } else {
-        std::string type(argv[1]);
-        if (::strcasecmp(type.c_str(), "auto") == 0) {
-            type = VuFind::GetTueFindFlavour();
-            if (not type.empty())
-                std::cout << "using auto-detected tuefind installation type \"" + type + "\"\n";
+        vufind_system_type_string = argv[1];
+        if (::strcasecmp(vufind_system_type_string.c_str(), "auto") == 0) {
+            vufind_system_type_string = VuFind::GetTueFindFlavour();
+            if (not vufind_system_type_string.empty())
+                std::cout << "using auto-detected tuefind installation type \""
+                             + vufind_system_type_string + "\"\n";
             else
                 Error("could not auto-detect tuefind installation type");
         }
 
-        if (::strcasecmp(type.c_str(), "krimdok") == 0)
+        if (::strcasecmp(vufind_system_type_string.c_str(), "krimdok") == 0)
             vufind_system_type = KRIMDOK;
-        else if (::strcasecmp(type.c_str(), "ixtheo") == 0)
+        else if (::strcasecmp(vufind_system_type_string.c_str(), "ixtheo") == 0)
             vufind_system_type = IXTHEO;
         else
             Usage();
@@ -680,7 +702,8 @@ int Main(int argc, char **argv) {
 
     // Install dependencies before vufind
     // correct PHP version for composer dependancies
-    InstallSoftwareDependencies(os_system_type, ub_tools_only, not omit_systemctl);
+    InstallSoftwareDependencies(os_system_type, vufind_system_type_string,
+                                ub_tools_only, not omit_systemctl);
 
     if (not ub_tools_only) {
         MountDeptDriveOrDie(vufind_system_type);

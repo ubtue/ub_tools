@@ -78,9 +78,15 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
 
         db_connection->queryOrDie("SELECT * FROM delivered_marc_records WHERE main_title="
                                   + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(main_title)));
-        if (not db_connection->getLastResultSet().empty()) {
-            LOG_INFO("record with title '" + main_title + "' already exists in the database");
-            continue;
+        auto existing_records_with_title(db_connection->getLastResultSet());
+        if (not existing_records_with_title.empty()) {
+            while (auto row = existing_records_with_title.getNextRow()) {
+                const auto existing_hash(row["hash"]), existing_url(row["url"]);
+                if (existing_hash == hash and existing_url == url) {
+                    LOG_WARNING("hash+url collision! record title: '" + main_title + "'\n"
+                                "record hash: '" + existing_hash + "'\n record url: '" + existing_url + "'");
+                }
+            }
         }
 
         ++record_count;

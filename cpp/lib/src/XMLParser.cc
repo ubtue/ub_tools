@@ -160,7 +160,6 @@ void XMLParser::reset(const std::string &xml_filename_or_string, const Type type
     type_ = type;
     options_ = options;
     open_elements_ = 0;
-    delete locator_;
     locator_ = nullptr;
     prolog_parsing_done_ = false;
     buffer_.clear();
