@@ -558,7 +558,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     for (auto creator(node_parameters.creators_.rbegin()); creator != node_parameters.creators_.rend(); ++creator) {
         MARC::Subfields subfields;
         if (not creator->ppn_.empty())
-            subfields.appendSubfield('0', "(DE-576)" + creator->ppn_);
+            subfields.appendSubfield('0', "(DE-627)" + creator->ppn_);
         if (not creator->gnd_number_.empty())
             subfields.appendSubfield('0', "(DE-588)" + creator->gnd_number_);
         if (not creator->type_.empty())
@@ -650,7 +650,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     if (not issn.empty())
         _773_subfields.appendSubfield('x', issn);
     if (not superior_ppn.empty())
-        _773_subfields.appendSubfield('w', "(DE-576)" + superior_ppn);
+        _773_subfields.appendSubfield('w', "(DE-627)" + superior_ppn);
 
     // 773g, example: "52(2018), 1, S. 1-40" => <volume>(<year>), <issue>, S. <pages>
     const bool _773_subfields_iaxw_present(not _773_subfields.empty());

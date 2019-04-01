@@ -1,7 +1,7 @@
 /** \brief Tool for cross linking articles that are likely to refer to the same work.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -267,7 +267,7 @@ bool AugmentRecord(MARC::Record * const record, const std::set<std::string> &dup
             const bool is_electronic(ppn_and_record_info->second.is_electronic_);
             record->insertField("776",
                                 { { 'i', "Erscheint auch als" }, { 'n', (is_electronic ? "elektronische Ausgabe" : "Druckausgabe") },
-                                  { 'w', "(DE-576)" + cross_link_ppn } });
+                                  { 'w', "(DE-627)" + cross_link_ppn } });
             added_at_least_one_new_cross_link = true;
         }
     }

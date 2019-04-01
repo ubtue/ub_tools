@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2016-2018, Library of the University of Tübingen
+    Copyright (C) 2016-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -81,7 +81,7 @@ bool PatchUpOne773a(MARC::Record * const record, MARC::Writer * const marc_write
     for (auto &_773_field : record->getTagRange("773")) {
         if ((not _773_field.hasSubfield('a') and not _773_field.hasSubfield('t')) and _773_field.hasSubfield('w')) {
             const std::string w_subfield(_773_field.getFirstSubfieldWithCode('w'));
-            if (StringUtil::StartsWith(w_subfield, "(DE-576)")) {
+            if (StringUtil::StartsWith(w_subfield, "(DE-627)")) {
                 const std::string parent_control_number(w_subfield.substr(8));
                 const auto control_number_and_title(control_numbers_to_titles_map.find(parent_control_number));
                 if (control_number_and_title != control_numbers_to_titles_map.end()) {

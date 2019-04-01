@@ -703,8 +703,8 @@ std::string  Record::getSuperiorTitle() const {
 std::string Record::getSuperiorControlNumber() const {
     for (const auto &field : getTagRange("773")) {
         const auto w_subfield(field.getFirstSubfieldWithCode('w'));
-        if (likely(StringUtil::StartsWith(w_subfield, "(DE-576)")))
-            return w_subfield.substr(__builtin_strlen("(DE-576)"));
+        if (likely(StringUtil::StartsWith(w_subfield, "(DE-627)")))
+            return w_subfield.substr(__builtin_strlen("(DE-627)"));
     }
 
     return "";
@@ -2450,8 +2450,8 @@ bool IsCrossLinkField (const MARC::Record::Field &field, std::string * const par
 
     const MARC::Subfields subfields(field.getSubfields());
     for (const auto &w_subfield : subfields.extractSubfields('w')) {
-        if (StringUtil::StartsWith(w_subfield, "(DE-576)")) {
-            *partner_control_number = w_subfield.substr(__builtin_strlen("(DE-576)"));
+        if (StringUtil::StartsWith(w_subfield, "(DE-627)")) {
+            *partner_control_number = w_subfield.substr(__builtin_strlen("(DE-627)"));
             return true;
         }
     }
