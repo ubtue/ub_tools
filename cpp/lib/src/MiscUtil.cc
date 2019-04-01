@@ -602,6 +602,25 @@ bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start
         return true;
     }
 
+    static RegexMatcher *matcher4(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+),(\\d+)-(\\d+)$"));
+    if (matcher4->matched(ranges)) {
+        const unsigned part1(StringUtil::ToUnsigned((*matcher4)[1]));
+        if (unlikely(part1 == 0 or part1 >= 10000))
+            return false;
+
+        const unsigned part2(StringUtil::ToUnsigned((*matcher4)[2]));
+        if (unlikely(part2 == 0 or part2 >= 100))
+            return false;
+
+        const unsigned part3(StringUtil::ToUnsigned((*matcher4)[3]));
+        if (unlikely(part3 == 0 or part3 >= 100))
+            return false;
+
+        *range_start = part1 * 10000 + part2 * 100;
+        *range_end = part1 * 10000 + part3 * 100;
+        return true;
+    }
+
     return false;
 }
 

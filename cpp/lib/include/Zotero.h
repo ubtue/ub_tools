@@ -185,17 +185,17 @@ void LoadGroup(const IniFile::Section &section, std::unordered_map<std::string, 
 
 
 /** \brief Parameters that apply to all sites equally. */
-struct GobalAugmentParams {
+struct GlobalAugmentParams {
     BSZTransform::AugmentMaps * const maps_;
 public:
-    explicit GobalAugmentParams(BSZTransform::AugmentMaps * const maps): maps_(maps) { }
+    explicit GlobalAugmentParams(BSZTransform::AugmentMaps * const maps): maps_(maps) { }
 };
 
 
 /** \brief Parameters that apply to single sites only. */
 struct SiteParams {
     // So that we don't have to pass through two arguments everywhere.
-    GobalAugmentParams *global_params_;
+    GlobalAugmentParams *global_params_;
     GroupParams *group_params_;
 
     std::string zeder_id_;

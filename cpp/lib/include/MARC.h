@@ -772,6 +772,10 @@ public:
      */
     bool fieldOrSubfieldMatched(const std::string &field_or_field_and_subfield_code, RegexMatcher * const regex_matcher) const;
 
+    /** \return A vector of iterators to fields that match the regular expression.
+     */
+    std::vector<iterator> getMatchedFields(const std::string &field_or_field_and_subfield_code, RegexMatcher * const regex_matcher);
+
     static std::string BibliographicLevelToString(const BibliographicLevel bibliographic_level);
 };
 
@@ -1036,7 +1040,8 @@ bool PossiblyAReviewArticle(const Record &record);
 
 
 /** \return True if field "field" contains a reference to another MARC record that is not a link to a superior work and false, if not. */
-bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const partner_control_number);
+extern const std::vector<Tag> CROSS_LINK_FIELDS;
+bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const partner_control_number, const std::vector<MARC::Tag> &cross_link_fields = CROSS_LINK_FIELDS);
 
 
 /** \return partner PPN's or the empty set if none were found. */

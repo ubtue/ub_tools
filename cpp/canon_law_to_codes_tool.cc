@@ -34,7 +34,7 @@ namespace {
 
 int Main(int argc, char **argv) {
     if (argc != 2)
-        ::Usage("canon_law_reference_candidate");;
+        ::Usage("canon_law_reference_candidate");
 
     const std::string canon_law_reference_candidate(StringUtil::TrimWhite(argv[1]));
     std::string range;
@@ -51,12 +51,6 @@ int Main(int argc, char **argv) {
         range = StringUtil::TrimWhite(canon_law_reference_candidate.substr(__builtin_strlen("CIC1983")));
     } else
         LOG_ERROR("can't determine codes!");
-
-    if (not range.empty()) {
-        if (range[0] != 'p')
-            LOG_ERROR("invalid canon law reference!");
-        range = range.substr(1);
-    }
 
     unsigned range_start, range_end;
     if (range.empty()) {

@@ -331,8 +331,11 @@ static void ExtractNamespaces(XMLParser &parser, std::string * const rss_namespa
                               std::string * const dc_namespace, std::string * const prism_namespace)
 {
     XMLParser::XMLPart part;
-    if (not parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "rdf:RDF", &part))
-        throw std::runtime_error("in ExtractRSSNamespace(SyndicationFormat.cc): missing rdf:RDF opening tag!");
+    if (not parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "rdf:RDF", &part)) {
+        parser.rewind();
+        if (not parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "RDF", &part))
+            throw std::runtime_error("in ExtractRSSNamespace(SyndicationFormat.cc): missing rdf:RDF opening tag!");
+    }
 
     for (const auto &key_and_value : part.attributes_) {
         if (key_and_value.second == "http://purl.org/rss/1.0/")

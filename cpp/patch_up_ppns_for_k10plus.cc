@@ -53,7 +53,7 @@ void UpdateKyotokabinetDB(const std::string &db_path, const std::unordered_map<s
         std::string value;
         if (db.get(old_and_new.first, &value)) {
             if (unlikely(value != old_and_new.second))
-                LOG_ERROR("entry for key \"" + old_and_new.first + "\" in database \"" + value + "\" is diferent from new new PPN \""
+                LOG_ERROR("entry for key \"" + old_and_new.first + "\" in database \"" + value + "\" is different from new new PPN \""
                           + old_and_new.second + "\"!");
         } else {
             if (unlikely(not db.add(old_and_new.first, old_and_new.second)))

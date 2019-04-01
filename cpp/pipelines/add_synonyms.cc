@@ -129,6 +129,14 @@ inline std::vector<std::string> GetMapValueOrEmptyString(const std::map<std::str
     return (value != map.cend()) ? value->second : std::vector<std::string>();
 }
 
+void WriteSynonymEntry(MARC::Record * const record, std::string tag, unsigned indicator2,
+                       const char subfield_code, const std::string &synonyms) {
+    if (record->hasTagWithIndicators(tag, '0', indicator2 + '0'))
+        LOG_ERROR("in ProcessRecord: Could not insert field " + tag + " with indicators \'0\' and \'" +
+                  std::to_string(indicator2) + "\' for PPN "  + record->getControlNumber() + '!');
+    record->insertField(tag, { MARC::Subfield(subfield_code, synonyms) }, '0', indicator2 + '0');
+}
+
 
 void ProcessRecordGermanSynonyms(
     MARC::Record * const record, const std::vector<std::map<std::string, std::string>> &synonym_maps,
@@ -153,10 +161,11 @@ void ProcessRecordGermanSynonyms(
                 // Look up synonyms in all categories
                 for (auto &synonym_map : synonym_maps) {
                     const auto &synonym_tag_and_subfield_codes(GetMapValueOrEmptyString(synonym_map, searchterm));
-                        if (not synonym_tag_and_subfield_codes.empty())
-                            synonym_values.push_back(synonym_tag_and_subfield_codes);
-                 }
-             }
+                    if (not synonym_tag_and_subfield_codes.empty()) {
+                        synonym_values.push_back(synonym_tag_and_subfield_codes);
+                    }
+                }
+            }
         }
         if (synonym_values.empty())
            continue;
@@ -181,20 +190,36 @@ void ProcessRecordGermanSynonyms(
             if (indicator2 > 9)
                 LOG_ERROR("Currently cannot handle synonyms with total length greater than "
                           + std::to_string(9 * (MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - FIELD_MIN_NON_DATA_SIZE))
-                          + '\n');
+                          + '\n' + "for PPN " + record->getControlNumber());
 
+            const size_t MARC_MAX_PAYLOAD_LENGTH( MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - FIELD_MIN_NON_DATA_SIZE);
             if (current_length + synonym_it->length()
-                < MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - (FIELD_MIN_NON_DATA_SIZE + 3 /* consider " , " */))
+                < MARC_MAX_PAYLOAD_LENGTH - 3 /* consider " , " */)
             {
                  bool synonyms_empty(synonyms.empty());
                  synonyms += synonyms_empty ? *synonym_it : " , " + *synonym_it;
                  current_length += synonym_it->length() + (synonyms_empty ? 0 : 3);
                  ++synonym_it;
+            } else if (synonym_it->length() > MARC_MAX_PAYLOAD_LENGTH) {
+                 // Split the string at the longest possible word boundary and write back
+                 // We only support two bunches at the moment
+                 size_t last_admissible_word_offset((*synonym_it).rfind(" ", MARC_MAX_PAYLOAD_LENGTH));
+                 if (last_admissible_word_offset == std::string::npos)
+                     LOG_ERROR("Could not properly split oversized synonym entry");
+                 const std::string first_part((*synonym_it).substr(0, last_admissible_word_offset));
+                 const std::string second_part((*synonym_it).substr(last_admissible_word_offset));
+                 if (second_part.length() > MARC_MAX_PAYLOAD_LENGTH)
+                     LOG_ERROR("Could not properly split synonym list");
+                 synonyms.clear();
+                 WriteSynonymEntry(record, tag, indicator2,  subfield_spec[0], first_part);
+                 ++indicator2;
+                 WriteSynonymEntry(record, tag, indicator2,  subfield_spec[0], second_part);
+                 ++indicator2;
+                 *modified_record = true;
+                 ++synonym_it;
+                 continue;
             } else {
-                if (record->hasTagWithIndicators(tag, '0', indicator2 + '0'))
-                    LOG_ERROR("in ProcessRecord: Could not insert field " + tag + " with indicators \'0\' and \'" +
-                              std::to_string(indicator2) + "\' for PPN "  + record->getControlNumber() + '!');
-                record->insertField(tag, { MARC::Subfield(subfield_spec[0], synonyms) }, '0', indicator2 + '0');
+                WriteSynonymEntry(record, tag, indicator2, subfield_spec[0], synonyms);
                 synonyms.clear();
                 current_length = 0;
                 ++indicator2;
