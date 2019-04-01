@@ -57,9 +57,9 @@ std::string ExtractUplinkPPN(const MARC::Record::Field &field) {
     if (subfield_w == subfields.end())
         return "";
 
-    if (not StringUtil::StartsWith(subfield_w->value_, "(DE-576)"))
+    if (not StringUtil::StartsWith(subfield_w->value_, "(DE-627)"))
         return "";
-    return subfield_w->value_.substr(__builtin_strlen("(DE-576)"));
+    return subfield_w->value_.substr(__builtin_strlen("(DE-627)"));
 }
 
 
@@ -255,7 +255,7 @@ unsigned PatchUplinks(MARC::Record * const record, const std::unordered_map<std:
                 continue;
 
             // If we made it here, we need to replace the uplink PPN:
-            field->insertOrReplaceSubfield('w', "(DE-576)" + ppn_and_ppn->second);
+            field->insertOrReplaceSubfield('w', "(DE-627)" + ppn_and_ppn->second);
             uplink_tags_done.emplace(field_tag);
             ++patched_uplinks;
         }

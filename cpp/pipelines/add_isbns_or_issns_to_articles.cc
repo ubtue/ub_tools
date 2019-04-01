@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2015-2018, Library of the University of Tübingen
+    Copyright (C) 2015-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -144,7 +144,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(
         }
 
         std::string host_id(subfields.getFirstSubfieldWithCode('w'));
-        if (StringUtil::StartsWith(host_id, "(DE-576)"))
+        if (StringUtil::StartsWith(host_id, "(DE-627)"))
             host_id = host_id.substr(8);
         const auto parent_isbn_or_issn_iter(parent_id_to_isbn_issn_and_open_access_status_map.find(host_id));
         if (parent_isbn_or_issn_iter == parent_id_to_isbn_issn_and_open_access_status_map.end()) {

@@ -6,7 +6,7 @@
  */
 
 /*
-    Copyright (C) 2016-2018, Library of the University of Tübingen
+    Copyright (C) 2016-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -66,9 +66,9 @@ void LoadSuperiorPPNs(MARC::Reader * const marc_reader, std::unordered_set<std::
             for (const auto &field : record.getTagRange(tag)) {
                 const MARC::Subfields subfields(field.getSubfields());
                 const std::string subfield_w_contents(subfields.getFirstSubfieldWithCode('w'));
-                if (StringUtil::StartsWith(subfield_w_contents, "(DE-576)")) {
+                if (StringUtil::StartsWith(subfield_w_contents, "(DE-627)")) {
                     if (not HasNonSuperior776SubfieldI(field))
-                        superior_ppns->emplace(subfield_w_contents.substr(__builtin_strlen("(DE-576)")));
+                        superior_ppns->emplace(subfield_w_contents.substr(__builtin_strlen("(DE-627)")));
                 }
             }
         }
