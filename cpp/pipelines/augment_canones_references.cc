@@ -116,8 +116,8 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
             for (const auto &subfield : subfields) {
                 if (subfield.code_ == '2' and subfield.value_ == "gnd")
                     found_gnd_subfield2 = true;
-                else if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-576)"))
-                    authority_ppns.emplace_back(subfield.value_.substr(__builtin_strlen("(DE-576)")));
+                else if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-627)"))
+                    authority_ppns.emplace_back(subfield.value_.substr(__builtin_strlen("(DE-627)")));
             }
             if (not found_gnd_subfield2)
                 continue;

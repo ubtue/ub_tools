@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2018, Library of the University of Tübingen
+    Copyright (C) 2018,2019 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -149,7 +149,7 @@ void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * 
                                const std::unordered_map<std::string, off_t>& authority_offsets)
 {
     std::string err_msg;
-    RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\x1F""0\\(DE-576\\)([^\x1F]+).*\x1F?", &err_msg));
+    RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\x1F""0\\(DE-627\\)([^\x1F]+).*\x1F?", &err_msg));
 
     if (matcher == nullptr)
         LOG_ERROR("Failed to compile standardized keywords regex matcher: " + err_msg);
