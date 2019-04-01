@@ -48,9 +48,11 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     private final static String ISIL_BSZ = "DE-576";
     private final static String ISIL_GND = "DE-588";
+    private final static String ISIL_K10PLUS = "DE-627";
 
     private final static String ISIL_PREFIX_BSZ = "(" + ISIL_BSZ + ")";
     private final static String ISIL_PREFIX_GND = "(" + ISIL_GND + ")";
+    private final static String ISIL_PREFIX_K10PLUS = "(" + ISIL_K10PLUS + ")";
 
     private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
@@ -715,7 +717,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         final List<Subfield> wSubfields = _773Field.getSubfields('w');
         for (final Subfield wSubfield : wSubfields) {
             final String subfieldContents = wSubfield.getData();
-            if (subfieldContents.startsWith(ISIL_PREFIX_BSZ))
+            if (subfieldContents.startsWith(ISIL_PREFIX_K10PLUS))
                 subfields.add(subfieldContents);
         }
 
@@ -1173,8 +1175,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         final Set<String> ppns = new TreeSet<>();
 
         for (final String value : values) {
-            if (value.startsWith(ISIL_PREFIX_BSZ))
-                ppns.add(value.substring(ISIL_PREFIX_BSZ.length()));
+            if (value.startsWith(ISIL_PREFIX_K10PLUS))
+                ppns.add(value.substring(ISIL_PREFIX_K10PLUS.length()));
         }
 
         return ppns;
