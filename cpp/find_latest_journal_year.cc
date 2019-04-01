@@ -2,7 +2,7 @@
  *  \note  See https://github.com/ubtue/tuefind/issues/238 for details.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -119,11 +119,11 @@ std::string GetUplinkPPNAndJournalTitle(const MARC::Record &record, std::string 
         for (const auto &field : record.getTagRange(tag)) {
             const MARC::Subfields subfields(field.getSubfields());
             const std::string w_subfield(subfields.getFirstSubfieldWithCode('w'));
-            if (not w_subfield.empty() and StringUtil::StartsWith(w_subfield, "(DE-576)")) {
+            if (not w_subfield.empty() and StringUtil::StartsWith(w_subfield, "(DE-627)")) {
                 *journal_title = subfields.getFirstSubfieldWithCode('t');
                 if (journal_title->empty())
                     *journal_title = subfields.getFirstSubfieldWithCode('a');
-                return StringUtil::TrimWhite(w_subfield.substr(__builtin_strlen("(DE-576)")));
+                return StringUtil::TrimWhite(w_subfield.substr(__builtin_strlen("(DE-627)")));
             }
         }
     }

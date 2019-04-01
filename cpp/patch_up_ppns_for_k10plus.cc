@@ -96,8 +96,8 @@ void LoadMapping(MARC::Reader * const marc_reader, const std::unordered_set<std:
     while (const auto record = marc_reader->read()) {
         for (const auto &field : record.getTagRange("035")) {
             const auto subfield_a(field.getFirstSubfieldWithCode('a'));
-            if (StringUtil::StartsWith(subfield_a, "(DE-576)")) {
-                const auto old_ppn(subfield_a.substr(__builtin_strlen("(DE-576)")));
+            if (StringUtil::StartsWith(subfield_a, "(DE-627)")) {
+                const auto old_ppn(subfield_a.substr(__builtin_strlen("(DE-627)")));
                 if (alread_processed_ppns.find(old_ppn) == alread_processed_ppns.cend())
                     old_to_new_map->emplace(old_ppn, record.getControlNumber());
             }

@@ -70,8 +70,8 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
                             continue;
 
                         std::string old_ppn_candidate;
-                        if (StringUtil::StartsWith(subfield.value_, "(DE-576)"))
-                            old_ppn_candidate = subfield.value_.substr(__builtin_strlen("(DE-576)"));
+                        if (StringUtil::StartsWith(subfield.value_, "(DE-627)"))
+                            old_ppn_candidate = subfield.value_.substr(__builtin_strlen("(DE-627)"));
                         else
                             old_ppn_candidate = subfield.value_;
 
