@@ -81,6 +81,14 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
+StartPhase "Replace old BSZ PPN's with new K10+ PPN's"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(patch_up_ppns_for_k10plus GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
+    >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Drop Records Containing mtex in 935" \
            "\n\tFilter out Self-referential 856 Fields" \
            "\n\tRemove Sorting Chars From Title Subfields" \
