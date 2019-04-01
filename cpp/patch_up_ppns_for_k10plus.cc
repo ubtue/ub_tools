@@ -171,8 +171,6 @@ void PatchNotifiedDB(const std::string &user_type, const std::unordered_map<std:
 
 
 int Main(int argc, char **argv) {
-    ::progname = argv[0];
-
     if (argc < 3)
         ::Usage("kyotokabinet_db_path marc_input1 [marc_input2 .. marc_inputN]");
 
