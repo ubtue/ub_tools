@@ -206,7 +206,7 @@ cp pericopes_to_codes.map /usr/local/var/lib/tuelib/bibleRef/ && \
 EndPhase || Abort) &
 
 
-StartPhase "Augment Canon law References"
+StartPhase "Augment Canon Law References"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (augment_canones_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                             Normdaten-"${date}".mrc \
