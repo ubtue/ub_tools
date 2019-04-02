@@ -74,17 +74,15 @@ OVERALL_START=$(date +%s.%N)
 
 
 StartPhase "Check Record Integrity at the Beginning of the Pipeline"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
             --write-data=GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc GesamtTiteldaten-"${date}".mrc \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Replace old BSZ PPN's with new K10+ PPN's"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(patch_up_ppns_for_k10plus GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
+(patch_up_ppns_for_k10plus /var/log/tuefind/k10+_ppn_map.db GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
@@ -95,7 +93,7 @@ StartPhase "Drop Records Containing mtex in 935" \
            "\n\tRemove blmsh Subject Heading Terms" \
            "\n\tFix Local Keyword Capitalisations"
 (marc_filter \
-     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+     GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --drop 935a:mtex \
     --remove-fields '856u:ixtheo\.de' \
     --remove-fields 'LOK:086630(.*)\x{1F}x' `# Remove internal bibliographic comments`  \
