@@ -10,7 +10,7 @@ CREATE TABLE vufind_translations (
 
 
 CREATE TABLE keyword_translations (
-  ppn CHAR(9) NOT NULL,
+  ppn CHAR(10) NOT NULL,
   gnd_code CHAR(10) NOT NULL,
   language_code CHAR(4) NOT NULL,
   translation VARCHAR(1024) NOT NULL,
