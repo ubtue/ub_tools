@@ -397,6 +397,42 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
+    // Map used by getPhysicalType().
+    private static final Map<String, String> code_to_material_type_map;
+
+    // Entries are from http://www.dnb.de/SharedDocs/Downloads/DE/DNB/wir/agVerbundKataloganreicherungsobjekte2010.pdf
+    static {
+        Map<String, String> tempMap = new TreeMap<>();
+        tempMap.put("01", "Inhaltstext");
+        tempMap.put("02", "Kurzbeschreibung");
+        tempMap.put("03", "Ausführliche Beschreibung");
+        tempMap.put("04", "Inhaltsverzeichnis");
+        tempMap.put("07", "Rezension");
+        tempMap.put("08", "Rezension (Auszug)");
+        tempMap.put("09", "Werbliche Überschrift");
+        tempMap.put("10", "Zitat aus einer vorhergehenden Besprechung");
+        tempMap.put("11", "Autorenkommentar");
+        tempMap.put("12", "Beschreibung für Leser");
+        tempMap.put("13", "Autorenbiografie");
+        tempMap.put("14", "Beschreibung für Lesegruppen");
+        tempMap.put("15", "Fragen für Lesegruppen ");
+        tempMap.put("16", "Konkurrierende Titel");
+        tempMap.put("17", "Klappentext");
+        tempMap.put("18", "Umschlagtext");
+        tempMap.put("23", "Auszug");
+        tempMap.put("24", "Erstes Kapitel");
+        tempMap.put("25", "Beschreibung für Marketing");
+        tempMap.put("26", "Pressetext");
+        tempMap.put("27", "Beschreibung für die Lizenzabteilung");
+        tempMap.put("28", "Beschreibung für Lehrer/Erzieher");
+        tempMap.put("30", "Unveröffentlichter Kommentar");
+        tempMap.put("31", "Beschreibung für Buchhändler");
+        tempMap.put("32", "Beschreibung für Bibliotheken");
+        tempMap.put("33", "Einführung/Vorwort");
+        tempMap.put("34", "Volltext");
+        code_to_material_type_map = Collections.unmodifiableMap(tempMap);
+    }
+
     /**
      * Returns either a Set<String> of parent (URL + colon + material type).
      * URLs are taken from 856$u and material types from 856$3, 856$z or 856$x.
@@ -417,7 +453,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
             final Subfield materialTypeSubfield = getFirstNonEmptySubfield(field, '3', 'z', 'y', 'x');
-            final String materialType = (materialTypeSubfield == null) ? UNKNOWN_MATERIAL_TYPE : materialTypeSubfield.getData();
+            String materialType = (materialTypeSubfield == null) ? UNKNOWN_MATERIAL_TYPE : materialTypeSubfield.getData();
+            if (code_to_material_type_map.containsKey(materialType))
+                materialType = code_to_material_type_map.get(materialType);
 
             // Extract all links from u-subfields and resolve URNs:
             for (final Subfield subfield_u : field.getSubfields('u')) {
@@ -2800,7 +2838,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final VariableField variableField : record.getVariableFields("035")) {
             final DataField dataField = (DataField) variableField;
             final Subfield subfield_a = dataField.getSubfield('a');
-            if (subfield_a != null && subfield_a.getData().startsWith("(DE-576)"))
+            if (subfield_a != null && subfield_a.getData().startsWith("(" + ISIL_BSZ + ")"))
                 return subfield_a.getData().substring(8);
         }
 
