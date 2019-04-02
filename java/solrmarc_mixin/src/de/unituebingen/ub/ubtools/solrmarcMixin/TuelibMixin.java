@@ -46,6 +46,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
     private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
 
+    private final static String ISIL_BSZ = "DE-576";
     private final static String ISIL_GND = "DE-588";
     private final static String ISIL_K10PLUS = "DE-627";
 
