@@ -111,19 +111,18 @@ void LoadMapping(MARC::Reader * const marc_reader, const std::unordered_set<std:
 void PatchTable(DbConnection * const db_connection, const std::string &table, const std::string &column,
                 const std::unordered_map<std::string, std::string> &old_to_new_map)
 {
-    db_connection->queryOrDie("SELECT DISTINCT " + column + " FROM " + table);
-    auto result_set(db_connection->getLastResultSet());
+    db_connection->queryOrDie("BEGIN");
+
     unsigned replacement_count(0);
-    while (const DbRow row = result_set.getNextRow()) {
-        const auto old_and_new(old_to_new_map.find(row[column]));
-        if (old_and_new != old_to_new_map.cend()) {
-            db_connection->queryOrDie("UPDATE IGNORE " + table + " SET " + column + "='" + old_and_new->second
-                                      + "' WHERE " + column + "='" + old_and_new->first + "'");
-            ++replacement_count;
-        }
+    for (const auto &old_and_new : old_to_new_map) {
+        db_connection->queryOrDie("UPDATE IGNORE " + table + " SET " + column + "='" + old_and_new.second
+                                  + "' WHERE " + column + "='" + old_and_new.first + "'");
+        replacement_count += db_connection->getNoOfAffectedRows();
     }
 
-    LOG_INFO("Replaced " + std::to_string(replacement_count) + " PPN's in ixtheo.keyword_translations.");
+    db_connection->queryOrDie("COMMIT");
+
+    LOG_INFO("Replaced " + std::to_string(replacement_count) + " rows in " + table + ".");
 }
 
 
