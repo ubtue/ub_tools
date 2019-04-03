@@ -169,7 +169,9 @@ void PatchNotifiedDB(const std::string &user_type, const std::unordered_map<std:
 
 } // unnamed namespace
 
-static const std::string KYOTODB_PATH(UBTools::GetTuelibPath() + "k10+_ppn_map.db");
+
+static const std::string ALREADY_SWAPPED_PPNS_DB(UBTools::GetTuelibPath() + "k10+_ppn_map.db");
+
 
 int Main(int argc, char **argv) {
     if (argc < 2)
@@ -188,7 +190,7 @@ int Main(int argc, char **argv) {
         return EXIT_SUCCESS;
     }
 
-    UpdateKyotokabinetDB(KYOTODB_PATH, old_to_new_map);
+    UpdateKyotokabinetDB(ALREADY_SWAPPED_PPNS_DB, old_to_new_map);
 
     PatchNotifiedDB("ixtheo", old_to_new_map);
     PatchNotifiedDB("relbib", old_to_new_map);
