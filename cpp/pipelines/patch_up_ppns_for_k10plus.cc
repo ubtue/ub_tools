@@ -43,12 +43,12 @@ namespace {
 
 
 void LoadAlreadyProcessedPPNs(kyotocabinet::HashDB * const db, std::unordered_set<std::string> * const already_processed_ppns) {
-     kyotocabinet::DB::Cursor * cursor = db->cursor();
+     kyotocabinet::DB::Cursor * cursor(db->cursor());
      if (cursor == nullptr)
-	 LOG_ERROR("Could not obtain cursor for db file " + db->path());
+         LOG_ERROR("Could not obtain cursor for db file " + db->path());
      cursor->jump();
      std::string old_ppn;
-     while (cursor->get_key(&old_ppn, true /* step on */))
+     while (cursor->get_key(&old_ppn, true /* advance */))
          already_processed_ppns->emplace(old_ppn);
      delete cursor;
 }
@@ -178,10 +178,7 @@ int Main(int argc, char **argv) {
         PatchTable(db_connection.get(), "vufind.ixtheo_pda_subscriptions", "book_ppn", old_to_new_map);
         PatchTable(db_connection.get(), "vufind.relbib_ids", "record_id", old_to_new_map);
         PatchTable(db_connection.get(), "vufind.bibstudies_ids", "record_id", old_to_new_map);
-    } else {
-        PatchTable(db_connection.get(), "vufind.full_text_cache", "id", old_to_new_map);
-        PatchTable(db_connection.get(), "vufind.full_text_cache_urls", "id", old_to_new_map);
-    }
+    } 
 
     StoreNewAlreadyProcessedPPNs(&db, old_to_new_map);
 
