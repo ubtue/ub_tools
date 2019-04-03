@@ -42,54 +42,39 @@
 namespace {
 
 
-void UpdateKyotokabinetDB(const std::string &db_path, const std::unordered_map<std::string, std::string> &old_to_new_map) {
-    kyotocabinet::HashDB db;
-    if (not (db.open(db_path, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
-        LOG_ERROR("Failed to open or create \"" + db_path + "\"!");
+void LoadAlreadyProcessedPPNs(kyotocabinet::HashDB * const db, std::unordered_set<std::string> * const already_processed_ppns) {
+     kyotocabinet::DB::Cursor * cursor = db->cursor();
+     if (cursor == nullptr)
+	 LOG_ERROR("Could not obtain cursor for db file " + db->path());
+     cursor->jump();
+     std::string old_ppn;
+     while (cursor->get_key(&old_ppn, true /* step on */))
+         already_processed_ppns->emplace(old_ppn);
+     delete cursor;
+}
 
+
+void StoreNewAlreadyProcessedPPNs(kyotocabinet::HashDB * const db,  const std::unordered_map<std::string, std::string> &old_to_new_map) {
     unsigned new_entry_count(0);
     for (const auto &old_and_new : old_to_new_map) {
         std::string value;
-        if (db.get(old_and_new.first, &value)) {
+        if (db->get(old_and_new.first, &value)) {
             if (unlikely(value != old_and_new.second))
-                LOG_ERROR("entry for key \"" + old_and_new.first + "\" in database \"" + value + "\" is different from new new PPN \""
+                LOG_ERROR("entry for key \"" + old_and_new.first + "\" in database \"" + value + "\" is different from new PPN \""
                           + old_and_new.second + "\"!");
         } else {
-            if (unlikely(not db.add(old_and_new.first, old_and_new.second)))
-                LOG_ERROR("failed to insert a new entry (\"" + old_and_new.first + "\",\"" + old_and_new.second + "\") into \"" + db_path
+            if (unlikely(not db->add(old_and_new.first, old_and_new.second)))
+                LOG_ERROR("failed to insert a new entry (\"" + old_and_new.first + "\",\"" + old_and_new.second + "\") into \"" + db->path()
                           + "\"!");
             ++new_entry_count;
         }
     }
 
-    LOG_INFO("Updated \"" + db_path + "\" with " + std::to_string(new_entry_count) + " entry/entries.");
+    LOG_INFO("Updated \"" + db->path() + "\" with " + std::to_string(new_entry_count) + " entry/entries.");
 }
 
 
-const std::string OLD_PPN_LIST_FILE(UBTools::GetTuelibPath() + "alread_replaced_old_ppns.blob");
-
-
-constexpr size_t OLD_PPN_LENGTH(9);
-
-
-void LoadAlreadyProcessedPPNs(std::unordered_set<std::string> * const alread_processed_ppns) {
-    if (not FileUtil::Exists(OLD_PPN_LIST_FILE))
-        return;
-
-    std::string blob;
-    FileUtil::ReadStringOrDie(OLD_PPN_LIST_FILE, &blob);
-    if (unlikely((blob.length() % OLD_PPN_LENGTH) != 0))
-        LOG_ERROR("fractional PPN's are not possible!");
-
-    const size_t count(blob.length() / OLD_PPN_LENGTH);
-    alread_processed_ppns->reserve(count);
-
-    for (size_t i(0); i < count; ++i)
-        alread_processed_ppns->emplace(blob.substr(i * OLD_PPN_LENGTH, OLD_PPN_LENGTH));
-}
-
-
-void LoadMapping(MARC::Reader * const marc_reader, const std::unordered_set<std::string> &alread_processed_ppns,
+void LoadMapping(MARC::Reader * const marc_reader, const std::unordered_set<std::string> &already_processed_ppns,
                  std::unordered_map<std::string, std::string> * const old_to_new_map)
 {
     while (const auto record = marc_reader->read()) {
@@ -97,7 +82,7 @@ void LoadMapping(MARC::Reader * const marc_reader, const std::unordered_set<std:
             const auto subfield_a(field.getFirstSubfieldWithCode('a'));
             if (StringUtil::StartsWith(subfield_a, "(DE-627)")) {
                 const auto old_ppn(subfield_a.substr(__builtin_strlen("(DE-627)")));
-                if (alread_processed_ppns.find(old_ppn) == alread_processed_ppns.cend())
+                if (already_processed_ppns.find(old_ppn) == already_processed_ppns.cend())
                     old_to_new_map->emplace(old_ppn, record.getControlNumber());
             }
         }
@@ -123,21 +108,6 @@ void PatchTable(DbConnection * const db_connection, const std::string &table, co
     db_connection->queryOrDie("COMMIT");
 
     LOG_INFO("Replaced " + std::to_string(replacement_count) + " rows in " + table + ".");
-}
-
-
-void StoreNewAlreadyProcessedPPNs(const std::unordered_set<std::string> &alread_processed_ppns,
-                                  const std::unordered_map<std::string, std::string> &old_to_new_map)
-{
-    std::string blob;
-    blob.reserve(alread_processed_ppns.size() * OLD_PPN_LENGTH + old_to_new_map.size() * OLD_PPN_LENGTH);
-
-    for (const auto &alread_processed_ppn : alread_processed_ppns)
-        blob += alread_processed_ppn;
-    for (const auto &old_and_new_ppns : old_to_new_map)
-        blob += old_and_new_ppns.first;
-
-    FileUtil::WriteStringOrDie(OLD_PPN_LIST_FILE, blob);
 }
 
 
@@ -175,20 +145,24 @@ int Main(int argc, char **argv) {
     if (argc < 2)
         ::Usage("marc_input1 [marc_input2 .. marc_inputN]");
 
-    std::unordered_set<std::string> alread_processed_ppns;
-    LoadAlreadyProcessedPPNs(&alread_processed_ppns);
+    kyotocabinet::HashDB db;
+    const std::string db_path(ALREADY_SWAPPED_PPNS_DB);
+    if (not (db.open(db_path,
+                     kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
+        LOG_ERROR("Failed to open or create \"" + db_path + "\"!");
+
+    std::unordered_set<std::string> already_processed_ppns;
+    LoadAlreadyProcessedPPNs(&db, &already_processed_ppns);
 
     std::unordered_map<std::string, std::string> old_to_new_map;
     for (int arg_no(1); arg_no < argc; ++arg_no) {
         const auto marc_reader(MARC::Reader::Factory(argv[arg_no]));
-        LoadMapping(marc_reader.get(), alread_processed_ppns, &old_to_new_map);
+        LoadMapping(marc_reader.get(), already_processed_ppns, &old_to_new_map);
     }
     if (old_to_new_map.empty()) {
         LOG_INFO("nothing to do!");
         return EXIT_SUCCESS;
     }
-
-    UpdateKyotokabinetDB(ALREADY_SWAPPED_PPNS_DB, old_to_new_map);
 
     PatchNotifiedDB("ixtheo", old_to_new_map);
     PatchNotifiedDB("relbib", old_to_new_map);
@@ -209,7 +183,7 @@ int Main(int argc, char **argv) {
         PatchTable(db_connection.get(), "vufind.full_text_cache_urls", "id", old_to_new_map);
     }
 
-    StoreNewAlreadyProcessedPPNs(alread_processed_ppns, old_to_new_map);
+    StoreNewAlreadyProcessedPPNs(&db, old_to_new_map);
 
     return EXIT_SUCCESS;
 }
