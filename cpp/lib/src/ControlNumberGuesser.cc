@@ -333,18 +333,6 @@ void ControlNumberGuesser::lookupISBN(const std::string &isbn, std::set<std::str
 }
 
 
-unsigned ControlNumberGuesser::swapControlNumbers(const std::unordered_map<std::string, std::string> &old_to_new_map) {
-    unsigned changed_row_count(0);
-    changed_row_count += swapControlNumbers("normalised_titles",  "title",  old_to_new_map);
-    changed_row_count += swapControlNumbers("normalised_authors", "author", old_to_new_map);
-    changed_row_count += swapControlNumbers("publication_year",   "year",   old_to_new_map);
-    changed_row_count += swapControlNumbers("doi",                "doi",    old_to_new_map);
-    changed_row_count += swapControlNumbers("isbn",               "isbn",   old_to_new_map);
-    changed_row_count += swapControlNumbers("issn",               "issn",   old_to_new_map);
-    return changed_row_count;
-}
-
-
 std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
     std::wstring wtitle;
     if (unlikely(not TextUtil::UTF8ToWCharString(title, &wtitle)))
