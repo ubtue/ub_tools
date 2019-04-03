@@ -28,7 +28,6 @@
 #include <cstring>
 #include <kchashdb.h>
 #include "Compiler.h"
-#include "ControlNumberGuesser.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
@@ -195,8 +194,6 @@ int Main(int argc, char **argv) {
     PatchNotifiedDB("ixtheo", old_to_new_map);
     PatchNotifiedDB("relbib", old_to_new_map);
 
-    ControlNumberGuesser control_number_guesser;
-    control_number_guesser.swapControlNumbers(old_to_new_map);
     std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
 
     PatchTable(db_connection.get(), "vufind.resource", "record_id", old_to_new_map);
