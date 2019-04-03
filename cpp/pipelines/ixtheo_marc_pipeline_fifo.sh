@@ -82,7 +82,7 @@ wait
 
 
 StartPhase "Replace old BSZ PPN's with new K10+ PPN's"
-(patch_up_ppns_for_k10plus /var/log/tuefind/k10+_ppn_map.db GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(patch_up_ppns_for_k10plus GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
