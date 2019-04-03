@@ -29,7 +29,6 @@
 #include "UBTools.h"
 #include "util.h"
 
-
 DbConnection::DbConnection(const std::string &mysql_url, const Charset charset, const TimeZone time_zone)
     : sqlite3_(nullptr), stmt_handle_(nullptr)
 {
@@ -125,11 +124,14 @@ const std::string DbConnection::DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath(
 bool DbConnection::query(const std::string &query_statement) {
     if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") == "true")
         FileUtil::AppendString("/usr/local/var/log/tuefind/sql_debug.log",
-                               std::string(::progname) + ": " +  query_statement);
+                               std::string(::progname) + ": " +  query_statement + '\n');
 
-    if (type_ == T_MYSQL)
-        return ::mysql_query(&mysql_, query_statement.c_str()) == 0;
-    else {
+    if (type_ == T_MYSQL) {
+        if (::mysql_query(&mysql_, query_statement.c_str()) != 0)
+	    LOG_ERROR("Could not successfully execute statement \"" + query_statement + "\": SQL error code:"
+                      + std::to_string(::mysql_errno(&mysql_)));
+	return true;
+    } else {
         if (stmt_handle_ != nullptr) {
             const int result_code(::sqlite3_finalize(stmt_handle_));
             if (result_code != SQLITE_OK)
