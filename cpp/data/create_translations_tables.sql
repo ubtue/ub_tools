@@ -40,3 +40,4 @@ CREATE TABLE translators (
 
 GRANT CREATE TEMPORARY TABLES ON ixtheo.* TO 'ixtheo'@'localhost';
 GRANT ALL ON ixtheo.* TO 'ub_tools'@'localhost';
+GRANT ALL ON ixtheo.* TO 'vufind'@'localhost';
