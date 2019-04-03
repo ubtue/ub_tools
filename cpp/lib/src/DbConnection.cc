@@ -127,7 +127,7 @@ bool DbConnection::query(const std::string &query_statement) {
                                std::string(::progname) + ": " +  query_statement + '\n');
 
     if (type_ == T_MYSQL) {
-        if (::mysql_query(&mysql_, query_statement.c_str()))
+        if (::mysql_query(&mysql_, query_statement.c_str()) != 0)
 	    LOG_ERROR("Could not successfully execute statement \"" + query_statement + "\": SQL error code:"
                       + std::to_string(::mysql_errno(&mysql_)));
 	return true;
