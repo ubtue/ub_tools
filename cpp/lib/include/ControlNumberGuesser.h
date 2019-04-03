@@ -68,9 +68,6 @@ public:
     void lookupISSN(const std::string &issn, std::set<std::string> * const control_numbers) const;
     void lookupISBN(const std::string &isbn, std::set<std::string> * const control_numbers) const;
 
-    /** \return The number of entries w/ at least one change. */
-    unsigned swapControlNumbers(const std::unordered_map<std::string, std::string> &old_to_new_map);
-
     /** For testing purposes. */
     static std::string NormaliseTitle(const std::string &title);
     static std::string NormaliseAuthorName(const std::string &author_name);
