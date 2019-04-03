@@ -169,16 +169,17 @@ void PatchNotifiedDB(const std::string &user_type, const std::unordered_map<std:
 
 } // unnamed namespace
 
+static const std::string KYOTODB_PATH(UBTools::GetTuelibPath() + "k10+_ppn_map.db");
 
 int Main(int argc, char **argv) {
-    if (argc < 3)
-        ::Usage("kyotokabinet_db_path marc_input1 [marc_input2 .. marc_inputN]");
+    if (argc < 2)
+        ::Usage("marc_input1 [marc_input2 .. marc_inputN]");
 
     std::unordered_set<std::string> alread_processed_ppns;
     LoadAlreadyProcessedPPNs(&alread_processed_ppns);
 
     std::unordered_map<std::string, std::string> old_to_new_map;
-    for (int arg_no(2); arg_no < argc; ++arg_no) {
+    for (int arg_no(1); arg_no < argc; ++arg_no) {
         const auto marc_reader(MARC::Reader::Factory(argv[arg_no]));
         LoadMapping(marc_reader.get(), alread_processed_ppns, &old_to_new_map);
     }
@@ -187,7 +188,7 @@ int Main(int argc, char **argv) {
         return EXIT_SUCCESS;
     }
 
-    UpdateKyotokabinetDB(argv[1], old_to_new_map);
+    UpdateKyotokabinetDB(KYOTODB_PATH, old_to_new_map);
 
     PatchNotifiedDB("ixtheo", old_to_new_map);
     PatchNotifiedDB("relbib", old_to_new_map);
