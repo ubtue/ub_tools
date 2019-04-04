@@ -454,7 +454,7 @@ private:
     Record(): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */) { }
 public:
     explicit Record(const std::string &leader); // Make an empty record that only has a leader.
-    explicit Record(const size_t record_size, char * const record_start);
+    explicit Record(const size_t record_size, const char * const record_start);
     Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
            const std::string &control_number = "");
     Record(const Record &other) = default;
@@ -828,10 +828,17 @@ class BinaryReader: public Reader {
     friend class Reader;
     Record last_record_;
     off_t next_record_start_;
+    const char * const mmap_;
+    size_t offset_;
+    const size_t input_file_size_;
 private:
-    explicit BinaryReader(File * const input): Reader(input), last_record_(actualRead()), next_record_start_(0) { }
+    explicit BinaryReader(File * const input)
+        : Reader(input), last_record_(actualRead()), next_record_start_(0),mmap_(nullptr), offset_(0), input_file_size_(0) { }
+    explicit BinaryReader(File * const input, const void * const mmap, const size_t input_file_size)
+        : Reader(input), last_record_(actualRead()), next_record_start_(0), mmap_(reinterpret_cast<const char * const>(mmap)),
+          offset_(0), input_file_size_(input_file_size) { }
 public:
-    virtual ~BinaryReader() = default;
+    virtual ~BinaryReader() final;
 
     virtual FileType getReaderType() override final { return FileType::BINARY; }
     virtual Record read() override final;
