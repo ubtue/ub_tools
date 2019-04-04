@@ -1462,7 +1462,7 @@ bool BinaryReader::seek(const off_t offset, const int whence) {
         case SEEK_END:
             if (offset < 0 or static_cast<size_t>(offset) >= input_file_size_)
                 return false;
-            offset_ -= input_file_size_ - offset;
+            offset_ = input_file_size_ - offset;
             break;
         default:
             LOG_ERROR("bad value for \"whence\": " + std::to_string(whence) + "!");
