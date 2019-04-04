@@ -1415,7 +1415,8 @@ Record BinaryReader::actualRead() {
             return Record();
 
         if (unlikely(offset_ + Record::RECORD_LENGTH_FIELD_LENGTH >= input_file_size_))
-            LOG_ERROR("not enough remaining room for a record length in the memory mapping!");
+            LOG_ERROR("not enough remaining room for a record length in the memory mapping! (input_file_size_ = "
+                      + std::to_string(input_file_size_) + ", offset_ = " + std::to_string(offset_) + ")");
         const unsigned record_length(ToUnsigned(mmap_ + offset_, Record::RECORD_LENGTH_FIELD_LENGTH));
         offset_ += Record::RECORD_LENGTH_FIELD_LENGTH;
 
@@ -1447,9 +1448,27 @@ bool BinaryReader::seek(const off_t offset, const int whence) {
         } else
             return false;
     } else { // Use memory-mapped I/O.
-        if (offset < 0 or static_cast<size_t>(offset) > input_file_size_)
-            return false;
-        offset_ = offset;
+        switch (whence) {
+        case SEEK_SET:
+            if (offset < 0 or static_cast<size_t>(offset) >= input_file_size_)
+                return false;
+            offset_ = offset;
+            break;
+        case SEEK_CUR:
+            if (static_cast<ssize_t>(offset_) + offset < 0
+                or static_cast<ssize_t>(offset_) + offset >= static_cast<ssize_t>(input_file_size_))
+                return false;
+            offset_ += offset;
+            break;
+        case SEEK_END:
+            if (offset < 0 or static_cast<size_t>(offset) >= input_file_size_)
+                return false;
+            offset_ -= offset;
+            break;
+        default:
+            LOG_ERROR("bad value for \"whence\": " + std::to_string(whence) + "!");
+        }
+
         return true;
     }
 }
