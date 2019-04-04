@@ -1345,22 +1345,27 @@ std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, FileT
         reader_type = GuessFileType(input_filename);
 
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
+    return (reader_type == FileType::XML) ? std::unique_ptr<Reader>(new XmlReader(input.release()))
+                                          : std::unique_ptr<Reader>(new BinaryReader(input.release()));
+}
 
-    if (reader_type == FileType::XML)
-        return std::unique_ptr<Reader>(new XmlReader(input.release()));
 
+BinaryReader::BinaryReader(File * const input)
+    : Reader(input), last_record_(actualRead()), next_record_start_(0)
+{
     struct stat stat_buf;
     if (::fstat(input->getFileDescriptor(), &stat_buf) != 0)
-        LOG_ERROR("stat(2) on \"" + input_filename + "\" failed!");
+        LOG_ERROR("stat(2) on \"" + input->getPath() + "\" failed!");
     if (S_ISFIFO(stat_buf.st_mode))
-        return std::unique_ptr<Reader>(new BinaryReader(input.release()));
-
-    const char * const map(reinterpret_cast<char *>(::mmap(nullptr, stat_buf.st_size, PROT_READ, MAP_PRIVATE,
-                                                           input->getFileDescriptor(), 0)));
-    if (map == MAP_FAILED)
-        LOG_ERROR("Failed to mmap \"" + input_filename + "\"!");
-
-    return std::unique_ptr<Reader>(new BinaryReader(input.release(), map, stat_buf.st_size));
+        mmap_ = nullptr;
+    else {
+        const char * const map(reinterpret_cast<char *>(::mmap(nullptr, stat_buf.st_size, PROT_READ, MAP_PRIVATE,
+                                                               input->getFileDescriptor(), 0)));
+        if (map == MAP_FAILED)
+            LOG_ERROR("Failed to mmap \"" + input->getPath() + "\"!");
+        input_file_size_ = stat_buf.st_size;
+        offset_ = 0;
+    }
 }
 
 
