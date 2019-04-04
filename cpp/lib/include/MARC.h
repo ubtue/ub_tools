@@ -828,15 +828,10 @@ class BinaryReader: public Reader {
     friend class Reader;
     Record last_record_;
     off_t next_record_start_;
-    const char * const mmap_;
-    size_t offset_;
-    const size_t input_file_size_;
+    const char *mmap_;
+    size_t offset_, input_file_size_;
 private:
-    explicit BinaryReader(File * const input)
-        : Reader(input), last_record_(actualRead()), next_record_start_(0),mmap_(nullptr), offset_(0), input_file_size_(0) { }
-    explicit BinaryReader(File * const input, const void * const mmap, const size_t input_file_size)
-        : Reader(input), last_record_(actualRead()), next_record_start_(0), mmap_(reinterpret_cast<const char * const>(mmap)),
-          offset_(0), input_file_size_(input_file_size) { }
+    explicit BinaryReader(File * const input);
 public:
     virtual ~BinaryReader() final;
 
