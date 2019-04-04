@@ -1376,7 +1376,7 @@ Record BinaryReader::read() {
 
     Record new_record;
     do {
-        next_record_start_ = input_->tell();
+        next_record_start_ = (mmap_ == nullptr) ? input_->tell() : offset_;
         new_record = actualRead();
         if (unlikely(new_record.getControlNumber() == last_record_.getControlNumber()))
             last_record_.merge(new_record);
