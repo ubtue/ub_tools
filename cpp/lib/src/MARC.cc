@@ -1423,13 +1423,30 @@ Record BinaryReader::actualRead() {
 }
 
 
+void BinaryReader::rewind() {
+    if (mmap_ == nullptr)
+        input_->rewind();
+    else
+        offset_ = 0;
+    next_record_start_ = 0;
+    last_record_ = actualRead();
+}
+
+
 bool BinaryReader::seek(const off_t offset, const int whence) {
-    if (input_->seek(offset, whence)) {
-        next_record_start_ = input_->tell();
-        last_record_ = actualRead();
+    if (mmap_ == nullptr) {
+        if (input_->seek(offset, whence)) {
+            next_record_start_ = input_->tell();
+            last_record_ = actualRead();
+            return true;
+        } else
+            return false;
+    } else { // Use memory-mapped I/O.
+        if (offset < 0 or static_cast<size_t>(offset) > input_file_size_)
+            return false;
+        offset_ = offset;
         return true;
-    } else
-        return false;
+    }
 }
 
 
