@@ -1359,9 +1359,8 @@ BinaryReader::BinaryReader(File * const input)
     if (S_ISFIFO(stat_buf.st_mode))
         mmap_ = nullptr;
     else {
-        const char * const map(reinterpret_cast<char *>(::mmap(nullptr, stat_buf.st_size, PROT_READ, MAP_PRIVATE,
-                                                               input->getFileDescriptor(), 0)));
-        if (map == MAP_FAILED)
+        mmap_ = reinterpret_cast<char *>(::mmap(nullptr, stat_buf.st_size, PROT_READ, MAP_PRIVATE, input->getFileDescriptor(), 0));
+        if (mmap_ == MAP_FAILED)
             LOG_ERROR("Failed to mmap \"" + input->getPath() + "\"!");
         input_file_size_ = stat_buf.st_size;
         offset_ = 0;
