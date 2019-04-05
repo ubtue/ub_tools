@@ -20,6 +20,7 @@
 #include "MARC.h"
 #include <set>
 #include <unordered_map>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -335,7 +336,7 @@ Record::Record(const std::string &leader): leader_(leader) {
 }
 
 
-Record::Record(const size_t record_size, char * const record_start)
+Record::Record(const size_t record_size, const char * const record_start)
     : record_size_(record_size), leader_(record_start, LEADER_LENGTH)
 {
     const char * const base_address_of_data(record_start + ToUnsigned(record_start + 12, 5));
@@ -1349,13 +1350,39 @@ std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, FileT
 }
 
 
+BinaryReader::BinaryReader(File * const input)
+    : Reader(input), next_record_start_(0)
+{
+    struct stat stat_buf;
+    if (::fstat(input->getFileDescriptor(), &stat_buf) != 0)
+        LOG_ERROR("stat(2) on \"" + input->getPath() + "\" failed!");
+    if (S_ISFIFO(stat_buf.st_mode))
+        mmap_ = nullptr;
+    else {
+        mmap_ = reinterpret_cast<char *>(::mmap(nullptr, stat_buf.st_size, PROT_READ, MAP_PRIVATE, input->getFileDescriptor(), 0));
+        if (mmap_ == MAP_FAILED or mmap_ == nullptr)
+            LOG_ERROR("Failed to mmap \"" + input->getPath() + "\"!");
+        input_file_size_ = stat_buf.st_size;
+        offset_ = 0;
+    }
+
+    last_record_ = actualRead();
+}
+
+
+BinaryReader::~BinaryReader() {
+    if (mmap_ != nullptr and ::munmap((void *)(mmap_), input_file_size_) != 0)
+        LOG_ERROR("munmap(2) failed!");
+}
+
+
 Record BinaryReader::read() {
     if (unlikely(not last_record_))
         return last_record_;
 
     Record new_record;
     do {
-        next_record_start_ = input_->tell();
+        next_record_start_ = (mmap_ == nullptr) ? input_->tell() : offset_;
         new_record = actualRead();
         if (unlikely(new_record.getControlNumber() == last_record_.getControlNumber()))
             last_record_.merge(new_record);
@@ -1369,30 +1396,81 @@ Record BinaryReader::read() {
 
 
 Record BinaryReader::actualRead() {
-    char buf[Record::MAX_RECORD_LENGTH];
-    size_t bytes_read;
-    if (unlikely((bytes_read = input_->read(buf, Record::RECORD_LENGTH_FIELD_LENGTH)) == 0))
-        return Record();
+    if (mmap_ == nullptr) {
+        char buf[Record::MAX_RECORD_LENGTH];
+        size_t bytes_read;
+        if (unlikely((bytes_read = input_->read(buf, Record::RECORD_LENGTH_FIELD_LENGTH)) == 0))
+            return Record();
 
-    if (unlikely(bytes_read != Record::RECORD_LENGTH_FIELD_LENGTH))
-        LOG_ERROR("failed to read record length!");
-    const unsigned record_length(ToUnsigned(buf, Record::RECORD_LENGTH_FIELD_LENGTH));
+        if (unlikely(bytes_read != Record::RECORD_LENGTH_FIELD_LENGTH))
+            LOG_ERROR("failed to read record length!");
+        const unsigned record_length(ToUnsigned(buf, Record::RECORD_LENGTH_FIELD_LENGTH));
 
-    bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH, record_length - Record::RECORD_LENGTH_FIELD_LENGTH);
-    if (unlikely(bytes_read != record_length - Record::RECORD_LENGTH_FIELD_LENGTH))
-        LOG_ERROR("failed to read a record from \"" + input_->getPath() + "\"!");
+        bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH, record_length - Record::RECORD_LENGTH_FIELD_LENGTH);
+        if (unlikely(bytes_read != record_length - Record::RECORD_LENGTH_FIELD_LENGTH))
+            LOG_ERROR("failed to read a record from \"" + input_->getPath() + "\"!");
 
-    return Record(record_length, buf);
+        return Record(record_length, buf);
+    } else { // Use memory-mapped I/O.
+        if (unlikely(offset_ == input_file_size_))
+            return Record();
+
+        if (unlikely(offset_ + Record::RECORD_LENGTH_FIELD_LENGTH >= input_file_size_))
+            LOG_ERROR("not enough remaining room for a record length in the memory mapping! (input_file_size_ = "
+                      + std::to_string(input_file_size_) + ", offset_ = " + std::to_string(offset_) + ")");
+        const unsigned record_length(ToUnsigned(mmap_ + offset_, Record::RECORD_LENGTH_FIELD_LENGTH));
+
+        if (unlikely(offset_ + record_length > input_file_size_))
+            LOG_ERROR("not enough remaining room for the rest if the record in the memory mapping!");
+        offset_ += record_length;
+
+        return Record(record_length, mmap_ + offset_ - record_length);
+    }
+}
+
+
+void BinaryReader::rewind() {
+    if (mmap_ == nullptr)
+        input_->rewind();
+    else
+        offset_ = 0;
+    next_record_start_ = 0;
+    last_record_ = actualRead();
 }
 
 
 bool BinaryReader::seek(const off_t offset, const int whence) {
-    if (input_->seek(offset, whence)) {
-        next_record_start_ = input_->tell();
-        last_record_ = actualRead();
+    if (mmap_ == nullptr) {
+        if (input_->seek(offset, whence)) {
+            next_record_start_ = input_->tell();
+            last_record_ = actualRead();
+            return true;
+        } else
+            return false;
+    } else { // Use memory-mapped I/O.
+        switch (whence) {
+        case SEEK_SET:
+            if (offset < 0 or static_cast<size_t>(offset) >= input_file_size_)
+                return false;
+            offset_ = offset;
+            break;
+        case SEEK_CUR:
+            if (static_cast<ssize_t>(offset_) + offset < 0
+                or static_cast<ssize_t>(offset_) + offset >= static_cast<ssize_t>(input_file_size_))
+                return false;
+            offset_ += offset;
+            break;
+        case SEEK_END:
+            if (offset < 0 or static_cast<size_t>(offset) >= input_file_size_)
+                return false;
+            offset_ = input_file_size_ - offset;
+            break;
+        default:
+            LOG_ERROR("bad value for \"whence\": " + std::to_string(whence) + "!");
+        }
+
         return true;
-    } else
-        return false;
+    }
 }
 
 
