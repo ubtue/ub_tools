@@ -1351,7 +1351,7 @@ std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, FileT
 
 
 BinaryReader::BinaryReader(File * const input)
-    : Reader(input), last_record_(actualRead()), next_record_start_(0)
+    : Reader(input), next_record_start_(0)
 {
     struct stat stat_buf;
     if (::fstat(input->getFileDescriptor(), &stat_buf) != 0)
@@ -1360,11 +1360,13 @@ BinaryReader::BinaryReader(File * const input)
         mmap_ = nullptr;
     else {
         mmap_ = reinterpret_cast<char *>(::mmap(nullptr, stat_buf.st_size, PROT_READ, MAP_PRIVATE, input->getFileDescriptor(), 0));
-        if (mmap_ == MAP_FAILED)
+        if (mmap_ == MAP_FAILED or mmap_ == nullptr)
             LOG_ERROR("Failed to mmap \"" + input->getPath() + "\"!");
         input_file_size_ = stat_buf.st_size;
         offset_ = 0;
     }
+
+    last_record_ = actualRead();
 }
 
 
@@ -1417,7 +1419,6 @@ Record BinaryReader::actualRead() {
             LOG_ERROR("not enough remaining room for a record length in the memory mapping! (input_file_size_ = "
                       + std::to_string(input_file_size_) + ", offset_ = " + std::to_string(offset_) + ")");
         const unsigned record_length(ToUnsigned(mmap_ + offset_, Record::RECORD_LENGTH_FIELD_LENGTH));
-        offset_ += Record::RECORD_LENGTH_FIELD_LENGTH;
 
         if (unlikely(offset_ + record_length > input_file_size_))
             LOG_ERROR("not enough remaining room for the rest if the record in the memory mapping!");
