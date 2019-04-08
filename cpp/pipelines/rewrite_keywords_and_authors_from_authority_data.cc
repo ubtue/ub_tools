@@ -101,7 +101,7 @@ void UpdateTitleDataField(MARC::Record::Field * const field, const MARC::Record 
         else
             subfields.deleteAllSubfieldsWithCode(authority_subfield.code_);
     }
-    for (const auto &authority_subfield : authority_primary_field->getSubfields()){
+    for (const auto &authority_subfield : authority_primary_field->getSubfields()) {
         if (IsWorkTitleField(subfields) and authority_subfield.code_ == 'a')
             subfields.appendSubfield('t', authority_subfield.value_);
         else
