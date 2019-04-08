@@ -1468,6 +1468,8 @@ bool BinaryReader::seek(const off_t offset, const int whence) {
         default:
             LOG_ERROR("bad value for \"whence\": " + std::to_string(whence) + "!");
         }
+        next_record_start_ = offset_;
+        last_record_ = actualRead();
 
         return true;
     }
