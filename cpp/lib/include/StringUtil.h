@@ -95,13 +95,16 @@ inline std::string AppendSubstring(std::string &target, const std::string &sourc
     if (target.capacity() - target.size() < count)
         target.reserve(target.size() + count);
 
+    if (unlikely(source.cbegin() + start > source.cend()))
+        throw std::out_of_range("in StringUtil::AppendSubstring: start is " + std::to_string(start) + " and count is "
+                                + std::to_string(count) + " which is out of range!");
     std::string::const_iterator end;
     if (start + count >= source.size())
         end = source.cend();
     else
         end = source.cbegin() + start + count;
 
-    for (auto ch(source.begin() + start); ch < end; ++ch)
+    for (auto ch(source.cbegin() + start); ch < end; ++ch)
         target += *ch;
 
     return target;
