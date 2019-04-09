@@ -95,7 +95,7 @@ inline std::string AppendSubstring(std::string &target, const std::string &sourc
     if (target.capacity() - target.size() < count)
         target.reserve(target.size() + count);
 
-    if (unlikely(source.cbegin() + start > source.cend()))
+    if (unlikely(start > source.size()))
         throw std::out_of_range("in StringUtil::AppendSubstring: start is " + std::to_string(start) + " and count is "
                                 + std::to_string(count) + " which is out of range!");
     std::string::const_iterator end;
