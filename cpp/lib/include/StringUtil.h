@@ -90,6 +90,27 @@ const std::string EmptyString;
 const std::string WHITE_SPACE(" \t\n\v\r\f");
 
 
+// Replace target += source.substr(start, count); with calls to this function.
+inline std::string AppendSubstring(std::string &target, const std::string &source, const size_t start, const size_t count) {
+    if (target.capacity() - target.size() < count)
+        target.reserve(target.size() + count);
+
+    if (unlikely(start > source.size()))
+        throw std::out_of_range("in StringUtil::AppendSubstring: start is " + std::to_string(start) + " and count is "
+                                + std::to_string(count) + " which is out of range!");
+    std::string::const_iterator end;
+    if (start + count >= source.size())
+        end = source.cend();
+    else
+        end = source.cbegin() + start + count;
+
+    for (auto ch(source.cbegin() + start); ch < end; ++ch)
+        target += *ch;
+
+    return target;
+}
+
+
 /** \brief Converts the ASCII letters in "s" to lowercase. */
 std::string ASCIIToLower(std::string * const s);
 std::string ASCIIToLower(const std::string &s);
