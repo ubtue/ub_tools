@@ -45,9 +45,37 @@ inline unsigned ToUnsigned(const char *cp, const unsigned count) {
 }
 
 
-inline std::string ToStringWithLeadingZeros(const unsigned n, const unsigned width) {
-    const std::string as_string(std::to_string(n));
-    return (as_string.length() < width) ? (std::string(width - as_string.length(), '0') + as_string) : as_string;
+inline unsigned NoOfDigits(const unsigned n) {
+    if (n < 10)
+        return 1;
+    if (n < 100)
+        return 2;
+    if (n < 1000)
+        return 3;
+    if (n < 10000)
+        return 4;
+    if (n < 100000)
+        return 5;
+    throw std::out_of_range("in NoOfDigits: n == " + std::to_string(n));
+}
+
+
+inline std::string &AppendToStringWithLeadingZeros(std::string &target, unsigned n, const unsigned width) {
+    const unsigned no_of_digits(NoOfDigits(n));
+
+    for (unsigned i(no_of_digits); i < width; ++i)
+        target += '0';
+
+    static const unsigned powers_of_ten[] = { 1, 10, 100, 1000, 10000, 100000 };
+
+    unsigned divisor(powers_of_ten[no_of_digits - 1]);
+    for (unsigned i(0); i < no_of_digits; ++i) {
+        target += '0' + (n / divisor);
+        n %= divisor;
+        divisor /= 10u;
+    }
+
+    return target;
 }
 
 
@@ -1893,28 +1921,28 @@ void BinaryWriter::write(const Record &record) {
         std::string raw_record;
         raw_record.reserve(record_size);
         const unsigned no_of_fields(end - start);
-        raw_record += ToStringWithLeadingZeros(record_size, /* width = */ 5);
-        raw_record += record.leader_.substr(5, 12 - 5);
+        AppendToStringWithLeadingZeros(raw_record, record_size, /* width = */ 5);
+        StringUtil::AppendSubstring(raw_record, record.leader_, 5, 12 - 5);
         const unsigned base_address_of_data(Record::LEADER_LENGTH + no_of_fields * Record::DIRECTORY_ENTRY_LENGTH
                                             + 1 /* end-of-directory */);
-        raw_record += ToStringWithLeadingZeros(base_address_of_data, /* width = */ 5);
-        raw_record += record.leader_.substr(17, Record::LEADER_LENGTH - 17);
+        AppendToStringWithLeadingZeros(raw_record, base_address_of_data, /* width = */ 5);
+        StringUtil::AppendSubstring(raw_record, record.leader_, 17, Record::LEADER_LENGTH - 17);
 
         // Append the directory:
         unsigned field_start_offset(0);
         if (record_is_oversized) {
-            raw_record += "001"
-                          + ToStringWithLeadingZeros(record.fields_.front().getContents().length() + 1 /* field terminator */, 4)
-                          + ToStringWithLeadingZeros(field_start_offset, /* width = */ 5);
+            raw_record += "001";
+            AppendToStringWithLeadingZeros(raw_record, record.fields_.front().getContents().length() + 1 /* field terminator */, 4);
+            AppendToStringWithLeadingZeros(raw_record, field_start_offset, /* width = */ 5);
             field_start_offset += record.fields_.front().getContents().length() + 1 /* field terminator */;
         }
         for (Record::const_iterator entry(start); entry != end; ++entry) {
             const size_t contents_length(entry->getContents().length());
             if (unlikely(contents_length > Record::MAX_VARIABLE_FIELD_DATA_LENGTH))
                 LOG_ERROR("can't generate a directory entry w/ a field w/ data length " + std::to_string(contents_length) + "!");
-            raw_record += entry->getTag().toString()
-                          + ToStringWithLeadingZeros(entry->getContents().length() + 1 /* field terminator */, 4)
-                          + ToStringWithLeadingZeros(field_start_offset, /* width = */ 5);
+            raw_record += entry->getTag().toString();
+            AppendToStringWithLeadingZeros(raw_record, entry->getContents().length() + 1 /* field terminator */, 4);
+            AppendToStringWithLeadingZeros(raw_record, field_start_offset, /* width = */ 5);
             field_start_offset += contents_length + 1 /* field terminator */;
         }
         raw_record += '\x1E'; // end-of-directory
