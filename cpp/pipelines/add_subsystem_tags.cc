@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2018, Library of the University of Tübingen
+    Copyright (C) 2018,2019 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -233,7 +233,8 @@ void CollectSuperiorOrParallelWorks(const MARC::Record &record, std::unordered_s
 
 // Get set of immediately belonging or superior or parallel records
 void GetSubsystemPPNSet(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                      std::vector<std::unordered_set<std::string>> * const subsystem_sets) {
+                        std::vector<std::unordered_set<std::string>> * const subsystem_sets)
+{
     while (const MARC::Record record = marc_reader->read()) {
         if (IsRelBibRecord(record)) {
             ((*subsystem_sets)[RELBIB]).emplace(record.getControlNumber());
