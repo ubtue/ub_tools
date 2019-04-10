@@ -702,6 +702,15 @@ public:
      */
     size_t reTag(const Tag &from_tag, const Tag &to_tag);
 
+    /** \return The list of tags in the record, including duplicates. */
+    inline std::vector<std::string> getTags()  {
+        std::vector<std::string> tags;
+        tags.reserve(fields_.size());
+        for (const auto &field : fields_)
+            tags.emplace_back(field.getTag().toString());
+        return tags;
+    }
+
     /** \brief Removes the element at pos
      *  \return The iterator following pos.
      */

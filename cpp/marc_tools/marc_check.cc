@@ -1,7 +1,7 @@
 /** \brief Utility for displaying various bits of info about a collection of MARC records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -47,7 +47,8 @@ void CheckFieldOrder(const bool do_not_abort_on_invalid_repeated_fields, const M
     for (const auto &field : record) {
         const MARC::Tag current_tag(field.getTag());
         if (unlikely(current_tag < last_tag))
-            LOG_ERROR("invalid tag order in the record with control number \"" + record.getControlNumber() + "\"!");
+            LOG_ERROR("invalid tag order in the record with control number \"" + record.getControlNumber() + "\" (\""
+                      + last_tag.toString() + "\" followed by \"" + current_tag.toString() + "\")!");
         if (unlikely(not MARC::IsRepeatableField(current_tag) and current_tag == last_tag)) {
             if (do_not_abort_on_invalid_repeated_fields)
                 LOG_WARNING("repeated non-repeatable tag \"" + current_tag.toString() + "\" found in the record with control number \""
