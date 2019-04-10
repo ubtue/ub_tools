@@ -1417,6 +1417,8 @@ Record BinaryReader::read() {
     } while (new_record.getControlNumber() == last_record_.getControlNumber());
 
     new_record.swap(last_record_);
+
+    // This should not be necessary unless we got bad data!
     new_record.sortFieldTags(new_record.begin(), new_record.end());
 
     return new_record;
