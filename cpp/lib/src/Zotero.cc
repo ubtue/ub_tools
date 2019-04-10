@@ -526,7 +526,7 @@ void SelectIssnAndPpn(const std::string &issn_zotero, const std::string &issn_on
 
 bool IsCreatorLastNameATitle(const std::string &last_name) {
     static const std::unordered_set<std::string> VALID_TITLES {
-        "Jr", "Jr.", "Sr", "Sr."
+        "Jr", "Jr.", "Sr", "Sr.", "SJ", "Sj"
     };
     return VALID_TITLES.find(last_name) != VALID_TITLES.end();
 }
