@@ -137,6 +137,11 @@ void LoadRules(const std::string &rules_filename, std::vector<Rule *> * const ru
     unsigned line_no(0);
     for (const auto line : FileUtil::ReadLines(rules_filename, FileUtil::ReadLines::DO_NOT_TRIM)) {
         ++line_no;
+
+        // Allow hash-comment lines:
+        if (not line.empty() and line[0] == '#')
+            continue;
+
         std::vector<std::string> parts;
         if (not ParseLine(line, &parts) or parts.empty())
             LOG_ERROR("bad rule in \"" + rules_filename + "\" on line #" + std::to_string(line_no) + "!");
