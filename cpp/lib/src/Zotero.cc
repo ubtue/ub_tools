@@ -616,7 +616,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
 
     // Review-specific modifications
     if (item_type == "review")
-        record->insertField("655", { { 'a', "Rezension" } }, /* indicator1 = */' ', /* indicator2 = */'7');
+        record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" } }, /* indicator1 = */' ', /* indicator2 = */'7');
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     MARC::Subfields _936_subfields;
