@@ -79,6 +79,34 @@ bool SubfieldMatches::hasBeenViolated(const MARC::Record &record, std::string * 
 }
 
 
+class FirstSubfieldMatches final: public Rule {
+    MARC::Tag tag_;
+    char subfield_code_;
+    std::shared_ptr<RegexMatcher> matcher_;
+public:
+    FirstSubfieldMatches(const MARC::Tag &tag, const char subfield_code, RegexMatcher * const matcher)
+        : tag_(tag), subfield_code_(subfield_code), matcher_(matcher) { }
+    virtual ~FirstSubfieldMatches() = default;
+
+    virtual bool hasBeenViolated(const MARC::Record &record, std::string * const err_msg) const final;
+};
+
+
+bool FirstSubfieldMatches::hasBeenViolated(const MARC::Record &record, std::string * const err_msg) const {
+    for (const auto &field : record.getTagRange(tag_)) {
+        for (const auto &subfield : field.getSubfields()) {
+            if (subfield.code_ == subfield_code_ and not matcher_->matched(subfield.value_)) {
+                *err_msg = "\"" + subfield.value_ +"\" does not match \"" + matcher_->getPattern() + "\"";
+                return true;
+            } else if (subfield.code_ == subfield_code_ and matcher_->matched(subfield.value_))
+                break;
+        }
+    }
+
+    return false;
+}
+
+
 // Parse a line with "words" separated by spaces.  Backslash escapes are supported.
 bool ParseLine(const std::string &line, std::vector<std::string> * const parts) {
     parts->clear();
@@ -113,21 +141,25 @@ void LoadRules(const std::string &rules_filename, std::vector<Rule *> * const ru
         if (not ParseLine(line, &parts) or parts.empty())
             LOG_ERROR("bad rule in \"" + rules_filename + "\" on line #" + std::to_string(line_no) + "!");
 
-        if (parts[0] == "subfield_match") {
+        if (parts[0] == "subfield_match" or parts[0] == "first_subfield_match") {
             if (parts.size() != 3)
                 LOG_ERROR("bad subfield_match rule in \"" + rules_filename + "\" on line #" + std::to_string(line_no) + "!");
             if (parts[1].length() != MARC::Record::TAG_LENGTH + 1)
-                LOG_ERROR("bad subfield_match rule in \"" + rules_filename + "\" on line #" + std::to_string(line_no)
+                LOG_ERROR("bad " + parts[0] + " rule in \"" + rules_filename + "\" on line #" + std::to_string(line_no)
                           + "! (Bad tag and subfield code.)");
 
             std::string err_msg;
             const auto matcher(RegexMatcher::RegexMatcherFactory(parts[2], &err_msg));
             if (matcher == nullptr)
-                LOG_ERROR("bad subfield_match rule in \"" + rules_filename + "\" on line #" + std::to_string(line_no)
+                LOG_ERROR("bad " + parts[0] + " rule in \"" + rules_filename + "\" on line #" + std::to_string(line_no)
                           + "! (Bad regex: " + err_msg + ".)");
 
-            rules->emplace_back(new SubfieldMatches(parts[1].substr(0, MARC::Record::TAG_LENGTH), parts[1][MARC::Record::TAG_LENGTH],
-                                                    matcher));
+            if (parts[0] == "subfield_match")
+                rules->emplace_back(new SubfieldMatches(parts[1].substr(0, MARC::Record::TAG_LENGTH),
+                                                        parts[1][MARC::Record::TAG_LENGTH], matcher));
+            else
+                rules->emplace_back(new FirstSubfieldMatches(parts[1].substr(0, MARC::Record::TAG_LENGTH),
+                                                             parts[1][MARC::Record::TAG_LENGTH], matcher));
         } else
             LOG_ERROR("unknown rule \"" + parts[0] + "\" in \"" + rules_filename + "\" on line #" + std::to_string(line_no) + "!");
     }
