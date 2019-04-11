@@ -526,7 +526,7 @@ void SelectIssnAndPpn(const std::string &issn_zotero, const std::string &issn_on
 
 bool IsCreatorLastNameATitle(const std::string &last_name) {
     static const std::unordered_set<std::string> VALID_TITLES {
-        "Jr", "Jr.", "Sr", "Sr.", "SJ", "Sj"
+        "Jr", "Jr.", "Sr", "Sr.", "SJ", "Sj", "S.j.", "Fr."
     };
     return VALID_TITLES.find(last_name) != VALID_TITLES.end();
 }
@@ -616,7 +616,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
 
     // Review-specific modifications
     if (item_type == "review")
-        record->insertField("655", { { 'a', "Rezension" } }, /* indicator1 = */' ', /* indicator2 = */'7');
+        record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" } }, /* indicator1 = */' ', /* indicator2 = */'7');
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     MARC::Subfields _936_subfields;
