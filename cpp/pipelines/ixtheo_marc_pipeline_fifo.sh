@@ -80,6 +80,12 @@ StartPhase "Check Record Integrity at the Beginning of the Pipeline"
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
+if [ -s /usr/local/var/lib/tuelib/marc_check_rule_violations.log ]; then
+    send_email --priority=high \
+               --recipients=ixtheo-team@ub.uni-tuebingen.de \
+               --subject="marc_check Found Rule Violations" \
+               --message-body="See /usr/local/var/lib/tuelib/marc_check_rule_violations.log for details."
+fi
 
 
 StartPhase "Replace old BSZ PPN's with new K10+ PPN's"
