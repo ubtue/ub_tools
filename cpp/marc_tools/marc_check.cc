@@ -69,7 +69,7 @@ bool SubfieldMatches::hasBeenViolated(const MARC::Record &record, std::string * 
     for (const auto &field : record.getTagRange(tag_)) {
         for (const auto &subfield : field.getSubfields()) {
             if (subfield.code_ == subfield_code_ and not matcher_->matched(subfield.value_)) {
-                *err_msg = "\'" + subfield.value_ +"\" does not match \"" + matcher_->getPattern() + "\"";
+                *err_msg = "\"" + subfield.value_ +"\" does not match \"" + matcher_->getPattern() + "\"";
                 return true;
             }
         }
