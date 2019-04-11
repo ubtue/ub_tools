@@ -43,7 +43,7 @@ regular_install: $(INSTALL_PROGS) Makefile
 data_install: Makefile data/*.conf data/*.map data/IxTheo_Notation.csv data/stopwords.* \
               data/subscriptions_email.ixtheo.template data/subscriptions_email.relbib.template \
               data/bibleRef/* data/crossref_downloader/* data/full_text_cache_monitor/* \
-              data/translate_chainer/* data/zotero_cgi/*
+              data/translate_chainer/* data/zotero_cgi/* data/marc_check.rules
 	@echo "Installing data..."
 	cp data/*.conf /usr/local/var/lib/tuelib/
 	cp data/*.map /usr/local/var/lib/tuelib/
@@ -57,6 +57,7 @@ data_install: Makefile data/*.conf data/*.map data/IxTheo_Notation.csv data/stop
 	cp -r data/full_text_cache_monitor /usr/local/var/lib/tuelib/
 	cp -r data/translate_chainer /usr/local/var/lib/tuelib/
 	cp -r data/zotero_cgi /usr/local/var/lib/tuelib/
+	cp -r data/marc_check.rules /usr/local/var/lib/tuelib/
 	rm -f -r /usr/local/var/lib/tuelib/language_models
 	mkdir --parents /usr/local/var/lib/tuelib/language_models
 	cp data/language_models/*.lm /usr/local/var/lib/tuelib/language_models
