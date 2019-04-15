@@ -248,7 +248,7 @@ void CreateUbToolsDatabase() {
 }
 
 
-void CreateVuFindDatabase(VuFindSystemType vufind_system_type) {
+void CreateVuFindDatabases(VuFindSystemType vufind_system_type) {
     AssureMysqlServerIsRunning();
 
     const std::string root_username("root");
@@ -259,7 +259,7 @@ void CreateVuFindDatabase(VuFindSystemType vufind_system_type) {
     const std::string sql_password("vufind");
 
     if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
-        std::cout << "creating vufind database\n";
+        std::cout << "creating " << sql_database << " database\n";
         DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
         DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
@@ -272,6 +272,15 @@ void CreateVuFindDatabase(VuFindSystemType vufind_system_type) {
             case KRIMDOK:
                 MySQLImportFileIfExists(sql_database, VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", root_username, root_password);
                 break;
+        }
+    }
+
+    if (vufind_system_type == IXTHEO) {
+        const std::string ixtheo_database("ixtheo");
+        if (not DbConnection::MySQLDatabaseExists(ixtheo_database, root_username, root_password)) {
+            std::cout << "creating " << ixtheo_database << " database\n";
+            DbConnection::MySQLCreateDatabase(ixtheo_database, root_username, root_password);
+            DbConnection::MySQLImportFile(ixtheo_database, INSTALLER_DATA_DIRECTORY + "/ixtheo.sql", root_username, root_password);
         }
     }
 }
@@ -712,7 +721,7 @@ int Main(int argc, char **argv) {
     }
     InstallUBTools(/* make_install = */ true);
     if (not ub_tools_only)
-        CreateVuFindDatabase(vufind_system_type);
+        CreateVuFindDatabases(vufind_system_type);
 
     return EXIT_SUCCESS;
 }
