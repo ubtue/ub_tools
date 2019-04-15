@@ -24,7 +24,7 @@ CREATE TABLE keyword_translations (
   KEY keyword_translations_idx_language_code (language_code),
   KEY keyword_translations_idx_translation (translation(30)),
   KEY keyword_translations_idx_gnd_code (gnd_code),
-  KEY keyword_translations_idx_status (status)
+  KEY keyword_translations_idx_status (status),
   UNIQUE KEY ppn_language_code_status_translator (ppn, language_code, status, translator)
 ) DEFAULT CHARSET=utf8mb4;
 
