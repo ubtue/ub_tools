@@ -43,6 +43,12 @@ public:
     /** \return The number of documents in the index. */
     size_t size() const;
 
+    /** \brief Counts all documents in the index with given field values.
+     *  \param fields_and_values Check for these field values.
+     *                           If you want to check whether a field exists, set value to *.
+     */
+    size_t count(const std::map<std::string, std::string> &fields_and_values) const;
+
     void simpleInsert(const std::map<std::string, std::string> &fields_and_values);
 
     /** \brief Inserts or replaces logical document into the Elasticsearch index.
