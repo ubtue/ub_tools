@@ -96,13 +96,20 @@ void LoadMapping(MARC::Reader * const marc_reader, const std::unordered_set<std:
 void PatchTable(DbConnection * const db_connection, const std::string &table, const std::string &column,
                 const std::unordered_map<std::string, std::string> &old_to_new_map)
 {
+    const unsigned MAX_BATCH_SIZE(100);
+
     db_connection->queryOrDie("BEGIN");
 
-    unsigned replacement_count(0);
+    unsigned replacement_count(0), batch_size(0);
     for (const auto &old_and_new : old_to_new_map) {
+        ++batch_size;
         db_connection->queryOrDie("UPDATE IGNORE " + table + " SET " + column + "='" + old_and_new.second
                                   + "' WHERE " + column + "='" + old_and_new.first + "'");
         replacement_count += db_connection->getNoOfAffectedRows();
+        if (batch_size >= MAX_BATCH_SIZE) {
+            db_connection->queryOrDie("COMMIT");
+            db_connection->queryOrDie("BEGIN");
+        }
     }
 
     db_connection->queryOrDie("COMMIT");
@@ -178,7 +185,7 @@ int Main(int argc, char **argv) {
         PatchTable(db_connection.get(), "vufind.ixtheo_pda_subscriptions", "book_ppn", old_to_new_map);
         PatchTable(db_connection.get(), "vufind.relbib_ids", "record_id", old_to_new_map);
         PatchTable(db_connection.get(), "vufind.bibstudies_ids", "record_id", old_to_new_map);
-    } 
+    }
 
     StoreNewAlreadyProcessedPPNs(&db, old_to_new_map);
 
