@@ -55,7 +55,7 @@ size_t Elasticsearch::size() const {
 
 
 size_t Elasticsearch::count(const std::map<std::string, std::string> &fields_and_values) const {
-    std::string subquery("/" + index_ + "/_count");
+    std::string subquery("_count");
     unsigned param_counter(0);
     for (const auto &field_and_value : fields_and_values) {
         if (param_counter == 0)
