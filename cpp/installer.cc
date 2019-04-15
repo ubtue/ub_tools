@@ -265,7 +265,6 @@ void CreateVuFindDatabases(VuFindSystemType vufind_system_type) {
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
         DbConnection::MySQLImportFile(sql_database, VUFIND_DIRECTORY + "/module/VuFind/sql/mysql.sql", root_username, root_password);
         MySQLImportFileIfExists(sql_database, VUFIND_DIRECTORY + "/module/TueFind/sql/mysql.sql", root_username, root_password);
-        const std::string ixtheo_database("ixtheo");
         switch(vufind_system_type) {
             case IXTHEO:
                 MySQLImportFileIfExists(sql_database, VUFIND_DIRECTORY + "/module/IxTheo/sql/mysql.sql", root_username, root_password);
