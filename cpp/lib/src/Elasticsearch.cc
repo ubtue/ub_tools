@@ -23,6 +23,7 @@
 #include "IniFile.h"
 #include "UBTools.h"
 #include "Url.h"
+#include "UrlUtil.h"
 
 
 const std::string DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath() + "Elasticsearch.conf");
@@ -50,6 +51,22 @@ Elasticsearch::Elasticsearch(const std::string &index, const std::string &type):
 
 size_t Elasticsearch::size() const {
     return JSON::LookupInteger("/indices/" + index_ + "/total/docs/count", query("_stats", REST::GET, JSON::ObjectNode(), /* add_type */ false));
+}
+
+
+size_t Elasticsearch::count(const std::map<std::string, std::string> &fields_and_values) const {
+    std::string subquery("_count");
+    unsigned param_counter(0);
+    for (const auto &field_and_value : fields_and_values) {
+        if (param_counter == 0)
+            subquery += "?q=";
+        else
+            subquery += "&";
+
+        subquery += UrlUtil::UrlEncode(field_and_value.first) + ":" + UrlUtil::UrlEncode(field_and_value.second);
+        ++param_counter;
+    }
+    return JSON::LookupInteger("/count", query(subquery, REST::GET, JSON::ObjectNode()));
 }
 
 

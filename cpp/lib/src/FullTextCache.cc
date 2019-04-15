@@ -121,15 +121,7 @@ std::vector<std::string> FullTextCache::getEntryUrlsAsStrings(const std::string 
 
 
 unsigned FullTextCache::getErrorCount() const {
-    const auto results(full_text_cache_urls_.simpleSelect({ "id", "error_message" }));
-
-    std::unordered_set<std::string> unique_ids;
-    for (const auto &map : results) {
-        if (map.find("error_message") != map.cend())
-            unique_ids.emplace(map.find("id")->second);
-    }
-
-    return static_cast<unsigned>(unique_ids.size());
+    return full_text_cache_urls_.count({ { "error_message", "*" } });
 }
 
 
