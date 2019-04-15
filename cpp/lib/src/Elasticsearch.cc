@@ -49,7 +49,7 @@ Elasticsearch::Elasticsearch(const std::string &index, const std::string &type):
 
 
 size_t Elasticsearch::size() const {
-    return JSON::LookupInteger("/indices/" + index_ + "/total/count", query("_stats", REST::GET, JSON::ObjectNode(), /* add_type */ false));
+    return JSON::LookupInteger("/indices/" + index_ + "/total/docs/count", query("_stats", REST::GET, JSON::ObjectNode(), /* add_type */ false));
 }
 
 
