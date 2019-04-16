@@ -99,7 +99,7 @@ void ExtractTopicIDs(const std::string &tags, const MARC::Record &record, const 
     topic_ids->clear();
 
     std::vector<std::string> individual_tags;
-    StringUtil::Split(tags, ':', &individual_tags);
+    StringUtil::Split(tags, ':', &individual_tags, /* suppress_empty_components = */true);
 
     for (const auto &tag : individual_tags) {
         for (const auto &field : record.getTagRange(tag)) {

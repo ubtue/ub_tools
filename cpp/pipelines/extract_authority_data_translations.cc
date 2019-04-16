@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2016, 2017 Library of the University of Tübingen
+    Copyright (C) 2016-2019 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -166,11 +166,13 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
                          std::map<std::string, std::vector<std::string>> term_to_translation_maps[])
 {
     std::vector<std::string> german_tags_and_subfield_codes;
-    if (unlikely(StringUtil::Split(german_term_field_spec, ':', &german_tags_and_subfield_codes) < 1))
+    if (unlikely(StringUtil::Split(german_term_field_spec, ':', &german_tags_and_subfield_codes,
+                                   /* suppress_empty_components = */true) < 1))
         LOG_ERROR("ExtractTranslations: Need at least one translation field");
 
     std::vector<std::string> translation_tags_and_subfield_codes;
-    if (unlikely(StringUtil::Split(translation_field_spec, ':', &translation_tags_and_subfield_codes) < 1))
+    if (unlikely(StringUtil::Split(translation_field_spec, ':', &translation_tags_and_subfield_codes,
+                                   /* suppress_empty_components = */true) < 1))
         LOG_ERROR("ExtractTranslations: Need at least one translation field");
 
     if (unlikely(german_tags_and_subfield_codes.size() != translation_tags_and_subfield_codes.size()))
@@ -244,7 +246,7 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
                 std::vector<std::string> splitType;
 
                 // Extract the encoded type
-                StringUtil::Split(*translation_vector_it, '-', &splitType);
+                StringUtil::Split(*translation_vector_it, '-', &splitType, /* suppress_empty_components = */true);
                 const std::string origin_and_language = splitType[0];
                 const std::string type = (splitType.size() == 2) ? splitType[1] : "";
 
@@ -286,9 +288,7 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
 } // unnamed namespace
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
-
+int Main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
@@ -324,17 +324,15 @@ int main(int argc, char **argv) {
         ++i;
     }
 
-    try {
-        std::map<std::string, std::vector<std::string>> term_to_translation_maps[NUMBER_OF_LANGUAGES];
-        ExtractTranslations(authority_data_reader.get(),
-                            "100a:110ab:111a:130ap:150ax:151a",
-                            "700a:710ab:711a:730a:750a:751a",
-                            term_to_translation_maps);
-        for (int lang(0); lang < LANGUAGES_END; ++lang) {
-            for (const auto &line : term_to_translation_maps[lang])
-                *(lang_files[lang]) << line.first << '|' << StringUtil::Join(line.second, "||") << '\n';
-        }
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
+    std::map<std::string, std::vector<std::string>> term_to_translation_maps[NUMBER_OF_LANGUAGES];
+    ExtractTranslations(authority_data_reader.get(),
+                        "100a:110ab:111a:130ap:150ax:151a",
+                        "700a:710ab:711a:730a:750a:751a",
+                        term_to_translation_maps);
+    for (int lang(0); lang < LANGUAGES_END; ++lang) {
+        for (const auto &line : term_to_translation_maps[lang])
+            *(lang_files[lang]) << line.first << '|' << StringUtil::Join(line.second, "||") << '\n';
     }
+
+    return EXIT_SUCCESS;
 }

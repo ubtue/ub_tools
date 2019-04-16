@@ -605,7 +605,7 @@ bool MakeDirectory(const std::string &path, const bool recursive, const mode_t m
     }
 
     std::vector<std::string> path_components;
-    StringUtil::Split(path, '/', &path_components);
+    StringUtil::Split(path, '/', &path_components, /* suppress_empty_components = */true);
 
     std::string path_so_far;
     if (absolute)
@@ -1263,7 +1263,7 @@ std::string GetExtension(const std::string &filename, const bool to_lowercase) {
 
 std::string StripLastPathComponent(const std::string &path) {
     std::vector<std::string> path_components;
-    if (StringUtil::Split(path, '/', &path_components) < 1)
+    if (StringUtil::Split(path, '/', &path_components, /* suppress_empty_components = */true) < 1)
         LOG_ERROR("\"" + path + "\" has no path components");
     path_components.pop_back();
     return (path[0] == '/' ? "/" : "") + StringUtil::Join(path_components, '/');
