@@ -78,11 +78,11 @@ OVERALL_START=$(date +%s.%N)
 
 
 StartPhase "Check Record Integity at the Beginning of the Pipeline"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
             --write-data=GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc GesamtTiteldaten-"${date}".mrc \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Replace old BSZ PPN's with new K10+ PPN's"
