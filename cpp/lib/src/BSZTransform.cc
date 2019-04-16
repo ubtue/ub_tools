@@ -1,5 +1,5 @@
 /*  \brief Utility Functions for Transforming Data in accordance with BSZ Requirements
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -112,7 +112,7 @@ bool StripCatholicOrdersFromAuthorName(std::string * const first_name, std::stri
     if (abbreviations_catholic_orders.empty()) {
         auto string_data(FileUtil::ReadStringOrDie(CATHOLIC_ORDERS_ABBREVIATIONS_PATH));
         TextUtil::UTF8ToLower(&string_data);
-        StringUtil::Split(string_data, '\n', &abbreviations_catholic_orders);
+        StringUtil::Split2(string_data, '\n', &abbreviations_catholic_orders, /* suppress_empty_components = */true);
     }
 
     const auto normalised_last_name(TextUtil::UTF8ToLower(last_name));

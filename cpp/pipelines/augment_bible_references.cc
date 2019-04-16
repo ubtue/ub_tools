@@ -377,7 +377,7 @@ bool FindGndCodes(const std::string &tags, const MARC::Record &record,
     ranges->clear();
 
     std::vector<std::string> individual_tags;
-    StringUtil::Split(tags, ':', &individual_tags);
+    StringUtil::Split2(tags, ':', &individual_tags, /* suppress_empty_components = */true);
 
     bool found_at_least_one(false);
     for (const auto &tag : individual_tags) {

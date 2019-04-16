@@ -506,7 +506,7 @@ ptrdiff_t Resolver::GenerateRequestPacket(const std::string &hostname, const uin
 
     // Split the hostname into "labels" and append them to the packet header:
     std::list<std::string> labels;
-    StringUtil::Split(hostname, '.', &labels, /* suppress_empty_components = */ false);
+    StringUtil::Split2(hostname, '.', &labels);
     unsigned char *cp = packet + sizeof(HEADER);
     for (std::list<std::string>::const_iterator label(labels.begin()); label != labels.end(); ++label) {
         *cp++ = static_cast<unsigned char>(label->length());

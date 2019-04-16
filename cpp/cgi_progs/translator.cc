@@ -4,7 +4,7 @@
  *  \author  Johannes Riedl
  */
 /*
-    Copyright (C) 2016-2018, Library of the University of Tübingen
+    Copyright (C) 2016-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -261,7 +261,7 @@ void GetTranslatorLanguages(const IniFile &ini_file, const std::string &translat
     // If user is an administrator all languages are open for editing, otherwise only the specified ones
     const std::string ini_administrators(ini_file.getString(USER_SECTION, "administrators"));
     std::vector<std::string> administrators;
-    StringUtil::Split(ini_administrators, ',', &administrators);
+    StringUtil::Split2(ini_administrators, ',', &administrators, /*n suppress_empty_components = */true);
     std::for_each(administrators.begin(), administrators.end(),
                   [](std::string &administrator){ StringUtil::TrimWhite(&administrator); });
     std::string ini_translator_languages;
@@ -270,7 +270,7 @@ void GetTranslatorLanguages(const IniFile &ini_file, const std::string &translat
     else
         ini_translator_languages = ini_file.getString(TRANSLATION_LANGUAGES_SECTION, translator);
 
-    StringUtil::Split(ini_translator_languages, ',', translator_languages);
+    StringUtil::Split2(ini_translator_languages, ',', translator_languages, /*n suppress_empty_components = */true);
     std::for_each(translator_languages->begin(), translator_languages->end(),
                    [](std::string &translator_language){ StringUtil::TrimWhite(&translator_language); });
 }
@@ -624,7 +624,7 @@ void GetAdditionalViewLanguages(const IniFile &ini_file, std::vector<std::string
                                 const std::string &translator)
 {
     const std::string ini_additional_view_languages(ini_file.getString(ADDITIONAL_VIEW_LANGUAGES, translator, ""));
-    StringUtil::Split(ini_additional_view_languages, ',', additional_view_languages);
+    StringUtil::Split2(ini_additional_view_languages, ',', additional_view_languages, /*n suppress_empty_components = */true);
     std::for_each(additional_view_languages->begin(), additional_view_languages->end(),
                   [](std::string &additional_view_language){ StringUtil::TrimWhite(&additional_view_language); });
 }

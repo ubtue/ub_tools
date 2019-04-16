@@ -128,7 +128,7 @@ void ProcessKeywordPhrase(
     TextUtil::UTF8ToLower(stemmed_phrase, &lowercase_stemmed_phrase);
     (*stemmed_keyphrases_to_unstemmed_keyphrases_map)[lowercase_stemmed_phrase] = keyword_phrase;
     std::vector<std::string> stemmed_words;
-    StringUtil::Split(lowercase_stemmed_phrase, ' ', &stemmed_words);
+    StringUtil::Split2(lowercase_stemmed_phrase, ' ', &stemmed_words, /* suppress_empty_components = */true);
     for (const auto &stemmed_word : stemmed_words) {
         auto iter(stemmed_keyword_to_stemmed_keyphrases_map->find(stemmed_word));
         if (iter == stemmed_keyword_to_stemmed_keyphrases_map->end())
@@ -322,7 +322,7 @@ void AugmentRecordsWithTitleKeywords(
                     continue; // We already have this in our MARC record.
 
                 std::vector<std::string> stemmed_phrase_as_vector;
-                StringUtil::Split(stemmed_phrase, ' ', &stemmed_phrase_as_vector);
+                StringUtil::Split2(stemmed_phrase, ' ', &stemmed_phrase_as_vector, /* suppress_empty_components = */true);
                 if (stemmed_phrase_as_vector.size() == 1
                     and stemmed_phrase_as_vector[0].length() < MIN_SINGLE_STEMMED_KEYWORD_LENGTH)
                     continue;
