@@ -786,7 +786,7 @@ std::string GetMajorSite(const Url &url) {
 
     // Parse the URL:
     std::vector<std::string> parts;
-    StringUtil::Split(authority, '.', &parts);
+    StringUtil::Split(authority, '.', &parts, /* suppress_empty_components = */true);
     const unsigned size(parts.size());
     if (size < 2)
         return "";

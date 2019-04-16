@@ -2136,7 +2136,7 @@ void SplitListValues(std::list<std::string> * const values, const std::string &d
     // Join the list into one string, then split it again:
     std::string joined_list;
     StringUtil::Join(*values, delimiter, &joined_list);
-    StringUtil::Split(joined_list, delimiter, values, /* suppress_empty_components = */ false);
+    StringUtil::Split(joined_list, delimiter, values);
 }
 
 

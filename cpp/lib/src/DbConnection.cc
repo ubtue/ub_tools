@@ -29,6 +29,7 @@
 #include "UBTools.h"
 #include "util.h"
 
+
 DbConnection::DbConnection(const std::string &mysql_url, const Charset charset, const TimeZone time_zone)
     : sqlite3_(nullptr), stmt_handle_(nullptr)
 {

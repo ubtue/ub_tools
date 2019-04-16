@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2018, Library of the University of Tübingen
+    Copyright (C) 2016-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -97,7 +97,7 @@ void ParseGetMissingLine(const std::string &line, Translation * const translatio
 
 void ParseTranslationsDbToolOutput(const std::string &output, std::vector<Translation> * const translations) {
     std::vector<std::string> lines;
-    StringUtil::Split(output, '\n', &lines);
+    StringUtil::Split(output, '\n', &lines, /* suppress_empty_components = */true);
 
     for (const auto &line : lines) {
         Translation new_translation;

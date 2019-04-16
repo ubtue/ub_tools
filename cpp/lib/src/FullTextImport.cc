@@ -76,7 +76,7 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
             full_text_data->title_ = line;
             break;
         case 2:
-            StringUtil::Split(line, '|', &full_text_data->authors_);
+            StringUtil::Split(line, '|', &full_text_data->authors_, /* suppress_empty_components = */true);
             break;
         case 3:
             full_text_data->year_ = line;

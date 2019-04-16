@@ -151,7 +151,7 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
     std::string first_id_and_title_string_value(container_ids_and_titles_array->getStringNode(0)->getValue());
     StringUtil::ReplaceString("#31;", "\x1F", &first_id_and_title_string_value);
     std::vector<std::string> parts;
-    StringUtil::Split(first_id_and_title_string_value, '\x1F', &parts);
+    StringUtil::Split(first_id_and_title_string_value, '\x1F', &parts, /* suppress_empty_components = */true);
     if (unlikely(parts.size() < 2))
         LOG_ERROR("strange id and title value \"" + first_id_and_title_string_value + "\"!");
 
