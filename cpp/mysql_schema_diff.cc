@@ -74,16 +74,16 @@ int Main(int argc, char *argv[]) {
         }
 
         for (unsigned retry_count(0); retry_count < 3; ++retry_count) {
-                ++retry_count;
-                try {
-                    db_connection.reset(new DbConnection(db_name, user, password));
-                    break;
-                } catch (...) {
-                    if (manual_password_entry)
-                        password = MiscUtil::GetPassword("Please enter the MySQL password again of abort w/ Ctrl-C:");
-                    else
-                        throw;
-                }
+            ++retry_count;
+            try {
+                db_connection.reset(new DbConnection(db_name, user, password));
+                break;
+            } catch (...) {
+                if (manual_password_entry)
+                    password = MiscUtil::GetPassword("Please enter the MySQL password again of abort w/ Ctrl-C:");
+                else
+                    throw;
+            }
         }
 
         --argc, ++argv;
