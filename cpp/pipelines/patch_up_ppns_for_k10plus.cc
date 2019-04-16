@@ -142,11 +142,12 @@ void PatchNotifiedDB(const std::string &user_type, const std::unordered_map<std:
 }
 
 
-bool HaveAllPermissions(DbConnection * const db_connection, const std::string &database, const std::string &user) {
-    db_connection->queryOrDie("SHOW GRANTS FOR " + user);
+bool HaveAllPermissions(DbConnection * const db_connection, const std::string &database) {
+    db_connection->queryOrDie("SHOW GRANTS FOR '" + db_connection->getUser() + "'@'" + db_connection->getHost() + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
-        if (row[0] == "GRANT ALL PRIVILEGES ON `" + database + "`.* TO " + user)
+        if (row[0]
+            == "GRANT ALL PRIVILEGES ON `" + database + "`.* TO '" + db_connection->getUser() + "'@'" + db_connection->getHost() + "'")
             return true;
     }
     return false;
@@ -154,11 +155,12 @@ bool HaveAllPermissions(DbConnection * const db_connection, const std::string &d
 
 
 void CheckMySQLPermissions(DbConnection * const db_connection) {
-    if (not HaveAllPermissions(db_connection, "vufind", "'ub_tools'@localhost'"))
-        LOG_ERROR("'ub_tools'@localhost' needs all permissions on the vufind database!");
+    if (not HaveAllPermissions(db_connection, "vufind"))
+        LOG_ERROR("'" + db_connection->getUser() + "'@' " + db_connection->getHost() + "' needs all permissions on the vufind database!");
     if (VuFind::GetTueFindFlavour() == "ixtheo") {
-        if (not HaveAllPermissions(db_connection, "ixtheo", "'ub_tools'@localhost'"))
-            LOG_ERROR("'ub_tools'@localhost' needs all permissions on the ixtheo database!");
+        if (not HaveAllPermissions(db_connection, "ixtheo"))
+            LOG_ERROR("'" + db_connection->getUser() + "'@' " + db_connection->getHost()
+                      + "' needs all permissions on the ixtheo database!");
     }
 }
 
