@@ -750,7 +750,7 @@ unsigned TestAndConvertCount(char ***argvp) {
 
 void ExtractSubfieldSpecs(const std::string &command, char ***argvp, std::vector<std::string> * const subfield_specs) {
     ++*argvp;
-    StringUtil::Split2(std::string(**argvp), ':', subfield_specs, /* suppress_empty_components = */true);
+    StringUtil::Split(std::string(**argvp), ':', subfield_specs, /* suppress_empty_components = */true);
     if (not ArePlausibleSubfieldSpecs(*subfield_specs))
         LOG_ERROR("bad subfield specifications \"" + std::string(**argvp) + "\" for " + command + "!");
     ++*argvp;

@@ -166,13 +166,13 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
                          std::map<std::string, std::vector<std::string>> term_to_translation_maps[])
 {
     std::vector<std::string> german_tags_and_subfield_codes;
-    if (unlikely(StringUtil::Split2(german_term_field_spec, ':', &german_tags_and_subfield_codes,
-                                    /* suppress_empty_components = */true) < 1))
+    if (unlikely(StringUtil::Split(german_term_field_spec, ':', &german_tags_and_subfield_codes,
+                                   /* suppress_empty_components = */true) < 1))
         LOG_ERROR("ExtractTranslations: Need at least one translation field");
 
     std::vector<std::string> translation_tags_and_subfield_codes;
-    if (unlikely(StringUtil::Split2(translation_field_spec, ':', &translation_tags_and_subfield_codes,
-                                    /* suppress_empty_components = */true) < 1))
+    if (unlikely(StringUtil::Split(translation_field_spec, ':', &translation_tags_and_subfield_codes,
+                                   /* suppress_empty_components = */true) < 1))
         LOG_ERROR("ExtractTranslations: Need at least one translation field");
 
     if (unlikely(german_tags_and_subfield_codes.size() != translation_tags_and_subfield_codes.size()))
@@ -246,7 +246,7 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
                 std::vector<std::string> splitType;
 
                 // Extract the encoded type
-                StringUtil::Split2(*translation_vector_it, '-', &splitType, /* suppress_empty_components = */true);
+                StringUtil::Split(*translation_vector_it, '-', &splitType, /* suppress_empty_components = */true);
                 const std::string origin_and_language = splitType[0];
                 const std::string type = (splitType.size() == 2) ? splitType[1] : "";
 
@@ -301,7 +301,7 @@ int Main(int argc, char **argv) {
 
     // Create a file for each language
     std::vector<std::string> output_file_components;
-    if (unlikely(StringUtil::Split2(extracted_translations_filename, '.', &output_file_components) < 1))
+    if (unlikely(StringUtil::Split(extracted_translations_filename, '.', &output_file_components) < 1))
         LOG_ERROR("extracted_translations_filename " + extracted_translations_filename + " is not valid");
 
     File *lang_files[NUMBER_OF_LANGUAGES];

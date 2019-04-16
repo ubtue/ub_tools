@@ -64,7 +64,7 @@ void GetAuthorsFromDB(DbConnection &db_connection, std::set<std::string> * const
     while (const DbRow db_row = result_set.getNextRow()) {
         const std::string author_row(db_row["autor"]);
         std::vector<std::string> authors_in_row;
-        StringUtil::Split2(author_row, ';', &authors_in_row, /* suppress_empty_components = */true);
+        StringUtil::Split(author_row, ';', &authors_in_row, /* suppress_empty_components = */true);
         for (auto &author : authors_in_row) {
             // Remove superfluous additions
             static std::regex to_strip("\\(Hrsg[\\.]\\)");
@@ -81,11 +81,11 @@ void GetKeywordsFromDB(DbConnection &db_connection, std::set<std::string> * cons
     while (const DbRow db_row = result_set.getNextRow()) {
         const std::string keyword_row(db_row["stichwort"]);
         std::vector<std::string> keywords_in_row;
-        StringUtil::Split2(keyword_row, ';', &keywords_in_row, /* suppress_empty_components = */true);
+        StringUtil::Split(keyword_row, ';', &keywords_in_row, /* suppress_empty_components = */true);
         for (const auto &keyword : keywords_in_row) {
             // Special Handling: He have entries that are erroneously separated by commas instead of semicolon
             std::vector<std::string> comma_separated_keywords;
-            StringUtil::Split2(keyword, ',', &comma_separated_keywords, /* suppress_empty_components = */true);
+            StringUtil::Split(keyword, ',', &comma_separated_keywords, /* suppress_empty_components = */true);
             for (const auto comma_separated_keyword : comma_separated_keywords)
                 keywords->emplace(StringUtil::TrimWhite(comma_separated_keyword));
         }
@@ -99,7 +99,7 @@ void GetCICFromDB(DbConnection &db_connection, std::set<std::string> * const cic
     while (const DbRow db_row = result_set.getNextRow()) {
         const std::string cic_row(db_row["cicbezug"]);
         std::vector<std::string> cics_in_row;
-        StringUtil::Split2(cic_row, ';', &cics_in_row, /* suppress_empty_components = */true);
+        StringUtil::Split(cic_row, ';', &cics_in_row, /* suppress_empty_components = */true);
         for (const auto &cic : cics_in_row) {
             cic_numbers->emplace(StringUtil::TrimWhite(cic));
         }
@@ -269,7 +269,7 @@ void AugmentDBEntries(DbConnection &db_connection,
         std::vector<std::string> authors_in_row;
         std::vector<std::string> author_gnd_numbers;
         bool author_gnd_seen(false);
-        StringUtil::Split2(author_row, ';', &authors_in_row, /* suppress_empty_components = */true);
+        StringUtil::Split(author_row, ';', &authors_in_row, /* suppress_empty_components = */true);
         for (const auto &one_author : authors_in_row) {
              const auto author_gnds(author_to_gnds_result_map.find(StringUtil::TrimWhite(one_author)));
              if (author_gnds != author_to_gnds_result_map.cend()) {
@@ -286,7 +286,7 @@ void AugmentDBEntries(DbConnection &db_connection,
         std::vector<std::string> keywords_in_row;
         std::vector<std::string> keyword_gnd_numbers;
         bool keyword_gnd_seen(false);
-        StringUtil::Split2(keyword_row, ';', &keywords_in_row, /* suppress_empty_components = */true);
+        StringUtil::Split(keyword_row, ';', &keywords_in_row, /* suppress_empty_components = */true);
         for (const auto one_keyword : keywords_in_row) {
             const auto keyword_gnds(keyword_to_gnds_result_map.find(StringUtil::TrimWhite(one_keyword)));
             if (keyword_gnds != keyword_to_gnds_result_map.cend()) {
@@ -304,7 +304,7 @@ void AugmentDBEntries(DbConnection &db_connection,
         std::vector<std::string> cics_in_row;
         std::vector<std::string> cic_gnd_numbers;
         bool cic_gnd_seen(false);
-        StringUtil::Split2(cic_row, ';', &cics_in_row, /* suppress_empty_components = */true);
+        StringUtil::Split(cic_row, ';', &cics_in_row, /* suppress_empty_components = */true);
         for (const auto one_cic : cics_in_row) {
             const auto cic_gnd(cic_to_gnd_result_map.find(StringUtil::TrimWhite(one_cic)));
             if (cic_gnd != cic_to_gnd_result_map.cend()) {

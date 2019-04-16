@@ -97,7 +97,7 @@ void ParseGetMissingLine(const std::string &line, Translation * const translatio
 
 void ParseTranslationsDbToolOutput(const std::string &output, std::vector<Translation> * const translations) {
     std::vector<std::string> lines;
-    StringUtil::Split2(output, '\n', &lines, /* suppress_empty_components = */true);
+    StringUtil::Split(output, '\n', &lines, /* suppress_empty_components = */true);
 
     for (const auto &line : lines) {
         Translation new_translation;
