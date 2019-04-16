@@ -78,23 +78,21 @@ OVERALL_START=$(date +%s.%N)
 
 
 StartPhase "Check Record Integity at the Beginning of the Pipeline"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
             --write-data=GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc GesamtTiteldaten-"${date}".mrc \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Replace old BSZ PPN's with new K10+ PPN's"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(patch_up_ppns_for_k10plus GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
+(patch_up_ppns_for_k10plus GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
 StartPhase "Normalise URL's"
-(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
