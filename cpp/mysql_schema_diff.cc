@@ -60,16 +60,32 @@ int Main(int argc, char *argv[]) {
 
     std::shared_ptr<DbConnection> db_connection;
     const std::string db_name(argv[1]);
+    bool manual_password_entry;
     if (argc >= 4) {
         const std::string user(argv[2]);
         std::string password;
         if (argc >= 5) {
             password = argv[3];
             --argc, ++argv;
-        } else
-            password = MiscUtil::GetPassword("Please enter MySQL password:");
+            manual_password_entry = false;
+        } else {
+            password = MiscUtil::GetPassword("Please enter the MySQL password:");
+            manual_password_entry = true;
+        }
 
-        db_connection.reset(new DbConnection(db_name, user, password));
+        for (unsigned retry_count(0); retry_count < 3; ++retry_count) {
+                ++retry_count;
+                try {
+                    db_connection.reset(new DbConnection(db_name, user, password));
+                    break;
+                } catch (...) {
+                    if (manual_password_entry)
+                        password = MiscUtil::GetPassword("Please enter the MySQL password again of abort w/ Ctrl-C:");
+                    else
+                        throw;
+                }
+        }
+
         --argc, ++argv;
     } else if (std::strcmp(db_name.c_str(), "vufind") == 0)
         db_connection.reset(new DbConnection(VuFind::GetMysqlURL()));
