@@ -832,7 +832,7 @@ template<typename StringType, typename InsertableContainer> unsigned Split(
         if (next_delimiter == StringType::npos) {
             if (not suppress_empty_components or start < source.length())
                 container->insert(container->end(), source.substr(start));
-        } else if (next_delimiter > start) {
+        } else if (next_delimiter >= start) {
             if (not suppress_empty_components or start < next_delimiter)
                 container->insert(container->end(), source.substr(start, next_delimiter - start));
         }
@@ -889,7 +889,7 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
         if (next_delimiter == StringType::npos) {
             if (not suppress_empty_components or start < source.length())
                 container->insert(container->end(), source.substr(start));
-        } else if (next_delimiter > start) {
+        } else if (next_delimiter >= start) {
             if (not suppress_empty_components or start < next_delimiter)
                 container->insert(container->end(), source.substr(start, next_delimiter - start));
         }
