@@ -194,6 +194,7 @@ std::vector<FullTextCache::EntryUrl> FullTextCache::getJoinedEntriesByDomainAndE
         entries.emplace_back(EntryUrl(id, url, domain, error_message));
     }
 
+    std::sort(entries.begin(), entries.end(), [](const EntryUrl &eu1, const EntryUrl &eu2){ return eu1.id_ < eu2.id_; });
     return entries;
 }
 
