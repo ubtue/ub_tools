@@ -142,7 +142,7 @@ const std::string US("\x1F"); // ASCII unit separator
 std::vector<FullTextCache::EntryGroup> FullTextCache::getEntryGroupsByDomainAndErrorMessage() const {
     const auto results(full_text_cache_urls_.simpleSelect({ "url", "domain", "error_message", "id" }));
 
-    std::unordered_map<std::string, std::tuple<std::string, unsigned>> urls_and_domains_to_ids_and_counts_map;
+    std::unordered_map<std::string, std::tuple<std::string, std::string, unsigned>> domains_and_errors_to_ids_and_urls_and_counts_map;
     for (const auto &map : results) {
         const auto url_pair(map.find("url"));
         const auto domain_pair(map.find("domain"));
@@ -151,31 +151,29 @@ std::vector<FullTextCache::EntryGroup> FullTextCache::getEntryGroupsByDomainAndE
             continue;
 
         const auto id_pair(map.find("id"));
-        const auto key(url_pair->second + US + domain_pair->second + US + error_message_pair->second);
-        auto url_and_domain_and_id_and_count(urls_and_domains_to_ids_and_counts_map.find(key));
-        if (url_and_domain_and_id_and_count != urls_and_domains_to_ids_and_counts_map.end())
-            ++std::get<1>(url_and_domain_and_id_and_count->second);
+        const auto key(domain_pair->second + US + error_message_pair->second);
+        auto id_and_url_and_count(domains_and_errors_to_ids_and_urls_and_counts_map.find(key));
+        if (id_and_url_and_count != domains_and_errors_to_ids_and_urls_and_counts_map.end())
+            ++std::get<2>(id_and_url_and_count->second);
         else
-            urls_and_domains_to_ids_and_counts_map[key] = std::make_tuple(id_pair->second, 1);
+            domains_and_errors_to_ids_and_urls_and_counts_map[key] = std::make_tuple(id_pair->second, url_pair->second, 1);
     }
 
     std::vector<EntryGroup> groups;
-    groups.reserve(urls_and_domains_to_ids_and_counts_map.size());
-    for (const auto &url_and_domain_and_id_and_count : urls_and_domains_to_ids_and_counts_map) {
+    groups.reserve(domains_and_errors_to_ids_and_urls_and_counts_map.size());
+    for (const auto &domain_and_error_to_id_and_url_and_count : domains_and_errors_to_ids_and_urls_and_counts_map) {
         std::vector<std::string> parts;
-        if (unlikely(StringUtil::Split(url_and_domain_and_id_and_count.first, US, &parts) != 3))
+        if (unlikely(StringUtil::Split(domain_and_error_to_id_and_url_and_count.first, US, &parts) != 2))
             LOG_ERROR("This should never happen (" + std::to_string(parts.size()) + "): "
-                      + StringUtil::CStyleEscape(url_and_domain_and_id_and_count.first));
+                      + StringUtil::CStyleEscape(domain_and_error_to_id_and_url_and_count.first));
 
-        const std::string &url(parts[0]);
-        const std::string &domain(parts[1]);
-        const std::string &error_message(parts[2]);
-
-        groups.emplace_back(EntryGroup(std::get<1>(url_and_domain_and_id_and_count.second), domain, error_message,
-                                       std::get<0>(url_and_domain_and_id_and_count.second), url));
+        groups.emplace_back(EntryGroup(std::get<2>(domain_and_error_to_id_and_url_and_count.second),
+                                       parts[0], parts[1],
+                                       std::get<0>(domain_and_error_to_id_and_url_and_count.second),
+                                       std::get<1>(domain_and_error_to_id_and_url_and_count.second)));
     }
 
-    std::sort(groups.begin(), groups.end(), [](const EntryGroup &eg1, const EntryGroup &eg2){ return eg1.count_ < eg2.count_;});
+    std::sort(groups.begin(), groups.end(), [](const EntryGroup &eg1, const EntryGroup &eg2){ return eg1.count_ > eg2.count_;});
     return groups;
 }
 
