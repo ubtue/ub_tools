@@ -810,9 +810,9 @@ std::string ExtractHead(std::string * const target, const std::string &delimiter
  *
  *  \return The number of extracted "fields".
  */
-template<typename StringType, typename InsertableContainer> unsigned Split(
+template<typename StringType, typename InsertableContainer> unsigned Split2(
     const StringType &source, const StringType &delimiter_string, InsertableContainer * const container,
-    const bool suppress_empty_components = true)
+    const bool suppress_empty_components = false)
 {
     if (unlikely(delimiter_string.empty()))
         throw std::runtime_error("in StringUtil::Split: empty delimited string!");
@@ -823,7 +823,6 @@ template<typename StringType, typename InsertableContainer> unsigned Split(
 
     typename StringType::size_type start(0);
     typename StringType::size_type next_delimiter(0);
-    unsigned count(0);
 
     while (next_delimiter != StringType::npos) {
         // Search for first occurence of delimiter that appears after start
@@ -833,11 +832,9 @@ template<typename StringType, typename InsertableContainer> unsigned Split(
         if (next_delimiter == StringType::npos) {
             if (not suppress_empty_components or start < source.length())
                 container->insert(container->end(), source.substr(start));
-            ++count;
         } else if (next_delimiter > start) {
             if (not suppress_empty_components or start < next_delimiter)
                 container->insert(container->end(), source.substr(start, next_delimiter - start));
-            ++count;
         }
 
         // Move the start pointer along the array
@@ -847,7 +844,7 @@ template<typename StringType, typename InsertableContainer> unsigned Split(
             next_delimiter = StringType::npos;
     }
 
-    return count;
+    return container->size();
 }
 
 
@@ -873,9 +870,9 @@ bool SplitOnString(const std::string &s, const std::string &separator, std::stri
  *  Splits "source" around the character in "delimiter" and return the resulting list of fields in "fields."
  *  Empty fields are returned in the list.
  */
-template<typename StringType, typename InsertableContainer> unsigned Split(const StringType &source, const char delimiter,
+template<typename StringType, typename InsertableContainer> unsigned Split2(const StringType &source, const char delimiter,
                                                                            InsertableContainer * const container,
-                                                                           const bool suppress_empty_components = true)
+                                                                           const bool suppress_empty_components = false)
 {
     container->clear();
     if (source.empty())
@@ -883,7 +880,6 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
 
     typename StringType::size_type start(0);
     typename StringType::size_type next_delimiter(0);
-    unsigned count(0);
 
     while (next_delimiter != StringType::npos) {
         // Search for first occurence of delimiter that appears after start:
@@ -893,11 +889,9 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
         if (next_delimiter == StringType::npos) {
             if (not suppress_empty_components or start < source.length())
                 container->insert(container->end(), source.substr(start));
-            ++count;
         } else if (next_delimiter > start) {
             if (not suppress_empty_components or start < next_delimiter)
                 container->insert(container->end(), source.substr(start, next_delimiter - start));
-            ++count;
         }
 
         // Move the start pointer along the string:
@@ -907,7 +901,7 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
             next_delimiter = StringType::npos;
     }
 
-    return count;
+    return container->size();
 }
 
 
@@ -921,9 +915,9 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
  *  Splits "source" around the character in "delimiter" and return the resulting list of fields in "fields."
  *  Empty fields are returned in the list.
  */
-template<typename StringType, typename InsertableContainer> unsigned Split(const StringType &source, const std::set<char> &delimiters,
+template<typename StringType, typename InsertableContainer> unsigned Split2(const StringType &source, const std::set<char> &delimiters,
                                                                            InsertableContainer * const container,
-                                                                           const bool suppress_empty_components = true)
+                                                                           const bool suppress_empty_components = false)
 {
     container->clear();
     if (source.empty())
@@ -931,7 +925,6 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
 
     typename StringType::size_type start(0);
     typename StringType::size_type next_delimiter(0);
-    unsigned count(0);
 
     while (next_delimiter != StringType::npos) {
         // Search for first occurence a delimiter that appears after start:
@@ -946,12 +939,10 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
         if (next_delimiter == StringType::npos) {
             if (not suppress_empty_components or start < source.length())
                 container->insert(container->end(), source.substr(start));
-            ++count;
         }
         else if (next_delimiter > start) {
             if (not suppress_empty_components or start < next_delimiter)
                 container->insert(container->end(), source.substr(start, next_delimiter - start));
-            ++count;
         }
 
         // Move the start pointer along the string:
@@ -961,7 +952,7 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
             next_delimiter = StringType::npos;
     }
 
-    return count;
+    return container->size();
 }
 
 
@@ -974,9 +965,9 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
  *  Splits "source" around the character in "delimiter" and return the resulting list of fields in "fields."
  *  Empty fields are returned in the list.
  */
-template<typename InsertableContainer> inline unsigned WhiteSpaceSplit(const std::string &source,
+template<typename InsertableContainer> inline unsigned WhiteSpaceSplit2(const std::string &source,
                                                                        InsertableContainer * const container,
-                                                                       const bool suppress_empty_components = true)
+                                                                       const bool suppress_empty_components = false)
 {
     return Split(source, MiscUtil::GetWhiteSpaceSet(), container, suppress_empty_components);
 }

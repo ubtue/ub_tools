@@ -2,7 +2,7 @@
  *  \brief  Normalises language codes and removes duplicates from specific MARC record fields
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -83,7 +83,7 @@ bool LanguageCodeParams::getCanonicalCode(const std::string &language_code, std:
 
 void LoadLanguageCodesFromConfig(const IniFile &config, LanguageCodeParams * const params) {
     std::vector<std::string> raw_language_codes;
-    StringUtil::Split(config.getString("", "canonical_language_codes"), ',', &raw_language_codes);
+    StringUtil::Split2(config.getString("", "canonical_language_codes"), ',', &raw_language_codes);
     if (raw_language_codes.empty())
         LOG_ERROR("Couldn't read canonical language codes from config file '" + CONFIG_FILE_PATH + "'!");
 

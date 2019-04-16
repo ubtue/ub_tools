@@ -97,7 +97,7 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
         site_params->expected_languages_text_fields_ = expected_languages.substr(0, field_separator_pos);
         expected_languages = expected_languages.substr(field_separator_pos + 1);
     }
-    StringUtil::Split(expected_languages, ',', &site_params->expected_languages_);
+    StringUtil::Split2(expected_languages, ',', &site_params->expected_languages_, /* suppress_empty_components = */true);
 
     for (const auto &entry : section) {
         if (StringUtil::StartsWith(entry.name_, "add_field"))

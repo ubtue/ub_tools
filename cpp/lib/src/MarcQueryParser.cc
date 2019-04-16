@@ -2,7 +2,7 @@
  *  \brief  Implementation of the query parser for the marc_grep2 tool.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -167,8 +167,7 @@ void ParseLeaderCondition(Tokenizer * const tokenizer, QueryDescriptor * const q
 
 void ParseSimpleFieldList(Tokenizer * const tokenizer, QueryDescriptor * const query_desc) {
     std::vector<std::string> field_or_subfield_candidates;
-    StringUtil::Split(tokenizer->getLastStringConstant(), ':', &field_or_subfield_candidates,
-                      /* suppress_empty_components = */ false);
+    StringUtil::Split2(tokenizer->getLastStringConstant(), ':', &field_or_subfield_candidates);
 
     for (const auto &field_or_subfield_candidate : field_or_subfield_candidates) {
         if (field_or_subfield_candidate.length() < MARC::Record::TAG_LENGTH)

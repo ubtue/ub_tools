@@ -163,7 +163,7 @@ std::vector<FullTextCache::EntryGroup> FullTextCache::getEntryGroupsByDomainAndE
     groups.reserve(urls_and_domains_to_ids_and_counts_map.size());
     for (const auto &url_and_domain_and_id_and_count : urls_and_domains_to_ids_and_counts_map) {
         std::vector<std::string> parts;
-        StringUtil::Split(url_and_domain_and_id_and_count.first, US, &parts);
+        StringUtil::Split2(url_and_domain_and_id_and_count.first, US, &parts, /* suppress_empty_components = */true);
         const std::string &url(parts[0]);
         const std::string &domain(parts[1]);
         const std::string &error_message(parts[2]);

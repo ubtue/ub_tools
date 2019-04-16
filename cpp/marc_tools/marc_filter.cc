@@ -1,7 +1,7 @@
 /** \brief A MARC-21 filter utility that can remove records or fields based on patterns for MARC subfields.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -750,7 +750,7 @@ unsigned TestAndConvertCount(char ***argvp) {
 
 void ExtractSubfieldSpecs(const std::string &command, char ***argvp, std::vector<std::string> * const subfield_specs) {
     ++*argvp;
-    StringUtil::Split(std::string(**argvp), ':', subfield_specs);
+    StringUtil::Split2(std::string(**argvp), ':', subfield_specs, /* suppress_empty_components = */true);
     if (not ArePlausibleSubfieldSpecs(*subfield_specs))
         LOG_ERROR("bad subfield specifications \"" + std::string(**argvp) + "\" for " + command + "!");
     ++*argvp;

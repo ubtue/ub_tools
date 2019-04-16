@@ -2,7 +2,7 @@
  *  \brief   Downloads metadata from crossref.org and generates MARC-21 records.
  *  \author  Dr. Johannes Ruscheinski
  *
- *  \copyright (C) 2017,2018, Library of the University of Tübingen
+ *  \copyright (C) 2017-2019, Library of the University of Tübingen
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -481,7 +481,7 @@ bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * 
         return false;
     }
 
-    if (StringUtil::Split(line.substr(0, first_space_pos), ',', issns) == 0) {
+    if (StringUtil::Split2(line.substr(0, first_space_pos), ',', issns, /* suppress_empty_components = */true) == 0) {
         LOG_WARNING("No ISSNS found!");
         return false;
     }

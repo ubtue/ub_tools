@@ -182,12 +182,12 @@ ConversionParams::ConversionParams(const std::string &config_file_path, const st
     const auto section(config.getSection(Zeder::FLAVOUR_TO_STRING_MAP.at(flavour_)));
 
     const auto url_field_priority(section->getString("url_field_priority"));
-    if (StringUtil::Split(url_field_priority, ',', &url_field_priority_) == 0)
+    if (StringUtil::Split2(url_field_priority, ',', &url_field_priority_, /* suppress_empty_components = */true) == 0)
         LOG_ERROR("Invalid URL field priority for flavour " + std::to_string(flavour_) + " in '" + config.getFilename() + "'");
 
     if (not entry_ids_string.empty()) {
         std::unordered_set<std::string> id_strings;
-        StringUtil::Split(entry_ids_string, ',', &id_strings);
+        StringUtil::Split2(entry_ids_string, ',', &id_strings, /* suppress_empty_components = */true);
         for (const auto &id_string : id_strings) {
             unsigned converted_id(0);
             if (not StringUtil::ToUnsigned(id_string, &converted_id))
@@ -474,7 +474,7 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
     // select the sections that are Zeder-compatible, i.e., that were exported by this tool
     std::vector<std::string> groups, valid_section_names;
 
-    StringUtil::Split(ini.getString("", "groups", ""), ',', &groups);
+    StringUtil::Split2(ini.getString("", "groups", ""), ',', &groups, /* suppress_empty_components = */true);
     for (const auto &section : ini) {
         const auto section_name(section.getSectionName());
         if (section_name.empty())

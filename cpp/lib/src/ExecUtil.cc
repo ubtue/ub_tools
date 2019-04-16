@@ -7,7 +7,7 @@
 /*
  *  Copyright 2004-2008 Project iVia.
  *  Copyright 2004-2008 The Regents of The University of California.
- *  Copyright 2017-2018 Universitätsbibliothek Tübingen
+ *  Copyright 2017-2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -274,7 +274,7 @@ std::string Which(const std::string &executable_candidate) {
             return "";
 
         std::vector<std::string> path_compoments;
-        StringUtil::Split(PATH, ':', &path_compoments);
+        StringUtil::Split2(PATH, ':', &path_compoments, /* suppress_empty_components = */true);
         for (const auto &path_compoment : path_compoments) {
             const std::string full_path(path_compoment + "/" + executable_candidate);
             if (IsExecutableFile(full_path)) {
@@ -355,7 +355,7 @@ void FindActivePrograms(const std::string &program_name, std::unordered_set<unsi
     ExecSubcommandAndCaptureStdout("pgrep " + program_name, &stdout);
 
     std::unordered_set<std::string> pids_strings;
-    StringUtil::Split(stdout, '\n', &pids_strings);
+    StringUtil::Split2(stdout, '\n', &pids_strings, /* suppress_empty_components = */true);
 
     for (const auto pid : pids_strings)
         pids->emplace(StringUtil::ToUnsigned(pid));

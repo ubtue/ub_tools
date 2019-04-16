@@ -7,7 +7,7 @@
  */
 
 /*
-    Copyright (C) 2015-2018, Library of the University of Tübingen
+    Copyright (C) 2015-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -87,7 +87,7 @@ bool HasAtLeastOneMonographParent(const std::string &subfield_list, const MARC::
                                   std::unordered_set<std::string> * const monograph_control_numbers)
 {
     std::vector<std::string> subfields;
-    StringUtil::Split(subfield_list, ':', &subfields);
+    StringUtil::Split2(subfield_list, ':', &subfields, /* suppress_empty_components = */true);
     for (const auto &subfield : subfields) {
         if (HasMonographParent(subfield, record, monograph_control_numbers))
             return true;

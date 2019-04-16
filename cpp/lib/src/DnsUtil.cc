@@ -6,7 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
- *  Copyright 2017,2018 Universtitätsbibliothek Tübingen
+ *  Copyright 2017-2019 Universtitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -105,7 +105,7 @@ bool IsValidHostName(const std::string &host_name) {
         return false;
 
     std::vector<std::string> labels;
-    const unsigned label_count(StringUtil::Split(host_name, '.', &labels, /* suppress_empty_components = */ false));
+    const unsigned label_count(StringUtil::Split2(host_name, '.', &labels));
     if (unlikely(label_count == 0))
         return false;
 
@@ -120,7 +120,7 @@ bool IsValidHostName(const std::string &host_name) {
 
 bool IsDottedQuad(const std::string &possible_dotted_quad) {
     std::list<std::string> octets;
-    StringUtil::Split(possible_dotted_quad, '.', &octets);
+    StringUtil::Split2(possible_dotted_quad, '.', &octets, /* suppress_empty_components = */true);
     if (octets.size() != 4)
         return false;
     for (std::list<std::string>::const_iterator octet(octets.begin()); octet != octets.end(); ++octet) {

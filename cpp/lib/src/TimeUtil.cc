@@ -275,7 +275,7 @@ static bool StringToStructTmHelper(std::string date_str, std::string optional_st
                 throw std::runtime_error("TimeUtil::StringToStructTm: bad locale specification \"" + optional_strptime_format + "\"!");
             const std::string locale_specifications(optional_strptime_format.substr(1, closing_paren_pos - 1));
             std::vector<std::string> locales_list;
-            StringUtil::Split(locale_specifications, '|', &locales_list);
+            StringUtil::Split2(locale_specifications, '|', &locales_list, /* suppress_empty_components = */true);
             for (const auto &locale_specification : locales_list) {
                 Locale *new_locale(new Locale(locale_specification, LC_TIME));
                 if (new_locale->isValid()) {
