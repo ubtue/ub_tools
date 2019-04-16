@@ -91,7 +91,7 @@ void UpdateIxTheoNotations(const std::vector<IxTheoMapper> &mappers, const std::
                            std::string * const ixtheo_notations_list)
 {
     std::vector<std::string> ixtheo_notations_vector;
-    StringUtil::Split2(*ixtheo_notations_list, ':', &ixtheo_notations_vector, /* suppress_empty_components = */true);
+    StringUtil::Split(*ixtheo_notations_list, ':', &ixtheo_notations_vector, /* suppress_empty_components = */true);
     std::set<std::string> previously_assigned_notations(std::make_move_iterator(ixtheo_notations_vector.begin()),
                                                         std::make_move_iterator(ixtheo_notations_vector.end()));
 

@@ -105,7 +105,7 @@ bool IsValidHostName(const std::string &host_name) {
         return false;
 
     std::vector<std::string> labels;
-    const unsigned label_count(StringUtil::Split2(host_name, '.', &labels));
+    const unsigned label_count(StringUtil::Split(host_name, '.', &labels));
     if (unlikely(label_count == 0))
         return false;
 
@@ -120,7 +120,7 @@ bool IsValidHostName(const std::string &host_name) {
 
 bool IsDottedQuad(const std::string &possible_dotted_quad) {
     std::list<std::string> octets;
-    StringUtil::Split2(possible_dotted_quad, '.', &octets, /* suppress_empty_components = */true);
+    StringUtil::Split(possible_dotted_quad, '.', &octets, /* suppress_empty_components = */true);
     if (octets.size() != 4)
         return false;
     for (std::list<std::string>::const_iterator octet(octets.begin()); octet != octets.end(); ++octet) {

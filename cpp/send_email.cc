@@ -112,7 +112,7 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
 
 std::vector<std::string> SplitRecipients(const std::string &recipients) {
     std::vector<std::string> individual_recipients;
-    StringUtil::Split2(recipients, ',', &individual_recipients, /* suppress_empty_components = */true);
+    StringUtil::Split(recipients, ',', &individual_recipients, /* suppress_empty_components = */true);
     return individual_recipients;
 }
 

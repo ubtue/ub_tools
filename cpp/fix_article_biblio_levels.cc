@@ -87,7 +87,7 @@ bool HasAtLeastOneMonographParent(const std::string &subfield_list, const MARC::
                                   std::unordered_set<std::string> * const monograph_control_numbers)
 {
     std::vector<std::string> subfields;
-    StringUtil::Split2(subfield_list, ':', &subfields, /* suppress_empty_components = */true);
+    StringUtil::Split(subfield_list, ':', &subfields, /* suppress_empty_components = */true);
     for (const auto &subfield : subfields) {
         if (HasMonographParent(subfield, record, monograph_control_numbers))
             return true;

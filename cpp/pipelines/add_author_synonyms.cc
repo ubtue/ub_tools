@@ -57,7 +57,7 @@ void ExtractSynonyms(MARC::Reader * const marc_reader,
                      const std::string &field_list)
 {
     std::vector<std::string> tags_and_subfield_codes;
-    if (unlikely(StringUtil::Split2(field_list, ':', &tags_and_subfield_codes, /* suppress_empty_components = */true) < 2))
+    if (unlikely(StringUtil::Split(field_list, ':', &tags_and_subfield_codes, /* suppress_empty_components = */true) < 2))
         LOG_ERROR("need at least two fields!");
     unsigned count(0);
     while (const MARC::Record record = marc_reader->read()) {

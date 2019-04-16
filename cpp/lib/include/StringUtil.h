@@ -810,7 +810,7 @@ std::string ExtractHead(std::string * const target, const std::string &delimiter
  *
  *  \return The number of extracted "fields".
  */
-template<typename StringType, typename InsertableContainer> unsigned Split2(
+template<typename StringType, typename InsertableContainer> unsigned Split(
     const StringType &source, const StringType &delimiter_string, InsertableContainer * const container,
     const bool suppress_empty_components = false)
 {
@@ -870,7 +870,7 @@ bool SplitOnString(const std::string &s, const std::string &separator, std::stri
  *  Splits "source" around the character in "delimiter" and return the resulting list of fields in "fields."
  *  Empty fields are returned in the list.
  */
-template<typename StringType, typename InsertableContainer> unsigned Split2(const StringType &source, const char delimiter,
+template<typename StringType, typename InsertableContainer> unsigned Split(const StringType &source, const char delimiter,
                                                                            InsertableContainer * const container,
                                                                            const bool suppress_empty_components = false)
 {
@@ -915,7 +915,7 @@ template<typename StringType, typename InsertableContainer> unsigned Split2(cons
  *  Splits "source" around the character in "delimiter" and return the resulting list of fields in "fields."
  *  Empty fields are returned in the list.
  */
-template<typename StringType, typename InsertableContainer> unsigned Split2(const StringType &source, const std::set<char> &delimiters,
+template<typename StringType, typename InsertableContainer> unsigned Split(const StringType &source, const std::set<char> &delimiters,
                                                                            InsertableContainer * const container,
                                                                            const bool suppress_empty_components = false)
 {
@@ -965,7 +965,7 @@ template<typename StringType, typename InsertableContainer> unsigned Split2(cons
  *  Splits "source" around the character in "delimiter" and return the resulting list of fields in "fields."
  *  Empty fields are returned in the list.
  */
-template<typename InsertableContainer> inline unsigned WhiteSpaceSplit2(const std::string &source,
+template<typename InsertableContainer> inline unsigned WhiteSpaceSplit(const std::string &source,
                                                                        InsertableContainer * const container,
                                                                        const bool suppress_empty_components = false)
 {

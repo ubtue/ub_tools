@@ -167,7 +167,7 @@ void ParseLeaderCondition(Tokenizer * const tokenizer, QueryDescriptor * const q
 
 void ParseSimpleFieldList(Tokenizer * const tokenizer, QueryDescriptor * const query_desc) {
     std::vector<std::string> field_or_subfield_candidates;
-    StringUtil::Split2(tokenizer->getLastStringConstant(), ':', &field_or_subfield_candidates);
+    StringUtil::Split(tokenizer->getLastStringConstant(), ':', &field_or_subfield_candidates);
 
     for (const auto &field_or_subfield_candidate : field_or_subfield_candidates) {
         if (field_or_subfield_candidate.length() < MARC::Record::TAG_LENGTH)

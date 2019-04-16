@@ -121,11 +121,11 @@ int Main(int argc, char **argv) {
     // Determine fields to process.
     std::set<std::string> primary_tags_and_subfield_codes;
     std::set<std::string> synonym_tags_and_subfield_codes;
-    if (unlikely(StringUtil::Split2(REFERENCE_DATA_PRIMARY_SPEC, ':', &primary_tags_and_subfield_codes,
-                                    /* suppress_empty_components = */true) < 1))
+    if (unlikely(StringUtil::Split(REFERENCE_DATA_PRIMARY_SPEC, ':', &primary_tags_and_subfield_codes,
+                                   /* suppress_empty_components = */true) < 1))
         LOG_ERROR("Need at least one primary field");
-    if (unlikely(StringUtil::Split2(REFERENCE_DATA_SYNONYM_SPEC, ':', &synonym_tags_and_subfield_codes,
-                                    /* suppress_empty_components = */true) < 1))
+    if (unlikely(StringUtil::Split(REFERENCE_DATA_SYNONYM_SPEC, ':', &synonym_tags_and_subfield_codes,
+                                   /* suppress_empty_components = */true) < 1))
         LOG_ERROR("Need at least one synonym field");
     if (primary_tags_and_subfield_codes.size() != synonym_tags_and_subfield_codes.size())
         LOG_ERROR("Number of reference primary specs must match number of synonym specs");

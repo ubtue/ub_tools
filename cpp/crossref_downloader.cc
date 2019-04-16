@@ -481,7 +481,7 @@ bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * 
         return false;
     }
 
-    if (StringUtil::Split2(line.substr(0, first_space_pos), ',', issns, /* suppress_empty_components = */true) == 0) {
+    if (StringUtil::Split(line.substr(0, first_space_pos), ',', issns, /* suppress_empty_components = */true) == 0) {
         LOG_WARNING("No ISSNS found!");
         return false;
     }

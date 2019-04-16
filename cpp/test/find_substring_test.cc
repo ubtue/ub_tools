@@ -23,9 +23,9 @@ int main(int argc, char *argv[]) {
         Usage();
 
     std::vector<std::string> haystack;
-    StringUtil::Split2(std::string(argv[1]), ':', &haystack, /* suppress_empty_components = */true);
+    StringUtil::Split(std::string(argv[1]), ':', &haystack, /* suppress_empty_components = */true);
     std::vector<std::string> needle;
-    StringUtil::Split2(std::string(argv[2]), ':', &needle, /* suppress_empty_components = */true);
+    StringUtil::Split(std::string(argv[2]), ':', &needle, /* suppress_empty_components = */true);
 
     const std::vector<std::string>::const_iterator start_iter(TextUtil::FindSubstring(haystack, needle));
     if (start_iter == haystack.cend())

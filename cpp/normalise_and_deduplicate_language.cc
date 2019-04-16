@@ -83,7 +83,7 @@ bool LanguageCodeParams::getCanonicalCode(const std::string &language_code, std:
 
 void LoadLanguageCodesFromConfig(const IniFile &config, LanguageCodeParams * const params) {
     std::vector<std::string> raw_language_codes;
-    StringUtil::Split2(config.getString("", "canonical_language_codes"), ',', &raw_language_codes);
+    StringUtil::Split(config.getString("", "canonical_language_codes"), ',', &raw_language_codes);
     if (raw_language_codes.empty())
         LOG_ERROR("Couldn't read canonical language codes from config file '" + CONFIG_FILE_PATH + "'!");
 
