@@ -147,7 +147,7 @@ std::vector<FullTextCache::EntryGroup> FullTextCache::getEntryGroupsByDomainAndE
         const auto url_pair(map.find("url"));
         const auto domain_pair(map.find("domain"));
         const auto error_message_pair(map.find("error_message"));
-        if (url_pair != map.cend() or domain_pair != map.cend() or error_message_pair != map.cend())
+        if (url_pair == map.cend() or domain_pair == map.cend() or error_message_pair == map.cend())
             continue;
 
         const auto id_pair(map.find("id"));
@@ -163,7 +163,10 @@ std::vector<FullTextCache::EntryGroup> FullTextCache::getEntryGroupsByDomainAndE
     groups.reserve(urls_and_domains_to_ids_and_counts_map.size());
     for (const auto &url_and_domain_and_id_and_count : urls_and_domains_to_ids_and_counts_map) {
         std::vector<std::string> parts;
-        StringUtil::Split(url_and_domain_and_id_and_count.first, US, &parts);
+        if (unlikely(StringUtil::Split(url_and_domain_and_id_and_count.first, US, &parts) != 3))
+            LOG_ERROR("This should never happen (" + std::to_string(parts.size()) + "): "
+                      + StringUtil::CStyleEscape(url_and_domain_and_id_and_count.first));
+
         const std::string &url(parts[0]);
         const std::string &domain(parts[1]);
         const std::string &error_message(parts[2]);
