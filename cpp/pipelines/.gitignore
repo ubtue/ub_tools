@@ -28,5 +28,6 @@ krimdok_flag_pda_records
 map_ddc_to_ixtheo_notations
 merge_print_and_online
 normalise_urls
+patch_up_ppns_for_k10plus
 rewrite_keywords_and_authors_from_authority_data
 update_ixtheo_notations
