@@ -37,6 +37,7 @@ import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.DataUtil;
 import org.solrmarc.tools.Utils;
 import org.vufind.index.DatabaseManager;
+import org.vufind.index.CreatorTools;
 import java.sql.*;
 
 public class TuelibMixin extends SolrIndexerMixin {
@@ -62,7 +63,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
-    private final static Pattern UNICODE_QUOTATION_MARKS_PATTERN = Pattern.compile("[«‹»›„‚ʺ“‟‘‛”’ʻ\"❛❜❟❝❞❮❯⹂〝〞〟＂¿¡…]");
+    private final static Pattern UNICODE_QUOTATION_MARKS_PATTERN = Pattern.compile("[«‹»›„‚ʺ“‟‘‛”’ʻ'\"❛❜❟❝❞❮❯⹂〝〞〟＂¿¡…]");
     private final static Pattern SUPERIOR_PPN_PATTERN = Pattern.compile("\\s*." + ISIL_K10PLUS + ".(.*)");
     private final static Pattern NON_SUPERIOR_SUBFIELD_I_CONTENT = Pattern.compile("\\s*Erscheint auch als.*|\\s*Elektronische Reproduktion.*|\\s*Äquivalent.*|\\s*Reproduktion von.*|\\s*Reproduziert als*");
 
@@ -608,6 +609,26 @@ public class TuelibMixin extends SolrIndexerMixin {
         return reviewedRecords_cache;
     }
 
+    protected String normalizeSortableString(String string) {
+        final Matcher matcher = UNICODE_QUOTATION_MARKS_PATTERN.matcher(string);
+        string = matcher.replaceAll("");
+        // Remove all Unicode control characters
+        // (cf. https://stackoverflow.com/questions/3438854/replace-unicode-control-characters/3439206#3439206) (180201)
+        string = string.replaceAll("\\p{Cc}", "").trim();
+        return string;
+    }
+
+    public String getSortableAuthorUnicode(final Record record, final String tagList, final String acceptWithoutRelator,
+                                           final String relatorConfig)
+    {
+        CreatorTools tools = new CreatorTools();
+        String author = tools.getFirstAuthorFilteredByRelator(record, tagList,
+                                                              acceptWithoutRelator,
+                                                              relatorConfig);
+
+        return normalizeSortableString(author);
+    }
+
     /**
      * Use solrmarc default "getSortableTitle" logic.
      * Also remove all unicode quotation marks
@@ -618,11 +639,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
     public String getSortableTitleUnicode(final Record record) {
         String title = SolrIndexer.instance().getSortableTitle(record);
-        final Matcher matcher = UNICODE_QUOTATION_MARKS_PATTERN.matcher(title);
-        title = matcher.replaceAll("");
-        // Remove all Unicode control characters
-        // (cf. https://stackoverflow.com/questions/3438854/replace-unicode-control-characters/3439206#3439206) (180201)
-        return title.replaceAll("\\p{Cc}", "").trim();
+        return normalizeSortableString(title);
     }
 
     /**
