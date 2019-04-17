@@ -1,7 +1,7 @@
 /** \brief Updates Zeder (via Ingo's SQL database) w/ the last N issues of harvested articles for each journal.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -23,7 +23,7 @@
 #include "DbConnection.h"
 #include "DnsUtil.h"
 #include "IniFile.h"
-#include "MapIO.h"
+#include "MapUtil.h"
 #include "MARC.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
@@ -140,7 +140,7 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     std::unordered_map<std::string, std::string> journal_ppn_to_type_and_title_map;
-    MapIO::DeserialiseMap(UBTools::GetTuelibPath() + "zeder_ppn_to_title.map", &journal_ppn_to_type_and_title_map);
+    MapUtil::DeserialiseMap(UBTools::GetTuelibPath() + "zeder_ppn_to_title.map", &journal_ppn_to_type_and_title_map);
 
     IniFile ini_file;
     DbConnection db_connection(ini_file);

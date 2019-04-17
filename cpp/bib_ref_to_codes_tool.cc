@@ -27,7 +27,7 @@
 #include <cstdlib>
 #include <cstring>
 #include "BibleUtil.h"
-#include "MapIO.h"
+#include "MapUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -57,7 +57,7 @@ void HandlePericopes(const bool verbose, const bool generate_solr_query, const s
         std::cout << "Entering HandlePericopes().\n";
 
     std::unordered_multimap<std::string, std::string> pericopes_to_codes_map;
-    MapIO::DeserialiseMap(pericopes_to_codes_map_filename, &pericopes_to_codes_map);
+    MapUtil::DeserialiseMap(pericopes_to_codes_map_filename, &pericopes_to_codes_map);
 
     if (verbose)
         std::cout << "In HandlePericopes: looking for \"" << bible_reference_candidate << "\".\n";
