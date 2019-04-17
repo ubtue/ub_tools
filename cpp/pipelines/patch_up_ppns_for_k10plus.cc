@@ -23,7 +23,7 @@
 #include <iostream>
 #include <memory>
 #include <unordered_map>
-#include <unordered_set>
+#include <vector>
 #include <cstdlib>
 #include <cstring>
 #include <kchashdb.h>
@@ -31,8 +31,9 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
-#include "FileUtil.h"
+#include "MapUtil.h"
 #include "MARC.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -42,69 +43,56 @@
 namespace {
 
 
-void LoadAlreadyProcessedPPNs(kyotocabinet::HashDB * const db, std::unordered_set<std::string> * const already_processed_ppns) {
-     kyotocabinet::DB::Cursor * cursor(db->cursor());
-     if (cursor == nullptr)
-         LOG_ERROR("Could not obtain cursor for db file " + db->path());
-     cursor->jump();
-     std::string old_ppn;
-     while (cursor->get_key(&old_ppn, true /* advance */))
-         already_processed_ppns->emplace(old_ppn);
-     delete cursor;
+[[noreturn]] void Usage() {
+    ::Usage("[--store-only] marc_input1 [marc_input2 .. marc_inputN]"
+            "If --store-only has been specified, no swapping will be performed and only the persistent map file will be overwritten.");
 }
 
 
-void StoreNewAlreadyProcessedPPNs(kyotocabinet::HashDB * const db,  const std::unordered_map<std::string, std::string> &old_to_new_map) {
-    unsigned new_entry_count(0);
-    for (const auto &old_and_new : old_to_new_map) {
-        std::string value;
-        if (db->get(old_and_new.first, &value)) {
-            if (unlikely(value != old_and_new.second))
-                LOG_ERROR("entry for key \"" + old_and_new.first + "\" in database \"" + value + "\" is different from new PPN \""
-                          + old_and_new.second + "\"!");
-        } else {
-            if (unlikely(not db->add(old_and_new.first, old_and_new.second)))
-                LOG_ERROR("failed to insert a new entry (\"" + old_and_new.first + "\",\"" + old_and_new.second + "\") into \"" + db->path()
-                          + "\"!");
-            ++new_entry_count;
-        }
-    }
-
-    LOG_INFO("Updated \"" + db->path() + "\" with " + std::to_string(new_entry_count) + " entry/entries.");
-}
+struct PPNsAndSigil {
+    std::string old_ppn_, old_sigil_, new_ppn_;
+public:
+    PPNsAndSigil(const std::string &old_ppn, const std::string &old_sigil, const std::string &new_ppn)
+        : old_ppn_(old_ppn), old_sigil_(old_sigil), new_ppn_(new_ppn) { }
+    PPNsAndSigil() = default;
+    PPNsAndSigil(const PPNsAndSigil &other) = default;
+};
 
 
-void LoadMapping(MARC::Reader * const marc_reader, const std::unordered_set<std::string> &already_processed_ppns,
-                 std::unordered_map<std::string, std::string> * const old_to_new_map)
+void LoadMapping(MARC::Reader * const marc_reader,
+                 const std::unordered_multimap<std::string, std::string> &already_processed_ppns_and_sigils,
+                 std::vector<PPNsAndSigil> * const old_ppns_sigils_and_new_ppns)
 {
+    auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("^\\((DE-\\d\\d\\d)\\)(.+)"));
     while (const auto record = marc_reader->read()) {
         for (const auto &field : record.getTagRange("035")) {
             const auto subfield_a(field.getFirstSubfieldWithCode('a'));
-            if (StringUtil::StartsWith(subfield_a, "(DE-576)")) {
-                const auto old_ppn(subfield_a.substr(__builtin_strlen("(DE-576)")));
-                if (already_processed_ppns.find(old_ppn) == already_processed_ppns.cend())
-                    old_to_new_map->emplace(old_ppn, record.getControlNumber());
+            if (matcher->matched(subfield_a)) {
+                const std::string old_sigil((*matcher)[1]);
+                const std::string old_ppn((*matcher)[2]);
+                if (not MapUtil::Contains(already_processed_ppns_and_sigils, old_ppn, old_sigil))
+                    old_ppns_sigils_and_new_ppns->emplace_back(old_ppn, old_sigil, record.getControlNumber());
             }
         }
     }
 
-    LOG_INFO("Found " + std::to_string(old_to_new_map->size()) + " new mappings of old PPN's to new PPN's in \"" + marc_reader->getPath()
-             + "\".\n");
+    LOG_INFO("Found " + std::to_string(old_ppns_sigils_and_new_ppns->size()) + " new mappings of old PPN's to new PPN's in \""
+             + marc_reader->getPath() + "\".\n");
 }
 
 
 void PatchTable(DbConnection * const db_connection, const std::string &table, const std::string &column,
-                const std::unordered_map<std::string, std::string> &old_to_new_map)
+                const std::vector<PPNsAndSigil> &old_ppns_sigils_and_new_ppns)
 {
     const unsigned MAX_BATCH_SIZE(100);
 
     db_connection->queryOrDie("BEGIN");
 
     unsigned replacement_count(0), batch_size(0);
-    for (const auto &old_and_new : old_to_new_map) {
+    for (const auto &old_ppn_sigil_and_new_ppn : old_ppns_sigils_and_new_ppns) {
         ++batch_size;
-        db_connection->queryOrDie("UPDATE IGNORE " + table + " SET " + column + "='" + old_and_new.second
-                                  + "' WHERE " + column + "='" + old_and_new.first + "'");
+        db_connection->queryOrDie("UPDATE IGNORE " + table + " SET " + column + "='" + old_ppn_sigil_and_new_ppn.new_ppn_
+                                  + "' WHERE " + column + "='" + old_ppn_sigil_and_new_ppn.old_ppn_ + "'");
         replacement_count += db_connection->getNoOfAffectedRows();
         if (batch_size >= MAX_BATCH_SIZE) {
             db_connection->queryOrDie("COMMIT");
@@ -118,7 +106,7 @@ void PatchTable(DbConnection * const db_connection, const std::string &table, co
 }
 
 
-void PatchNotifiedDB(const std::string &user_type, const std::unordered_map<std::string, std::string> &old_to_new_map) {
+void PatchNotifiedDB(const std::string &user_type, const std::vector<PPNsAndSigil> &old_ppns_sigils_and_new_ppns) {
     const std::string DB_FILENAME(UBTools::GetTuelibPath() + user_type + "_notified.db");
     std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
     if (not (db->open(DB_FILENAME, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER))) {
@@ -127,13 +115,13 @@ void PatchNotifiedDB(const std::string &user_type, const std::unordered_map<std:
     }
 
     unsigned updated_count(0);
-    for (const auto &old_and_new : old_to_new_map) {
+    for (const auto &ppns_and_sigil : old_ppns_sigils_and_new_ppns) {
         std::string value;
-        if (db->get(old_and_new.first, &value)) {
-            if (unlikely(not db->remove(old_and_new.first)))
-                LOG_ERROR("failed to remove key \"" + old_and_new.first + "\" from \"" + DB_FILENAME + "\"!");
-            if (unlikely(not db->add(old_and_new.second, value)))
-                LOG_ERROR("failed to add key \"" + old_and_new.second + "\" from \"" + DB_FILENAME + "\"!");
+        if (db->get(ppns_and_sigil.old_ppn_, &value)) {
+            if (unlikely(not db->remove(ppns_and_sigil.old_ppn_)))
+                LOG_ERROR("failed to remove key \"" + ppns_and_sigil.old_ppn_ + "\" from \"" + DB_FILENAME + "\"!");
+            if (unlikely(not db->add(ppns_and_sigil.old_ppn_, value)))
+                LOG_ERROR("failed to add key \"" + ppns_and_sigil.old_ppn_ + "\" from \"" + DB_FILENAME + "\"!");
             ++updated_count;
         }
     }
@@ -165,54 +153,73 @@ void CheckMySQLPermissions(DbConnection * const db_connection) {
 }
 
 
+void AddPPNsAndSigilsToMultiMap(const std::vector<PPNsAndSigil> &old_ppns_sigils_and_new_ppns,
+                                std::unordered_multimap<std::string, std::string> * const already_processed_ppns_and_sigils)
+{
+    for (const auto &old_ppn_sigil_and_new_ppn : old_ppns_sigils_and_new_ppns)
+        already_processed_ppns_and_sigils->emplace(std::make_pair(old_ppn_sigil_and_new_ppn.old_ppn_, old_ppn_sigil_and_new_ppn.old_sigil_));
+}
+
+
 } // unnamed namespace
 
 
-static const std::string ALREADY_SWAPPED_PPNS_DB(UBTools::GetTuelibPath() + "k10+_ppn_map.db");
+static const std::string ALREADY_SWAPPED_PPNS_MAP_FILE(UBTools::GetTuelibPath() + "k10+_ppn_map.map");
 
 
 int Main(int argc, char **argv) {
     if (argc < 2)
-        ::Usage("marc_input1 [marc_input2 .. marc_inputN]");
+        Usage();
+
+    bool store_only(false);
+    if (std::strcmp(argv[1], "--store-only") == 0) {
+        store_only = true;
+        --argc, ++argv;
+        if (argc < 2)
+            Usage();
+    }
 
     DbConnection db_connection; // ub_tools user
 
     CheckMySQLPermissions(&db_connection);
 
-    kyotocabinet::HashDB db;
-    const std::string db_path(ALREADY_SWAPPED_PPNS_DB);
-    if (not (db.open(db_path,
-                     kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
-        LOG_ERROR("Failed to open or create \"" + db_path + "\"!");
+    std::unordered_multimap<std::string, std::string> already_processed_ppns_and_sigils;
+    if (not store_only)
+        MapUtil::DeserialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, &already_processed_ppns_and_sigils);
 
-    std::unordered_set<std::string> already_processed_ppns;
-    LoadAlreadyProcessedPPNs(&db, &already_processed_ppns);
-
-    std::unordered_map<std::string, std::string> old_to_new_map;
+    std::vector<PPNsAndSigil> old_ppns_sigils_and_new_ppns;
     for (int arg_no(1); arg_no < argc; ++arg_no) {
         const auto marc_reader(MARC::Reader::Factory(argv[arg_no]));
-        LoadMapping(marc_reader.get(), already_processed_ppns, &old_to_new_map);
+        LoadMapping(marc_reader.get(), already_processed_ppns_and_sigils, &old_ppns_sigils_and_new_ppns);
     }
-    if (old_to_new_map.empty()) {
+    if (old_ppns_sigils_and_new_ppns.empty()) {
         LOG_INFO("nothing to do!");
         return EXIT_SUCCESS;
     }
 
-    PatchNotifiedDB("ixtheo", old_to_new_map);
-    PatchNotifiedDB("relbib", old_to_new_map);
-
-    PatchTable(&db_connection, "vufind.resource", "record_id", old_to_new_map);
-    PatchTable(&db_connection, "vufind.record", "record_id", old_to_new_map);
-    PatchTable(&db_connection, "vufind.change_tracker", "id", old_to_new_map);
-    if (VuFind::GetTueFindFlavour() == "ixtheo") {
-        PatchTable(&db_connection, "ixtheo.keyword_translations", "ppn", old_to_new_map);
-        PatchTable(&db_connection, "vufind.ixtheo_journal_subscriptions", "journal_control_number_or_bundle_name", old_to_new_map);
-        PatchTable(&db_connection, "vufind.ixtheo_pda_subscriptions", "book_ppn", old_to_new_map);
-        PatchTable(&db_connection, "vufind.relbib_ids", "record_id", old_to_new_map);
-        PatchTable(&db_connection, "vufind.bibstudies_ids", "record_id", old_to_new_map);
+    if (store_only) {
+        AddPPNsAndSigilsToMultiMap(old_ppns_sigils_and_new_ppns, &already_processed_ppns_and_sigils);
+        MapUtil::SerialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, already_processed_ppns_and_sigils);
+        return EXIT_SUCCESS;
     }
 
-    StoreNewAlreadyProcessedPPNs(&db, old_to_new_map);
+    PatchNotifiedDB("ixtheo", old_ppns_sigils_and_new_ppns);
+    PatchNotifiedDB("relbib", old_ppns_sigils_and_new_ppns);
+
+    PatchTable(&db_connection, "vufind.resource", "record_id", old_ppns_sigils_and_new_ppns);
+    PatchTable(&db_connection, "vufind.record", "record_id", old_ppns_sigils_and_new_ppns);
+    PatchTable(&db_connection, "vufind.change_tracker", "id", old_ppns_sigils_and_new_ppns);
+    if (VuFind::GetTueFindFlavour() == "ixtheo") {
+        PatchTable(&db_connection, "ixtheo.keyword_translations", "ppn", old_ppns_sigils_and_new_ppns);
+        PatchTable(&db_connection, "vufind.ixtheo_journal_subscriptions", "journal_control_number_or_bundle_name",
+                   old_ppns_sigils_and_new_ppns);
+        PatchTable(&db_connection, "vufind.ixtheo_pda_subscriptions", "book_ppn", old_ppns_sigils_and_new_ppns);
+        PatchTable(&db_connection, "vufind.relbib_ids", "record_id", old_ppns_sigils_and_new_ppns);
+        PatchTable(&db_connection, "vufind.bibstudies_ids", "record_id", old_ppns_sigils_and_new_ppns);
+    }
+
+    AddPPNsAndSigilsToMultiMap(old_ppns_sigils_and_new_ppns, &already_processed_ppns_and_sigils);
+    MapUtil::SerialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, already_processed_ppns_and_sigils);
 
     return EXIT_SUCCESS;
 }

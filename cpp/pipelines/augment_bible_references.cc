@@ -32,7 +32,7 @@
 #include <cstdlib>
 #include <cstring>
 #include "BibleUtil.h"
-#include "MapIO.h"
+#include "MapUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -361,7 +361,7 @@ void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book
     }
 
     LOG_INFO("About to write \"pericopes_to_codes.map\".");
-    MapIO::SerialiseMap("pericopes_to_codes.map", pericopes_to_ranges_map);
+    MapUtil::SerialiseMap("pericopes_to_codes.map", pericopes_to_ranges_map);
 
     LOG_INFO("Read " + std::to_string(count) + " norm data records.");
     LOG_INFO("Found " + std::to_string(unknown_book_count) + " records w/ unknown bible books.");
