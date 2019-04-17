@@ -144,7 +144,7 @@ bool HaveAllPermissions(DbConnection * const db_connection, const std::string &d
 
 void CheckMySQLPermissions(DbConnection * const db_connection) {
     if (not HaveAllPermissions(db_connection, "vufind"))
-        LOG_ERROR("'" + db_connection->getUser() + "'@' " + db_connection->getHost() + "' needs all permissions on the vufind database!");
+        LOG_ERROR("'" + db_connection->getUser() + "'@'" + db_connection->getHost() + "' needs all permissions on the vufind database!");
     if (VuFind::GetTueFindFlavour() == "ixtheo") {
         if (not HaveAllPermissions(db_connection, "ixtheo"))
             LOG_ERROR("'" + db_connection->getUser() + "'@' " + db_connection->getHost()
