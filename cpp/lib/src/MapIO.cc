@@ -1,5 +1,5 @@
-/** \file   MapIO.cc
- *  \brief  Map-IO-related utility functions.
+/** \file   MapUtil.cc
+ *  \brief  Map-Util-related utility functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2015,2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -17,13 +17,13 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "MapIO.h"
+#include "MapUtil.h"
 #include "File.h"
 #include "StringUtil.h"
 #include "util.h"
 
 
-namespace MapIO {
+namespace MapUtil {
 
 
 /** \brief Replaces slashes, equal-signs and semicolons with a slash followed by the respective character. */
@@ -167,4 +167,4 @@ void WriteEntry(File * const map_file, const std::string &key, const std::string
 }
 
 
-} // namespace MapIO
+} // namespace MapUtil
