@@ -63,7 +63,7 @@ void LoadMapping(MARC::Reader * const marc_reader,
                  const std::unordered_multimap<std::string, std::string> &already_processed_ppns_and_sigils,
                  std::vector<PPNsAndSigil> * const old_ppns_sigils_and_new_ppns)
 {
-    auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("^\\(DE-(\\d\\d\\d)\\)(.+)"));
+    auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("^\\((DE-\\d\\d\\d)\\)(.+)"));
     while (const auto record = marc_reader->read()) {
         for (const auto &field : record.getTagRange("035")) {
             const auto subfield_a(field.getFirstSubfieldWithCode('a'));
