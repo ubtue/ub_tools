@@ -90,7 +90,7 @@ bool UpdateTitleDataField(MARC::Record::Field * const field, const MARC::Record 
     auto authority_primary_field(GetFirstPrimaryField(authority_record));
     if (authority_primary_field == authority_record.end()) {
         LOG_WARNING("Could not find appropriate Tag for authority PPN " + authority_record.getControlNumber());
-	return false;
+        return false;
     }
     MARC::Subfields subfields(field->getSubfields());
     // We have to make sure that the order of the subfields is inherited from the authority data
