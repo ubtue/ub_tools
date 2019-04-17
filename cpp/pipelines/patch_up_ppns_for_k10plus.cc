@@ -142,6 +142,29 @@ void PatchNotifiedDB(const std::string &user_type, const std::unordered_map<std:
 }
 
 
+bool HaveAllPermissions(DbConnection * const db_connection, const std::string &database) {
+    db_connection->queryOrDie("SHOW GRANTS FOR '" + db_connection->getUser() + "'@'" + db_connection->getHost() + "'");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    while (const auto row = result_set.getNextRow()) {
+        if (row[0]
+            == "GRANT ALL PRIVILEGES ON `" + database + "`.* TO '" + db_connection->getUser() + "'@'" + db_connection->getHost() + "'")
+            return true;
+    }
+    return false;
+}
+
+
+void CheckMySQLPermissions(DbConnection * const db_connection) {
+    if (not HaveAllPermissions(db_connection, "vufind"))
+        LOG_ERROR("'" + db_connection->getUser() + "'@' " + db_connection->getHost() + "' needs all permissions on the vufind database!");
+    if (VuFind::GetTueFindFlavour() == "ixtheo") {
+        if (not HaveAllPermissions(db_connection, "ixtheo"))
+            LOG_ERROR("'" + db_connection->getUser() + "'@' " + db_connection->getHost()
+                      + "' needs all permissions on the ixtheo database!");
+    }
+}
+
+
 } // unnamed namespace
 
 
@@ -151,6 +174,10 @@ static const std::string ALREADY_SWAPPED_PPNS_DB(UBTools::GetTuelibPath() + "k10
 int Main(int argc, char **argv) {
     if (argc < 2)
         ::Usage("marc_input1 [marc_input2 .. marc_inputN]");
+
+    DbConnection db_connection; // ub_tools user
+
+    CheckMySQLPermissions(&db_connection);
 
     kyotocabinet::HashDB db;
     const std::string db_path(ALREADY_SWAPPED_PPNS_DB);
@@ -174,17 +201,15 @@ int Main(int argc, char **argv) {
     PatchNotifiedDB("ixtheo", old_to_new_map);
     PatchNotifiedDB("relbib", old_to_new_map);
 
-    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
-
-    PatchTable(db_connection.get(), "vufind.resource", "record_id", old_to_new_map);
-    PatchTable(db_connection.get(), "vufind.record", "record_id", old_to_new_map);
-    PatchTable(db_connection.get(), "vufind.change_tracker", "id", old_to_new_map);
+    PatchTable(&db_connection, "vufind.resource", "record_id", old_to_new_map);
+    PatchTable(&db_connection, "vufind.record", "record_id", old_to_new_map);
+    PatchTable(&db_connection, "vufind.change_tracker", "id", old_to_new_map);
     if (VuFind::GetTueFindFlavour() == "ixtheo") {
-        PatchTable(db_connection.get(), "ixtheo.keyword_translations", "ppn", old_to_new_map);
-        PatchTable(db_connection.get(), "vufind.ixtheo_journal_subscriptions", "journal_control_number_or_bundle_name", old_to_new_map);
-        PatchTable(db_connection.get(), "vufind.ixtheo_pda_subscriptions", "book_ppn", old_to_new_map);
-        PatchTable(db_connection.get(), "vufind.relbib_ids", "record_id", old_to_new_map);
-        PatchTable(db_connection.get(), "vufind.bibstudies_ids", "record_id", old_to_new_map);
+        PatchTable(&db_connection, "ixtheo.keyword_translations", "ppn", old_to_new_map);
+        PatchTable(&db_connection, "vufind.ixtheo_journal_subscriptions", "journal_control_number_or_bundle_name", old_to_new_map);
+        PatchTable(&db_connection, "vufind.ixtheo_pda_subscriptions", "book_ppn", old_to_new_map);
+        PatchTable(&db_connection, "vufind.relbib_ids", "record_id", old_to_new_map);
+        PatchTable(&db_connection, "vufind.bibstudies_ids", "record_id", old_to_new_map);
     }
 
     StoreNewAlreadyProcessedPPNs(&db, old_to_new_map);
