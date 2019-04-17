@@ -1,7 +1,7 @@
 /** \file   zeder_ppn_to_title_importer.cc
  *  \brief  Imports data from Zeder and writes a map file mapping online and print PPN's to journal titles.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -23,7 +23,7 @@
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "JSON.h"
-#include "MapIO.h"
+#include "MapUtil.h"
 #include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -66,7 +66,7 @@ std::string GetString(const std::shared_ptr<JSON::ObjectNode> &journal_node, con
 
 void WriteMapEntry(File * const output, const std::string &key, const std::string &value) {
     if (not key.empty())
-        MapIO::WriteEntry(output, key, value);
+        MapUtil::WriteEntry(output, key, value);
 }
 
 

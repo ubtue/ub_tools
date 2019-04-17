@@ -24,7 +24,7 @@
 #include <vector>
 #include "FileUtil.h"
 #include "FullTextImport.h"
-#include "MapIO.h"
+#include "MapUtil.h"
 #include "ONIX.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -161,8 +161,8 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     std::unordered_map<std::string, std::string> onix_short_tags_to_reference_map;
-    MapIO::DeserialiseMap(UBTools::GetTuelibPath() + "onix_reference_to_short_tags.map", &onix_short_tags_to_reference_map,
-                          /* revert_keys_and_values = */true);
+    MapUtil::DeserialiseMap(UBTools::GetTuelibPath() + "onix_reference_to_short_tags.map", &onix_short_tags_to_reference_map,
+                            /* revert_keys_and_values = */true);
 
     XMLParser xml_parser (argv[1], XMLParser::XML_FILE);
     xml_parser.setTagAliases(onix_short_tags_to_reference_map);

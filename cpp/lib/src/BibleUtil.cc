@@ -21,7 +21,7 @@
 #include <iostream>
 #include <cctype>
 #include "Locale.h"
-#include "MapIO.h"
+#include "MapUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -451,8 +451,8 @@ bool SplitIntoBooksAndChaptersAndVerses(const std::string &bible_reference_query
 
 
 BibleBookCanoniser::BibleBookCanoniser(const std::string &books_of_the_bible_to_canonical_form_map_filename) {
-    MapIO::DeserialiseMap(books_of_the_bible_to_canonical_form_map_filename,
-                          &books_of_the_bible_to_canonical_form_map_);
+    MapUtil::DeserialiseMap(books_of_the_bible_to_canonical_form_map_filename,
+                            &books_of_the_bible_to_canonical_form_map_);
 }
 
 
@@ -471,7 +471,7 @@ std::string BibleBookCanoniser::canonise(const std::string &bible_book_candidate
 
 
 BibleBookToCodeMapper::BibleBookToCodeMapper(const std::string &books_of_the_bible_to_code_map_filename) {
-    MapIO::DeserialiseMap(books_of_the_bible_to_code_map_filename, &bible_books_to_codes_map_);
+    MapUtil::DeserialiseMap(books_of_the_bible_to_code_map_filename, &bible_books_to_codes_map_);
 }
 
 
@@ -489,7 +489,7 @@ std::string BibleBookToCodeMapper::mapToCode(const std::string &bible_book_candi
 
 
 BibleAliasMapper::BibleAliasMapper(const std::string &bible_aliases_map_filename) {
-    MapIO::DeserialiseMap(bible_aliases_map_filename, &aliases_to_canonical_forms_map_);
+    MapUtil::DeserialiseMap(bible_aliases_map_filename, &aliases_to_canonical_forms_map_);
 }
 
 

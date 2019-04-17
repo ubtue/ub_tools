@@ -31,7 +31,7 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
-#include "MapIO.h"
+#include "MapUtil.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -59,17 +59,6 @@ public:
 };
 
 
-template<typename KeyType, typename ValueType>
-inline bool Contains(const std::unordered_multimap<KeyType, ValueType> &multimap, const KeyType &key, const ValueType &value) {
-    const auto range(multimap.equal_range(key));
-    for (auto key_and_value(range.first); key_and_value != range.second; ++key_and_value) {
-        if (key_and_value->second == value)
-            return true;
-    }
-    return false;
-}
-
-
 void LoadMapping(MARC::Reader * const marc_reader,
                  const std::unordered_multimap<std::string, std::string> &already_processed_ppns_and_sigils,
                  std::vector<PPNsAndSigil> * const old_ppns_sigils_and_new_ppns)
@@ -81,7 +70,7 @@ void LoadMapping(MARC::Reader * const marc_reader,
             if (matcher->matched(subfield_a)) {
                 const std::string old_sigil((*matcher)[1]);
                 const std::string old_ppn((*matcher)[2]);
-                if (not Contains(already_processed_ppns_and_sigils, old_ppn, old_sigil))
+                if (not MapUtil::Contains(already_processed_ppns_and_sigils, old_ppn, old_sigil))
                     old_ppns_sigils_and_new_ppns->emplace_back(old_ppn, old_sigil, record.getControlNumber());
             }
         }
@@ -196,7 +185,7 @@ int Main(int argc, char **argv) {
 
     std::unordered_multimap<std::string, std::string> already_processed_ppns_and_sigils;
     if (not store_only)
-        MapIO::DeserialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, &already_processed_ppns_and_sigils);
+        MapUtil::DeserialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, &already_processed_ppns_and_sigils);
 
     std::vector<PPNsAndSigil> old_ppns_sigils_and_new_ppns;
     for (int arg_no(1); arg_no < argc; ++arg_no) {
@@ -210,7 +199,7 @@ int Main(int argc, char **argv) {
 
     if (store_only) {
         AddPPNsAndSigilsToMultiMap(old_ppns_sigils_and_new_ppns, &already_processed_ppns_and_sigils);
-        MapIO::SerialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, already_processed_ppns_and_sigils);
+        MapUtil::SerialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, already_processed_ppns_and_sigils);
         return EXIT_SUCCESS;
     }
 
@@ -230,7 +219,7 @@ int Main(int argc, char **argv) {
     }
 
     AddPPNsAndSigilsToMultiMap(old_ppns_sigils_and_new_ppns, &already_processed_ppns_and_sigils);
-    MapIO::SerialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, already_processed_ppns_and_sigils);
+    MapUtil::SerialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, already_processed_ppns_and_sigils);
 
     return EXIT_SUCCESS;
 }
