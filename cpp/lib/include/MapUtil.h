@@ -1,8 +1,8 @@
-/** \file   MapIO.h
- *  \brief  Map-IO-related utility functions.
+/** \file   MapUtil.h
+ *  \brief  Map-Util-related utility functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -29,7 +29,7 @@
 class File;
 
 
-namespace MapIO {
+namespace MapUtil {
 
 
 /** \brief Replaces slashes, equal-signs and semicolons with a slash followed by the respective character. */
@@ -51,4 +51,15 @@ void DeserialiseMap(const std::string &input_filename, std::unordered_multimap<s
 void WriteEntry(File * const map_file, const std::string &key, const std::string &value);
 
 
-} // namespace MapIO
+template<typename KeyType, typename ValueType>
+inline bool Contains(const std::unordered_multimap<KeyType, ValueType> &multimap, const KeyType &key, const ValueType &value) {
+    const auto range(multimap.equal_range(key));
+    for (auto key_and_value(range.first); key_and_value != range.second; ++key_and_value) {
+        if (key_and_value->second == value)
+            return true;
+    }
+    return false;
+}
+
+
+} // namespace MapUtil
