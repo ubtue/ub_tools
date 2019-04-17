@@ -63,7 +63,6 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
-    private final static Pattern UNICODE_QUOTATION_MARKS_PATTERN = Pattern.compile("[«‹»›„‚ʺ“‟‘‛”’ʻ'\"❛❜❟❝❞❮❯⹂〝〞〟＂¿¡…]");
     private final static Pattern SUPERIOR_PPN_PATTERN = Pattern.compile("\\s*." + ISIL_K10PLUS + ".(.*)");
     private final static Pattern NON_SUPERIOR_SUBFIELD_I_CONTENT = Pattern.compile("\\s*Erscheint auch als.*|\\s*Elektronische Reproduktion.*|\\s*Äquivalent.*|\\s*Reproduktion von.*|\\s*Reproduziert als*");
 
@@ -610,11 +609,9 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     protected String normalizeSortableString(String string) {
-        final Matcher matcher = UNICODE_QUOTATION_MARKS_PATTERN.matcher(string);
-        string = matcher.replaceAll("");
-        // Remove all Unicode control characters
-        // (cf. https://stackoverflow.com/questions/3438854/replace-unicode-control-characters/3439206#3439206) (180201)
-        string = string.replaceAll("\\p{Cc}", "").trim();
+        // Only keep letters & numbers. For unicode character classes, see:
+        // https://en.wikipedia.org/wiki/Template:General_Category_(Unicode)
+        string = string.replaceAll("[^\\p{L}\\p{N}]", "").trim();
         return string;
     }
 
