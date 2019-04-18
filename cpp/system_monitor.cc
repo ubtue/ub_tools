@@ -26,6 +26,7 @@
 #include "IniFile.h"
 #include "SignalUtil.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include "UBTools.h"
 #include "util.h"
 
@@ -59,6 +60,7 @@ void CheckForSigTermAndExitIfSeen() {
 void CollectMemoryStats(File * const log) {
     static auto proc_meminfo(FileUtil::OpenInputFileOrDie("/proc/meminfo"));
 
+    const auto current_date_and_time(TimeUtil::GetCurrentDateAndTime());
     std::string line;
     while (proc_meminfo->getline(&line) > 0) {
         const auto first_colon_pos(line.find(':'));
@@ -69,9 +71,9 @@ void CollectMemoryStats(File * const log) {
         const auto rest(StringUtil::LeftTrim(line.substr(first_colon_pos + 1)));
         const auto first_space_pos(rest.find(' '));
         if (first_space_pos == std::string::npos)
-            (*log) << label << ' ' << rest << '\n';
+            (*log) << label << ' ' << rest << ' ' << current_date_and_time << '\n';
         else
-            (*log) << label << ' ' << rest.substr(0, first_space_pos) << '\n';
+            (*log) << label << ' ' << rest.substr(0, first_space_pos) << ' ' << current_date_and_time << '\n';
     }
     log->flush();
 
@@ -80,13 +82,14 @@ void CollectMemoryStats(File * const log) {
 
 
 void CollectDiscStats(File * const log) {
+    const auto current_date_and_time(TimeUtil::GetCurrentDateAndTime());
     FileUtil::Directory directory("/sys/block", "sd?");
     for (const auto &entry : directory) {
         const auto block_device_path("/sys/block/" + entry.getName() + "/size");
         const auto proc_entry(FileUtil::OpenInputFileOrDie(block_device_path));
         std::string line;
         proc_entry->getline(&line);
-        (*log) << block_device_path <<  ' ' << StringUtil::ToUnsignedLong(line) * 512 << '\n';
+        (*log) << block_device_path <<  ' ' << StringUtil::ToUnsignedLong(line) * 512 << ' ' << current_date_and_time << '\n';
     }
     log->flush();
 }
