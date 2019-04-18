@@ -611,7 +611,10 @@ public class TuelibMixin extends SolrIndexerMixin {
     protected String normalizeSortableString(String string) {
         // Only keep letters & numbers. For unicode character classes, see:
         // https://en.wikipedia.org/wiki/Template:General_Category_(Unicode)
-        return string.replaceAll("[^\\p{L}\\p{N}]+", "").trim();
+        if (string != null)
+            string = string.replaceAll("[^\\p{L}\\p{N}]+", "").trim();
+
+        return string;
     }
 
     public String getSortableAuthorUnicode(final Record record, final String tagList, final String acceptWithoutRelator,
