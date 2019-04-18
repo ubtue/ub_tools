@@ -591,7 +591,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             final String reviewer = (reviewerSubfield == null) ? "" : reviewerSubfield.getData();
 
             if (reviewTypeSubfield.getData().equals("Rezension")) {
-                reviews_cache.add(parentId + (char) 0x1F + reviewerSubfield.getData() + (char) 0x1F + title);
+                reviews_cache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
             } else if (reviewTypeSubfield.getData().equals("Rezension von")) {
                 reviewedRecords_cache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
             }
