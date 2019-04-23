@@ -57,6 +57,31 @@ void CheckForSigTermAndExitIfSeen() {
 }
 
 
+void CollectCPUStats(File * const log) {
+    static auto proc_meminfo(FileUtil::OpenInputFileOrDie("/proc/stat"));
+    const auto current_date_and_time(TimeUtil::GetCurrentDateAndTime());
+    static uint64_t last_total, last_idle;
+    std::string line;
+    while (proc_meminfo->getline(&line) > 0) {
+        if (StringUtil::StartsWith(line, "cpu ")) {
+            std::vector<std::string> parts;
+            StringUtil::Split(line, ' ', &parts, /* suppress_empty_components = */true);
+            uint64_t total(0), idle(StringUtil::ToUInt64T(parts[4]));
+            for (unsigned i(1); i < parts.size(); ++i)
+                total += StringUtil::ToUInt64T(parts[i]);
+            const uint64_t diff_idle(idle - last_idle);
+            const uint64_t diff_total(total - last_total);
+            const uint64_t diff_usage((1000ull * (diff_total - diff_idle) / diff_total + 5) / 10ull);
+            (*log) << "CPU " << diff_usage << ' ' << current_date_and_time << '\n';
+            log->flush();
+            last_total = total;
+            last_idle = idle;
+            return;
+        }
+    }
+}
+
+
 void CollectMemoryStats(File * const log) {
     static auto proc_meminfo(FileUtil::OpenInputFileOrDie("/proc/meminfo"));
 
@@ -95,6 +120,31 @@ void CollectDiscStats(File * const log) {
 }
 
 
+const std::string PID_FILE("/usr/local/run/system_monitor.pid");
+
+
+bool IsAlreadyRunning(std::string * const pid_as_string) {
+    if (not FileUtil::Exists(PID_FILE))
+        return false;
+
+    FileUtil::ReadString(PID_FILE, pid_as_string);
+    pid_t pid;
+    if (not StringUtil::ToNumber(*pid_as_string, &pid))
+        LOG_ERROR("\"" + *pid_as_string + "\" is not a valid PID!");
+
+    return ::getpgid(pid) >= 0;
+}
+
+
+void CheckStats(const uint64_t ticks, const unsigned stats_interval, void (*stats_func)(File * const log), File * const log) {
+    if ((ticks % stats_interval) == 0) {
+        SignalUtil::SignalBlocker sighup_blocker(SIGHUP);
+        stats_func(log);
+    }
+    CheckForSigTermAndExitIfSeen();
+}
+
+
 } // unnamed namespace
 
 
@@ -110,10 +160,17 @@ int Main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
+    std::string pid;
+    if (IsAlreadyRunning(&pid)) {
+        std::cerr << "system_monitor: This service may already be running! (PID: "<< pid << ")\n";
+        return EXIT_FAILURE;
+    }
+
     const IniFile ini_file(UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf");
 
     const unsigned memory_stats_interval(ini_file.getUnsigned("", "memory_stats_interval"));
     const unsigned disc_stats_interval(ini_file.getUnsigned("", "disc_stats_interval"));
+    const unsigned cpu_stats_interval(ini_file.getUnsigned("", "cpu_stats_interval"));
 
     if (not foreground) {
         SignalUtil::InstallHandler(SIGTERM, SigTermHandler);
@@ -121,22 +178,16 @@ int Main(int argc, char *argv[]) {
         if (::daemon(0, 1 /* do not close file descriptors and redirect to /dev/null */) != 0)
             LOG_ERROR("we failed to deamonize our process!");
     }
+    if (not FileUtil::WriteString(PID_FILE, StringUtil::ToString(::getpid())))
+        LOG_ERROR("failed to write our PID to " + PID_FILE + "!");
 
     const auto log(FileUtil::OpenForAppendingOrDie(argv[1]));
 
     uint64_t ticks(0);
     for (;;) {
-        if ((ticks % memory_stats_interval) == 0) {
-            SignalUtil::SignalBlocker sighup_blocker(SIGHUP);
-            CollectMemoryStats(log.get());
-        }
-        CheckForSigTermAndExitIfSeen();
-
-        if ((ticks % disc_stats_interval) == 0) {
-            SignalUtil::SignalBlocker sighup_blocker(SIGHUP);
-            CollectDiscStats(log.get());
-        }
-        CheckForSigTermAndExitIfSeen();
+        CheckStats(ticks, memory_stats_interval, CollectMemoryStats, log.get());
+        CheckStats(ticks, disc_stats_interval, CollectDiscStats, log.get());
+        CheckStats(ticks, cpu_stats_interval, CollectCPUStats, log.get());
 
         ::sleep(1);
         ++ticks;
