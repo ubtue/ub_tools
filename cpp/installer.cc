@@ -41,6 +41,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include "DbConnection.h"
+#include "DnsUtil.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "IniFile.h"
@@ -558,16 +559,31 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
 }
 
 
+static void GenerateAndInstallSystemMonitorServiceTemplate(const std::string &service_name) {
+    FileUtil::AutoTempDirectory temp_dir;
+
+    Template::Map names_to_values_map;
+    names_to_values_map.insertScalar("hostname", DnsUtil::GetHostname());
+    const std::string system_monitor_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
+                                                                                                + "/" + service_name + ".service.template"),
+                                                                      names_to_values_map));
+    const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
+    FileUtil::WriteStringOrDie(service_file_path, system_monitor_service);
+    SystemdUtil::InstallUnit(service_file_path);
+}
+
+
 /**
- * Configure Solr User
+ * Configure Solr User and SystemD services.
  * - Create user "solr" as system user if not exists
  * - Grant permissions on relevant directories
- * - register solr service in systemctl
+ * - register solr and system_monitor services in systemd
  */
 void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool install_systemctl) {
     // note: if you wanna change username, don't do it only here, also check vufind.service!
     const std::string USER_AND_GROUP_NAME("solr");
-    const std::string SERVICENAME("vufind");
+    const std::string VUFIND_SERVICE("vufind");
+    const std::string SYSTEM_MONITOR_SERVICE("system_monitor");
 
     CreateUserIfNotExists(USER_AND_GROUP_NAME);
 
@@ -586,10 +602,13 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
     // systemctl: we do enable as well as daemon-reload and restart
     // to achieve an idempotent installation
     if (install_systemctl) {
-        Echo("Activating Solr service...");
+        Echo("Activating " + VUFIND_SERVICE + " service...");
+        GenerateAndInstallVuFindServiceTemplate(system_type, VUFIND_SERVICE);
+        SystemdEnableAndRunUnit(VUFIND_SERVICE);
 
-        GenerateAndInstallVuFindServiceTemplate(system_type, SERVICENAME);
-        SystemdEnableAndRunUnit(SERVICENAME);
+        Echo("Activating " + SYSTEM_MONITOR_SERVICE + " service...");
+        GenerateAndInstallSystemMonitorServiceTemplate(SYSTEM_MONITOR_SERVICE);
+        SystemdEnableAndRunUnit(SYSTEM_MONITOR_SERVICE);
     }
 }
 
