@@ -63,6 +63,8 @@ void LoadMapping(MARC::Reader * const marc_reader,
                  const std::unordered_multimap<std::string, std::string> &already_processed_ppns_and_sigils,
                  std::vector<PPNsAndSigil> * const old_ppns_sigils_and_new_ppns)
 {
+    // We need to consider the sigil of the old BSZ as well as the K10+ sigil because in future there may also be mrges of
+    // K10+ entities which will lead to old PPN's being K10+ PPN's.
     auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("^\\((DE-576|DE-627)\\)(.+)"));
     while (const auto record = marc_reader->read()) {
         for (const auto &field : record.getTagRange("035")) {
