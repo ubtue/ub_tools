@@ -681,7 +681,7 @@ bool ToUInt64T(const std::string &s, uint64_t * const n, const unsigned base) {
 uint64_t ToUInt64T(const std::string &s, const unsigned base) {
     uint64_t n;
     if (unlikely(not ToUInt64T(s, &n, base)))
-        throw std::runtime_error("in StringUtil::ToUInt64T: can't convert " + s);
+        throw std::runtime_error("in StringUtil::ToUInt64T: can't convert \"" + s + "\"!");
 
     return n;
 }
