@@ -185,7 +185,7 @@ int Main(int argc, char *argv[]) {
         SignalUtil::InstallHandler(SIGTERM, SigTermHandler);
 
         if (::daemon(0, 1 /* do not close file descriptors and redirect to /dev/null */) != 0)
-            LOG_ERROR("we failed to deamonize our process!");
+            LOG_ERROR("we failed to daemonize our process!");
     }
     if (not FileUtil::WriteString(PID_FILE, StringUtil::ToString(::getpid())))
         LOG_ERROR("failed to write our PID to " + PID_FILE + "!");
