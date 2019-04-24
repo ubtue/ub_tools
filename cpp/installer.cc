@@ -4,7 +4,7 @@
  *  \note Compile with   g++ -std=gnu++14 -O3 -o installer installer.cc
  *  \note or             clang++ -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions -O3 -o installer installer.cc
  *
- *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -331,7 +331,8 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
                 mysql_unit_name = "mariadb";
 
                 if (not FileUtil::Exists("/etc/my.cnf"))
-                    ExecUtil::ExecOrDie(ExecUtil::Which("mysql_install_db"), { "--user=mysql", "--ldata=/var/lib/mysql/", "--basedir=/usr" });
+                    ExecUtil::ExecOrDie(ExecUtil::Which("mysql_install_db"),
+                                        { "--user=mysql", "--ldata=/var/lib/mysql/", "--basedir=/usr" });
                 break;
         }
 
@@ -343,6 +344,15 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
             SystemdEnableAndRunUnit(mysql_unit_name);
         }
     }
+}
+
+
+void CreateUsrLocalRun() {
+    const std::string USR_LOCAL_RUN("/usr/local/run");
+    if (FileUtil::IsDirectory(USR_LOCAL_RUN))
+        return;
+    if (not FileUtil::MakeDirectory(USR_LOCAL_RUN))
+        Error("failed to create \"" + USR_LOCAL_RUN + "\"!");
 }
 
 
@@ -385,6 +395,7 @@ void InstallUBTools(const bool make_install) {
 
     CreateUbToolsDatabase();
     GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
+    CreateUsrLocalRun();
 
     Echo("Installed ub_tools.");
 }
@@ -641,7 +652,9 @@ void SetEnvironmentVariables(const std::string &vufind_system_type_string) {
  *
  * Writes a file into vufind directory to save configured system type
  */
-void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemType os_system_type, const bool install_cronjobs, const bool install_systemctl) {
+void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemType os_system_type, const bool install_cronjobs,
+                     const bool install_systemctl)
+{
     const std::string vufind_system_type_string(VuFindSystemTypeToString(vufind_system_type));
     Echo("Starting configuration for " + vufind_system_type_string);
     const std::string dirname_solr_conf = VUFIND_DIRECTORY + "/solr/vufind/biblio/conf";
