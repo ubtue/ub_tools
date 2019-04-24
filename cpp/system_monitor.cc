@@ -57,9 +57,15 @@ void CheckForSigTermAndExitIfSeen() {
 }
 
 
+// Returns local time using an ISO 8601 format w/o time zone.
+inline std::string GetLocalTime() {
+    return TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT);
+}
+
+
 void CollectCPUStats(File * const log) {
     static auto proc_meminfo(FileUtil::OpenInputFileOrDie("/proc/stat"));
-    const auto current_date_and_time(TimeUtil::GetCurrentDateAndTime());
+    const auto current_date_and_time(GetLocalTime());
     static uint64_t last_total, last_idle;
     std::string line;
     while (proc_meminfo->getline(&line) > 0) {
@@ -85,7 +91,7 @@ void CollectCPUStats(File * const log) {
 void CollectMemoryStats(File * const log) {
     static auto proc_meminfo(FileUtil::OpenInputFileOrDie("/proc/meminfo"));
 
-    const auto current_date_and_time(TimeUtil::GetCurrentDateAndTime());
+    const auto current_date_and_time(GetLocalTime());
     std::string line;
     while (proc_meminfo->getline(&line) > 0) {
         const auto first_colon_pos(line.find(':'));
@@ -107,7 +113,7 @@ void CollectMemoryStats(File * const log) {
 
 
 void CollectDiscStats(File * const log) {
-    const auto current_date_and_time(TimeUtil::GetCurrentDateAndTime());
+    const auto current_date_and_time(GetLocalTime());
     FileUtil::Directory directory("/sys/block", "sd?");
     for (const auto &entry : directory) {
         const auto block_device_path("/sys/block/" + entry.getName() + "/size");
