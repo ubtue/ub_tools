@@ -339,7 +339,10 @@ void IniFile::Section::write(File * const output, const bool pretty_print) const
             const bool need_quotes(entry.value_.empty() or ContainsSpacesOrDoubleQuotes(entry.value_));
             if (need_quotes)
                 line += '"';
-            line += TextUtil::CStyleEscape(entry.value_);
+            if (need_quotes)
+                line += TextUtil::CStyleEscape(entry.value_);
+            else
+                line += entry.value_;
             if (need_quotes)
                 line += '"';
             line += entry.comment_;
