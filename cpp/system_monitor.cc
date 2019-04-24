@@ -89,7 +89,8 @@ void CollectCPUStats(File * const log) {
 
 
 void CollectMemoryStats(File * const log) {
-    static auto proc_meminfo(FileUtil::OpenInputFileOrDie("/proc/meminfo"));
+    static const auto proc_meminfo(FileUtil::OpenInputFileOrDie("/proc/meminfo"));
+    static const std::vector<std::string> COLLECTED_LABELS{ "MemAvailable", "SwapFree", "Unevictable" };
 
     const auto current_date_and_time(GetLocalTime());
     std::string line;
@@ -98,6 +99,8 @@ void CollectMemoryStats(File * const log) {
         if (unlikely(first_colon_pos == std::string::npos))
             LOG_ERROR("missing colon in \"" + line + "\"!");
         const auto label(line.substr(0, first_colon_pos));
+        if (std::find(COLLECTED_LABELS.cbegin(), COLLECTED_LABELS.cend(), label) == COLLECTED_LABELS.cend())
+            continue;
 
         const auto rest(StringUtil::LeftTrim(line.substr(first_colon_pos + 1)));
         const auto first_space_pos(rest.find(' '));
