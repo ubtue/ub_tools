@@ -3,7 +3,7 @@ After=mnt-ZE020150.mount
 
 [Service]
 Type=forking
-ExecStart=/usr/local/bin/system_monitor /mnt/ZE020150/FID-Entwicklung/system-monitor/{hostname}.stats'
+ExecStart=/usr/local/bin/system_monitor /mnt/ZE020150/FID-Entwicklung/system-monitor/{hostname}.stats
 PIDFile=/usr/local/run/system_monitor.pid
 Restart=always
 SuccessExitStatus=0
