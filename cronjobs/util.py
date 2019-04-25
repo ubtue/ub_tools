@@ -418,7 +418,7 @@ def Tail(filename, max_no_of_lines):
 
         map.seek(0, os.SEEK_END)
         no_of_lines = 0
-        requested_lines = ""
+        requested_lines = bytearray()
         while map.tell() != 0:
             cur_pos = map.tell()
             map.seek(cur_pos - 1)
@@ -426,9 +426,9 @@ def Tail(filename, max_no_of_lines):
             if previous_byte == '\n':
                 no_of_lines += 1
                 if no_of_lines == max_no_of_lines + 1:
-                    return requested_lines
+                    return str(requested_lines[::-1])
             map.seek(cur_pos - 1)
-            requested_lines = previous_byte + requested_lines
+            requested_lines += previous_byte
 
         map.close()
-        return requested_lines
+        return str(requested_lines[::-1])
