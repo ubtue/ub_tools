@@ -411,6 +411,7 @@ def Which(executable_name):
 
 # Returns the last "max_no_of_lines" of "filename" or the contents of the entire file if the file contains no more than
 # "max_no_of_lines".
+# @return The requested lines.
 def Tail(filename, max_no_of_lines):
     with open(filename, "rb") as f:
         map = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)
