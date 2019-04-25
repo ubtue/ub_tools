@@ -9,8 +9,9 @@ function SendEmail {
         exit 0
     else
         send_email --priority=high --recipients="$email_address" --subject="$0 failed on $(hostname)" --expand-newline-escapes \
-                   --message-body="Check /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log for details.\n\n
-$(tail -20 /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log)\"
+                   --message-body=$(concat "Check /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log for details.\n\n" \
+                                           $(tail -20 /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log) \
+                                           "\n")
         exit 1
     fi
 }
