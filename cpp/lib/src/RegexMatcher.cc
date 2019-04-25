@@ -142,8 +142,8 @@ bool RegexMatcher::matched(const std::string &subject, const size_t subject_star
     if (err_msg != nullptr)
         err_msg->clear();
 
-    const int retcode = ::pcre_exec(pcre_, pcre_extra_, subject.data(), subject.length(), subject_start_offset, 0,
-                                    &substr_vector_[0], substr_vector_.size());
+    const int retcode(::pcre_exec(pcre_, pcre_extra_, subject.data(), subject.length(), subject_start_offset, 0,
+                                    &substr_vector_[0], substr_vector_.size()));
 
     if (retcode == 0) {
         if (err_msg != nullptr)
