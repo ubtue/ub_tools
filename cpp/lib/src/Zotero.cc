@@ -877,7 +877,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
         }
 
         if (not first_name.empty() and not last_name.empty()) {
-            if (BSZTransform::StripCatholicOrdersFromAuthorName(&first_name, &last_name)) {
+            if (BSZTransform::StripBlacklistedTokensFromAuthorName(&first_name, &last_name)) {
                 if (first_name_node != nullptr)
                     JSON::JSONNode::CastToStringNodeOrDie("firstName", first_name_node)->setValue(first_name);
                 if (last_name_node != nullptr)
