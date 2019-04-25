@@ -48,7 +48,7 @@ public:
     /** Move constructor. */
     RegexMatcher(RegexMatcher &&that);
 
-    /** Destrcutor. */
+    /** Destructor. */
     virtual ~RegexMatcher() {
         ::pcre_free_study(pcre_extra_);
         ::pcre_free(pcre_);
@@ -59,8 +59,14 @@ public:
      *  In the case of a successful match, "start_pos" and "end_pos" will point to the first and last+1
      *  character of the matched part of "s" respectively.
      */
-    bool matched(const std::string &subject, std::string * const err_msg = nullptr,
+    inline bool matched(const std::string &subject, std::string * const err_msg = nullptr, size_t * const start_pos = nullptr,
+                        size_t * const end_pos = nullptr)
+        { return matched(subject, 0, err_msg, start_pos, end_pos); }
+    bool matched(const std::string &subject, const size_t subject_start_offset, std::string * const err_msg = nullptr,
                  size_t * const start_pos = nullptr, size_t * const end_pos = nullptr);
+
+    // Replaces all matches of the pattern with the replacement string.
+    std::string replaceAll(const std::string &subject, const std::string &replacement);
 
     const std::string &getPattern() const { return pattern_; }
     bool utf8Enabled() const { return options_ & ENABLE_UTF8; }
