@@ -59,7 +59,7 @@ void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::str
     unsigned line_no(0);
 top_loop:
     while (not deletion_list->eof()) {
-        const std::string line(StringUtil::Trim(deletion_list->getline()));
+        const std::string line(StringUtil::TrimWhite(deletion_list->getline()));
         ++line_no;
         if (unlikely(line.empty())) // Ignore empty lines.
             continue;
