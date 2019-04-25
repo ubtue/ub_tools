@@ -12,6 +12,7 @@ import ctypes
 import datetime
 import glob
 import inspect
+import mmap
 import os
 import process_util
 import re
@@ -406,3 +407,28 @@ def Which(executable_name):
         if os.access(path_component + "/" + executable_name, os.X_OK):
             return path_component + "/" + executable_name
     return ""
+
+
+# Returns the last "max_no_of_lines" of "filename" or the contents of the entire file if the file contains no more than
+# "max_no_of_lines".
+# @return The requested lines.
+def Tail(filename, max_no_of_lines):
+    with open(filename, "rb") as f:
+        map = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)
+
+        map.seek(0, os.SEEK_END)
+        no_of_lines = 0
+        requested_lines = bytearray()
+        while map.tell() != 0:
+            cur_pos = map.tell()
+            map.seek(cur_pos - 1)
+            previous_byte = map.read_byte()
+            if previous_byte == '\n':
+                no_of_lines += 1
+                if no_of_lines == max_no_of_lines + 1:
+                    return str(requested_lines[::-1])
+            map.seek(cur_pos - 1)
+            requested_lines += previous_byte
+
+        map.close()
+        return str(requested_lines[::-1])
