@@ -136,13 +136,13 @@ RegexMatcher::RegexMatcher(RegexMatcher &&that)
 }
 
 
-bool RegexMatcher::matched(const std::string &subject, std::string * const err_msg,
+bool RegexMatcher::matched(const std::string &subject, const size_t subject_start_offset, std::string * const err_msg,
                            size_t * const start_pos, size_t * const end_pos)
 {
     if (err_msg != nullptr)
         err_msg->clear();
 
-    const int retcode = ::pcre_exec(pcre_, pcre_extra_, subject.data(), subject.length(), 0, 0,
+    const int retcode = ::pcre_exec(pcre_, pcre_extra_, subject.data(), subject.length(), subject_start_offset, 0,
                                     &substr_vector_[0], substr_vector_.size());
 
     if (retcode == 0) {
@@ -171,6 +171,34 @@ bool RegexMatcher::matched(const std::string &subject, std::string * const err_m
     }
 
     return false;
+}
+
+bool RegexMatcher::matched(const std::string &subject, std::string * const err_msg,
+                           size_t * const start_pos, size_t * const end_pos)
+{
+    return matched(subject, 0, err_msg, start_pos, end_pos);
+}
+
+
+bool RegexMatcher::replaceAll(const std::string &subject, const std::string &replacement, std::string * const replaced_string,
+                              std::string * const err_msg)
+{
+    if (not matched(subject, err_msg))
+        return false;
+
+    replaced_string->clear();
+
+    // the matches need to be sequentially sorted from left to right
+    size_t subject_start_offset(0), match_start_offset(0), match_end_offset(0);
+    while (subject_start_offset < subject.length() &&
+           matched(subject, subject_start_offset, err_msg, &match_start_offset, &match_end_offset))
+    {
+        *replaced_string += subject.substr(subject_start_offset, match_start_offset - subject_start_offset);
+        *replaced_string += replacement;
+        subject_start_offset = match_end_offset;
+    }
+
+    return true;
 }
 
 

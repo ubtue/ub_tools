@@ -48,7 +48,7 @@ public:
     /** Move constructor. */
     RegexMatcher(RegexMatcher &&that);
 
-    /** Destrcutor. */
+    /** Destructor. */
     virtual ~RegexMatcher() {
         ::pcre_free_study(pcre_extra_);
         ::pcre_free(pcre_);
@@ -61,7 +61,13 @@ public:
      */
     bool matched(const std::string &subject, std::string * const err_msg = nullptr,
                  size_t * const start_pos = nullptr, size_t * const end_pos = nullptr);
+    bool matched(const std::string &subject, const size_t subject_start_offset, std::string * const err_msg = nullptr,
+                 size_t * const start_pos = nullptr, size_t * const end_pos = nullptr);
 
+    /** \brief Replaces all matches of the pattern with the replacement string.
+     */
+    bool replaceAll(const std::string &subject, const std::string &replacement, std::string * const replaced_string,
+                    std::string * const err_msg = nullptr);
     const std::string &getPattern() const { return pattern_; }
     bool utf8Enabled() const { return options_ & ENABLE_UTF8; }
     bool caseInsensitive() const { return options_ & CASE_INSENSITIVE; }
