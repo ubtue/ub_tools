@@ -33,6 +33,7 @@
 /canon_law_to_codes_tool
 /collect_journal_stats
 /collect_solr_stats_data
+/concat
 /control_number_filter
 /control_number_guesser
 /convert_bible_references

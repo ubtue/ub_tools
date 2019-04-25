@@ -267,10 +267,9 @@ std::string RightTrim(std::string * const s, char trim_char) {
 }
 
 
-std::string RightTrim(const std::string &s, char trim_char)
-{
-        std::string temp_s(s);
-        return RightTrim(&temp_s, trim_char);
+std::string RightTrim(const std::string &s, char trim_char) {
+    std::string temp_s(s);
+    return RightTrim(&temp_s, trim_char);
 }
 
 
@@ -298,7 +297,7 @@ std::string RightTrim(const std::string &trim_set, const std::string &s) {
 
 
 char *strrtrim(char *s, char trim_char) {
-    const size_t len = std::strlen(s);
+    const size_t len(std::strlen(s));
     char *cp = s + len;
     while (--cp >= s and *cp == trim_char)
         /* intentionally empty */;
@@ -309,7 +308,7 @@ char *strrtrim(char *s, char trim_char) {
 
 
 std::string LeftTrim(std::string * const s, char trim_char) {
-    size_t original_length = s->length();
+    const size_t original_length(s->length());
     if (original_length == 0)
         return *s;
 
@@ -331,7 +330,7 @@ std::string LeftTrim(const std::string &s, char trim_char) {
 
 
 std::string LeftTrim(const std::string &trim_set, std::string * const s) {
-    size_t original_length = s->length();
+    const size_t original_length(s->length());
     if (original_length == 0)
         return *s;
 
