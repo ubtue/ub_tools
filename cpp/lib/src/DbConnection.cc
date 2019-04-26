@@ -119,6 +119,14 @@ DbConnection::~DbConnection() {
 }
 
 
+int DbConnection::getLastErrorCode() const {
+    if (type_ == T_MYSQL)
+        return static_cast<int>(::mysql_errno(&mysql_));
+    else
+        return ::sqlite3_errcode(sqlite3_);
+}
+
+
 const std::string DbConnection::DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath() + "ub_tools.conf");
 
 
