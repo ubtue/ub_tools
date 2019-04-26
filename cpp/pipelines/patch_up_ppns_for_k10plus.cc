@@ -31,6 +31,7 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
+#include "FileUtil.h"
 #include "MapUtil.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
@@ -192,6 +193,8 @@ int Main(int argc, char **argv) {
     CheckMySQLPermissions(&db_connection);
 
     std::unordered_multimap<std::string, std::string> already_processed_ppns_and_sigils;
+    if (not FileUtil::Exists(ALREADY_SWAPPED_PPNS_MAP_FILE))
+        FileUtil::WriteStringOrDie(ALREADY_SWAPPED_PPNS_MAP_FILE, "");
     if (not store_only)
         MapUtil::DeserialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, &already_processed_ppns_and_sigils);
 
