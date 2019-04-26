@@ -67,16 +67,14 @@ public:
 };
 
 
-const std::string CATHOLIC_ORDERS_ABBREVIATIONS_PATH(UBTools::GetTuelibPath() + "abbr_catholic_orders.txt");
+const std::string AUTHOR_NAME_BLACKLIST(UBTools::GetTuelibPath() + "zotero_author_name_blacklist.txt");
 
-
-/* \brief   Strips abbreviations of Catholic orders from the author's (last)name.
+/* \brief   Strips blacklisted tokens from the author's name.
  * \return  true if names were changed.
- * \note    Author names in the metadata returned by Zotero sometimes contain abbreviations of Catholic orders,
- *          amongst other extraneous information. In such cases, the abbreviation is incorrectly interpreted as
- *          the last name (and the full name as the first name).
+ * \note    Author names in the metadata returned by Zotero sometimes contain tokens such as abbreviations of Catholic orders,
+ *          amongst other extraneous information.
 */
-bool StripCatholicOrdersFromAuthorName(std::string * const first_name, std::string * const last_name);
+bool StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::string * const last_name);
 
 
 } // end namespace BSZTransform
