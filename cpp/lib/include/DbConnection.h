@@ -82,7 +82,7 @@ public:
     inline unsigned getPort() const { return port_; }
     inline Charset getCharset() const { return charset_; }
     inline TimeZone getTimeZone() const { return time_zone_; }
-
+    int getLastErrorCode() const;
 
     /** \note If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be
      *        logged to /usr/local/var/log/tuefind/sql_debug.log.
