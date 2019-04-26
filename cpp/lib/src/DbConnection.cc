@@ -136,16 +136,20 @@ bool DbConnection::query(const std::string &query_statement) {
                                std::string(::progname) + ": " +  query_statement + '\n');
 
     if (type_ == T_MYSQL) {
-        if (::mysql_query(&mysql_, query_statement.c_str()) != 0)
-	    LOG_ERROR("Could not successfully execute statement \"" + query_statement + "\": SQL error code:"
-                      + std::to_string(::mysql_errno(&mysql_)));
+        if (::mysql_query(&mysql_, query_statement.c_str()) != 0) {
+	    LOG_WARNING("Could not successfully execute statement \"" + query_statement + "\": SQL error code:"
+                        + std::to_string(::mysql_errno(&mysql_)));
+            return false;
+        }
 	return true;
     } else {
         if (stmt_handle_ != nullptr) {
             const int result_code(::sqlite3_finalize(stmt_handle_));
-            if (result_code != SQLITE_OK)
-                LOG_ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was "
-                      + std::to_string(result_code) + ")");
+            if (result_code != SQLITE_OK) {
+                LOG_WARNING("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was "
+                            + std::to_string(result_code) + ")");
+                return false;
+            }
         }
 
         const char *rest;
