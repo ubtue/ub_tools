@@ -148,7 +148,7 @@ bool StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::s
     std::string first_name_buffer(matcher->replaceAll(*first_name, "")), last_name_buffer(matcher->replaceAll(*last_name, ""));
     const bool names_modified(*first_name != first_name_buffer or *last_name != last_name_buffer);
 
-    if (!names_modified)
+    if (not names_modified)
         return false;
 
     StringUtil::TrimWhite(&first_name_buffer);
