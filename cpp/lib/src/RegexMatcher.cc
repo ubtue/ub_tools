@@ -184,6 +184,11 @@ std::string RegexMatcher::replaceAll(const std::string &subject, const std::stri
     while (subject_start_offset < subject.length() and
            matched(subject, subject_start_offset, /* err_msg */ nullptr, &match_start_offset, &match_end_offset))
     {
+        if (subject_start_offset == match_start_offset and subject_start_offset == match_end_offset) {
+            replaced_string += subject[subject_start_offset++];
+            continue;
+        }
+
         replaced_string += subject.substr(subject_start_offset, match_start_offset - subject_start_offset);
         replaced_string += replacement;
         subject_start_offset = match_end_offset;

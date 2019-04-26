@@ -15,6 +15,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <set>
+#include "StlHelpers.h"
 #include "BSZTransform.h"
 #include "Downloader.h"
 #include "FileUtil.h"
@@ -107,23 +108,58 @@ void ParseAuthor(const std::string &author, std::string * const first_name, std:
 }
 
 
-bool StripCatholicOrdersFromAuthorName(std::string * const first_name, std::string * const last_name) {
-    static std::unordered_set<std::string> abbreviations_catholic_orders;
-    if (abbreviations_catholic_orders.empty()) {
-        auto string_data(FileUtil::ReadStringOrDie(CATHOLIC_ORDERS_ABBREVIATIONS_PATH));
-        TextUtil::UTF8ToLower(&string_data);
-        StringUtil::Split(string_data, '\n', &abbreviations_catholic_orders, /* suppress_empty_components = */true);
+bool FilterEmptyAndCommentLines(std::string str) {
+    StringUtil::TrimWhite(&str);
+    return not str.empty() and str.front() != '#';
+}
+
+
+bool StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::string * const last_name) {
+    static std::unique_ptr<RegexMatcher> matcher;
+    if (matcher == nullptr) {
+        std::unordered_set<std::string> blacklisted_tokens, filtered_blacklisted_tokens;
+        auto string_data(FileUtil::ReadStringOrDie(AUTHOR_NAME_BLACKLIST));
+        StringUtil::Split(string_data, '\n', &blacklisted_tokens, /* suppress_empty_components = */true);
+
+        StlHelpers::Functional::Filter(blacklisted_tokens.begin(), blacklisted_tokens.end(), filtered_blacklisted_tokens,
+                                       FilterEmptyAndCommentLines);
+
+        std::string match_regex("\\b(");
+        for (auto blacklisted_token : filtered_blacklisted_tokens) {
+            // escape backslashes first to keep from overwriting other escape sequences
+            blacklisted_token = StringUtil::ReplaceString("\\", "\\\\", blacklisted_token);
+            blacklisted_token = StringUtil::ReplaceString("(", "\\(", blacklisted_token);
+            blacklisted_token = StringUtil::ReplaceString(")", "\\)", blacklisted_token);
+            blacklisted_token = StringUtil::ReplaceString(".", "\\.", blacklisted_token);
+            blacklisted_token = StringUtil::ReplaceString("/", "\\/", blacklisted_token);
+
+            match_regex += blacklisted_token + "|";
+        }
+        match_regex += ")\\b";
+
+        matcher.reset(RegexMatcher::RegexMatcherFactoryOrDie(match_regex));
     }
 
-    const auto normalised_last_name(TextUtil::UTF8ToLower(last_name));
-    if (abbreviations_catholic_orders.find(normalised_last_name) == abbreviations_catholic_orders.end())
+    std::string first_name_buffer(matcher->replaceAll(*first_name, "")), last_name_buffer(matcher->replaceAll(*last_name, ""));
+    const bool names_modified(*first_name != first_name_buffer or *last_name != last_name_buffer);
+
+    if (not names_modified)
         return false;
 
-    // try to reparse the name from the content of the first name
-    const auto first_name_contents(*first_name);
-    ParseAuthor(first_name_contents, first_name, last_name);
+    StringUtil::TrimWhite(&first_name_buffer);
+    StringUtil::TrimWhite(&last_name_buffer);
 
-    LOG_DEBUG("stripped Catholic order abbr. '" + normalised_last_name + "' from author (last)name");
+    // try to reparse the name if either part of the name is empty
+    if (first_name_buffer.empty())
+        ParseAuthor(last_name_buffer, first_name, last_name);
+    else if (last_name_buffer.empty())
+        ParseAuthor(first_name_buffer, first_name, last_name);
+    else if (not first_name_buffer.empty() and not last_name_buffer.empty()) {
+        *first_name = first_name_buffer;
+        *last_name = last_name_buffer;
+    } else
+        return false;
+
     LOG_DEBUG("new first name: '" + *first_name + "', new last name: '" + *last_name + "'");
     return true;
 }
