@@ -110,12 +110,7 @@ void ParseAuthor(const std::string &author, std::string * const first_name, std:
 
 bool FilterEmptyAndCommentLines(std::string str) {
     StringUtil::TrimWhite(&str);
-    if (str.empty())
-       return false;
-    else if (str.front() == '#')
-        return false;
-    else
-        return true;
+    return not str.empty() and str.front() != '#';
 }
 
 
