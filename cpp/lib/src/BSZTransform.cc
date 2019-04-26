@@ -146,27 +146,27 @@ bool StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::s
     }
 
     std::string first_name_buffer(matcher->replaceAll(*first_name, "")), last_name_buffer(matcher->replaceAll(*last_name, ""));
-    bool names_modified(*first_name != first_name_buffer or *last_name != last_name_buffer);
+    const bool names_modified(*first_name != first_name_buffer or *last_name != last_name_buffer);
 
-    if (names_modified) {
-        StringUtil::TrimWhite(&first_name_buffer);
-        StringUtil::TrimWhite(&last_name_buffer);
+    if (!names_modified)
+        return false;
 
-        // try to reparse the name if either part of the name is empty
-        if (first_name_buffer.empty())
-            ParseAuthor(last_name_buffer, first_name, last_name);
-        else if (last_name_buffer.empty())
-            ParseAuthor(first_name_buffer, first_name, last_name);
-        else if (not first_name_buffer.empty() and not last_name_buffer.empty()) {
-            *first_name = first_name_buffer;
-            *last_name = last_name_buffer;
-        } else
-            return false;
+    StringUtil::TrimWhite(&first_name_buffer);
+    StringUtil::TrimWhite(&last_name_buffer);
 
-        LOG_DEBUG("new first name: '" + *first_name + "', new last name: '" + *last_name + "'");
-    }
+    // try to reparse the name if either part of the name is empty
+    if (first_name_buffer.empty())
+        ParseAuthor(last_name_buffer, first_name, last_name);
+    else if (last_name_buffer.empty())
+        ParseAuthor(first_name_buffer, first_name, last_name);
+    else if (not first_name_buffer.empty() and not last_name_buffer.empty()) {
+        *first_name = first_name_buffer;
+        *last_name = last_name_buffer;
+    } else
+        return false;
 
-    return names_modified;
+    LOG_DEBUG("new first name: '" + *first_name + "', new last name: '" + *last_name + "'");
+    return true;
 }
 
 
