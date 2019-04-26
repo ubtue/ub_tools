@@ -133,7 +133,13 @@ void PatchNotifiedDB(const std::string &user_type, const std::vector<PPNsAndSigi
 
 
 bool HaveAllPermissions(DbConnection * const db_connection, const std::string &database) {
-    db_connection->queryOrDie("SHOW GRANTS FOR '" + db_connection->getUser() + "'@'" + db_connection->getHost() + "'");
+    const std::string QUERY("SHOW GRANTS FOR '" + db_connection->getUser() + "'@'" + db_connection->getHost() + "'");
+    if (not db_connection->query(QUERY)) {
+        if (db_connection->getLastErrorCode() == 1141)
+            return false;
+        LOG_ERROR(QUERY + " failed: " + db_connection->getLastErrorMessage());
+    }
+
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
         if (row[0]
