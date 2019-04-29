@@ -3,7 +3,7 @@
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -35,7 +35,7 @@ extern const size_t PPN_LENGTH_OLD;
 extern const size_t PPN_LENGTH_NEW;
 
 
-// Extracts PPNs (ID's) from a LOEPPN file as provided by the BSZ.
+// Extracts PPNs (ID's) from a LOEKXP file as provided by the BSZ.
 void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const delete_full_record_ids,
                         std::unordered_set <std::string> * const local_deletion_ids);
 

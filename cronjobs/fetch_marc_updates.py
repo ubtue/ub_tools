@@ -31,11 +31,11 @@ filename_pattern = ^(?:WA-MARCcomb)-(\d\d\d\d\d\d).tar.gz$
 directory_on_ftp_server = /sekkor
 
 [Loeschlisten]
-filename_pattern = ^LOEPPN-(\d\d\d\d\d\d)$
+filename_pattern = ^LOEKXP-(\d\d\d\d\d\d)$
 directory_on_ftp_server = /sekkor
 
 [Loeschlisten2]
-filename_pattern = ^LOEPPN_m-(\d\d\d\d\d\d)$
+filename_pattern = ^LOEKXP_m-(\d\d\d\d\d\d)$
 directory_on_ftp_server = /ixtheo
 
 [Errors]
