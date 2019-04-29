@@ -35,7 +35,7 @@ extern const size_t PPN_LENGTH_OLD;
 extern const size_t PPN_LENGTH_NEW;
 
 
-// Extracts PPNs (ID's) from a LOEPPN file as provided by the BSZ.
+// Extracts PPNs (ID's) from a LOEKXP file as provided by the BSZ.
 void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const delete_full_record_ids,
                         std::unordered_set <std::string> * const local_deletion_ids);
 
