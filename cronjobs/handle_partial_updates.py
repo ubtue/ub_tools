@@ -6,7 +6,7 @@
 # A typical config file looks like this:
 """
 [Files]
-loesch_liste    = LOEPPN-current
+loesch_liste    = LOEKXP-current
 komplett_abzug  = WA-MARC-krimdok-current.tar.gz
 differenz_abzug = SA-MARC-krimdok-current.tar.gz
 
