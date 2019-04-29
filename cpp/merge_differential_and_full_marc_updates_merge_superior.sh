@@ -103,7 +103,7 @@ last_temp_directory=
 for update in $(generate_merge_order | tail --lines=+2); do
     ((++counter))
     temp_directory=temp_directory.$BASHPID.$counter
-    if [[ ${update:0:6} == "LOEPPN" ]]; then
+    if [[ ${update:0:6} == "LOEKXP" ]]; then
         echo "[$(date +%y%m%d-%R:%S)] Processing deletion list: $update"
         echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
         archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
