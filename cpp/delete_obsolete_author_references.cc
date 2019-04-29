@@ -1,4 +1,4 @@
-/** \brief Utility for deleting 100$0 fields if id is given in a LOEPPN list.
+/** \brief Utility for deleting 100$0 fields if id is given in a LOEKXP list.
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
  *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
