@@ -209,24 +209,20 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
 
 
 void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
-    std::string program_name_check_running, program_name_start;
-    std::vector<std::string> program_args_start;
-
+    std::unordered_set<unsigned> running_pids;
     switch(os_system_type) {
     case UBUNTU:
-        program_name_check_running = "mysqld";
-        program_name_start = "mysqld";
-        program_args_start = { "--daemonize" };
+        running_pids = ExecUtil::FindActivePrograms("mysqld");
+        if (running_pids.size() == 0)
+            ExecUtil::Exec(ExecUtil::Which("mysqld"), { "--daemonize" });
         break;
     case CENTOS:
-        program_name_check_running = "mysqld";
-        program_name_start = "mysqld_safe";
-        program_args_start = {};
+        running_pids = ExecUtil::FindActivePrograms("mysqld");
+        if (running_pids.size() == 0) {
+            ExecUtil::Exec("/usr/libexec/mariadb-prepare-db-dir", {});
+            ExecUtil::Spawn(ExecUtil::Which("mysqld_safe"), {});
+        }
     }
-
-    std::unordered_set<unsigned> running_pids(ExecUtil::FindActivePrograms(program_name_check_running));
-    if (running_pids.size() == 0)
-        ExecUtil::Spawn(ExecUtil::Which(program_name_start), program_args_start);
 }
 
 
