@@ -220,7 +220,8 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
         running_pids = ExecUtil::FindActivePrograms("mysqld");
         if (running_pids.size() == 0) {
             ExecUtil::Exec("/usr/libexec/mariadb-prepare-db-dir", {});
-            ExecUtil::Spawn(ExecUtil::Which("mysqld_safe"), {});
+            pid_t pid(ExecUtil::Spawn(ExecUtil::Which("mysqld_safe"), {}));
+            ExecUtil::Exec("/usr/libexec/mariadb-wait-ready", { std::to_string(pid) });
         }
     }
 }
