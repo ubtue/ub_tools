@@ -119,7 +119,7 @@ OSSystemType DetermineOSSystemType() {
 
 // Detect if OS is running inside docker (e.g. if we might have problems to access systemctl)
 bool IsDockerEnvironment() {
-    return RegexMatcher::Matched("docker", FileUtil::ReadStringOrDie("/proc/1/cgroup"));
+    return RegexMatcher::Matched("docker", FileUtil::ReadStringFromPseudoFileOrDie("/proc/1/cgroup"));
 }
 
 
