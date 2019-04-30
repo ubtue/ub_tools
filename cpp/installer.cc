@@ -215,7 +215,7 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
     switch(os_system_type) {
     case UBUNTU:
         program_name_check_running = "mysqld";
-        program_name_start = "";
+        program_name_start = "mysqld";
         program_args_start = { "--daemonize" };
         break;
     case CENTOS:
