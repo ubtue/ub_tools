@@ -1910,18 +1910,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> genres = new HashSet<String>();
         getTopicsCollector(record, fieldSpecs, separators, genres, lang, _689IsGenreSubject);
-
-        // Also try to find the code for "Festschrift" in 935$c:
-        List<VariableField> _935Fields = record.getVariableFields("935");
-        for (final VariableField _935Field : _935Fields) {
-            DataField dataField = (DataField) _935Field;
-            final List<Subfield> cSubfields = dataField.getSubfields('c');
-            for (final Subfield cSubfield : cSubfields) {
-                if (cSubfield.getData().toLowerCase().equals("fe"))
-                    genres.add("Festschrift");
-            }
-        }
-
         if (genres.size() == 0)
             genres.add(UNASSIGNED_STRING);
 
@@ -2261,6 +2249,19 @@ public class TuelibMixin extends SolrIndexerMixin {
         case 'B':
             result.add("SerialComponentPart");
             break;
+    // Integrating resource
+    case 'I':
+        // Look in 008 to determine the exact type
+        formatCode = fixedField.getData().toUpperCase().charAt(21);
+        switch (formatCode) {
+        case 'W':
+            result.add("Website");
+            break;
+        case 'D':
+            result.add("Database");
+            break;
+        }
+        break;
         // Serial
         case 'S':
             // Look in 008 to determine what type of Continuing Resource
@@ -2277,6 +2278,11 @@ public class TuelibMixin extends SolrIndexerMixin {
                 break;
             }
         }
+
+        // Festschrift
+        formatCode = fixedField.getData().toUpperCase().charAt(30);
+        if (formatCode == '1')
+            result.add("Festschrift");
 
         // Check 935$a entries:
         final List<VariableField> _935Fields = record.getVariableFields("935");
@@ -2423,14 +2429,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Determine whether record is a 'Festschrift', i.e. has "fe" in 935$c
         if (foundInSubfield(_935Fields, 'c', "fe"))
             formats.add("Festschrift");
-
-        // Determine whether record is a Website, i.e. has "website" in 935$c
-        if (foundInSubfield(_935Fields, 'c', "website"))
-            formats.add("Website");
-
-        // Determine whether a record is a database, i.e. has "daten" in 935$c
-        if (foundInSubfield(_935Fields, 'c', "daten"))
-            formats.add("Database");
 
         // Determine whether a record is a subscription package, i.e. has "subskriptionspaket" in 935$c
         if (foundInSubfield(_935Fields, 'c', "subskriptionspaket"))
