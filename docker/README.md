@@ -48,6 +48,9 @@ Wichtig: Pro Image können theoretisch mehrere Container laufen, für weitere Be
 
 Hinweis: Bei bestimmten Aktionen, z.B. Neustarten des Apache Servers kann der Container abstürzen!
 
+## Container starten obwohl er kein Startskript hat (z.B. Standard CentOS Container)
+docker run -d centos tail -f /dev/null
+
 ## File vom Host in laufenden Container kopieren
 `docker cp test.js 6714d880fad:/tmp/test.js`
 
