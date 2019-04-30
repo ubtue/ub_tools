@@ -2261,6 +2261,19 @@ public class TuelibMixin extends SolrIndexerMixin {
         case 'B':
             result.add("SerialComponentPart");
             break;
+    // Integrating resource
+    case 'I':
+        // Look in 008 to determine the exact type
+        formatCode = fixedField.getData().toUpperCase().charAt(21);
+        switch (formatCode) {
+        case 'W':
+            result.add("Website");
+            break;
+        case 'D':
+            result.add("Database");
+            break;
+        }
+        break;
         // Serial
         case 'S':
             // Look in 008 to determine what type of Continuing Resource
@@ -2423,14 +2436,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Determine whether record is a 'Festschrift', i.e. has "fe" in 935$c
         if (foundInSubfield(_935Fields, 'c', "fe"))
             formats.add("Festschrift");
-
-        // Determine whether record is a Website, i.e. has "website" in 935$c
-        if (foundInSubfield(_935Fields, 'c', "website"))
-            formats.add("Website");
-
-        // Determine whether a record is a database, i.e. has "daten" in 935$c
-        if (foundInSubfield(_935Fields, 'c', "daten"))
-            formats.add("Database");
 
         // Determine whether a record is a subscription package, i.e. has "subskriptionspaket" in 935$c
         if (foundInSubfield(_935Fields, 'c', "subskriptionspaket"))
