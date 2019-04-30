@@ -209,22 +209,24 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
 
 
 void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
-    std::string program_name;
-    std::vector<std::string> program_args;
+    std::string program_name_check_running, program_name_start;
+    std::vector<std::string> program_args_start;
 
     switch(os_system_type) {
     case UBUNTU:
-        program_name = "mysqld";
-        program_args = { "--daemonize" };
+        program_name_check_running = "mysqld";
+        program_name_start = "";
+        program_args_start = { "--daemonize" };
         break;
     case CENTOS:
-        program_name = "mysqld_safe";
-        program_args = {};
+        program_name_check_running = "mysqld";
+        program_name_start = "mysqld_safe";
+        program_args_start = {};
     }
 
-    std::unordered_set<unsigned> running_pids(ExecUtil::FindActivePrograms(program_name));
+    std::unordered_set<unsigned> running_pids(ExecUtil::FindActivePrograms(program_name_check_running));
     if (running_pids.size() == 0)
-        ExecUtil::Spawn(ExecUtil::Which(program_name), program_args);
+        ExecUtil::Spawn(ExecUtil::Which(program_name_start), program_args_start);
 }
 
 
