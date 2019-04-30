@@ -1910,18 +1910,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> genres = new HashSet<String>();
         getTopicsCollector(record, fieldSpecs, separators, genres, lang, _689IsGenreSubject);
-
-        // Also try to find the code for "Festschrift" in 935$c:
-        List<VariableField> _935Fields = record.getVariableFields("935");
-        for (final VariableField _935Field : _935Fields) {
-            DataField dataField = (DataField) _935Field;
-            final List<Subfield> cSubfields = dataField.getSubfields('c');
-            for (final Subfield cSubfield : cSubfields) {
-                if (cSubfield.getData().toLowerCase().equals("fe"))
-                    genres.add("Festschrift");
-            }
-        }
-
         if (genres.size() == 0)
             genres.add(UNASSIGNED_STRING);
 
@@ -2290,6 +2278,11 @@ public class TuelibMixin extends SolrIndexerMixin {
                 break;
             }
         }
+
+        // Festschrift
+        formatCode = fixedField.getData().toUpperCase().charAt(30);
+        if (formatCode == '1')
+            result.add("Festschrift");
 
         // Check 935$a entries:
         final List<VariableField> _935Fields = record.getVariableFields("935");
