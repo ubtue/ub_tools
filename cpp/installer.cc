@@ -208,10 +208,25 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
 }
 
 
-void AssureMysqlServerIsRunning() {
-    std::unordered_set<unsigned> running_pids(ExecUtil::FindActivePrograms("mysqld"));
+void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
+    std::string program_name_check_running, program_name_start;
+    std::vector<std::string> program_args_start;
+
+    switch(os_system_type) {
+    case UBUNTU:
+        program_name_check_running = "mysqld";
+        program_name_start = "";
+        program_args_start = { "--daemonize" };
+        break;
+    case CENTOS:
+        program_name_check_running = "mysqld";
+        program_name_start = "mysqld_safe";
+        program_args_start = {};
+    }
+
+    std::unordered_set<unsigned> running_pids(ExecUtil::FindActivePrograms(program_name_check_running));
     if (running_pids.size() == 0)
-        ExecUtil::Spawn(ExecUtil::Which("mysqld_safe"), { "--daemonize" });
+        ExecUtil::Spawn(ExecUtil::Which(program_name_start), program_args_start);
 }
 
 
@@ -223,8 +238,8 @@ void MySQLImportFileIfExists(const std::string &sql_database, const std::string 
 }
 
 
-void CreateUbToolsDatabase() {
-    AssureMysqlServerIsRunning();
+void CreateUbToolsDatabase(const OSSystemType os_system_type) {
+    AssureMysqlServerIsRunning(os_system_type);
 
     const std::string root_username("root");
     const std::string root_password("");
@@ -249,8 +264,8 @@ void CreateUbToolsDatabase() {
 }
 
 
-void CreateVuFindDatabases(VuFindSystemType vufind_system_type) {
-    AssureMysqlServerIsRunning();
+void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, const OSSystemType os_system_type) {
+    AssureMysqlServerIsRunning(os_system_type);
 
     const std::string root_username("root");
     const std::string root_password("");
@@ -267,12 +282,12 @@ void CreateVuFindDatabases(VuFindSystemType vufind_system_type) {
         DbConnection::MySQLImportFile(sql_database, VUFIND_DIRECTORY + "/module/VuFind/sql/mysql.sql", root_username, root_password);
         MySQLImportFileIfExists(sql_database, VUFIND_DIRECTORY + "/module/TueFind/sql/mysql.sql", root_username, root_password);
         switch(vufind_system_type) {
-            case IXTHEO:
-                MySQLImportFileIfExists(sql_database, VUFIND_DIRECTORY + "/module/IxTheo/sql/mysql.sql", root_username, root_password);
-                break;
-            case KRIMDOK:
-                MySQLImportFileIfExists(sql_database, VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", root_username, root_password);
-                break;
+        case IXTHEO:
+            MySQLImportFileIfExists(sql_database, VUFIND_DIRECTORY + "/module/IxTheo/sql/mysql.sql", root_username, root_password);
+            break;
+        case KRIMDOK:
+            MySQLImportFileIfExists(sql_database, VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", root_username, root_password);
+            break;
         }
     }
 
@@ -322,23 +337,23 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
     if (install_systemctl) {
         std::string apache_unit_name, mysql_unit_name;
         switch(os_system_type) {
-            case UBUNTU:
-                apache_unit_name = "apache2";
-                mysql_unit_name = "mysql";
-                break;
-            case CENTOS:
-                apache_unit_name = "httpd";
-                mysql_unit_name = "mariadb";
+        case UBUNTU:
+            apache_unit_name = "apache2";
+            mysql_unit_name = "mysql";
+            break;
+        case CENTOS:
+            apache_unit_name = "httpd";
+            mysql_unit_name = "mariadb";
 
-                if (not FileUtil::Exists("/etc/my.cnf"))
-                    ExecUtil::ExecOrDie(ExecUtil::Which("mysql_install_db"),
-                                        { "--user=mysql", "--ldata=/var/lib/mysql/", "--basedir=/usr" });
-                break;
+            if (not FileUtil::Exists("/etc/my.cnf"))
+                ExecUtil::ExecOrDie(ExecUtil::Which("mysql_install_db"),
+                                    { "--user=mysql", "--ldata=/var/lib/mysql/", "--basedir=/usr" });
+            break;
         }
 
         // we need to make sure that at least mysql is running, to be able to create databases
         if (IsDockerEnvironment())
-            AssureMysqlServerIsRunning();
+            AssureMysqlServerIsRunning(os_system_type);
         else if(SystemdUtil::IsAvailable()) {
             SystemdEnableAndRunUnit(apache_unit_name);
             SystemdEnableAndRunUnit(mysql_unit_name);
@@ -356,7 +371,7 @@ void CreateUsrLocalRun() {
 }
 
 
-void InstallUBTools(const bool make_install) {
+void InstallUBTools(const bool make_install, const OSSystemType os_system_type) {
     // First install iViaCore-mkdep...
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY + "/cpp/lib/mkdep");
     ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4", "install" });
@@ -393,7 +408,7 @@ void InstallUBTools(const bool make_install) {
     else
         ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4" });
 
-    CreateUbToolsDatabase();
+    CreateUbToolsDatabase(os_system_type);
     GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
     CreateUsrLocalRun();
 
@@ -514,8 +529,10 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
 
     // systemd will start apache as root
     // but apache will start children as configured in /etc
-    if (os_system_type == UBUNTU) {
-        const std::string config_filename("/etc/apache2/envvars");
+    std::string config_filename;
+    switch (os_system_type) {
+    case UBUNTU:
+        config_filename = "/etc/apache2/envvars";
         ExecUtil::ExecOrDie(ExecUtil::Which("sed"),
             { "-i", "s/export APACHE_RUN_USER=www-data/export APACHE_RUN_USER=" + username + "/",
               config_filename });
@@ -523,13 +540,15 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
         ExecUtil::ExecOrDie(ExecUtil::Which("sed"),
             { "-i", "s/export APACHE_RUN_GROUP=www-data/export APACHE_RUN_GROUP=" + username + "/",
               config_filename });
-    } else if (os_system_type == CENTOS) {
-        const std::string config_filename("/etc/httpd/conf/httpd.conf");
+        break;
+    case CENTOS:
+        config_filename = "/etc/httpd/conf/httpd.conf";
         ExecUtil::ExecOrDie(ExecUtil::Which("sed"),
             { "-i", "s/User apache/User " + username + "/", config_filename });
 
         ExecUtil::ExecOrDie(ExecUtil::Which("sed"),
             { "-i", "s/Group apache/Group " + username + "/", config_filename });
+        break;
     }
 
     ExecUtil::ExecOrDie(ExecUtil::Which("find"),
@@ -755,9 +774,9 @@ int Main(int argc, char **argv) {
         DownloadVuFind();
         ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, not omit_systemctl);
     }
-    InstallUBTools(/* make_install = */ true);
+    InstallUBTools(/* make_install = */ true, os_system_type);
     if (not ub_tools_only)
-        CreateVuFindDatabases(vufind_system_type);
+        CreateVuFindDatabases(vufind_system_type, os_system_type);
 
     return EXIT_SUCCESS;
 }
