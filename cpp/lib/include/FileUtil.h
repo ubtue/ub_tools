@@ -196,6 +196,11 @@ bool ReadString(const std::string &path, std::string * const data);
 void ReadStringOrDie(const std::string &path, std::string * const data);
 std::string ReadStringOrDie(const std::string &path);
 
+/* Same as ReadString, but can be used on /proc files (size 0 bytes) */
+bool ReadStringFromPseudoFile(const std::string &path, std::string * const data);
+void ReadStringFromPseudoFileOrDie(const std::string &path, std::string * const data);
+std::string ReadStringFromPseudoFileOrDie(const std::string &path);
+
 
 /** \brief Append "data" to "path".  If "path" does not exist, it will be created. */
 bool AppendString(const std::string &path, const std::string &data);

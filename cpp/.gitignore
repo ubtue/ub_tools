@@ -142,6 +142,7 @@
 /subfield_code_replacer
 /suggest_bib_refs
 /summarize_logs
+/system_monitor
 /translate_chainer
 /translation_db_tool
 /translation_exporter

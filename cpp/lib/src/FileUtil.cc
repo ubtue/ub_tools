@@ -288,6 +288,35 @@ std::string ReadStringOrDie(const std::string &path) {
 }
 
 
+bool ReadStringFromPseudoFile(const std::string &path, std::string * const data) {
+    data->clear();
+
+    std::ifstream input(path, std::ios_base::in | std::ios_base::binary);
+    if (input.fail())
+        return false;
+
+    std::string line;
+    while (std::getline(input, line))
+        *data += line + "\n";
+
+    return input.fail();
+}
+
+
+void ReadStringFromPseudoFileOrDie(const std::string &path, std::string * const data) {
+    if (not FileUtil::ReadStringFromPseudoFile(path, data))
+        LOG_ERROR("failed to read \"" + path + "\"!");
+}
+
+
+std::string ReadStringFromPseudoFileOrDie(const std::string &path) {
+    std::string data;
+    if (not FileUtil::ReadStringFromPseudoFile(path, &data))
+        LOG_ERROR("failed to read \"" + path + "\"!");
+    return data;
+}
+
+
 bool AppendString(const std::string &path, const std::string &data) {
     std::ofstream output(path, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
     if (output.fail())
