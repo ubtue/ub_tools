@@ -141,29 +141,17 @@ void StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::s
     }
 
     std::string first_name_buffer(matcher->replaceAll(*first_name, "")), last_name_buffer(matcher->replaceAll(*last_name, ""));
-    const bool names_modified(*first_name != first_name_buffer or *last_name != last_name_buffer);
-
-    if (not names_modified)
-        return;
-
     StringUtil::TrimWhite(&first_name_buffer);
     StringUtil::TrimWhite(&last_name_buffer);
 
-    // try to reparse the name if either part of the name is empty
-    if (first_name_buffer.empty())
-        ParseAuthor(last_name_buffer, first_name, last_name);
-    else if (last_name_buffer.empty())
-        ParseAuthor(first_name_buffer, first_name, last_name);
-    else if (not first_name_buffer.empty() and not last_name_buffer.empty()) {
-        *first_name = first_name_buffer;
-        *last_name = last_name_buffer;
-    }
+    *first_name = first_name_buffer;
+    *last_name = last_name_buffer;
 }
 
 
 bool IsAuthorNameTokenTitle(std::string token) {
     static const std::unordered_set<std::string> VALID_TITLES {
-        "jr", "sr", "s.j", "s.j", "fr", "hr", "dr", "prof", "em"
+        "jr", "sr", "sj", "s.j", "fr", "hr", "dr", "prof", "em"
     };
 
     bool final_period(token.back() == '.');
@@ -202,9 +190,16 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
 
     StripBlacklistedTokensFromAuthorName(&first_name_buffer, &last_name_buffer);
 
-    *first_name = first_name_buffer;
-    *last_name = last_name_buffer;
     *title = title_buffer;
+    // try to reparse the name if either part of the name is empty
+    if (first_name_buffer.empty())
+        ParseAuthor(last_name_buffer, first_name, last_name);
+    else if (last_name_buffer.empty())
+        ParseAuthor(first_name_buffer, first_name, last_name);
+    else if (not first_name_buffer.empty() and not last_name_buffer.empty()) {
+        *first_name = first_name_buffer;
+        *last_name = last_name_buffer;
+    }
 
     LOG_DEBUG("post-processed author first name = '" + *first_name + "', last name = '" + *last_name + "', title = '" + *title + "'");
 }
