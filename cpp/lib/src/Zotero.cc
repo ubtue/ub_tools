@@ -1348,7 +1348,9 @@ bool FeedNeedsToBeHarvested(const std::string &feed_contents, const std::shared_
     const auto syndication_format(SyndicationFormat::Factory(feed_contents, syndication_format_site_params, &err_msg));
     for (const auto &item : *syndication_format) {
         const auto pub_date(item.getPubDate());
-        if (pub_date != TimeUtil::BAD_TIME_T and std::difftime(item.getPubDate(), last_harvest_timestamp) > 0) {
+        if (harvest_params->forcibly_process_feeds_with_no_pub_dates_ and pub_date == TimeUtil::BAD_TIME_T)
+            return true;
+        else if (pub_date != TimeUtil::BAD_TIME_T and std::difftime(item.getPubDate(), last_harvest_timestamp) > 0) {
             LOG_DEBUG("URL '" + item.getLink() + "' was added/updated since the last harvest of this RSS feed. flagging for harvesting");
             return true;
         }
