@@ -2280,9 +2280,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
 
         // Festschrift
-        formatCode = fixedField.getData().toUpperCase().charAt(30);
-        if (formatCode == '1')
-            result.add("Festschrift");
+        if (fixedField.getData().length() >= 31) {
+            formatCode = fixedField.getData().toUpperCase().charAt(30);
+            if (formatCode == '1')
+                result.add("Festschrift");
+        }
 
         // Check 935$a entries:
         final List<VariableField> _935Fields = record.getVariableFields("935");
@@ -2857,5 +2859,38 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
 
         return null;
+    }
+
+
+    protected String get936IndicatorUWValue(final Record record, final char subfieldCode) {
+        for (final VariableField variableField : record.getVariableFields("936")) {
+             final DataField dataField = (DataField) variableField;
+             if (Character.toLowerCase(dataField.getIndicator1()) == 'u' && Character.toLowerCase(dataField.getIndicator2()) == 'w') {
+                 final Subfield subfield = dataField.getSubfield(subfieldCode);
+                 if (subfield != null)
+                     return subfield.getData();
+             }
+         }
+         return "";
+    }
+
+
+    public String getYear(final Record record) {
+        return get936IndicatorUWValue(record, 'j');
+    }
+
+
+    public String getVolume(final Record record) {
+        return get936IndicatorUWValue(record, 'd');
+    }
+
+
+    public String getPages(final Record record) {
+        return get936IndicatorUWValue(record, 'h');
+    }
+
+
+    public String getIssue(final Record record) {
+        return get936IndicatorUWValue(record, 'e');
     }
 }
