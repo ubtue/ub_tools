@@ -149,8 +149,9 @@ public:
 
     std::vector<std::string> mySQLGetTableList();
 
-    void mySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user) {
-        queryOrDie("GRANT ALL PRIVILEGES ON " + database_name + ".* TO '" + database_user + "';");
+    void mySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user,
+                                 const std::string &host = "localhost") {
+        queryOrDie("GRANT ALL PRIVILEGES ON " + database_name + ".* TO '" + database_user + "'@'" + host + "';");
     }
 
     void mySQLSelectDatabase(const std::string &database_name) {
@@ -223,7 +224,7 @@ public:
                                         const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4)
     {
         DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-        return db_connection.mySQLGrantAllPrivileges(database_name, database_user);
+        return db_connection.mySQLGrantAllPrivileges(database_name, database_user, host);
     }
 
     static bool MySQLUserExists(const std::string &database_user, const std::string &admin_user, const std::string &admin_passwd,
