@@ -69,12 +69,9 @@ public:
 
 const std::string AUTHOR_NAME_BLACKLIST(UBTools::GetTuelibPath() + "zotero_author_name_blacklist.txt");
 
-/* \brief   Strips blacklisted tokens from the author's name.
- * \return  true if names were changed.
- * \note    Author names in the metadata returned by Zotero sometimes contain tokens such as abbreviations of Catholic orders,
- *          amongst other extraneous information.
-*/
-bool StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::string * const last_name);
+
+// Performs various operations such as blacklisted-token removal, title detection on the author name.
+void PostProcessAuthorName(std::string * const first_name, std::string * const last_name, std::string * const title);
 
 
 } // end namespace BSZTransform
