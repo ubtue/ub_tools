@@ -329,7 +329,7 @@ void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode 
 }
 
 
-void HarvestSingleURL(const std::string &url, const IniFile &ini_file, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
+void HarvestSingleURLWithDummyData(const std::string &url, const IniFile &ini_file, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
                       Zotero::SiteParams * const site_params, Zotero::HarvesterErrorLogger * const harvester_error_logger)
 {
     site_params->journal_name_ = "Single URL Test";
@@ -437,7 +437,7 @@ int Main(int argc, char *argv[]) {
                                                                    group_name_to_format_handler_params_map);
         harvest_params->format_handler_->setAugmentParams(&site_params);
         harvest_params->user_agent_ = group_name_and_params->second.user_agent_;
-        HarvestSingleURL(harvest_single_url, ini_file, harvest_params, &site_params, &harvester_error_logger);
+        HarvestSingleURLWithDummyData(harvest_single_url, ini_file, harvest_params, &site_params, &harvester_error_logger);
         return EXIT_SUCCESS;
     }
 
