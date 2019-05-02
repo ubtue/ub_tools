@@ -430,9 +430,9 @@ int Main(int argc, char *argv[]) {
         Zotero::GlobalAugmentParams global_augment_params(&augment_maps);
 
         Zotero::SiteParams site_params;
-        site_params.global_params_          = &global_augment_params;
-        site_params.group_params_           = &group_name_and_params->second;
-        site_params.delivery_mode_          = BSZUpload::DeliveryMode::NONE;
+        site_params.global_params_ = &global_augment_params;
+        site_params.group_params_ = &group_name_and_params->second;
+        site_params.delivery_mode_ = BSZUpload::DeliveryMode::NONE;
         harvest_params->format_handler_ = GetFormatHandlerForGroup(site_params.group_params_->name_,
                                                                    group_name_to_format_handler_params_map);
         harvest_params->format_handler_->setAugmentParams(&site_params);
