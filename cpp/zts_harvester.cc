@@ -50,6 +50,7 @@ namespace {
               << "\t[--output-filename=output_filename] Overrides the automatically-generated filename based on the current date/time.\n"
               << "\t[--output-format=output_format]     Either \"marc-21\" or \"marc-xml\" or \"json\", with the default being \"marc-xml\"\n"
               << "\t[--harvest-url-regex=regex]         For testing purposes. When set, only those URLs that match this regex will be harvested\n"
+              << "\t[--harvest-single-url=url]          For testing purposes. When set, only this URL will be harvested. \n"
               << "\n"
               << "\tIf any section names have been provided, only those will be processed o/w all sections will be processed.\n\n";
     std::exit(EXIT_FAILURE);
@@ -254,7 +255,7 @@ void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode 
                  std::unordered_set<std::string> * const groups_filter, std::unordered_set<std::string> * const zeder_ids_filter,
                  bool * const force_downloads, bool * const ignore_robots_dot_txt,
                  std::string * const map_directory_path, std::string * const output_directory, std::string * const output_filename,
-                 std::string * const output_format_string, std::string * const harvest_url_regex)
+                 std::string * const output_format_string, std::string * const harvest_url_regex, std::string * const harvest_single_url)
 {
     while (StringUtil::StartsWith((*argv)[1], "--")) {
         if (StringUtil::StartsWith((*argv)[1], "--delivery-mode=")) {
@@ -318,7 +319,34 @@ void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode 
             *harvest_url_regex = (*argv)[1] + HARVEST_URL_REGEX_PREFIX.length();
             --*argc, ++*argv;
         }
+
+        const std::string HARVEST_SINGLE_URL_PREFIX("--harvest-single-url=");
+        if (StringUtil::StartsWith((*argv)[1], HARVEST_SINGLE_URL_PREFIX)) {
+            *harvest_single_url = (*argv)[1] + HARVEST_SINGLE_URL_PREFIX.length();
+            --*argc, ++*argv;
+        }
     }
+}
+
+
+void HarvestSingleURL(const std::string &url, const IniFile &ini_file, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
+                      Zotero::SiteParams * const site_params, Zotero::HarvesterErrorLogger * const harvester_error_logger)
+{
+    site_params->journal_name_ = "Single URL Test";
+    site_params->ISSN_online_ = "2167-2040";
+    site_params->PPN_online_ = "696793393";
+
+    const auto common_strptime_format(ini_file.getString("", "common_strptime_format"));
+    if (not common_strptime_format.empty()) {
+        if (common_strptime_format[0] == '(')
+            LOG_ERROR("Cannot specify locale in common_strptime_format");
+        site_params->strptime_format_ = common_strptime_format;
+    }
+
+    site_params->zeder_id_ = "0";
+    site_params->journal_update_window_ = 0;
+
+    Zotero::HarvestURL(url, harvest_params, *site_params, harvester_error_logger);
 }
 
 
@@ -339,8 +367,9 @@ int Main(int argc, char *argv[]) {
     std::string output_filename;
     std::string output_format_string("marc-xml");
     std::string harvest_url_regex;
+    std::string harvest_single_url;
     ProcessArgs(&argc, &argv, &delivery_mode_to_process, &groups_filter, &zeder_ids_filter, &force_downloads, &ignore_robots_dot_txt,
-                &map_directory_path, &output_directory, &output_filename, &output_format_string, &harvest_url_regex);
+                &map_directory_path, &output_directory, &output_filename, &output_format_string, &harvest_url_regex, &harvest_single_url);
 
     if (argc < 2)
         Usage();
@@ -353,7 +382,7 @@ int Main(int argc, char *argv[]) {
     harvest_params->zts_server_url_ = Zotero::TranslationServer::GetUrl();
     harvest_params->force_downloads_ = force_downloads;
     harvest_params->journal_harvest_interval_ = ini_file.getUnsigned("", "journal_harvest_interval");
-    harvest_params->force_process_feeds_with_no_pub_dates_ = ini_file.getUnsigned("", "force_process_feeds_with_no_pub_dates");
+    harvest_params->force_process_feeds_with_no_pub_dates_ = ini_file.getBool("", "force_process_feeds_with_no_pub_dates");
     harvest_params->default_crawl_delay_time_ = ini_file.getUnsigned("", "default_crawl_delay_time");
     harvest_params->skip_online_first_articles_unconditionally_ = ini_file.getBool("", "skip_online_first_articles_unconditionally");
     if (not harvest_url_regex.empty())
@@ -395,6 +424,22 @@ int Main(int argc, char *argv[]) {
     InitializeFormatHandlerParams(db_connection.get(), harvest_params, output_format_string, output_directory, output_filename,
                                   group_name_to_params_map, &group_name_to_format_handler_params_map);
 
+
+    if (not harvest_single_url.empty()) {
+        const auto group_name_and_params(group_name_to_params_map.find("IxTheo"));
+        Zotero::GlobalAugmentParams global_augment_params(&augment_maps);
+
+        Zotero::SiteParams site_params;
+        site_params.global_params_          = &global_augment_params;
+        site_params.group_params_           = &group_name_and_params->second;
+        site_params.delivery_mode_          = BSZUpload::DeliveryMode::NONE;
+        harvest_params->format_handler_ = GetFormatHandlerForGroup(site_params.group_params_->name_,
+                                                                   group_name_to_format_handler_params_map);
+        harvest_params->format_handler_->setAugmentParams(&site_params);
+        harvest_params->user_agent_ = group_name_and_params->second.user_agent_;
+        HarvestSingleURL(harvest_single_url, ini_file, harvest_params, &site_params, &harvester_error_logger);
+        return EXIT_SUCCESS;
+    }
 
     for (const auto &section : ini_file) {
         const auto section_name(section.getSectionName());
