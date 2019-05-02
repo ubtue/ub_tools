@@ -2280,9 +2280,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
 
         // Festschrift
-        formatCode = fixedField.getData().toUpperCase().charAt(30);
-        if (formatCode == '1')
-            result.add("Festschrift");
+        if (fixedField.getData().length() >= 31) {
+            formatCode = fixedField.getData().toUpperCase().charAt(30);
+            if (formatCode == '1')
+                result.add("Festschrift");
+        }
 
         // Check 935$a entries:
         final List<VariableField> _935Fields = record.getVariableFields("935");
