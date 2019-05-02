@@ -151,7 +151,7 @@ void StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::s
 
 bool IsAuthorNameTokenTitle(std::string token) {
     static const std::unordered_set<std::string> VALID_TITLES {
-        "jr", "sr", "s.j", "s.j", "fr", "hr", "dr", "prof", "em"
+        "jr", "sr", "sj", "s.j", "fr", "hr", "dr", "prof", "em"
     };
 
     bool final_period(token.back() == '.');
