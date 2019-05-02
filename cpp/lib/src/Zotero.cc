@@ -336,6 +336,7 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
             auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
             creator.first_name_ = creator_object_node->getOptionalStringValue("firstName");
             creator.last_name_ = creator_object_node->getOptionalStringValue("lastName");
+            creator.title_ = creator_object_node->getOptionalStringValue("title");
             creator.type_ = creator_object_node->getOptionalStringValue("creatorType");
             creator.ppn_ = creator_object_node->getOptionalStringValue("ppn");
             creator.gnd_number_ = creator_object_node->getOptionalStringValue("gnd_number");
@@ -524,14 +525,6 @@ void SelectIssnAndPpn(const std::string &issn_zotero, const std::string &issn_on
 }
 
 
-bool IsCreatorLastNameATitle(const std::string &last_name) {
-    static const std::unordered_set<std::string> VALID_TITLES {
-        "Jr", "Jr.", "Sr", "Sr.", "SJ", "Sj", "S.j.", "Fr."
-    };
-    return VALID_TITLES.find(last_name) != VALID_TITLES.end();
-}
-
-
 void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters) {
     const std::string item_type(node_parameters.item_type_);
     *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, Transformation::MapBiblioLevel(item_type));
@@ -564,11 +557,10 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         if (not creator->type_.empty())
             subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator->type_));
 
-        if (IsCreatorLastNameATitle(creator->last_name_)) {
-            subfields.appendSubfield('a', creator->first_name_);
-            subfields.appendSubfield('c', creator->last_name_);
-        } else
-            subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({ creator->last_name_, creator->first_name_ }), ", "));
+        subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({ creator->last_name_, creator->first_name_ }), ", "));
+        if (not creator->title_.empty())
+            subfields.appendSubfield('c', creator->title_);
+
         record->insertField(creator_tag, subfields, /* indicator 1 = */'1');
     }
 
@@ -858,6 +850,13 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
         auto last_name_node(creator_object->getNode("lastName"));
         auto first_name(creator_object->getOptionalStringValue("firstName"));
         auto last_name(creator_object->getOptionalStringValue("lastName"));
+        std::string name_title;
+        BSZTransform::PostProcessAuthorName(&first_name, &last_name, &name_title);
+        if (not name_title.empty()) {
+            const std::shared_ptr<JSON::StringNode> title_node(new JSON::StringNode(name_title));
+            creator_object->insert("title", title_node);
+        }
+
         if (not last_name.empty()) {
             std::string name(last_name);
             if (not first_name.empty())
@@ -876,14 +875,10 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
             }
         }
 
-        if (not first_name.empty() and not last_name.empty()) {
-            if (BSZTransform::StripBlacklistedTokensFromAuthorName(&first_name, &last_name)) {
-                if (first_name_node != nullptr)
-                    JSON::JSONNode::CastToStringNodeOrDie("firstName", first_name_node)->setValue(first_name);
-                if (last_name_node != nullptr)
-                    JSON::JSONNode::CastToStringNodeOrDie("lastName", last_name_node)->setValue(last_name);
-            }
-        }
+        if (first_name_node != nullptr)
+            JSON::JSONNode::CastToStringNodeOrDie("firstName", first_name_node)->setValue(first_name);
+        if (last_name_node != nullptr)
+            JSON::JSONNode::CastToStringNodeOrDie("lastName", last_name_node)->setValue(last_name);
     }
 }
 
