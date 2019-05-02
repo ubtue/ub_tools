@@ -1,5 +1,6 @@
 Father
 Mother
+Editor
 
 # Abbreviations of Catholic orders
 AA
