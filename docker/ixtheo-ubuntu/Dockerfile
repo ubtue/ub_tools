@@ -5,6 +5,11 @@ MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 # (+simulate mounted /mnt/ZE020150)
 ADD mnt/ZE020150 /mnt/ZE020150
 
+# Set non-interactive mode for UBUNTU to avoid interruptions
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Berlin
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # set java encoding to avoid problems when compiling solr plugins
 ENV JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
 
