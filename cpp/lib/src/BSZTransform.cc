@@ -114,7 +114,7 @@ bool FilterEmptyAndCommentLines(std::string str) {
 }
 
 
-bool StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::string * const last_name) {
+void StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::string * const last_name) {
     static std::unique_ptr<RegexMatcher> matcher;
     if (matcher == nullptr) {
         std::unordered_set<std::string> blacklisted_tokens, filtered_blacklisted_tokens;
@@ -144,7 +144,7 @@ bool StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::s
     const bool names_modified(*first_name != first_name_buffer or *last_name != last_name_buffer);
 
     if (not names_modified)
-        return false;
+        return;
 
     StringUtil::TrimWhite(&first_name_buffer);
     StringUtil::TrimWhite(&last_name_buffer);
@@ -157,11 +157,56 @@ bool StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::s
     else if (not first_name_buffer.empty() and not last_name_buffer.empty()) {
         *first_name = first_name_buffer;
         *last_name = last_name_buffer;
-    } else
-        return false;
+    }
+}
 
-    LOG_DEBUG("new first name: '" + *first_name + "', new last name: '" + *last_name + "'");
-    return true;
+
+bool IsAuthorNameTokenTitle(std::string token) {
+    static const std::unordered_set<std::string> VALID_TITLES {
+        "jr", "sr", "s.j", "s.j", "fr", "hr", "dr", "prof", "em"
+    };
+
+    bool final_period(token.back() == '.');
+    if (final_period)
+        token.erase(token.back());
+
+    TextUtil::UTF8ToLower(&token);
+    return VALID_TITLES.find(token) != VALID_TITLES.end();
+}
+
+
+void PostProcessAuthorName(std::string * const first_name, std::string * const last_name, std::string * const title) {
+
+    std::string first_name_buffer, last_name_buffer, title_buffer;
+    std::vector<std::string> tokens;
+
+    StringUtil::Split(*first_name, ' ', &tokens);
+    for (const auto &token : tokens) {
+        if (IsAuthorNameTokenTitle(token))
+            title_buffer += token + " ";
+        else
+            first_name_buffer += token + " ";
+    }
+
+    StringUtil::Split(*last_name, ' ', &tokens);
+    for (const auto &token : tokens) {
+        if (IsAuthorNameTokenTitle(token))
+            title_buffer += token + " ";
+        else
+            last_name_buffer += token + " ";
+    }
+
+    TextUtil::CollapseAndTrimWhitespace(&first_name_buffer);
+    TextUtil::CollapseAndTrimWhitespace(&last_name_buffer);
+    TextUtil::CollapseAndTrimWhitespace(&title_buffer);
+
+    StripBlacklistedTokensFromAuthorName(&first_name_buffer, &last_name_buffer);
+
+    *first_name = first_name_buffer;
+    *last_name = last_name_buffer;
+    *title = title_buffer;
+
+    LOG_DEBUG("post-processed author first name = '" + *first_name + "', last name = '" + *last_name + "', title = '" + *title + "'");
 }
 
 
