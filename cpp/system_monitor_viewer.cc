@@ -17,7 +17,6 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <iostream>
 #include <map>
 #include <ctime>
 #include "ExecUtil.h"
@@ -113,12 +112,15 @@ void ParseTimeRange(const std::string &range_string, time_t * const time_start, 
 
 
 struct Datapoint {
-    std::string label;
-    time_t timestamp;
-    std::string value;
+    std::string label_;
+    time_t timestamp_;
+    std::string value_;
 
-    bool operator<(const Datapoint &rhs) {
-        return this->timestamp < rhs.timestamp;
+    Datapoint(const std::string &label, const time_t timestamp, const std::string &value)
+        : label_(label), timestamp_(timestamp), value_(value) {}
+
+    bool operator<(const Datapoint &rhs) const {
+        return this->timestamp_ < rhs.timestamp_;
     }
 };
 
@@ -149,9 +151,9 @@ void LoadSystemMonitorLog(const std::string &log_path, std::vector<Datapoint> * 
                 if (not TimeUtil::StringToStructTm(&tm_buffer, parts[2], TimeUtil::ISO_8601_FORMAT))
                     LOG_ERROR("invalid timestamp on line " + std::to_string(line_num));
 
-                data->emplace_back(metric_name, std::mktime(&tm_buffer), parts[2]);
+                data->emplace_back(label_match->first, std::mktime(&tm_buffer), parts[1]);
             } else
-                LOG_WARNING("unknown metric '" + metric_name + "' in line " + std::to_string(line_num));
+                LOG_DEBUG("unknown metric '" + metric_name + "' in line " + std::to_string(line_num));
         }
 
         ++line_num;
@@ -166,12 +168,12 @@ void GetDataRange(const time_t time_start, const time_t time_end, const std::vec
                   std::vector<Datapoint>::const_iterator * const begin, std::vector<Datapoint>::const_iterator * const end)
 {
     // The list should be sorted at this point
-    *begin = std::lower_bound(data.begin(), data.end(), time_start);
-    *end = std::upper_bound(data.begin(), data.end(), time_end);
+    *begin = std::lower_bound(data.begin(), data.end(), Datapoint("", time_start, ""));
+    *end = std::upper_bound(data.begin(), data.end(), Datapoint("", time_end, ""));
 }
 
 
-void WritePlotDataToDisk(const std::string &output_path, const std::vector<std::string> &labels,
+unsigned WritePlotDataToDisk(const std::string &output_path, const std::vector<std::string> &labels,
                          const std::vector<Datapoint>::const_iterator &data_begin, const std::vector<Datapoint>::const_iterator &data_end)
 {
     // We expect the values of the labels to use the same axis/scale
@@ -182,25 +184,32 @@ void WritePlotDataToDisk(const std::string &output_path, const std::vector<std::
 
     time_t current_write_timestamp(TimeUtil::BAD_TIME_T);
     std::map<std::string, std::string> current_write_timestamp_values;
+    unsigned lines_written(0);
 
     for (auto itr(data_begin); itr != data_end; ++itr) {
         const auto datapoint(*itr);
-        if (current_write_timestamp != datapoint.timestamp) {
-            if (not current_write_timestamp_values.empty()) {
-                std::string out_line(std::to_string(current_write_timestamp) + "\t");
-                for (const auto &label : labels) {
-                    const auto value(current_write_timestamp_values.find(label));
-                    if (value != current_write_timestamp_values.end())
-                        out_line += value->second + "\t";
-                    else
-                        out_line += "\t";
-                }
 
-                plot_data.writeln(out_line);
+        if (current_write_timestamp == datapoint.timestamp_) {
+            current_write_timestamp_values[datapoint.label_] = datapoint.value_;
+            continue;
+        }
+
+        if (not current_write_timestamp_values.empty()) {
+            std::string out_line(std::to_string(current_write_timestamp) + "\t");
+            for (const auto &label : labels) {
+                const auto value(current_write_timestamp_values.find(label));
+                if (value != current_write_timestamp_values.end())
+                    out_line += value->second + "\t";
+                else
+                    out_line += "\t";
             }
 
-            current_write_timestamp = datapoint.timestamp;
+            plot_data.writeln(out_line);
+            ++lines_written;
         }
+
+        current_write_timestamp = datapoint.timestamp_;
+        current_write_timestamp_values[datapoint.label_] = datapoint.value_;
     }
 
     if (not current_write_timestamp_values.empty()) {
@@ -214,7 +223,10 @@ void WritePlotDataToDisk(const std::string &output_path, const std::vector<std::
         }
 
         plot_data.writeln(out_line);
+        ++lines_written;
     }
+
+    return lines_written;
 }
 
 
@@ -225,8 +237,10 @@ void DisplayPlot(const std::string &data_path, const std::string &script_path, c
         LOG_ERROR("script file for plotting does not exist at " + script_path);
 
     std::vector<std::string> gnuplot_args {
-        "-e \"input_file='" + data_path + "'; output_file='" + plot_path + "'\"",
-        script_path
+        "-c",
+        script_path,
+        data_path,
+        plot_path,
     };
     ExecUtil::ExecOrDie("/usr/bin/gnuplot", gnuplot_args);
 
@@ -234,7 +248,7 @@ void DisplayPlot(const std::string &data_path, const std::string &script_path, c
         plot_path
     };
 
-    ExecUtil::ExecOrDie("xdg-open", xdg_args);
+    ExecUtil::ExecOrDie("/usr/bin/xdg-open", xdg_args);
 }
 
 
@@ -296,7 +310,7 @@ int Main(int argc, char *argv[]) {
     if (VALID_SYSTEM_IDS.find(system_id) == VALID_SYSTEM_IDS.end())
         LOG_ERROR("invalid system ID '" + system_id + "'");
     else {
-        const auto hostname(MiscUtil::GetEnv("HOSTNAME"));
+        const auto hostname(MiscUtil::SafeGetEnv("HOSTNAME"));
         if (not StringUtil::StartsWith(hostname, system_id, true))
             LOG_WARNING("attempting to view system monitor data of a system that is not the host. time range may be inaccurate");
     }
@@ -310,11 +324,11 @@ int Main(int argc, char *argv[]) {
     GetLabelsForCoarseMetric(coarse_metric, &labels);
 
     const IniFile ini_file(UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf");
-    const auto log_file(ini_file.getString("Log Files", system_id));
+    const auto log_file(ini_file.getString("Logs", system_id));
     const auto plot_data_file(ini_file.getString("Default Plotting Inputs", coarse_metric));
     const auto plot_script_file(ini_file.getString("Plotting Scripts", coarse_metric));
-    if (not output_filename.empty())
-        output_filename = ini_file.getString("Default Output Files", coarse_metric);
+    if (output_filename.empty())
+        output_filename = ini_file.getString("Default Plotting Outputs", coarse_metric);
 
     LoadSystemMonitorLog(log_file, &log_data);
     GetDataRange(time_start, time_end, log_data, &data_range_start, &data_range_end);
@@ -324,14 +338,14 @@ int Main(int argc, char *argv[]) {
 
     if (time_end == TimeUtil::BAD_TIME_T) {
         // print out the closest data point
-        if (data_range_start->timestamp == time_start)
+        if (data_range_start->timestamp_ == time_start)
             LOG_INFO("Data for exact time point (" + TimeUtil::TimeTToString(time_start) + "):");
         else
             LOG_INFO("Data for closest time point (" + TimeUtil::TimeTToString(time_start) + "):");
 
-        const auto datapoint_timestamp(data_range_start->timestamp);
-        while (data_range_start != log_data.end() and data_range_start->timestamp == datapoint_timestamp)
-            LOG_INFO("\t" + data_range_start->label + " = " + data_range_start->value);
+        const auto datapoint_timestamp(data_range_start->timestamp_);
+        while (data_range_start != log_data.end() and data_range_start->timestamp_ == datapoint_timestamp)
+            LOG_INFO("\t" + data_range_start->label_ + " = " + data_range_start->value_);
 
         return EXIT_SUCCESS;
     }
