@@ -871,6 +871,11 @@ struct tm StringToStructTm(std::string date_str, std::string optional_strptime_f
 }
 
 
+bool StringToStructTm(struct tm * const tm, std::string date_str, std::string optional_strptime_format) {
+    return StringToStructTmHelper(date_str, optional_strptime_format, tm);
+}
+
+
 double DiffStructTm(struct tm end, struct tm beginning) {
     return ::difftime(::timegm(&end), ::timegm(&beginning));
 }

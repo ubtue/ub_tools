@@ -310,6 +310,7 @@ std::string StructTmToString(const struct tm &tm);
  *        local has been provided, conversions will be attempted until one succeeds of the list has been exhausted.
  */
 struct tm StringToStructTm(std::string date_str, std::string optional_strptime_format = DEFAULT_FORMAT);
+bool StringToStructTm(struct tm * const tm, std::string date_str, std::string optional_strptime_format = DEFAULT_FORMAT);
 
 
 /* Returns the difference in seconds between beginning and end. */
