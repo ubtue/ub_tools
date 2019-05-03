@@ -64,7 +64,7 @@ void Logger::error(const std::string &msg) {
 
     std::string error_message_string;
     if (errno != 0)
-        error_message_string = " (" + std::string(std::strerror(errno)) + ")";
+        error_message_string = " (last error code: " + std::string(std::strerror(errno)) + ")";
 
     writeString("SEVERE", msg + error_message_string);
     if (::getenv("BACKTRACE") != nullptr) {
