@@ -22,6 +22,7 @@
 #include <unordered_map>
 #include <cstdlib>
 #include "Compiler.h"
+#include "DnsUtil.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
 #include "FullTextCache.h"
@@ -135,7 +136,8 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
     report_text = "Overall " + std::to_string(added_count) + " new items were added and " + std::to_string(disappeared_count)
                   + " old items disappeared.\n\n" + report_text;
 
-    const unsigned short response_code(EmailSender::SendEmail("no-reply@ub.uni-tuebingen.de", email_address, "Full Text Stats", report_text,
+    const unsigned short response_code(EmailSender::SendEmail("no-reply@ub.uni-tuebingen.de", email_address,
+                                                              "Full Text Stats (" + DnsUtil::GetHostname() + ")", report_text,
                                                               found_one_or_more_problems ? EmailSender::VERY_HIGH : EmailSender::VERY_LOW));
     if (response_code > 299)
         LOG_ERROR("failed to send email! (response code was " + std::to_string(response_code) + ")");
