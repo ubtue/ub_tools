@@ -121,7 +121,7 @@ void DeleteFromTable(DbConnection * const db_connection, const std::string &tabl
     unsigned deletion_count(0), batch_size(0);
     for (const auto &deletion_ppn : deletion_ppns) {
         ++batch_size;
-        db_connection->queryOrDie("DELETE FROM " + table + "' WHERE " + column + "='" + deletion_ppn + "'");
+        db_connection->queryOrDie("DELETE FROM '" + table + "' WHERE " + column + "='" + deletion_ppn + "'");
         deletion_count += db_connection->getNoOfAffectedRows();
         if (batch_size >= MAX_BATCH_SIZE) {
             db_connection->queryOrDie("COMMIT");
