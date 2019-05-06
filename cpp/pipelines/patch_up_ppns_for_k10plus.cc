@@ -266,8 +266,10 @@ int Main(int argc, char **argv) {
     std::vector<PPNsAndSigil> old_ppns_sigils_and_new_ppns;
     int arg_no(1);
     for (/* Intentionally empty! */; arg_no < argc; ++arg_no) {
-        if (__builtin_strcmp(argv[arg_no], "--"))
+        if (__builtin_strcmp(argv[arg_no], "--")) {
+            ++arg_no;
             break;
+        }
         const auto marc_reader(MARC::Reader::Factory(argv[arg_no]));
         LoadMapping(marc_reader.get(), already_processed_ppns_and_sigils, &old_ppns_sigils_and_new_ppns);
     }
