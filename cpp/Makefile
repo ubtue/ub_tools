@@ -38,7 +38,9 @@ install: regular_install data_install
 
 regular_install: $(INSTALL_PROGS) Makefile
 	@echo "Installing programs..."
+	test $$(whoami) = root && systemctl stop system_monitor.service || true
 	cp $(INSTALL_PROGS) /usr/local/bin/
+	test $$(whoami) = root && systemctl start system_monitor.service || true
 
 data_install: Makefile data/*.conf data/*.map data/IxTheo_Notation.csv data/stopwords.* \
               data/subscriptions_email.ixtheo.template data/subscriptions_email.relbib.template \
