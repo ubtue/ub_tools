@@ -48,7 +48,7 @@ namespace {
 [[noreturn]] void Usage() {
     ::Usage("[--store-only] marc_input1 [marc_input2 .. marc_inputN] [-- deletion_list1 deletion_list2 .. deletion_listN]\n"
             "If --store-only has been specified, no swapping will be performed and only the persistent map file will be overwritten.\n"
-            "If deletion lists should be processed, they need to be spcified after a double-hyhen to indicate the end of the MARC files.");
+            "If deletion lists should be processed, they need to be specified after a double-hyphen to indicate the end of the MARC files.");
 }
 
 
