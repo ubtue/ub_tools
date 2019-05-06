@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <kchashdb.h>
+#include "BSZUtil.h"
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
@@ -45,8 +46,9 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--store-only] marc_input1 [marc_input2 .. marc_inputN]"
-            "If --store-only has been specified, no swapping will be performed and only the persistent map file will be overwritten.");
+    ::Usage("[--store-only] marc_input1 [marc_input2 .. marc_inputN] [-- deletion_list1 deletion_list2 .. deletion_listN]\n"
+            "If --store-only has been specified, no swapping will be performed and only the persistent map file will be overwritten.\n"
+            "If deletion lists should be processed, they need to be spcified after a double-hyhen to indicate the end of the MARC files.");
 }
 
 
@@ -109,6 +111,30 @@ void PatchTable(DbConnection * const db_connection, const std::string &table, co
 }
 
 
+void DeleteFromTable(DbConnection * const db_connection, const std::string &table, const std::string &column,
+                     const std::unordered_set<std::string> &deletion_ppns)
+{
+    const unsigned MAX_BATCH_SIZE(100);
+
+    db_connection->queryOrDie("BEGIN");
+
+    unsigned deletion_count(0), batch_size(0);
+    for (const auto &deletion_ppn : deletion_ppns) {
+        ++batch_size;
+        db_connection->queryOrDie("DELETE FROM " + table + + "' WHERE " + column + "='" + deletion_ppn + "'");
+        deletion_count += db_connection->getNoOfAffectedRows();
+        if (batch_size >= MAX_BATCH_SIZE) {
+            db_connection->queryOrDie("COMMIT");
+            db_connection->queryOrDie("BEGIN");
+        }
+    }
+
+    db_connection->queryOrDie("COMMIT");
+
+    LOG_INFO("Deleted " + std::to_string(deletion_count) + " rows from " + table + ".");
+}
+
+
 void PatchNotifiedDB(const std::string &user_type, const std::vector<PPNsAndSigil> &old_ppns_sigils_and_new_ppns) {
     const std::string DB_FILENAME(UBTools::GetTuelibPath() + user_type + "_notified.db");
     std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
@@ -130,6 +156,24 @@ void PatchNotifiedDB(const std::string &user_type, const std::vector<PPNsAndSigi
     }
 
     LOG_INFO("Updated " + std::to_string(updated_count) + " entries in \"" + DB_FILENAME + "\".");
+}
+
+
+void DeleteFromNotifiedDB(const std::string &user_type, const std::unordered_set<std::string> &deletion_ppns) {
+    const std::string DB_FILENAME(UBTools::GetTuelibPath() + user_type + "_notified.db");
+    std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
+    if (not (db->open(DB_FILENAME, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER))) {
+        LOG_INFO("\"" + DB_FILENAME + "\" not found!");
+        return;
+    }
+
+    unsigned deletion_count(0);
+    for (const auto &deletion_ppn : deletion_ppns) {
+        if (db->remove(deletion_ppn))
+            ++deletion_count;
+    }
+
+    LOG_INFO("Deleted " + std::to_string(deletion_count) + " entries from \"" + DB_FILENAME + "\".");
 }
 
 
@@ -170,6 +214,27 @@ void AddPPNsAndSigilsToMultiMap(const std::vector<PPNsAndSigil> &old_ppns_sigils
 }
 
 
+template<class SetOrMap, typename ProcessNotifieldDBFunc, typename ProcessTableFunc>
+void ProcessAllDatabases(DbConnection * const db_connection, const SetOrMap &set_or_map, const ProcessNotifieldDBFunc notified_db_func,
+                         const ProcessTableFunc table_func)
+{
+    notified_db_func("ixtheo", set_or_map);
+    notified_db_func("relbib", set_or_map);
+
+    table_func(db_connection, "vufind.resource", "record_id", set_or_map);
+    table_func(db_connection, "vufind.record", "record_id", set_or_map);
+    table_func(db_connection, "vufind.change_tracker", "id", set_or_map);
+    if (VuFind::GetTueFindFlavour() == "ixtheo") {
+        table_func(db_connection, "ixtheo.keyword_translations", "ppn", set_or_map);
+        table_func(db_connection, "vufind.ixtheo_journal_subscriptions", "journal_control_number_or_bundle_name",
+                   set_or_map);
+        table_func(db_connection, "vufind.ixtheo_pda_subscriptions", "book_ppn", set_or_map);
+        table_func(db_connection, "vufind.relbib_ids", "record_id", set_or_map);
+        table_func(db_connection, "vufind.bibstudies_ids", "record_id", set_or_map);
+    }
+}
+
+
 } // unnamed namespace
 
 
@@ -199,14 +264,27 @@ int Main(int argc, char **argv) {
         MapUtil::DeserialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, &already_processed_ppns_and_sigils);
 
     std::vector<PPNsAndSigil> old_ppns_sigils_and_new_ppns;
-    for (int arg_no(1); arg_no < argc; ++arg_no) {
+    int arg_no(1);
+    for (/* Intentionally empty! */; arg_no < argc; ++arg_no) {
+        if (__builtin_strcmp(argv[arg_no], "--"))
+            break;
         const auto marc_reader(MARC::Reader::Factory(argv[arg_no]));
         LoadMapping(marc_reader.get(), already_processed_ppns_and_sigils, &old_ppns_sigils_and_new_ppns);
     }
-    if (old_ppns_sigils_and_new_ppns.empty()) {
+
+    std::unordered_set <std::string> title_deletion_ppns;
+    for (/* Intentionally empty! */; arg_no < argc; ++arg_no) {
+        const auto input(FileUtil::OpenInputFileOrDie(argv[arg_no]));
+        std::unordered_set <std::string> local_deletion_ids;
+        BSZUtil::ExtractDeletionIds(input.get(), &title_deletion_ppns, &local_deletion_ids);
+    }
+
+    if (old_ppns_sigils_and_new_ppns.empty() and title_deletion_ppns.empty()) {
         LOG_INFO("nothing to do!");
         return EXIT_SUCCESS;
     }
+    if (old_ppns_sigils_and_new_ppns.empty())
+        goto clean_up_deleted_ppns;
 
     if (store_only) {
         AddPPNsAndSigilsToMultiMap(old_ppns_sigils_and_new_ppns, &already_processed_ppns_and_sigils);
@@ -214,23 +292,12 @@ int Main(int argc, char **argv) {
         return EXIT_SUCCESS;
     }
 
-    PatchNotifiedDB("ixtheo", old_ppns_sigils_and_new_ppns);
-    PatchNotifiedDB("relbib", old_ppns_sigils_and_new_ppns);
-
-    PatchTable(&db_connection, "vufind.resource", "record_id", old_ppns_sigils_and_new_ppns);
-    PatchTable(&db_connection, "vufind.record", "record_id", old_ppns_sigils_and_new_ppns);
-    PatchTable(&db_connection, "vufind.change_tracker", "id", old_ppns_sigils_and_new_ppns);
-    if (VuFind::GetTueFindFlavour() == "ixtheo") {
-        PatchTable(&db_connection, "ixtheo.keyword_translations", "ppn", old_ppns_sigils_and_new_ppns);
-        PatchTable(&db_connection, "vufind.ixtheo_journal_subscriptions", "journal_control_number_or_bundle_name",
-                   old_ppns_sigils_and_new_ppns);
-        PatchTable(&db_connection, "vufind.ixtheo_pda_subscriptions", "book_ppn", old_ppns_sigils_and_new_ppns);
-        PatchTable(&db_connection, "vufind.relbib_ids", "record_id", old_ppns_sigils_and_new_ppns);
-        PatchTable(&db_connection, "vufind.bibstudies_ids", "record_id", old_ppns_sigils_and_new_ppns);
-    }
-
+    ProcessAllDatabases(&db_connection, old_ppns_sigils_and_new_ppns, PatchNotifiedDB, PatchTable);
     AddPPNsAndSigilsToMultiMap(old_ppns_sigils_and_new_ppns, &already_processed_ppns_and_sigils);
     MapUtil::SerialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, already_processed_ppns_and_sigils);
+
+clean_up_deleted_ppns:
+    ProcessAllDatabases(&db_connection, title_deletion_ppns, DeleteFromNotifiedDB, DeleteFromTable);
 
     return EXIT_SUCCESS;
 }
