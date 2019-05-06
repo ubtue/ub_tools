@@ -291,6 +291,8 @@ int Main(int argc, char **argv) {
     if (store_only) {
         AddPPNsAndSigilsToMultiMap(old_ppns_sigils_and_new_ppns, &already_processed_ppns_and_sigils);
         MapUtil::SerialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, already_processed_ppns_and_sigils);
+        if (not title_deletion_ppns.empty())
+            goto clean_up_deleted_ppns;
         return EXIT_SUCCESS;
     }
 
