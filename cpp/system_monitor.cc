@@ -59,7 +59,7 @@ void CheckForSigTermAndExitIfSeen() {
 
 // Returns local time using an ISO 8601 format w/o time zone.
 inline std::string GetLocalTime() {
-    return TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT);
+    return TimeUtil::GetCurrentDateAndTime("%y%m%d%H%M%S");
 }
 
 
@@ -105,9 +105,9 @@ void CollectMemoryStats(File * const log) {
         const auto rest(StringUtil::LeftTrim(line.substr(first_colon_pos + 1)));
         const auto first_space_pos(rest.find(' '));
         if (first_space_pos == std::string::npos)
-            (*log) << label << ' ' << rest << ' ' << current_date_and_time << '\n';
+            (*log) << label[0] << ' ' << rest << ' ' << current_date_and_time << '\n';
         else
-            (*log) << label << ' ' << rest.substr(0, first_space_pos) << ' ' << current_date_and_time << '\n';
+            (*log) << label[0] << ' ' << rest.substr(0, first_space_pos) << ' ' << current_date_and_time << '\n';
     }
     log->flush();
 
@@ -123,7 +123,7 @@ void CollectDiscStats(File * const log) {
         const auto proc_entry(FileUtil::OpenInputFileOrDie(block_device_path));
         std::string line;
         proc_entry->getline(&line);
-        (*log) << block_device_path <<  ' ' << StringUtil::ToUnsignedLong(line) * 512 << ' ' << current_date_and_time << '\n';
+        (*log) << entry.getName() <<  ' ' << StringUtil::ToUnsignedLong(line) * 512 << ' ' << current_date_and_time << '\n';
     }
     log->flush();
 }
