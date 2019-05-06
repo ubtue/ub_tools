@@ -266,7 +266,7 @@ int Main(int argc, char **argv) {
     std::vector<PPNsAndSigil> old_ppns_sigils_and_new_ppns;
     int arg_no(1);
     for (/* Intentionally empty! */; arg_no < argc; ++arg_no) {
-        if (__builtin_strcmp(argv[arg_no], "--")) {
+        if (__builtin_strcmp(argv[arg_no], "--") == 0) {
             ++arg_no;
             break;
         }
