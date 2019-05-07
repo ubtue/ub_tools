@@ -110,6 +110,19 @@ std::unordered_set<std::string> Elasticsearch::selectAll(const std::string &fiel
 }
 
 
+std::unordered_multiset<std::string> Elasticsearch::selectAllNonUnique(const std::string &field) const {
+    const std::vector<std::map<std::string, std::string>> result(simpleSelect({ field }));
+    std::unordered_multiset<std::string> values;
+    for (const auto &map : result) {
+        const auto key_and_value(map.find(field));
+        if (key_and_value != map.cend())
+            values.emplace(key_and_value->second);
+    }
+
+    return values;
+}
+
+
 std::vector<std::map<std::string, std::string>> Elasticsearch::extractResultsHelper(const std::shared_ptr<JSON::ObjectNode> &result_node,
                                                                                     const std::set<std::string> &fields) const
 {
