@@ -7,7 +7,7 @@
 /*
  *  Copyright 2004-2008 Project iVia.
  *  Copyright 2004-2008 The Regents of The University of California.
- *  Copyright 2016 Universitätsbibliothek Tübingen.
+ *  Copyright 2016,2019 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -141,6 +141,9 @@ bool GetMediaType(const std::string &url, const HttpHeader &http_header, const s
  *  \return True if the media type has changed, otherwise false.
  */
 bool SimplifyMediaType(std::string * const media_type);
+
+
+bool IsValidMIMEType(const std::string &mime_type_candidate);
 
 
 } // namespace MediaTypeUtil
