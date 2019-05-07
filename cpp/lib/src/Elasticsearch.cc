@@ -159,7 +159,7 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::extractResultsHel
 }
 
 
-std::string Elasticsearch::extractScrollId(const std::shared_ptr<JSON::ObjectNode> result_node) const {
+std::string Elasticsearch::extractScrollId(const std::shared_ptr<JSON::ObjectNode> &result_node) const {
     const auto scroll_id_string_node(result_node->getStringNode("_scroll_id"));
     if (unlikely(scroll_id_string_node == nullptr))
         LOG_ERROR("missing \"_scroll_id\" string node in Elasticsearch result");

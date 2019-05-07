@@ -31,7 +31,6 @@
 class Elasticsearch {
     std::string host_, index_, type_, username_, password_;
     bool ignore_ssl_certificates_;
-
 public:
     enum RangeOperator { RO_GT, RO_GTE, RO_LT, RO_LTE, RO_NOOP };
 public:
@@ -91,7 +90,7 @@ private:
      */
     std::shared_ptr<JSON::ObjectNode> query(const std::string &action, const REST::QueryType query_type,
                                             const JSON::ObjectNode &data, const bool add_type=true, const bool suppress_index_name=false) const;
-    std::string extractScrollId(const std::shared_ptr<JSON::ObjectNode> result_node) const;
+    std::string extractScrollId(const std::shared_ptr<JSON::ObjectNode> &result_node) const;
     std::vector<std::map<std::string, std::string>> extractResultsHelper(const std::shared_ptr<JSON::ObjectNode> &result_node,
                                                                          const std::set<std::string> &fields) const;
 };
