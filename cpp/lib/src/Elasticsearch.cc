@@ -169,10 +169,10 @@ std::string Elasticsearch::extractScrollId(const std::shared_ptr<JSON::ObjectNod
 
 std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(const std::set<std::string> &fields,
                                                                             const std::map<std::string, std::string> &filter,
-                                                                            const int max_count) const
+                                                                            const unsigned int max_count) const
 {
     const unsigned int MAX_RESULTS_PER_REQUEST(10000); // Elasticsearch Default
-    const bool use_scrolling = static_cast<unsigned int>(max_count) > MAX_RESULTS_PER_REQUEST ? MAX_RESULTS_PER_REQUEST : max_count;
+    const bool use_scrolling(max_count > MAX_RESULTS_PER_REQUEST ? MAX_RESULTS_PER_REQUEST : max_count);
     std::string query_string("{\n");
 
     if (not fields.empty()) {

@@ -74,7 +74,7 @@ public:
      */
     std::vector<std::map<std::string, std::string>> simpleSelect(const std::set<std::string> &fields,
                                                                  const std::map<std::string, std::string> &filter = {},
-                                                                 const int max_count = -1) const;
+                                                                 const unsigned int max_count = std::numeric_limits<unsigned int>::max()) const;
 
     inline std::vector<std::map<std::string, std::string>> simpleSelect(const std::set<std::string> &fields, const std::string &filter_field,
                                                                         const std::string &filter_value, const int max_count = -1) const
