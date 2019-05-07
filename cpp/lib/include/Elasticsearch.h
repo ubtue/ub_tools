@@ -64,6 +64,9 @@ public:
     /** \brief Returns all values, excluding duplicates contained in field "field". */
     std::unordered_set<std::string> selectAll(const std::string &field) const;
 
+    /** \brief Returns all values, including duplicates contained in field "field". */
+    std::unordered_multiset<std::string> selectAllNonUnique(const std::string &field) const;
+
     /** \param  fields     If empty, all fields will be returned.
      *  \param  filter     If provided, oly results will be returned where each key in "filter" matches the corresponding value.
      *  \param  max_count  The maximum nuber of results to return.  -1 means to return all results.

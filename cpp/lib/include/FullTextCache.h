@@ -66,7 +66,7 @@ public:
 
     /** \brief Delete all records whose expiration field is in the past */
     void expireEntries();
-    inline std::unordered_set<std::string> getDomains() const { return full_text_cache_urls_.selectAll("domain"); }
+    inline std::unordered_multiset<std::string> getDomains() const { return full_text_cache_urls_.selectAllNonUnique("domain"); }
     bool getDomainFromUrl(const std::string &url, std::string * const domain) const;
     bool getEntry(const std::string &id, Entry * const entry) const;
     std::vector<EntryUrl> getEntryUrls(const std::string &id) const;
