@@ -110,37 +110,9 @@ std::unordered_set<std::string> Elasticsearch::selectAll(const std::string &fiel
 }
 
 
-std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(const std::set<std::string> &fields,
-                                                                            const std::map<std::string, std::string> &filter,
-                                                                            const int max_count) const
+std::vector<std::map<std::string, std::string>> Elasticsearch::extractResultsHelper(const std::shared_ptr<JSON::ObjectNode> &result_node,
+                                                                                    const std::set<std::string> &fields) const
 {
-    std::string query_string("{\n");
-
-    if (not fields.empty()) {
-        query_string += "    \"_source\": [";
-        for (const auto &field : fields)
-            query_string += "\"" + field + "\", ";
-        query_string.resize(query_string.size() - 2); // Remove trailing comma and space.
-        query_string += "],\n";
-    }
-
-    query_string += "    \"query\": {";
-
-    if (filter.empty())
-        query_string += " \"match_all\": {}";
-    else {
-        query_string += "\"bool\" : { \"filter\": [\n";
-        for (const auto &field_and_value : filter)
-            query_string += "       { \"term\": { \"" + field_and_value.first + "\": \"" + field_and_value.second + "\"} },\n";
-        query_string.resize(query_string.size() - 2); // Remove the last comma and newline.
-        query_string += "\n    ] }";
-    }
-
-    query_string += "    },\n";
-    query_string += "    \"size\": " + std::to_string(max_count) + "\n";
-    query_string += "}\n";
-
-    const auto result_node(query("_search", REST::POST, JSON::ObjectNode(query_string)));
     const auto hits_object_node(result_node->getObjectNode("hits"));
     if (unlikely(hits_object_node == nullptr))
         LOG_ERROR("missing \"hits\" object node in Elasticsearch result node!");
@@ -171,6 +143,66 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(cons
     }
 
     return search_results;
+}
+
+
+std::string Elasticsearch::extractScrollId(const std::shared_ptr<JSON::ObjectNode> result_node) const {
+    const auto scroll_id_string_node(result_node->getStringNode("_scroll_id"));
+    if (unlikely(scroll_id_string_node == nullptr))
+        LOG_ERROR("missing \"_scroll_id\" string node in Elasticsearch result");
+    return scroll_id_string_node->getValue();
+}
+
+
+std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(const std::set<std::string> &fields,
+                                                                            const std::map<std::string, std::string> &filter,
+                                                                            const int max_count) const
+{
+    const unsigned int MAX_RESULTS_PER_REQUEST(10000); // Elasticsearch Default
+    const bool use_scrolling = static_cast<unsigned int>(max_count) > MAX_RESULTS_PER_REQUEST ? MAX_RESULTS_PER_REQUEST : max_count;
+    std::string query_string("{\n");
+
+    if (not fields.empty()) {
+        query_string += "    \"_source\": [";
+        for (const auto &field : fields)
+            query_string += "\"" + field + "\", ";
+        query_string.resize(query_string.size() - 2); // Remove trailing comma and space.
+        query_string += "],\n";
+    }
+
+    query_string += "    \"query\": {";
+
+    if (filter.empty())
+        query_string += " \"match_all\": {}";
+    else {
+        query_string += "\"bool\" : { \"filter\": [\n";
+        for (const auto &field_and_value : filter)
+            query_string += "       { \"term\": { \"" + field_and_value.first + "\": \"" + field_and_value.second + "\"} },\n";
+        query_string.resize(query_string.size() - 2); // Remove the last comma and newline.
+        query_string += "\n    ] }";
+    }
+
+    query_string += "    },\n";
+    query_string += "    \"size\": " + std::to_string(use_scrolling ? MAX_RESULTS_PER_REQUEST : max_count) + "\n";
+    query_string += "}\n";
+
+    const std::string search_parameter(use_scrolling ?  "_search?scroll=1m" : "_search");
+    auto result_node(query(search_parameter, REST::POST, JSON::ObjectNode(query_string)));
+
+    if (use_scrolling) {
+        std::vector<std::map<std::string, std::string>> search_results_all;
+        std::vector<std::map<std::string, std::string>> search_results_bunch(extractResultsHelper(result_node, fields));
+        // Iterate until hits are empty
+        while (search_results_bunch.size()) {
+            search_results_all.insert(std::end(search_results_all), std::begin(search_results_bunch), std::end(search_results_bunch));
+            std::string scroll_id(extractScrollId(result_node));
+            result_node = query("_search/scroll", REST::POST, JSON::ObjectNode("{ \"scroll\": \"1m\", \"scroll_id\" : \"" + scroll_id + "\"}"), 
+                                false /* do not add type */, true /* suppress index name */ );
+            search_results_bunch = extractResultsHelper(result_node, fields);
+        }
+        return search_results_all;
+   }
+   return extractResultsHelper(result_node, fields);
 }
 
 
@@ -230,7 +262,8 @@ bool Elasticsearch::fieldWithValueExists(const std::string &field, const std::st
 
 
 std::shared_ptr<JSON::ObjectNode> Elasticsearch::query(const std::string &action, const REST::QueryType query_type,
-                                                       const JSON::ObjectNode &data, const bool add_type) const
+                                                       const JSON::ObjectNode &data, const bool add_type,
+                                                       const bool suppress_index_name) const
 {
     Downloader::Params downloader_params;
     downloader_params.authentication_username_ = username_;
@@ -239,10 +272,10 @@ std::shared_ptr<JSON::ObjectNode> Elasticsearch::query(const std::string &action
     downloader_params.additional_headers_.push_back("Content-Type: application/json");
     Url url;
     if (add_type)
-        url = Url(host_ + "/" + index_ + "/" + type_ + (action.empty() ? "" : "/" + action));
+        url = Url(host_ + "/" + (not suppress_index_name ? index_ + "/" : "") + type_ + (action.empty() ? "" : "/" + action));
     else
-        url = Url(host_ + "/" + index_ + (action.empty() ? "" : "/" + action));
-    
+        url = Url(host_ + (not suppress_index_name? "/" + index_ : "" ) + (action.empty() ? "" : "/" + action));
+
     std::shared_ptr<JSON::JSONNode> result(REST::QueryJSON(url, query_type, &data, downloader_params));
     std::shared_ptr<JSON::ObjectNode> result_object(JSON::JSONNode::CastToObjectNodeOrDie("Elasticsearch result", result));
     if (result_object->hasNode("error"))
