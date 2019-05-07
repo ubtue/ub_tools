@@ -295,9 +295,11 @@ bool IsValidMIMEType(const std::string &mime_type_candidate) {
     if (unlikely(valid_mime_types.empty())) {
         static std::mutex mutex;
         std::lock_guard<std::mutex> mutex_guard(mutex);
-        for (auto mime_type : FileUtil::ReadLines(UBTools::GetTuelibPath() + "mime.types")) {
-            if (likely(not mime_type.empty()))
-                valid_mime_types.emplace(mime_type);
+        if (valid_mime_types.empty()) {
+            for (auto mime_type : FileUtil::ReadLines(UBTools::GetTuelibPath() + "mime.types")) {
+                if (likely(not mime_type.empty()))
+                    valid_mime_types.emplace(mime_type);
+            }
         }
     }
 
