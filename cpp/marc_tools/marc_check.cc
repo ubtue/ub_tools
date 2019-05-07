@@ -37,7 +37,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--do-not-abort-on-empty-subfields] [--do-not-abort-on-invalid-repeated-fields] "
+              << " [--do-not-abort-on-empty-subfields] [--do-not-abort-on-invalid-repeated-fields] [--check-rule-violations-only]"
               << "[--write-data=output_filename] marc_data [rules violated_rules_control_number_list]\n"
               << "       If \"--write-data\" has been specified, the read records will be written out again.\n\n";
     std::exit(EXIT_FAILURE);
@@ -263,8 +263,8 @@ void CheckLocalBlockConsistency(const MARC::Record &record) {
 
 
 void ProcessRecords(const bool do_not_abort_on_empty_subfields, const bool do_not_abort_on_invalid_repeated_fields,
-                    MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const std::vector<Rule *> &rules,
-                    File * const rule_violation_list)
+                    const bool check_rule_violations_only, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                    const std::vector<Rule *> &rules, File * const rule_violation_list)
 {
     unsigned record_count(0), control_number_duplicate_count(0), rule_violation_count(0);
     std::unordered_set<std::string> already_seen_control_numbers;
@@ -276,26 +276,28 @@ void ProcessRecords(const bool do_not_abort_on_empty_subfields, const bool do_no
         if (unlikely(CONTROL_NUMBER.empty()))
             LOG_ERROR("Record #" + std::to_string(record_count) + " is missing a control number!");
 
-        if (already_seen_control_numbers.find(CONTROL_NUMBER) == already_seen_control_numbers.end())
-            already_seen_control_numbers.emplace(CONTROL_NUMBER);
-        else {
-            ++control_number_duplicate_count;
-            LOG_WARNING("found duplicate control number \"" + CONTROL_NUMBER + "\"!");
+        if (not check_rule_violations_only) {
+            if (already_seen_control_numbers.find(CONTROL_NUMBER) == already_seen_control_numbers.end())
+                already_seen_control_numbers.emplace(CONTROL_NUMBER);
+            else {
+                ++control_number_duplicate_count;
+                LOG_WARNING("found duplicate control number \"" + CONTROL_NUMBER + "\"!");
+            }
+
+            CheckFieldOrder(do_not_abort_on_invalid_repeated_fields, record);
+
+            MARC::Tag last_tag(std::string(MARC::Record::TAG_LENGTH, ' '));
+            for (const auto &field : record) {
+                if (not field.getTag().isTagOfControlField())
+                    CheckDataField(do_not_abort_on_empty_subfields, field, CONTROL_NUMBER);
+
+                if (unlikely(field.getTag() < last_tag))
+                    LOG_ERROR("Incorrect non-alphanumeric field order in record w/ control number \"" + CONTROL_NUMBER + "\"!");
+                last_tag = field.getTag();
+            }
+
+            CheckLocalBlockConsistency(record);
         }
-
-        CheckFieldOrder(do_not_abort_on_invalid_repeated_fields, record);
-
-        MARC::Tag last_tag(std::string(MARC::Record::TAG_LENGTH, ' '));
-        for (const auto &field : record) {
-            if (not field.getTag().isTagOfControlField())
-                CheckDataField(do_not_abort_on_empty_subfields, field, CONTROL_NUMBER);
-
-            if (unlikely(field.getTag() < last_tag))
-                LOG_ERROR("Incorrect non-alphanumeric field order in record w/ control number \"" + CONTROL_NUMBER + "\"!");
-            last_tag = field.getTag();
-        }
-
-        CheckLocalBlockConsistency(record);
 
         if (rule_violation_list != nullptr and not rules.empty()) {
             for (const auto rule : rules) {
@@ -344,6 +346,15 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
+    bool check_rule_violations_only(false);
+    if (std::strcmp(argv[1], "--check-rule-violations-only") == 0) {
+        check_rule_violations_only = true;
+        --argc, ++argv;
+    }
+
+    if (argc < 2)
+        Usage();
+
     std::string output_filename;
     if (StringUtil::StartsWith(argv[1], "--write-data=")) {
         output_filename = argv[1] + __builtin_strlen("--write-data=");
@@ -366,8 +377,8 @@ int Main(int argc, char *argv[]) {
     if (not output_filename.empty())
         marc_writer = MARC::Writer::Factory(output_filename);
 
-    ProcessRecords(do_not_abort_on_empty_subfields, do_not_abort_on_invalid_repeated_fields, marc_reader.get(), marc_writer.get(),
-                   rules, rule_violation_list.get());
+    ProcessRecords(do_not_abort_on_empty_subfields, do_not_abort_on_invalid_repeated_fields, check_rule_violations_only,
+                   marc_reader.get(), marc_writer.get(), rules, rule_violation_list.get());
 
     return EXIT_SUCCESS;
 }
