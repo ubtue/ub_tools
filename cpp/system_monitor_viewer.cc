@@ -35,13 +35,13 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--output-filename=path] system_id metric time_range\n"
-            "       system_id       - One of the following: nu ptah sobek ub15 ub16 ub28\n"
-            "       metric          - One of the following: mem cpu disk\n"
-            "       time_range      - One of the following time ranges:\n"
-            "                            YYYY/MM/DD[THH:MM:SS][-YYYY/MM/DD[THH:MM:SS]\n"
-            "                            last <n> <hours|days|weeks|months>\n"
-            "       The config file path is \"" + UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf\".");
+    ::Usage("[--output-filename=path] system_id_or_input_file metric time_range\n"
+            "system_id_or_input_file   - Either a path to a system_monitor log file or one of the following: nu ptah sobek ub15 ub16 ub28\n"
+            "                  metric  - One of the following: mem cpu disk\n"
+            "              time_range  - One of the following time ranges:\n"
+            "                              YYYY/MM/DD[THH:MM:SS][-YYYY/MM/DD[THH:MM:SS]\n"
+            "                              last <n> <hours|days|weeks|months>\n"
+            "The config file path is \"" + UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf\".");
 }
 
 
@@ -131,25 +131,37 @@ void LoadSystemMonitorLog(const std::string &log_path, const std::unordered_map<
 {
     static constexpr size_t DATA_INITIAL_SIZE = 1000 * 1000;
 
-    File log_file(log_path, "rb");
-    int entry_num(1);
+    if (not FileUtil::Exists(log_path))
+        LOG_ERROR("log file " + log_path + " does not exist");
+
+    File log_file(log_path, "r");
+    int entry_num(0);
     std::vector<std::string> parts;
     data->reserve(DATA_INITIAL_SIZE);
 
     while (not log_file.eof()) {
-        uint32_t timestamp;
-        uint8_t ordinal;
-        uint32_t value;
+        ++entry_num;
+        uint32_t timestamp(0);
+        uint8_t ordinal(0);
+        uint32_t value(0);
 
-        BinaryIO::ReadOrDie(log_file, &timestamp);
-        BinaryIO::ReadOrDie(log_file, &ordinal);
-        BinaryIO::ReadOrDie(log_file, &value);
+        if (not BinaryIO::Read(log_file, &timestamp)) {
+            LOG_WARNING("couldn't read timestamp in entry " + std::to_string(entry_num));
+            continue;
+        }
+        if (not BinaryIO::Read(log_file, &ordinal)) {
+            LOG_WARNING("couldn't read ordinal in entry " + std::to_string(entry_num));
+            continue;
+        }
+        if (not BinaryIO::Read(log_file, &value)) {
+            LOG_WARNING("couldn't read value in entry " + std::to_string(entry_num));
+            continue;
+        }
 
         if (ordinal_to_label_map.find(ordinal) == ordinal_to_label_map.end())
             LOG_ERROR("unknown ordinal " + std::to_string(ordinal) + " in log entry " + std::to_string(entry_num));
 
         data->emplace_back(ordinal_to_label_map.at(ordinal), static_cast<time_t>(timestamp), std::to_string(value));
-        ++entry_num;
     }
 
     // sort by timestamp
@@ -245,12 +257,12 @@ void DisplayPlot(const std::string &data_path, const std::string &script_path, c
 }
 
 
-const std::set<std::string> VALID_SYSTEM_IDS{
+const std::set<std::string> VALID_SYSTEM_IDS {
     "nu", "ptah", "sobek", "ub15", "ub16", "ub28"
 };
 
 
-const std::set<std::string> VALID_COARSE_METRICS{
+const std::set<std::string> VALID_COARSE_METRICS {
     "cpu", "mem", "disk"
 };
 
@@ -287,15 +299,17 @@ int Main(int argc, char *argv[]) {
     if (argc != 4)
         Usage();
 
-    const std::string system_id(TextUtil::UTF8ToLower(argv[1]));
+    const std::string system_id_or_input_filename(argv[1]);
     const std::string coarse_metric(TextUtil::UTF8ToLower(argv[2]));
     const std::string time_range(argv[3]);
+    std::string log_file;
 
-    if (VALID_SYSTEM_IDS.find(system_id) == VALID_SYSTEM_IDS.end())
-        LOG_ERROR("invalid system ID '" + system_id + "'");
-    else {
+    if (VALID_SYSTEM_IDS.find(system_id_or_input_filename) == VALID_SYSTEM_IDS.end()) {
+        log_file = system_id_or_input_filename;
+        LOG_INFO("timestamps may be inaccurate if the log file was not created on this machine");
+    } else {
         const auto hostname(MiscUtil::SafeGetEnv("HOSTNAME"));
-        if (not StringUtil::StartsWith(hostname, system_id, true))
+        if (not StringUtil::StartsWith(hostname, system_id_or_input_filename, true))
             LOG_WARNING("attempting to view system monitor data of a system that is not the host. time range may be inaccurate");
     }
 
@@ -308,7 +322,8 @@ int Main(int argc, char *argv[]) {
     GetLabelsForCoarseMetric(coarse_metric, &labels);
 
     const IniFile ini_file(UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf");
-    const auto log_file(ini_file.getString("Logs", system_id));
+    if (log_file.empty())
+        log_file = ini_file.getString("Logs", system_id_or_input_filename);
     const auto plot_data_file(ini_file.getString("Default Plotting Inputs", coarse_metric));
     const auto plot_script_file(ini_file.getString("Plotting Scripts", coarse_metric));
     if (output_filename.empty())
@@ -316,9 +331,11 @@ int Main(int argc, char *argv[]) {
 
     std::unordered_map<uint8_t, std::string> ordinal_to_label_map;
     const IniFile monitor_ini_file(UBTools::GetTuelibPath() + "/system_monitor.conf");
-    for (const auto &entry : *monitor_ini_file.getSection("Label Ordinals"))
-        ordinal_to_label_map[StringUtil::ToUnsigned(entry.name_)] = entry.value_;
-
+    for (const auto &entry : *monitor_ini_file.getSection("Label Ordinals")) {
+        if (entry.name_.empty())
+            continue;
+        ordinal_to_label_map[StringUtil::ToUnsigned(entry.value_)] = entry.name_;
+    }
 
     LoadSystemMonitorLog(log_file, ordinal_to_label_map, &log_data);
     GetDataRange(time_start, time_end, log_data, &data_range_start, &data_range_end);
