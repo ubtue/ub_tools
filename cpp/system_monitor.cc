@@ -21,7 +21,8 @@
 #include <csignal>
 #include <cstring>
 #include <unistd.h>
-#include "Compiler.h"
+#include <unordered_map>
+#include "BinaryIO.h"
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "SignalUtil.h"
@@ -57,15 +58,21 @@ void CheckForSigTermAndExitIfSeen() {
 }
 
 
-// Returns local time using an ISO 8601 format w/o time zone.
-inline std::string GetLocalTime() {
-    return TimeUtil::GetCurrentDateAndTime("%y%m%d%H%M%S");
+// Logs entries are written in the following binary format:
+// <timestamp:4 bytes><ordinal:1 byte><value:4 bytes>
+void WriteLogEntryToFile(const time_t timestamp, const uint8_t ordinal, const uint32_t value, File * const output_file) {
+    // the timestamp is truncated to a 32-bit value before serialisation
+    // will break in the far (relative) future
+    const int32_t truncated_timestamp(static_cast<int32_t>(timestamp));
+    BinaryIO::WriteOrDie(*output_file, truncated_timestamp);
+    BinaryIO::WriteOrDie(*output_file, ordinal);
+    BinaryIO::WriteOrDie(*output_file, value);
 }
 
 
-void CollectCPUStats(File * const log) {
+void CollectCPUStats(File * const log, const std::unordered_map<std::string, uint8_t> &label_to_ordinal_map) {
     static auto proc_meminfo(FileUtil::OpenInputFileOrDie("/proc/stat"));
-    const auto current_date_and_time(GetLocalTime());
+    const auto current_time(std::time(nullptr));
     static uint64_t last_total, last_idle;
     std::string line;
     while (proc_meminfo->getline(&line) > 0) {
@@ -78,7 +85,7 @@ void CollectCPUStats(File * const log) {
             const uint64_t diff_idle(idle - last_idle);
             const uint64_t diff_total(total - last_total);
             const uint64_t diff_usage((1000ull * (diff_total - diff_idle) / diff_total + 5) / 10ull);
-            (*log) << "CPU " << diff_usage << ' ' << current_date_and_time << '\n';
+            WriteLogEntryToFile(current_time, label_to_ordinal_map.at("CPU"), diff_usage, log);
             log->flush();
             last_total = total;
             last_idle = idle;
@@ -88,26 +95,25 @@ void CollectCPUStats(File * const log) {
 }
 
 
-void CollectMemoryStats(File * const log) {
+void CollectMemoryStats(File * const log, const std::unordered_map<std::string, uint8_t> &label_to_ordinal_map) {
     static const auto proc_meminfo(FileUtil::OpenInputFileOrDie("/proc/meminfo"));
-    static const std::vector<std::string> COLLECTED_LABELS{ "MemAvailable", "SwapFree", "Unevictable" };
 
-    const auto current_date_and_time(GetLocalTime());
+    const auto current_time(std::time(nullptr));
     std::string line;
     while (proc_meminfo->getline(&line) > 0) {
         const auto first_colon_pos(line.find(':'));
         if (unlikely(first_colon_pos == std::string::npos))
             LOG_ERROR("missing colon in \"" + line + "\"!");
         const auto label(line.substr(0, first_colon_pos));
-        if (std::find(COLLECTED_LABELS.cbegin(), COLLECTED_LABELS.cend(), label) == COLLECTED_LABELS.cend())
+        if (label_to_ordinal_map.find(label) == label_to_ordinal_map.cend())
             continue;
 
-        const auto rest(StringUtil::LeftTrim(line.substr(first_colon_pos + 1)));
+        auto rest(StringUtil::LeftTrim(line.substr(first_colon_pos + 1)));
         const auto first_space_pos(rest.find(' '));
-        if (first_space_pos == std::string::npos)
-            (*log) << label[0] << ' ' << rest << ' ' << current_date_and_time << '\n';
-        else
-            (*log) << label[0] << ' ' << rest.substr(0, first_space_pos) << ' ' << current_date_and_time << '\n';
+        if (first_space_pos != std::string::npos)
+            rest = rest.substr(0, first_space_pos);
+
+        WriteLogEntryToFile(current_time, label_to_ordinal_map.at(label), StringUtil::ToUnsigned(rest), log);
     }
     log->flush();
 
@@ -115,15 +121,20 @@ void CollectMemoryStats(File * const log) {
 }
 
 
-void CollectDiscStats(File * const log) {
-    const auto current_date_and_time(GetLocalTime());
+void CollectDiscStats(File * const log, const std::unordered_map<std::string, uint8_t> &label_to_ordinal_map) {
+    const auto current_time(std::time(nullptr));
     FileUtil::Directory directory("/sys/block", "sd?");
     for (const auto &entry : directory) {
+        if (label_to_ordinal_map.find(entry.getName()) == label_to_ordinal_map.end())
+            LOG_ERROR("hard disk partition '" + entry.getName() + "' does not have an ordinal");
+
         const auto block_device_path("/sys/block/" + entry.getName() + "/size");
         const auto proc_entry(FileUtil::OpenInputFileOrDie(block_device_path));
         std::string line;
         proc_entry->getline(&line);
-        (*log) << entry.getName() <<  ' ' << StringUtil::ToUnsignedLong(line) * 512 << ' ' << current_date_and_time << '\n';
+        const auto free_space(StringUtil::ToUnsignedLong(line) * 512 / 1024);   // in kilobytes
+
+        WriteLogEntryToFile(current_time, label_to_ordinal_map.at(entry.getName()), free_space, log);
     }
     log->flush();
 }
@@ -145,10 +156,13 @@ bool IsAlreadyRunning(std::string * const pid_as_string) {
 }
 
 
-void CheckStats(const uint64_t ticks, const unsigned stats_interval, void (*stats_func)(File * const log), File * const log) {
+void CheckStats(const uint64_t ticks, const unsigned stats_interval,
+                void (*stats_func)(File * const, const std::unordered_map<std::string, uint8_t> &),
+                File * const log, const std::unordered_map<std::string, uint8_t> &label_to_ordinal_map)
+{
     if ((ticks % stats_interval) == 0) {
         SignalUtil::SignalBlocker sighup_blocker(SIGHUP);
-        stats_func(log);
+        stats_func(log, label_to_ordinal_map);
     }
     CheckForSigTermAndExitIfSeen();
 }
@@ -181,6 +195,14 @@ int Main(int argc, char *argv[]) {
     const unsigned disc_stats_interval(ini_file.getUnsigned("", "disc_stats_interval"));
     const unsigned cpu_stats_interval(ini_file.getUnsigned("", "cpu_stats_interval"));
 
+    std::unordered_map<std::string, uint8_t> label_to_ordinal_map;
+    for (const auto &entry : *ini_file.getSection("Label Ordinals")) {
+        if (label_to_ordinal_map.find(entry.value_) != label_to_ordinal_map.cend())
+            LOG_ERROR("multiple ordinals assigned to label '" + entry.value_ + "'");
+
+        label_to_ordinal_map[entry.value_] = StringUtil::ToUnsigned(entry.name_);
+    }
+
     if (not foreground) {
         SignalUtil::InstallHandler(SIGTERM, SigTermHandler);
 
@@ -194,9 +216,9 @@ int Main(int argc, char *argv[]) {
 
     uint64_t ticks(0);
     for (;;) {
-        CheckStats(ticks, memory_stats_interval, CollectMemoryStats, log.get());
-        CheckStats(ticks, disc_stats_interval, CollectDiscStats, log.get());
-        CheckStats(ticks, cpu_stats_interval, CollectCPUStats, log.get());
+        CheckStats(ticks, memory_stats_interval, CollectMemoryStats, log.get(), label_to_ordinal_map);
+        CheckStats(ticks, disc_stats_interval, CollectDiscStats, log.get(), label_to_ordinal_map);
+        CheckStats(ticks, cpu_stats_interval, CollectCPUStats, log.get(), label_to_ordinal_map);
 
         ::sleep(1);
         ++ticks;
