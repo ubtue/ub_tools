@@ -7,7 +7,7 @@
 /*
  *  Copyright 2004-2008 Project iVia.
  *  Copyright 2004-2008 The Regents of The University of California.
- *  Copyright 2016 Universitätsbibliothek Tübingen.
+ *  Copyright 2016,2019 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -27,14 +27,18 @@
  */
 
 #include "MediaTypeUtil.h"
+#include <mutex>
 #include <stdexcept>
+#include <unordered_set>
 #include <cctype>
 #include <alloca.h>
 #include <magic.h>
 #include "File.h"
+#include "FileUtil.h"
 #include "HttpHeader.h"
 #include "PerlCompatRegExp.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "Url.h"
 #include "util.h"
 #include "WebUtil.h"
@@ -283,6 +287,21 @@ bool SimplifyMediaType(std::string * const media_type) {
 
     // Return if "media_type" has changed:
     return initial_media_type != *media_type;
+}
+
+
+bool IsValidMIMEType(const std::string &mime_type_candidate) {
+    static std::unordered_set<std::string> valid_mime_types;
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> mutex_guard(mutex);
+    if (unlikely(valid_mime_types.empty())) {
+        for (auto mime_type : FileUtil::ReadLines(UBTools::GetTuelibPath() + "mime.types")) {
+            if (likely(not mime_type.empty()))
+                valid_mime_types.emplace(mime_type);
+        }
+    }
+
+    return valid_mime_types.find(mime_type_candidate) != valid_mime_types.cend();
 }
 
 

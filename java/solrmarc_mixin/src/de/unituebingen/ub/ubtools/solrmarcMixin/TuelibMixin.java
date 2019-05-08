@@ -141,6 +141,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             this.put("DE-21-203", "Universit\u00E4t T\u00FCbingen, Sammlung Werner Schweikert - Archiv der Weltliteratur");
             this.put("DE-21-205", "Universit\u00E4t T\u00FCbingen, Zentrum f\u00FCr Islamische Theologie");
             this.put("DE-Frei85", "Freiburg MPI Ausl\u00E4nd.Recht, Max-Planck-Institut f\u00FCr ausl\u00E4ndisches und internationales Strafrecht");
+            this.put("DE-2619", "KrimDok - kriminologische Bibliographie");
         }
     };
 

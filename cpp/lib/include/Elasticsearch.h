@@ -63,15 +63,18 @@ public:
     /** \brief Returns all values, excluding duplicates contained in field "field". */
     std::unordered_set<std::string> selectAll(const std::string &field) const;
 
+    /** \brief Returns all values, including duplicates contained in field "field". */
+    std::unordered_multiset<std::string> selectAllNonUnique(const std::string &field) const;
+
     /** \param  fields     If empty, all fields will be returned.
      *  \param  filter     If provided, oly results will be returned where each key in "filter" matches the corresponding value.
-     *  \param  max_count  The maximum nuber of results to return.  -1 means to return all results.
+     *  \param  max_count  The maximum nuber of results to return.
      *  \return A map for each matched record.
      *  \note   Not all requested fields may be contained in each map!
      */
     std::vector<std::map<std::string, std::string>> simpleSelect(const std::set<std::string> &fields,
                                                                  const std::map<std::string, std::string> &filter = {},
-                                                                 const int max_count = -1) const;
+                                                                 const unsigned int max_count = std::numeric_limits<unsigned int>::max()) const;
 
     inline std::vector<std::map<std::string, std::string>> simpleSelect(const std::set<std::string> &fields, const std::string &filter_field,
                                                                         const std::string &filter_value, const int max_count = -1) const
@@ -86,5 +89,8 @@ private:
     /** \brief A powerful general query.
      */
     std::shared_ptr<JSON::ObjectNode> query(const std::string &action, const REST::QueryType query_type,
-                                            const JSON::ObjectNode &data, const bool add_type=true) const;
+                                            const JSON::ObjectNode &data, const bool add_type=true, const bool suppress_index_name=false) const;
+    std::string extractScrollId(const std::shared_ptr<JSON::ObjectNode> &result_node) const;
+    std::vector<std::map<std::string, std::string>> extractResultsHelper(const std::shared_ptr<JSON::ObjectNode> &result_node,
+                                                                         const std::set<std::string> &fields) const;
 };
