@@ -39,7 +39,7 @@ namespace {
             "system_id_or_input_file   - Either a path to a system_monitor log file or one of the following: nu ptah sobek ub15 ub16 ub28\n"
             "                  metric  - One of the following: mem cpu disk\n"
             "              time_range  - One of the following time ranges:\n"
-            "                              YYYY/MM/DD[THH:MM:SS][-YYYY/MM/DD[THH:MM:SS]\n"
+            "                              YYYY/MM/DD[THH:MM:SS][-YYYY/MM/DD[THH:MM:SS]]\n"
             "                              last <n> <hours|days|weeks|months>\n"
             "The config file path is \"" + UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf\".");
 }
@@ -54,26 +54,26 @@ bool ParseTimestamp(const std::string &timestamp, struct tm * const tm) {
 void ParseTimeRange(const std::string &range_string, time_t * const time_start, time_t * const time_end) {
     std::vector<std::string> tokens;
 
-    if (StringUtil::StartsWith(range_string, "last ", true)) {
-        StringUtil::SplitThenTrimWhite(range_string, ' ', &tokens, true);
+    if (StringUtil::StartsWith(range_string, "last ", /* suppress_empty_tokens = */ true)) {
+        StringUtil::SplitThenTrimWhite(range_string, ' ', &tokens, /* suppress_empty_tokens = */ true);
         if (tokens.size() != 3)
             LOG_ERROR("invalid time range");
 
-        unsigned time_atom(0);
-        if (not StringUtil::ToUnsigned(tokens[1], &time_atom))
-            LOG_ERROR("time atom has to be greater than zero");
+        unsigned time_window(0);
+        if (not StringUtil::ToUnsigned(tokens[1], &time_window))
+            LOG_ERROR("time window has to be greater than zero");
 
         auto current_time(std::time(nullptr));
         unsigned long seconds_to_deduct(0);
         const auto granularity(tokens[2]);
-        if (StringUtil::StartsWith(granularity, "hour", true))
-            seconds_to_deduct = time_atom * 3600;
-        else if (StringUtil::StartsWith(granularity, "day", true))
-            seconds_to_deduct = time_atom * 24 * 3600;
-        else if (StringUtil::StartsWith(granularity, "week", true))
-            seconds_to_deduct = time_atom * 7 * 24 * 3600;
-        else if (StringUtil::StartsWith(granularity, "month", true))
-            seconds_to_deduct = time_atom * 31 * 24 * 3600;
+        if (StringUtil::StartsWith(granularity, "hour", /* ignore_case = */ true))
+            seconds_to_deduct = time_window * 3600;
+        else if (StringUtil::StartsWith(granularity, "day", /* ignore_case = */ true))
+            seconds_to_deduct = time_window * 24 * 3600;
+        else if (StringUtil::StartsWith(granularity, "week", /* ignore_case = */ true))
+            seconds_to_deduct = time_window * 7 * 24 * 3600;
+        else if (StringUtil::StartsWith(granularity, "month", /* ignore_case = */ true))
+            seconds_to_deduct = time_window * 30 * 24 * 3600;
         else
             LOG_ERROR("invalid time range");
 
@@ -96,7 +96,7 @@ void ParseTimeRange(const std::string &range_string, time_t * const time_start, 
         return;
     }
 
-    if (StringUtil::Split(range_string, '-', &tokens, true) != 2)
+    if (StringUtil::Split(range_string, '-', &tokens, /* suppress_empty_tokens = */ true) != 2)
         LOG_ERROR("invalid time range");
 
     if (not ParseTimestamp(tokens[0], &start_time_buffer) or
