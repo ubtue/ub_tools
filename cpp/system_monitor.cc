@@ -61,8 +61,7 @@ void CheckForSigTermAndExitIfSeen() {
 // Logs entries are written in the following binary format:
 // <timestamp:4 bytes><ordinal:1 byte><value:4 bytes>
 void WriteLogEntryToFile(const time_t timestamp, const uint8_t ordinal, const uint32_t value, File * const output_file) {
-    // the timestamp is truncated to a 32-bit value before serialisation
-    // will break in the far (relative) future
+    // the timestamp is truncated to a 32-bit value before serialisation, will break in 2038
     const int32_t truncated_timestamp(static_cast<int32_t>(timestamp));
     BinaryIO::WriteOrDie(*output_file, truncated_timestamp);
     BinaryIO::WriteOrDie(*output_file, ordinal);
