@@ -197,10 +197,12 @@ int Main(int argc, char *argv[]) {
 
     std::unordered_map<std::string, uint8_t> label_to_ordinal_map;
     for (const auto &entry : *ini_file.getSection("Label Ordinals")) {
-        if (label_to_ordinal_map.find(entry.value_) != label_to_ordinal_map.cend())
+        if (entry.name_.empty())
+            continue;
+        if (label_to_ordinal_map.find(entry.name_) != label_to_ordinal_map.cend())
             LOG_ERROR("multiple ordinals assigned to label '" + entry.value_ + "'");
 
-        label_to_ordinal_map[entry.value_] = StringUtil::ToUnsigned(entry.name_);
+        label_to_ordinal_map[entry.name_] = StringUtil::ToUnsigned(entry.value_);
     }
 
     if (not foreground) {
