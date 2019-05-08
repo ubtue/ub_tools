@@ -17,7 +17,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <map>
+#include <unordered_map>
 #include <ctime>
 #include "ExecUtil.h"
 #include "FileUtil.h"
@@ -125,13 +125,16 @@ struct Datapoint {
 };
 
 
-extern const std::map<std::string, std::string> LABEL_TO_INDIVIDUAL_METRIC_MAP;
+extern const std::unordered_map<std::string, std::string> INDIVIDUAL_METRIC_TO_LABEL_MAP;
 
 
 void LoadSystemMonitorLog(const std::string &log_path, std::vector<Datapoint> * const data) {
+    static constexpr size_t DATA_INITIAL_SIZE = 1000 * 1000;
+
     File log_file(log_path, "r");
     int line_num(1);
     std::vector<std::string> parts;
+    data->reserve(DATA_INITIAL_SIZE);
 
     while (not log_file.eof()) {
         const auto line(TextUtil::CollapseAndTrimWhitespace(log_file.getline()));
@@ -140,18 +143,15 @@ void LoadSystemMonitorLog(const std::string &log_path, std::vector<Datapoint> * 
                 LOG_ERROR("invalid line " + std::to_string(line_num) + " in file '" + log_path + "': " + line);
 
             const auto metric_name(parts[0]);
-            const auto label_match(std::find_if(LABEL_TO_INDIVIDUAL_METRIC_MAP.begin(), LABEL_TO_INDIVIDUAL_METRIC_MAP.end(),
-                                   [&metric_name](const std::pair<std::string, std::string> &entry) -> bool {
-                                       return metric_name == entry.second;
-                                   }));
-            if (label_match != LABEL_TO_INDIVIDUAL_METRIC_MAP.end()) {
+            const auto label_match(INDIVIDUAL_METRIC_TO_LABEL_MAP.find(metric_name));
+            if (label_match != INDIVIDUAL_METRIC_TO_LABEL_MAP.end()) {
                 struct tm tm_buffer;
                 std::memset(&tm_buffer, 0, sizeof(struct tm));
 
                 if (not TimeUtil::StringToStructTm(&tm_buffer, parts[2], TimeUtil::ISO_8601_FORMAT))
                     LOG_ERROR("invalid timestamp on line " + std::to_string(line_num));
 
-                data->emplace_back(label_match->first, std::mktime(&tm_buffer), parts[1]);
+                data->emplace_back(label_match->second, std::mktime(&tm_buffer), parts[1]);
             } else
                 LOG_DEBUG("unknown metric '" + metric_name + "' in line " + std::to_string(line_num));
         }
@@ -262,11 +262,11 @@ const std::set<std::string> VALID_COARSE_METRICS{
 };
 
 
-const std::map<std::string, std::string> LABEL_TO_INDIVIDUAL_METRIC_MAP {
-    { "Mem-Free",        "MemAvailable" },
-    { "Mem-Unevictable", "Unevictable"  },
-    { "Mem-SwapFree",    "SwapFree"     },
-    { "Cpu",             "CPU"          }
+const std::unordered_map<std::string, std::string> INDIVIDUAL_METRIC_TO_LABEL_MAP {
+    { "MemAvailable", "Mem-Free"        },
+    { "Unevictable",  "Mem-Unevictable" },
+    { "SwapFree",     "Mem-SwapFree"    },
+    { "CPU",          "CPU"             }
 };
 
 
@@ -350,8 +350,10 @@ int Main(int argc, char *argv[]) {
         return EXIT_SUCCESS;
     }
 
-    WritePlotDataToDisk(plot_data_file, labels, data_range_start, data_range_end);
-    DisplayPlot(plot_data_file, plot_script_file, output_filename);
+    if (WritePlotDataToDisk(plot_data_file, labels, data_range_start, data_range_end) == 0)
+        LOG_WARNING("found no data for the given time range");
+    else
+        DisplayPlot(plot_data_file, plot_script_file, output_filename);
 
     return EXIT_SUCCESS;
 }
