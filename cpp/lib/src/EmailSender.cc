@@ -4,7 +4,7 @@
  *  \author Artur Kedzierski
  *  \author Dr. Gordon W. Paynter
  *
- *  \copyright 2015,2017,2018 Universitätsbibliothek Tübingen.
+ *  \copyright 2015-2019 Universitätsbibliothek Tübingen.
  *  \copyright 2002-2008 Project iVia.
  *  \copyright 2002-2008 The Regents of The University of California.
  *
@@ -33,6 +33,7 @@
 #include "DnsUtil.h"
 #include "FileDescriptor.h"
 #include "IniFile.h"
+#include "MediaTypeUtil.h"
 #include "MiscUtil.h"
 #include "SocketUtil.h"
 #include "SslConnection.h"
@@ -246,29 +247,86 @@ void  AppendRecipientHeaders(std::string * const message, const std::string &rec
 }
 
 
+std::string CreateSinglePartEmail(const EmailSender::Priority priority, const EmailSender::Format format, const std::string &message_body,
+                                  std::string * const message)
+{
+    if (format == EmailSender::PLAIN_TEXT)
+        message->append("Content-Type: text/plain; charset=\"utf-8\"\r\n");
+    else
+        message->append("Content-Type: text/html; charset=\"utf-8\"\r\n");
+    if (priority != EmailSender::DO_NOT_SET_PRIORITY)
+        message->append("X-Priority: " + std::to_string(priority) + "\r\n");
+
+    message->append("\r\n");
+    message->append(GetDotStuffedMessage(message_body) + "\r\n.");
+
+    return *message;
+}
+
+
+std::string CreateMultiPartEmail(const EmailSender::Priority priority, const EmailSender::Format format, const std::string &message_body,
+                                 const std::vector<std::string> &attachments, std::string * const message)
+{
+    if (priority != EmailSender::DO_NOT_SET_PRIORITY)
+        message->append("X-Priority: " + std::to_string(priority) + "\r\n");
+    message->append("MIME-Version: 1.0\r\n");
+    static const std::string BOUNDARY("d5BC1f14716511e98ae767d71f13b8d6");
+    message->append("Content-Type: multipart/mixed; boundary=" + BOUNDARY + "\r\n");
+    message->append("\r\n");
+
+    message->append("--" + BOUNDARY + "\r\n");
+    if (format == EmailSender::PLAIN_TEXT)
+        message->append("Content-Type: text/plain; charset=\"utf-8\"\r\n");
+    else
+        message->append("Content-Type: text/html; charset=\"utf-8\"\r\n");
+    message->append("\r\n");
+    message->append(GetDotStuffedMessage(message_body));
+
+    static const unsigned MAX_ENCODED_LINE_LENGTH(76); // See RFC 2045
+    for (const auto &attachment : attachments) {
+        std::string subtype, media_type(MediaTypeUtil::GetMediaType(attachment, &subtype));
+        if (not subtype.empty())
+            media_type += "/" + subtype;
+        message->append("Content-Type: " + media_type + "\r\n");
+        message->append("\r\n");
+        unsigned line_length(0);
+        for (const char ch : Base64Encode(attachment)) {
+            *message += ch;
+            ++line_length;
+            if (line_length == MAX_ENCODED_LINE_LENGTH) {
+                message->append("\r\n");
+                line_length = 0;
+            }
+        }
+        if (line_length > 0)
+            message->append("\r\n");
+    }
+
+    message->append("\r\n--" + BOUNDARY + "--\r\n");
+    message->append(".");
+
+    return *message;
+}
+
+
 std::string CreateEmailMessage(const EmailSender::Priority priority, const EmailSender::Format format, const std::string &sender,
                                const std::vector<std::string> &recipients, const std::vector<std::string> &cc_recipients,
                                const std::vector<std::string> &bcc_recipients, const std::string &subject,
-                               const std::string &message_body)
+                               const std::string &message_body, const std::vector<std::string> &attachments)
 {
     std::string message;
     message  = "Date: " + GetDateInRFC822Format() + "\r\n";
     message += "From: " + sender + "\r\n";
+    message += "X-Mailer: ub_tools mailer\r\n";
     AppendRecipientHeaders(&message, "to", recipients);
     AppendRecipientHeaders(&message, "cc", cc_recipients);
     AppendRecipientHeaders(&message, "bcc", bcc_recipients);
     message += "Subject: " + subject + "\r\n";
-    if (format == EmailSender::PLAIN_TEXT)
-        message += "Content-Type: text/plain; charset=\"utf-8\"\r\n";
+
+    if (attachments.empty())
+        return CreateSinglePartEmail(priority, format, message_body, &message);
     else
-        message += "Content-Type: text/html; charset=\"utf-8\"\r\n";
-    if (priority != EmailSender::DO_NOT_SET_PRIORITY)
-        message += "X-Priority: " + std::to_string(priority) + "\r\n";
-
-    message += "\r\n";
-    message += GetDotStuffedMessage(message_body) + "\r\n.";
-
-    return message;
+        return CreateMultiPartEmail(priority, format, message_body, attachments, &message);
 }
 
 
@@ -312,7 +370,8 @@ namespace EmailSender {
 unsigned short SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
                          const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
                          const std::string &subject, const std::string &message_body, const Priority priority, const Format format,
-                         const std::string &reply_to, const bool use_ssl, const bool use_authentication)
+                         const std::string &reply_to, const bool use_ssl, const bool use_authentication,
+                         const std::vector<std::string> &attachments)
 {
     if (unlikely(sender.empty() and reply_to.empty()))
         LOG_ERROR("both \"sender\" and \"reply_to\" can't be empty!");
@@ -372,7 +431,7 @@ unsigned short SendEmail(const std::string &sender, const std::vector<std::strin
         PerformExchange(socket_fd, time_limit, "DATA", "3[0-9][0-9]*", ssl_connection.get());
         PerformExchange(socket_fd, time_limit,
                         CreateEmailMessage(priority, format, sender, recipients, cc_recipients, bcc_recipients, subject,
-                                           message_body),
+                                           message_body, attachments),
                         "2[0-9][0-9]*", ssl_connection.get());
         PerformExchange(socket_fd, time_limit, "QUIT", "2[0-9][0-9]*", ssl_connection.get());
     } catch (const SMTPException &smtp_exception) {

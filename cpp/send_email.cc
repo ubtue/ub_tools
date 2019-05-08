@@ -34,7 +34,8 @@ namespace {
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--sender=sender] [-reply-to=reply_to] --recipients=recipients\n"
               << "  [--cc-recipients=cc_recipients] [--bcc-recipients=bcc_recipients] [--expand-newline-escapes]\n"
-              << "  --subject=subject --message-body=message_body [--priority=priority] [--format=format]\n\n"
+              << "  --subject=subject --message-body=message_body [--priority=priority] [--format=format]\n"
+              << "  [--attachment=file1 --attachmen=file2 .. --attachmen=fileN]\n\n"
               << "       \"priority\" has to be one of \"very_low\", \"low\", \"medium\", \"high\", or\n"
               << "       \"very_high\".  \"format\" has to be one of \"plain_text\" or \"html\"  At least one\n"
               << "       of \"sender\" or \"reply-to\" has to be specified. If \"--expand-newline-escapes\" has\n"
