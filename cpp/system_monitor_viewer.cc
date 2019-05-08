@@ -19,6 +19,7 @@
  */
 #include <unordered_map>
 #include <ctime>
+#include "BinaryIO.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "IniFile.h"
@@ -125,38 +126,30 @@ struct Datapoint {
 };
 
 
-extern const std::unordered_map<std::string, std::string> INDIVIDUAL_METRIC_TO_LABEL_MAP;
-
-
-void LoadSystemMonitorLog(const std::string &log_path, std::vector<Datapoint> * const data) {
+void LoadSystemMonitorLog(const std::string &log_path, const std::unordered_map<uint8_t, std::string> &ordinal_to_label_map,
+                          std::vector<Datapoint> * const data)
+{
     static constexpr size_t DATA_INITIAL_SIZE = 1000 * 1000;
 
-    File log_file(log_path, "r");
-    int line_num(1);
+    File log_file(log_path, "rb");
+    int entry_num(1);
     std::vector<std::string> parts;
     data->reserve(DATA_INITIAL_SIZE);
 
     while (not log_file.eof()) {
-        const auto line(TextUtil::CollapseAndTrimWhitespace(log_file.getline()));
-        if (not line.empty()) {
-            if (StringUtil::Split(line, ' ', &parts, true) != 3)
-                LOG_ERROR("invalid line " + std::to_string(line_num) + " in file '" + log_path + "': " + line);
+        uint32_t timestamp;
+        uint8_t ordinal;
+        uint32_t value;
 
-            const auto metric_name(parts[0]);
-            const auto label_match(INDIVIDUAL_METRIC_TO_LABEL_MAP.find(metric_name));
-            if (label_match != INDIVIDUAL_METRIC_TO_LABEL_MAP.end()) {
-                struct tm tm_buffer;
-                std::memset(&tm_buffer, 0, sizeof(struct tm));
+        BinaryIO::ReadOrDie(log_file, &timestamp);
+        BinaryIO::ReadOrDie(log_file, &ordinal);
+        BinaryIO::ReadOrDie(log_file, &value);
 
-                if (not TimeUtil::StringToStructTm(&tm_buffer, parts[2], TimeUtil::ISO_8601_FORMAT))
-                    LOG_ERROR("invalid timestamp on line " + std::to_string(line_num));
+        if (ordinal_to_label_map.find(ordinal) == ordinal_to_label_map.end())
+            LOG_ERROR("unknown ordinal " + std::to_string(ordinal) + " in log entry " + std::to_string(entry_num));
 
-                data->emplace_back(label_match->second, std::mktime(&tm_buffer), parts[1]);
-            } else
-                LOG_DEBUG("unknown metric '" + metric_name + "' in line " + std::to_string(line_num));
-        }
-
-        ++line_num;
+        data->emplace_back(ordinal_to_label_map.at(ordinal), static_cast<time_t>(timestamp), std::to_string(value));
+        ++entry_num;
     }
 
     // sort by timestamp
@@ -262,28 +255,19 @@ const std::set<std::string> VALID_COARSE_METRICS{
 };
 
 
-const std::unordered_map<std::string, std::string> INDIVIDUAL_METRIC_TO_LABEL_MAP {
-    { "MemAvailable", "Mem-Free"        },
-    { "Unevictable",  "Mem-Unevictable" },
-    { "SwapFree",     "Mem-SwapFree"    },
-    { "CPU",          "CPU"             }
-};
-
-
 void GetLabelsForCoarseMetric(const std::string &coarse_metric, std::vector<std::string> * const labels) {
     // this order needs to be observed in the plotting scripts
     if (coarse_metric == "mem") {
-        labels->emplace_back("Mem-Free");
-        labels->emplace_back("Mem-Unevictable");
-        labels->emplace_back("Mem-SwapFree");
+        labels->emplace_back("MemAvailable");
+        labels->emplace_back("Unevictable");
+        labels->emplace_back("SwapFree");
     } else if (coarse_metric == "cpu")
-        labels->emplace_back("Cpu");
+        labels->emplace_back("CPU");
     else if (coarse_metric == "disk")
         ;
     else
         LOG_ERROR("invalid coarse metric '" + coarse_metric + "'");
 }
-
 
 
 } // unnamed namespace
@@ -330,7 +314,13 @@ int Main(int argc, char *argv[]) {
     if (output_filename.empty())
         output_filename = ini_file.getString("Default Plotting Outputs", coarse_metric);
 
-    LoadSystemMonitorLog(log_file, &log_data);
+    std::unordered_map<uint8_t, std::string> ordinal_to_label_map;
+    const IniFile monitor_ini_file(UBTools::GetTuelibPath() + "/system_monitor.conf");
+    for (const auto &entry : *monitor_ini_file.getSection("Label Ordinals"))
+        ordinal_to_label_map[StringUtil::ToUnsigned(entry.name_)] = entry.value_;
+
+
+    LoadSystemMonitorLog(log_file, ordinal_to_label_map, &log_data);
     GetDataRange(time_start, time_end, log_data, &data_range_start, &data_range_end);
 
     if (data_range_start == log_data.end())
