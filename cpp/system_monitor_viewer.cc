@@ -173,7 +173,7 @@ enum class TimeUnit {
 
 
 void CalculateBestTimeScale(const time_t time_start, const time_t time_end, TimeUnit * const time_unit) {
-    static const std::map<TimeUnit, unsigned> THRESHOLDS_IN_SECONDS {
+    static const std::map<TimeUnit, unsigned> THRESHOLDS_IN_SECONDS{
         { TimeUnit::SECOND, 0                  },   // default granularity
         { TimeUnit::MINUTE, 2 * 60             },   // 2 minutes
         { TimeUnit::HOUR,   5 * 3600           },   // 5 hours
@@ -242,7 +242,8 @@ unsigned WritePlotDataToDisk(const std::string &output_path, const std::vector<s
 
     auto plot_data(FileUtil::OpenOutputFileOrDie(output_path));
 
-    time_t current_write_timestamp(TimeUtil::BAD_TIME_T), time_start(data_begin->timestamp_);
+    time_t current_write_timestamp(TimeUtil::BAD_TIME_T);
+    const time_t time_start(data_begin->timestamp_);
     std::map<std::string, std::string> current_write_timestamp_values;
     unsigned lines_written(0);
 
@@ -318,7 +319,7 @@ void DisplayPlot(const std::string &data_path, const std::string &script_path, c
         break;
     }
 
-    const std::vector<std::string> gnuplot_args {
+    const std::vector<std::string> gnuplot_args{
         "-c",
         script_path,
         data_path,
@@ -327,7 +328,7 @@ void DisplayPlot(const std::string &data_path, const std::string &script_path, c
     };
     ExecUtil::ExecOrDie("/usr/bin/gnuplot", gnuplot_args);
 
-    const std::vector<std::string> xdg_args {
+    const std::vector<std::string> xdg_args{
         plot_path
     };
 
