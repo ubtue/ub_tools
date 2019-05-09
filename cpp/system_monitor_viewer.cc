@@ -292,13 +292,13 @@ int Main(int argc, char *argv[]) {
     std::string log_file;
 
     const IniFile ini_file(UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf");
-    const auto default_system_logs(ini_file.getSection("Default System Logs")->asUnorderedMap());
+    const auto default_system_log(ini_file.getSection("Default System Logs")->find(system_id_or_input_filename));
 
-    if (default_system_logs.find(system_id_or_input_filename) == default_system_logs.end()) {
+    if (default_system_log == ini_file.getSection("Default System Logs")->end()) {
         log_file = system_id_or_input_filename;
         LOG_WARNING("timestamps may be inaccurate if the log file was not created on this machine");
     } else {
-        log_file = default_system_logs.at(system_id_or_input_filename);
+        log_file = default_system_log->value_;
         const auto hostname(MiscUtil::SafeGetEnv("HOSTNAME"));
         if (not StringUtil::StartsWith(hostname, system_id_or_input_filename, true))
             LOG_WARNING("attempting to view system monitor data of a system that is not the host. time range may be inaccurate");
