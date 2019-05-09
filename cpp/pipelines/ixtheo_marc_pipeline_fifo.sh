@@ -87,7 +87,8 @@ if [[ $(date +%d) == "01" ]]; then # Only do this on the 1st of every month.
         send_email --priority=high \
                    --recipients=ixtheo-team@ub.uni-tuebingen.de \
                    --subject="marc_check Found Rule Violations" \
-                   --message-body="See /usr/local/var/lib/tuelib/marc_check_rule_violations.log for details."
+                   --message-body="PPNs im Anhang." \
+                   --attachment="/usr/local/var/lib/tuelib/marc_check_rule_violations.log"
     fi
 fi
 
