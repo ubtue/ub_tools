@@ -306,14 +306,6 @@ const std::string &IniFile::Section::getComment(const std::string &entry_name) c
 }
 
 
-std::unordered_map<std::string, std::string> IniFile::Section::asUnorderedMap() const {
-    std::unordered_map<std::string, std::string> output;
-    for (const auto &entry : entries_)
-        output[entry.name_] = entry.value_;
-    return output;
-}
-
-
 static inline bool ContainsSpacesOrDoubleQuotes(const std::string &value) {
     if (value.find(' ') != std::string::npos)
         return true;
