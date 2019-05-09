@@ -95,6 +95,7 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
             *expand_newline_escapes = true;
             ++argv;
         } else if (ExtractArg(*argv, "attachment", &attachment)) {
+            attachment = FileUtil::ExpandTildePath(attachment);
             if (not FileUtil::IsReadable(attachment))
                 LOG_ERROR("attachment \"" + attachment + "\" does not exist or isn't readable!");
             attachments->emplace_back(attachment);
