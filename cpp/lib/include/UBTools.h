@@ -26,7 +26,9 @@ namespace UBTools {
 
 
 // \return A slash-terminated absolute path.
-std::string GetTuelibPath();
+inline std::string GetTuelibPath() {
+    return "/usr/local/var/lib/tuelib/";
+}
 
 
 } // namespace UBTools

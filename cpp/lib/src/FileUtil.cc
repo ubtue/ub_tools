@@ -37,6 +37,7 @@
 #include <unistd.h>
 #include "Compiler.h"
 #include "FileDescriptor.h"
+#include "MiscUtil.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -1351,6 +1352,29 @@ std::string GetPathFromFileDescriptor(const int fd) {
             return str_buf;
         }
     }
+}
+
+
+std::string ExpandTildePath(const std::string &path) {
+    if (path.empty() or path[0] != '~')
+        return path;
+
+    const std::string HOME(MiscUtil::SafeGetEnv("HOME"));
+    if (unlikely(HOME.empty()))
+        LOG_ERROR("HOME has not been set!");
+
+    if (path.length() == 1)
+        return HOME;
+
+    if (HOME[HOME.length() - 1] == '/') {
+        if (path[1] == '/')
+            return HOME + path.substr(2);
+        else
+            return HOME + path.substr(1);
+    } else if (path[1] == '/')
+        return HOME + path.substr(1);
+    else
+        return HOME + "/" + path.substr(1);
 }
 
 
