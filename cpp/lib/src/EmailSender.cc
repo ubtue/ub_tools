@@ -269,9 +269,8 @@ std::string &CreateMultiPartEmail(const EmailSender::Priority priority, const Em
     message->append("MIME-Version: 1.0\r\n");
     static const std::string BOUNDARY("d5BC1f14716511e98ae767d71f13b8d6");
     message->append("Content-Type: multipart/mixed; boundary=" + BOUNDARY + "\r\n");
-    message->append("\r\n");
 
-    message->append("--" + BOUNDARY + "\r\n");
+    message->append("\r\n--" + BOUNDARY + "\r\n");
     if (format == EmailSender::PLAIN_TEXT)
         message->append("Content-Type: text/plain; charset=\"utf-8\"\r\n");
     else
@@ -281,6 +280,7 @@ std::string &CreateMultiPartEmail(const EmailSender::Priority priority, const Em
 
     static const unsigned MAX_ENCODED_LINE_LENGTH(76); // See RFC 2045
     for (const auto &attachment : attachments) {
+        message->append("\r\n--" + BOUNDARY + "\r\n");
         std::string data;
         if (unlikely(not FileUtil::ReadString(attachment, &data)))
             LOG_ERROR("failed to read content of attachment from \"" + attachment + "\"!");
