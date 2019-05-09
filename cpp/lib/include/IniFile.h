@@ -31,6 +31,7 @@
 
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 #include <stack>
 #include <string>
 #include <vector>
@@ -238,6 +239,9 @@ public:
 
         bool deleteEntry(const std::string &entry_name);
         const std::string &getComment(const std::string &entry_name) const;
+
+        // \return An unordered map of the section's keys to their values.
+        std::unordered_map<std::string, std::string> asUnorderedMap() const;
     private:
         void write(File * const output, const bool pretty_print) const;
     };
