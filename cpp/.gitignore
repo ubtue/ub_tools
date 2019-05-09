@@ -143,6 +143,7 @@
 /suggest_bib_refs
 /summarize_logs
 /system_monitor
+/system_monitor_viewer
 /translate_chainer
 /translation_db_tool
 /translation_exporter

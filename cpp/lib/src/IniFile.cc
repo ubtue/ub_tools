@@ -306,7 +306,6 @@ const std::string &IniFile::Section::getComment(const std::string &entry_name) c
 }
 
 
-
 static inline bool ContainsSpacesOrDoubleQuotes(const std::string &value) {
     if (value.find(' ') != std::string::npos)
         return true;
