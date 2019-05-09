@@ -99,11 +99,8 @@ void ParseTimeRange(const std::string &range_string, time_t * const time_start, 
     if (StringUtil::Split(range_string, '-', &tokens, /* suppress_empty_tokens = */ true) != 2)
         LOG_ERROR("invalid time range");
 
-    if (not ParseTimestamp(tokens[0], &start_time_buffer) or
-        not ParseTimestamp(tokens[1], &end_time_buffer))
-    {
+    if (not ParseTimestamp(tokens[0], &start_time_buffer) or not ParseTimestamp(tokens[1], &end_time_buffer))
         LOG_ERROR("invalid time range");
-    }
 
     *time_start = std::mktime(&start_time_buffer);
     *time_end = std::mktime(&end_time_buffer);
@@ -116,7 +113,7 @@ struct Datapoint {
     std::string label_;
     time_t timestamp_;
     std::string value_;
-
+public:
     Datapoint(const std::string &label, const time_t timestamp, const std::string &value)
         : label_(label), timestamp_(timestamp), value_(value) {}
 
@@ -129,7 +126,7 @@ struct Datapoint {
 void LoadSystemMonitorLog(const std::string &log_path, const std::unordered_map<uint8_t, std::string> &ordinal_to_label_map,
                           std::vector<Datapoint> * const data)
 {
-    static constexpr size_t DATA_INITIAL_SIZE = 1000 * 1000;
+    static constexpr size_t DATA_INITIAL_SIZE(1000 * 1000);
 
     if (not FileUtil::Exists(log_path))
         LOG_ERROR("log file " + log_path + " does not exist");
@@ -179,13 +176,15 @@ void GetDataRange(const time_t time_start, const time_t time_end, const std::vec
 
 
 unsigned WritePlotDataToDisk(const std::string &output_path, const std::vector<std::string> &labels,
-                         const std::vector<Datapoint>::const_iterator &data_begin, const std::vector<Datapoint>::const_iterator &data_end)
+                             const std::vector<Datapoint>::const_iterator &data_begin, const std::vector<Datapoint>::const_iterator &data_end)
 {
     // We expect the values of the labels to use the same axis/scale
-    // Columns: Timestamp [Label 1..n]
-    File plot_data(output_path, "w");
+    // Columns: Timestamp [Label 1..n], tab separated
+    static constexpr char SEPARATOR_CHARACTER('\t');
 
-    plot_data.writeln("#\t" + StringUtil::Join(labels, '\t'));
+    auto plot_data(FileUtil::OpenOutputFileOrDie(output_path));
+
+    plot_data->writeln("#\t" + StringUtil::Join(labels, SEPARATOR_CHARACTER));
 
     time_t current_write_timestamp(TimeUtil::BAD_TIME_T);
     std::map<std::string, std::string> current_write_timestamp_values;
@@ -200,16 +199,15 @@ unsigned WritePlotDataToDisk(const std::string &output_path, const std::vector<s
         }
 
         if (not current_write_timestamp_values.empty()) {
-            std::string out_line(std::to_string(current_write_timestamp) + "\t");
+            std::string out_line(std::to_string(current_write_timestamp) + SEPARATOR_CHARACTER);
             for (const auto &label : labels) {
                 const auto value(current_write_timestamp_values.find(label));
                 if (value != current_write_timestamp_values.end())
-                    out_line += value->second + "\t";
-                else
-                    out_line += "\t";
+                    out_line += value->second;
+                out_line += SEPARATOR_CHARACTER;
             }
 
-            plot_data.writeln(out_line);
+            plot_data->writeln(out_line);
             ++lines_written;
         }
 
@@ -218,16 +216,15 @@ unsigned WritePlotDataToDisk(const std::string &output_path, const std::vector<s
     }
 
     if (not current_write_timestamp_values.empty()) {
-        std::string out_line(std::to_string(current_write_timestamp) + "\t");
+        std::string out_line(std::to_string(current_write_timestamp) + SEPARATOR_CHARACTER);
         for (const auto &label : labels) {
             const auto value(current_write_timestamp_values.find(label));
             if (value != current_write_timestamp_values.end())
-                out_line += value->second + "\t";
-            else
-                out_line += "\t";
+                out_line += value->second;
+            out_line += SEPARATOR_CHARACTER;
         }
 
-        plot_data.writeln(out_line);
+        plot_data->writeln(out_line);
         ++lines_written;
     }
 
@@ -241,7 +238,7 @@ void DisplayPlot(const std::string &data_path, const std::string &script_path, c
     else if (not FileUtil::Exists(script_path))
         LOG_ERROR("script file for plotting does not exist at " + script_path);
 
-    std::vector<std::string> gnuplot_args {
+    const std::vector<std::string> gnuplot_args {
         "-c",
         script_path,
         data_path,
@@ -249,22 +246,12 @@ void DisplayPlot(const std::string &data_path, const std::string &script_path, c
     };
     ExecUtil::ExecOrDie("/usr/bin/gnuplot", gnuplot_args);
 
-    std::vector<std::string> xdg_args {
+    const std::vector<std::string> xdg_args {
         plot_path
     };
 
     ExecUtil::ExecOrDie("/usr/bin/xdg-open", xdg_args);
 }
-
-
-const std::set<std::string> VALID_SYSTEM_IDS {
-    "nu", "ptah", "sobek", "ub15", "ub16", "ub28"
-};
-
-
-const std::set<std::string> VALID_COARSE_METRICS {
-    "cpu", "mem", "disk"
-};
 
 
 void GetLabelsForCoarseMetric(const std::string &coarse_metric, std::vector<std::string> * const labels) {
@@ -304,6 +291,10 @@ int Main(int argc, char *argv[]) {
     const std::string time_range(argv[3]);
     std::string log_file;
 
+    static const std::set<std::string> VALID_SYSTEM_IDS {
+        "nu", "ptah", "sobek", "ub15", "ub16", "ub28"
+    };
+
     if (VALID_SYSTEM_IDS.find(system_id_or_input_filename) == VALID_SYSTEM_IDS.end()) {
         log_file = system_id_or_input_filename;
         LOG_INFO("timestamps may be inaccurate if the log file was not created on this machine");
@@ -314,8 +305,6 @@ int Main(int argc, char *argv[]) {
     }
 
     time_t time_start, time_end;
-    std::vector<Datapoint> log_data;
-    std::vector<Datapoint>::const_iterator data_range_start, data_range_end;
     std::vector<std::string> labels;
 
     ParseTimeRange(time_range, &time_start, &time_end);
@@ -337,6 +326,8 @@ int Main(int argc, char *argv[]) {
         ordinal_to_label_map[StringUtil::ToUnsigned(entry.value_)] = entry.name_;
     }
 
+    std::vector<Datapoint> log_data;
+    std::vector<Datapoint>::const_iterator data_range_start, data_range_end;
     LoadSystemMonitorLog(log_file, ordinal_to_label_map, &log_data);
     GetDataRange(time_start, time_end, log_data, &data_range_start, &data_range_end);
 
