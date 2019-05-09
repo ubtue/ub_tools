@@ -98,6 +98,7 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
             if (not FileUtil::IsReadable(attachment))
                 LOG_ERROR("attachment \"" + attachment + "\" does not exist or isn't readable!");
             attachments->emplace_back(attachment);
+            ++argv;
         } else if (ExtractArg(*argv, "sender", sender) or ExtractArg(*argv, "reply-to", reply_to)
             or ExtractArg(*argv, "recipients", recipients) or ExtractArg(*argv, "cc-recipients", cc_recipients)
             or ExtractArg(*argv, "bcc-recipients", bcc_recipients) or ExtractArg(*argv, "subject", subject)
