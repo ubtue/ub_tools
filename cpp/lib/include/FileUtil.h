@@ -532,4 +532,8 @@ void ChangeDirectoryOrDie(const std::string &directory);
 std::string GetPathFromFileDescriptor(const int fd);
 
 
+/** Replaces leading tildes with the home directory of the current user. */
+std::string ExpandTildePath(const std::string &path);
+
+
 } // namespace FileUtil
