@@ -129,7 +129,7 @@ void LoadSystemMonitorLog(const std::string &log_path, const std::unordered_map<
     static constexpr size_t DATA_INITIAL_SIZE(1000 * 1000);
 
     if (not FileUtil::Exists(log_path))
-        LOG_ERROR("log file " + log_path + " does not exist");
+        LOG_ERROR("log file '" + log_path + "' does not exist");
 
     File log_file(log_path, "r");
     int entry_num(0);
@@ -291,14 +291,14 @@ int Main(int argc, char *argv[]) {
     const std::string time_range(argv[3]);
     std::string log_file;
 
-    static const std::set<std::string> VALID_SYSTEM_IDS {
-        "nu", "ptah", "sobek", "ub15", "ub16", "ub28"
-    };
+    const IniFile ini_file(UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf");
+    const auto default_system_logs(ini_file.getSection("Default System Logs")->asUnorderedMap());
 
-    if (VALID_SYSTEM_IDS.find(system_id_or_input_filename) == VALID_SYSTEM_IDS.end()) {
+    if (default_system_logs.find(system_id_or_input_filename) == default_system_logs.end()) {
         log_file = system_id_or_input_filename;
-        LOG_INFO("timestamps may be inaccurate if the log file was not created on this machine");
+        LOG_WARNING("timestamps may be inaccurate if the log file was not created on this machine");
     } else {
+        log_file = default_system_logs.at(system_id_or_input_filename);
         const auto hostname(MiscUtil::SafeGetEnv("HOSTNAME"));
         if (not StringUtil::StartsWith(hostname, system_id_or_input_filename, true))
             LOG_WARNING("attempting to view system monitor data of a system that is not the host. time range may be inaccurate");
@@ -310,9 +310,6 @@ int Main(int argc, char *argv[]) {
     ParseTimeRange(time_range, &time_start, &time_end);
     GetLabelsForCoarseMetric(coarse_metric, &labels);
 
-    const IniFile ini_file(UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf");
-    if (log_file.empty())
-        log_file = ini_file.getString("Logs", system_id_or_input_filename);
     const auto plot_data_file(ini_file.getString("Default Plotting Inputs", coarse_metric));
     const auto plot_script_file(ini_file.getString("Plotting Scripts", coarse_metric));
     if (output_filename.empty())
