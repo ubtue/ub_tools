@@ -1,12 +1,8 @@
 /** \file   EmailSender.cc
  *  \brief  Utility functions etc. related to the sending of email messages.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
- *  \author Artur Kedzierski
- *  \author Dr. Gordon W. Paynter
  *
  *  \copyright 2015-2019 Universitätsbibliothek Tübingen.
- *  \copyright 2002-2008 Project iVia.
- *  \copyright 2002-2008 The Regents of The University of California.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -32,6 +28,7 @@
 #include "Compiler.h"
 #include "DnsUtil.h"
 #include "FileDescriptor.h"
+#include "FileUtil.h"
 #include "IniFile.h"
 #include "MediaTypeUtil.h"
 #include "MiscUtil.h"
@@ -247,8 +244,8 @@ void  AppendRecipientHeaders(std::string * const message, const std::string &rec
 }
 
 
-std::string CreateSinglePartEmail(const EmailSender::Priority priority, const EmailSender::Format format, const std::string &message_body,
-                                  std::string * const message)
+std::string &CreateSinglePartEmail(const EmailSender::Priority priority, const EmailSender::Format format, const std::string &message_body,
+                                   std::string * const message)
 {
     if (format == EmailSender::PLAIN_TEXT)
         message->append("Content-Type: text/plain; charset=\"utf-8\"\r\n");
@@ -264,8 +261,8 @@ std::string CreateSinglePartEmail(const EmailSender::Priority priority, const Em
 }
 
 
-std::string CreateMultiPartEmail(const EmailSender::Priority priority, const EmailSender::Format format, const std::string &message_body,
-                                 const std::vector<std::string> &attachments, std::string * const message)
+std::string &CreateMultiPartEmail(const EmailSender::Priority priority, const EmailSender::Format format, const std::string &message_body,
+                                  const std::vector<std::string> &attachments, std::string * const message)
 {
     if (priority != EmailSender::DO_NOT_SET_PRIORITY)
         message->append("X-Priority: " + std::to_string(priority) + "\r\n");
@@ -284,13 +281,15 @@ std::string CreateMultiPartEmail(const EmailSender::Priority priority, const Ema
 
     static const unsigned MAX_ENCODED_LINE_LENGTH(76); // See RFC 2045
     for (const auto &attachment : attachments) {
-        std::string subtype, media_type(MediaTypeUtil::GetMediaType(attachment, &subtype));
-        if (not subtype.empty())
-            media_type += "/" + subtype;
-        message->append("Content-Type: " + media_type + "\r\n");
+        std::string data;
+        if (unlikely(not FileUtil::ReadString(attachment, &data)))
+            LOG_ERROR("failed to read content of attachment from \"" + attachment + "\"!");
+        message->append("Content-Type: " + MediaTypeUtil::GetMediaType(data) + "\r\n");
+        message->append("Content-Disposition: attachment; filename=\"" + FileUtil::GetBasename(attachment) + "\"\r\n");
+        message->append("Content-Transfer-Encoding: base64\r\n");
         message->append("\r\n");
         unsigned line_length(0);
-        for (const char ch : Base64Encode(attachment)) {
+        for (const char ch : Base64Encode(data)) {
             *message += ch;
             ++line_length;
             if (line_length == MAX_ENCODED_LINE_LENGTH) {
