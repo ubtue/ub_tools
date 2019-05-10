@@ -143,6 +143,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
         if (not augmented_record) {
             // check if the codex data is embedded directly in the 689 field
             // apparently, 689$t is repeatable and the first instance (always?) appears to be 'Katholische Kirche'
+            std::vector<std::string> ranges_to_insert;
             for (const auto &_689_field : record.getTagRange("689")) {
                 if (_689_field.getFirstSubfieldWithCode('a') != "Katholische Kirche")
                     continue;
@@ -158,12 +159,14 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                 }
 
                 if (not subfield_codex.empty() and not subfield_year.empty() and not subfield_part.empty()) {
-                    const auto range(FieldToCanonLawCode(record.getControlNumber(), subfield_codex, subfield_year, subfield_part));
-                    record.insertField("CAL", { { 'a', range } });
+                    ranges_to_insert.emplace_back(FieldToCanonLawCode(record.getControlNumber(), subfield_codex, subfield_year, subfield_part));
                     augmented_record = true;
                     ++reference_counts["689*"];
                 }
             }
+
+            for (const auto &range : ranges_to_insert)
+                record.insertField("CAL", { { 'a', range } });
         }
 
         if (augmented_record)
