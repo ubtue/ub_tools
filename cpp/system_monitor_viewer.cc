@@ -20,6 +20,7 @@
 #include <unordered_map>
 #include <ctime>
 #include "BinaryIO.h"
+#include "Compiler.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "IniFile.h"
@@ -166,16 +167,73 @@ void LoadSystemMonitorLog(const std::string &log_path, const std::unordered_map<
 }
 
 
-void GetDataRange(const time_t time_start, const time_t time_end, const std::vector<Datapoint> &data,
-                  std::vector<Datapoint>::const_iterator * const begin, std::vector<Datapoint>::const_iterator * const end)
-{
-    // The list should be sorted at this point
-    *begin = std::lower_bound(data.begin(), data.end(), Datapoint("", time_start, ""));
-    *end = std::upper_bound(data.begin(), data.end(), Datapoint("", time_end, ""));
+enum class TimeUnit {
+    SECOND, MINUTE, HOUR, DAY, WEEK, MONTH
+};
+
+
+void CalculateBestTimeScale(const time_t time_start, const time_t time_end, TimeUnit * const time_unit) {
+    static const std::map<TimeUnit, unsigned> THRESHOLDS_IN_SECONDS{
+        { TimeUnit::SECOND, 0                  },   // default granularity
+        { TimeUnit::MINUTE, 2 * 60             },   // 2 minutes
+        { TimeUnit::HOUR,   5 * 3600           },   // 5 hours
+        { TimeUnit::DAY,    5 * 24 * 3600      },   // 5 days
+        { TimeUnit::WEEK,   2 * 7 * 24 * 3600  },   // 2 weeks
+        { TimeUnit::MONTH,  2 * 30 * 24 * 3600 },   // 2 months
+    };
+
+    const time_t time_difference(time_end - time_start);
+    if (time_difference > THRESHOLDS_IN_SECONDS.at(TimeUnit::MONTH))
+        *time_unit = TimeUnit::MONTH;
+    else if (time_difference > THRESHOLDS_IN_SECONDS.at(TimeUnit::WEEK))
+        *time_unit = TimeUnit::WEEK;
+    else if (time_difference > THRESHOLDS_IN_SECONDS.at(TimeUnit::DAY))
+        *time_unit = TimeUnit::DAY;
+    else if (time_difference > THRESHOLDS_IN_SECONDS.at(TimeUnit::HOUR))
+        *time_unit = TimeUnit::HOUR;
+    else if (time_difference > THRESHOLDS_IN_SECONDS.at(TimeUnit::MINUTE))
+        *time_unit = TimeUnit::MINUTE;
+    else
+        *time_unit = TimeUnit::SECOND;
 }
 
 
-unsigned WritePlotDataToDisk(const std::string &output_path, const std::vector<std::string> &labels,
+void GetDataRange(const time_t time_start, const time_t time_end, const std::vector<Datapoint> &data,
+                  std::vector<Datapoint>::const_iterator * const begin, std::vector<Datapoint>::const_iterator * const end)
+{
+    // the list should be sorted at this point
+    *begin = std::lower_bound(data.begin(), data.end(), Datapoint("", time_start, ""));
+    *end = std::upper_bound(data.begin(), data.end(), Datapoint("", time_end, ""));
+
+    // if the range end is the last element, then we want the iterator to point to the last valid element
+    if (*end == data.end() and not data.empty())
+        --*end;
+}
+
+
+float GetScaledTimestamp(const time_t timestamp, const time_t time_start, const TimeUnit time_unit) {
+    if (unlikely((timestamp < time_start)))
+        LOG_ERROR("timestamp is older than the beginning of the range");
+
+    const time_t time_difference(timestamp - time_start);
+    switch (time_unit) {
+    case TimeUnit::SECOND:
+        return timestamp;
+    case TimeUnit::MINUTE:
+        return time_difference / 60.f;
+    case TimeUnit::HOUR:
+        return time_difference / 3600.f;
+    case TimeUnit::DAY:
+        return time_difference / 24.f * 3600.f;
+    case TimeUnit::WEEK:
+        return time_difference / 7.f * 24.f * 3600.f;
+    case TimeUnit::MONTH:
+        return time_difference / 30.f * 24.f * 3600.f;
+    }
+}
+
+
+unsigned WritePlotDataToDisk(const std::string &output_path, const std::vector<std::string> &labels, const TimeUnit time_unit,
                              const std::vector<Datapoint>::const_iterator &data_begin, const std::vector<Datapoint>::const_iterator &data_end)
 {
     // We expect the values of the labels to use the same axis/scale
@@ -184,9 +242,8 @@ unsigned WritePlotDataToDisk(const std::string &output_path, const std::vector<s
 
     auto plot_data(FileUtil::OpenOutputFileOrDie(output_path));
 
-    plot_data->writeln("#\t" + StringUtil::Join(labels, SEPARATOR_CHARACTER));
-
     time_t current_write_timestamp(TimeUtil::BAD_TIME_T);
+    const time_t time_start(data_begin->timestamp_);
     std::map<std::string, std::string> current_write_timestamp_values;
     unsigned lines_written(0);
 
@@ -199,7 +256,8 @@ unsigned WritePlotDataToDisk(const std::string &output_path, const std::vector<s
         }
 
         if (not current_write_timestamp_values.empty()) {
-            std::string out_line(std::to_string(current_write_timestamp) + SEPARATOR_CHARACTER);
+            const auto scaled_timestamp(GetScaledTimestamp(current_write_timestamp, time_start, time_unit));
+            std::string out_line(std::to_string(scaled_timestamp) + SEPARATOR_CHARACTER);
             for (const auto &label : labels) {
                 const auto value(current_write_timestamp_values.find(label));
                 if (value != current_write_timestamp_values.end())
@@ -216,7 +274,8 @@ unsigned WritePlotDataToDisk(const std::string &output_path, const std::vector<s
     }
 
     if (not current_write_timestamp_values.empty()) {
-        std::string out_line(std::to_string(current_write_timestamp) + SEPARATOR_CHARACTER);
+        const auto scaled_timestamp(GetScaledTimestamp(current_write_timestamp, time_start, time_unit));
+        std::string out_line(std::to_string(scaled_timestamp) + SEPARATOR_CHARACTER);
         for (const auto &label : labels) {
             const auto value(current_write_timestamp_values.find(label));
             if (value != current_write_timestamp_values.end())
@@ -232,21 +291,44 @@ unsigned WritePlotDataToDisk(const std::string &output_path, const std::vector<s
 }
 
 
-void DisplayPlot(const std::string &data_path, const std::string &script_path, const std::string &plot_path) {
+void DisplayPlot(const std::string &data_path, const std::string &script_path, const std::string &plot_path, const TimeUnit time_unit) {
     if (not FileUtil::Exists(data_path))
         LOG_ERROR("data file for plotting does not exist at " + data_path);
     else if (not FileUtil::Exists(script_path))
         LOG_ERROR("script file for plotting does not exist at " + script_path);
 
-    const std::vector<std::string> gnuplot_args {
+    std::string time_unit_label;
+    switch (time_unit) {
+    case TimeUnit::SECOND:
+        time_unit_label = "Seconds";
+        break;
+    case TimeUnit::MINUTE:
+        time_unit_label = "Minutes";
+        break;
+    case TimeUnit::HOUR:
+        time_unit_label = "Hours";
+        break;
+    case TimeUnit::DAY:
+        time_unit_label = "Days";
+        break;
+    case TimeUnit::WEEK:
+        time_unit_label = "Weeks";
+        break;
+    case TimeUnit::MONTH:
+        time_unit_label = "Months";
+        break;
+    }
+
+    const std::vector<std::string> gnuplot_args{
         "-c",
         script_path,
         data_path,
         plot_path,
+        time_unit_label
     };
     ExecUtil::ExecOrDie("/usr/bin/gnuplot", gnuplot_args);
 
-    const std::vector<std::string> xdg_args {
+    const std::vector<std::string> xdg_args{
         plot_path
     };
 
@@ -325,8 +407,10 @@ int Main(int argc, char *argv[]) {
 
     std::vector<Datapoint> log_data;
     std::vector<Datapoint>::const_iterator data_range_start, data_range_end;
+    TimeUnit time_window_unit;
     LoadSystemMonitorLog(log_file, ordinal_to_label_map, &log_data);
     GetDataRange(time_start, time_end, log_data, &data_range_start, &data_range_end);
+    CalculateBestTimeScale(data_range_start->timestamp_, data_range_end->timestamp_, &time_window_unit);
 
     if (data_range_start == log_data.end())
         LOG_ERROR("found no data that was newer than the given range's beginning");
@@ -345,10 +429,10 @@ int Main(int argc, char *argv[]) {
         return EXIT_SUCCESS;
     }
 
-    if (WritePlotDataToDisk(plot_data_file, labels, data_range_start, data_range_end) == 0)
+    if (WritePlotDataToDisk(plot_data_file, labels, time_window_unit, data_range_start, data_range_end) == 0)
         LOG_WARNING("found no data for the given time range");
     else
-        DisplayPlot(plot_data_file, plot_script_file, output_filename);
+        DisplayPlot(plot_data_file, plot_script_file, output_filename, time_window_unit);
 
     return EXIT_SUCCESS;
 }
