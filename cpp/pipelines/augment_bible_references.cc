@@ -398,7 +398,7 @@ bool FindGndCodes(const std::string &tags, const MARC::Record &record,
                     for (const auto &range : gnd_code_and_ranges->second)
                         ranges->insert(range.first + ":" + range.second);
                 } else
-                    LOG_INFO(record.getControlNumber() + ": GND code \"" + gnd_code + "\" was not found in our map.");
+                    LOG_DEBUG(record.getControlNumber() + ": GND code \"" + gnd_code + "\" was not found in our map.");
             }
         }
     }
