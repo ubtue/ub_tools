@@ -296,7 +296,7 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, const OSSy
             std::cout << "creating " << ixtheo_database << " database\n";
             DbConnection::MySQLCreateDatabase(ixtheo_database, root_username, root_password);
             DbConnection::MySQLCreateUser(ixtheo_username, ixtheo_password, root_username, root_password);
-            DbConnection::MySQLGrantAllPrivileges(sql_database, ixtheo_username, root_username, root_password);
+            DbConnection::MySQLGrantAllPrivileges(ixtheo_database, ixtheo_username, root_username, root_password);
             DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ixtheo.sql", ixtheo_database, root_username, root_password);
         }
     }
