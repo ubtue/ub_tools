@@ -56,10 +56,11 @@ std::string EncodeBase10ToBase62(const std::string &base10_number) {
 unsigned long long DecodeBase62ToBinary(const std::string &base62_number) {
     unsigned long long binary_number(0);
     for (const char ch : base62_number) {
-        if (not ((ch >= '0' and ch <= '9') or (ch >= 'a' and ch <= 'z') or (ch >= 'A' and ch <= 'Z'))) // Assuming ASCII.
+        const auto position(std::strchr(BASE62_DIGITS, ch));
+        if (position == nullptr)
             LOG_ERROR("not a base 10 digit '" + std::string(1, ch) + "'!");
         binary_number *= 62u;
-        binary_number += std::strchr(BASE62_DIGITS, ch) - BASE62_DIGITS;
+        binary_number += position - BASE62_DIGITS;
     }
 
     return binary_number;
