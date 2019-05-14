@@ -57,7 +57,7 @@ unsigned long long DecodeBase62ToBinary(const std::string &base62_number) {
     unsigned long long binary_number(0);
     for (const char ch : base62_number) {
         const auto position(std::strchr(BASE62_DIGITS, ch));
-        if (position == nullptr)
+        if (unlikely(position == nullptr))
             LOG_ERROR("not a base 10 digit '" + std::string(1, ch) + "'!");
         binary_number *= 62u;
         binary_number += position - BASE62_DIGITS;
