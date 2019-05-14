@@ -82,7 +82,7 @@ wait
 if [[ $(date +%d) == "01" ]]; then # Only do this on the 1st of every month.
     echo "*** Occasional Phase: Checking Rule Violations ***" | tee --append "${log}"
     marc_check --check-rule-violations-only GesamtTiteldaten-"${date}".mrc \
-               /usr/local/var/lib/tuelib/marc_check.rules /usr/local/var/lib/tuelib/marc_check_rule_violations.log >> "${log}" 2>&1 && 
+               /usr/local/var/lib/tuelib/marc_check.rules /usr/local/var/lib/tuelib/marc_check_rule_violations.log >> "${log}" 2>&1 &&
     if [ -s /usr/local/var/lib/tuelib/marc_check_rule_violations.log ]; then
         send_email --priority=high \
                    --recipients=ixtheo-team@ub.uni-tuebingen.de \
@@ -224,13 +224,6 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
-StartPhase "Tag Canon Law and Bible Study Records"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(tag_canon_law_and_bible_studies_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-
-
 StartPhase "Update IxTheo Notations"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (update_ixtheo_notations \
@@ -312,17 +305,17 @@ EndPhase || Abort) &
 
 
 StartPhase "Add Entries for Subscription Bundles and Tag Journals"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_subscription_bundle_entries GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Add Tags for subsystems"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_subsystem_tags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-wait
 
 
 StartPhase "Tag PDA candidates"
