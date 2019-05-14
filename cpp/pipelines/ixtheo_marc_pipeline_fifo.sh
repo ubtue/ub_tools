@@ -312,10 +312,10 @@ wait
 
 
 StartPhase "Add Tags for subsystems"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_subsystem_tags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Tag PDA candidates"
