@@ -34,8 +34,8 @@ namespace {
 
 
 const char BASE62_DIGITS[]("0123456789"
-                           "abcdefghijklmnopqrstuvwxyz"
-                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                           "abcdefghijklmnopqrstuvwxyz");
 
 
 std::string EncodeBase10ToBase62(const std::string &base10_number) {
