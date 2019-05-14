@@ -78,4 +78,8 @@ public class IxTheo extends SolrIndexerMixin {
 
         return translated_topics;
     }
+
+    public String getIsCanonLaw(final Record record) {
+        return record.getVariableFields("CAN").isEmpty() ? "false" : "true";
+    }
 }
