@@ -1,4 +1,4 @@
-/** \file    add_additional_relbib_entries.cc
+/** \file    tag_canon_law_and_bible_studies_records.cc
  *  \author  Dr. Johannes Ruscheinski
  *
  *  A tool for tagging entries that are relevant for bible studies and canon law.
@@ -32,12 +32,6 @@
 
 
 namespace {
-
-
-[[noreturn]] void Usage() {
-    ::Usage("marc_input marc_output\n"
-            "Tags entries that are relevant for bible studies and canon law.");
-}
 
 
 // See https://github.com/ubtue/tuefind/wiki/Daten-Abzugskriterien#abzugskriterien-bibelwissenschaften for the documentation.
@@ -215,7 +209,8 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 
 int Main(int argc, char **argv) {
     if (argc != 3)
-        Usage();
+        ::Usage("marc_input marc_output\n"
+                "Tags entries that are relevant for bible studies and canon law.");
 
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
