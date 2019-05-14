@@ -224,6 +224,13 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
+StartPhase "Tag Canon Law and Bible Study Records"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(tag_canon_law_and_bible_studies_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Update IxTheo Notations"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (update_ixtheo_notations \
