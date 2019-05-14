@@ -25,6 +25,7 @@
 /augment_canones_references
 /augment_pda
 /base_tar_unpacker
+/base62_coder
 /base64_coder
 /bib_ref_to_codes_tool
 /categorise_marc
