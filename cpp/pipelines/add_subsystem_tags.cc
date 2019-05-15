@@ -69,7 +69,7 @@ void CollectGNDNumbers(const std::string &authority_records_filename, std::unord
 
     LOG_INFO("Processed " + std::to_string(record_count) + " authority record(s) and found "
              + std::to_string(bible_studies_gnd_numbers->size()) + " bible studies and " + std::to_string(canon_law_gnd_numbers->size())
-             + " GND number(s).");
+             + " canon law GND number(s).");
 }
 
 
@@ -367,8 +367,7 @@ bool IsCanonLawRecord(const MARC::Record &record, const std::unordered_set<std::
 }
 
 
-enum SubSystem { RELBIB, BIBSTUDIES, CANON_LAW };
-const unsigned NUM_OF_SUBSYSTEMS(3);
+enum SubSystem { RELBIB, BIBSTUDIES, CANON_LAW, NUM_OF_SUBSYSTEMS };
 
 
 // Get set of immediately belonging or superior or parallel records
@@ -391,6 +390,10 @@ void GetSubsystemPPNSet(MARC::Reader * const marc_reader,
             CollectSuperiorOrParallelWorks(record, &((*subsystem_sets)[CANON_LAW]));
         }
     }
+
+    LOG_INFO("collected " + std::to_string((*subsystem_sets)[RELBIB].size()) + " RelBib PPN's.");
+    LOG_INFO("collected " + std::to_string((*subsystem_sets)[BIBSTUDIES].size()) + " BibStudies PPN's.");
+    LOG_INFO("collected " + std::to_string((*subsystem_sets)[CANON_LAW].size()) + " CanonLaw PPN's.");
 }
 
 
@@ -410,7 +413,7 @@ void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const mar
             AddSubsystemTag(&record, RELBIB_TAG);
             modified_record = true;
         }
-        if ((subsystem_sets[BIBSTUDIES]).find(record.getControlNumber()) != subsystem_sets[RELBIB].end()) {
+        if ((subsystem_sets[BIBSTUDIES]).find(record.getControlNumber()) != subsystem_sets[BIBSTUDIES].end()) {
             AddSubsystemTag(&record, BIBSTUDIES_TAG);
             modified_record = true;
         }
@@ -426,12 +429,6 @@ void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const mar
 }
 
 
-void InitializeSubsystemPPNSets(std::vector<std::unordered_set<std::string>> * const subsystem_ppn_sets) {
-    for (unsigned i(0); i < NUM_OF_SUBSYSTEMS; ++i)
-        subsystem_ppn_sets->push_back(std::unordered_set<std::string>());
-}
-
-
 } //unnamed namespace
 
 
@@ -440,16 +437,14 @@ int Main(int argc, char **argv) {
         ::Usage("marc_input authority_records marc_output");
 
     const std::string marc_input_filename(argv[1]);
-    const std::string marc_output_filename(argv[2]);
+    const std::string marc_output_filename(argv[3]);
     if (unlikely(marc_input_filename == marc_output_filename))
         LOG_ERROR("Title data input file name equals output file name!");
 
     std::unordered_set<std::string> bible_studies_gnd_numbers, canon_law_gnd_numbers;
     CollectGNDNumbers(argv[2], &bible_studies_gnd_numbers, &canon_law_gnd_numbers);
 
-    std::vector<std::unordered_set<std::string>> subsystem_sets;
-    InitializeSubsystemPPNSets(&subsystem_sets);
-
+    std::vector<std::unordered_set<std::string>> subsystem_sets(NUM_OF_SUBSYSTEMS);
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
     GetSubsystemPPNSet(marc_reader.get(), bible_studies_gnd_numbers, canon_law_gnd_numbers, &subsystem_sets);
     marc_reader->rewind();
