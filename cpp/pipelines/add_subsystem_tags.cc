@@ -54,7 +54,7 @@ void CollectGNDNumbers(const std::string &authority_records_filename, std::unord
             if (subfields.hasSubfieldWithValue('2', "ssgn")) {
                 for (const auto &subfield : subfields) {
                     std::string gnd_code;
-                    if (subfield.code_ == 'a' and StringUtil::StartsWith(subfield.value_, "3,2") and MARC::GetGNDCode(record, &gnd_code))
+                    if (subfield.code_ == 'a' and StringUtil::StartsWith(subfield.value_, "3.2") and MARC::GetGNDCode(record, &gnd_code))
                         bible_studies_gnd_numbers->emplace(gnd_code);
                 }
             }
