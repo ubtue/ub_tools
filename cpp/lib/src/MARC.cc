@@ -823,6 +823,22 @@ std::set<std::string> Record::getRVKs() const {
 }
 
 
+std::set<std::string> Record::getReferencedGNDNumbers() const {
+    std::set<std::string>  referenced_gnd_numbers;
+    for (const auto &field : fields_) {
+        const char FIRST_TAG_CHAR(field.getTag().c_str()[0]);
+        if (FIRST_TAG_CHAR == '6' or FIRST_TAG_CHAR == 'L') {
+            for (const auto &subfield : field.getSubfields()) {
+                if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-588)"))
+                    referenced_gnd_numbers.emplace(subfield.value_.substr(__builtin_strlen("(DE-588)")));
+            }
+        }
+    }
+
+    return referenced_gnd_numbers;
+}
+
+
 bool Record::getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_synonyms) {
     if (unlikely(getRecordType() != RecordType::AUTHORITY))
         LOG_ERROR("this function can only be applied to an authority record!");
