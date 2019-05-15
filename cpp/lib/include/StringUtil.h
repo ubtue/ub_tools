@@ -308,8 +308,8 @@ inline std::string TrimWhite(const char * const s) { return TrimWhite(std::strin
 /** \brief  Convert a number to a string.
  *  \param  n              The number to convert.
  *  \param  radix          The base to use for the resulting string representation.
- *  \param  width          If this is < 0 then pad resulting string up to width on the left, if this is > 0 then pad resulting string up to width on the right.
- *                         Default is 0 (do not pad).
+ *  \param  width          If this is < 0 then pad resulting string up to width on the left, if this is > 0
+ *                         then pad resulting string up to width on the right.  Default is 0 (do not pad).
  *  \param  padding_char   Used to pad the resulting string
  *  \param  grouping_char  If non-NUL, this character will be inserted after each group of "grouping_size" characters
  *                         starting at the end of the string.  Should this rule result in a leading character position
@@ -322,9 +322,9 @@ template <typename IntegerType> std::string ToString(IntegerType n, const unsign
                                                      const char padding_char = ' ', const char grouping_char = '\0',
                                                      const unsigned grouping_size = 3)
 {
-    assert(radix >= 2 and radix <= 36);
+    assert(radix >= 2 and radix <= 62);
 
-    static const char DIGITS[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    static const char DIGITS[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     char buf[129 + 1]; // enough room for a base-2 negative 128 bit number
     char *cp = buf + sizeof(buf) - 1;
     *cp = '\0';
