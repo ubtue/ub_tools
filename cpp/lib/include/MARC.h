@@ -517,11 +517,13 @@ public:
 
     /** \return All author names in fields 100$a and 700$a. */
     std::set<std::string> getAllAuthors() const;
+
     std::set<std::string> getDOIs() const;
     std::set<std::string> getISSNs() const;
     std::set<std::string> getISBNs() const;
     std::set<std::string> getDDCs() const;
     std::set<std::string> getRVKs() const;
+    std::set<std::string> getReferencedGNDNumbers() const;
 
     /** \brief  Extracts a keyword and its synonyms from an authority record.
      *  \note   Aborts if the record is not an authority record.
