@@ -251,3 +251,8 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
                                                  { "error_message", entry_url.error_message_ } });
     }
 }
+
+
+bool FullTextCache::deleteEntry(const std::string &id) {
+    return full_text_cache_.deleteDocument(id) and full_text_cache_urls_.deleteDocument(id);
+}
