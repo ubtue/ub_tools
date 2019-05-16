@@ -176,8 +176,6 @@ std::string GetFileMediaType(const std::string &filename, const bool auto_simpli
 
     if (StringUtil::StartsWith(media_type, "application/octet-stream")) {
         const auto input(FileUtil::OpenInputFileOrDie(filename));
-        if (unlikely(input->anErrorOccurred()))
-            LOG_ERROR("failed to open \"" + filename + "\" for reading!");
         char * const buf(reinterpret_cast<char *>(::alloca(LZ4_MAGIC.size())));
         if ((input->read(buf, LZ4_MAGIC.size()) == LZ4_MAGIC.size()) and std::strncmp(LZ4_MAGIC.c_str(), buf, LZ4_MAGIC.size()) == 0)
             return "application/lz4";
