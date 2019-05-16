@@ -194,7 +194,7 @@ enum ParseState { NORMAL, IN_DOUBLE_DASH_COMMENT, IN_C_STYLE_COMMENT, IN_STRING_
 void AddStatement(const std::string &statement_candidate, std::vector<std::string> * const individual_statements) {
     static RegexMatcher *create_trigger_matcher(
         RegexMatcher::RegexMatcherFactoryOrDie("^CREATE\\s+(TEMP|TEMPORARY)?\\s+TRIGGER",
-                                   RegexMatcher::ENABLE_UTF8 | RegexMatcher::CASE_INSENSITIVE));
+                                               RegexMatcher::ENABLE_UTF8 | RegexMatcher::CASE_INSENSITIVE));
 
     if (individual_statements->empty())
         individual_statements->emplace_back(statement_candidate);
@@ -293,6 +293,39 @@ bool DbConnection::queryFile(const std::string &filename) {
 void DbConnection::queryFileOrDie(const std::string &filename) {
     if (not queryFile(filename))
         LOG_ERROR("failed to execute statements from \"" + filename + "\"!");
+}
+
+
+void DbConnection::backupOrDie(const std::string &output_filename) {
+    if (type_ != T_SQLITE)
+        LOG_ERROR("only Sqlite is supported at this time!");
+
+    sqlite3 *sqlite3_backup_file;
+    int return_code;
+    if ((return_code = ::sqlite3_open(output_filename.c_str(), &sqlite3_backup_file)) != SQLITE_OK)
+        LOG_ERROR("failed to create backup to \"" + output_filename + "\": " + std::string(::sqlite3_errmsg(sqlite3_backup_file)));
+
+    sqlite3_backup *backup_handle(::sqlite3_backup_init(sqlite3_backup_file, "main", sqlite3_, "main"));
+    if (backup_handle == nullptr)
+        LOG_ERROR("failed to initialize Sqlite3 backup to \"" + output_filename
+                  + "\": there is already a read or read-write transaction open on the destination database!");
+
+    const int DATABASE_PAGE_COUNT(5); // How many pages to copy to the backup at each iteration.
+    const int SLEEP_INTERVAL(250);    // in milliseconds.
+    bool backup_incomplete;
+    do {
+        return_code = ::sqlite3_backup_step(backup_handle, DATABASE_PAGE_COUNT);
+        backup_incomplete = return_code == SQLITE_OK or return_code == SQLITE_BUSY or return_code == SQLITE_LOCKED;
+        if (backup_incomplete)
+            ::sqlite3_sleep(SLEEP_INTERVAL);
+    } while (backup_incomplete);
+    ::sqlite3_backup_finish(backup_handle);
+
+    return_code = ::sqlite3_errcode(sqlite3_backup_file);
+    if (return_code != SQLITE_OK)
+        LOG_ERROR("an error occurred during the backup to \"" + output_filename + "\": "
+                  + std::string(::sqlite3_errmsg(sqlite3_backup_file)));
+    ::sqlite3_close(sqlite3_backup_file);
 }
 
 
