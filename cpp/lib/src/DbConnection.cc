@@ -317,8 +317,8 @@ bool DbConnection::backup(const std::string &output_filename, std::string * cons
         return false;
     }
 
-    const int DATABASE_PAGE_COUNT(5); // How many pages to copy to the backup at each iteration.
-    const int SLEEP_INTERVAL(250);    // in milliseconds.
+    const int DATABASE_PAGE_COUNT(500); // How many pages to copy to the backup at each iteration.
+    const int SLEEP_INTERVAL(100);      // in milliseconds.
     bool backup_incomplete;
     do {
         return_code = ::sqlite3_backup_step(backup_handle, DATABASE_PAGE_COUNT);
