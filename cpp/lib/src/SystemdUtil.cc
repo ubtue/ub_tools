@@ -26,7 +26,7 @@
 
 
 const std::string SYSTEMD_EXECUTABLE("systemctl");
-const std::string SYSTEMD_SERVICE_DIRECTORY("/usr/local/lib/systemd/system/");
+const std::string SYSTEMD_SERVICE_DIRECTORY("/etc/systemd/system/");
 
 
 bool SystemdUtil::IsAvailable() {
