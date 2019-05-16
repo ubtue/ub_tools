@@ -62,7 +62,8 @@ std::string GetHtmlMediaType(const std::string &document) {
 }
 
 
-static std::string LZ4_MAGIC("\000\042\115\030");
+static const std::string LZ4_MAGIC("\000\042\115\030", 4);
+static const std::string KYOTOCABINET_MAGIC("KC\n");
 
 
 // GetMediaType -- Get the media type of a document.
@@ -77,10 +78,14 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
         return media_type;
 
     // 2. Check for LZ4 compression:
-    if (document.substr(0, 4) == LZ4_MAGIC)
+    if (document.substr(0, LZ4_MAGIC.length()) == LZ4_MAGIC)
         return "application/lz4";
 
-    // 3. Next try libmagic:
+    // 3. Check for a kyotocabinet database:
+    if (document.substr(0, KYOTOCABINET_MAGIC.length()) == KYOTOCABINET_MAGIC)
+        return "application/kyotocabinet";
+
+    // 4. Next try libmagic:
     const magic_t cookie = ::magic_open(MAGIC_MIME);
     if (unlikely(cookie == nullptr))
         throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not open libmagic!");
@@ -170,12 +175,14 @@ std::string GetFileMediaType(const std::string &filename, const bool auto_simpli
         SimplifyMediaType(&media_type);
 
     if (StringUtil::StartsWith(media_type, "application/octet-stream")) {
-        File input(filename, "r");
-        if (unlikely(input.anErrorOccurred()))
-            logger->error("in MediaTypeUtil::GetFileMediaType: failed to open \"" + filename + "\" for reading!");
+        const auto input(FileUtil::OpenInputFileOrDie(filename));
+        if (unlikely(input->anErrorOccurred()))
+            LOG_ERROR("failed to open \"" + filename + "\" for reading!");
         char * const buf(reinterpret_cast<char *>(::alloca(LZ4_MAGIC.size())));
-        if ((input.read(buf, sizeof(buf)) == sizeof(buf)) and std::strncmp(LZ4_MAGIC.c_str(), buf, LZ4_MAGIC.size()) == 0)
+        if ((input->read(buf, LZ4_MAGIC.size()) == LZ4_MAGIC.size()) and std::strncmp(LZ4_MAGIC.c_str(), buf, LZ4_MAGIC.size()) == 0)
             return "application/lz4";
+        if (LZ4_MAGIC.size() >= KYOTOCABINET_MAGIC.size() and std::strncmp(KYOTOCABINET_MAGIC.c_str(), buf, KYOTOCABINET_MAGIC.size()) == 0)
+            return "application/kyotocabinet";
     }
 
     return media_type;
