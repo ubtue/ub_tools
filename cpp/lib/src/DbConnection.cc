@@ -296,19 +296,26 @@ void DbConnection::queryFileOrDie(const std::string &filename) {
 }
 
 
-void DbConnection::backupOrDie(const std::string &output_filename) {
-    if (type_ != T_SQLITE)
-        LOG_ERROR("only Sqlite is supported at this time!");
+bool DbConnection::backup(const std::string &output_filename, std::string * const err_msg) {
+    if (type_ != T_SQLITE) {
+        *err_msg = "only Sqlite is supported at this time!";
+        return false;
+    }
 
     sqlite3 *sqlite3_backup_file;
     int return_code;
-    if ((return_code = ::sqlite3_open(output_filename.c_str(), &sqlite3_backup_file)) != SQLITE_OK)
-        LOG_ERROR("failed to create backup to \"" + output_filename + "\": " + std::string(::sqlite3_errmsg(sqlite3_backup_file)));
+    if ((return_code = ::sqlite3_open(output_filename.c_str(), &sqlite3_backup_file)) != SQLITE_OK) {
+        *err_msg = "failed to create backup to \"" + output_filename + "\": " + std::string(::sqlite3_errmsg(sqlite3_backup_file));
+        return false;
+    }
 
     sqlite3_backup *backup_handle(::sqlite3_backup_init(sqlite3_backup_file, "main", sqlite3_, "main"));
-    if (backup_handle == nullptr)
-        LOG_ERROR("failed to initialize Sqlite3 backup to \"" + output_filename
-                  + "\": there is already a read or read-write transaction open on the destination database!");
+    if (backup_handle == nullptr) {
+        ::sqlite3_close(sqlite3_backup_file);
+        *err_msg = "failed to initialize Sqlite3 backup to \"" + output_filename
+                   + "\": there is already a read or read-write transaction open on the destination database!";
+        return false;
+    }
 
     const int DATABASE_PAGE_COUNT(5); // How many pages to copy to the backup at each iteration.
     const int SLEEP_INTERVAL(250);    // in milliseconds.
@@ -322,10 +329,21 @@ void DbConnection::backupOrDie(const std::string &output_filename) {
     ::sqlite3_backup_finish(backup_handle);
 
     return_code = ::sqlite3_errcode(sqlite3_backup_file);
-    if (return_code != SQLITE_OK)
-        LOG_ERROR("an error occurred during the backup to \"" + output_filename + "\": "
-                  + std::string(::sqlite3_errmsg(sqlite3_backup_file)));
     ::sqlite3_close(sqlite3_backup_file);
+    if (return_code != SQLITE_OK) {
+        *err_msg = "an error occurred during the backup to \"" + output_filename + "\": "
+                   + std::string(::sqlite3_errmsg(sqlite3_backup_file));
+        return false;
+    }
+
+    return true;
+}
+
+
+void DbConnection::backupOrDie(const std::string &output_filename) {
+    std::string err_msg;
+    if (not backup(output_filename, &err_msg))
+        LOG_ERROR(err_msg);
 }
 
 
