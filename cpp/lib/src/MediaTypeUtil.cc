@@ -146,21 +146,19 @@ std::string GetMediaType(const std::string &document, std::string * const subtyp
 std::string GetFileMediaType(const std::string &filename, const bool auto_simplify) {
     const magic_t cookie(::magic_open(MAGIC_MIME | MAGIC_SYMLINK));
     if (unlikely(cookie == nullptr))
-        throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not open libmagic!");
+        LOG_ERROR("could not open libmagic!");
 
     // Load the default "magic" definitions file:
     if (unlikely(::magic_load(cookie, nullptr /* use default magic file */) != 0)) {
         ::magic_close(cookie);
-        throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not load libmagic ("
-                                 + std::string(::magic_error(cookie)) + ").");
+        LOG_ERROR("could not load libmagic (" + std::string(::magic_error(cookie)) + ").");
     }
 
     // Use magic to get the mime type of the buffer:
     const char *magic_mime_type(::magic_file(cookie, filename.c_str()));
     if (unlikely(magic_mime_type == nullptr)) {
         ::magic_close(cookie);
-        throw std::runtime_error("in MediaTypeUtil::GetFileMediaType: error in libmagic ("
-                                 + std::string(::magic_error(cookie)) + ").");
+        LOG_ERROR("error in libmagic (" + std::string(::magic_error(cookie)) + ").");
     }
 
     // Attempt to remove possible leading junk (no idea why libmagic behaves in this manner every now and then):
