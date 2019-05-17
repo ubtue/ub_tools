@@ -368,7 +368,35 @@ void CreateUsrLocalRun() {
 }
 
 
-void InstallUBTools(const bool make_install, const OSSystemType os_system_type) {
+static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType system_type, const std::string &service_name) {
+    FileUtil::AutoTempDirectory temp_dir;
+
+    Template::Map names_to_values_map;
+    names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "8G");
+    const std::string vufind_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
+                                                                                        + "/" + service_name + ".service.template"),
+                                                             names_to_values_map));
+    const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
+    FileUtil::WriteStringOrDie(service_file_path, vufind_service);
+    SystemdUtil::InstallUnit(service_file_path);
+}
+
+
+static void GenerateAndInstallSystemMonitorServiceTemplate(const std::string &service_name) {
+    FileUtil::AutoTempDirectory temp_dir;
+
+    Template::Map names_to_values_map;
+    names_to_values_map.insertScalar("hostname", DnsUtil::GetHostname());
+    const std::string system_monitor_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
+                                                                                                + "/" + service_name + ".service.template"),
+                                                                      names_to_values_map));
+    const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
+    FileUtil::WriteStringOrDie(service_file_path, system_monitor_service);
+    SystemdUtil::InstallUnit(service_file_path);
+}
+
+
+void InstallUBTools(const bool make_install, const bool omit_systemctl, const OSSystemType os_system_type) {
     // First install iViaCore-mkdep...
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY + "/cpp/lib/mkdep");
     ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4", "install" });
@@ -408,6 +436,13 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     CreateUbToolsDatabase(os_system_type);
     GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
     CreateUsrLocalRun();
+
+    if (not omit_systemctl) {
+        const std::string SYSTEM_MONITOR_SERVICE("system_monitor");
+        Echo("Activating " + SYSTEM_MONITOR_SERVICE + " service...");
+        GenerateAndInstallSystemMonitorServiceTemplate(SYSTEM_MONITOR_SERVICE);
+        SystemdEnableAndRunUnit(SYSTEM_MONITOR_SERVICE);
+    }
 
     Echo("Installed ub_tools.");
 }
@@ -572,34 +607,6 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
 }
 
 
-static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType system_type, const std::string &service_name) {
-    FileUtil::AutoTempDirectory temp_dir;
-
-    Template::Map names_to_values_map;
-    names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "8G");
-    const std::string vufind_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
-                                                                                        + "/" + service_name + ".service.template"),
-                                                             names_to_values_map));
-    const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
-    FileUtil::WriteStringOrDie(service_file_path, vufind_service);
-    SystemdUtil::InstallUnit(service_file_path);
-}
-
-
-static void GenerateAndInstallSystemMonitorServiceTemplate(const std::string &service_name) {
-    FileUtil::AutoTempDirectory temp_dir;
-
-    Template::Map names_to_values_map;
-    names_to_values_map.insertScalar("hostname", DnsUtil::GetHostname());
-    const std::string system_monitor_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
-                                                                                                + "/" + service_name + ".service.template"),
-                                                                      names_to_values_map));
-    const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
-    FileUtil::WriteStringOrDie(service_file_path, system_monitor_service);
-    SystemdUtil::InstallUnit(service_file_path);
-}
-
-
 /**
  * Configure Solr User and SystemD services.
  * - Create user "solr" as system user if not exists
@@ -610,7 +617,6 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
     // note: if you wanna change username, don't do it only here, also check vufind.service!
     const std::string USER_AND_GROUP_NAME("solr");
     const std::string VUFIND_SERVICE("vufind");
-    const std::string SYSTEM_MONITOR_SERVICE("system_monitor");
 
     CreateUserIfNotExists(USER_AND_GROUP_NAME);
 
@@ -632,10 +638,6 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
         Echo("Activating " + VUFIND_SERVICE + " service...");
         GenerateAndInstallVuFindServiceTemplate(system_type, VUFIND_SERVICE);
         SystemdEnableAndRunUnit(VUFIND_SERVICE);
-
-        Echo("Activating " + SYSTEM_MONITOR_SERVICE + " service...");
-        GenerateAndInstallSystemMonitorServiceTemplate(SYSTEM_MONITOR_SERVICE);
-        SystemdEnableAndRunUnit(SYSTEM_MONITOR_SERVICE);
     }
 }
 
@@ -771,7 +773,7 @@ int Main(int argc, char **argv) {
         DownloadVuFind();
         ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, not omit_systemctl);
     }
-    InstallUBTools(/* make_install = */ true, os_system_type);
+    InstallUBTools(/* make_install = */ true, omit_systemctl, os_system_type);
     if (not ub_tools_only)
         CreateVuFindDatabases(vufind_system_type, os_system_type);
 

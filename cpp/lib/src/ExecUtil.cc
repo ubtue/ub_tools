@@ -239,7 +239,9 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &args,
 {
     int exit_code;
     if ((exit_code = Exec(command, args, new_stdin, new_stdout, new_stderr, timeout_in_seconds, tardy_child_signal, envs)) != 0)
-        LOG_ERROR("Failed to execute \"" + command + "\"! (exit code was " + std::to_string(exit_code) + ")");
+        LOG_ERROR("Failed to execute \"" + command + "\""
+                  " with args \"" + StringUtil::Join(args, ";") + "\"!"
+                  " (exit code was " + std::to_string(exit_code) + ")");
 }
 
 
