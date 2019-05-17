@@ -137,7 +137,7 @@ void StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::s
         }
         match_regex += ")\\b";
 
-        matcher.reset(RegexMatcher::RegexMatcherFactoryOrDie(match_regex));
+        matcher.reset(RegexMatcher::RegexMatcherFactoryOrDie(match_regex, RegexMatcher::ENABLE_UTF8));
     }
 
     std::string first_name_buffer(matcher->replaceAll(*first_name, "")), last_name_buffer(matcher->replaceAll(*last_name, ""));
