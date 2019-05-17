@@ -102,7 +102,7 @@ bool SetContainsOnlyArticlePPNs(const std::set<std::string> &ppns, const std::un
     for (const auto &ppn : ppns) {
         const auto ppn_and_record_info(ppns_to_infos_map.find(ppn));
         if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN "+ ppn + " is missing in ppns_to_infos_map! (1)");
+            LOG_WARNING("PPN "+ ppn + " is missing in ppns_to_infos_map! (1)");
         if (ppn_and_record_info->second.type_ != RecordInfo::ARTICLE)
             return false;
     }
