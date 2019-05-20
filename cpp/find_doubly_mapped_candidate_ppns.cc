@@ -37,17 +37,23 @@ namespace {
 void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::string, std::string> * const old_bsz_to_new_k10plus_ppns_map,
                     std::unordered_set<std::string> * const new_k10plus_ppns)
 {
+    unsigned identity_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         for (const auto &field : record.getTagRange("035")) {
             new_k10plus_ppns->emplace(record.getControlNumber());
             const auto subfield_a(field.getFirstSubfieldWithCode('a'));
             if (StringUtil::StartsWith(subfield_a, "(DE-576)")) {
-                (*old_bsz_to_new_k10plus_ppns_map)[subfield_a.substr(__builtin_strlen( "(DE-576)"))] = record.getControlNumber();
+                const std::string old_bsz_ppn(subfield_a.substr(__builtin_strlen( "(DE-576)")));
+                if (unlikely(old_bsz_ppn == record.getControlNumber()))
+                    ++identity_count;
+                else
+                    (*old_bsz_to_new_k10plus_ppns_map)[old_bsz_ppn] = record.getControlNumber();
                 continue;
             }
         }
     }
 
+    LOG_INFO("Found " + std::to_string(identity_count) + " identity mappings.");
     LOG_INFO("Found " + std::to_string(old_bsz_to_new_k10plus_ppns_map->size()) + " mappings of old BSZ PPN's to new K10+ PPN's.");
 }
 
