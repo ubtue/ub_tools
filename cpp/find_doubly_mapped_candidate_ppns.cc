@@ -78,9 +78,8 @@ int Main(int argc, char *argv[]) {
 
     std::unordered_map<std::string, std::string> k10plus_to_k10plus_map;
     for (const auto &bsz_and_k10plus_ppns : old_bsz_to_new_k10plus_ppns_map) {
-        auto k10plus_ppn(new_k10plus_ppns.find(bsz_and_k10plus_ppns.first));
-        if (k10plus_ppn != new_k10plus_ppns.cend()) {
-            std::string last_k10_plus_ppn(*k10plus_ppn);
+        if (new_k10plus_ppns.find(bsz_and_k10plus_ppns.first) != new_k10plus_ppns.cend()) {
+            std::string last_k10_plus_ppn(bsz_and_k10plus_ppns.first);
             for (;;) {
                 auto bsz_and_k10plus_ppn2(old_bsz_to_new_k10plus_ppns_map.find(last_k10_plus_ppn));
                 if (bsz_and_k10plus_ppn2 == old_bsz_to_new_k10plus_ppns_map.cend())
