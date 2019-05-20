@@ -37,7 +37,7 @@ namespace {
 void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::string, std::string> * const old_bsz_to_new_k10plus_ppns_map,
                     std::unordered_set<std::string> * const new_k10plus_ppns)
 {
-    unsigned identity_count(0);
+    unsigned identity_count(0), old_to_new_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         for (const auto &field : record.getTagRange("035")) {
             new_k10plus_ppns->emplace(record.getControlNumber());
@@ -46,15 +46,17 @@ void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::st
                 const std::string old_bsz_ppn(subfield_a.substr(__builtin_strlen( "(DE-576)")));
                 if (unlikely(old_bsz_ppn == record.getControlNumber()))
                     ++identity_count;
-                else
+                else {
                     (*old_bsz_to_new_k10plus_ppns_map)[old_bsz_ppn] = record.getControlNumber();
+                    ++old_to_new_count;
+                }
                 continue;
             }
         }
     }
 
     LOG_INFO("Found " + std::to_string(identity_count) + " identity mappings.");
-    LOG_INFO("Found " + std::to_string(old_bsz_to_new_k10plus_ppns_map->size()) + " mappings of old BSZ PPN's to new K10+ PPN's.");
+    LOG_INFO("Found " + std::to_string(old_to_new_count) + " mappings of old BSZ PPN's to new K10+ PPN's.");
 }
 
 
@@ -76,9 +78,17 @@ int Main(int argc, char *argv[]) {
 
     std::unordered_map<std::string, std::string> k10plus_to_k10plus_map;
     for (const auto &bsz_and_k10plus_ppns : old_bsz_to_new_k10plus_ppns_map) {
-        const auto k10plus_ppn(new_k10plus_ppns.find(bsz_and_k10plus_ppns.first));
-        if (k10plus_ppn != new_k10plus_ppns.cend())
-            k10plus_to_k10plus_map[*k10plus_ppn] = bsz_and_k10plus_ppns.second;
+        auto k10plus_ppn(new_k10plus_ppns.find(bsz_and_k10plus_ppns.first));
+        if (k10plus_ppn != new_k10plus_ppns.cend()) {
+            std::string last_k10_plus_ppn(*k10plus_ppn);
+            for (;;) {
+                auto bsz_and_k10plus_ppn2(old_bsz_to_new_k10plus_ppns_map.find(last_k10_plus_ppn));
+                if (bsz_and_k10plus_ppn2 == old_bsz_to_new_k10plus_ppns_map.cend())
+                    break;
+                last_k10_plus_ppn = bsz_and_k10plus_ppn2->second;
+            }
+            k10plus_to_k10plus_map[last_k10_plus_ppn] = bsz_and_k10plus_ppns.second;
+        }
     }
     LOG_INFO("Found " + std::to_string(k10plus_to_k10plus_map.size()) + " doubly mapped candidates.");
 
