@@ -80,14 +80,14 @@ int Main(int argc, char *argv[]) {
     for (const auto &bsz_and_k10plus_ppns : old_bsz_to_new_k10plus_ppns_map) {
         // Is the replaced PPN an old BSZ PPN?
         if (old_bsz_to_new_k10plus_ppns_map.find(bsz_and_k10plus_ppns.second) != old_bsz_to_new_k10plus_ppns_map.cend()) {
-            std::string bsz_as_well_as_k10plus_ppn(bsz_and_k10plus_ppns.second);
+            std::string final_k10plus_ppn(bsz_and_k10plus_ppns.second);
             for (;;) {
-                auto bsz_and_k10plus_ppn2(old_bsz_to_new_k10plus_ppns_map.find(bsz_as_well_as_k10plus_ppn));
+                auto bsz_and_k10plus_ppn2(old_bsz_to_new_k10plus_ppns_map.find(final_k10plus_ppn));
                 if (bsz_and_k10plus_ppn2 == old_bsz_to_new_k10plus_ppns_map.cend())
                     break;
-                bsz_as_well_as_k10plus_ppn = bsz_and_k10plus_ppn2->second;
+                final_k10plus_ppn = bsz_and_k10plus_ppn2->second;
             }
-            k10plus_to_k10plus_map[bsz_as_well_as_k10plus_ppn] = bsz_and_k10plus_ppns.second;
+            k10plus_to_k10plus_map[final_k10plus_ppn] = bsz_and_k10plus_ppns.second;
         }
     }
     LOG_INFO("Found " + std::to_string(k10plus_to_k10plus_map.size()) + " doubly mapped candidates.");
