@@ -76,7 +76,7 @@ int Main(int argc, char *argv[]) {
     }
     LOG_INFO("Found " + std::to_string(k10plus_to_k10plus_map.size()) + " doubly mapped candidates.");
 
-    MapUtil::SerialiseMap(argv[2], k10plus_to_k10plus_map);
+    MapUtil::SerialiseMap(argv[3], k10plus_to_k10plus_map);
 
     return EXIT_SUCCESS;
 }
