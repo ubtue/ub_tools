@@ -109,6 +109,12 @@ public:
      */
     void queryFileOrDie(const std::string &filename);
 
+    /** \note Currently only works w/ Sqlite.
+     *  \note Supports online backups of a running database.
+     */
+    bool backup(const std::string &output_filename, std::string * const err_msg);
+    void backupOrDie(const std::string &output_filename);
+
     void insertIntoTableOrDie(const std::string &table_name, const std::map<std::string, std::string> &column_names_to_values_map,
                               const DuplicateKeyBehaviour duplicate_key_behaviour = DKB_FAIL);
 

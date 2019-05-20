@@ -194,6 +194,9 @@ std::string RegexMatcher::replaceAll(const std::string &subject, const std::stri
         subject_start_offset = match_end_offset;
     }
 
+    while (subject_start_offset < subject.length())
+        replaced_string += subject[subject_start_offset++];
+
     return replaced_string;
 }
 

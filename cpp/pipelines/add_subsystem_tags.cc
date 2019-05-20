@@ -39,6 +39,40 @@
 namespace {
 
 
+// See https://github.com/ubtue/tuefind/wiki/Daten-Abzugskriterien#abzugskriterien-bibelwissenschaften, both entries Nr. 6 in order
+// to understand this implementation.
+void CollectGNDNumbers(const std::string &authority_records_filename, std::unordered_set<std::string> * const bible_studies_gnd_numbers,
+                       std::unordered_set<std::string> * const canon_law_gnd_numbers)
+{
+    auto authority_reader(MARC::Reader::Factory(authority_records_filename));
+    unsigned record_count(0);
+    while (MARC::Record record = authority_reader->read()) {
+        ++record_count;
+
+        for (const auto &field : record.getTagRange("065")) {
+            const MARC::Subfields subfields(field.getSubfields());
+            if (subfields.hasSubfieldWithValue('2', "ssgn")) {
+                for (const auto &subfield : subfields) {
+                    std::string gnd_code;
+                    if (subfield.code_ == 'a' and StringUtil::StartsWith(subfield.value_, "3.2") and MARC::GetGNDCode(record, &gnd_code))
+                        bible_studies_gnd_numbers->emplace(gnd_code);
+                }
+            }
+
+            if (subfields.hasSubfieldWithValue('2', "sswd") and subfields.hasSubfieldWithValue('a', "7.13")) {
+                std::string gnd_code;
+                if (MARC::GetGNDCode(record, &gnd_code))
+                    canon_law_gnd_numbers->emplace(gnd_code);
+            }
+        }
+    }
+
+    LOG_INFO("Processed " + std::to_string(record_count) + " authority record(s) and found "
+             + std::to_string(bible_studies_gnd_numbers->size()) + " bible studies and " + std::to_string(canon_law_gnd_numbers->size())
+             + " canon law GND number(s).");
+}
+
+
 bool HasRelBibSSGN(const MARC::Record &record) {
     for (const auto& field : record.getTagRange("084")) {
         const MARC::Subfields subfields(field.getSubfields());
@@ -185,7 +219,7 @@ inline bool IsRelBibRecord(const MARC::Record &record) {
 
 
 // See https://github.com/ubtue/tuefind/wiki/Daten-Abzugskriterien#abzugskriterien-bibelwissenschaften for the documentation.
-bool IsBibleStudiesRecord(const MARC::Record &record) {
+bool IsBibleStudiesRecord(const MARC::Record &record, const std::unordered_set<std::string> &bible_studies_gnd_numbers) {
     // 1. Abrufzeichen
     for (const auto &field : record.getTagRange("935")) {
         if (field.hasSubfieldWithValue('a', "BIIN"))
@@ -234,13 +268,10 @@ bool IsBibleStudiesRecord(const MARC::Record &record) {
     }
 
     // 6. Titel, die mit einem Normsatz verknüpft sind, der die GND Systematik enthält
-    for (const auto &field : record.getTagRange("065")) {
-        if (not field.hasSubfieldWithValue('2', "sswd"))
-            continue;
-        for (const auto &subfield : field.getSubfields()) {
-            if (subfield.code_ == 'a' and StringUtil::StartsWith(subfield.value_, "3.2"))
-                return true;
-        }
+    const auto gnd_references(record.getReferencedGNDNumbers());
+    for (const auto &gnd_reference : gnd_references) {
+        if (bible_studies_gnd_numbers.find(gnd_reference) != bible_studies_gnd_numbers.cend())
+            return true;
     }
 
     // 7. SSG-Kennzeichen für den Alten Orient
@@ -275,7 +306,7 @@ void CollectSuperiorOrParallelWorks(const MARC::Record &record, std::unordered_s
 
 
 // See https://github.com/ubtue/tuefind/wiki/Daten-Abzugskriterien#abzugskriterien-bibelwissenschaften for the documentation.
-bool IsCanonLawRecord(const MARC::Record &record) {
+bool IsCanonLawRecord(const MARC::Record &record, const std::unordered_set<std::string> &canon_law_gnd_numbers) {
     // 1. Abrufzeichen
     for (const auto &field : record.getTagRange("935")) {
         if (field.hasSubfieldWithValue('a', "KALD"))
@@ -326,39 +357,43 @@ bool IsCanonLawRecord(const MARC::Record &record) {
     }
 
     // 6. Titel, die mit einem Normsatz verknüpft sind, der die GND Systematik enthält
-    for (const auto &field : record.getTagRange("065")) {
-        if (not field.hasSubfieldWithValue('2', "sswd"))
-            continue;
-        for (const auto &subfield : field.getSubfields()) {
-            if (subfield.code_ == 'a' and StringUtil::StartsWith(subfield.value_, "7.13"))
-                return true;
-        }
+    const auto gnd_references(record.getReferencedGNDNumbers());
+    for (const auto &gnd_reference : gnd_references) {
+        if (canon_law_gnd_numbers.find(gnd_reference) != canon_law_gnd_numbers.cend())
+            return true;
     }
 
     return false;
 }
 
 
-enum SubSystem { RELBIB, BIBSTUDIES, CANON_LAW };
-const unsigned NUM_OF_SUBSYSTEMS(3);
+enum SubSystem { RELBIB, BIBSTUDIES, CANON_LAW, NUM_OF_SUBSYSTEMS };
 
 
 // Get set of immediately belonging or superior or parallel records
-void GetSubsystemPPNSet(MARC::Reader * const marc_reader, std::vector<std::unordered_set<std::string>> * const subsystem_sets) {
+void GetSubsystemPPNSet(MARC::Reader * const marc_reader,
+                        const std::unordered_set<std::string> &bible_studies_gnd_numbers,
+                        const std::unordered_set<std::string> &canon_law_gnd_numbers,
+                        std::vector<std::unordered_set<std::string>> * const subsystem_sets)
+{
     while (const MARC::Record record = marc_reader->read()) {
         if (IsRelBibRecord(record)) {
             ((*subsystem_sets)[RELBIB]).emplace(record.getControlNumber());
             CollectSuperiorOrParallelWorks(record, &((*subsystem_sets)[RELBIB]));
         }
-        if (IsBibleStudiesRecord(record)) {
+        if (IsBibleStudiesRecord(record, bible_studies_gnd_numbers)) {
             ((*subsystem_sets)[BIBSTUDIES]).emplace(record.getControlNumber());
             CollectSuperiorOrParallelWorks(record, &((*subsystem_sets)[BIBSTUDIES]));
         }
-        if (IsCanonLawRecord(record)) {
+        if (IsCanonLawRecord(record, canon_law_gnd_numbers)) {
             ((*subsystem_sets)[CANON_LAW]).emplace(record.getControlNumber());
             CollectSuperiorOrParallelWorks(record, &((*subsystem_sets)[CANON_LAW]));
         }
     }
+
+    LOG_INFO("collected " + std::to_string((*subsystem_sets)[RELBIB].size()) + " RelBib PPN's.");
+    LOG_INFO("collected " + std::to_string((*subsystem_sets)[BIBSTUDIES].size()) + " BibStudies PPN's.");
+    LOG_INFO("collected " + std::to_string((*subsystem_sets)[CANON_LAW].size()) + " CanonLaw PPN's.");
 }
 
 
@@ -378,7 +413,7 @@ void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const mar
             AddSubsystemTag(&record, RELBIB_TAG);
             modified_record = true;
         }
-        if ((subsystem_sets[BIBSTUDIES]).find(record.getControlNumber()) != subsystem_sets[RELBIB].end()) {
+        if ((subsystem_sets[BIBSTUDIES]).find(record.getControlNumber()) != subsystem_sets[BIBSTUDIES].end()) {
             AddSubsystemTag(&record, BIBSTUDIES_TAG);
             modified_record = true;
         }
@@ -394,29 +429,24 @@ void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const mar
 }
 
 
-void InitializeSubsystemPPNSets(std::vector<std::unordered_set<std::string>> * const subsystem_ppn_sets) {
-    for (unsigned i(0); i < NUM_OF_SUBSYSTEMS; ++i)
-        subsystem_ppn_sets->push_back(std::unordered_set<std::string>());
-}
-
-
 } //unnamed namespace
 
 
 int Main(int argc, char **argv) {
-    if (argc != 3)
-        ::Usage("marc_input marc_output");
+    if (argc != 4)
+        ::Usage("marc_input authority_records marc_output");
 
     const std::string marc_input_filename(argv[1]);
-    const std::string marc_output_filename(argv[2]);
+    const std::string marc_output_filename(argv[3]);
     if (unlikely(marc_input_filename == marc_output_filename))
         LOG_ERROR("Title data input file name equals output file name!");
 
-    std::vector<std::unordered_set<std::string>> subsystem_sets;
-    InitializeSubsystemPPNSets(&subsystem_sets);
+    std::unordered_set<std::string> bible_studies_gnd_numbers, canon_law_gnd_numbers;
+    CollectGNDNumbers(argv[2], &bible_studies_gnd_numbers, &canon_law_gnd_numbers);
 
+    std::vector<std::unordered_set<std::string>> subsystem_sets(NUM_OF_SUBSYSTEMS);
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
-    GetSubsystemPPNSet(marc_reader.get(), &subsystem_sets);
+    GetSubsystemPPNSet(marc_reader.get(), bible_studies_gnd_numbers, canon_law_gnd_numbers, &subsystem_sets);
     marc_reader->rewind();
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
     AddSubsystemTags(marc_reader.get(), marc_writer.get(), subsystem_sets);
