@@ -139,6 +139,7 @@
 /send_email
 /set_tad_access_flag
 /simple_crawler
+/sqlite_copy
 /store_in_elasticsearch
 /string_info
 /subfield_code_replacer

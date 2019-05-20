@@ -12,7 +12,8 @@ function SendEmail {
     else
         send_email --priority=high --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
                    --subject="$0 failed on $(hostname)" \
-                   --message-body="Check /usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log for details."
+                   --message-body="Check the attached log file for details."
+                   --attachment="/usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log"
         echo "*** ZTS_HARVESTER DELIVERY PIPELINE FAILED ***" | tee --append "${log}"
         exit 1
     fi
