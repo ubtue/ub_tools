@@ -78,8 +78,9 @@ int Main(int argc, char *argv[]) {
 
     std::unordered_map<std::string, std::string> k10plus_to_k10plus_map;
     for (const auto &bsz_and_k10plus_ppns : old_bsz_to_new_k10plus_ppns_map) {
-        if (new_k10plus_ppns.find(bsz_and_k10plus_ppns.first) != new_k10plus_ppns.cend()) {
-            std::string bsz_as_well_as_k10plus_ppn(bsz_and_k10plus_ppns.first);
+        // Is the replaced PPN an old BSZ PPN?
+        if (old_bsz_to_new_k10plus_ppns_map.find(bsz_and_k10plus_ppns.second) != old_bsz_to_new_k10plus_ppns_map.cend()) {
+            std::string bsz_as_well_as_k10plus_ppn(bsz_and_k10plus_ppns.second);
             for (;;) {
                 auto bsz_and_k10plus_ppn2(old_bsz_to_new_k10plus_ppns_map.find(bsz_as_well_as_k10plus_ppn));
                 if (bsz_and_k10plus_ppn2 == old_bsz_to_new_k10plus_ppns_map.cend())
