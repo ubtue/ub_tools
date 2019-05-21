@@ -64,17 +64,14 @@ void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::st
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 4)
-        ::Usage("title_records authority_records\nGenerates two output files: title_backpatch.map and authority_backpatch.map");
+    if (argc != 3)
+        ::Usage("marc_records backpatch.map");
 
     std::unordered_map<std::string, std::string> old_bsz_to_new_k10plus_ppns_map;
     std::unordered_set<std::string> new_k10plus_ppns;
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
     ProcessRecords(marc_reader.get(), &old_bsz_to_new_k10plus_ppns_map, &new_k10plus_ppns);
-
-    auto marc_reader2(MARC::Reader::Factory(argv[2]));
-    ProcessRecords(marc_reader2.get(), &old_bsz_to_new_k10plus_ppns_map, &new_k10plus_ppns);
 
     std::unordered_map<std::string, std::string> k10plus_to_k10plus_map;
     for (const auto &bsz_and_k10plus_ppns : old_bsz_to_new_k10plus_ppns_map) {
