@@ -80,7 +80,7 @@ int Main(int argc, char *argv[]) {
     for (const auto &bsz_and_k10plus_ppns : old_bsz_to_new_k10plus_ppns_map) {
         // Is the replaced PPN an old BSZ PPN?
         unsigned replacement_count(0);
-        std::string final_k10plus_ppn;
+        std::string final_k10plus_ppn(bsz_and_k10plus_ppns.second);
         for (;;) {
             auto bsz_and_k10plus_ppn2(old_bsz_to_new_k10plus_ppns_map.find(final_k10plus_ppn));
             if (bsz_and_k10plus_ppn2 == old_bsz_to_new_k10plus_ppns_map.cend())
