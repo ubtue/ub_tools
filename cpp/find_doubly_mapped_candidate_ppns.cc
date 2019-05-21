@@ -65,7 +65,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::st
 
 int Main(int argc, char *argv[]) {
     if (argc != 4)
-        ::Usage("title_records authority_records found_candidates_map");
+        ::Usage("title_records authority_records\nGenerates two output files: title_backpatch.map and authority_backpatch.map");
 
     std::unordered_map<std::string, std::string> old_bsz_to_new_k10plus_ppns_map;
     std::unordered_set<std::string> new_k10plus_ppns;
@@ -79,19 +79,17 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, std::string> k10plus_to_k10plus_map;
     for (const auto &bsz_and_k10plus_ppns : old_bsz_to_new_k10plus_ppns_map) {
         // Is the replaced PPN an old BSZ PPN?
-        if (old_bsz_to_new_k10plus_ppns_map.find(bsz_and_k10plus_ppns.second) != old_bsz_to_new_k10plus_ppns_map.cend()) {
-            unsigned replacement_count(1);
-            std::string final_k10plus_ppn(bsz_and_k10plus_ppns.second);
-            for (;;) {
-                auto bsz_and_k10plus_ppn2(old_bsz_to_new_k10plus_ppns_map.find(final_k10plus_ppn));
-                if (bsz_and_k10plus_ppn2 == old_bsz_to_new_k10plus_ppns_map.cend())
-                    break;
-                final_k10plus_ppn = bsz_and_k10plus_ppn2->second;
-                ++replacement_count;
-            }
-            if (replacement_count > 1)
-                k10plus_to_k10plus_map[final_k10plus_ppn] = bsz_and_k10plus_ppns.second;
+        unsigned replacement_count(0);
+        std::string final_k10plus_ppn;
+        for (;;) {
+            auto bsz_and_k10plus_ppn2(old_bsz_to_new_k10plus_ppns_map.find(final_k10plus_ppn));
+            if (bsz_and_k10plus_ppn2 == old_bsz_to_new_k10plus_ppns_map.cend())
+                break;
+            final_k10plus_ppn = bsz_and_k10plus_ppn2->second;
+            ++replacement_count;
         }
+        if (replacement_count > 1)
+            k10plus_to_k10plus_map[final_k10plus_ppn] = bsz_and_k10plus_ppns.second;
     }
     LOG_INFO("Found " + std::to_string(k10plus_to_k10plus_map.size()) + " doubly mapped candidates.");
 
