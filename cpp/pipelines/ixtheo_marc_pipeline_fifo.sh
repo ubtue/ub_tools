@@ -93,10 +93,10 @@ if [[ $(date +%d) == "01" ]]; then # Only do this on the 1st of every month.
 fi
 
 
-StartPhase "Replace old BSZ PPN's with new K10+ PPN's"
-(patch_up_ppns_for_k10plus GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
-    >> "${log}" 2>&1 && \
-EndPhase || Abort) &
+# StartPhase "Replace old BSZ PPN's with new K10+ PPN's"
+# (patch_up_ppns_for_k10plus GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
+#     >> "${log}" 2>&1 && \
+# EndPhase || Abort) &
 
 
 StartPhase "Drop Records Containing mtex in 935" \
