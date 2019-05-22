@@ -105,7 +105,7 @@ StartPhase "Drop Records Containing mtex in 935" \
            "\n\tRemove blmsh Subject Heading Terms" \
            "\n\tFix Local Keyword Capitalisations"
 (marc_filter \
-     GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --drop 935a:mtex \
     --remove-fields '856u:ixtheo\.de' \
     --remove-fields 'LOK:086630(.*)\x{1F}x' `# Remove internal bibliographic comments`  \
