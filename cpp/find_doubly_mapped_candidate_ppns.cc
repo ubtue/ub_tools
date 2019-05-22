@@ -82,15 +82,19 @@ int Main(int argc, char *argv[]) {
         unsigned replacement_count(0);
         std::string final_k10plus_ppn(bsz_and_k10plus_ppns.first);
         const std::string correct_substitution(bsz_and_k10plus_ppns.second);
+        std::string path(bsz_and_k10plus_ppns.first);
         for (;;) {
             auto bsz_and_k10plus_ppn2(old_bsz_to_new_k10plus_ppns_map.find(final_k10plus_ppn));
             if (bsz_and_k10plus_ppn2 == old_bsz_to_new_k10plus_ppns_map.cend())
                 break;
             final_k10plus_ppn = bsz_and_k10plus_ppn2->second;
+            path += "->" + final_k10plus_ppn;
             ++replacement_count;
         }
-        if (replacement_count > 1)
+        if (replacement_count > 1) {
             k10plus_to_k10plus_map[final_k10plus_ppn] = correct_substitution;
+            LOG_DEBUG("replacement path: " + path);
+        }
     }
     LOG_INFO("Found " + std::to_string(k10plus_to_k10plus_map.size()) + " doubly mapped candidates.");
 
