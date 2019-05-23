@@ -180,11 +180,11 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     private Set<String> isils_cache = null;
-    private Set<String> reviews_cache = null;
-    private Set<String> reviewedRecords_cache = null;
+    private Set<String> reviewsCache = null;
+    private Set<String> reviewedRecordsCache = null;
 
     public void perRecordInit(Record record) {
-        reviews_cache = reviewedRecords_cache = isils_cache = null;
+        reviewsCache = reviewedRecordsCache = isils_cache = null;
     }
 
     private String getTitleFromField(final DataField titleField) {
@@ -562,12 +562,12 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     private void collectReviewsAndReviewedRecords(final Record record) {
-        if (reviews_cache != null && reviewedRecords_cache != null) {
+        if (reviewsCache != null && reviewedRecordsCache != null) {
             return;
         }
 
-        reviews_cache = new TreeSet<>();
-        reviewedRecords_cache = new TreeSet<>();
+        reviewsCache = new TreeSet<>();
+        reviewedRecordsCache = new TreeSet<>();
         for (final VariableField variableField : record.getVariableFields("787")) {
             final DataField field = (DataField) variableField;
             final Subfield reviewTypeSubfield = getFirstNonEmptySubfield(field, 'i');
@@ -591,21 +591,21 @@ public class TuelibMixin extends SolrIndexerMixin {
             final Subfield reviewerSubfield = getFirstNonEmptySubfield(field, 'a');
             final String reviewer = (reviewerSubfield == null) ? "" : reviewerSubfield.getData();
 
-            if (reviewTypeSubfield.getData().equals("Rezension"))
-                reviews_cache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
-            else if (reviewTypeSubfield.getData().equals("Rezension von"))
-                reviewedRecords_cache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
+            if (reviewTypeSubfield.getData().equals("Rezension von")) {
+                reviewsCache.add(record.getControlNumber() + (char) 0x1F + reviewer + (char) 0x1F + title);
+                reviewedRecordsCache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
+            }
         }
     }
 
     public Set<String> getReviews(final Record record) {
         collectReviewsAndReviewedRecords(record);
-        return reviews_cache;
+        return reviewsCache;
     }
 
     public Set<String> getReviewedRecords(final Record record) {
         collectReviewsAndReviewedRecords(record);
-        return reviewedRecords_cache;
+        return reviewedRecordsCache;
     }
 
     protected String normalizeSortableString(String string) {
@@ -2400,8 +2400,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             final DataField dataField = (DataField) _655Field;
             final Subfield aSubfield = dataField.getSubfield('a');
             if (aSubfield != null) {
-                if (aSubfield.getData().startsWith("Rezension") && dataField.getIndicator1() == ' '
-                    && dataField.getIndicator2() == '7') {
+                if (aSubfield.getData().startsWith("Rezension") && dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7') {
                     formats.remove("Article");
                     formats.add("Review");
                     break;
@@ -2412,12 +2411,24 @@ public class TuelibMixin extends SolrIndexerMixin {
                     break;
                 }
                 if (aSubfield.getData().startsWith("Forschungsdaten") & dataField.getIndicator1() == ' '
-                    && dataField.getIndicator2() == '7') {
+                    && dataField.getIndicator2() == '7')
+                {
                     formats.remove("Book");
                     formats.remove("eBook");
                     formats.add("ResearchData");
                     break;
                 }
+            }
+        }
+
+        final List<VariableField> _787Fields = record.getVariableFields("787");
+        for (final VariableField _787Field : _787Fields) {
+            final DataField dataField = (DataField) _787Field;
+            final Subfield iSubfield = dataField.getSubfield('i');
+            if (iSubfield != null && iSubfield.getData().equals("Rezension von")) {
+                    formats.remove("Article");
+                    formats.add("Review");
+                    break;
             }
         }
 
