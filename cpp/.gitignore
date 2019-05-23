@@ -71,7 +71,6 @@
 /extract_text_from_image_only_pdfs
 /extract_vufind_translations_for_translation
 /faster
-/find_doubly_mapped_candidate_ppns
 /find_gnd_reference_fields
 /find_latest_journal_year
 /find_tue_dups
