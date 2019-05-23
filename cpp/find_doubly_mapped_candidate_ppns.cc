@@ -35,18 +35,18 @@ namespace {
 
 
 void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::string, std::string> * const old_bsz_to_new_k10plus_ppns_map,
-                    std::unordered_set<std::string> * const new_k10plus_ppns)
+                    std::unordered_map<std::string, MARC::Record::RecordType> * const ppn_to_record_type_map)
 {
     unsigned identity_count(0), old_to_new_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         for (const auto &field : record.getTagRange("035")) {
-            new_k10plus_ppns->emplace(record.getControlNumber());
             const auto subfield_a(field.getFirstSubfieldWithCode('a'));
             if (StringUtil::StartsWith(subfield_a, "(DE-576)")) {
                 const std::string old_bsz_ppn(subfield_a.substr(__builtin_strlen( "(DE-576)")));
                 if (unlikely(old_bsz_ppn == record.getControlNumber()))
                     ++identity_count;
                 else {
+                    (*ppn_to_record_type_map)[record.getControlNumber()] = (*ppn_to_record_type_map)[old_bsz_ppn] = record.getRecordType();
                     (*old_bsz_to_new_k10plus_ppns_map)[old_bsz_ppn] = record.getControlNumber();
                     ++old_to_new_count;
                 }
@@ -68,33 +68,36 @@ int Main(int argc, char *argv[]) {
         ::Usage("title_records authority_records backpatch.map");
 
     std::unordered_map<std::string, std::string> old_bsz_to_new_k10plus_ppns_map;
-    std::unordered_set<std::string> new_k10plus_ppns;
+    std::unordered_map<std::string, MARC::Record::RecordType> ppn_to_record_type_map;
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
-    ProcessRecords(marc_reader.get(), &old_bsz_to_new_k10plus_ppns_map, &new_k10plus_ppns);
+    ProcessRecords(marc_reader.get(), &old_bsz_to_new_k10plus_ppns_map, &ppn_to_record_type_map);
 
     auto marc_reader2(MARC::Reader::Factory(argv[2]));
-    ProcessRecords(marc_reader2.get(), &old_bsz_to_new_k10plus_ppns_map, &new_k10plus_ppns);
+    ProcessRecords(marc_reader2.get(), &old_bsz_to_new_k10plus_ppns_map, &ppn_to_record_type_map);
 
-    std::unordered_map<std::string, std::string> k10plus_to_k10plus_map;
+    const auto map_file(FileUtil::OpenOutputFileOrDie((argv[3])));
+
+    unsigned multiply_mapped_count(0);
     for (const auto &bsz_and_k10plus_ppns : old_bsz_to_new_k10plus_ppns_map) {
         // Is the replaced PPN an old BSZ PPN?
-        unsigned replacement_count(0);
+        std::vector<std::string> replacement_chain;
         std::string final_k10plus_ppn(bsz_and_k10plus_ppns.first);
-        const std::string correct_substitution(bsz_and_k10plus_ppns.second);
         for (;;) {
             auto bsz_and_k10plus_ppn2(old_bsz_to_new_k10plus_ppns_map.find(final_k10plus_ppn));
             if (bsz_and_k10plus_ppn2 == old_bsz_to_new_k10plus_ppns_map.cend())
                 break;
             final_k10plus_ppn = bsz_and_k10plus_ppn2->second;
-            ++replacement_count;
+            const std::string record_type(
+                ppn_to_record_type_map[final_k10plus_ppn] == MARC::Record::RecordType::BIBLIOGRAPHIC ? "Bib" : "Auth");
+            replacement_chain.emplace_back(final_k10plus_ppn + "(" + record_type + ")");
         }
-        if (replacement_count > 1)
-            k10plus_to_k10plus_map[final_k10plus_ppn] = correct_substitution;
+        if (replacement_chain.size() > 1) {
+            ++multiply_mapped_count;
+            (*map_file) << StringUtil::Join(replacement_chain, " -> ") << '\n';
+        }
     }
-    LOG_INFO("Found " + std::to_string(k10plus_to_k10plus_map.size()) + " doubly mapped candidates.");
-
-    MapUtil::SerialiseMap(argv[3], k10plus_to_k10plus_map);
+    LOG_INFO("Found " + std::to_string(multiply_mapped_count) + " multiply mapped candidates.");
 
     return EXIT_SUCCESS;
 }
