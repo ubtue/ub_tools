@@ -239,7 +239,7 @@ size_t SelectItems(DbConnection * const db_connection, std::vector<HarvestedRSSI
     while (const DbRow row = result_set.getNextRow())
         harvested_items->emplace_back(SyndicationFormat::Item(row["item_title"], row["item_description"], row["item_url"], row["item_id"],
                                                               SqlUtil::DatetimeToTimeT(row["pub_date"])),
-                                      row["serial_name"], row["item_url"]);
+                                                              row["serial_name"], row["feed_url"]);
     return result_set.size();
 }
 
