@@ -180,11 +180,11 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     private Set<String> isils_cache = null;
-    private Set<String> reviews_cache = null;
-    private Set<String> reviewedRecords_cache = null;
+    private Set<String> reviewsCache = null;
+    private Set<String> reviewedRecordsCache = null;
 
     public void perRecordInit(Record record) {
-        reviews_cache = reviewedRecords_cache = isils_cache = null;
+        reviewsCache = reviewedRecordsCache = isils_cache = null;
     }
 
     private String getTitleFromField(final DataField titleField) {
@@ -482,9 +482,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                 else
                     link = rawLink;
                 URLs.add(link);
-                if (!materialType.equals(UNKNOWN_MATERIAL_TYPE)) {
+                if (!materialType.equals(UNKNOWN_MATERIAL_TYPE))
                     nonUnknownMaterialTypeURLs.add(link);
-                }
             }
         }
 
@@ -562,12 +561,12 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     private void collectReviewsAndReviewedRecords(final Record record) {
-        if (reviews_cache != null && reviewedRecords_cache != null) {
+        if (reviewsCache != null && reviewedRecordsCache != null) {
             return;
         }
 
-        reviews_cache = new TreeSet<>();
-        reviewedRecords_cache = new TreeSet<>();
+        reviewsCache = new TreeSet<>();
+        reviewedRecordsCache = new TreeSet<>();
         for (final VariableField variableField : record.getVariableFields("787")) {
             final DataField field = (DataField) variableField;
             final Subfield reviewTypeSubfield = getFirstNonEmptySubfield(field, 'i');
@@ -592,20 +591,20 @@ public class TuelibMixin extends SolrIndexerMixin {
             final String reviewer = (reviewerSubfield == null) ? "" : reviewerSubfield.getData();
 
             if (reviewTypeSubfield.getData().equals("Rezension"))
-                reviews_cache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
+                reviewsCache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
             else if (reviewTypeSubfield.getData().equals("Rezension von"))
-                reviewedRecords_cache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
+                reviewedRecordsCache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
         }
     }
 
     public Set<String> getReviews(final Record record) {
         collectReviewsAndReviewedRecords(record);
-        return reviews_cache;
+        return reviewsCache;
     }
 
     public Set<String> getReviewedRecords(final Record record) {
         collectReviewsAndReviewedRecords(record);
-        return reviewedRecords_cache;
+        return reviewedRecordsCache;
     }
 
     protected String normalizeSortableString(String string) {
@@ -1992,6 +1991,39 @@ public class TuelibMixin extends SolrIndexerMixin {
         _935a_to_format_map = Collections.unmodifiableMap(tempMap);
     }
 
+    boolean isReview(final Record record) {
+        for (final VariableField variableField : record.getVariableFields("856")) {
+            final DataField field = (DataField) variableField;
+            final Subfield materialTypeSubfield = getFirstNonEmptySubfield(field, '3', 'z', 'y', 'x');
+            if (materialTypeSubfield != null) {
+                final String materialType = materialTypeSubfield.getData();
+                if (materialType.equals("07") || materialType.equals("08"))
+                    return true;
+            }
+        }
+
+        // Evaluate topic fields in some cases
+        final List<VariableField> _655Fields = record.getVariableFields("655");
+        for (final VariableField _655Field : _655Fields) {
+            final DataField dataField = (DataField) _655Field;
+            final Subfield aSubfield = dataField.getSubfield('a');
+            if (aSubfield != null && dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7'
+                && aSubfield.getData().startsWith("Rezension"))
+                    return true;
+        }
+
+        final List<VariableField> _787Fields = record.getVariableFields("787");
+        if (foundInSubfield(_787Fields, 'i', "Rezension von"))
+            return true;
+
+        // A review can also be indicated if 935$c set to "uwre"
+        final List<VariableField> _935Fields = record.getVariableFields("935");
+        if (foundInSubfield(_935Fields, 'c', "uwre"))
+            return true;
+
+        return false;
+    }
+
     private final static String electronicRessource = "Electronic";
     private final static String nonElectronicRessource = "Non-Electronic";
 
@@ -2319,10 +2351,14 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        // Nothing worked!
-        if (result.isEmpty()) {
-            result.add("Unknown");
+        if (isReview(record)) {
+            result.remove("Article");
+            result.add("Review");
         }
+
+        // Nothing worked!
+        if (result.isEmpty())
+            result.add("Unknown");
 
         return result;
     }
@@ -2394,40 +2430,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (electronicField != null)
             formats.add(electronicRessource);
 
-        // Evaluate topic fields in some cases
-        final List<VariableField> _655Fields = record.getVariableFields("655");
-        for (final VariableField _655Field : _655Fields) {
-            final DataField dataField = (DataField) _655Field;
-            final Subfield aSubfield = dataField.getSubfield('a');
-            if (aSubfield != null) {
-                if (aSubfield.getData().startsWith("Rezension") && dataField.getIndicator1() == ' '
-                    && dataField.getIndicator2() == '7') {
-                    formats.remove("Article");
-                    formats.add("Review");
-                    break;
-                }
-                if (aSubfield.getData().startsWith("Weblog")) {
-                    formats.remove("Journal");
-                    formats.add("Blog");
-                    break;
-                }
-                if (aSubfield.getData().startsWith("Forschungsdaten") & dataField.getIndicator1() == ' '
-                    && dataField.getIndicator2() == '7') {
-                    formats.remove("Book");
-                    formats.remove("eBook");
-                    formats.add("ResearchData");
-                    break;
-                }
-            }
-        }
-
         final List<VariableField> _935Fields = record.getVariableFields("935");
-
-        // A review can also be indicated if 935$c set to "uwre"
-        if (foundInSubfield(_935Fields, 'c', "uwre")) {
-            formats.remove("Article");
-            formats.add("Review");
-        }
 
         // Determine whether record is a 'Festschrift', i.e. has "fe" in 935$c
         if (foundInSubfield(_935Fields, 'c', "fe"))
