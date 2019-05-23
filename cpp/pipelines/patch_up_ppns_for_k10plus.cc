@@ -283,6 +283,7 @@ int Main(int argc, char **argv) {
         LOG_INFO("nothing to do!");
         return EXIT_SUCCESS;
     }
+    LOG_ERROR("Do we *really* need to patch anything?");
     if (old_ppns_sigils_and_new_ppns.empty())
         goto clean_up_deleted_ppns;
 
