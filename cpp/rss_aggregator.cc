@@ -141,7 +141,8 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
                                             { "serial_name",      StringUtil::Truncate(MAX_SERIAL_NAME_LENGTH, section_name)   },
                                             { "feed_url",         StringUtil::Truncate(MAX_ITEM_URL_LENGTH, feed_url)          },
                                             { "pub_date",         SqlUtil::TimeTToDatetime(item.getPubDate())                  }
-                                        });
+                                        },
+                                        DbConnection::DuplicateKeyBehaviour::DKB_IGNORE);
 
     return true;
 }
@@ -238,7 +239,7 @@ size_t SelectItems(DbConnection * const db_connection, std::vector<HarvestedRSSI
     while (const DbRow row = result_set.getNextRow())
         harvested_items->emplace_back(SyndicationFormat::Item(row["item_title"], row["item_description"], row["item_url"], row["item_id"],
                                                               SqlUtil::DatetimeToTimeT(row["pub_date"])),
-                                      row["serial_name"], row["item_url"]);
+                                                              row["serial_name"], row["feed_url"]);
     return result_set.size();
 }
 
