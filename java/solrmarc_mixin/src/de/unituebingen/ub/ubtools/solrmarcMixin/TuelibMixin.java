@@ -1981,7 +1981,6 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     static {
         Map<String, String> tempMap = new HashMap<>();
-        tempMap.put("uwlx", "DictionaryEntryOrArticle");
         tempMap.put("BIDL", "Microfiche");
         tempMap.put("BIST", "Microfiche");
         tempMap.put("CICO", "Microfiche");
@@ -2014,11 +2013,6 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         final List<VariableField> _787Fields = record.getVariableFields("787");
         if (foundInSubfield(_787Fields, 'i', "Rezension von"))
-            return true;
-
-        // A review can also be indicated if 935$c set to "uwre"
-        final List<VariableField> _935Fields = record.getVariableFields("935");
-        if (foundInSubfield(_935Fields, 'c', "uwre"))
             return true;
 
         return false;
@@ -2332,6 +2326,11 @@ public class TuelibMixin extends SolrIndexerMixin {
                     }
                 }
             }
+        }
+
+        if (foundInSubfield(_935Fields, 'c', "uwlx")) {
+            result.remove("Article");
+            result.add("DictionaryEntryOrArticle");
         }
 
         // Records that contain the code "sodr" in 935$c should be classified as "Article" and not as "Book":
