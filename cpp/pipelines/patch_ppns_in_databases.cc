@@ -46,7 +46,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--store-only] marc_input1 [marc_input2 .. marc_inputN] [-- deletion_list1 deletion_list2 .. deletion_listN]\n"
+    ::Usage("[--store-only|--report-only] marc_input1 [marc_input2 .. marc_inputN] [-- deletion_list1 deletion_list2 .. deletion_listN]\n"
             "If --store-only has been specified, no swapping will be performed and only the persistent map file will be overwritten.\n"
             "If deletion lists should be processed, they need to be specified after a double-hyphen to indicate the end of the MARC files.");
 }
@@ -243,9 +243,14 @@ int Main(int argc, char **argv) {
     if (argc < 2)
         Usage();
 
-    bool store_only(false);
+    bool store_only(false), report_only(false);
     if (std::strcmp(argv[1], "--store-only") == 0) {
         store_only = true;
+        --argc, ++argv;
+        if (argc < 2)
+            Usage();
+    } else if (std::strcmp(argv[1], "--report-only") == 0) {
+        report_only = true;
         --argc, ++argv;
         if (argc < 2)
             Usage();
@@ -283,8 +288,23 @@ int Main(int argc, char **argv) {
         LOG_INFO("nothing to do!");
         return EXIT_SUCCESS;
     }
-    LOG_ERROR("Do we *really* need to patch anything? (" + std::to_string(old_ppns_sigils_and_new_ppns.size()) + " PPN swaps and "
-              + std::to_string(title_deletion_ppns.size()) + " PPN deletions)");
+
+    if (report_only) {
+        if (not title_deletion_ppns.empty()) {
+            LOG_INFO("Deletions:");
+            for (const auto ppn : title_deletion_ppns)
+                LOG_INFO(ppn);
+        }
+
+        if (not old_ppns_sigils_and_new_ppns.empty()) {
+            LOG_INFO("Old PPN to New PPN Mapping:");
+            for (const auto old_ppn_sigil_and_new_ppn : old_ppns_sigils_and_new_ppns)
+                LOG_INFO(old_ppn_sigil_and_new_ppn.old_ppn_ + " -> " + old_ppn_sigil_and_new_ppn.new_ppn_);
+        }
+
+        return EXIT_SUCCESS;
+    }
+
     if (old_ppns_sigils_and_new_ppns.empty())
         goto clean_up_deleted_ppns;
 
