@@ -172,7 +172,7 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(cons
                                                                             const unsigned int max_count) const
 {
     const unsigned int MAX_RESULTS_PER_REQUEST(10000); // Elasticsearch Default
-    const bool use_scrolling(max_count > MAX_RESULTS_PER_REQUEST ? MAX_RESULTS_PER_REQUEST : max_count);
+    const bool use_scrolling(max_count > MAX_RESULTS_PER_REQUEST);
     std::string query_string("{\n");
 
     if (not fields.empty()) {
@@ -209,7 +209,7 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(cons
         while (search_results_bunch.size()) {
             search_results_all.insert(std::end(search_results_all), std::begin(search_results_bunch), std::end(search_results_bunch));
             std::string scroll_id(extractScrollId(result_node));
-            result_node = query("_search/scroll", REST::POST, JSON::ObjectNode("{ \"scroll\": \"1m\", \"scroll_id\" : \"" + scroll_id + "\"}"), 
+            result_node = query("_search/scroll", REST::POST, JSON::ObjectNode("{ \"scroll\": \"1m\", \"scroll_id\" : \"" + scroll_id + "\"}"),
                                 false /* do not add type */, true /* suppress index name */ );
             search_results_bunch = extractResultsHelper(result_node, fields);
         }

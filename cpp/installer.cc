@@ -713,15 +713,15 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
 
 
 int Main(int argc, char **argv) {
-    bool ub_tools_only(false);
+    if (argc < 2 or argc > 4)
+        Usage();
+
     std::string vufind_system_type_string;
     VuFindSystemType vufind_system_type;
     bool omit_cronjobs(false);
     bool omit_systemctl(false);
 
-    if (argc < 2 || argc > 4)
-        Usage();
-
+    bool ub_tools_only(false);
     if (std::strcmp("--ub-tools-only", argv[1]) == 0) {
         ub_tools_only = true;
         if (argc > 2)
@@ -765,13 +765,18 @@ int Main(int argc, char **argv) {
 
     // Install dependencies before vufind
     // correct PHP version for composer dependancies
-    InstallSoftwareDependencies(os_system_type, vufind_system_type_string,
-                                ub_tools_only, not omit_systemctl);
+    InstallSoftwareDependencies(os_system_type, vufind_system_type_string, ub_tools_only, not omit_systemctl);
 
     if (not ub_tools_only) {
         MountDeptDriveOrDie(vufind_system_type);
         DownloadVuFind();
+        #ifndef __clang__
+        #   pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+        #endif
         ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, not omit_systemctl);
+        #ifndef __clang__
+        #   pragma GCC diagnostic error "-Wmaybe-uninitialized"
+        #endif
     }
     InstallUBTools(/* make_install = */ true, omit_systemctl, os_system_type);
     if (not ub_tools_only)
