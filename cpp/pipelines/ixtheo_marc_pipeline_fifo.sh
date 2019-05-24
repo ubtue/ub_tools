@@ -94,7 +94,7 @@ fi
 
 
 StartPhase "Swap and Delete PPN's in Various Databases"
-(patch_ppns_in_databases GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
+(patch_ppns_in_databases --report-only GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
