@@ -62,10 +62,13 @@ int Main(int argc, char **argv) {
     switch (codex) {
     case CIC1917:
         std::cout << StringUtil::ToString(100000000 + range_start) << '_' << StringUtil::ToString(100000000 + range_end) << '\n';
+        break;
     case CIC1983:
         std::cout << StringUtil::ToString(200000000 + range_start) << '_' << StringUtil::ToString(200000000 + range_end) << '\n';
+        break;
     case CCEO:
         std::cout << StringUtil::ToString(300000000 + range_start) << '_' << StringUtil::ToString(300000000 + range_end) << '\n';
+        break;
     }
 
     return EXIT_SUCCESS;

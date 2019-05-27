@@ -27,7 +27,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <kchashdb.h>
-#include "BSZUtil.h"
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
@@ -46,7 +45,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--store-only|--report-only] marc_input1 [marc_input2 .. marc_inputN] [-- deletion_list1 deletion_list2 .. deletion_listN]\n"
+    ::Usage("[--store-only|--report-only] marc_input1 [marc_input2 .. marc_inputN] [-- deletion_list]\n"
             "If --store-only has been specified, no swapping will be performed and only the persistent map file will be overwritten.\n"
             "If deletion lists should be processed, they need to be specified after a double-hyphen to indicate the end of the MARC files.");
 }
@@ -277,12 +276,14 @@ int Main(int argc, char **argv) {
         LoadMapping(marc_reader.get(), already_processed_ppns_and_sigils, &old_ppns_sigils_and_new_ppns);
     }
 
-    std::unordered_set <std::string> title_deletion_ppns;
-    for (/* Intentionally empty! */; arg_no < argc; ++arg_no) {
-        const auto input(FileUtil::OpenInputFileOrDie(argv[arg_no]));
-        std::unordered_set <std::string> local_deletion_ids;
-        BSZUtil::ExtractDeletionIds(input.get(), &title_deletion_ppns, &local_deletion_ids);
+    std::unordered_set <std::string> deletion_ppns;
+    if (arg_no < argc) {
+        for (auto line : FileUtil::ReadLines((argv[arg_no])))
+            deletion_ppns.emplace(line);
+        ++arg_no;
     }
+    if (arg_no != argc)
+        Usage();
 
     if (old_ppns_sigils_and_new_ppns.empty() and title_deletion_ppns.empty()) {
         LOG_INFO("nothing to do!");
