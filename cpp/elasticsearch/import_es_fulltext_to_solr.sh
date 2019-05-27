@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+
 ES_HOST="localhost"
 ES_PORT="9200"
 ES_INDEX="full_text_cache"
@@ -30,6 +31,7 @@ else
 EOF
 fi
 }
+
 
 function get_scroll_id() {
    response=$@
@@ -69,6 +71,17 @@ function solr_response_handler() {
 }
 
 
+function get_download_stats() {
+    response=$@
+    echo "------------------------------------" >&2
+    echo -n "Received " >&2
+    echo -n $(echo "$response" | wc -c) >&2
+    echo " bytes" >&2
+    echo "------------------------------------" >&2
+}
+
+
+
 if [ "$1" = "--all" ]; then
     PPN=''
 else
@@ -77,7 +90,8 @@ fi
 
 # Handle potential chunking
 # Extract the data from Elasticsearch, flatten it in case there are several chunks and transform it to a valid Solr-Fulltext field and load it up to Solr
-response=$(curl -s -X GET -H "Content-Type: application/json" 'http://'$ES_HOST:$ES_PORT/$ES_INDEX'/_search/?scroll=1m' --data '{ "query":'"$(generate_match_query $PPN)"'} }')
+response=$(curl -s -X GET -H "Content-Type: application/json" 'http://'$ES_HOST:$ES_PORT/$ES_INDEX'/_search/?scroll=1m' --data '{ "size" : 5000, "query":'"$(generate_match_query $PPN)"'} }')
+get_download_stats "$response"
 scroll_id=$(get_scroll_id "$response")
 hit_count=$(get_hit_count "$response")
 
@@ -87,11 +101,18 @@ solr_response_handler "$solr_response"
 
 # Continue until there are no further results
 while [ "$hit_count" != "0" ]; do
+    echo "Importing batch with "$hit_count" items"
     response=$(curl -s -X GET -H "Content-Type: application/json" 'http://'$ES_HOST:$ES_PORT'/_search/scroll' --data '{ "scroll" : "1m", "scroll_id": "'$scroll_id'" }')
+    get_download_stats "$response"
     scroll_id=$(get_scroll_id "$response")
     hit_count=$(get_hit_count "$response")
+    if [ "$hit_count" == "0" ]; then
+        echo "Finished obtaining results set"
+        break;
+    fi
     solr_response=$(upload_fulltext_to_solr "$response")
+    solr_response_handler "$solr_response"
 done
 
-echo "LEAVING"
+echo "Finished"
 
