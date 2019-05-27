@@ -1745,7 +1745,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     public Set<String> getDatesBasedOnRecordType(final Record record) {
         final Set<String> dates = new LinkedHashSet<>();
-        final Set<String> format = getFormatIncludingElectronic(record);
+        final Set<String> format = getFormats(record);
 
         // Case 1 [Website]
         if (format.contains("Website")) {
@@ -1834,7 +1834,6 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         return dates;
     }
-
 
     public String isSuperiorWork(final Record record) {
         final DataField sprField = (DataField) record.getVariableField("SPR");
@@ -1976,7 +1975,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         phys_code_to_format_map = Collections.unmodifiableMap(tempMap);
     }
 
-    // Map used by getMultipleFormats().
+    // Map used by getFormats().
     private static final Map<String, String> _935a_to_format_map;
 
     static {
@@ -2033,7 +2032,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *            MARC record
      * @return set of record format
      */
-    public Set<String> getMultipleFormats(final Record record) {
+    public Set<String> getFormats(final Record record) {
         final Set<String> formats = map935b(record, TuelibMixin.phys_code_to_format_map);
         final String leader = record.getLeader().toString();
         final ControlField fixedField = (ControlField) record.getVariableField("008");
@@ -2378,42 +2377,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return false;
     }
 
-    /**
-     * Determine Record Format(s) including the electronic tag The electronic
-     * category is filtered out in the actual getFormat function but needed to
-     * determine the media type
-     *
-     * @param record
-     *            the record
-     * @return format of record
-     */
-    public Set<String> getFormatIncludingElectronic(final Record record) {
-        final Set<String> formats = getMultipleFormats(record);
-
-        final VariableField electronicField = record.getVariableField("ELC");
-        if (electronicField != null)
-            formats.add(electronicRessource);
-
-        return formats;
-    }
-
-    /**
-     * Determine Format(s) but do away with the electronic tag
-     *
-     * @param record
-     *            the record
-     * @return mediatype of the record
-     */
-
-    public Set<String> getFormatsWithoutElectronic(final Record record) {
-        Set<String> formats = getFormatIncludingElectronic(record);
-
-        // Since we now have an additional facet mediatype we remove the
-        // electronic label
-        formats.remove(electronicRessource);
-        return formats;
-    }
-
     private boolean isPrintResource(final Record record) {
         for (final VariableField _935_field : record.getVariableFields("935")) {
             final DataField data_field = (DataField) _935_field;
@@ -2436,10 +2399,8 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
 
     public Set<String> getMediatype(final Record record) {
-        final Set<String> formats = getFormatIncludingElectronic(record);
-
         final Set<String> mediatypes = new HashSet<>();
-        if (formats.contains(electronicRessource))
+        if (record.getVariableField("ELC") != null)
             mediatypes.add(electronicRessource);
         else {
             mediatypes.add(nonElectronicRessource);
