@@ -2263,11 +2263,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         switch (Character.toUpperCase(leaderBit)) {
         // Monograph
         case 'M':
-            if (formatCode == 'C') {
-                result.add("eBook");
-            } else {
+            if (formatCode == 'C')
                 result.add("Book");
-            }
             break;
         // Component parts
         case 'A': // BookComponentPart
@@ -2341,7 +2338,6 @@ public class TuelibMixin extends SolrIndexerMixin {
                     for (final Subfield cSubfield : _935Field.getSubfields('c')) {
                         if (cSubfield.getData().equals("sodr")) {
                             result.remove("Book");
-                            result.remove("eBook");
                             result.add("Article");
                             break;
                         }
@@ -2349,6 +2345,21 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
         }
+
+        // Determine whether record is a 'Festschrift', i.e. has "fe" in 935$c
+        if (foundInSubfield(_935Fields, 'c', "fe"))
+            result.add("Festschrift");
+
+        // Determine whether a record is a subscription package, i.e. has "subskriptionspaket" in 935$c
+        if (foundInSubfield(_935Fields, 'c', "subskriptionspaket"))
+            result.add("SubscriptionBundle");
+
+        // If we classified an object as "DictionaryEntryOrArticle" we don't also want it to be classified as an article:
+        if (result.contains("Article") && result.contains("DictionaryEntryOrArticle"))
+            result.remove("Article");
+
+        if (result.contains("Unknown") && result.size() > 1)
+            result.remove("Unknown");
 
         if (isReview(record)) {
             result.remove("Article");
@@ -2389,29 +2400,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         final VariableField electronicField = record.getVariableField("ELC");
         if (electronicField != null)
             formats.add(electronicRessource);
-
-        final List<VariableField> _935Fields = record.getVariableFields("935");
-
-        // Determine whether record is a 'Festschrift', i.e. has "fe" in 935$c
-        if (foundInSubfield(_935Fields, 'c', "fe"))
-            formats.add("Festschrift");
-
-        // Determine whether a record is a subscription package, i.e. has "subskriptionspaket" in 935$c
-        if (foundInSubfield(_935Fields, 'c', "subskriptionspaket"))
-            formats.add("SubscriptionBundle");
-
-        // Rewrite all E-Books as electronic Books
-        if (formats.contains("eBook")) {
-            formats.remove("eBook");
-            formats.add("Book");
-        }
-
-        // If we classified an object as "DictionaryEntryOrArticle" we don't also want it to be classified as an article:
-        if (formats.contains("Article") && formats.contains("DictionaryEntryOrArticle"))
-            formats.remove("Article");
-
-        if (formats.contains("Unknown") && formats.size() > 1)
-            formats.remove("Unknown");
 
         return formats;
     }
