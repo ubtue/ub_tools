@@ -1975,7 +1975,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         phys_code_to_format_map = Collections.unmodifiableMap(tempMap);
     }
 
-    // Map used by getMultipleFormats().
+    // Map used by getFormats().
     private static final Map<String, String> _935a_to_format_map;
 
     static {
