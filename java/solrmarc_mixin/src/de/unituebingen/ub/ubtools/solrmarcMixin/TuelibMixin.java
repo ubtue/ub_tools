@@ -2034,7 +2034,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return set of record format
      */
     public Set<String> getMultipleFormats(final Record record) {
-        final Set<String> result = map935b(record, TuelibMixin.phys_code_to_format_map);
+        final Set<String> formats = map935b(record, TuelibMixin.phys_code_to_format_map);
         final String leader = record.getLeader().toString();
         final ControlField fixedField = (ControlField) record.getVariableField("008");
         final DataField title = (DataField) record.getVariableField("245");
@@ -2045,7 +2045,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         final VariableField electronicField = record.getVariableField("ELC");
         if (electronicField != null)
-            result.add(electronicRessource);
+            formats.add(electronicRessource);
 
         // check the 007 - this is a repeating field
         List<VariableField> fields = record.getVariableFields("007");
@@ -2061,162 +2061,162 @@ public class TuelibMixin extends SolrIndexerMixin {
                 case 'A':
                     switch (formatCode2) {
                     case 'D':
-                        result.add("Atlas");
+                        formats.add("Atlas");
                         break;
                     default:
-                        result.add("Map");
+                        formats.add("Map");
                         break;
                     }
                     break;
                 case 'C':
                     switch (formatCode2) {
                     case 'A':
-                        result.add("TapeCartridge");
+                        formats.add("TapeCartridge");
                         break;
                     case 'B':
-                        result.add("ChipCartridge");
+                        formats.add("ChipCartridge");
                         break;
                     case 'C':
-                        result.add("DiscCartridge");
+                        formats.add("DiscCartridge");
                         break;
                     case 'F':
-                        result.add("TapeCassette");
+                        formats.add("TapeCassette");
                         break;
                     case 'H':
-                        result.add("TapeReel");
+                        formats.add("TapeReel");
                         break;
                     case 'J':
-                        result.add("FloppyDisk");
+                        formats.add("FloppyDisk");
                         break;
                     case 'M':
                     case 'O':
-                        result.add("CDROM");
+                        formats.add("CDROM");
                         break;
                     case 'R':
                         // Do not return - this will cause anything with an
                         // 856 field to be labeled as electronicRessource
                         break;
                     default:
-                        result.add("Software");
+                        formats.add("Software");
                         break;
                     }
                     break;
                 case 'D':
-                    result.add("Globe");
+                    formats.add("Globe");
                     break;
                 case 'F':
-                    result.add("Braille");
+                    formats.add("Braille");
                     break;
                 case 'G':
                     switch (formatCode2) {
                     case 'C':
                     case 'D':
-                        result.add("Filmstrip");
+                        formats.add("Filmstrip");
                         break;
                     case 'T':
-                        result.add("Transparency");
+                        formats.add("Transparency");
                         break;
                     default:
-                        result.add("Slide");
+                        formats.add("Slide");
                         break;
                     }
                     break;
                 case 'H':
-                    result.add("Microfilm");
+                    formats.add("Microfilm");
                     break;
                 case 'K':
                     switch (formatCode2) {
                     case 'C':
-                        result.add("Collage");
+                        formats.add("Collage");
                         break;
                     case 'D':
-                        result.add("Drawing");
+                        formats.add("Drawing");
                         break;
                     case 'E':
-                        result.add("Painting");
+                        formats.add("Painting");
                         break;
                     case 'F':
-                        result.add("Print");
+                        formats.add("Print");
                         break;
                     case 'G':
-                        result.add("Photonegative");
+                        formats.add("Photonegative");
                         break;
                     case 'J':
-                        result.add("Print");
+                        formats.add("Print");
                         break;
                     case 'L':
-                        result.add("Drawing");
+                        formats.add("Drawing");
                         break;
                     case 'O':
-                        result.add("FlashCard");
+                        formats.add("FlashCard");
                         break;
                     case 'N':
-                        result.add("Chart");
+                        formats.add("Chart");
                         break;
                     default:
-                        result.add("Photo");
+                        formats.add("Photo");
                         break;
                     }
                     break;
                 case 'M':
                     switch (formatCode2) {
                     case 'F':
-                        result.add("VideoCassette");
+                        formats.add("VideoCassette");
                         break;
                     case 'R':
-                        result.add("Filmstrip");
+                        formats.add("Filmstrip");
                         break;
                     default:
-                        result.add("MotionPicture");
+                        formats.add("MotionPicture");
                         break;
                     }
                     break;
                 case 'O':
-                    result.add("Kit");
+                    formats.add("Kit");
                     break;
                 case 'Q':
-                    result.add("MusicalScore");
+                    formats.add("MusicalScore");
                     break;
                 case 'R':
-                    result.add("SensorImage");
+                    formats.add("SensorImage");
                     break;
                 case 'S':
                     switch (formatCode2) {
                     case 'D':
-                        result.add("SoundDisc");
+                        formats.add("SoundDisc");
                         break;
                     case 'S':
-                        result.add("SoundCassette");
+                        formats.add("SoundCassette");
                         break;
                     default:
-                        result.add("SoundRecording");
+                        formats.add("SoundRecording");
                         break;
                     }
                     break;
                 case 'V':
                     switch (formatCode2) {
                     case 'C':
-                        result.add("VideoCartridge");
+                        formats.add("VideoCartridge");
                         break;
                     case 'D':
                         switch (formatCode4) {
                         case 'S':
-                            result.add("BRDisc");
+                            formats.add("BRDisc");
                             break;
                         case 'V':
                         default:
-                            result.add("VideoDisc");
+                            formats.add("VideoDisc");
                             break;
                         }
                         break;
                     case 'F':
-                        result.add("VideoCassette");
+                        formats.add("VideoCassette");
                         break;
                     case 'R':
-                        result.add("VideoReel");
+                        formats.add("VideoReel");
                         break;
                     default:
-                        result.add("Video");
+                        formats.add("Video");
                         break;
                     }
                     break;
@@ -2228,33 +2228,33 @@ public class TuelibMixin extends SolrIndexerMixin {
         switch (Character.toUpperCase(leaderBit)) {
         case 'C':
         case 'D':
-            result.add("MusicalScore");
+            formats.add("MusicalScore");
             break;
         case 'E':
         case 'F':
-            result.add("Map");
+            formats.add("Map");
             break;
         case 'G':
-            result.add("Slide");
+            formats.add("Slide");
             break;
         case 'I':
-            result.add("SoundRecording");
+            formats.add("SoundRecording");
             break;
         case 'J':
-            result.add("MusicRecording");
+            formats.add("MusicRecording");
             break;
         case 'K':
-            result.add("Photo");
+            formats.add("Photo");
             break;
         case 'O':
         case 'P':
-            result.add("Kit");
+            formats.add("Kit");
             break;
         case 'R':
-            result.add("PhysicalObject");
+            formats.add("PhysicalObject");
             break;
         case 'T':
-            result.add("Manuscript");
+            formats.add("Manuscript");
             break;
         }
 
@@ -2264,14 +2264,14 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Monograph
         case 'M':
             if (formatCode == 'C')
-                result.add("Book");
+                formats.add("Book");
             break;
         // Component parts
         case 'A': // BookComponentPart
-            result.add("Article");
+            formats.add("Article");
             break;
         case 'B': // SerialComponentPart
-            result.add("Article");
+            formats.add("Article");
             break;
     // Integrating resource
     case 'I':
@@ -2279,10 +2279,10 @@ public class TuelibMixin extends SolrIndexerMixin {
         formatCode = fixedField.getData().toUpperCase().charAt(21);
         switch (formatCode) {
         case 'W':
-            result.add("Website");
+            formats.add("Website");
             break;
         case 'D':
-            result.add("Database");
+            formats.add("Database");
             break;
         }
         break;
@@ -2292,13 +2292,13 @@ public class TuelibMixin extends SolrIndexerMixin {
             formatCode = fixedField.getData().toUpperCase().charAt(21);
             switch (formatCode) {
             case 'N':
-                result.add("Newspaper");
+                formats.add("Newspaper");
                 break;
             case 'P':
-                result.add("Journal");
+                formats.add("Journal");
                 break;
             default:
-                result.add("Serial");
+                formats.add("Serial");
                 break;
             }
         }
@@ -2307,7 +2307,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (fixedField.getData().length() >= 31) {
             formatCode = fixedField.getData().toUpperCase().charAt(30);
             if (formatCode == '1')
-                result.add("Festschrift");
+                formats.add("Festschrift");
         }
 
         // Check 935$a entries:
@@ -2318,27 +2318,27 @@ public class TuelibMixin extends SolrIndexerMixin {
                 for (final Subfield aSubfield : _935Field.getSubfields('a')) {
                     final String subfieldContents = aSubfield.getData();
                     if (_935a_to_format_map.containsKey(subfieldContents)) {
-                        result.remove("Article");
-                        result.add(_935a_to_format_map.get(subfieldContents));
+                        formats.remove("Article");
+                        formats.add(_935a_to_format_map.get(subfieldContents));
                     }
                 }
             }
         }
 
         if (foundInSubfield(_935Fields, 'c', "uwlx")) {
-            result.remove("Article");
-            result.add("DictionaryEntryOrArticle");
+            formats.remove("Article");
+            formats.add("DictionaryEntryOrArticle");
         }
 
         // Records that contain the code "sodr" in 935$c should be classified as "Article" and not as "Book":
-        if (!result.contains("Article")) {
+        if (!formats.contains("Article")) {
             for (final VariableField variableField : _935Fields) {
                 final DataField _935Field = (DataField) variableField;
                 if (_935Field != null) {
                     for (final Subfield cSubfield : _935Field.getSubfields('c')) {
                         if (cSubfield.getData().equals("sodr")) {
-                            result.remove("Book");
-                            result.add("Article");
+                            formats.remove("Book");
+                            formats.add("Article");
                             break;
                         }
                     }
@@ -2348,29 +2348,29 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         // Determine whether record is a 'Festschrift', i.e. has "fe" in 935$c
         if (foundInSubfield(_935Fields, 'c', "fe"))
-            result.add("Festschrift");
+            formats.add("Festschrift");
 
         // Determine whether a record is a subscription package, i.e. has "subskriptionspaket" in 935$c
         if (foundInSubfield(_935Fields, 'c', "subskriptionspaket"))
-            result.add("SubscriptionBundle");
+            formats.add("SubscriptionBundle");
 
         // If we classified an object as "DictionaryEntryOrArticle" we don't also want it to be classified as an article:
-        if (result.contains("Article") && result.contains("DictionaryEntryOrArticle"))
-            result.remove("Article");
+        if (formats.contains("Article") && formats.contains("DictionaryEntryOrArticle"))
+            formats.remove("Article");
 
-        if (result.contains("Unknown") && result.size() > 1)
-            result.remove("Unknown");
+        if (formats.contains("Unknown") && formats.size() > 1)
+            formats.remove("Unknown");
 
         if (isReview(record)) {
-            result.remove("Article");
-            result.add("Review");
+            formats.remove("Article");
+            formats.add("Review");
         }
 
         // Nothing worked!
-        if (result.isEmpty())
-            result.add("Unknown");
+        if (formats.isEmpty())
+            formats.add("Unknown");
 
-        return result;
+        return formats;
     }
 
     private boolean foundInSubfield(final List<VariableField> fields, final char subfieldCode, final String subfieldContents) {
