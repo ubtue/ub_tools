@@ -2325,11 +2325,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        if (foundInSubfield(_935Fields, 'c', "uwlx")) {
-            formats.remove("Article");
-            formats.add("DictionaryEntryOrArticle");
-        }
-
         // Records that contain the code "sodr" in 935$c should be classified as "Article" and not as "Book":
         if (!formats.contains("Article")) {
             for (final VariableField variableField : _935Fields) {
@@ -2346,6 +2341,11 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
+        if (foundInSubfield(_935Fields, 'c', "uwlx")) {
+            formats.remove("Article");
+            formats.add("DictionaryEntryOrArticle");
+        }
+
         // Determine whether record is a 'Festschrift', i.e. has "fe" in 935$c
         if (foundInSubfield(_935Fields, 'c', "fe"))
             formats.add("Festschrift");
@@ -2353,10 +2353,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Determine whether a record is a subscription package, i.e. has "subskriptionspaket" in 935$c
         if (foundInSubfield(_935Fields, 'c', "subskriptionspaket"))
             formats.add("SubscriptionBundle");
-
-        // If we classified an object as "DictionaryEntryOrArticle" we don't also want it to be classified as an article:
-        if (formats.contains("Article") && formats.contains("DictionaryEntryOrArticle"))
-            formats.remove("Article");
 
         if (isReview(record)) {
             formats.remove("Article");
