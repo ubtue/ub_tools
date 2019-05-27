@@ -70,6 +70,8 @@ std::string FieldToCanonLawCode(const std::string &ppn, const std::string &subfi
         return StringUtil::ToString(200000000 + range_start) + "_" + StringUtil::ToString(200000000 + range_end);
     case CCEO:
         return StringUtil::ToString(300000000 + range_start) + "_" + StringUtil::ToString(300000000 + range_end);
+    default:
+        LOG_ERROR("unknown codex: " + std::to_string(codex));
     }
 }
 

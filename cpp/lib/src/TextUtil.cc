@@ -70,8 +70,8 @@ void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
             charset_ = key_and_value->second;
         } else if (((key_and_value = chunk.attribute_map_->find("http-equiv")) != chunk.attribute_map_->end())
                      and (StringUtil::ASCIIToLower(key_and_value->second) == "content-type")
-                     and ((key_and_value = chunk.attribute_map_->find("content")) != chunk.attribute_map_->end())) {
-
+                     and ((key_and_value = chunk.attribute_map_->find("content")) != chunk.attribute_map_->end()))
+        {
             static RegexMatcher *matcher(nullptr);
             if (unlikely(matcher == nullptr)) {
                 const std::string pattern("charset=([^ ;]+)");
@@ -128,8 +128,9 @@ bool EncodingConverter::convert(const std::string &input, std::string * const ou
     size_t inbytes_left(input.length()), outbytes_left(OUTBYTE_COUNT);
     const ssize_t converted_count(
         static_cast<ssize_t>(::iconv(iconv_handle_, &in_bytes, &inbytes_left, &out_bytes, &outbytes_left)));
-    if (unlikely(converted_count == -1 and getToEncoding().find("//TRANSLIT") == std::string::npos and
-                                                 getToEncoding().find("//IGNORE") == std::string::npos or errno == E2BIG)) {
+    if (unlikely((converted_count == -1) and (getToEncoding().find("//TRANSLIT") == std::string::npos) and
+                 (getToEncoding().find("//IGNORE") == std::string::npos or errno == E2BIG)))
+    {
         LOG_WARNING("iconv(3) failed! (Trying to convert \"" + from_encoding_ + "\" to \"" + to_encoding_ + "\"!");
         delete [] in_bytes_start;
         delete [] out_bytes_start;
