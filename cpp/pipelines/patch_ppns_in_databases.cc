@@ -73,7 +73,7 @@ void LoadMapping(MARC::Reader * const marc_reader,
             if (matcher->matched(subfield_a)) {
                 const std::string old_sigil((*matcher)[1]);
                 const std::string old_ppn((*matcher)[2]);
-                if (not MapUtil::Contains(already_processed_ppns_and_sigils, old_ppn, old_sigil))
+                if (old_ppn != record.getControlNumber() and not MapUtil::Contains(already_processed_ppns_and_sigils, old_ppn, old_sigil))
                     old_ppns_sigils_and_new_ppns->emplace_back(old_ppn, old_sigil, record.getControlNumber());
             }
         }
