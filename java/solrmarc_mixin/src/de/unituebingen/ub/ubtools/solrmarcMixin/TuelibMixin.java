@@ -2358,9 +2358,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (formats.contains("Article") && formats.contains("DictionaryEntryOrArticle"))
             formats.remove("Article");
 
-        if (formats.contains("Unknown") && formats.size() > 1)
-            formats.remove("Unknown");
-
         if (isReview(record)) {
             formats.remove("Article");
             formats.add("Review");
