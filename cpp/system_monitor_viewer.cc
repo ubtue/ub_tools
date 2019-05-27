@@ -229,6 +229,8 @@ float GetScaledTimestamp(const time_t timestamp, const time_t time_start, const 
         return time_difference / 7.f * 24.f * 3600.f;
     case TimeUnit::MONTH:
         return time_difference / 30.f * 24.f * 3600.f;
+    default:
+        LOG_ERROR("unknown TimeUnit: " + std::to_string(static_cast<int>(time_unit)));
     }
 }
 

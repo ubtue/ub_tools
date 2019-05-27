@@ -1,5 +1,5 @@
-/** \file    patch_up_ppns_for_k10plus.cc
- *  \brief   Swaps out all persistent old PPN's with new PPN's.
+/** \file    patch_ppns_in_databases.cc
+ *  \brief   Swaps changed and deletes PPN's in various databases.
  *  \author  Dr. Johannes Ruscheinski
  */
 
@@ -46,7 +46,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--store-only] marc_input1 [marc_input2 .. marc_inputN] [-- deletion_list1 deletion_list2 .. deletion_listN]\n"
+    ::Usage("[--store-only|--report-only] marc_input1 [marc_input2 .. marc_inputN] [-- deletion_list1 deletion_list2 .. deletion_listN]\n"
             "If --store-only has been specified, no swapping will be performed and only the persistent map file will be overwritten.\n"
             "If deletion lists should be processed, they need to be specified after a double-hyphen to indicate the end of the MARC files.");
 }
@@ -66,9 +66,7 @@ void LoadMapping(MARC::Reader * const marc_reader,
                  const std::unordered_multimap<std::string, std::string> &already_processed_ppns_and_sigils,
                  std::vector<PPNsAndSigil> * const old_ppns_sigils_and_new_ppns)
 {
-    // We need to consider the sigil of the old BSZ as well as the K10+ sigil because in future there may also be merges of
-    // K10+ entities which will lead to old PPN's being K10+ PPN's.
-    auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("^\\((DE-576|DE-627)\\)(.+)"));
+    auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("^\\((DE-627)\\)(.+)"));
     while (const auto record = marc_reader->read()) {
         for (const auto &field : record.getTagRange("035")) {
             const auto subfield_a(field.getFirstSubfieldWithCode('a'));
@@ -245,9 +243,14 @@ int Main(int argc, char **argv) {
     if (argc < 2)
         Usage();
 
-    bool store_only(false);
+    bool store_only(false), report_only(false);
     if (std::strcmp(argv[1], "--store-only") == 0) {
         store_only = true;
+        --argc, ++argv;
+        if (argc < 2)
+            Usage();
+    } else if (std::strcmp(argv[1], "--report-only") == 0) {
+        report_only = true;
         --argc, ++argv;
         if (argc < 2)
             Usage();
@@ -285,6 +288,23 @@ int Main(int argc, char **argv) {
         LOG_INFO("nothing to do!");
         return EXIT_SUCCESS;
     }
+
+    if (report_only) {
+        if (not title_deletion_ppns.empty()) {
+            LOG_INFO("Deletions:");
+            for (const auto ppn : title_deletion_ppns)
+                LOG_INFO(ppn);
+        }
+
+        if (not old_ppns_sigils_and_new_ppns.empty()) {
+            LOG_INFO("Old PPN to New PPN Mapping:");
+            for (const auto old_ppn_sigil_and_new_ppn : old_ppns_sigils_and_new_ppns)
+                LOG_INFO(old_ppn_sigil_and_new_ppn.old_ppn_ + " -> " + old_ppn_sigil_and_new_ppn.new_ppn_);
+        }
+
+        return EXIT_SUCCESS;
+    }
+
     if (old_ppns_sigils_and_new_ppns.empty())
         goto clean_up_deleted_ppns;
 

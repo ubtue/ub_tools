@@ -224,4 +224,6 @@ int Main(int argc, char *argv[]) {
         ::sleep(1);
         ++ticks;
     }
+
+    return EXIT_SUCCESS;
 }

@@ -436,7 +436,13 @@ bool SplitIntoBooksAndChaptersAndVerses(const std::string &bible_reference_query
     if (bible_reference_candidates.empty())
         bible_reference_candidates.emplace_back(bible_reference_query);
     else
+        #ifndef __clang__
+        #   pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+        #endif
         bible_reference_candidates.emplace_back(bible_reference_query.substr(last_found_pos + OR.length()));
+        #ifndef __clang__
+        #   pragma GCC diagnostic error "-Wmaybe-uninitialized"
+        #endif
 
     for (const auto &bible_reference_candidate : bible_reference_candidates) {
         book_candidates->resize(book_candidates->size() + 1);
