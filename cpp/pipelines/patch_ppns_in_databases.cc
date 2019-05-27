@@ -227,8 +227,6 @@ void ProcessAllDatabases(DbConnection * const db_connection, const SetOrMap &set
         table_func(db_connection, "vufind.ixtheo_journal_subscriptions", "journal_control_number_or_bundle_name",
                    set_or_map);
         table_func(db_connection, "vufind.ixtheo_pda_subscriptions", "book_ppn", set_or_map);
-        table_func(db_connection, "vufind.relbib_ids", "record_id", set_or_map);
-        table_func(db_connection, "vufind.bibstudies_ids", "record_id", set_or_map);
     }
 }
 
