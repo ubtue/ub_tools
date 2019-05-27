@@ -2270,11 +2270,11 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
             break;
         // Component parts
-        case 'A':
-            result.add("BookComponentPart");
+        case 'A': // BookComponentPart
+            result.add("Article");
             break;
-        case 'B':
-            result.add("SerialComponentPart");
+        case 'B': // SerialComponentPart
+            result.add("Article");
             break;
     // Integrating resource
     case 'I':
@@ -2362,37 +2362,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return result;
     }
 
-    /**
-     * Determine Record Format(s)
-     *
-     * @param record
-     *            the record
-     * @return format of record
-     */
-    public Set<String> getFormatsWithGermanHandling(final Record record) {
-        // We've been facing the problem that the original SolrMarc cannot deal
-        // with
-        // german descriptions in the 245h and thus assigns a wrong format
-        // for e.g. electronic resource
-        // Thus we must handle this manually
-
-        Set<String> rawFormats = new LinkedHashSet<String>();
-        DataField title = (DataField) record.getVariableField("245");
-
-        if (title != null) {
-            if (title.getSubfield('h') != null) {
-                if (title.getSubfield('h').getData().toLowerCase().contains("[elektronische ressource]")) {
-                    rawFormats.addAll(getMultipleFormats(record));
-                    return rawFormats;
-                } else
-                    return getMultipleFormats(record);
-            }
-        }
-
-        // Catch case of empty title
-        return getMultipleFormats(record);
-    }
-
     private boolean foundInSubfield(final List<VariableField> fields, final char subfieldCode, final String subfieldContents) {
         for (final VariableField field : fields) {
             final DataField dataField = (DataField) field;
@@ -2415,15 +2384,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return format of record
      */
     public Set<String> getFormatIncludingElectronic(final Record record) {
-        final Set<String> formats = new HashSet<>();
-        Set<String> rawFormats = getFormatsWithGermanHandling(record);
-
-        for (final String rawFormat : rawFormats) {
-            if (rawFormat.equals("BookComponentPart") || rawFormat.equals("SerialComponentPart"))
-                formats.add("Article");
-            else
-                formats.add(rawFormat);
-        }
+        final Set<String> formats = getMultipleFormats(record);
 
         final VariableField electronicField = record.getVariableField("ELC");
         if (electronicField != null)
