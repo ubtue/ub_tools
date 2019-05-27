@@ -97,6 +97,5 @@ public:
      */
     void insertEntry(const std::string &id, const std::string &full_text, const std::vector<EntryUrl> &entry_urls);
 
-    /** \brief Delete an entry */
     bool deleteEntry(const std::string &id);
 };
