@@ -36,9 +36,9 @@ namespace {
 }
 
 
-bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullTextCache * const full_text_cache, 
-                    const std::string &filename, const bool force_overwrite=false, const bool verbose=false) 
-    {
+bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullTextCache * const full_text_cache,
+                    const std::string &filename, const bool force_overwrite = false, const bool verbose = false)
+{
     const auto input(FileUtil::OpenInputFileOrDie(filename));
     FullTextImport::FullTextData full_text_data;
     FullTextImport::ReadExtractedTextFromDisk(input.get(), &full_text_data);
