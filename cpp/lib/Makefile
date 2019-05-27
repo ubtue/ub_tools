@@ -59,4 +59,4 @@ libstemmer/libstemmer_amd64.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libst
 	$(MAKE_DEPS) -I $(INC) $(SRCS)
 
 clean:
-	rm -f *~ $(PROGS) $(OBJS) *.a && cd libstemmer && make clean && rm -f libstemmer.a
+	rm -f *~ $(PROGS) $(OBJ)/* *.a && cd libstemmer && make clean && rm -f libstemmer.a
