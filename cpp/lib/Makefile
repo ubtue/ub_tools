@@ -43,7 +43,7 @@ $(OBJ)/%.o: $(SRC)/%.cc Makefile
 	@$(CCC) $(CCCFLAGS) $< -c -o $@
 $(STATIC_OBJ)/%_static.o: $(SRC)/%.cc Makefile
 	@echo "Compiling static $< $(OPTIMISATIONS_STATE)..."
-	@$(CCC) -static $(CCCFLAGS) $< -c -o $@
+	@$(CCC) -static $(filter-out -march=native, $(CCCFLAGS)) $< -c -o $@
 
 all: /usr/local/bin/iViaCore-mkdep .deps libstemmer/libstemmer.a libubtue.a
 
