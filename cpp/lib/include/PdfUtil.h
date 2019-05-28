@@ -27,8 +27,8 @@ namespace PdfUtil {
 
 
 constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 60; // seconds
-bool ExtractText(const std::string &pdf_document, std::string * const extracted_text);
-
+bool ExtractText(const std::string &pdf_document, std::string * const extracted_text,
+                 const std::string &start_page="", const std::string &end_page="");
 
 /** \brief Returns whether a document contains text or not.
  *

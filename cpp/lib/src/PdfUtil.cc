@@ -29,7 +29,9 @@
 namespace PdfUtil {
 
 
-bool ExtractText(const std::string &pdf_document, std::string * const extracted_text) {
+bool ExtractText(const std::string &pdf_document, std::string * const extracted_text,
+                 const std::string &start_page, const std::string &end_page)
+{
     static std::string pdftotext_path;
     if (pdftotext_path.empty())
         pdftotext_path = ExecUtil::LocateOrDie("pdftotext");
@@ -43,9 +45,13 @@ bool ExtractText(const std::string &pdf_document, std::string * const extracted_
 
     const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &output_filename(auto_temp_file2.getFilePath());
-
-    const int retval(ExecUtil::Exec(pdftotext_path,
-                                    { "-enc", "UTF-8", "-nopgbrk", input_filename, output_filename }));
+    std::vector<std::string> pdftotext_params = { "-enc", "UTF-8", "-nopgbrk" };
+    if (not start_page.empty())
+        pdftotext_params.insert(pdftotext_params.end(), { "-f", start_page });
+    if (not end_page.empty())
+        pdftotext_params.insert(pdftotext_params.end(), { "-l", end_page });
+    pdftotext_params.insert(pdftotext_params.end(), { input_filename, output_filename });
+    const int retval(ExecUtil::Exec(pdftotext_path, pdftotext_params));
     if (retval != 0) {
         LOG_WARNING("failed to execute \"" + pdftotext_path + "\"!");
         return false;
