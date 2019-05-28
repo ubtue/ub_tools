@@ -283,15 +283,15 @@ int Main(int argc, char **argv) {
     if (arg_no != argc)
         Usage();
 
-    if (old_ppns_sigils_and_new_ppns.empty() and title_deletion_ppns.empty()) {
+    if (old_ppns_sigils_and_new_ppns.empty() and deletion_ppns.empty()) {
         LOG_INFO("nothing to do!");
         return EXIT_SUCCESS;
     }
 
     if (report_only) {
-        if (not title_deletion_ppns.empty()) {
+        if (not deletion_ppns.empty()) {
             LOG_INFO("Deletions:");
-            for (const auto ppn : title_deletion_ppns)
+            for (const auto ppn : deletion_ppns)
                 LOG_INFO(ppn);
         }
 
@@ -310,7 +310,7 @@ int Main(int argc, char **argv) {
     if (store_only) {
         AddPPNsAndSigilsToMultiMap(old_ppns_sigils_and_new_ppns, &already_processed_ppns_and_sigils);
         MapUtil::SerialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, already_processed_ppns_and_sigils);
-        if (not title_deletion_ppns.empty())
+        if (not deletion_ppns.empty())
             goto clean_up_deleted_ppns;
         return EXIT_SUCCESS;
     }
@@ -320,7 +320,7 @@ int Main(int argc, char **argv) {
     MapUtil::SerialiseMap(ALREADY_SWAPPED_PPNS_MAP_FILE, already_processed_ppns_and_sigils);
 
 clean_up_deleted_ppns:
-    ProcessAllDatabases(&db_connection, title_deletion_ppns, DeleteFromNotifiedDB, DeleteFromTable);
+    ProcessAllDatabases(&db_connection, deletion_ppns, DeleteFromNotifiedDB, DeleteFromTable);
 
     return EXIT_SUCCESS;
 }
