@@ -32,7 +32,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    :Usage("[--keep-intermediate-files] old_directory deletion_list new_directory entire_record_deletion_log\n"
+    ::Usage("[--keep-intermediate-files] old_directory deletion_list new_directory entire_record_deletion_log\n"
             "Record ID's of records that were deleted and not merely modified will be written to \"entire_record_deletion_log\".");
 }
 
