@@ -80,6 +80,7 @@ input_directory=$extraction_directory
 
 declare -i counter=0
 last_temp_directory=
+> entire_record_deletion.log
 for update in $(generate_merge_order | tail --lines=+2); do
     ((++counter))
     temp_directory=temp_directory.$BASHPID.$counter
@@ -90,7 +91,7 @@ for update in $(generate_merge_order | tail --lines=+2); do
     else
         echo "[$(date +%y%m%d-%R:%S)] Processing differential dump: $update"
         echo apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
-        apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
+        apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory entire_record_deletion.log
     fi
     if [[ -n "$last_temp_directory" ]]; then
         rm -r ${last_temp_directory}

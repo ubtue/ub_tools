@@ -106,7 +106,7 @@ for update in $(generate_merge_order | tail --lines=+2); do
     if [[ ${update:0:6} == "LOEKXP" ]]; then
         echo "[$(date +%y%m%d-%R:%S)] Processing deletion list: $update"
         echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
-        archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
+        archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory entire_record_deletion.log
     else
         echo "[$(date +%y%m%d-%R:%S)] Processing differential dump: $update"
         echo apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
