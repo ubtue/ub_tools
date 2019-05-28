@@ -594,7 +594,7 @@ int main(int argc, char *argv[]) {
     try {
 	const unsigned MAX_LINE_LENGTH(130);
 
-	std::ofstream deps(".deps");
+	std::ofstream deps(static_objects ? ".static_deps" : ".deps");
 	for (int arg_no(optind); arg_no < argc; ++arg_no) {
 
 	    // 1. Extract the include file names.
@@ -608,7 +608,8 @@ int main(int argc, char *argv[]) {
 	    if (output_program_rules)
 		deps << RemoveFileSuffix(&basename) << ": " << argv[arg_no];
 	    else
-		deps << "$(OBJ)/" << RemoveFileSuffix(&basename) << (static_objects ? "_static.o: " : ".o: ") << argv[arg_no];
+		deps << (static_objects ? "$(STATIC_OBJ)/" : "$(OBJ)/") << RemoveFileSuffix(&basename)
+                     << (static_objects ? "_static.o: " : ".o: ") << argv[arg_no];
 
 	    const unsigned OFFSET = 7 + basename.length() + 4 + std::strlen(argv[arg_no]);
 	    unsigned current_line_length = OFFSET;
