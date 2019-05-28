@@ -32,20 +32,35 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("fulltext_file1 [fulltext_file2 .. fulltext_fileN]");
+    ::Usage("[--force-overwrite] [--verbose] fulltext_file1  [fulltext_file2 .. fulltext_fileN]");
 }
 
 
-bool ImportDocument(ControlNumberGuesser &control_number_guesser, FullTextCache * const full_text_cache, const std::string &filename) {
+bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullTextCache * const full_text_cache,
+                    const std::string &filename, const bool force_overwrite = false, const bool verbose = false)
+{
     const auto input(FileUtil::OpenInputFileOrDie(filename));
     FullTextImport::FullTextData full_text_data;
     FullTextImport::ReadExtractedTextFromDisk(input.get(), &full_text_data);
 
     std::string ppn;
-    if (not FullTextImport::CorrelateFullTextData(control_number_guesser, full_text_data, &ppn))
+    if (not FullTextImport::CorrelateFullTextData(control_number_guesser, full_text_data, &ppn)) {
+        if (verbose)
+            LOG_INFO("Could not correlate data for file \"" + filename + "\"");
         return false;
+    }
+    FullTextCache::Entry entry;
+    const bool entry_present(full_text_cache->getEntry(ppn, &entry));
+    if (not force_overwrite and entry_present) {
+        if (verbose)
+            LOG_INFO("Skip inserting PPN \"" + ppn + "\" since entry already present");
+        return true;
+    }
 
+    if (entry_present)
+        full_text_cache->deleteEntry(ppn);
     full_text_cache->insertEntry(ppn, full_text_data.full_text_, /* entry_urls = */{});
+    LOG_INFO("Inserted text from \"" + filename + "\" as entry for PPN \"" + ppn + "\"");
 
     return true;
 }
@@ -55,16 +70,28 @@ bool ImportDocument(ControlNumberGuesser &control_number_guesser, FullTextCache 
 
 
 int Main(int argc, char *argv[]) {
+    bool force_overwrite(false);
+    bool verbose(false);
+    if (argc > 1 and std::strcmp(argv[1], "--force-overwrite") == 0) {
+        force_overwrite = true;
+        --argc;
+        ++argv;
+    }
+
+    if (argc > 1 and std::strcmp(argv[1], "--verbose") == 0) {
+        verbose = true;
+        --argc;
+        ++argv;
+    }
     if (argc < 2)
         Usage();
-
     ControlNumberGuesser control_number_guesser;
     FullTextCache full_text_cache;
 
     unsigned total_count(0), failure_count(0);
     for (int arg_no(1); arg_no < argc; ++arg_no) {
         ++total_count;
-        if (not ImportDocument(control_number_guesser, &full_text_cache, argv[arg_no]))
+        if (not ImportDocument(control_number_guesser, &full_text_cache, argv[arg_no], force_overwrite, verbose))
             ++failure_count;
     }
 
