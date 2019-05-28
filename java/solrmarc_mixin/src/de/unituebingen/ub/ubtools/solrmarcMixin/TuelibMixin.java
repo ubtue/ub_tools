@@ -2042,10 +2042,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         char formatCode2 = ' ';
         char formatCode4 = ' ';
 
-        final VariableField electronicField = record.getVariableField("ELC");
-        if (electronicField != null)
-            formats.add(electronicRessource);
-
         // check the 007 - this is a repeating field
         List<VariableField> fields = record.getVariableFields("007");
         if (fields != null) {
