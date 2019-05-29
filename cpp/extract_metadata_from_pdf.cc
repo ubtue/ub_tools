@@ -171,11 +171,11 @@ int Main(int argc, char *argv[]) {
 
     bool use_output_dir(false);
     std::string output_dir(".");
-    if (argc > 2 and std::strcmp(argv[1], "--output-dir") == 0) {
+    if (argc > 2 and StringUtil::StartsWith(argv[1], "--output-dir=")) {
         use_output_dir = true;
-        output_dir = argv[2];
-        argc-=2;
-        argv+=2;
+        output_dir = argv[1] + __builtin_strlen("--output-dir=");
+        --argc;
+        ++argv;
     }
 
     if (argc < 2)
