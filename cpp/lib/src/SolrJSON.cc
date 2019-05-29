@@ -20,7 +20,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #include "Compiler.h"
 #include <vector>
 #include <string>
@@ -28,11 +27,11 @@
 #include "SolrJSON.h"
 #include "util.h"
 
-#include <iostream>
 
 namespace SolrJSON {
 
-void ParseTreeAndGetDocs(const std::string &json_results, std::shared_ptr<const JSON::ArrayNode> &docs) {
+
+std::shared_ptr<const JSON::ArrayNode> ParseTreeAndGetDocs(const std::string &json_results) {
     JSON::Parser parser(json_results);
     std::shared_ptr<JSON::JSONNode> tree;
     if (not parser.parse(&tree))
@@ -40,7 +39,7 @@ void ParseTreeAndGetDocs(const std::string &json_results, std::shared_ptr<const 
 
     const std::shared_ptr<const JSON::ObjectNode> tree_obj(JSON::JSONNode::CastToObjectNodeOrDie("top level JSON entity", tree));
     const std::shared_ptr<const JSON::ObjectNode> response(tree_obj->getObjectNode("response"));
-    docs = response->getArrayNode("docs");
+    return response->getArrayNode("docs");
 }
 
 
