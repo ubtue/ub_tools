@@ -91,28 +91,23 @@ void GetFulltextMetadataFromSolr(const std::string control_number, FullTextImpor
 }
 
 
-void GuessPDFMetadata(const std::string &fulltext_location) {
-    std::string pdf_document;
+bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextData * const fulltext_data) {
     ControlNumberGuesser control_number_guesser;
     std::set<std::string> control_numbers;
-    if (not FileUtil::ReadString(fulltext_location, &pdf_document))
-        LOG_ERROR("Could not read \"" + fulltext_location + "\"");
-    if (PdfUtil::PdfDocContainsNoText(pdf_document))
-        LOG_ERROR("Apparently no text in \"" + fulltext_location + "\"");
     // Try to find an ISBN in the first pages
     std::string first_pages_text;
     PdfUtil::ExtractText(pdf_document, &first_pages_text, "1", "10" );
     std::string isbn;
     GuessISBN(first_pages_text, &isbn);
-    if (isbn.empty())
-        LOG_WARNING("Unable to determine ISBN for \"" + fulltext_location + "\"");
-    else
-        std::cout << "WE GOT ISBN: " << isbn << '\n';
+    if (not isbn.empty()) {
+        LOG_INFO("Extracted ISBN: " + isbn);
         control_number_guesser.lookupISBN(isbn, &control_numbers);
-    for (const auto &control_number : control_numbers) {
-        std::cout << "WE HAVE PPN: " + control_number + " FOR ISBN \"" + isbn + "\"\n";
-        FullTextImport::FullTextData full_text_metadata;
-        GetFulltextMetadataFromSolr(control_number, &full_text_metadata);
+        if (control_numbers.size() != 1)
+            LOG_ERROR("We got more than one control number for ISBN \"" + isbn + "\"");
+        const std::string control_number(*(control_numbers.begin()));
+        LOG_INFO("Determined control number \"" + control_number + "\" for ISBN \"" + isbn + "\"\n");
+        GetFulltextMetadataFromSolr(control_number, fulltext_data);
+        return true;
     }
 
     // Try to analyze the bottom of the first page
@@ -126,7 +121,15 @@ void GuessPDFMetadata(const std::string &fulltext_location) {
 
     GuessAuthorAndTitle(first_page_text);
 
+    return false;
+
 }
+
+
+bool ExtractFulltext(const std::string &pdf_document, FullTextImport::FullTextData * const fulltext_data) {
+     return PdfUtil::ExtractText(pdf_document, &(fulltext_data->full_text_));
+}
+
 
 } // unnamed namespace
 
@@ -135,7 +138,22 @@ int Main(int argc, char *argv[]) {
     if (argc < 3)
         Usage();
 
-    GuessPDFMetadata(argv[1]);
+    FullTextImport::FullTextData fulltext_data;
+    const std::string fulltext_location(argv[1]);
+    std::string pdf_document;
+    if (not FileUtil::ReadString(fulltext_location, &pdf_document))
+        LOG_ERROR("Could not read \"" + fulltext_location + "\"");
+    if (PdfUtil::PdfDocContainsNoText(pdf_document))
+        LOG_ERROR("Apparently no text in \"" + fulltext_location + "\"");
+    if (unlikely(not GuessPDFMetadata(pdf_document, &fulltext_data)))
+        LOG_ERROR("Unable to extract metadata form \"" +  fulltext_location + "\"");
+    if (unlikely(not ExtractFulltext(pdf_document, &fulltext_data)))
+        LOG_ERROR("Unable to extract fulltext from \"" + fulltext_location + "\"");
+    auto plain_text_output(FileUtil::OpenOutputFileOrDie(argv[2]));
+    FullTextImport::WriteExtractedTextToDisk(fulltext_data.full_text_, fulltext_data.title_, fulltext_data.authors_, fulltext_data.doi_,
+                                             fulltext_data.year_, fulltext_data.issn_, fulltext_data.isbn_, plain_text_output.get());
+
+
     return EXIT_SUCCESS;
 }
 
