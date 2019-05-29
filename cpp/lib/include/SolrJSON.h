@@ -23,12 +23,15 @@
 #include <string>
 #include "JSON.h"
 
+
 namespace SolrJSON {
 
-void ParseTreeAndGetDocs(const std::string &json_results, std::shared_ptr<const JSON::ArrayNode> &docs);
+
+std::shared_ptr<const JSON::ArrayNode> ParseTreeAndGetDocs(const std::string &json_results);
 std::string GetId(const std::shared_ptr<const JSON::ObjectNode> &doc_obj);
 std::string GetTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_obj);
 std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode> &doc_obj);
 std::string GetFirstPublishDate(const std::shared_ptr<const JSON::ObjectNode> &doc_obj);
+
 
 } // namespace SolrJSON

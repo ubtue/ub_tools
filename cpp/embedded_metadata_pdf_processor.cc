@@ -1,7 +1,7 @@
 /** \brief Tool for generating reasonable input for the FulltextImporter if only a PDF fulltext is available
  *  \author Johannes Riedl
  *
- *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -41,28 +41,30 @@ namespace {
 
 const std::string solr_host_and_port("localhost:8080");
 
+
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] pdf_input full_text_output\n"
                            << ::progname << " [--min-log-level=min_verbosity] --output_dir output_dir pdf_input1 pdf_input2 ...\n\n";
     std::exit(EXIT_FAILURE);
 }
 
-std::string GuessISSN(const std::string first_page_text, std::string * const issn) {
+
+std::string GuessISSN(const std::string &first_page_text, std::string * const issn) {
     std::string first_page_text_trimmed(first_page_text);
     StringUtil::Trim(&first_page_text_trimmed, '\n');
-    std::size_t last_paragraph_start(first_page_text_trimmed.rfind("\n\n"));
+    const std::size_t last_paragraph_start(first_page_text_trimmed.rfind("\n\n"));
     std::string last_paragraph(last_paragraph_start != std::string::npos ?
-                                first_page_text_trimmed.substr(last_paragraph_start) : "");
+                               first_page_text_trimmed.substr(last_paragraph_start) : "");
     StringUtil::Map(&last_paragraph, '\n', ' ');
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(".*ISSN\\s*([\\d\\-X]+).*"));
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*ISSN\\s*([\\d\\-X]+).*"));
     if (matcher->matched(last_paragraph))
         *issn = (*matcher)[1];
     return last_paragraph;
 }
 
 
-void GuessISBN(const std::string extracted_text, std::string * const isbn) {
-     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(".*ISBN\\s*([\\d\\-X]+).*"));
+void GuessISBN(const std::string &extracted_text, std::string * const isbn) {
+     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*ISBN\\s*([\\d\\-X]+).*"));
      if (matcher->matched(extracted_text))
          *isbn = (*matcher)[1];
 }
@@ -72,13 +74,11 @@ void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTe
     std::string pdfinfo_output;
     PdfUtil::ExtractPDFInfo(pdf_document, &pdfinfo_output);
     static RegexMatcher * const authors_matcher(RegexMatcher::RegexMatcherFactory("Author:\\s*(.*)", nullptr, RegexMatcher::CASE_INSENSITIVE));
-    if (authors_matcher->matched(pdfinfo_output)) {
-        StringUtil::Split((*authors_matcher)[1], std::set<char>({';','|'}), &(fulltext_data->authors_));
-    }
+    if (authors_matcher->matched(pdfinfo_output))
+        StringUtil::Split((*authors_matcher)[1], std::set<char>({ ';', '|' }), &(fulltext_data->authors_));
     static RegexMatcher * const title_matcher(RegexMatcher::RegexMatcherFactory("^Title:?\\s*(.*)", nullptr, RegexMatcher::CASE_INSENSITIVE));
-    if (title_matcher->matched(pdfinfo_output)) {
+    if (title_matcher->matched(pdfinfo_output))
         fulltext_data->title_ = (*title_matcher)[1];
-    }
 }
 
 
@@ -89,10 +89,9 @@ void GetFulltextMetadataFromSolr(const std::string control_number, FullTextImpor
     if (unlikely(not Solr::Query(query, "id,title,author,author2,publishDate", &json_result, &err_msg,
                                  solr_host_and_port,/* timeout */ 5, Solr::JSON)))
         LOG_ERROR("Solr query failed or timed-out: \"" + query + "\". (" + err_msg + ")");
-    std::shared_ptr<const JSON::ArrayNode> docs;
-    SolrJSON::ParseTreeAndGetDocs(json_result, docs);
+    const std::shared_ptr<const JSON::ArrayNode> docs(SolrJSON::ParseTreeAndGetDocs(json_result));
     if (docs->size() != 1)
-        LOG_ERROR("Invalid size " + std::to_string(docs->size()) + " for SOLR results");
+        LOG_ERROR("Invalid size " + std::to_string(docs->size()) + " for SOLR results (Expected only one)");
     const std::shared_ptr<const JSON::ObjectNode> doc_obj(JSON::JSONNode::CastToObjectNodeOrDie("document object", *(docs->begin())));
     fulltext_data->title_ = SolrJSON::GetTitle(doc_obj);
     const auto authors(SolrJSON::GetAuthors(doc_obj));
