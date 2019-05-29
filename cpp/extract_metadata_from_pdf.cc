@@ -31,6 +31,11 @@
 #include "StringUtil.h"
 #include "util.h"
 
+// Try to derive relevant information to guess the PPN
+// Strategy 1: Try to find an ISBN string
+// Strategy 2: Extract pages at the beginning and try to identify information at
+//             the bottom of the first page and try to guess author and title
+
 
 namespace {
 
@@ -41,11 +46,7 @@ const std::string solr_host_and_port("localhost:8080");
     std::exit(EXIT_FAILURE);
 }
 
-// Try to derive relevant information to guess the PPN
-// Strategy 1: Extract pages at the beginning and try to identify information at
-//             the bottom of the first page and try to guess author and title
-// Strategy 2: Try to find an ISBN string
-std::string ExtractFooterMetadata(const std::string first_page_text, std::string * const issn) {
+std::string GuessISSN(const std::string first_page_text, std::string * const issn) {
     std::string first_page_text_trimmed(first_page_text);
     StringUtil::Trim(&first_page_text_trimmed, '\n');
     std::size_t last_paragraph_start(first_page_text_trimmed.rfind("\n\n"));
@@ -66,13 +67,21 @@ void GuessISBN(const std::string extracted_text, std::string * const isbn) {
 }
 
 
-void GuessAuthorAndTitle(const std::string first_page_text) {
-    (void) first_page_text;
-
+void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTextData * const fulltext_data) {
+    std::string pdfinfo_output;
+    PdfUtil::ExtractPDFInfo(pdf_document, &pdfinfo_output);
+    static RegexMatcher * const authors_matcher(RegexMatcher::RegexMatcherFactory("Author:\\s*(.*)", nullptr, RegexMatcher::CASE_INSENSITIVE));
+    if (authors_matcher->matched(pdfinfo_output)) {
+        StringUtil::Split((*authors_matcher)[1], std::set<char>({';','|'}), &(fulltext_data->authors_));
+    }
+    static RegexMatcher * const title_matcher(RegexMatcher::RegexMatcherFactory("^Title:?\\s*(.*)", nullptr, RegexMatcher::CASE_INSENSITIVE));
+    if (title_matcher->matched(pdfinfo_output)) {
+        fulltext_data->title_ = (*title_matcher)[1];
+    }
 }
 
 
-void GetFulltextMetadataFromSolr(const std::string control_number, FullTextImport::FullTextData * const full_text_metadata) {
+void GetFulltextMetadataFromSolr(const std::string control_number, FullTextImport::FullTextData * const fulltext_data) {
     std::string json_result;
     std::string err_msg;
     const std::string query(std::string("id:") + control_number);
@@ -84,10 +93,10 @@ void GetFulltextMetadataFromSolr(const std::string control_number, FullTextImpor
     if (docs->size() != 1)
         LOG_ERROR("Invalid size " + std::to_string(docs->size()) + " for SOLR results");
     const std::shared_ptr<const JSON::ObjectNode> doc_obj(JSON::JSONNode::CastToObjectNodeOrDie("document object", *(docs->begin())));
-    full_text_metadata->title_ = SolrJSON::GetTitle(doc_obj);
+    fulltext_data->title_ = SolrJSON::GetTitle(doc_obj);
     const auto authors(SolrJSON::GetAuthors(doc_obj));
-    full_text_metadata->authors_.insert(std::begin(authors), std::end(authors));
-    full_text_metadata->year_ = SolrJSON::GetFirstPublishDate(doc_obj);
+    fulltext_data->authors_.insert(std::begin(authors), std::end(authors));
+    fulltext_data->year_ = SolrJSON::GetFirstPublishDate(doc_obj);
 }
 
 
@@ -110,19 +119,17 @@ bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextD
         return true;
     }
 
-    // Try to analyze the bottom of the first page
+    // Guess control number by author, title and and possibly issn
     std::string first_page_text;
     PdfUtil::ExtractText(pdf_document, &first_page_text, "1", "1" ); // Get only first page
     std::string issn;
-    const std::string last_paragraph(ExtractFooterMetadata(first_page_text, &issn));
-
-    std::cout << "LAST LINE: " << last_paragraph << '\n';
-    std::cout << "ISSN: " << issn << '\n';
-
-    GuessAuthorAndTitle(first_page_text);
-
-    return false;
-
+    const std::string last_paragraph(GuessISSN(first_page_text, &issn));
+    fulltext_data->issn_ = issn;
+    GuessAuthorAndTitle(pdf_document, fulltext_data);
+    std::string control_number;
+    if (unlikely(not FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_number)))
+        return false;
+    return true;
 }
 
 
@@ -146,7 +153,7 @@ int Main(int argc, char *argv[]) {
     if (PdfUtil::PdfDocContainsNoText(pdf_document))
         LOG_ERROR("Apparently no text in \"" + fulltext_location + "\"");
     if (unlikely(not GuessPDFMetadata(pdf_document, &fulltext_data)))
-        LOG_ERROR("Unable to extract metadata form \"" +  fulltext_location + "\"");
+        LOG_ERROR("Unable to determine metadata for \"" +  fulltext_location + "\"");
     if (unlikely(not ExtractFulltext(pdf_document, &fulltext_data)))
         LOG_ERROR("Unable to extract fulltext from \"" + fulltext_location + "\"");
     auto plain_text_output(FileUtil::OpenOutputFileOrDie(argv[2]));
