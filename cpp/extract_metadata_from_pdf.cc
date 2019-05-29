@@ -42,7 +42,8 @@ namespace {
 const std::string solr_host_and_port("localhost:8080");
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] pdf_input full_text_output\n\n";
+    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] pdf_input full_text_output\n"
+                           << ::progname << " [--min-log-level=min_verbosity] --output_dir output_dir pdf_input1 pdf_input2 ...\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -138,6 +139,29 @@ bool ExtractFulltext(const std::string &pdf_document, FullTextImport::FullTextDa
 }
 
 
+void CreateFulltextImportFile(const std::string &fulltext_pdf, const std::string &fulltext_txt) {
+    FullTextImport::FullTextData fulltext_data;
+    std::string pdf_document;
+    if (not FileUtil::ReadString(fulltext_pdf, &pdf_document))
+        LOG_ERROR("Could not read \"" + fulltext_pdf + "\"");
+    if (PdfUtil::PdfDocContainsNoText(pdf_document))
+        LOG_ERROR("Apparently no text in \"" + fulltext_pdf + "\"");
+    if (unlikely(not GuessPDFMetadata(pdf_document, &fulltext_data)))
+        LOG_ERROR("Unable to determine metadata for \"" +  fulltext_pdf + "\"");
+    if (unlikely(not ExtractFulltext(pdf_document, &fulltext_data)))
+        LOG_ERROR("Unable to extract fulltext from \"" + fulltext_pdf + "\"");
+    auto plain_text_output(FileUtil::OpenOutputFileOrDie(fulltext_txt));
+    FullTextImport::WriteExtractedTextToDisk(fulltext_data.full_text_, fulltext_data.title_, fulltext_data.authors_, fulltext_data.doi_,
+                                             fulltext_data.year_, fulltext_data.issn_, fulltext_data.isbn_, plain_text_output.get());
+}
+
+
+std::string DeriveOutputFilename(const std::string &pdf_filename) {
+    return (std::strcmp(StringUtil::ASCIIToLower(FileUtil::GetExtension(pdf_filename)).c_str(), "pdf") == 0) ?
+        FileUtil::GetFilenameWithoutExtensionOrDie(pdf_filename) + ".txt" : pdf_filename + ".txt";
+}
+
+
 } // unnamed namespace
 
 
@@ -145,22 +169,29 @@ int Main(int argc, char *argv[]) {
     if (argc < 3)
         Usage();
 
-    FullTextImport::FullTextData fulltext_data;
-    const std::string fulltext_location(argv[1]);
-    std::string pdf_document;
-    if (not FileUtil::ReadString(fulltext_location, &pdf_document))
-        LOG_ERROR("Could not read \"" + fulltext_location + "\"");
-    if (PdfUtil::PdfDocContainsNoText(pdf_document))
-        LOG_ERROR("Apparently no text in \"" + fulltext_location + "\"");
-    if (unlikely(not GuessPDFMetadata(pdf_document, &fulltext_data)))
-        LOG_ERROR("Unable to determine metadata for \"" +  fulltext_location + "\"");
-    if (unlikely(not ExtractFulltext(pdf_document, &fulltext_data)))
-        LOG_ERROR("Unable to extract fulltext from \"" + fulltext_location + "\"");
-    auto plain_text_output(FileUtil::OpenOutputFileOrDie(argv[2]));
-    FullTextImport::WriteExtractedTextToDisk(fulltext_data.full_text_, fulltext_data.title_, fulltext_data.authors_, fulltext_data.doi_,
-                                             fulltext_data.year_, fulltext_data.issn_, fulltext_data.isbn_, plain_text_output.get());
+    bool use_output_dir(false);
+    std::string output_dir(".");
+    if (argc > 2 and std::strcmp(argv[1], "--output-dir") == 0) {
+        use_output_dir = true;
+        output_dir = argv[2];
+        argc-=2;
+        argv+=2;
+    }
 
+    if (argc < 2)
+        Usage();
 
+    if (not use_output_dir and argc < 3)
+        Usage();
+
+    if (not use_output_dir) {
+        const std::string fulltext_pdf(argv[1]);
+        CreateFulltextImportFile(fulltext_pdf, argv[2]);
+        return EXIT_SUCCESS;
+    }
+
+    for (int arg_no(1); arg_no < argc; ++arg_no)
+        CreateFulltextImportFile(argv[arg_no], output_dir + '/' + DeriveOutputFilename(argv[arg_no]));
     return EXIT_SUCCESS;
 }
 
