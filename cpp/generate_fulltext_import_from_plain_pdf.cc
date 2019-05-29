@@ -1,4 +1,4 @@
-/** \brief Tool extracting metadata if only a PDF fulltext is available
+/** \brief Tool for generating reasonable input for the FulltextImporter if only a PDF fulltext is available
  *  \author Johannes Riedl
  *
  *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
