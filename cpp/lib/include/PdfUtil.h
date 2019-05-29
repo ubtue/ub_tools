@@ -58,4 +58,6 @@ bool GetOCRedTextFromPDF(const std::string &pdf_document_path, const std::string
                          std::string * const extracted_text, unsigned timeout=DEFAULT_PDF_EXTRACTION_TIMEOUT);
 
 
+/** \brief Get the output of the pdfinfo program */
+bool ExtractPDFInfo(const std::string &pdf_document, std::string * const pdf_output);
 } // namespace PdfUtil

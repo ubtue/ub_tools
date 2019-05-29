@@ -198,4 +198,32 @@ bool GetOCRedTextFromPDF(const std::string &pdf_document_path, const std::string
 }
 
 
+bool ExtractPDFInfo(const std::string &pdf_document, std::string * const pdf_output) {
+    static std::string pdfinfo_path;
+    if (pdfinfo_path.empty())
+        pdfinfo_path = ExecUtil::LocateOrDie("pdfinfo");
+    const FileUtil::AutoTempFile auto_temp_file1;
+    const std::string &input_filename(auto_temp_file1.getFilePath());
+    if (not FileUtil::WriteString(input_filename, pdf_document)) {
+        LOG_WARNING("can't write document to \"" + input_filename + "\"!");
+        return false;
+    }
+    const FileUtil::AutoTempFile auto_temp_file2;
+    const std::string &pdfinfo_output_filename(auto_temp_file2.getFilePath());
+
+    std::vector<std::string> pdfinfo_params = { input_filename };
+    const int retval(ExecUtil::Exec(pdfinfo_path, pdfinfo_params, pdfinfo_output_filename /* stdout */,
+                     pdfinfo_output_filename /* stderr */));
+    if (retval != 0) {
+        LOG_WARNING("failed to execute \"" + pdfinfo_path + "\"!");
+        return false;
+    }
+    std::string pdfinfo_output;
+    if (unlikely(not FileUtil::ReadString(pdfinfo_output_filename, pdf_output)))
+        LOG_ERROR("Unable to extract pdfinfo output");
+
+    return true;
+}
+
+
 } // namespace PdfUtil
