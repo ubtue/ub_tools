@@ -1,5 +1,5 @@
 #!/bin/bash
-set -o errexit -o nounset
+set -o errexit -o nounset -o history -o histexpand
 
 
 no_problems_found=1
@@ -8,10 +8,10 @@ function SendEmail {
         send_email --recipients="$email_address" --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
         exit 0
     else
-        send_email --priority=high --recipients="$email_address" --subject="$0 failed on $(hostname)" --expand-newline-escapes \
-                   --message-body=$(concat "Check /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log for details.\n\n" \
+        send_email --priority=high --recipients="$email_address" --subject="$0 failed on $(hostname)"  \
+                   --message-body="$(printf '%q' "Check /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log for details.\n\n" \
                                            $(tail -20 /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log) \
-                                           "\n")
+                                           "\n")"
         exit 1
     fi
 }
@@ -86,12 +86,12 @@ for update in $(generate_merge_order | tail --lines=+2); do
     temp_directory=temp_directory.$BASHPID.$counter
     if [[ ${update:0:6} == "LOEKXP" ]]; then
         echo "[$(date +%y%m%d-%R:%S)] Processing deletion list: $update"
-        echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
-        archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
+        echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory  entire_record_deletion.log
+        archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory entire_record_deletion.log
     else
         echo "[$(date +%y%m%d-%R:%S)] Processing differential dump: $update"
         echo apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
-        apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory entire_record_deletion.log
+        apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
     fi
     if [[ -n "$last_temp_directory" ]]; then
         rm -r ${last_temp_directory}
