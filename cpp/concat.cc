@@ -57,7 +57,7 @@ int Main(int argc, char *argv[]) {
         }
         if (not end_of_flags and std::strcmp(argv[arg_no], "--cstyle-escape") == 0) {
             if (escape_double_quotes)
-                LOG_ERROR("can't specify both, --cstyle-escape and --escape-double-quotes!");
+                LOG_ERROR("can't specify both, --cstyle-escape and --escape-double-quotes-and-bangs!");
             escape = true;
             continue;
         }
@@ -65,9 +65,9 @@ int Main(int argc, char *argv[]) {
             emit_trailing_newline = true;
             continue;
         }
-        if (not end_of_flags and std::strcmp(argv[arg_no], "--escape-double-quotes") == 0) {
+        if (not end_of_flags and std::strcmp(argv[arg_no], "--escape-double-quotes-and-bangs") == 0) {
             if (escape)
-                LOG_ERROR("can't specify both, --cstyle-escape and --escape-double-quotes!");
+                LOG_ERROR("can't specify both, --cstyle-escape and --escape-double-quotes-and-bangs!");
             escape_double_quotes = true;
             continue;
         }
