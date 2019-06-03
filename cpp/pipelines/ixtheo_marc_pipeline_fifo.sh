@@ -58,7 +58,7 @@ function EndPhase {
 
 
 function CleanUp {
-    rm -f GesamtTiteldaten-post-phase?*-"${date}".mrc
+    rm -f GesamtTiteldaten-post-phase*.mrc
 }
 
 
