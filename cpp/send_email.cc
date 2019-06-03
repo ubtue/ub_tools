@@ -35,7 +35,7 @@ namespace {
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--sender=sender] [-reply-to=reply_to] --recipients=recipients\n"
               << "  [--cc-recipients=cc_recipients] [--bcc-recipients=bcc_recipients] [--expand-newline-escapes]\n"
-              << "  --subject=subject --message-body=message_body [--priority=priority] [--format=format]\n"
+              << "  --subject=subject (--message-body=message_body | --message-body-file=path) [--priority=priority] [--format=format]\n"
               << "  [--attachment=file1 --attachment=file2 .. --attachment=fileN]\n\n"
               << "       \"priority\" has to be one of \"very_low\", \"low\", \"medium\", \"high\", or\n"
               << "       \"very_high\".  \"format\" has to be one of \"plain_text\" or \"html\"  At least one\n"
@@ -89,7 +89,7 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
                       bool * const expand_newline_escapes, std::vector<std::string> * const attachments)
 {
     *expand_newline_escapes = false;
-    std::string attachment;
+    std::string attachment, message_body_path;
     while (*argv != nullptr) {
         if (std::strcmp(*argv, "--expand-newline-escapes") == 0) {
             *expand_newline_escapes = true;
@@ -103,13 +103,18 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
         } else if (ExtractArg(*argv, "sender", sender) or ExtractArg(*argv, "reply-to", reply_to)
             or ExtractArg(*argv, "recipients", recipients) or ExtractArg(*argv, "cc-recipients", cc_recipients)
             or ExtractArg(*argv, "bcc-recipients", bcc_recipients) or ExtractArg(*argv, "subject", subject)
-            or ExtractArg(*argv, "message-body", message_body) or ExtractArg(*argv, "priority", priority)
+            or ExtractArg(*argv, "message-body", message_body) or ExtractArg(*argv, "message-body-file", &message_body_path)
+            or ExtractArg(*argv, "priority", priority) or ExtractArg(*argv, "format", format)
             or ExtractArg(*argv, "format", format))
             ++argv;
         else
             LOG_ERROR("unknown argument: " + std::string(*argv));
     }
 
+    if (not message_body->empty() and not message_body_path.empty())
+        LOG_ERROR("you must not specify both, --message-body and --message-body-file!");
+    if (not message_body_path.empty())
+        FileUtil::ReadStringOrDie(message_body_path, message_body);
     if (recipients->empty() and cc_recipients->empty() and bcc_recipients->empty())
         LOG_ERROR("you must specify a recipient!");
     if (subject->empty())
