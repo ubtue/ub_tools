@@ -2417,4 +2417,8 @@ inline std::string Truncate(const size_t max_length, std::string s) {
 }
 
 
+/** \brief Backslash escapes double quotes and backslashes. */
+std::string EscapeDoubleQuotes(const std::string &s);
+
+
 } // Namespace StringUtil
