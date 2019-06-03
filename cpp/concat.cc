@@ -23,9 +23,27 @@
 #include "util.h"
 
 
+std::string EscapeDoubleQuotesAndBangs(const std::string &s) {
+    std::string escaped_s;
+    escaped_s.reserve(s.size());
+
+    for (auto ch : s) {
+        if (unlikely(ch == '!'))
+            escaped_s += "\"'!'\"";
+        else {
+            if (unlikely(ch == '"' or ch == '\\'))
+                escaped_s += '\\';
+            escaped_s += ch;
+        }
+    }
+
+    return escaped_s;
+}
+
+
 int Main(int argc, char *argv[]) {
     if (argc == 1) {
-        ::Usage("[--emit-trailing-newline] [--cstyle-escape|--escape-double-quotes] [--] string1 [string2 .. stringN]\n"
+        ::Usage("[--emit-trailing-newline] [--cstyle-escape|--escape-double-quotes-and-bangs] [--] string1 [string2 .. stringN]\n"
                 "In the unlikely case that your first string is \"--cstyle-escape\" use -- to indicate the\n"
                 "end of flags, o/w if the first argument is --cstyle-escape we assume you mean the flag.\n\n");
         return EXIT_SUCCESS;
@@ -58,7 +76,7 @@ int Main(int argc, char *argv[]) {
         if (escape)
             std::cout << StringUtil::CStyleEscape(argv[arg_no]);
         else if (escape_double_quotes)
-            std::cout << StringUtil::EscapeDoubleQuotes(argv[arg_no]);
+            std::cout << EscapeDoubleQuotesAndBangs(argv[arg_no]);
         else
             std::cout << argv[arg_no];
     }
