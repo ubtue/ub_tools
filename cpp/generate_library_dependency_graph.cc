@@ -77,6 +77,9 @@ void ExtractSymbols(LibraryAndSymbols * const library_and_symbols) {
 
 
 int Main(int argc, char *argv[]) {
+    if (argc == 0)
+        ::Usage("absolute_library_paths");
+
     std::vector<LibraryAndSymbols> libraries_and_symbols;
     for (int arg_no(1); arg_no < argc; ++arg_no) {
         LibraryAndSymbols new_library_and_symbols(argv[arg_no]);
