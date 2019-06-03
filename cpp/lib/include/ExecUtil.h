@@ -7,7 +7,7 @@
 /*
  *  Copyright 2004-2008 Project iVia.
  *  Copyright 2004-2008 The Regents of The University of California.
- *  Copyright 2017-2018 Universitätsbibliothek Tübingen
+ *  Copyright 2017-2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -100,11 +100,13 @@ std::string LocateOrDie(const std::string &executable_candidate);
 
 
 /** \brief  Retrieve the stdout of a subcommand.
- *  \param  command        A shell command.  Can include arguments. E.g. "ls -l".
- *  \param  stdout_output  Where to store the output of the command.
+ *  \param  command          A shell command.  Can include arguments. E.g. "ls -l".
+ *  \param  stdout_output    Where to store the output of the command.
+ *  \param  suppress_stderr  If true, stderr will be redirected to /dev/null.
  *  \note   The command will be executed by passing it to the standard shell interpreter: "/bin/sh -c command".
  */
-bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output);
+bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output,
+                                    const bool suppress_stderr = false);
 
 
 /** \brief  Retrieve the stdout and stderr of a subcommand.
