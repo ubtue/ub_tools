@@ -19,7 +19,6 @@
 
 #include <iostream>
 #include <cstring>
-#include "JSON.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -59,7 +58,7 @@ int Main(int argc, char *argv[]) {
         if (escape)
             std::cout << StringUtil::CStyleEscape(argv[arg_no]);
         else if (escape_double_quotes)
-            std::cout << JSON::EscapeDoubleQuotes(argv[arg_no]);
+            std::cout << StringUtil::EscapeDoubleQuotes(argv[arg_no]);
         else
             std::cout << argv[arg_no];
     }
