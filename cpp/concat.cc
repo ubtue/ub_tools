@@ -19,25 +19,28 @@
 
 #include <iostream>
 #include <cstring>
+#include "JSON.h"
 #include "StringUtil.h"
 #include "util.h"
 
 
 int Main(int argc, char *argv[]) {
     if (argc == 1) {
-        ::Usage("[--emit-trailing-newline] [--cstyle-escape] [--] string1 [string2 .. stringN]\n"
+        ::Usage("[--emit-trailing-newline] [--cstyle-escape|--escape-double-quotes] [--] string1 [string2 .. stringN]\n"
                 "In the unlikely case that your first string is \"--cstyle-escape\" use -- to indicate the\n"
                 "end of flags, o/w if the first argument is --cstyle-escape we assume you mean the flag.\n\n");
         return EXIT_SUCCESS;
     }
 
-    bool end_of_flags(false), escape(false), emit_trailing_newline(false);
+    bool end_of_flags(false), escape(false), emit_trailing_newline(false), escape_double_quotes(false);
     for (int arg_no(1); arg_no < argc; ++arg_no) {
         if (not end_of_flags and std::strcmp(argv[arg_no], "--") == 0) {
             end_of_flags = true;
             continue;
         }
         if (not end_of_flags and std::strcmp(argv[arg_no], "--cstyle-escape") == 0) {
+            if (escape_double_quotes)
+                LOG_ERROR("can't specify both, --cstyle-escape and --escape-double-quotes!");
             escape = true;
             continue;
         }
@@ -45,14 +48,21 @@ int Main(int argc, char *argv[]) {
             emit_trailing_newline = true;
             continue;
         }
+        if (not end_of_flags and std::strcmp(argv[arg_no], "--escape-double-quotes") == 0) {
+            if (escape)
+                LOG_ERROR("can't specify both, --cstyle-escape and --escape-double-quotes!");
+            escape_double_quotes = true;
+            continue;
+        }
 
         end_of_flags = true;
         if (escape)
             std::cout << StringUtil::CStyleEscape(argv[arg_no]);
+        else if (escape_double_quotes)
+            std::cout << JSON::EscapeDoubleQuotes(argv[arg_no]);
         else
             std::cout << argv[arg_no];
     }
-
 
     if (emit_trailing_newline)
         std::cout << '\n';
