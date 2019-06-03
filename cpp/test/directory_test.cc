@@ -7,17 +7,36 @@
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "usage: " << ::progname << " [--display-contexts] path [regex]\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]] void Usage() {
+    ::Usage("[--recurse] [--display-contexts] path [regex]");
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
+void ScanDir(const bool recurse, const bool display_contexts, const std::string &directory_path, const std::string &regex) {
+    FileUtil::Directory directory(directory_path, regex);
 
+    for (const auto entry : directory) {
+        const auto entry_name(entry.getName());
+        std::cout << entry_name << ", " << std::to_string(entry.getType())
+                  << (display_contexts ? ", " + entry.getSELinuxFileContext().toString() : "")
+                  << '\n';
+        if (recurse and entry.getType() == DT_DIR) {
+            if (entry_name != "." and entry_name != "..")
+                ScanDir(recurse, display_contexts, directory_path + "/" + entry.getName(), regex);
+        }
+    }
+}
+
+
+int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
+
+    bool recurse(false);
+    if (std::strcmp(argv[1], "--recurse") == 0) {
+        recurse = true;
+        --argc, ++argv;
+    }
 
     bool display_contexts(false);
     if (std::strcmp(argv[1], "--display-contexts") == 0) {
@@ -28,20 +47,7 @@ int main(int argc, char *argv[]) {
     if (argc != 2 and argc != 3)
         Usage();
 
-    try {
-        FileUtil::Directory *directory;
-        if (argc == 2)
-            directory = new FileUtil::Directory(argv[1]);
-        else
-            directory = new FileUtil::Directory(argv[1], argv[2]);
+    ScanDir(recurse, display_contexts, argv[1], argc == 3 ? argv[2] : ".*");
 
-        for (const auto entry : *directory)
-            std::cout << entry.getName() << ", " << std::to_string(entry.getType())
-                      << (display_contexts ? ", " + entry.getSELinuxFileContext().toString() : "")
-                      << '\n';
-
-        delete directory;
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
-    }
+    return EXIT_SUCCESS;
 }
