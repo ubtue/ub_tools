@@ -963,18 +963,4 @@ bool IsValidUTF8(const JSONNode &node) {
 }
 
 
-std::string EscapeDoubleQuotes(const std::string &s) {
-    std::string escaped_s;
-    escaped_s.reserve(s.size());
-
-    for (auto ch : s) {
-        if (unlikely(ch == '"'))
-            escaped_s += '\\';
-        escaped_s += ch;
-    }
-
-    return escaped_s;
-}
-
-
 } // namespace JSON

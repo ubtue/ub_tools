@@ -435,8 +435,4 @@ std::string EscapeString(const std::string &unescaped_string);
 bool IsValidUTF8(const JSONNode &node);
 
 
-/** \note In standard JSON single quotes are not used as an alternative to double quotes, IOW, they are treated as ordinary characters. */
-std::string EscapeDoubleQuotes(const std::string &s);
-
-
 } // namespace JSON
