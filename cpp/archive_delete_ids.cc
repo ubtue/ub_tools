@@ -32,15 +32,17 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--keep-intermediate-files] old_directory deletion_list new_directory\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("[--keep-intermediate-files] old_directory deletion_list new_directory entire_record_deletion_log\n"
+            "Record ID's of records that were deleted and not merely modified will be written to \"entire_record_deletion_log\".");
 }
 
 
 const std::string DELETE_IDS_COMMAND("/usr/local/bin/delete_ids");
 
 
-void UpdateSubdirectory(const std::string &old_directory, const std::string &deletion_list, const std::string &new_directory) {
+void UpdateSubdirectory(const std::string &old_directory, const std::string &deletion_list, const std::string &new_directory,
+                        const std::string &entire_record_deletion_log)
+{
     std::vector<std::string> archive_members;
     FileUtil::GetFileNameList("\\.(mrc|raw)$", &archive_members, old_directory);
 
@@ -49,8 +51,13 @@ void UpdateSubdirectory(const std::string &old_directory, const std::string &del
 
     for (const auto &archive_member : archive_members) {
         if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND,
-                                    { "--input-format=marc-21", "--output-format=marc-21", deletion_list,
-                                      old_directory + "/" + archive_member, new_directory + "/" + archive_member }) != 0))
+                                    {
+                                        "--input-format=marc-21",
+                                        "--output-format=marc-21",
+                                        deletion_list,
+                                        old_directory + "/" + archive_member, new_directory + "/" + archive_member,
+                                        entire_record_deletion_log
+                                    }) != 0))
             LOG_ERROR("\"" + DELETE_IDS_COMMAND + "\" failed!");
     }
 }
@@ -60,7 +67,7 @@ void UpdateSubdirectory(const std::string &old_directory, const std::string &del
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 4)
+    if (argc < 5)
         Usage();
 
     bool keep_intermediate_files(false);
@@ -69,7 +76,7 @@ int Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
-    if (argc != 4)
+    if (argc != 5)
         Usage();
 
     const std::string old_directory(FileUtil::MakeAbsolutePath(argv[1]));
@@ -84,7 +91,7 @@ int Main(int argc, char *argv[]) {
                                                   /* remove_when_out_of_scope = */ not keep_intermediate_files);
     FileUtil::ChangeDirectoryOrDie(working_directory.getDirectoryPath());
 
-    UpdateSubdirectory(old_directory, deletion_list, new_directory);
+    UpdateSubdirectory(old_directory, deletion_list, new_directory, argv[4]);
 
     FileUtil::ChangeDirectoryOrDie("..");
 
