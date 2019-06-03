@@ -7,6 +7,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
+ *  Copyright 2019 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -65,8 +66,7 @@ inline char *StringUtil_strrtrim(char *s, char trim_char=' ') {
  *
  *  \return The number of extracted "fields".
  */
-template<typename BackInsertContainer> unsigned StringUtil_Split(const std::string &source,
-								 const std::string &delimiter_string,
+template<typename BackInsertContainer> unsigned StringUtil_Split(const std::string &source, const std::string &delimiter_string,
 								 BackInsertContainer * const fields)
 {
     fields->clear();
@@ -525,7 +525,7 @@ std::string ProcessUtil_GetWorkingDirectory() {
 
 
 void PrintUsage() {
-    std::cerr << "usage: iViaCore-mkdep [ ( --include | -I ) path ] [ --ignore-nonstdinc | -g ] "
+    std::cerr << "usage: iViaCore-mkdep [ ( --include | -I ) path ] [ --ignore-nonstdinc | -g ] [--static-objects | -S] "
 	"[ ( --use-relative-paths | -r ) [ reference_directory ] ] file1 file2 ... fileN\n";
     std::cerr << "\tThe --include option may be specified multiple times.\n";
     std::cerr << "\tIf the --ignore-nostdinc option has been specified includes "
@@ -538,11 +538,12 @@ void PrintUsage() {
 
 
 static struct option options[] = {
-    { "include",            required_argument, nullptr, 'I' },
+    { "include",              required_argument, nullptr, 'I' },
     { "ignore-nostdinc",      no_argument,       nullptr, 'g' },
+    { "static-objects",       no_argument,       nullptr, 'S' },
     { "use-relative-paths",   optional_argument, nullptr, 'r' },
     { "output-program-rules", optional_argument, nullptr, 'p' },
-    { nullptr,                   no_argument,       nullptr,  0  }
+    { nullptr,                no_argument,       nullptr,  0  }
 };
 
 
@@ -554,6 +555,7 @@ int main(int argc, char *argv[]) {
     bool ignore_nostdinc(false);
     bool use_relative_paths(false);
     bool output_program_rules(false);
+    bool static_objects(false);
     ExternalIncludes external_includes;
     std::string cwd;
     for (;;) {
@@ -571,6 +573,9 @@ int main(int argc, char *argv[]) {
 
 	    ProcessDirectory(optarg, &external_includes);
 	    break;
+	case 'S':
+	    static_objects = true;
+	    break;
 	case 'g':
 	    ignore_nostdinc = true;
 	    break;
@@ -587,10 +592,10 @@ int main(int argc, char *argv[]) {
     }
 
     try {
-	const unsigned MAX_LINE_LENGTH = 110;
+	const unsigned MAX_LINE_LENGTH(130);
 
-	std::ofstream deps(".deps");
-	for (int arg_no = optind; arg_no < argc; ++arg_no) {
+	std::ofstream deps(static_objects ? ".static_deps" : ".deps");
+	for (int arg_no(optind); arg_no < argc; ++arg_no) {
 
 	    // 1. Extract the include file names.
 	    StrMap includes;
@@ -603,7 +608,8 @@ int main(int argc, char *argv[]) {
 	    if (output_program_rules)
 		deps << RemoveFileSuffix(&basename) << ": " << argv[arg_no];
 	    else
-		deps << "$(OBJ)/" << RemoveFileSuffix(&basename) << ".o: " << argv[arg_no];
+		deps << (static_objects ? "$(STATIC_OBJ)/" : "$(OBJ)/") << RemoveFileSuffix(&basename)
+                     << (static_objects ? "_static.o: " : ".o: ") << argv[arg_no];
 
 	    const unsigned OFFSET = 7 + basename.length() + 4 + std::strlen(argv[arg_no]);
 	    unsigned current_line_length = OFFSET;

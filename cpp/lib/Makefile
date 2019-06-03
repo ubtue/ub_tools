@@ -1,9 +1,12 @@
 INC        = ./include
 SRC        = src
 OBJ        = objs
+STATIC_OBJ = static_objs
 SRCS       = $(SRC)/*.cc
 TEMP       = $(addprefix $(OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
+STATIC_TEMP= $(addprefix $(STATIC_OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
 OBJS       = $(TEMP:.cc=.o)
+STATIC_OBJS= $(STATIC_TEMP:.cc=_static.o)
 CCC        ?= clang++
 CCCFLAGS   = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -ftrapv \
              -Ilibstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
@@ -38,12 +41,19 @@ MAKE_DEPS=iViaCore-mkdep
 $(OBJ)/%.o: $(SRC)/%.cc Makefile
 	@echo "Compiling $< $(OPTIMISATIONS_STATE)..."
 	@$(CCC) $(CCCFLAGS) $< -c -o $@
+$(STATIC_OBJ)/%_static.o: $(SRC)/%.cc Makefile
+	@echo "Compiling static $< $(OPTIMISATIONS_STATE)..."
+	@$(CCC) -static $(filter-out -march=native, $(CCCFLAGS)) $< -c -o $@
 
 all: /usr/local/bin/iViaCore-mkdep .deps libstemmer/libstemmer.a libubtue.a
 
 libubtue.a: $(OBJS) Makefile
 	@echo "Generating $@..."
 	@ar crs $@ $(OBJS)
+
+libubtue_static.a: $(STATIC_OBJS) Makefile
+	@echo "Generating $@..."
+	@ar crs $@ $(STATIC_OBJS)
 
 libstemmer/libstemmer.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libstemmer/include/*.h)
 	$(MAKE) -C libstemmer
@@ -58,5 +68,9 @@ libstemmer/libstemmer_amd64.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libst
 .deps: $(SRCS) $(INC)/*.h Makefile
 	$(MAKE_DEPS) -I $(INC) $(SRCS)
 
+-include .static_deps
+.static_deps: $(SRCS) $(INC)/*.h Makefile
+	$(MAKE_DEPS) --static-objects -I $(INC) $(SRCS)
+
 clean:
-	rm -f *~ $(PROGS) $(OBJS) *.a && cd libstemmer && make clean && rm -f libstemmer.a
+	rm -f *~ $(OBJ)/* $(STATIC_OBJ)/* *.a .deps .static_deps && cd libstemmer && make clean && rm -f libstemmer.a
