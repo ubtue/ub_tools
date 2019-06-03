@@ -45,7 +45,9 @@ void ProcessLine(const std::string &line, LibraryAndSymbols * const library_and_
     StringUtil::SplitThenTrimWhite(line, ' ', &parts);
     if (parts.size() == 2 and (parts[0] == "U" or parts[0] == "u"))
         library_and_symbols->needed_.emplace(parts[1]);
-    else if (parts.size() == 3 and (parts[1] == "T" or parts[1] == "t"))
+    else if (parts.size() == 3
+             and (parts[1] == "T" or parts[1] == "t" or parts[0] == "W" or parts[0] == "w" or parts[0] == "D"
+                  or parts[0] == "d" or parts[0] == "B" or parts[0] == "b" or parts[0] == "V" or parts[0] == "v"))
         library_and_symbols->provided_.emplace(parts[2]);
 }
 
