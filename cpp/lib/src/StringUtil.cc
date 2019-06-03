@@ -2743,5 +2743,18 @@ std::string ISO8859_15ToUTF8(const char &latin9_char) {
 }
 
 
+std::string EscapeDoubleQuotes(const std::string &s) {
+    std::string escaped_s;
+    escaped_s.reserve(s.size());
+
+    for (auto ch : s) {
+        if (unlikely(ch == '"'))
+            escaped_s += '\\';
+        escaped_s += ch;
+    }
+
+    return escaped_s;
+}
+
 
 } // namespace StringUtil
