@@ -87,6 +87,7 @@
 /generate_issn_to_misc_bits_map
 /generate_language_model
 /generate_large_marc_record
+/generate_library_dependency_graph
 /generate_merge_order
 /generate_tags_and_keyword_fields_map
 /generate_title_and_author_list
@@ -107,6 +108,7 @@
 /krimdok_flag_pda_records
 /lcsh_filter
 /lcsh_stats
+/library_finder
 /log_rotate
 /make_marc_xml
 /map_ddc_to_ixtheo_notations
