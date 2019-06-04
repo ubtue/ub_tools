@@ -2421,4 +2421,12 @@ inline std::string Truncate(const size_t max_length, std::string s) {
 std::string EscapeDoubleQuotes(const std::string &s);
 
 
+/** \brief Generate a string of a given maximum length.
+ *
+ *  If "text" has a length of no more than "max_length" or text has a length of <= 3, we return text. Otherwise we return a prefix of
+ *  text with a length of max_length - 3 and an appended ellipsis.
+ */
+std::string ShortenText(const std::string &text, const size_t max_length);
+
+
 } // Namespace StringUtil
