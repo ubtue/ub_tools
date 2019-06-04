@@ -2,7 +2,7 @@
  *  \brief  Various utility functions relating to Apache Solr.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -28,6 +28,7 @@ namespace Solr {
 
 constexpr unsigned DEFAULT_TIMEOUT(10); // in s
 constexpr unsigned JAVA_INT_MAX(2147483647);
+const std::string DEFAULT_HOST_AND_PORT("localhost:8080");
 
 
 enum QueryResultFormat { XML, JSON };
@@ -43,7 +44,7 @@ enum QueryResultFormat { XML, JSON };
  *  \return True if we got a valid response, else false.
  */
 bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
-           std::string * const err_msg, const std::string &host_and_port = "localhost:8080",
+           std::string * const err_msg, const std::string &host_and_port = DEFAULT_HOST_AND_PORT,
            const unsigned timeout = DEFAULT_TIMEOUT, const QueryResultFormat query_result_format = XML,
            const unsigned max_no_of_rows = JAVA_INT_MAX);
 
