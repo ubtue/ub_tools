@@ -2757,4 +2757,11 @@ std::string EscapeDoubleQuotes(const std::string &s) {
 }
 
 
+std::string ShortenText(const std::string &text, const size_t max_length) {
+    if (text.length() <= 3 or text.length() <= max_length)
+        return text;
+    return text.substr(0, max_length - 3) + "...";
+}
+
+
 } // namespace StringUtil

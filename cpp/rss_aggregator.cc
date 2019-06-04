@@ -66,6 +66,7 @@ void SigHupHandler(int /* signum */) {
             "       The default config file path is \"" + UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf\".");
 }
 
+
 // These must be in sync with the sizes in data/ub_tools.sql (rss_aggregator table)
 const size_t MAX_ITEM_ID_LENGTH(100);
 const size_t MAX_ITEM_URL_LENGTH(512);
@@ -225,8 +226,10 @@ unsigned ProcessSection(const bool one_shot, const IniFile::Section &section,
                     CheckForSigTermAndExitIfSeen();
                 SignalUtil::SignalBlocker sigterm_blocker2(SIGTERM);
 
-                if (title_suppression_regex != nullptr and title_suppression_regex->matched(item.getTitle()))
+                if (title_suppression_regex != nullptr and title_suppression_regex->matched(item.getTitle())) {
+                    LOG_INFO("Suppressed item because of title: \"" + StringUtil::ShortenText(item.getTitle(), 40) + "\".");
                     continue; // Skip suppressed item.
+                }
 
                 if (ProcessRSSItem(item, section_name, feed_url, db_connection))
                     ++new_item_count;
