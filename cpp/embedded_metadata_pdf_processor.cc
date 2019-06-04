@@ -48,8 +48,7 @@ namespace {
 
 
 std::string GuessISSN(const std::string &first_page_text, std::string * const issn) {
-    std::string first_page_text_trimmed(first_page_text);
-    StringUtil::Trim(&first_page_text_trimmed, '\n');
+    const std::string first_page_text_trimmed(StringUtil::Trim(first_page_text, '\n'));
     const std::size_t last_paragraph_start(first_page_text_trimmed.rfind("\n\n"));
     std::string last_paragraph(last_paragraph_start != std::string::npos ?
                                first_page_text_trimmed.substr(last_paragraph_start) : "");
