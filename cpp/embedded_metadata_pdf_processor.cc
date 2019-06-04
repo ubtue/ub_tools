@@ -39,6 +39,7 @@
 
 namespace {
 
+
 const std::string solr_host_and_port("localhost:8080");
 
 
@@ -64,11 +65,12 @@ std::string GuessISSN(const std::string &first_page_text, std::string * const is
 
 
 void GuessISBN(const std::string &extracted_text, std::string * const isbn) {
-     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*ISBN\\s*([\\d\\-X]+).*"));
-     if (matcher->matched(extracted_text))
+     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*ISBN\\s*([\\d\\-‑X]+).*"));
+     if (matcher->matched(extracted_text)) {
          *isbn = (*matcher)[1];
+         StringUtil::ReplaceString("‑", "-", isbn); // Normalize strange dash
+     }
 }
-
 
 void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTextData * const fulltext_data) {
     std::string pdfinfo_output;
@@ -111,8 +113,15 @@ bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextD
     if (not isbn.empty()) {
         LOG_INFO("Extracted ISBN: " + isbn);
         control_number_guesser.lookupISBN(isbn, &control_numbers);
-        if (control_numbers.size() != 1)
-            LOG_ERROR("We got more than one control number for ISBN \"" + isbn + "\"");
+        if (control_numbers.size() != 1) {
+            LOG_WARNING("We got more than one control number for ISBN \"" + isbn + "\"  - falling back to title and author");
+            GuessAuthorAndTitle(pdf_document, fulltext_data);
+            fulltext_data->isbn_ = isbn;
+            if (unlikely(not FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_numbers)))
+                return false;
+            if (control_numbers.size() != 1)
+                LOG_ERROR("Unable to determine unique control number fo ISBN \"" + isbn + "\"");
+        }
         const std::string control_number(*(control_numbers.begin()));
         LOG_INFO("Determined control number \"" + control_number + "\" for ISBN \"" + isbn + "\"\n");
         GetFulltextMetadataFromSolr(control_number, fulltext_data);
@@ -139,6 +148,7 @@ bool ExtractFulltext(const std::string &pdf_document, FullTextImport::FullTextDa
 
 
 void CreateFulltextImportFile(const std::string &fulltext_pdf, const std::string &fulltext_txt) {
+    std::cout << "Processing \"" << fulltext_pdf << "\"\n";
     FullTextImport::FullTextData fulltext_data;
     std::string pdf_document;
     if (not FileUtil::ReadString(fulltext_pdf, &pdf_document))
