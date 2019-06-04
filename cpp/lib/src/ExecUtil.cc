@@ -305,10 +305,10 @@ std::string LocateOrDie(const std::string &executable_candidate) {
 
 
 
-bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output) {
+bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output, const bool suppress_stderr) {
     stdout_output->clear();
 
-    FILE * const subcommand_stdout(::popen(command.c_str(), "r"));
+    FILE * const subcommand_stdout(::popen((command + (suppress_stderr ? " 2>/dev/null" : "")).c_str(), "r"));
     if (subcommand_stdout == nullptr)
         return false;
 
@@ -318,19 +318,21 @@ bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * co
 
     const int ret_code(::pclose(subcommand_stdout));
     if (ret_code == -1)
-        logger->error("pclose(3) failed: " + std::string(::strerror(errno)));
+        LOG_ERROR("pclose(3) failed: " + std::string(::strerror(errno)));
 
     return WEXITSTATUS(ret_code) == 0;
 }
 
 
 bool ExecSubcommandAndCaptureStdoutAndStderr(const std::string &command, const std::vector<std::string> &args,
-                                             std::string * const stdout_output, std::string * const stderr_output)
+                                             std::string * const stdout_output, std::string * const stderr_output,
+                                             const bool suppress_stderr)
 {
     FileUtil::AutoTempFile stdout_temp;
     FileUtil::AutoTempFile stderr_temp;
 
-    const int retcode(Exec(command, args, /* new_stdin = */ "", stdout_temp.getFilePath(), stderr_temp.getFilePath()));
+    const int retcode(Exec(command, args, /* new_stdin = */ "", stdout_temp.getFilePath(),
+                           suppress_stderr? "/dev/null" : stderr_temp.getFilePath()));
 
     if (not FileUtil::ReadString(stdout_temp.getFilePath(), stdout_output))
         logger->error("failed to read temporary file w/ stdout contents!");

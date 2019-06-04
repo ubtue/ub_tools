@@ -39,7 +39,7 @@ std::string FindLibraryHelper(const std::string &library_directory, const std::s
     FileUtil::Directory directory(library_directory);
     for (const auto entry : directory) {
         const auto entry_type(entry.getType());
-        if (entry_type == DT_REG) {
+        if (entry_type == DT_REG or entry_type == DT_LNK) {
             if (entry.getName() == library)
                 return library_directory + "/" + library;
         } else if (entry_type == DT_DIR) {
@@ -73,7 +73,7 @@ void ProcessLibrary(const std::vector<std::string> &library_path, const std::str
 
     for (const auto directory : library_path) {
         if (unlikely(directory.empty()))
-            LOG_ERROR("illegal library directory name!");
+            LOG_ERROR("illegal empty library directory name!");
         const auto resolved_name(FindLibrary(directory, library));
         if (not resolved_name.empty()) {
             std::cout << resolved_name << '\n';
