@@ -40,9 +40,6 @@
 namespace {
 
 
-const std::string solr_host_and_port("localhost:8080");
-
-
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] pdf_input full_text_output\n"
                            << ::progname << " [--min-log-level=min_verbosity] --output_dir output_dir pdf_input1 pdf_input2 ...\n\n";
@@ -89,7 +86,7 @@ void GetFulltextMetadataFromSolr(const std::string control_number, FullTextImpor
     std::string err_msg;
     const std::string query(std::string("id:") + control_number);
     if (unlikely(not Solr::Query(query, "id,title,author,author2,publishDate", &json_result, &err_msg,
-                                 solr_host_and_port,/* timeout */ 5, Solr::JSON)))
+                                 Solr::DEFAULT_HOST_AND_PORT,/* timeout */ 5, Solr::JSON)))
         LOG_ERROR("Solr query failed or timed-out: \"" + query + "\". (" + err_msg + ")");
     const std::shared_ptr<const JSON::ArrayNode> docs(SolrJSON::ParseTreeAndGetDocs(json_result));
     if (docs->size() != 1)
