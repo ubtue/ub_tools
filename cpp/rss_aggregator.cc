@@ -2,7 +2,7 @@
  *  \brief  Downloads and aggregates RSS feeds.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -31,6 +31,7 @@
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "IniFile.h"
+#include "RegexMatcher.h"
 #include "SignalUtil.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
@@ -43,7 +44,7 @@
 namespace {
 
 
-volatile sig_atomic_t sigterm_seen = false;
+volatile sig_atomic_t sigterm_seen(false);
 
 
 void SigTermHandler(int /* signum */) {
@@ -51,7 +52,7 @@ void SigTermHandler(int /* signum */) {
 }
 
 
-volatile sig_atomic_t sighup_seen = false;
+volatile sig_atomic_t sighup_seen(false);
 
 
 void SigHupHandler(int /* signum */) {
@@ -181,11 +182,18 @@ unsigned ProcessSection(const bool one_shot, const IniFile::Section &section,
     augment_params.strptime_format_ = section.getString("strptime_format", "");
     const std::string &section_name(section.getSectionName());
 
+    const std::string title_suppression_regex_str(section.getString("title_suppression_regex", ""));
+    const auto title_suppression_regex(
+        title_suppression_regex_str.empty() ? nullptr : RegexMatcher::RegexMatcherFactoryOrDie(title_suppression_regex_str));
+
     if (one_shot) {
         std::cout << "Processing section \"" << section_name << "\":\n"
                   << "\tfeed_url: " << feed_url << '\n'
                   << "\tpoll_interval: " << poll_interval << " (ignored)\n"
-                  << "\tdownloader_time_limit: " << downloader_time_limit << "\n\n";
+                  << "\tdownloader_time_limit: " << downloader_time_limit
+                  << (augment_params.strptime_format_.empty() ? "" : augment_params.strptime_format_ + "\n")
+                  << (title_suppression_regex_str.empty() ? "" : title_suppression_regex_str + "\n")
+                  << "\n\n";
     }
 
     const auto section_name_and_ticks(section_name_to_ticks_map.find(section_name));
@@ -216,6 +224,9 @@ unsigned ProcessSection(const bool one_shot, const IniFile::Section &section,
                 if (not one_shot)
                     CheckForSigTermAndExitIfSeen();
                 SignalUtil::SignalBlocker sigterm_blocker2(SIGTERM);
+
+                if (title_suppression_regex != nullptr and title_suppression_regex->matched(item.getTitle()))
+                    continue; // Skip suppressed item.
 
                 if (ProcessRSSItem(item, section_name, feed_url, db_connection))
                     ++new_item_count;
