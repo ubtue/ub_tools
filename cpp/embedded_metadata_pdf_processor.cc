@@ -81,10 +81,10 @@ void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTe
 }
 
 
-void GetFulltextMetadataFromSolr(const std::string control_number, FullTextImport::FullTextData * const fulltext_data) {
+void GetFulltextMetadataFromSolr(const std::string &control_number, FullTextImport::FullTextData * const fulltext_data) {
     std::string json_result;
     std::string err_msg;
-    const std::string query(std::string("id:") + control_number);
+    const std::string query("id:" + control_number);
     if (unlikely(not Solr::Query(query, "id,title,author,author2,publishDate", &json_result, &err_msg,
                                  Solr::DEFAULT_HOST_AND_PORT,/* timeout */ 5, Solr::JSON)))
         LOG_ERROR("Solr query failed or timed-out: \"" + query + "\". (" + err_msg + ")");
@@ -101,14 +101,14 @@ void GetFulltextMetadataFromSolr(const std::string control_number, FullTextImpor
 
 bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextData * const fulltext_data) {
     ControlNumberGuesser control_number_guesser;
-    std::set<std::string> control_numbers;
     // Try to find an ISBN in the first pages
     std::string first_pages_text;
     PdfUtil::ExtractText(pdf_document, &first_pages_text, "1", "10" );
     std::string isbn;
     GuessISBN(first_pages_text, &isbn);
     if (not isbn.empty()) {
-        LOG_INFO("Extracted ISBN: " + isbn);
+        LOG_DEBUG("Extracted ISBN: " + isbn);
+        std::set<std::string> control_numbers;
         control_number_guesser.lookupISBN(isbn, &control_numbers);
         if (control_numbers.size() != 1) {
             LOG_WARNING("We got more than one control number for ISBN \"" + isbn + "\"  - falling back to title and author");
@@ -120,27 +120,18 @@ bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextD
                 LOG_ERROR("Unable to determine unique control number fo ISBN \"" + isbn + "\"");
         }
         const std::string control_number(*(control_numbers.begin()));
-        LOG_INFO("Determined control number \"" + control_number + "\" for ISBN \"" + isbn + "\"\n");
+        LOG_DEBUG("Determined control number \"" + control_number + "\" for ISBN \"" + isbn + "\"\n");
         GetFulltextMetadataFromSolr(control_number, fulltext_data);
         return true;
     }
 
     // Guess control number by author, title and and possibly issn
     std::string first_page_text;
-    PdfUtil::ExtractText(pdf_document, &first_page_text, "1", "1" ); // Get only first page
-    std::string issn;
-    const std::string last_paragraph(GuessISSN(first_page_text, &issn));
-    fulltext_data->issn_ = issn;
+    PdfUtil::ExtractText(pdf_document, &first_page_text, "1", "1"); // Get only first page
+    const std::string last_paragraph(GuessISSN(first_page_text, &(fulltext_data->issn_)));
     GuessAuthorAndTitle(pdf_document, fulltext_data);
     std::string control_number;
-    if (unlikely(not FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_number)))
-        return false;
-    return true;
-}
-
-
-bool ExtractFulltext(const std::string &pdf_document, FullTextImport::FullTextData * const fulltext_data) {
-     return PdfUtil::ExtractText(pdf_document, &(fulltext_data->full_text_));
+    return FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_number);
 }
 
 
@@ -154,7 +145,7 @@ void CreateFulltextImportFile(const std::string &fulltext_pdf, const std::string
         LOG_ERROR("Apparently no text in \"" + fulltext_pdf + "\"");
     if (unlikely(not GuessPDFMetadata(pdf_document, &fulltext_data)))
         LOG_ERROR("Unable to determine metadata for \"" +  fulltext_pdf + "\"");
-    if (unlikely(not ExtractFulltext(pdf_document, &fulltext_data)))
+    if (unlikely(not PdfUtil::ExtractText(pdf_document, &(fulltext_data.full_text_))))
         LOG_ERROR("Unable to extract fulltext from \"" + fulltext_pdf + "\"");
     auto plain_text_output(FileUtil::OpenOutputFileOrDie(fulltext_txt));
     FullTextImport::WriteExtractedTextToDisk(fulltext_data.full_text_, fulltext_data.title_, fulltext_data.authors_, fulltext_data.doi_,
@@ -163,7 +154,7 @@ void CreateFulltextImportFile(const std::string &fulltext_pdf, const std::string
 
 
 std::string DeriveOutputFilename(const std::string &pdf_filename) {
-    return (std::strcmp(StringUtil::ASCIIToLower(FileUtil::GetExtension(pdf_filename)).c_str(), "pdf") == 0) ?
+    return (StringUtil::ASCIIToLower(FileUtil::GetExtension(pdf_filename)) == "pdf") ?
         FileUtil::GetFilenameWithoutExtensionOrDie(pdf_filename) + ".txt" : pdf_filename + ".txt";
 }
 
