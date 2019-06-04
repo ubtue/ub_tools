@@ -45,7 +45,7 @@ bool ExtractText(const std::string &pdf_document, std::string * const extracted_
 
     const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &output_filename(auto_temp_file2.getFilePath());
-    std::vector<std::string> pdftotext_params = { "-enc", "UTF-8", "-nopgbrk" };
+    std::vector<std::string> pdftotext_params { "-enc", "UTF-8", "-nopgbrk" };
     if (not start_page.empty())
         pdftotext_params.insert(pdftotext_params.end(), { "-f", start_page });
     if (not end_page.empty())
@@ -211,7 +211,7 @@ bool ExtractPDFInfo(const std::string &pdf_document, std::string * const pdf_out
     const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &pdfinfo_output_filename(auto_temp_file2.getFilePath());
 
-    std::vector<std::string> pdfinfo_params = { input_filename };
+    const std::vector<std::string> pdfinfo_params { input_filename };
     const int retval(ExecUtil::Exec(pdfinfo_path, pdfinfo_params, pdfinfo_output_filename /* stdout */,
                      pdfinfo_output_filename /* stderr */));
     if (retval != 0) {

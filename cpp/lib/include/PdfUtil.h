@@ -26,7 +26,7 @@
 namespace PdfUtil {
 
 
-constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 60; // seconds
+constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT(60); // seconds
 bool ExtractText(const std::string &pdf_document, std::string * const extracted_text,
                  const std::string &start_page = "", const std::string &end_page = "");
 
