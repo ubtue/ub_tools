@@ -28,7 +28,7 @@ namespace PdfUtil {
 
 constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 60; // seconds
 bool ExtractText(const std::string &pdf_document, std::string * const extracted_text,
-                 const std::string &start_page="", const std::string &end_page="");
+                 const std::string &start_page = "", const std::string &end_page = "");
 
 /** \brief Returns whether a document contains text or not.
  *
@@ -60,4 +60,6 @@ bool GetOCRedTextFromPDF(const std::string &pdf_document_path, const std::string
 
 /** \brief Get the output of the pdfinfo program */
 bool ExtractPDFInfo(const std::string &pdf_document, std::string * const pdf_output);
+
+
 } // namespace PdfUtil
