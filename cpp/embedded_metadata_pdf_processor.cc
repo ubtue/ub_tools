@@ -69,6 +69,7 @@ void GuessISBN(const std::string &extracted_text, std::string * const isbn) {
      }
 }
 
+
 void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTextData * const fulltext_data) {
     std::string pdfinfo_output;
     PdfUtil::ExtractPDFInfo(pdf_document, &pdfinfo_output);
@@ -200,5 +201,3 @@ int Main(int argc, char *argv[]) {
         CreateFulltextImportFile(argv[arg_no], output_dir + '/' + DeriveOutputFilename(argv[arg_no]));
     return EXIT_SUCCESS;
 }
-
-
