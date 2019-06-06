@@ -2352,6 +2352,26 @@ public class TuelibMixin extends SolrIndexerMixin {
             formats.add("Review");
         }
 
+        // Evaluate topic fields in some cases
+        for (final VariableField _655Field : record.getVariableFields("655")) {
+            final DataField dataField = (DataField) _655Field;
+            final Subfield aSubfield = dataField.getSubfield('a');
+            if (aSubfield != null) {
+                if (aSubfield.getData().startsWith("Weblog")) {
+                    formats.remove("Journal");
+                    formats.add("Blog");
+                    break;
+                }
+                if (aSubfield.getData().startsWith("Forschungsdaten") & dataField.getIndicator1() == ' '
+                    && dataField.getIndicator2() == '7')
+                {
+                    formats.remove("Book");
+                    formats.add("ResearchData");
+                    break;
+                }
+            }
+        }
+
         // Nothing worked!
         if (formats.isEmpty())
             formats.add("Unknown");
