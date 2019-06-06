@@ -156,7 +156,7 @@ bool IsAuthorNameTokenTitle(std::string token) {
 
     bool final_period(token.back() == '.');
     if (final_period)
-        token.erase(token.back());
+        token.erase(token.size() - 1);
 
     TextUtil::UTF8ToLower(&token);
     return VALID_TITLES.find(token) != VALID_TITLES.end();
