@@ -2583,11 +2583,14 @@ public class TuelibMixin extends SolrIndexerMixin {
     public String getOpenAccessStatus(final Record record) {
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField dataField = (DataField) variableField;
-            for (final Subfield subfieldZ : dataField.getSubfields('z'))
-                if (subfieldZ.getData().toLowerCase().startsWith("kostenfrei")) {
+            for (final Subfield subfieldZ : dataField.getSubfields('z')) {
+                final String subfieldZContents = subfieldZ.getData();
+                if (subfieldZContents.toLowerCase().startsWith("kostenfrei")) {
                     final Subfield subfield3 = dataField.getSubfield('3');
                     if (subfield3 == null || subfield3.getData().toLowerCase().equals("volltext"))
                         return "open-access";
+                } else if (subfieldZContents.equals("LF"))
+                    return "open-access";
             }
             for (final Subfield subfieldX : dataField.getSubfields('x')) {
                 if (subfieldX != null && subfieldX.getData().toLowerCase().equals("unpaywall"))
