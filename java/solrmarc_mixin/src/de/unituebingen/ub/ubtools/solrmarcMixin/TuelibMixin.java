@@ -2254,18 +2254,16 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
 
         // check the Leader at position 7
-        leaderBit = leader.charAt(7);
-        switch (Character.toUpperCase(leaderBit)) {
+        switch (leader.charAt(7)) {
         // Monograph
-        case 'M':
-            if (formatCode == 'C')
-                formats.add("Book");
+        case 'm':
+            formats.add("Book");
             break;
         // Component parts
-        case 'A': // BookComponentPart
+        case 'a': // BookComponentPart
             formats.add("Article");
             break;
-        case 'B': // SerialComponentPart
+        case 'b': // SerialComponentPart
             formats.add("Article");
             break;
     // Integrating resource
