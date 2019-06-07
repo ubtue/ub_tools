@@ -46,6 +46,10 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
                 subfields.appendSubfield('a', "1");
             if (record.isPrintResource())
                 subfields.appendSubfield('b', "1");
+            if (not subfields.empty()) {
+                ++flagged_count;
+                record.insertField("ELC", subfields);
+            }
         }
 
         marc_writer->write(record);
