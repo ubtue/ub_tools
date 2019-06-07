@@ -520,9 +520,18 @@ bool Record::isElectronicResource() const {
         }
     }
 
-    for (const auto &_024_field : getTagRange("024")) {
-        if (_024_field.getFirstSubfieldWithCode('2') == "doi")
-            return true;
+    return not getDOIs().empty();
+
+    return false;
+}
+
+
+bool isPrintResource() const {
+    for (const auto _935_field : getTagRange("935")) {
+        for (const auto &subfield : _935_field.getSubfields()) {
+            if (subfield.code_ == 'b' and subfield.value_ == "druck")
+                return true;
+        }
     }
 
     return false;
