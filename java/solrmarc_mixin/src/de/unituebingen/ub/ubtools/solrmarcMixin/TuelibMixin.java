@@ -2402,6 +2402,12 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     public Set<String> getMediatype(final Record record) {
         final Set<String> mediatypes = new HashSet<>();
+        if (record.getVariableField("ZWI")) {
+            mediatypes.add(electronicRessource);
+            mediatypes.add(nonElectronicRessource);
+            return mediatypes;
+        }
+
         final VariableField elcField = record.getVariableField("ELC");
         if (elcField != null) {
             final DataField dataField = (DataField) elcField;
@@ -2409,7 +2415,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                 mediatypes.add(electronicRessource);
             if (dataField.getSubfield('b') != null)
                 mediatypes.add(nonElectronicRessource);
-        }
+        } else
+            mediatypes.add(nonElectronicRessource);
 
         return mediatypes;
     }
