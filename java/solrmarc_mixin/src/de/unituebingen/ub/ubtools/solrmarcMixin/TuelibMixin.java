@@ -2391,18 +2391,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return false;
     }
 
-    private boolean isPrintResource(final Record record) {
-        for (final VariableField _935_field : record.getVariableFields("935")) {
-            final DataField data_field = (DataField) _935_field;
-            for (final Subfield subfield_b : data_field.getSubfields('b')) {
-                if (subfield_b.getData().equals("druck"))
-                    return true;
-            }
-        }
-
-        return false;
-    }
-
     /**
      * Determine Mediatype For facets we need to differentiate between
      * electronic and non-electronic resources
@@ -2414,16 +2402,22 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     public Set<String> getMediatype(final Record record) {
         final Set<String> mediatypes = new HashSet<>();
-        if (record.getVariableField("ELC") != null)
+        if (record.getVariableField("ZWI") != null) {
             mediatypes.add(electronicRessource);
-        else {
             mediatypes.add(nonElectronicRessource);
-            if (!getDOIs(record).isEmpty())
-                mediatypes.add(electronicRessource);
+            return mediatypes;
         }
 
-        if (isPrintResource(record))
+        final VariableField elcField = record.getVariableField("ELC");
+        if (elcField == null)
             mediatypes.add(nonElectronicRessource);
+        else {
+            final DataField dataField = (DataField) elcField;
+            if (dataField.getSubfield('a') != null)
+                mediatypes.add(electronicRessource);
+            if (dataField.getSubfield('b') != null)
+                mediatypes.add(nonElectronicRessource);
+        }
 
         return mediatypes;
     }

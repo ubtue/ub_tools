@@ -1,7 +1,7 @@
 /** \brief Utility for adding an ELC field to all records of electronic/online resources.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -40,9 +40,16 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
 
-        if (record.isElectronicResource() and record.getFirstField("ELC") == record.end()) {
-            record.insertField("ELC", { { 'a', "1" } });
-            ++flagged_count;
+        if (record.getFirstField("ELC") == record.end()) {
+            MARC::Subfields subfields;
+            if (record.isElectronicResource())
+                subfields.appendSubfield('a', "1");
+            if (record.isPrintResource())
+                subfields.appendSubfield('b', "1");
+            if (not subfields.empty()) {
+                ++flagged_count;
+                record.insertField("ELC", subfields);
+            }
         }
 
         marc_writer->write(record);

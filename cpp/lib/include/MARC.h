@@ -490,6 +490,7 @@ public:
     inline bool isSerial() const { return leader_[7] == 's'; }
     inline bool isArticle() const { return leader_[7] == 'a' or leader_[7] == 'b'; }
     bool isElectronicResource() const;
+    bool isPrintResource() const;
 
     inline std::string getControlNumber() const {
         if (unlikely(fields_.empty() or fields_.front().getTag() != "001"))
