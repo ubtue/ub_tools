@@ -526,7 +526,7 @@ bool Record::isElectronicResource() const {
 }
 
 
-bool isPrintResource() const {
+bool Record::isPrintResource() const {
     for (const auto _935_field : getTagRange("935")) {
         for (const auto &subfield : _935_field.getSubfields()) {
             if (subfield.code_ == 'b' and subfield.value_ == "druck")
