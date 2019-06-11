@@ -87,7 +87,7 @@ wait
 
 StartPhase "Replace old BSZ PPN's with new K10+ PPN's"
 (patch_ppns_in_databases --report-only GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
-                         entire_record_deletion.log >> "${log}" 2>&1 && \
+                         -- entire_record_deletion.log >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
