@@ -71,6 +71,12 @@ void WriteExtractedTextToDisk(const std::string &full_text, const std::string &t
 void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const full_text_data);
 
 
+// \brief Match full-text data with all existing record's control number, if any.
+// \return true if matches were found false otherwise
+bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, const FullTextData &full_text_data,
+                           std::set<std::string> * const control_numbers);
+
+
 // \brief Match full-text data with an existing record's control number, if any.
 // \return the number of exact matches.
 bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, const FullTextData &full_text_data,
