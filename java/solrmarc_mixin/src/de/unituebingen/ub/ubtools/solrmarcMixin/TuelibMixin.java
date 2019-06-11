@@ -2266,21 +2266,21 @@ public class TuelibMixin extends SolrIndexerMixin {
         case 'b': // SerialComponentPart
             formats.add("Article");
             break;
-    // Integrating resource
-    case 'I':
-        // Look in 008 to determine the exact type
-        formatCode = fixedField.getData().toUpperCase().charAt(21);
-        switch (formatCode) {
-        case 'W':
-            formats.add("Website");
+            // Integrating resource
+        case 'i':
+            // Look in 008 to determine the exact type
+            formatCode = fixedField.getData().toUpperCase().charAt(21);
+            switch (formatCode) {
+            case 'W':
+                formats.add("Website");
+                break;
+            case 'D':
+                formats.add("Database");
+                break;
+            }
             break;
-        case 'D':
-            formats.add("Database");
-            break;
-        }
-        break;
         // Serial
-        case 'S':
+        case 's':
             // Look in 008 to determine what type of Continuing Resource
             formatCode = fixedField.getData().toUpperCase().charAt(21);
             switch (formatCode) {
