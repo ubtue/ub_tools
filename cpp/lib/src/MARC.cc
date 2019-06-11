@@ -468,13 +468,9 @@ static const std::set<std::string> ELECTRONIC_CARRIER_TYPES{ "cb", "cd", "ce", "
 
 
 bool Record::isElectronicResource() const {
-    if (leader_[6] == 'm')
-        return true;
-
-    if (isMonograph()) {
-        for (const auto &_007_field : getTagRange("007")) {
-            const std::string &_007_field_contents(_007_field.getContents());
-            if (not _007_field_contents.empty() and _007_field_contents[0] == 'c')
+    if (leader_.length() > 6 and (leader_[6] == 'a' or leader_[6] == 'm')) {
+        for (const auto _007_field : getTagRange("007")) {
+            if (*_007_field.getContents().c_str() == 'c')
                 return true;
         }
     }
@@ -527,6 +523,13 @@ bool Record::isElectronicResource() const {
 
 
 bool Record::isPrintResource() const {
+    if (leader_.length() > 6 and leader_[6] == 'a') {
+        for (const auto _007_field : getTagRange("007")) {
+            if (*_007_field.getContents().c_str() == 't')
+                return true;
+        }
+    }
+
     for (const auto _935_field : getTagRange("935")) {
         for (const auto &subfield : _935_field.getSubfields()) {
             if (subfield.code_ == 'b' and subfield.value_ == "druck")
