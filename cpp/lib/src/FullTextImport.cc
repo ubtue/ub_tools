@@ -100,12 +100,22 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
 
 
 bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, const FullTextData &full_text_data,
+                           std::set<std::string> * const control_numbers) {
+    *control_numbers = control_number_guesser.getGuessedControlNumbers(full_text_data.title_, full_text_data.authors_,
+                                                                             full_text_data.year_, full_text_data.doi_,
+                                                                             full_text_data.issn_, full_text_data.isbn_);
+    if (control_numbers->empty())
+        return false;
+
+    return true;
+}
+
+
+bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, const FullTextData &full_text_data,
                            std::string * const control_number)
 {
-    const auto matching_ppns(control_number_guesser.getGuessedControlNumbers(full_text_data.title_, full_text_data.authors_,
-                                                                             full_text_data.year_, full_text_data.doi_,
-                                                                             full_text_data.issn_, full_text_data.isbn_));
-    if (matching_ppns.empty())
+    std::set<std::string> matching_ppns;
+    if (unlikely(not CorrelateFullTextData(control_number_guesser, full_text_data, &matching_ppns)))
         return false;
 
     if (matching_ppns.size() > 1)
@@ -114,6 +124,9 @@ bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, c
     *control_number = *matching_ppns.cbegin();
     return true;
 }
+
+
+
 
 
 } // namespace FullTextImport

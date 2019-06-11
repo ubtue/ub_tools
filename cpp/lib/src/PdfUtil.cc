@@ -29,7 +29,9 @@
 namespace PdfUtil {
 
 
-bool ExtractText(const std::string &pdf_document, std::string * const extracted_text) {
+bool ExtractText(const std::string &pdf_document, std::string * const extracted_text,
+                 const std::string &start_page, const std::string &end_page)
+{
     static std::string pdftotext_path;
     if (pdftotext_path.empty())
         pdftotext_path = ExecUtil::LocateOrDie("pdftotext");
@@ -43,9 +45,13 @@ bool ExtractText(const std::string &pdf_document, std::string * const extracted_
 
     const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &output_filename(auto_temp_file2.getFilePath());
-
-    const int retval(ExecUtil::Exec(pdftotext_path,
-                                    { "-enc", "UTF-8", "-nopgbrk", input_filename, output_filename }));
+    std::vector<std::string> pdftotext_params { "-enc", "UTF-8", "-nopgbrk" };
+    if (not start_page.empty())
+        pdftotext_params.insert(pdftotext_params.end(), { "-f", start_page });
+    if (not end_page.empty())
+        pdftotext_params.insert(pdftotext_params.end(), { "-l", end_page });
+    pdftotext_params.insert(pdftotext_params.end(), { input_filename, output_filename });
+    const int retval(ExecUtil::Exec(pdftotext_path, pdftotext_params));
     if (retval != 0) {
         LOG_WARNING("failed to execute \"" + pdftotext_path + "\"!");
         return false;
@@ -189,6 +195,34 @@ bool GetOCRedTextFromPDF(const std::string &pdf_document_path, const std::string
 
     *extracted_text = StringUtil::TrimWhite(*extracted_text);
     return not extracted_text->empty();
+}
+
+
+bool ExtractPDFInfo(const std::string &pdf_document, std::string * const pdf_output) {
+    static std::string pdfinfo_path;
+    if (pdfinfo_path.empty())
+        pdfinfo_path = ExecUtil::LocateOrDie("pdfinfo");
+    const FileUtil::AutoTempFile auto_temp_file1;
+    const std::string &input_filename(auto_temp_file1.getFilePath());
+    if (not FileUtil::WriteString(input_filename, pdf_document)) {
+        LOG_WARNING("can't write document to \"" + input_filename + "\"!");
+        return false;
+    }
+    const FileUtil::AutoTempFile auto_temp_file2;
+    const std::string &pdfinfo_output_filename(auto_temp_file2.getFilePath());
+
+    const std::vector<std::string> pdfinfo_params { input_filename };
+    const int retval(ExecUtil::Exec(pdfinfo_path, pdfinfo_params, pdfinfo_output_filename /* stdout */,
+                     pdfinfo_output_filename /* stderr */));
+    if (retval != 0) {
+        LOG_WARNING("failed to execute \"" + pdfinfo_path + "\"!");
+        return false;
+    }
+    std::string pdfinfo_output;
+    if (unlikely(not FileUtil::ReadString(pdfinfo_output_filename, pdf_output)))
+        LOG_ERROR("Unable to extract pdfinfo output");
+
+    return true;
 }
 
 
