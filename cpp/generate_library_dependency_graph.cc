@@ -113,7 +113,7 @@ void ListSymbols(const std::string &library_path, const std::string &description
 
 
 int Main(int argc, char *argv[]) {
-    if (argc == 0)
+    if (argc == 1)
         Usage();
 
     bool debug(false);
