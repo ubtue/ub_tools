@@ -160,10 +160,11 @@ int Main(int argc, char *argv[]) {
                     continue;
 
                 for (const auto &external_symbol : lib1.needed_) {
-                    if (lib2.provided_.find(external_symbol) != lib2.provided_.cend())
+                    if (lib2.provided_.find(external_symbol) != lib2.provided_.cend()) {
                         std::cout << FileUtil::GetLastPathComponent(lib1.library_path_) << " -> "
                                   << FileUtil::GetLastPathComponent(lib2.library_path_) << '\n';
-                    break;
+                        break;
+                    }
                 }
             }
         }
