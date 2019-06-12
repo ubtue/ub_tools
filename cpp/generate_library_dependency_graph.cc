@@ -59,7 +59,7 @@ void ProcessLine(const bool debug, const std::string &line, LibraryAndSymbols * 
     StringUtil::SplitThenTrimWhite(line, ' ', &parts);
     if (parts.size() == 2 and IsPublicSymbol(parts[1]))
         library_and_symbols->needed_.emplace(parts[1] + (debug ? " (" + parts[0] + ")" : ""));
-    else if (parts.size() == 3 and parts[1] == "T" and IsPublicSymbol(parts[2])) {//parts[0] != "0000000000000000") {
+    else if (parts.size() == 3 and parts[1] == "T" and IsPublicSymbol(parts[2])) {
         library_and_symbols->provided_.emplace(parts[2] + (debug ? " (" + parts[1] + ")" : ""));
         all_provided->emplace(parts[2] + (debug ? " (U)" : ""));
     }
