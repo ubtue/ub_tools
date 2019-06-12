@@ -117,7 +117,7 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     bool debug(false);
-    if (std::strcmp("--debug", argv[1]) == 0) {
+    if (argc > 1 and std::strcmp("--debug", argv[1]) == 0) {
         debug = true;
         logger->setMinimumLogLevel(Logger::LL_DEBUG);
         --argc, ++argv;
