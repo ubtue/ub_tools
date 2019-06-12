@@ -131,19 +131,40 @@ int Main(int argc, char *argv[]) {
         } else
             libraries_and_symbols.emplace_back(new_library_and_symbols);
     }
-    if (debug)
-        return EXIT_SUCCESS;
 
-    for (const auto &lib1 : libraries_and_symbols) {
-        for (const auto &lib2 : libraries_and_symbols) {
-            if (lib1.library_path_ == lib2.library_path_)
-                continue;
+    if (debug) {
+        std::unordered_set<std::string> found_external_references;
+        for (const auto &lib1 : libraries_and_symbols) {
+            for (const auto &lib2 : libraries_and_symbols) {
+                if (lib1.library_path_ == lib2.library_path_)
+                    continue;
 
-            for (const auto &external_symbol : lib1.needed_) {
-                if (lib2.provided_.find(external_symbol) != lib2.provided_.cend())
-                    std::cout << FileUtil::GetLastPathComponent(lib1.library_path_) << " -> "
-                              << FileUtil::GetLastPathComponent(lib2.library_path_) << '\n';
-                break;
+                for (const auto &external_symbol : lib1.needed_) {
+                    if (lib2.provided_.find(external_symbol) != lib2.provided_.cend())
+                        found_external_references.emplace(external_symbol);
+                }
+            }
+        }
+
+        std::cout << "Missing external references:\n";
+        for (const auto &lib : libraries_and_symbols) {
+            for (const auto &external_symbol : lib.needed_) {
+                if (found_external_references.find(external_symbol) == found_external_references.cend())
+                    std::cout << external_symbol << " (" << FileUtil::GetBasename(lib.library_path_) << ")\n";
+            }
+        }
+    } else {
+        for (const auto &lib1 : libraries_and_symbols) {
+            for (const auto &lib2 : libraries_and_symbols) {
+                if (lib1.library_path_ == lib2.library_path_)
+                    continue;
+
+                for (const auto &external_symbol : lib1.needed_) {
+                    if (lib2.provided_.find(external_symbol) != lib2.provided_.cend())
+                        std::cout << FileUtil::GetLastPathComponent(lib1.library_path_) << " -> "
+                                  << FileUtil::GetLastPathComponent(lib2.library_path_) << '\n';
+                    break;
+                }
             }
         }
     }
