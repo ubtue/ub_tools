@@ -47,21 +47,17 @@ public:
 };
 
 
-inline bool IsPublicSymbol(const std::string &symbol) {
-    return not symbol.empty() and StringUtil::IsAsciiLetter(symbol[0]);
-}
-
-
 void ProcessLine(const bool debug, const std::string &line, LibraryAndSymbols * const library_and_symbols,
                  std::unordered_set<std::string> * const all_provided)
 {
     std::vector<std::string> parts;
     StringUtil::SplitThenTrimWhite(line, ' ', &parts);
-    if (parts.size() == 2 and IsPublicSymbol(parts[1]))
+    if (parts.size() == 2 and parts[1] != "_GLOBAL_OFFSET_TABLE_")
         library_and_symbols->needed_.emplace(parts[1] + (debug ? " (" + parts[0] + ")" : ""));
-    else if (parts.size() == 3 and parts[1] == "T" and IsPublicSymbol(parts[2])) {
-        library_and_symbols->provided_.emplace(parts[2] + (debug ? " (" + parts[1] + ")" : ""));
+    else if (parts.size() == 3) {
         all_provided->emplace(parts[2] + (debug ? " (U)" : ""));
+        if (parts[1] == "T")
+            library_and_symbols->provided_.emplace(parts[2] + (debug ? " (" + parts[1] + ")" : ""));
     }
 }
 
