@@ -1256,14 +1256,18 @@ public class TuelibMixin extends SolrIndexerMixin {
                 continue;
 
             final List<Subfield> _4Subfields = dataField.getSubfields('4');
-            if (_4Subfields == null || _4Subfields.isEmpty() || isHonoree(_4Subfields) || isInFactPrimaryAuthor(_4Subfields))
+            if (isHonoree(_4Subfields) || isInFactPrimaryAuthor(_4Subfields))
                 continue;
 
             final StringBuilder author2AndRoles = new StringBuilder();
             author2AndRoles.append(author2.toString().replace("$", ""));
-            for (final Subfield _4Subfield : _4Subfields) {
+            if (_4Subfields == null || _4Subfields.isEmpty())
                 author2AndRoles.append('$');
-                author2AndRoles.append(cleanRole(_4Subfield.getData()));
+            else {
+                for (final Subfield _4Subfield : _4Subfields) {
+                    author2AndRoles.append('$');
+                    author2AndRoles.append(cleanRole(_4Subfield.getData()));
+                }
             }
             results.add(author2AndRoles.toString());
         }
