@@ -17,10 +17,12 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <algorithm>
 #include <iostream>
 #include <unordered_set>
 #include <vector>
 #include <cstdlib>
+#include <cstring>
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
@@ -28,6 +30,11 @@
 
 
 namespace {
+
+
+[[noreturn]] void Usage() {
+    ::Usage("[--debug] absolute_library_paths");
+}
 
 
 struct LibraryAndSymbols {
@@ -40,38 +47,65 @@ public:
 };
 
 
-void ProcessLine(const std::string &line, LibraryAndSymbols * const library_and_symbols) {
-    std::vector<std::string> parts;
-    StringUtil::SplitThenTrimWhite(line, ' ', &parts);
-    if (parts.size() == 2 and (parts[0] == "U" or parts[0] == "u"))
-        library_and_symbols->needed_.emplace(parts[1]);
-    else if (parts.size() == 3
-             and (parts[1] == "T" or parts[1] == "t" or parts[0] == "W" or parts[0] == "w" or parts[0] == "D"
-                  or parts[0] == "d" or parts[0] == "B" or parts[0] == "b" or parts[0] == "V" or parts[0] == "v"))
-        library_and_symbols->provided_.emplace(parts[2]);
+inline bool IsPublicSymbol(const std::string &symbol) {
+    return not symbol.empty() and StringUtil::IsAsciiLetter(symbol[0]);
 }
 
 
-void ExtractSymbols(LibraryAndSymbols * const library_and_symbols) {
+void ProcessLine(const bool debug, const std::string &line, LibraryAndSymbols * const library_and_symbols,
+                 std::unordered_set<std::string> * const all_provided)
+{
+    std::vector<std::string> parts;
+    StringUtil::SplitThenTrimWhite(line, ' ', &parts);
+    if (parts.size() == 2 and IsPublicSymbol(parts[1]))
+        library_and_symbols->needed_.emplace(parts[1] + (debug ? " (" + parts[0] + ")" : ""));
+    else if (parts.size() == 3 and parts[1] == "T" and IsPublicSymbol(parts[2])) {
+        library_and_symbols->provided_.emplace(parts[2] + (debug ? " (" + parts[1] + ")" : ""));
+        all_provided->emplace(parts[2] + (debug ? " (U)" : ""));
+    }
+}
+
+
+void ExtractSymbols(const bool debug, LibraryAndSymbols * const library_and_symbols) {
     std::string stdout;
     const std::string COMMAND("nm " + library_and_symbols->library_path_);
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(COMMAND, &stdout, /* suppress_stderr = */true))
         LOG_ERROR("failed to execute \"" + COMMAND + "\"!");
 
+    std::unordered_set<std::string> all_provided;
+
     std::string line;
     for (const char ch : stdout) {
         if (ch == '\n') {
-            ProcessLine(line, library_and_symbols);
+            ProcessLine(debug, line, library_and_symbols, &all_provided);
             line.clear();
         } else
             line += ch;
     }
 
     if (not line.empty())
-        ProcessLine(line, library_and_symbols);
+        ProcessLine(debug, line, library_and_symbols, &all_provided);
+
+    // Remove referenced symbols that are implemented in the library themselves:
+    for (const auto &symbol : all_provided)
+        library_and_symbols->needed_.erase(symbol);
 
     LOG_DEBUG(library_and_symbols->library_path_ + " provided: " + std::to_string(library_and_symbols->provided_.size())
               + " needed: " + std::to_string(library_and_symbols->needed_.size()));
+}
+
+
+void ListSymbols(const std::string &library_path, const std::string &description, const std::unordered_set<std::string> &symbols) {
+    std::vector<std::string> sorted_symbols;
+    sorted_symbols.reserve(symbols.size());
+
+    for (const auto &symbol : symbols)
+        sorted_symbols.emplace_back(symbol);
+    std::sort(sorted_symbols.begin(), sorted_symbols.end());
+
+    std::cout << FileUtil::GetBasename(library_path) << " (" << description << ")\n";
+    for (const auto &symbol : sorted_symbols)
+        std::cout << "    " << symbol << '\n';
 }
 
 
@@ -79,15 +113,30 @@ void ExtractSymbols(LibraryAndSymbols * const library_and_symbols) {
 
 
 int Main(int argc, char *argv[]) {
-    if (argc == 0)
-        ::Usage("absolute_library_paths");
+    if (argc == 1)
+        Usage();
+
+    bool debug(false);
+    if (argc > 1 and std::strcmp("--debug", argv[1]) == 0) {
+        debug = true;
+        logger->setMinimumLogLevel(Logger::LL_DEBUG);
+        --argc, ++argv;
+    }
+    if (argc < 1)
+        Usage();
 
     std::vector<LibraryAndSymbols> libraries_and_symbols;
     for (int arg_no(1); arg_no < argc; ++arg_no) {
         LibraryAndSymbols new_library_and_symbols(argv[arg_no]);
-        ExtractSymbols(&new_library_and_symbols);
-        libraries_and_symbols.emplace_back(new_library_and_symbols);
+        ExtractSymbols(debug, &new_library_and_symbols);
+        if (debug) {
+            ListSymbols(new_library_and_symbols.library_path_, "defined", new_library_and_symbols.provided_);
+            ListSymbols(new_library_and_symbols.library_path_, "referenced", new_library_and_symbols.needed_);
+        } else
+            libraries_and_symbols.emplace_back(new_library_and_symbols);
     }
+    if (debug)
+        return EXIT_SUCCESS;
 
     for (const auto &lib1 : libraries_and_symbols) {
         for (const auto &lib2 : libraries_and_symbols) {
