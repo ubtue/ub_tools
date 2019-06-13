@@ -27,7 +27,6 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "EmailSender.h"
-#include "FileUtil.h"
 #include "IniFile.h"
 #include "MARC.h"
 #include "UBTools.h"
@@ -39,7 +38,7 @@ namespace {
 
 [[noreturn]]
 void Usage() {
-   ::Usage("marc_file missed_expectations_file email_address");
+   ::Usage("marc_input marc_output missed_expectations_file email_address");
 }
 
 
@@ -218,16 +217,15 @@ void SendEmail(const std::string &email_address, const std::string &message_body
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 4)
+    if (argc != 5)
         Usage();
 
     DbConnection db_connection;
     auto reader(MARC::Reader::Factory(argv[1]));
-    FileUtil::AutoTempFile temp_output_file("/tmp/ATF", ".xml");
-    auto valid_records_writer(MARC::Writer::Factory(temp_output_file.getFilePath()));
-    auto delinquent_records_writer(MARC::Writer::Factory(argv[2]));
+    auto valid_records_writer(MARC::Writer::Factory(argv[2]));
+    auto delinquent_records_writer(MARC::Writer::Factory(argv[3]));
     std::map<std::string, JournalInfo> journal_name_to_info_map;
-    const std::string email_address(argv[3]);
+    const std::string email_address(argv[4]);
 
     unsigned total_record_count(0), new_record_count(0), missed_expectation_count(0);
     while (const auto record = reader->read()) {
@@ -266,21 +264,10 @@ int Main(int argc, char *argv[]) {
             WriteToDatabase(&db_connection, journal_name_and_info.first, journal_name_and_info.second);
     }
 
-    // replace the original file with the modified, temporary one
     if (missed_expectation_count > 0) {
-        reader.reset();
-        valid_records_writer.reset();
-
-        const auto absolute_source_file_path(FileUtil::MakeAbsolutePath(argv[1]));
-        FileUtil::CopyOrDie(temp_output_file.getFilePath(), absolute_source_file_path);
-
         // send notification to the email address
         SendEmail(email_address, "Some records missed expectations with respect to MARC fields. Check "
                   "/usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log for details.");
-    } else {
-        // remove the empty file
-        delinquent_records_writer.reset();
-        FileUtil::DeleteFile(argv[2]);
     }
 
     LOG_INFO("Processed " + std::to_string(total_record_count) + " record(s) of which " + std::to_string(new_record_count)
