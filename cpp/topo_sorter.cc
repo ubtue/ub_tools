@@ -38,6 +38,7 @@ inline unsigned MapVertexNameToVertexID(const std::string &vertex_name,
     if (name_and_id != vertex_name_to_vertex_id_map.cend())
         return name_and_id->second;
 
+    vertex_name_to_vertex_id_map[vertex_name] = next_id;
     (*vertex_id_to_vertex_name_map)[next_id] = vertex_name;
     ++next_id;
     return next_id - 1;
