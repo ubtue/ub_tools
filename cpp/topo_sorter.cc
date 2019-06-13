@@ -1,4 +1,4 @@
-/** \brief Utility for topolgical sorting of nodes in a directed graph.
+/** \brief Utility for topological sorting of nodes in a directed graph.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
