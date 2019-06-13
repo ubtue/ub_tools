@@ -441,7 +441,7 @@ bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &edges, st
             max_node = edge.second;
     }
     if (max_node != static_cast<int>(nodes.size() - 1))
-        logger->error("in MiscUtil::TopologicalSort: we don't have the required 0..N-1 labelling of nodes!");
+        LOG_ERROR("we don't have the required 0..N-1 labelling of nodes!");
 
     std::vector<std::vector<unsigned>> neighbours(nodes.size());
     std::vector<unsigned> indegrees(nodes.size());
