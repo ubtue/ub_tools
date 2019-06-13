@@ -124,7 +124,7 @@ for d in */ ; do
     fi
 
     current_source_filepath=$harvester_output_directory/$d/$harvester_output_filename
-    valid_records_output_filepath=$harvester_output_directory/$d/zotero_$d_$(date +%y%m%d).xml
+    valid_records_output_filepath=$harvester_output_directory/$d/zotero_$d_$(date +%y%m%d)_001.xml  # we only deliver files once a day
     validate_harvested_records $current_source_filepath $valid_records_output_filepath \
                                $records_with_missing_metadata_output_filename $email_address >> "${log}" 2>&1
 
