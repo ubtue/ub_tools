@@ -27,7 +27,6 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "EmailSender.h"
-#include "FileUtil.h"
 #include "IniFile.h"
 #include "MARC.h"
 #include "UBTools.h"
@@ -39,7 +38,7 @@ namespace {
 
 [[noreturn]]
 void Usage() {
-   ::Usage("input_file output_file missed_expectations_file email_address");
+   ::Usage("marc_input marc_output missed_expectations_file email_address");
 }
 
 
