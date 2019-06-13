@@ -124,18 +124,20 @@ for d in */ ; do
     fi
 
     current_source_filepath=$harvester_output_directory/$d/$harvester_output_filename
-    validate_harvested_records $current_source_filepath $records_with_missing_metadata_output_filename $email_address >> "${log}" 2>&1
+    valid_records_output_filepath=$harvester_output_directory/$d/zotero_$d_$(date +%y%m%d).xml
+    validate_harvested_records $current_source_filepath $valid_records_output_filepath \
+                               $records_with_missing_metadata_output_filename $email_address >> "${log}" 2>&1
 
-    record_count=$(marc_size "$current_source_filepath")
+    record_count=$(marc_size "$valid_records_output_filepath")
     if [ "$record_count" = "0" ]; then
         continue    # skip files with zero records
     fi
 
-    source_filepaths[$counter]=$current_source_filepath
+    source_filepaths[$counter]=$valid_records_output_filepath
     if [ "$delivery_mode" = "TEST" ]; then
-        dest_filepaths[$counter]=/pub/UBTuebingen_Import_Test/"$d"_Test/
+        dest_filepaths[$counter]=/pub/UBTuebingen_Default_Test/
     elif [ "$delivery_mode" = "LIVE" ]; then
-        dest_filepaths[$counter]=/pub/UBTuebingen_Import/$d/
+        dest_filepaths[$counter]=/pub/UBTuebingen_Default/
     fi
     counter=$((counter+1))
 done
