@@ -17,6 +17,7 @@ ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
   OPTIMISATIONS_STATE =
 else
   CCCFLAGS += -fsanitize=address
+  CCCFLAGS += -D_GLIBCXX_DEBUG
   OPTIMISATIONS_STATE = (unoptimised)
 endif
 
@@ -35,7 +36,7 @@ endif
 MAKE_DEPS=iViaCore-mkdep
 
 .PHONY: clean
-.PRECIOUS: $(OBJ)/%.o
+.PRECIOUS: $(OBJ)/%.o $(STATIC_OBJ)/%_static.o
 
 # Rules for building:
 $(OBJ)/%.o: $(SRC)/%.cc Makefile
