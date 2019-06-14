@@ -444,13 +444,12 @@ static bool NodeNumberingIsCorrect(const std::vector<std::pair<unsigned, unsigne
 }
 
 
-static void ConstructShortestPath(const std::vector<int> &parents, const unsigned s, const unsigned d, std::vector<unsigned> * const cycle) {
-    if (parents[s] == -1)  {
+static void ConstructShortestPath(const std::vector<int> &parents, unsigned s, std::vector<unsigned> * const cycle) {
+    while (parents[s] != -1)  {
         cycle->emplace_back(s);
-        return;
+        s = parents[s];
     }
 
-    ConstructShortestPath(parents, parents[s], d, cycle);
     cycle->emplace_back(s);
 }
 
@@ -495,7 +494,7 @@ found_a_cycle:
     while (not queue.empty()) {
         unsigned s(queue.front());
         if (s == v) {
-            ConstructShortestPath(parents, s, v, cycle);
+            ConstructShortestPath(parents, s, cycle);
             std::reverse(cycle->begin(), cycle->end());
             return true;
         }
