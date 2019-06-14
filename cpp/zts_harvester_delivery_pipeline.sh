@@ -12,7 +12,7 @@ function SendEmail {
     else
         send_email --priority=high --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
                    --subject="$0 failed on $(hostname)" \
-                   --message-body="Check the attached log file for details."
+                   --message-body="Check the attached log file for details." \
                    --attachment="/usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log"
         echo "*** ZTS_HARVESTER DELIVERY PIPELINE FAILED ***" | tee --append "${log}"
         exit 1
@@ -124,7 +124,7 @@ for d in */ ; do
     fi
 
     current_source_filepath=$harvester_output_directory/$d/$harvester_output_filename
-    valid_records_output_filepath=$harvester_output_directory/$d/zotero_$d_$(date +%y%m%d)_001.xml  # we only deliver files once a day
+    valid_records_output_filepath=$harvester_output_directory/$d/zotero_${d}_$(date +%y%m%d)_001.xml  # we only deliver files once a day
     validate_harvested_records $current_source_filepath $valid_records_output_filepath \
                                $records_with_missing_metadata_output_filename $email_address >> "${log}" 2>&1
 
