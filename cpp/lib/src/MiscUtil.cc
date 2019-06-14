@@ -509,8 +509,6 @@ found_a_cycle:
 
         queue.pop();
     }
-    //    if (cycle->empty())
-    //    cycle->emplace_back(v);
 
     return true;
 }
