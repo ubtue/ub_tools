@@ -30,6 +30,7 @@
 #include <map>
 #include <queue>
 #include <set>
+#include <stack>
 #include <stdexcept>
 #include <unordered_set>
 #include <cctype>
@@ -82,7 +83,7 @@ char HexDigit(const unsigned value) {
     case 0xF:
         return 'F';
     default:
-        logger->error("in MiscUtil::HexDigit: invalid value " + std::to_string(value) + "!");
+        LOG_ERROR("invalid value " + std::to_string(value) + "!");
     }
 }
 
@@ -168,9 +169,7 @@ enum EscapeState { NOT_ESCAPED, SINGLE_QUOTED, DOUBLE_QUOTED };
 
 
 // Helper for ParseLine(),
-static std::string ExtractBourneString(std::string::const_iterator &ch, const std::string::const_iterator &end,
-                                       const char barrier)
-{
+static std::string ExtractBourneString(std::string::const_iterator &ch, const std::string::const_iterator &end, const char barrier) {
     std::string value;
 
     bool backslash_seen(false);
@@ -369,7 +368,7 @@ static unsigned GetLogSuffix(const std::string &log_file_prefix, const std::stri
 
     unsigned generation;
     if (unlikely(not StringUtil::ToUnsigned(filename.substr(log_file_prefix.length() + 1), &generation)))
-        logger->error("in GetLogSuffix(MiscUtil.cc): bad conversion, filename = \"" + filename + "\"!");
+        LOG_ERROR("in GetLogSuffix: bad conversion, filename = \"" + filename + "\"!");
 
     return generation;
 }
@@ -415,7 +414,7 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count) {
         while (filenames.size() > max_count) {
             const std::string path_to_delete(dirname + "/" + filenames.back());
             if (unlikely(not FileUtil::DeleteFile(path_to_delete)))
-                logger->error("in MiscUtil::LogRotate: failed to delete \"" + path_to_delete + "\"!");
+                LOG_ERROR("failed to delete \"" + path_to_delete + "\"!");
             filenames.pop_back();
         }
     }
@@ -423,24 +422,106 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count) {
     for (auto filename(filenames.rbegin()); filename != filenames.rend(); ++filename) {
         if (unlikely(not FileUtil::RenameFile(dirname + "/" + *filename,
                                               dirname + "/" + IncrementFile(basename, *filename))))
-            logger->error("in MiscUtil::LogRotate:: failed to rename \"" + dirname + "/" + *filename + "\" to \""
-                          + dirname + "/" + IncrementFile(basename, *filename) + "\"!");
+            LOG_ERROR("failed to rename \"" + dirname + "/" + *filename + "\" to \"" + dirname + "/"
+                      + IncrementFile(basename, *filename) + "\"!");
     }
 }
 
 
-bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &edges, std::vector<unsigned> * const node_order) {
-    std::unordered_set<unsigned> nodes;
+// Returns false if the edges are not labbeled from 0 to N-1 where N is the number of vertices, o/w returns true.
+static bool NodeNumberingIsCorrect(const std::vector<std::pair<unsigned, unsigned>> &edges, std::unordered_set<unsigned> * const nodes) {
     int max_node(-1);
     for (const auto &edge : edges) {
-        nodes.emplace(edge.first);
+        nodes->emplace(edge.first);
         if (static_cast<int>(edge.first) > max_node)
             max_node = edge.first;
-        nodes.emplace(edge.second);
+        nodes->emplace(edge.second);
         if (static_cast<int>(edge.second) > max_node)
             max_node = edge.second;
     }
-    if (max_node != static_cast<int>(nodes.size() - 1))
+
+    return max_node == static_cast<int>(nodes->size() - 1);
+}
+
+
+static void ConstructShortestPath(const std::vector<int> &parents, const unsigned s, const unsigned d, std::vector<unsigned> * const cycle) {
+    if (parents[s] == -1)  {
+        cycle->emplace_back(s);
+        return;
+    }
+
+    ConstructShortestPath(parents, parents[s], d, cycle);
+    cycle->emplace_back(s);
+}
+
+
+bool FindACycleInGraph(const std::vector<std::pair<unsigned, unsigned>> &edges, std::vector<unsigned> * const cycle) {
+    cycle->clear();
+    if (edges.empty())
+        return false;
+
+    std::unordered_set<unsigned> nodes;
+    if (not NodeNumberingIsCorrect(edges, &nodes))
+        LOG_ERROR("we don't have the required 0..N-1 labelling of nodes!");
+
+    std::vector<std::vector<unsigned>> neighbours(nodes.size());
+    for (const auto &edge : edges)
+        neighbours[edge.first].emplace_back(edge.second);
+
+    std::vector<bool> visited(nodes.size(), false);
+
+    // Iterative DFS (https://en.wikipedia.org/wiki/Depth-first_search#Pseudocode):
+    unsigned v(0); // NB., "0" is a valid vertex!
+    std::stack<unsigned> stack;
+    stack.push(v);
+    while (not stack.empty()) {
+        v = stack.top();
+        stack.pop();
+        if (visited[v])
+            goto found_a_cycle;
+        visited[v] = true;
+        for (const auto neighbour : neighbours[v])
+            stack.push(neighbour);
+    }
+    return false; // No cycle was found.
+
+found_a_cycle:
+    // Use BFS (https://www.geeksforgeeks.org/shortest-path-weighted-graph-weight-edge-1-2/) to find the nodes in the cycle:
+    visited = std::vector<bool>(nodes.size(), false); // Reset to all false entries.
+    std::vector<int> parents(nodes.size(), -1);
+    std::queue<unsigned> queue;
+    for (unsigned n : neighbours[v])
+        queue.push(n);
+    while (not queue.empty()) {
+        unsigned s(queue.front());
+        if (s == v) {
+            ConstructShortestPath(parents, s, v, cycle);
+            std::reverse(cycle->begin(), cycle->end());
+            return true;
+        }
+
+        for (const auto neighbour : neighbours[s]) {
+            if (not visited[neighbour]) {
+                visited[neighbour] = true;
+                queue.push(neighbour);
+                parents[neighbour] = static_cast<int>(s);
+            }
+        }
+
+        queue.pop();
+    }
+    //    if (cycle->empty())
+    //    cycle->emplace_back(v);
+
+    return true;
+}
+
+
+bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &edges, std::vector<unsigned> * const node_order,
+                     std::vector<unsigned> * const cycle)
+{
+    std::unordered_set<unsigned> nodes;
+    if (not NodeNumberingIsCorrect(edges, &nodes))
         LOG_ERROR("we don't have the required 0..N-1 labelling of nodes!");
 
     std::vector<std::vector<unsigned>> neighbours(nodes.size());
@@ -471,7 +552,14 @@ bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &edges, st
         ++visited_node_count;
     }
 
-    return visited_node_count == nodes.size(); // If this is nor true we have at least one cycle!
+    if (visited_node_count == nodes.size())
+        return true;
+
+    // If we get here we have at least one cycle!
+    if (cycle != nullptr)
+        FindACycleInGraph(edges, cycle);
+
+    return false;
 }
 
 

@@ -12,6 +12,7 @@ ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
 else
   LD_FLAGS = -fsanitize=address
   CCCFLAGS += -fsanitize=address
+  CCCFLAGS += -D_GLIBCXX_DEBUG
   OPTIMISATIONS_STATE = (unoptimised)
 endif
 

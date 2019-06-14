@@ -82,9 +82,13 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<unsigned, std::string> vertex_id_to_vertex_name_map;
     LoadVertices(input.get(), &vertices, &vertex_id_to_vertex_name_map);
 
-    std::vector<unsigned> node_order;
-    if (not MiscUtil::TopologicalSort(vertices, &node_order))
-        LOG_ERROR("one or more cycles in input \"" + input_filename + "\"!");
+    std::vector<unsigned> node_order, cycle;
+    if (not MiscUtil::TopologicalSort(vertices, &node_order, &cycle)) {
+        std::cerr << "Cycle:\n";
+        for (const auto &node : cycle)
+            std::cerr << '\t' << vertex_id_to_vertex_name_map[node] << '\n';
+        return EXIT_FAILURE;
+    }
 
     for (const auto &node : node_order)
         std::cout << vertex_id_to_vertex_name_map[node] << '\n';
