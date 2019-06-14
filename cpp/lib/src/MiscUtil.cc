@@ -428,7 +428,7 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count) {
 }
 
 
-// Returns false if the edges are not labbeled from 0 to N-1 where N is the number of vertices, o/w returns true.
+// Returns false if the edges are not labelled from 0 to N-1 where N is the number of vertices, o/w returns true.
 static bool NodeNumberingIsCorrect(const std::vector<std::pair<unsigned, unsigned>> &edges, std::unordered_set<unsigned> * const nodes) {
     int max_node(-1);
     for (const auto &edge : edges) {
@@ -451,6 +451,7 @@ static void ConstructShortestPath(const std::vector<int> &parents, unsigned s, s
     }
 
     cycle->emplace_back(s);
+    std::reverse(cycle->begin(), cycle->end());
 }
 
 
@@ -495,7 +496,6 @@ found_a_cycle:
         unsigned s(queue.front());
         if (s == v) {
             ConstructShortestPath(parents, s, cycle);
-            std::reverse(cycle->begin(), cycle->end());
             return true;
         }
 
