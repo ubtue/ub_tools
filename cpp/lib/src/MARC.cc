@@ -29,6 +29,7 @@
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
 
@@ -2494,7 +2495,7 @@ bool IsOpenAccess(const Record &marc_record) {
         const std::string subfield_z_contents(subfields.getFirstSubfieldWithCode('z'));
         if (subfield_z_contents == "LF")
             return true;
-        if (StringUtil::StartsWith(TextUtil::UTF8ToLower(subfield_z_contents, "kostenfrei"))) {
+        if (StringUtil::StartsWith(TextUtil::UTF8ToLower(subfield_z_contents), "kostenfrei")) {
             const std::string subfield_3_contents(TextUtil::UTF8ToLower(subfields.getFirstSubfieldWithCode('3')));
             if (subfield_3_contents == "volltext")
                 return true;

@@ -54,7 +54,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 
         if (record.getFirstField("OAS") == record.end()) {
             MARC::Subfields subfields;
-            if (IsOpenAcess(record)) {
+            if (MARC::IsOpenAccess(record)) {
                 subfields.appendSubfield('a', "1");
                 ++flagged_as_open_access_count;
                 record.insertField("OAS", subfields);
