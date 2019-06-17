@@ -29,6 +29,7 @@
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
 
@@ -2491,8 +2492,10 @@ bool UBTueIsElectronicResource(const Record &marc_record) {
 bool IsOpenAccess(const Record &marc_record) {
     for (const auto &_856_field : marc_record.getTagRange("856")) {
         const Subfields subfields(_856_field.getSubfields());
-        const std::string subfield_z_contents(TextUtil::UTF8ToLower(subfields.getFirstSubfieldWithCode('z')));
-        if (StringUtil::StartsWith(subfield_z_contents, "kostenfrei")) {
+        const std::string subfield_z_contents(subfields.getFirstSubfieldWithCode('z'));
+        if (subfield_z_contents == "LF")
+            return true;
+        if (StringUtil::StartsWith(TextUtil::UTF8ToLower(subfield_z_contents), "kostenfrei")) {
             const std::string subfield_3_contents(TextUtil::UTF8ToLower(subfields.getFirstSubfieldWithCode('3')));
             if (subfield_3_contents == "volltext")
                 return true;
