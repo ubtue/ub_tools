@@ -800,6 +800,8 @@ std::set<std::string> Record::getISSNs() const {
     std::set<std::string> issns;
 
     for (const auto field : getTagRange("029")) {
+        // According to the BSZ's PICA-to-MARC mapping documentation 029 contains the "authorised" ISSN, but only
+        // if the indicators are correct:
         if (field.getIndicator1() == 'x' and field.getIndicator2() == 'a') {
             const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
             if (not first_subfield_a.empty())
