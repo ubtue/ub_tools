@@ -798,8 +798,23 @@ std::set<std::string> Record::getDOIs() const {
 
 std::set<std::string> Record::getISSNs() const {
     std::set<std::string> issns;
-    for (const auto field : getTagRange("022"))
-        issns.emplace(field.getFirstSubfieldWithCode('a'));
+
+    for (const auto field : getTagRange("029")) {
+        if (field.getIndicator1() == 'x' and field.getIndicator2() == 'a') {
+            const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
+            if (not first_subfield_a.empty())
+                issns.emplace(first_subfield_a);
+        }
+    }
+
+    // If we don't already have an ISSN check 022$a as a last resort:
+    if (issns.empty()) {
+        for (const auto field : getTagRange("022")) {
+            const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
+            if (not first_subfield_a.empty())
+                issns.emplace(first_subfield_a);
+        }
+    }
 
     return issns;
 }

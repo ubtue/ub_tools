@@ -64,45 +64,17 @@ void PopulateParentIdToISBNAndISSNMap(MARC::Reader * const marc_reader,
         if (not record.isSerial() and not record.isMonograph())
             continue;
 
-        // Try to see if we have an ISBN:
-        const auto field_020(record.findTag("020"));
-        if (field_020 != record.end()) {
-            const std::string isbn(field_020->getFirstSubfieldWithCode('a'));
-            if (not isbn.empty()) {
-                (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { isbn, MARC::IsOpenAccess(record) };
-                ++extracted_isbn_count;
-                continue;
-            }
-        } else
+        const auto isbns(record.getISBNs());
+        for (const auto &isbn : isbns) {
+            (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { isbn, MARC::IsOpenAccess(record) };
+            ++extracted_isbn_count;
+        }
+        if (not isbns.empty())
             continue;
 
-        std::string issn;
-        // 1. First try to get an ISSN from 029$a, (according to the BSZ's PICA-to-MARC mapping
-        // documentation this contains the "authorised" ISSN) but only if the indicators are correct:
-        for (const auto &_029_field : record.getTagRange("029")) {
-            const auto subfields(_029_field.getSubfields());
-
-            // We only want fields with indicators 'x' and 'a':
-            if (_029_field.getIndicator1() != 'x' or _029_field.getIndicator2() != 'a')
-                continue;
-
-            issn = subfields.getFirstSubfieldWithCode('a');
-            if (not issn.empty()) {
-                (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { issn, MARC::IsOpenAccess(record) };
-                ++extracted_issn_count;
-            }
-        }
-
-        // 2. If we don't already have an ISSN check 022$a as a last resort:
-        if (issn.empty()) {
-            const auto field_022(record.findTag("022"));
-            if (field_022 != record.end()) {
-                issn = field_022->getFirstSubfieldWithCode('a');
-                if (not issn.empty()) {
-                    (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { issn, MARC::IsOpenAccess(record) };
-                    ++extracted_issn_count;
-                }
-            }
+        for (const auto &issn : record.getISSNs()) {
+            (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { issn, MARC::IsOpenAccess(record) };
+            ++extracted_issn_count;
         }
     }
 
