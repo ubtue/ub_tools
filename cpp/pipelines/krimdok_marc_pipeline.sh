@@ -112,9 +112,9 @@ krimdok_flag_pda_records 3 \
 EndPhase
 
 
-StartPhase "Flag Electronic Records"
-flag_electronic_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                        GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
+StartPhase "Flag Electronic and Open-Access Records"
+flag_electronic_and_open_access_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                        GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 EndPhase
 
 

@@ -35,7 +35,7 @@ namespace {
 
 
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
-    unsigned record_count(0), flagged_count(0);
+    unsigned record_count(0), flagged_as_electronic_count(0), flagged_as_open_access_count(0);
 
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
@@ -47,8 +47,17 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
             if (record.isPrintResource())
                 subfields.appendSubfield('b', "1");
             if (not subfields.empty()) {
-                ++flagged_count;
+                ++flagged_as_electronic_count;
                 record.insertField("ELC", subfields);
+            }
+        }
+
+        if (record.getFirstField("OAS") == record.end()) {
+            MARC::Subfields subfields;
+            if (MARC::IsOpenAccess(record)) {
+                subfields.appendSubfield('a', "1");
+                ++flagged_as_open_access_count;
+                record.insertField("OAS", subfields);
             }
         }
 
@@ -56,7 +65,8 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
     }
 
     LOG_INFO("Processed " + std::to_string(record_count) + " MARC record(s).");
-    LOG_INFO("Flagged " + std::to_string(flagged_count) + " record(s) as electronic resource(s).");
+    LOG_INFO("Flagged " + std::to_string(flagged_as_electronic_count) + " record(s) as electronic resource(s).");
+    LOG_INFO("Flagged " + std::to_string(flagged_as_open_access_count) + " record(s) as open-access resource(s).");
 }
 
 

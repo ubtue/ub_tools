@@ -2579,32 +2579,14 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     /** @return "open-access" if we have an open access publication, else "non-open-access". */
     public String getOpenAccessStatus(final Record record) {
-        for (final VariableField variableField : record.getVariableFields("856")) {
-            final DataField dataField = (DataField) variableField;
-            for (final Subfield subfieldZ : dataField.getSubfields('z')) {
-                final String subfieldZContents = subfieldZ.getData();
-                if (subfieldZContents.toLowerCase().startsWith("kostenfrei")) {
-                    final Subfield subfield3 = dataField.getSubfield('3');
-                    if (subfield3 == null || subfield3.getData().toLowerCase().equals("volltext"))
-                        return "open-access";
-                } else if (subfieldZContents.equals("LF"))
-                    return "open-access";
-            }
-            for (final Subfield subfieldX : dataField.getSubfields('x')) {
-                if (subfieldX != null && subfieldX.getData().toLowerCase().equals("unpaywall"))
-                   return "open-access";
-            }
-        }
+        final DataField _OASField = (DataField)record.getVariableField("OAS");
+        if (_OASField == null)
+            return "non-open-access";
+        final Subfield subfieldA = _OASField.getSubfield('a');
+        if (subfieldA == null)
+            return "non-open-access";
 
-        for (final VariableField variableField : record.getVariableFields("655")) {
-            final DataField dataField = (DataField) variableField;
-            for (final Subfield subfieldA : dataField.getSubfields('a')) {
-                if (subfieldA.getData().toLowerCase().startsWith("open access"))
-                   return "open-access";
-            }
-        }
-
-        return "non-open-access";
+        return subfieldA.getData().equals("1") ? "open-access" : "non-open-access";
     }
 
     // Try to get a numerically sortable representation of an issue
