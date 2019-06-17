@@ -104,13 +104,8 @@ void Augment856(MARC::Reader * const marc_reader, MARC::Writer * const marc_writ
                 }
             }
 
-            if (flag_as_open_access_resource and record.getFirstField("OAS") == record.end()) {
-                MARC::Subfields subfields;
-                if (MARC::IsOpenAccess(record)) {
-                    subfields.appendSubfield('a', "1");
-                    record.insertField("OAS", subfields);
-                }
-            }
+            if (flag_as_open_access_resource and record.getFirstField("OAS") == record.end())
+                record.insertField("OAS", { MARC::Subfield('a', "1") });
         }
         marc_writer->write(record);
     }
