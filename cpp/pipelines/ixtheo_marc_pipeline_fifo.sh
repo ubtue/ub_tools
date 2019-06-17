@@ -201,8 +201,8 @@ EndPhase || Abort) &
 
 
 StartPhase "Flag Electronic and Open-Access Records"
-(flag_electronic_and_open_acess_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                        GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+(flag_electronic_and_open_access_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
