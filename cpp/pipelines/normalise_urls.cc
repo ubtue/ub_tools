@@ -1,8 +1,8 @@
-/** \brief  A MARC-21 filter uliity that replace URNs in 856u-fields with URLs
+/** \brief  A MARC-21 filter utility that replace URNs in 856u-fields with URL's.
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *  \author Dr. Johannes Ruscheinski
  *
- *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -94,7 +94,7 @@ bool CreateUrlsFrom024(MARC::Record * const record) {
     }
 
     for (const auto &_024_doi : _024_dois)
-        record->insertField("856", { { 'u', "https://doi.org/" + _024_doi }, { 'x', "doi" } });
+        record->insertFieldAtEnd("856", { { 'u', "https://doi.org/" + _024_doi }, { 'x', "doi" } });
 
     return not _024_dois.empty();
 }
@@ -168,9 +168,9 @@ void NormaliseURLs(const bool verbose, MARC::Reader * const reader, MARC::Writer
         writer->write(record);
     }
 
-    std::cerr << "Read " << count << " records.\n";
-    std::cerr << "Modified " << modified_count << " record(s).\n";
-    std::cerr << "Skipped " << duplicate_skip_count << " duplicate links.\n";
+    LOG_INFO("Read " + std::to_string(count) + " records.");
+    LOG_INFO("Modified " + std::to_string(modified_count) + " record(s).");
+    LOG_INFO("Skipped " + std::to_string(duplicate_skip_count) + " duplicate links.");
 }
 
 
