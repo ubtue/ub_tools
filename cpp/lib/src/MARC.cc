@@ -811,8 +811,11 @@ std::set<std::string> Record::getISSNs() const {
 
 std::set<std::string> Record::getISBNs() const {
     std::set<std::string> isbns;
-    for (const auto field : getTagRange("020"))
-        isbns.emplace(field.getFirstSubfieldWithCode('a'));
+    for (const auto field : getTagRange("020")) {
+        const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
+        if (not first_subfield_a.empty())
+            isbns.emplace(first_subfield_a);
+    }
 
     return isbns;
 }
