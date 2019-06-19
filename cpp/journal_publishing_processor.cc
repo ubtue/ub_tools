@@ -174,11 +174,15 @@ void ProcessDocument(const bool normalise_only, const bool force_ocr, const std:
 
     std::string full_text, abstract;
 
-    if (full_text_metadata.full_text_location_.empty()) {
-        if (not ExtractText(xml_parser, "body", &full_text))
+    if (not ExtractText(xml_parser, "body", &full_text)) {
+        if (not full_text_metadata.full_text_location_.empty())
+            ExtractPDFFulltext(force_ocr, full_text_metadata.full_text_location_, &full_text);
+        else
             ExtractText(xml_parser, "abstract", &abstract);
-    } else
-        ExtractPDFFulltext(force_ocr, full_text_metadata.full_text_location_, &full_text);
+    }
+
+    if (full_text.empty())
+        LOG_WARNING("Could not extract fulltext for '" + input_file_path + "'");
 
     if (full_text.empty() and abstract.empty())
         LOG_ERROR("neither full-text nor abstract text was found in file '" + input_file_path + "'");
