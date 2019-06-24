@@ -45,6 +45,7 @@ constexpr uint32_t EM_DASH(0x2014u);
 constexpr uint32_t TWO_EM_DASH(0x2E3Au);
 constexpr uint32_t THREE_EM_DASH(0x2E3Bu);
 constexpr uint32_t SMALL_EM_DASH(0xFE58u);
+constexpr uint32_t NON_BREAKING_HYPHEN(0x2011u);
 
 
 /** \brief Converter between many text encodings.
