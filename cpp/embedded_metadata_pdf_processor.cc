@@ -74,9 +74,11 @@ void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTe
     static RegexMatcher * const authors_matcher(RegexMatcher::RegexMatcherFactory("Author:\\s*(.*)", nullptr, RegexMatcher::CASE_INSENSITIVE));
     if (authors_matcher->matched(pdfinfo_output))
         StringUtil::Split((*authors_matcher)[1], std::set<char>({ ';', '|' }), &(fulltext_data->authors_));
-    static RegexMatcher * const title_matcher(RegexMatcher::RegexMatcherFactory("^Title:?\\s*(.*)", nullptr, RegexMatcher::CASE_INSENSITIVE));
-    if (title_matcher->matched(pdfinfo_output))
+    static RegexMatcher * const title_matcher(RegexMatcher::RegexMatcherFactory("^Title:?\\s*(?:<ger>)?(.*)<(?:</ger>)?", nullptr, RegexMatcher::CASE_INSENSITIVE));
+    if (title_matcher->matched(pdfinfo_output)) {
         fulltext_data->title_ = (*title_matcher)[1];
+
+    }
 }
 
 
