@@ -166,13 +166,6 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
             return doi_control_numbers;
     }
 
-    if (not issn.empty()) {
-        std::set<std::string> issn_control_numbers;
-        lookupISSN(issn, &issn_control_numbers);
-        if (not issn_control_numbers.empty())
-            return issn_control_numbers;
-    }
-
     if (not isbn.empty()) {
         std::set<std::string> isbn_control_numbers;
         lookupISBN(isbn, &isbn_control_numbers);
@@ -206,6 +199,14 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
     }
 
     auto common_control_numbers(MiscUtil::Intersect(title_control_numbers, all_author_control_numbers));
+
+    if (not issn.empty()) {
+        std::set<std::string> issn_control_numbers;
+        lookupISSN(issn, &issn_control_numbers);
+        if (not issn_control_numbers.empty())
+            common_control_numbers = MiscUtil::Intersect(common_control_numbers, issn_control_numbers);
+    }
+
     if (year.empty())
         return common_control_numbers;
 
