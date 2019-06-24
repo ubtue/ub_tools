@@ -53,6 +53,7 @@ std::string GuessISSN(const std::string &first_page_text, std::string * const is
     std::string last_paragraph(last_paragraph_start != std::string::npos ?
                                first_page_text_trimmed.substr(last_paragraph_start) : "");
     StringUtil::Map(&last_paragraph, '\n', ' ');
+    last_paragraph = TextUtil::NormaliseDashes(&last_paragraph);
     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*ISSN\\s*([\\d\\-X]+).*"));
     if (matcher->matched(last_paragraph))
         *issn = (*matcher)[1];
@@ -61,11 +62,9 @@ std::string GuessISSN(const std::string &first_page_text, std::string * const is
 
 
 void GuessISBN(const std::string &extracted_text, std::string * const isbn) {
-     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*ISBN\\s*([\\d\\-‑X]+).*"));
-     if (matcher->matched(extracted_text)) {
+     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*ISBN\\s*([\\d\\-X]+).*"));
+     if (matcher->matched(extracted_text))
          *isbn = (*matcher)[1];
-         StringUtil::ReplaceString("‑", "-", isbn); // Normalize strange dash
-     }
 }
 
 
@@ -105,7 +104,7 @@ bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextD
     std::string first_pages_text;
     PdfUtil::ExtractText(pdf_document, &first_pages_text, "1", "10" );
     std::string isbn;
-    GuessISBN(first_pages_text, &isbn);
+    GuessISBN(TextUtil::NormaliseDashes(&first_pages_text), &isbn);
     if (not isbn.empty()) {
         LOG_DEBUG("Extracted ISBN: " + isbn);
         std::set<std::string> control_numbers;
@@ -114,10 +113,12 @@ bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextD
             LOG_WARNING("We got more than one control number for ISBN \"" + isbn + "\"  - falling back to title and author");
             GuessAuthorAndTitle(pdf_document, fulltext_data);
             fulltext_data->isbn_ = isbn;
-            if (unlikely(not FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_numbers)))
+            if (unlikely(not FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_numbers))) {
+                LOG_WARNING("Could not correlate full text data for ISBN \"" + isbn  + "\"");
                 return false;
+            }
             if (control_numbers.size() != 1)
-                LOG_ERROR("Unable to determine unique control number fo ISBN \"" + isbn + "\"");
+                LOG_ERROR("Unable to determine unique control number for ISBN \"" + isbn + "\"");
         }
         const std::string control_number(*(control_numbers.begin()));
         LOG_DEBUG("Determined control number \"" + control_number + "\" for ISBN \"" + isbn + "\"\n");
