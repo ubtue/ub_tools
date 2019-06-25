@@ -1271,10 +1271,10 @@ size_t CountLines(const std::string &filename) {
 
 // Strips all extensions from "filename" and returns what is left after that.
 std::string GetFilenameWithoutExtensionOrDie(const std::string &filename) {
-    const auto first_dot_pos(filename.find('.'));
-    if (unlikely(first_dot_pos == std::string::npos))
+    const auto last_dot_pos(filename.rfind('.'));
+    if (unlikely(last_dot_pos == std::string::npos))
         LOG_ERROR("\"" + filename + "\" has no extension!");
-    return filename.substr(0, first_dot_pos);
+    return filename.substr(0, last_dot_pos);
 }
 
 
