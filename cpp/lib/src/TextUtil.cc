@@ -1706,6 +1706,39 @@ std::string RemoveDiacritics(const std::string &utf8_string) {
 }
 
 
+static std::vector<wchar_t> quotation_marks_to_normalise {
+L'«',  L'‹',  L'»',  L'›',  L'„',  L'‚',  L'“',  L'‟',  L'‘',  L'‛',  L'”',  L'’',  L'"',  L'❛',  L'❜',  L'❟',  L'❝',  L'❞',  L'❮',  L'❯',  L'⹂',  L'〝',  L'〞',  L'〟',  L'＂'
+};
+
+
+std::wstring NormaliseQuotationMarks(const std::wstring &string) {
+   std::wstring string_with_normalised_quotes;
+   for (const auto wchar : string) {
+       if (likely(std::find(quotation_marks_to_normalise.cbegin(), quotation_marks_to_normalise.cend(), wchar) ==
+                  quotation_marks_to_normalise.cend()))
+           string_with_normalised_quotes += wchar;
+       else
+           string_with_normalised_quotes += '"';
+   }
+
+   return string_with_normalised_quotes;
+}
+
+
+std::string NormaliseQuotationMarks(const std::string &utf8_string) {
+    std::wstring wstring;
+    if (unlikely(not UTF8ToWCharString(utf8_string, &wstring)))
+        LOG_ERROR("failed to convert a UTF8 string to a wide character string!");
+
+    const auto wstring_normalised_quotations_marks(NormaliseQuotationMarks(wstring));
+    std::string utf8_normalised_quotations_marks;
+    if (unlikely(not WCharToUTF8String(wstring_normalised_quotations_marks, &utf8_normalised_quotations_marks)))
+        LOG_ERROR("failed to convert a wide character string to a UTF8 string!");
+
+    return utf8_normalised_quotations_marks;
+}
+
+
 bool ConvertToUTF8(const std::string &encoding, const std::string &text, std::string * const utf8_text) {
     utf8_text->clear();
 

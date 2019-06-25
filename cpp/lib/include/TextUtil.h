@@ -505,6 +505,9 @@ std::string ExpandLigatures(const std::string &utf8_string);
 std::wstring RemoveDiacritics(const std::wstring &string);
 std::string RemoveDiacritics(const std::string &utf8_string);
 
+// Normalises different quotation marks to standard double quotes
+std::wstring NormaliseQuotationMarks(const std::wstring &string);
+std::string NormaliseQuotationMarks(const std::string &utf8_string);
 
 bool ConvertToUTF8(const std::string &encoding, const std::string &text, std::string * const utf8_text);
 
