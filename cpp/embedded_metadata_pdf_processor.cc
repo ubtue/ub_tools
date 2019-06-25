@@ -90,16 +90,21 @@ bool GuessISBN(const std::string &extracted_text, std::string * const isbn) {
 void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTextData * const fulltext_data) {
     std::string pdfinfo_output;
     PdfUtil::ExtractPDFInfo(pdf_document, &pdfinfo_output);
-    static RegexMatcher * const authors_matcher(RegexMatcher::RegexMatcherFactory("Author:\\s*(.*)", nullptr, RegexMatcher::CASE_INSENSITIVE));
+    static RegexMatcher * const authors_matcher(RegexMatcher::RegexMatcherFactoryOrDie("Author:\\s*(.*)", RegexMatcher::CASE_INSENSITIVE));
     if (authors_matcher->matched(pdfinfo_output))
         StringUtil::Split((*authors_matcher)[1], std::set<char>({ ';', '|' }), &(fulltext_data->authors_));
-    static RegexMatcher * const title_matcher(RegexMatcher::RegexMatcherFactory("^Title:?\\s*(?:<ger>)?(.*)(?:</ger>)?", nullptr, RegexMatcher::CASE_INSENSITIVE));
+    static RegexMatcher * const title_matcher(RegexMatcher::RegexMatcherFactoryOrDie("^Title:?\\s*(.*)", RegexMatcher::CASE_INSENSITIVE));
     if (title_matcher->matched(pdfinfo_output)) {
-        const std::string title_candidate((*title_matcher)[1]);
+        // Strip german tag
+        title_matcher->replaceAll("<ger>", "");
+        title_matcher->replaceAll("</ger>", "");
+        std::string title_candidate((*title_matcher)[1]);
         // Try to detect invalid encoding
         if (not TextUtil::IsValidUTF8(title_candidate)) {
             LOG_WARNING("Apparently incorrect encoding for " + title_candidate);
         }
+        title_candidate = StringUtil::ReplaceString("<ger>", "", title_candidate);
+        title_candidate = StringUtil::ReplaceString("</ger>", "", title_candidate);
         fulltext_data->title_ = title_candidate;
     }
 }
