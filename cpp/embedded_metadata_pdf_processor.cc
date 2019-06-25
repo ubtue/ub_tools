@@ -26,8 +26,6 @@
 #include "FullTextImport.h"
 #include "PdfUtil.h"
 #include "RegexMatcher.h"
-#include "Solr.h"
-#include "SolrJSON.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -107,24 +105,6 @@ void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTe
 }
 
 
-void GetFulltextMetadataFromSolr(const std::string &control_number, FullTextImport::FullTextData * const fulltext_data) {
-    std::string json_result;
-    std::string err_msg;
-    const std::string query("id:" + control_number);
-    if (unlikely(not Solr::Query(query, "id,title,author,author2,publishDate", &json_result, &err_msg,
-                                 Solr::DEFAULT_HOST_AND_PORT,/* timeout */ 5, Solr::JSON)))
-        LOG_ERROR("Solr query failed or timed-out: \"" + query + "\". (" + err_msg + ")");
-    const std::shared_ptr<const JSON::ArrayNode> docs(SolrJSON::ParseTreeAndGetDocs(json_result));
-    if (docs->size() != 1)
-        LOG_ERROR("Invalid size " + std::to_string(docs->size()) + " for SOLR results (Expected only one)");
-    const std::shared_ptr<const JSON::ObjectNode> doc_obj(JSON::JSONNode::CastToObjectNodeOrDie("document object", *(docs->begin())));
-    fulltext_data->title_ = SolrJSON::GetTitle(doc_obj);
-    const auto authors(SolrJSON::GetAuthors(doc_obj));
-    fulltext_data->authors_.insert(std::begin(authors), std::end(authors));
-    fulltext_data->year_ = SolrJSON::GetFirstPublishDate(doc_obj);
-}
-
-
 void ConvertFulltextMetadataFromAssumedLatin1OriginalEncoding (FullTextImport::FullTextData * const fulltext_data) {
     std::string error_msg;
     static auto UTF8ToLatin1_converter(TextUtil::EncodingConverter::Factory("utf-8", "ISO-8859-1", &error_msg));
@@ -156,7 +136,6 @@ bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextD
         }
         const std::string control_number(*(control_numbers.begin()));
         LOG_DEBUG("Determined control number \"" + control_number + "\" for ISBN \"" + isbn + "\"\n");
-        GetFulltextMetadataFromSolr(control_number, fulltext_data);
         return true;
     }
 
