@@ -47,24 +47,45 @@ namespace {
 }
 
 
-std::string GuessISSN(const std::string &first_page_text, std::string * const issn) {
+std::string GuessLastParagraph(const std::string &first_page_text) {
     const std::string first_page_text_trimmed(StringUtil::Trim(first_page_text, '\n'));
     const std::size_t last_paragraph_start(first_page_text_trimmed.rfind("\n\n"));
     std::string last_paragraph(last_paragraph_start != std::string::npos ?
                                first_page_text_trimmed.substr(last_paragraph_start) : "");
     StringUtil::Map(&last_paragraph, '\n', ' ');
-    last_paragraph = TextUtil::NormaliseDashes(&last_paragraph);
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*ISSN\\s*([\\d\\-X]+).*"));
-    if (matcher->matched(last_paragraph))
-        *issn = (*matcher)[1];
-    return last_paragraph;
+    return TextUtil::NormaliseDashes(&last_paragraph);
 }
 
 
-void GuessISBN(const std::string &extracted_text, std::string * const isbn) {
-     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*ISBN\\s*([\\d\\-X]+).*"));
-     if (matcher->matched(extracted_text))
+bool GuessISSN(const std::string &first_page_text, std::string * const issn) {
+    const std::string last_paragraph(GuessLastParagraph(first_page_text));
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*ISSN\\s*([\\d\\-X]+).*"));
+    if (matcher->matched(last_paragraph)) {
+        *issn = (*matcher)[1];
+        return true;
+    }
+    return false;
+}
+
+
+bool GuessDOI(const std::string &first_page_text, std::string * const doi) {
+     const std::string last_paragraph(GuessLastParagraph(first_page_text));
+     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*DOI[\\s:]*([\\d/.X]+).*", RegexMatcher::CASE_INSENSITIVE));
+     if (matcher->matched(last_paragraph)) {
+         *doi = (*matcher)[1];
+         return true;
+     }
+     return false;
+}
+
+
+bool GuessISBN(const std::string &extracted_text, std::string * const isbn) {
+     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*ISBN\\s*([\\d\\-X]+).*", RegexMatcher::CASE_INSENSITIVE));
+     if (matcher->matched(extracted_text)) {
          *isbn = (*matcher)[1];
+         return true;
+     }
+     return false;
 }
 
 
@@ -76,8 +97,12 @@ void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTe
         StringUtil::Split((*authors_matcher)[1], std::set<char>({ ';', '|' }), &(fulltext_data->authors_));
     static RegexMatcher * const title_matcher(RegexMatcher::RegexMatcherFactory("^Title:?\\s*(?:<ger>)?(.*)<(?:</ger>)?", nullptr, RegexMatcher::CASE_INSENSITIVE));
     if (title_matcher->matched(pdfinfo_output)) {
-        fulltext_data->title_ = (*title_matcher)[1];
-
+        const std::string title_candidate((*title_matcher)[1]);
+        // Try to detect invalid encoding
+        if (not TextUtil::IsValidUTF8(title_candidate)) {
+            LOG_WARNING("Apparently incorrect encoding for " + title_candidate);
+        }
+        fulltext_data->title_ = title_candidate;
     }
 }
 
@@ -97,6 +122,13 @@ void GetFulltextMetadataFromSolr(const std::string &control_number, FullTextImpo
     const auto authors(SolrJSON::GetAuthors(doc_obj));
     fulltext_data->authors_.insert(std::begin(authors), std::end(authors));
     fulltext_data->year_ = SolrJSON::GetFirstPublishDate(doc_obj);
+}
+
+
+void ConvertFulltextMetadataFromAssumedLatin1OriginalEncoding (FullTextImport::FullTextData * const fulltext_data) {
+    std::string error_msg;
+    static auto UTF8ToLatin1_converter(TextUtil::EncodingConverter::Factory("utf-8", "ISO-8859-1", &error_msg));
+    UTF8ToLatin1_converter->convert(fulltext_data->title_, &(fulltext_data->title_));
 }
 
 
@@ -128,12 +160,19 @@ bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextD
         return true;
     }
 
-    // Guess control number by author, title and and possibly issn
+    // Guess control number by doi author, title and and possibly issn
     std::string first_page_text;
     PdfUtil::ExtractText(pdf_document, &first_page_text, "1", "1"); // Get only first page
-    const std::string last_paragraph(GuessISSN(first_page_text, &(fulltext_data->issn_)));
-    GuessAuthorAndTitle(pdf_document, fulltext_data);
     std::string control_number;
+    if (GuessDOI(first_page_text, &(fulltext_data->doi_)))
+        if (FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_number))
+            return true;    
+    GuessISSN(first_page_text, &(fulltext_data->issn_));
+    GuessAuthorAndTitle(pdf_document, fulltext_data);
+    if (not FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_number))
+        // We frequently have the case that Author and title extracted we encoded in latin1 in some time in the past such that our search fails
+        // So force normalisation and make another attempt.
+        ConvertFulltextMetadataFromAssumedLatin1OriginalEncoding(fulltext_data);
     return FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_number);
 }
 
