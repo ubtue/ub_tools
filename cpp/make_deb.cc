@@ -190,7 +190,7 @@ int Main(int argc, char *argv[]) {
     GetLibraries(binary, blacklist, &libraries);
 
     const auto control(FileUtil::OpenOutputFileOrDie("control"));
-    const auto package_version(TimeUtil::GetCurrentDateAndTime());
+    const auto package_version(TimeUtil::GetCurrentDateAndTime("%Y.%m.%d"));
     GenerateControl(control.get(), FileUtil::GetBasename(binary), package_version, description, libraries);
 
     return EXIT_SUCCESS;
