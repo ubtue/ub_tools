@@ -78,7 +78,7 @@ bool GuessDOI(const std::string &first_page_text, std::string * const doi) {
 
 
 bool GuessISBN(const std::string &extracted_text, std::string * const isbn) {
-     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*ISBN\\s*([\\d\\-X]+).*", RegexMatcher::CASE_INSENSITIVE));
+     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*(?<!e-)ISBN\\s*([\\d\\-X]+).*", RegexMatcher::CASE_INSENSITIVE));
      if (matcher->matched(extracted_text)) {
          *isbn = (*matcher)[1];
          return true;
@@ -93,7 +93,7 @@ void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTe
     static RegexMatcher * const authors_matcher(RegexMatcher::RegexMatcherFactory("Author:\\s*(.*)", nullptr, RegexMatcher::CASE_INSENSITIVE));
     if (authors_matcher->matched(pdfinfo_output))
         StringUtil::Split((*authors_matcher)[1], std::set<char>({ ';', '|' }), &(fulltext_data->authors_));
-    static RegexMatcher * const title_matcher(RegexMatcher::RegexMatcherFactory("^Title:?\\s*(?:<ger>)?(.*)<(?:</ger>)?", nullptr, RegexMatcher::CASE_INSENSITIVE));
+    static RegexMatcher * const title_matcher(RegexMatcher::RegexMatcherFactory("^Title:?\\s*(?:<ger>)?(.*)(?:</ger>)?", nullptr, RegexMatcher::CASE_INSENSITIVE));
     if (title_matcher->matched(pdfinfo_output)) {
         const std::string title_candidate((*title_matcher)[1]);
         // Try to detect invalid encoding
@@ -132,7 +132,7 @@ bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextD
                 return false;
             }
             if (control_numbers.size() != 1)
-                LOG_ERROR("Unable to determine unique control number for ISBN \"" + isbn + "\"");
+                LOG_WARNING("Unable to determine unique control number for ISBN \"" + isbn + "\": " + StringUtil::Join(control_numbers, ", "));
         }
         const std::string control_number(*(control_numbers.begin()));
         LOG_DEBUG("Determined control number \"" + control_number + "\" for ISBN \"" + isbn + "\"\n");
