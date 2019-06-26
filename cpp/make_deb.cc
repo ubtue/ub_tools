@@ -22,6 +22,7 @@
 #include <vector>
 #include "ExecUtil.h"
 #include "FileUtil.h"
+#include "MiscUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -169,8 +170,8 @@ void GenerateControl(File * const output, const std::string &package, const std:
 }
 
 
-void BuildPackage(const std::string &binary_path, const std::string &package_version, const std::string &description,
-                  const std::vector<Library> &libraries)
+void BuildDebPackage(const std::string &binary_path, const std::string &package_version, const std::string &description,
+                     const std::vector<Library> &libraries)
 {
     const std::string PACKAGE_NAME(FileUtil::GetBasename(binary_path));
     const std::string WORKING_DIR(PACKAGE_NAME + "_" + package_version);
@@ -193,28 +194,71 @@ void BuildPackage(const std::string &binary_path, const std::string &package_ver
 }
 
 
+void GenerateSpecs(File * const output, const std::string &package, const std::string &version, const std::string &description,
+                   const std::vector<Library> &libraries)
+{
+    (*output) << "Name:           " << package << '\n';
+    (*output) << "Version:        " << version << '\n';
+    for (const auto &library : libraries)
+        (*output) << "Requires:       " << library.full_name_ << '\n';
+    (*output) << "BuildArch          amd64\n";
+
+    (*output) << "%description\n";
+    std::vector<std::string> description_lines;
+    StringUtil::SplitThenTrimWhite(description, "\\n", &description_lines);
+    for (const auto &line : description_lines)
+        (*output) << line << '\n';
+    (*output) << '\n';
+}
+
+
+void BuildRPMPackage(const std::string &binary_path, const std::string &package_version, const std::string &description,
+                     const std::vector<Library> &libraries)
+{
+    // Create rpmbuild directory tree in our home directory:
+    ExecUtil::ExecOrDie(ExecUtil::Which("rpmdev-setuptree"));
+
+    const std::string PACKAGE_NAME(FileUtil::GetBasename(binary_path));
+    const auto specs(FileUtil::OpenOutputFileOrDie(MiscUtil::GetEnv("HOME") + "/SPECS/" + PACKAGE_NAME + ".specs"));
+    GenerateSpecs(specs.get(), PACKAGE_NAME, package_version, description, libraries);
+    specs->close();
+}
+
+
 } // unnamed namespace
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 3)
-        ::Usage("path_to_binary description deb_output blacklist");
+    if (argc < 4)
+        ::Usage("(--deb|--rpm) path_to_binary description deb_output blacklist");
 
-    const std::string binary_path(argv[1]);
+    bool build_deb;
+    if (std::strcmp(argv[1], "--deb") == 0)
+        build_deb = true;
+    else if (std::strcmp(argv[1], "--rpm") == 0)
+        build_deb = false;
+    else
+        LOG_ERROR("first argument must be --deb or --rpm!");
+
+    const std::string binary_path(argv[2]);
     if (not FileUtil::Exists(binary_path))
         LOG_ERROR("file not found: " + binary_path);
 
-    const std::string description(argv[2]);
+    const std::string description(argv[3]);
 
     std::set<std::string> blacklist;
-    for (int arg_no(3); arg_no < argc; ++arg_no)
+    for (int arg_no(4); arg_no < argc; ++arg_no)
         blacklist.emplace(argv[arg_no]);
 
     std::vector<Library> libraries;
     GetLibraries(binary_path, blacklist, &libraries);
 
     const auto package_version(TimeUtil::GetCurrentDateAndTime("%Y.%m.%d"));
-    BuildPackage(binary_path, package_version, description, libraries);
+
+    if (build_deb)
+        BuildDebPackage(binary_path, package_version, description, libraries);
+    else
+        BuildRPMPackage(binary_path, package_version, description, libraries);
 
     return EXIT_SUCCESS;
 }
