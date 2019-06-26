@@ -356,6 +356,7 @@ std::string ControlNumberGuesser::NormaliseTitle(const std::string &title) {
     normalised_title = TextUtil::ExpandLigatures(normalised_title);
 
     normalised_title = TextUtil::RemoveDiacritics(normalised_title);
+    normalised_title = TextUtil::NormaliseQuotationMarks(normalised_title);
     TextUtil::ToLower(&normalised_title);
 
     std::string utf8_normalised_title;

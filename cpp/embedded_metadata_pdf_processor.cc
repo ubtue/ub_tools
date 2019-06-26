@@ -24,6 +24,7 @@
 #include <vector>
 #include "FileUtil.h"
 #include "FullTextImport.h"
+#include "HtmlUtil.h"
 #include "PdfUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -91,20 +92,25 @@ void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTe
     std::string pdfinfo_output;
     PdfUtil::ExtractPDFInfo(pdf_document, &pdfinfo_output);
     static RegexMatcher * const authors_matcher(RegexMatcher::RegexMatcherFactoryOrDie("Author:\\s*(.*)", RegexMatcher::CASE_INSENSITIVE));
-    if (authors_matcher->matched(pdfinfo_output))
-        StringUtil::Split((*authors_matcher)[1], std::set<char>({ ';', '|' }), &(fulltext_data->authors_));
+    std::vector<std::string> authors;
+    if (authors_matcher->matched(pdfinfo_output)) {
+        //StringUtil::Split((*authors_matcher)[1], std::set<char>({ ';', '|' }), &(fulltext_data->authors_));
+        StringUtil::Split((*authors_matcher)[1], std::set<char>({ ';', '|' }), &authors);
+        for (auto &author : authors)
+            author = HtmlUtil::ReplaceEntities(author);
+        std::copy(authors.cbegin(), authors.cend(), std::inserter(fulltext_data->authors_, fulltext_data->authors_.end()));
+    }
     static RegexMatcher * const title_matcher(RegexMatcher::RegexMatcherFactoryOrDie("^Title:?\\s*(.*)", RegexMatcher::CASE_INSENSITIVE));
     if (title_matcher->matched(pdfinfo_output)) {
-        // Strip german tag
-        title_matcher->replaceAll("<ger>", "");
-        title_matcher->replaceAll("</ger>", "");
         std::string title_candidate((*title_matcher)[1]);
         // Try to detect invalid encoding
         if (not TextUtil::IsValidUTF8(title_candidate)) {
             LOG_WARNING("Apparently incorrect encoding for " + title_candidate);
         }
+        // Some cleanup
         title_candidate = StringUtil::ReplaceString("<ger>", "", title_candidate);
         title_candidate = StringUtil::ReplaceString("</ger>", "", title_candidate);
+        title_candidate = HtmlUtil::ReplaceEntities(title_candidate);
         fulltext_data->title_ = title_candidate;
     }
 }
