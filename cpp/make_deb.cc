@@ -63,7 +63,7 @@ std::string GetVersionHelper(const std::string &library_name) {
     StringUtil::SplitThenTrimWhite(dpkg_output, '\n', &lines);
     for (const auto &line : lines) {
         if (StringUtil::StartsWith(line, "Version: ")) {
-            auto version(line.substr(__builtin_strlen("Version: ")));
+            const auto version(line.substr(__builtin_strlen("Version: ")));
             const auto first_plus_pos(version.find('+'));
             return (first_plus_pos == std::string::npos) ? version : version.substr(0, first_plus_pos);
         }
@@ -87,7 +87,7 @@ inline std::set<std::string> FilterPackages(const std::set<std::string> &unfilte
 std::string GetVersion(const std::string &full_library_name, const std::set<std::string> &blacklist) {
     std::string dpkg_output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout("dpkg -S " + full_library_name, &dpkg_output))
-        LOG_ERROR("failed to execute dpkg! (2)");
+        LOG_ERROR("failed to execute dpkg!");
 
     std::vector<std::string> lines;
     StringUtil::SplitThenTrimWhite(dpkg_output, '\n', &lines);
@@ -143,7 +143,7 @@ void GetLibraries(const std::string &binary_path, const std::set<std::string> &b
 void GenerateControl(File * const output, const std::string &package, const std::string &version, const std::string &description,
                      const std::vector<Library> &libraries)
 {
-    (*output) << "Package: " << package << '\n';
+    (*output) << "Package: " << StringUtil::Map(package, '_', '-') << '\n';
     (*output) << "Version: " << version << '\n';
     (*output) << "Section: ub_tools\n";
     (*output) << "Priority: optional\n";
@@ -169,6 +169,26 @@ void GenerateControl(File * const output, const std::string &package, const std:
 }
 
 
+void BuildPackage(const std::string &binary_path, const std::string &package_version, const std::string &description,
+                  const std::vector<Library> &libraries)
+{
+    const std::string package_name(FileUtil::GetBasename(binary_path));
+
+    const std::string target_directory(package_name + "_" + package_version + "/usr/local/bin");
+    FileUtil::MakeDirectoryOrDie(target_directory, /* recursive = */true);
+    const std::string target_binary(target_directory + "/" + package_name);
+    FileUtil::CopyOrDie(binary_path, target_binary);
+    ExecUtil::ExecOrDie(ExecUtil::Which("strip"), { target_binary });
+
+    FileUtil::MakeDirectoryOrDie(package_name + "_" + package_version + "/DEBIAN");
+    const auto control(FileUtil::OpenOutputFileOrDie(package_name + "_" + package_version + "/DEBIAN/control"));
+    GenerateControl(control.get(), FileUtil::GetBasename(binary_path), package_version, description, libraries);
+    control->close();
+
+    ExecUtil::ExecOrDie(ExecUtil::Which("dpkg-deb"), { "--build", package_name + "_" + package_version });
+}
+
+
 } // unnamed namespace
 
 
@@ -176,9 +196,9 @@ int Main(int argc, char *argv[]) {
     if (argc < 3)
         ::Usage("path_to_binary description deb_output blacklist");
 
-    const std::string binary(argv[1]);
-    if (not FileUtil::Exists(binary))
-        LOG_ERROR("file not found: " + binary);
+    const std::string binary_path(argv[1]);
+    if (not FileUtil::Exists(binary_path))
+        LOG_ERROR("file not found: " + binary_path);
 
     const std::string description(argv[2]);
 
@@ -187,11 +207,10 @@ int Main(int argc, char *argv[]) {
         blacklist.emplace(argv[arg_no]);
 
     std::vector<Library> libraries;
-    GetLibraries(binary, blacklist, &libraries);
+    GetLibraries(binary_path, blacklist, &libraries);
 
-    const auto control(FileUtil::OpenOutputFileOrDie("control"));
     const auto package_version(TimeUtil::GetCurrentDateAndTime("%Y.%m.%d"));
-    GenerateControl(control.get(), FileUtil::GetBasename(binary), package_version, description, libraries);
+    BuildPackage(binary_path, package_version, description, libraries);
 
     return EXIT_SUCCESS;
 }
