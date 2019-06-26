@@ -219,7 +219,7 @@ void BuildRPMPackage(const std::string &binary_path, const std::string &package_
     ExecUtil::ExecOrDie(ExecUtil::Which("rpmdev-setuptree"));
 
     const std::string PACKAGE_NAME(FileUtil::GetBasename(binary_path));
-    const auto specs(FileUtil::OpenOutputFileOrDie(MiscUtil::GetEnv("HOME") + "/SPECS/" + PACKAGE_NAME + ".specs"));
+    const auto specs(FileUtil::OpenOutputFileOrDie(MiscUtil::GetEnv("HOME") + "/rpmbuild/SPECS/" + PACKAGE_NAME + ".specs"));
     GenerateSpecs(specs.get(), PACKAGE_NAME, package_version, description, libraries);
     specs->close();
 }
