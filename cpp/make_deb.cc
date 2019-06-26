@@ -230,7 +230,7 @@ void BuildRPMPackage(const std::string &binary_path, const std::string &package_
 
 int Main(int argc, char *argv[]) {
     if (argc < 4)
-        ::Usage("(--deb|--rpm) path_to_binary description blacklist");
+        ::Usage("(--deb|--rpm) path_to_binary description [blacklisted_library1 .. blacklisted_libraryN]");
 
     bool build_deb;
     if (std::strcmp(argv[1], "--deb") == 0)
