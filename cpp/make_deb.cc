@@ -172,20 +172,24 @@ void GenerateControl(File * const output, const std::string &package, const std:
 void BuildPackage(const std::string &binary_path, const std::string &package_version, const std::string &description,
                   const std::vector<Library> &libraries)
 {
-    const std::string package_name(FileUtil::GetBasename(binary_path));
+    const std::string PACKAGE_NAME(FileUtil::GetBasename(binary_path));
+    const std::string WORKING_DIR(PACKAGE_NAME + "_" + package_version);
 
-    const std::string target_directory(package_name + "_" + package_version + "/usr/local/bin");
-    FileUtil::MakeDirectoryOrDie(target_directory, /* recursive = */true);
-    const std::string target_binary(target_directory + "/" + package_name);
+    const std::string TARGET_DIRECTORY(WORKING_DIR + "/usr/local/bin");
+    FileUtil::MakeDirectoryOrDie(TARGET_DIRECTORY, /* recursive = */true);
+    const std::string target_binary(TARGET_DIRECTORY + "/" + PACKAGE_NAME);
     FileUtil::CopyOrDie(binary_path, target_binary);
     ExecUtil::ExecOrDie(ExecUtil::Which("strip"), { target_binary });
 
-    FileUtil::MakeDirectoryOrDie(package_name + "_" + package_version + "/DEBIAN");
-    const auto control(FileUtil::OpenOutputFileOrDie(package_name + "_" + package_version + "/DEBIAN/control"));
+    FileUtil::MakeDirectoryOrDie(WORKING_DIR + "/DEBIAN");
+    const auto control(FileUtil::OpenOutputFileOrDie(WORKING_DIR + "/DEBIAN/control"));
     GenerateControl(control.get(), FileUtil::GetBasename(binary_path), package_version, description, libraries);
     control->close();
 
-    ExecUtil::ExecOrDie(ExecUtil::Which("dpkg-deb"), { "--build", package_name + "_" + package_version });
+    ExecUtil::ExecOrDie(ExecUtil::Which("dpkg-deb"), { "--build", PACKAGE_NAME + "_" + package_version });
+
+    if (not FileUtil::RemoveDirectory(WORKING_DIR))
+        LOG_ERROR("failed to recursively delete \"" + WORKING_DIR + "\"!");
 }
 
 
