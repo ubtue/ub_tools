@@ -30,6 +30,11 @@
 namespace {
 
 
+[[noreturn]] void Usage() {
+    ::Usage("(--deb|--rpm) [--output-directory=directory] path_to_binary description [blacklisted_library1 .. blacklisted_libraryN]");
+}
+
+
 struct Library {
     std::string full_name_;
     std::string name_;
@@ -198,7 +203,7 @@ void GenerateControl(File * const output, const std::string &package, const std:
 
 
 void BuildDebPackage(const std::string &binary_path, const std::string &package_version, const std::string &description,
-                     const std::vector<Library> &libraries)
+                     const std::vector<Library> &libraries, const std::string &output_directory)
 {
     const std::string PACKAGE_NAME(FileUtil::GetBasename(binary_path));
     const std::string WORKING_DIR(PACKAGE_NAME + "_" + package_version);
@@ -218,6 +223,11 @@ void BuildDebPackage(const std::string &binary_path, const std::string &package_
 
     if (not FileUtil::RemoveDirectory(WORKING_DIR))
         LOG_ERROR("failed to recursively delete \"" + WORKING_DIR + "\"!");
+
+    if (not output_directory.empty()) {
+        const std::string DEB_NAME(PACKAGE_NAME + "_" + package_version + ".deb");
+        FileUtil::RenameFileOrDie(DEB_NAME, output_directory + "/" + DEB_NAME, /* remove_target = */true);
+    }
 }
 
 
@@ -241,7 +251,7 @@ void GenerateSpecs(File * const output, const std::string &package, const std::s
 
 
 void BuildRPMPackage(const std::string &binary_path, const std::string &package_version, const std::string &description,
-                     const std::vector<Library> &libraries)
+                     const std::vector<Library> &libraries, const std::string &/*output_directory*/)
 {
     // Create rpmbuild directory tree in our home directory:
     ExecUtil::ExecOrDie(ExecUtil::Which("rpmdev-setuptree"));
@@ -261,7 +271,7 @@ void BuildRPMPackage(const std::string &binary_path, const std::string &package_
 
 int Main(int argc, char *argv[]) {
     if (argc < 4)
-        ::Usage("(--deb|--rpm) path_to_binary description [blacklisted_library1 .. blacklisted_libraryN]");
+        Usage();
 
     bool build_deb;
     if (std::strcmp(argv[1], "--deb") == 0)
@@ -270,6 +280,14 @@ int Main(int argc, char *argv[]) {
         build_deb = false;
     else
         LOG_ERROR("first argument must be --deb or --rpm!");
+
+    std::string output_directory;
+    if (StringUtil::StartsWith(argv[2], "--output-directory=")) {
+        output_directory = argv[2] + __builtin_strlen("--output-directory=");
+        --argc, ++argv;
+    }
+    if (argc < 4)
+        Usage();
 
     const std::string binary_path(argv[2]);
     if (not FileUtil::Exists(binary_path))
@@ -287,9 +305,9 @@ int Main(int argc, char *argv[]) {
     const auto package_version(TimeUtil::GetCurrentDateAndTime("%Y.%m.%d"));
 
     if (build_deb)
-        BuildDebPackage(binary_path, package_version, description, libraries);
+        BuildDebPackage(binary_path, package_version, description, libraries, output_directory);
     else
-        BuildRPMPackage(binary_path, package_version, description, libraries);
+        BuildRPMPackage(binary_path, package_version, description, libraries, output_directory);
 
     return EXIT_SUCCESS;
 }
