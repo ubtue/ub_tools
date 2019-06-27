@@ -176,7 +176,7 @@ void GenerateControl(File * const output, const std::string &package, const std:
 
     (*output) << "Depends: ";
     bool first(true);
-    for (const auto library : libraries) {
+    for (const auto &library : libraries) {
         if (first)
             first = false;
         else
