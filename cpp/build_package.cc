@@ -116,9 +116,6 @@ std::string GetVersion(const std::string &full_library_name, const std::set<std:
     if (packages.empty())
         LOG_ERROR("no packages found for library \"" + full_library_name + "\"!");
 
-    static const std::set<std::string> BASE_PACKAGES{ "libc6", "libc6-i386", "lib32stdc++6", "libstdc++6", "lib32gcc1", "libgcc1" };
-    packages = FilterPackages(packages, BASE_PACKAGES);
-
     if (packages.size() > 1) {
         packages = FilterPackages(packages, blacklist);
         if (packages.size() > 1)
