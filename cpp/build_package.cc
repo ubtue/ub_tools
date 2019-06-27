@@ -96,7 +96,9 @@ inline std::set<std::string> FilterPackages(const std::set<std::string> &unfilte
 }
 
 
-std::string GetVersion(const std::string &full_library_name, const std::set<std::string> &blacklist) {
+bool GetPackageAndVersion(const std::string &full_library_name, const std::set<std::string> &blacklist,
+                          std::string * const package_name, std::string * const package_version)
+{
     std::string dpkg_output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout("dpkg -S " + full_library_name, &dpkg_output))
         LOG_ERROR("failed to execute dpkg!");
@@ -122,13 +124,14 @@ std::string GetVersion(const std::string &full_library_name, const std::set<std:
             LOG_ERROR("multiple packages for \"" + full_library_name + "\": " + StringUtil::Join(packages, ", "));
     }
     if (packages.empty())
-        return "";
+        return false;
 
-    std::string version = GetVersionHelper(*(packages.cbegin()));
-    if (version.empty())
+    *package_version = GetVersionHelper(*(packages.cbegin()));
+    if (package_version->empty())
         LOG_ERROR("library \"" + full_library_name + "\" not found!");
 
-    return version;
+    *package_name = *(packages.cbegin());
+    return true;
 }
 
 
@@ -149,9 +152,9 @@ void GetLibraries(const bool build_deb, const std::string &binary_path, const st
         ExtractLibrary(*line, &full_name, &path, &simplified_name);
 
         if (build_deb) {
-            const auto version(GetVersion(full_name, blacklist));
-            if (not version.empty())
-                libraries->emplace_back(full_name, simplified_name, version);
+            std::string package_name, package_version;
+            if (GetPackageAndVersion(full_name, blacklist, &package_name, &package_version))
+                libraries->emplace_back(full_name, package_name, package_version);
         } else {
             std::string rpm_output;
             const std::string COMMAND("rpm --query --whatprovides " + path);
