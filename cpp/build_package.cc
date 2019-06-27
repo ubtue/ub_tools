@@ -44,7 +44,8 @@ public:
 };
 
 
-void ExtractLibrary(const std::string &line, std::string * const full_name, std::string * const simplified_name) {
+// Parses lines of the form "libkyotocabinet.so.16 => /lib64/libkyotocabinet.so.16 (0x00007f2334ecc000)".
+void ExtractLibrary(const std::string &line, std::string * const full_name, std::string * const path, std::string * const simplified_name) {
     const auto first_space_pos(line.find(' '));
     if (first_space_pos == std::string::npos)
         LOG_ERROR("no space found in \"" + line + "\"!");
@@ -52,6 +53,16 @@ void ExtractLibrary(const std::string &line, std::string * const full_name, std:
     *full_name = line.substr(0, first_space_pos);
     const auto first_dot_pos(full_name->find('.'));
     *simplified_name = (first_dot_pos == std::string::npos) ? *full_name : full_name->substr(0, first_dot_pos);
+
+    const auto arrow_pos(line.find(" => "));
+    if (arrow_pos == std::string::npos)
+        LOG_ERROR("no => found in \"" + line + "\"!");
+
+    const auto space_pos(line.find(' ', arrow_pos + 4));
+    if (space_pos == std::string::npos)
+        LOG_ERROR("no space found after library path in \"" + line + "\"!");
+
+    *path = line.substr(arrow_pos + 4, space_pos - arrow_pos - 4);
 }
 
 
@@ -105,9 +116,6 @@ std::string GetVersion(const std::string &full_library_name, const std::set<std:
     if (packages.empty())
         LOG_ERROR("no packages found for library \"" + full_library_name + "\"!");
 
-    static const std::set<std::string> BASE_PACKAGES{ "libc6", "libc6-i386", "lib32stdc++6", "libstdc++6", "lib32gcc1", "libgcc1" };
-    packages = FilterPackages(packages, BASE_PACKAGES);
-
     if (packages.size() > 1) {
         packages = FilterPackages(packages, blacklist);
         if (packages.size() > 1)
@@ -124,7 +132,9 @@ std::string GetVersion(const std::string &full_library_name, const std::set<std:
 }
 
 
-void GetLibraries(const std::string &binary_path, const std::set<std::string> &blacklist, std::vector<Library> * const libraries) {
+void GetLibraries(const bool build_deb, const std::string &binary_path, const std::set<std::string> &blacklist,
+                  std::vector<Library> * const libraries)
+{
     std::string ldd_output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout("ldd " + binary_path, &ldd_output))
         LOG_ERROR("failed to execute ldd!");
@@ -132,11 +142,25 @@ void GetLibraries(const std::string &binary_path, const std::set<std::string> &b
     std::vector<std::string> lines;
     StringUtil::SplitThenTrimWhite(ldd_output, '\n', &lines);
     for (auto line(lines.cbegin() + 1); line != lines.cend(); ++line) {
-        std::string full_name, simplified_name;
-        ExtractLibrary(*line, &full_name, &simplified_name);
-        const auto version(GetVersion(full_name, blacklist));
-        if (not version.empty())
-            libraries->emplace_back(full_name, simplified_name, version);
+        if (StringUtil::StartsWith(*line, "linux-vdso.so") or StringUtil::StartsWith(*line, "/lib64/ld-linux-x86-64.so") or line->empty())
+            continue;
+
+        std::string full_name, path, simplified_name;
+        ExtractLibrary(*line, &full_name, &path, &simplified_name);
+
+        if (build_deb) {
+            const auto version(GetVersion(full_name, blacklist));
+            if (not version.empty())
+                libraries->emplace_back(full_name, simplified_name, version);
+        } else {
+            std::string rpm_output;
+            const std::string COMMAND("rpm --query --whatprovides " + path);
+            if (not ExecUtil::ExecSubcommandAndCaptureStdout(COMMAND, &rpm_output))
+                LOG_ERROR("failed to execute \"" + COMMAND + "\"!");
+            StringUtil::SplitThenTrimWhite(rpm_output, '\n', &lines);
+            if (lines.size() != 1)
+                LOG_ERROR("found multiple packages for \"" + path + "\": " + StringUtil::Join(lines, ','));
+        }
     }
 }
 
@@ -199,9 +223,10 @@ void GenerateSpecs(File * const output, const std::string &package, const std::s
 {
     (*output) << "Name:           " << package << '\n';
     (*output) << "Version:        " << version << '\n';
+    (*output) << "License:        AGPL 3";
     for (const auto &library : libraries)
         (*output) << "Requires:       " << library.full_name_ << '\n';
-    (*output) << "BuildArch          amd64\n";
+    (*output) << "BuildArch:      x86_64\n";
 
     (*output) << "%description\n";
     std::vector<std::string> description_lines;
@@ -219,9 +244,12 @@ void BuildRPMPackage(const std::string &binary_path, const std::string &package_
     ExecUtil::ExecOrDie(ExecUtil::Which("rpmdev-setuptree"));
 
     const std::string PACKAGE_NAME(FileUtil::GetBasename(binary_path));
-    const auto specs(FileUtil::OpenOutputFileOrDie(MiscUtil::GetEnv("HOME") + "/rpmbuild/SPECS/" + PACKAGE_NAME + ".specs"));
+    const std::string WORKING_DIR(MiscUtil::GetEnv("HOME") + "/rpmbuild");
+    const auto specs(FileUtil::OpenOutputFileOrDie(WORKING_DIR + "/SPECS/" + PACKAGE_NAME + ".specs"));
     GenerateSpecs(specs.get(), PACKAGE_NAME, package_version, description, libraries);
     specs->close();
+
+    ExecUtil::ExecOrDie("/bin/rm", { "--recursive", WORKING_DIR});
 }
 
 
@@ -251,7 +279,7 @@ int Main(int argc, char *argv[]) {
         blacklist.emplace(argv[arg_no]);
 
     std::vector<Library> libraries;
-    GetLibraries(binary_path, blacklist, &libraries);
+    GetLibraries(build_deb, binary_path, blacklist, &libraries);
 
     const auto package_version(TimeUtil::GetCurrentDateAndTime("%Y.%m.%d"));
 
