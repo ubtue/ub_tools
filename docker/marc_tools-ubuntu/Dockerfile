@@ -9,7 +9,7 @@ RUN apt --quiet --yes install wget unzip
 RUN mkdir /tmp/ub_tools
 RUN cd /tmp/ub_tools && wget --no-verbose https://github.com/ubtue/ub_tools/archive/master.zip
 RUN cd /tmp/ub_tools && unzip /tmp/ub_tools/master.zip
-RUN apt install /tmp/ub_tools/ub_tools-master/cpp/marc_tools/debs/*.deb
+RUN apt --quiet --yes install /tmp/ub_tools/ub_tools-master/cpp/marc_tools/debs/*.deb
 
 # keep container running
 ADD startup.sh /startup.sh
