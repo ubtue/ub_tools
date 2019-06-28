@@ -183,7 +183,7 @@ void GenerateControl(File * const output, const std::string &package, const std:
     (*output) << "Priority: optional\n";
     (*output) << "Architecture: amd64\n";
 
-    (*output) << "Depends: ";
+    (*output) << "Depends: locales, ";
     bool first(true);
     for (const auto &library : libraries) {
         if (first)
@@ -200,6 +200,13 @@ void GenerateControl(File * const output, const std::string &package, const std:
     StringUtil::SplitThenTrimWhite(description, "\\n", &description_lines);
     for (const auto &line : description_lines)
         (*output) << ' ' << line << '\n';
+}
+
+
+void GeneratePostInst(const std::string &path) {
+    FileUtil::WriteStringOrDie("#!/bin/bash\nocale-gen en_US.UTF-8\n");
+    if (::chmod(path.c_str(), 0700) == -1)
+        LOG_ERROR("chmod(3) on \"" + path + "\" failed!");
 }
 
 
@@ -221,6 +228,7 @@ void BuildDebPackage(const std::string &binary_path, const std::string &package_
     const auto control(FileUtil::OpenOutputFileOrDie(WORKING_DIR + "/DEBIAN/control"));
     GenerateControl(control.get(), FileUtil::GetBasename(binary_path), package_version, description, libraries);
     control->close();
+    GeneratePostInst(WORKING_DIR + "/DEBIAN/postinst");
 
     ExecUtil::ExecOrDie(ExecUtil::Which("dpkg-deb"), { "--build", PACKAGE_NAME + "_" + package_version });
 
