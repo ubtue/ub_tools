@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <vector>
+#include <sys/stat.h>
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "MiscUtil.h"
@@ -212,6 +213,8 @@ void BuildDebPackage(const std::string &binary_path, const std::string &package_
     FileUtil::MakeDirectoryOrDie(TARGET_DIRECTORY, /* recursive = */true);
     const std::string target_binary(TARGET_DIRECTORY + "/" + PACKAGE_NAME);
     FileUtil::CopyOrDie(binary_path, target_binary);
+    if (::chmod(target_binary.c_str(), 0755) == -1)
+        LOG_ERROR("chmod(3) on \"" + target_binary + "\" failed!");
     ExecUtil::ExecOrDie(ExecUtil::Which("strip"), { target_binary });
 
     FileUtil::MakeDirectoryOrDie(WORKING_DIR + "/DEBIAN");
