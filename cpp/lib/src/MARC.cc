@@ -29,6 +29,7 @@
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
 
@@ -468,13 +469,9 @@ static const std::set<std::string> ELECTRONIC_CARRIER_TYPES{ "cb", "cd", "ce", "
 
 
 bool Record::isElectronicResource() const {
-    if (leader_[6] == 'm')
-        return true;
-
-    if (isMonograph()) {
-        for (const auto &_007_field : getTagRange("007")) {
-            const std::string &_007_field_contents(_007_field.getContents());
-            if (not _007_field_contents.empty() and _007_field_contents[0] == 'c')
+    if (leader_.length() > 6 and (leader_[6] == 'a' or leader_[6] == 'm')) {
+        for (const auto _007_field : getTagRange("007")) {
+            if (*_007_field.getContents().c_str() == 'c')
                 return true;
         }
     }
@@ -520,9 +517,25 @@ bool Record::isElectronicResource() const {
         }
     }
 
-    for (const auto &_024_field : getTagRange("024")) {
-        if (_024_field.getFirstSubfieldWithCode('2') == "doi")
-            return true;
+    return not getDOIs().empty();
+
+    return false;
+}
+
+
+bool Record::isPrintResource() const {
+    if (leader_.length() > 6 and leader_[6] == 'a') {
+        for (const auto _007_field : getTagRange("007")) {
+            if (*_007_field.getContents().c_str() == 't')
+                return true;
+        }
+    }
+
+    for (const auto _935_field : getTagRange("935")) {
+        for (const auto &subfield : _935_field.getSubfields()) {
+            if (subfield.code_ == 'b' and subfield.value_ == "druck")
+                return true;
+        }
     }
 
     return false;
@@ -786,8 +799,11 @@ std::set<std::string> Record::getDOIs() const {
 
 std::set<std::string> Record::getISSNs() const {
     std::set<std::string> issns;
-    for (const auto field : getTagRange("022"))
-        issns.emplace(field.getFirstSubfieldWithCode('a'));
+    for (const auto field : getTagRange("022")) {
+        const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
+        if (not first_subfield_a.empty())
+            issns.emplace(first_subfield_a);
+    }
 
     return issns;
 }
@@ -795,8 +811,11 @@ std::set<std::string> Record::getISSNs() const {
 
 std::set<std::string> Record::getISBNs() const {
     std::set<std::string> isbns;
-    for (const auto field : getTagRange("020"))
-        isbns.emplace(field.getFirstSubfieldWithCode('a'));
+    for (const auto field : getTagRange("020")) {
+        const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
+        if (not first_subfield_a.empty())
+            isbns.emplace(first_subfield_a);
+    }
 
     return isbns;
 }
@@ -1014,6 +1033,19 @@ Record::ConstantRange Record::getLocalTagRange(const Tag &local_field_tag, const
 bool Record::insertField(const Tag &new_field_tag, const std::string &new_field_value) {
     auto insertion_location(fields_.begin());
     while (insertion_location != fields_.end() and new_field_tag > insertion_location->getTag())
+        ++insertion_location;
+    if (insertion_location != fields_.begin() and (insertion_location - 1)->getTag() == new_field_tag
+        and not IsRepeatableField(new_field_tag))
+        return false;
+    fields_.emplace(insertion_location, new_field_tag, new_field_value);
+    record_size_ += DIRECTORY_ENTRY_LENGTH + new_field_value.length() + 1 /* field separator */;
+    return true;
+}
+
+
+bool Record::insertFieldAtEnd(const Tag &new_field_tag, const std::string &new_field_value) {
+    auto insertion_location(fields_.begin());
+    while (insertion_location != fields_.end() and new_field_tag >= insertion_location->getTag())
         ++insertion_location;
     if (insertion_location != fields_.begin() and (insertion_location - 1)->getTag() == new_field_tag
         and not IsRepeatableField(new_field_tag))
@@ -2476,8 +2508,10 @@ bool UBTueIsElectronicResource(const Record &marc_record) {
 bool IsOpenAccess(const Record &marc_record) {
     for (const auto &_856_field : marc_record.getTagRange("856")) {
         const Subfields subfields(_856_field.getSubfields());
-        const std::string subfield_z_contents(TextUtil::UTF8ToLower(subfields.getFirstSubfieldWithCode('z')));
-        if (StringUtil::StartsWith(subfield_z_contents, "kostenfrei")) {
+        const std::string subfield_z_contents(subfields.getFirstSubfieldWithCode('z'));
+        if (subfield_z_contents == "LF")
+            return true;
+        if (StringUtil::StartsWith(TextUtil::UTF8ToLower(subfield_z_contents), "kostenfrei")) {
             const std::string subfield_3_contents(TextUtil::UTF8ToLower(subfields.getFirstSubfieldWithCode('3')));
             if (subfield_3_contents == "volltext")
                 return true;

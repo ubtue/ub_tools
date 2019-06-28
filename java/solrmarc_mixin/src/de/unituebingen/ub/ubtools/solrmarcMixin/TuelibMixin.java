@@ -1256,14 +1256,18 @@ public class TuelibMixin extends SolrIndexerMixin {
                 continue;
 
             final List<Subfield> _4Subfields = dataField.getSubfields('4');
-            if (_4Subfields == null || _4Subfields.isEmpty() || isHonoree(_4Subfields) || isInFactPrimaryAuthor(_4Subfields))
+            if (isHonoree(_4Subfields) || isInFactPrimaryAuthor(_4Subfields))
                 continue;
 
             final StringBuilder author2AndRoles = new StringBuilder();
             author2AndRoles.append(author2.toString().replace("$", ""));
-            for (final Subfield _4Subfield : _4Subfields) {
+            if (_4Subfields == null || _4Subfields.isEmpty())
                 author2AndRoles.append('$');
-                author2AndRoles.append(cleanRole(_4Subfield.getData()));
+            else {
+                for (final Subfield _4Subfield : _4Subfields) {
+                    author2AndRoles.append('$');
+                    author2AndRoles.append(cleanRole(_4Subfield.getData()));
+                }
             }
             results.add(author2AndRoles.toString());
         }
@@ -2254,35 +2258,33 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
 
         // check the Leader at position 7
-        leaderBit = leader.charAt(7);
-        switch (Character.toUpperCase(leaderBit)) {
+        switch (leader.charAt(7)) {
         // Monograph
-        case 'M':
-            if (formatCode == 'C')
-                formats.add("Book");
+        case 'm':
+            formats.add("Book");
             break;
         // Component parts
-        case 'A': // BookComponentPart
+        case 'a': // BookComponentPart
             formats.add("Article");
             break;
-        case 'B': // SerialComponentPart
+        case 'b': // SerialComponentPart
             formats.add("Article");
             break;
-    // Integrating resource
-    case 'I':
-        // Look in 008 to determine the exact type
-        formatCode = fixedField.getData().toUpperCase().charAt(21);
-        switch (formatCode) {
-        case 'W':
-            formats.add("Website");
+            // Integrating resource
+        case 'i':
+            // Look in 008 to determine the exact type
+            formatCode = fixedField.getData().toUpperCase().charAt(21);
+            switch (formatCode) {
+            case 'W':
+                formats.add("Website");
+                break;
+            case 'D':
+                formats.add("Database");
+                break;
+            }
             break;
-        case 'D':
-            formats.add("Database");
-            break;
-        }
-        break;
         // Serial
-        case 'S':
+        case 's':
             // Look in 008 to determine what type of Continuing Resource
             formatCode = fixedField.getData().toUpperCase().charAt(21);
             switch (formatCode) {
@@ -2354,6 +2356,26 @@ public class TuelibMixin extends SolrIndexerMixin {
             formats.add("Review");
         }
 
+        // Evaluate topic fields in some cases
+        for (final VariableField _655Field : record.getVariableFields("655")) {
+            final DataField dataField = (DataField) _655Field;
+            final Subfield aSubfield = dataField.getSubfield('a');
+            if (aSubfield != null) {
+                if (aSubfield.getData().startsWith("Weblog")) {
+                    formats.remove("Journal");
+                    formats.add("Blog");
+                    break;
+                }
+                if (aSubfield.getData().startsWith("Forschungsdaten") & dataField.getIndicator1() == ' '
+                    && dataField.getIndicator2() == '7')
+                {
+                    formats.remove("Book");
+                    formats.add("ResearchData");
+                    break;
+                }
+            }
+        }
+
         // Nothing worked!
         if (formats.isEmpty())
             formats.add("Unknown");
@@ -2373,18 +2395,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return false;
     }
 
-    private boolean isPrintResource(final Record record) {
-        for (final VariableField _935_field : record.getVariableFields("935")) {
-            final DataField data_field = (DataField) _935_field;
-            for (final Subfield subfield_b : data_field.getSubfields('b')) {
-                if (subfield_b.getData().equals("druck"))
-                    return true;
-            }
-        }
-
-        return false;
-    }
-
     /**
      * Determine Mediatype For facets we need to differentiate between
      * electronic and non-electronic resources
@@ -2396,16 +2406,22 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     public Set<String> getMediatype(final Record record) {
         final Set<String> mediatypes = new HashSet<>();
-        if (record.getVariableField("ELC") != null)
+        if (record.getVariableField("ZWI") != null) {
             mediatypes.add(electronicRessource);
-        else {
             mediatypes.add(nonElectronicRessource);
-            if (!getDOIs(record).isEmpty())
-                mediatypes.add(electronicRessource);
+            return mediatypes;
         }
 
-        if (isPrintResource(record))
+        final VariableField elcField = record.getVariableField("ELC");
+        if (elcField == null)
             mediatypes.add(nonElectronicRessource);
+        else {
+            final DataField dataField = (DataField) elcField;
+            if (dataField.getSubfield('a') != null)
+                mediatypes.add(electronicRessource);
+            if (dataField.getSubfield('b') != null)
+                mediatypes.add(nonElectronicRessource);
+        }
 
         return mediatypes;
     }
@@ -2563,29 +2579,14 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     /** @return "open-access" if we have an open access publication, else "non-open-access". */
     public String getOpenAccessStatus(final Record record) {
-        for (final VariableField variableField : record.getVariableFields("856")) {
-            final DataField dataField = (DataField) variableField;
-            for (final Subfield subfieldZ : dataField.getSubfields('z'))
-                if (subfieldZ.getData().toLowerCase().startsWith("kostenfrei")) {
-                    final Subfield subfield3 = dataField.getSubfield('3');
-                    if (subfield3 == null || subfield3.getData().toLowerCase().equals("volltext"))
-                        return "open-access";
-            }
-            for (final Subfield subfieldX : dataField.getSubfields('x')) {
-                if (subfieldX != null && subfieldX.getData().toLowerCase().equals("unpaywall"))
-                   return "open-access";
-            }
-        }
+        final DataField _OASField = (DataField)record.getVariableField("OAS");
+        if (_OASField == null)
+            return "non-open-access";
+        final Subfield subfieldA = _OASField.getSubfield('a');
+        if (subfieldA == null)
+            return "non-open-access";
 
-        for (final VariableField variableField : record.getVariableFields("655")) {
-            final DataField dataField = (DataField) variableField;
-            for (final Subfield subfieldA : dataField.getSubfields('a')) {
-                if (subfieldA.getData().toLowerCase().startsWith("open access"))
-                   return "open-access";
-            }
-        }
-
-        return "non-open-access";
+        return subfieldA.getData().equals("1") ? "open-access" : "non-open-access";
     }
 
     // Try to get a numerically sortable representation of an issue
