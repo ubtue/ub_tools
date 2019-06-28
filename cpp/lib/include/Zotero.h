@@ -461,6 +461,7 @@ public:
     void autoLog(const std::string &journal_name, const std::string &harvest_url, const std::string &message,
                  const bool write_to_stderr = true);
     void writeReport(const std::string &report_file_path) const;
+    inline bool hasErrors() const { return not journal_errors_.empty(); }
 };
 
 
