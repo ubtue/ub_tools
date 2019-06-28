@@ -159,11 +159,14 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count = 0)
 
 
 /** \brief  Performs a topological sort.
- *  \param  The sorted list of nodes will be stored here if the sort succeeded.
+ *  \param  edges       The edges defining our graph.
+ *  \param  node_order  The sorted list of nodes will be stored here if the sort succeeded.
+ *  \param  cycle       If not NULL and if at least one cycle exists in the graph, a node order of a cycle will be returned here.
  *  \return True if no cycle exists in the input graph and false o/w.
  *  \note   Nodes must be labelled 0 to N-1 (in any order) where N is the number of nodes.
  */
-bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &vertices, std::vector<unsigned> * const node_order);
+bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &edges, std::vector<unsigned> * const node_order,
+                     std::vector<unsigned> * const cycle = nullptr);
 
 
 // \return the list of functions that were called at the point of invocation of this function.

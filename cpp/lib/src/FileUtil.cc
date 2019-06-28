@@ -656,6 +656,12 @@ bool MakeDirectory(const std::string &path, const bool recursive, const mode_t m
 }
 
 
+void MakeDirectoryOrDie(const std::string &path, const bool recursive, const mode_t mode) {
+    if (not MakeDirectory(path, recursive, mode))
+        LOG_ERROR("failed to create directory \"" + path + "\"!");
+}
+
+
 static void CloseDirWhilePreservingErrno(DIR * const dir_handle) {
     const int old_errno(errno);
     ::closedir(dir_handle);

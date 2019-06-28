@@ -490,6 +490,7 @@ public:
     inline bool isSerial() const { return leader_[7] == 's'; }
     inline bool isArticle() const { return leader_[7] == 'a' or leader_[7] == 'b'; }
     bool isElectronicResource() const;
+    bool isPrintResource() const;
 
     inline std::string getControlNumber() const {
         if (unlikely(fields_.empty() or fields_.front().getTag() != "001"))
@@ -577,7 +578,8 @@ public:
     inline const Field &getField(const size_t field_index) const { return fields_[field_index]; }
     inline size_t getFieldIndex(const const_iterator &field) const { return field - fields_.begin(); }
 
-    /** \return True if we added the new field and false if it is a non-repeatable field and we already have this tag.
+    /** Insert a new field at the beginning of the range for that field.
+     *  \return True if we added the new field and false if it is a non-repeatable field and we already have this tag.
      *  \note   "new_field_value" includes the two indicators and any subfield structure if "new_field_tag" references a
      *          variable field.
      */
@@ -598,6 +600,30 @@ public:
         for (const auto &subfield : subfields)
             new_field_value += subfield.toString();
         return insertField(new_field_tag, new_field_value);
+    }
+
+    /** Insert a new field at the end of the range for that field.
+     *  \return True if we added the new field and false if it is a non-repeatable field and we already have this tag.
+     *  \note   "new_field_value" includes the two indicators and any subfield structure if "new_field_tag" references a
+     *          variable field.
+     */
+    bool insertFieldAtEnd(const Tag &new_field_tag, const std::string &new_field_value);
+
+    inline bool insertFieldAtEnd(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
+                            const char indicator2 = ' ')
+        { return insertFieldAtEnd(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString()); }
+
+    inline bool insertFieldAtEnd(const Field &field) { return insertFieldAtEnd(field.getTag(), field.getContents()); }
+
+    inline bool insertFieldAtEnd(const Tag &new_field_tag, const std::vector<Subfield> &subfields, const char indicator1 = ' ',
+                                 const char indicator2 = ' ')
+    {
+        std::string new_field_value;
+        new_field_value += indicator1;
+        new_field_value += indicator2;
+        for (const auto &subfield : subfields)
+            new_field_value += subfield.toString();
+        return insertFieldAtEnd(new_field_tag, new_field_value);
     }
 
     void appendField(const Tag &new_field_tag, const std::string &field_contents, const char indicator1 = ' ', const char indicator2 = ' ');

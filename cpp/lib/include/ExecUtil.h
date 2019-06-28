@@ -62,14 +62,14 @@ public:
  *  \note   in case of a timeout, we set errno to ETIME and return -1
  *  \return The exit code of the subcommand or an error code if there was a failure along the way.
  */
-int Exec(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
+int Exec(const std::string &command, const std::vector<std::string> &args = std::vector<std::string>{}, const std::string &new_stdin = "",
          const std::string &new_stdout = "", const std::string &new_stderr = "", const unsigned timeout_in_seconds = 0,
          const int tardy_child_signal = SIGKILL,
          const std::unordered_map<std::string, std::string> &envs = std::unordered_map<std::string, std::string>());
 
-void ExecOrDie(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
-               const std::string &new_stdout = "", const std::string &new_stderr = "", const unsigned timeout_in_seconds = 0,
-               const int tardy_child_signal = SIGKILL,
+void ExecOrDie(const std::string &command, const std::vector<std::string> &args = std::vector<std::string>{},
+               const std::string &new_stdin = "", const std::string &new_stdout = "", const std::string &new_stderr = "",
+               const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL,
                const std::unordered_map<std::string, std::string> &envs = std::unordered_map<std::string, std::string>());
 
 /** \brief  Kicks off a subcommand and returns.
@@ -81,7 +81,7 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &args 
  *  \param  envs                The environment variables to be set in the child process.
  *  \return The PID of the child.
  */
-pid_t Spawn(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
+pid_t Spawn(const std::string &command, const std::vector<std::string> &args = std::vector<std::string>{}, const std::string &new_stdin = "",
             const std::string &new_stdout = "", const std::string &new_stderr = "",
             const std::unordered_map<std::string, std::string> &envs = std::unordered_map<std::string, std::string>());
 

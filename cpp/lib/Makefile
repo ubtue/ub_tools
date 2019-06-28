@@ -17,6 +17,7 @@ ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
   OPTIMISATIONS_STATE =
 else
   CCCFLAGS += -fsanitize=address
+  CCCFLAGS += -D_GLIBCXX_DEBUG
   OPTIMISATIONS_STATE = (unoptimised)
 endif
 
@@ -35,7 +36,7 @@ endif
 MAKE_DEPS=iViaCore-mkdep
 
 .PHONY: clean
-.PRECIOUS: $(OBJ)/%.o
+.PRECIOUS: $(OBJ)/%.o $(STATIC_OBJ)/%_static.o
 
 # Rules for building:
 $(OBJ)/%.o: $(SRC)/%.cc Makefile
@@ -73,4 +74,4 @@ libstemmer/libstemmer_amd64.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libst
 	$(MAKE_DEPS) --static-objects -I $(INC) $(SRCS)
 
 clean:
-	rm -f *~ $(OBJ)/* $(STATIC_OBJ)/* *.a .deps .static_deps && cd libstemmer && make clean && rm -f libstemmer.a
+	rm -f *~ $(OBJ)/*.o $(STATIC_OBJ)/*.o *.a .deps .static_deps && cd libstemmer && make clean && rm -f libstemmer.a

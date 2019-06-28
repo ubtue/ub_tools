@@ -41,8 +41,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " (--update-all-users|user_ID)\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("(--update-all-users|user_ID|--patch-ixtheo_user)\n"
+            "When --patch-ixtheo_user has been specified missing entries for users ID's in vufind.user will be created.");
 }
 
 
@@ -316,30 +316,44 @@ bool CanUseTAD(const std::string &email_address, const std::vector<Pattern> &pat
 }
 
 
-const std::string EMAIL_RULES_FILE(UBTools::GetTuelibPath() + "tad_email_acl.yaml");
-
-
-void UpdateSingleUser(DbConnection * const db_connection, const std::vector<Pattern> &patterns,
-                      const std::string &user_ID)
-{
+std::string GetEmailAddress(DbConnection * const db_connection, const std::string &user_ID) {
     db_connection->queryOrDie("SELECT email FROM user WHERE id=" + user_ID);
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty())
         LOG_ERROR("No email address found for user ID " + user_ID + "!");
-    const std::string email_address(result_set.getNextRow()["email"]);
+    return result_set.getNextRow()["email"];
+}
 
+
+void CreateSingleUser(DbConnection * const db_connection, const std::vector<Pattern> &patterns, const std::string &user_ID) {
+    const std::string email_address(GetEmailAddress(db_connection, user_ID));
+    db_connection->queryOrDie("INSERT INTO ixtheo_user SET id=" + user_ID + ", can_use_tad="
+                              + std::string(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE"));
+}
+
+
+void UpdateSingleUser(DbConnection * const db_connection, const std::vector<Pattern> &patterns, const std::string &user_ID) {
+    const std::string email_address(GetEmailAddress(db_connection, user_ID));
     db_connection->queryOrDie("UPDATE ixtheo_user SET can_use_tad="
                               + std::string(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE")
                               + " WHERE id=" + user_ID);
 }
 
 
-void UpdateAllUsers(DbConnection * const db_connection, const std::vector<Pattern> &patterns) {
-    db_connection->queryOrDie("SELECT id FROM ixtheo_user");
-    DbResultSet result_set(db_connection->getLastResultSet());
+void UpdateAllUsers(DbConnection * const db_connection, const std::vector<Pattern> &patterns, const bool create_missing_ix_theo_users) {
+    if (create_missing_ix_theo_users) {
+        db_connection->queryOrDie("SELECT id FROM user WHERE id NOT IN (SELECT id FROM ixtheo_user)");
+        DbResultSet result_set(db_connection->getLastResultSet());
 
-    while (const DbRow row = result_set.getNextRow())
-        UpdateSingleUser(db_connection, patterns, row["id"]);
+        while (const DbRow row = result_set.getNextRow())
+            CreateSingleUser(db_connection, patterns, row["id"]);
+    } else {
+        db_connection->queryOrDie("SELECT id FROM ixtheo_user");
+        DbResultSet result_set(db_connection->getLastResultSet());
+
+        while (const DbRow row = result_set.getNextRow())
+            UpdateSingleUser(db_connection, patterns, row["id"]);
+    }
 }
 
 
@@ -347,20 +361,21 @@ void UpdateAllUsers(DbConnection * const db_connection, const std::vector<Patter
 
 
 int Main(int argc, char **argv) {
-    progname = argv[0];
-
     if (argc != 2)
         Usage();
 
     const std::string flag_or_user_ID(argv[1]);
 
+    const std::string EMAIL_RULES_FILE(UBTools::GetTuelibPath() + "tad_email_acl.yaml");
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(EMAIL_RULES_FILE));
     std::vector<Pattern> patterns;
     ParseEmailRules(input.get(), &patterns);
     std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
 
     if (flag_or_user_ID == "--update-all-users")
-        UpdateAllUsers(db_connection.get(), patterns);
+        UpdateAllUsers(db_connection.get(), patterns, /* create_missing_ix_theo_users = */false);
+    else if (flag_or_user_ID == "--patch-ixtheo_user")
+        UpdateAllUsers(db_connection.get(), patterns, /* create_missing_ix_theo_users = */true);
     else
         UpdateSingleUser(db_connection.get(), patterns, flag_or_user_ID);
 

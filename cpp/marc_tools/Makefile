@@ -4,7 +4,7 @@ STATIC_PROGS = $(patsubst %.cc,static_executables/%,$(wildcard *.cc))
 include ../Makefile.inc
 
 
-.PHONY: all .deps .static_deps install clean
+.PHONY: all .deps .static_deps debs install clean
 
 all: .deps $(PROGS)
 all_static: .static_deps $(STATIC_PROGS)
@@ -29,6 +29,14 @@ $(STATIC_PROGS): static_executables/% : %_static.o ../lib/libubtue_static.a Make
                  -lgnutls -lgcrypt -lgmp -lnettle -lunistring -luuid -llept -ltesseract -lsqlite3 -lxerces-c -lxml2 -lgss -ltasn1 -lshishi \
                  -lpthread -Wl,-Bdynamic -ldl -lc $< -o $@
 
+debs: $(PROGS)
+	for prog in $(PROGS); do \
+	    build_package --deb --output-directory=debs $$prog description \
+	                  elasticsearch libc6-i386 lib32stdc++6 lib32gcc1 pristine-tar; \
+	done
+	echo -n "Built on: " > debs/README
+	lsb_release --description --short >> debs/README
+
 -include .deps
 .deps: *.cc $(INC)/*.h Makefile
 	$(MAKE_DEPS) -I $(INC) *.cc
@@ -48,4 +56,4 @@ install: $(PROGS)
 	cp $(PROGS) marc_grep_multiple.sh /usr/local/bin/
 
 clean:
-	rm -f *.o *~ $(PROGS) $(STATIC_PROGS) .deps .static_deps
+	rm -f *.o *~ $(PROGS) $(STATIC_PROGS) .deps .static_deps debs/*.deb
