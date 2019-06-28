@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <vector>
+#include <sys/stat.h>
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "MiscUtil.h"
@@ -182,7 +183,7 @@ void GenerateControl(File * const output, const std::string &package, const std:
     (*output) << "Priority: optional\n";
     (*output) << "Architecture: amd64\n";
 
-    (*output) << "Depends: ";
+    (*output) << "Depends: locales, ";
     bool first(true);
     for (const auto &library : libraries) {
         if (first)
@@ -202,6 +203,13 @@ void GenerateControl(File * const output, const std::string &package, const std:
 }
 
 
+void GeneratePostInst(const std::string &path) {
+    FileUtil::WriteStringOrDie("#!/bin/bash\nlocale-gen en_US.UTF-8\n");
+    if (::chmod(path.c_str(), 0700) == -1)
+        LOG_ERROR("chmod(3) on \"" + path + "\" failed!");
+}
+
+
 void BuildDebPackage(const std::string &binary_path, const std::string &package_version, const std::string &description,
                      const std::vector<Library> &libraries, const std::string &output_directory)
 {
@@ -212,12 +220,15 @@ void BuildDebPackage(const std::string &binary_path, const std::string &package_
     FileUtil::MakeDirectoryOrDie(TARGET_DIRECTORY, /* recursive = */true);
     const std::string target_binary(TARGET_DIRECTORY + "/" + PACKAGE_NAME);
     FileUtil::CopyOrDie(binary_path, target_binary);
+    if (::chmod(target_binary.c_str(), 0755) == -1)
+        LOG_ERROR("chmod(3) on \"" + target_binary + "\" failed!");
     ExecUtil::ExecOrDie(ExecUtil::Which("strip"), { target_binary });
 
     FileUtil::MakeDirectoryOrDie(WORKING_DIR + "/DEBIAN");
     const auto control(FileUtil::OpenOutputFileOrDie(WORKING_DIR + "/DEBIAN/control"));
     GenerateControl(control.get(), FileUtil::GetBasename(binary_path), package_version, description, libraries);
     control->close();
+    GeneratePostInst(WORKING_DIR + "/DEBIAN/postinst");
 
     ExecUtil::ExecOrDie(ExecUtil::Which("dpkg-deb"), { "--build", PACKAGE_NAME + "_" + package_version });
 
