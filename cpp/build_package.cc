@@ -204,8 +204,8 @@ void GenerateControl(File * const output, const std::string &package, const std:
 
 
 void GeneratePostInst(const std::string &path) {
-    FileUtil::WriteStringOrDie("#!/bin/bash\nlocale-gen en_US.UTF-8\n");
-    if (::chmod(path.c_str(), 0700) == -1)
+    FileUtil::WriteStringOrDie(path, "#!/bin/bash\nlocale-gen en_US.UTF-8\n");
+    if (::chmod(path.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) == -1)
         LOG_ERROR("chmod(3) on \"" + path + "\" failed!");
 }
 
@@ -220,7 +220,7 @@ void BuildDebPackage(const std::string &binary_path, const std::string &package_
     FileUtil::MakeDirectoryOrDie(TARGET_DIRECTORY, /* recursive = */true);
     const std::string target_binary(TARGET_DIRECTORY + "/" + PACKAGE_NAME);
     FileUtil::CopyOrDie(binary_path, target_binary);
-    if (::chmod(target_binary.c_str(), 0755) == -1)
+    if (::chmod(target_binary.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) == -1)
         LOG_ERROR("chmod(3) on \"" + target_binary + "\" failed!");
     ExecUtil::ExecOrDie(ExecUtil::Which("strip"), { target_binary });
 
