@@ -204,7 +204,7 @@ void GenerateControl(File * const output, const std::string &package, const std:
 
 
 void GeneratePostInst(const std::string &path) {
-    FileUtil::WriteStringOrDie("#!/bin/bash\nocale-gen en_US.UTF-8\n");
+    FileUtil::WriteStringOrDie("#!/bin/bash\nlocale-gen en_US.UTF-8\n");
     if (::chmod(path.c_str(), 0700) == -1)
         LOG_ERROR("chmod(3) on \"" + path + "\" failed!");
 }
