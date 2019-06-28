@@ -74,4 +74,4 @@ libstemmer/libstemmer_amd64.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libst
 	$(MAKE_DEPS) --static-objects -I $(INC) $(SRCS)
 
 clean:
-	rm -f *~ $(OBJ)/* $(STATIC_OBJ)/* *.a .deps .static_deps && cd libstemmer && make clean && rm -f libstemmer.a
+	rm -f *~ $(OBJ)/*.o $(STATIC_OBJ)/*.o *.a .deps .static_deps && cd libstemmer && make clean && rm -f libstemmer.a
