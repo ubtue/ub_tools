@@ -518,6 +518,8 @@ int Main(int argc, char *argv[]) {
             std::cerr << '\t' << section_name_and_found_flag.first << '\n';
     }
 
+    if (harvester_error_logger.hasErrors())
+        LOG_WARNING("Unexpected errors were encountered during the harvesting process");
 
     return EXIT_SUCCESS;
 }

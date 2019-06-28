@@ -175,8 +175,11 @@ RSS20::RSS20(const std::string &xml_document, const AugmentParams &augment_param
             if (augment_params_.strptime_format_.empty()) {
                 if (not ParseRFC1123DateTimeAndPrefixes(last_build_date, &last_build_date_))
                     LOG_ERROR("failed to parse \"" + last_build_date + "\" as an RFC1123 datetime!");
-            } else
-                last_build_date_ = TimeUtil::TimeGm(TimeUtil::StringToStructTm(last_build_date, augment_params_.strptime_format_));
+            } else {
+                struct tm parsed_date;
+                if (not TimeUtil::StringToStructTm(&parsed_date, last_build_date, augment_params_.strptime_format_))
+                    last_build_date_ = TimeUtil::TimeGm(parsed_date);
+            }
         }
     }
 }
@@ -204,8 +207,11 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
             if (augment_params_.strptime_format_.empty()) {
                 if (unlikely(not ParseRFC1123DateTimeAndPrefixes(pub_date_string, &pub_date)))
                     LOG_WARNING("couldn't parse \"" + pub_date_string + "\"!");
-            } else
-                last_build_date_ = TimeUtil::TimeGm(TimeUtil::StringToStructTm(pub_date_string, augment_params_.strptime_format_));
+            } else {
+                struct tm parsed_date;
+                if (not TimeUtil::StringToStructTm(&parsed_date, pub_date_string, augment_params_.strptime_format_))
+                    last_build_date_ = TimeUtil::TimeGm(parsed_date);
+            }
         }
     }
     return nullptr;
@@ -229,8 +235,11 @@ RSS091::RSS091(const std::string &xml_document, const AugmentParams &augment_par
             if (augment_params_.strptime_format_.empty()) {
                 if (not ParseRFC1123DateTimeAndPrefixes(last_build_date, &last_build_date_))
                     LOG_ERROR("failed to parse \"" + last_build_date + "\" as an RFC1123 datetime!");
-            } else
-                last_build_date_ = TimeUtil::TimeGm(TimeUtil::StringToStructTm(last_build_date, augment_params_.strptime_format_));
+            } else {
+                struct tm parsed_date;
+                if (not TimeUtil::StringToStructTm(&parsed_date, last_build_date, augment_params_.strptime_format_))
+                    last_build_date_ = TimeUtil::TimeGm(parsed_date);
+            }
         }
     }
 }
@@ -304,8 +313,11 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
             const std::string updated_string(TextUtil::CollapseAndTrimWhitespace(ExtractText(xml_parser_, "updated")));
             if (augment_params_.strptime_format_.empty()) {
                 updated = TimeUtil::Iso8601StringToTimeT(updated_string, TimeUtil::UTC);
-            } else
-                updated = TimeUtil::TimeGm(TimeUtil::StringToStructTm(updated_string, augment_params_.strptime_format_));
+            } else {
+                struct tm parsed_date;
+                if (not TimeUtil::StringToStructTm(&parsed_date, updated_string, augment_params_.strptime_format_))
+                    updated = TimeUtil::TimeGm(parsed_date);
+            }
         }
     }
 
@@ -439,8 +451,11 @@ std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
                 if (augment_params_.strptime_format_.empty()) {
                     if (unlikely(not ParseRFC1123DateTimeAndPrefixes(pub_date_string, &pub_date)))
                         LOG_WARNING("couldn't parse \"" + pub_date_string + "\"!");
-                } else
-                    pub_date = TimeUtil::TimeGm(TimeUtil::StringToStructTm(pub_date_string, augment_params_.strptime_format_));
+                } else {
+                    struct tm parsed_date;
+                    if (not TimeUtil::StringToStructTm(&parsed_date, pub_date_string, augment_params_.strptime_format_))
+                        pub_date = TimeUtil::TimeGm(parsed_date);
+                }
             } else if (not dc_namespace_.empty() and StringUtil::StartsWith(part.data_, dc_namespace_)) {
                 const std::string tag(part.data_);
                 const std::string tag_suffix(tag.substr(dc_namespace_.length()));
