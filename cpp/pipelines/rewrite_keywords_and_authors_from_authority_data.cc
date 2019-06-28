@@ -77,7 +77,8 @@ bool GetAuthorityRecordFromPPN(const std::string &bsz_authority_ppn, MARC::Recor
                     + " referenced in title PPN " + record.getControlNumber());
         return false;
     }
-    std::runtime_error("Logical flaw in GetAuthorityRecordFromPPN");
+
+    LOG_ERROR("Logical flaw in GetAuthorityRecordFromPPN: we should *never* get here!");
 }
 
 
