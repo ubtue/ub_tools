@@ -13,7 +13,7 @@ import urllib
 import util
 
 
-GVI_URL          = 'http://gvi.bsz-bw.de/solr/GVITEST/select?rows=100000&wt=json&indent=true&fl=id&q=material_media_type:Book+AND+(ill_flag:Loan+OR+ill_flag:Copy+OR+ill_flag:Ecopy)+AND+publish_date:[2000+TO+*]&sort=id+asc&fq=id:\(DE-627\)*'
+GVI_URL          = 'http://gvi.bsz-bw.de/solr/GVITEST/select?rows=10000&wt=json&indent=true&fl=id&q=material_media_type:Book+AND+(ill_flag:Loan+OR+ill_flag:Copy+OR+ill_flag:Ecopy)+AND+publish_date:[2000+TO+*]&sort=id+asc&fq=id:\(DE-627\)*'
 DROP_SIGIL_REGEX = '[(][A-Z]{2}-\d\d\d[)]'
 PPN_LIST_FILE    = "gvi_ppn_list-" + datetime.datetime.today().strftime('%y%m%d') + ".txt"
 
