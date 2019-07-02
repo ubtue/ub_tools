@@ -161,7 +161,8 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                 }
 
                 if (not subfield_codex.empty() and not subfield_year.empty() and not subfield_part.empty()) {
-                    ranges_to_insert.emplace_back(FieldToCanonLawCode(record.getControlNumber(), subfield_codex, subfield_year, subfield_part));
+                    ranges_to_insert.emplace_back(FieldToCanonLawCode(record.getControlNumber(), subfield_codex, subfield_year,
+                                                                      subfield_part));
                     augmented_record = true;
                     ++reference_counts["689*"];
                 }
