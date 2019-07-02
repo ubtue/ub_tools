@@ -81,14 +81,15 @@ EndPhase || Abort) &
 wait
 if [[ $(date +%d) == "01" ]]; then # Only do this on the 1st of every month.
     echo "*** Occasional Phase: Checking Rule Violations ***" | tee --append "${log}"
+    marc_check_log="/usr/local/var/log/tuefind/marc_check_rule_violations.log"
     marc_check --check-rule-violations-only GesamtTiteldaten-"${date}".mrc \
-               /usr/local/var/lib/tuelib/marc_check.rules /usr/local/var/lib/tuelib/marc_check_rule_violations.log >> "${log}" 2>&1 &&
-    if [ -s /usr/local/var/lib/tuelib/marc_check_rule_violations.log ]; then
+               /usr/local/var/lib/tuelib/marc_check.rules "${marc_check_log}" >> "${log}" 2>&1 &&
+    if [ -s "${marc_check_log}" ]; then
         send_email --priority=high \
                    --recipients=ixtheo-team@ub.uni-tuebingen.de \
                    --subject="marc_check Found Rule Violations" \
                    --message-body="PPNs im Anhang." \
-                   --attachment="/usr/local/var/lib/tuelib/marc_check_rule_violations.log"
+                   --attachment="${marc_check_log}"
     fi
 fi
 
