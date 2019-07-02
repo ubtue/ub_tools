@@ -519,7 +519,7 @@ public:
     /** \return All author names in fields 100$a and 700$a. */
     std::set<std::string> getAllAuthors() const;
 
-    /** \return All issns including issns of superior works */
+    /** \return All ISSN's including ISSN's of superior works */
     std::set<std::string> getAllISSNs() const;
 
     std::set<std::string> getDOIs() const;

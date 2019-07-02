@@ -94,8 +94,7 @@ void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTe
     static RegexMatcher * const authors_matcher(RegexMatcher::RegexMatcherFactoryOrDie("Author:\\s*(.*)", RegexMatcher::CASE_INSENSITIVE));
     std::vector<std::string> authors;
     if (authors_matcher->matched(pdfinfo_output)) {
-        //StringUtil::Split((*authors_matcher)[1], std::set<char>({ ';', '|' }), &(fulltext_data->authors_));
-        StringUtil::Split((*authors_matcher)[1], std::set<char>({ ';', '|' }), &authors);
+        StringUtil::Split((*authors_matcher)[1], std::set<char>{ ';', '|' }, &authors);
         for (auto &author : authors)
             author = HtmlUtil::ReplaceEntities(author);
         std::copy(authors.cbegin(), authors.cend(), std::inserter(fulltext_data->authors_, fulltext_data->authors_.end()));
@@ -104,9 +103,8 @@ void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTe
     if (title_matcher->matched(pdfinfo_output)) {
         std::string title_candidate((*title_matcher)[1]);
         // Try to detect invalid encoding
-        if (not TextUtil::IsValidUTF8(title_candidate)) {
+        if (not TextUtil::IsValidUTF8(title_candidate))
             LOG_WARNING("Apparently incorrect encoding for " + title_candidate);
-        }
         // Some cleanup
         title_candidate = StringUtil::ReplaceString("<ger>", "", title_candidate);
         title_candidate = StringUtil::ReplaceString("</ger>", "", title_candidate);
@@ -116,7 +114,7 @@ void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTe
 }
 
 
-void ConvertFulltextMetadataFromAssumedLatin1OriginalEncoding (FullTextImport::FullTextData * const fulltext_data) {
+void ConvertFulltextMetadataFromAssumedLatin1OriginalEncoding(FullTextImport::FullTextData * const fulltext_data) {
     std::string error_msg;
     static auto UTF8ToLatin1_converter(TextUtil::EncodingConverter::Factory("utf-8", "ISO-8859-1", &error_msg));
     UTF8ToLatin1_converter->convert(fulltext_data->title_, &(fulltext_data->title_));
@@ -150,18 +148,18 @@ bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextD
         return true;
     }
 
-    // Guess control number by doi author, title and and possibly issn
+    // Guess control number by DOI, author, title and and possibly ISSN
     std::string first_page_text;
     PdfUtil::ExtractText(pdf_document, &first_page_text, "1", "1"); // Get only first page
     std::string control_number;
-    if (GuessDOI(first_page_text, &(fulltext_data->doi_)))
-        if (FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_number))
-            return true;    
+    if (GuessDOI(first_page_text, &(fulltext_data->doi_))
+        and FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_number))
+        return true;    
     GuessISSN(first_page_text, &(fulltext_data->issn_));
     GuessAuthorAndTitle(pdf_document, fulltext_data);
     if (not FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_number))
-        // We frequently have the case that Author and title extracted we encoded in latin1 in some time in the past such that our search fails
-        // So force normalisation and make another attempt.
+        // We frequently have the case that author and title extracted we encoded in Latin-1 in some time in the past such that our search fails
+        // so force normalisation and make another attempt.
         ConvertFulltextMetadataFromAssumedLatin1OriginalEncoding(fulltext_data);
     return FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_number);
 }

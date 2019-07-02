@@ -1706,7 +1706,7 @@ std::string RemoveDiacritics(const std::string &utf8_string) {
 }
 
 
-static std::vector<wchar_t> quotation_marks_to_normalise {
+static const std::vector<wchar_t> quotation_marks_to_normalise {
 L'«',  L'‹',  L'»',  L'›',  L'„',  L'‚',  L'“',  L'‟',  L'‘',  L'‛',  L'”',  L'’',  L'"',  L'❛',  L'❜',  L'❟',  L'❝',  L'❞',  L'❮',  L'❯',  L'⹂',  L'〝',  L'〞',  L'〟',  L'＂'
 };
 
