@@ -2,7 +2,7 @@
 set -o errexit -o nounset
 
 
-forbidden_hosts("ptah" "sobek" "nu" "ub16" "ub15" "ub27" "ub28")
+forbidden_hosts=("ptah" "sobek" "nu" "ub16" "ub15" "ub27" "ub28")
 short_host=$(hostname --short)
 
 
