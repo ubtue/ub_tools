@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import de.uni_tuebingen.ub.ixTheo.rangeSearch.Range;
+import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeScorer;
 
 
 public class BibleRangeWeight extends ConstantScoreWeight {
@@ -92,7 +93,7 @@ public class BibleRangeWeight extends ConstantScoreWeight {
                     return 10.0F;
                 }
             };
-            return new BibleRangeScorer(this, scoring, twoPhase);
+            return new RangeScorer(this, scoring, twoPhase);
         } else {
             return null;
         }
