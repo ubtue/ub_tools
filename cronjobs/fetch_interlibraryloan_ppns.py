@@ -39,7 +39,7 @@ def ExtractPPNs(jdata, ppns):
 
 def WriteListFile(ppn_list):
     with open(PPN_LIST_FILE, 'w') as file:
-        file.writelines(str(ppn) + '\n' for ppn in ppn_list)
+        file.writelines("%s\n" % ppn for ppn in ppn_list)
 
 
 def ExtractNextCursorMark(jdata):
