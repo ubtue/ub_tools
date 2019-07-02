@@ -1535,7 +1535,7 @@ double CalcTextSimilarity(const std::string &text1, const std::string &text2, co
 
 bool IsSomeKindOfDash(const uint32_t ch) {
     return ch == '-' /*ordinary minus */ or ch == EN_DASH or ch == EM_DASH or ch == TWO_EM_DASH or ch == THREE_EM_DASH
-           or ch == SMALL_EM_DASH;
+           or ch == SMALL_EM_DASH or ch == NON_BREAKING_HYPHEN;
 
 }
 
@@ -1703,6 +1703,39 @@ std::string RemoveDiacritics(const std::string &utf8_string) {
         LOG_ERROR("failed to convert a wide character string to a UTF8 string!");
 
     return utf8_without_diacritics;
+}
+
+
+static const std::vector<wchar_t> quotation_marks_to_normalise {
+L'«',  L'‹',  L'»',  L'›',  L'„',  L'‚',  L'“',  L'‟',  L'‘',  L'‛',  L'”',  L'’',  L'"',  L'❛',  L'❜',  L'❟',  L'❝',  L'❞',  L'❮',  L'❯',  L'⹂',  L'〝',  L'〞',  L'〟',  L'＂'
+};
+
+
+std::wstring NormaliseQuotationMarks(const std::wstring &string) {
+   std::wstring string_with_normalised_quotes;
+   for (const auto wchar : string) {
+       if (likely(std::find(quotation_marks_to_normalise.cbegin(), quotation_marks_to_normalise.cend(), wchar) ==
+                  quotation_marks_to_normalise.cend()))
+           string_with_normalised_quotes += wchar;
+       else
+           string_with_normalised_quotes += '"';
+   }
+
+   return string_with_normalised_quotes;
+}
+
+
+std::string NormaliseQuotationMarks(const std::string &utf8_string) {
+    std::wstring wstring;
+    if (unlikely(not UTF8ToWCharString(utf8_string, &wstring)))
+        LOG_ERROR("failed to convert a UTF8 string to a wide character string!");
+
+    const auto wstring_normalised_quotations_marks(NormaliseQuotationMarks(wstring));
+    std::string utf8_normalised_quotations_marks;
+    if (unlikely(not WCharToUTF8String(wstring_normalised_quotations_marks, &utf8_normalised_quotations_marks)))
+        LOG_ERROR("failed to convert a wide character string to a UTF8 string!");
+
+    return utf8_normalised_quotations_marks;
 }
 
 

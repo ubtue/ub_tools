@@ -45,6 +45,7 @@ constexpr uint32_t EM_DASH(0x2014u);
 constexpr uint32_t TWO_EM_DASH(0x2E3Au);
 constexpr uint32_t THREE_EM_DASH(0x2E3Bu);
 constexpr uint32_t SMALL_EM_DASH(0xFE58u);
+constexpr uint32_t NON_BREAKING_HYPHEN(0x2011u);
 
 
 /** \brief Converter between many text encodings.
@@ -504,6 +505,9 @@ std::string ExpandLigatures(const std::string &utf8_string);
 std::wstring RemoveDiacritics(const std::wstring &string);
 std::string RemoveDiacritics(const std::string &utf8_string);
 
+// Normalises different quotation marks to standard double quotes
+std::wstring NormaliseQuotationMarks(const std::wstring &string);
+std::string NormaliseQuotationMarks(const std::string &utf8_string);
 
 bool ConvertToUTF8(const std::string &encoding, const std::string &text, std::string * const utf8_text);
 
