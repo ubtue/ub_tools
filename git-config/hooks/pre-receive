@@ -1,0 +1,16 @@
+#!/bin/bash
+set -o errexit -o nounset
+
+
+forbidden_hosts("mb062")
+short_host=$(hostname --short)
+
+
+for forbidden_host in "${forbidden_hosts[@]}"; do
+    if [[ $short_host == "$forbidden_host" ]]; then
+        exit 1
+    fi
+done
+
+
+exit 0
