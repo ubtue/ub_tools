@@ -13,7 +13,7 @@ import urllib
 import util
 
 
-GVI_URL          = 'http://gvi.bsz-bw.de/solr/GVI/select?rows=50000&wt=json&indent=true&fl=id&q=material_media_type:Book+AND+(ill_flag:Loan+OR+ill_flag:Copy+OR+ill_flag:Ecopy)+AND+publish_date:[2000+TO+*]&sort=id+asc'
+GVI_URL          = 'http://gvi.bsz-bw.de/solr/GVI/select?rows=50000&wt=json&indent=true&fl=id&q=material_media_type:Book+AND+(ill_flag:Loan+OR+ill_flag:Copy+OR+ill_flag:Ecopy)+AND+publish_date:[2000+TO+*]&sort=id+asc&fq=id:\(DE-627\)*'
 DROP_SIGIL_REGEX = '[(][A-Z]{2}-\d\d\d[)]'
 PPN_LIST_FILE    = "gvi_ppn_list-" + datetime.datetime.today().strftime('%y%m%d') + ".txt"
 
@@ -43,7 +43,7 @@ def WriteListFile(ppn_list):
 
 
 def ExtractNextCursorMark(jdata):
-    return jdata['nextCursorMark']
+    return urllib.quote(jdata['nextCursorMark'])
 
 
 def Main():
