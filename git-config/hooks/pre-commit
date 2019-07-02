@@ -1,0 +1,17 @@
+#!/bin/bash
+set -o errexit -o nounset
+
+
+forbidden_hosts=("ptah" "sobek" "nu" "ub16" "ub15" "ub27" "ub28")
+short_host=$(hostname --short)
+
+
+for forbidden_host in "${forbidden_hosts[@]}"; do
+    if [[ $short_host == "$forbidden_host" ]]; then
+        echo "You cannot commit files on $short_host"
+        exit 1
+    fi
+done
+
+
+exit 0
