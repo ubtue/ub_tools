@@ -548,8 +548,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
 
     // Authors/Creators (use reverse iterator to keep order, because "insertField" inserts at first possible position)
     // The first creator is always saved in the "100" field, all following creators go into the 700 field
-    const std::string creator_tag((node_parameters.creators_.size() == 1) ? "100" : "700");
-    int num_creators_left(node_parameters.creators_.size());
+    unsigned num_creators_left(node_parameters.creators_.size());
     for (auto creator(node_parameters.creators_.rbegin()); creator != node_parameters.creators_.rend(); ++creator) {
         MARC::Subfields subfields;
         if (not creator->ppn_.empty())
@@ -585,9 +584,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         record->insertField("041", { { 'a', node_parameters.language_ } });
 
     // Abstract Note
-    const std::string abstract_note(node_parameters.abstract_note_);
-    if (not abstract_note.empty())
-        record->insertField("520", { { 'a', abstract_note } });
+    if (not node_parameters.abstract_note_.empty())
+        record->insertField("520", { { 'a', node_parameters.abstract_note_ } });
 
     // Date & Year
     std::string year(node_parameters.year_);
