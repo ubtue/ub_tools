@@ -580,7 +580,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     // Abstract Note
     const std::string abstract_note(node_parameters.abstract_note_);
     if (not abstract_note.empty())
-        record->insertField("520", { { 'a', abstract_note } }, /* indicator 1 = */'3');
+        record->insertField("520", { { 'a', abstract_note } });
 
     // Date & Year
     std::string year(node_parameters.year_);
