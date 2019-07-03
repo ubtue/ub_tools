@@ -547,7 +547,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         record->insertField("007", "cr|||||");
 
     // Authors/Creators (use reverse iterator to keep order, because "insertField" inserts at first possible position)
-    const std::string creator_tag((node_parameters.creators_.size() == 1) ? "100" : "700");
+    // The first creator is always saved in the "100" field, all following creators go into the 700 field
+    unsigned num_creators_left(node_parameters.creators_.size());
     for (auto creator(node_parameters.creators_.rbegin()); creator != node_parameters.creators_.rend(); ++creator) {
         MARC::Subfields subfields;
         if (not creator->ppn_.empty())
@@ -561,7 +562,12 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         if (not creator->title_.empty())
             subfields.appendSubfield('c', creator->title_);
 
-        record->insertField(creator_tag, subfields, /* indicator 1 = */'1');
+        if (num_creators_left == 1)
+            record->insertField("100", subfields, /* indicator 1 = */'1');
+        else
+            record->insertField("700", subfields, /* indicator 1 = */'1');
+
+        --num_creators_left;
     }
 
     // Titles
@@ -578,9 +584,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         record->insertField("041", { { 'a', node_parameters.language_ } });
 
     // Abstract Note
-    const std::string abstract_note(node_parameters.abstract_note_);
-    if (not abstract_note.empty())
-        record->insertField("520", { { 'a', abstract_note } }, /* indicator 1 = */'3');
+    if (not node_parameters.abstract_note_.empty())
+        record->insertField("520", { { 'a', node_parameters.abstract_note_ } });
 
     // Date & Year
     std::string year(node_parameters.year_);
@@ -644,12 +649,12 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     if (not superior_ppn.empty())
         _773_subfields.appendSubfield('w', "(DE-627)" + superior_ppn);
 
-    // 773g, example: "52(2018), 1, S. 1-40" => <volume>(<year>), <issue>, S. <pages>
+    // 773g, example: "52 (2018), 1, S. 1-40" => <volume>(<year>), <issue>, S. <pages>
     const bool _773_subfields_iaxw_present(not _773_subfields.empty());
     bool _773_subfield_g_present(false);
     std::string g_content;
     if (not volume.empty()) {
-        g_content += volume + "(" + year + ")";
+        g_content += volume + " (" + year + ")";
         if (not issue.empty())
             g_content += ", " + issue;
 
