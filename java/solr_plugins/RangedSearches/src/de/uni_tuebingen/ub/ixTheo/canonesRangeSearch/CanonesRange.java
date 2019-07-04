@@ -7,21 +7,23 @@ import de.uni_tuebingen.ub.ixTheo.rangeSearch.Range;
 
 
 public class CanonesRange extends Range {
+    final static int CANON_LAW_CODE_LENGTH = 9;
+
     public CanonesRange(final String range) {
         super(getLower(range), getUpper(range));
     }
 
     private static int getLower(final String range) {
-        if (range.length() == 9 + 1 + 9) {
-            return Integer.valueOf(range.substring(0, 9));
+        if (range.length() == CANON_LAW_CODE_LENGTH + 1 + CANON_LAW_CODE_LENGTH) {
+            return Integer.valueOf(range.substring(0, CANON_LAW_CODE_LENGTH));
         } else {
             return 0;
         }
     }
 
     private static int getUpper(final String range) {
-        if (range.length() == 9 + 1 + 9) {
-            return Integer.valueOf(range.substring(9 + 1, 9 + 1 + 9));
+        if (range.length() == CANON_LAW_CODE_LENGTH + 1 + CANON_LAW_CODE_LENGTH) {
+            return Integer.valueOf(range.substring(CANON_LAW_CODE_LENGTH + 1, CANON_LAW_CODE_LENGTH + 1 + CANON_LAW_CODE_LENGTH));
         } else {
             return 999999999;
         }
