@@ -42,14 +42,18 @@ public class CanonesRangeParser extends QParser {
 
     // @return true if "queryString" is of the form 07000000_08999999 o/w we return false.
     private boolean isCanonesRange(final String queryString) {
-        if (queryString.length() != 9 + 1 + 9 || queryString.charAt(9) != '_')
+        if (queryString.length() != CanonesRange.CANON_LAW_CODE_LENGTH + 1 + CanonesRange.CANON_LAW_CODE_LENGTH
+            || queryString.charAt(CanonesRange.CANON_LAW_CODE_LENGTH) != '_')
             return false;
-        if (!queryString.substring(2, 9).equals("0000000") || !queryString.substring(12, 19).equals("9999999"))
+        if (!queryString.substring(1, CanonesRange.CANON_LAW_CODE_LENGTH).equals("00000000")
+            || !queryString.substring(CanonesRange.CANON_LAW_CODE_LENGTH + 1 + 1,
+                                      CanonesRange.CANON_LAW_CODE_LENGTH + 1 + CanonesRange.CANON_LAW_CODE_LENGTH).equals("99999999"))
             return false;
         int firstCodexDigit, secondCodexDigit;
         try {
             firstCodexDigit  = Integer.parseInt(queryString.substring(0, 1));
-            secondCodexDigit = Integer.parseInt(queryString.substring(10, 11));
+            secondCodexDigit = Integer.parseInt(queryString.substring(CanonesRange.CANON_LAW_CODE_LENGTH + 1,
+                                                                      CanonesRange.CANON_LAW_CODE_LENGTH + 1 + 1));
         } catch (NumberFormatException e) {
             return false;
         }
@@ -85,7 +89,8 @@ public class CanonesRangeParser extends QParser {
                 buffer.append("|" + firstCodexDigit);
                 alreadySeenCodexDigits.add(firstCodexDigit);
             }
-            final String secondCodexDigit = range.substring(9 + 1, 9 + 1 + 1);
+            final String secondCodexDigit = range.substring(CanonesRange.CANON_LAW_CODE_LENGTH + 1,
+                                                            CanonesRange.CANON_LAW_CODE_LENGTH + 1 + 1);
             if (!alreadySeenCodexDigits.contains(secondCodexDigit)) {
                 buffer.append("|" + secondCodexDigit);
                 alreadySeenCodexDigits.add(secondCodexDigit);
