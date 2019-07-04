@@ -432,6 +432,10 @@ public class TuelibMixin extends SolrIndexerMixin {
         tempMap.put("32", "Beschreibung für Bibliotheken");
         tempMap.put("33", "Einführung/Vorwort");
         tempMap.put("34", "Volltext");
+        tempMap.put("90", "Objektabbbildung");           // GBV extension
+        tempMap.put("91", "Objektabbbildung Thumbnail"); // GBV extension
+        tempMap.put("92", "Schlüsselseiten");            // GBV extension
+        tempMap.put("93", "Cover");                      // GBV extension
         code_to_material_type_map = Collections.unmodifiableMap(tempMap);
     }
 
