@@ -71,6 +71,10 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
     if (not extraction_regex.empty())
         site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(extraction_regex));
 
+    const auto banned_url_regex_str(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::BANNED_URL_REGEX, ""));
+    if (not banned_url_regex_str.empty())
+        site_params->banned_url_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(banned_url_regex_str));
+
     const auto review_regex(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::REVIEW_REGEX, ""));
     if (not review_regex.empty())
         site_params->review_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(review_regex));
@@ -136,8 +140,7 @@ UnsignedPair ProcessRSSFeed(const IniFile::Section &section, const JournalConfig
     const std::string feed_url(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::URL));
     LOG_DEBUG("feed_url: " + feed_url);
 
-    return Zotero::HarvestSyndicationURL(feed_url, harvest_params,
-                                         site_params, error_logger);
+    return Zotero::HarvestSyndicationURL(feed_url, harvest_params, site_params, error_logger);
 }
 
 
@@ -148,7 +151,8 @@ UnsignedPair ProcessCrawl(const IniFile::Section &section, const JournalConfig::
 {
     SimpleCrawler::SiteDesc site_desc;
     site_desc.start_url_ = bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::URL);
-    site_desc.max_crawl_depth_ = StringUtil::ToUnsigned(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::MAX_CRAWL_DEPTH));
+    site_desc.max_crawl_depth_ =
+        StringUtil::ToUnsigned(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::MAX_CRAWL_DEPTH));
 
     return Zotero::HarvestSite(site_desc, crawler_params, supported_urls_regex, harvest_params, site_params, error_logger);
 }
@@ -329,8 +333,9 @@ void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode 
 }
 
 
-void HarvestSingleURLWithDummyData(const std::string &url, const IniFile &ini_file, const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
-                      Zotero::SiteParams * const site_params, Zotero::HarvesterErrorLogger * const harvester_error_logger)
+void HarvestSingleURLWithDummyData(const std::string &url, const IniFile &ini_file,
+                                   const std::shared_ptr<Zotero::HarvestParams> &harvest_params,
+                                   Zotero::SiteParams * const site_params, Zotero::HarvesterErrorLogger * const harvester_error_logger)
 {
     site_params->journal_name_ = "Single URL Test";
     site_params->ISSN_online_ = "2167-2040";
