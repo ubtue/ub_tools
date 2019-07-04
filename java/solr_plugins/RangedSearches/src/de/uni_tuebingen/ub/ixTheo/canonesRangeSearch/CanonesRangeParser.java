@@ -58,15 +58,14 @@ public class CanonesRangeParser extends QParser {
     }
 
     /**
-     * Tries to extract the book index of a search query.
-     * Then creates a query string only matching bible references starting with the book index.
-     * If no book index is found, only '*' will be returned.
+     * Tries to extract the codex index of a search query.
+     * Then creates a query string only matching canon law references starting with the codex index.
+     * If no codex index is found, only '*' will be returned.
      *
-     * The first two digits of a range are the book index.
-     * See /usr/local/var/lib/tuelib/books_of_the_bible_to_code.map
+     * The first digit of a range is the codex index.
      *
      * @param queryString The search string from user
-     * @return e.g.  ".*(11|12|03)[0-9]{6}.*" (NB. the Solr query parser anchors regular expressions at the
+     * @return e.g.  ".*(1|2)[0-9]{8}.*" (NB. the Solr query parser anchors regular expressions at the
      * beginning and at the end) or "*"
      */
     private String getCanonesPrefixQueryString(final String queryString) {
@@ -79,25 +78,25 @@ public class CanonesRangeParser extends QParser {
         final String[] ranges = getFieldsFromQuery();
         final Set<String> alreadySeenCodexDigits = new TreeSet<String>();
         // Capacity of buffer: (number of ranges) times (two digits of book and one delimiter)
-        StringBuilder buffer = new StringBuilder(ranges.length * 3);
+        StringBuilder buffer = new StringBuilder(ranges.length * 2);
         for (String range : ranges) {
-            final String firstCodexDigit = range.substring(0, 2);
+            final String firstCodexDigit = range.substring(0, 1);
             if (!alreadySeenCodexDigits.contains(firstCodexDigit)) {
                 buffer.append("|" + firstCodexDigit);
                 alreadySeenCodexDigits.add(firstCodexDigit);
             }
-            final String secondCodexDigit = range.substring(9, 11);
+            final String secondCodexDigit = range.substring(9 + 1, 9 + 1 + 1);
             if (!alreadySeenCodexDigits.contains(secondCodexDigit)) {
                 buffer.append("|" + secondCodexDigit);
                 alreadySeenCodexDigits.add(secondCodexDigit);
             }
         }
-        return "/.*(" + buffer.toString().substring(1) + ")[0-9]{6}.*/";
+        return "/.*(" + buffer.toString().substring(1) + ")[0-9]{8}.*/";
     }
 
     @Override
     public Query parse() throws SyntaxError {
-        final String queryString = "bible_ranges:" + getCanonesPrefixQueryString(getString());
+        final String queryString = "canones_ranges:" + getCanonesPrefixQueryString(getString());
         final QParser parser = getParser(queryString, "lucene", getReq());
         final CanonesRange[] ranges = getRangesFromQuery();
         return new CanonesRangeQuery(parser.parse(), ranges);
