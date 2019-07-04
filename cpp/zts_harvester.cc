@@ -71,7 +71,7 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
     if (not extraction_regex.empty())
         site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(extraction_regex));
 
-    const auto banned_url_regex_str(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::BANNED_URL_REGEX, ""));
+    const auto banned_url_regex_str(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::BANNED_URL_REGEX, ""));
     if (not banned_url_regex_str.empty())
         site_params->banned_url_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(banned_url_regex_str));
 
