@@ -390,6 +390,8 @@ int Main(int argc, char *argv[]) {
     harvest_params->force_process_feeds_with_no_pub_dates_ = ini_file.getBool("", "force_process_feeds_with_no_pub_dates");
     harvest_params->default_crawl_delay_time_ = ini_file.getUnsigned("", "default_crawl_delay_time");
     harvest_params->skip_online_first_articles_unconditionally_ = ini_file.getBool("", "skip_online_first_articles_unconditionally");
+    if (force_downloads)
+        harvest_params->skip_online_first_articles_unconditionally_ = false;
     if (not harvest_url_regex.empty())
         harvest_params->harvest_url_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(harvest_url_regex));
 
