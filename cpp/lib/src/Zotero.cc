@@ -1212,6 +1212,8 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     unsigned response_code;
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = harvest_params->user_agent_;
+    downloader_params.banned_reg_exps_.addPattern(site_params.banned_url_regex_->getPattern());
+
     bool download_succeeded(TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT,
                                                    downloader_params, Url(harvest_url), &response_body, &response_code,
                                                    &error_message));
