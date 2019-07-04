@@ -203,11 +203,11 @@ void WriteToDatabase(DbConnection * const db_connection, const std::string &jour
 }
 
 
-void SendEmail(const std::string &email_address, const std::string &message_body, const std::vector<std::string> &attachments) {
+void SendEmail(const std::string &email_address, const std::string &message_subject, const std::string &message_body) {
     const auto reply_code(EmailSender::SendEmail("zts_harvester_delivery_pipeline@uni-tuebingen.de",
-                          email_address, "validate_harvested_records encountered problems", message_body,
+                          email_address, message_subject, message_body,
                           EmailSender::MEDIUM, EmailSender::PLAIN_TEXT, /* reply_to = */ "",
-                          /* use_ssl = */ true, /* use_authentication = */ true, attachments));
+                          /* use_ssl = */ true, /* use_authentication = */ true));
 
     if (reply_code >= 300)
         LOG_ERROR("failed to send email, the response code was: " + std::to_string(reply_code));
@@ -267,8 +267,9 @@ int Main(int argc, char *argv[]) {
 
     if (missed_expectation_count > 0) {
         // send notification to the email address
-        SendEmail(email_address, "Some records missed expectations with respect to MARC fields. Check the attached log for details.",
-                  { "/usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log" });
+        SendEmail(email_address, "validate_harvested_records encountered warnings",
+                  "Some records missed expectations with respect to MARC fields. "
+                  "Check the log at '/usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log' for details.");
     }
 
     LOG_INFO("Processed " + std::to_string(total_record_count) + " record(s) of which " + std::to_string(new_record_count)
