@@ -979,10 +979,8 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         // license code
         const auto ISSN_and_license_code(site_params.global_params_->maps_->ISSN_to_licence_map_.find(issn_selected));
         if (ISSN_and_license_code != site_params.global_params_->maps_->ISSN_to_licence_map_.end()) {
-            if (ISSN_and_license_code->second != "l")
-                LOG_ERROR("ISSN_to_licence.map contains an ISSN that has not been mapped to an \"l\" but \""
-                          + ISSN_and_license_code->second
-                          + "\" instead and we don't know what to do with it!");
+            if (ISSN_and_license_code->second != "l" and ISSN_and_license_code->second != "kw")
+                LOG_ERROR("ISSN_to_licence.map contains an ISSN that has an unknown code \"" + ISSN_and_license_code->second + "\"");
             else
                 custom_fields.emplace(std::pair<std::string, std::string>("licenseCode", ISSN_and_license_code->second));
         }
