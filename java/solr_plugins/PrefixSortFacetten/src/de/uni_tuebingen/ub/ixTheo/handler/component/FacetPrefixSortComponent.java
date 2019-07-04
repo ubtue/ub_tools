@@ -83,10 +83,11 @@ public class FacetPrefixSortComponent extends org.apache.solr.handler.component.
      * Choose the collator according to the selected language
      */
 
-    private void setCollator(final String langCode) {
+    private void setCollator(String langCode) {
 
         Locale locale = Locale.GERMAN;
         String transformedLangCode = "";
+        langCode = StringUtils.isEmpty(langCode) ? "de" : langCode;
 
         // Rewrite lang parameter to required layout
         Matcher m = LANG_CODE_TRANSFORMATION_PATTERN.matcher(langCode);

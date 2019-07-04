@@ -1,4 +1,4 @@
-package de.uni_tuebingen.ub.ixTheo.bibleRangeSearch;
+package de.uni_tuebingen.ub.ixTheo.rangeSearch;
 
 
 import com.carrotsearch.hppc.IntFloatMap;
@@ -10,12 +10,12 @@ import org.apache.lucene.search.Weight;
 import java.io.IOException;
 
 
-class BibleRangeScorer extends Scorer {
+public class RangeScorer extends Scorer {
     private final TwoPhaseIterator twoPhaseIterator;
     private final DocIdSetIterator disi;
     private final IntFloatMap scoring;
 
-    BibleRangeScorer(final Weight weight, final IntFloatMap scoring, final TwoPhaseIterator twoPhaseIterator) {
+    public RangeScorer(final Weight weight, final IntFloatMap scoring, final TwoPhaseIterator twoPhaseIterator) {
         super(weight);
         this.twoPhaseIterator = twoPhaseIterator;
         this.scoring = scoring;

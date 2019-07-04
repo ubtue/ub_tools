@@ -785,6 +785,23 @@ std::set<std::string> Record::getAllAuthors() const {
 }
 
 
+std::set<std::string> Record::getAllISSNs() const {
+    static const std::vector<std::string> ISSN_TAGS_AND_SUBFIELDS { "022a", "029a", "440x", "490x", "730x", "773x", "776x", "780x", "785x" };
+    std::set<std::string> all_issns;
+    for (const auto &tag_and_subfield : ISSN_TAGS_AND_SUBFIELDS) {
+        for (const auto &field: getTagRange(tag_and_subfield.substr(0, 3))) {
+            const char subfield_code(tag_and_subfield[3]);
+            for (const auto &subfield : field.getSubfields()) {
+                if (subfield.code_ == subfield_code)
+                   all_issns.emplace(subfield.value_);
+            }
+        }
+    }
+
+    return all_issns;
+}
+
+
 std::set<std::string> Record::getDOIs() const {
     std::set<std::string> dois;
     for (const auto field : getTagRange("024")) {
