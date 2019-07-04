@@ -615,6 +615,13 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     if (item_type == "review")
         record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" } }, /* indicator1 = */' ', /* indicator2 = */'7');
 
+    // License data
+    const std::string license(node_parameters.license_);
+    if (license == "l")
+        record->insertField("856", { { 'z', "Kostenfrei" } }, /* indicator1 = */'4', /* indicator2 = */'0');
+    else if (license == "kw")
+        record->insertField("856", { { 'z', "Teilw. kostenfrei" } }, /* indicator1 = */'4', /* indicator2 = */'0');
+
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     MARC::Subfields _936_subfields;
     const std::string volume(node_parameters.volume_);
@@ -631,9 +638,6 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         _936_subfields.appendSubfield('h', pages);
 
     _936_subfields.appendSubfield('j', year);
-    const std::string license(node_parameters.license_);
-    if (license == "l")
-        _936_subfields.appendSubfield('z', "Kostenfrei");
     if (not _936_subfields.empty())
         record->insertField("936", _936_subfields, 'u', 'w');
 
@@ -975,10 +979,8 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         // license code
         const auto ISSN_and_license_code(site_params.global_params_->maps_->ISSN_to_licence_map_.find(issn_selected));
         if (ISSN_and_license_code != site_params.global_params_->maps_->ISSN_to_licence_map_.end()) {
-            if (ISSN_and_license_code->second != "l")
-                LOG_ERROR("ISSN_to_licence.map contains an ISSN that has not been mapped to an \"l\" but \""
-                          + ISSN_and_license_code->second
-                          + "\" instead and we don't know what to do with it!");
+            if (ISSN_and_license_code->second != "l" and ISSN_and_license_code->second != "kw")
+                LOG_ERROR("ISSN_to_licence.map contains an ISSN that has an unknown code \"" + ISSN_and_license_code->second + "\"");
             else
                 custom_fields.emplace(std::pair<std::string, std::string>("licenseCode", ISSN_and_license_code->second));
         }
