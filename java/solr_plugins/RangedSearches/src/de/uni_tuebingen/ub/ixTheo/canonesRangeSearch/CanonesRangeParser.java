@@ -81,7 +81,7 @@ public class CanonesRangeParser extends QParser {
         }
         final String[] ranges = getFieldsFromQuery();
         final Set<String> alreadySeenCodexDigits = new TreeSet<String>();
-        // Capacity of buffer: (number of ranges) times (two digits of book and one delimiter)
+        // Capacity of buffer: (number of ranges) times (one digit for the codex and one for the delimiter)
         StringBuilder buffer = new StringBuilder(ranges.length * 2);
         for (String range : ranges) {
             final String firstCodexDigit = range.substring(0, 1);
