@@ -615,6 +615,13 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     if (item_type == "review")
         record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" } }, /* indicator1 = */' ', /* indicator2 = */'7');
 
+    // License data
+    const std::string license(node_parameters.license_);
+    if (license == "l")
+        record->insertField("856", { { 'z', "Kostenfrei" } }, /* indicator1 = */'4', /* indicator2 = */'0'));
+    else if (license == "kw")
+        record->insertField("856", { { 'z', "Teilw. kostenfrei" } }, /* indicator1 = */'4', /* indicator2 = */'0'));
+
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     MARC::Subfields _936_subfields;
     const std::string volume(node_parameters.volume_);
@@ -631,9 +638,6 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         _936_subfields.appendSubfield('h', pages);
 
     _936_subfields.appendSubfield('j', year);
-    const std::string license(node_parameters.license_);
-    if (license == "l")
-        _936_subfields.appendSubfield('z', "Kostenfrei");
     if (not _936_subfields.empty())
         record->insertField("936", _936_subfields, 'u', 'w');
 
