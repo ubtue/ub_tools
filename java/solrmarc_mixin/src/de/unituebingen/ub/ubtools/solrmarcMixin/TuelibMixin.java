@@ -402,7 +402,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     // Map used by getPhysicalType().
     private static final Map<String, String> code_to_material_type_map;
 
-    // Entries are from http://www.dnb.de/SharedDocs/Downloads/DE/DNB/wir/agVerbundKataloganreicherungsobjekte2010.pdf
+    // Entries are from http://swbtools.bsz-bw.de/cgi-bin/k10plushelp.pl?cmd=kat&val=4960&kattype=Standard#$3
     static {
         Map<String, String> tempMap = new TreeMap<>();
         tempMap.put("01", "Inhaltstext");
@@ -432,10 +432,10 @@ public class TuelibMixin extends SolrIndexerMixin {
         tempMap.put("32", "Beschreibung für Bibliotheken");
         tempMap.put("33", "Einführung/Vorwort");
         tempMap.put("34", "Volltext");
-        tempMap.put("90", "Objektabbbildung");           // GBV extension
-        tempMap.put("91", "Objektabbbildung Thumbnail"); // GBV extension
-        tempMap.put("92", "Schlüsselseiten");            // GBV extension
-        tempMap.put("93", "Cover");                      // GBV extension
+        tempMap.put("90", "Objektabbildung");           // GBV extension
+        tempMap.put("91", "Objektabbildung Thumbnail"); // GBV extension
+        tempMap.put("92", "Schlüsselseiten");           // GBV extension
+        tempMap.put("93", "Cover");                     // GBV extension
         code_to_material_type_map = Collections.unmodifiableMap(tempMap);
     }
 
