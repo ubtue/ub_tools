@@ -541,7 +541,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     std::string superior_ppn, issn;
     SelectIssnAndPpn(node_parameters.issn_zotero_, node_parameters.issn_online_, node_parameters.issn_print_,
                      node_parameters.superior_ppn_online_, node_parameters.superior_ppn_print_, &issn, &superior_ppn);
-    if (issn == node_parameters.issn_print_)
+    if (issn == node_parameters.issn_print_ and node_parameters.issn_online_.empty())
         record->insertField("007", "tu");
     else
         record->insertField("007", "cr|||||");
