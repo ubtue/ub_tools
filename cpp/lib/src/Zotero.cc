@@ -541,7 +541,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     std::string superior_ppn, issn;
     SelectIssnAndPpn(node_parameters.issn_zotero_, node_parameters.issn_online_, node_parameters.issn_print_,
                      node_parameters.superior_ppn_online_, node_parameters.superior_ppn_print_, &issn, &superior_ppn);
-    if (issn == node_parameters.issn_print_)
+    if (issn == node_parameters.issn_print_ and node_parameters.issn_online_.empty())
         record->insertField("007", "tu");
     else
         record->insertField("007", "cr|||||");
@@ -653,7 +653,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     if (not superior_ppn.empty())
         _773_subfields.appendSubfield('w', "(DE-627)" + superior_ppn);
 
-    // 773g, example: "52 (2018), 1, S. 1-40" => <volume>(<year>), <issue>, S. <pages>
+    // 773g, example: "52 (2018), 1, Seiten 1-40" => <volume>(<year>), <issue>, S. <pages>
     const bool _773_subfields_iaxw_present(not _773_subfields.empty());
     bool _773_subfield_g_present(false);
     std::string g_content;
@@ -663,7 +663,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             g_content += ", " + issue;
 
         if (not pages.empty())
-            g_content += ", S. " + pages;
+            g_content += ", Seiten " + pages;
 
         _773_subfields.appendSubfield('g', g_content);
         _773_subfield_g_present = true;
@@ -1107,7 +1107,7 @@ bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry, const
     if (std::find(valid_item_types_for_online_first.begin(),
                   valid_item_types_for_online_first.end(), item_type) != valid_item_types_for_online_first.end())
     {
-        if (issue.empty() and volume.empty()) {
+        if (issue.empty() and volume.empty() and not harvest_params->force_downloads_) {
             if (harvest_params->skip_online_first_articles_unconditionally_) {
                 LOG_DEBUG("Skipping: online-first article unconditionally");
                 return false;
