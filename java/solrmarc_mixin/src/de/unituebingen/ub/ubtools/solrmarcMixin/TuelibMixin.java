@@ -2025,6 +2025,17 @@ public class TuelibMixin extends SolrIndexerMixin {
         return false;
     }
 
+    boolean isVideo(final Record record) {
+        final List<VariableField> _337Fields = record.getVariableFields("337");
+        if (foundInSubfield(_337Fields, 'a', "video"))
+            return true;
+
+        final List<VariableField> _935Fields = record.getVariableFields("935");
+        if (foundInSubfield(_935Fields, 'c', "vide"))
+            return true;
+        return false;
+    }
+
     private final static String electronicRessource = "Electronic";
     private final static String nonElectronicRessource = "Non-Electronic";
 
@@ -2227,36 +2238,35 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
         // check the Leader at position 6
-        char leaderBit = leader.charAt(6);
-        switch (Character.toUpperCase(leaderBit)) {
-        case 'C':
-        case 'D':
+        switch (leader.charAt(6)) {
+        case 'c':
+        case 'd':
             formats.add("MusicalScore");
             break;
-        case 'E':
-        case 'F':
+        case 'e':
+        case 'f':
             formats.add("Map");
             break;
-        case 'G':
-            formats.add("Slide");
+        case 'g':
+            formats.add(isVideo(record) ? "Video" : "Slide");
             break;
-        case 'I':
+        case 'i':
             formats.add("SoundRecording");
             break;
-        case 'J':
+        case 'j':
             formats.add("MusicRecording");
             break;
-        case 'K':
+        case 'k':
             formats.add("Photo");
             break;
-        case 'O':
-        case 'P':
+        case 'o':
+        case 'p':
             formats.add("Kit");
             break;
-        case 'R':
+        case 'r':
             formats.add("PhysicalObject");
             break;
-        case 'T':
+        case 't':
             formats.add("Manuscript");
             break;
         }
