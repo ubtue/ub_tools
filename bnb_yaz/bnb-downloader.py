@@ -10,24 +10,9 @@ import traceback
 import util
 
 
-LAST_MAX_NUMBER_FILE = "/usr/local/var/lib/tuelib/cronjobs/bnb-downloader.last_max_number"
-
-
-def LoadStartNumber():
-    if not os.path.isfile(LAST_MAX_NUMBER_FILE) or not os.access(LAST_MAX_NUMBER_FILE, os.R_OK):
-        return 1
-    with open(LAST_MAX_NUMBER_FILE, "r") as f:
-        return int(f.read())
-
-
-def StoreStartNumber(last_number):
-    with open(LAST_MAX_NUMBER_FILE, "w") as f:
-        f.write(str(last_number))
-
-
 # See https://www.bl.uk/bibliographic/bnbstruct.html for a chance to understand the following code.
-def GenerateBNBNumberPrefix():
-    return "GB" + [ 'A', 'B', 'C', 'D'][((datetime.date.today().year - 2000) // 10) - 1] + str(datetime.date.today().year % 10)
+def GenerateBNBNumberPrefix(year):
+    return "GB" + [ 'A', 'B', 'C', 'D'][((year - 2000) // 10) - 1] + str(year % 10)
 
 
 MAX_ANNUAL_NUMBER = 359999 # See https://www.bl.uk/bibliographic/bnbstruct.html to understand this.
@@ -41,6 +26,36 @@ def GenerateBNBNumberSuffix(n):
         util.Error("can't convert numbers larger than 359,999!")
     else:
         return chr(n // 10000 - 10 + ord('A')) + str(n % 10000).zfill(4)
+
+
+LAST_MAX_NUMBER_FILE = "/usr/local/var/lib/tuelib/cronjobs/bnb-downloader.last_max_number"
+
+
+def LoadStartBNBNumber():
+    if not os.path.isfile(LAST_MAX_NUMBER_FILE) or not os.access(LAST_MAX_NUMBER_FILE, os.R_OK):
+        current_year = datetime.date.today().year
+        return GenerateBNBNumberPrefix(current_year) + GenerateBNBNumberSuffix(1)
+    with open(LAST_MAX_NUMBER_FILE, "r") as f:
+        return f.read()
+
+
+def StoreStartBNBNumber(last_bnb_number):
+    with open(LAST_MAX_NUMBER_FILE, "w") as f:
+        f.write(last_bnb_number)
+
+
+ASCII_CODE_FOR_CAPITAL_A = 65
+
+
+# See https://www.bl.uk/bibliographic/bnbstruct.html for a chance to understand the following code.
+def ExtractBNBNumberSuffixAsInt(bnb_number):
+    if type(bnb_number) is not str or len(bnb_number) != 9:
+         util.Error("not a BNB number: '" + str(bnb_number) + "'!")
+    as_int = int(bnb_number[5:])
+    leading_char = bnb_number[4:5]
+    if leading_char >= '0' and leading_char <= '9':
+        return as_int + 10000 * int(leading_char)
+    return as_int + (ord(leading_char) + 10 - ASCII_CODE_FOR_CAPITAL_A) * 10000
 
 
 def ConnectToYAZServer():
@@ -67,8 +82,8 @@ def BNBNumberIsPresent(yaz_client, bnb_number):
 
 # @brief Scans the range [lower, MAX_ANNUAL_NUMBER].
 # @return The largest BNB number for the current year.
-def FindMaxBNBNumber(yaz_client, lower):
-    prefix = GenerateBNBNumberPrefix()
+def FindMaxBNBNumber(yaz_client, year, lower):
+    prefix = GenerateBNBNumberPrefix(year)
     upper = MAX_ANNUAL_NUMBER
     while lower < upper:
         middle = (lower + upper) // 2
@@ -84,9 +99,26 @@ def FindMaxBNBNumber(yaz_client, lower):
     util.Error("FindMaxBNBNumber: failed to find the maximum BNB number for the current year!")
 
 
+def DownloadRecords(yaz_client, year, start_number, max_number):
+    pass
+
+
 def Main():
+    start_number = LoadStartBNBNumber()
     yaz_client = ConnectToYAZServer()
-    print FindMaxBNBNumber(yaz_client)
+    current_year = datetime.date.today().year
+    if start_number[0:4] == GenerateBNBNumberPrefix(current_year):
+        pass
+    elif start_number[0:4] == GenerateBNBNumberPrefix(current_year - 1):
+        max_bnb_number_for_previous_year = FindMaxBNBNumber(yaz_client, current_year - 1, ExtractBNBNumberSuffixAsInt(start_number))
+        DownloadRecords(yaz_client, year - 1, start_number, max_bnb_number_for_previous_year)
+        start_number = GenerateBNBNumberPrefix(current_year) + GenerateBNBNumberSuffix(1)
+    else:
+        util.Error("unexpected: start number '" + start_number + "' has a prefix matching neither this year nor last year!")
+
+    max_bnb_number_for_current_year = FindMaxBNBNumber(yaz_client, current_year)
+    DownloadRecords(yaz_client, year, start_number, max_bnb_number_for_current_year)
+    StoreBNBNumber(max_bnb_number_for_current_year)
 
 
 try:
