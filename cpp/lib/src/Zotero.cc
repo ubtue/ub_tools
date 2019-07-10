@@ -653,7 +653,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     if (not superior_ppn.empty())
         _773_subfields.appendSubfield('w', "(DE-627)" + superior_ppn);
 
-    // 773g, example: "52 (2018), 1, Seiten 1-40" => <volume>(<year>), <issue>, S. <pages>
+    // 773g, example: "52 (2018), 1, Seite 1-40" => <volume>(<year>), <issue>, S. <pages>
     const bool _773_subfields_iaxw_present(not _773_subfields.empty());
     bool _773_subfield_g_present(false);
     std::string g_content;
@@ -663,7 +663,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             g_content += ", " + issue;
 
         if (not pages.empty())
-            g_content += ", Seiten " + pages;
+            g_content += ", Seite " + pages;
 
         _773_subfields.appendSubfield('g', g_content);
         _773_subfield_g_present = true;
