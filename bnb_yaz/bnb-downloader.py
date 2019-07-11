@@ -87,6 +87,7 @@ def FindMaxBNBNumber(yaz_client, year, lower):
     upper = MAX_ANNUAL_NUMBER
     while lower < upper:
         middle = (lower + upper) // 2
+        #print 'lower=', lower, ', upper=', upper, ', middle=', middle
         if middle == lower:
             break
         if BNBNumberIsPresent(yaz_client, prefix + GenerateBNBNumberSuffix(middle)):
@@ -99,8 +100,28 @@ def FindMaxBNBNumber(yaz_client, year, lower):
     util.Error("FindMaxBNBNumber: failed to find the maximum BNB number for the current year!")
 
 
+# @return The number of downloaded records.    
+def DownloadRecordsRange(yaz_client, prefix, start_number, end_number):
+    print "in DownloadRecordsRange: prefix=", prefix, ", start_number=", start_number, ", end_number=", end_number
+    return 0
+
+
 def DownloadRecords(yaz_client, year, start_number, max_number):
-    pass
+    if datetime.date.today().year == year:
+        week_of_the_year = datetime.date.today().isocalendar()[1]
+        upper_bound = int(week_of_the_year * MAX_ANNUAL_NUMBER / 52.0)
+    else:
+        upper_bound = MAX_ANNUAL_NUMBER
+    upper_bound = min(upper_bound, ExtractBNBNumberSuffixAsInt(max_number))
+    output_filename = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + ".mrc"
+    yaz_client.sendline("format marc21")
+    yaz_client.expect("\r\n")
+    yaz_client.sendline("set_marcdump " + output_filename)
+    yaz_client.expect("\r\n")
+    prefix = start_number[0:4]
+    count = 0
+    for i in range(ExtractBNBNumberSuffixAsInt(start_number), upper_bound + 1, 1000):
+        count += DownloadRecordsRange(yaz_client, prefix, i, min(i + 1000 - 1, ExtractBNBNumberSuffixAsInt(max_number))) 
 
 
 def Main():
@@ -116,8 +137,8 @@ def Main():
     else:
         util.Error("unexpected: start number '" + start_number + "' has a prefix matching neither this year nor last year!")
 
-    max_bnb_number_for_current_year = FindMaxBNBNumber(yaz_client, current_year)
-    DownloadRecords(yaz_client, year, start_number, max_bnb_number_for_current_year)
+    max_bnb_number_for_current_year = FindMaxBNBNumber(yaz_client, current_year, ExtractBNBNumberSuffixAsInt(start_number))
+    DownloadRecords(yaz_client, current_year, start_number, max_bnb_number_for_current_year)
     StoreBNBNumber(max_bnb_number_for_current_year)
 
 
