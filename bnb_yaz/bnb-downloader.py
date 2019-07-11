@@ -87,16 +87,18 @@ def FindMaxBNBNumber(yaz_client, year, lower):
     upper = MAX_ANNUAL_NUMBER
     while lower < upper:
         middle = (lower + upper) // 2
-        #print 'lower=', lower, ', upper=', upper, ', middle=', middle
         if middle == lower:
             break
         if BNBNumberIsPresent(yaz_client, prefix + GenerateBNBNumberSuffix(middle)):
             lower = middle
         else:
-            upper = middle - 1
-    max_bnb_number = prefix + GenerateBNBNumberSuffix(lower)
-    if BNBNumberIsPresent(yaz_client, max_bnb_number):
-        return max_bnb_number
+            upper = middle
+    upper_bnb_number = prefix + GenerateBNBNumberSuffix(upper)
+    lower_bnb_number = prefix + GenerateBNBNumberSuffix(lower)
+    if BNBNumberIsPresent(yaz_client, upper_bnb_number):
+        return upper_bnb_number
+    elif BNBNumberIsPresent(yaz_client, lower_bnb_number):
+        return lower_bnb_number
     util.Error("FindMaxBNBNumber: failed to find the maximum BNB number for the current year!")
 
 
