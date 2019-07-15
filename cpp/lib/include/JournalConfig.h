@@ -223,7 +223,7 @@ using ZederBundle = EntryBundle<Zeder>;
 
 struct Zotero {
     enum Entries : EntryId { TYPE, GROUP, URL, STRPTIME_FORMAT, EXTRACTION_REGEX, REVIEW_REGEX, MAX_CRAWL_DEPTH, DELIVERY_MODE,
-                             EXPECTED_LANGUAGES };
+                             EXPECTED_LANGUAGES, BANNED_URL_REGEX };
 
     static const std::unordered_map<std::string, Zotero::Entries> key_id_resolver_map;
     static const std::string prefix;

@@ -402,7 +402,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     // Map used by getPhysicalType().
     private static final Map<String, String> code_to_material_type_map;
 
-    // Entries are from http://www.dnb.de/SharedDocs/Downloads/DE/DNB/wir/agVerbundKataloganreicherungsobjekte2010.pdf
+    // Entries are from http://swbtools.bsz-bw.de/cgi-bin/k10plushelp.pl?cmd=kat&val=4960&kattype=Standard#$3
     static {
         Map<String, String> tempMap = new TreeMap<>();
         tempMap.put("01", "Inhaltstext");
@@ -432,6 +432,10 @@ public class TuelibMixin extends SolrIndexerMixin {
         tempMap.put("32", "Beschreibung für Bibliotheken");
         tempMap.put("33", "Einführung/Vorwort");
         tempMap.put("34", "Volltext");
+        tempMap.put("90", "Objektabbildung");           // GBV extension
+        tempMap.put("91", "Objektabbildung Thumbnail"); // GBV extension
+        tempMap.put("92", "Schlüsselseiten");           // GBV extension
+        tempMap.put("93", "Cover");                     // GBV extension
         code_to_material_type_map = Collections.unmodifiableMap(tempMap);
     }
 
@@ -2021,6 +2025,17 @@ public class TuelibMixin extends SolrIndexerMixin {
         return false;
     }
 
+    boolean isVideo(final Record record) {
+        final List<VariableField> _337Fields = record.getVariableFields("337");
+        if (foundInSubfield(_337Fields, 'a', "video"))
+            return true;
+
+        final List<VariableField> _935Fields = record.getVariableFields("935");
+        if (foundInSubfield(_935Fields, 'c', "vide"))
+            return true;
+        return false;
+    }
+
     private final static String electronicRessource = "Electronic";
     private final static String nonElectronicRessource = "Non-Electronic";
 
@@ -2223,36 +2238,35 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
         // check the Leader at position 6
-        char leaderBit = leader.charAt(6);
-        switch (Character.toUpperCase(leaderBit)) {
-        case 'C':
-        case 'D':
+        switch (leader.charAt(6)) {
+        case 'c':
+        case 'd':
             formats.add("MusicalScore");
             break;
-        case 'E':
-        case 'F':
+        case 'e':
+        case 'f':
             formats.add("Map");
             break;
-        case 'G':
-            formats.add("Slide");
+        case 'g':
+            formats.add(isVideo(record) ? "Video" : "Slide");
             break;
-        case 'I':
+        case 'i':
             formats.add("SoundRecording");
             break;
-        case 'J':
+        case 'j':
             formats.add("MusicRecording");
             break;
-        case 'K':
+        case 'k':
             formats.add("Photo");
             break;
-        case 'O':
-        case 'P':
+        case 'o':
+        case 'p':
             formats.add("Kit");
             break;
-        case 'R':
+        case 'r':
             formats.add("PhysicalObject");
             break;
-        case 'T':
+        case 't':
             formats.add("Manuscript");
             break;
         }
