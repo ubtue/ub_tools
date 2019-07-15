@@ -541,13 +541,14 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     std::string superior_ppn, issn;
     SelectIssnAndPpn(node_parameters.issn_zotero_, node_parameters.issn_online_, node_parameters.issn_print_,
                      node_parameters.superior_ppn_online_, node_parameters.superior_ppn_print_, &issn, &superior_ppn);
-    if (issn == node_parameters.issn_print_)
+    if (issn == node_parameters.issn_print_ and node_parameters.issn_online_.empty())
         record->insertField("007", "tu");
     else
         record->insertField("007", "cr|||||");
 
     // Authors/Creators (use reverse iterator to keep order, because "insertField" inserts at first possible position)
-    const std::string creator_tag((node_parameters.creators_.size() == 1) ? "100" : "700");
+    // The first creator is always saved in the "100" field, all following creators go into the 700 field
+    unsigned num_creators_left(node_parameters.creators_.size());
     for (auto creator(node_parameters.creators_.rbegin()); creator != node_parameters.creators_.rend(); ++creator) {
         MARC::Subfields subfields;
         if (not creator->ppn_.empty())
@@ -561,7 +562,12 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         if (not creator->title_.empty())
             subfields.appendSubfield('c', creator->title_);
 
-        record->insertField(creator_tag, subfields, /* indicator 1 = */'1');
+        if (num_creators_left == 1)
+            record->insertField("100", subfields, /* indicator 1 = */'1');
+        else
+            record->insertField("700", subfields, /* indicator 1 = */'1');
+
+        --num_creators_left;
     }
 
     // Titles
@@ -578,9 +584,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         record->insertField("041", { { 'a', node_parameters.language_ } });
 
     // Abstract Note
-    const std::string abstract_note(node_parameters.abstract_note_);
-    if (not abstract_note.empty())
-        record->insertField("520", { { 'a', abstract_note } }, /* indicator 1 = */'3');
+    if (not node_parameters.abstract_note_.empty())
+        record->insertField("520", { { 'a', node_parameters.abstract_note_ } });
 
     // Date & Year
     std::string year(node_parameters.year_);
@@ -610,6 +615,13 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     if (item_type == "review")
         record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" } }, /* indicator1 = */' ', /* indicator2 = */'7');
 
+    // License data
+    const std::string license(node_parameters.license_);
+    if (license == "l")
+        record->insertField("856", { { 'z', "Kostenfrei" } }, /* indicator1 = */'4', /* indicator2 = */'0');
+    else if (license == "kw")
+        record->insertField("856", { { 'z', "Teilw. kostenfrei" } }, /* indicator1 = */'4', /* indicator2 = */'0');
+
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     MARC::Subfields _936_subfields;
     const std::string volume(node_parameters.volume_);
@@ -626,9 +638,6 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         _936_subfields.appendSubfield('h', pages);
 
     _936_subfields.appendSubfield('j', year);
-    const std::string license(node_parameters.license_);
-    if (license == "l")
-        _936_subfields.appendSubfield('z', "Kostenfrei");
     if (not _936_subfields.empty())
         record->insertField("936", _936_subfields, 'u', 'w');
 
@@ -644,17 +653,17 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     if (not superior_ppn.empty())
         _773_subfields.appendSubfield('w', "(DE-627)" + superior_ppn);
 
-    // 773g, example: "52(2018), 1, S. 1-40" => <volume>(<year>), <issue>, S. <pages>
+    // 773g, example: "52 (2018), 1, Seite 1-40" => <volume>(<year>), <issue>, S. <pages>
     const bool _773_subfields_iaxw_present(not _773_subfields.empty());
     bool _773_subfield_g_present(false);
     std::string g_content;
     if (not volume.empty()) {
-        g_content += volume + "(" + year + ")";
+        g_content += volume + " (" + year + ")";
         if (not issue.empty())
             g_content += ", " + issue;
 
         if (not pages.empty())
-            g_content += ", S. " + pages;
+            g_content += ", Seite " + pages;
 
         _773_subfields.appendSubfield('g', g_content);
         _773_subfield_g_present = true;
@@ -970,10 +979,8 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
         // license code
         const auto ISSN_and_license_code(site_params.global_params_->maps_->ISSN_to_licence_map_.find(issn_selected));
         if (ISSN_and_license_code != site_params.global_params_->maps_->ISSN_to_licence_map_.end()) {
-            if (ISSN_and_license_code->second != "l")
-                LOG_ERROR("ISSN_to_licence.map contains an ISSN that has not been mapped to an \"l\" but \""
-                          + ISSN_and_license_code->second
-                          + "\" instead and we don't know what to do with it!");
+            if (ISSN_and_license_code->second != "l" and ISSN_and_license_code->second != "kw")
+                LOG_ERROR("ISSN_to_licence.map contains an ISSN that has an unknown code \"" + ISSN_and_license_code->second + "\"");
             else
                 custom_fields.emplace(std::pair<std::string, std::string>("licenseCode", ISSN_and_license_code->second));
         }
@@ -1100,7 +1107,7 @@ bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry, const
     if (std::find(valid_item_types_for_online_first.begin(),
                   valid_item_types_for_online_first.end(), item_type) != valid_item_types_for_online_first.end())
     {
-        if (issue.empty() and volume.empty()) {
+        if (issue.empty() and volume.empty() and not harvest_params->force_downloads_) {
             if (harvest_params->skip_online_first_articles_unconditionally_) {
                 LOG_DEBUG("Skipping: online-first article unconditionally");
                 return false;
@@ -1212,6 +1219,9 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     unsigned response_code;
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = harvest_params->user_agent_;
+    if (site_params.banned_url_regex_ != nullptr)
+        downloader_params.banned_reg_exps_.addPattern(site_params.banned_url_regex_->getPattern());
+
     bool download_succeeded(TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT,
                                                    downloader_params, Url(harvest_url), &response_body, &response_code,
                                                    &error_message));

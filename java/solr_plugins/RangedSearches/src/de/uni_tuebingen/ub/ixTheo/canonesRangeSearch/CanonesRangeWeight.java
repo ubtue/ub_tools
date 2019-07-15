@@ -1,4 +1,4 @@
-package de.uni_tuebingen.ub.ixTheo.bibleRangeSearch;
+package de.uni_tuebingen.ub.ixTheo.canonesRangeSearch;
 
 
 import com.carrotsearch.hppc.IntFloatHashMap;
@@ -17,30 +17,30 @@ import de.uni_tuebingen.ub.ixTheo.rangeSearch.Range;
 import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeScorer;
 
 
-public class BibleRangeWeight extends ConstantScoreWeight {
+public class CanonesRangeWeight extends ConstantScoreWeight {
     private final static float NOT_RELEVANT = Float.NEGATIVE_INFINITY;
-    private final static Logger logger = LoggerFactory.getLogger(BibleRangeWeight.class);
-    private final static String FIELD = "bible_ranges";
+    private final static Logger logger = LoggerFactory.getLogger(CanonesRangeWeight.class);
+    private final static String FIELD = "canones_ranges";
     private final IntFloatMap scoring = new IntFloatHashMap();
-    private final boolean isSearchingForBooks;
-    private final BibleRange[] ranges;
+    private final boolean isSearchingForCodices;
+    private final CanonesRange[] ranges;
     private final Weight weight;
 
-    public BibleRangeWeight(final BibleRangeQuery query, final BibleRange[] ranges, final Weight weight) {
+    public CanonesRangeWeight(final CanonesRangeQuery query, final CanonesRange[] ranges, final Weight weight) {
         super(query, 1.0F);
         this.ranges = ranges;
         this.weight = weight;
-        boolean isSearchingForBooks = false;
-        for (final BibleRange range : ranges) {
-            isSearchingForBooks |= range.isEntireBook();
+        boolean isSearchingForCodices = false;
+        for (final CanonesRange range : ranges) {
+            isSearchingForCodices |= range.isEntireCodex();
         }
-        this.isSearchingForBooks = isSearchingForBooks;
+        this.isSearchingForCodices = isSearchingForCodices;
     }
 
     private boolean matches(final Document document) {
         final String dbField = document.get(FIELD);
-        final BibleRange[] documentRanges = BibleRangeParser.getRangesFromDatabaseField(dbField);
-        final BibleRange[] fieldRanges = isSearchingForBooks ? documentRanges : BibleRange.removeBooks(documentRanges);
+        final CanonesRange[] documentRanges = CanonesRangeParser.getRangesFromDatabaseField(dbField);
+        final CanonesRange[] fieldRanges = isSearchingForCodices ? documentRanges : CanonesRange.removeCodices(documentRanges);
         return fieldRanges.length != 0 && Range.hasIntersections(ranges, fieldRanges);
     }
 
@@ -49,7 +49,7 @@ public class BibleRangeWeight extends ConstantScoreWeight {
         if (dbField == null || dbField.isEmpty()) {
             return NOT_RELEVANT;
         }
-        final Range[] field_ranges = BibleRangeParser.getRangesFromDatabaseField(dbField);
+        final Range[] field_ranges = CanonesRangeParser.getRangesFromDatabaseField(dbField);
         return Range.getMatchingScore(field_ranges, ranges);
     }
 
