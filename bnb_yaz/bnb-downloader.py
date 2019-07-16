@@ -151,26 +151,26 @@ def FilterBNBNumbers(ranges, marc_filename):
     
     
 def Main():
-    output_filename = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + ".mrc"
-    start_number = LoadStartBNBNumber()
+    OUTPUT_FILENAME = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + ".mrc"
+    START_NUMBER = LoadStartBNBNumber()
     yaz_client = ConnectToYAZServer()
-    current_year = datetime.date.today().year
+    CURRENT_YEAR = datetime.date.today().year
     ranges = []
-    if start_number[0:4] == GenerateBNBNumberPrefix(current_year):
+    if START_NUMBER[0:4] == GenerateBNBNumberPrefix(CURRENT_YEAR):
         # We handle the current year further down.
         pass
-    elif start_number[0:4] == GenerateBNBNumberPrefix(current_year - 1):
-        max_bnb_number_for_previous_year = FindMaxBNBNumber(yaz_client, current_year - 1, ExtractBNBNumberSuffixAsInt(start_number))
-        DownloadRecords(yaz_client, output_filename, year - 1, start_number, max_bnb_number_for_previous_year)
-        ranges.append((start_number, max_bnb_number_for_previous_year))
-        start_number = GenerateBNBNumberPrefix(current_year) + GenerateBNBNumberSuffix(1)
+    elif START_NUMBER[0:4] == GenerateBNBNumberPrefix(CURRENT_YEAR - 1):
+        max_bnb_number_for_previous_year = FindMaxBNBNumber(yaz_client, CURRENT_YEAR - 1, ExtractBNBNumberSuffixAsInt(START_NUMBER))
+        DownloadRecords(yaz_client, OUTPUT_FILENAME, year - 1, START_NUMBER, max_bnb_number_for_previous_year)
+        ranges.append((START_NUMBER, max_bnb_number_for_previous_year))
+        START_NUMBER = GenerateBNBNumberPrefix(CURRENT_YEAR) + GenerateBNBNumberSuffix(1)
     else:
-        util.Error("unexpected: start number '" + start_number + "' has a prefix matching neither this year nor last year!")
+        util.Error("unexpected: start number '" + START_NUMBER + "' has a prefix matching neither this year nor last year!")
 
-    max_bnb_number_for_current_year = FindMaxBNBNumber(yaz_client, current_year, ExtractBNBNumberSuffixAsInt(start_number))
-    DownloadRecords(yaz_client, output_filename, current_year, start_number, max_bnb_number_for_current_year)
-    ranges.append((start_number, max_bnb_number_for_current_year))
-    FilterBNBNumbers(output_filename, ranges)
+    max_bnb_number_for_current_year = FindMaxBNBNumber(yaz_client, CURRENT_YEAR, ExtractBNBNumberSuffixAsInt(START_NUMBER))
+    DownloadRecords(yaz_client, OUTPUT_FILENAME, CURRENT_YEAR, START_NUMBER, max_bnb_number_for_current_year)
+    ranges.append((START_NUMBER, max_bnb_number_for_current_year))
+    FilterBNBNumbers(OUTPUT_FILENAME, ranges)
     StoreBNBNumber(max_bnb_number_for_current_year)
 
 
