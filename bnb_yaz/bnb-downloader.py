@@ -129,22 +129,17 @@ def DownloadRecordsRange(yaz_client, prefix, start_number, end_number):
             util.Error('regular expression did not match "' + yaz_client.after + '"!')
     return download_count
 
-
+    
 def DownloadRecords(yaz_client, output_filename, year, start_number, max_number):
-    if datetime.date.today().year == year:
-        week_of_the_year = datetime.date.today().isocalendar()[1]
-        upper_bound = int(week_of_the_year * MAX_ANNUAL_NUMBER / 52.0)
-    else:
-        upper_bound = MAX_ANNUAL_NUMBER
-    upper_bound = min(upper_bound, ExtractBNBNumberSuffixAsInt(max_number))
     yaz_client.sendline("format marc21")
     yaz_client.expect("\r\n")
     yaz_client.sendline("set_marcdump " + output_filename)
     yaz_client.expect("\r\n")
     prefix = start_number[0:4]
     count = 0
+    upper_bound = ExtractBNBNumberSuffixAsInt(max_number)
     for i in range(ExtractBNBNumberSuffixAsInt(start_number), upper_bound + 1, 1000):
-        count += DownloadRecordsRange(yaz_client, prefix, i, min(i + 1000 - 1, ExtractBNBNumberSuffixAsInt(max_number))) 
+        count += DownloadRecordsRange(yaz_client, prefix, i, min(i + 1000 - 1, upper_bound)) 
 
 
 def FilterBNBNumbers(ranges, marc_filename):
