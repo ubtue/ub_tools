@@ -105,7 +105,7 @@ def FindMaxBNBNumber(yaz_client, year, lower):
 
 
 # @return a list that contains the wildcards including the requested range and specifying 1000 ID's each.
-def EnumerateBBNRange(start_bbn_number, end_bbn_number):
+def EnumerateBNBRange(start_bbn_number, end_bbn_number):
     start_number = (ExtractBNBNumberSuffixAsInt(start_bbn_number) // 1000) * 1000
     end_number   = (ExtractBNBNumberSuffixAsInt(end_bbn_number) // 1000) * 1000
     wildcards = []
@@ -118,7 +118,7 @@ def EnumerateBBNRange(start_bbn_number, end_bbn_number):
 # @return The number of downloaded records.    
 def DownloadRecordsRange(yaz_client, prefix, start_number, end_number):
     download_count = 0
-    for range in EnumerateBBNRange(prefix + start_number, prefix + end_number):
+    for range in EnumerateBNBRange(prefix + start_number, prefix + end_number):
         yaz_client.sendline("@and @attr 1=48 " + range
                             + "   @attr 1=13 @or @or @or @or @or @or @or @or @or 20* 21* 22* 23* 24* 25* 26* 27* 28* 29*")
         yaz_client.expect("\r\n", timeout=60)
