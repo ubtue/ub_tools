@@ -20,7 +20,7 @@ import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeScorer;
 public class CanonesRangeWeight extends ConstantScoreWeight {
     private final static float NOT_RELEVANT = Float.NEGATIVE_INFINITY;
     private final static Logger logger = LoggerFactory.getLogger(CanonesRangeWeight.class);
-    private final static String FIELD = "canones_ranges";
+    private final static String FIELD = "canon_law_ranges";
     private final IntFloatMap scoring = new IntFloatHashMap();
     private final boolean isSearchingForCodices;
     private final CanonesRange[] ranges;
