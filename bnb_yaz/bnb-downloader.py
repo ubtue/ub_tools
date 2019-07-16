@@ -143,10 +143,11 @@ def DownloadRecords(yaz_client, output_filename, year, start_number, max_number)
 
 
 def FilterBNBNumbers(ranges, marc_filename):
+    TEMP_FILENAME = "temp." + marc_filename
     if process_util.Exec("/usr/local/bin/marc_range_filter",
-                         ["|".join([range[0] + '-' + range[1] for range in ranges]), "015a", marc_filename, "temp." + marc_filename]) != 0:
+                         ["|".join([range[0] + '-' + range[1] for range in ranges]), "015a", marc_filename, TEMP_FILENAME]) != 0:
         util.Error("marc_range_filter failed!")
-    os.rename("temp." + marc_filename, marc_filename)
+    os.rename(TEMP_FILENAME, marc_filename)
     
     
 def Main():
