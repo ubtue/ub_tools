@@ -27,6 +27,7 @@
 #include <strings.h>
 #include "BibleUtil.h"
 #include "Compiler.h"
+#include "FileUtil.h"
 #include "MARC.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
@@ -38,24 +39,26 @@
 namespace {
 
 
-// To understand this code read https://github.com/ubtue/tuefind/wiki/Codices
-std::string FieldToCanonLawCode(const std::string &ppn, const std::string &subfield_codex, const std::string &subfield_year,
-                                const std::string &subfield_part)
-{
-    enum Codex { CIC1917, CIC1983, CCEO } codex;
-    if (::strcasecmp(subfield_codex.c_str(), "Codex canonum ecclesiarum orientalium") == 0)
-        codex = CCEO;
-    else {
-        if (unlikely(subfield_year.empty()))
-            LOG_ERROR("missing year for Codex Iuris Canonici! (PPN: " + ppn + ")");
-        if (subfield_year == "1917")
-            codex = CIC1917;
-        else if (subfield_year == "1983")
-            codex = CIC1983;
-        else
-            LOG_ERROR("bad year for Codex Iuris Canonici \"" + subfield_year + "\"! (PPN: " + ppn + ")");
-    }
+enum Codex { CIC1917, CIC1983, CCEO };
 
+
+Codex DetermineCodex(const std::string &subfield_codex, const std::string &subfield_year, const std::string &ppn) {
+    if (::strcasecmp(subfield_codex.c_str(), "Codex canonum ecclesiarum orientalium") == 0)
+        return CCEO;
+
+    if (unlikely(subfield_year.empty()))
+        LOG_ERROR("missing year for Codex Iuris Canonici! (PPN: " + ppn + ")");
+    if (subfield_year == "1917")
+        return CIC1917;
+    else if (subfield_year == "1983")
+        return CIC1983;
+
+    LOG_ERROR("bad year for Codex Iuris Canonici \"" + subfield_year + "\"! (PPN: " + ppn + ")");
+}
+
+
+// To understand this code read https://github.com/ubtue/tuefind/wiki/Codices
+std::string FieldToCanonLawCode(const std::string &ppn, const Codex codex, const std::string &subfield_part) {
     unsigned range_start, range_end;
     if (subfield_part.empty()) {
         range_start = 0;
@@ -76,9 +79,25 @@ std::string FieldToCanonLawCode(const std::string &ppn, const std::string &subfi
 }
 
 
+std::string CodexToPrefix(const Codex codex) {
+    switch (codex) {
+    case CIC1917:
+        return "CIC17";
+    case CIC1983:
+        return "CIC83";
+    case CCEO:
+        return "CCEO";
+    default:
+        LOG_ERROR("unknown codex: " + std::to_string(codex));
+    }
+}
+
+
 void LoadAuthorityData(MARC::Reader * const reader,
                        std::unordered_map<std::string, std::string> * const authority_ppns_to_canon_law_codes_map)
 {
+    const auto aliases_file(FileUtil::OpenOutputFileOrDie(UBTools::GetTuelibPath() + "canon_law_aliases.map"));
+
     unsigned total_count(0);
     while (auto record = reader->read()) {
         ++total_count;
@@ -92,10 +111,15 @@ void LoadAuthorityData(MARC::Reader * const reader,
             and ::strcasecmp(t_subfield.c_str(), "Codex canonum ecclesiarum orientalium") != 0)
             continue;
 
-        (*authority_ppns_to_canon_law_codes_map)[record.getControlNumber()] = FieldToCanonLawCode(record.getControlNumber(),
-                                                                                                  t_subfield,
-                                                                                                  _110_field->getFirstSubfieldWithCode('f'),
-                                                                                                  _110_field->getFirstSubfieldWithCode('p'));
+        const Codex codex(DetermineCodex(t_subfield, _110_field->getFirstSubfieldWithCode('f'), record.getControlNumber()));
+        const auto canon_law_code(FieldToCanonLawCode(record.getControlNumber(), codex, _110_field->getFirstSubfieldWithCode('p')));
+        (*authority_ppns_to_canon_law_codes_map)[record.getControlNumber()] = canon_law_code;
+
+        for (const auto &_140_field : record.getTagRange("410")) {
+            const auto p_subfield(_140_field.getFirstSubfieldWithCode('p'));
+            if (not p_subfield.empty())
+                (*aliases_file) << CodexToPrefix(codex) << ' ' << p_subfield << '=' << canon_law_code << '\n';
+        }
     }
 
     LOG_INFO("found " + std::to_string(authority_ppns_to_canon_law_codes_map->size()) + " canon law records among "
@@ -161,8 +185,8 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                 }
 
                 if (not subfield_codex.empty() and not subfield_year.empty() and not subfield_part.empty()) {
-                    ranges_to_insert.emplace_back(FieldToCanonLawCode(record.getControlNumber(), subfield_codex, subfield_year,
-                                                                      subfield_part));
+                    const Codex codex(DetermineCodex(subfield_codex, subfield_year, record.getControlNumber()));
+                    ranges_to_insert.emplace_back(FieldToCanonLawCode(record.getControlNumber(), codex, subfield_part));
                     augmented_record = true;
                     ++reference_counts["689*"];
                 }
