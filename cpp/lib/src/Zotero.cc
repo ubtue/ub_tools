@@ -567,6 +567,9 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         else
             record->insertField("700", subfields, /* indicator 1 = */'1');
 
+        const std::string _887_data("Autor in der Zoterovorlage [" + creator->last_name_ + ", " + creator->first_name_ + "] maschinell zugeordnet");
+        record->insertField("887", { { 'a', _887_data }, { '2', "ixzom" } });
+
         --num_creators_left;
     }
 
