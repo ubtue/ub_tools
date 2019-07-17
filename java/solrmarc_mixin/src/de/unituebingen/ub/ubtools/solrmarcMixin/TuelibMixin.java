@@ -579,6 +579,12 @@ public class TuelibMixin extends SolrIndexerMixin {
                 continue;
 
             String title = titleSubfield == null ? "" : titleSubfield.getData();
+            if (title.isEmpty()) {
+                final Subfield subfieldA = getFirstNonEmptySubfield(field, 'i');
+                if (subfieldA != null)
+                    title = subfieldA.getData();
+            }
+
             final Subfield locationAndPublisher = getFirstNonEmptySubfield(field, 'd');
             if (titleSubfield != null && locationAndPublisher != null)
                 title = title + " (" + locationAndPublisher.getData() + ")";
