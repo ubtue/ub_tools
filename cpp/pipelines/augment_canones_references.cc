@@ -118,7 +118,7 @@ void LoadAuthorityData(MARC::Reader * const reader,
         for (const auto &_140_field : record.getTagRange("410")) {
             const auto p_subfield(_140_field.getFirstSubfieldWithCode('p'));
             if (not p_subfield.empty())
-                (*aliases_file) << CodexToPrefix(codex) << ' ' << p_subfield << '=' << canon_law_code << '\n';
+                (*aliases_file) << CodexToPrefix(codex) << ' ' << TextUtil::UTF8ToLower(p_subfield) << '=' << canon_law_code << '\n';
         }
     }
 
