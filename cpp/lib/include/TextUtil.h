@@ -155,6 +155,10 @@ bool UTF8ToUpper(const std::string &utf8_string, std::string * const uppercase_u
  *  \note Throws an exception if an error occurred.
  */
 std::string UTF8ToUpper(std::string * const utf8_string);
+inline std::string UTF8ToUpper(const std::string &utf8_string) {
+    std::string temp_string(utf8_string);
+    return UTF8ToUpper(&temp_string);
+}
 
 
 /** Converts UTF-32 a.k.a. UCS-4 to UTF-8. */
