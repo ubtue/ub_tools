@@ -177,7 +177,7 @@ def Main():
     DownloadRecords(yaz_client, OUTPUT_FILENAME, CURRENT_YEAR, START_NUMBER, max_bnb_number_for_current_year)
     ranges.append((START_NUMBER, max_bnb_number_for_current_year))
     FilterBNBNumbers(ranges, OUTPUT_FILENAME)
-    StoreBNBNumber(max_bnb_number_for_current_year)
+    StoreStartBNBNumber(max_bnb_number_for_current_year)
 
 
 try:
