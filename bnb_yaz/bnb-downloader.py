@@ -154,6 +154,10 @@ def FilterBNBNumbers(ranges, marc_filename):
     
 def Main():
     OUTPUT_FILENAME = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + ".mrc"
+    try:
+        os.remove(OUTPUT_FILENAME)
+    except:
+        pass
     START_NUMBER = LoadStartBNBNumber()
     yaz_client = ConnectToYAZServer()
     CURRENT_YEAR = datetime.date.today().year
