@@ -86,7 +86,7 @@ next_record:
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 4)
+    if (argc != 5)
         ::Usage("ranges field_and_subfield_code marc_input marc_output\n"
                 "ranges is a list of ranges separated by vertical bars.  An example range would be A123-A297, an example\n"
                 "field_and_subfield_code might be \"015a\" indicating field 015 and subfield code a.");
