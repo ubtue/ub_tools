@@ -895,6 +895,47 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
 }
 
 
+void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                          const SiteParams &site_params)
+{
+    switch (node->getType()) {
+    case JSON::JSONNode::OBJECT_NODE:
+        for (auto &key_and_node : *JSON::JSONNode::CastToObjectNodeOrDie(node_name, node))
+            SuppressJsonMetadata(key_and_node.first, key_and_node.second, site_params);
+
+        break;
+    case JSON::JSONNode::ARRAY_NODE: {
+        const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie(node_name, node));
+        for (size_t i(0); i < array_node->size(); ++i) {
+            const std::shared_ptr<JSON::ObjectNode> element_node(array_node->getObjectNode(i));
+            if (element_node == nullptr)
+                LOG_ERROR("invalid JSON array element in array node '" + node_name + "'");
+
+            for (auto &key_and_node : *element_node)
+                SuppressJsonMetadata(key_and_node.first, key_and_node.second, site_params);
+        }
+
+        break;
+    }
+    case JSON::JSONNode::NULL_NODE:
+        /* intentionally empty */ break;
+    default:
+        const auto suppression_regex(site_params.metadata_suppression_filters_.find(node_name));
+        if (suppression_regex != site_params.metadata_suppression_filters_.end()) {
+            if (node->getType() != JSON::JSONNode::STRING_NODE)
+                LOG_ERROR("metadata suppression filter found for invalid node '" + node_name + "'");
+
+            const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
+            if (suppression_regex->second->matched(string_node->getValue())) {
+                LOG_DEBUG("suppression regex '" + suppression_regex->second->getPattern() +
+                          "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
+                string_node->setValue("");
+            }
+        }
+    }
+}
+
+
 void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::ObjectNode> &object_node, const SiteParams &site_params) {
     static std::unique_ptr<RegexMatcher> same_page_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+)-(\\d+)$"));
 
@@ -906,6 +947,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     Transformation::TestForUnknownZoteroKey(object_node);
 
     for (auto &key_and_node : *object_node) {
+        SuppressJsonMetadata(key_and_node.first, key_and_node.second, site_params);
         if (key_and_node.first == "language") {
             language_node = JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second);
             const std::string language_json(language_node->getValue());
