@@ -118,15 +118,17 @@ def EnumerateBNBRange(start_bbn_number, end_bbn_number):
 # @return The number of downloaded records.    
 def DownloadRecordsRange(yaz_client, prefix, start_number, end_number):
     download_count = 0
-    for range in EnumerateBNBRange(prefix + start_number, prefix + end_number):
-        yaz_client.sendline("@and @attr 1=48 " + range
-                            + "   @attr 1=13 @or @or @or @or @or @or @or @or @or 20* 21* 22* 23* 24* 25* 26* 27* 28* 29*")
-        yaz_client.expect("\r\n", timeout=60)
+    for range in EnumerateBNBRange(prefix + GenerateBNBNumberSuffix(start_number), prefix + GenerateBNBNumberSuffix(end_number)):
+        yaz_client.sendline("find @and @attr 1=48 " + range
+                            + " @attr 1=13 @or @or @or @or @or @or @or @or @or 20* 21* 22* 23* 24* 25* 26* 27* 28* 29*")
+        yaz_client.expect("Number of hits: (\\d+), setno", timeout=300)
         count_search = re.search("Number of hits: (\\d+), setno", yaz_client.after)
         if count_search:
             download_count += int(count_search.group(1))
         else:
             util.Error('regular expression did not match "' + yaz_client.after + '"!')
+        yaz_client.sendline("show all")
+        yaz_client.expect("\r\n")
     return download_count
 
     
@@ -170,7 +172,7 @@ def Main():
     max_bnb_number_for_current_year = FindMaxBNBNumber(yaz_client, CURRENT_YEAR, ExtractBNBNumberSuffixAsInt(START_NUMBER))
     DownloadRecords(yaz_client, OUTPUT_FILENAME, CURRENT_YEAR, START_NUMBER, max_bnb_number_for_current_year)
     ranges.append((START_NUMBER, max_bnb_number_for_current_year))
-    FilterBNBNumbers(OUTPUT_FILENAME, ranges)
+    FilterBNBNumbers(ranges, OUTPUT_FILENAME)
     StoreBNBNumber(max_bnb_number_for_current_year)
 
 
