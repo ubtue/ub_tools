@@ -598,12 +598,18 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
 
             final Subfield reviewerSubfield = getFirstNonEmptySubfield(field, 'a');
-            final String reviewer = (reviewerSubfield == null) ? "" : reviewerSubfield.getData();
 
             if (reviewTypeSubfield.getData().equals("Rezension"))
-                reviewsCache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
-            else if (reviewTypeSubfield.getData().equals("Rezension von"))
+                reviewsCache.add(parentId + (char) 0x1F + "" + (char) 0x1F + title);
+            else if (reviewTypeSubfield.getData().equals("Rezension von")) {
+                String reviewer = "";
+                if (record.getVariableField("100") != null) {
+                    final Subfield subfieldA100 = getFirstNonEmptySubfield((DataField)record.getVariableField("100"), 'a');
+                    if (subfieldA100 != null)
+                        reviewer = subfieldA100.getData();
+                }
                 reviewedRecordsCache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
+            }
         }
     }
 
