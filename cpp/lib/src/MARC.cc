@@ -2530,7 +2530,12 @@ bool IsOpenAccess(const Record &marc_record) {
             return true;
         if (StringUtil::StartsWith(TextUtil::UTF8ToLower(subfield_z_contents), "kostenfrei")) {
             const std::string subfield_3_contents(TextUtil::UTF8ToLower(subfields.getFirstSubfieldWithCode('3')));
-            if (subfield_3_contents == "volltext")
+            if (subfield_3_contents.empty() or subfield_3_contents == "volltext")
+                return true;
+        }
+
+        for (const auto &subfield : subfields) {
+            if (subfield.code_ == 'x' and TextUtil::UTF8ToLower(subfield.value_) == "unpaywall")
                 return true;
         }
     }
