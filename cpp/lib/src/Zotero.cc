@@ -905,13 +905,12 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
 
         break;
     case JSON::JSONNode::ARRAY_NODE: {
-        const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie(node_name, node));
-        for (size_t i(0); i < array_node->size(); ++i) {
-            const std::shared_ptr<JSON::ObjectNode> element_node(array_node->getObjectNode(i));
-            if (element_node == nullptr)
+        for (const auto &element : *JSON::JSONNode::CastToArrayNodeOrDie(node_name, node)) {
+            const auto object_node(JSON::JSONNode::CastToObjectNodeOrDie("array_element", element));
+            if (object_node == nullptr)
                 LOG_ERROR("invalid JSON array element in array node '" + node_name + "'");
 
-            for (auto &key_and_node : *element_node)
+            for (auto &key_and_node : *object_node)
                 SuppressJsonMetadata(key_and_node.first, key_and_node.second, site_params);
         }
 
