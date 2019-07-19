@@ -900,7 +900,7 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
 {
     switch (node->getType()) {
     case JSON::JSONNode::OBJECT_NODE:
-        for (auto &key_and_node : *JSON::JSONNode::CastToObjectNodeOrDie(node_name, node))
+        for (const auto &key_and_node : *JSON::JSONNode::CastToObjectNodeOrDie(node_name, node))
             SuppressJsonMetadata(key_and_node.first, key_and_node.second, site_params);
 
         break;
@@ -923,7 +923,7 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
         const auto suppression_regex(site_params.metadata_suppression_filters_.find(node_name));
         if (suppression_regex != site_params.metadata_suppression_filters_.end()) {
             if (node->getType() != JSON::JSONNode::STRING_NODE)
-                LOG_ERROR("metadata suppression filter found for invalid node '" + node_name + "'");
+                LOG_ERROR("metadata suppression filter has invalid node type '" + node_name + "'");
 
             const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
             if (suppression_regex->second->matched(string_node->getValue())) {
@@ -946,7 +946,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     std::shared_ptr<JSON::StringNode> language_node(nullptr);
     Transformation::TestForUnknownZoteroKey(object_node);
 
-    for (auto &key_and_node : *object_node) {
+    for (const auto &key_and_node : *object_node) {
         SuppressJsonMetadata(key_and_node.first, key_and_node.second, site_params);
         if (key_and_node.first == "language") {
             language_node = JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second);
