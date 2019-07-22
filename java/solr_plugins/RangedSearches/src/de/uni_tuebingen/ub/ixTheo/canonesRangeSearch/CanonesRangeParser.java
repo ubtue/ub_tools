@@ -40,14 +40,15 @@ public class CanonesRangeParser extends QParser {
         return qstr.split(QUERY_SEPARATOR);
     }
 
-    // @return true if "queryString" is of the form 07000000_08999999 o/w we return false.
+    // @return true if "queryString" matches an expected query, false otherwise
+    // see https://github.com/ubtue/tuefind/wiki/Codices for examples
     private boolean isCanonesRange(final String queryString) {
         if (queryString.length() != CanonesRange.CANON_LAW_CODE_LENGTH + 1 + CanonesRange.CANON_LAW_CODE_LENGTH
             || queryString.charAt(CanonesRange.CANON_LAW_CODE_LENGTH) != '_')
             return false;
-        if (!queryString.substring(1, CanonesRange.CANON_LAW_CODE_LENGTH).equals("00000000")
+        if (!queryString.substring(1, CanonesRange.CANON_LAW_CODE_LENGTH).equals("000000000")
             || !queryString.substring(CanonesRange.CANON_LAW_CODE_LENGTH + 1 + 1,
-                                      CanonesRange.CANON_LAW_CODE_LENGTH + 1 + CanonesRange.CANON_LAW_CODE_LENGTH).equals("99999999"))
+                                      CanonesRange.CANON_LAW_CODE_LENGTH + 1 + CanonesRange.CANON_LAW_CODE_LENGTH).equals("999999999"))
             return false;
         int firstCodexDigit, secondCodexDigit;
         try {
