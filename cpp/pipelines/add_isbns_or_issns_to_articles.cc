@@ -102,7 +102,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(
             continue;
         }
 
-        const auto _773_field(record.findTag("773"));
+        auto _773_field(record.findTag("773"));
         if (_773_field == record.end()) {
             marc_writer->write(record);
             continue;
@@ -126,8 +126,10 @@ void AddMissingISBNsOrISSNsToArticleEntries(
         }
 
         // If parent is open access and we're not, add it!
-        if (parent_isbn_or_issn_iter->second.is_open_access_ and not MARC::IsOpenAccess(record))
+        if (parent_isbn_or_issn_iter->second.is_open_access_ and not MARC::IsOpenAccess(record)) {
             record.insertField("655", { { 'a', "Open Access" } }, /* indicator1 = */' ', /* indicator2 = */'4');
+            _773_field = record.findTag("773"); // Iterator was invalidated by previous line!
+        }
 
         if (subfields.hasSubfield('x')) {
             marc_writer->write(record);
