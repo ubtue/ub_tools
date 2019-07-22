@@ -40,7 +40,8 @@ public class CanonesRangeParser extends QParser {
         return qstr.split(QUERY_SEPARATOR);
     }
 
-    // @return true if "queryString" if query string matches an expected query, false otherwise
+    // @return true if "queryString" matches an expected query, false otherwise
+    // see https://github.com/ubtue/tuefind/wiki/Codices for examples
     private boolean isCanonesRange(final String queryString) {
         if (queryString.length() != CanonesRange.CANON_LAW_CODE_LENGTH + 1 + CanonesRange.CANON_LAW_CODE_LENGTH
             || queryString.charAt(CanonesRange.CANON_LAW_CODE_LENGTH) != '_')
