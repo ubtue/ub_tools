@@ -160,8 +160,16 @@ wait
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                   GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
+StartPhase "Add Additional Open Access URL's"
+# Execute early for programs that rely on it for determining open access property do
+(add_oa_urls oadoi_urls_ixtheo.json GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -284,14 +292,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Integrate Refterms"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_referenceterms Hinweissätze-Ergebnisse-"${date}".txt GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-
-
-StartPhase "Add Additional Open Access URL's"
-(add_oa_urls oadoi_urls_ixtheo.json GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
