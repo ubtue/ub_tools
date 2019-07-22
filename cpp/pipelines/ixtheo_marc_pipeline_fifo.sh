@@ -167,7 +167,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Add Additional Open Access URL's"
-# Execute early for programs that rely on it for determining open access property do
+# Execute early for programs that rely on it for determining the open access property
 (add_oa_urls oadoi_urls_ixtheo.json GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
