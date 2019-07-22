@@ -101,8 +101,10 @@ void CollectInfos(MARC::Reader * const marc_reader, std::unordered_map<std::stri
 bool SetContainsOnlyArticlePPNs(const std::set<std::string> &ppns, const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map) {
     for (const auto &ppn : ppns) {
         const auto ppn_and_record_info(ppns_to_infos_map.find(ppn));
-        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
+        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
             LOG_WARNING("PPN "+ ppn + " is missing in ppns_to_infos_map! (1)");
+            continue;
+        }
         if (ppn_and_record_info->second.type_ != RecordInfo::ARTICLE)
             return false;
     }
