@@ -192,8 +192,8 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                 }
             }
 
-            for (const auto &range : ranges_to_insert)
-                record.insertField("CAL", { { 'a', range } });
+            if (not ranges_to_insert.empty())
+                record.insertField("CAL", { { 'a', StringUtil::Join(ranges_to_insert, ',') } });
         }
 
         if (augmented_record)
