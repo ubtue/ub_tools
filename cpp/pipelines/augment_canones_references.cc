@@ -149,7 +149,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
     while (auto record = reader->read()) {
         ++total_count;
 
-        bool augmented_record(false);
+        std::vector<std::string> ranges_to_insert;
         for (const auto &linking_tag : CANONES_GND_LINKING_TAGS) {
             std::vector<std::string> authority_ppns;
             CollectAuthorityPPNs(record, linking_tag, &authority_ppns);
@@ -158,18 +158,16 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                 for (const auto &authority_ppn : authority_ppns) {
                     const auto ppn_and_canon_law_code(authority_ppns_to_canon_law_codes_map.find(authority_ppn));
                     if (ppn_and_canon_law_code != authority_ppns_to_canon_law_codes_map.cend()) {
-                        record.insertField("CAL", { { 'a', ppn_and_canon_law_code->second } });
-                        augmented_record = true;
+                        ranges_to_insert.emplace_back(ppn_and_canon_law_code->second);
                         ++reference_counts[linking_tag];
                     }
                 }
             }
         }
 
-        if (not augmented_record) {
+        if (ranges_to_insert.empty()) {
             // check if the codex data is embedded directly in the 689 field
             // apparently, 689$t is repeatable and the first instance (always?) appears to be 'Katholische Kirche'
-            std::vector<std::string> ranges_to_insert;
             for (const auto &_689_field : record.getTagRange("689")) {
                 if (_689_field.getFirstSubfieldWithCode('a') != "Katholische Kirche")
                     continue;
@@ -187,17 +185,16 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                 if (not subfield_codex.empty() and not subfield_year.empty() and not subfield_part.empty()) {
                     const Codex codex(DetermineCodex(subfield_codex, subfield_year, record.getControlNumber()));
                     ranges_to_insert.emplace_back(FieldToCanonLawCode(record.getControlNumber(), codex, subfield_part));
-                    augmented_record = true;
                     ++reference_counts["689*"];
                 }
             }
-
-            if (not ranges_to_insert.empty())
-                record.insertField("CAL", { { 'a', StringUtil::Join(ranges_to_insert, ',') } });
         }
 
-        if (augmented_record)
+
+        if (not ranges_to_insert.empty()) {
+            record.insertField("CAL", { { 'a', StringUtil::Join(ranges_to_insert, ',') } });
             ++augmented_count;
+        }
 
         writer->write(record);
     }
