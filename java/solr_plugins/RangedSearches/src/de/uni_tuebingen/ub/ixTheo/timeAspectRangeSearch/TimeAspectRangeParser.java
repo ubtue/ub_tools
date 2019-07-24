@@ -40,18 +40,6 @@ public class TimeAspectRangeParser extends QParser {
         return qstr.split(QUERY_SEPARATOR);
     }
 
-    private boolean isTimeAspectRange(final String queryString) {
-        if (queryString.length() != TimeAspectRange.TIME_ASPECT_CODE_LENGTH + 1 + TimeAspectRange.TIME_ASPECT_CODE_LENGTH
-            || queryString.charAt(TimeAspectRange.TIME_ASPECT_CODE_LENGTH) != '_')
-            return false;
-        if (!queryString.substring(1, TimeAspectRange.TIME_ASPECT_CODE_LENGTH).equals("0000000000")
-            || !queryString.substring(TimeAspectRange.TIME_ASPECT_CODE_LENGTH + 1 + 1,
-                                      TimeAspectRange.TIME_ASPECT_CODE_LENGTH + 1 + TimeAspectRange.TIME_ASPECT_CODE_LENGTH).equals("99999999999"))
-            return false;
-
-        return true;
-    }
-
     @Override
     public Query parse() throws SyntaxError {
         final String queryString = "time_aspect_ranges:*";
