@@ -143,8 +143,8 @@ public class Range {
             }
 
             try {
-                final int lower = Integer.parseInt(range[0]);
-                final int upper = Integer.parseInt(range[1]);
+                final long lower = Long.parseLong(range[0]);
+                final long upper = Long.parseLong(range[1]);
                 final Range new_range = new Range(lower, upper);
                 list.add(new_range);
             } catch (NumberFormatException e) {
