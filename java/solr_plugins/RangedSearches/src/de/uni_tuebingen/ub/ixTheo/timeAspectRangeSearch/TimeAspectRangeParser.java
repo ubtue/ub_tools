@@ -40,25 +40,16 @@ public class TimeAspectRangeParser extends QParser {
         return qstr.split(QUERY_SEPARATOR);
     }
 
-    // @return true if "queryString" is of the form 07000000_08999999 o/w we return false.
     private boolean isTimeAspectRange(final String queryString) {
         if (queryString.length() != TimeAspectRange.TIME_ASPECT_CODE_LENGTH + 1 + TimeAspectRange.TIME_ASPECT_CODE_LENGTH
             || queryString.charAt(TimeAspectRange.TIME_ASPECT_CODE_LENGTH) != '_')
             return false;
-        if (!queryString.substring(1, TimeAspectRange.TIME_ASPECT_CODE_LENGTH).equals("00000000")
+        if (!queryString.substring(1, TimeAspectRange.TIME_ASPECT_CODE_LENGTH).equals("0000000000")
             || !queryString.substring(TimeAspectRange.TIME_ASPECT_CODE_LENGTH + 1 + 1,
-                                      TimeAspectRange.TIME_ASPECT_CODE_LENGTH + 1 + TimeAspectRange.TIME_ASPECT_CODE_LENGTH).equals("99999999"))
+                                      TimeAspectRange.TIME_ASPECT_CODE_LENGTH + 1 + TimeAspectRange.TIME_ASPECT_CODE_LENGTH).equals("99999999999"))
             return false;
-        int firstCodexDigit, secondCodexDigit;
-        try {
-            firstCodexDigit  = Integer.parseInt(queryString.substring(0, 1));
-            secondCodexDigit = Integer.parseInt(queryString.substring(TimeAspectRange.TIME_ASPECT_CODE_LENGTH + 1,
-                                                                      TimeAspectRange.TIME_ASPECT_CODE_LENGTH + 1 + 1));
-        } catch (NumberFormatException e) {
-            return false;
-        }
 
-        return (firstCodexDigit == 1 || firstCodexDigit == 2 || firstCodexDigit == 3) && secondCodexDigit == firstCodexDigit;
+        return true;
     }
 
     /**
