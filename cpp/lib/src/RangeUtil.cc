@@ -550,6 +550,87 @@ std::string BibleAliasMapper::map(const std::string &bible_reference_candidate, 
 }
 
 
+bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start, unsigned * const range_end) {
+    unsigned canones;
+    if (StringUtil::ToUnsigned(ranges, &canones)) {
+        if (unlikely(canones == 0 or canones >= 10000))
+            return false;
+
+        *range_start = canones * 10000;
+        *range_end   = canones * 10000 + 9999;
+        return true;
+    }
+
+    static RegexMatcher *matcher1(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+),(\\d+),(\\d+)$"));
+    if (matcher1->matched(ranges)) {
+        const unsigned part1(StringUtil::ToUnsigned((*matcher1)[1]));
+        if (unlikely(part1 == 0 or part1 >= 10000))
+            return false;
+
+        const unsigned part2(StringUtil::ToUnsigned((*matcher1)[2]));
+        if (unlikely(part2 == 0 or part2 >= 100))
+            return false;
+
+        const unsigned part3(StringUtil::ToUnsigned((*matcher1)[3]));
+        if (unlikely(part3 == 0 or part3 >= 100))
+            return false;
+
+        *range_start = *range_end = part1 * 10000 + part2 * 100 + part3;
+        return true;
+    }
+
+    static RegexMatcher *matcher2(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+)-(\\d+)$"));
+    if (matcher2->matched(ranges)) {
+        const unsigned canones1(StringUtil::ToUnsigned((*matcher2)[1]));
+        if (unlikely(canones1 == 0 or canones1 >= 10000))
+            return false;
+
+        const unsigned canones2(StringUtil::ToUnsigned((*matcher2)[2]));
+        if (unlikely(canones2 == 0 or canones2 >= 10000))
+            return false;
+
+        *range_start = canones1 * 10000;
+        *range_end   = canones2 * 10000 + 9999;
+        return true;
+    }
+
+    static RegexMatcher *matcher3(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+),(\\d+)$"));
+    if (matcher3->matched(ranges)) {
+        const unsigned part1(StringUtil::ToUnsigned((*matcher3)[1]));
+        if (unlikely(part1 == 0 or part1 >= 10000))
+            return false;
+
+        const unsigned part2(StringUtil::ToUnsigned((*matcher3)[2]));
+        if (unlikely(part2 == 0 or part2 >= 100))
+            return false;
+
+        *range_start = *range_end = part1 * 10000 + part2 * 100 + 99;
+        return true;
+    }
+
+    static RegexMatcher *matcher4(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+),(\\d+)-(\\d+)$"));
+    if (matcher4->matched(ranges)) {
+        const unsigned part1(StringUtil::ToUnsigned((*matcher4)[1]));
+        if (unlikely(part1 == 0 or part1 >= 10000))
+            return false;
+
+        const unsigned part2(StringUtil::ToUnsigned((*matcher4)[2]));
+        if (unlikely(part2 == 0 or part2 >= 100))
+            return false;
+
+        const unsigned part3(StringUtil::ToUnsigned((*matcher4)[3]));
+        if (unlikely(part3 == 0 or part3 >= 100))
+            return false;
+
+        *range_start = part1 * 10000 + part2 * 100;
+        *range_end = part1 * 10000 + part3 * 100;
+        return true;
+    }
+
+    return false;
+}
+
+
 namespace {
 
 
