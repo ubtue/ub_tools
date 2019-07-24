@@ -222,11 +222,4 @@ template<typename ElementType> std::set<ElementType> Intersect(const std::unorde
 }
 
 
-bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start, unsigned * const range_end);
-
-
-/** \return True if "text" contained a valid time range, o/w false. */
-bool ConvertTextToTimeRange(const std::string &text, std::string * const range);
-
-
 } // namespace MiscUtil
