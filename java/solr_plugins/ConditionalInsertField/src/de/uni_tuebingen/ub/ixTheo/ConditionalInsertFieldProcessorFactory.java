@@ -9,23 +9,19 @@ import org.apache.solr.update.AddUpdateCommand;
 import org.apache.solr.update.processor.UpdateRequestProcessor;
 import org.apache.solr.update.processor.UpdateRequestProcessorFactory;
 
-
 public class ConditionalInsertFieldProcessorFactory extends UpdateRequestProcessorFactory
 {
     @Override
-    public UpdateRequestProcessor getInstance(SolrQueryRequest req, SolrQueryResponse rsp, UpdateRequestProcessor next)
-    {
-      return new ConditionalInsertProcessor(next);
+    public UpdateRequestProcessor getInstance(SolrQueryRequest req, SolrQueryResponse rsp, UpdateRequestProcessor next) {
+         return new ConditionalInsertProcessor(next);
     }
 }
 
-
 class ConditionalInsertProcessor extends UpdateRequestProcessor
 {
-    public ConditionalInsertProcessor( UpdateRequestProcessor next) {
-      super( next );
+    public ConditionalInsertProcessor(UpdateRequestProcessor next) {
+        super(next);
     }
-  
     
     @Override
     public void processAdd(AddUpdateCommand cmd) throws IOException {
@@ -34,8 +30,7 @@ class ConditionalInsertProcessor extends UpdateRequestProcessor
         super.processAdd(cmd);
     }
 
-
-    // Add has_fulltext flag fi fulltext is present
+    // Add has_fulltext flag if fulltext is present
     protected void addHasFulltext(AddUpdateCommand cmd) throws IOException {
         SolrInputDocument doc = cmd.getSolrInputDocument();
         String fulltext = (String) doc.getFieldValue("fulltext");
