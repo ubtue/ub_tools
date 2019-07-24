@@ -229,7 +229,7 @@ StartPhase "Augment Time Aspect References"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (augment_time_aspects GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                       Normdaten-"${date}".mrc \
-                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+                      GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
