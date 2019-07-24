@@ -25,11 +25,10 @@
 #include <unordered_map>
 #include <cstdlib>
 #include <strings.h>
-#include "BibleUtil.h"
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "MARC.h"
-#include "MiscUtil.h"
+#include "RangeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UBTools.h"
@@ -63,7 +62,7 @@ std::string FieldToCanonLawCode(const std::string &ppn, const Codex codex, const
     if (subfield_part.empty()) {
         range_start = 0;
         range_end = 99999999;
-    } else if (not MiscUtil::ParseCanonLawRanges(subfield_part, &range_start, &range_end))
+    } else if (not RangeUtil::ParseCanonLawRanges(subfield_part, &range_start, &range_end))
         LOG_ERROR("don't know how to parse codex parts \"" + subfield_part + "\"! (PPN: " + ppn + ")");
 
     switch (codex) {

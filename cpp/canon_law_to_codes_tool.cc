@@ -21,7 +21,7 @@
 */
 #include <iostream>
 #include <cstdlib>
-#include "MiscUtil.h"
+#include "RangeUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -56,7 +56,7 @@ int Main(int argc, char **argv) {
     if (range.empty()) {
         range_start = 0;
         range_end = 99999999;
-    } else if (not MiscUtil::ParseCanonLawRanges(range, &range_start, &range_end))
+    } else if (not RangeUtil::ParseCanonLawRanges(range, &range_start, &range_end))
         LOG_ERROR("don't know how to parse codex parts \"" + range + "\"!");
 
     switch (codex) {
