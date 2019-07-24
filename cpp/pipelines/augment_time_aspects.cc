@@ -24,7 +24,7 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "MARC.h"
-#include "MiscUtil.h"
+#include "RangeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -44,7 +44,7 @@ void LoadAuthorityData(MARC::Reader * const reader,
         if (_548_field != record.end() and _548_field->hasSubfieldWithValue('i', "Zeitraum")) {
             const std::string free_form_range_candidate(_548_field->getFirstSubfieldWithCode('a'));
             std::string range;
-            if (MiscUtil::ConvertTextToTimeRange(free_form_range_candidate, &range))
+            if (RangeUtil::ConvertTextToTimeRange(free_form_range_candidate, &range))
                 (*authority_ppns_to_time_codes_map)[record.getControlNumber()] = range;
             else
                 LOG_WARNING("can't convert \"" + free_form_range_candidate + "\" to a time range!");
@@ -96,7 +96,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                 if (matched_prefix == _689_PREFIXES.cend())
                     continue;
 
-                if (MiscUtil::ConvertTextToTimeRange(a_subfield.substr(matched_prefix->length()), &range))
+                if (RangeUtil::ConvertTextToTimeRange(a_subfield.substr(matched_prefix->length()), &range))
                     goto augment_record;
             }
 
