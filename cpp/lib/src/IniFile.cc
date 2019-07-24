@@ -565,6 +565,9 @@ void IniFile::processFile(const std::string &external_filename) {
             std::getline(ini_file, buf);
             ++getCurrentLineNo();
             line += buf;
+            if (line.empty())
+                continue;
+
             continued_line = line[line.length() - 1] == '\\';
             if (continued_line)
                 line = line.substr(0, line.length() - 1);
