@@ -7,8 +7,8 @@ import java.util.Arrays;
  * \class Range represents a range in a hierarchy of ranges.  An example would be parts of the Bible.
  */
 public class Range {
-    private int lower;
-    private int upper;
+    private long lower;
+    private long upper;
 
     private static float getRangesScore(final Range[] ranges, final Range[] queryRanges) {
         float best_individual_distance = Float.NEGATIVE_INFINITY;
@@ -48,7 +48,7 @@ public class Range {
 
     // N.B. This function assumes that the lower ends of the input ranges "ranges" are monotonically increasing.
     private static boolean canBeMerged(final Range[] ranges) {
-        int maxUpper = ranges[0].upper;
+        long maxUpper = ranges[0].upper;
         for (int i = 1; i < ranges.length; ++i) {
             if (ranges[i].lower <= maxUpper + 1)
                 return true;
@@ -84,16 +84,16 @@ public class Range {
         return Arrays.copyOf(mergedRanges, targetIndex);
     }
 
-    public Range(int lower, int upper) {
+    public Range(long lower, long upper) {
         this.lower = Math.min(lower, upper);
         this.upper = Math.max(lower, upper);
     }
 
-    public final int getLower() {
+    public final long getLower() {
         return lower;
     }
 
-    public final int getUpper() {
+    public final long getUpper() {
         return upper;
     }
 
@@ -143,8 +143,8 @@ public class Range {
             }
 
             try {
-                final int lower = Integer.parseInt(range[0]);
-                final int upper = Integer.parseInt(range[1]);
+                final long lower = Long.parseLong(range[0]);
+                final long upper = Long.parseLong(range[1]);
                 final Range new_range = new Range(lower, upper);
                 list.add(new_range);
             } catch (NumberFormatException e) {

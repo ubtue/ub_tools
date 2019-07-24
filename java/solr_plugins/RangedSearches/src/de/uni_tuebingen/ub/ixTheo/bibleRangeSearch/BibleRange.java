@@ -28,17 +28,17 @@ public class BibleRange extends Range {
         super(getLower(range), getUpper(range));
     }
 
-    private static int getLower(final String range) {
+    private static long getLower(final String range) {
         if (range.length() == RANGE_STRING_LENGTH) {
-            return Integer.valueOf(range.substring(LOWER_BIBLE_CODE_START, LOWER_BIBLE_CODE_START + BIBLE_CODE_LENGTH));
+            return Long.valueOf(range.substring(LOWER_BIBLE_CODE_START, LOWER_BIBLE_CODE_START + BIBLE_CODE_LENGTH));
         } else {
             return 0;
         }
     }
 
-    private static int getUpper(final String range) {
+    private static long getUpper(final String range) {
         if (range.length() == RANGE_STRING_LENGTH) {
-            return Integer.valueOf(range.substring(UPPER_BIBLE_CODE_START, UPPER_BIBLE_CODE_START + BIBLE_CODE_LENGTH));
+            return Long.valueOf(range.substring(UPPER_BIBLE_CODE_START, UPPER_BIBLE_CODE_START + BIBLE_CODE_LENGTH));
         } else {
             return MAX_BOOK_CODE;
         }
