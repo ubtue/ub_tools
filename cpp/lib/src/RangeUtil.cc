@@ -1,5 +1,6 @@
-/** \file   BibleUtil.cc
- *  \brief  Implementation of a bible reference parser that generates numeric code ranges.
+/** \file   RangeUtil.cc
+ *  \brief  Implementation of a bible reference parser that generates numeric code ranges
+ *          as well as other range search related functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2014-2017,2019 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -17,7 +18,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "BibleUtil.h"
+#include "RangeUtil.h"
 #include <iostream>
 #include <cctype>
 #include "Locale.h"
@@ -25,10 +26,11 @@
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
+#include "TimeUtil.h"
 #include "util.h"
 
 
-namespace BibleUtil {
+namespace RangeUtil {
 
 
 namespace {
@@ -548,4 +550,53 @@ std::string BibleAliasMapper::map(const std::string &bible_reference_candidate, 
 }
 
 
-} // namespace BibleUtil
+namespace {
+
+
+const unsigned OFFSET(10000000);
+
+
+// \return the current day as a range endpoint
+inline std::string Now() {
+    unsigned year, month, day;
+    TimeUtil::GetCurrentDate(&year, &month, &day);
+    return StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
+           +  StringUtil::ToString(month, /* radix = */10, /* width = */2, /* padding_char = */'0')
+           +  StringUtil::ToString(day, /* radix = */10, /* width = */2, /* padding_char = */'0');
+}
+
+
+} // unnamed namespace
+
+
+bool ConvertTextToTimeRange(const std::string &text, std::string * const range) {
+    static auto matcher1(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{3,4})-(\\d{3,4})"));
+    if (matcher1->matched(text)) {
+        const unsigned year1(StringUtil::ToUnsigned((*matcher1)[1]));
+        const unsigned year2(StringUtil::ToUnsigned((*matcher1)[2]));
+        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        return true;
+    }
+
+    static auto matcher2(RegexMatcher::RegexMatcherFactoryOrDie("(\\d\\d\\d\\d)-"));
+    if (matcher2->matched(text)) {
+        const unsigned year(StringUtil::ToUnsigned((*matcher2)[1]));
+        *range = StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_" + Now();
+        return true;
+    }
+
+    static auto matcher3(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{2,4})(?: v\\. ?Chr\\.)?-(\\d{2,4}) v\\. ?Chr\\."));
+    if (matcher3->matched(text)) {
+        const unsigned year1(StringUtil::ToUnsigned((*matcher3)[1]));
+        const unsigned year2(StringUtil::ToUnsigned((*matcher3)[2]));
+        *range = StringUtil::ToString(OFFSET - year1, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
+                 + StringUtil::ToString(OFFSET - year2, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        return true;
+    }
+
+    return false;
+}
+
+
+} // namespace RangeUtil
