@@ -52,47 +52,9 @@ public class TimeAspectRangeParser extends QParser {
         return true;
     }
 
-    /**
-     * Tries to extract the codex index of a search query.
-     * Then creates a query string only matching canon law references starting with the codex index.
-     * If no codex index is found, only '*' will be returned.
-     *
-     * The first digit of a range is the codex index.
-     *
-     * @param queryString The search string from user
-     * @return e.g.  ".*(1|2)[0-9]{8}.*" (NB. the Solr query parser anchors regular expressions at the
-     * beginning and at the end) or "*"
-     */
-    private String getTimeAspectPrefixQueryString(final String queryString) {
-        if (queryString == null || queryString.length() < 1) {
-            return "*";
-        }
-        if (isTimeAspectRange(queryString)) {
-            return "/.*" + queryString + ".*/";
-        }
-        final String[] ranges = getFieldsFromQuery();
-        final Set<String> alreadySeenCodexDigits = new TreeSet<String>();
-        // Capacity of buffer: (number of ranges) times (one digit for the codex and one for the delimiter)
-        StringBuilder buffer = new StringBuilder(ranges.length * 2);
-        for (String range : ranges) {
-            final String firstCodexDigit = range.substring(0, 1);
-            if (!alreadySeenCodexDigits.contains(firstCodexDigit)) {
-                buffer.append("|" + firstCodexDigit);
-                alreadySeenCodexDigits.add(firstCodexDigit);
-            }
-            final String secondCodexDigit = range.substring(TimeAspectRange.TIME_ASPECT_CODE_LENGTH + 1,
-                                                            TimeAspectRange.TIME_ASPECT_CODE_LENGTH + 1 + 1);
-            if (!alreadySeenCodexDigits.contains(secondCodexDigit)) {
-                buffer.append("|" + secondCodexDigit);
-                alreadySeenCodexDigits.add(secondCodexDigit);
-            }
-        }
-        return "/.*(" + buffer.toString().substring(1) + ")[0-9]{8}.*/";
-    }
-
     @Override
     public Query parse() throws SyntaxError {
-        final String queryString = "canon_law_ranges:" + getTimeAspectPrefixQueryString(getString());
+        final String queryString = "time_aspect_ranges:*";
         final QParser parser = getParser(queryString, "lucene", getReq());
         final TimeAspectRange[] ranges = getRangesFromQuery();
         return new TimeAspectRangeQuery(parser.parse(), ranges);
