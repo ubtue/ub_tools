@@ -59,6 +59,7 @@ const std::map<std::string, int> STRING_TO_HARVEST_TYPE_MAP { { "RSS", static_ca
 struct Creator {
     std::string first_name_;
     std::string last_name_;
+    std::string affix_;
     std::string title_;
     std::string type_;
     std::string ppn_;

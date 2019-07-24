@@ -336,6 +336,7 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
             auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
             creator.first_name_ = creator_object_node->getOptionalStringValue("firstName");
             creator.last_name_ = creator_object_node->getOptionalStringValue("lastName");
+            creator.affix_ = creator_object_node->getOptionalStringValue("affix");
             creator.title_ = creator_object_node->getOptionalStringValue("title");
             creator.type_ = creator_object_node->getOptionalStringValue("creatorType");
             creator.ppn_ = creator_object_node->getOptionalStringValue("ppn");
@@ -559,6 +560,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator->type_));
 
         subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({ creator->last_name_, creator->first_name_ }), ", "));
+        if (not creator->affix_.empty())
+            subfields.appendSubfield('b', creator->affix_ + ".");
         if (not creator->title_.empty())
             subfields.appendSubfield('c', creator->title_);
 
@@ -721,8 +724,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
 
 
 // Extracts information from the ubtue node
-void MarcFormatHandler::extractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node, CustomNodeParameters * const
-                                                        custom_node_params)
+void MarcFormatHandler::extractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node,
+                                                    CustomNodeParameters * const custom_node_params)
 {
     const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
 
@@ -733,6 +736,7 @@ void MarcFormatHandler::extractCustomNodeParameters(std::shared_ptr<const JSON::
             const auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
             creator.first_name_ = creator_object_node->getOptionalStringValue("firstName");
             creator.last_name_ = creator_object_node->getOptionalStringValue("lastName");
+            creator.affix_ = creator_object_node->getOptionalStringValue("affix");
             creator.type_ = creator_object_node->getOptionalStringValue("creatorType");
             creator.ppn_ = creator_object_node->getOptionalStringValue("ppn");
             creator.gnd_number_ = creator_object_node->getOptionalStringValue("gnd_number");
@@ -761,7 +765,9 @@ std::string GetCustomValueIfNotEmpty(const std::string &custom_value, const std:
 }
 
 
-void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters, struct CustomNodeParameters &custom_node_params){
+void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters,
+                                                              struct CustomNodeParameters &custom_node_params)
+    {
     item_parameters->issn_zotero_ = custom_node_params.issn_zotero_;
     item_parameters->issn_online_ = custom_node_params.issn_online_;
     item_parameters->issn_print_ = custom_node_params.issn_print_;
@@ -862,11 +868,15 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
         auto last_name_node(creator_object->getNode("lastName"));
         auto first_name(creator_object->getOptionalStringValue("firstName"));
         auto last_name(creator_object->getOptionalStringValue("lastName"));
-        std::string name_title;
-        BSZTransform::PostProcessAuthorName(&first_name, &last_name, &name_title);
+        std::string name_title, name_affix;
+        BSZTransform::PostProcessAuthorName(&first_name, &last_name, &name_title, &name_affix);
         if (not name_title.empty()) {
             const std::shared_ptr<JSON::StringNode> title_node(new JSON::StringNode(name_title));
             creator_object->insert("title", title_node);
+        }
+        if (not name_affix.empty()) {
+            const std::shared_ptr<JSON::StringNode> affix_node(new JSON::StringNode(name_affix));
+            creator_object->insert("affix", affix_node);
         }
 
         if (not last_name.empty()) {

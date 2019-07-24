@@ -163,9 +163,20 @@ bool IsAuthorNameTokenTitle(std::string token) {
 }
 
 
-void PostProcessAuthorName(std::string * const first_name, std::string * const last_name, std::string * const title) {
+bool IsAuthorNameTokenAffix(std::string token) {
+    static const std::unordered_set<std::string> VALID_AFFIXES {
+        "i", "ii", "iii", "iv", "v"
+    };
 
-    std::string first_name_buffer, last_name_buffer, title_buffer;
+    TextUtil::UTF8ToLower(&token);
+    return VALID_AFFIXES.find(token) != VALID_AFFIXES.end();
+}
+
+
+void PostProcessAuthorName(std::string * const first_name, std::string * const last_name, std::string * const title,
+                           std::string * const affix)
+{
+    std::string first_name_buffer, last_name_buffer, title_buffer, affix_buffer;
     std::vector<std::string> tokens;
 
     StringUtil::Split(*first_name, ' ', &tokens);
@@ -180,6 +191,8 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
     for (const auto &token : tokens) {
         if (IsAuthorNameTokenTitle(token))
             title_buffer += token + " ";
+        else if (IsAuthorNameTokenAffix(token))
+            affix_buffer += token + " ";
         else
             last_name_buffer += token + " ";
     }
@@ -187,10 +200,12 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
     TextUtil::CollapseAndTrimWhitespace(&first_name_buffer);
     TextUtil::CollapseAndTrimWhitespace(&last_name_buffer);
     TextUtil::CollapseAndTrimWhitespace(&title_buffer);
+    TextUtil::CollapseAndTrimWhitespace(&affix_buffer);
 
     StripBlacklistedTokensFromAuthorName(&first_name_buffer, &last_name_buffer);
 
     *title = title_buffer;
+    *affix = affix_buffer;
     // try to reparse the name if either part of the name is empty
     if (first_name_buffer.empty())
         ParseAuthor(last_name_buffer, first_name, last_name);
@@ -201,7 +216,8 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
         *last_name = last_name_buffer;
     }
 
-    LOG_DEBUG("post-processed author first name = '" + *first_name + "', last name = '" + *last_name + "', title = '" + *title + "'");
+    LOG_DEBUG("post-processed author first name = '" + *first_name + "', last name = '" + *last_name +
+              "', title = '" + *title + "', affix = '" + *affix + "'");
 }
 
 
