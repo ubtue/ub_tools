@@ -26,8 +26,8 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
-#include "BibleUtil.h"
 #include "MapUtil.h"
+#include "RangeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -100,7 +100,7 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
         LOG_ERROR("\"" + (*matcher)[2] + "\" is not a valid ending volume!");
 
     const std::string non_canonical_book_name((*matcher)[3]);
-    BibleUtil::BibleBookCanoniser bible_book_canoniser(books_of_the_bible_to_canonical_form_map_filename);
+    RangeUtil::BibleBookCanoniser bible_book_canoniser(books_of_the_bible_to_canonical_form_map_filename);
     const std::string starting_bible_book_candidate(bible_book_canoniser.canonise(
         std::to_string(starting_volume) + non_canonical_book_name, verbose));
 
@@ -112,7 +112,7 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
                   << ending_volume << ", book is \"" << non_canonical_book_name << "\".\n";
     }
 
-    BibleUtil::BibleBookToCodeMapper bible_book_to_code_mapper(books_of_the_bible_to_code_map_filename);
+    RangeUtil::BibleBookToCodeMapper bible_book_to_code_mapper(books_of_the_bible_to_code_map_filename);
     const std::string first_book_code(bible_book_to_code_mapper.mapToCode(starting_bible_book_candidate, verbose));
     if (first_book_code.empty())
         LOG_ERROR("failed to map \"" + starting_bible_book_candidate + "\" to a bible code!");
@@ -120,9 +120,9 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
     if (second_book_code.empty())
         LOG_ERROR("failed to map \"" + ending_bible_book_candidate + "\" to a bible code!");
 
-    std::cout << (first_book_code + std::string(BibleUtil::MAX_CHAPTER_LENGTH + BibleUtil::MAX_VERSE_LENGTH, '0'))
+    std::cout << (first_book_code + std::string(RangeUtil::MAX_CHAPTER_LENGTH + RangeUtil::MAX_VERSE_LENGTH, '0'))
               << (generate_solr_query ? '_' : ':')
-              << (second_book_code + std::string(BibleUtil::MAX_CHAPTER_LENGTH + BibleUtil::MAX_VERSE_LENGTH, '9'))
+              << (second_book_code + std::string(RangeUtil::MAX_CHAPTER_LENGTH + RangeUtil::MAX_VERSE_LENGTH, '9'))
               << '\n';
 
     std::exit(EXIT_SUCCESS);
@@ -134,9 +134,9 @@ void GenerateQuery(const bool verbose, const bool generate_solr_query, std::stri
                    const std::string &books_of_the_bible_to_code_map_filename,
                    const std::string &books_of_the_bible_to_canonical_form_map_filename)
 {
-    BibleUtil::BibleBookCanoniser bible_book_canoniser(books_of_the_bible_to_canonical_form_map_filename);
+    RangeUtil::BibleBookCanoniser bible_book_canoniser(books_of_the_bible_to_canonical_form_map_filename);
     book_candidate = bible_book_canoniser.canonise(book_candidate, verbose);
-    BibleUtil::BibleBookToCodeMapper bible_book_to_code_mapper(books_of_the_bible_to_code_map_filename);
+    RangeUtil::BibleBookToCodeMapper bible_book_to_code_mapper(books_of_the_bible_to_code_map_filename);
     const std::string book_code(bible_book_to_code_mapper.mapToCode(book_candidate, verbose));
     if (book_code.empty())
         LOG_ERROR("failed to map \"" + book_candidate + "\" to a bible code!");
@@ -144,16 +144,16 @@ void GenerateQuery(const bool verbose, const bool generate_solr_query, std::stri
         std::cerr << "book code = \"" << book_code << "\"\n";
     if (chapters_and_verses_candidate.empty()) {
         std::cout << book_code
-                  << std::string(BibleUtil::MAX_CHAPTER_LENGTH + BibleUtil::MAX_VERSE_LENGTH, '0')
+                  << std::string(RangeUtil::MAX_CHAPTER_LENGTH + RangeUtil::MAX_VERSE_LENGTH, '0')
                   << (generate_solr_query ? '_' : ':') << book_code
-                  << std::string(BibleUtil::MAX_CHAPTER_LENGTH + BibleUtil::MAX_VERSE_LENGTH, '9')
+                  << std::string(RangeUtil::MAX_CHAPTER_LENGTH + RangeUtil::MAX_VERSE_LENGTH, '9')
                   << '\n';
 
         std::exit(EXIT_SUCCESS);
     }
 
     std::set<std::pair<std::string, std::string>> start_end;
-    if (not BibleUtil::ParseBibleReference(chapters_and_verses_candidate, book_code, &start_end)) {
+    if (not RangeUtil::ParseBibleReference(chapters_and_verses_candidate, book_code, &start_end)) {
         if (verbose)
             std::cerr << "The parsing of \"" << chapters_and_verses_candidate
                       << "\" as chapters and verses failed!\n";
@@ -172,7 +172,7 @@ void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query
 {
     LOG_DEBUG("Entering HandleOrdinaryReferences.");
     std::vector<std::string> book_candidate, chapters_and_verses_candidate;
-    BibleUtil::SplitIntoBooksAndChaptersAndVerses(bible_query_candidate, &book_candidate, &chapters_and_verses_candidate);
+    RangeUtil::SplitIntoBooksAndChaptersAndVerses(bible_query_candidate, &book_candidate, &chapters_and_verses_candidate);
     if (verbose) {
         for (unsigned i(0); i < book_candidate.size(); ++i) {
             std::cerr << "book_candidate[" << i << "] = \"" << book_candidate[i] << "\"\n";
@@ -226,7 +226,7 @@ int Main(int argc, char **argv) {
         map_file_path + (argc == 2 ? "books_of_the_bible_to_canonical_form.map" : argv[4]));
     const std::string pericopes_to_codes_map_filename(map_file_path + (argc == 2 ? "pericopes_to_codes.map" : argv[5]));
 
-    const BibleUtil::BibleAliasMapper alias_mapper(bible_aliases_map_filename);
+    const RangeUtil::BibleAliasMapper alias_mapper(bible_aliases_map_filename);
     bible_query_candidate = alias_mapper.map(bible_query_candidate, verbose);
 
     HandleBookRanges(verbose, generate_solr_query, books_of_the_bible_to_canonical_form_map_filename,

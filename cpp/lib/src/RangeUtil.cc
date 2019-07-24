@@ -1,5 +1,6 @@
-/** \file   BibleUtil.cc
- *  \brief  Implementation of a bible reference parser that generates numeric code ranges.
+/** \file   RangeUtil.cc
+ *  \brief  Implementation of a bible reference parser that generates numeric code ranges
+ *          as well as other range search related functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2014-2017,2019 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -17,7 +18,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "BibleUtil.h"
+#include "RangeUtil.h"
 #include <iostream>
 #include <cctype>
 #include "Locale.h"
@@ -25,10 +26,11 @@
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
+#include "TimeUtil.h"
 #include "util.h"
 
 
-namespace BibleUtil {
+namespace RangeUtil {
 
 
 namespace {
@@ -548,4 +550,134 @@ std::string BibleAliasMapper::map(const std::string &bible_reference_candidate, 
 }
 
 
-} // namespace BibleUtil
+bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start, unsigned * const range_end) {
+    unsigned canones;
+    if (StringUtil::ToUnsigned(ranges, &canones)) {
+        if (unlikely(canones == 0 or canones >= 10000))
+            return false;
+
+        *range_start = canones * 10000;
+        *range_end   = canones * 10000 + 9999;
+        return true;
+    }
+
+    static RegexMatcher *matcher1(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+),(\\d+),(\\d+)$"));
+    if (matcher1->matched(ranges)) {
+        const unsigned part1(StringUtil::ToUnsigned((*matcher1)[1]));
+        if (unlikely(part1 == 0 or part1 >= 10000))
+            return false;
+
+        const unsigned part2(StringUtil::ToUnsigned((*matcher1)[2]));
+        if (unlikely(part2 == 0 or part2 >= 100))
+            return false;
+
+        const unsigned part3(StringUtil::ToUnsigned((*matcher1)[3]));
+        if (unlikely(part3 == 0 or part3 >= 100))
+            return false;
+
+        *range_start = *range_end = part1 * 10000 + part2 * 100 + part3;
+        return true;
+    }
+
+    static RegexMatcher *matcher2(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+)-(\\d+)$"));
+    if (matcher2->matched(ranges)) {
+        const unsigned canones1(StringUtil::ToUnsigned((*matcher2)[1]));
+        if (unlikely(canones1 == 0 or canones1 >= 10000))
+            return false;
+
+        const unsigned canones2(StringUtil::ToUnsigned((*matcher2)[2]));
+        if (unlikely(canones2 == 0 or canones2 >= 10000))
+            return false;
+
+        *range_start = canones1 * 10000;
+        *range_end   = canones2 * 10000 + 9999;
+        return true;
+    }
+
+    static RegexMatcher *matcher3(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+),(\\d+)$"));
+    if (matcher3->matched(ranges)) {
+        const unsigned part1(StringUtil::ToUnsigned((*matcher3)[1]));
+        if (unlikely(part1 == 0 or part1 >= 10000))
+            return false;
+
+        const unsigned part2(StringUtil::ToUnsigned((*matcher3)[2]));
+        if (unlikely(part2 == 0 or part2 >= 100))
+            return false;
+
+        *range_start = *range_end = part1 * 10000 + part2 * 100 + 99;
+        return true;
+    }
+
+    static RegexMatcher *matcher4(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+),(\\d+)-(\\d+)$"));
+    if (matcher4->matched(ranges)) {
+        const unsigned part1(StringUtil::ToUnsigned((*matcher4)[1]));
+        if (unlikely(part1 == 0 or part1 >= 10000))
+            return false;
+
+        const unsigned part2(StringUtil::ToUnsigned((*matcher4)[2]));
+        if (unlikely(part2 == 0 or part2 >= 100))
+            return false;
+
+        const unsigned part3(StringUtil::ToUnsigned((*matcher4)[3]));
+        if (unlikely(part3 == 0 or part3 >= 100))
+            return false;
+
+        *range_start = part1 * 10000 + part2 * 100;
+        *range_end = part1 * 10000 + part3 * 100;
+        return true;
+    }
+
+    return false;
+}
+
+
+namespace {
+
+
+const unsigned OFFSET(10000000);
+
+
+// \return the current day as a range endpoint
+inline std::string Now() {
+    unsigned year, month, day;
+    TimeUtil::GetCurrentDate(&year, &month, &day);
+    return StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
+           +  StringUtil::ToString(month, /* radix = */10, /* width = */2, /* padding_char = */'0')
+           +  StringUtil::ToString(day, /* radix = */10, /* width = */2, /* padding_char = */'0');
+}
+
+
+} // unnamed namespace
+
+
+bool ConvertTextToTimeRange(const std::string &text, std::string * const range) {
+    static auto matcher1(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{3,4})-(\\d{3,4})"));
+    if (matcher1->matched(text)) {
+        const unsigned year1(StringUtil::ToUnsigned((*matcher1)[1]));
+        const unsigned year2(StringUtil::ToUnsigned((*matcher1)[2]));
+        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        return true;
+    }
+
+    static auto matcher2(RegexMatcher::RegexMatcherFactoryOrDie("(\\d\\d\\d\\d)-"));
+    if (matcher2->matched(text)) {
+        const unsigned year(StringUtil::ToUnsigned((*matcher2)[1]));
+        *range = StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_" + Now();
+        return true;
+    }
+
+    static auto matcher3(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{2,4})(?: v\\. ?Chr\\.)?-(\\d{2,4}) v\\. ?Chr\\."));
+    if (matcher3->matched(text)) {
+        const unsigned year1(StringUtil::ToUnsigned((*matcher3)[1]));
+        const unsigned year2(StringUtil::ToUnsigned((*matcher3)[2]));
+        *range = StringUtil::ToString(OFFSET - year1, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
+                 + StringUtil::ToString(OFFSET - year2, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        return true;
+    }
+
+    return false;
+}
+
+
+} // namespace RangeUtil

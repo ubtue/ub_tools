@@ -1,8 +1,10 @@
-/** \file   BibleUtil.h
- *  \brief  Declaration of bits related to our bible reference parser.
- *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
- *
- *  \copyright 2014-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+/** \file    RangeUtil.h
+ *  \brief   Declarations of miscellaneous hierachical range search functions.
+ *  \author  Dr. Johannes Ruscheinski
+ */
+
+/*
+ *  Copyright 2014-2019 Universitätsbibliothek Tübingen.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -27,7 +29,7 @@
 #include <vector>
 
 
-namespace BibleUtil {
+namespace RangeUtil {
 
 
 static const std::string BIB_REF_RANGE_TAG("BIR");
@@ -95,4 +97,11 @@ public:
 };
 
 
-} // namespace BibleUtil
+bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start, unsigned * const range_end);
+
+
+/** \return True if "text" contained a valid time range, o/w false. */
+bool ConvertTextToTimeRange(const std::string &text, std::string * const range);
+
+
+} // namespace MiscUtil

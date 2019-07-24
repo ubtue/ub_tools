@@ -24,56 +24,13 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "MARC.h"
+#include "RangeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
-#include "TimeUtil.h"
 #include "util.h"
 
 
 namespace {
-
-
-static const unsigned OFFSET(10000000);
-
-
-// \return the current day as a range endpoint
-inline std::string Now() {
-    unsigned year, month, day;
-    TimeUtil::GetCurrentDate(&year, &month, &day);
-    return StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
-           +  StringUtil::ToString(month, /* radix = */10, /* width = */2, /* padding_char = */'0')
-           +  StringUtil::ToString(day, /* radix = */10, /* width = */2, /* padding_char = */'0');
-}
-
-
-bool ConvertTextToRange(const std::string &text, std::string * const range) {
-    static auto matcher1(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{3,4})-(\\d{3,4})"));
-    if (matcher1->matched(text)) {
-        const unsigned year1(StringUtil::ToUnsigned((*matcher1)[1]));
-        const unsigned year2(StringUtil::ToUnsigned((*matcher1)[2]));
-        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
-                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
-        return true;
-    }
-
-    static auto matcher2(RegexMatcher::RegexMatcherFactoryOrDie("(\\d\\d\\d\\d)-"));
-    if (matcher2->matched(text)) {
-        const unsigned year(StringUtil::ToUnsigned((*matcher2)[1]));
-        *range = StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_" + Now();
-        return true;
-    }
-
-    static auto matcher3(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{2,4})(?: v\\. ?Chr\\.)?-(\\d{2,4}) v\\. ?Chr\\."));
-    if (matcher3->matched(text)) {
-        const unsigned year1(StringUtil::ToUnsigned((*matcher3)[1]));
-        const unsigned year2(StringUtil::ToUnsigned((*matcher3)[2]));
-        *range = StringUtil::ToString(OFFSET - year1, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
-                 + StringUtil::ToString(OFFSET - year2, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
-        return true;
-    }
-
-    return false;
-}
 
 
 void LoadAuthorityData(MARC::Reader * const reader,
@@ -87,7 +44,7 @@ void LoadAuthorityData(MARC::Reader * const reader,
         if (_548_field != record.end() and _548_field->hasSubfieldWithValue('i', "Zeitraum")) {
             const std::string free_form_range_candidate(_548_field->getFirstSubfieldWithCode('a'));
             std::string range;
-            if (ConvertTextToRange(free_form_range_candidate, &range))
+            if (RangeUtil::ConvertTextToTimeRange(free_form_range_candidate, &range))
                 (*authority_ppns_to_time_codes_map)[record.getControlNumber()] = range;
             else
                 LOG_WARNING("can't convert \"" + free_form_range_candidate + "\" to a time range!");
@@ -139,7 +96,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                 if (matched_prefix == _689_PREFIXES.cend())
                     continue;
 
-                if (ConvertTextToRange(a_subfield.substr(matched_prefix->length()), &range))
+                if (RangeUtil::ConvertTextToTimeRange(a_subfield.substr(matched_prefix->length()), &range))
                     goto augment_record;
             }
 
