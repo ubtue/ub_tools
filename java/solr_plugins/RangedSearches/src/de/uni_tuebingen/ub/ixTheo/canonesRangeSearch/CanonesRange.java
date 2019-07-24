@@ -13,17 +13,17 @@ public class CanonesRange extends Range {
         super(getLower(range), getUpper(range));
     }
 
-    private static int getLower(final String range) {
+    private static long getLower(final String range) {
         if (range.length() == CANON_LAW_CODE_LENGTH + 1 + CANON_LAW_CODE_LENGTH) {
-            return Integer.valueOf(range.substring(0, CANON_LAW_CODE_LENGTH));
+            return Long.valueOf(range.substring(0, CANON_LAW_CODE_LENGTH));
         } else {
             return 0;
         }
     }
 
-    private static int getUpper(final String range) {
+    private static long getUpper(final String range) {
         if (range.length() == CANON_LAW_CODE_LENGTH + 1 + CANON_LAW_CODE_LENGTH) {
-            return Integer.valueOf(range.substring(CANON_LAW_CODE_LENGTH + 1, CANON_LAW_CODE_LENGTH + 1 + CANON_LAW_CODE_LENGTH));
+            return Long.valueOf(range.substring(CANON_LAW_CODE_LENGTH + 1, CANON_LAW_CODE_LENGTH + 1 + CANON_LAW_CODE_LENGTH));
         } else {
             return 999999999;
         }
@@ -53,8 +53,8 @@ public class CanonesRange extends Range {
     }
 
     public boolean isEntireCodex() {
-        final int lower = getLower();
-        final int upper = getUpper();
+        final long lower = getLower();
+        final long upper = getUpper();
         return (lower == 100000000 && upper == 199999999) || (lower == 200000000 && upper == 299999999)
                || (lower == 300000000 && upper == 399999999);
     }
