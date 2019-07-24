@@ -1,5 +1,5 @@
-/** \file    augment_canones_references.cc
- *  \brief   A tool for adding numerical canon law references to MARC-21 datasets.
+/** \file    augment_time_aspects.cc
+ *  \brief   A tool for adding normalised time references to MARC-21 datasets.
  *  \author  Dr. Johannes Ruscheinski
  */
 
@@ -20,85 +20,82 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <iostream>
-#include <string>
+#include <iostream>//XXX
 #include <unordered_map>
 #include <cstdlib>
-#include <strings.h>
-#include "BibleUtil.h"
 #include "Compiler.h"
 #include "MARC.h"
-#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
-#include "UBTools.h"
+#include "TimeUtil.h"
 #include "util.h"
 
 
 namespace {
 
 
-// To understand this code read https://github.com/ubtue/tuefind/wiki/Codices
-std::string FieldToCanonLawCode(const std::string &ppn, const std::string &subfield_codex, const std::string &subfield_year,
-                                const std::string &subfield_part)
-{
-    enum Codex { CIC1917, CIC1983, CCEO } codex;
-    if (::strcasecmp(subfield_codex.c_str(), "Codex canonum ecclesiarum orientalium") == 0)
-        codex = CCEO;
-    else {
-        if (unlikely(subfield_year.empty()))
-            LOG_ERROR("missing year for Codex Iuris Canonici! (PPN: " + ppn + ")");
-        if (subfield_year == "1917")
-            codex = CIC1917;
-        else if (subfield_year == "1983")
-            codex = CIC1983;
-        else
-            LOG_ERROR("bad year for Codex Iuris Canonici \"" + subfield_year + "\"! (PPN: " + ppn + ")");
+static const unsigned OFFSET(10000000);
+
+
+// \return the current day as a range endpoint
+inline std::string Now() {
+    unsigned year, month, day;
+    TimeUtil::GetCurrentDate(&year, &month, &day);
+    return StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
+           +  StringUtil::ToString(month, /* radix = */10, /* width = */2, /* padding_char = */'0')
+           +  StringUtil::ToString(day, /* radix = */10, /* width = */2, /* padding_char = */'0');
+}
+
+
+bool ConvertTextToRange(const std::string &text, std::string * const range) {
+    static auto matcher1(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{3,4})-(\\d{3,4})"));
+    if (matcher1->matched(text)) {
+        const unsigned year1(StringUtil::ToUnsigned((*matcher1)[1]));
+        const unsigned year2(StringUtil::ToUnsigned((*matcher1)[2]));
+        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        return true;
     }
 
-    unsigned range_start, range_end;
-    if (subfield_part.empty()) {
-        range_start = 0;
-        range_end = 99999999;
-    } else if (not MiscUtil::ParseCanonLawRanges(subfield_part, &range_start, &range_end))
-        LOG_ERROR("don't know how to parse codex parts \"" + subfield_part + "\"! (PPN: " + ppn + ")");
-
-    switch (codex) {
-    case CIC1917:
-        return StringUtil::ToString(100000000 + range_start) + "_" + StringUtil::ToString(100000000 + range_end);
-    case CIC1983:
-        return StringUtil::ToString(200000000 + range_start) + "_" + StringUtil::ToString(200000000 + range_end);
-    case CCEO:
-        return StringUtil::ToString(300000000 + range_start) + "_" + StringUtil::ToString(300000000 + range_end);
-    default:
-        LOG_ERROR("unknown codex: " + std::to_string(codex));
+    static auto matcher2(RegexMatcher::RegexMatcherFactoryOrDie("(\\d\\d\\d\\d)-"));
+    if (matcher2->matched(text)) {
+        const unsigned year(StringUtil::ToUnsigned((*matcher2)[1]));
+        *range = StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_" + Now();
+        return true;
     }
+
+    static auto matcher3(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{2,4})(?: v\\. ?Chr\\.)?-(\\d{2,4}) v\\. ?Chr\\."));
+    if (matcher3->matched(text)) {
+        const unsigned year1(StringUtil::ToUnsigned((*matcher3)[1]));
+        const unsigned year2(StringUtil::ToUnsigned((*matcher3)[2]));
+        *range = StringUtil::ToString(OFFSET - year1, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
+                 + StringUtil::ToString(OFFSET - year2, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        return true;
+    }
+
+    return false;
 }
 
 
 void LoadAuthorityData(MARC::Reader * const reader,
-                       std::unordered_map<std::string, std::string> * const authority_ppns_to_canon_law_codes_map)
+                       std::unordered_map<std::string, std::string> * const authority_ppns_to_time_codes_map)
 {
     unsigned total_count(0);
     while (auto record = reader->read()) {
         ++total_count;
 
-        const auto _110_field(record.findTag("110"));
-        if (_110_field == record.end() or ::strcasecmp(_110_field->getFirstSubfieldWithCode('a').c_str(), "Katholische Kirche") != 0)
-            continue;
-
-        const std::string t_subfield(_110_field->getFirstSubfieldWithCode('t'));
-        if (::strcasecmp(t_subfield.c_str(),"Codex Iuris Canonici") != 0
-            and ::strcasecmp(t_subfield.c_str(), "Codex canonum ecclesiarum orientalium") != 0)
-            continue;
-
-        (*authority_ppns_to_canon_law_codes_map)[record.getControlNumber()] = FieldToCanonLawCode(record.getControlNumber(),
-                                                                                                  t_subfield,
-                                                                                                  _110_field->getFirstSubfieldWithCode('f'),
-                                                                                                  _110_field->getFirstSubfieldWithCode('p'));
+        const auto _548_field(record.findTag("548"));
+        if (_548_field != record.end() and _548_field->hasSubfieldWithValue('i', "Zeitraum")) {
+            const std::string free_form_range_candidate(_548_field->getFirstSubfieldWithCode('a'));
+            std::string range;
+            if (ConvertTextToRange(free_form_range_candidate, &range))
+                (*authority_ppns_to_time_codes_map)[record.getControlNumber()] = range;
+            else
+                LOG_WARNING("can't convert \"" + free_form_range_candidate + "\" to a time range!");
+        }
     }
 
-    LOG_INFO("found " + std::to_string(authority_ppns_to_canon_law_codes_map->size()) + " canon law records among "
+    LOG_INFO("found " + std::to_string(authority_ppns_to_time_codes_map->size()) + " time aspect records among "
              + std::to_string(total_count) + " authority records.");
 }
 
@@ -114,73 +111,60 @@ void CollectAuthorityPPNs(const MARC::Record &record, const MARC::Tag &linking_f
 }
 
 
+inline std::vector<std::string>::const_iterator FindFirstPrefixMatch(const std::string &s, const std::vector<std::string> &prefixes) {
+    for (auto prefix(prefixes.cbegin()); prefix != prefixes.cend(); ++prefix) {
+        if (StringUtil::StartsWith(s, *prefix))
+            return prefix;
+    }
+
+    return prefixes.cend();
+}
+
+
 void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
-                    const std::unordered_map<std::string, std::string> &authority_ppns_to_canon_law_codes_map)
+                    const std::unordered_map<std::string, std::string> &authority_ppns_to_time_codes_map)
 {
-    static const std::vector<std::string> CANONES_GND_LINKING_TAGS{ "689", "655" };
+    static const std::vector<std::string> TIME_ASPECT_GND_LINKING_TAGS{ "689" };
+    static const std::vector<std::string> _689_PREFIXES{ "Geschichte ", "Geistesgeschichte ", "Ideengeschichte ", "Kirchengeschichte ",
+                                                         "Sozialgeschichte ", "Vor- und Frühgeschichte ", "Weltgeschichte ", "Prognose " };
 
     unsigned total_count(0), augmented_count(0);
-    std::map<std::string, unsigned> reference_counts;
-
     while (auto record = reader->read()) {
         ++total_count;
 
-        bool augmented_record(false);
-        for (const auto &linking_tag : CANONES_GND_LINKING_TAGS) {
-            std::vector<std::string> authority_ppns;
-            CollectAuthorityPPNs(record, linking_tag, &authority_ppns);
-
-            if (not authority_ppns.empty()) {
-                for (const auto &authority_ppn : authority_ppns) {
-                    const auto ppn_and_canon_law_code(authority_ppns_to_canon_law_codes_map.find(authority_ppn));
-                    if (ppn_and_canon_law_code != authority_ppns_to_canon_law_codes_map.cend()) {
-                        record.insertField("CAL", { { 'a', ppn_and_canon_law_code->second } });
-                        augmented_record = true;
-                        ++reference_counts[linking_tag];
-                    }
-                }
-            }
-        }
-
-        if (not augmented_record) {
-            // check if the codex data is embedded directly in the 689 field
-            // apparently, 689$t is repeatable and the first instance (always?) appears to be 'Katholische Kirche'
-            std::vector<std::string> ranges_to_insert;
-            for (const auto &_689_field : record.getTagRange("689")) {
-                if (_689_field.getFirstSubfieldWithCode('a') != "Katholische Kirche")
+        std::string range;
+        for (const std::string &tag : TIME_ASPECT_GND_LINKING_TAGS) {
+            for (const auto &time_aspect_field : record.getTagRange(tag)) {
+                const auto a_subfield(time_aspect_field.getFirstSubfieldWithCode('a'));
+                const auto matched_prefix(FindFirstPrefixMatch(a_subfield, _689_PREFIXES));
+                if (matched_prefix == _689_PREFIXES.cend())
                     continue;
 
-                std::string subfield_codex, subfield_year, subfield_part;
-                for (const auto &subfield : _689_field.getSubfields()) {
-                    if (subfield.code_ == 't' and subfield.value_ != "Katholische Kirche")
-                        subfield_codex = subfield.value_;
-                    else if (subfield.code_ == 'f')
-                        subfield_year = subfield.value_;
-                    else if (subfield.code_ == 'p')
-                        subfield_part = subfield.value_;
-                }
-
-                if (not subfield_codex.empty() and not subfield_year.empty() and not subfield_part.empty()) {
-                    ranges_to_insert.emplace_back(FieldToCanonLawCode(record.getControlNumber(), subfield_codex, subfield_year, subfield_part));
-                    augmented_record = true;
-                    ++reference_counts["689*"];
-                }
+                if (ConvertTextToRange(a_subfield.substr(matched_prefix->length()), &range))
+                    goto augment_record;
             }
 
-            for (const auto &range : ranges_to_insert)
-                record.insertField("CAL", { { 'a', range } });
+            std::vector<std::string> authority_ppns;
+            CollectAuthorityPPNs(record, tag, &authority_ppns);
+            for (const auto authority_ppn : authority_ppns) {
+                const auto authority_ppn_and_time_code(authority_ppns_to_time_codes_map.find(authority_ppn));
+                if (authority_ppn_and_time_code != authority_ppns_to_time_codes_map.cend()) {
+                    range = authority_ppn_and_time_code->second;
+                    goto augment_record;
+                }
+            }
         }
 
-        if (augmented_record)
+augment_record:
+        if (not range.empty()) {
+            record.insertField("TIM", { { 'a', range } });
             ++augmented_count;
+        }
 
         writer->write(record);
     }
 
     LOG_INFO("augmented " + std::to_string(augmented_count) + " of " + std::to_string(total_count) + " records.");
-    LOG_INFO("found " + std::to_string(reference_counts["689"]) + " references in field 689");
-    LOG_INFO("found " + std::to_string(reference_counts["689*"]) + " direct references in field 689");
-    LOG_INFO("found " + std::to_string(reference_counts["655"]) + " references in field 655");
 }
 
 
@@ -202,12 +186,12 @@ int Main(int argc, char **argv) {
         LOG_ERROR("Title output file name equals authority file name!");
 
     auto authority_reader(MARC::Reader::Factory(authority_filename));
-    std::unordered_map<std::string, std::string> authority_ppns_to_canon_law_codes_map;
-    LoadAuthorityData(authority_reader.get(), &authority_ppns_to_canon_law_codes_map);
+    std::unordered_map<std::string, std::string> authority_ppns_to_time_codes_map;
+    LoadAuthorityData(authority_reader.get(), &authority_ppns_to_time_codes_map);
 
     auto title_reader(MARC::Reader::Factory(title_input_filename));
     auto title_writer(MARC::Writer::Factory(title_output_filename));
-    ProcessRecords(title_reader.get(), title_writer.get(), authority_ppns_to_canon_law_codes_map);
+    ProcessRecords(title_reader.get(), title_writer.get(), authority_ppns_to_time_codes_map);
 
     return EXIT_SUCCESS;
 }
