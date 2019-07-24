@@ -101,6 +101,9 @@ inline std::string GetCurrentTime(const TimeZone time_zone = LOCAL) { return Get
 inline std::string GetCurrentYear(const TimeZone time_zone = LOCAL) { return GetCurrentDateAndTime("%Y", time_zone); }
 
 
+void GetCurrentDate(unsigned * const year, unsigned * const month, unsigned * const day, const TimeZone time_zone = LOCAL);
+
+
 /** \brief  Convert a time from a time_t to a string.
  *  \param  the_time   The time to convert.
  *  \param  format     The format of the result, in strftime(3) format.
