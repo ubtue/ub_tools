@@ -650,11 +650,13 @@ inline std::string Now() {
 } // unnamed namespace
 
 
-bool ConvertTextToTimeRange(const std::string &text, std::string * const range) {
+bool ConvertTextToTimeRange(const std::string &text, std::string * const range, const bool special_case_centuries) {
     static auto matcher1(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{3,4})-(\\d{3,4})"));
     if (matcher1->matched(text)) {
         const unsigned year1(StringUtil::ToUnsigned((*matcher1)[1]));
-        const unsigned year2(StringUtil::ToUnsigned((*matcher1)[2]));
+        unsigned year2(StringUtil::ToUnsigned((*matcher1)[2]));
+        if (special_case_centuries and year1 % 100 == 0 and year2 % 100 == 0)
+            --year2;
         *range = StringUtil::ToString(year1 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
                  + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
         return true;
