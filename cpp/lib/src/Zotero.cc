@@ -904,14 +904,14 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
     }
 }
 
-
-void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                          const SiteParams &site_params)
+template <typename T>
+void VisitJsonMetadataNodes(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                            const SiteParams &site_params, T callback)
 {
     switch (node->getType()) {
     case JSON::JSONNode::OBJECT_NODE:
         for (const auto &key_and_node : *JSON::JSONNode::CastToObjectNodeOrDie(node_name, node))
-            SuppressJsonMetadata(key_and_node.first, key_and_node.second, site_params);
+            VisitJsonMetadataNodes(key_and_node.first, key_and_node.second, site_params, callback);
 
         break;
     case JSON::JSONNode::ARRAY_NODE: {
@@ -921,7 +921,7 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
                 LOG_ERROR("invalid JSON array element in array node '" + node_name + "'");
 
             for (auto &key_and_node : *object_node)
-                SuppressJsonMetadata(key_and_node.first, key_and_node.second, site_params);
+                VisitJsonMetadataNodes(key_and_node.first, key_and_node.second, site_params, callback);
         }
 
         break;
@@ -929,18 +929,45 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
     case JSON::JSONNode::NULL_NODE:
         /* intentionally empty */ break;
     default:
-        const auto suppression_regex(site_params.metadata_suppression_filters_.find(node_name));
-        if (suppression_regex != site_params.metadata_suppression_filters_.end()) {
-            if (node->getType() != JSON::JSONNode::STRING_NODE)
-                LOG_ERROR("metadata suppression filter has invalid node type '" + node_name + "'");
+        callback(node_name, node, site_params);
+    }
+}
 
-            const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
-            if (suppression_regex->second->matched(string_node->getValue())) {
-                LOG_DEBUG("suppression regex '" + suppression_regex->second->getPattern() +
-                          "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
-                string_node->setValue("");
-            }
+
+void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                          const SiteParams &site_params)
+{
+    const auto suppression_regex(site_params.metadata_suppression_filters_.find(node_name));
+    if (suppression_regex != site_params.metadata_suppression_filters_.end()) {
+        if (node->getType() != JSON::JSONNode::STRING_NODE)
+            LOG_ERROR("metadata suppression filter has invalid node type '" + node_name + "'");
+
+        const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
+        if (suppression_regex->second->matched(string_node->getValue())) {
+            LOG_DEBUG("suppression regex '" + suppression_regex->second->getPattern() +
+                        "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
+            string_node->setValue("");
         }
+    }
+}
+
+
+void OverrideJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                          const SiteParams &site_params)
+{
+    static const std::string ORIGINAL_VALUE_SPECIFIER("%org%");
+
+    const auto override_pattern(site_params.metadata_overrides_.find(node_name));
+    if (override_pattern != site_params.metadata_overrides_.end()) {
+        if (node->getType() != JSON::JSONNode::STRING_NODE)
+            LOG_ERROR("metadata override has invalid node type '" + node_name + "'");
+
+        const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
+        const auto string_value(string_node->getValue());
+        const auto override_string(StringUtil::ReplaceString(ORIGINAL_VALUE_SPECIFIER, string_value,override_pattern->second));
+
+        LOG_DEBUG("metadata field '" + node_name + "' value changed from '" + string_value + "' to '" + override_string + "'");
+        string_node->setValue(override_string);
     }
 }
 
@@ -955,8 +982,10 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     std::shared_ptr<JSON::StringNode> language_node(nullptr);
     Transformation::TestForUnknownZoteroKey(object_node);
 
+    VisitJsonMetadataNodes("json_root", object_node, site_params, SuppressJsonMetadata);
+    VisitJsonMetadataNodes("json_root", object_node, site_params, OverrideJsonMetadata);
+
     for (const auto &key_and_node : *object_node) {
-        SuppressJsonMetadata(key_and_node.first, key_and_node.second, site_params);
         if (key_and_node.first == "language") {
             language_node = JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second);
             const std::string language_json(language_node->getValue());

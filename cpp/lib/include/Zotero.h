@@ -214,6 +214,7 @@ struct SiteParams {
     std::set<std::string> expected_languages_;
     std::string expected_languages_text_fields_;
     bool force_automatic_language_detection_;
+    std::map<std::string, std::string> metadata_overrides_;
     std::map<std::string, std::unique_ptr<RegexMatcher>> metadata_suppression_filters_;
     std::vector<std::string> additional_fields_;
     std::vector<std::string> non_standard_metadata_fields_;
