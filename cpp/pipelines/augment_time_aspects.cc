@@ -91,10 +91,14 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
         std::string range;
         for (const std::string &tag : TIME_ASPECT_GND_LINKING_TAGS) {
             for (const auto &time_aspect_field : record.getTagRange(tag)) {
-                const auto a_subfield(time_aspect_field.getFirstSubfieldWithCode('a'));
+                auto a_subfield(time_aspect_field.getFirstSubfieldWithCode('a'));
                 const auto matched_prefix(FindFirstPrefixMatch(a_subfield, _689_PREFIXES));
                 if (matched_prefix == _689_PREFIXES.cend())
                     continue;
+
+                // Special handling of ranges like "Kirchengeschichte Anfänge-1600":
+                if (StringUtil::StartsWith(a_subfield, "Kirchengeschichte Anfänge-"))
+                    a_subfield = "Kirchengeschichte 30" + a_subfield.substr(__builtin_strlen("Kirchengeschichte Anfänge"));
 
                 if (RangeUtil::ConvertTextToTimeRange(a_subfield.substr(matched_prefix->length()), &range))
                     goto augment_record;
