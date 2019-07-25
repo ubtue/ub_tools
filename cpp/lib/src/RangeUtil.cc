@@ -651,7 +651,7 @@ inline std::string Now() {
 
 
 bool ConvertTextToTimeRange(const std::string &text, std::string * const range, const bool special_case_centuries) {
-    static auto matcher1(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{3,4})-(\\d{3,4})"));
+    static auto matcher1(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{1,4})-(\\d{1,4})"));
     if (matcher1->matched(text)) {
         const unsigned year1(StringUtil::ToUnsigned((*matcher1)[1]));
         unsigned year2(StringUtil::ToUnsigned((*matcher1)[2]));
