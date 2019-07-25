@@ -651,7 +651,7 @@ inline std::string Now() {
 
 
 bool ConvertTextToTimeRange(const std::string &text, std::string * const range, const bool special_case_centuries) {
-    static auto matcher1(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{1,4})-(\\d{1,4})"));
+    static auto matcher1(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,4})-(\\d{1,4})$"));
     if (matcher1->matched(text)) {
         const unsigned year1(StringUtil::ToUnsigned((*matcher1)[1]));
         unsigned year2(StringUtil::ToUnsigned((*matcher1)[2]));
@@ -662,14 +662,14 @@ bool ConvertTextToTimeRange(const std::string &text, std::string * const range, 
         return true;
     }
 
-    static auto matcher2(RegexMatcher::RegexMatcherFactoryOrDie("(\\d\\d\\d\\d)-"));
+    static auto matcher2(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d\\d\\d\\d)-$"));
     if (matcher2->matched(text)) {
         const unsigned year(StringUtil::ToUnsigned((*matcher2)[1]));
         *range = StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_" + Now();
         return true;
     }
 
-    static auto matcher3(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{2,4})(?: v\\. ?Chr\\.)?-(\\d{2,4}) v\\. ?Chr\\."));
+    static auto matcher3(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{2,4})(?: v\\. ?Chr\\.)?-(\\d{2,4}) v\\. ?Chr\\.$"));
     if (matcher3->matched(text)) {
         const unsigned year1(StringUtil::ToUnsigned((*matcher3)[1]));
         const unsigned year2(StringUtil::ToUnsigned((*matcher3)[2]));

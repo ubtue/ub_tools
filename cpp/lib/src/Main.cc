@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <string>
 #include <cstdlib>
+#include <cerrno>
 #include "StringUtil.h"
 #include "util.h"
 
@@ -51,9 +52,10 @@ int main(int argc, char *argv[]) {
     logger->setMinimumLogLevel(log_level);
 
     try {
+        errno = 0;
         return Main(argc, argv);
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }
-                  
+
