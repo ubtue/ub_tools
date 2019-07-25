@@ -336,6 +336,7 @@ void MarcFormatHandler::extractItemParameters(std::shared_ptr<const JSON::Object
             auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
             creator.first_name_ = creator_object_node->getOptionalStringValue("firstName");
             creator.last_name_ = creator_object_node->getOptionalStringValue("lastName");
+            creator.affix_ = creator_object_node->getOptionalStringValue("affix");
             creator.title_ = creator_object_node->getOptionalStringValue("title");
             creator.type_ = creator_object_node->getOptionalStringValue("creatorType");
             creator.ppn_ = creator_object_node->getOptionalStringValue("ppn");
@@ -559,6 +560,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             subfields.appendSubfield('4', Transformation::GetCreatorTypeForMarc21(creator->type_));
 
         subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({ creator->last_name_, creator->first_name_ }), ", "));
+        if (not creator->affix_.empty())
+            subfields.appendSubfield('b', creator->affix_ + ".");
         if (not creator->title_.empty())
             subfields.appendSubfield('c', creator->title_);
 
@@ -721,18 +724,19 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
 
 
 // Extracts information from the ubtue node
-void MarcFormatHandler::extractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node, CustomNodeParameters * const
-                                                        custom_node_params)
+void MarcFormatHandler::extractCustomNodeParameters(std::shared_ptr<const JSON::JSONNode> custom_node,
+                                                    CustomNodeParameters * const custom_node_params)
 {
     const std::shared_ptr<const JSON::ObjectNode>custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
 
     const auto creator_nodes(custom_object->getOptionalArrayNode("creators"));
     if (creator_nodes != nullptr) {
-        for (const auto creator_node : *creator_nodes) {
+        for (const auto &creator_node : *creator_nodes) {
             Creator creator;
             const auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
             creator.first_name_ = creator_object_node->getOptionalStringValue("firstName");
             creator.last_name_ = creator_object_node->getOptionalStringValue("lastName");
+            creator.affix_ = creator_object_node->getOptionalStringValue("affix");
             creator.type_ = creator_object_node->getOptionalStringValue("creatorType");
             creator.ppn_ = creator_object_node->getOptionalStringValue("ppn");
             creator.gnd_number_ = creator_object_node->getOptionalStringValue("gnd_number");
@@ -761,7 +765,9 @@ std::string GetCustomValueIfNotEmpty(const std::string &custom_value, const std:
 }
 
 
-void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters, struct CustomNodeParameters &custom_node_params){
+void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters,
+                                                              struct CustomNodeParameters &custom_node_params)
+{
     item_parameters->issn_zotero_ = custom_node_params.issn_zotero_;
     item_parameters->issn_online_ = custom_node_params.issn_online_;
     item_parameters->issn_print_ = custom_node_params.issn_print_;
@@ -855,18 +861,22 @@ inline std::string OptionalMap(const std::string &key, const std::unordered_map<
 void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, const SiteParams &site_params,
                          std::vector<std::string> * const comments)
 {
-    for (size_t i(0); i < creators_array->size(); ++i) {
-        const std::shared_ptr<JSON::ObjectNode> creator_object(creators_array->getObjectNode(i));
+    for (const auto &array_element : *creators_array) {
+        const auto creator_object(JSON::JSONNode::CastToObjectNodeOrDie("array_element", array_element));
 
         auto first_name_node(creator_object->getNode("firstName"));
         auto last_name_node(creator_object->getNode("lastName"));
         auto first_name(creator_object->getOptionalStringValue("firstName"));
         auto last_name(creator_object->getOptionalStringValue("lastName"));
-        std::string name_title;
-        BSZTransform::PostProcessAuthorName(&first_name, &last_name, &name_title);
+        std::string name_title, name_affix;
+        BSZTransform::PostProcessAuthorName(&first_name, &last_name, &name_title, &name_affix);
         if (not name_title.empty()) {
             const std::shared_ptr<JSON::StringNode> title_node(new JSON::StringNode(name_title));
             creator_object->insert("title", title_node);
+        }
+        if (not name_affix.empty()) {
+            const std::shared_ptr<JSON::StringNode> affix_node(new JSON::StringNode(name_affix));
+            creator_object->insert("affix", affix_node);
         }
 
         if (not last_name.empty()) {
@@ -894,14 +904,14 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
     }
 }
 
-
-void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                          const SiteParams &site_params)
+template <typename T>
+void VisitJsonMetadataNodes(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                            const SiteParams &site_params, const T callback)
 {
     switch (node->getType()) {
     case JSON::JSONNode::OBJECT_NODE:
         for (const auto &key_and_node : *JSON::JSONNode::CastToObjectNodeOrDie(node_name, node))
-            SuppressJsonMetadata(key_and_node.first, key_and_node.second, site_params);
+            VisitJsonMetadataNodes(key_and_node.first, key_and_node.second, site_params, callback);
 
         break;
     case JSON::JSONNode::ARRAY_NODE: {
@@ -911,7 +921,7 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
                 LOG_ERROR("invalid JSON array element in array node '" + node_name + "'");
 
             for (auto &key_and_node : *object_node)
-                SuppressJsonMetadata(key_and_node.first, key_and_node.second, site_params);
+                VisitJsonMetadataNodes(key_and_node.first, key_and_node.second, site_params, callback);
         }
 
         break;
@@ -919,18 +929,45 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
     case JSON::JSONNode::NULL_NODE:
         /* intentionally empty */ break;
     default:
-        const auto suppression_regex(site_params.metadata_suppression_filters_.find(node_name));
-        if (suppression_regex != site_params.metadata_suppression_filters_.end()) {
-            if (node->getType() != JSON::JSONNode::STRING_NODE)
-                LOG_ERROR("metadata suppression filter has invalid node type '" + node_name + "'");
+        callback(node_name, node, site_params);
+    }
+}
 
-            const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
-            if (suppression_regex->second->matched(string_node->getValue())) {
-                LOG_DEBUG("suppression regex '" + suppression_regex->second->getPattern() +
-                          "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
-                string_node->setValue("");
-            }
+
+void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                          const SiteParams &site_params)
+{
+    const auto suppression_regex(site_params.metadata_suppression_filters_.find(node_name));
+    if (suppression_regex != site_params.metadata_suppression_filters_.end()) {
+        if (node->getType() != JSON::JSONNode::STRING_NODE)
+            LOG_ERROR("metadata suppression filter has invalid node type '" + node_name + "'");
+
+        const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
+        if (suppression_regex->second->matched(string_node->getValue())) {
+            LOG_DEBUG("suppression regex '" + suppression_regex->second->getPattern() +
+                        "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
+            string_node->setValue("");
         }
+    }
+}
+
+
+void OverrideJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                          const SiteParams &site_params)
+{
+    static const std::string ORIGINAL_VALUE_SPECIFIER("%org%");
+
+    const auto override_pattern(site_params.metadata_overrides_.find(node_name));
+    if (override_pattern != site_params.metadata_overrides_.end()) {
+        if (node->getType() != JSON::JSONNode::STRING_NODE)
+            LOG_ERROR("metadata override has invalid node type '" + node_name + "'");
+
+        const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
+        const auto string_value(string_node->getValue());
+        const auto override_string(StringUtil::ReplaceString(ORIGINAL_VALUE_SPECIFIER, string_value,override_pattern->second));
+
+        LOG_DEBUG("metadata field '" + node_name + "' value changed from '" + string_value + "' to '" + override_string + "'");
+        string_node->setValue(override_string);
     }
 }
 
@@ -945,8 +982,10 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     std::shared_ptr<JSON::StringNode> language_node(nullptr);
     Transformation::TestForUnknownZoteroKey(object_node);
 
+    VisitJsonMetadataNodes("json_root", object_node, site_params, SuppressJsonMetadata);
+    VisitJsonMetadataNodes("json_root", object_node, site_params, OverrideJsonMetadata);
+
     for (const auto &key_and_node : *object_node) {
-        SuppressJsonMetadata(key_and_node.first, key_and_node.second, site_params);
         if (key_and_node.first == "language") {
             language_node = JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second);
             const std::string language_json(language_node->getValue());

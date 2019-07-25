@@ -71,7 +71,8 @@ const std::string AUTHOR_NAME_BLACKLIST(UBTools::GetTuelibPath() + "zotero_autho
 
 
 // Performs various operations such as blacklisted-token removal, title detection on the author name.
-void PostProcessAuthorName(std::string * const first_name, std::string * const last_name, std::string * const title);
+void PostProcessAuthorName(std::string * const first_name, std::string * const last_name, std::string * const title,
+                           std::string * const affix);
 
 
 } // end namespace BSZTransform
