@@ -176,7 +176,7 @@ bool IsAuthorNameTokenAffix(std::string token) {
 void PostProcessAuthorName(std::string * const first_name, std::string * const last_name, std::string * const title,
                            std::string * const affix)
 {
-    std::string first_name_buffer, last_name_buffer, title_buffer, affix_buffer;
+    std::string first_name_buffer, title_buffer;
     std::vector<std::string> tokens;
 
     StringUtil::Split(*first_name, ' ', &tokens);
@@ -187,6 +187,7 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
             first_name_buffer += token + " ";
     }
 
+    std::string last_name_buffer, affix_buffer;
     StringUtil::Split(*last_name, ' ', &tokens);
     for (const auto &token : tokens) {
         if (IsAuthorNameTokenTitle(token))

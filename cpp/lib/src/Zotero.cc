@@ -731,7 +731,7 @@ void MarcFormatHandler::extractCustomNodeParameters(std::shared_ptr<const JSON::
 
     const auto creator_nodes(custom_object->getOptionalArrayNode("creators"));
     if (creator_nodes != nullptr) {
-        for (const auto creator_node : *creator_nodes) {
+        for (const auto &creator_node : *creator_nodes) {
             Creator creator;
             const auto creator_object_node(JSON::JSONNode::CastToObjectNodeOrDie(""/* intentionally empty */, creator_node));
             creator.first_name_ = creator_object_node->getOptionalStringValue("firstName");
@@ -767,7 +767,7 @@ std::string GetCustomValueIfNotEmpty(const std::string &custom_value, const std:
 
 void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParameters * const item_parameters,
                                                               struct CustomNodeParameters &custom_node_params)
-    {
+{
     item_parameters->issn_zotero_ = custom_node_params.issn_zotero_;
     item_parameters->issn_online_ = custom_node_params.issn_online_;
     item_parameters->issn_print_ = custom_node_params.issn_print_;
@@ -861,8 +861,8 @@ inline std::string OptionalMap(const std::string &key, const std::unordered_map<
 void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, const SiteParams &site_params,
                          std::vector<std::string> * const comments)
 {
-    for (size_t i(0); i < creators_array->size(); ++i) {
-        const std::shared_ptr<JSON::ObjectNode> creator_object(creators_array->getObjectNode(i));
+    for (const auto &array_element : *creators_array) {
+        const auto creator_object(JSON::JSONNode::CastToObjectNodeOrDie("array_element", array_element));
 
         auto first_name_node(creator_object->getNode("firstName"));
         auto last_name_node(creator_object->getNode("lastName"));
@@ -906,7 +906,7 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
 
 template <typename T>
 void VisitJsonMetadataNodes(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                            const SiteParams &site_params, T callback)
+                            const SiteParams &site_params, const T callback)
 {
     switch (node->getType()) {
     case JSON::JSONNode::OBJECT_NODE:
