@@ -105,7 +105,10 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
     StringUtil::Split(expected_languages, ',', &site_params->expected_languages_, /* suppress_empty_components = */true);
 
     for (const auto &entry : section) {
-        if (StringUtil::StartsWith(entry.name_, "suppress_metadata_")) {
+        if (StringUtil::StartsWith(entry.name_, "override_metadata_")) {
+            const auto field_name(entry.name_.substr(__builtin_strlen("override_metadata_")));
+            site_params->metadata_overrides_.insert(std::make_pair(field_name, entry.value_));
+        } else if (StringUtil::StartsWith(entry.name_, "suppress_metadata_")) {
             const auto field_name(entry.name_.substr(__builtin_strlen("suppress_metadata_")));
             site_params->metadata_suppression_filters_.insert(std::make_pair(field_name,
                                                          std::unique_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactoryOrDie(entry.value_))));
