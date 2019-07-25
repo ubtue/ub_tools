@@ -150,7 +150,7 @@ void StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::s
 
 
 bool IsAuthorNameTokenTitle(std::string token) {
-    static const std::unordered_set<std::string> VALID_TITLES {
+    static const std::set<std::string> VALID_TITLES {
         "jr", "sr", "sj", "s.j", "fr", "hr", "dr", "prof", "em"
     };
 
@@ -164,7 +164,7 @@ bool IsAuthorNameTokenTitle(std::string token) {
 
 
 bool IsAuthorNameTokenAffix(std::string token) {
-    static const std::unordered_set<std::string> VALID_AFFIXES {
+    static const std::set<std::string> VALID_AFFIXES {
         "i", "ii", "iii", "iv", "v"
     };
 
