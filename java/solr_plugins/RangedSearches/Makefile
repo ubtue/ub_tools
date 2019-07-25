@@ -20,7 +20,7 @@ COMPILE = $(JAVAC) $(JAVAFLAGS)
 $(JAR_FILE): src/de/uni_tuebingen/ub/ixTheo/*/*.java Makefile
 	test -d bin || mkdir bin
 	$(COMPILE) src/de/uni_tuebingen/ub/ixTheo/*/*.java
-	jar cvf $(JAR_FILE) -C bin de/uni_tuebingen/ub/ixTheo/rangeSearch -C bin de/uni_tuebingen/ub/ixTheo/bibleRangeSearch -C bin de/uni_tuebingen/ub/ixTheo/canonesRangeSearch
+	jar cvf $(JAR_FILE) -C bin de/uni_tuebingen/ub/ixTheo/rangeSearch -C bin de/uni_tuebingen/ub/ixTheo/bibleRangeSearch -C bin de/uni_tuebingen/ub/ixTheo/canonesRangeSearch -C bin de/uni_tuebingen/ub/ixTheo/timeAspectRangeSearch
 
 install: $(JAR_FILE)
 	cp -f $(JAR_FILE) /usr/local/vufind/solr/vufind/jars/
