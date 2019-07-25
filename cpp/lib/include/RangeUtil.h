@@ -101,7 +101,7 @@ bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start
 
 
 /** \return True if "text" contained a valid time range, o/w false. */
-bool ConvertTextToTimeRange(const std::string &text, std::string * const range);
+bool ConvertTextToTimeRange(const std::string &text, std::string * const range, const bool special_case_centuries = false);
 
 
 } // namespace MiscUtil
