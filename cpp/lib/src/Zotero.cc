@@ -695,7 +695,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             } else
                 _084_subfields.appendSubfield('a', ssg_number);
         }
-        _084_subfields.appendSubfield('0', "ssgn");
+        _084_subfields.appendSubfield('2', "ssgn");
     }
 
     record->insertField("001", site_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
