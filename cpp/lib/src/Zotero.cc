@@ -688,8 +688,13 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     const auto ssg_numbers(node_parameters.ssg_numbers_);
     if (not ssg_numbers.empty()) {
         MARC::Subfields _084_subfields;
-        for (const auto ssg_number : ssg_numbers)
-            _084_subfields.appendSubfield('a', ssg_number);
+        for (const auto ssg_number : ssg_numbers) {
+            if (ssg_number == "0$a1") {
+                _084_subfields.appendSubfield('a', "0");
+                _084_subfields.appendSubfield('a', "1");
+            } else
+                _084_subfields.appendSubfield('a', ssg_number);
+        }
         _084_subfields.appendSubfield('0', "ssgn");
     }
 
