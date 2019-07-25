@@ -116,7 +116,7 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
 
 
 inline bool IsMtexDeletionList(const std::string &filename) {
-    return StringUtil::StartsWith(filename, "LOEPPN_m-");
+    return StringUtil::StartsWith(filename, "LOEKXP_m-");
 }
 
 
