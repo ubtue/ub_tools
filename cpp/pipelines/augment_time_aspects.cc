@@ -44,7 +44,7 @@ void LoadAuthorityData(MARC::Reader * const reader,
         if (_548_field != record.end() and _548_field->hasSubfieldWithValue('i', "Zeitraum")) {
             const std::string free_form_range_candidate(_548_field->getFirstSubfieldWithCode('a'));
             std::string range;
-            if (RangeUtil::ConvertTextToTimeRange(free_form_range_candidate, &range))
+            if (RangeUtil::ConvertTextToTimeRange(free_form_range_candidate, &range, /* special_case_centuries = */true))
                 (*authority_ppns_to_time_codes_map)[record.getControlNumber()] = range;
             else
                 LOG_WARNING("can't convert \"" + free_form_range_candidate + "\" to a time range!");
