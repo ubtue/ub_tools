@@ -2796,10 +2796,7 @@ unsigned RomanNumeralToDecimal(const std::string &s) {
             }
         }
 
-        const auto match(ROMAN_NUMERAL_TO_DECIMAL_MAP.find(std::string(1, s[i])));
-        if (match == ROMAN_NUMERAL_TO_DECIMAL_MAP.end())
-            throw std::runtime_error("invalid roman numeral '" + std::string(1, s[i]) + "' in '" + s + "'");
-        decimal += match->second;
+        decimal += ROMAN_NUMERAL_TO_DECIMAL_MAP.find(std::string(1, s[i]))->second;
         ++i;
     }
 
