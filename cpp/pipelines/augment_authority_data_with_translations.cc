@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 #include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <cstdlib>
@@ -66,7 +67,9 @@ std::string ReplaceAngleBracketsWithParentheses(const std::string &value) {
 }
 
 
-void ExtractTranslations(DbConnection * const db_connection, std::map<std::string, std::vector<Translation>> * const all_translations) {
+void ExtractTranslations(DbConnection * const db_connection,
+                         std::unordered_map<std::string, std::vector<Translation>> * const all_translations)
+{
     db_connection->queryOrDie("SELECT DISTINCT ppn FROM keyword_translations");
     DbResultSet ppn_result_set(db_connection->getLastResultSet());
     while (const DbRow ppn_row = ppn_result_set.getNextRow()) {
@@ -137,8 +140,7 @@ bool HasExistingTranslation(const MARC::Record &record, const std::string &langu
 }
 
 
-void ProcessRecord(MARC::Record * const record,
-                   const std::map<std::string, std::vector<Translation> > &all_translations)
+void ProcessRecord(MARC::Record * const record, const std::unordered_map<std::string, std::vector<Translation> > &all_translations)
 {
     const std::string ppn(record->getControlNumber());
     auto one_translation(all_translations.find(ppn));
@@ -165,8 +167,8 @@ void ProcessRecord(MARC::Record * const record,
 }
 
 
-void AugmentNormdata(MARC::Reader * const marc_reader, MARC::Writer *marc_writer, const std::map<std::string,
-                     std::vector<Translation> > &all_translations)
+void AugmentNormdata(MARC::Reader * const marc_reader, MARC::Writer *marc_writer,
+                     const std::unordered_map<std::string, std::vector<Translation> > &all_translations)
 {
     // Read in all PPNs from authority data
     while (MARC::Record record = marc_reader->read()) {
@@ -186,8 +188,6 @@ const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf")
 
 
 int Main(int argc, char **argv) {
-    ::progname = argv[0];
-
     if (argc != 3)
         Usage();
 
@@ -206,7 +206,7 @@ int Main(int argc, char **argv) {
     const std::string sql_password(ini_file.getString("Database", "sql_password"));
     DbConnection db_connection(sql_database, sql_username, sql_password);
 
-    std::map<std::string, std::vector<Translation> > all_translations;
+    std::unordered_map<std::string, std::vector<Translation> > all_translations;
     ExtractTranslations(&db_connection, &all_translations);
 
     AugmentNormdata(marc_reader.get(), marc_writer.get(), all_translations);
