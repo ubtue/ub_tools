@@ -32,6 +32,7 @@
 
 #include "StringUtil.h"
 #include <algorithm>
+#include <map>
 #include <set>
 #include <cctype>
 #include <cerrno>
@@ -2761,6 +2762,48 @@ std::string ShortenText(const std::string &text, const size_t max_length) {
     if (text.length() <= 3 or text.length() <= max_length)
         return text;
     return text.substr(0, max_length - 3) + "...";
+}
+
+
+unsigned RomanNumeralToDecimal(const std::string &s) {
+    static const std::map<std::string, unsigned> ROMAN_NUMERAL_TO_DECIMAL_MAP {
+        { "I" , 1    },
+        { "IV", 4    },
+        { "V" , 5    },
+        { "IX", 9    },
+        { "X" , 10   },
+        { "XL", 40   },
+        { "L" , 50   },
+        { "XC", 90   },
+        { "C" , 100  },
+        { "CD", 400  },
+        { "D" , 500  },
+        { "CM", 900  },
+        { "M",  1000 }
+    };
+
+    if (not TextUtil::IsRomanNumeral(s))
+        throw std::runtime_error("invalid roman numeral '" + s + "'");
+
+    unsigned decimal(0), i(0);
+    while (i < s.length()) {
+        if (i + 1 < s.length()) {
+            const auto match(ROMAN_NUMERAL_TO_DECIMAL_MAP.find(s.substr(i, 2)));
+            if (match != ROMAN_NUMERAL_TO_DECIMAL_MAP.end()) {
+                decimal += match->second;
+                i += 2;
+                continue;
+            }
+        }
+
+        const auto match(ROMAN_NUMERAL_TO_DECIMAL_MAP.find(std::string(1, s[i])));
+        if (match == ROMAN_NUMERAL_TO_DECIMAL_MAP.end())
+            throw std::runtime_error("invalid roman numeral '" + std::string(1, s[i]) + "' in '" + s + "'");
+        decimal += match->second;
+        ++i;
+    }
+
+    return decimal;
 }
 
 
