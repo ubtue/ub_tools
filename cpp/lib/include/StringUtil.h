@@ -2429,4 +2429,8 @@ std::string EscapeDoubleQuotes(const std::string &s);
 std::string ShortenText(const std::string &text, const size_t max_length);
 
 
+/** \brief Converts roman numerals to decimals. */
+unsigned RomanNumeralToDecimal(const std::string &s);
+
+
 } // Namespace StringUtil
