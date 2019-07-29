@@ -22,7 +22,7 @@
 #include "StringUtil.h"
 
 
-// In order to understand what we do here, have a look at: https://de.wikipedia.org/wiki/Wikipedia:BEACON/Format
+// In order to understand what we do here, have a look at: https://gbv.github.io/beaconspec/beacon.html
 BeaconFile::BeaconFile(const std::string &filename) {
     const auto input(FileUtil::OpenInputFileOrDie(filename));
 
@@ -75,8 +75,9 @@ BeaconFile::BeaconFile(const std::string &filename) {
 
             id_or_url = StringUtil::TrimWhite(line.substr(second_vertical_bar_pos + 1));
         }
-
         entries_.emplace_back(gnd_number, count, id_or_url);
+
+        line = input->getLineAny();
     } while (not input->eof());
 }
 
