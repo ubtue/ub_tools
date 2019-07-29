@@ -138,7 +138,7 @@ EndPhase || Abort) &
 
 StartPhase "Augment Authority Data with Keyword Translations"
 (augment_authority_data_with_translations Normdaten-"${date}".mrc \
-                                          Normdaten-augmented1-"${date}".mrc \
+                                          Normdaten-partially-augmented-"${date}".mrc \
                                           >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -174,7 +174,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Extract Normdata Translations"
-(extract_authority_data_translations Normdaten-augmented1-"${date}".mrc \
+(extract_authority_data_translations Normdaten-partially-augmented-"${date}".mrc \
                                      normdata_translations.txt >> "${log}" 2>&1 &&
 EndPhase || Abort) &
 wait
@@ -270,7 +270,7 @@ EndPhase || Abort) &
 StartPhase "Add Keyword Synonyms from Authority Data"
 (add_synonyms \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    Normdaten-augmented1-"${date}".mrc \
+    Normdaten-partially-augmented-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -361,8 +361,8 @@ wait
 
 StartPhase "Extract Referenced Authors and add BEACON Information"
 (extract_referenced_author_records GesamtTiteldaten-post-pipeline-"${date}".mrc \
-                                   Normdaten-augmented1-"${date}".mrc \
-                                   Normdaten-augmented-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
+                                   Normdaten-partially-augmented-"${date}".mrc \
+                                   Normdaten-fully-augmented-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
