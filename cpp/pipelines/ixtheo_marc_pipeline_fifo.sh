@@ -359,15 +359,14 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Extract Referenced Authors and add BEACON Information"
-(extract_referenced_author_records GesamtTiteldaten-post-pipeline-"${date}".mrc \
-                                   Normdaten-partially-augmented-"${date}".mrc \
-                                   Normdaten-fully-augmented-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
+StartPhase "Add BEACON Information to Authority Data"
+(add_authority_beacon_information Normdaten-partially-augmented-"${date}".mrc \
+                                  Normdaten-fully-augmented-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
 StartPhase "Cleanup of Intermediate Files"
-for p in $(seq 0 "$((PHASE-1))"); do
+for p in $(seq 0 "$((PHASE-2))"); do
     rm -f GesamtTiteldaten-post-phase"$p"-??????.mrc
 done
 rm -f child_refs child_titles parent_refs
