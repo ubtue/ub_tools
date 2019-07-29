@@ -28,18 +28,17 @@ BeaconFile::BeaconFile(const std::string &filename) {
 
     unsigned line_no(0);
 
-    std::string line;
-    input->getline(&line);
+    std::string line(input->getLineAny());
     if (line != "#FORMAT: BEACON")
         LOG_ERROR("expected \"#FORMAT: BEACON\" as the first line in \"" + filename + "\"!");
     ++line_no;
 
-    input->getline(&line);
+    line = input->getLineAny();
     if (line != "#PREFIX: http://d-nb.info/gnd/")
         LOG_ERROR("expected \"#PREFIX: http://d-nb.info/gnd/\" as the second line in \"" + filename + "\"!");
     ++line_no;
 
-    input->getline(&line);
+    line = input->getLineAny();
     if (not StringUtil::StartsWith(line, "#TARGET:"))
         LOG_ERROR("expected the third line in \"" + filename + "\" to start with \"#TARGET:\"!");
     ++line_no;
@@ -49,7 +48,7 @@ BeaconFile::BeaconFile(const std::string &filename) {
         LOG_ERROR("{ID} is missing in URL template \"" + url_template_ + " in \"" + filename + "\"!");
 
     do {
-        input->getline(&line);
+        line = input->getLineAny();
         ++line_no;
     } while (not line.empty() and line[0] == '#');
 
