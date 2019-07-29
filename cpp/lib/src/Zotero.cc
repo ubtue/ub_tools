@@ -688,9 +688,14 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     const auto ssg_numbers(node_parameters.ssg_numbers_);
     if (not ssg_numbers.empty()) {
         MARC::Subfields _084_subfields;
-        for (const auto ssg_number : ssg_numbers)
-            _084_subfields.appendSubfield('a', ssg_number);
-        _084_subfields.appendSubfield('0', "ssgn");
+        for (const auto ssg_number : ssg_numbers) {
+            if (ssg_number == "0$a1") {
+                _084_subfields.appendSubfield('a', "0");
+                _084_subfields.appendSubfield('a', "1");
+            } else
+                _084_subfields.appendSubfield('a', ssg_number);
+        }
+        _084_subfields.appendSubfield('2', "ssgn");
     }
 
     record->insertField("001", site_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
@@ -973,7 +978,8 @@ void OverrideJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
 
 
 void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::ObjectNode> &object_node, const SiteParams &site_params) {
-    static std::unique_ptr<RegexMatcher> same_page_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+)-(\\d+)$"));
+    static std::unique_ptr<RegexMatcher> page_range_matcher(RegexMatcher::RegexMatcherFactoryOrDie("^(.+)-(.+)$"));
+    static std::unique_ptr<RegexMatcher> page_range_digit_matcher(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+)-(\\d+)$"));
 
     LOG_DEBUG("Augmenting JSON...");
     std::map<std::string, std::string> custom_fields;
@@ -1021,8 +1027,32 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
                 string_node->setValue("");
         } else if (key_and_node.first == "pages") {
             auto pages_node(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second));
-            if (same_page_range_matcher->matched(pages_node->getValue()) and (*same_page_range_matcher)[1] == (*same_page_range_matcher)[2])
-                pages_node->setValue((*same_page_range_matcher)[1]);
+            const auto page_value(pages_node->getValue());
+
+            // force uppercase for roman numeral detection
+            if (page_range_matcher->matched(StringUtil::ToUpper(page_value))) {
+                std::string converted_page_value;
+                if (TextUtil::IsRomanNumeral((*page_range_matcher)[1]))
+                    converted_page_value += std::to_string(StringUtil::RomanNumeralToDecimal((*page_range_matcher)[1]));
+                else
+                    converted_page_value += (*page_range_matcher)[1];
+
+                converted_page_value += "-";
+
+                if (TextUtil::IsRomanNumeral((*page_range_matcher)[2]))
+                    converted_page_value += std::to_string(StringUtil::RomanNumeralToDecimal((*page_range_matcher)[2]));
+                else
+                    converted_page_value += (*page_range_matcher)[2];
+
+                if (converted_page_value != page_value) {
+                    LOG_DEBUG("converted roman numeral page range '" + page_value + "' to decimal page range '"
+                              + converted_page_value + "'");
+                    pages_node->setValue(converted_page_value);
+                }
+            }
+
+            if (page_range_digit_matcher->matched(pages_node->getValue()) and (*page_range_digit_matcher)[1] == (*page_range_digit_matcher)[2])
+                pages_node->setValue((*page_range_digit_matcher)[1]);
         }
     }
 
