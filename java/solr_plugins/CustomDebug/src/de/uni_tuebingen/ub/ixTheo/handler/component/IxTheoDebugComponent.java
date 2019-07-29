@@ -98,17 +98,4 @@ public class IxTheoDebugComponent extends DebugComponent
       }
     }
   }
-
-
-  @Override
-  public void modifyRequest(ResponseBuilder rb, SearchComponent who, ShardRequest sreq) {
-      logger.warn("ENTERING MODIFY REQUEST");
-      super.modifyRequest(rb, who, sreq);
-  }
-
-  @Override
-  public void finishStage(ResponseBuilder rb) {
-      logger.warn("CALL FINISHSTAGE");
-      super.finishStage(rb);
-  }
 }
