@@ -180,6 +180,9 @@ public:
         return line;
     }
 
+    /* \brief Accepts any of { CR, LF, CR/LF } */
+    std::string getLineAny();
+
     inline const std::string &getPath() const { return filename_; }
 
     /** Returns a File's size in bytes. */
