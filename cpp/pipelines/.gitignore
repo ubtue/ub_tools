@@ -1,6 +1,7 @@
 add_additional_relbib_entries
 add_article_cross_links
 add_author_synonyms
+add_authority_beacon_information
 add_cross_link_type
 add_isbns_or_issns_to_articles
 add_oa_urls
@@ -19,7 +20,6 @@ augment_time_aspects
 enrich_keywords_with_title_words
 export_subsystem_ids_to_db
 extract_authority_data_translations
-extract_referenced_author_records
 extract_vufind_translations_for_translation
 flag_article_collections
 flag_electronic_and_open_access_records
