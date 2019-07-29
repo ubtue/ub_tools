@@ -1,4 +1,4 @@
-SUBDIRS = RangedSearches PrefixSortFacetten MultiLanguageDocTransformer MultiLanguageQueryParser ConditionalInsertField
+SUBDIRS = RangedSearches PrefixSortFacetten MultiLanguageDocTransformer MultiLanguageQueryParser ConditionalInsertField CustomDebug
 
 all: 
 	for dir in $(SUBDIRS); do \
