@@ -48,7 +48,9 @@ public:
 public:
     explicit BeaconFile(const std::string &filename);
 
+    inline size_t size() const { return entries_.size(); }
     inline const std::string &getFileName() const { return filename_; }
+    inline const std::string &getUrlTemplate() const { return url_template_; }
     std::string getURL(const Entry &entry) const;
 
     inline const_iterator begin() const { return entries_.cbegin(); }
