@@ -35,67 +35,62 @@ import org.slf4j.LoggerFactory;
 import static org.apache.solr.common.params.CommonParams.FQ;
 import static org.apache.solr.common.params.CommonParams.JSON;
 
+public class IxTheoDebugComponent extends DebugComponent {
+    private static Logger logger = LoggerFactory.getLogger(IxTheoDebugComponent.class);
+    public static final String COMPONENT_NAME = "debug";
 
-public class IxTheoDebugComponent extends DebugComponent
-{
-   
-  private static Logger logger = LoggerFactory.getLogger(IxTheoDebugComponent.class);
-  public static final String COMPONENT_NAME = "debug";
+    @SuppressWarnings("unchecked")
+    @Override
+    public void process(ResponseBuilder rb) throws IOException {
+        if (rb.isDebug()) {
+            DocList results = null;
+            // some internal grouping requests won't have results value set
+            if (rb.getResults() != null) {
+                results = rb.getResults().docList;
+            }
 
+            NamedList stdinfo = SolrPluginUtils.doStandardDebug(rb.req, rb.getQueryString(), rb.wrap(rb.getQuery()), results, rb.isDebugQuery(),
+                    rb.isDebugResults());
 
-  @SuppressWarnings("unchecked")
-  @Override
-  public void process(ResponseBuilder rb) throws IOException {
-      if( rb.isDebug() ) {
-      DocList results = null;
-      //some internal grouping requests won't have results value set
-      if(rb.getResults() != null) {
-        results = rb.getResults().docList;
-      }
+            NamedList info = rb.getDebugInfo();
+            if (info == null) {
+                rb.setDebugInfo(stdinfo);
+                info = stdinfo;
+            } else {
+                info.addAll(stdinfo);
+            }
 
-      NamedList stdinfo = SolrPluginUtils.doStandardDebug( rb.req,
-          rb.getQueryString(), rb.wrap(rb.getQuery()), results, rb.isDebugQuery(), rb.isDebugResults());
+            FacetDebugInfo fdebug = (FacetDebugInfo) (rb.req.getContext().get("FacetDebugInfo"));
+            if (fdebug != null) {
+                info.add("facet-trace", fdebug.getFacetDebugInfo());
+            }
 
-      NamedList info = rb.getDebugInfo();
-      if( info == null ) {
-        rb.setDebugInfo( stdinfo );
-        info = stdinfo;
-      }
-      else {
-        info.addAll( stdinfo );
- }
+            fdebug = (FacetDebugInfo) (rb.req.getContext().get("FacetDebugInfo-nonJson"));
+            if (fdebug != null) {
+                info.add("facet-debug", fdebug.getFacetDebugInfo());
+            }
 
-      FacetDebugInfo fdebug = (FacetDebugInfo)(rb.req.getContext().get("FacetDebugInfo"));
-      if (fdebug != null) {
-        info.add("facet-trace", fdebug.getFacetDebugInfo());
-      }
+            if (rb.req.getJSON() != null) {
+                info.add(JSON, rb.req.getJSON());
+            }
 
-      fdebug = (FacetDebugInfo)(rb.req.getContext().get("FacetDebugInfo-nonJson"));
-      if (fdebug != null) {
-        info.add("facet-debug", fdebug.getFacetDebugInfo());
-      }
+            if (rb.isDebugQuery() && rb.getQparser() != null) {
+                rb.getQparser().addDebugInfo(rb.getDebugInfo());
+            }
 
-      if (rb.req.getJSON() != null) {
-        info.add(JSON, rb.req.getJSON());
-      }
+            if (null != rb.getDebugInfo()) {
+                if (rb.isDebugQuery() && null != rb.getFilters()) {
+                    info.add("filter_queries", rb.req.getParams().getParams(FQ));
+                    List<String> fqs = new ArrayList<>(rb.getFilters().size());
+                    for (Query fq : rb.getFilters()) {
+                        fqs.add(QueryParsing.toString(fq, rb.req.getSchema()));
+                    }
+                    info.add("parsed_filter_queries", fqs);
+                }
 
-      if (rb.isDebugQuery() && rb.getQparser() != null) {
-        rb.getQparser().addDebugInfo(rb.getDebugInfo());
-      }
-
-      if (null != rb.getDebugInfo() ) {
-        if (rb.isDebugQuery() && null != rb.getFilters() ) {
-          info.add("filter_queries",rb.req.getParams().getParams(FQ));
-          List<String> fqs = new ArrayList<>(rb.getFilters().size());
-          for (Query fq : rb.getFilters()) {
-            fqs.add(QueryParsing.toString(fq, rb.req.getSchema()));
-          }
-          info.add("parsed_filter_queries",fqs);
+                // Add this directly here?
+                rb.rsp.add("debug", rb.getDebugInfo());
+            }
         }
-
-        // Add this directly here?
-        rb.rsp.add("debug", rb.getDebugInfo() );
-      }
     }
-  }
 }

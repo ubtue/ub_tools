@@ -38,68 +38,43 @@ import org.slf4j.LoggerFactory;
  */
 public class SolrPluginUtils extends org.apache.solr.util.SolrPluginUtils {
 
-  private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private static NamedList<String> explanationsToStrings
-    (NamedList<Explanation> explanations) {
+    private static NamedList<String> explanationsToStrings(NamedList<Explanation> explanations) {
 
-    NamedList<String> out = new SimpleOrderedMap<>();
-    for (Map.Entry<String,Explanation> entry : explanations) {
-      out.add(entry.getKey(), "\n"+entry.getValue().toString());
+        NamedList<String> out = new SimpleOrderedMap<>();
+        for (Map.Entry<String, Explanation> entry : explanations) {
+            out.add(entry.getKey(), "\n" + entry.getValue().toString());
+        }
+        return out;
     }
-    return out;
-  }
 
-  public static NamedList doStandardDebug(
-          SolrQueryRequest req,
-          String userQuery,
-          Query query,
-          DocList results,
-          boolean dbgQuery,
-          boolean dbgResults)
-          throws IOException
-  {
-    NamedList dbg = new SimpleOrderedMap();
-    doStandardQueryDebug(req, userQuery, query, dbgQuery, dbg);
-    doStandardResultsDebug(req, query, results, dbgResults, dbg);
-    return dbg;
-  }
-
-  public static void doStandardResultsDebug(
-          SolrQueryRequest req,
-          Query query,
-          DocList results,
-          boolean dbgResults,
-          NamedList dbg) throws IOException
-  {
-    if (dbgResults) {
-      SolrIndexSearcher searcher = req.getSearcher();
-      IndexSchema schema = searcher.getSchema();
-      boolean explainStruct = req.getParams().getBool(CommonParams.EXPLAIN_STRUCT, false);
-
-      if (results != null) {
-        NamedList<Explanation> explain = getExplanations(query, results, searcher, schema);
-        dbg.add("explain", explainStruct
-            ? explanationsToNamedLists(explain)
-            : explanationsToStrings(explain));
-      }
-
-      String otherQueryS = req.getParams().get(CommonParams.EXPLAIN_OTHER);
-      if (otherQueryS != null && otherQueryS.length() > 0) {
-        DocList otherResults = doSimpleQuery(otherQueryS, req, 0, results.size());
-        dbg.add("otherQuery", otherQueryS);
-        NamedList<Explanation> explainO = getExplanations(query, otherResults, searcher, schema);
-        dbg.add("explainOther", explainStruct
-                ? explanationsToNamedLists(explainO)
-                : explanationsToStrings(explainO));
-      }
+    public static NamedList doStandardDebug(SolrQueryRequest req, String userQuery, Query query, DocList results, boolean dbgQuery, boolean dbgResults)
+            throws IOException {
+        NamedList dbg = new SimpleOrderedMap();
+        doStandardQueryDebug(req, userQuery, query, dbgQuery, dbg);
+        doStandardResultsDebug(req, query, results, dbgResults, dbg);
+        return dbg;
     }
-  }
+
+    public static void doStandardResultsDebug(SolrQueryRequest req, Query query, DocList results, boolean dbgResults, NamedList dbg) throws IOException {
+        if (dbgResults) {
+            SolrIndexSearcher searcher = req.getSearcher();
+            IndexSchema schema = searcher.getSchema();
+            boolean explainStruct = req.getParams().getBool(CommonParams.EXPLAIN_STRUCT, false);
+
+            if (results != null) {
+                NamedList<Explanation> explain = getExplanations(query, results, searcher, schema);
+                dbg.add("explain", explainStruct ? explanationsToNamedLists(explain) : explanationsToStrings(explain));
+            }
+
+            String otherQueryS = req.getParams().get(CommonParams.EXPLAIN_OTHER);
+            if (otherQueryS != null && otherQueryS.length() > 0) {
+                DocList otherResults = doSimpleQuery(otherQueryS, req, 0, results.size());
+                dbg.add("otherQuery", otherQueryS);
+                NamedList<Explanation> explainO = getExplanations(query, otherResults, searcher, schema);
+                dbg.add("explainOther", explainStruct ? explanationsToNamedLists(explainO) : explanationsToStrings(explainO));
+            }
+        }
+    }
 }
-
-
-
-
-
-
-

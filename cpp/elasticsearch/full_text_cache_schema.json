@@ -8,7 +8,7 @@
                 }
             },
             "filter" : {
-                "snowball_german" : { 
+                "snowball_german" : {
                     "type" : "snowball",
                     "language" : "German2"
                 }
