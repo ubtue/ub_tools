@@ -23,7 +23,7 @@
 
 
 // In order to understand what we do here, have a look at: https://gbv.github.io/beaconspec/beacon.html
-BeaconFile::BeaconFile(const std::string &filename) {
+BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
     const auto input(FileUtil::OpenInputFileOrDie(filename));
 
     unsigned line_no(0);
