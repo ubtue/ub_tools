@@ -16,6 +16,7 @@ augment_bible_references
 augment_canones_references
 augment_pda
 augment_time_aspects
+create_literary_remains_records
 enrich_keywords_with_title_words
 export_subsystem_ids_to_db
 extract_authority_data_translations
