@@ -17,16 +17,9 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <iostream>
-#include <set>
-#include <unordered_map>
-#include <unordered_set>
-#include <utility>
-#include <cctype>
+
 #include <cstdlib>
 #include "BeaconFile.h"
-#include "Compiler.h"
-#include "FileUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "Url.h"
@@ -58,37 +51,21 @@ std::string NameFromURL(const std::string &url_string) {
 }
 
 
-void CollectBeaconLinks(const std::string &beacon_filename,
-                        std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const gnd_numbers_to_beacon_links_map)
-{
-    const BeaconFile beacon(beacon_filename);
-    const std::string institution_name(NameFromURL(beacon.getUrlTemplate()));
-
-    for (const auto &entry : beacon) {
-        const std::string entry_url(beacon.getURL(entry));
-        auto gnd_number_and_beacon_links(gnd_numbers_to_beacon_links_map->find(entry.gnd_number_));
-        if (gnd_number_and_beacon_links == gnd_numbers_to_beacon_links_map->end())
-            (*gnd_numbers_to_beacon_links_map)[entry.gnd_number_] =
-                std::set<std::pair<std::string, std::string>>{ std::make_pair(institution_name, entry_url) };
-        else
-            gnd_number_and_beacon_links->second.emplace(std::make_pair(institution_name, entry_url));
-    }
-}
-
-
-void ProcessAuthorityRecords(
-    MARC::Reader * const authority_reader, MARC::Writer * const authority_writer,
-    const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_numbers_to_beacon_links_map)
+void ProcessAuthorityRecords(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer,
+                             const std::vector<BeaconFile> &beacon_files)
 {
     unsigned gnd_tagged_count(0);
     while (auto record = authority_reader->read()) {
         std::string gnd_number;
         if (MARC::GetGNDCode(record, &gnd_number)) {
-            const auto gnd_number_and_beacon_links(gnd_numbers_to_beacon_links_map.find(gnd_number));
-            if (gnd_number_and_beacon_links != gnd_numbers_to_beacon_links_map.cend()) {
+            for (const auto &beacon_file : beacon_files) {
+                const auto beacon_entry(beacon_file.find(gnd_number));
+                if (beacon_entry == beacon_file.end())
+                    continue;
+
                 ++gnd_tagged_count;
-                for (const auto &beacon_link : gnd_number_and_beacon_links->second)
-                    record.insertField("BEA", { { 'a', beacon_link.first }, { 'u', beacon_link.second } });
+                record.insertField("BEA",
+                                   { { 'a', NameFromURL(beacon_file.getUrlTemplate()) }, { 'u', beacon_file.getURL(*beacon_entry) } });
             }
         }
 
@@ -115,11 +92,11 @@ int Main(int argc, char **argv) {
     auto authority_reader(MARC::Reader::Factory(authority_records_filename));
     auto authority_writer(MARC::Writer::Factory(augmented_authority_records_filename));
 
-    std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> gnd_numbers_to_beacon_links_map;
+    std::vector<BeaconFile> beacon_files;
     for (int arg_no(3); arg_no < argc; ++arg_no)
-        CollectBeaconLinks(argv[arg_no], &gnd_numbers_to_beacon_links_map);
+        beacon_files.emplace_back(BeaconFile(argv[arg_no]));
 
-    ProcessAuthorityRecords(authority_reader.get(), authority_writer.get(), gnd_numbers_to_beacon_links_map);
+    ProcessAuthorityRecords(authority_reader.get(), authority_writer.get(), beacon_files);
 
     return EXIT_SUCCESS;
 }

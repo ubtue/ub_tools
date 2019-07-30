@@ -23,7 +23,6 @@
 
 #include <unordered_map>
 #include <unordered_set>
-#include "BeaconFile.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -38,59 +37,75 @@ void CopyMarc(MARC::Reader * const reader, MARC::Writer * const writer) {
 }
 
 
-void LoadAuthorGNDNumbers(const std::string &filename, std::unordered_set<std::string> * const author_gnd_numbers,
-                          std::unordered_map<std::string, std::string> * const gnd_numbers_to_author_names_map)
+struct LiteraryRemainsInfo {
+    std::string author_name_;
+    std::string url_;
+public:
+    LiteraryRemainsInfo() = default;
+    LiteraryRemainsInfo(const LiteraryRemainsInfo &other) = default;
+    LiteraryRemainsInfo(const std::string &author_name, const std::string &url): author_name_(author_name), url_(url) { }
+
+    LiteraryRemainsInfo &operator=(const LiteraryRemainsInfo &rhs) = default;
+};
+
+
+void LoadAuthorGNDNumbers(
+    const std::string &filename,
+    std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> * const gnd_numbers_to_literary_remains_infos_map)
 {
     auto reader(MARC::Reader::Factory(filename));
 
-    unsigned total_count(0);
+    unsigned total_count(0), references_count(0);
     while (auto record = reader->read()) {
         ++total_count;
+
+        auto beacon_field(record.findTag("BEA"));
+        if (beacon_field == record.end())
+            continue;
 
         const auto _100_field(record.findTag("100"));
         if (_100_field == record.end() or not _100_field->hasSubfield('a'))
             continue;
 
+        std::string gnd_number;
+        if (not MARC::GetGNDCode(record, &gnd_number))
+            continue;
+
         const std::string author_name(_100_field->getFirstSubfieldWithCode('a'));
-        for (const auto _035_field : record.getTagRange("035")) {
-            const auto subfield_a(_035_field.getFirstSubfieldWithCode('a'));
-            if (StringUtil::StartsWith(subfield_a, "(DE-588")) {
-                const std::string gnd_number(subfield_a.substr(__builtin_strlen("(DE-588")));
-                author_gnd_numbers->emplace(gnd_number);
-                (*gnd_numbers_to_author_names_map)[gnd_number] = author_name;
-                break;
-            }
+
+        std::vector<LiteraryRemainsInfo> literary_remains_infos;
+        while (beacon_field != record.end() and beacon_field->getTag() == "BEA") {
+            literary_remains_infos.emplace_back(author_name, beacon_field->getFirstSubfieldWithCode('u'));;
+            ++beacon_field;
         }
+        (*gnd_numbers_to_literary_remains_infos_map)[gnd_number] = literary_remains_infos;
+        references_count += literary_remains_infos.size();
     }
 
-    LOG_INFO("Loaded " + std::to_string(author_gnd_numbers->size()) + " author GND numbers from \"" + filename
+    LOG_INFO("Loaded " + std::to_string(references_count) + " literary remains references from \"" + filename
              + "\" which contained a total of " + std::to_string(total_count) + " records.");
 }
 
 
-void AppendLiteraryRemainsRecords(MARC::Writer * const writer, const BeaconFile &beacon_file,
-                                  const std::unordered_set<std::string> &author_gnd_numbers,
-                                  const std::unordered_map<std::string, std::string> &gnd_numbers_to_author_names_map)
+void AppendLiteraryRemainsRecords(
+    MARC::Writer * const writer,
+    const std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> &gnd_numbers_to_literary_remains_infos_map)
 {
-    static char infix = 'A' - 1;
-    ++infix;
-
     unsigned creation_count(0);
-    for (const auto &beacon_entry : beacon_file) {
-        if (author_gnd_numbers.find(beacon_entry.gnd_number_) != author_gnd_numbers.cend()) {
-            ++creation_count;
+    for (const auto &gnd_numbers_and_literary_remains_infos : gnd_numbers_to_literary_remains_infos_map) {
+        MARC::Record new_record(MARC::Record::TypeOfRecord::MIXED_MATERIALS, MARC::Record::BibliographicLevel::COLLECTION,
+                                "LR" + StringUtil::ToString(++creation_count, 10, 6));
+        const std::string &author_name(gnd_numbers_and_literary_remains_infos.second.front().author_name_);
+        new_record.insertField("100", { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first } });
+        new_record.insertField("245", { { 'a', "Nachlass von " + author_name } });
 
-            MARC::Record new_record(MARC::Record::TypeOfRecord::MIXED_MATERIALS, MARC::Record::BibliographicLevel::COLLECTION,
-                                    "LR" + std::string(1, infix) + StringUtil::ToString(creation_count, 10, 6));
-            const std::string &author_name(gnd_numbers_to_author_names_map.find(beacon_entry.gnd_number_)->second);
-            new_record.insertField("100", { { 'a', author_name }, { '0', "(DE-588)" + beacon_entry.gnd_number_ } });
-            new_record.insertField("245", { { 'a', "Nachlass von " + author_name } });
-            new_record.insertField("856", { { 'u', beacon_file.getURL(beacon_entry) }, { '3', "Nachlassdatenbank" } });
-            writer->write(new_record);
-        }
+        for (const auto &literary_remains_info : gnd_numbers_and_literary_remains_infos.second)
+            new_record.insertField("856", { { 'u', literary_remains_info.url_ }, { '3', "Nachlassdatenbank" } });
+
+        writer->write(new_record);
     }
 
-    LOG_INFO("Created " + std::to_string(creation_count) + " record(s) for \"" + beacon_file.getFileName() + "\".");
+    LOG_INFO("Appended a total of " + std::to_string(creation_count) + " record(s).");
 }
 
 
@@ -98,22 +113,16 @@ void AppendLiteraryRemainsRecords(MARC::Writer * const writer, const BeaconFile 
 
 
 int Main(int argc, char **argv) {
-    if (argc < 5)
-        ::Usage("marc_input marc_output authority_records beacon_file1 [beacon_file2 .. beacon_fileN]");
+    if (argc != 4)
+        ::Usage("marc_input marc_output authority_records");
 
     auto reader(MARC::Reader::Factory(argv[1]));
     auto writer(MARC::Writer::Factory(argv[2]));
     CopyMarc(reader.get(), writer.get());
 
-    std::unordered_set<std::string> author_gnd_numbers;
-    std::unordered_map<std::string, std::string> gnd_numbers_to_author_names_map;
-    LoadAuthorGNDNumbers(argv[3], &author_gnd_numbers, &gnd_numbers_to_author_names_map);
-
-    for (int arg_no(4); arg_no < argc; ++arg_no) {
-        const BeaconFile beacon_file(argv[arg_no]);
-        LOG_INFO("Loaded " + std::to_string(beacon_file.size()) + " entries from \"" + beacon_file.getFileName() + "\"!");
-        AppendLiteraryRemainsRecords(writer.get(), beacon_file, author_gnd_numbers, gnd_numbers_to_author_names_map);
-    }
+    std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> gnd_numbers_to_literary_remains_infos_map;
+    LoadAuthorGNDNumbers(argv[3], &gnd_numbers_to_literary_remains_infos_map);
+    AppendLiteraryRemainsRecords(writer.get(), gnd_numbers_to_literary_remains_infos_map);
 
     return EXIT_SUCCESS;
 }

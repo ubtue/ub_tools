@@ -21,7 +21,7 @@
 
 
 #include <string>
-#include <vector>
+#include <unordered_set>
 #include "util.h"
 
 
@@ -38,13 +38,19 @@ public:
             : gnd_number_(gnd_number), optional_count_(optional_count), id_or_url_(id_or_url) { }
 
         Entry &operator=(const Entry &rhs) = default;
+        inline bool operator==(const Entry &rhs) const { return rhs.gnd_number_ == gnd_number_; }
+    };
+
+    class EntryHasher {
+    public:
+        inline std::size_t operator()(const Entry &entry) const { return std::hash<std::string>()(entry.gnd_number_); }
     };
 private:
     std::string filename_;
     std::string url_template_;
-    std::vector<Entry> entries_;
+    std::unordered_set<Entry, EntryHasher> entries_;
 public:
-    typedef std::vector<Entry>::const_iterator const_iterator;
+    typedef std::unordered_set<Entry, EntryHasher>::const_iterator const_iterator;
 public:
     explicit BeaconFile(const std::string &filename);
 
@@ -55,4 +61,5 @@ public:
 
     inline const_iterator begin() const { return entries_.cbegin(); }
     inline const_iterator end() const { return entries_.cend(); }
+    inline const_iterator find(const std::string &gnd_number) const { return entries_.find(Entry(gnd_number, 0, "")); }
 };
