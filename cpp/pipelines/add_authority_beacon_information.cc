@@ -35,13 +35,6 @@
 namespace {
 
 
-[[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " authority_records augmented_authority_records [beacon_list1 beacon_list2 .. beacon_listN]\n";
-    std::exit(EXIT_FAILURE);
-}
-
-
 std::string NameFromURL(const std::string &url_string) {
     const Url url(url_string);
     std::string name(url.getAuthority());
@@ -123,7 +116,7 @@ void ProcessAuthorityRecords(
 
 int Main(int argc, char **argv) {
     if (argc < 4)
-        Usage();
+        ::Usage("authority_records augmented_authority_records [beacon_list1 beacon_list2 .. beacon_listN]");
 
     const std::string authority_records_filename(argv[1]);
     const std::string augmented_authority_records_filename(argv[2]);
