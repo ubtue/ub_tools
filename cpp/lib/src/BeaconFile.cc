@@ -89,7 +89,7 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
                 id_or_url = StringUtil::TrimWhite(line.substr(second_vertical_bar_pos + 1));
             }
         }
-        entries_.emplace_back(gnd_number, count, id_or_url);
+        entries_.emplace(gnd_number, count, id_or_url);
 
         line = input->getLineAny();
     } while (not input->eof());
