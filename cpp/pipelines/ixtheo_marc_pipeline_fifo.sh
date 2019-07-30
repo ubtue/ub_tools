@@ -170,7 +170,7 @@ StartPhase "Appending Literary Remains Records"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc Normdaten-partially-augmented-"${date}".mrc \
-                                 *beacon >> "${log}" 2>&1 && \
+                                 *.beacon >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
