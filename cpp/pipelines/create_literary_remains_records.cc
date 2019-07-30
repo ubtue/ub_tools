@@ -64,9 +64,9 @@ void LoadAuthorGNDNumbers(const std::string &filename, std::unordered_set<std::s
 }
 
 
-void AppendLiteraryRemainsRecords(MARC::Writer * const writer, const BeaconFile &beacon_file,
-                                  const std::unordered_set<std::string> &author_gnd_numbers,
-                                  const std::unordered_map<std::string, std::string> &gnd_numbers_to_author_names_map)
+unsigned AppendLiteraryRemainsRecords(MARC::Writer * const writer, const BeaconFile &beacon_file,
+                                      const std::unordered_set<std::string> &author_gnd_numbers,
+                                      const std::unordered_map<std::string, std::string> &gnd_numbers_to_author_names_map)
 {
     static char infix = 'A' - 1;
     ++infix;
@@ -87,6 +87,7 @@ void AppendLiteraryRemainsRecords(MARC::Writer * const writer, const BeaconFile 
     }
 
     LOG_INFO("Created " + std::to_string(creation_count) + " record(s) for \"" + beacon_file.getFileName() + "\".");
+    return creation_count;
 }
 
 
@@ -105,11 +106,13 @@ int Main(int argc, char **argv) {
     std::unordered_map<std::string, std::string> gnd_numbers_to_author_names_map;
     LoadAuthorGNDNumbers(argv[3], &author_gnd_numbers, &gnd_numbers_to_author_names_map);
 
+    unsigned total_creation_count(0);
     for (int arg_no(4); arg_no < argc; ++arg_no) {
         const BeaconFile beacon_file(argv[arg_no]);
         LOG_INFO("Loaded " + std::to_string(beacon_file.size()) + " entries from \"" + beacon_file.getFileName() + "\"!");
-        AppendLiteraryRemainsRecords(writer.get(), beacon_file, author_gnd_numbers, gnd_numbers_to_author_names_map);
+        total_creation_count += AppendLiteraryRemainsRecords(writer.get(), beacon_file, author_gnd_numbers, gnd_numbers_to_author_names_map);
     }
+    LOG_INFO("Appended a total of " + std::to_string(total_creation_count) + " record(s).");
 
     return EXIT_SUCCESS;
 }
