@@ -182,6 +182,26 @@ size_t File::getline(std::string * const line, const char terminator) {
 }
 
 
+std::string File::getLineAny() {
+    std::string line;
+
+    for (;;) {
+        int ch = get();
+        if (ch == EOF or ch == '\n')
+            return line;
+        if (ch == '\r') {
+            ch = get();
+            if (ch != '\n' and ch != EOF)
+                putback(static_cast<char>(ch));
+            return line;
+        }
+
+        line += static_cast<char>(ch);
+    }
+
+}
+
+
 File &File::operator<<(const char * const s) {
     std::fputs(s, file_);
     return *this;
