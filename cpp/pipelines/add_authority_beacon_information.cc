@@ -69,7 +69,7 @@ void CollectBeaconLinks(const std::string &beacon_filename,
         auto gnd_number_and_beacon_links(gnd_numbers_to_beacon_links_map->find(entry->gnd_number_));
         if (gnd_number_and_beacon_links == gnd_numbers_to_beacon_links_map->end())
             (*gnd_numbers_to_beacon_links_map)[entry->gnd_number_] =
-                std::set<std::pair<std::string, std::string>>({ std::make_pair(institution_name, entry_url) });
+                std::set<std::pair<std::string, std::string>>{ std::make_pair(institution_name, entry_url) };
         else
             gnd_number_and_beacon_links->second.emplace(std::make_pair(institution_name, entry_url));
     }
