@@ -40,6 +40,7 @@ public:
         Entry &operator=(const Entry &rhs) = default;
     };
 private:
+    std::string filename_;
     std::string url_template_;
     std::vector<Entry> entries_;
 public:
@@ -47,6 +48,7 @@ public:
 public:
     explicit BeaconFile(const std::string &filename);
 
+    inline const std::string &getFileName() const { return filename_; }
     std::string getURL(const Entry &entry) const;
 
     inline const_iterator begin() const { return entries_.cbegin(); }
