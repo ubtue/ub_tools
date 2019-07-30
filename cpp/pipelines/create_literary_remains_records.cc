@@ -82,7 +82,10 @@ void AppendLiteraryRemainsRecords(MARC::Writer * const writer, const BeaconFile 
 
             MARC::Record new_record(MARC::Record::TypeOfRecord::MIXED_MATERIALS, MARC::Record::BibliographicLevel::COLLECTION,
                                     "LR" + std::string(1, infix) + StringUtil::ToString(creation_count, 10, 6));
-            new_record.insertField("245", { { 'a', "Nachlass von " + gnd_numbers_to_author_names_map.find(beacon_entry.gnd_number_)->second } });
+            const std::string &author_name(gnd_numbers_to_author_names_map.find(beacon_entry.gnd_number_)->second);
+            new_record.insertField("100", { { 'a', author_name }, { '0', "(DE-588)" + beacon_entry.gnd_number_ } });
+            new_record.insertField("245", { { 'a', "Nachlass von " + author_name } });
+            new_record.insertField("856", { { 'u', beacon_file.getURL(beacon_entry) }, { '3', "Nachlassdatenbank" } });
             writer->write(new_record);
         }
     }
