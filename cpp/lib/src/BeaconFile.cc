@@ -64,27 +64,30 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
     } while (not line.empty() and line[0] == '#');
 
     do {
-        const auto first_vertical_bar_pos(line.find('|'));
-        if (first_vertical_bar_pos == std::string::npos)
-            LOG_ERROR("Missing | on line " + std::to_string(line_no) + " in \"" + filename + "\"!");
         ++line_no;
 
         std::string gnd_number;
         unsigned count(0);
         std::string id_or_url;
 
-        const auto second_vertical_bar_pos(line.find('|', first_vertical_bar_pos + 1));
-        if (second_vertical_bar_pos == std::string::npos) {
-            const std::string count_str(StringUtil::TrimWhite(line.substr(first_vertical_bar_pos + 1)));
-            if (not count_str.empty() and not StringUtil::ToUnsigned(count_str, &count))
-                LOG_ERROR("bad count \"" + count_str + "\" on line \"" + std::to_string(line_no) + "! (1)");
-        } else {
-            const std::string count_str(StringUtil::TrimWhite(line.substr(first_vertical_bar_pos + 1,
-                                                                          second_vertical_bar_pos - first_vertical_bar_pos - 1)));
-            if (not count_str.empty() and not StringUtil::ToUnsigned(count_str, &count))
-                LOG_ERROR("bad count \"" + count_str + "\" on line \"" + std::to_string(line_no) + "! (2)");
+        const auto first_vertical_bar_pos(line.find('|'));
+        if (first_vertical_bar_pos == std::string::npos)
+            gnd_number = StringUtil::TrimWhite(line);
+        else {
+            gnd_number = StringUtil::TrimWhite(line.substr(0, first_vertical_bar_pos));
+            const auto second_vertical_bar_pos(line.find('|', first_vertical_bar_pos + 1));
+            if (second_vertical_bar_pos == std::string::npos) {
+                const std::string count_str(StringUtil::TrimWhite(line.substr(first_vertical_bar_pos + 1)));
+                if (not count_str.empty() and not StringUtil::ToUnsigned(count_str, &count))
+                    LOG_ERROR("bad count \"" + count_str + "\" on line \"" + std::to_string(line_no) + "! (1)");
+            } else {
+                const std::string count_str(StringUtil::TrimWhite(line.substr(first_vertical_bar_pos + 1,
+                                                                              second_vertical_bar_pos - first_vertical_bar_pos - 1)));
+                if (not count_str.empty() and not StringUtil::ToUnsigned(count_str, &count))
+                    LOG_ERROR("bad count \"" + count_str + "\" on line \"" + std::to_string(line_no) + "! (2)");
 
-            id_or_url = StringUtil::TrimWhite(line.substr(second_vertical_bar_pos + 1));
+                id_or_url = StringUtil::TrimWhite(line.substr(second_vertical_bar_pos + 1));
+            }
         }
         entries_.emplace_back(gnd_number, count, id_or_url);
 
