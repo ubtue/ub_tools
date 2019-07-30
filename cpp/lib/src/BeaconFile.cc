@@ -100,8 +100,8 @@ std::string BeaconFile::getURL(const Entry &entry) const {
     if (not entry.id_or_url_.empty()) {
         if (StringUtil::StartsWith(entry.id_or_url_, "http://") or StringUtil::StartsWith(entry.id_or_url_, "https://"))
             return entry.id_or_url_;
-        return StringUtil::ReplaceString(url_template_, "{ID}", entry.id_or_url_);
+        return StringUtil::ReplaceString("{ID}", entry.id_or_url_, url_template_);
     }
 
-    return StringUtil::ReplaceString(url_template_, "{ID}", entry.gnd_number_);
+    return StringUtil::ReplaceString("{ID}", entry.gnd_number_, url_template_);
 }
