@@ -52,14 +52,10 @@ void LoadAuthorGNDNumbers(const std::string &filename, std::unordered_set<std::s
             continue;
 
         const std::string author_name(_100_field->getFirstSubfieldWithCode('a'));
-        for (const auto _035_field : record.getTagRange("035")) {
-            const auto subfield_a(_035_field.getFirstSubfieldWithCode('a'));
-            if (StringUtil::StartsWith(subfield_a, "(DE-588")) {
-                const std::string gnd_number(subfield_a.substr(__builtin_strlen("(DE-588")));
-                author_gnd_numbers->emplace(gnd_number);
-                (*gnd_numbers_to_author_names_map)[gnd_number] = author_name;
-                break;
-            }
+        std::string gnd_number;
+        if (MARC::GetGNDCode(record, &gnd_number)) {
+            author_gnd_numbers->emplace(gnd_number);
+            (*gnd_numbers_to_author_names_map)[gnd_number] = author_name;
         }
     }
 
