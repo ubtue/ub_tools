@@ -1,4 +1,21 @@
 {
+    "settings": {
+        "analysis" : {
+            "analyzer" : {
+                "fulltext_analyzer" : {
+                    "tokenizer" : "icu_tokenizer",
+                    "filter" : ["icu_folding", "snowball_german", "lowercase"]
+                }
+            },
+            "filter" : {
+                "snowball_german" : { 
+                    "type" : "snowball",
+                    "language" : "German2"
+                }
+            }
+        }
+    },
+
     "mappings": {
         "_doc": {
             "properties": {
@@ -6,7 +23,11 @@
                     "type": "keyword"
                 },
                 "full_text": {
-                    "type": "text"
+                    "type": "text",
+                    "analyzer" : "fulltext_analyzer"
+                },
+                "text_type" : {
+                    "type": "keyword"
                 },
                 "expiration": {
                     "type": "date",
