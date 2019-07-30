@@ -57,8 +57,8 @@ void LoadAuthorGNDNumbers(const std::string &filename, std::unordered_set<std::s
         }
     }
 
-    LOG_INFO("Loaded " + std::to_string(author_gnd_numbers->size()) + " from \"" + filename + "\" which contained a total of "
-             + std::to_string(total_count) + " records.");
+    LOG_INFO("Loaded " + std::to_string(author_gnd_numbers->size()) + " author GND numbers from \"" + filename
+             + "\" which contained a total of " + std::to_string(total_count) + " records.");
 }
 
 
