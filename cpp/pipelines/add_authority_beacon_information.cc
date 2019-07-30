@@ -1,5 +1,5 @@
-/** \file    extract_referenced_author_records.cc
- *  \brief   Selects referenced author records from a collection of authority records.
+/** \file    add_authority_beacon_information.cc
+ *  \brief   Adds BEACON information to authority files
  *  \author  Dr. Johannes Ruscheinski
  *
  *  Copyright (C) 2018,2019 Library of the University of Tübingen
@@ -33,34 +33,6 @@
 
 
 namespace {
-
-
-[[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " title_records authority_records referenced_author_records [beacon_list1 beacon_list2 .. beacon_listN]\n";
-    std::exit(EXIT_FAILURE);
-}
-
-
-void ExtractAuthorPPN(const MARC::Record &record, const std::string &tag, std::unordered_set<std::string> * const referenced_author_ppns) {
-    for (const auto &field : record.getTagRange(tag)) {
-        for (const auto &subfield : field.getSubfields()) {
-            if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-627)"))
-                referenced_author_ppns->emplace(subfield.value_.substr(__builtin_strlen("(DE-627)")));
-        }
-    }
-}
-
-
-void CollectAuthorPPNs(MARC::Reader * const title_reader, std::unordered_set<std::string> * const referenced_author_ppns) {
-    while (const auto record = title_reader->read()) {
-        ExtractAuthorPPN(record, "100", referenced_author_ppns);
-        ExtractAuthorPPN(record, "400", referenced_author_ppns);
-        ExtractAuthorPPN(record, "700", referenced_author_ppns);
-    }
-
-    LOG_INFO("extracted " + std::to_string(referenced_author_ppns->size()) + " referenced author PPN's.");
-}
 
 
 std::string NameFromURL(const std::string &url_string) {
@@ -116,30 +88,25 @@ void CollectBeaconLinks(const std::string &beacon_filename,
 }
 
 
-void FilterAuthorityRecords(
+void ProcessAuthorityRecords(
     MARC::Reader * const authority_reader, MARC::Writer * const authority_writer,
-    const std::unordered_set<std::string> &referenced_author_ppns,
     const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_numbers_to_beacon_links_map)
 {
-    unsigned count(0), gnd_tagged_count(0);
+    unsigned gnd_tagged_count(0);
     while (auto record = authority_reader->read()) {
-        if (referenced_author_ppns.find(record.getControlNumber()) != referenced_author_ppns.cend()) {
-            std::string gnd_number;
-            if (MARC::GetGNDCode(record, &gnd_number)) {
-                const auto gnd_number_and_beacon_links(gnd_numbers_to_beacon_links_map.find(gnd_number));
-                if (gnd_number_and_beacon_links != gnd_numbers_to_beacon_links_map.cend()) {
-                    ++gnd_tagged_count;
-                    for (const auto &beacon_link : gnd_number_and_beacon_links->second)
-                        record.insertField("BEA", { { 'a', beacon_link.first }, { 'u', beacon_link.second } });
-                }
+        std::string gnd_number;
+        if (MARC::GetGNDCode(record, &gnd_number)) {
+            const auto gnd_number_and_beacon_links(gnd_numbers_to_beacon_links_map.find(gnd_number));
+            if (gnd_number_and_beacon_links != gnd_numbers_to_beacon_links_map.cend()) {
+                ++gnd_tagged_count;
+                for (const auto &beacon_link : gnd_number_and_beacon_links->second)
+                    record.insertField("BEA", { { 'a', beacon_link.first }, { 'u', beacon_link.second } });
             }
-
-            authority_writer->write(record);
-            ++count;
         }
+
+        authority_writer->write(record);
     }
 
-    LOG_INFO("identified " + std::to_string(count) + " referenced author records.");
     LOG_INFO("tagged " + std::to_string(gnd_tagged_count) + " author records with beacon links.");
 }
 
@@ -149,33 +116,22 @@ void FilterAuthorityRecords(
 
 int Main(int argc, char **argv) {
     if (argc < 4)
-        Usage();
+        ::Usage("authority_records augmented_authority_records [beacon_list1 beacon_list2 .. beacon_listN]");
 
-    const std::string title_records_filename(argv[1]);
-    const std::string authority_records_filename(argv[2]);
-    const std::string referenced_author_records_filename(argv[3]);
+    const std::string authority_records_filename(argv[1]);
+    const std::string augmented_authority_records_filename(argv[2]);
 
-    if (unlikely(title_records_filename == referenced_author_records_filename))
-        LOG_ERROR("Title input file name equals authority output file name!");
-    if (unlikely(authority_records_filename == referenced_author_records_filename))
+    if (unlikely(authority_records_filename == augmented_authority_records_filename))
         LOG_ERROR("Authority data input file name equals authority output file name!");
 
-    auto title_reader(MARC::Reader::Factory(title_records_filename));
     auto authority_reader(MARC::Reader::Factory(authority_records_filename));
-    auto authority_writer(MARC::Writer::Factory(referenced_author_records_filename));
+    auto authority_writer(MARC::Writer::Factory(augmented_authority_records_filename));
 
-    try {
-        std::unordered_set<std::string> referenced_author_ppns;
-        CollectAuthorPPNs(title_reader.get(), &referenced_author_ppns);
+    std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> gnd_numbers_to_beacon_links_map;
+    for (int arg_no(3); arg_no < argc; ++arg_no)
+        CollectBeaconLinks(argv[arg_no], &gnd_numbers_to_beacon_links_map);
 
-        std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> gnd_numbers_to_beacon_links_map;
-        for (int arg_no(4); arg_no < argc; ++arg_no)
-            CollectBeaconLinks(argv[arg_no], &gnd_numbers_to_beacon_links_map);
-
-        FilterAuthorityRecords(authority_reader.get(), authority_writer.get(), referenced_author_ppns, gnd_numbers_to_beacon_links_map);
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
+    ProcessAuthorityRecords(authority_reader.get(), authority_writer.get(), gnd_numbers_to_beacon_links_map);
 
     return EXIT_SUCCESS;
 }
