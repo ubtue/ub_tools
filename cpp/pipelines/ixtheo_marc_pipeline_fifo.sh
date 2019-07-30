@@ -166,6 +166,14 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
+StartPhase "Appending Literary Remains Records"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc Normdaten-partially-augmented-"${date}".mrc \
+                                 *beacon >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Add Additional Open Access URL's"
 # Execute early for programs that rely on it for determining the open access property
 (add_oa_urls oadoi_urls_ixtheo.json GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
