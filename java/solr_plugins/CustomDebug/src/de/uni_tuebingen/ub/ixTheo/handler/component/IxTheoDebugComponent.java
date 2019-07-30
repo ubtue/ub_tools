@@ -50,7 +50,7 @@ public class IxTheoDebugComponent extends DebugComponent {
             }
 
             NamedList stdinfo = SolrPluginUtils.doStandardDebug(rb.req, rb.getQueryString(), rb.wrap(rb.getQuery()), results, rb.isDebugQuery(),
-                rb.isDebugResults());
+                                rb.isDebugResults());
 
             NamedList info = rb.getDebugInfo();
             if (info == null) {

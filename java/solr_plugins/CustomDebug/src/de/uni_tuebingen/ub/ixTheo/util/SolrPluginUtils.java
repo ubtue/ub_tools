@@ -50,7 +50,7 @@ public class SolrPluginUtils extends org.apache.solr.util.SolrPluginUtils {
     }
 
     public static NamedList doStandardDebug(SolrQueryRequest req, String userQuery, Query query, DocList results, boolean dbgQuery, boolean dbgResults)
-            throws IOException 
+        throws IOException 
     {
         NamedList dbg = new SimpleOrderedMap();
         doStandardQueryDebug(req, userQuery, query, dbgQuery, dbg);
