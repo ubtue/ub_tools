@@ -22,6 +22,19 @@
 #include "StringUtil.h"
 
 
+static bool LookForLine(File * const input, const std::string &line_prefix, unsigned * const line_no, std::string * const line) {
+    while (not input->eof()) {
+        *line = input->getLineAny();
+        ++*line_no;
+
+        if (StringUtil::StartsWith(*line, line_prefix))
+            return true;
+    }
+
+    return false;
+}
+
+
 // In order to understand what we do here, have a look at: https://gbv.github.io/beaconspec/beacon.html
 BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
     const auto input(FileUtil::OpenInputFileOrDie(filename));
@@ -38,10 +51,8 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
         LOG_ERROR("expected \"#PREFIX: http://d-nb.info/gnd/\" as the second line in \"" + filename + "\"!");
     ++line_no;
 
-    line = input->getLineAny();
-    if (not StringUtil::StartsWith(line, "#TARGET:"))
-        LOG_ERROR("expected the third line in \"" + filename + "\" to start with \"#TARGET:\"!");
-    ++line_no;
+    if (not LookForLine(input.get(), "#TARGET:", &line_no, &line))
+        LOG_ERROR("unexpected EOF while looking for \"#TARGET:\" in \"" + filename + "\"!");
 
     url_template_ = StringUtil::Trim(line.substr(__builtin_strlen("#TARGET:")));
     if (url_template_.find("{ID}") == std::string::npos)
