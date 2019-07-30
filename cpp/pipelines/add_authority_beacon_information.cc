@@ -24,6 +24,7 @@
 #include <utility>
 #include <cctype>
 #include <cstdlib>
+#include "BeaconFile.h"
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "MARC.h"
@@ -60,30 +61,17 @@ std::string NameFromURL(const std::string &url_string) {
 void CollectBeaconLinks(const std::string &beacon_filename,
                         std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const gnd_numbers_to_beacon_links_map)
 {
-    const auto input(FileUtil::OpenInputFileOrDie(beacon_filename));
-    std::string url_prefix, institution_name;
-    while (not input->eof()) {
-        std::string line;
-        input->getline(&line);
-        StringUtil::TrimWhite(&line);
-        if (unlikely(line.empty()))
-            continue;
-        if (unlikely(line[0] == '#')) {
-            if (StringUtil::StartsWith(line, "#TARGET:")) {
-                line = StringUtil::TrimWhite(line.substr(__builtin_strlen("#TARGET:")));
-                if (not StringUtil::EndsWith(line, "{ID}"))
-                    LOG_ERROR("Bad TARGET line in \"" + beacon_filename + "\"!");
-                url_prefix = line.substr(0, line.length() - __builtin_strlen("{ID}"));
-                institution_name = NameFromURL(url_prefix);
-            }
-        } else { // Probably a GND number.
-            auto gnd_number_and_beacon_links(gnd_numbers_to_beacon_links_map->find(line));
-            if (gnd_number_and_beacon_links == gnd_numbers_to_beacon_links_map->end())
-                (*gnd_numbers_to_beacon_links_map)[line] =
-                    std::set<std::pair<std::string, std::string>>({ std::make_pair(institution_name, url_prefix + line) });
-            else
-                gnd_number_and_beacon_links->second.emplace(std::make_pair(institution_name, url_prefix + line));
-        }
+    const BeaconFile beacon(beacon_filename);
+    const std::string institution_name(NameFromURL(beacon.getUrlTemplate()));
+
+    for (const auto &entry : beacon) {
+        const std::string entry_url(beacon.getURL(entry));
+        auto gnd_number_and_beacon_links(gnd_numbers_to_beacon_links_map->find(entry.gnd_number_));
+        if (gnd_number_and_beacon_links == gnd_numbers_to_beacon_links_map->end())
+            (*gnd_numbers_to_beacon_links_map)[entry.gnd_number_] =
+                std::set<std::pair<std::string, std::string>>{ std::make_pair(institution_name, entry_url) };
+        else
+            gnd_number_and_beacon_links->second.emplace(std::make_pair(institution_name, entry_url));
     }
 }
 
