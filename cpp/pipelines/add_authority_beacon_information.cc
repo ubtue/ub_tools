@@ -127,15 +127,11 @@ int Main(int argc, char **argv) {
     auto authority_reader(MARC::Reader::Factory(authority_records_filename));
     auto authority_writer(MARC::Writer::Factory(augmented_authority_records_filename));
 
-    try {
-        std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> gnd_numbers_to_beacon_links_map;
-        for (int arg_no(3); arg_no < argc; ++arg_no)
-            CollectBeaconLinks(argv[arg_no], &gnd_numbers_to_beacon_links_map);
+    std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> gnd_numbers_to_beacon_links_map;
+    for (int arg_no(3); arg_no < argc; ++arg_no)
+        CollectBeaconLinks(argv[arg_no], &gnd_numbers_to_beacon_links_map);
 
-        ProcessAuthorityRecords(authority_reader.get(), authority_writer.get(), gnd_numbers_to_beacon_links_map);
-    } catch (const std::exception &x) {
-        LOG_ERROR("caught exception: " + std::string(x.what()));
-    }
+    ProcessAuthorityRecords(authority_reader.get(), authority_writer.get(), gnd_numbers_to_beacon_links_map);
 
     return EXIT_SUCCESS;
 }
