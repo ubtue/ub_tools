@@ -94,7 +94,7 @@ void AppendLiteraryRemainsRecords(
     unsigned creation_count(0);
     for (const auto &gnd_numbers_and_literary_remains_infos : gnd_numbers_to_literary_remains_infos_map) {
         MARC::Record new_record(MARC::Record::TypeOfRecord::MIXED_MATERIALS, MARC::Record::BibliographicLevel::COLLECTION,
-                                "LR" + StringUtil::ToString(++creation_count, 10, 6));
+                                "LR" + StringUtil::ToString(++creation_count, /* base = */10, /* width= */6, /* padding_char = */'0'));
         const std::string &author_name(gnd_numbers_and_literary_remains_infos.second.front().author_name_);
         new_record.insertField("100", { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first } });
         new_record.insertField("245", { { 'a', "Nachlass von " + author_name } });
