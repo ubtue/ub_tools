@@ -303,7 +303,7 @@ bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFie
         if (entry->hasAttribute(url_field)) {
             const auto &imported_url(entry->getAttribute(url_field));
             if (not resolved_url.empty() and not imported_url.empty()) {
-                LOG_INFO("Entry " + std::to_string(entry->getId()) + " | Discarding '" + url_field + "' URL '" +
+                LOG_DEBUG("Entry " + std::to_string(entry->getId()) + " | Discarding '" + url_field + "' URL '" +
                          imported_url + "'");
             } else if (not imported_url.empty())
                 resolved_url = imported_url;
