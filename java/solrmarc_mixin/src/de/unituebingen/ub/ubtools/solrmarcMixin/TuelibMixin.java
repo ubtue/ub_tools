@@ -2330,6 +2330,11 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
+        // Literary remains
+        final List<VariableField> _856Fields = record.getVariableFields("856");
+        if (foundInSubfield(_856Fields, '3', "Nachlassdatenbank"))
+            formats.add("LiteraryRemains");
+
         // Festschrift
         if (fixedField.getData().length() >= 31) {
             formatCode = fixedField.getData().toUpperCase().charAt(30);
