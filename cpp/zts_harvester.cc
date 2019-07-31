@@ -71,10 +71,6 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
     if (not extraction_regex.empty())
         site_params->extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(extraction_regex));
 
-    const auto banned_url_regex_str(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::BANNED_URL_REGEX, ""));
-    if (not banned_url_regex_str.empty())
-        site_params->banned_url_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(banned_url_regex_str));
-
     const auto review_regex(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::REVIEW_REGEX, ""));
     if (not review_regex.empty())
         site_params->review_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(review_regex));
@@ -160,6 +156,10 @@ UnsignedPair ProcessCrawl(const IniFile::Section &section, const JournalConfig::
     site_desc.start_url_ = bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::URL);
     site_desc.max_crawl_depth_ =
         StringUtil::ToUnsigned(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::MAX_CRAWL_DEPTH));
+
+    const auto crawl_url_regex_str(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::CRAWL_URL_REGEX, ""));
+    if (not crawl_url_regex_str.empty())
+        site_desc.url_regex_matcher_.reset(RegexMatcher::RegexMatcherFactoryOrDie(crawl_url_regex_str));
 
     return Zotero::HarvestSite(site_desc, crawler_params, supported_urls_regex, harvest_params, site_params, error_logger);
 }

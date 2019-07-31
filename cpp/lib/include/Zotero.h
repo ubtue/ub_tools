@@ -208,7 +208,6 @@ struct SiteParams {
     std::string PPN_online_;
     std::string strptime_format_;
     std::unique_ptr<RegexMatcher> extraction_regex_;
-    std::unique_ptr<RegexMatcher> banned_url_regex_;
     std::unique_ptr<RegexMatcher> review_regex_;
     BSZUpload::DeliveryMode delivery_mode_;
     std::set<std::string> expected_languages_;
