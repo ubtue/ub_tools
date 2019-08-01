@@ -224,7 +224,7 @@ void  Query::ParseExpression() {
     ParseTerm();
 
     TokenType token(tokenizer_.getNextToken());
-    while (token == OR) {
+    while (token == AND) {
         ParseTerm();
         token = tokenizer_.getNextToken();
     }
