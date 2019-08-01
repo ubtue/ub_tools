@@ -298,6 +298,18 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
+    public String getAuthorityGNDNumber(final Record record)
+    {
+        for (final VariableField variableField : record.getVariableFields("035")) {
+            final DataField dataField = (DataField) variableField;
+            final Subfield subfield_a = dataField.getSubfield('a');
+            if (subfield_a != null && subfield_a.getData().startsWith(ISIL_PREFIX_GND))
+                return subfield_a.getData().substring(ISIL_PREFIX_GND.length());
+        }
+        return null;
+    }
+
+
    /**
      * Get the local 689 topics
      * LOK = Field |0 689 = Subfield |a Imperialismus = Subfield with local
