@@ -33,7 +33,7 @@ namespace {
             "Queries have the following syntax:\n"
             "expression → term {OR term}\n"
             "term       → factor {AND factor}\n"
-            "factor     → id\n"
+            "factor     → field_or_subfield_reference (== | !=) string_constant_or_regex\n"
             "factor     → NOT factor\n"
             "factor     → '(' expression ')'\n"
             );
@@ -41,7 +41,8 @@ namespace {
 }
 
 
-enum TokenType { AND, OR, NOT, STRING_CONST, FUNC_CALL, OPEN_PAREN, CLOSE_PAREN, COMMA, ERROR, END_OF_QUERY };
+enum TokenType { AND, OR, NOT, STRING_CONST, FUNC_CALL, OPEN_PAREN, CLOSE_PAREN, REGEX, EQUALS, NOT_EQUALS,
+                 COMMA, ERROR, END_OF_QUERY };
 
 
 class Tokenizer {
@@ -67,7 +68,7 @@ public:
     inline const std::string &getLastFunctionName() const { return last_function_name_; }
     static std::string TokenTypeToString(const TokenType token);
 private:
-    TokenType parseStringConstant();
+    TokenType parseStringConstantOrRegex();
     bool isKnownFunctionName(const std::string &name_candidate) const;
 };
 
@@ -88,8 +89,8 @@ TokenType Tokenizer::getNextToken() {
     if (next_ch_ == end_)
         return last_token_ = END_OF_QUERY;
 
-    if (*next_ch_ == '"')
-        return last_token_ = parseStringConstant();
+    if (*next_ch_ == '"' or *next_ch_ == '/')
+        return last_token_ = parseStringConstantOrRegex();
 
     if (*next_ch_ == ',') {
         ++next_ch_;
@@ -104,6 +105,24 @@ TokenType Tokenizer::getNextToken() {
     if (*next_ch_ == ')') {
         ++next_ch_;
         return last_token_ = CLOSE_PAREN;
+    }
+
+    if (*next_ch_ == '=') {
+        ++next_ch_;
+        if (next_ch_ == end_ or *next_ch_ != '=') {
+            last_error_message_ = "unexpected single equal sign found!";
+            return ERROR;
+        }
+        return last_token_ = EQUALS;
+    }
+
+    if (*next_ch_ == '!') {
+        ++next_ch_;
+        if (next_ch_ == end_ or *next_ch_ != '=') {
+            last_error_message_ = "unexpected single exclamation point found!";
+            return ERROR;
+        }
+        return last_token_ = NOT_EQUALS;
     }
 
     if (unlikely(not StringUtil::IsAsciiLetter(*next_ch_))) {
@@ -140,24 +159,25 @@ void Tokenizer::ungetLastToken() {
 }
 
 
-TokenType Tokenizer::parseStringConstant() {
-    last_string_.clear();
+TokenType Tokenizer::parseStringConstantOrRegex() {
+    const char terminator(*next_ch_++);
 
+    last_string_.clear();
     bool escaped(false);
     for (/* Intentionally empty! */; next_ch_ != end_; ++next_ch_) {
         if (escaped) {
             escaped = false;
             last_string_ += *next_ch_;
-        } else if (*next_ch_ == '"') {
+        } else if (*next_ch_ == terminator) {
             ++next_ch_;
-            return STRING_CONST;
+            return (terminator == '"') ? STRING_CONST : REGEX;
         } else if (*next_ch_ == '\\')
             escaped = true;
         else
             last_string_ += *next_ch_;
     }
 
-    last_error_message_ = "unterminated string constant!";
+    last_error_message_ = "unterminated string constant or regex!";
     return ERROR;
 }
 
@@ -188,6 +208,12 @@ std::string Tokenizer::TokenTypeToString(const TokenType token) {
         return "(";
     case CLOSE_PAREN:
         return ")";
+    case REGEX:
+        return "regular expression";
+    case EQUALS:
+        return "==";
+    case NOT_EQUALS:
+        return "!=";
     case COMMA:
         return ",";
     case ERROR:
@@ -199,6 +225,11 @@ std::string Tokenizer::TokenTypeToString(const TokenType token) {
 
 
 class Query {
+    struct Node {
+        Node *left_child_;
+        Node *right_child_;
+    };
+
     Tokenizer tokenizer_;
 public:
     explicit Query(const std:: string &query);
@@ -248,8 +279,20 @@ void Query::ParseTerm() {
 
 void Query::ParseFactor() {
     TokenType token(tokenizer_.getNextToken());
-    if (token == STRING_CONST)
+    if (token == STRING_CONST) {
+        token = tokenizer_.getNextToken();
+        if (token != EQUALS and token != NOT_EQUALS)
+            throw std::runtime_error("expected == or != after field or subfield reference, found "
+                                     + Tokenizer::TokenTypeToString(token) + " instead!");
+
+        const TokenType last_token(token);
+        token = tokenizer_.getNextToken();
+        if (token != STRING_CONST and token != REGEX)
+            throw std::runtime_error("expected a string constant or a regex after " + Tokenizer::TokenTypeToString(last_token) + ", found "
+                                     + Tokenizer::TokenTypeToString(token) + " instead!");
+
         return;
+    }
 
     if (token == NOT) {
         ParseFactor();
