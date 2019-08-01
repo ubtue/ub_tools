@@ -334,7 +334,7 @@ bool Query::StringComparisonNode::eval(const MARC::Record &record) const {
         }
     }
 
-    return invert_;
+    return false;
 }
 
 
