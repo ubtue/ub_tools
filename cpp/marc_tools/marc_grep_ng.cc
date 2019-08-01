@@ -65,6 +65,7 @@ public:
     inline const std::string &getLastErrorMessage() const { return last_error_message_; }
     inline const std::string &getLastString() const { return last_string_; }
     inline const std::string &getLastFunctionName() const { return last_function_name_; }
+    static std::string TokenTypeToString(const TokenType token);
 private:
     TokenType parseStringConstant();
     bool isKnownFunctionName(const std::string &name_candidate) const;
@@ -169,6 +170,32 @@ bool Tokenizer::isKnownFunctionName(const std::string &name_candidate) const {
 }
 
 
+std::string Tokenizer::TokenTypeToString(const TokenType token) {
+    switch (token) {
+    case AND:
+        return "AND";
+    case OR:
+        return "OR";
+    case NOT:
+        return "NOT";
+    case STRING_CONST:
+        return "string constant";
+    case FUNC_CALL:
+        return "function call";
+    case OPEN_PAREN:
+        return "(";
+    case CLOSE_PAREN:
+        return ")";
+    case COMMA:
+        return ",";
+    case ERROR:
+        return "unexpected input";
+    case END_OF_QUERY:
+        return "end-of-query";
+    }
+}
+
+
 class Query {
     Tokenizer tokenizer_;
 public:
@@ -226,6 +253,16 @@ void Query::ParseFactor() {
         ParseFactor();
         return;
     }
+
+    if (token != OPEN_PAREN)
+        throw std::runtime_error("opening parenthesis, NOT or string constant expected found " + Tokenizer::TokenTypeToString(token)
+                                 + "instead!");
+
+    ParseExpression();
+
+    token = tokenizer_.getNextToken();
+    if (token != CLOSE_PAREN)
+        throw std::runtime_error("closing parenthesis after expression expected, found " + Tokenizer::TokenTypeToString(token) + "instead!");
 }
 
 
