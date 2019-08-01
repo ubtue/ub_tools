@@ -141,6 +141,8 @@ void Tokenizer::ungetLastToken() {
 
 
 TokenType Tokenizer::parseStringConstant() {
+    last_string_.clear();
+
     bool escaped(false);
     for (/* Intentionally empty! */; next_ch_ != end_; ++next_ch_) {
         if (escaped) {
