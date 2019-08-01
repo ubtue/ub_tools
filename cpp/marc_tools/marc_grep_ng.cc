@@ -226,14 +226,14 @@ std::string Tokenizer::TokenTypeToString(const TokenType token) {
 
 
 class Query {
-    enum NodeType { AND_NODE, OR_NODE };
+    enum NodeType { AND_NODE, OR_NODE, STRING_COMPARISON_NODE, REGEX_COMPARISON_NODE };
     class Node {
     protected:
         Node() {}
     public:
         virtual ~Node() = 0;
         virtual NodeType getNodeType() const = 0;
-        virtual bool eval() const = 0;
+        virtual bool eval(const MARC::Record &record) const = 0;
     };
 
     class AndNode final : public Node {
@@ -244,8 +244,8 @@ class Query {
             for (const auto child_node : children_)
                 delete child_node;
         }
-        virtual NodeType getNodeType() const { return AND_NODE; }
-        virtual bool eval() const;
+        virtual NodeType getNodeType() const override { return AND_NODE; }
+        virtual bool eval(const MARC::Record &record) const override;
     };
 
     class OrNode final : public Node {
@@ -256,8 +256,20 @@ class Query {
             for (const auto child_node : children_)
                 delete child_node;
         }
-        virtual NodeType getNodeType() const { return OR_NODE; }
-        virtual bool eval() const;
+        virtual NodeType getNodeType() const override { return OR_NODE; }
+        virtual bool eval(const MARC::Record &record) const override;
+    };
+
+    class StringComparisonNode final : public Node {
+        std::string field_or_subfield_reference_;
+        std::string string_const_;
+        bool invert_;
+    public:
+        StringComparisonNode(const std::string &field_or_subfield_reference, const std::string &string_const, const bool invert)
+            : field_or_subfield_reference_(field_or_subfield_reference), string_const_(string_const), invert_(invert) { }
+        ~StringComparisonNode() = default;
+        virtual NodeType getNodeType() const override { return STRING_COMPARISON_NODE; }
+        virtual bool eval(const MARC::Record &record) const override;
     };
 
     Tokenizer tokenizer_;
@@ -276,9 +288,9 @@ Query::Node::~Node() {
 }
 
 
-bool Query::AndNode::eval() const {
+bool Query::AndNode::eval(const MARC::Record &record) const {
     for (const auto child_node : children_) {
-        if (not child_node->eval())
+        if (not child_node->eval(record))
             return false;
     }
 
@@ -286,13 +298,18 @@ bool Query::AndNode::eval() const {
 }
 
 
-bool Query::OrNode::eval() const {
+bool Query::OrNode::eval(const MARC::Record &record) const {
     for (const auto child_node : children_) {
-        if (child_node->eval())
+        if (child_node->eval(record))
             return true;
     }
 
     return false;
+}
+
+
+bool Query::StringComparisonNode::eval(const MARC::Record &/*record*/) const {
+    return invert_;
 }
 
 
