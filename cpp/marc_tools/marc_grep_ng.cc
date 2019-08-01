@@ -261,12 +261,16 @@ class Query {
     };
 
     class StringComparisonNode final : public Node {
-        std::string field_or_subfield_reference_;
+        MARC::Tag field_tag_;
+        char subfield_code_;
         std::string string_const_;
         bool invert_;
     public:
         StringComparisonNode(const std::string &field_or_subfield_reference, const std::string &string_const, const bool invert)
-            : field_or_subfield_reference_(field_or_subfield_reference), string_const_(string_const), invert_(invert) { }
+            : field_tag_(field_or_subfield_reference.substr(0, MARC::Record::TAG_LENGTH)),
+              subfield_code_(field_or_subfield_reference.length() > MARC::Record::TAG_LENGTH
+                             ? field_or_subfield_reference[MARC::Record::TAG_LENGTH] : '\0'),
+              string_const_(string_const), invert_(invert) { }
         ~StringComparisonNode() = default;
         virtual NodeType getNodeType() const override { return STRING_COMPARISON_NODE; }
         virtual bool eval(const MARC::Record &record) const override;
@@ -308,7 +312,28 @@ bool Query::OrNode::eval(const MARC::Record &record) const {
 }
 
 
-bool Query::StringComparisonNode::eval(const MARC::Record &/*record*/) const {
+bool Query::StringComparisonNode::eval(const MARC::Record &record) const {
+    for (const auto &field : record.getTagRange(field_tag_)) {
+        if (subfield_code_ == '\0') {
+            if (field .getContents() == string_const_) {
+                if (not invert_)
+                    return true;
+            } else if (invert_)
+                return true;
+        } else {
+            const MARC::Subfields subfields(field.getSubfields());
+            for (const auto &value_and_code : subfields) {
+                if (value_and_code.code_ == subfield_code_) {
+                    if (value_and_code.value_ == string_const_) {
+                        if (not invert_)
+                            return true;
+                    } else if (invert_)
+                        return true;
+                }
+            }
+        }
+    }
+
     return invert_;
 }
 
