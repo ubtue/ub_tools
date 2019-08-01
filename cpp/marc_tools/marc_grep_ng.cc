@@ -220,11 +220,11 @@ bool Query::matched(const MARC::Record &/*record*/) const {
 }
 
 
-void  Query::ParseExpression() {
+void Query::ParseExpression() {
     ParseTerm();
 
     TokenType token(tokenizer_.getNextToken());
-    while (token == AND) {
+    while (token == OR) {
         ParseTerm();
         token = tokenizer_.getNextToken();
     }
@@ -237,7 +237,7 @@ void Query::ParseTerm() {
     ParseFactor();
 
     TokenType token(tokenizer_.getNextToken());
-    while (token == OR) {
+    while (token == AND) {
         ParseFactor();
         token = tokenizer_.getNextToken();
     }
