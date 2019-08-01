@@ -88,6 +88,15 @@ void LoadAuthorGNDNumbers(
 }
 
 
+std::string NormaliseAuthorName(const std::string &author_name) {
+    const auto comma_pos(author_name.find(','));
+    if (comma_pos == std::string::npos)
+        return author_name;
+
+    return StringUtil::TrimWhite(author_name.substr(comma_pos + 1)) + " " + StringUtil::TrimWhite(author_name.substr(0, comma_pos - 1));
+}
+
+
 void AppendLiteraryRemainsRecords(
     MARC::Writer * const writer,
     const std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> &gnd_numbers_to_literary_remains_infos_map)
@@ -101,7 +110,7 @@ void AppendLiteraryRemainsRecords(
         new_record.insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
         new_record.insertField("008", "190606s2019    xx |||||      00| ||ger c");
         new_record.insertField("100", { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first } });
-        new_record.insertField("245", { { 'a', "Nachlass von " + author_name } });
+        new_record.insertField("245", { { 'a', "Nachlass von " + NormaliseAuthorName(author_name) } });
 
         for (const auto &literary_remains_info : gnd_numbers_and_literary_remains_infos.second)
             new_record.insertField("856", { { 'u', literary_remains_info.url_ }, { '3', "Nachlassdatenbank" } });
