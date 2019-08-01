@@ -160,6 +160,36 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 } // namespace TranslationServer
 
 
+template <typename T>
+void VisitJsonMetadataNodes(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                            const SiteParams &site_params, const T callback)
+{
+    switch (node->getType()) {
+    case JSON::JSONNode::OBJECT_NODE:
+        for (const auto &key_and_node : *JSON::JSONNode::CastToObjectNodeOrDie(node_name, node))
+            VisitJsonMetadataNodes(key_and_node.first, key_and_node.second, site_params, callback);
+
+        break;
+    case JSON::JSONNode::ARRAY_NODE: {
+        for (const auto &element : *JSON::JSONNode::CastToArrayNodeOrDie(node_name, node)) {
+            const auto object_node(JSON::JSONNode::CastToObjectNodeOrDie("array_element", element));
+            if (object_node == nullptr)
+                LOG_ERROR("invalid JSON array element in array node '" + node_name + "'");
+
+            for (auto &key_and_node : *object_node)
+                VisitJsonMetadataNodes(key_and_node.first, key_and_node.second, site_params, callback);
+        }
+
+        break;
+    }
+    case JSON::JSONNode::NULL_NODE:
+        /* intentionally empty */ break;
+    default:
+        callback(node_name, node, site_params);
+    }
+}
+
+
 void LoadGroup(const IniFile::Section &section, std::unordered_map<std::string, GroupParams> * const group_name_to_params_map) {
     GroupParams new_group_params;
     new_group_params.name_                           = section.getSectionName();
@@ -207,7 +237,7 @@ JsonFormatHandler::~JsonFormatHandler() {
 }
 
 
-std::pair<unsigned, unsigned> JsonFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
+std::pair<unsigned, unsigned> JsonFormatHandler::processRecord(const std::shared_ptr<JSON::ObjectNode> &object_node) {
     if (record_count_ > 0)
         output_file_object_->write(",");
     output_file_object_->write(object_node->toString());
@@ -238,7 +268,7 @@ ZoteroFormatHandler::~ZoteroFormatHandler() {
 }
 
 
-std::pair<unsigned, unsigned> ZoteroFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
+std::pair<unsigned, unsigned> ZoteroFormatHandler::processRecord(const std::shared_ptr<JSON::ObjectNode> &object_node) {
     if (record_count_ > 0)
         json_buffer_ += ",";
     json_buffer_ += object_node->toString();
@@ -816,7 +846,7 @@ void MarcFormatHandler::handleTrackingAndWriteRecord(const MARC::Record &new_rec
 }
 
 
-std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
+std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<JSON::ObjectNode> &object_node) {
     if (not JSON::IsValidUTF8(*object_node))
         LOG_ERROR("bad UTF8 in JSON node!");
 
@@ -833,7 +863,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     generateMarcRecord(&new_record, item_parameters);
 
     std::string exclusion_string;
-    if (recordMatchesExclusionFilters(new_record, &exclusion_string)) {
+    if (recordMatchesExclusionFilters(new_record, object_node, &exclusion_string)) {
         LOG_INFO("skipping URL '" + item_parameters.harvest_url_ + " - excluded due to filter (" + exclusion_string + ")");
         return std::make_pair(0, 0);
     }
@@ -844,15 +874,41 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 }
 
 
-bool MarcFormatHandler::recordMatchesExclusionFilters(const MARC::Record &new_record, std::string * const exclusion_string) const {
+bool MarcFormatHandler::recordMatchesExclusionFilters(const MARC::Record &new_record,
+                                                      const std::shared_ptr<JSON::ObjectNode> &object_node,
+                                                      std::string * const exclusion_string) const
+{
+    bool found_match(false);
+
     for (const auto &filter : site_params_->field_exclusion_filters_) {
         if (new_record.fieldOrSubfieldMatched(filter.first, filter.second.get())) {
             *exclusion_string = filter.first + "/" + filter.second->getPattern() + "/";
-            return true;
+            found_match = true;
+            break;
         }
     }
 
-    return false;
+    auto metadata_exclusion_predicate = [&found_match, &exclusion_string]
+                                          (const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                                           const SiteParams &site_params) -> void
+    {
+        const auto filter_regex(site_params.metadata_exclusion_filters_.find(node_name));
+        if (filter_regex != site_params.metadata_exclusion_filters_.end()) {
+            if (node->getType() != JSON::JSONNode::STRING_NODE)
+                LOG_ERROR("metadata exclusion filter has invalid node type '" + node_name + "'");
+
+            const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
+            if (filter_regex->second->matched(string_node->getValue())) {
+                found_match = true;
+                * exclusion_string = node_name + "/" + filter_regex->second->getPattern() + "/";
+            }
+        }
+    };
+
+    if (not site_params_->metadata_exclusion_filters_.empty())
+        VisitJsonMetadataNodes("root", object_node, *site_params_, metadata_exclusion_predicate);
+
+    return found_match;
 }
 
 
@@ -906,35 +962,6 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
             JSON::JSONNode::CastToStringNodeOrDie("firstName", first_name_node)->setValue(first_name);
         if (last_name_node != nullptr)
             JSON::JSONNode::CastToStringNodeOrDie("lastName", last_name_node)->setValue(last_name);
-    }
-}
-
-template <typename T>
-void VisitJsonMetadataNodes(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                            const SiteParams &site_params, const T callback)
-{
-    switch (node->getType()) {
-    case JSON::JSONNode::OBJECT_NODE:
-        for (const auto &key_and_node : *JSON::JSONNode::CastToObjectNodeOrDie(node_name, node))
-            VisitJsonMetadataNodes(key_and_node.first, key_and_node.second, site_params, callback);
-
-        break;
-    case JSON::JSONNode::ARRAY_NODE: {
-        for (const auto &element : *JSON::JSONNode::CastToArrayNodeOrDie(node_name, node)) {
-            const auto object_node(JSON::JSONNode::CastToObjectNodeOrDie("array_element", element));
-            if (object_node == nullptr)
-                LOG_ERROR("invalid JSON array element in array node '" + node_name + "'");
-
-            for (auto &key_and_node : *object_node)
-                VisitJsonMetadataNodes(key_and_node.first, key_and_node.second, site_params, callback);
-        }
-
-        break;
-    }
-    case JSON::JSONNode::NULL_NODE:
-        /* intentionally empty */ break;
-    default:
-        callback(node_name, node, site_params);
     }
 }
 
