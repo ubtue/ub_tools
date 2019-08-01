@@ -802,16 +802,16 @@ void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParamet
 void MarcFormatHandler::handleTrackingAndWriteRecord(const MARC::Record &new_record, const bool keep_delivered_records,
                                                      struct ItemParameters &item_params, unsigned * const previously_downloaded_count)
 {
-    const std::string harvest_url(item_params.harvest_url_);
+    const std::string record_url(item_params.url_);
     const std::string checksum(StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
-    if (harvest_url.empty())
-        LOG_ERROR("\"harvest_url\" has not been set!");
+    if (record_url.empty())
+        LOG_ERROR("\"record_url\" has not been set!");
 
-    if (keep_delivered_records or not delivery_tracker_.hasAlreadyBeenDelivered(harvest_url, checksum))
+    if (keep_delivered_records or not delivery_tracker_.hasAlreadyBeenDelivered(record_url, checksum))
         marc_writer_->write(new_record);
     else {
         ++(*previously_downloaded_count);
-        LOG_INFO("skipping URL '" + harvest_url + "' - already delivered");
+        LOG_INFO("skipping URL '" + record_url + "' - already delivered");
     }
 }
 
@@ -1293,16 +1293,22 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         LOG_ERROR("empty URL passed to Zotero::Harvest");
 
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
+    static std::unordered_set<std::string> already_skipped_urls;
     static std::unordered_set<std::string> already_harvested_urls;
 
-    if (harvest_params->harvest_url_regex_ != nullptr and not harvest_params->harvest_url_regex_->matched(harvest_url)) {
+    if (already_skipped_urls.find(harvest_url) != already_skipped_urls.end())
+        return record_count_and_previously_downloaded_count;
+    else if (harvest_params->harvest_url_regex_ != nullptr and not harvest_params->harvest_url_regex_->matched(harvest_url)) {
         LOG_DEBUG("Skipping URL (does not match harvest URL regex): " + harvest_url);
+        already_skipped_urls.insert(harvest_url);
         return record_count_and_previously_downloaded_count;
     } else if (already_harvested_urls.find(harvest_url) != already_harvested_urls.end()) {
         LOG_DEBUG("Skipping URL (already harvested during this session): " + harvest_url);
+        already_skipped_urls.insert(harvest_url);
         return record_count_and_previously_downloaded_count;
     } else if (site_params.extraction_regex_ and not site_params.extraction_regex_->matched(harvest_url)) {
         LOG_DEBUG("Skipping URL (does not match extraction regex): " + harvest_url);
+        already_skipped_urls.insert(harvest_url);
         return record_count_and_previously_downloaded_count;
     } else if (not harvest_params->force_downloads_) {
         auto &delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
@@ -1318,6 +1324,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
                 LOG_DEBUG("Skipping URL (delivery mode set to NONE but URL has already been delivered?!): " + harvest_url);
                 break;
             }
+            already_skipped_urls.insert(harvest_url);
             return record_count_and_previously_downloaded_count;
         }
     }
