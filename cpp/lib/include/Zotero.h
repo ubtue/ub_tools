@@ -218,6 +218,7 @@ struct SiteParams {
     std::vector<std::string> additional_fields_;
     std::vector<std::string> non_standard_metadata_fields_;
     std::map<std::string, std::unique_ptr<RegexMatcher>> field_exclusion_filters_;
+    std::map<std::string, std::unique_ptr<RegexMatcher>> metadata_exclusion_filters_;
     std::map<std::string, std::unique_ptr<RegexMatcher>> field_removal_filters_;
     unsigned journal_update_window_;
 public:
@@ -278,7 +279,7 @@ public:
     inline BSZUpload::DeliveryTracker &getDeliveryTracker() { return delivery_tracker_; }
 
     /** \brief Convert & write single record to output file */
-    virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) = 0;
+    virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<JSON::ObjectNode> &object_node) = 0;
 
     // The output format must be one of "bibtex", "biblatex", "bookmarks", "coins", "csljson", "mods", "refer",
     // "rdf_bibliontology", "rdf_dc", "rdf_zotero", "ris", "wikipedia", "tei", "json", "marc-21", or "marc-xml".
@@ -295,7 +296,7 @@ public:
     JsonFormatHandler(DbConnection * const db_connection, const std::string &output_format, const std::string &output_file,
                       const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~JsonFormatHandler();
-    virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
+    virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<JSON::ObjectNode> &object_node) override;
 };
 
 
@@ -306,7 +307,7 @@ public:
     ZoteroFormatHandler(DbConnection * const db_connection, const std::string &output_format, const std::string &output_file,
                         const std::shared_ptr<const HarvestParams> &harvest_params);
     virtual ~ZoteroFormatHandler();
-    virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
+    virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<JSON::ObjectNode> &object_node) override;
 };
 
 
@@ -316,7 +317,7 @@ public:
     MarcFormatHandler(DbConnection * const db_connection, const std::string &output_file,
                       const std::shared_ptr<const HarvestParams> &harvest_params, const std::string &output_format = "");
     virtual ~MarcFormatHandler() = default;
-    virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) override;
+    virtual std::pair<unsigned, unsigned> processRecord(const std::shared_ptr<JSON::ObjectNode> &object_node) override;
     MARC::Writer *getWriter() { return marc_writer_.get(); }
 private:
     inline std::string createSubfieldFromStringNode(const std::string &key, const std::shared_ptr<const JSON::JSONNode> node,
@@ -367,7 +368,8 @@ private:
     void handleTrackingAndWriteRecord(const MARC::Record &new_record, const bool keep_delivered_records,
                                       struct ItemParameters &item_params, unsigned * const previously_downloaded_count);
 
-    bool recordMatchesExclusionFilters(const MARC::Record &new_record, std::string * const exclusion_string) const;
+    bool recordMatchesExclusionFilters(const MARC::Record &new_record, const std::shared_ptr<JSON::ObjectNode> &object_node,
+                                       std::string * const exclusion_string) const;
 };
 
 

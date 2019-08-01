@@ -112,12 +112,16 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
             site_params->additional_fields_.emplace_back(entry.value_);
         else if (StringUtil::StartsWith(entry.name_, "non_standard_metadata_field"))
             site_params->non_standard_metadata_fields_.emplace_back(entry.value_);
-        else if (StringUtil::StartsWith(entry.name_, "exclusion_filter_")) {
-            const auto field_name(entry.name_.substr(__builtin_strlen("exclusion_filter_")));
+        else if (StringUtil::StartsWith(entry.name_, "exclude_if_field_")) {
+            const auto field_name(entry.name_.substr(__builtin_strlen("exclude_if_field_")));
             if (field_name.length() != MARC::Record::TAG_LENGTH and field_name.length() != MARC::Record::TAG_LENGTH + 1)
-                LOG_ERROR("invalid exclusion filter name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
+                LOG_ERROR("invalid exclusion field name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
 
             site_params->field_exclusion_filters_.insert(std::make_pair(field_name,
+                                                         std::unique_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactoryOrDie(entry.value_))));
+        } else if (StringUtil::StartsWith(entry.name_, "exclude_if_metadata_")) {
+            const auto metadata_name(entry.name_.substr(__builtin_strlen("exclude_if_metadata_")));
+            site_params->metadata_exclusion_filters_.insert(std::make_pair(metadata_name,
                                                          std::unique_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactoryOrDie(entry.value_))));
         } else if (StringUtil::StartsWith(entry.name_, "remove_field_")) {
             const auto field_name(entry.name_.substr(__builtin_strlen("remove_field_")));
@@ -157,9 +161,17 @@ UnsignedPair ProcessCrawl(const IniFile::Section &section, const JournalConfig::
     site_desc.max_crawl_depth_ =
         StringUtil::ToUnsigned(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::MAX_CRAWL_DEPTH));
 
-    const auto crawl_url_regex_str(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::CRAWL_URL_REGEX, ""));
-    if (not crawl_url_regex_str.empty())
+
+    auto crawl_url_regex_str(bundle_reader.zotero(section.getSectionName()).value(JournalConfig::Zotero::CRAWL_URL_REGEX, ""));
+    if (not crawl_url_regex_str.empty()) {
+        // the crawl URL regex needs to be combined with the extraction URL regex if they aren't the same
+        // we combine the two here to prevent unnecessary duplication in the config file
+        const auto extraction_url_regex_pattern(site_params.extraction_regex_ != nullptr ? site_params.extraction_regex_->getPattern() : "");
+        if (not extraction_url_regex_pattern.empty() and extraction_url_regex_pattern != crawl_url_regex_str)
+            crawl_url_regex_str = "((" + crawl_url_regex_str + ")|(" + extraction_url_regex_pattern + "))";
+
         site_desc.url_regex_matcher_.reset(RegexMatcher::RegexMatcherFactoryOrDie(crawl_url_regex_str));
+    }
 
     return Zotero::HarvestSite(site_desc, crawler_params, supported_urls_regex, harvest_params, site_params, error_logger);
 }
