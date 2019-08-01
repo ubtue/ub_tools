@@ -21,6 +21,7 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "MARC.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -225,9 +226,50 @@ std::string Tokenizer::TokenTypeToString(const TokenType token) {
 
 
 class Query {
-    struct Node {
-        Node *left_child_;
-        Node *right_child_;
+    enum NodeType { AND_NODE, OR_NODE, STRING_COMPARISON_NODE, REGEX_COMPARISON_NODE };
+    class Node {
+    protected:
+        Node() {}
+    public:
+        virtual ~Node() = 0;
+        virtual NodeType getNodeType() const = 0;
+        virtual bool eval(const MARC::Record &record) const = 0;
+    };
+
+    class AndNode final : public Node {
+        std::vector<Node *> children_;
+    public:
+        AndNode() { }
+        ~AndNode() {
+            for (const auto child_node : children_)
+                delete child_node;
+        }
+        virtual NodeType getNodeType() const override { return AND_NODE; }
+        virtual bool eval(const MARC::Record &record) const override;
+    };
+
+    class OrNode final : public Node {
+        std::vector<Node *> children_;
+    public:
+        OrNode() { }
+        ~OrNode() {
+            for (const auto child_node : children_)
+                delete child_node;
+        }
+        virtual NodeType getNodeType() const override { return OR_NODE; }
+        virtual bool eval(const MARC::Record &record) const override;
+    };
+
+    class StringComparisonNode final : public Node {
+        std::string field_or_subfield_reference_;
+        std::string string_const_;
+        bool invert_;
+    public:
+        StringComparisonNode(const std::string &field_or_subfield_reference, const std::string &string_const, const bool invert)
+            : field_or_subfield_reference_(field_or_subfield_reference), string_const_(string_const), invert_(invert) { }
+        ~StringComparisonNode() = default;
+        virtual NodeType getNodeType() const override { return STRING_COMPARISON_NODE; }
+        virtual bool eval(const MARC::Record &record) const override;
     };
 
     Tokenizer tokenizer_;
@@ -239,6 +281,36 @@ private:
     void ParseTerm();
     void ParseFactor();
 };
+
+
+Query::Node::~Node() {
+    /* Intentionally empty! */
+}
+
+
+bool Query::AndNode::eval(const MARC::Record &record) const {
+    for (const auto child_node : children_) {
+        if (not child_node->eval(record))
+            return false;
+    }
+
+    return true;
+}
+
+
+bool Query::OrNode::eval(const MARC::Record &record) const {
+    for (const auto child_node : children_) {
+        if (child_node->eval(record))
+            return true;
+    }
+
+    return false;
+}
+
+
+bool Query::StringComparisonNode::eval(const MARC::Record &/*record*/) const {
+    return invert_;
+}
 
 
 Query::Query(const std:: string &query): tokenizer_(query) {
@@ -280,6 +352,10 @@ void Query::ParseTerm() {
 void Query::ParseFactor() {
     TokenType token(tokenizer_.getNextToken());
     if (token == STRING_CONST) {
+        if (tokenizer_.getLastString().length() != MARC::Record::TAG_LENGTH
+            and tokenizer_.getLastString().length() != MARC::Record::TAG_LENGTH + 1)
+            throw std::runtime_error("invalid field or subfield reference \"" + tokenizer_.getLastString() + "\"!");
+
         token = tokenizer_.getNextToken();
         if (token != EQUALS and token != NOT_EQUALS)
             throw std::runtime_error("expected == or != after field or subfield reference, found "
