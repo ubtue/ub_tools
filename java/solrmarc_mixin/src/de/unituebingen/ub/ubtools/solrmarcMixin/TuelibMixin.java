@@ -404,23 +404,23 @@ public class TuelibMixin extends SolrIndexerMixin {
      * Get all subfields matching a tagList definition
      * (Iteration taken from VuFind's CreatorTools.getAuthorsFilteredByRelator)
      *
-     * @param record  The record
-     * @param tagList Like in marc.properties, e.g. "110ab:111abc:710ab:711ab"
-     * @return        A list with all subfields matching the tagList
+     * @param record       The record
+     * @param subfieldList Like in marc.properties, e.g. "110ab:111abc:710ab:711ab"
+     * @return             A list with all subfields matching the tagList
      */
-    protected List<Subfield> getSubfields(final Record record, final String tagList)
+    protected List<Subfield> getSubfieldsMatchingList(final Record record, final String subfieldList)
     {
         List<Subfield> returnSubfields = new ArrayList<>();
-        HashMap<String, Set<String>> parsedTagList = getParsedTagList(tagList);
-        List fields = SolrIndexer.instance().getFieldSetMatchingTagList(record, tagList);
+        HashMap<String, Set<String>> parsedTagList = getParsedTagList(subfieldList);
+        List fields = SolrIndexer.instance().getFieldSetMatchingTagList(record, subfieldList);
         if (fields != null){
             Iterator fieldsIter = fields.iterator();
             DataField field;
             while (fieldsIter.hasNext()){
                 field = (DataField) fieldsIter.next();
                 for (String subfieldCharacters : parsedTagList.get(field.getTag())) {
-                    final List<Subfield> subfields = field.getSubfields("["+subfieldCharacters+"]");
-                    final Iterator<Subfield> subfieldsIter =  subfields.iterator();
+                    final List<Subfield> subfields = field.getSubfields("[" + subfieldCharacters + "]");
+                    final Iterator<Subfield> subfieldsIter = subfields.iterator();
                     while (subfieldsIter.hasNext()) {
                         final Subfield subfield = subfieldsIter.next();
                         returnSubfields.add(subfield);
@@ -431,9 +431,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         return returnSubfields;
     }
 
-    protected Subfield getFirstSubfieldWithPrefix(final Record record, final String tagList, final String prefix)
+    protected Subfield getFirstSubfieldWithPrefix(final Record record, final String subfieldList, final String prefix)
     {
-        final List<Subfield> subfields = getSubfields(record, tagList);
+        final List<Subfield> subfields = getSubfieldsMatchingList(record, subfieldList);
         for (final Subfield subfield : subfields) {
             final String data = subfield.getData();
             if (data.startsWith(prefix))
@@ -442,9 +442,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
-    public String getFirstSubfieldValueWithPrefix(final Record record, final String tagList, final String prefix)
+    public String getFirstSubfieldValueWithPrefix(final Record record, final String subfieldList, final String prefix)
     {
-        final Subfield subfield = getFirstSubfieldWithPrefix(record, tagList, prefix);
+        final Subfield subfield = getFirstSubfieldWithPrefix(record, subfieldList, prefix);
         if (subfield == null)
             return null;
         return subfield.getData().substring(prefix.length());
@@ -994,13 +994,13 @@ public class TuelibMixin extends SolrIndexerMixin {
      * This function is copied from VuFind's CreatorTools
      * (can't be re-used since it's protected)
      */
-    protected HashMap<String, Set<String>> getParsedTagList(String tagList)
+    protected HashMap<String, Set<String>> getParsedTagList(final String tagList)
     {
-        String[] tags = tagList.split(":");//convert string input to array
+        final String[] tags = tagList.split(":");//convert string input to array
         HashMap<String, Set<String>> tagMap = new HashMap<String, Set<String>>();
         //cut tags array up into key/value pairs in hash map
         Set<String> currentSet;
-        for(int i = 0; i < tags.length; i++){
+        for (int i = 0; i < tags.length; i++) {
             String tag = tags[i].substring(0, 3);
             if (!tagMap.containsKey(tag)) {
                 currentSet = new LinkedHashSet<String>();
