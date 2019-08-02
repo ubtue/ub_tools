@@ -343,6 +343,15 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
+    public String getAuthorityType(final Record record) {
+        if (record.getVariableFields("100").size() > 0)
+            return "person";
+        if (record.getVariableFields("110").size() > 0)
+            return "corporate";
+        return null;
+    }
+
+
     /**
      * Hole das Sachschlagwort aus 689|a (wenn 689|d != z oder f)
      * und füge auch Schlagwörter aus LOK 689 ein
