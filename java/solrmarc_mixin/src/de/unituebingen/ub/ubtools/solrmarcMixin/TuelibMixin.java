@@ -51,6 +51,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static String ISIL_GND = "DE-588";
     private final static String ISIL_K10PLUS = "DE-627";
 
+    private final static String ISIL_PREFIX_BSZ = "(" + ISIL_BSZ + ")";
     private final static String ISIL_PREFIX_GND = "(" + ISIL_GND + ")";
     private final static String ISIL_PREFIX_K10PLUS = "(" + ISIL_K10PLUS + ")";
 
@@ -397,6 +398,67 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
         return null;
+    }
+
+    private interface SubfieldMatcher {
+        boolean matched(final Subfield subfield);
+    }
+
+    /**
+     * Get all subfields matching a tagList definition
+     * (Iteration taken from VuFind's CreatorTools.getAuthorsFilteredByRelator)
+     *
+     * @param record       The record
+     * @param subfieldList Like in marc.properties, e.g. "110ab:111abc:710ab:711ab"
+     * @param matcher      Instance of SubfieldMatcher or null
+     * @return             A list with all subfields matching the tagList
+     */
+    protected List<Subfield> getSubfieldsMatchingList(final Record record, final String subfieldList, final SubfieldMatcher matcher)
+    {
+        List<Subfield> returnSubfields = new ArrayList<>();
+        HashMap<String, Set<String>> parsedTagList = getParsedTagList(subfieldList);
+        List<VariableField> fields = SolrIndexer.instance().getFieldSetMatchingTagList(record, subfieldList);
+
+        for (final VariableField variableField : fields) {
+            DataField field = (DataField)variableField;
+            for (final String subfieldCharacters : parsedTagList.get(field.getTag())) {
+                final List<Subfield> subfields = field.getSubfields("[" + subfieldCharacters + "]");
+                for (final Subfield subfield : subfields) {
+                    if (matcher == null || matcher.matched(subfield))
+                        returnSubfields.add(subfield);
+                }
+            }
+        }
+        return returnSubfields;
+    }
+
+    protected List<Subfield> getSubfieldsMatchingList(final Record record, final String subfieldList)
+    {
+        return getSubfieldsMatchingList(record, subfieldList, null);
+    }
+
+    protected Subfield getFirstSubfieldWithPrefix(final Record record, final String subfieldList, final String prefix)
+    {
+        SubfieldMatcher matcher = new SubfieldMatcher() {
+            public boolean matched(final Subfield subfield) {
+                return subfield.getData().startsWith(prefix);
+            }
+        };
+        final List<Subfield> subfields = getSubfieldsMatchingList(record, subfieldList, matcher);
+        for (final Subfield subfield : subfields) {
+            final String data = subfield.getData();
+            if (data.startsWith(prefix))
+                return subfield;
+        }
+        return null;
+    }
+
+    public String getFirstSubfieldValueWithPrefix(final Record record, final String subfieldList, final String prefix)
+    {
+        final Subfield subfield = getFirstSubfieldWithPrefix(record, subfieldList, prefix);
+        if (subfield == null)
+            return null;
+        return subfield.getData().substring(prefix.length());
     }
 
     // Map used by getPhysicalType().
@@ -937,6 +999,29 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
     int getLastDayForYearAndMonth(final String year, final String month) {
         return YearMonth.of(Integer.valueOf(year), Integer.valueOf(month)).atEndOfMonth().getDayOfMonth();
+    }
+
+    /**
+     * This function is copied from VuFind's CreatorTools
+     * (can't be re-used since it's protected)
+     */
+    protected HashMap<String, Set<String>> getParsedTagList(final String tagList)
+    {
+        final String[] tags = tagList.split(":");//convert string input to array
+        HashMap<String, Set<String>> tagMap = new HashMap<String, Set<String>>();
+        //cut tags array up into key/value pairs in hash map
+        Set<String> currentSet;
+        for (int i = 0; i < tags.length; i++) {
+            String tag = tags[i].substring(0, 3);
+            if (!tagMap.containsKey(tag)) {
+                currentSet = new LinkedHashSet<String>();
+                tagMap.put(tag, currentSet);
+            } else {
+                currentSet = tagMap.get(tag);
+            }
+            currentSet.add(tags[i].substring(3));
+        }
+        return tagMap;
     }
 
     /*
@@ -2788,18 +2873,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         } finally {
             response.close();
         }
-    }
-
-
-    public String getOldPPN(final Record record) {
-        for (final VariableField variableField : record.getVariableFields("035")) {
-            final DataField dataField = (DataField) variableField;
-            final Subfield subfield_a = dataField.getSubfield('a');
-            if (subfield_a != null && subfield_a.getData().startsWith("(" + ISIL_BSZ + ")"))
-                return subfield_a.getData().substring(8);
-        }
-
-        return null;
     }
 
 
