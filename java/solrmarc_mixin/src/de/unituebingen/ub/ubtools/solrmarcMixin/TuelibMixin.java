@@ -400,40 +400,51 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
+    private interface SubfieldMatcher {
+        boolean matched(final Subfield subfield);
+    }
+
     /**
      * Get all subfields matching a tagList definition
      * (Iteration taken from VuFind's CreatorTools.getAuthorsFilteredByRelator)
      *
      * @param record       The record
      * @param subfieldList Like in marc.properties, e.g. "110ab:111abc:710ab:711ab"
+     * @param matcher      Instance of SubfieldMatcher or null
      * @return             A list with all subfields matching the tagList
      */
-    protected List<Subfield> getSubfieldsMatchingList(final Record record, final String subfieldList)
+    protected List<Subfield> getSubfieldsMatchingList(final Record record, final String subfieldList, final SubfieldMatcher matcher)
     {
         List<Subfield> returnSubfields = new ArrayList<>();
         HashMap<String, Set<String>> parsedTagList = getParsedTagList(subfieldList);
-        List fields = SolrIndexer.instance().getFieldSetMatchingTagList(record, subfieldList);
-        if (fields != null){
-            Iterator fieldsIter = fields.iterator();
-            DataField field;
-            while (fieldsIter.hasNext()){
-                field = (DataField) fieldsIter.next();
-                for (String subfieldCharacters : parsedTagList.get(field.getTag())) {
-                    final List<Subfield> subfields = field.getSubfields("[" + subfieldCharacters + "]");
-                    final Iterator<Subfield> subfieldsIter = subfields.iterator();
-                    while (subfieldsIter.hasNext()) {
-                        final Subfield subfield = subfieldsIter.next();
+        List<VariableField> fields = SolrIndexer.instance().getFieldSetMatchingTagList(record, subfieldList);
+
+        for (final VariableField variableField : fields) {
+            DataField field = (DataField)variableField;
+            for (final String subfieldCharacters : parsedTagList.get(field.getTag())) {
+                final List<Subfield> subfields = field.getSubfields("[" + subfieldCharacters + "]");
+                for (final Subfield subfield : subfields) {
+                    if (matcher == null || matcher.matched(subfield))
                         returnSubfields.add(subfield);
-                    }
                 }
             }
         }
         return returnSubfields;
     }
 
+    protected List<Subfield> getSubfieldsMatchingList(final Record record, final String subfieldList)
+    {
+        return getSubfieldsMatchingList(record, subfieldList, null);
+    }
+
     protected Subfield getFirstSubfieldWithPrefix(final Record record, final String subfieldList, final String prefix)
     {
-        final List<Subfield> subfields = getSubfieldsMatchingList(record, subfieldList);
+        SubfieldMatcher matcher = new SubfieldMatcher() {
+            public boolean matched(final Subfield subfield) {
+                return subfield.getData().startsWith(prefix);
+            }
+        };
+        final List<Subfield> subfields = getSubfieldsMatchingList(record, subfieldList, matcher);
         for (final Subfield subfield : subfields) {
             final String data = subfield.getData();
             if (data.startsWith(prefix))
