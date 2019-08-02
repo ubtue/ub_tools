@@ -93,7 +93,7 @@ std::string NormaliseAuthorName(const std::string &author_name) {
     if (comma_pos == std::string::npos)
         return author_name;
 
-    return StringUtil::TrimWhite(author_name.substr(comma_pos + 1)) + " " + StringUtil::TrimWhite(author_name.substr(0, comma_pos - 1));
+    return StringUtil::TrimWhite(author_name.substr(comma_pos + 1)) + " " + StringUtil::TrimWhite(author_name.substr(0, comma_pos));
 }
 
 
