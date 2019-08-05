@@ -572,19 +572,18 @@ int Main(int argc, char *argv[]) {
     if (argc < 4)
         Usage();
 
-    if (not StringUtil::StartsWith(argv[1], "--query="))
+    const std::string QUERY_PREFIX("--query=");
+    if (not StringUtil::StartsWith(argv[1], QUERY_PREFIX))
         LOG_ERROR("missing --query=...!");
-    const std::string query_str(argv[1] + __builtin_strlen("--query="));
+    const std::string query_str(argv[1] + QUERY_PREFIX.length());
     Query query(query_str);
 
-    if (not StringUtil::StartsWith(argv[2], "--output="))
+    const std::string OUTPUT_PREFIX("--output=");
+    if (not StringUtil::StartsWith(argv[2], OUTPUT_PREFIX))
         LOG_ERROR("missing --output=...!");
     std::vector<std::string> field_and_subfield_output_list;
-    if (not ParseOutputList(argv[2] + __builtin_strlen("--output="), &field_and_subfield_output_list))
-        LOG_ERROR("bad output specification: \"" + std::string(argv[2] + __builtin_strlen("--output=")));
-
-    if (argc < 3)
-        Usage();
+    if (not ParseOutputList(argv[2] + OUTPUT_PREFIX.length(), &field_and_subfield_output_list))
+        LOG_ERROR("bad output specification: \"" + std::string(argv[2] + OUTPUT_PREFIX.length()));
 
     for (int arg_no(1); arg_no < argc; ++arg_no) {
         auto marc_reader(MARC::Reader::Factory(argv[1]));
