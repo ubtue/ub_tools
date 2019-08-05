@@ -574,13 +574,13 @@ int Main(int argc, char *argv[]) {
 
     const std::string QUERY_PREFIX("--query=");
     if (not StringUtil::StartsWith(argv[1], QUERY_PREFIX))
-        LOG_ERROR("missing --query=...!");
+        LOG_ERROR("missing " + QUERY_PREFIX + "...!");
     const std::string query_str(argv[1] + QUERY_PREFIX.length());
     Query query(query_str);
 
     const std::string OUTPUT_PREFIX("--output=");
     if (not StringUtil::StartsWith(argv[2], OUTPUT_PREFIX))
-        LOG_ERROR("missing --output=...!");
+        LOG_ERROR("missing " + OUTPUT_PREFIX + "...!");
     std::vector<std::string> field_and_subfield_output_list;
     if (not ParseOutputList(argv[2] + OUTPUT_PREFIX.length(), &field_and_subfield_output_list))
         LOG_ERROR("bad output specification: \"" + std::string(argv[2] + OUTPUT_PREFIX.length()));
