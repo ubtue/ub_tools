@@ -229,17 +229,20 @@ class Query {
     enum NodeType { AND_NODE, OR_NODE, STRING_COMPARISON_NODE, REGEX_COMPARISON_NODE };
     class Node {
     protected:
-        Node() {}
+        bool invert_;
+    protected:
+        Node(): invert_(false) {}
     public:
         virtual ~Node() = 0;
         virtual NodeType getNodeType() const = 0;
         virtual bool eval(const MARC::Record &record) const = 0;
+        inline void toggleInvert() { invert_ = not invert_; }
     };
 
     class AndNode final : public Node {
         std::vector<Node *> children_;
     public:
-        AndNode() { }
+        explicit AndNode(std::vector<Node *> &children) { children.swap(children_); }
         ~AndNode() {
             for (const auto child_node : children_)
                 delete child_node;
@@ -251,7 +254,7 @@ class Query {
     class OrNode final : public Node {
         std::vector<Node *> children_;
     public:
-        OrNode() { }
+        explicit OrNode(std::vector<Node *> &children) { children.swap(children_); }
         ~OrNode() {
             for (const auto child_node : children_)
                 delete child_node;
@@ -264,13 +267,12 @@ class Query {
         MARC::Tag field_tag_;
         char subfield_code_;
         std::string string_const_;
-        bool invert_;
     public:
         StringComparisonNode(const std::string &field_or_subfield_reference, const std::string &string_const, const bool invert)
             : field_tag_(field_or_subfield_reference.substr(0, MARC::Record::TAG_LENGTH)),
               subfield_code_(field_or_subfield_reference.length() > MARC::Record::TAG_LENGTH
                              ? field_or_subfield_reference[MARC::Record::TAG_LENGTH] : '\0'),
-              string_const_(string_const), invert_(invert) { }
+              string_const_(string_const) { invert_ = invert; }
         ~StringComparisonNode() = default;
         virtual NodeType getNodeType() const override { return STRING_COMPARISON_NODE; }
         virtual bool eval(const MARC::Record &record) const override;
@@ -293,13 +295,17 @@ class Query {
     };
 
     Tokenizer tokenizer_;
+    Node *root_;
 public:
     explicit Query(const std:: string &query);
+    ~Query() { delete root_; }
+
     bool matched(const MARC::Record &record) const;
 private:
-    void ParseExpression();
-    void ParseTerm();
-    void ParseFactor();
+    Node *parseExpression();
+    Node *parseTerm();
+    Node *parseFactor();
+    static void DeletePointerVector(std::vector<Node *> &nodes);
 };
 
 
@@ -311,7 +317,7 @@ Query::Node::~Node() {
 bool Query::AndNode::eval(const MARC::Record &record) const {
     for (const auto child_node : children_) {
         if (not child_node->eval(record))
-            return false;
+            return invert_ ? true : false;
     }
 
     return true;
@@ -321,7 +327,7 @@ bool Query::AndNode::eval(const MARC::Record &record) const {
 bool Query::OrNode::eval(const MARC::Record &record) const {
     for (const auto child_node : children_) {
         if (child_node->eval(record))
-            return true;
+            return invert_ ? false : true;
     }
 
     return false;
@@ -380,77 +386,113 @@ bool Query::RegexComparisonNode::eval(const MARC::Record &record) const {
 }
 
 
-Query::Query(const std:: string &query): tokenizer_(query) {
-    ParseExpression();
+Query::Query(const std:: string &query)
+    : tokenizer_(query), root_(parseExpression())
+{
 }
 
 
-bool Query::matched(const MARC::Record &/*record*/) const {
-    return false;
+bool Query::matched(const MARC::Record &record) const {
+    return root_->eval(record);
 }
 
 
-void Query::ParseExpression() {
-    ParseTerm();
+Query::Node *Query::parseExpression() {
+    std::vector<Node *> children;
+    children.emplace_back(parseTerm());
 
     TokenType token(tokenizer_.getNextToken());
     while (token == OR) {
-        ParseTerm();
+        children.emplace_back(parseTerm());
         token = tokenizer_.getNextToken();
+    }
+    if (token == ERROR) {
+        DeletePointerVector(children);
+        throw std::runtime_error("error in OR expression: " + tokenizer_.getLastErrorMessage());
     }
 
     tokenizer_.ungetLastToken();
+    return new OrNode(children);
 }
 
 
-void Query::ParseTerm() {
-    ParseFactor();
+Query::Node *Query::parseTerm() {
+    std::vector<Node *> children;
+    children.emplace_back(parseFactor());
 
     TokenType token(tokenizer_.getNextToken());
     while (token == AND) {
-        ParseFactor();
+        children.emplace_back(parseFactor());
         token = tokenizer_.getNextToken();
+    }
+    if (token == ERROR) {
+        DeletePointerVector(children);
+        throw std::runtime_error("error in AND expression: " + tokenizer_.getLastErrorMessage());
     }
 
     tokenizer_.ungetLastToken();
+    return new AndNode(children);
 }
 
 
-void Query::ParseFactor() {
+/*
+    factor → field_or_subfield_reference (== | !=) string_constant_or_regex
+    factor → NOT factor
+    factor → '(' expression ')
+*/
+Query::Node *Query::parseFactor() {
     TokenType token(tokenizer_.getNextToken());
     if (token == STRING_CONST) {
-        if (tokenizer_.getLastString().length() != MARC::Record::TAG_LENGTH
+        const std::string field_or_subfield_reference(tokenizer_.getLastString());
+        if (field_or_subfield_reference.length() != MARC::Record::TAG_LENGTH
             and tokenizer_.getLastString().length() != MARC::Record::TAG_LENGTH + 1)
-            throw std::runtime_error("invalid field or subfield reference \"" + tokenizer_.getLastString() + "\"!");
+            throw std::runtime_error("invalid field or subfield reference \"" + field_or_subfield_reference + "\"!");
 
         token = tokenizer_.getNextToken();
         if (token != EQUALS and token != NOT_EQUALS)
             throw std::runtime_error("expected == or != after field or subfield reference, found "
                                      + Tokenizer::TokenTypeToString(token) + " instead!");
 
-        const TokenType last_token(token);
+        const TokenType equality_operator(token);
         token = tokenizer_.getNextToken();
         if (token != STRING_CONST and token != REGEX)
-            throw std::runtime_error("expected a string constant or a regex after " + Tokenizer::TokenTypeToString(last_token) + ", found "
-                                     + Tokenizer::TokenTypeToString(token) + " instead!");
+            throw std::runtime_error("expected a string constant or a regex after " + Tokenizer::TokenTypeToString(equality_operator)
+                                     + ", found " + Tokenizer::TokenTypeToString(token) + " instead!");
+        RegexMatcher *regex_matcher;
+        if (token == REGEX)
+            regex_matcher = RegexMatcher::RegexMatcherFactoryOrDie(tokenizer_.getLastString());
 
-        return;
+        if (token == REGEX)
+            return new RegexComparisonNode(field_or_subfield_reference, regex_matcher, equality_operator == EQUALS);
+        else
+            return new StringComparisonNode(field_or_subfield_reference, tokenizer_.getLastString(), equality_operator == EQUALS);
     }
 
     if (token == NOT) {
-        ParseFactor();
-        return;
+        Node * const factor_node(parseFactor());
+        factor_node->toggleInvert();
+        return factor_node;
     }
 
     if (token != OPEN_PAREN)
         throw std::runtime_error("opening parenthesis, NOT or string constant expected found " + Tokenizer::TokenTypeToString(token)
                                  + "instead!");
 
-    ParseExpression();
+    Node * const expression_node(parseExpression());
 
     token = tokenizer_.getNextToken();
-    if (token != CLOSE_PAREN)
+    if (token != CLOSE_PAREN) {
+        delete expression_node;
         throw std::runtime_error("closing parenthesis after expression expected, found " + Tokenizer::TokenTypeToString(token) + "instead!");
+    }
+
+    return expression_node;
+}
+
+
+void Query::DeletePointerVector(std::vector<Query::Node *> &nodes) {
+    for (auto node_ptr : nodes)
+        delete node_ptr;
 }
 
 
