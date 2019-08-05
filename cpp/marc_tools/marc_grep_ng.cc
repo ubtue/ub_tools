@@ -588,8 +588,8 @@ int Main(int argc, char *argv[]) {
     if (not ParseOutputList(argv[2] + OUTPUT_PREFIX.length(), &field_and_subfield_output_list))
         LOG_ERROR("bad output specification: \"" + std::string(argv[2] + OUTPUT_PREFIX.length()));
 
-    for (int arg_no(1); arg_no < argc; ++arg_no) {
-        auto marc_reader(MARC::Reader::Factory(argv[1]));
+    for (int arg_no(3); arg_no < argc; ++arg_no) {
+        auto marc_reader(MARC::Reader::Factory(argv[arg_no]));
         ProcessRecords(query, marc_reader.get(), field_and_subfield_output_list);
     }
 
