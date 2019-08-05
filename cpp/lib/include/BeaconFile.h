@@ -20,6 +20,7 @@
 #pragma once
 
 
+#include <map>
 #include <string>
 #include <unordered_set>
 #include "util.h"
@@ -49,6 +50,7 @@ private:
     std::string filename_;
     std::string url_template_;
     std::unordered_set<Entry, EntryHasher> entries_;
+    std::map<std::string, std::string> keys_and_values_;
 public:
     typedef std::unordered_set<Entry, EntryHasher>::const_iterator const_iterator;
 public:
@@ -62,4 +64,10 @@ public:
     inline const_iterator begin() const { return entries_.cbegin(); }
     inline const_iterator end() const { return entries_.cend(); }
     inline const_iterator find(const std::string &gnd_number) const { return entries_.find(Entry(gnd_number, 0, "")); }
+
+    /** \return the value if the metadatum with name "name" exists o/w the empty string */
+    inline std::string getMetadatum(const std::string &name) const {
+        const auto key_and_value(keys_and_values_.find(name));
+        return (key_and_value == keys_and_values_.cend()) ? "" : key_and_value->second;
+    }
 };
