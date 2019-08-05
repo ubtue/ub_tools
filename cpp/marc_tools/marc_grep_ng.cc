@@ -578,7 +578,7 @@ int Main(int argc, char *argv[]) {
     Query query(query_str);
 
     if (not StringUtil::StartsWith(argv[2], "--output="))
-        LOG_ERROR("missing --query=...!");
+        LOG_ERROR("missing --output=...!");
     std::vector<std::string> field_and_subfield_output_list;
     if (not ParseOutputList(argv[2] + __builtin_strlen("--output="), &field_and_subfield_output_list))
         LOG_ERROR("bad output specification: \"" + std::string(argv[2] + __builtin_strlen("--output=")));
