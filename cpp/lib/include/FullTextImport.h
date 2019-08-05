@@ -49,6 +49,7 @@ struct FullTextData {
     std::string doi_;
     std::string issn_;
     std::string isbn_;
+    std::string text_type_;
     std::string full_text_;
     std::string full_text_location_;
 public:
@@ -61,10 +62,13 @@ public:
 // Line 2: <authors>
 // Line 3: <year>
 // Line 4: <doi>
-// Line 5: <full_text>
+// Line 5: <issn>
+// Line 6: <isbn>
+// Line 7: <text_type>
+// Line 8: <full_text>
 void WriteExtractedTextToDisk(const std::string &full_text, const std::string &title,
                               const std::set<std::string> &authors, const std::string &year, const std::string &doi,
-                              const std::string &issn, const std::string &isbn, File * const output_file);
+                              const std::string &issn, const std::string &isbn, const std::string &text_type, File * const output_file);
 
 
 // Reads in and parses a text file previously written to disk with WriteExtractedTextToDisk() into a FullTextData instance.
