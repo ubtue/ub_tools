@@ -41,10 +41,12 @@ void CopyMarc(MARC::Reader * const reader, MARC::Writer * const writer) {
 struct LiteraryRemainsInfo {
     std::string author_name_;
     std::string url_;
+    std::string source_name_;
 public:
     LiteraryRemainsInfo() = default;
     LiteraryRemainsInfo(const LiteraryRemainsInfo &other) = default;
-    LiteraryRemainsInfo(const std::string &author_name, const std::string &url): author_name_(author_name), url_(url) { }
+    LiteraryRemainsInfo(const std::string &author_name, const std::string &url, const std::string &source_name)
+        : author_name_(author_name), url_(url), source_name_(source_name) { }
 
     LiteraryRemainsInfo &operator=(const LiteraryRemainsInfo &rhs) = default;
 };
@@ -76,7 +78,8 @@ void LoadAuthorGNDNumbers(
 
         std::vector<LiteraryRemainsInfo> literary_remains_infos;
         while (beacon_field != record.end() and beacon_field->getTag() == "BEA") {
-            literary_remains_infos.emplace_back(author_name, beacon_field->getFirstSubfieldWithCode('u'));;
+            literary_remains_infos.emplace_back(author_name, beacon_field->getFirstSubfieldWithCode('u'),
+                                                beacon_field->getFirstSubfieldWithCode('a'));
             ++beacon_field;
         }
         (*gnd_numbers_to_literary_remains_infos_map)[gnd_number] = literary_remains_infos;
@@ -113,7 +116,9 @@ void AppendLiteraryRemainsRecords(
         new_record.insertField("245", { { 'a', "Nachlass von " + NormaliseAuthorName(author_name) } });
 
         for (const auto &literary_remains_info : gnd_numbers_and_literary_remains_infos.second)
-            new_record.insertField("856", { { 'u', literary_remains_info.url_ }, { '3', "Nachlassdatenbank" } });
+            new_record.insertField("856",
+                                   { { 'u', literary_remains_info.url_ },
+                                       { '3', "Nachlassdatenbank (" + literary_remains_info.source_name_ + ")" } });
 
         writer->write(new_record);
     }

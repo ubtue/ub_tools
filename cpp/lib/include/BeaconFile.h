@@ -70,4 +70,7 @@ public:
         const auto key_and_value(keys_and_values_.find(name));
         return (key_and_value == keys_and_values_.cend()) ? "" : key_and_value->second;
     }
+
+    /** \return a descriptive name for the Beacon source */
+    std::string getName() const;
 };
