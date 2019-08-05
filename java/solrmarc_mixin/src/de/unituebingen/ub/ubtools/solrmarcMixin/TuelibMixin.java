@@ -2420,7 +2420,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final VariableField variableField : _856Fields) {
             final DataField _856Field = (DataField) variableField;
             for (final Subfield subfield3 : _856Field.getSubfields('3')) {
-                if (subfield3.getData().startsWith( "Nachlassdatenbank")) {
+                if (subfield3.getData().startsWith("Nachlassdatenbank")) {
                     formats.remove("Kit");
                     formats.add("LiteraryRemains");
                     return formats;
