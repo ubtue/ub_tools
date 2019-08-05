@@ -22,19 +22,6 @@
 #include "StringUtil.h"
 
 
-static bool LookForLine(File * const input, const std::string &line_prefix, unsigned * const line_no, std::string * const line) {
-    while (not input->eof()) {
-        *line = input->getLineAny();
-        ++*line_no;
-
-        if (StringUtil::StartsWith(*line, line_prefix))
-            return true;
-    }
-
-    return false;
-}
-
-
 // In order to understand what we do here, have a look at: https://gbv.github.io/beaconspec/beacon.html
 BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
     const auto input(FileUtil::OpenInputFileOrDie(filename));
@@ -51,21 +38,24 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
         LOG_ERROR("expected \"#PREFIX: http://d-nb.info/gnd/\" as the second line in \"" + filename + "\"!");
     ++line_no;
 
-    if (not LookForLine(input.get(), "#TARGET:", &line_no, &line))
-        LOG_ERROR("unexpected EOF while looking for \"#TARGET:\" in \"" + filename + "\"!");
+    do {
+        line = input->getLineAny();
+        if (not line.empty() and line[0] == '#') {
+            const auto first_colon_pos(line.find(':'));
+            if (first_colon_pos != std::string::npos)
+                keys_and_values_[line.substr(0, first_colon_pos)] = StringUtil::TrimWhite(line.substr(first_colon_pos + 1));
+        }
+        ++line_no;
+    } while (not line.empty() and line[0] == '#');
 
-    url_template_ = StringUtil::Trim(line.substr(__builtin_strlen("#TARGET:")));
+    const auto target(keys_and_values_.find("TARGET"));
+    if (target == keys_and_values_.cend())
+        LOG_ERROR("missing \"#TARGET:\" key in the header of \"" + filename + "\"!");
+    url_template_ = target->second;
     if (url_template_.find("{ID}") == std::string::npos)
         LOG_ERROR("{ID} is missing in URL template \"" + url_template_ + " in \"" + filename + "\"!");
 
     do {
-        line = input->getLineAny();
-        ++line_no;
-    } while (not line.empty() and line[0] == '#');
-
-    do {
-        ++line_no;
-
         std::string gnd_number;
         unsigned count(0);
         std::string id_or_url;
@@ -92,6 +82,7 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
         entries_.emplace(gnd_number, count, id_or_url);
 
         line = input->getLineAny();
+        ++line_no;
     } while (not input->eof());
 }
 
