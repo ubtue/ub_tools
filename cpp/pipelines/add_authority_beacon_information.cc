@@ -22,33 +22,10 @@
 #include "BeaconFile.h"
 #include "MARC.h"
 #include "StringUtil.h"
-#include "Url.h"
 #include "util.h"
 
 
 namespace {
-
-
-std::string NameFromURL(const std::string &url_string) {
-    const Url url(url_string);
-    std::string name(url.getAuthority());
-    if (StringUtil::StartsWith(name, "www.", /* ignore_case = */true))
-        name = name.substr(__builtin_strlen("www."));
-    const auto last_dot_pos(name.rfind('.'));
-    if (last_dot_pos != std::string::npos)
-        name.resize(last_dot_pos);
-    StringUtil::Map(&name, '.', ' ');
-
-    // Convert the first letter of each "word" to uppercase:
-    bool first_char_of_word(true);
-    for (auto &ch : name) {
-        if (first_char_of_word)
-            ch = std::toupper(ch);
-        first_char_of_word = ch == ' ' or ch == '-';
-    }
-
-    return name;
-}
 
 
 void ProcessAuthorityRecords(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer,
@@ -64,8 +41,7 @@ void ProcessAuthorityRecords(MARC::Reader * const authority_reader, MARC::Writer
                     continue;
 
                 ++gnd_tagged_count;
-                record.insertField("BEA",
-                                   { { 'a', NameFromURL(beacon_file.getUrlTemplate()) }, { 'u', beacon_file.getURL(*beacon_entry) } });
+                record.insertField("BEA", { { 'a', beacon_file.getName() }, { 'u', beacon_file.getURL(*beacon_entry) } });
             }
         }
 
