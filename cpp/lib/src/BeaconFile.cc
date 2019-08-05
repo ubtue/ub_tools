@@ -20,6 +20,7 @@
 #include "BeaconFile.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
+#include "Url.h"
 
 
 // In order to understand what we do here, have a look at: https://gbv.github.io/beaconspec/beacon.html
@@ -95,4 +96,35 @@ std::string BeaconFile::getURL(const Entry &entry) const {
     }
 
     return StringUtil::ReplaceString("{ID}", entry.gnd_number_, url_template_);
+}
+
+
+static std::string NameFromURL(const std::string &url_string) {
+    const Url url(url_string);
+    std::string name(url.getAuthority());
+    if (StringUtil::StartsWith(name, "www.", /* ignore_case = */true))
+        name = name.substr(__builtin_strlen("www."));
+    const auto last_dot_pos(name.rfind('.'));
+    if (last_dot_pos != std::string::npos)
+        name.resize(last_dot_pos);
+    StringUtil::Map(&name, '.', ' ');
+
+    // Convert the first letter of each "word" to uppercase:
+    bool first_char_of_word(true);
+    for (auto &ch : name) {
+        if (first_char_of_word)
+            ch = std::toupper(ch);
+        first_char_of_word = ch == ' ' or ch == '-';
+    }
+
+    return name;
+}
+
+
+std::string BeaconFile::getName() const {
+    const auto name(keys_and_values_.find("NAME"));
+    if (name != keys_and_values_.cend())
+        return name->second;
+
+    return NameFromURL(url_template_);
 }
