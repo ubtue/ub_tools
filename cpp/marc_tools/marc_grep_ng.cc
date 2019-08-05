@@ -554,6 +554,9 @@ bool ParseOutputList(const std::string &output_list_candidate, std::vector<std::
         == 0)
         return false;
 
+    if (field_and_subfield_output_list->size() == 1 and field_and_subfield_output_list->front() == "*")
+        return true;
+
     for (const auto &field_or_subfield_reference_candidate : *field_and_subfield_output_list) {
         if (field_or_subfield_reference_candidate.length() != MARC::Record::TAG_LENGTH and
             field_or_subfield_reference_candidate.length() != MARC::Record::TAG_LENGTH + 1)
@@ -561,7 +564,7 @@ bool ParseOutputList(const std::string &output_list_candidate, std::vector<std::
     }
     std::sort(field_and_subfield_output_list->begin(), field_and_subfield_output_list->end());
 
-    return field_and_subfield_output_list->size() == 1 and field_and_subfield_output_list->front() == "*";
+    return true;
 }
 
 
