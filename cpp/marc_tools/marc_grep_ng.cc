@@ -360,7 +360,7 @@ bool Query::StringComparisonNode::eval(const MARC::Record &record) const {
 bool Query::RegexComparisonNode::eval(const MARC::Record &record) const {
     for (const auto &field : record.getTagRange(field_tag_)) {
         if (subfield_code_ == '\0') {
-            if (regex_->matched(field .getContents()))
+            if (regex_->matched(field.getContents()))
                 return not invert_;
         } else {
             const MARC::Subfields subfields(field.getSubfields());
@@ -448,13 +448,10 @@ Query::Node *Query::parseFactor() {
             throw std::runtime_error("expected a string constant or a regex after " + Tokenizer::TokenTypeToString(equality_operator)
                                      + ", found " + Tokenizer::TokenTypeToString(token) + " instead! ("
                                      + tokenizer_.getLastErrorMessage() + ")");
-        RegexMatcher *regex_matcher;
-        if (token == REGEX)
-            regex_matcher = RegexMatcher::RegexMatcherFactoryOrDie(tokenizer_.getLastString());
-
-        if (token == REGEX)
+        if (token == REGEX) {
+            RegexMatcher * const regex_matcher(RegexMatcher::RegexMatcherFactoryOrDie(tokenizer_.getLastString()));
             return new RegexComparisonNode(field_or_subfield_reference, regex_matcher, equality_operator == NOT_EQUALS);
-        else
+        } else
             return new StringComparisonNode(field_or_subfield_reference, tokenizer_.getLastString(), equality_operator == NOT_EQUALS);
     }
 
