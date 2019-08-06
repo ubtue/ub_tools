@@ -117,6 +117,7 @@ TokenType Tokenizer::getNextToken() {
             last_error_message_ = "unexpected single equal sign found!";
             return ERROR;
         }
+        ++next_ch_;
         return last_token_ = EQUALS;
     }
 
@@ -126,6 +127,7 @@ TokenType Tokenizer::getNextToken() {
             last_error_message_ = "unexpected single exclamation point found!";
             return ERROR;
         }
+        ++next_ch_;
         return last_token_ = NOT_EQUALS;
     }
 
@@ -460,7 +462,8 @@ Query::Node *Query::parseFactor() {
         token = tokenizer_.getNextToken();
         if (token != STRING_CONST and token != REGEX)
             throw std::runtime_error("expected a string constant or a regex after " + Tokenizer::TokenTypeToString(equality_operator)
-                                     + ", found " + Tokenizer::TokenTypeToString(token) + " instead!");
+                                     + ", found " + Tokenizer::TokenTypeToString(token) + " instead! ("
+                                     + tokenizer_.getLastErrorMessage() + ")");
         RegexMatcher *regex_matcher;
         if (token == REGEX)
             regex_matcher = RegexMatcher::RegexMatcherFactoryOrDie(tokenizer_.getLastString());
@@ -510,9 +513,14 @@ inline void ExtractRefsToSingleField(std::vector<std::string>::const_iterator &r
 }
 
 
-void GenerateOutput(const MARC::Record::Field &/*field*/, const std::vector<std::string> &/*field_and_subfield_output_list*/,
-                    const std::vector<std::string>::const_iterator &/*range_start*/, const std::vector<std::string>::const_iterator &/*range_end*/)
+void GenerateOutput(const MARC::Record::Field &field, const std::vector<std::string>::const_iterator &range_start,
+                    const std::vector<std::string>::const_iterator &range_end)
 {
+    std::cout << "Field is " << field.getTag().toString() << '\n';
+    std::cout << '\t';
+    for (auto field_or_subfield_ref(range_start); range_start != range_end; ++field_or_subfield_ref)
+        std::cout << *field_or_subfield_ref << ' ';
+    std::cout << '\n';
 }
 
 
@@ -531,7 +539,7 @@ void ProcessRecords(const Query &query, MARC::Reader * const marc_reader, const 
         auto field(record.begin());
         while (field != record.end() and range_start != field_and_subfield_output_list.cend()) {
             if (field->getTag() == range_start->substr(0, MARC::Record::TAG_LENGTH)) {
-                GenerateOutput(*field, field_and_subfield_output_list, range_start, range_end);
+                GenerateOutput(*field, range_start, range_end);
                 ++field;
             } else if (field->getTag() > range_start->substr(0, MARC::Record::TAG_LENGTH)) {
                 range_start = range_end;
