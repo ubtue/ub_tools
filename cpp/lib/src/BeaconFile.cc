@@ -44,7 +44,7 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
         if (not line.empty() and line[0] == '#') {
             const auto first_colon_pos(line.find(':'));
             if (first_colon_pos != std::string::npos)
-                keys_and_values_[line.substr(0, first_colon_pos)] = StringUtil::TrimWhite(line.substr(first_colon_pos + 1));
+                keys_and_values_[line.substr(1, first_colon_pos - 1)] = StringUtil::TrimWhite(line.substr(first_colon_pos + 1));
         }
         ++line_no;
     } while (not line.empty() and line[0] == '#');
