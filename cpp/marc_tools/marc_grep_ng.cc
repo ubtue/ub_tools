@@ -288,13 +288,12 @@ class Query {
         MARC::Tag field_tag_;
         char subfield_code_;
         RegexMatcher *regex_;
-        bool invert_;
     public:
         RegexComparisonNode(const std::string &field_or_subfield_reference, RegexMatcher * const regex, const bool invert)
             : field_tag_(field_or_subfield_reference.substr(0, MARC::Record::TAG_LENGTH)),
               subfield_code_(field_or_subfield_reference.length() > MARC::Record::TAG_LENGTH
                              ? field_or_subfield_reference[MARC::Record::TAG_LENGTH] : '\0'),
-              regex_(regex), invert_(invert) { }
+              regex_(regex) { invert_ = invert; }
         ~RegexComparisonNode() { delete regex_; }
         virtual NodeType getNodeType() const override { return STRING_COMPARISON_NODE; }
         virtual bool eval(const MARC::Record &record) const override;
@@ -343,21 +342,13 @@ bool Query::OrNode::eval(const MARC::Record &record) const {
 bool Query::StringComparisonNode::eval(const MARC::Record &record) const {
     for (const auto &field : record.getTagRange(field_tag_)) {
         if (subfield_code_ == '\0') {
-            if (field .getContents() == string_const_) {
-                if (not invert_)
-                    return true;
-            } else if (invert_)
-                return true;
+            if (field.getContents() == string_const_)
+                return not invert_;
         } else {
             const MARC::Subfields subfields(field.getSubfields());
             for (const auto &value_and_code : subfields) {
-                if (value_and_code.code_ == subfield_code_) {
-                    if (value_and_code.value_ == string_const_) {
-                        if (not invert_)
-                            return true;
-                    } else if (invert_)
-                        return true;
-                }
+                if (value_and_code.code_ == subfield_code_ and value_and_code.value_ == string_const_)
+                    return not invert_;
             }
         }
     }
@@ -369,21 +360,13 @@ bool Query::StringComparisonNode::eval(const MARC::Record &record) const {
 bool Query::RegexComparisonNode::eval(const MARC::Record &record) const {
     for (const auto &field : record.getTagRange(field_tag_)) {
         if (subfield_code_ == '\0') {
-            if (regex_->matched(field .getContents())) {
-                if (not invert_)
-                    return true;
-            } else if (invert_)
-                return true;
+            if (regex_->matched(field.getContents()))
+                return not invert_;
         } else {
             const MARC::Subfields subfields(field.getSubfields());
             for (const auto &value_and_code : subfields) {
-                if (value_and_code.code_ == subfield_code_) {
-                    if (regex_->matched(value_and_code.value_)) {
-                        if (not invert_)
-                            return true;
-                    } else if (invert_)
-                        return true;
-                }
+                if (value_and_code.code_ == subfield_code_ and regex_->matched(value_and_code.value_))
+                    return not invert_;
             }
         }
     }
@@ -465,14 +448,11 @@ Query::Node *Query::parseFactor() {
             throw std::runtime_error("expected a string constant or a regex after " + Tokenizer::TokenTypeToString(equality_operator)
                                      + ", found " + Tokenizer::TokenTypeToString(token) + " instead! ("
                                      + tokenizer_.getLastErrorMessage() + ")");
-        RegexMatcher *regex_matcher;
-        if (token == REGEX)
-            regex_matcher = RegexMatcher::RegexMatcherFactoryOrDie(tokenizer_.getLastString());
-
-        if (token == REGEX)
-            return new RegexComparisonNode(field_or_subfield_reference, regex_matcher, equality_operator == EQUALS);
-        else
-            return new StringComparisonNode(field_or_subfield_reference, tokenizer_.getLastString(), equality_operator == EQUALS);
+        if (token == REGEX) {
+            RegexMatcher * const regex_matcher(RegexMatcher::RegexMatcherFactoryOrDie(tokenizer_.getLastString()));
+            return new RegexComparisonNode(field_or_subfield_reference, regex_matcher, equality_operator == NOT_EQUALS);
+        } else
+            return new StringComparisonNode(field_or_subfield_reference, tokenizer_.getLastString(), equality_operator == NOT_EQUALS);
     }
 
     if (token == NOT) {
@@ -525,11 +505,11 @@ void GenerateOutput(const std::string &prefix, const MARC::Record::Field &field,
         auto subfield(subfields.begin());
         auto subfield_ref(range_start);
         bool found_at_least_one(true);
-        while (not (subfield != subfields.end() or subfield_ref != range_end)) {
-            const char subfield_code((*subfield_ref)[MARC::Record::TAG_LENGTH]);
-            if (subfield_code > subfield->code_)
+        while (subfield != subfields.end() and subfield_ref != range_end) {
+            const char subfield_ref_code((*subfield_ref)[MARC::Record::TAG_LENGTH]);
+            if (subfield_ref_code > subfield->code_)
                 ++subfield;
-            else if (subfield_code < subfield->code_)
+            else if (subfield_ref_code < subfield->code_)
                 ++subfield_ref;
             else {
                 std::cout << '"' << subfield->value_ << '"';
@@ -537,6 +517,8 @@ void GenerateOutput(const std::string &prefix, const MARC::Record::Field &field,
                     found_at_least_one = false;
                 else
                     std::cout << ';';
+                ++subfield;
+                ++subfield_ref;
             }
         }
         if (not found_at_least_one)
