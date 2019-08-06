@@ -17,6 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <algorithm>
 #include <iostream>
 #include <cstring>
 #include <cstdlib>
@@ -509,18 +510,38 @@ inline void ExtractRefsToSingleField(std::vector<std::string>::const_iterator &r
     range_end = range_start;
     while (range_end + 1 != list_end and std::memcmp(range_start->c_str(), (range_end + 1)->c_str(), MARC::Record::TAG_LENGTH) == 0)
         ++range_end;
-    ++range_end; // half-open iterator interval, i.e. we want to point 1 past the end of the range`
+    ++range_end; // half-open iterator interval, i.e. we want to point 1 past the end of the range
 }
 
 
-void GenerateOutput(const MARC::Record::Field &field, const std::vector<std::string>::const_iterator &range_start,
+void GenerateOutput(const std::string &prefix, const MARC::Record::Field &field, const std::vector<std::string>::const_iterator &range_start,
                     const std::vector<std::string>::const_iterator &range_end)
 {
-    std::cout << "Field is " << field.getTag().toString() << '\n';
-    std::cout << '\t';
-    for (auto field_or_subfield_ref(range_start); range_start != range_end; ++field_or_subfield_ref)
-        std::cout << *field_or_subfield_ref << ' ';
-    std::cout << '\n';
+    std::cout << prefix;
+    if (*range_start == "*" or range_start->length() == MARC::Record::TAG_LENGTH)
+        std::cout << StringUtil::Map(field.getContents(), '\x1F', '$') << '\n';
+    else {
+        const MARC::Subfields subfields(field.getSubfields());
+        auto subfield(subfields.begin());
+        auto subfield_ref(range_start);
+        bool found_at_least_one(true);
+        while (not (subfield != subfields.end() or subfield_ref != range_end)) {
+            const char subfield_code((*subfield_ref)[MARC::Record::TAG_LENGTH]);
+            if (subfield_code > subfield->code_)
+                ++subfield;
+            else if (subfield_code < subfield->code_)
+                ++subfield_ref;
+            else {
+                std::cout << '"' << subfield->value_ << '"';
+                if (found_at_least_one)
+                    found_at_least_one = false;
+                else
+                    std::cout << ';';
+            }
+        }
+        if (not found_at_least_one)
+            std::cout << '\n';
+    }
 }
 
 
@@ -539,7 +560,7 @@ void ProcessRecords(const Query &query, MARC::Reader * const marc_reader, const 
         auto field(record.begin());
         while (field != record.end() and range_start != field_and_subfield_output_list.cend()) {
             if (field->getTag() == range_start->substr(0, MARC::Record::TAG_LENGTH)) {
-                GenerateOutput(*field, range_start, range_end);
+                GenerateOutput("", *field, range_start, range_end);
                 ++field;
             } else if (field->getTag() > range_start->substr(0, MARC::Record::TAG_LENGTH)) {
                 range_start = range_end;
@@ -572,6 +593,9 @@ bool ParseOutputList(const std::string &output_list_candidate, std::vector<std::
     }
     std::sort(field_and_subfield_output_list->begin(), field_and_subfield_output_list->end());
 
+    // Remove duplicates:
+    field_and_subfield_output_list->erase(std::unique(field_and_subfield_output_list->begin(), field_and_subfield_output_list->end()),
+                                          field_and_subfield_output_list->end());
     return true;
 }
 
