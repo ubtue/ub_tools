@@ -50,12 +50,15 @@ enum TokenType { AND, OR, NOT, STRING_CONST, FUNC_CALL, OPEN_PAREN, CLOSE_PAREN,
                  COMMA, ERROR, END_OF_QUERY };
 
 
-class Tokenizer {
-    struct FunctionDesc {
-        std::string name_;
-        unsigned argument_count_;
-    };
+class FunctionDesc {
+public:
+    virtual size_t getArity() const = 0;
+    virtual const std::string &getName() const = 0;
+    virtual bool eval(const std::vector<std::string> &args) const;
+};
 
+
+class Tokenizer {
     std::string::const_iterator next_ch_;
     const std::string::const_iterator end_;
     bool pushed_back_;
@@ -63,7 +66,7 @@ class Tokenizer {
     std::string last_error_message_;
     std::string last_string_;
     std::string last_function_name_;
-    const static std::vector<FunctionDesc> function_descriptions_;
+    std::vector<FunctionDesc *> function_descriptions_;
 public:
     explicit Tokenizer(const std:: string &query): next_ch_(query.cbegin()), end_(query.cend()), pushed_back_(false) { }
     TokenType getNextToken();
@@ -71,14 +74,12 @@ public:
     inline const std::string &getLastErrorMessage() const { return last_error_message_; }
     inline const std::string &getLastString() const { return last_string_; }
     inline const std::string &getLastFunctionName() const { return last_function_name_; }
+    inline void registerFunction(FunctionDesc * const new_function) { function_descriptions_.emplace_back(new_function); }
     static std::string TokenTypeToString(const TokenType token);
 private:
     TokenType parseStringConstantOrRegex();
     bool isKnownFunctionName(const std::string &name_candidate) const;
 };
-
-
-const std::vector<Tokenizer::FunctionDesc> Tokenizer::function_descriptions_{ { "HasField", 1 }, { "HasSubfield", 2} };
 
 
 TokenType Tokenizer::getNextToken() {
@@ -191,7 +192,7 @@ TokenType Tokenizer::parseStringConstantOrRegex() {
 
 bool Tokenizer::isKnownFunctionName(const std::string &name_candidate) const {
     for (const auto &function_description : function_descriptions_) {
-        if (function_description.name_ == name_candidate)
+        if (function_description->getName() == name_candidate)
             return true;
     }
 
