@@ -342,7 +342,7 @@ bool Query::OrNode::eval(const MARC::Record &record) const {
 bool Query::StringComparisonNode::eval(const MARC::Record &record) const {
     for (const auto &field : record.getTagRange(field_tag_)) {
         if (subfield_code_ == '\0') {
-            if (field .getContents() == string_const_)
+            if (field.getContents() == string_const_)
                 return not invert_;
         } else {
             const MARC::Subfields subfields(field.getSubfields());
