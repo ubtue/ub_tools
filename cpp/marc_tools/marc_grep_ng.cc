@@ -139,7 +139,7 @@ TokenType Tokenizer::getNextToken() {
 
     std::string id;
     while (next_ch_ != end_ and StringUtil::IsAsciiLetter(*next_ch_))
-        id += *next_ch_;
+        id += *next_ch_++;
 
     if (id == "AND")
         return last_token_ = AND;
@@ -463,14 +463,15 @@ Query::Node *Query::parseFactor() {
 
     if (token != OPEN_PAREN)
         throw std::runtime_error("opening parenthesis, NOT or string constant expected found " + Tokenizer::TokenTypeToString(token)
-                                 + "instead!");
+                                 + " instead!");
 
     Node * const expression_node(parseExpression());
 
     token = tokenizer_.getNextToken();
     if (token != CLOSE_PAREN) {
         delete expression_node;
-        throw std::runtime_error("closing parenthesis after expression expected, found " + Tokenizer::TokenTypeToString(token) + "instead!");
+        throw std::runtime_error("closing parenthesis after expression expected, found " + Tokenizer::TokenTypeToString(token)
+                                 + " instead!");
     }
 
     return expression_node;
