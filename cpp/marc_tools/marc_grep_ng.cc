@@ -322,10 +322,9 @@ class Query {
     Tokenizer tokenizer_;
     Node *root_;
 public:
-    explicit Query(const std:: string &query);
+    explicit Query(const std:: string &query, const std::vector<FunctionDesc *> &function_descriptors);
     ~Query() { delete root_; }
 
-    inline void registerFunction(FunctionDesc * const new_function) { tokenizer_.registerFunction(new_function); }
     bool matched(const MARC::Record &record) const;
 private:
     Node *parseExpression();
@@ -401,9 +400,13 @@ bool Query::FunctionCallNode::eval(const MARC::Record &record) const {
 }
 
 
-Query::Query(const std:: string &query)
-    : tokenizer_(query), root_(parseExpression())
+Query::Query(const std:: string &query, const std::vector<FunctionDesc *> &function_descriptors)
+    : tokenizer_(query)
 {
+    for (const auto function_descriptor : function_descriptors)
+        tokenizer_.registerFunction(function_descriptor);
+
+    root_ = parseExpression();
 }
 
 
@@ -649,8 +652,7 @@ int Main(int argc, char *argv[]) {
     if (not StringUtil::StartsWith(argv[1], QUERY_PREFIX))
         LOG_ERROR("missing " + QUERY_PREFIX + "...!");
     const std::string query_str(argv[1] + QUERY_PREFIX.length());
-    Query query(query_str);
-    query.registerFunction(new IsArticleFunctionDesc);
+    Query query(query_str, { new IsArticleFunctionDesc });
 
     const std::string OUTPUT_PREFIX("--output=");
     if (not StringUtil::StartsWith(argv[2], OUTPUT_PREFIX))
