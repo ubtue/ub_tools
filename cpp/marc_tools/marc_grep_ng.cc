@@ -50,35 +50,44 @@ enum TokenType { AND, OR, NOT, STRING_CONST, FUNC_CALL, OPEN_PAREN, CLOSE_PAREN,
                  COMMA, ERROR, END_OF_QUERY };
 
 
-class Tokenizer {
-    struct FunctionDesc {
-        std::string name_;
-        unsigned argument_count_;
-    };
+class FunctionDesc {
+public:
+    virtual ~FunctionDesc() { }
+    virtual size_t getArity() const = 0;
+    virtual std::string getName() const = 0;
+    virtual bool eval(const MARC::Record &record, const std::vector<std::string> &args) const = 0;
+};
 
+
+class Tokenizer {
     std::string::const_iterator next_ch_;
     const std::string::const_iterator end_;
     bool pushed_back_;
     TokenType last_token_;
     std::string last_error_message_;
     std::string last_string_;
-    std::string last_function_name_;
-    const static std::vector<FunctionDesc> function_descriptions_;
+    const FunctionDesc *last_function_desc_;
+    std::vector<FunctionDesc *> function_descriptions_;
 public:
     explicit Tokenizer(const std:: string &query): next_ch_(query.cbegin()), end_(query.cend()), pushed_back_(false) { }
+    ~Tokenizer();
     TokenType getNextToken();
     void ungetLastToken();
     inline const std::string &getLastErrorMessage() const { return last_error_message_; }
     inline const std::string &getLastString() const { return last_string_; }
-    inline const std::string &getLastFunctionName() const { return last_function_name_; }
+    inline const FunctionDesc &getLastFunctionDescriptor() const { return *last_function_desc_; }
+    inline void registerFunction(FunctionDesc * const new_function) { function_descriptions_.emplace_back(new_function); }
     static std::string TokenTypeToString(const TokenType token);
 private:
     TokenType parseStringConstantOrRegex();
-    bool isKnownFunctionName(const std::string &name_candidate) const;
+    FunctionDesc *getFuncDescMatchingName(const std::string &name_candidate) const;
 };
 
 
-const std::vector<Tokenizer::FunctionDesc> Tokenizer::function_descriptions_{ { "HasField", 1 }, { "HasSubfield", 2} };
+Tokenizer::~Tokenizer() {
+    for (const auto function_description : function_descriptions_)
+        delete function_description;
+}
 
 
 TokenType Tokenizer::getNextToken() {
@@ -148,8 +157,9 @@ TokenType Tokenizer::getNextToken() {
     if (id == "NOT")
         return last_token_ = NOT;
 
-    if (isKnownFunctionName(id)) {
-        last_function_name_ = id;
+    const FunctionDesc * const function_descriptor(getFuncDescMatchingName(id));
+    if (function_descriptor != nullptr) {
+        last_function_desc_ = function_descriptor;
         return last_token_ = FUNC_CALL;
     }
 
@@ -189,13 +199,13 @@ TokenType Tokenizer::parseStringConstantOrRegex() {
 }
 
 
-bool Tokenizer::isKnownFunctionName(const std::string &name_candidate) const {
+FunctionDesc *Tokenizer::getFuncDescMatchingName(const std::string &name_candidate) const {
     for (const auto &function_description : function_descriptions_) {
-        if (function_description.name_ == name_candidate)
-            return true;
+        if (function_description->getName() == name_candidate)
+            return function_description;
     }
 
-    return false;
+    return nullptr;
 }
 
 
@@ -232,7 +242,7 @@ std::string Tokenizer::TokenTypeToString(const TokenType token) {
 
 
 class Query {
-    enum NodeType { AND_NODE, OR_NODE, STRING_COMPARISON_NODE, REGEX_COMPARISON_NODE };
+    enum NodeType { AND_NODE, OR_NODE, STRING_COMPARISON_NODE, REGEX_COMPARISON_NODE, FUNC_CALL_NODE };
     class Node {
     protected:
         bool invert_;
@@ -249,7 +259,7 @@ class Query {
         std::vector<Node *> children_;
     public:
         explicit AndNode(std::vector<Node *> &children) { children.swap(children_); }
-        ~AndNode() {
+        virtual ~AndNode() override final {
             for (const auto child_node : children_)
                 delete child_node;
         }
@@ -279,7 +289,7 @@ class Query {
               subfield_code_(field_or_subfield_reference.length() > MARC::Record::TAG_LENGTH
                              ? field_or_subfield_reference[MARC::Record::TAG_LENGTH] : '\0'),
               string_const_(string_const) { invert_ = invert; }
-        ~StringComparisonNode() = default;
+        virtual ~StringComparisonNode() override final = default;
         virtual NodeType getNodeType() const override { return STRING_COMPARISON_NODE; }
         virtual bool eval(const MARC::Record &record) const override;
     };
@@ -294,8 +304,18 @@ class Query {
               subfield_code_(field_or_subfield_reference.length() > MARC::Record::TAG_LENGTH
                              ? field_or_subfield_reference[MARC::Record::TAG_LENGTH] : '\0'),
               regex_(regex) { invert_ = invert; }
-        ~RegexComparisonNode() { delete regex_; }
+        virtual ~RegexComparisonNode() override final { delete regex_; }
         virtual NodeType getNodeType() const override { return STRING_COMPARISON_NODE; }
+        virtual bool eval(const MARC::Record &record) const override;
+    };
+
+    class FunctionCallNode final : public Node {
+        const FunctionDesc * const function_desc_;
+        const std::vector<std::string> args_;
+    public:
+        FunctionCallNode(const FunctionDesc * const function_desc, const std::vector<std::string> &args)
+            : function_desc_(function_desc), args_(args) { }
+        virtual NodeType getNodeType() const override { return FUNC_CALL_NODE; }
         virtual bool eval(const MARC::Record &record) const override;
     };
 
@@ -305,6 +325,7 @@ public:
     explicit Query(const std:: string &query);
     ~Query() { delete root_; }
 
+    inline void registerFunction(FunctionDesc * const new_function) { tokenizer_.registerFunction(new_function); }
     bool matched(const MARC::Record &record) const;
 private:
     Node *parseExpression();
@@ -372,6 +393,11 @@ bool Query::RegexComparisonNode::eval(const MARC::Record &record) const {
     }
 
     return false;
+}
+
+
+bool Query::FunctionCallNode::eval(const MARC::Record &record) const {
+    return function_desc_->eval(record, args_);
 }
 
 
@@ -453,6 +479,25 @@ Query::Node *Query::parseFactor() {
             return new RegexComparisonNode(field_or_subfield_reference, regex_matcher, equality_operator == NOT_EQUALS);
         } else
             return new StringComparisonNode(field_or_subfield_reference, tokenizer_.getLastString(), equality_operator == NOT_EQUALS);
+    }
+
+    if (token == FUNC_CALL) {
+        token = tokenizer_.getNextToken();
+        if (token !=  OPEN_PAREN)
+            throw std::runtime_error("opening parenthesis expected after function name, found " + Tokenizer::TokenTypeToString(token)
+                                     + " instead!");
+        const FunctionDesc &function_descriptor(tokenizer_.getLastFunctionDescriptor());
+        std::vector<std::string> args;
+        token = tokenizer_.getNextToken();
+        while (token != CLOSE_PAREN) {
+            if (token != STRING_CONST)
+                throw std::runtime_error("expected a string constant as part of the argument list in a call to "
+                                         + function_descriptor.getName() + ", instead we found " + Tokenizer::TokenTypeToString(token)
+                                         + "!" + std::string(token == ERROR ? " (" + tokenizer_.getLastErrorMessage() + ")" : ""));
+            args.emplace_back(tokenizer_.getLastString ());
+        }
+
+        return new FunctionCallNode(&function_descriptor, args);
     }
 
     if (token == NOT) {
@@ -583,6 +628,16 @@ bool ParseOutputList(const std::string &output_list_candidate, std::vector<std::
 }
 
 
+class IsArticleFunctionDesc : public FunctionDesc {
+public:
+    IsArticleFunctionDesc() = default;
+    virtual size_t getArity() const override final { return 0; }
+    virtual std::string getName() const override final { return "IsArticle"; }
+    virtual bool eval(const MARC::Record &record, const std::vector<std::string> &/*args*/) const override final
+        { return record.isArticle(); }
+};
+
+
 } // unnamed namespace
 
 
@@ -595,6 +650,7 @@ int Main(int argc, char *argv[]) {
         LOG_ERROR("missing " + QUERY_PREFIX + "...!");
     const std::string query_str(argv[1] + QUERY_PREFIX.length());
     Query query(query_str);
+    query.registerFunction(new IsArticleFunctionDesc);
 
     const std::string OUTPUT_PREFIX("--output=");
     if (not StringUtil::StartsWith(argv[2], OUTPUT_PREFIX))
