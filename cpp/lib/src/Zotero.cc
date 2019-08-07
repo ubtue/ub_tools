@@ -172,10 +172,10 @@ void VisitJsonMetadataNodes(const std::string &node_name, const std::shared_ptr<
         break;
     case JSON::JSONNode::ARRAY_NODE: {
         for (const auto &element : *JSON::JSONNode::CastToArrayNodeOrDie(node_name, node)) {
-            const auto object_node(JSON::JSONNode::CastToObjectNodeOrDie("array_element", element));
-            if (object_node == nullptr)
-                LOG_ERROR("invalid JSON array element in array node '" + node_name + "'");
+            if (element->getType() != JSON::JSONNode::OBJECT_NODE)
+                continue;
 
+            const auto object_node(JSON::JSONNode::CastToObjectNodeOrDie("array_element", element));
             for (auto &key_and_node : *object_node)
                 VisitJsonMetadataNodes(key_and_node.first, key_and_node.second, site_params, callback);
         }
