@@ -132,7 +132,7 @@ int Main(int argc, char **argv) {
     auto marc_reader(MARC::Reader::Factory(marc_input_filename));
     auto marc_writer(MARC::Writer::Factory(marc_output_filename));
 
-    const std::string TITLE_DATA_UNUSED_FIELD_FOR_SYNONYMS("960a");
+    const std::string TITLE_DATA_UNUSED_FIELD_FOR_SYNONYMS("REFa");
 
     std::map<std::string, std::string> synonym_map;
     // Extract the synonyms from reference marc data
