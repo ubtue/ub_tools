@@ -179,7 +179,7 @@ void CreateFulltextImportFile(const std::string &fulltext_pdf, const std::string
         LOG_ERROR("Unable to extract fulltext from \"" + fulltext_pdf + "\"");
     auto plain_text_output(FileUtil::OpenOutputFileOrDie(fulltext_txt));
     FullTextImport::WriteExtractedTextToDisk(fulltext_data.full_text_, fulltext_data.title_, fulltext_data.authors_, fulltext_data.doi_,
-                                             fulltext_data.year_, fulltext_data.issn_, fulltext_data.isbn_, plain_text_output.get());
+                                             fulltext_data.year_, fulltext_data.issn_, fulltext_data.isbn_, fulltext_data.text_type_, plain_text_output.get());
 }
 
 
