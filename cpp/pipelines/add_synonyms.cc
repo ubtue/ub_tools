@@ -402,8 +402,8 @@ int Main(int argc, char **argv) {
    const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcdpnt9g[079v=piz]:110abcdnpt9g:111abcdnpt9g:130abcdnpt9g:150abcdnpt9g:151abcdztnp9g:100a9g");
    const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcdpnt9g:410abcdnpt9g:411abcdnpt9g:430abcdnpt9g:450abcdnpt9g:451abcdznpt9g:700a9g");
    const std::string TITLE_DATA_PRIMARY_SPEC("600abcdpnt9g:610abcdnpt9g:611abcdnpt:630abcdnpt:650abcdnpt9g:651abcdnpt9g:689abcdpntz9g");
-   const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("940a:941a:942a:943a:944a:945a:946a");
-   const std::string TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS("950a:951a:952a:953a:954a:955a:956a:957a:958a");
+   const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("SY0a:SY1a:SY2a:SY3a:SY4a:SY5a:SY6a");
+   const std::string TITLE_DATA_UNUSED_FIELD_FOR_TRANSLATED_SYNONYMS("ST0a:ST1a:ST2a:ST3a:ST4a:ST5a:ST6a:ST7a:ST8a");
 
    // Determine fields to handle
    std::vector<std::string> primary_tags_and_subfield_codes;
