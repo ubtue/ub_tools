@@ -64,7 +64,7 @@ void ExtractMetadata(XMLParser * const xml_parser, FullTextImport::FullTextData 
         } else if (xml_part.isOpeningTag("Contributor")) {
             std::string contributer_role;
             xml_parser->extractTextBetweenTags("ContributorRole", &contributer_role);
-            if (contributer_role == "A01") {
+            if (contributer_role == "A01" or contributer_role == "B01") {
                 std::string author;
                 xml_parser->extractTextBetweenTags("PersonName", &author);
                 metadata->authors_.emplace(author);
@@ -73,7 +73,7 @@ void ExtractMetadata(XMLParser * const xml_parser, FullTextImport::FullTextData 
             in_series = true;
         else if (xml_part.isClosingTag("Series"))
             in_series = false;
-        else if (not in_series and xml_part.isOpeningTag("Title")) {
+        else if (not in_series and (xml_part.isOpeningTag("Title") or xml_part.isOpeningTag("TitleElement"))) {
             std::string title_type;
             xml_parser->extractTextBetweenTags("TitleType", &title_type);
             if (StringUtil::ToUnsigned(title_type) ==  static_cast<unsigned>(ONIX::TitleType::DISTINCTIVE_TITLE)) {
@@ -112,7 +112,7 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
         LOG_ERROR("no article authors found in file '" + input_file_path + "'");
 
     if (full_text_metadata.year_.empty())
-        LOG_ERROR("no publication year found in file '" + input_file_path + "'");
+        LOG_WARNING("no publication year found in file '" + input_file_path + "'");
 
     if (full_text_metadata.doi_.empty())
         LOG_WARNING("no doi found in file '" + input_file_path + "'");
@@ -134,7 +134,7 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
     }
 
     FullTextImport::WriteExtractedTextToDisk(full_text, full_text_metadata.title_, full_text_metadata.authors_, full_text_metadata.year_,
-                                             full_text_metadata.doi_, full_text_metadata.issn_, full_text_metadata.isbn_, plain_text_output);
+                                             full_text_metadata.doi_, full_text_metadata.issn_, full_text_metadata.isbn_, full_text_metadata.text_type_, plain_text_output);
 }
 
 

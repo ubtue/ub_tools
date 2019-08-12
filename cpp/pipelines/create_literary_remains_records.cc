@@ -25,6 +25,7 @@
 #include <unordered_set>
 #include "MARC.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include "util.h"
 
 
@@ -40,10 +41,12 @@ void CopyMarc(MARC::Reader * const reader, MARC::Writer * const writer) {
 struct LiteraryRemainsInfo {
     std::string author_name_;
     std::string url_;
+    std::string source_name_;
 public:
     LiteraryRemainsInfo() = default;
     LiteraryRemainsInfo(const LiteraryRemainsInfo &other) = default;
-    LiteraryRemainsInfo(const std::string &author_name, const std::string &url): author_name_(author_name), url_(url) { }
+    LiteraryRemainsInfo(const std::string &author_name, const std::string &url, const std::string &source_name)
+        : author_name_(author_name), url_(url), source_name_(source_name) { }
 
     LiteraryRemainsInfo &operator=(const LiteraryRemainsInfo &rhs) = default;
 };
@@ -75,7 +78,8 @@ void LoadAuthorGNDNumbers(
 
         std::vector<LiteraryRemainsInfo> literary_remains_infos;
         while (beacon_field != record.end() and beacon_field->getTag() == "BEA") {
-            literary_remains_infos.emplace_back(author_name, beacon_field->getFirstSubfieldWithCode('u'));;
+            literary_remains_infos.emplace_back(author_name, beacon_field->getFirstSubfieldWithCode('u'),
+                                                beacon_field->getFirstSubfieldWithCode('a'));
             ++beacon_field;
         }
         (*gnd_numbers_to_literary_remains_infos_map)[gnd_number] = literary_remains_infos;
@@ -87,6 +91,15 @@ void LoadAuthorGNDNumbers(
 }
 
 
+std::string NormaliseAuthorName(const std::string &author_name) {
+    const auto comma_pos(author_name.find(','));
+    if (comma_pos == std::string::npos)
+        return author_name;
+
+    return StringUtil::TrimWhite(author_name.substr(comma_pos + 1)) + " " + StringUtil::TrimWhite(author_name.substr(0, comma_pos));
+}
+
+
 void AppendLiteraryRemainsRecords(
     MARC::Writer * const writer,
     const std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> &gnd_numbers_to_literary_remains_infos_map)
@@ -94,13 +107,18 @@ void AppendLiteraryRemainsRecords(
     unsigned creation_count(0);
     for (const auto &gnd_numbers_and_literary_remains_infos : gnd_numbers_to_literary_remains_infos_map) {
         MARC::Record new_record(MARC::Record::TypeOfRecord::MIXED_MATERIALS, MARC::Record::BibliographicLevel::COLLECTION,
-                                "LR" + StringUtil::ToString(++creation_count, 10, 6));
+                                "LR" + StringUtil::ToString(++creation_count, /* base = */10, /* width= */6, /* padding_char = */'0'));
         const std::string &author_name(gnd_numbers_and_literary_remains_infos.second.front().author_name_);
+        new_record.insertField("003", "PipeLineGenerated");
+        new_record.insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
+        new_record.insertField("008", "190606s2019    xx |||||      00| ||ger c");
         new_record.insertField("100", { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first } });
-        new_record.insertField("245", { { 'a', "Nachlass von " + author_name } });
+        new_record.insertField("245", { { 'a', "Nachlass von " + NormaliseAuthorName(author_name) } });
 
         for (const auto &literary_remains_info : gnd_numbers_and_literary_remains_infos.second)
-            new_record.insertField("856", { { 'u', literary_remains_info.url_ }, { '3', "Nachlassdatenbank" } });
+            new_record.insertField("856",
+                                   { { 'u', literary_remains_info.url_ },
+                                       { '3', "Nachlassdatenbank (" + literary_remains_info.source_name_ + ")" } });
 
         writer->write(new_record);
     }
