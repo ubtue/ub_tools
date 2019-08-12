@@ -20,19 +20,7 @@
 #include "BeaconFile.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
-
-
-static bool LookForLine(File * const input, const std::string &line_prefix, unsigned * const line_no, std::string * const line) {
-    while (not input->eof()) {
-        *line = input->getLineAny();
-        ++*line_no;
-
-        if (StringUtil::StartsWith(*line, line_prefix))
-            return true;
-    }
-
-    return false;
-}
+#include "Url.h"
 
 
 // In order to understand what we do here, have a look at: https://gbv.github.io/beaconspec/beacon.html
@@ -51,21 +39,24 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
         LOG_ERROR("expected \"#PREFIX: http://d-nb.info/gnd/\" as the second line in \"" + filename + "\"!");
     ++line_no;
 
-    if (not LookForLine(input.get(), "#TARGET:", &line_no, &line))
-        LOG_ERROR("unexpected EOF while looking for \"#TARGET:\" in \"" + filename + "\"!");
+    do {
+        line = input->getLineAny();
+        if (not line.empty() and line[0] == '#') {
+            const auto first_colon_pos(line.find(':'));
+            if (first_colon_pos != std::string::npos)
+                keys_and_values_[line.substr(1, first_colon_pos - 1)] = StringUtil::TrimWhite(line.substr(first_colon_pos + 1));
+        }
+        ++line_no;
+    } while (not line.empty() and line[0] == '#');
 
-    url_template_ = StringUtil::Trim(line.substr(__builtin_strlen("#TARGET:")));
+    const auto target(keys_and_values_.find("TARGET"));
+    if (target == keys_and_values_.cend())
+        LOG_ERROR("missing \"#TARGET:\" key in the header of \"" + filename + "\"!");
+    url_template_ = target->second;
     if (url_template_.find("{ID}") == std::string::npos)
         LOG_ERROR("{ID} is missing in URL template \"" + url_template_ + " in \"" + filename + "\"!");
 
     do {
-        line = input->getLineAny();
-        ++line_no;
-    } while (not line.empty() and line[0] == '#');
-
-    do {
-        ++line_no;
-
         std::string gnd_number;
         unsigned count(0);
         std::string id_or_url;
@@ -92,6 +83,7 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
         entries_.emplace(gnd_number, count, id_or_url);
 
         line = input->getLineAny();
+        ++line_no;
     } while (not input->eof());
 }
 
@@ -104,4 +96,35 @@ std::string BeaconFile::getURL(const Entry &entry) const {
     }
 
     return StringUtil::ReplaceString("{ID}", entry.gnd_number_, url_template_);
+}
+
+
+static std::string NameFromURL(const std::string &url_string) {
+    const Url url(url_string);
+    std::string name(url.getAuthority());
+    if (StringUtil::StartsWith(name, "www.", /* ignore_case = */true))
+        name = name.substr(__builtin_strlen("www."));
+    const auto last_dot_pos(name.rfind('.'));
+    if (last_dot_pos != std::string::npos)
+        name.resize(last_dot_pos);
+    StringUtil::Map(&name, '.', ' ');
+
+    // Convert the first letter of each "word" to uppercase:
+    bool first_char_of_word(true);
+    for (auto &ch : name) {
+        if (first_char_of_word)
+            ch = std::toupper(ch);
+        first_char_of_word = ch == ' ' or ch == '-';
+    }
+
+    return name;
+}
+
+
+std::string BeaconFile::getName() const {
+    const auto name(keys_and_values_.find("NAME"));
+    if (name != keys_and_values_.cend())
+        return name->second;
+
+    return NameFromURL(url_template_);
 }

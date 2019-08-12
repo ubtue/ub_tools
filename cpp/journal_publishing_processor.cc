@@ -189,7 +189,7 @@ void ProcessDocument(const bool normalise_only, const bool force_ocr, const std:
 
     FullTextImport::WriteExtractedTextToDisk(not full_text.empty() ? full_text : abstract, full_text_metadata.title_,
                                              full_text_metadata.authors_, full_text_metadata.year_, full_text_metadata.doi_,
-                                             /* ISSN */"", /* ISBN */"", plain_text_output);
+                                             /* ISSN */"", /* ISBN */"", full_text_metadata.text_type_, plain_text_output);
 }
 
 

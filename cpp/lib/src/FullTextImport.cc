@@ -54,7 +54,7 @@ const std::string PARAGRAPH_DELIMITER("\n\n");
 
 void WriteExtractedTextToDisk(const std::string &full_text, const std::string &title, const std::set<std::string> &authors,
                               const std::string &year, const std::string &doi, const std::string &issn, const std::string &isbn,
-                              File * const output_file)
+                              const std::string &text_type, File * const output_file)
 {
     output_file->writeln(title);
     output_file->writeln(StringUtil::Join(authors, '|'));
@@ -62,6 +62,7 @@ void WriteExtractedTextToDisk(const std::string &full_text, const std::string &t
     output_file->writeln(doi);
     output_file->writeln(issn);
     output_file->writeln(isbn);
+    output_file->writeln(text_type);
     output_file->write(full_text);
 }
 
@@ -90,6 +91,8 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
         case 6:
             full_text_data->isbn_ = line;
             break;
+        case 7:
+            full_text_data->text_type_ = line;
         default:
             full_text_data->full_text_ += line + "\n";
         }
