@@ -702,7 +702,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Only keep letters & numbers. For unicode character classes, see:
         // https://en.wikipedia.org/wiki/Template:General_Category_(Unicode)
         if (string != null)
-            string = string.replaceAll("[^\\p{L}\\p{N}]+", "").trim();
+            string = string.replaceAll("[^\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lo}\\p{N}]+", "").trim();
 
         return string;
     }
