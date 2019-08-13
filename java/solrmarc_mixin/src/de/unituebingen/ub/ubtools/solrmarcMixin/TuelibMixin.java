@@ -696,7 +696,6 @@ public class TuelibMixin extends SolrIndexerMixin {
                 reverseReferenceCache.add(referencedID + SUBFIELD_SEPARATOR + reviewer + SUBFIELD_SEPARATOR + title);
             } else {
                 referenceCache.add(referencedID + SUBFIELD_SEPARATOR + referenceDescriptionSubfield.getData());
-                reverseReferenceCache.add(record.getControlNumber() + SUBFIELD_SEPARATOR + "referenced by");
             }
         }
     }
