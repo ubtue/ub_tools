@@ -58,7 +58,6 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
-    private final static Pattern PPN_EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
     private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?([-–]\\d+)?");
     private final static Pattern VALID_FOUR_DIGIT_YEAR_PATTERN = Pattern.compile("\\d{4}");
     private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
@@ -181,11 +180,11 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     private Set<String> isils_cache = null;
-    private Set<String> reviewsCache = null;
-    private Set<String> reviewedRecordsCache = null;
+    private Set<String> referenceCache = null;
+    private Set<String> reverseReferenceCache = null;
 
     public void perRecordInit(Record record) {
-        reviewsCache = reviewedRecordsCache = isils_cache = null;
+        referenceCache = reverseReferenceCache = isils_cache = null;
     }
 
     private String getTitleFromField(final DataField titleField) {
@@ -593,6 +592,19 @@ public class TuelibMixin extends SolrIndexerMixin {
         return urls_and_material_types;
     }
 
+    private final static Pattern PPN_EXTRACTION_PATTERN = Pattern.compile("^\\(DE-627\\)(.+)$");
+
+    /** @return A PPN or null if we did not find one. */
+    String getPPNFromWSubfield(final DataField field) {
+        for (final Subfield wSubfield : field.getSubfields('w')) {
+            final Matcher matcher = PPN_EXTRACTION_PATTERN.matcher(wSubfield.getData());
+            if (matcher.matches())
+                return matcher.group(1);
+        }
+
+        return null;
+    }
+
     /**
      * Returns a Set<String> of parent (ID + colon + parent title + optional volume). Only
      * ID's w/o titles will not be returned.
@@ -614,15 +626,14 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (titleSubfield == null || idSubfield == null)
                     continue;
 
-                final Matcher matcher = PPN_EXTRACTION_PATTERN.matcher(idSubfield.getData());
-                if (!matcher.matches())
+                final String parentId = getPPNFromWSubfield(field);
+                if (parentId == null)
                     continue;
 
                 // Don't confuse cross-references w/ up-references:
                 if (HasNonSuperior776IField(field))
-                        continue; // Was not a reference to a container/superior record.
+                    continue; // Was not a reference to a container/superior record.
 
-                final String parentId = matcher.group(1);
 
                 containerIdsTitlesAndOptionalVolumes
                         .add(parentId + (char) 0x1F + titleSubfield.getData()
@@ -635,18 +646,20 @@ public class TuelibMixin extends SolrIndexerMixin {
         return containerIdsTitlesAndOptionalVolumes;
     }
 
-    private void collectReviewsAndReviewedRecords(final Record record) {
-        if (reviewsCache != null && reviewedRecordsCache != null) {
+    private final static char SUBFIELD_SEPARATOR = (char)0x1F;
+
+    private void collectMutuallyReferencedRecords(final Record record) {
+        if (referenceCache != null && reverseReferenceCache != null) {
             return;
         }
 
-        reviewsCache = new TreeSet<>();
-        reviewedRecordsCache = new TreeSet<>();
+        referenceCache = new TreeSet<>();
+        reverseReferenceCache = new TreeSet<>();
         for (final VariableField variableField : record.getVariableFields("787")) {
             final DataField field = (DataField) variableField;
-            final Subfield reviewTypeSubfield = getFirstNonEmptySubfield(field, 'i');
+            final Subfield referenceDescriptionSubfield = getFirstNonEmptySubfield(field, 'i');
             final Subfield titleSubfield = getFirstNonEmptySubfield(field, 't');
-            if (reviewTypeSubfield == null)
+            if (referenceDescriptionSubfield == null)
                 continue;
 
             String title = titleSubfield == null ? "" : titleSubfield.getData();
@@ -660,42 +673,42 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (titleSubfield != null && locationAndPublisher != null)
                 title = title + " (" + locationAndPublisher.getData() + ")";
 
-            String parentId = "000000000";
-            final Subfield idSubfield = field.getSubfield('w');
-            if (idSubfield != null) {
-                final Matcher matcher = PPN_EXTRACTION_PATTERN.matcher(idSubfield.getData());
-                if (matcher.matches())
-                    parentId = matcher.group(1);
-            }
+            String referencedID = "000000000";
+            final String idSubfield = getPPNFromWSubfield(field);
+            if (idSubfield != null)
+                referencedID = idSubfield;
 
             final Subfield reviewerSubfield = getFirstNonEmptySubfield(field, 'a');
 
-            if (reviewTypeSubfield.getData().equals("Rezension")) {
+            if (referenceDescriptionSubfield.getData().equals("Rezension") || referenceDescriptionSubfield.getData().equals("Rezension:")) {
                 String reviewer = "";
                 final Subfield subfieldA = getFirstNonEmptySubfield(field, 'a');
                 if (subfieldA != null)
                     reviewer = subfieldA.getData();
-                reviewsCache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
-            } else if (reviewTypeSubfield.getData().equals("Rezension von")) {
+                referenceCache.add(referencedID + SUBFIELD_SEPARATOR + reviewer + SUBFIELD_SEPARATOR + title);
+            } else if (referenceDescriptionSubfield.getData().equals("Rezension von")) {
                 String reviewer = "";
                 if (record.getVariableField("100") != null) {
                     final Subfield subfieldA100 = getFirstNonEmptySubfield((DataField)record.getVariableField("100"), 'a');
                     if (subfieldA100 != null)
                         reviewer = subfieldA100.getData();
                 }
-                reviewedRecordsCache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
+                reverseReferenceCache.add(referencedID + SUBFIELD_SEPARATOR + reviewer + SUBFIELD_SEPARATOR + title);
+            } else {
+                referenceCache.add(referencedID + SUBFIELD_SEPARATOR + referenceDescriptionSubfield.getData());
+                reverseReferenceCache.add(record.getControlNumber() + SUBFIELD_SEPARATOR + "referenced by");
             }
         }
     }
 
-    public Set<String> getReviews(final Record record) {
-        collectReviewsAndReviewedRecords(record);
-        return reviewsCache;
+    public Set<String> getReferences(final Record record) {
+        collectMutuallyReferencedRecords(record);
+        return referenceCache;
     }
 
-    public Set<String> getReviewedRecords(final Record record) {
-        collectReviewsAndReviewedRecords(record);
-        return reviewedRecordsCache;
+    public Set<String> getReverseReferences(final Record record) {
+        collectMutuallyReferencedRecords(record);
+        return reverseReferenceCache;
     }
 
     protected String normalizeSortableString(String string) {
