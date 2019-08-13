@@ -671,10 +671,10 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (titleSubfield != null && locationAndPublisher != null)
                 title = title + " (" + locationAndPublisher.getData() + ")";
 
-            String parentId = "000000000";
+            String referencedID = "000000000";
             final String idSubfield = getPPNFromWSubfield(field);
             if (idSubfield != null)
-                parentId = idSubfield;
+                referencedID = idSubfield;
 
             final Subfield reviewerSubfield = getFirstNonEmptySubfield(field, 'a');
 
@@ -683,7 +683,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 final Subfield subfieldA = getFirstNonEmptySubfield(field, 'a');
                 if (subfieldA != null)
                     reviewer = subfieldA.getData();
-                referenceCache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
+                referenceCache.add(referencedID + (char) 0x1F + reviewer + (char) 0x1F + title);
             } else if (referenceDescriptionSubfield.getData().equals("Rezension von")) {
                 String reviewer = "";
                 if (record.getVariableField("100") != null) {
@@ -691,9 +691,10 @@ public class TuelibMixin extends SolrIndexerMixin {
                     if (subfieldA100 != null)
                         reviewer = subfieldA100.getData();
                 }
-                reverseReferenceCache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
+                reverseReferenceCache.add(referencedID + (char) 0x1F + reviewer + (char) 0x1F + title);
             } else {
-                // Other type of crosslink.
+                referenceCache.add(referencedID + (char) 0x1F + referenceDescriptionSubfield.getData());
+                reverseReferenceCache.add(record.getControlNumber() + (char) 0x1F + "referenced by");
             }
         }
     }
