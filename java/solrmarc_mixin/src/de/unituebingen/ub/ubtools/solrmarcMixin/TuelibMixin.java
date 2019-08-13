@@ -646,6 +646,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         return containerIdsTitlesAndOptionalVolumes;
     }
 
+    private final static char SUBFIELD_SEPARATOR = (char)0x1F;
+
     private void collectMutuallyReferencedRecords(final Record record) {
         if (referenceCache != null && reverseReferenceCache != null) {
             return;
@@ -683,7 +685,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 final Subfield subfieldA = getFirstNonEmptySubfield(field, 'a');
                 if (subfieldA != null)
                     reviewer = subfieldA.getData();
-                referenceCache.add(referencedID + (char) 0x1F + reviewer + (char) 0x1F + title);
+                referenceCache.add(referencedID + SUBFIELD_SEPARATOR + reviewer + SUBFIELD_SEPARATOR + title);
             } else if (referenceDescriptionSubfield.getData().equals("Rezension von")) {
                 String reviewer = "";
                 if (record.getVariableField("100") != null) {
@@ -691,10 +693,10 @@ public class TuelibMixin extends SolrIndexerMixin {
                     if (subfieldA100 != null)
                         reviewer = subfieldA100.getData();
                 }
-                reverseReferenceCache.add(referencedID + (char) 0x1F + reviewer + (char) 0x1F + title);
+                reverseReferenceCache.add(referencedID + SUBFIELD_SEPARATOR + reviewer + SUBFIELD_SEPARATOR + title);
             } else {
-                referenceCache.add(referencedID + (char) 0x1F + referenceDescriptionSubfield.getData());
-                reverseReferenceCache.add(record.getControlNumber() + (char) 0x1F + "referenced by");
+                referenceCache.add(referencedID + SUBFIELD_SEPARATOR + referenceDescriptionSubfield.getData());
+                reverseReferenceCache.add(record.getControlNumber() + SUBFIELD_SEPARATOR + "referenced by");
             }
         }
     }
