@@ -648,68 +648,6 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     private final static char SUBFIELD_SEPARATOR = (char)0x1F;
 
-    private void collectMutuallyReferencedRecords(final Record record) {
-        if (referenceCache != null && reverseReferenceCache != null) {
-            return;
-        }
-
-        referenceCache = new TreeSet<>();
-        reverseReferenceCache = new TreeSet<>();
-        for (final VariableField variableField : record.getVariableFields("787")) {
-            final DataField field = (DataField) variableField;
-            final Subfield referenceDescriptionSubfield = getFirstNonEmptySubfield(field, 'i');
-            final Subfield titleSubfield = getFirstNonEmptySubfield(field, 't');
-            if (referenceDescriptionSubfield == null)
-                continue;
-
-            String title = titleSubfield == null ? "" : titleSubfield.getData();
-            if (title.isEmpty()) {
-                final Subfield subfieldA = getFirstNonEmptySubfield(field, 'a');
-                if (subfieldA != null)
-                    title = subfieldA.getData();
-            }
-
-            final Subfield locationAndPublisher = getFirstNonEmptySubfield(field, 'd');
-            if (titleSubfield != null && locationAndPublisher != null)
-                title = title + " (" + locationAndPublisher.getData() + ")";
-
-            String referencedID = "000000000";
-            final String idSubfield = getPPNFromWSubfield(field);
-            if (idSubfield != null)
-                referencedID = idSubfield;
-
-            final Subfield reviewerSubfield = getFirstNonEmptySubfield(field, 'a');
-
-            if (referenceDescriptionSubfield.getData().equals("Rezension") || referenceDescriptionSubfield.getData().equals("Rezension:")) {
-                String reviewer = "";
-                final Subfield subfieldA = getFirstNonEmptySubfield(field, 'a');
-                if (subfieldA != null)
-                    reviewer = subfieldA.getData();
-                referenceCache.add(referencedID + SUBFIELD_SEPARATOR + reviewer + SUBFIELD_SEPARATOR + title);
-            } else if (referenceDescriptionSubfield.getData().equals("Rezension von")) {
-                String reviewer = "";
-                if (record.getVariableField("100") != null) {
-                    final Subfield subfieldA100 = getFirstNonEmptySubfield((DataField)record.getVariableField("100"), 'a');
-                    if (subfieldA100 != null)
-                        reviewer = subfieldA100.getData();
-                }
-                reverseReferenceCache.add(referencedID + SUBFIELD_SEPARATOR + reviewer + SUBFIELD_SEPARATOR + title);
-            } else {
-                referenceCache.add(referencedID + SUBFIELD_SEPARATOR + referenceDescriptionSubfield.getData());
-            }
-        }
-    }
-
-    public Set<String> getReferences(final Record record) {
-        collectMutuallyReferencedRecords(record);
-        return referenceCache;
-    }
-
-    public Set<String> getReverseReferences(final Record record) {
-        collectMutuallyReferencedRecords(record);
-        return reverseReferenceCache;
-    }
-
     protected String normalizeSortableString(String string) {
         // Only keep letters & numbers. For unicode character classes, see:
         // https://en.wikipedia.org/wiki/Template:General_Category_(Unicode)
