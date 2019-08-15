@@ -46,7 +46,7 @@ std::vector<std::string> GetReferencedPPNs(const MARC::Record &record) {
 
     for (const auto &field : record) {
         // We only look at fields whose tags start with a 7.
-        if (field.getTag().c_str()[0] != '7')
+        if (field.getTag().c_str()[0] != '7' or field.getTag().toString() == "773")
             continue;
 
         const MARC::Subfields subfields(field.getSubfields());
@@ -61,7 +61,7 @@ std::vector<std::string> GetReferencedPPNs(const MARC::Record &record) {
 
 
 void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::string, RecordInfo> * const ppn_to_description_map) {
-    unsigned record_count(0);
+    unsigned record_count(0), cross_link_count(0);
 
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
@@ -73,11 +73,13 @@ void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::st
                 ppn_to_description_map->emplace(referenced_ppn, RecordInfo(record.getControlNumber(), record.getMainTitle()));
             else
                 iter->second.addPPNAndTitle(record.getControlNumber(), record.getMainTitle());
+            ++cross_link_count;
         }
     }
 
     LOG_INFO("Processed " + std::to_string(record_count) + " MARC record(s).");
-    LOG_INFO("Found " + std::to_string(ppn_to_description_map->size()) + " cross references.");
+    LOG_INFO("Found " + std::to_string(cross_link_count) + " cross references to " + std::to_string(ppn_to_description_map->size())
+             + " records.");
 }
 
 
