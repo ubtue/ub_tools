@@ -55,12 +55,14 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static String ISIL_PREFIX_GND = "(" + ISIL_GND + ")";
     private final static String ISIL_PREFIX_K10PLUS = "(" + ISIL_K10PLUS + ")";
 
+    private final static Pattern ORCID_PATTERN = Pattern.compile("\\b\\d{4}-\\d{4}-\\d{4}-\\d{4}\\b");
     private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
     private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?([-–]\\d+)?");
     private final static Pattern VALID_FOUR_DIGIT_YEAR_PATTERN = Pattern.compile("\\d{4}");
     private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
+    private final static Pattern VIAF_PATTERN = Pattern.compile("viaf/(\\d+)\\b");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
     private final static Pattern SUPERIOR_PPN_PATTERN = Pattern.compile("\\s*." + ISIL_K10PLUS + ".(.*)");
@@ -347,6 +349,43 @@ public class TuelibMixin extends SolrIndexerMixin {
             return "person";
         if (record.getVariableFields("110").size() > 0)
             return "corporate";
+        return null;
+    }
+
+
+    public String getORCID(final Record record) {
+        final List<VariableField> fields = record.getVariableFields("670");
+        for (final VariableField variableField : fields) {
+            final DataField field = (DataField) variableField;
+            final Subfield subfieldA = field.getSubfield('a');
+            if (subfieldA != null && subfieldA.getData().toUpperCase().equals("ORCID")) {
+                final Subfield subfieldU = field.getSubfield('u');
+                if (subfieldU != null) {
+                    final Matcher matcher = ORCID_PATTERN.matcher(subfieldU.getData());
+                    if (matcher.find())
+                        return matcher.group(0);
+                }
+            }
+        }
+        return null;
+    }
+
+
+    public String getVIAF(final Record record) {
+        final List<VariableField> fields = record.getVariableFields("670");
+        for (final VariableField variableField : fields) {
+            final DataField field = (DataField) variableField;
+            final Subfield subfieldA = field.getSubfield('a');
+            if (subfieldA != null && subfieldA.getData().toUpperCase().equals("VIAF")) {
+                final Subfield subfieldU = field.getSubfield('u');
+                if (subfieldU != null) {
+                    final Matcher matcher = VIAF_PATTERN.matcher(subfieldU.getData());
+                    if (matcher.find()) {
+                        return matcher.group(1);
+                    }
+                }
+            }
+        }
         return null;
     }
 
