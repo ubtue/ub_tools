@@ -62,6 +62,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?([-–]\\d+)?");
     private final static Pattern VALID_FOUR_DIGIT_YEAR_PATTERN = Pattern.compile("\\d{4}");
     private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
+    private final static Pattern VIAF_PATTERN = Pattern.compile("viaf/(\\d+)\\b");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
     private final static Pattern SUPERIOR_PPN_PATTERN = Pattern.compile("\\s*." + ISIL_K10PLUS + ".(.*)");
@@ -366,7 +367,25 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
         }
+        return null;
+    }
 
+
+    public String getVIAF(final Record record) {
+        final List<VariableField> fields = record.getVariableFields("670");
+        for (final VariableField variableField : fields) {
+            final DataField field = (DataField) variableField;
+            final Subfield subfieldA = field.getSubfield('a');
+            if (subfieldA != null && subfieldA.getData().toUpperCase().equals("VIAF")) {
+                final Subfield subfieldU = field.getSubfield('u');
+                if (subfieldU != null) {
+                    final Matcher matcher = VIAF_PATTERN.matcher(subfieldU.getData());
+                    if (matcher.find()) {
+                        return matcher.group(1);
+                    }
+                }
+            }
+        }
         return null;
     }
 
