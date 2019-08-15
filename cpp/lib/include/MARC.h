@@ -491,6 +491,10 @@ public:
     inline bool isArticle() const { return leader_[7] == 'a' or leader_[7] == 'b'; }
     bool isElectronicResource() const;
     bool isPrintResource() const;
+    inline bool isAuthority() const { return leader_[6] == 'z'; }
+    inline bool isCorporate() const { return isAuthority() and hasTag("110"); }
+    inline bool isMeeting() const { return isAuthority() and hasTag("111"); }
+    inline bool isPerson() const { return isAuthority() and hasTag("100"); }
 
     inline std::string getControlNumber() const {
         if (unlikely(fields_.empty() or fields_.front().getTag() != "001"))
