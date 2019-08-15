@@ -55,6 +55,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static String ISIL_PREFIX_GND = "(" + ISIL_GND + ")";
     private final static String ISIL_PREFIX_K10PLUS = "(" + ISIL_K10PLUS + ")";
 
+    private final static Pattern ORCID_PATTERN = Pattern.compile("\\b\\d{4}-\\d{4}-\\d{4}-\\d{4}\\b");
     private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
@@ -347,6 +348,25 @@ public class TuelibMixin extends SolrIndexerMixin {
             return "person";
         if (record.getVariableFields("110").size() > 0)
             return "corporate";
+        return null;
+    }
+
+
+    public String getORCID(final Record record) {
+        final List<VariableField> fields = record.getVariableFields("670");
+        for (final VariableField variableField : fields) {
+            final DataField field = (DataField) variableField;
+            final Subfield subfieldA = field.getSubfield('a');
+            if (subfieldA != null && subfieldA.getData().toUpperCase().equals("ORCID")) {
+                final Subfield subfieldU = field.getSubfield('u');
+                if (subfieldU != null) {
+                    final Matcher matcher = ORCID_PATTERN.matcher(subfieldU.getData());
+                    if (matcher.find())
+                        return matcher.group(0);
+                }
+            }
+        }
+
         return null;
     }
 
