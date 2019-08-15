@@ -4,6 +4,7 @@ add_author_synonyms
 add_authority_beacon_information
 add_cross_link_type
 add_isbns_or_issns_to_articles
+add_missing_cross_links
 add_oa_urls
 add_publication_year_to_serials
 add_referenceterms
