@@ -127,6 +127,12 @@ StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
 EndPhase || Abort) &
 
 
+StartPhase "Add Missing Cross Links Between Records"
+(add_missing_cross_links GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Extract Translations and Generate Interface Translation Files"
 (extract_vufind_translations_for_translation \
     "$VUFIND_HOME"/local/tuefind/languages/de.ini `# German terms before all others.` \
