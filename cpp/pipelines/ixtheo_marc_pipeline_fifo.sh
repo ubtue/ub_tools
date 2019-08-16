@@ -128,6 +128,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Add Missing Cross Links Between Records"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_missing_cross_links GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
