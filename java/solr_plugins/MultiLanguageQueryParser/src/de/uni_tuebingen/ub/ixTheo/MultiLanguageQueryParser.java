@@ -220,6 +220,8 @@ public class MultiLanguageQueryParser extends QParser {
 
     private Query processMultiPhraseQuery(final MultiPhraseQuery queryCandidate) {
        final MultiPhraseQuery.Builder multiPhraseQueryBuilder = new MultiPhraseQuery.Builder();
+       int[] positions = queryCandidate.getPositions();
+       int i = 0;
        for (final Term[] termArray : queryCandidate.getTermArrays()) {
            int arrayOffset = 0;
            for (final Term term : termArray) {
@@ -230,7 +232,8 @@ public class MultiLanguageQueryParser extends QParser {
                   termArray[arrayOffset] = term;
                ++arrayOffset;
            }
-           multiPhraseQueryBuilder.add(termArray);
+           multiPhraseQueryBuilder.add(termArray, positions[i]);
+           ++i;
        }
        multiPhraseQueryBuilder.setSlop(queryCandidate.getSlop());
        return multiPhraseQueryBuilder.build();
