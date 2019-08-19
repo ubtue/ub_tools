@@ -1992,7 +1992,7 @@ void BinaryWriter::write(const Record &record) {
 
         std::string raw_record;
         raw_record.reserve(record_size);
-        const unsigned no_of_fields(end - start);
+        const unsigned no_of_fields(end - start + (record_is_oversized ? 1 /* for the added 001 field */ : 0));
         AppendToStringWithLeadingZeros(raw_record, record_size, /* width = */ 5);
         StringUtil::AppendSubstring(raw_record, record.leader_, 5, 12 - 5);
         const unsigned base_address_of_data(Record::LEADER_LENGTH + no_of_fields * Record::DIRECTORY_ENTRY_LENGTH
