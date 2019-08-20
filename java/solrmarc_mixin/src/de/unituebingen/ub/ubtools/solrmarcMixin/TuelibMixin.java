@@ -57,6 +57,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static String ISIL_PREFIX_BSZ = "(" + ISIL_BSZ + ")";
     private final static String ISIL_PREFIX_GND = "(" + ISIL_GND + ")";
     private final static String ISIL_PREFIX_K10PLUS = "(" + ISIL_K10PLUS + ")";
+    private final static String ES_FULLTEXT_PROPERTIES_FILE = "es_fulltext.properties";
 
     private final static Pattern ORCID_PATTERN = Pattern.compile("\\b\\d{4}-\\d{4}-\\d{4}-\\d{4}\\b");
     private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
@@ -2880,20 +2881,29 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public String getElasticsearchHost() throws java.net.UnknownHostException {
-        final Properties esFullTextProperties = getPropertiesFromFile("es_fulltext.properties");
+        final Properties esFullTextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
         final String myhostname = getMyHostnameShort();
         return PropertyUtils.getProperty(esFullTextProperties, myhostname + ".host", "localhost");
     }
 
 
     public String getElasticsearchPort() throws java.net.UnknownHostException {
-        final Properties esFullTextProperties = getPropertiesFromFile("es_fulltext.properties");
+        final Properties esFullTextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
         final String myhostname = getMyHostnameShort();
         return PropertyUtils.getProperty(esFullTextProperties, myhostname + ".port", "9200");
     }
 
 
+    public boolean isFulltextDisabled() throws java.net.UnknownHostException {
+        final Properties esFullTextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
+        final String myhostname = getMyHostnameShort();
+        final String isDisabled = PropertyUtils.getProperty(esFullTextProperties, myhostname + ".disabled", "false");
+        return Boolean.parseBoolean(isDisabled);
+    }
+
     public String getFullTextElasticsearch(final Record record) throws IOException {
+        if (isFullTextDisabled())
+            return "";
         final String esHost = getElasticsearchHost();
         final String esPort = getElasticsearchPort();
         CloseableHttpClient httpclient = HttpClients.createDefault();
