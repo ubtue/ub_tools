@@ -1,5 +1,6 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
+import java.net.InetAddress;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -35,7 +36,9 @@ import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.DataUtil;
+import org.solrmarc.tools.PropertyUtils;
 import org.solrmarc.tools.Utils;
+import org.solrmarc.driver.Boot;
 import org.vufind.index.DatabaseManager;
 import org.vufind.index.CreatorTools;
 import java.sql.*;
@@ -2860,9 +2863,41 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
+    public Properties getPropertiesFromFile(final String configProps) {
+        String homeDir = Boot.getDefaultHomeDir();
+        File configFile = new File(configProps);
+        if (!configFile.isAbsolute())
+        {
+            configFile = new File(homeDir, configProps);
+        }
+        return PropertyUtils.loadProperties(new String[0], configFile.getAbsolutePath(), true);
+    }
+
+
+    public String getMyHostnameShort() throws java.net.UnknownHostException {
+       final String fullHostName = InetAddress.getLocalHost().getHostName();
+       return fullHostName.replaceAll("\\..*", "");
+    }
+
+    public String getElasticsearchHost() throws java.net.UnknownHostException {
+        final Properties esFullTextProperties = getPropertiesFromFile("es_fulltext.properties");
+        final String myhostname = getMyHostnameShort();
+        return PropertyUtils.getProperty(esFullTextProperties, myhostname + ".host", "localhost");
+    }
+
+
+    public String getElasticsearchPort() throws java.net.UnknownHostException {
+        final Properties esFullTextProperties = getPropertiesFromFile("es_fulltext.properties");
+        final String myhostname = getMyHostnameShort();
+        return PropertyUtils.getProperty(esFullTextProperties, myhostname + ".port", "9200");
+    }
+
+
     public String getFullTextElasticsearch(final Record record) throws IOException {
+        final String esHost = getElasticsearchHost();
+        final String esPort = getElasticsearchPort();
         CloseableHttpClient httpclient = HttpClients.createDefault();
-        HttpPost httpPost = new HttpPost("http://localhost:9200/full_text_cache/_search");
+        HttpPost httpPost = new HttpPost("http://" + esHost + ":" + esPort + "/full_text_cache/_search");
         String fulltextById = "{ \"query\" : { \"match\" : { \"id\" : \"" + record.getControlNumber() + "\" } } }";
         StringEntity stringEntity = new StringEntity(fulltextById);
         httpPost.setEntity(stringEntity);
