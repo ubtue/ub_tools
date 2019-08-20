@@ -1,5 +1,6 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
+import java.net.InetAddress;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -35,7 +36,9 @@ import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.DataUtil;
+import org.solrmarc.tools.PropertyUtils;
 import org.solrmarc.tools.Utils;
+import org.solrmarc.driver.Boot;
 import org.vufind.index.DatabaseManager;
 import org.vufind.index.CreatorTools;
 import java.sql.*;
@@ -54,6 +57,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static String ISIL_PREFIX_BSZ = "(" + ISIL_BSZ + ")";
     private final static String ISIL_PREFIX_GND = "(" + ISIL_GND + ")";
     private final static String ISIL_PREFIX_K10PLUS = "(" + ISIL_K10PLUS + ")";
+    private final static String ES_FULLTEXT_PROPERTIES_FILE = "es_fulltext.properties";
 
     private final static Pattern ORCID_PATTERN = Pattern.compile("\\b\\d{4}-\\d{4}-\\d{4}-\\d{4}\\b");
     private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
@@ -2860,9 +2864,50 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
+    public Properties getPropertiesFromFile(final String configProps) {
+        String homeDir = Boot.getDefaultHomeDir();
+        File configFile = new File(configProps);
+        if (!configFile.isAbsolute())
+        {
+            configFile = new File(homeDir, configProps);
+        }
+        return PropertyUtils.loadProperties(new String[0], configFile.getAbsolutePath(), true);
+    }
+
+
+    public String getMyHostnameShort() throws java.net.UnknownHostException {
+       final String fullHostName = InetAddress.getLocalHost().getHostName();
+       return fullHostName.replaceAll("\\..*", "");
+    }
+
+    public String getElasticsearchHost() throws java.net.UnknownHostException {
+        final Properties esFullTextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
+        final String myhostname = getMyHostnameShort();
+        return PropertyUtils.getProperty(esFullTextProperties, myhostname + ".host", "localhost");
+    }
+
+
+    public String getElasticsearchPort() throws java.net.UnknownHostException {
+        final Properties esFullTextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
+        final String myhostname = getMyHostnameShort();
+        return PropertyUtils.getProperty(esFullTextProperties, myhostname + ".port", "9200");
+    }
+
+
+    public boolean isFulltextDisabled() throws java.net.UnknownHostException {
+        final Properties esFullTextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
+        final String myhostname = getMyHostnameShort();
+        final String isDisabled = PropertyUtils.getProperty(esFullTextProperties, myhostname + ".disabled", "false");
+        return Boolean.parseBoolean(isDisabled);
+    }
+
     public String getFullTextElasticsearch(final Record record) throws IOException {
+        if (isFullTextDisabled())
+            return "";
+        final String esHost = getElasticsearchHost();
+        final String esPort = getElasticsearchPort();
         CloseableHttpClient httpclient = HttpClients.createDefault();
-        HttpPost httpPost = new HttpPost("http://localhost:9200/full_text_cache/_search");
+        HttpPost httpPost = new HttpPost("http://" + esHost + ":" + esPort + "/full_text_cache/_search");
         String fulltextById = "{ \"query\" : { \"match\" : { \"id\" : \"" + record.getControlNumber() + "\" } } }";
         StringEntity stringEntity = new StringEntity(fulltextById);
         httpPost.setEntity(stringEntity);
