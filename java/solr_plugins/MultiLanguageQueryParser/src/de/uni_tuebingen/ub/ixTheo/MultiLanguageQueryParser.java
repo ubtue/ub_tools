@@ -203,7 +203,7 @@ public class MultiLanguageQueryParser extends QParser {
     private Query processPhraseQuery(final PhraseQuery queryCandidate) {
         final PhraseQuery.Builder phraseQueryBuilder = new PhraseQuery.Builder();
         int i = 0;
-        int[] positions = queryCandidate.getPositions();
+        final int[] positions = queryCandidate.getPositions();
         for (final Term term : queryCandidate.getTerms()) {
             final String newFieldName = term.field() + "_" + lang;
             if (schema.getFieldOrNull(newFieldName) != null)
@@ -220,7 +220,7 @@ public class MultiLanguageQueryParser extends QParser {
 
     private Query processMultiPhraseQuery(final MultiPhraseQuery queryCandidate) {
        final MultiPhraseQuery.Builder multiPhraseQueryBuilder = new MultiPhraseQuery.Builder();
-       int[] positions = queryCandidate.getPositions();
+       final int[] positions = queryCandidate.getPositions();
        int i = 0;
        for (final Term[] termArray : queryCandidate.getTermArrays()) {
            int arrayOffset = 0;
