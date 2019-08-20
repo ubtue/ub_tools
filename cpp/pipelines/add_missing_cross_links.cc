@@ -94,7 +94,8 @@ void AddMissingBackLinks(MARC::Reader * const marc_reader, MARC::Writer * const 
             for (const auto &ppn_and_title : ppn_and_record->second.ppns_and_titles_) {
                 if (std::find_if(referenced_ppns.cbegin(), referenced_ppns.cend(),
                                  [ppn_and_record](const std::string &referenced_ppn){ return ppn_and_record->first == referenced_ppn; })
-                    == referenced_ppns.cend()) {
+                    == referenced_ppns.cend())
+                {
                     record.insertField("799", { { 'a', ppn_and_title.second }, { 'w', "(DE-627)" + ppn_and_title.first } });
                     ++added_count;
                 }
