@@ -202,12 +202,15 @@ public class MultiLanguageQueryParser extends QParser {
 
     private Query processPhraseQuery(final PhraseQuery queryCandidate) {
         final PhraseQuery.Builder phraseQueryBuilder = new PhraseQuery.Builder();
+        int i = 0;
+        final int[] positions = queryCandidate.getPositions();
         for (final Term term : queryCandidate.getTerms()) {
             final String newFieldName = term.field() + "_" + lang;
             if (schema.getFieldOrNull(newFieldName) != null)
-                phraseQueryBuilder.add(new Term(newFieldName, term.text()));
+                phraseQueryBuilder.add(new Term(newFieldName, term.text()), positions[i]);
             else
-                phraseQueryBuilder.add(term);
+                phraseQueryBuilder.add(term, positions[i]);
+            ++i;
         }
 
         phraseQueryBuilder.setSlop(queryCandidate.getSlop());
@@ -217,6 +220,8 @@ public class MultiLanguageQueryParser extends QParser {
 
     private Query processMultiPhraseQuery(final MultiPhraseQuery queryCandidate) {
        final MultiPhraseQuery.Builder multiPhraseQueryBuilder = new MultiPhraseQuery.Builder();
+       final int[] positions = queryCandidate.getPositions();
+       int i = 0;
        for (final Term[] termArray : queryCandidate.getTermArrays()) {
            int arrayOffset = 0;
            for (final Term term : termArray) {
@@ -227,7 +232,8 @@ public class MultiLanguageQueryParser extends QParser {
                   termArray[arrayOffset] = term;
                ++arrayOffset;
            }
-           multiPhraseQueryBuilder.add(termArray);
+           multiPhraseQueryBuilder.add(termArray, positions[i]);
+           ++i;
        }
        multiPhraseQueryBuilder.setSlop(queryCandidate.getSlop());
        return multiPhraseQueryBuilder.build();
