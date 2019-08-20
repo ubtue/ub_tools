@@ -2894,7 +2894,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    public boolean isFulltextDisabled() throws java.net.UnknownHostException {
+    public boolean isFullTextDisabled() throws java.net.UnknownHostException {
         final Properties esFullTextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
         final String myhostname = getMyHostnameShort();
         final String isDisabled = PropertyUtils.getProperty(esFullTextProperties, myhostname + ".disabled", "false");
