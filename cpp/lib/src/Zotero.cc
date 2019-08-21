@@ -207,7 +207,7 @@ JsonFormatHandler::~JsonFormatHandler() {
 }
 
 
-std::pair<unsigned, unsigned> JsonFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
+std::pair<unsigned, unsigned> JsonFormatHandler::processRecord(const std::shared_ptr<JSON::ObjectNode> &object_node) {
     if (record_count_ > 0)
         output_file_object_->write(",");
     output_file_object_->write(object_node->toString());
@@ -238,9 +238,9 @@ ZoteroFormatHandler::~ZoteroFormatHandler() {
 }
 
 
-std::pair<unsigned, unsigned> ZoteroFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
+std::pair<unsigned, unsigned> ZoteroFormatHandler::processRecord(const std::shared_ptr<JSON::ObjectNode> &object_node) {
     if (record_count_ > 0)
-        json_buffer_ += ",";
+        json_buffer_ += ',';
     json_buffer_ += object_node->toString();
     ++record_count_;
     return std::make_pair(1, 0);
@@ -282,7 +282,7 @@ void MarcFormatHandler::identifyMissingLanguage(ItemParameters * const node_para
 
     if (site_params_->expected_languages_.size() == 1) {
         node_parameters->language_ = *site_params_->expected_languages_.begin();
-        LOG_INFO("language set to default language '" + node_parameters->language_ + "'");
+        LOG_DEBUG("language set to default language '" + node_parameters->language_ + "'");
     } else if (not site_params_->expected_languages_.empty()) {
         // attempt to automatically detect the language
         std::vector<std::string> top_languages;
@@ -802,21 +802,21 @@ void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParamet
 void MarcFormatHandler::handleTrackingAndWriteRecord(const MARC::Record &new_record, const bool keep_delivered_records,
                                                      struct ItemParameters &item_params, unsigned * const previously_downloaded_count)
 {
-    const std::string harvest_url(item_params.harvest_url_);
+    const std::string record_url(item_params.url_);
     const std::string checksum(StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
-    if (harvest_url.empty())
-        LOG_ERROR("\"harvest_url\" has not been set!");
+    if (record_url.empty())
+        LOG_ERROR("\"record_url\" has not been set!");
 
-    if (keep_delivered_records or not delivery_tracker_.hasAlreadyBeenDelivered(harvest_url, checksum))
+    if (keep_delivered_records or not delivery_tracker_.hasAlreadyBeenDelivered(record_url, checksum))
         marc_writer_->write(new_record);
     else {
         ++(*previously_downloaded_count);
-        LOG_INFO("skipping URL '" + harvest_url + "' - already delivered");
+        LOG_INFO("skipping URL '" + record_url + "' - already delivered");
     }
 }
 
 
-std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<const JSON::ObjectNode> &object_node) {
+std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared_ptr<JSON::ObjectNode> &object_node) {
     if (not JSON::IsValidUTF8(*object_node))
         LOG_ERROR("bad UTF8 in JSON node!");
 
@@ -833,7 +833,7 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
     generateMarcRecord(&new_record, item_parameters);
 
     std::string exclusion_string;
-    if (recordMatchesExclusionFilters(new_record, &exclusion_string)) {
+    if (recordMatchesExclusionFilters(new_record, object_node, &exclusion_string)) {
         LOG_INFO("skipping URL '" + item_parameters.harvest_url_ + " - excluded due to filter (" + exclusion_string + ")");
         return std::make_pair(0, 0);
     }
@@ -844,15 +844,41 @@ std::pair<unsigned, unsigned> MarcFormatHandler::processRecord(const std::shared
 }
 
 
-bool MarcFormatHandler::recordMatchesExclusionFilters(const MARC::Record &new_record, std::string * const exclusion_string) const {
+bool MarcFormatHandler::recordMatchesExclusionFilters(const MARC::Record &new_record,
+                                                      const std::shared_ptr<JSON::ObjectNode> &object_node,
+                                                      std::string * const exclusion_string) const
+{
+    bool found_match(false);
+
     for (const auto &filter : site_params_->field_exclusion_filters_) {
         if (new_record.fieldOrSubfieldMatched(filter.first, filter.second.get())) {
             *exclusion_string = filter.first + "/" + filter.second->getPattern() + "/";
-            return true;
+            found_match = true;
+            break;
         }
     }
 
-    return false;
+    auto metadata_exclusion_predicate = [&found_match, &exclusion_string]
+                                        (const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                                         const SiteParams &site_params) -> void
+    {
+        const auto filter_regex(site_params.metadata_exclusion_filters_.find(node_name));
+        if (filter_regex != site_params.metadata_exclusion_filters_.end()) {
+            if (node->getType() != JSON::JSONNode::STRING_NODE)
+                LOG_ERROR("metadata exclusion filter has invalid node type '" + node_name + "'");
+
+            const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
+            if (filter_regex->second->matched(string_node->getValue())) {
+                found_match = true;
+                * exclusion_string = node_name + "/" + filter_regex->second->getPattern() + "/";
+            }
+        }
+    };
+
+    if (not site_params_->metadata_exclusion_filters_.empty())
+        JSON::VisitLeafNodes("root", object_node, metadata_exclusion_predicate, std::ref(*site_params_));
+
+    return found_match;
 }
 
 
@@ -909,35 +935,6 @@ void AugmentJsonCreators(const std::shared_ptr<JSON::ArrayNode> creators_array, 
     }
 }
 
-template <typename T>
-void VisitJsonMetadataNodes(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                            const SiteParams &site_params, const T callback)
-{
-    switch (node->getType()) {
-    case JSON::JSONNode::OBJECT_NODE:
-        for (const auto &key_and_node : *JSON::JSONNode::CastToObjectNodeOrDie(node_name, node))
-            VisitJsonMetadataNodes(key_and_node.first, key_and_node.second, site_params, callback);
-
-        break;
-    case JSON::JSONNode::ARRAY_NODE: {
-        for (const auto &element : *JSON::JSONNode::CastToArrayNodeOrDie(node_name, node)) {
-            const auto object_node(JSON::JSONNode::CastToObjectNodeOrDie("array_element", element));
-            if (object_node == nullptr)
-                LOG_ERROR("invalid JSON array element in array node '" + node_name + "'");
-
-            for (auto &key_and_node : *object_node)
-                VisitJsonMetadataNodes(key_and_node.first, key_and_node.second, site_params, callback);
-        }
-
-        break;
-    }
-    case JSON::JSONNode::NULL_NODE:
-        /* intentionally empty */ break;
-    default:
-        callback(node_name, node, site_params);
-    }
-}
-
 
 void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
                           const SiteParams &site_params)
@@ -988,8 +985,8 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     std::shared_ptr<JSON::StringNode> language_node(nullptr);
     Transformation::TestForUnknownZoteroKey(object_node);
 
-    VisitJsonMetadataNodes("json_root", object_node, site_params, SuppressJsonMetadata);
-    VisitJsonMetadataNodes("json_root", object_node, site_params, OverrideJsonMetadata);
+    JSON::VisitLeafNodes("root", object_node, SuppressJsonMetadata, std::ref(site_params));
+    JSON::VisitLeafNodes("root", object_node, OverrideJsonMetadata, std::ref(site_params));
 
     for (const auto &key_and_node : *object_node) {
         if (key_and_node.first == "language") {
@@ -1293,16 +1290,22 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         LOG_ERROR("empty URL passed to Zotero::Harvest");
 
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
+    static std::unordered_set<std::string> already_skipped_urls;
     static std::unordered_set<std::string> already_harvested_urls;
 
-    if (harvest_params->harvest_url_regex_ != nullptr and not harvest_params->harvest_url_regex_->matched(harvest_url)) {
+    if (already_skipped_urls.find(harvest_url) != already_skipped_urls.end())
+        return record_count_and_previously_downloaded_count;
+    else if (harvest_params->harvest_url_regex_ != nullptr and not harvest_params->harvest_url_regex_->matched(harvest_url)) {
         LOG_DEBUG("Skipping URL (does not match harvest URL regex): " + harvest_url);
+        already_skipped_urls.insert(harvest_url);
         return record_count_and_previously_downloaded_count;
     } else if (already_harvested_urls.find(harvest_url) != already_harvested_urls.end()) {
         LOG_DEBUG("Skipping URL (already harvested during this session): " + harvest_url);
+        already_skipped_urls.insert(harvest_url);
         return record_count_and_previously_downloaded_count;
     } else if (site_params.extraction_regex_ and not site_params.extraction_regex_->matched(harvest_url)) {
         LOG_DEBUG("Skipping URL (does not match extraction regex): " + harvest_url);
+        already_skipped_urls.insert(harvest_url);
         return record_count_and_previously_downloaded_count;
     } else if (not harvest_params->force_downloads_) {
         auto &delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
@@ -1318,6 +1321,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
                 LOG_DEBUG("Skipping URL (delivery mode set to NONE but URL has already been delivered?!): " + harvest_url);
                 break;
             }
+            already_skipped_urls.insert(harvest_url);
             return record_count_and_previously_downloaded_count;
         }
     }
@@ -1332,8 +1336,6 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     unsigned response_code;
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = harvest_params->user_agent_;
-    if (site_params.banned_url_regex_ != nullptr)
-        downloader_params.banned_reg_exps_.addPattern(site_params.banned_url_regex_->getPattern());
 
     bool download_succeeded(TranslationServer::Web(harvest_params->zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT,
                                                    downloader_params, Url(harvest_url), &response_body, &response_code,
@@ -1377,6 +1379,10 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
                 auto record_counts(harvest_params->format_handler_->processRecord(json_object));
                 record_count_and_previously_downloaded_count.first += record_counts.first;
                 record_count_and_previously_downloaded_count.second += record_counts.second;
+
+                const auto url(json_object->getOptionalStringValue("url", ""));
+                if (not url.empty())
+                    already_harvested_urls.insert(url);
             }
         } catch (const std::exception &x) {
             error_logger_context.autoLog("Couldn't process record! Error: " + std::string(x.what()));
