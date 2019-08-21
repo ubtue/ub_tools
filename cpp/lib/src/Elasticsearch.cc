@@ -44,13 +44,13 @@ static void LoadIniParameters(const std::string &config_file_path, std::string *
 }
 
 
-Elasticsearch::Elasticsearch(const std::string &index, const std::string &type): index_(index), type_(type) {
+Elasticsearch::Elasticsearch(const std::string &index): index_(index) {
     LoadIniParameters(DEFAULT_CONFIG_FILE_PATH, &host_, &username_, &password_, &ignore_ssl_certificates_);
 }
 
 
 size_t Elasticsearch::size() const {
-    return JSON::LookupInteger("/indices/" + index_ + "/total/docs/count", query("_stats", REST::GET, JSON::ObjectNode(), /* add_type */ false));
+    return JSON::LookupInteger("/indices/" + index_ + "/total/docs/count", query("_stats", REST::GET, JSON::ObjectNode()));
 }
 
 
@@ -71,7 +71,9 @@ size_t Elasticsearch::count(const std::map<std::string, std::string> &fields_and
 
 
 void Elasticsearch::simpleInsert(const std::map<std::string, std::string> &fields_and_values) {
-    query("", REST::POST, JSON::ObjectNode(fields_and_values));
+    /* see the explanation in https://www.elastic.co/guide/en/elasticsearch/reference/current/removal-of-types.html
+     * _doc is no longer a mapping type but rather part of the path... */
+    query("_doc", REST::POST, JSON::ObjectNode(fields_and_values));
 }
 
 
@@ -210,7 +212,7 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(cons
             search_results_all.insert(std::end(search_results_all), std::begin(search_results_bunch), std::end(search_results_bunch));
             std::string scroll_id(extractScrollId(result_node));
             result_node = query("_search/scroll", REST::POST, JSON::ObjectNode("{ \"scroll\": \"1m\", \"scroll_id\" : \"" + scroll_id + "\"}"),
-                                false /* do not add type */, true /* suppress index name */ );
+                                true /* suppress index name */ );
             search_results_bunch = extractResultsHelper(result_node, fields);
         }
         return search_results_all;
@@ -275,8 +277,7 @@ bool Elasticsearch::fieldWithValueExists(const std::string &field, const std::st
 
 
 std::shared_ptr<JSON::ObjectNode> Elasticsearch::query(const std::string &action, const REST::QueryType query_type,
-                                                       const JSON::ObjectNode &data, const bool add_type,
-                                                       const bool suppress_index_name) const
+                                                       const JSON::ObjectNode &data, const bool suppress_index_name) const
 {
     Downloader::Params downloader_params;
     downloader_params.authentication_username_ = username_;
@@ -284,10 +285,7 @@ std::shared_ptr<JSON::ObjectNode> Elasticsearch::query(const std::string &action
     downloader_params.ignore_ssl_certificates_ = ignore_ssl_certificates_;
     downloader_params.additional_headers_.push_back("Content-Type: application/json");
     Url url;
-    if (add_type)
-        url = Url(host_ + "/" + (not suppress_index_name ? index_ + "/" : "") + type_ + (action.empty() ? "" : "/" + action));
-    else
-        url = Url(host_ + (not suppress_index_name? "/" + index_ : "" ) + (action.empty() ? "" : "/" + action));
+    url = Url(host_ + (not suppress_index_name ? "/" + index_ : "" ) + (action.empty() ? "" : "/" + action));
 
     std::shared_ptr<JSON::JSONNode> result(REST::QueryJSON(url, query_type, &data, downloader_params));
     std::shared_ptr<JSON::ObjectNode> result_object(JSON::JSONNode::CastToObjectNodeOrDie("Elasticsearch result", result));
