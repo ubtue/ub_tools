@@ -74,10 +74,10 @@ public:
      */
     std::vector<std::map<std::string, std::string>> simpleSelect(const std::set<std::string> &fields,
                                                                  const std::map<std::string, std::string> &filter = {},
-                                                                 const unsigned int max_count = std::numeric_limits<unsigned int>::max()) const;
+                                                                 const unsigned int max_count = 10000 /* Elastic Default */) const;
 
     inline std::vector<std::map<std::string, std::string>> simpleSelect(const std::set<std::string> &fields, const std::string &filter_field,
-                                                                        const std::string &filter_value, const int max_count = -1) const
+                                                                        const std::string &filter_value, const int max_count = 10000 /* Elastic Default */) const
     { return simpleSelect(fields, std::map<std::string, std::string>{ { filter_field, filter_value } }, max_count); }
 
     /** \note Specify one or two range conditions. */
