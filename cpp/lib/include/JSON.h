@@ -20,9 +20,9 @@
 #pragma once
 
 
-#include <string>
 #include <map>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 #include <cinttypes>
@@ -433,6 +433,38 @@ std::string EscapeString(const std::string &unescaped_string);
 
 
 bool IsValidUTF8(const JSONNode &node);
+
+
+// Iterates through a JSON node depth-first and invokes a callback on leaf nodes.
+// The callback function takes the name of the leaf node and a pointer to the same as its
+// first two parameters, and then a list of optional parameters.
+template <class ... ParamTypes, class CallbackType = void(const std::string &, const std::shared_ptr<JSON::JSONNode> &, ParamTypes...)>
+void VisitLeafNodes(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                    CallbackType callback, ParamTypes... params)
+{
+    switch (node->getType()) {
+    case JSON::JSONNode::OBJECT_NODE:
+        for (const auto &key_and_node : *static_cast<JSON::ObjectNode*>(node.get()))
+            VisitLeafNodes(key_and_node.first, key_and_node.second, callback, params...);
+
+        break;
+    case JSON::JSONNode::ARRAY_NODE: {
+        for (const auto &element : *static_cast<JSON::ArrayNode*>(node.get())) {
+            if (element->getType() != JSON::JSONNode::OBJECT_NODE)
+                continue;
+
+            const auto object_node(static_cast<JSON::ObjectNode*>(element.get()));
+            for (auto &key_and_node : *object_node)
+                VisitLeafNodes(key_and_node.first, key_and_node.second, callback, params...);
+        }
+
+        break;
+    } case JSON::JSONNode::NULL_NODE:
+        /* intentionally empty */ break;
+    default:
+        callback(node_name, node, params...);
+    }
+}
 
 
 } // namespace JSON
