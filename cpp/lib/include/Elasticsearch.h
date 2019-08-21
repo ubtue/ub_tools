@@ -29,7 +29,7 @@
 
 
 class Elasticsearch {
-    std::string host_, index_, type_, username_, password_;
+    std::string host_, index_, username_, password_;
     bool ignore_ssl_certificates_;
 public:
     enum RangeOperator { RO_GT, RO_GTE, RO_LT, RO_LTE, RO_NOOP };
@@ -38,7 +38,7 @@ public:
      *         a section name "Elasticsearch" w/ entries name "host", "username" (optional), "password" (optional) and
      *         "ignore_ssl_certificates" (optional, defaults to "false").
      */
-    explicit Elasticsearch(const std::string &index, const std::string &type = "_doc");
+    explicit Elasticsearch(const std::string &index);
 
     /** \return The number of documents in the index. */
     size_t size() const;
@@ -89,7 +89,7 @@ private:
     /** \brief A powerful general query.
      */
     std::shared_ptr<JSON::ObjectNode> query(const std::string &action, const REST::QueryType query_type,
-                                            const JSON::ObjectNode &data, const bool add_type=true, const bool suppress_index_name=false) const;
+                                            const JSON::ObjectNode &data, const bool suppress_index_name=false) const;
     std::string extractScrollId(const std::shared_ptr<JSON::ObjectNode> &result_node) const;
     std::vector<std::map<std::string, std::string>> extractResultsHelper(const std::shared_ptr<JSON::ObjectNode> &result_node,
                                                                          const std::set<std::string> &fields) const;
