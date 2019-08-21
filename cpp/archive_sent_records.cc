@@ -71,7 +71,7 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
 
     while (const MARC::Record record = marc_reader->read()) {
         const std::string hash(StringUtil::ToHexString(MARC::CalcChecksum(record)));
-        const std::string url(record.getFirstSubfieldValue("URL", 'a'));
+        const std::string url(record.getFirstSubfieldValue("856", 'u'));
         const std::string zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
         const std::string journal_name(record.getFirstSubfieldValue("JOU", 'a'));
         const std::string main_title(record.getMainTitle());

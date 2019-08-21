@@ -94,11 +94,7 @@ SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params)
     : remaining_crawl_depth_(site_desc.max_crawl_depth_), url_regex_matcher_(site_desc.url_regex_matcher_),
       min_url_processing_time_(params.min_url_processing_time_), params_(params)
 {
-    std::queue<std::string> url_queue_start;
-    url_queue_start.push(site_desc.start_url_);
-    url_queue_current_depth_.swap(url_queue_start);
-    std::queue<std::string> url_queue_empty;
-    url_queue_next_depth_.swap(url_queue_empty);
+    url_queue_current_depth_.push(site_desc.start_url_);
 
     std::string err_msg;
     url_ignore_regex_matcher_.reset(RegexMatcher::RegexMatcherFactory(params.url_ignore_pattern_, &err_msg, RegexMatcher::Option::CASE_INSENSITIVE));
