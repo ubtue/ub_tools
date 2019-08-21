@@ -160,36 +160,6 @@ bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Par
 } // namespace TranslationServer
 
 
-template <typename T>
-void VisitJsonMetadataNodes(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                            const SiteParams &site_params, const T callback)
-{
-    switch (node->getType()) {
-    case JSON::JSONNode::OBJECT_NODE:
-        for (const auto &key_and_node : *JSON::JSONNode::CastToObjectNodeOrDie(node_name, node))
-            VisitJsonMetadataNodes(key_and_node.first, key_and_node.second, site_params, callback);
-
-        break;
-    case JSON::JSONNode::ARRAY_NODE: {
-        for (const auto &element : *JSON::JSONNode::CastToArrayNodeOrDie(node_name, node)) {
-            if (element->getType() != JSON::JSONNode::OBJECT_NODE)
-                continue;
-
-            const auto object_node(JSON::JSONNode::CastToObjectNodeOrDie("array_element", element));
-            for (auto &key_and_node : *object_node)
-                VisitJsonMetadataNodes(key_and_node.first, key_and_node.second, site_params, callback);
-        }
-
-        break;
-    }
-    case JSON::JSONNode::NULL_NODE:
-        /* intentionally empty */ break;
-    default:
-        callback(node_name, node, site_params);
-    }
-}
-
-
 void LoadGroup(const IniFile::Section &section, std::unordered_map<std::string, GroupParams> * const group_name_to_params_map) {
     GroupParams new_group_params;
     new_group_params.name_                           = section.getSectionName();
@@ -270,7 +240,7 @@ ZoteroFormatHandler::~ZoteroFormatHandler() {
 
 std::pair<unsigned, unsigned> ZoteroFormatHandler::processRecord(const std::shared_ptr<JSON::ObjectNode> &object_node) {
     if (record_count_ > 0)
-        json_buffer_ += ",";
+        json_buffer_ += ',';
     json_buffer_ += object_node->toString();
     ++record_count_;
     return std::make_pair(1, 0);
@@ -889,8 +859,8 @@ bool MarcFormatHandler::recordMatchesExclusionFilters(const MARC::Record &new_re
     }
 
     auto metadata_exclusion_predicate = [&found_match, &exclusion_string]
-                                          (const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                                           const SiteParams &site_params) -> void
+                                        (const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                                         const SiteParams &site_params) -> void
     {
         const auto filter_regex(site_params.metadata_exclusion_filters_.find(node_name));
         if (filter_regex != site_params.metadata_exclusion_filters_.end()) {
@@ -906,7 +876,7 @@ bool MarcFormatHandler::recordMatchesExclusionFilters(const MARC::Record &new_re
     };
 
     if (not site_params_->metadata_exclusion_filters_.empty())
-        VisitJsonMetadataNodes("root", object_node, *site_params_, metadata_exclusion_predicate);
+        JSON::VisitLeafNodes("root", object_node, metadata_exclusion_predicate, std::ref(*site_params_));
 
     return found_match;
 }
@@ -1015,8 +985,8 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     std::shared_ptr<JSON::StringNode> language_node(nullptr);
     Transformation::TestForUnknownZoteroKey(object_node);
 
-    VisitJsonMetadataNodes("json_root", object_node, site_params, SuppressJsonMetadata);
-    VisitJsonMetadataNodes("json_root", object_node, site_params, OverrideJsonMetadata);
+    JSON::VisitLeafNodes("root", object_node, SuppressJsonMetadata, std::ref(site_params));
+    JSON::VisitLeafNodes("root", object_node, OverrideJsonMetadata, std::ref(site_params));
 
     for (const auto &key_and_node : *object_node) {
         if (key_and_node.first == "language") {

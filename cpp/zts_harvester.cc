@@ -122,7 +122,7 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
         } else if (StringUtil::StartsWith(entry.name_, "exclude_if_metadata_")) {
             const auto metadata_name(entry.name_.substr(__builtin_strlen("exclude_if_metadata_")));
             site_params->metadata_exclusion_filters_.insert(std::make_pair(metadata_name,
-                                                         std::unique_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactoryOrDie(entry.value_))));
+                                                                std::unique_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactoryOrDie(entry.value_))));
         } else if (StringUtil::StartsWith(entry.name_, "remove_field_")) {
             const auto field_name(entry.name_.substr(__builtin_strlen("remove_field_")));
             if (field_name.length() != MARC::Record::TAG_LENGTH + 1)
