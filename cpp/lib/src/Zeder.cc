@@ -35,6 +35,15 @@ const std::string &Entry::getAttribute(const std::string &name) const {
 }
 
 
+const std::string &Entry::getAttribute(const std::string &name, const std::string &default_value) const {
+    const auto match(attributes_.find(name));
+    if (match == attributes_.end())
+        return default_value;
+    else
+        return match->second;
+}
+
+
 void Entry::setAttribute(const std::string &name, const std::string &value, bool overwrite) {
     if (attributes_.find(name) == attributes_.end() or overwrite)
         attributes_[name] = StringUtil::Map(value, Zeder::ATTRIBUTE_INVALID_CHARS, std::string(Zeder::ATTRIBUTE_INVALID_CHARS.length(), '_'));

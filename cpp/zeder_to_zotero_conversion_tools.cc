@@ -241,7 +241,7 @@ bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFie
 
     bool valid(true);
 
-    const auto &pppn(entry->getAttribute("pppn")), &eppn(entry->getAttribute("eppn"));
+    const auto &pppn(entry->getAttribute("pppn", "")), &eppn(entry->getAttribute("eppn", ""));
     if (MiscUtil::IsValidPPN(eppn))
         entry->setAttribute(name_resolver.getAttributeName(PARENT_PPN_ONLINE), eppn);
     if (MiscUtil::IsValidPPN(pppn))
@@ -251,7 +251,7 @@ bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFie
         valid = ignore_invalid_ppn_issn ? valid : false;
     }
 
-    const auto &issn_print(entry->getAttribute("issn")), &issn_online(entry->getAttribute("essn"));
+    const auto &issn_print(entry->getAttribute("issn", "")), &issn_online(entry->getAttribute("essn", ""));
     if (issn_print.empty() or issn_print == "NV")
         ;// skip
     else if (not MiscUtil::IsPossibleISSN(issn_print)) {
