@@ -84,6 +84,7 @@ public:
     const tm &getLastModifiedTimestamp() const { return last_modified_timestamp_; }
     void setModifiedTimestamp(const tm &timestamp) { std::memcpy(&last_modified_timestamp_, &timestamp, sizeof(timestamp)); }
     const std::string &getAttribute(const std::string &name) const;
+    const std::string &getAttribute(const std::string &name, const std::string &default_value) const;
 
     // Invalid characters (as found in 'ATTRIBUTE_INVALID_CHARS') in 'value' will be replaced with '_'.
     void setAttribute(const std::string &name, const std::string &value, bool overwrite = false);
