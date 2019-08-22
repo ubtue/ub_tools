@@ -17,25 +17,23 @@
     },
 
     "mappings": {
-        "_doc": {
-            "properties": {
-                "id": {
-                    "type": "keyword"
-                },
-                "full_text": {
-                    "type" : "text",
-                    "index_options" : "offsets",
-                    "term_vector" : "with_positions_offsets_payloads",
-                    "analyzer" : "fulltext_analyzer"
-                },
-                "text_type" : {
-                    "type": "keyword"
-                },
-                "expiration": {
-                    "type": "date",
-                    "format": "strict_date_optional_time"
-                }
-            }
-        }
-    }
+       "properties": {
+           "id": {
+               "type": "keyword"
+           },
+           "full_text": {
+               "type" : "text",
+               "index_options" : "offsets",
+               "term_vector" : "with_positions_offsets_payloads",
+               "analyzer" : "fulltext_analyzer"
+           },
+           "text_type" : {
+               "type": "keyword"
+           },
+           "expiration": {
+               "type": "date",
+               "format": "strict_date_optional_time"
+           }
+       }
+   }
 }
