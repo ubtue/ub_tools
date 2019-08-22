@@ -71,8 +71,6 @@ size_t Elasticsearch::count(const std::map<std::string, std::string> &fields_and
 
 
 void Elasticsearch::simpleInsert(const std::map<std::string, std::string> &fields_and_values) {
-    /* see the explanation in https://www.elastic.co/guide/en/elasticsearch/reference/current/removal-of-types.html
-     * _doc is no longer a mapping type but rather part of the path... */
     query("_doc", REST::POST, JSON::ObjectNode(fields_and_values));
 }
 
