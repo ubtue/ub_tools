@@ -28,8 +28,12 @@
 #include "REST.h"
 
 
+const unsigned ELASTICSEARCH_DEFAULT_MAX_COUNT(10000); /* Default max number of results returned */
+
+
 class Elasticsearch {
-    std::string host_, index_, type_, username_, password_;
+
+    std::string host_, index_, username_, password_;
     bool ignore_ssl_certificates_;
 public:
     enum RangeOperator { RO_GT, RO_GTE, RO_LT, RO_LTE, RO_NOOP };
@@ -38,7 +42,7 @@ public:
      *         a section name "Elasticsearch" w/ entries name "host", "username" (optional), "password" (optional) and
      *         "ignore_ssl_certificates" (optional, defaults to "false").
      */
-    explicit Elasticsearch(const std::string &index, const std::string &type = "_doc");
+    explicit Elasticsearch(const std::string &index);
 
     /** \return The number of documents in the index. */
     size_t size() const;
@@ -74,10 +78,10 @@ public:
      */
     std::vector<std::map<std::string, std::string>> simpleSelect(const std::set<std::string> &fields,
                                                                  const std::map<std::string, std::string> &filter = {},
-                                                                 const unsigned int max_count = std::numeric_limits<unsigned int>::max()) const;
+                                                                 const unsigned int max_count = ELASTICSEARCH_DEFAULT_MAX_COUNT) const;
 
     inline std::vector<std::map<std::string, std::string>> simpleSelect(const std::set<std::string> &fields, const std::string &filter_field,
-                                                                        const std::string &filter_value, const int max_count = -1) const
+                                                                        const std::string &filter_value, const int max_count = ELASTICSEARCH_DEFAULT_MAX_COUNT) const
     { return simpleSelect(fields, std::map<std::string, std::string>{ { filter_field, filter_value } }, max_count); }
 
     /** \note Specify one or two range conditions. */
@@ -89,7 +93,7 @@ private:
     /** \brief A powerful general query.
      */
     std::shared_ptr<JSON::ObjectNode> query(const std::string &action, const REST::QueryType query_type,
-                                            const JSON::ObjectNode &data, const bool add_type=true, const bool suppress_index_name=false) const;
+                                            const JSON::ObjectNode &data, const bool suppress_index_name=false) const;
     std::string extractScrollId(const std::shared_ptr<JSON::ObjectNode> &result_node) const;
     std::vector<std::map<std::string, std::string>> extractResultsHelper(const std::shared_ptr<JSON::ObjectNode> &result_node,
                                                                          const std::set<std::string> &fields) const;
