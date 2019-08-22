@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <memory>
+#include <queue>
 #include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
@@ -90,6 +91,13 @@ void SerializeMultimap(const std::string &output_filename, const std::unordered_
 }
 
 
+/* 3 maps are populated in this function:
+ *
+ * ppn_to_offset_map        - this is simply a map from each record's PPN to the byte offset in the input file.
+ * ppn_to_canonical_ppn_map - This is a map for cross-linked PPN's pointing to the PPN that will become the PPN of the merged records.
+ *                            To keep things simple we simply choose the alphanumerically largest PPN as the canonical PPN.
+ * canonical_ppn_to_ppn_map - This is the reverse of the previous map except for that we may have many values for a single key.
+ */
 void CollectRecordOffsetsAndCrosslinks(const bool debug,
     MARC::Reader * const marc_reader, std::unordered_map<std::string, off_t> * const ppn_to_offset_map,
     std::unordered_map<std::string, std::string> * const ppn_to_canonical_ppn_map,
@@ -114,36 +122,47 @@ void CollectRecordOffsetsAndCrosslinks(const bool debug,
         // In the following lines, we get all cross referenced PPN's and check the maps for their references as well.
         // We then determine the new superior PPN for all cross refences and overwrite all existing mapping entries.
         auto cross_link_ppns(MARC::ExtractCrossReferencePPNs(record));
-        if (not cross_link_ppns.empty()) {
+        if (not cross_link_ppns.empty())
+            continue;
 
-            // check maps for additional referenced ppns
-            for (const auto &ppn : cross_link_ppns) {
-                const auto it(ppn_to_canonical_ppn_map->find(ppn));
-                if (it != ppn_to_canonical_ppn_map->end())
-                    cross_link_ppns.emplace(it->second);
+        // Find the transitive hull of referenced PPN's that we have already encountered in the input stream:
+        std::queue<std::string> queue;
+        for (const auto &cross_link_ppn : cross_link_ppns)
+            queue.push(cross_link_ppn);
+        while (not queue.empty()) {
+            const auto it(ppn_to_canonical_ppn_map->find(queue.front()));
+            if (it != ppn_to_canonical_ppn_map->end() and cross_link_ppns.find(it->second) == cross_link_ppns.cend()) {
+                queue.push(it->second);
+                cross_link_ppns.emplace(it->second);
+            }
 
-                auto canonical_ppn_and_ppn_range(canonical_ppn_to_ppn_map->equal_range(ppn));
-                for (auto it2 = canonical_ppn_and_ppn_range.first; it2 != canonical_ppn_and_ppn_range.second; ++it2)
+            auto canonical_ppn_and_ppn_range(canonical_ppn_to_ppn_map->equal_range(queue.front()));
+            for (auto it2(canonical_ppn_and_ppn_range.first); it2 != canonical_ppn_and_ppn_range.second; ++it2) {
+                if (cross_link_ppns.find(it2->second) == cross_link_ppns.cend()) {
+                    queue.push(it2->second);
                     cross_link_ppns.emplace(it2->second);
-            }
-            cross_link_ppns.emplace(record.getControlNumber());
-
-            // The max PPN, will be the winner for merging, IOW, it will be the PPN of the merged record.
-            const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(),
-                                                        [](std::string a, std::string b) -> bool { return a < b; }));
-
-            // remove old references
-            for (const auto &ppn : cross_link_ppns) {
-                ppn_to_canonical_ppn_map->erase(ppn);
-                canonical_ppn_to_ppn_map->erase(ppn);
-            }
-
-            // add new/updated references
-            for (const auto &ppn : cross_link_ppns) {
-                if (ppn != max_ppn) {
-                    ppn_to_canonical_ppn_map->emplace(ppn, max_ppn);
-                    canonical_ppn_to_ppn_map->emplace(max_ppn, ppn);
                 }
+            }
+
+            queue.pop();
+        }
+        cross_link_ppns.emplace(record.getControlNumber());
+
+        // The max PPN, will be the winner for merging, IOW, it will be the PPN of the merged record.
+        const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(),
+                                                    [](std::string a, std::string b) -> bool { return a < b; }));
+
+        // remove old references
+        for (const auto &ppn : cross_link_ppns) {
+            ppn_to_canonical_ppn_map->erase(ppn);
+            canonical_ppn_to_ppn_map->erase(ppn);
+        }
+
+        // add new/updated references
+        for (const auto &ppn : cross_link_ppns) {
+            if (ppn != max_ppn) {
+                ppn_to_canonical_ppn_map->emplace(ppn, max_ppn);
+                canonical_ppn_to_ppn_map->emplace(max_ppn, ppn);
             }
         }
     }
@@ -559,16 +578,16 @@ void DeleteCrossLinkFields(MARC::Record * const record) {
 // Merges the records in ppn_to_canonical_ppn_map in such a way that for each entry, "second" will be merged into "first".
 // "second" will then be collected in "skip_ppns" for a future copy phase where it will be dropped.  Uplinks that referenced
 // "second" will be replaced with "first".
-void MergeRecordsAndPatchUplinks(const bool /*debug*/, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+void MergeRecordsAndPatchUplinks(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                                  const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
                                  const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
                                  const std::unordered_multimap<std::string, std::string> &canonical_ppn_to_ppn_map)
 {
-    unsigned merged_count(0), patched_uplink_count(0);
     std::unordered_set<std::string> unprocessed_ppns;
     for (const auto &ppn_and_ppn : canonical_ppn_to_ppn_map)
         unprocessed_ppns.emplace(ppn_and_ppn.second);
 
+    unsigned merged_count(0), patched_uplink_count(0);
     while (MARC::Record record = marc_reader->read()) {
         if (ppn_to_canonical_ppn_map.find(record.getControlNumber()) != ppn_to_canonical_ppn_map.cend())
             continue; // This record will be merged into the one w/ the canonical PPN.
@@ -706,8 +725,7 @@ int Main(int argc, char *argv[]) {
     EliminateDanglingOrUnreferencedCrossLinks(debug, ppn_to_offset_map, &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
 
     marc_reader->rewind();
-    MergeRecordsAndPatchUplinks(debug, marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
-                                canonical_ppn_to_ppn_map);
+    MergeRecordsAndPatchUplinks(marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map, canonical_ppn_to_ppn_map);
 
     if (not debug) {
         std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
