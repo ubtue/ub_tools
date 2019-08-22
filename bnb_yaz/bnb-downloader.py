@@ -3,6 +3,7 @@
 #
 # A tool for the automation of MARC downloads from the BNB.
 
+import datetime
 import os
 import pexpect
 import pipes
@@ -74,7 +75,7 @@ LAST_LIST_NUMBER_FILE = "/usr/local/var/lib/tuelib/cronjobs/bnb-downloader.last_
 
 def LoadStartListNumber():
     if not os.path.isfile(LAST_LIST_NUMBER_FILE) or not os.access(LAST_LIST_NUMBER_FILE, os.R_OK):
-        util.Error(LAST_LIST_NUMBER_FILE " not found.  You must initialise this file.\n"
+        util.Error(LAST_LIST_NUMBER_FILE + " not found.  You must initialise this file.\n"
                    + "It might help to have a look at "
                    + "https://www.bl.uk/bibliographic/natbibweekly.html?_ga=2.146847615.999275275.1565779921-903569786.1548059398")
     with open(LAST_LIST_NUMBER_FILE, "r") as f:
@@ -83,7 +84,7 @@ def LoadStartListNumber():
 
 def StoreStartListNumber(last_list_number):
     with open(LAST_LIST_NUMBER_FILE, "w") as f:
-        f.write(last_list_number)
+        f.write(str(last_list_number))
 
 
 def ConnectToYAZServer():
@@ -104,7 +105,7 @@ def DownloadRecordsRange(yaz_client, ranges):
     for range in ranges:
         yaz_client.sendline("find @and @attr 1=48 " + '"' + range + '"'
                             + " @attr 1=13 @or @or @or @or @or @or @or @or @or 20* 21* 22* 23* 24* 25* 26* 27* 28* 29*")
-        yaz_client.expect("Number of hits: (\\d+), setno", timeout=600)
+        yaz_client.expect("Number of hits: (\\d+), setno", timeout=1000)
         count_search = re.search("Number of hits: (\\d+), setno", yaz_client.after)
         if count_search:
             download_count += int(count_search.group(1))
@@ -113,15 +114,6 @@ def DownloadRecordsRange(yaz_client, ranges):
         yaz_client.sendline("show all")
         yaz_client.expect("\r\n")
     return download_count
-
-    
-def DownloadRecords(yaz_client, output_filename, year, ranges):
-    util.Info("year=" + str(year) + ", start_number=" + str(start_number) + ", max_number=" + str(max_number))
-    yaz_client.sendline("format marc21")
-    yaz_client.expect("\r\n")
-    yaz_client.sendline("set_marcdump " + output_filename)
-    yaz_client.expect("\r\n")
-    return DownloadRecordsRange(yaz_client, ranges)
     
     
 def Main():
@@ -130,17 +122,25 @@ def Main():
         os.remove(OUTPUT_FILENAME)
     except:
         pass
-    list_number = LoadStartListNumber()
+
     yaz_client = ConnectToYAZServer()
+    yaz_client.sendline("format marc21")
+    yaz_client.expect("\r\n")
+    yaz_client.sendline("set_marcdump " + OUTPUT_FILENAME)
+    yaz_client.expect("\r\n")
+
+    list_no = LoadStartListNumber()
     total_count = 0
     while True:
         ranges = RetryGetNewBNBNumbers(list_no)
         if ranges is None:
             break
-        DownloadRecords(yaz_client, OUTPUT_FILENAME, CoalesceNumbers(ranges))
-        ++list_no
+        count = DownloadRecordsRange(yaz_client, CoalesceNumbers(ranges))
+        util.Info("Dowloaded " + str(count) + " records for list #" + str(list_no) + ".")
+        total_count += count
+        list_no += 1
     StoreStartListNumber(list_number)
-    util.Info("Downloaded " + str(total_count) + " new record(s).")
+    util.Info("Downloaded a total of " + str(total_count) + " new record(s).")
 
     
 try:
