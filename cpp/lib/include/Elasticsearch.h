@@ -27,7 +27,9 @@
 #include "JSON.h"
 #include "REST.h"
 
-const unsigned ELASTICSEARCH_DEFAULT_MAX_COUNT(10000);
+
+const unsigned ELASTICSEARCH_DEFAULT_MAX_COUNT(10000); /* Default max number of results returned */
+
 
 class Elasticsearch {
 
