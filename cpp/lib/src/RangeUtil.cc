@@ -682,7 +682,7 @@ bool ConvertTextToTimeRange(const std::string &text, std::string * const range, 
     if (matcher4->matched(text)) {
         const unsigned year(StringUtil::ToUnsigned((*matcher4)[1]));
         *range = StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
-                 + StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "3112_";
+                 + StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
         return true;
     }
 

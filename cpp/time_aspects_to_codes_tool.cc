@@ -26,12 +26,6 @@
 #include "util.h"
 
 
-namespace {
-
-
-} // unnamed namespace
-
-
 int Main(int argc, char **argv) {
     if (argc != 2)
         ::Usage("time_aspect_reference_candidate");
