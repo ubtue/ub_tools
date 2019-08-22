@@ -27,8 +27,10 @@
 #include "JSON.h"
 #include "REST.h"
 
+const unsigned ELASTICSEARCH_DEFAULT_MAX_COUNT(10000);
 
 class Elasticsearch {
+
     std::string host_, index_, username_, password_;
     bool ignore_ssl_certificates_;
 public:
@@ -74,10 +76,10 @@ public:
      */
     std::vector<std::map<std::string, std::string>> simpleSelect(const std::set<std::string> &fields,
                                                                  const std::map<std::string, std::string> &filter = {},
-                                                                 const unsigned int max_count = 10000 /* Elastic Default */) const;
+                                                                 const unsigned int max_count = ELASTICSEARCH_DEFAULT_MAX_COUNT) const;
 
     inline std::vector<std::map<std::string, std::string>> simpleSelect(const std::set<std::string> &fields, const std::string &filter_field,
-                                                                        const std::string &filter_value, const int max_count = 10000 /* Elastic Default */) const
+                                                                        const std::string &filter_value, const int max_count = ELASTICSEARCH_DEFAULT_MAX_COUNT) const
     { return simpleSelect(fields, std::map<std::string, std::string>{ { filter_field, filter_value } }, max_count); }
 
     /** \note Specify one or two range conditions. */
