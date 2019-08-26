@@ -100,6 +100,7 @@ std::set<std::string> GetCrossLinkPPNs(const MARC::Record &record,
     auto cross_link_ppns(MARC::ExtractCrossReferencePPNs(record));
     if (cross_link_ppns.empty())
         return { };
+    cross_link_ppns.emplace(record.getControlNumber());
 
     // Find the transitive hull of referenced PPN's that we have already encountered in the input stream:
     std::queue<std::string> queue;
@@ -122,7 +123,6 @@ std::set<std::string> GetCrossLinkPPNs(const MARC::Record &record,
 
         queue.pop();
     }
-    cross_link_ppns.emplace(record.getControlNumber());
     return cross_link_ppns;
 }
 
