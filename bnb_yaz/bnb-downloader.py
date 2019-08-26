@@ -13,6 +13,7 @@ import time
 import traceback
 import urllib
 import util
+import xml.etree.ElementTree as ElementTree
 import zipfile
 
 
@@ -30,12 +31,11 @@ def GetNewBNBNumbers(list_no):
     rdf_filename = "bnbrdf_N" + str(list_no) + ".rdf"
 
     numbers = []
-    with open(rdf_filename) as input:
-        regex = re.compile("^<dcterms:identifier>(GB.......)</dcterms:identifier>")
-        for line in input.readlines():
-            match = regex.match(line)
-            if match:
-                numbers.append(match.group(1))
+    root = ElementTree.parse(rdf_filename).getroot()
+    for child in root:
+        for grandchild in child:
+            if grandchild.tag == "{http://purl.org/dc/terms/}identifier" and grandchild.text[0:2] == "GB":
+                numbers.append(grandchild.text)
     util.Remove(rdf_filename)
     return numbers
 
