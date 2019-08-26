@@ -91,6 +91,42 @@ void SerializeMultimap(const std::string &output_filename, const std::unordered_
 }
 
 
+// In this function we get all cross referenced PPN's and check the maps for their references as well.
+// We then determine the new superior PPN for all cross refences and overwrite all existing mapping entries.
+std::set<std::string> GetCrossLinkPPNs(const MARC::Record &record,
+                                       const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
+                                       const std::unordered_multimap<std::string, std::string> &canonical_ppn_to_ppn_map)
+{
+    auto cross_link_ppns(MARC::ExtractCrossReferencePPNs(record));
+    if (cross_link_ppns.empty())
+        return { };
+
+    // Find the transitive hull of referenced PPN's that we have already encountered in the input stream:
+    std::queue<std::string> queue;
+    for (const auto &cross_link_ppn : cross_link_ppns)
+        queue.push(cross_link_ppn);
+    while (not queue.empty()) {
+        const auto it(ppn_to_canonical_ppn_map.find(queue.front()));
+        if (it != ppn_to_canonical_ppn_map.end() and cross_link_ppns.find(it->second) == cross_link_ppns.cend()) {
+            queue.push(it->second);
+            cross_link_ppns.emplace(it->second);
+        }
+
+        auto canonical_ppn_and_ppn_range(canonical_ppn_to_ppn_map.equal_range(queue.front()));
+        for (auto it2(canonical_ppn_and_ppn_range.first); it2 != canonical_ppn_and_ppn_range.second; ++it2) {
+            if (cross_link_ppns.find(it2->second) == cross_link_ppns.cend()) {
+                queue.push(it2->second);
+                cross_link_ppns.emplace(it2->second);
+            }
+        }
+
+        queue.pop();
+    }
+    cross_link_ppns.emplace(record.getControlNumber());
+    return cross_link_ppns;
+}
+
+
 /* 3 maps are populated in this function:
  *
  * ppn_to_offset_map        - this is simply a map from each record's PPN to the byte offset in the input file.
@@ -119,34 +155,9 @@ void CollectRecordOffsetsAndCrosslinks(const bool debug,
         if (not record.isSerial())
             continue;
 
-        // In the following lines, we get all cross referenced PPN's and check the maps for their references as well.
-        // We then determine the new superior PPN for all cross refences and overwrite all existing mapping entries.
-        auto cross_link_ppns(MARC::ExtractCrossReferencePPNs(record));
-        if (not cross_link_ppns.empty())
+        const auto cross_link_ppns(GetCrossLinkPPNs(record, *ppn_to_canonical_ppn_map, *canonical_ppn_to_ppn_map));
+        if (cross_link_ppns.empty())
             continue;
-
-        // Find the transitive hull of referenced PPN's that we have already encountered in the input stream:
-        std::queue<std::string> queue;
-        for (const auto &cross_link_ppn : cross_link_ppns)
-            queue.push(cross_link_ppn);
-        while (not queue.empty()) {
-            const auto it(ppn_to_canonical_ppn_map->find(queue.front()));
-            if (it != ppn_to_canonical_ppn_map->end() and cross_link_ppns.find(it->second) == cross_link_ppns.cend()) {
-                queue.push(it->second);
-                cross_link_ppns.emplace(it->second);
-            }
-
-            auto canonical_ppn_and_ppn_range(canonical_ppn_to_ppn_map->equal_range(queue.front()));
-            for (auto it2(canonical_ppn_and_ppn_range.first); it2 != canonical_ppn_and_ppn_range.second; ++it2) {
-                if (cross_link_ppns.find(it2->second) == cross_link_ppns.cend()) {
-                    queue.push(it2->second);
-                    cross_link_ppns.emplace(it2->second);
-                }
-            }
-
-            queue.pop();
-        }
-        cross_link_ppns.emplace(record.getControlNumber());
 
         // The max PPN, will be the winner for merging, IOW, it will be the PPN of the merged record.
         const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(),
