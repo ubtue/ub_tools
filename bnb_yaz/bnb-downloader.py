@@ -31,11 +31,10 @@ def GetNewBNBNumbers(list_no):
     rdf_filename = "bnbrdf_N" + str(list_no) + ".rdf"
 
     numbers = []
-    root = ElementTree.parse(rdf_filename).getroot()
-    for child in root:
-        for grandchild in child:
-            if grandchild.tag == "{http://purl.org/dc/terms/}identifier" and grandchild.text[0:2] == "GB":
-                numbers.append(grandchild.text)
+    tree = ElementTree.parse(rdf_filename)
+    for child in tree.iter('{http://purl.org/dc/terms/}identifier'):
+        if child.text[0:2] == "GB":
+            numbers.append(child.text)
     util.Remove(rdf_filename)
     return numbers
 
@@ -57,7 +56,7 @@ def CoalesceNumbers(individual_numbers):
         subsequence.append(number)
     compressed_list.extend(subsequence)
     return compressed_list
-    
+
 
 # @return Either a list of BNB numbers or None
 # @note A return code of None indicates w/ a high probablity that a document for "list_no" does not exist on the BNB web server
@@ -103,9 +102,9 @@ def ConnectToYAZServer():
     yaz_client.expect(".*Connection accepted.*")
     yaz_client.sendline("base BNB03U")
     return yaz_client
-    
-    
-# @return The number of downloaded records.    
+
+
+# @return The number of downloaded records.
 def DownloadRecordsRange(yaz_client, ranges):
     download_count = 0
     for range in ranges:
@@ -120,8 +119,8 @@ def DownloadRecordsRange(yaz_client, ranges):
         yaz_client.sendline("show all")
         yaz_client.expect("\r\n")
     return download_count
-    
-    
+
+
 def Main():
     OUTPUT_FILENAME = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + ".mrc"
     try:
@@ -148,7 +147,7 @@ def Main():
     StoreStartListNumber(list_no)
     util.Info("Downloaded a total of " + str(total_count) + " new record(s).")
 
-    
+
 try:
     Main()
 except Exception as e:
