@@ -13,26 +13,31 @@ import time
 import traceback
 import urllib
 import util
+import xml.etree.ElementTree as ElementTree
+import zipfile
 
 
 def GetNewBNBNumbers(list_no):
-    pdf_filename = str(list_no) + ".pdf"
-    headers = urllib.urlretrieve("https://www.bl.uk/bibliographic/bnbnewpdfs/bnblist%d.pdf"
-                                 % list_no, pdf_filename)[1]
-    if headers["Content-type"] != "application/pdf":
-        util.Remove(pdf_filename)
+    zipped_rdf_filename = "bnbrdf_N" + str(list_no) + ".zip"
+    headers = urllib.urlretrieve("https://www.bl.uk/bibliographic/bnbrdf/bnbrdf_N%d.zip"
+                                 % list_no, zipped_rdf_filename)[1]
+    if headers["Content-type"] != "application/rdf":
+        util.Remove(zipped_rdf_filename)
         return headers["Content-type"]
-    pipeline = pipes.Template()
-    pipeline.prepend("pdftotext " + pdf_filename + " -", ".-")
-    pipeline.append("grep GBB", "--")
-    pipeline.append("cut -d\\  -f3", "--")
-    pipeline.append("sort > $OUT", "-f")
-    numbers_filename = str(list_no) + ".numbers"
-    numbers = pipeline.open(numbers_filename, "r")
-    list = numbers.read().splitlines()
-    numbers.close()
-    util.Remove(pdf_filename)
-    return list
+
+    with zipfile.ZipFile(zipped_rdf_filename, "r") as zip_file:
+        zip_file.extractall()
+    util.Remove(zipped_rdf_filename)
+    rdf_filename = "bnbrdf_N" + str(list_no) + ".rdf"
+
+    numbers = []
+    root = ElementTree.parse(rdf_filename).getroot()
+    for child in root:
+        for grandchild in child:
+            if grandchild.tag == "{http://purl.org/dc/terms/}identifier" and grandchild.text[0:2] == "GB":
+                numbers.append(grandchild.text)
+    util.Remove(rdf_filename)
+    return numbers
 
 
 #  Attempts to group sequential numbers from 0 to 9 with a ? wildcard.
