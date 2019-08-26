@@ -123,6 +123,7 @@ std::set<std::string> GetCrossLinkPPNs(const MARC::Record &record,
 
         queue.pop();
     }
+    cross_link_ppns.erase(record.getControlNumber());
     return cross_link_ppns;
 }
 
@@ -155,26 +156,28 @@ void CollectRecordOffsetsAndCrosslinks(const bool debug,
         if (not record.isSerial())
             continue;
 
-        const auto cross_link_ppns(GetCrossLinkPPNs(record, *ppn_to_canonical_ppn_map, *canonical_ppn_to_ppn_map));
-        if (cross_link_ppns.empty())
+        auto equivalent_ppns(GetCrossLinkPPNs(record, *ppn_to_canonical_ppn_map, *canonical_ppn_to_ppn_map));
+        if (equivalent_ppns.empty())
             continue;
+        equivalent_ppns.emplace(record.getControlNumber());
 
         // The max PPN, will be the winner for merging, IOW, it will be the PPN of the merged record.
-        const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(),
-                                                    [](std::string a, std::string b) -> bool { return a < b; }));
+        const std::string new_canonical_ppn(*std::max_element(equivalent_ppns.begin(), equivalent_ppns.end(),
+                                                              [](std::string a, std::string b) -> bool { return a < b; }));
 
-        // remove old references
-        for (const auto &ppn : cross_link_ppns) {
+        // Remove old references:
+        for (const auto &ppn : equivalent_ppns) {
             ppn_to_canonical_ppn_map->erase(ppn);
             canonical_ppn_to_ppn_map->erase(ppn);
         }
 
-        // add new/updated references
-        for (const auto &ppn : cross_link_ppns) {
-            if (ppn != max_ppn) {
-                ppn_to_canonical_ppn_map->emplace(ppn, max_ppn);
-                canonical_ppn_to_ppn_map->emplace(max_ppn, ppn);
-            }
+        // Add new/updated references:
+        for (const auto &ppn : equivalent_ppns) {
+            if (ppn == new_canonical_ppn) // Avoid self reference:
+                continue;
+
+            ppn_to_canonical_ppn_map->emplace(ppn, new_canonical_ppn);
+            canonical_ppn_to_ppn_map->emplace(new_canonical_ppn, ppn);
         }
     }
 
