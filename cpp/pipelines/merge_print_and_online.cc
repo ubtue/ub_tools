@@ -425,6 +425,23 @@ void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &
 }
 
 
+bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &field2) {
+    const MARC::Subfields subfields1(field1.getSubfields());
+    auto subfield1(subfields1.begin());
+
+    const MARC::Subfields subfields2(field2.getSubfields());
+    auto subfield2(subfields2.begin());
+
+    while (subfield1 != subfields1.end() and subfield2 != subfields2.end()) {
+        if (subfield1->code_ != subfield2->code_ or CanoniseText(subfield1->value_) != CanoniseText(subfield2->value_))
+            return false;
+        ++subfield1, ++subfield2;
+    }
+
+    return subfield1 == subfields1.end() and subfield2 == subfields2.end();
+}
+
+
 MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
     record1.reTag("260", "264");
     record2.reTag("260", "264");
@@ -442,10 +459,10 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
     while (record1_field != record1_end_or_lok_start and record2_field != record2_end_or_lok_start) {
         // Avoid duplicate fields:
         if (not merged_record.empty()) {
-            if (merged_record.back() == *record1_field) {
+            if (FuzzyEqual(merged_record.back(), *record1_field)) {
                 ++record1_field;
                 continue;
-            } else if (merged_record.back() == *record2_field) {
+            } else if (FuzzyEqual(merged_record.back(), *record2_field)) {
                 ++record2_field;
                 continue;
             }
