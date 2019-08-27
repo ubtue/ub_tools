@@ -2,10 +2,9 @@
 set -e
 
 
-ES_HOST="localhost"
-ES_PORT="9200"
-ES_INDEX="full_text_cache"
-
+ES_CONFIG_FILE="/usr/local/var/lib/tuelib/Elasticsearch.conf"
+ES_HOST_AND_PORT=$(inifile_lookup $ES_CONFIG_FILE Elasticsearch host)
+ES_INDEX=$(inifile_lookup $ES_CONFIG_FILE Elasticsearch index)
 
 function get_scroll_id() {
    response=$@
@@ -47,7 +46,7 @@ id_output_file=$1
 > $id_output_file
 
 # Handle potential chunking
-response=$(curl -s -X GET -H "Content-Type: application/json" 'http://'$ES_HOST:$ES_PORT/$ES_INDEX'/_search/?scroll=1m' --data '{ "_source": ["id"], "size" : 1000, "query":{ "match_all": {} } }')
+response=$(curl -s -X GET -H "Content-Type: application/json" $ES_HOST_AND_PORT/$ES_INDEX'/_search/?scroll=1m' --data '{ "_source": ["id"], "size" : 1000, "query":{ "match_all": {} } }')
 get_download_stats "$response"
 scroll_id=$(get_scroll_id "$response")
 hit_count=$(get_hit_count "$response")
@@ -58,7 +57,7 @@ id_arrays=$(obtain_ids "$response")
 # Continue until there are no further results
 while [ "$hit_count" != "0" ]; do
     echo "Obtaining batch with "$hit_count" items"
-    response=$(curl -s -X GET -H "Content-Type: application/json" 'http://'$ES_HOST:$ES_PORT'/_search/scroll' --data '{ "scroll" : "1m", "scroll_id": "'$scroll_id'" }')
+    response=$(curl -s -X GET -H "Content-Type: application/json" $ES_HOST_AND_PORT'/_search/scroll' --data '{ "scroll" : "1m", "scroll_id": "'$scroll_id'" }')
     get_download_stats "$response"
     scroll_id=$(get_scroll_id "$response")
     hit_count=$(get_hit_count "$response")
