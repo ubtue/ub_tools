@@ -95,6 +95,11 @@ def CreateSerialSortDate(title_data_file, date_string, log_file_name):
     ExecOrCleanShutdownAndDie("/usr/local/bin/query_serial_sort_data.sh", [title_data_file, serial_ppn_sort_list], log_file_name)
 
 
+# Extract existing Fulltext PPNs from the Elasticsearch instance
+def CreateFulltextIdsFile(ids_output_file, log_file_name):
+    util.ExecOrDie("/usr/local/bin/extract_existing_fulltext_ids.sh", [ ids_output_file ], log_file_name)
+
+
 # Create the database for matching fulltext to vufind entries
 def CreateMatchDB(title_marc_data, log_file_name):
     util.ExecOrDie("/usr/local/bin/create_match_db", [ title_marc_data ], log_file_name, setsid=False);
@@ -156,7 +161,10 @@ def Main():
         create_match_db_log_file_name = util.MakeLogFileName("create_match_db", util.GetLogDirectory())
         create_match_db_process = multiprocessing.Process(target=CreateMatchDB, name="Create Match DB",
                                       args=[ title_data_file, create_match_db_log_file_name ])
-        ExecuteInParallel(create_ref_term_process, create_serial_sort_term_process, create_match_db_process)
+        extract_fulltext_ids_log_file_name = util.MakeLogFileName("extract_fulltext_ids", util.GetLogDirectory())
+        extract_fulltext_ids_process = multiprocessing.Process(target=CreateFulltextIdsFile, name="Create Fulltext IDs File",
+                                           args=[ "/usr/local/ub_tools/bsz_daten/fulltext_ids.txt", extract_fulltext_ids_log_file_name ])
+        ExecuteInParallel(create_ref_term_process, create_serial_sort_term_process, create_match_db_process, extract_fulltext_ids_process)
         end  = datetime.datetime.now()
         duration_in_minutes = str((end - start).seconds / 60.0)
         util.SendEmail("Create Refterm File", "Refterm file successfully created in " + duration_in_minutes + " minutes.", priority=5)
