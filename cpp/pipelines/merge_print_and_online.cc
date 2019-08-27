@@ -526,17 +526,11 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
             }
             ++record1_field, ++record2_field;
         } else if (record1_field->getTag() == "936" and record2_field->getTag() == "936") {
-            const auto &contents1(record1_field->getContents());
-            const auto &contents2(record2_field->getContents());
-            if (CanoniseText(contents1) == CanoniseText(contents2))
-                merged_record.appendField(*record1_field);
-            else if (contents1.find('?') != std::string::npos)
-                merged_record.appendField(*record2_field);
-            else if (contents2.find('?') != std::string::npos)
+            if (FuzzyEqual(*record1_field, *record2_field))
                 merged_record.appendField(*record1_field);
             else {
-                LOG_WARNING("don't know how to merge 936 fields! (field1=\"" + contents1 + "\",field2=\"" + contents2
-                            + "\"), arbitrarily keeping field1");
+                LOG_WARNING("don't know how to merge 936 fields! (field1=\"" + record1_field->getContents() + "\",field2=\""
+                            + record2_field->getContents() + "\"), arbitrarily keeping field1");
                 merged_record.appendField(*record1_field);
             }
             ++record1_field;
