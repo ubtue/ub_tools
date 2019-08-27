@@ -6,7 +6,7 @@
 /*
  *  Copyright 2005-2008 Project iVia.
  *  Copyright 2005-2008 The Regents of The University of California.
- *  Copyright 2015-2018 Library of the University of Tübingen
+ *  Copyright 2015-2019 Library of the University of Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -29,7 +29,6 @@
 
 #include <stdexcept>
 #include <string>
-#include <cstdio>
 #include "Compiler.h"
 
 
@@ -47,7 +46,7 @@ private:
     enum OpenMode { READING, WRITING, READING_AND_WRITING };
 private:
     std::string filename_;
-    char buffer_[BUFSIZ];
+    char buffer_[81920];
     char *buffer_ptr_;
     size_t read_count_;
     FILE *file_;
