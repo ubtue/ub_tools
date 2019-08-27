@@ -541,15 +541,15 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
             }
             ++record1_field;
             ++record2_field;
+        } else if (FuzzyEqual(*record1_field, *record2_field)) { // Both fields are similar => just take any one of them.
+            merged_record.appendField(*record1_field);
+            ++record1_field, ++record2_field;
         } else if (*record1_field < *record2_field) {
             merged_record.appendField(*record1_field);
             ++record1_field;
         } else if (*record2_field < *record1_field) {
             merged_record.appendField(*record2_field);
             ++record2_field;
-        } else { // Both fields are identical => just take any one of them.
-            merged_record.appendField(*record1_field);
-            ++record1_field, ++record2_field;
         }
     }
 
