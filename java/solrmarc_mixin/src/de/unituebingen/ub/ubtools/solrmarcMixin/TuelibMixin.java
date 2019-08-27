@@ -2901,8 +2901,29 @@ public class TuelibMixin extends SolrIndexerMixin {
         return Boolean.parseBoolean(isDisabled);
     }
 
+    private static Set<String> fulltextIDList = new HashSet<String>();
+
+
+    static public boolean IsInFulltextPPNList(final String ppn) {
+        final String fulltextIDListFile= "/usr/local/ub_tools/bsz_daten/fulltext_ids.txt";
+        if (fulltextIDList.isEmpty() && (new File(fulltextIDListFile).length() != 0)) {
+            try {
+                BufferedReader in = new BufferedReader(new FileReader(fulltextIDListFile));
+                String ppnLine;
+                while ((ppnLine = in.readLine()) != null)
+                    fulltextIDList.add(ppnLine);
+             } catch (IOException e) {
+                logger.severe("Could not read file: " + e.toString());
+             }
+        }
+        return fulltextIDList.contains(ppn);
+    }
+
+
     public String getFullTextElasticsearch(final Record record) throws IOException {
         if (isFullTextDisabled())
+            return "";
+        if (!IsInFulltextPPNList(record.getControlNumber()))
             return "";
         final String esHost = getElasticsearchHost();
         final String esPort = getElasticsearchPort();
@@ -2945,7 +2966,6 @@ public class TuelibMixin extends SolrIndexerMixin {
     public String getVolume(final Record record) {
         return get936IndicatorUWValue(record, 'd');
     }
-
 
     public String getPages(final Record record) {
         return get936IndicatorUWValue(record, 'h');
