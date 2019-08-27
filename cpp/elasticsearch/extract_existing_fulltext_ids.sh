@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -o errexit -o nounset
 
 
 ES_CONFIG_FILE="/usr/local/var/lib/tuelib/Elasticsearch.conf"
@@ -67,6 +67,6 @@ while [ "$hit_count" != "0" ]; do
     fi
     id_arrays+=$(obtain_ids "$response")
 done
-echo "Flatten and unique the scroll results and write them to file $id_output_file"
-echo $id_arrays | jq -s add | sed -e 's/[][", ]//g' | sed  '/^$/d' $sort | uniq > "$id_output_file"
+echo "Flatten and deduplicate the scroll results and write them to file $id_output_file"
+echo $id_arrays | jq -s add | sed -e 's/[][", ]//g' | sed  '/^$/d' | sort | uniq > "$id_output_file"
 echo "Finished"
