@@ -91,6 +91,43 @@ void SerializeMultimap(const std::string &output_filename, const std::unordered_
 }
 
 
+// In this function we get all cross referenced PPN's and check the maps for their references as well.
+// We then determine the new superior PPN for all cross refences and overwrite all existing mapping entries.
+std::set<std::string> GetCrossLinkPPNs(const MARC::Record &record,
+                                       const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
+                                       const std::unordered_multimap<std::string, std::string> &canonical_ppn_to_ppn_map)
+{
+    auto cross_link_ppns(MARC::ExtractCrossReferencePPNs(record));
+    if (cross_link_ppns.empty())
+        return { };
+    cross_link_ppns.emplace(record.getControlNumber());
+
+    // Find the transitive hull of referenced PPN's that we have already encountered in the input stream:
+    std::queue<std::string> queue;
+    for (const auto &cross_link_ppn : cross_link_ppns)
+        queue.push(cross_link_ppn);
+    while (not queue.empty()) {
+        const auto it(ppn_to_canonical_ppn_map.find(queue.front()));
+        if (it != ppn_to_canonical_ppn_map.end() and cross_link_ppns.find(it->second) == cross_link_ppns.cend()) {
+            queue.push(it->second);
+            cross_link_ppns.emplace(it->second);
+        }
+
+        auto canonical_ppn_and_ppn_range(canonical_ppn_to_ppn_map.equal_range(queue.front()));
+        for (auto it2(canonical_ppn_and_ppn_range.first); it2 != canonical_ppn_and_ppn_range.second; ++it2) {
+            if (cross_link_ppns.find(it2->second) == cross_link_ppns.cend()) {
+                queue.push(it2->second);
+                cross_link_ppns.emplace(it2->second);
+            }
+        }
+
+        queue.pop();
+    }
+    cross_link_ppns.erase(record.getControlNumber());
+    return cross_link_ppns;
+}
+
+
 /* 3 maps are populated in this function:
  *
  * ppn_to_offset_map        - this is simply a map from each record's PPN to the byte offset in the input file.
@@ -119,51 +156,28 @@ void CollectRecordOffsetsAndCrosslinks(const bool debug,
         if (not record.isSerial())
             continue;
 
-        // In the following lines, we get all cross referenced PPN's and check the maps for their references as well.
-        // We then determine the new superior PPN for all cross refences and overwrite all existing mapping entries.
-        auto cross_link_ppns(MARC::ExtractCrossReferencePPNs(record));
-        if (not cross_link_ppns.empty())
+        auto equivalent_ppns(GetCrossLinkPPNs(record, *ppn_to_canonical_ppn_map, *canonical_ppn_to_ppn_map));
+        if (equivalent_ppns.empty())
             continue;
-
-        // Find the transitive hull of referenced PPN's that we have already encountered in the input stream:
-        std::queue<std::string> queue;
-        for (const auto &cross_link_ppn : cross_link_ppns)
-            queue.push(cross_link_ppn);
-        while (not queue.empty()) {
-            const auto it(ppn_to_canonical_ppn_map->find(queue.front()));
-            if (it != ppn_to_canonical_ppn_map->end() and cross_link_ppns.find(it->second) == cross_link_ppns.cend()) {
-                queue.push(it->second);
-                cross_link_ppns.emplace(it->second);
-            }
-
-            auto canonical_ppn_and_ppn_range(canonical_ppn_to_ppn_map->equal_range(queue.front()));
-            for (auto it2(canonical_ppn_and_ppn_range.first); it2 != canonical_ppn_and_ppn_range.second; ++it2) {
-                if (cross_link_ppns.find(it2->second) == cross_link_ppns.cend()) {
-                    queue.push(it2->second);
-                    cross_link_ppns.emplace(it2->second);
-                }
-            }
-
-            queue.pop();
-        }
-        cross_link_ppns.emplace(record.getControlNumber());
+        equivalent_ppns.emplace(record.getControlNumber());
 
         // The max PPN, will be the winner for merging, IOW, it will be the PPN of the merged record.
-        const std::string max_ppn(*std::max_element(cross_link_ppns.begin(), cross_link_ppns.end(),
-                                                    [](std::string a, std::string b) -> bool { return a < b; }));
+        const std::string new_canonical_ppn(*std::max_element(equivalent_ppns.begin(), equivalent_ppns.end(),
+                                                              [](std::string a, std::string b) -> bool { return a < b; }));
 
-        // remove old references
-        for (const auto &ppn : cross_link_ppns) {
+        // Remove old references:
+        for (const auto &ppn : equivalent_ppns) {
             ppn_to_canonical_ppn_map->erase(ppn);
             canonical_ppn_to_ppn_map->erase(ppn);
         }
 
-        // add new/updated references
-        for (const auto &ppn : cross_link_ppns) {
-            if (ppn != max_ppn) {
-                ppn_to_canonical_ppn_map->emplace(ppn, max_ppn);
-                canonical_ppn_to_ppn_map->emplace(max_ppn, ppn);
-            }
+        // Add new/updated references:
+        for (const auto &ppn : equivalent_ppns) {
+            if (ppn == new_canonical_ppn) // Avoid self reference:
+                continue;
+
+            ppn_to_canonical_ppn_map->emplace(ppn, new_canonical_ppn);
+            canonical_ppn_to_ppn_map->emplace(new_canonical_ppn, ppn);
         }
     }
 
@@ -411,6 +425,23 @@ void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &
 }
 
 
+bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &field2) {
+    const MARC::Subfields subfields1(field1.getSubfields());
+    auto subfield1(subfields1.begin());
+
+    const MARC::Subfields subfields2(field2.getSubfields());
+    auto subfield2(subfields2.begin());
+
+    while (subfield1 != subfields1.end() and subfield2 != subfields2.end()) {
+        if (subfield1->code_ != subfield2->code_ or CanoniseText(subfield1->value_) != CanoniseText(subfield2->value_))
+            return false;
+        ++subfield1, ++subfield2;
+    }
+
+    return subfield1 == subfields1.end() and subfield2 == subfields2.end();
+}
+
+
 MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
     record1.reTag("260", "264");
     record2.reTag("260", "264");
@@ -428,10 +459,10 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
     while (record1_field != record1_end_or_lok_start and record2_field != record2_end_or_lok_start) {
         // Avoid duplicate fields:
         if (not merged_record.empty()) {
-            if (merged_record.back() == *record1_field) {
+            if (FuzzyEqual(merged_record.back(), *record1_field)) {
                 ++record1_field;
                 continue;
-            } else if (merged_record.back() == *record2_field) {
+            } else if (FuzzyEqual(merged_record.back(), *record2_field)) {
                 ++record2_field;
                 continue;
             }
@@ -495,30 +526,24 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
             }
             ++record1_field, ++record2_field;
         } else if (record1_field->getTag() == "936" and record2_field->getTag() == "936") {
-            const auto &contents1(record1_field->getContents());
-            const auto &contents2(record2_field->getContents());
-            if (CanoniseText(contents1) == CanoniseText(contents2))
-                merged_record.appendField(*record1_field);
-            else if (contents1.find('?') != std::string::npos)
-                merged_record.appendField(*record2_field);
-            else if (contents2.find('?') != std::string::npos)
+            if (FuzzyEqual(*record1_field, *record2_field))
                 merged_record.appendField(*record1_field);
             else {
-                LOG_WARNING("don't know how to merge 936 fields! (field1=\"" + contents1 + "\",field2=\"" + contents2
-                            + "\"), arbitrarily keeping field1");
+                LOG_WARNING("don't know how to merge 936 fields! (field1=\"" + record1_field->getContents() + "\",field2=\""
+                            + record2_field->getContents() + "\"), arbitrarily keeping field1");
                 merged_record.appendField(*record1_field);
             }
             ++record1_field;
             ++record2_field;
+        } else if (FuzzyEqual(*record1_field, *record2_field)) { // Both fields are similar => just take any one of them.
+            merged_record.appendField(*record1_field);
+            ++record1_field, ++record2_field;
         } else if (*record1_field < *record2_field) {
             merged_record.appendField(*record1_field);
             ++record1_field;
         } else if (*record2_field < *record1_field) {
             merged_record.appendField(*record2_field);
             ++record2_field;
-        } else { // Both fields are identical => just take any one of them.
-            merged_record.appendField(*record1_field);
-            ++record1_field, ++record2_field;
         }
     }
 
