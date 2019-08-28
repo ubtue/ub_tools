@@ -303,6 +303,13 @@ unsigned PatchUplinks(MARC::Record * const record, const std::unordered_map<std:
 enum ElectronicOrPrint { ELECTRONIC, PRINT };
 
 
+const std::map<std::string, std::set<ElectronicOrPrint>> suffix_to_set_map {
+    { "(electronic)",       { ELECTRONIC        } },
+    { "(print)",            { PRINT             } },
+    { "(electronic/print)", { ELECTRONIC, PRINT } },
+};
+
+
 std::string StripElectronicAndPrintSuffixes(const std::string &subfield, std::set<ElectronicOrPrint> * const electronic_or_print,
                                             std::string * const non_canonized_contents_without_suffix)
 {
@@ -313,20 +320,12 @@ std::string StripElectronicAndPrintSuffixes(const std::string &subfield, std::se
         *non_canonized_contents_without_suffix = StringUtil::TrimWhite(subfield.substr(0, open_paren_pos));
 
     electronic_or_print->clear();
-    if (StringUtil::EndsWith(subfield, "(electronic)")) {
-        electronic_or_print->emplace(ELECTRONIC);
-        return StringUtil::TrimWhite(subfield.substr(0, subfield.length() - __builtin_strlen("(electronic)")));
-    }
 
-    if (StringUtil::EndsWith(subfield, "(print)")) {
-        electronic_or_print->emplace(PRINT);
-        return StringUtil::TrimWhite(subfield.substr(0, subfield.length() - __builtin_strlen("(print)")));
-    }
-
-    if (StringUtil::EndsWith(subfield, "(electronic/print)")) {
-        electronic_or_print->emplace(ELECTRONIC);
-        electronic_or_print->emplace(PRINT);
-        return StringUtil::TrimWhite(subfield.substr(0, subfield.length() - __builtin_strlen("(electronic/print)")));
+    for (const auto &suffix_and_set : suffix_to_set_map) {
+        if (StringUtil::EndsWith(subfield, suffix_and_set.first)) {
+            *electronic_or_print = suffix_and_set.second;
+            return StringUtil::TrimWhite(subfield.substr(0, subfield.length() - suffix_and_set.first.length()));
+        }
     }
 
     return subfield;
@@ -336,12 +335,11 @@ std::string StripElectronicAndPrintSuffixes(const std::string &subfield, std::se
 std::string SubfieldContentsAndElectronicOrPrintToString(const std::string &contents_without_suffix,
                                                          const std::set<ElectronicOrPrint> &electronic_or_print)
 {
-    if (electronic_or_print ==  std::set<ElectronicOrPrint>{ ELECTRONIC })
-        return contents_without_suffix + " (electronic)";
-    if (electronic_or_print ==  std::set<ElectronicOrPrint>{ PRINT })
-        return contents_without_suffix + " (print)";
-    if (electronic_or_print ==  std::set<ElectronicOrPrint>{ ELECTRONIC, PRINT })
-        return contents_without_suffix + " (print/electronic)";
+    for (const auto &suffix_and_set : suffix_to_set_map) {
+        if (electronic_or_print == suffix_and_set.second)
+            return contents_without_suffix + " " + suffix_and_set.first;
+    }
+
     return contents_without_suffix;
 }
 
