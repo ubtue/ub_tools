@@ -20,7 +20,7 @@ $(PROGS): % : %.o ../lib/libubtue.a Makefile
 
 install: $(PROGS)
 	@echo "Installing programs..."
-	cp $(PROGS) /usr/local/bin/
+	cp $(INSTALL_PROGS) /usr/local/bin/
 
 clean:
 	rm -f *.o *~ $(PROGS) .deps
