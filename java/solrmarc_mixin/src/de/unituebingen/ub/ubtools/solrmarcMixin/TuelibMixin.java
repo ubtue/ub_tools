@@ -2864,7 +2864,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    public Properties getPropertiesFromFile(final String configProps) {
+    protected Properties getPropertiesFromFile(final String configProps) {
         String homeDir = Boot.getDefaultHomeDir();
         File configFile = new File(configProps);
         if (!configFile.isAbsolute())
@@ -2875,31 +2875,44 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
+    private static Properties esFulltextProperties = null;
+
+
+    public Properties getESFulltextProperties() {
+        if (esFulltextProperties != null)
+            return esFulltextProperties;
+        esFulltextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
+        return esFulltextProperties;
+    }
+
+
     public String getMyHostnameShort() throws java.net.UnknownHostException {
        final String fullHostName = InetAddress.getLocalHost().getHostName();
        return fullHostName.replaceAll("\\..*", "");
     }
 
+
     public String getElasticsearchHost() throws java.net.UnknownHostException {
-        final Properties esFullTextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
+        final Properties esFullTextProperties = getESFulltextProperties();
         final String myhostname = getMyHostnameShort();
         return PropertyUtils.getProperty(esFullTextProperties, myhostname + ".host", "localhost");
     }
 
 
     public String getElasticsearchPort() throws java.net.UnknownHostException {
-        final Properties esFullTextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
+        final Properties esFullTextProperties = getESFulltextProperties();
         final String myhostname = getMyHostnameShort();
         return PropertyUtils.getProperty(esFullTextProperties, myhostname + ".port", "9200");
     }
 
 
     public boolean isFullTextDisabled() throws java.net.UnknownHostException {
-        final Properties esFullTextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
+        final Properties esFullTextProperties = getESFulltextProperties();
         final String myhostname = getMyHostnameShort();
         final String isDisabled = PropertyUtils.getProperty(esFullTextProperties, myhostname + ".disabled", "false");
         return Boolean.parseBoolean(isDisabled);
     }
+
 
     private static Set<String> fulltextIDList = new HashSet<String>();
 
