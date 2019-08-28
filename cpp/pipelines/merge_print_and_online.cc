@@ -29,6 +29,7 @@
 #include "DbResultSet.h"
 #include "FileUtil.h"
 #include "MARC.h"
+#include "StlHelpers.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "util.h"
@@ -299,9 +300,85 @@ unsigned PatchUplinks(MARC::Record * const record, const std::unordered_map<std:
 }
 
 
+enum ElectronicOrPrint { ELECTRONIC, PRINT };
+
+
+const std::map<std::string, std::set<ElectronicOrPrint>> suffix_to_set_map {
+    { "(electronic)",       { ELECTRONIC        } },
+    { "(print)",            { PRINT             } },
+    { "(electronic/print)", { ELECTRONIC, PRINT } },
+};
+
+
+std::string StripElectronicAndPrintSuffixes(const std::string &subfield, std::set<ElectronicOrPrint> * const electronic_or_print,
+                                            std::string * const non_canonized_contents_without_suffix)
+{
+    const auto open_paren_pos(subfield.find('('));
+    if (open_paren_pos == std::string::npos)
+        *non_canonized_contents_without_suffix = subfield;
+    else
+        *non_canonized_contents_without_suffix = StringUtil::TrimWhite(subfield.substr(0, open_paren_pos));
+
+    electronic_or_print->clear();
+
+    for (const auto &suffix_and_set : suffix_to_set_map) {
+        if (StringUtil::EndsWith(subfield, suffix_and_set.first)) {
+            *electronic_or_print = suffix_and_set.second;
+            return StringUtil::TrimWhite(subfield.substr(0, subfield.length() - suffix_and_set.first.length()));
+        }
+    }
+
+    return subfield;
+}
+
+
+std::string SubfieldContentsAndElectronicOrPrintToString(const std::string &contents_without_suffix,
+                                                         const std::set<ElectronicOrPrint> &electronic_or_print)
+{
+    for (const auto &suffix_and_set : suffix_to_set_map) {
+        if (electronic_or_print == suffix_and_set.second)
+            return contents_without_suffix + " " + suffix_and_set.first;
+    }
+
+    return contents_without_suffix;
+}
+
+
+std::string MergeSubfieldContents(const std::string &subfield1, const std::string &subfield2, const MARC::Record &record1,
+                                  const MARC::Record &record2)
+{
+    std::set<ElectronicOrPrint> electronic_or_print1;
+    std::string non_canonised_contents_without_suffix1;
+    const auto canonised_contents_without_suffix1(StripElectronicAndPrintSuffixes(subfield1, &electronic_or_print1,
+                                                                                  &non_canonised_contents_without_suffix1));
+
+    std::set<ElectronicOrPrint> electronic_or_print2;
+    std::string non_canonised_contents_without_suffix2;
+    const auto canonised_contents_without_suffix2(StripElectronicAndPrintSuffixes(subfield2, &electronic_or_print2,
+                                                                                  &non_canonised_contents_without_suffix2));
+
+    if (record1.isElectronicResource())
+        electronic_or_print1.emplace(ELECTRONIC);
+    if (record1.isPrintResource())
+        electronic_or_print1.emplace(PRINT);
+
+    if (record2.isElectronicResource())
+        electronic_or_print2.emplace(ELECTRONIC);
+    if (record2.isPrintResource())
+        electronic_or_print2.emplace(PRINT);
+
+    if (canonised_contents_without_suffix1 != canonised_contents_without_suffix2)
+        return SubfieldContentsAndElectronicOrPrintToString(non_canonised_contents_without_suffix1, electronic_or_print1) + "; "
+               + SubfieldContentsAndElectronicOrPrintToString(non_canonised_contents_without_suffix2, electronic_or_print2);
+
+    const std::set<ElectronicOrPrint> combined_properties(StlHelpers::SetUnion(electronic_or_print1, electronic_or_print2));
+    return SubfieldContentsAndElectronicOrPrintToString(canonised_contents_without_suffix1, combined_properties);
+}
+
+
 // The strategy we employ here is that we just pick "contents1" unless we have an identical subfield structure.
-MARC::Subfields MergeFieldContents(const MARC::Subfields &subfields1, const bool record1_is_electronic,
-                                   const MARC::Subfields &subfields2, const bool record2_is_electronic)
+MARC::Subfields MergeFieldContents(const MARC::Subfields &subfields1, const MARC::Record &record1,
+                                   const MARC::Subfields &subfields2, const MARC::Record &record2)
 {
     std::string subfield_codes1;
     for (const auto &subfield : subfields1)
@@ -319,14 +396,7 @@ MARC::Subfields MergeFieldContents(const MARC::Subfields &subfields1, const bool
         if (subfield1->value_ == subfield2->value_)
             merged_subfields.addSubfield(subfield1->code_, subfield1->value_);
         else {
-            std::string merged_value(subfield1->value_);
-            merged_value += " (";
-            merged_value += record1_is_electronic ? "electronic" : "print";
-            merged_value += "); ";
-            merged_value += subfield2->value_;
-            merged_value += " (";
-            merged_value += record2_is_electronic ? "electronic" : "print";
-            merged_value += ')';
+            const std::string merged_value(MergeSubfieldContents(subfield1->value_, subfield2->value_, record1, record2));
             merged_subfields.addSubfield(subfield1->code_, merged_value);
         }
     }
@@ -426,6 +496,15 @@ void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &
 
 
 bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &field2) {
+    if (field1.getTag() != field2.getTag())
+        return false;
+    if (not field1.isControlField()) {
+        const auto &contents1(field1.getContents());
+        const auto &contents2(field2.getContents());
+        if (contents1[0] != contents2[0] or contents1[1] != contents2[1])
+            return false;
+    }
+
     const MARC::Subfields subfields1(field1.getSubfields());
     auto subfield1(subfields1.begin());
 
@@ -474,8 +553,7 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
                                                              record2_field->getContents()));
             else
                 merged_record.appendField(record1_field->getTag(),
-                                          MergeFieldContents(record1_field->getSubfields(), record1.isElectronicResource(),
-                                                             record2_field->getSubfields(), record2.isElectronicResource()),
+                                          MergeFieldContents(record1_field->getSubfields(), record1, record2_field->getSubfields(), record2),
                                           record1_field->getIndicator1(), record1_field->getIndicator2());
             ++record1_field, ++record2_field;
         } else if (record1_field->getTag() == record2_field->getTag() and record1_field->getTag() == "022") {
