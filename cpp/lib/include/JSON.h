@@ -440,13 +440,12 @@ bool IsValidUTF8(const JSONNode &node);
 // first two parameters, and then a list of optional parameters.
 template <class ... ParamTypes, class CallbackType = void(const std::string &, const std::shared_ptr<JSON::JSONNode> &, ParamTypes...)>
 void VisitLeafNodes(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                    CallbackType callback, ParamTypes... params)
+                    const CallbackType callback, ParamTypes... params)
 {
     switch (node->getType()) {
     case JSON::JSONNode::OBJECT_NODE:
         for (const auto &key_and_node : *static_cast<JSON::ObjectNode*>(node.get()))
             VisitLeafNodes(key_and_node.first, key_and_node.second, callback, params...);
-
         break;
     case JSON::JSONNode::ARRAY_NODE: {
         for (const auto &element : *static_cast<JSON::ArrayNode*>(node.get())) {
@@ -457,7 +456,6 @@ void VisitLeafNodes(const std::string &node_name, const std::shared_ptr<JSON::JS
             for (auto &key_and_node : *object_node)
                 VisitLeafNodes(key_and_node.first, key_and_node.second, callback, params...);
         }
-
         break;
     } case JSON::JSONNode::NULL_NODE:
         /* intentionally empty */ break;
