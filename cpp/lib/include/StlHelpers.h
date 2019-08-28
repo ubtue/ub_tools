@@ -962,6 +962,7 @@ template<typename T> std::unordered_set<T> SetUnion(const std::unordered_set<T> 
     }
 
     std::unordered_set<T> set_union(*larger_set);
+    set_union.reserve(larger_set->size() + smaller_set->reserve());
     for (const auto &element : *smaller_set)
         set_union.emplace(element);
     return set_union;
