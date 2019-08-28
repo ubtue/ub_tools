@@ -28,7 +28,7 @@ public:
      * \return A pointer to a stemmer if we were able to construct one, o/w nullptr.
      * \note Caches the returned Stemmer so that it is cheap to repeatedly call this factory with
      *       the same language name or code.
-     * \warning  Never delete Stemmers returned by this factory!!
+     * \warning  Never deletes Stemmers returned by this factory!!
      */
     static const Stemmer *StemmerFactory(const std::string &language_name_or_code);
 };
