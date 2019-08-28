@@ -258,7 +258,7 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
 }
 
 
-void SendNotificationEmail(const bool debug, const std::string &firstname, const std::string &lastname, const std::string &recipient_email,
+void SendNotificationEmail(const bool debug, const std::string &name_of_user, const std::string &recipient_email,
                            const std::string &vufind_host, const std::string &sender_email, const std::string &email_subject,
                            const std::vector<NewIssueInfo> &new_issue_infos, const std::string &user_type)
 {
@@ -266,8 +266,7 @@ void SendNotificationEmail(const bool debug, const std::string &firstname, const
 
     // Process the email template:
     Template::Map names_to_values_map;
-    names_to_values_map.insertScalar("firstname", firstname);
-    names_to_values_map.insertScalar("lastname", lastname);
+    names_to_values_map.insertScalar("name_of_user", name_of_user);
     std::vector<std::string> urls, series_titles, issue_titles;
     std::vector<std::shared_ptr<Template::Value>> authors;
     for (const auto &new_issue_info : new_issue_infos) {
@@ -342,8 +341,12 @@ void ProcessSingleUser(
     LOG_INFO("Found " + std::to_string(control_numbers_or_bundle_names_and_last_modification_times.size()) + " subscriptions for \""
              + username + "\".");
 
+    std::string name_of_user("Subscriber");
     const std::string firstname(row["firstname"]);
     const std::string lastname(row["lastname"]);
+    if (not firstname.empty() and not lastname.empty())
+        name_of_user = firstname + " " + lastname;
+
     const std::string email(row["email"]);
     const std::string user_type(row["user_type"]);
 
@@ -374,7 +377,7 @@ void ProcessSingleUser(
     LOG_INFO("Found " + std::to_string(new_issue_infos.size()) + " new issues for " + "\"" + username + "\".");
 
     if (not new_issue_infos.empty())
-        SendNotificationEmail(debug, firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos, user_type);
+        SendNotificationEmail(debug, name_of_user, email, hostname, sender_email, email_subject, new_issue_infos, user_type);
 
     // Update the database with the new last issue dates
     // skip in DEBUG mode
