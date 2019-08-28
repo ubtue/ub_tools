@@ -2918,7 +2918,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     static public boolean IsInFulltextPPNList(final String ppn) {
-        final String fulltextIDListFile= "/usr/local/ub_tools/bsz_daten/fulltext_ids.txt";
+        final String fulltextIDListFile = "/usr/local/ub_tools/bsz_daten/fulltext_ids.txt";
         if (fulltextIDList.isEmpty() && (new File(fulltextIDListFile).length() != 0)) {
             try {
                 BufferedReader in = new BufferedReader(new FileReader(fulltextIDListFile));
