@@ -1629,7 +1629,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                             final  String langAbbrev, final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate) {
         final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "[a-z]" : extractNormalizedSubfieldPatternHelper(subfldTags));
         for (final VariableField vf : marcFieldList) {
-            final StringBuffer buffer = new StringBuffer("");
+            final StringBuilder buffer = new StringBuilder("");
             final List<String> complexElements = new ArrayList<String>();
             final DataField marcField = (DataField) vf;
             // Skip fields that do not match our criteria
