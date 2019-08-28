@@ -97,7 +97,13 @@ def CreateSerialSortDate(title_data_file, date_string, log_file_name):
 
 # Extract existing Fulltext PPNs from the Elasticsearch instance
 def CreateFulltextIdsFile(ids_output_file, log_file_name):
-    util.ExecOrDie("/usr/local/bin/extract_existing_fulltext_ids.sh", [ ids_output_file ], log_file_name)
+    elasticsearch_access_conf = "/usr/local/var/lib/tuelib/Elasticsearch.conf"
+    if os.access(elasticsearch_access_conf, os.F_OK):
+        util.ExecOrDie("/usr/local/bin/extract_existing_fulltext_ids.sh", [ ids_output_file ], log_file_name)
+    # Skip if configuration is not present
+    else:
+        util.ExecOrDie(util.Which("truncate"), ["-s", "0",  log_file_name])
+        util.ExecOrDie(util.Which("echo"), ["Skip extraction since " + elasticsearch_access_conf + " not present"], log_file_name)
 
 
 # Create the database for matching fulltext to vufind entries
@@ -107,6 +113,7 @@ def CreateMatchDB(title_marc_data, log_file_name):
 
 def CreateLogFile():
     return util.MakeLogFileName(os.path.basename(__file__), util.GetLogDirectory())
+
 
 def CleanUp(title_data_file, log_file_name):
     # Terminate the temporary solr instance
