@@ -8,7 +8,7 @@
 /*
  *  Copyright 2006-2009 Project iVia.
  *  Copyright 2006-2009 The Regents of The University of California.
- *  Copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  Copyright 2017,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -940,6 +940,31 @@ template<typename T> std::unordered_set<T> SetIntersection(const std::unordered_
     std::unordered_set<T> intersection;
     std::set_intersection(set1.cbegin(), set1.cend(), set2.cbegin(), set2.cend(), std::inserter(intersection, intersection.begin()));
     return intersection;
+}
+
+
+template<typename T> std::set<T> SetUnion(const std::set<T> &set1, const std::set<T> &set2) {
+    std::set<T> set_union(set1);
+    for (const auto &element : set2)
+        set_union.emplace(element);
+    return set_union;
+}
+
+
+template<typename T> std::unordered_set<T> SetUnion(const std::unordered_set<T> &set1, const std::unordered_set<T> &set2) {
+    const std::unordered_set<T> *larger_set, *smaller_set;
+    if (set1.size() > set2.size()) {
+        larger_set = &set1;
+        smaller_set = &set2;
+    } else {
+        larger_set = &set2;
+        smaller_set = &set1;
+    }
+
+    std::unordered_set<T> set_union(*larger_set);
+    for (const auto &element : *smaller_set)
+        set_union.emplace(element);
+    return set_union;
 }
 
 
