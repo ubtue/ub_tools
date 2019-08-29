@@ -23,6 +23,7 @@
 
 #include <unordered_map>
 #include <unordered_set>
+#include "FileUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
@@ -30,12 +31,6 @@
 
 
 namespace {
-
-
-void CopyMarc(MARC::Reader * const reader, MARC::Writer * const writer) {
-    while (auto record = reader->read())
-        writer->write(record);
-}
 
 
 struct LiteraryRemainsInfo {
@@ -74,7 +69,10 @@ void LoadAuthorGNDNumbers(
         if (not MARC::GetGNDCode(record, &gnd_number))
             continue;
 
-        const std::string author_name(_100_field->getFirstSubfieldWithCode('a'));
+        std::string author_name(_100_field->getFirstSubfieldWithCode('a'));
+        const auto subfield_c(_100_field->getFirstSubfieldWithCode('c'));
+        if (not subfield_c.empty())
+            author_name += subfield_c + " " + author_name;
 
         std::vector<LiteraryRemainsInfo> literary_remains_infos;
         while (beacon_field != record.end() and beacon_field->getTag() == "BEA") {
@@ -134,9 +132,14 @@ int Main(int argc, char **argv) {
     if (argc != 4)
         ::Usage("marc_input marc_output authority_records");
 
-    auto reader(MARC::Reader::Factory(argv[1]));
-    auto writer(MARC::Writer::Factory(argv[2]));
-    CopyMarc(reader.get(), writer.get());
+    const std::string marc_input(argv[1]);
+    const std::string marc_output(argv[2]);
+
+    if (not FileUtil::Copy(marc_input, marc_output))
+        LOG_ERROR("failed to copy \"" + marc_input + "\" to \"" + marc_output + "\"!");
+
+    auto reader(MARC::Reader::Factory(marc_input));
+    auto writer(MARC::Writer::Factory(marc_output, MARC::FileType::AUTO, MARC::Writer::APPEND));
 
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> gnd_numbers_to_literary_remains_infos_map;
     LoadAuthorGNDNumbers(argv[3], &gnd_numbers_to_literary_remains_infos_map);
