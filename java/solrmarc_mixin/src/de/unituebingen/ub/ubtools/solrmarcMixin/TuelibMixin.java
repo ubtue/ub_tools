@@ -1013,15 +1013,15 @@ public class TuelibMixin extends SolrIndexerMixin {
         HashMap<String, Set<String>> tagMap = new HashMap<String, Set<String>>();
         //cut tags array up into key/value pairs in hash map
         Set<String> currentSet;
-        for (int i = 0; i < tags.length; i++) {
-            String tag = tags[i].substring(0, 3);
+        for (final String tagsItem : tags) {
+            String tag = tagsItem.substring(0, 3);
             if (!tagMap.containsKey(tag)) {
                 currentSet = new LinkedHashSet<String>();
                 tagMap.put(tag, currentSet);
             } else {
                 currentSet = tagMap.get(tag);
             }
-            currentSet.add(tags[i].substring(3));
+            currentSet.add(tagsItem.substring(3));
         }
         return tagMap;
     }
@@ -1719,26 +1719,26 @@ public class TuelibMixin extends SolrIndexerMixin {
         String subfldTags;
         List<VariableField> marcFieldList;
 
-        for (int i = 0; i < fldTags.length; i++) {
+        for (final String fldTagItem : fldTags) {
             // Check to ensure tag length is at least 3 characters
-            if (fldTags[i].length() < 3) {
+            if (fldTagItem.length() < 3) {
                 continue;
             }
 
             // Handle "Lokaldaten" appropriately
-            if (fldTags[i].substring(0, 3).equals("LOK")) {
+            if (fldTagItem.substring(0, 3).equals("LOK")) {
 
-                if (fldTags[i].substring(3, 6).length() < 3) {
-                    logger.severe("Invalid tag for \"Lokaldaten\": " + fldTags[i]);
+                if (fldTagItem.substring(3, 6).length() < 3) {
+                    logger.severe("Invalid tag for \"Lokaldaten\": " + fldTagItem);
                     continue;
                 }
                 // Save LOK-Subfield
                 // Currently we do not support specifying an indicator
-                fldTag = fldTags[i].substring(0, 6);
-                subfldTags = fldTags[i].substring(6);
+                fldTag = fldTagItem.substring(0, 6);
+                subfldTags = fldTagItem.substring(6);
             } else {
-                fldTag = fldTags[i].substring(0, 3);
-                subfldTags = fldTags[i].substring(3);
+                fldTag = fldTagItem.substring(0, 3);
+                subfldTags = fldTagItem.substring(3);
             }
             // Case 1: We have a LOK-Field
             if (fldTag.startsWith("LOK")) {
@@ -1757,6 +1757,198 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
         return;
     }
+
+    private class Topic {
+        public String topic;
+        public SymbolPair symbolPair = new SymbolPair();
+        public String separator;
+
+        public Topic() {}
+
+        public Topic(final String topic) {
+            this.topic = topic;
+        }
+
+        public Topic(final String topic, final SymbolPair symbolPair) {
+            this.topic = topic;
+            this.symbolPair = symbolPair;
+        }
+    }
+
+    private static final Map<String, Collection<Collection<Topic>>> collectedTopicsCache = new TreeMap<>();
+
+    /**
+     * Generic function for topics that abstracts from a set or list collector
+     * It is based on original SolrIndex.getAllSubfieldsCollector but allows to
+     * specify several different separators to concatenate the single subfields
+     * Separators can be defined on a subfield basis as a list in
+     * the format
+     *   separator_spec          :== separator | subfield_separator_list
+     *   subfield_separator_list :== subfield_separator_spec |  subfield_separator_spec ":" subfield_separator_list |
+     *                               subfield_separator_spec ":" separator
+     *   subfield_separator_spec :== subfield_spec separator subfield_spec :== "$" character_subfield
+     *   character_subfield      :== A character subfield (e.g. p,n,t,x...)
+     *   separator               :== separator_without_control_characters+ | separator "\:" separator |
+     *                               separator "\$" separator | separator "\[" separator | separator "\]" separator |
+     *                               bracket_directive
+     *   separator_without_control_characters :== All characters without ":" and "$" | empty_string
+     *   bracket_directive       :== [opening_character no_space closing_character]
+     *   no_space                :== ""
+     *   opening_character       :== A single character to be prepended on the left side
+     *   closing character       :== A single character to be appended on the right side
+     */
+    private void getCachedTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
+                                          Collection<String> collector, String langAbbrev, Predicate<DataField> includeFieldPredicate)
+
+    {
+        final String cacheHash = record.getControlNumber() + "#" + fieldSpec;
+        Collection<Collection<Topic>> subcollector = new ArrayList<>();
+
+        // Part 1: Get raw topics either from cache or from record
+        if (collectedTopicsCache.containsKey(cacheHash)) {
+            subcollector = collectedTopicsCache.get(cacheHash);
+        } else {
+            String[] fldTags = fieldSpec.split(":");
+            String fldTag;
+            String subfldTags;
+            List<VariableField> marcFieldList;
+
+            for (final String fldTagsEntry : fldTags) {
+                // Check to ensure tag length is at least 3 characters
+                if (fldTagsEntry.length() < 3) {
+                    continue;
+                }
+
+                // Handle "Lokaldaten" appropriately
+                if (fldTagsEntry.substring(0, 3).equals("LOK")) {
+
+                    if (fldTagsEntry.substring(3, 6).length() < 3) {
+                        logger.severe("Invalid tag for \"Lokaldaten\": " + fldTagsEntry);
+                        continue;
+                    }
+                    // Save LOK-Subfield
+                    // Currently we do not support specifying an indicator
+                    fldTag = fldTagsEntry.substring(0, 6);
+                    subfldTags = fldTagsEntry.substring(6);
+                } else {
+                    fldTag = fldTagsEntry.substring(0, 3);
+                    subfldTags = fldTagsEntry.substring(3);
+                }
+                // Case 1: We have a LOK-Field
+                if (fldTag.startsWith("LOK")) {
+                    // Get subfield 0 since the "subtag" is saved here
+                    marcFieldList = record.getVariableFields("LOK");
+                    if (!marcFieldList.isEmpty())
+                        extractCachedTopicsHelper(marcFieldList, separators, subcollector, fldTag, subfldTags, includeFieldPredicate);
+                }
+                // Case 2: We have an ordinary MARC field
+                else {
+                    marcFieldList = record.getVariableFields(fldTag);
+                    if (!marcFieldList.isEmpty()) {
+                        extractCachedTopicsHelper(marcFieldList, separators, subcollector, fldTag, subfldTags, includeFieldPredicate);
+                    }
+                }
+            }
+
+            collectedTopicsCache.put(cacheHash, subcollector);
+        }
+
+        // Part 2: Translate & deliver previously collected topics
+        for (final Collection<Topic> topicParts : subcollector) {
+            if (topicParts.size() == 1) {
+                // if topic consists of 1 part, directly try to translate + add
+                collector.add(translateTopic(DataUtil.cleanData(topicParts.iterator().next().topic.replace("/", "\\/")), langAbbrev));
+            } else {
+                // if topic consists of multiple parts:
+                // try to translate the whole string
+                // if that fails, translate each part
+                // (replaces old "complexTranslation" logic)
+                StringBuilder topicStringBuilder = new StringBuilder();
+                for (final Topic topic : topicParts) {
+                    if (topicStringBuilder.length() > 0)
+                        topicStringBuilder.append(" / ");
+                    topicStringBuilder.append(topic.topic.replace("/", "\\/"));
+                }
+                String translation = getTranslationOrNull(topicStringBuilder.toString(), langAbbrev);
+                if (translation != null)
+                    collector.add(translation);
+                else {
+                    StringBuilder translationStringBuilder = new StringBuilder();
+                    for (final Topic topic : topicParts) {
+                        if (topic.separator != null)
+                            translationStringBuilder.append(topic.separator);
+                        if (translationStringBuilder.length() > 0)
+                            translationStringBuilder.append(" / ");
+                        if (topic.symbolPair.opening != '\u0000')
+                            translationStringBuilder.append(topic.symbolPair.opening);
+                        translation += translateTopic(DataUtil.cleanData(topic.topic.replace("/", "\\/")), langAbbrev);
+                        if (topic.symbolPair.closing != '\u0000')
+                            translationStringBuilder.append(topic.symbolPair.closing);
+                    }
+                    collector.add(translationStringBuilder.toString());
+                }
+            }
+        }
+    }
+
+    /**
+     * Abstract out topic extract from LOK and ordinary field handling
+     */
+    private void extractCachedTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<Collection<Topic>> collector,
+                                           final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate) {
+        final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "[a-z]" : extractNormalizedSubfieldPatternHelper(subfldTags));
+        for (final VariableField vf : marcFieldList) {
+            final ArrayList<Topic> topicParts = new ArrayList<>();
+            final DataField marcField = (DataField) vf;
+            // Skip fields that do not match our criteria
+            if (includeFieldPredicate != null && (!includeFieldPredicate.test(marcField)))
+                continue;
+            final List<Subfield> subfields = marcField.getSubfields();
+
+            // Case 1: The separator specification is empty thus we
+            // add the subfields individually
+            if (separators.get("default").equals("")) {
+                for (final Subfield subfield : subfields) {
+                    if (Character.isDigit(subfield.getCode()))
+                        continue;
+                    final String term = subfield.getData().trim();
+                    if (term.length() > 0) {
+                        topicParts.add(new Topic(term));
+                    }
+                }
+            }
+            // Case 2: Generate a complex string using the
+            // separators
+            else {
+                for (final Subfield subfield : subfields) {
+                    char subfieldCode = subfield.getCode();
+                    final Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
+                    if (!matcher.matches())
+                        continue;
+
+                    Topic topic = new Topic();
+                    String term = subfield.getData().trim();
+                    if (topicParts.size() > 0) {
+                        final String separator = getSubfieldBasedSeparator(separators, subfield.getCode(), term);
+                        // Make sure we strip the subSubfield code from our term
+                        if (Character.isDigit(subfieldCode))
+                            term = stripSubSubfieldCode(term);
+                        if (separator != null) {
+                            if (isBracketDirective(separator)) {
+                                topic.symbolPair = parseBracketDirective(separator);
+                                continue;
+                            } else
+                                topic.separator = separator;
+                        }
+
+                    }
+                    topic.topic = term;
+                    topicParts.add(topic);
+                }
+            }
+        }
+
+    } // end extractTopicsHelper
 
     public Set<String> getTopics(final Record record, String fieldSpec, String separatorSpec, String langAbbrev)
         throws FileNotFoundException
@@ -2019,7 +2211,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getGenreTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> genres = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, genres, lang, _689IsGenreSubject);
+        getCachedTopicsCollector(record, fieldSpecs, separators, genres, lang, _689IsGenreSubject);
         if (genres.size() == 0)
             genres.add(UNASSIGNED_STRING);
 
