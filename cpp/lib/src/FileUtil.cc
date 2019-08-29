@@ -1069,24 +1069,18 @@ bool Copy(const std::string &from_path, const std::string &to_path) {
         return false;
     }
 
-    char buf[BUFSIZ];
-    for (;;) {
-        const ssize_t no_of_bytes(::read(from_fd, &buf[0], sizeof(buf)));
-        if (no_of_bytes == 0)
-            break;
+    struct stat stat_buf;
+    if (::fstat(from_fd, &stat_buf) == -1)
+        LOG_ERROR("fstat(2) failed!");
 
-        if (unlikely(no_of_bytes < 0)) {
-            ::close(from_fd);
-            ::close(to_fd);
-            return false;
-        }
+    loff_t remaining_bytes(stat_buf.st_size);
+    do {
+        const loff_t actually_copied(::copy_file_range(from_fd, nullptr, to_fd, nullptr, remaining_bytes, 0));
+        if (unlikely(actually_copied == -1))
+            LOG_ERROR("copy_file_range(2) failed!");
 
-        if (unlikely(::write(to_fd, &buf[0], no_of_bytes) != no_of_bytes)) {
-            ::close(from_fd);
-            ::close(to_fd);
-            return false;
-        }
-    }
+        remaining_bytes -= actually_copied;
+    } while (remaining_bytes > 0);
 
     ::close(from_fd);
     ::close(to_fd);
@@ -1107,12 +1101,12 @@ bool DeleteFile(const std::string &path) {
 
 
 bool DescriptorIsReadyForReading(const int fd, const TimeLimit &time_limit) {
-    return SocketUtil::TimedRead(fd, time_limit, reinterpret_cast<void *>(NULL), 0) == 0;
+    return SocketUtil::TimedRead(fd, time_limit, nullptr, 0) == 0;
 }
 
 
 bool DescriptorIsReadyForWriting(const int fd, const TimeLimit &time_limit) {
-    return SocketUtil::TimedWrite(fd, time_limit, reinterpret_cast<void *>(NULL), 0) == 0;
+    return SocketUtil::TimedWrite(fd, time_limit, nullptr, 0) == 0;
 }
 
 
