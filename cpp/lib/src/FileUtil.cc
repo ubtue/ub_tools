@@ -1059,7 +1059,7 @@ bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
 }
 
 // Hack for CentOS 7 which only has ::sync_file_range
-#ifdef IS_CENT_OS
+#ifdef IS_CENTOS
 static loff_t
     copy_file_range(int fd_in, loff_t *off_in, int fd_out,
                     loff_t *off_out, size_t len, unsigned int flags)
@@ -1086,11 +1086,7 @@ bool Copy(const std::string &from_path, const std::string &to_path) {
 
     loff_t remaining_bytes(stat_buf.st_size);
     do {
-#ifdef IS_CENT_OS
         const loff_t actually_copied(copy_file_range(from_fd, nullptr, to_fd, nullptr, remaining_bytes, 0));
-#else
-        const loff_t actually_copied(::copy_file_range(from_fd, nullptr, to_fd, nullptr, remaining_bytes, 0));
-#endif
         if (unlikely(actually_copied == -1))
             LOG_ERROR("copy_file_range(2) failed!");
 
