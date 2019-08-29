@@ -1048,17 +1048,44 @@ std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename) {
 }
 
 
-bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
-    errno = 0;
-    std::string buffer;
-    buffer.resize(no_of_bytes);
-    if (unlikely(from->read((void *)buffer.data(), no_of_bytes) != no_of_bytes))
-        return false;
-    return to->write((void *)buffer.data(), no_of_bytes) == no_of_bytes;
+static bool ActualCopy(const int &from_fd, const int &to_fd, const size_t no_of_bytes_to_copy, const loff_t offset, const int whence) {
+    if (whence != SEEK_SET and whence != SEEK_CUR and whence != SEEK_END)
+        LOG_ERROR("whence need to be one of {SEEK_SET, SEEK_CUR, SEEK_END}!");
+
+    loff_t remaining_bytes;
+    if (no_of_bytes_to_copy > 0)
+        remaining_bytes = no_of_bytes_to_copy;
+    else {
+        struct stat stat_buf;
+        if (::fstat(from_fd, &stat_buf) == -1)
+            return false;
+        remaining_bytes = stat_buf.st_size;
+    }
+
+    if (offset != 0 or whence != SEEK_CUR) {
+        if (::lseek(from_fd, offset, whence) == static_cast<loff_t>(-1))
+            return false;
+    }
+
+    do {
+        const loff_t actually_copied(::copy_file_range(from_fd, nullptr, to_fd, nullptr, remaining_bytes, 0));
+        if (unlikely(actually_copied == -1))
+            return false;
+
+        remaining_bytes -= actually_copied;
+    } while (remaining_bytes > 0);
+
+    return true;
 }
 
 
-bool Copy(const std::string &from_path, const std::string &to_path) {
+bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
+    return ActualCopy(from->getFileDescriptor(), to->getFileDescriptor(), no_of_bytes, 0, SEEK_CUR);
+}
+
+
+bool Copy(const std::string &from_path, const std::string &to_path, const size_t no_of_bytes_to_copy, const loff_t offset, const int whence)
+{
     const int from_fd(::open(from_path.c_str(), O_RDONLY));
     if (unlikely(from_fd == -1))
         return false;
@@ -1069,18 +1096,8 @@ bool Copy(const std::string &from_path, const std::string &to_path) {
         return false;
     }
 
-    struct stat stat_buf;
-    if (::fstat(from_fd, &stat_buf) == -1)
-        LOG_ERROR("fstat(2) failed!");
-
-    loff_t remaining_bytes(stat_buf.st_size);
-    do {
-        const loff_t actually_copied(::copy_file_range(from_fd, nullptr, to_fd, nullptr, remaining_bytes, 0));
-        if (unlikely(actually_copied == -1))
-            LOG_ERROR("copy_file_range(2) failed!");
-
-        remaining_bytes -= actually_copied;
-    } while (remaining_bytes > 0);
+    if (not ActualCopy(from_fd, to_fd, no_of_bytes_to_copy, offset, whence))
+        return false;
 
     ::close(from_fd);
     ::close(to_fd);
