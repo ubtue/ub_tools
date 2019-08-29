@@ -443,7 +443,7 @@ bool Copy(File * const from, File * const to, const size_t no_of_bytes);
  *  \param offset               Where we start copying.  The interpretation depends on the value of "whence".
  *  \param whence               One of {SEEK_SET, SEEK_CUR, SEEK_END}.  See lseek(2) for what these values mean.
  */
-bool Copy(const std::string &from_path, const std::string &to_path, const bool truncate_target = false, const size_t no_of_bytes_to_copy = 0,
+bool Copy(const std::string &from_path, const std::string &to_path, const bool truncate_target = true, const size_t no_of_bytes_to_copy = 0,
           const loff_t offset = 0, const int whence = SEEK_CUR);
 void CopyOrDie(const std::string &from_path, const std::string &to_path);
 
