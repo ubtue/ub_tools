@@ -31,6 +31,7 @@
 #include "Compiler.h"
 #include "File.h"
 #include "MarcXmlWriter.h"
+#include "StringUtil.h"
 #include "XMLSubsetParser.h"
 
 
@@ -365,6 +366,8 @@ public:
 
         /** \note Do *not* call this on control fields! */
         void deleteAllSubfieldsWithCode(const char subfield_code);
+
+        std::string getHash() { return StringUtil::Sha1(tag_.toString() + "#" + contents_); }
     };
 
     enum class RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };

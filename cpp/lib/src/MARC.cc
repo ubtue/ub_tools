@@ -28,7 +28,6 @@
 #include "FileUtil.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
-#include "StringUtil.h"
 #include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
