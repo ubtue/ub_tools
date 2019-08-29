@@ -1013,15 +1013,15 @@ public class TuelibMixin extends SolrIndexerMixin {
         HashMap<String, Set<String>> tagMap = new HashMap<String, Set<String>>();
         //cut tags array up into key/value pairs in hash map
         Set<String> currentSet;
-        for (int i = 0; i < tags.length; i++) {
-            String tag = tags[i].substring(0, 3);
+        for (final String tagsItem : tags) {
+            String tag = tagsItem.substring(0, 3);
             if (!tagMap.containsKey(tag)) {
                 currentSet = new LinkedHashSet<String>();
                 tagMap.put(tag, currentSet);
             } else {
                 currentSet = tagMap.get(tag);
             }
-            currentSet.add(tags[i].substring(3));
+            currentSet.add(tagsItem.substring(3));
         }
         return tagMap;
     }
@@ -1719,26 +1719,26 @@ public class TuelibMixin extends SolrIndexerMixin {
         String subfldTags;
         List<VariableField> marcFieldList;
 
-        for (int i = 0; i < fldTags.length; i++) {
+        for (final String fldTagItem : fldTags) {
             // Check to ensure tag length is at least 3 characters
-            if (fldTags[i].length() < 3) {
+            if (fldTagItem.length() < 3) {
                 continue;
             }
 
             // Handle "Lokaldaten" appropriately
-            if (fldTags[i].substring(0, 3).equals("LOK")) {
+            if (fldTagItem.substring(0, 3).equals("LOK")) {
 
-                if (fldTags[i].substring(3, 6).length() < 3) {
-                    logger.severe("Invalid tag for \"Lokaldaten\": " + fldTags[i]);
+                if (fldTagItem.substring(3, 6).length() < 3) {
+                    logger.severe("Invalid tag for \"Lokaldaten\": " + fldTagItem);
                     continue;
                 }
                 // Save LOK-Subfield
                 // Currently we do not support specifying an indicator
-                fldTag = fldTags[i].substring(0, 6);
-                subfldTags = fldTags[i].substring(6);
+                fldTag = fldTagItem.substring(0, 6);
+                subfldTags = fldTagItem.substring(6);
             } else {
-                fldTag = fldTags[i].substring(0, 3);
-                subfldTags = fldTags[i].substring(3);
+                fldTag = fldTagItem.substring(0, 3);
+                subfldTags = fldTagItem.substring(3);
             }
             // Case 1: We have a LOK-Field
             if (fldTag.startsWith("LOK")) {
