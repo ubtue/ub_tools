@@ -1093,13 +1093,14 @@ bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
 }
 
 
-bool Copy(const std::string &from_path, const std::string &to_path, const size_t no_of_bytes_to_copy, const loff_t offset, const int whence)
+bool Copy(const std::string &from_path, const std::string &to_path, const bool truncate_target, const size_t no_of_bytes_to_copy,
+          const loff_t offset, const int whence)
 {
     const int from_fd(::open(from_path.c_str(), O_RDONLY));
     if (unlikely(from_fd == -1))
         return false;
 
-    const int to_fd(::open(to_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600));
+    const int to_fd(::open(to_path.c_str(), O_WRONLY | O_CREAT | (truncate_target ? O_TRUNC : 0), 0600));
     if (unlikely(to_fd == -1)) {
         ::close(from_fd);
         return false;
