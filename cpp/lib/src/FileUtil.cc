@@ -34,6 +34,7 @@
 #endif
 #include <sys/sendfile.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 #include "Compiler.h"
 #include "FileDescriptor.h"
@@ -1048,6 +1049,14 @@ std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename) {
 }
 
 
+// Hack for CentOS 7 which only has ::sync_file_range
+#ifdef IS_CENTOS
+static loff_t copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags) {
+    return syscall(__NR_copy_file_range, fd_in, off_in, fd_out, off_out, len, flags);
+}
+#endif
+
+
 static bool ActualCopy(const int &from_fd, const int &to_fd, const size_t no_of_bytes_to_copy, const loff_t offset, const int whence) {
     if (whence != SEEK_SET and whence != SEEK_CUR and whence != SEEK_END)
         LOG_ERROR("whence need to be one of {SEEK_SET, SEEK_CUR, SEEK_END}!");
@@ -1068,7 +1077,7 @@ static bool ActualCopy(const int &from_fd, const int &to_fd, const size_t no_of_
     }
 
     do {
-        const loff_t actually_copied(::copy_file_range(from_fd, nullptr, to_fd, nullptr, remaining_bytes, 0));
+        const loff_t actually_copied(copy_file_range(from_fd, nullptr, to_fd, nullptr, remaining_bytes, 0));
         if (unlikely(actually_copied == -1))
             return false;
 
