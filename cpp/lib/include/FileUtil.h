@@ -437,7 +437,13 @@ std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename);
 bool Copy(File * const from, File * const to, const size_t no_of_bytes);
 
 
-bool Copy(const std::string &from_path, const std::string &to_path);
+/** \brief Copy parts or all of one file  to another.
+ *  \param no_of_bytes_to_copy  If 0 we copy the entire file from the starting offset o/w we copy "no_of_bytes_to_copy".
+ *  \param offset               Where we start copying.  The interpretation depends on the value of "whence".
+ *  \param whence               One of {SEEK_SET, SEEK_CUR, SEEK_END}.  See lseek(2) for what these values mean.
+ */
+bool Copy(const std::string &from_path, const std::string &to_path, const size_t no_of_bytes_to_copy = 0, const loff_t offset = 0,
+          const int whence = SEEK_CUR);
 void CopyOrDie(const std::string &from_path, const std::string &to_path);
 
 
