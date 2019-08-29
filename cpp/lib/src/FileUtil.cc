@@ -1101,7 +1101,7 @@ bool DeleteFile(const std::string &path) {
 
 
 bool DescriptorIsReadyForReading(const int fd, const TimeLimit &time_limit) {
-    return SocketUtil::TimedRead(fd, time_limit, nullptr, 0) == 0;
+    return SocketUtil::TimedRead(fd, time_limit, static_cast<void * const>(nullptr), 0) == 0;
 }
 
 
