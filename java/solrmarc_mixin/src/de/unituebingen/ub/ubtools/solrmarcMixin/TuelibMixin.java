@@ -1879,6 +1879,9 @@ public class TuelibMixin extends SolrIndexerMixin {
                             translationStringBuilder.append(topic.separator);
                         if (translationStringBuilder.length() > 0)
                             translationStringBuilder.append(" / ");
+
+                        // '\u0000' is java default for non-set characters
+                        // (compare to this value instead of null)
                         if (topic.symbolPair.opening != '\u0000')
                             translationStringBuilder.append(topic.symbolPair.opening);
                         translation += translateTopic(DataUtil.cleanData(topic.topic.replace("/", "\\/")), langAbbrev);
