@@ -1862,7 +1862,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 // if topic consists of multiple parts:
                 // try to translate the whole string
                 // if that fails, translate each part
-                // (replaces old "complexTranslation" logic
+                // (replaces old "complexTranslation" logic)
                 StringBuilder topicStringBuilder = new StringBuilder();
                 for (final Topic topic : topicParts) {
                     if (topicStringBuilder.length() > 0)
