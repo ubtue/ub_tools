@@ -4,7 +4,7 @@ CCC            ?= clang++
 CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -ftrapv \
                  -I$(LIB)/libstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
                  -DETC_DIR='"/usr/local/var/lib/tuelib"'
-ifneq ($(shell ls /etc/redhat-release),/etc/redhat-release)
+ifeq ($(shell ls /etc/redhat-release),/etc/redhat-release)
   CCCFLAGS     += -DIS_CENTOS
 endif
 
