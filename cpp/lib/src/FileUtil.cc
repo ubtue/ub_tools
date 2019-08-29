@@ -1105,13 +1105,12 @@ bool Copy(const std::string &from_path, const std::string &to_path, const size_t
         return false;
     }
 
-    if (not ActualCopy(from_fd, to_fd, no_of_bytes_to_copy, offset, whence))
-        return false;
+    const bool retcode(ActualCopy(from_fd, to_fd, no_of_bytes_to_copy, offset, whence));
 
     ::close(from_fd);
     ::close(to_fd);
 
-    return true;
+    return retcode;
 }
 
 
