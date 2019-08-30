@@ -483,11 +483,10 @@ void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &
 }
 
 
-bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &field2) {
-    if (field1.getTag() != field2.getTag()
-        or field1.getIndicator1() != field2.getIndicator1()
-        or field1.getIndicator2() != field2.getIndicator2())
-    {
+bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &field2, const bool compare_indicators) {
+    if (field1.getTag() != field2.getTag()) {
+        if (!compare_indicators or field1.getIndicator1() != field2.getIndicator1()
+                                or field1.getIndicator2() != field2.getIndicator2())
         return false;
     }
 
@@ -514,186 +513,176 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
 }
 
 
-bool MergeFieldPairWithControlFields(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
-                                     MARC::Record * const merged_record)
+static std::vector<std::pair<std::string,std::string>> non_repeatable_to_repeatable_tag_map({ { "100", "700" }, { "110", "710" }, { "111", "711"  } });
+
+
+std::string getTargetRepeatableTag(const MARC::Tag &non_repeatable_tag) {
+    for (const auto &non_repeatable_and_repeatable_tag : non_repeatable_to_repeatable_tag_map) {
+        if (non_repeatable_and_repeatable_tag.first == non_repeatable_tag.toString())
+            return non_repeatable_and_repeatable_tag.second;
+    }
+    return non_repeatable_tag.toString();
+}
+
+
+bool MergeFieldPairWithControlFields(MARC::Record::Field * const merge_field, MARC::Record::Field &import_field)
 {
-    if (!field1.isControlField() or !field2.isControlField())
+    if (!merge_field->isControlField() or !import_field.isControlField())
         return false;
 
     std::string merged_contents;
-    if (field1.getTag() == "005") // Date and Time of Latest Transaction
-        merged_contents = std::max(field1.getContents(), field2.getContents());
+    if (merge_field->getTag() == "005") // Date and Time of Latest Transaction
+        merged_contents = std::max(merge_field->getContents(), import_field.getContents());
     else
-        merged_contents = field1.getContents();
+        merged_contents = merge_field->getContents();
 
-    merged_record->appendField(MARC::Record::Field(field1.getTag(), merged_contents));
+    merge_field->setContents(merged_contents);
 
     return true;
 }
 
 
-bool MergeFieldPairWithNonRepeatableFields(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
-                                           const MARC::Record &record1, const MARC::Record &record2,
-                                           MARC::Record * const merged_record)
+bool MergeFieldPairWithNonRepeatableFields(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field,
+                                           MARC::Record * const merge_record, const MARC::Record &import_record)
 {
-    if (field1.isControlField() or field2.isControlField()
-        or field1.isRepeatableField() or field2.isRepeatableField())
+    if (merge_field->isControlField() or import_field.isControlField()
+        or merge_field->isRepeatableField() or import_field.isRepeatableField())
     {
         return false;
     }
 
-    merged_record->appendField(field1.getTag(),
-                               MergeFieldContents(field1.getSubfields(), record1,
-                                                  field2.getSubfields(), record2));
+    merge_field->setSubfields(MergeFieldContents(merge_field->getSubfields(), *merge_record,
+                                                 import_field.getSubfields(), import_record));
 
     return true;
 }
 
 
 // Special handling for the ISSN's.
-bool MergeFieldPair022(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
-                       const MARC::Record &record1, const MARC::Record &record2,
-                       MARC::Record * const merged_record)
+bool MergeFieldPair022(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field,
+                       MARC::Record * const merge_record, const MARC::Record &import_record)
 {
-    if (field1.getTag() != "022" or field2.getTag() != "022")
+    if (merge_field->getTag() != "022" or import_field.getTag() != "022")
         return false;
 
-    MARC::Record::Field record1_022_field(field1);
-    if (record1.isElectronicResource())
-        record1_022_field.insertOrReplaceSubfield('2', "electronic");
+    if (merge_record->isElectronicResource())
+        merge_field->insertOrReplaceSubfield('2', "electronic");
     else
-        record1_022_field.insertOrReplaceSubfield('2', "print");
-    record1_022_field.insertOrReplaceSubfield('9', record1.getMainTitle());
-    merged_record->appendField(record1_022_field);
+        merge_field->insertOrReplaceSubfield('2', "print");
+    merge_field->insertOrReplaceSubfield('9', merge_record->getMainTitle());
 
-    MARC::Record::Field record2_022_field(field2);
-    if (record2.isElectronicResource())
+    MARC::Record::Field record2_022_field(import_field);
+    if (import_record.isElectronicResource())
         record2_022_field.insertOrReplaceSubfield('2', "electronic");
     else
         record2_022_field.insertOrReplaceSubfield('2', "print");
-    record2_022_field.insertOrReplaceSubfield('9', record2.getMainTitle());
-    merged_record->appendField(record2_022_field);
+    record2_022_field.insertOrReplaceSubfield('9', import_record.getMainTitle());
+    merge_record->appendField(record2_022_field);
 
     return true;
 }
 
 
-bool MergeFieldPair264(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
-                       const MARC::Record &record1, const MARC::Record &record2,
-                       MARC::Record * const merged_record)
+bool MergeFieldPair264(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field,
+                       MARC::Record * const merge_record, const MARC::Record import_record)
 {
-    if (field1.getTag() != "264" or field2.getTag() != "264"
-        or not SubfieldPrefixIsIdentical(field1, field2, {'a', 'b'}))
+    if (merge_field->getTag() != "264" or import_field.getTag() != "264"
+        or not SubfieldPrefixIsIdentical(*merge_field, import_field, {'a', 'b'}))
     {
         return false;
     }
 
     std::string merged_c_subfield;
-    const MARC::Subfields subfields1(field1.getSubfields());
+    const MARC::Subfields subfields1(merge_field->getSubfields());
     const std::string subfield_c1(subfields1.getFirstSubfieldWithCode('c'));
-    const MARC::Subfields subfields2(field2.getSubfields());
+    const MARC::Subfields subfields2(import_field.getSubfields());
     const std::string subfield_c2(subfields2.getFirstSubfieldWithCode('c'));
     if (subfield_c1 == subfield_c2)
         merged_c_subfield = subfield_c1;
     else {
         if (not subfield_c1.empty())
-            merged_c_subfield = subfield_c1 + " (" + (record1.isElectronicResource() ? "electronic" : "print") + ")";
+            merged_c_subfield = subfield_c1 + " (" + (merge_record->isElectronicResource() ? "electronic" : "print") + ")";
         if (not subfield_c2.empty()) {
             if (not merged_c_subfield.empty())
                 merged_c_subfield += "; ";
-            merged_c_subfield = subfield_c2 + " (" + (record2.isElectronicResource() ? "electronic" : "print") + ")";
+            merged_c_subfield = subfield_c2 + " (" + (import_record.isElectronicResource() ? "electronic" : "print") + ")";
         }
     }
 
-    if (merged_c_subfield.empty())
-        merged_record->appendField(field1);
-    else {
-        MARC::Record::Field merged_field(field2);
+    if (!merged_c_subfield.empty()) {
+        MARC::Record::Field merged_field(import_field);
         merged_field.insertOrReplaceSubfield('c', merged_c_subfield);
-        merged_record->appendField(merged_field);
+        merge_field->setContents(merged_field.getSubfields(), merged_field.getIndicator1(), merged_field.getIndicator2());
     }
 
     return true;
 }
 
 
-bool MergeFieldPair936(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
-                       MARC::Record * const merged_record)
+bool MergeFieldPair936(MARC::Record::Field * const merge_field, const MARC::Record::Field import_field)
 {
-    if (field1.getTag() != "936" or field2.getTag() != "936")
+    if (merge_field->getTag() != "936" or import_field.getTag() != "936")
         return false;
 
-    if (FuzzyEqual(field1, field2))
-        merged_record->appendField(field1);
-    else {
-        LOG_WARNING("don't know how to merge 936 fields! (field1=\"" + field1.getContents() + "\",field2=\""
-                    + field2.getContents() + "\"), arbitrarily keeping field1");
-        merged_record->appendField(field1);
+    if (!FuzzyEqual(*merge_field, import_field, true)) {
+        LOG_WARNING("don't know how to merge 936 fields! (field1=\"" + merge_field->getContents() + "\",field2=\""
+                    + import_field.getContents() + "\"), arbitrarily keeping field1");
     }
     return true;
 }
 
 
-MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
-    record1.reTag("260", "264");
-    record2.reTag("260", "264");
+// tag is only used for performance reasons
+bool recordHasField(const MARC::Record &record, const MARC::Record::Field &field, const bool compare_indicators, MARC::Record::Field * found_field) {
+    for (auto record_field = record.begin(); record_field != record.end(); ++record_field) {
+        if (FuzzyEqual(field, *record_field, compare_indicators)) {
+            *found_field = *record_field;
+            return true;
+        }
+    }
+    return false;
+}
 
-    MARC::Record merged_record(record1.getLeader());
 
-    const auto record1_end_or_lok_start(record1.getFirstField("LOK"));
-    record1.sortFields(record1.begin(), record1_end_or_lok_start);
-    auto record1_field(record1.begin());
+/**
+ * Merge import_record into merge_record
+ *
+ * - non-found fields can always be added
+ * - different repeatable fields can always be added
+ *   - except for some special cases like 022, 264, 936
+ * - non-repeatable fields:
+ * - check if field with same tag + indicators exist
+ *    - if not, we can add it directly
+ *    - else look for a matching repeatable field
+ *        - if exists, simply add it there
+ *        - else do hard merge into the existing field
+ */
+void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const import_record) {
+    merge_record->reTag("260", "264");
+    import_record->reTag("260", "264");
 
-    const auto record2_end_or_lok_start(record2.getFirstField("LOK"));
-    record2.sortFields(record2.begin(), record2_end_or_lok_start);
-    auto record2_field(record2.begin());
-
-    while (record1_field != record1_end_or_lok_start and record2_field != record2_end_or_lok_start) {
-        // Avoid duplicate fields:
-        if (not merged_record.empty()) {
-            if (FuzzyEqual(merged_record.back(), *record1_field)) {
-                ++record1_field;
-                continue;
-            } else if (FuzzyEqual(merged_record.back(), *record2_field)) {
-                ++record2_field;
-                continue;
+    for (auto import_field = import_record->begin(); import_field != import_record->end(); ++import_field) {
+        bool compare_indicators(import_field->isRepeatableField());
+        MARC::Record::Field merge_field("999");
+        if (not recordHasField(*merge_record, *import_field, compare_indicators, &merge_field))
+            merge_record->insertField(*import_field);
+        else if (!MergeFieldPairWithControlFields(&merge_field, *import_field)
+                 and !MergeFieldPair022(&merge_field, *import_field, merge_record, *import_record)
+                 and !MergeFieldPair264(&merge_field, *import_field, merge_record, *import_record)
+                 and !MergeFieldPair936(&merge_field, *import_field))
+        {
+            if (import_field->isRepeatableField()) {
+                merge_record->insertField(*import_field);
+            } else {
+                const MARC::Tag repeatable_tag(getTargetRepeatableTag(import_field->getTag()));
+                if (repeatable_tag != import_field->getTag()) {
+                    import_field->setTag(repeatable_tag);
+                    merge_record->insertField(*import_field);
+                } else
+                    MergeFieldPairWithNonRepeatableFields(&merge_field, *import_field, merge_record, *import_record);
             }
         }
-
-        if (record1_field->getTag() == record2_field->getTag()
-            and record1_field->getIndicator1() == record2_field->getIndicator1()
-            and record1_field->getIndicator2() == record2_field->getIndicator2()
-            and (MergeFieldPairWithControlFields(*record1_field, *record2_field, &merged_record)
-                or MergeFieldPairWithNonRepeatableFields(*record1_field, *record2_field, record1, record2, &merged_record)
-                or MergeFieldPair022(*record1_field, *record2_field, record1, record2, &merged_record)
-                or MergeFieldPair264(*record1_field, *record2_field, record1, record2, &merged_record)
-                or MergeFieldPair936(*record1_field, *record2_field, &merged_record)))
-        {
-            ++record1_field, ++record2_field;
-        } else if (FuzzyEqual(*record1_field, *record2_field)) { // Both fields are similar => just take any one of them.
-            merged_record.appendField(*record1_field);
-            ++record1_field, ++record2_field;
-        } else if (*record1_field < *record2_field) {
-            merged_record.appendField(*record1_field);
-            ++record1_field;
-        } else if (*record2_field < *record1_field) {
-            merged_record.appendField(*record2_field);
-            ++record2_field;
-        }
     }
-
-    // Append local data, if we have any:
-    if (record1_end_or_lok_start != record1.end()) {
-        for (record1_field = record1_end_or_lok_start; record1_field != record1.end(); ++record1_field)
-            merged_record.appendField(*record1_field);
-    } else if (record2_end_or_lok_start != record2.end()) {
-        for (record2_field = record2_end_or_lok_start; record2_field != record2.end(); ++record2_field)
-            merged_record.appendField(*record2_field);
-    }
-
-    LOG_INFO("Merged records with PPN's " + record1.getControlNumber() + " and " + record2.getControlNumber() + ".");
-
-    return merged_record;
 }
 
 
@@ -713,14 +702,12 @@ MARC::Record ReadRecordFromOffsetOrDie(MARC::Reader * const marc_reader, const o
 
 
 // Replaces 246$i "Nebentitel:" w/ "Abweichender Titel" (RDA).
-MARC::Record &Patch246i(MARC::Record * const record) {
+void Patch246i(MARC::Record * const record) {
     for (auto &_246_field : record->getTagRange("246")) {
         MARC::Subfields _246_subfields(_246_field.getSubfields());
         if (_246_subfields.replaceAllSubfields('i', "Nebentitel:", "Abweichender Titel"))
             _246_field.setSubfields(_246_subfields);
     }
-
-    return *record;
 }
 
 
@@ -764,7 +751,8 @@ void MergeRecordsAndPatchUplinks(MARC::Reader * const marc_reader, MARC::Writer 
                     LOG_ERROR("this should *never* happen! missing PPN in ppn_to_offset_map: " + canonical_ppn_and_ppn->second);
                 MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, record2_ppn_and_offset->second));
                 merged_ppns.emplace(record2.getControlNumber());
-                record = MergeRecordPair(Patch246i(&record), Patch246i(&record2));
+                Patch246i(&record); Patch246i(&record2);
+                MergeRecordPair(&record, &record2);
                 ++merged_count;
                 unprocessed_ppns.erase(canonical_ppn_and_ppn->second);
             }
