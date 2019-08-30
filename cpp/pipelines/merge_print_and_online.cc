@@ -485,7 +485,7 @@ void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &
 
 bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &field2, const bool compare_indicators) {
     if (field1.getTag() != field2.getTag()) {
-        if (!compare_indicators or field1.getIndicator1() != field2.getIndicator1()
+        if (not compare_indicators or field1.getIndicator1() != field2.getIndicator1()
                                 or field1.getIndicator2() != field2.getIndicator2())
             return false;
     }
@@ -495,6 +495,9 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
 
     const MARC::Subfields subfields2(field2.getSubfields());
     auto subfield2(subfields2.begin());
+
+    if (subfields1.size() != subfields2.size())
+        return false;
 
     while (subfield1 != subfields1.end() and subfield2 != subfields2.end()) {
         if (subfield1->code_ != subfield2->code_ or CanoniseText(subfield1->value_) != CanoniseText(subfield2->value_))
@@ -506,10 +509,13 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
 }
 
 
-static std::vector<std::pair<std::string,std::string>> non_repeatable_to_repeatable_tag_map({ { "100", "700" }, { "110", "710" }, { "111", "711"  } });
+static const std::vector<std::pair<std::string,std::string>> non_repeatable_to_repeatable_tag_map({ { "100", "700" },
+                                                                                                    { "110", "710" },
+                                                                                                    { "111", "711" }
+                                                                                                  });
 
 
-std::string getTargetRepeatableTag(const MARC::Tag &non_repeatable_tag) {
+std::string GetTargetRepeatableTag(const MARC::Tag &non_repeatable_tag) {
     for (const auto &non_repeatable_and_repeatable_tag : non_repeatable_to_repeatable_tag_map) {
         if (non_repeatable_and_repeatable_tag.first == non_repeatable_tag.toString())
             return non_repeatable_and_repeatable_tag.second;
@@ -520,7 +526,7 @@ std::string getTargetRepeatableTag(const MARC::Tag &non_repeatable_tag) {
 
 bool MergeFieldPairWithControlFields(MARC::Record::Field * const merge_field, MARC::Record::Field &import_field)
 {
-    if (!merge_field->isControlField() or !import_field.isControlField())
+    if (not merge_field->isControlField() or !import_field.isControlField())
         return false;
 
     std::string merged_contents;
@@ -602,7 +608,7 @@ bool MergeFieldPair264(MARC::Record::Field * const merge_field, const MARC::Reco
         }
     }
 
-    if (!merged_c_subfield.empty()) {
+    if (not merged_c_subfield.empty()) {
         MARC::Record::Field merged_field(import_field);
         merged_field.insertOrReplaceSubfield('c', merged_c_subfield);
         merge_field->setContents(merged_field.getSubfields(), merged_field.getIndicator1(), merged_field.getIndicator2());
@@ -617,7 +623,7 @@ bool MergeFieldPair936(MARC::Record::Field * const merge_field, const MARC::Reco
     if (merge_field->getTag() != "936" or import_field.getTag() != "936")
         return false;
 
-    if (!FuzzyEqual(*merge_field, import_field, true)) {
+    if (not FuzzyEqual(*merge_field, import_field, true)) {
         LOG_WARNING("don't know how to merge 936 fields! (field1=\"" + merge_field->getContents() + "\",field2=\""
                     + import_field.getContents() + "\"), arbitrarily keeping field1");
     }
@@ -626,10 +632,10 @@ bool MergeFieldPair936(MARC::Record::Field * const merge_field, const MARC::Reco
 
 
 // tag is only used for performance reasons
-bool recordHasField(const MARC::Record &record, const MARC::Record::Field &field, const bool compare_indicators, MARC::Record::Field * found_field) {
-    for (auto record_field = record.begin(); record_field != record.end(); ++record_field) {
-        if (FuzzyEqual(field, *record_field, compare_indicators)) {
-            *found_field = *record_field;
+bool RecordHasField(const MARC::Record &record, const MARC::Record::Field &field, const bool compare_indicators, MARC::Record::Field * found_field) {
+    for (auto &record_field : record) {
+        if (FuzzyEqual(field, record_field, compare_indicators)) {
+            *found_field = record_field;
             return true;
         }
     }
@@ -654,25 +660,25 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
     merge_record->reTag("260", "264");
     import_record->reTag("260", "264");
 
-    for (auto import_field = import_record->begin(); import_field != import_record->end(); ++import_field) {
-        bool compare_indicators(import_field->isRepeatableField());
+    for (auto &import_field : *import_record) {
+        bool compare_indicators(import_field.isRepeatableField());
         MARC::Record::Field merge_field("999");
-        if (not recordHasField(*merge_record, *import_field, compare_indicators, &merge_field))
-            merge_record->insertField(*import_field);
-        else if (!MergeFieldPairWithControlFields(&merge_field, *import_field)
-                 and !MergeFieldPair022(&merge_field, *import_field, merge_record, *import_record)
-                 and !MergeFieldPair264(&merge_field, *import_field, merge_record, *import_record)
-                 and !MergeFieldPair936(&merge_field, *import_field))
+        if (not RecordHasField(*merge_record, import_field, compare_indicators, &merge_field))
+            merge_record->insertField(import_field);
+        else if (not MergeFieldPairWithControlFields(&merge_field, import_field)
+                 and not MergeFieldPair022(&merge_field, import_field, merge_record, *import_record)
+                 and not MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)
+                 and not MergeFieldPair936(&merge_field, import_field))
         {
-            if (import_field->isRepeatableField()) {
-                merge_record->insertField(*import_field);
+            if (import_field.isRepeatableField()) {
+                merge_record->insertField(import_field);
             } else {
-                const MARC::Tag repeatable_tag(getTargetRepeatableTag(import_field->getTag()));
-                if (repeatable_tag != import_field->getTag()) {
-                    import_field->setTag(repeatable_tag);
-                    merge_record->insertField(*import_field);
+                const MARC::Tag repeatable_tag(GetTargetRepeatableTag(import_field.getTag()));
+                if (repeatable_tag != import_field.getTag()) {
+                    import_field.setTag(repeatable_tag);
+                    merge_record->insertField(import_field);
                 } else
-                    MergeFieldPairWithNonRepeatableFields(&merge_field, *import_field, merge_record, *import_record);
+                    MergeFieldPairWithNonRepeatableFields(&merge_field, import_field, merge_record, *import_record);
             }
         }
     }
