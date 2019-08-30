@@ -65,10 +65,10 @@ void LoadStopwords(File * const input, const std::string &language_code, std::un
 }
 
 
-void FilterOutStopwords(const std::unordered_set<std::string> &stopwords,
-                        std::vector<std::string> * const words)
-{
+void FilterOutStopwords(const std::unordered_set<std::string> &stopwords, std::vector<std::string> * const words) {
     std::vector<std::string> filtered_words;
+    filtered_words.reserve(words->size());
+
     bool removed_at_least_one_word(false);
     for (const auto &word : *words) {
       if (stopwords.find(word) == stopwords.end())
@@ -81,17 +81,6 @@ void FilterOutStopwords(const std::unordered_set<std::string> &stopwords,
 }
 
 
-std::string VectorToString(const std::vector<std::string> &v) {
-    std::string vector_as_string;
-    for (std::vector<std::string>::const_iterator entry(v.cbegin()); entry != v.cend(); ++entry) {
-        vector_as_string += *entry;
-        if ((entry + 1) != v.cend())
-            vector_as_string += ' ';
-    }
-    return vector_as_string;
-}
-
-
 auto constexpr MIN_WORD_LENGTH(3); // At least this many characters have to be in a word for to consider it
                                    // to be "interesting".
 
@@ -99,7 +88,7 @@ auto constexpr MIN_WORD_LENGTH(3); // At least this many characters have to be i
 inline std::string FilterOutNonwordChars(const std::string &phrase) {
     std::vector<std::string> phrase_as_vector;
     TextUtil::ChopIntoWords(phrase, &phrase_as_vector, MIN_WORD_LENGTH);
-    return VectorToString(phrase_as_vector);
+    return StringUtil::Join(phrase_as_vector, ' ');
 }
 
 
@@ -224,9 +213,7 @@ void ExtractStemmedKeywords(
 
 
 // Checks to see if "value" is in any of the sets in "key_to_set_map".
-bool ContainedInMapValues(const std::string &value,
-                          const std::unordered_map<std::string, std::set<std::string>> &key_to_set_map)
-{
+bool ContainedInMapValues(const std::string &value, const std::unordered_map<std::string, std::set<std::string>> &key_to_set_map) {
     for (const auto &key_and_set : key_to_set_map) {
         for (const auto &set_entry : key_and_set.second) {
             if (set_entry == value)

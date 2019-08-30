@@ -234,6 +234,7 @@ bool IsUnsignedInteger(const std::string &s) {
 
 bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_string) {
     wchar_string->clear();
+    wchar_string->reserve(utf8_string.length());
 
     const char *cp(utf8_string.c_str());
     size_t remainder(utf8_string.size());
@@ -241,7 +242,7 @@ bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_stri
     while (*cp != '\0') {
         wchar_t wch;
         const size_t retcode(std::mbrtowc(&wch, cp, remainder, &state));
-        if (retcode == static_cast<size_t>(-1) or retcode == static_cast<size_t>(-2))
+        if (unlikely(retcode == static_cast<size_t>(-1) or retcode == static_cast<size_t>(-2)))
             return false;
         if (retcode == 0)
             return true;
@@ -272,8 +273,7 @@ bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_stri
     const char *out_bytes_start(out_bytes);
 
     size_t inbytes_left(INBYTE_COUNT), outbytes_left(OUTBYTE_COUNT);
-    const ssize_t converted_count(static_cast<ssize_t>(::iconv(iconv_handle, &in_bytes, &inbytes_left, &out_bytes,
-                                                               &outbytes_left)));
+    const ssize_t converted_count(static_cast<ssize_t>(::iconv(iconv_handle, &in_bytes, &inbytes_left, &out_bytes, &outbytes_left)));
 
     delete [] in_bytes_start;
     if (unlikely(converted_count == -1)) {

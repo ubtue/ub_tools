@@ -1629,7 +1629,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                             final  String langAbbrev, final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate) {
         final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "[a-z]" : extractNormalizedSubfieldPatternHelper(subfldTags));
         for (final VariableField vf : marcFieldList) {
-            final StringBuffer buffer = new StringBuffer("");
+            final StringBuilder buffer = new StringBuilder("");
             final List<String> complexElements = new ArrayList<String>();
             final DataField marcField = (DataField) vf;
             // Skip fields that do not match our criteria
@@ -3064,7 +3064,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    public Properties getPropertiesFromFile(final String configProps) {
+    protected Properties getPropertiesFromFile(final String configProps) {
         String homeDir = Boot.getDefaultHomeDir();
         File configFile = new File(configProps);
         if (!configFile.isAbsolute())
@@ -3075,34 +3075,68 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
+    private static Properties esFulltextProperties = null;
+
+
+    public Properties getESFulltextProperties() {
+        if (esFulltextProperties != null)
+            return esFulltextProperties;
+        esFulltextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
+        return esFulltextProperties;
+    }
+
+
     public String getMyHostnameShort() throws java.net.UnknownHostException {
        final String fullHostName = InetAddress.getLocalHost().getHostName();
        return fullHostName.replaceAll("\\..*", "");
     }
 
+
     public String getElasticsearchHost() throws java.net.UnknownHostException {
-        final Properties esFullTextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
+        final Properties esFullTextProperties = getESFulltextProperties();
         final String myhostname = getMyHostnameShort();
         return PropertyUtils.getProperty(esFullTextProperties, myhostname + ".host", "localhost");
     }
 
 
     public String getElasticsearchPort() throws java.net.UnknownHostException {
-        final Properties esFullTextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
+        final Properties esFullTextProperties = getESFulltextProperties();
         final String myhostname = getMyHostnameShort();
         return PropertyUtils.getProperty(esFullTextProperties, myhostname + ".port", "9200");
     }
 
 
     public boolean isFullTextDisabled() throws java.net.UnknownHostException {
-        final Properties esFullTextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
+        final Properties esFullTextProperties = getESFulltextProperties();
         final String myhostname = getMyHostnameShort();
         final String isDisabled = PropertyUtils.getProperty(esFullTextProperties, myhostname + ".disabled", "false");
         return Boolean.parseBoolean(isDisabled);
     }
 
+
+    private static Set<String> fulltextIDList = new HashSet<String>();
+
+
+    static public boolean IsInFulltextPPNList(final String ppn) {
+        final String fulltextIDListFile = "/usr/local/ub_tools/bsz_daten/fulltext_ids.txt";
+        if (fulltextIDList.isEmpty() && (new File(fulltextIDListFile).length() != 0)) {
+            try {
+                BufferedReader in = new BufferedReader(new FileReader(fulltextIDListFile));
+                String ppnLine;
+                while ((ppnLine = in.readLine()) != null)
+                    fulltextIDList.add(ppnLine);
+             } catch (IOException e) {
+                logger.severe("Could not read file: " + e.toString());
+             }
+        }
+        return fulltextIDList.contains(ppn);
+    }
+
+
     public String getFullTextElasticsearch(final Record record) throws IOException {
         if (isFullTextDisabled())
+            return "";
+        if (!IsInFulltextPPNList(record.getControlNumber()))
             return "";
         final String esHost = getElasticsearchHost();
         final String esPort = getElasticsearchPort();
@@ -3145,7 +3179,6 @@ public class TuelibMixin extends SolrIndexerMixin {
     public String getVolume(final Record record) {
         return get936IndicatorUWValue(record, 'd');
     }
-
 
     public String getPages(final Record record) {
         return get936IndicatorUWValue(record, 'h');
