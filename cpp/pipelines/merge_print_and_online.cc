@@ -662,13 +662,17 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
 
     for (auto &import_field : *import_record) {
         bool compare_indicators(import_field.isRepeatableField());
-        MARC::Record::Field merge_field("999");
-        if (not RecordHasField(*merge_record, import_field, compare_indicators, &merge_field))
+        MARC::Record::Field merge_field("999"); // arbitrary
+
+        if (not RecordHasField(*merge_record, import_field, compare_indicators, &merge_field)) {
             merge_record->insertField(import_field);
-        else if (not MergeFieldPairWithControlFields(&merge_field, import_field)
-                 and not MergeFieldPair022(&merge_field, import_field, merge_record, *import_record)
-                 and not MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)
-                 and not MergeFieldPair936(&merge_field, import_field))
+            continue;
+        }
+
+        if (not MergeFieldPairWithControlFields(&merge_field, import_field)
+            and not MergeFieldPair022(&merge_field, import_field, merge_record, *import_record)
+            and not MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)
+            and not MergeFieldPair936(&merge_field, import_field))
         {
             if (import_field.isRepeatableField()) {
                 merge_record->insertField(import_field);
