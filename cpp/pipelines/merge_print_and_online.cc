@@ -655,12 +655,14 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
             }
         }
 
-        if (record1_field->getTag() == record2_field->getTag() and
-            (MergeFieldPairWithControlFields(*record1_field, *record2_field, &merged_record)
-            or MergeFieldPairWithNonRepeatableFields(*record1_field, *record2_field, record1, record2, &merged_record)
-            or MergeFieldPair022(*record1_field, *record2_field, record1, record2, &merged_record)
-            or MergeFieldPair264(*record1_field, *record2_field, record1, record2, &merged_record)
-            or MergeFieldPair936(*record1_field, *record2_field, &merged_record)))
+        if (record1_field->getTag() == record2_field->getTag()
+            and record1_field->getIndicator1() == record2_field->getIndicator1()
+            and record1_field->getIndicator2() == record2_field->getIndicator2()
+            and (MergeFieldPairWithControlFields(*record1_field, *record2_field, &merged_record)
+                or MergeFieldPairWithNonRepeatableFields(*record1_field, *record2_field, record1, record2, &merged_record)
+                or MergeFieldPair022(*record1_field, *record2_field, record1, record2, &merged_record)
+                or MergeFieldPair264(*record1_field, *record2_field, record1, record2, &merged_record)
+                or MergeFieldPair936(*record1_field, *record2_field, &merged_record)))
         {
             ++record1_field, ++record2_field;
         } else if (FuzzyEqual(*record1_field, *record2_field)) { // Both fields are similar => just take any one of them.
