@@ -405,18 +405,6 @@ MARC::Subfields MergeFieldContents(const MARC::Subfields &subfields1, const MARC
 }
 
 
-MARC::Record::Field MergeControlFields(const MARC::Tag &tag, const std::string &field_contents1, const std::string &field_contents2) {
-    std::string merged_contents;
-
-    if (tag == "005") // Date and Time of Latest Transaction
-        merged_contents = std::max(field_contents1, field_contents2);
-    else
-        merged_contents = field_contents1;
-
-    return MARC::Record::Field(tag, merged_contents);
-}
-
-
 std::string CanoniseText(const std::string &s) {
     std::vector<uint32_t> utf32_chars;
     if (unlikely(not TextUtil::UTF8ToUTF32(s, &utf32_chars)))
@@ -496,8 +484,13 @@ void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &
 
 
 bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &field2) {
-    if (field1.getTag() != field2.getTag())
+    if (field1.getTag() != field2.getTag()
+        or field1.getIndicator1() != field2.getIndicator1()
+        or field1.getIndicator2() != field2.getIndicator2())
+    {
         return false;
+    }
+
     if (not field1.isControlField()) {
         const auto &contents1(field1.getContents());
         const auto &contents2(field2.getContents());
@@ -518,6 +511,126 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
     }
 
     return subfield1 == subfields1.end() and subfield2 == subfields2.end();
+}
+
+
+bool MergeFieldPairWithControlFields(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
+                                     MARC::Record * const merged_record)
+{
+    if (!field1.isControlField() or !field2.isControlField())
+        return false;
+
+    std::string merged_contents;
+    if (field1.getTag() == "005") // Date and Time of Latest Transaction
+        merged_contents = std::max(field1.getContents(), field2.getContents());
+    else
+        merged_contents = field1.getContents();
+
+    merged_record->appendField(MARC::Record::Field(field1.getTag(), merged_contents));
+
+    return true;
+}
+
+
+bool MergeFieldPairWithNonRepeatableFields(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
+                                           const MARC::Record &record1, const MARC::Record &record2,
+                                           MARC::Record * const merged_record)
+{
+    if (field1.isControlField() or field2.isControlField()
+        or field1.isRepeatableField() or field2.isRepeatableField())
+    {
+        return false;
+    }
+
+    merged_record->appendField(field1.getTag(),
+                               MergeFieldContents(field1.getSubfields(), record1,
+                                                  field2.getSubfields(), record2));
+
+    return true;
+}
+
+
+// Special handling for the ISSN's.
+bool MergeFieldPair022(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
+                       const MARC::Record &record1, const MARC::Record &record2,
+                       MARC::Record * const merged_record)
+{
+    if (field1.getTag() != "022" or field2.getTag() != "022")
+        return false;
+
+    MARC::Record::Field record1_022_field(field1);
+    if (record1.isElectronicResource())
+        record1_022_field.insertOrReplaceSubfield('2', "electronic");
+    else
+        record1_022_field.insertOrReplaceSubfield('2', "print");
+    record1_022_field.insertOrReplaceSubfield('9', record1.getMainTitle());
+    merged_record->appendField(record1_022_field);
+
+    MARC::Record::Field record2_022_field(field2);
+    if (record2.isElectronicResource())
+        record2_022_field.insertOrReplaceSubfield('2', "electronic");
+    else
+        record2_022_field.insertOrReplaceSubfield('2', "print");
+    record2_022_field.insertOrReplaceSubfield('9', record2.getMainTitle());
+    merged_record->appendField(record2_022_field);
+
+    return true;
+}
+
+
+bool MergeFieldPair264(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
+                       const MARC::Record &record1, const MARC::Record &record2,
+                       MARC::Record * const merged_record)
+{
+    if (field1.getTag() != "264" or field2.getTag() != "264"
+        or not SubfieldPrefixIsIdentical(field1, field2, {'a', 'b'}))
+    {
+        return false;
+    }
+
+    std::string merged_c_subfield;
+    const MARC::Subfields subfields1(field1.getSubfields());
+    const std::string subfield_c1(subfields1.getFirstSubfieldWithCode('c'));
+    const MARC::Subfields subfields2(field2.getSubfields());
+    const std::string subfield_c2(subfields2.getFirstSubfieldWithCode('c'));
+    if (subfield_c1 == subfield_c2)
+        merged_c_subfield = subfield_c1;
+    else {
+        if (not subfield_c1.empty())
+            merged_c_subfield = subfield_c1 + " (" + (record1.isElectronicResource() ? "electronic" : "print") + ")";
+        if (not subfield_c2.empty()) {
+            if (not merged_c_subfield.empty())
+                merged_c_subfield += "; ";
+            merged_c_subfield = subfield_c2 + " (" + (record2.isElectronicResource() ? "electronic" : "print") + ")";
+        }
+    }
+
+    if (merged_c_subfield.empty())
+        merged_record->appendField(field1);
+    else {
+        MARC::Record::Field merged_field(field2);
+        merged_field.insertOrReplaceSubfield('c', merged_c_subfield);
+        merged_record->appendField(merged_field);
+    }
+
+    return true;
+}
+
+
+bool MergeFieldPair936(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
+                       MARC::Record * const merged_record)
+{
+    if (field1.getTag() != "936" or field2.getTag() != "936")
+        return false;
+
+    if (FuzzyEqual(field1, field2))
+        merged_record->appendField(field1);
+    else {
+        LOG_WARNING("don't know how to merge 936 fields! (field1=\"" + field1.getContents() + "\",field2=\""
+                    + field2.getContents() + "\"), arbitrarily keeping field1");
+        merged_record->appendField(field1);
+    }
+    return true;
 }
 
 
@@ -547,72 +660,16 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
             }
         }
 
-        if (record1_field->getTag() == record2_field->getTag() and not MARC::IsRepeatableField(record1_field->getTag())) {
-            if (record1_field->isControlField())
-                merged_record.appendField(MergeControlFields(record1_field->getTag(), record1_field->getContents(),
-                                                             record2_field->getContents()));
-            else
-                merged_record.appendField(record1_field->getTag(),
-                                          MergeFieldContents(record1_field->getSubfields(), record1, record2_field->getSubfields(), record2),
-                                          record1_field->getIndicator1(), record1_field->getIndicator2());
-            ++record1_field, ++record2_field;
-        } else if (record1_field->getTag() == record2_field->getTag() and record1_field->getTag() == "022") {
-            // Special handling for the ISSN's.
-            MARC::Record::Field record1_022_field(*record1_field);
-            if (record1.isElectronicResource())
-                record1_022_field.insertOrReplaceSubfield('2', "electronic");
-            else
-                record1_022_field.insertOrReplaceSubfield('2', "print");
-            record1_022_field.insertOrReplaceSubfield('9', record1.getMainTitle());
-            merged_record.appendField(record1_022_field);
-
-            MARC::Record::Field record2_022_field(*record2_field);
-            if (record2.isElectronicResource())
-                record2_022_field.insertOrReplaceSubfield('2', "electronic");
-            else
-                record2_022_field.insertOrReplaceSubfield('2', "print");
-            record2_022_field.insertOrReplaceSubfield('9', record2.getMainTitle());
-            merged_record.appendField(record2_022_field);
-
-            ++record1_field, ++record2_field;
-        } else if (record1_field->getTag() == "264" and record2_field->getTag() == "264"
-                   and SubfieldPrefixIsIdentical(*record1_field, *record2_field, {'a', 'b'}))
+        if (record1_field->getTag() == record2_field->getTag()
+            and record1_field->getIndicator1() == record2_field->getIndicator1()
+            and record1_field->getIndicator2() == record2_field->getIndicator2()
+            and (MergeFieldPairWithControlFields(*record1_field, *record2_field, &merged_record)
+                or MergeFieldPairWithNonRepeatableFields(*record1_field, *record2_field, record1, record2, &merged_record)
+                or MergeFieldPair022(*record1_field, *record2_field, record1, record2, &merged_record)
+                or MergeFieldPair264(*record1_field, *record2_field, record1, record2, &merged_record)
+                or MergeFieldPair936(*record1_field, *record2_field, &merged_record)))
         {
-            std::string merged_c_subfield;
-            const MARC::Subfields subfields1(record1_field->getSubfields());
-            const std::string subfield_c1(subfields1.getFirstSubfieldWithCode('c'));
-            const MARC::Subfields subfields2(record2_field->getSubfields());
-            const std::string subfield_c2(subfields2.getFirstSubfieldWithCode('c'));
-            if (subfield_c1 == subfield_c2)
-                merged_c_subfield = subfield_c1;
-            else {
-                if (not subfield_c1.empty())
-                    merged_c_subfield = subfield_c1 + " (" + (record1.isElectronicResource() ? "electronic" : "print") + ")";
-                if (not subfield_c2.empty()) {
-                    if (not merged_c_subfield.empty())
-                        merged_c_subfield += "; ";
-                    merged_c_subfield = subfield_c2 + " (" + (record2.isElectronicResource() ? "electronic" : "print") + ")";
-                }
-            }
-
-            if (merged_c_subfield.empty())
-                merged_record.appendField(*record1_field);
-            else {
-                MARC::Record::Field merged_field(*record1_field);
-                merged_field.insertOrReplaceSubfield('c', merged_c_subfield);
-                merged_record.appendField(merged_field);
-            }
             ++record1_field, ++record2_field;
-        } else if (record1_field->getTag() == "936" and record2_field->getTag() == "936") {
-            if (FuzzyEqual(*record1_field, *record2_field))
-                merged_record.appendField(*record1_field);
-            else {
-                LOG_WARNING("don't know how to merge 936 fields! (field1=\"" + record1_field->getContents() + "\",field2=\""
-                            + record2_field->getContents() + "\"), arbitrarily keeping field1");
-                merged_record.appendField(*record1_field);
-            }
-            ++record1_field;
-            ++record2_field;
         } else if (FuzzyEqual(*record1_field, *record2_field)) { // Both fields are similar => just take any one of them.
             merged_record.appendField(*record1_field);
             ++record1_field, ++record2_field;

@@ -1879,6 +1879,9 @@ public class TuelibMixin extends SolrIndexerMixin {
                             translationStringBuilder.append(topic.separator);
                         if (translationStringBuilder.length() > 0)
                             translationStringBuilder.append(" / ");
+
+                        // '\u0000' is java default for non-set characters
+                        // (compare to this value instead of null)
                         if (topic.symbolPair.opening != '\u0000')
                             translationStringBuilder.append(topic.symbolPair.opening);
                         translation += translateTopic(DataUtil.cleanData(topic.topic.replace("/", "\\/")), langAbbrev);
@@ -2190,21 +2193,26 @@ public class TuelibMixin extends SolrIndexerMixin {
         final ControlField _005_field = (ControlField) record.getVariableField("005");
         final String fieldContents = _005_field.getData();
 
-        final StringBuilder iso8601_date = new StringBuilder(19);
-        iso8601_date.append(fieldContents.substring(0, 4));
-        iso8601_date.append('-');
-        iso8601_date.append(fieldContents.substring(4, 6));
-        iso8601_date.append('-');
-        iso8601_date.append(fieldContents.substring(6, 8));
-        iso8601_date.append('T');
-        iso8601_date.append(fieldContents.substring(8, 10));
-        iso8601_date.append(':');
-        iso8601_date.append(fieldContents.substring(10, 12));
-        iso8601_date.append(':');
-        iso8601_date.append(fieldContents.substring(12, 14));
-        iso8601_date.append('Z');
+        final StringBuilder iso8601dateBuilder = new StringBuilder(19);
+        iso8601dateBuilder.append(fieldContents.substring(0, 4));
+        iso8601dateBuilder.append('-');
+        iso8601dateBuilder.append(fieldContents.substring(4, 6));
+        iso8601dateBuilder.append('-');
+        iso8601dateBuilder.append(fieldContents.substring(6, 8));
+        iso8601dateBuilder.append('T');
+        iso8601dateBuilder.append(fieldContents.substring(8, 10));
+        iso8601dateBuilder.append(':');
+        iso8601dateBuilder.append(fieldContents.substring(10, 12));
+        iso8601dateBuilder.append(':');
+        iso8601dateBuilder.append(fieldContents.substring(12, 14));
+        iso8601dateBuilder.append('Z');
 
-        return iso8601_date.toString();
+        final String iso8601date = iso8601dateBuilder.toString();
+
+        if (iso8601date.equals("0000-00-00T00:00:00Z"))
+            return null;
+
+        return iso8601date;
     }
 
 
@@ -2809,7 +2817,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Helper to cope with differing dates and possible special characters
      *
-     * @param dates
+     * @param dateString
      *            String of possible publication dates
      * @return the first publication date
      */
