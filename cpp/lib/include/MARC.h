@@ -96,6 +96,10 @@ public:
 };
 
 
+bool IsRepeatableField(const Tag &tag);
+bool IsStandardTag(const Tag &tag);
+
+
 } // namespace MARC
 
 
@@ -328,6 +332,7 @@ public:
         }
         inline bool isControlField() const __attribute__ ((pure)) { return tag_ <= "009"; }
         inline bool isDataField() const __attribute__ ((pure)) { return tag_ > "009"; }
+        inline bool isRepeatableField() const { return MARC::IsRepeatableField(tag_); };
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
@@ -1038,10 +1043,6 @@ bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
  *        has been repeated.)
  */
 std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fields = { "001" }, const bool suppress_local_fields = true);
-
-
-bool IsRepeatableField(const Tag &tag);
-bool IsStandardTag(const Tag &tag);
 
 
 // Takes local UB Tübingen criteria into account.
