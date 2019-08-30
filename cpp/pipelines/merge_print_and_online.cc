@@ -487,7 +487,7 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
     if (field1.getTag() != field2.getTag()) {
         if (!compare_indicators or field1.getIndicator1() != field2.getIndicator1()
                                 or field1.getIndicator2() != field2.getIndicator2())
-        return false;
+            return false;
     }
 
     if (not field1.isControlField()) {
