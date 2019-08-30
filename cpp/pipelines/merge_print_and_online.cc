@@ -490,13 +490,6 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
             return false;
     }
 
-    if (not field1.isControlField()) {
-        const auto &contents1(field1.getContents());
-        const auto &contents2(field2.getContents());
-        if (contents1[0] != contents2[0] or contents1[1] != contents2[1])
-            return false;
-    }
-
     const MARC::Subfields subfields1(field1.getSubfields());
     auto subfield1(subfields1.begin());
 
