@@ -34,6 +34,7 @@
 #endif
 #include <sys/sendfile.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 #include "Compiler.h"
 #include "FileDescriptor.h"
@@ -1048,50 +1049,69 @@ std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename) {
 }
 
 
-bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
-    errno = 0;
-    std::string buffer;
-    buffer.resize(no_of_bytes);
-    if (unlikely(from->read((void *)buffer.data(), no_of_bytes) != no_of_bytes))
-        return false;
-    return to->write((void *)buffer.data(), no_of_bytes) == no_of_bytes;
+// Hack for CentOS 7 which only has ::sync_file_range
+#ifdef IS_CENTOS
+static loff_t copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags) {
+    return syscall(__NR_copy_file_range, fd_in, off_in, fd_out, off_out, len, flags);
+}
+#endif
+
+
+static bool ActualCopy(const int &from_fd, const int &to_fd, const size_t no_of_bytes_to_copy, const loff_t offset, const int whence) {
+    if (whence != SEEK_SET and whence != SEEK_CUR and whence != SEEK_END)
+        LOG_ERROR("whence need to be one of {SEEK_SET, SEEK_CUR, SEEK_END}!");
+
+    loff_t remaining_bytes;
+    if (no_of_bytes_to_copy > 0)
+        remaining_bytes = no_of_bytes_to_copy;
+    else {
+        struct stat stat_buf;
+        if (::fstat(from_fd, &stat_buf) == -1)
+            return false;
+        remaining_bytes = stat_buf.st_size;
+    }
+
+    if (offset != 0 or whence != SEEK_CUR) {
+        if (::lseek(from_fd, offset, whence) == static_cast<loff_t>(-1))
+            return false;
+    }
+
+    do {
+        const loff_t actually_copied(copy_file_range(from_fd, nullptr, to_fd, nullptr, remaining_bytes, 0));
+        if (unlikely(actually_copied == -1))
+            return false;
+
+        remaining_bytes -= actually_copied;
+    } while (remaining_bytes > 0);
+
+    return true;
 }
 
 
-bool Copy(const std::string &from_path, const std::string &to_path) {
+bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
+    return ActualCopy(from->getFileDescriptor(), to->getFileDescriptor(), no_of_bytes, 0, SEEK_CUR);
+}
+
+
+bool Copy(const std::string &from_path, const std::string &to_path, const bool truncate_target, const size_t no_of_bytes_to_copy,
+          const loff_t offset, const int whence)
+{
     const int from_fd(::open(from_path.c_str(), O_RDONLY));
     if (unlikely(from_fd == -1))
         return false;
 
-    const int to_fd(::open(to_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600));
+    const int to_fd(::open(to_path.c_str(), O_WRONLY | O_CREAT | (truncate_target ? O_TRUNC : 0), 0600));
     if (unlikely(to_fd == -1)) {
         ::close(from_fd);
         return false;
     }
 
-    char buf[BUFSIZ];
-    for (;;) {
-        const ssize_t no_of_bytes(::read(from_fd, &buf[0], sizeof(buf)));
-        if (no_of_bytes == 0)
-            break;
-
-        if (unlikely(no_of_bytes < 0)) {
-            ::close(from_fd);
-            ::close(to_fd);
-            return false;
-        }
-
-        if (unlikely(::write(to_fd, &buf[0], no_of_bytes) != no_of_bytes)) {
-            ::close(from_fd);
-            ::close(to_fd);
-            return false;
-        }
-    }
+    const bool retcode(ActualCopy(from_fd, to_fd, no_of_bytes_to_copy, offset, whence));
 
     ::close(from_fd);
     ::close(to_fd);
 
-    return true;
+    return retcode;
 }
 
 
@@ -1107,12 +1127,12 @@ bool DeleteFile(const std::string &path) {
 
 
 bool DescriptorIsReadyForReading(const int fd, const TimeLimit &time_limit) {
-    return SocketUtil::TimedRead(fd, time_limit, reinterpret_cast<void *>(NULL), 0) == 0;
+    return SocketUtil::TimedRead(fd, time_limit, static_cast<void * const>(nullptr), 0) == 0;
 }
 
 
 bool DescriptorIsReadyForWriting(const int fd, const TimeLimit &time_limit) {
-    return SocketUtil::TimedWrite(fd, time_limit, reinterpret_cast<void *>(NULL), 0) == 0;
+    return SocketUtil::TimedWrite(fd, time_limit, nullptr, 0) == 0;
 }
 
 

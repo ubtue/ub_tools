@@ -12,6 +12,10 @@ CCCFLAGS   = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native 
              -Ilibstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
              -DETC_DIR='"/usr/local/var/lib/tuelib"'
 
+ifeq ($(shell ls /etc/redhat-release),/etc/redhat-release)
+  CCCFLAGS += -DIS_CENTOS
+endif
+
 ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
   CCCFLAGS += -O3
   OPTIMISATIONS_STATE =
