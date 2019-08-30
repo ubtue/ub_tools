@@ -335,18 +335,6 @@ MARC::Subfields MergeFieldContents(const MARC::Subfields &subfields1, const bool
 }
 
 
-MARC::Record::Field MergeControlFields(const MARC::Tag &tag, const std::string &field_contents1, const std::string &field_contents2) {
-    std::string merged_contents;
-
-    if (tag == "005") // Date and Time of Latest Transaction
-        merged_contents = std::max(field_contents1, field_contents2);
-    else
-        merged_contents = field_contents1;
-
-    return MARC::Record::Field(tag, merged_contents);
-}
-
-
 std::string CanoniseText(const std::string &s) {
     std::vector<uint32_t> utf32_chars;
     if (unlikely(not TextUtil::UTF8ToUTF32(s, &utf32_chars)))
@@ -442,20 +430,25 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
 }
 
 
-bool mergeFieldPairWithControlFields(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
+bool MergeFieldPairWithControlFields(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
                                      MARC::Record * const merged_record)
 {
     if (!field1.isControlField() or !field2.isControlField())
         return false;
 
-    merged_record->appendField(MergeControlFields(field1.getTag(), field1.getContents(),
-                                                  field2.getContents()));
+    std::string merged_contents;
+    if (field1.getTag() == "005") // Date and Time of Latest Transaction
+        merged_contents = std::max(field1.getContents(), field2.getContents());
+    else
+        merged_contents = field1.getContents();
+
+    merged_record->appendField(MARC::Record::Field(field1.getTag(), merged_contents));
 
     return true;
 }
 
 
-bool mergeFieldPairWithNonRepeatableFields(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
+bool MergeFieldPairWithNonRepeatableFields(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
                                            const MARC::Record &record1, const MARC::Record &record2,
                                            MARC::Record * const merged_record)
 {
@@ -475,7 +468,7 @@ bool mergeFieldPairWithNonRepeatableFields(const MARC::Record::Field &field1, co
 
 
 // Special handling for the ISSN's.
-bool mergeFieldPair022(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
+bool MergeFieldPair022(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
                        const MARC::Record &record1, const MARC::Record &record2,
                        MARC::Record * const merged_record)
 {
@@ -502,7 +495,7 @@ bool mergeFieldPair022(const MARC::Record::Field &field1, const MARC::Record::Fi
 }
 
 
-bool mergeFieldPair264(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
+bool MergeFieldPair264(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
                        const MARC::Record &record1, const MARC::Record &record2,
                        MARC::Record * const merged_record)
 {
@@ -541,7 +534,7 @@ bool mergeFieldPair264(const MARC::Record::Field &field1, const MARC::Record::Fi
 }
 
 
-bool mergeFieldPair936(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
+bool MergeFieldPair936(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
                        MARC::Record * const merged_record)
 {
     if (field1.getTag() != "936" or field2.getTag() != "936")
@@ -585,11 +578,11 @@ MARC::Record MergeRecordPair(MARC::Record &record1, MARC::Record &record2) {
         }
 
         if (record1_field->getTag() == record2_field->getTag() and
-            (mergeFieldPairWithControlFields(*record1_field, *record2_field, &merged_record)
-            or mergeFieldPairWithNonRepeatableFields(*record1_field, *record2_field, record1, record2, &merged_record)
-            or mergeFieldPair022(*record1_field, *record2_field, record1, record2, &merged_record)
-            or mergeFieldPair264(*record1_field, *record2_field, record1, record2, &merged_record)
-            or mergeFieldPair936(*record1_field, *record2_field, &merged_record)))
+            (MergeFieldPairWithControlFields(*record1_field, *record2_field, &merged_record)
+            or MergeFieldPairWithNonRepeatableFields(*record1_field, *record2_field, record1, record2, &merged_record)
+            or MergeFieldPair022(*record1_field, *record2_field, record1, record2, &merged_record)
+            or MergeFieldPair264(*record1_field, *record2_field, record1, record2, &merged_record)
+            or MergeFieldPair936(*record1_field, *record2_field, &merged_record)))
         {
             ++record1_field, ++record2_field;
         } else if (FuzzyEqual(*record1_field, *record2_field)) { // Both fields are similar => just take any one of them.
