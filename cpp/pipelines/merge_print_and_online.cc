@@ -484,8 +484,13 @@ void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &
 
 
 bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &field2) {
-    if (field1.getTag() != field2.getTag())
+    if (field1.getTag() != field2.getTag()
+        or field1.getIndicator1() != field2.getIndicator1()
+        or field1.getIndicator2() != field2.getIndicator2())
+    {
         return false;
+    }
+
     if (not field1.isControlField()) {
         const auto &contents1(field1.getContents());
         const auto &contents2(field2.getContents());
