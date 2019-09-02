@@ -533,7 +533,7 @@ std::string GetTargetRepeatableTag(const MARC::Tag &non_repeatable_tag) {
 }
 
 
-bool MergeFieldPairWithControlFields(MARC::Record::Field * const merge_field, MARC::Record::Field &import_field)
+bool MergeFieldPairWithControlFields(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field)
 {
     if (not merge_field->isControlField() or !import_field.isControlField())
         return false;
@@ -659,7 +659,7 @@ bool SearchForExistingField(const MARC::Record &record, const MARC::Record::Fiel
 /**
  * Merge import_record into merge_record
  *
- * - non-found fields can always be added
+ * - LOK fields will simply be appended
  * - different repeatable fields can always be added
  *   - except for some special cases like 022, 264, 936
  * - non-repeatable fields:
@@ -675,7 +675,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
 
     static const std::unordered_set<std::string> tags_with_special_handling = { "005", "022", "264", "936" };
 
-    for (auto &import_field : *import_record) {
+    for (const auto &import_field : *import_record) {
         if (import_field.getTag() == "LOK") {
             merge_record->insertFieldAtEnd(import_field);
             continue;
@@ -700,8 +700,10 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             } else {
                 const MARC::Tag repeatable_tag(GetTargetRepeatableTag(import_field.getTag()));
                 if (repeatable_tag != import_field.getTag()) {
-                    import_field.setTag(repeatable_tag);
-                    merge_record->insertFieldAtEnd(import_field);
+                    // e.g. if import field is 100 we insert it as 700 instead
+                    MARC::Record::Field import_field_copy(import_field);
+                    import_field_copy.setTag(repeatable_tag);
+                    merge_record->insertFieldAtEnd(import_field_copy);
                 } else
                     MergeFieldPairWithNonRepeatableFields(&merge_field, import_field, merge_record, *import_record);
             }
