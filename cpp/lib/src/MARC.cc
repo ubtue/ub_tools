@@ -1520,7 +1520,7 @@ Record BinaryReader::actualRead() {
         const unsigned record_length(ToUnsigned(mmap_ + offset_, Record::RECORD_LENGTH_FIELD_LENGTH));
 
         if (unlikely(offset_ + record_length > input_file_size_))
-            LOG_ERROR("not enough remaining room for the rest if the record in the memory mapping!");
+            LOG_ERROR("not enough remaining room for the rest of the record in the memory mapping!");
         offset_ += record_length;
 
         return Record(record_length, mmap_ + offset_ - record_length);
