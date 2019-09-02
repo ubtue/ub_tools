@@ -576,7 +576,7 @@ bool MergeFieldPair022(MARC::Record::Field * const merge_field, const MARC::Reco
     else
         record2_022_field.insertOrReplaceSubfield('2', "print");
     record2_022_field.insertOrReplaceSubfield('9', import_record.getMainTitle());
-    merge_record->insertField(record2_022_field);
+    merge_record->insertFieldAtEnd(record2_022_field);
 
     return true;
 }
