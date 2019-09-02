@@ -674,8 +674,10 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
     static const std::unordered_set<std::string> tags_with_special_handling = { "005", "022", "264", "936" };
 
     for (auto &import_field : *import_record) {
-        if (import_field.getTag() == "LOK")
+        if (import_field.getTag() == "LOK") {
             merge_record->insertFieldAtEnd(import_field);
+            continue;
+        }
 
         MARC::Record::Field merge_field("999"); // arbitrary
         bool compare_indicators(import_field.isRepeatableField());
