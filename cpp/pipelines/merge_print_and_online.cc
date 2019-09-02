@@ -486,14 +486,16 @@ void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &
 bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
                 const bool compare_indicators, const bool compare_subfields)
 {
-    if (field1.getTag() != field2.getTag()) {
-        if (not compare_indicators or field1.getIndicator1() != field2.getIndicator1()
-                                or field1.getIndicator2() != field2.getIndicator2())
-            return false;
+    if (field1.getTag() != field2.getTag())
+        return false;
+
+    if (compare_indicators and (field1.getIndicator1() != field2.getIndicator1()
+                                or field1.getIndicator2() != field2.getIndicator2()))
+    {
+        return false;
     }
 
     if (compare_subfields) {
-
         const MARC::Subfields subfields1(field1.getSubfields());
         auto subfield1(subfields1.begin());
 
