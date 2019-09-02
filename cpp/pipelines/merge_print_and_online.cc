@@ -497,13 +497,13 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
 
     if (compare_subfields) {
         const MARC::Subfields subfields1(field1.getSubfields());
-        auto subfield1(subfields1.begin());
-
         const MARC::Subfields subfields2(field2.getSubfields());
-        auto subfield2(subfields2.begin());
 
         if (subfields1.size() != subfields2.size())
             return false;
+
+        auto subfield1(subfields1.begin());
+        auto subfield2(subfields2.begin());
 
         while (subfield1 != subfields1.end() and subfield2 != subfields2.end()) {
             if (subfield1->code_ != subfield2->code_ or CanoniseText(subfield1->value_) != CanoniseText(subfield2->value_))
@@ -665,8 +665,8 @@ bool SearchForExistingField(const MARC::Record &record, const MARC::Record::Fiel
  * - non-repeatable fields:
  * - check if field with same tag + indicators exist
  *    - if not, we can add it directly
- *    - else look for a matching repeatable field
- *        - if exists, simply add it there
+ *    - else look for a defined repeatable field
+ *        - if defined, simply add it there
  *        - else do hard merge into the existing field
  */
 void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const import_record) {
@@ -677,7 +677,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
 
     for (const auto &import_field : *import_record) {
         if (import_field.getTag() == "LOK") {
-            merge_record->insertFieldAtEnd(import_field);
+            //merge_record->insertFieldAtEnd(import_field);
             continue;
         }
 
@@ -695,9 +695,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             and not MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)
             and not MergeFieldPair936(&merge_field, import_field))
         {
-            if (import_field.isRepeatableField()) {
-                merge_record->insertFieldAtEnd(import_field);
-            } else {
+            if (not import_field.isRepeatableField()) {
                 const MARC::Tag repeatable_tag(GetTargetRepeatableTag(import_field.getTag()));
                 if (repeatable_tag != import_field.getTag()) {
                     // e.g. if import field is 100 we insert it as 700 instead
