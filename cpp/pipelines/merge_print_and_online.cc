@@ -483,29 +483,38 @@ void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &
 }
 
 
-bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &field2, const bool compare_indicators) {
-    if (field1.getTag() != field2.getTag()) {
-        if (not compare_indicators or field1.getIndicator1() != field2.getIndicator1()
-                                or field1.getIndicator2() != field2.getIndicator2())
-            return false;
-    }
-
-    const MARC::Subfields subfields1(field1.getSubfields());
-    auto subfield1(subfields1.begin());
-
-    const MARC::Subfields subfields2(field2.getSubfields());
-    auto subfield2(subfields2.begin());
-
-    if (subfields1.size() != subfields2.size())
+bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
+                const bool compare_indicators, const bool compare_subfields)
+{
+    if (field1.getTag() != field2.getTag())
         return false;
 
-    while (subfield1 != subfields1.end() and subfield2 != subfields2.end()) {
-        if (subfield1->code_ != subfield2->code_ or CanoniseText(subfield1->value_) != CanoniseText(subfield2->value_))
-            return false;
-        ++subfield1, ++subfield2;
+    if (compare_indicators and (field1.getIndicator1() != field2.getIndicator1()
+                                or field1.getIndicator2() != field2.getIndicator2()))
+    {
+        return false;
     }
 
-    return subfield1 == subfields1.end() and subfield2 == subfields2.end();
+    if (compare_subfields) {
+        const MARC::Subfields subfields1(field1.getSubfields());
+        auto subfield1(subfields1.begin());
+
+        const MARC::Subfields subfields2(field2.getSubfields());
+        auto subfield2(subfields2.begin());
+
+        if (subfields1.size() != subfields2.size())
+            return false;
+
+        while (subfield1 != subfields1.end() and subfield2 != subfields2.end()) {
+            if (subfield1->code_ != subfield2->code_ or CanoniseText(subfield1->value_) != CanoniseText(subfield2->value_))
+                return false;
+            ++subfield1, ++subfield2;
+        }
+
+        return subfield1 == subfields1.end() and subfield2 == subfields2.end();
+    }
+
+    return true;
 }
 
 
@@ -623,7 +632,7 @@ bool MergeFieldPair936(MARC::Record::Field * const merge_field, const MARC::Reco
     if (merge_field->getTag() != "936" or import_field.getTag() != "936")
         return false;
 
-    if (not FuzzyEqual(*merge_field, import_field, true)) {
+    if (not FuzzyEqual(*merge_field, import_field, /* compare_indicators*/ true, /* compare_subfields*/ true)) {
         LOG_WARNING("don't know how to merge 936 fields! (field1=\"" + merge_field->getContents() + "\",field2=\""
                     + import_field.getContents() + "\"), arbitrarily keeping field1");
     }
@@ -632,15 +641,19 @@ bool MergeFieldPair936(MARC::Record::Field * const merge_field, const MARC::Reco
 
 
 // tag is only used for performance reasons
-bool RecordHasField(const MARC::Record &record, const MARC::Record::Field &field, const bool compare_indicators, MARC::Record::Field * found_field) {
+bool SearchForExistingField(const MARC::Record &record, const MARC::Record::Field &field,
+                            const bool compare_indicators, const bool compare_subfields,
+                            MARC::Record::Field * found_field)
+{
     for (auto &record_field : record) {
-        if (FuzzyEqual(field, record_field, compare_indicators)) {
+        if (FuzzyEqual(field, record_field, compare_indicators, compare_subfields)) {
             *found_field = record_field;
             return true;
         }
     }
     return false;
 }
+
 
 
 /**
@@ -660,12 +673,20 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
     merge_record->reTag("260", "264");
     import_record->reTag("260", "264");
 
-    for (auto &import_field : *import_record) {
-        bool compare_indicators(import_field.isRepeatableField());
-        MARC::Record::Field merge_field("999"); // arbitrary
+    static const std::unordered_set<std::string> tags_with_special_handling = { "005", "022", "264", "936" };
 
-        if (not RecordHasField(*merge_record, import_field, compare_indicators, &merge_field)) {
-            merge_record->insertField(import_field);
+    for (auto &import_field : *import_record) {
+        if (import_field.getTag() == "LOK") {
+            merge_record->insertFieldAtEnd(import_field);
+            continue;
+        }
+
+        MARC::Record::Field merge_field("999"); // arbitrary
+        bool compare_indicators(import_field.isRepeatableField());
+        bool compare_subfields(import_field.isRepeatableField());
+        if (not SearchForExistingField(*merge_record, import_field, compare_indicators, compare_subfields, &merge_field)
+            and tags_with_special_handling.find(import_field.getTag().toString()) == tags_with_special_handling.end()) {
+            merge_record->insertFieldAtEnd(import_field);
             continue;
         }
 
@@ -675,12 +696,12 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             and not MergeFieldPair936(&merge_field, import_field))
         {
             if (import_field.isRepeatableField()) {
-                merge_record->insertField(import_field);
+                merge_record->insertFieldAtEnd(import_field);
             } else {
                 const MARC::Tag repeatable_tag(GetTargetRepeatableTag(import_field.getTag()));
                 if (repeatable_tag != import_field.getTag()) {
                     import_field.setTag(repeatable_tag);
-                    merge_record->insertField(import_field);
+                    merge_record->insertFieldAtEnd(import_field);
                 } else
                     MergeFieldPairWithNonRepeatableFields(&merge_field, import_field, merge_record, *import_record);
             }
