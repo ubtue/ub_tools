@@ -677,7 +677,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
 
     for (const auto &import_field : *import_record) {
         if (import_field.getTag() == "LOK") {
-            //merge_record->insertFieldAtEnd(import_field);
+            merge_record->insertFieldAtEnd(import_field);
             continue;
         }
 
