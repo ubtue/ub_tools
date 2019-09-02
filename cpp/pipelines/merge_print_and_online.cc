@@ -693,18 +693,17 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         if (not MergeFieldPairWithControlFields(&merge_field, import_field)
             and not MergeFieldPair022(&merge_field, import_field, merge_record, *import_record)
             and not MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)
-            and not MergeFieldPair936(&merge_field, import_field))
+            and not MergeFieldPair936(&merge_field, import_field)
+            and not import_field.isRepeatableField())
         {
-            if (not import_field.isRepeatableField()) {
-                const MARC::Tag repeatable_tag(GetTargetRepeatableTag(import_field.getTag()));
-                if (repeatable_tag != import_field.getTag()) {
-                    // e.g. if import field is 100 we insert it as 700 instead
-                    MARC::Record::Field import_field_copy(import_field);
-                    import_field_copy.setTag(repeatable_tag);
-                    merge_record->insertFieldAtEnd(import_field_copy);
-                } else
-                    MergeFieldPairWithNonRepeatableFields(&merge_field, import_field, merge_record, *import_record);
-            }
+            const MARC::Tag repeatable_tag(GetTargetRepeatableTag(import_field.getTag()));
+            if (repeatable_tag != import_field.getTag()) {
+                // e.g. if import field is 100 we insert it as 700 instead
+                MARC::Record::Field import_field_copy(import_field);
+                import_field_copy.setTag(repeatable_tag);
+                merge_record->insertFieldAtEnd(import_field_copy);
+            } else
+                MergeFieldPairWithNonRepeatableFields(&merge_field, import_field, merge_record, *import_record);
         }
     }
 }
