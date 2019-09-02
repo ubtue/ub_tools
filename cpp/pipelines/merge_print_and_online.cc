@@ -671,11 +671,14 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
     merge_record->reTag("260", "264");
     import_record->reTag("260", "264");
 
+    static const std::unordered_set<std::string> tags_with_special_handling = { "005", "022", "264", "936" };
+
     for (auto &import_field : *import_record) {
         MARC::Record::Field merge_field("999"); // arbitrary
         bool compare_indicators(import_field.isRepeatableField());
         bool compare_subfields(import_field.isRepeatableField());
-        if (not RecordHasField(*merge_record, import_field, compare_indicators, compare_subfields, &merge_field)) {
+        if (not RecordHasField(*merge_record, import_field, compare_indicators, compare_subfields, &merge_field)
+            and tags_with_special_handling.find(import_field.getTag().toString()) == tags_with_special_handling.end()) {
             merge_record->insertField(import_field);
             continue;
         }
