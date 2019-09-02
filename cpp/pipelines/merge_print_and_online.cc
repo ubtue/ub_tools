@@ -700,6 +700,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             } else {
                 const MARC::Tag repeatable_tag(GetTargetRepeatableTag(import_field.getTag()));
                 if (repeatable_tag != import_field.getTag()) {
+                    // e.g. if import field is 100 we insert it as 700 instead
                     MARC::Record::Field import_field_copy(import_field);
                     import_field_copy.setTag(repeatable_tag);
                     merge_record->insertFieldAtEnd(import_field_copy);
