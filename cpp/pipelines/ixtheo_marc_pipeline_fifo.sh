@@ -175,18 +175,18 @@ wait
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                   GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-wait
 
 
 StartPhase "Appending Literary Remains Records"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-wait
 
 
 StartPhase "Add Additional Open Access URL's"
