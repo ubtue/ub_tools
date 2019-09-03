@@ -693,7 +693,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         // Handle Control Fields
         if (MergeFieldPairWithControlFields(&merge_field, import_field)) {
             if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field, compare_indicators, compare_subfields))
-                merge_record->insertFieldAtEnd(merge_field);
+                merge_record->replaceField(merge_field.getTag(), merge_field.getContents());
             continue;
          }
 
