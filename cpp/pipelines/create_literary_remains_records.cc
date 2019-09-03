@@ -33,6 +33,14 @@
 namespace {
 
 
+// use marc reader/writer to copy instead of using FileUtil::Copy
+// so we don't lose file handler (FIFO compatibility)
+void CopyMarc(MARC::Reader * const reader, MARC::Writer * const writer) {
+    while (auto record = reader->read())
+        writer->write(record);
+}
+
+
 struct LiteraryRemainsInfo {
     std::string author_name_;
     std::string url_;
@@ -132,14 +140,9 @@ int Main(int argc, char **argv) {
     if (argc != 4)
         ::Usage("marc_input marc_output authority_records");
 
-    const std::string marc_input(argv[1]);
-    const std::string marc_output(argv[2]);
-
-    if (not FileUtil::Copy(marc_input, marc_output))
-        LOG_ERROR("failed to copy \"" + marc_input + "\" to \"" + marc_output + "\"!");
-
-    auto reader(MARC::Reader::Factory(marc_input));
-    auto writer(MARC::Writer::Factory(marc_output, MARC::FileType::AUTO, MARC::Writer::APPEND));
+    auto reader(MARC::Reader::Factory(argv[1]));
+    auto writer(MARC::Writer::Factory(argv[2]));
+    CopyMarc(reader.get(), writer.get());
 
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> gnd_numbers_to_literary_remains_infos_map;
     LoadAuthorGNDNumbers(argv[3], &gnd_numbers_to_literary_remains_infos_map);
