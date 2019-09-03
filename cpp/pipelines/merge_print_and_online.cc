@@ -535,7 +535,7 @@ std::string GetTargetRepeatableTag(const MARC::Tag &non_repeatable_tag) {
 
 bool MergeFieldPairWithControlFields(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field)
 {
-    if (not merge_field->isControlField() or !import_field.isControlField())
+    if (not merge_field->isControlField() or not import_field.isControlField())
         return false;
 
     std::string merged_contents;
@@ -640,20 +640,24 @@ bool MergeFieldPair936(MARC::Record::Field * const merge_field, const MARC::Reco
 }
 
 
-// tag is only used for performance reasons
-bool SearchForExistingField(const MARC::Record &record, const MARC::Record::Field &field,
-                            const bool compare_indicators, const bool compare_subfields,
-                            MARC::Record::Field * found_field)
+// Try to find an in fact equal field in the merged record
+bool GetFuzzyIdenticalField(const MARC::Record &record, const MARC::Record::Field &field, MARC::Record::Field * merge_field,
+                            const bool compare_indicators = true, const bool compare_subfields = true)
 {
     for (auto &record_field : record) {
         if (FuzzyEqual(field, record_field, compare_indicators, compare_subfields)) {
-            *found_field = record_field;
+            *merge_field = record_field;
             return true;
         }
     }
     return false;
 }
 
+
+bool IsFieldWithTagForSpecialTreatment(const MARC::Record::Field &field) {
+    static const std::unordered_set<std::string> tags_with_special_handling = { "005", "022", "264", "936" };
+    return tags_with_special_handling.find(field.getTag().toString()) != tags_with_special_handling.cend();
+}
 
 
 /**
@@ -673,37 +677,70 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
     merge_record->reTag("260", "264");
     import_record->reTag("260", "264");
 
-    static const std::unordered_set<std::string> tags_with_special_handling = { "005", "022", "264", "936" };
-
     for (const auto &import_field : *import_record) {
+        const bool import_field_repeatable(import_field.isRepeatableField());
+        bool compare_indicators(import_field_repeatable), compare_subfields(import_field_repeatable);
+
+        // Non-existing fields in the merge_record can be inserted unconditionally unless special treatment is needed at a later stage
+        MARC::Record::Field merge_field("999"); // Uninitialized as target field for next function call
+        if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field, compare_indicators, compare_subfields)
+            or IsFieldWithTagForSpecialTreatment(import_field)) {
+            merge_record->insertFieldAtEnd(import_field);
+            continue;
+        }
+
+        // From here on we only have merge candidates
+        // Handle Control Fields
+        if (MergeFieldPairWithControlFields(&merge_field, import_field)) {
+            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field, compare_indicators, compare_subfields))
+                merge_record->insertFieldAtEnd(merge_field);
+            continue;
+         }
+
+        // Handle fields that need special treatment
+        if (MergeFieldPair022(&merge_field, import_field, merge_record, *import_record)) {
+            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field, compare_indicators, compare_subfields))
+                merge_record->insertFieldAtEnd(merge_field);
+            continue;
+        }
+
+        if (MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)) {
+            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field, compare_indicators, compare_subfields))
+                merge_record->insertFieldAtEnd(merge_field);
+            continue;
+        }
+
+        if (MergeFieldPair936(&merge_field, import_field)) {
+            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field, compare_indicators, compare_subfields))
+                merge_record->insertFieldAtEnd(merge_field);
+            continue;
+        }
+
+        // Unconditionally copy all local data
         if (import_field.getTag() == "LOK") {
             merge_record->insertFieldAtEnd(import_field);
             continue;
         }
 
-        MARC::Record::Field merge_field("999"); // arbitrary
-        bool compare_indicators(import_field.isRepeatableField());
-        bool compare_subfields(import_field.isRepeatableField());
-        if (not SearchForExistingField(*merge_record, import_field, compare_indicators, compare_subfields, &merge_field)
-            and tags_with_special_handling.find(import_field.getTag().toString()) == tags_with_special_handling.end()) {
-            merge_record->insertFieldAtEnd(import_field);
+        // Handle Ordinary Repeatable Fields
+        if (import_field_repeatable) {
+            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field, compare_indicators, compare_subfields))
+                merge_record->insertFieldAtEnd(import_field);
             continue;
         }
 
-        if (not MergeFieldPairWithControlFields(&merge_field, import_field)
-            and not MergeFieldPair022(&merge_field, import_field, merge_record, *import_record)
-            and not MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)
-            and not MergeFieldPair936(&merge_field, import_field)
-            and not import_field.isRepeatableField())
-        {
-            const MARC::Tag repeatable_tag(GetTargetRepeatableTag(import_field.getTag()));
-            if (repeatable_tag != import_field.getTag()) {
-                // e.g. if import field is 100 we insert it as 700 instead
-                MARC::Record::Field import_field_copy(import_field);
-                import_field_copy.setTag(repeatable_tag);
-                merge_record->insertFieldAtEnd(import_field_copy);
-            } else
-                MergeFieldPairWithNonRepeatableFields(&merge_field, import_field, merge_record, *import_record);
+        // Handle Non-Repeatable Fields
+        const MARC::Tag repeatable_tag(GetTargetRepeatableTag(import_field.getTag()));
+        if (repeatable_tag != import_field.getTag()) {
+            // e.g. if import field is 100 we insert it as 700 instead
+            merge_field = import_field;
+            merge_field.setTag(repeatable_tag);
+            merge_record->insertFieldAtEnd(merge_field);
+        } else {
+            if (MergeFieldPairWithNonRepeatableFields(&merge_field, import_field, merge_record, *import_record))
+                merge_record->insertFieldAtEnd(merge_field);
+            else
+                LOG_ERROR("Could not merge import record " + import_record->getControlNumber());
         }
     }
 }
