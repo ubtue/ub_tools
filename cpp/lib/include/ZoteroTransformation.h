@@ -51,6 +51,7 @@ namespace Transformation {
         "pages",
         "publicationTitle",
         "rights",
+        "series",
         "shortTitle",
         "tags",
         "title",
@@ -59,8 +60,7 @@ namespace Transformation {
         "volume",
         "webpage",
         "websiteTitle",
-        "websiteType",
-        "series"
+        "websiteType"
     });
 
     extern const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP;
