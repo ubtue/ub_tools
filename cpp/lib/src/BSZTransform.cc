@@ -179,7 +179,7 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
     std::string first_name_buffer, title_buffer;
     std::vector<std::string> tokens;
 
-    StringUtil::Split(*first_name, ' ', &tokens);
+    StringUtil::Split(*first_name, ' ', &tokens, /* suppress_empty_components = */true);
     for (const auto &token : tokens) {
         if (IsAuthorNameTokenTitle(token))
             title_buffer += token + " ";
@@ -188,7 +188,7 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
     }
 
     std::string last_name_buffer, affix_buffer;
-    StringUtil::Split(*last_name, ' ', &tokens);
+    StringUtil::Split(*last_name, ' ', &tokens, /* suppress_empty_components = */true);
     for (const auto &token : tokens) {
         if (IsAuthorNameTokenTitle(token))
             title_buffer += token + " ";
