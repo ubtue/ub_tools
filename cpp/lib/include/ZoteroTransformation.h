@@ -51,6 +51,7 @@ namespace Transformation {
         "pages",
         "publicationTitle",
         "rights",
+        "series",
         "shortTitle",
         "tags",
         "title",
