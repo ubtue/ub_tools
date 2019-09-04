@@ -1374,16 +1374,22 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         ++processed_json_entries;
 
         try {
-            AugmentJson(harvest_url, json_object, site_params);
-            if (ValidateAugmentedJSON(json_object, harvest_params)) {
-                auto record_counts(harvest_params->format_handler_->processRecord(json_object));
-                record_count_and_previously_downloaded_count.first += record_counts.first;
-                record_count_and_previously_downloaded_count.second += record_counts.second;
-
-                const auto url(json_object->getOptionalStringValue("url", ""));
-                if (not url.empty())
-                    already_harvested_urls.insert(url);
+            const auto url(json_object->getOptionalStringValue("url", ""));
+            if (already_harvested_urls.find(url) != already_harvested_urls.end()) {
+                already_skipped_urls.insert(harvest_url);
+                continue;
             }
+
+            AugmentJson(harvest_url, json_object, site_params);
+            if (not ValidateAugmentedJSON(json_object, harvest_params))
+                continue;
+
+            auto record_counts(harvest_params->format_handler_->processRecord(json_object));
+            record_count_and_previously_downloaded_count.first += record_counts.first;
+            record_count_and_previously_downloaded_count.second += record_counts.second;
+
+            if (not url.empty())
+                already_harvested_urls.insert(url);
         } catch (const std::exception &x) {
             error_logger_context.autoLog("Couldn't process record! Error: " + std::string(x.what()));
             return record_count_and_previously_downloaded_count;
