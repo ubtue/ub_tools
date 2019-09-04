@@ -640,8 +640,12 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         _936_subfields.appendSubfield('d', issue);
 
     const std::string pages(node_parameters.pages_);
-    if (not pages.empty())
-        _936_subfields.appendSubfield('h', pages);
+    if (not pages.empty()) {
+        if (pages.find('-') == std::string::npos)
+            _936_subfields.appendSubfield('g', pages);
+        else
+            _936_subfields.appendSubfield('h', pages);
+    }
 
     _936_subfields.appendSubfield('j', year);
     if (not _936_subfields.empty())
