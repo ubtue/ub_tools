@@ -1844,9 +1844,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                 // Case 2: We have an ordinary MARC field
                 else {
                     marcFieldList = record.getVariableFields(fldTag);
-                    if (!marcFieldList.isEmpty()) {
+                    if (!marcFieldList.isEmpty())
                         extractCachedTopicsHelper(marcFieldList, separators, subcollector, fldTag, subfldTags, includeFieldPredicate);
-                    }
                 }
             }
 
@@ -1898,8 +1897,10 @@ public class TuelibMixin extends SolrIndexerMixin {
      * Abstract out topic extract from LOK and ordinary field handling
      */
     private void extractCachedTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<Collection<Topic>> collector,
-                                           final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate) {
+                                           final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate)
+    {
         final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "[a-z]" : extractNormalizedSubfieldPatternHelper(subfldTags));
+
         for (final VariableField vf : marcFieldList) {
             final ArrayList<Topic> topicParts = new ArrayList<>();
             final DataField marcField = (DataField) vf;
@@ -1915,9 +1916,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                     if (Character.isDigit(subfield.getCode()))
                         continue;
                     final String term = subfield.getData().trim();
-                    if (term.length() > 0) {
+                    if (term.length() > 0)
                         topicParts.add(new Topic(term));
-                    }
                 }
             }
             // Case 2: Generate a complex string using the
@@ -1931,16 +1931,16 @@ public class TuelibMixin extends SolrIndexerMixin {
 
                     Topic topic = new Topic();
                     String term = subfield.getData().trim();
+
                     if (topicParts.size() > 0) {
                         final String separator = getSubfieldBasedSeparator(separators, subfield.getCode(), term);
                         // Make sure we strip the subSubfield code from our term
                         if (Character.isDigit(subfieldCode))
                             term = stripSubSubfieldCode(term);
                         if (separator != null) {
-                            if (isBracketDirective(separator)) {
+                            if (isBracketDirective(separator))
                                 topic.symbolPair = parseBracketDirective(separator);
-                                continue;
-                            } else
+                            else
                                 topic.separator = separator;
                         }
 
@@ -1949,6 +1949,9 @@ public class TuelibMixin extends SolrIndexerMixin {
                     topicParts.add(topic);
                 }
             }
+
+            if (topicParts.size() > 0)
+                collector.add(topicParts);
         }
 
     } // end extractTopicsHelper
