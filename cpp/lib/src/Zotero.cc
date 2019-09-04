@@ -1331,7 +1331,6 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
     }
 
     ApplyCrawlDelay(harvest_url, harvest_params);
-    already_harvested_urls.emplace(harvest_url);
     auto error_logger_context(error_logger->newContext(site_params.journal_name_, harvest_url));
 
     LOG_INFO("\nHarvesting URL: " + harvest_url);
@@ -1380,6 +1379,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         try {
             const auto url(json_object->getOptionalStringValue("url", ""));
             if (already_harvested_urls.find(url) != already_harvested_urls.end()) {
+                LOG_DEBUG("Skipping URL (already harvested during this session): " + url);
                 already_skipped_urls.insert(harvest_url);
                 continue;
             }
