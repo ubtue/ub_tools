@@ -59,7 +59,8 @@ namespace Transformation {
         "volume",
         "webpage",
         "websiteTitle",
-        "websiteType"
+        "websiteType",
+        "series"
     });
 
     extern const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP;
