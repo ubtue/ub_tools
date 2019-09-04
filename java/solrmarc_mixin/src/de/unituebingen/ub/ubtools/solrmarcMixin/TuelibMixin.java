@@ -186,9 +186,12 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     private Set<String> isils_cache = null;
+    private Map<String, Collection<Collection<Topic>>> collectedTopicsCache = new TreeMap<>();
 
+    @Override
     public void perRecordInit(Record record) {
         isils_cache = null;
+        collectedTopicsCache = new TreeMap<>();
     }
 
     private String getTitleFromField(final DataField titleField) {
@@ -1773,7 +1776,13 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
     }
 
-    private static final Map<String, Collection<Collection<Topic>>> collectedTopicsCache = new TreeMap<>();
+    private void getCachedTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
+                                          Collection<String> collector, String langAbbrev)
+    {
+        getCachedTopicsCollector(record, fieldSpec, separators, collector, langAbbrev, null);
+    }
+
+
 
     /**
      * Generic function for topics that abstracts from a set or list collector
@@ -1799,12 +1808,12 @@ public class TuelibMixin extends SolrIndexerMixin {
                                           Collection<String> collector, String langAbbrev, Predicate<DataField> includeFieldPredicate)
 
     {
-        final String cacheHash = record.getControlNumber() + "#" + fieldSpec;
+        final String cacheKey = fieldSpec;
         Collection<Collection<Topic>> subcollector = new ArrayList<>();
 
         // Part 1: Get raw topics either from cache or from record
-        if (collectedTopicsCache.containsKey(cacheHash)) {
-            subcollector = collectedTopicsCache.get(cacheHash);
+        if (collectedTopicsCache.containsKey(cacheKey)) {
+            subcollector = collectedTopicsCache.get(cacheKey);
         } else {
             String[] fldTags = fieldSpec.split(":");
             String fldTag;
@@ -1847,7 +1856,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
 
-            collectedTopicsCache.put(cacheHash, subcollector);
+            collectedTopicsCache.put(cacheKey, subcollector);
         }
 
         // Part 2: Translate & deliver previously collected topics
