@@ -186,11 +186,9 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     private Set<String> isils_cache = null;
-    private Set<String> referenceCache = null;
-    private Set<String> reverseReferenceCache = null;
 
     public void perRecordInit(Record record) {
-        referenceCache = reverseReferenceCache = isils_cache = null;
+        isils_cache = null;
     }
 
     private String getTitleFromField(final DataField titleField) {
