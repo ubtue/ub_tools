@@ -1890,7 +1890,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                         // (compare to this value instead of null)
                         if (topic.symbolPair.opening != '\u0000')
                             translationStringBuilder.append(topic.symbolPair.opening);
-                        translation += translateTopic(DataUtil.cleanData(topic.topic.replace("/", "\\/")), langAbbrev);
+                        translationStringBuilder.append(translateTopic(DataUtil.cleanData(topic.topic.replace("/", "\\/")), langAbbrev));
                         if (topic.symbolPair.closing != '\u0000')
                             translationStringBuilder.append(topic.symbolPair.closing);
                     }
