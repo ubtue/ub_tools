@@ -674,7 +674,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                     continue;
 
                 // Don't confuse cross-references w/ up-references:
-                if (!IsSuperior776Field(field))
+                if (IsNonSuperior776Field(field))
                     continue; // Was not a reference to a container/superior record.
 
 
@@ -3005,11 +3005,11 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    boolean IsSuperior776Field(DataField field) {
+    boolean IsNonSuperior776Field(DataField field) {
         if (!field.getTag().equals("776"))
             return false;
         // Only if indicators are 01 we have a superior field
-        return (field.getIndicator1() == '0') && (field.getIndicator2() == '1');
+        return (field.getIndicator1() != '0') || (field.getIndicator2() != '1');
     }
 
     // Detect "real" superior_ppns
@@ -3026,7 +3026,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (subfield == null)
                     continue;
                 final Matcher matcher = SUPERIOR_PPN_PATTERN.matcher(subfield.getData());
-                if (matcher.matches() && IsSuperior776Field(field))
+                if (matcher.matches() && !IsNonSuperior776Field(field))
                      return matcher.group(1);
             }
         }
