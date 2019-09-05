@@ -70,7 +70,6 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
     private final static Pattern SUPERIOR_PPN_PATTERN = Pattern.compile("\\s*." + ISIL_K10PLUS + ".(.*)");
-    private final static Pattern NON_SUPERIOR_SUBFIELD_I_CONTENT = Pattern.compile("\\s*Erscheint auch als.*|\\s*Elektronische Reproduktion.*|\\s*Äquivalent.*|\\s*Reproduktion von.*|\\s*Reproduziert als*");
 
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
@@ -675,7 +674,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                     continue;
 
                 // Don't confuse cross-references w/ up-references:
-                if (HasNonSuperior776IField(field))
+                if (!IsSuperior776Field(field))
                     continue; // Was not a reference to a container/superior record.
 
 
@@ -3006,16 +3005,11 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    boolean HasNonSuperior776IField(DataField field) {
+    boolean IsSuperior776Field(DataField field) {
         if (!field.getTag().equals("776"))
             return false;
-        for (final Subfield subfield : field.getSubfields('i')) {
-            final Matcher matcher = NON_SUPERIOR_SUBFIELD_I_CONTENT.matcher(subfield.getData());
-            if (matcher.matches())
-                return true;
-        }
-        return false;
-
+        // Only if indicators are 01 we have a superior field
+        return (field.getIndicator1() == '0') && (field.getIndicator2() == '1');
     }
 
     // Detect "real" superior_ppns
@@ -3032,7 +3026,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (subfield == null)
                     continue;
                 final Matcher matcher = SUPERIOR_PPN_PATTERN.matcher(subfield.getData());
-                if (matcher.matches() && !HasNonSuperior776IField(field))
+                if (matcher.matches() && IsSuperior776Field(field))
                      return matcher.group(1);
             }
         }
