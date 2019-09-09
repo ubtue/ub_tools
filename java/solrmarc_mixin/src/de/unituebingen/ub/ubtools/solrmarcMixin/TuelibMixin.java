@@ -3008,8 +3008,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     boolean IsNonSuperior776Field(DataField field) {
         if (!field.getTag().equals("776"))
             return false;
-        // Only if indicators are 01 we have a superior field
-        return (field.getIndicator1() != '0') || (field.getIndicator2() != '1');
+        // Only if indicators are 1_ we have a superior field
+        return (field.getIndicator1() != '1');
     }
 
     // Detect "real" superior_ppns
