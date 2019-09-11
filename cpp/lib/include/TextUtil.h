@@ -462,6 +462,12 @@ inline std::string CStyleEscape(std::string s) {
 std::string InitialCaps(const std::string &text);
 
 
+/** \brief Converts the first character of each token in "text" to uppercase and the remainder to lowercase, if possible.
+ *  \note  We treat "text" as UTF-8.
+ */
+std::string ToTitleCase(const std::string &text);
+
+
 /** \brief Returns the canonical form of a charset string.
  */
 std::string CanonizeCharset(std::string charset);
