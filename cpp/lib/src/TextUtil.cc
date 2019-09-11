@@ -1782,5 +1782,18 @@ bool ConvertToUTF8(const std::string &encoding, const std::string &text, std::st
 }
 
 
+bool ConsistsEntirelyOfLetters(const std::string &utf8_string) {
+    std::wstring wstring;
+    if (unlikely(not UTF8ToWCharString(utf8_string, &wstring)))
+        LOG_ERROR("invalid UTF-8 input!");
+
+    for (const auto wch : wstring) {
+        if (not std::iswalpha(wch))
+            return false;
+    }
+
+    return true;
+}
+
 
 } // namespace TextUtil
