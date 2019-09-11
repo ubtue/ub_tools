@@ -1484,6 +1484,37 @@ std::string InitialCaps(const std::string &text) {
 }
 
 
+std::string ToTitleCase(const std::string &text) {
+    if (text.empty())
+        return "";
+
+    std::wstring wchar_string;
+    if (unlikely(not UTF8ToWCharString(text, &wchar_string)))
+        LOG_ERROR("can't convert a supposed UTF-8 string to a wide string!");
+
+    bool force_next_char_to_uppercase(true);
+    for (auto &wide_ch : wchar_string) {
+        if (TextUtil::IsWhitespace(wide_ch)) {
+            force_next_char_to_uppercase = true;
+            continue;
+        }
+
+        if (force_next_char_to_uppercase)
+            wide_ch = std::towupper(wide_ch);
+        else
+            wide_ch = std::towlower(wide_ch);
+
+        force_next_char_to_uppercase = false;
+    }
+
+    std::string utf8_string;
+    if (unlikely(not WCharToUTF8String(wchar_string, &utf8_string)))
+        LOG_ERROR("can't convert a supposed wide string to a UTF-8 string!");
+
+    return utf8_string;
+}
+
+
 std::string CanonizeCharset(std::string charset) {
     StringUtil::ASCIIToLower(&charset);
     StringUtil::RemoveChars("- ", &charset);
