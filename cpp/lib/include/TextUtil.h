@@ -522,4 +522,7 @@ std::string NormaliseQuotationMarks(const std::string &utf8_string);
 bool ConvertToUTF8(const std::string &encoding, const std::string &text, std::string * const utf8_text);
 
 
+bool ConsistsEntirelyOfLetters(const std::string &utf8_string);
+
+
 } // namespace TextUtil
