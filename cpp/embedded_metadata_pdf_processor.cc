@@ -129,13 +129,13 @@ bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextD
     std::string isbn;
     GuessISBN(TextUtil::NormaliseDashes(&first_pages_text), &isbn);
     if (not isbn.empty()) {
+        fulltext_data->isbn_ = isbn;
         LOG_DEBUG("Extracted ISBN: " + isbn);
         std::set<std::string> control_numbers;
         control_number_guesser.lookupISBN(isbn, &control_numbers);
         if (control_numbers.size() != 1) {
             LOG_WARNING("We got more than one control number for ISBN \"" + isbn + "\"  - falling back to title and author");
             GuessAuthorAndTitle(pdf_document, fulltext_data);
-            fulltext_data->isbn_ = isbn;
             if (unlikely(not FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_numbers))) {
                 LOG_WARNING("Could not correlate full text data for ISBN \"" + isbn  + "\"");
                 return false;
