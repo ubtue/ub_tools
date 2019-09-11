@@ -993,7 +993,10 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     JSON::VisitLeafNodes("root", object_node, OverrideJsonMetadata, std::ref(site_params));
 
     for (const auto &key_and_node : *object_node) {
-        if (key_and_node.first == "language") {
+        if (key_and_node.first == "title") {
+            auto title_node(JSON::JSONNode::CastToStringNodeOrDie("title", key_and_node.second));
+            title_node->setValue(TextUtil::ToTitleCase(title_node->getValue()));
+        } else if (key_and_node.first == "language") {
             language_node = JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second);
             const std::string language_json(language_node->getValue());
             const std::string language_mapped(OptionalMap(language_json,
