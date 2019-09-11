@@ -41,7 +41,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] pdf_input full_text_output\n"
-                           << ::progname << " [--min-log-level=min_verbosity] --output_dir output_dir pdf_input1 pdf_input2 ...\n\n";
+                           << ::progname << " [--min-log-level=min_verbosity] --output-dir output_dir pdf_input1 pdf_input2 ...\n\n";
     std::exit(EXIT_FAILURE);
 }
 
