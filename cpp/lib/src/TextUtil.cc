@@ -1492,19 +1492,19 @@ std::string ToTitleCase(const std::string &text) {
     if (unlikely(not UTF8ToWCharString(text, &wchar_string)))
         LOG_ERROR("can't convert a supposed UTF-8 string to a wide string!");
 
-    bool next_char_is_uppercase(true);
+    bool force_next_char_to_uppercase(true);
     for (auto &wide_ch : wchar_string) {
         if (TextUtil::IsWhitespace(wide_ch)) {
-            next_char_is_uppercase = true;
+            force_next_char_to_uppercase = true;
             continue;
         }
 
-        if (next_char_is_uppercase)
+        if (force_next_char_to_uppercase)
             wide_ch = std::towupper(wide_ch);
         else
             wide_ch = std::towlower(wide_ch);
 
-        next_char_is_uppercase = false;
+        force_next_char_to_uppercase = false;
     }
 
     std::string utf8_string;
