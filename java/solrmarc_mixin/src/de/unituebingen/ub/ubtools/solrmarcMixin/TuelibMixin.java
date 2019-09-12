@@ -512,6 +512,23 @@ public class TuelibMixin extends SolrIndexerMixin {
         return subfield.getData().substring(prefix.length());
     }
 
+    public Set<String> getSubfieldValuesWithPrefix(final Record record, final String subfieldList, final String prefix)
+    {
+        Set<String> results = new HashSet<>();
+        SubfieldMatcher matcher = new SubfieldMatcher() {
+            public boolean matched(final Subfield subfield) {
+                return subfield.getData().startsWith(prefix);
+            }
+        };
+        final List<Subfield> subfields = getSubfieldsMatchingList(record, subfieldList, matcher);
+        for (final Subfield subfield : subfields) {
+            final String data = subfield.getData();
+            if (data.startsWith(prefix))
+                results.add(data.substring(prefix.length()));
+        }
+        return results;
+    }
+
     // Map used by getPhysicalType().
     private static final Map<String, String> code_to_material_type_map;
 
@@ -1326,19 +1343,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
 
         return false;
-    }
-
-
-    public Set<String> getAuthorPPNs(final Record record, final String fieldSpecs) {
-        final Set<String> values = SolrIndexer.instance().getFieldList(record, fieldSpecs);
-        final Set<String> ppns = new TreeSet<>();
-
-        for (final String value : values) {
-            if (value.startsWith(ISIL_PREFIX_K10PLUS))
-                ppns.add(value.substring(ISIL_PREFIX_K10PLUS.length()));
-        }
-
-        return ppns;
     }
 
 
