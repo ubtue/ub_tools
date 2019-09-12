@@ -1596,6 +1596,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     };
 
 
+    @Deprecated
     private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
                                     Collection<String> collector, String langAbbrev) {
         getTopicsCollector(record, fieldSpec, separators, collector, langAbbrev, null);
@@ -1710,6 +1711,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *   opening_character       :== A single character to be prepended on the left side
      *   closing character       :== A single character to be appended on the right side
      */
+    @Deprecated
     private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
                                     Collection<String> collector, String langAbbrev, Predicate<DataField> includeFieldPredicate)
 
@@ -1970,7 +1972,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         // are converted to a '.'
         // $n is converted to a space if there is additional information
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
-        getTopicsCollector(record, fieldSpec, separators, topics, langAbbrev);
+        getCachedTopicsCollector(record, fieldSpec, separators, topics, langAbbrev);
         return addHonourees(record, topics, langAbbrev);
     }
 
@@ -1995,7 +1997,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getTopicFacetTranslated(final Record record, final String fieldSpecs, String separatorSpec, final String lang) {
         final Map<String, String> separators = parseTopicSeparators(separatorSpec);
         final Set<String> valuesTranslated = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, valuesTranslated, lang, _689IsOrdinarySubject);
+        getCachedTopicsCollector(record, fieldSpecs, separators, valuesTranslated, lang, _689IsOrdinarySubject);
         // The topic collector generates a chain of all specified subfields for a field
         // In some cases this is unintended behaviour since different topics are are independent
         // To ensure that those chains are broken up again, make sure to specify a triple pipe (="|||") separator for these
@@ -2239,7 +2241,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getRegionTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> region = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, region, lang, _689IsRegionSubject);
+        getCachedTopicsCollector(record, fieldSpecs, separators, region, lang, _689IsRegionSubject);
 
         if (region.size() == 0)
             region.add(UNASSIGNED_STRING);
@@ -2251,7 +2253,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getTimeTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> time = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, time, lang, _689IsTimeSubject);
+        getCachedTopicsCollector(record, fieldSpecs, separators, time, lang, _689IsTimeSubject);
 
         if (time.size() == 0)
             time.add(UNASSIGNED_STRING);
