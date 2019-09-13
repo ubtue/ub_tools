@@ -291,7 +291,7 @@ void MarcFormatHandler::identifyMissingLanguage(ItemParameters * const node_para
         if (site_params_->expected_languages_text_fields_.empty() or site_params_->expected_languages_text_fields_ == "title") {
             record_text = node_parameters->title_;
             // use naive tokenization to count tokens in the title
-            // additionaly use abstract if we have too few tokens in the title
+            // additionally use abstract if we have too few tokens in the title
             if (StringUtil::CharCount(record_text, ' ') < MINIMUM_TOKEN_COUNT) {
                 record_text += " " + node_parameters->abstract_note_;
                 LOG_DEBUG("too few tokens in title. applying heuristic on the abstract as well");
@@ -993,10 +993,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     JSON::VisitLeafNodes("root", object_node, OverrideJsonMetadata, std::ref(site_params));
 
     for (const auto &key_and_node : *object_node) {
-        if (key_and_node.first == "title") {
-            auto title_node(JSON::JSONNode::CastToStringNodeOrDie("title", key_and_node.second));
-            title_node->setValue(TextUtil::ToTitleCase(title_node->getValue()));
-        } else if (key_and_node.first == "language") {
+        if (key_and_node.first == "language") {
             language_node = JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second);
             const std::string language_json(language_node->getValue());
             const std::string language_mapped(OptionalMap(language_json,
