@@ -78,7 +78,7 @@ class BibleBookToCodeMapper {
 public:
     explicit BibleBookToCodeMapper(const std::string &books_of_the_bible_to_code_map_filename);
 
-    /** \brief Map from noncanonical bible book forms to the canonical ones.
+    /** \brief Map from canonical forms to codes.
      *  \return The mapped name or, if no mapping was found, the empty string.
      */
     std::string mapToCode(const std::string &bible_book_candidate, const bool verbose = false) const;

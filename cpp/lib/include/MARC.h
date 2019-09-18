@@ -538,7 +538,12 @@ public:
     std::set<std::string> getISBNs() const;
     std::set<std::string> getDDCs() const;
     std::set<std::string> getRVKs() const;
-    std::set<std::string> getReferencedGNDNumbers() const;
+
+    /** \brief  Return the extracted GND codes from the fields determined by the provided tags.
+     *  \param  tags  If non-empty extract codes from the fields w/ these tags o/w extract codes from all data fields.
+     *  \return The extracted GND codes.
+     */
+    std::set<std::string> getReferencedGNDNumbers(const std::set<std::string> &tags = {}) const;
 
     /** \brief  Extracts a keyword and its synonyms from an authority record.
      *  \note   Aborts if the record is not an authority record.
