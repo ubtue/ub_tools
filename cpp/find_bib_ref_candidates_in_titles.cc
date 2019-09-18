@@ -372,26 +372,13 @@ void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book
 bool FindGndCodes(const std::string &tags, const MARC::Record &record,
                   const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map)
 {
-    std::vector<std::string> individual_tags;
+    std::set<std::string> individual_tags;
     StringUtil::Split(tags, ':', &individual_tags, /* suppress_empty_components = */true);
 
-    for (const auto &tag : individual_tags) {
-        for (const auto &field : record.getTagRange(tag)) {
-            const auto subfields(field.getSubfields());
-            const std::string subfield2(subfields.getFirstSubfieldWithCode('2'));
-            if (subfield2.empty() or subfield2 != "gnd")
-                continue;
-
-            for (const auto &subfield_value : subfields.extractSubfields('0')) {
-                if (not StringUtil::StartsWith(subfield_value, "(DE-588)"))
-                    continue;
-
-                const std::string gnd_code(subfield_value.substr(8));
-                const auto gnd_code_and_ranges(gnd_codes_to_bible_ref_codes_map.find(gnd_code));
-                if (gnd_code_and_ranges != gnd_codes_to_bible_ref_codes_map.end())
-                    return true;
-            }
-        }
+    for (const auto &gnd_code : record.getReferencedGNDNumbers(individual_tags)) {
+        const auto gnd_code_and_ranges(gnd_codes_to_bible_ref_codes_map.find(gnd_code));
+        if (gnd_code_and_ranges != gnd_codes_to_bible_ref_codes_map.end())
+            return true;
     }
 
     return false;
