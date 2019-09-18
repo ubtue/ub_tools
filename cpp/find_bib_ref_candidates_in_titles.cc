@@ -334,7 +334,7 @@ void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book
     std::unordered_set<std::string> books_of_the_bible;
     ExtractBooksOfTheBible(bible_book_to_code_map, &books_of_the_bible);
 
-    unsigned count(0), bible_ref_count(0), pericope_count(0);
+    unsigned count(0);
     std::unordered_multimap<std::string, std::string> pericopes_to_ranges_map;
     while (const MARC::Record record = authority_reader->read()) {
         try {
@@ -350,11 +350,9 @@ void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book
                     continue;
                 if (not FindPericopes(record, ranges, &pericopes_to_ranges_map))
                     continue;
-                ++pericope_count;
             }
 
             gnd_codes_to_bible_ref_codes_map->emplace(gnd_code, ranges);
-            ++bible_ref_count;
         } catch (const std::exception &x) {
             LOG_ERROR("caught exception for authority record w/ PPN " + record.getControlNumber() + ": " + std::string(x.what()));
         }
