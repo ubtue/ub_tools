@@ -1,4 +1,4 @@
-FROM centos:latest
+FROM centos:7
 MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 
 # add needed configuration files

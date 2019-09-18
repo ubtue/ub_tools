@@ -363,7 +363,7 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
 
     // First check for a simple time and date (can be local or UTC):
     if (possible_date.length() == 19
-        and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u%[T ]%2u:%2u:%2u",
+        and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u%[Tt ]%2u:%2u:%2u",
                         year, month, day, space_or_t, hour, minute, second) == 7)
     {
         *is_definitely_zulu_time = false;
@@ -371,7 +371,7 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
     }
     // Check for ISO 8601 w/ offset:
     else if (possible_date.length() == 25
-             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2uT%2u:%2u:%2u%[+-]%2d:%2d",
+             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u[Tt]%2u:%2u:%2u%[+-]%2d:%2d",
                              year, month, day, hour, minute, second, plus_or_minus, hour_offset, minute_offset) == 9)
     {
         if (plus_or_minus[0] == '-') {
@@ -384,7 +384,7 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
     }
     // Check for Zulu time format (must be UTC)
     else if (possible_date.length() == 20
-             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2uT%2u:%2u:%2uZ",
+             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u[Tt]%2u:%2u:%2u[Zz]",
                              year, month, day, hour, minute, second) == 6)
     {
         *is_definitely_zulu_time = true;
