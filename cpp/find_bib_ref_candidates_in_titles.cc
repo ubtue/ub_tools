@@ -373,18 +373,7 @@ std::vector<std::string> TokenizeText(std::string text) {
     TextUtil::NormaliseDashes(&text);
 
     std::vector<std::string> tokens;
-    std::string token;
-    for (const auto ch : text) {
-        if (ch == ' ') {
-            if (not token.empty()) {
-                tokens.emplace_back(token);
-                token.clear();
-            }
-        } else
-            token += ch;
-    }
-    if (not token.empty())
-        tokens.emplace_back(token);
+    StringUtil::Split(text, ' ', &tokens);
 
     return tokens;
 }
