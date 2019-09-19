@@ -511,20 +511,16 @@ void FindBibRefCandidates(
     RangeUtil::BibleBookToCodeMapper bible_book_to_code_mapper(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_code.map");
     unsigned total_count(0), addition_title_reference_count(0);
     while (const MARC::Record record = marc_reader->read()) {
-        try {
-            ++total_count;
+        ++total_count;
 
-            if (not HasGNDBibleRef(record, gnd_codes_to_bible_ref_codes_map)) {
-                const auto candidates(ExtractBibleReferenceCandidates(TokenizeText(record.getCompleteTitle()),
-                                                                      pericopes, bible_book_canoniser, bible_book_to_code_mapper));
-                if (not candidates.empty()) {
-                    ++addition_title_reference_count;
-                    *output << record.getControlNumber() << ": " << record.getCompleteTitle() << "\n\t"
-                            << StringUtil::Join(candidates, '|') << '\n';
-                }
+        if (not HasGNDBibleRef(record, gnd_codes_to_bible_ref_codes_map)) {
+            const auto candidates(ExtractBibleReferenceCandidates(TokenizeText(record.getCompleteTitle()),
+                                                                  pericopes, bible_book_canoniser, bible_book_to_code_mapper));
+            if (not candidates.empty()) {
+                ++addition_title_reference_count;
+                *output << record.getControlNumber() << ": " << record.getCompleteTitle() << "\n\t"
+                        << StringUtil::Join(candidates, '|') << '\n';
             }
-        } catch (const std::exception &x) {
-            LOG_ERROR("caught exception for title record w/ PPN " + record.getControlNumber() + ": " + std::string(x.what()));
         }
     }
 
