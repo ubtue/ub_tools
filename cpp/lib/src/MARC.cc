@@ -858,9 +858,15 @@ std::set<std::string> Record::getRVKs() const {
 }
 
 
-std::set<std::string> Record::getReferencedGNDNumbers() const {
-    std::set<std::string>  referenced_gnd_numbers;
+std::set<std::string> Record::getReferencedGNDNumbers(const std::set<std::string> &tags) const {
+    std::set<std::string> referenced_gnd_numbers;
     for (const auto &field : fields_) {
+        if (not field.isDataField())
+            continue;
+
+        if (not tags.empty() and tags.find(field.getTag().toString()) == tags.cend())
+            continue;
+
         const char FIRST_TAG_CHAR(field.getTag().c_str()[0]);
         if (FIRST_TAG_CHAR == '6' or FIRST_TAG_CHAR == 'L') {
             for (const auto &subfield : field.getSubfields()) {
