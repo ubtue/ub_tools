@@ -72,7 +72,7 @@ void LoadBibleOrderMap(File * const input, std::unordered_map<std::string, std::
 
 
 /* Pericopes are found in 130$a if there are also bible references in the 430 field. You should therefore
-   only call this after acertaining that one or more 430 fields contain a bible reference. */
+   only call this after ascertaining that one or more 430 fields contain a bible reference. */
 bool FindPericopes(const MARC::Record &record, const std::set<std::pair<std::string, std::string>> &ranges,
                    std::unordered_multimap<std::string, std::string> * const pericopes_to_ranges_map)
 {
