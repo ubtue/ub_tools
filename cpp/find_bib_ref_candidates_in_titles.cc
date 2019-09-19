@@ -1,10 +1,10 @@
-/** \file    augment_bible_references.cc
- *  \brief   A tool for adding numeric bible references a.k.a. "bible ranges" to MARC-21 datasets.
+/** \file    find_bib_ref_candidates_in_titles.cc
+ *  \brief   A tool for finding potential bible references in titles in MARC-21 datasets.
  *  \author  Dr. Johannes Ruscheinski
  */
 
 /*
-    Copyright (C) 2015-2019, Library of the University of Tübingen
+    Copyright (C) 2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -31,9 +31,11 @@
 #include <utility>
 #include <cstdlib>
 #include <cstring>
+#include "FileUtil.h"
 #include "MapUtil.h"
 #include "MARC.h"
 #include "RangeUtil.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "UBTools.h"
@@ -44,9 +46,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " ix_theo_titles ix_theo_norm augmented_ix_theo_titles\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("ix_theo_titles ix_theo_norm bib_ref_candidates_list");
 }
 
 
@@ -72,7 +72,7 @@ void LoadBibleOrderMap(File * const input, std::unordered_map<std::string, std::
 
 
 /* Pericopes are found in 130$a if there are also bible references in the 430 field. You should therefore
-   only call this after acertaining that one or more 430 fields contain a bible reference. */
+   only call this after ascertaining that one or more 430 fields contain a bible reference. */
 bool FindPericopes(const MARC::Record &record, const std::set<std::pair<std::string, std::string>> &ranges,
                    std::unordered_multimap<std::string, std::string> * const pericopes_to_ranges_map)
 {
@@ -313,7 +313,7 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
    ranges and will in a later processing phase be added to title data.  We also extract pericopes which will be
    saved to a file that maps periope names to bible ranges. */
 void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
-                  MARC::Reader * const authority_reader,
+                  MARC::Reader * const authority_reader, std::vector<std::vector<std::string>> * const pericopes,
                   std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const gnd_codes_to_bible_ref_codes_map)
 {
     gnd_codes_to_bible_ref_codes_map->clear();
@@ -322,7 +322,7 @@ void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book
     std::unordered_set<std::string> books_of_the_bible;
     ExtractBooksOfTheBible(bible_book_to_code_map, &books_of_the_bible);
 
-    unsigned count(0), bible_ref_count(0), pericope_count(0);
+    unsigned count(0);
     std::unordered_multimap<std::string, std::string> pericopes_to_ranges_map;
     while (const MARC::Record record = authority_reader->read()) {
         ++count;
@@ -337,87 +337,195 @@ void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book
                 continue;
             if (not FindPericopes(record, ranges, &pericopes_to_ranges_map))
                 continue;
-            ++pericope_count;
         }
 
         gnd_codes_to_bible_ref_codes_map->emplace(gnd_code, ranges);
-        ++bible_ref_count;
     }
 
-    LOG_INFO("About to write \"pericopes_to_codes.map\".");
-    MapUtil::SerialiseMap("pericopes_to_codes.map", pericopes_to_ranges_map);
+    // Chop up the pericopes:
+    for (const auto &pericope_and_ranges : pericopes_to_ranges_map) {
+        std::vector<std::string> words;
+        StringUtil::Split(pericope_and_ranges.first, ' ', &words);
+        pericopes->emplace_back(std::move(words));
+    }
 
     LOG_INFO("Read " + std::to_string(count) + " norm data records.");
-    LOG_INFO("Found " + std::to_string(unknown_book_count) + " records w/ unknown bible books.");
-    LOG_INFO("Found a total of " + std::to_string(bible_ref_count) + " bible reference records.");
-    LOG_INFO("Found " + std::to_string(pericope_count) + " records w/ pericopes.");
 }
 
 
 bool FindGndCodes(const std::string &tags, const MARC::Record &record,
-                  const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map,
-                  std::set<std::string> * const ranges)
+                  const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map)
 {
-    ranges->clear();
-
     std::set<std::string> individual_tags;
     StringUtil::Split(tags, ':', &individual_tags, /* suppress_empty_components = */true);
 
-    bool found_at_least_one(false);
     for (const auto &gnd_code : record.getReferencedGNDNumbers(individual_tags)) {
         const auto gnd_code_and_ranges(gnd_codes_to_bible_ref_codes_map.find(gnd_code));
-        if (gnd_code_and_ranges != gnd_codes_to_bible_ref_codes_map.end()) {
-            found_at_least_one = true;
-            for (const auto &range : gnd_code_and_ranges->second)
-                ranges->insert(range.first + ":" + range.second);
-        } else
-            LOG_DEBUG(record.getControlNumber() + ": GND code \"" + gnd_code + "\" was not found in our map.");
+        if (gnd_code_and_ranges != gnd_codes_to_bible_ref_codes_map.end())
+            return true;
     }
 
-    return found_at_least_one;
+    return false;
 }
 
 
-/* Augments MARC title records that contain bible references by pointing at bible reference norm data records
-   by adding a new MARC field with tag BIB_REF_RANGE_TAG.  This field is filled in with bible ranges. */
-void AugmentBibleRefs(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                      const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map)
+std::vector<std::string> TokenizeText(std::string text) {
+    TextUtil::NormaliseDashes(&text);
+
+    std::vector<std::string> tokens;
+    StringUtil::Split(text, ' ', &tokens);
+
+    return tokens;
+}
+
+
+inline bool IsPossibleBookNumeral(const std::string &book_numeral_candidate) {
+    if (book_numeral_candidate.length() != 1 or (book_numeral_candidate.length() == 2 and book_numeral_candidate[1] != '.'))
+        return false;
+    return book_numeral_candidate[0] >= '1' and book_numeral_candidate[0] <= '6';
+}
+
+
+inline bool IsValidBibleBook(const std::string &bible_book_candidate, const RangeUtil::BibleBookCanoniser &bible_book_canoniser,
+                             const RangeUtil::BibleBookToCodeMapper &bible_book_to_code_mapper)
 {
-    LOG_INFO("Starting augmentation of title records.");
+    return not bible_book_to_code_mapper.mapToCode(bible_book_canoniser.canonise(bible_book_candidate)).empty();
+}
 
-    unsigned total_count(0), augment_count(0);
-    while (MARC::Record record = marc_reader->read()) {
-        try {
-            ++total_count;
 
-            // Make sure that we don't use a bible reference tag that is already in use for another
-            // purpose:
-            auto bible_reference_tag_field(record.findTag(RangeUtil::BIB_REF_RANGE_TAG));
-            if (bible_reference_tag_field != record.end())
-                LOG_ERROR("We need another bible reference tag than \"" + RangeUtil::BIB_REF_RANGE_TAG + "\"!");
+bool FoundTokenSubstring(const std::vector<std::string> &needle, const std::vector<std::string> &haystack) {
+    const size_t haystack_size(haystack.size());
+    const size_t needle_size(needle.size());
+    if (haystack_size < needle_size)
+        return false;
 
-            std::set<std::string> ranges;
-            if (FindGndCodes("600:610:611:630:648:651:655:689", record, gnd_codes_to_bible_ref_codes_map, &ranges)) {
-                ++augment_count;
-                std::string range_string;
-                for (auto &range : ranges) {
-                    if (not range_string.empty())
-                        range_string += ',';
-                    range_string += StringUtil::Map(range, ':', '_');
-                }
+    for (unsigned i(0); i <= haystack_size - needle_size; ++i) {
+        for (unsigned k(0); k < needle_size; ++k) {
+            if (likely(haystack[i + k] != needle[k]))
+                goto outer_loop;
+        }
 
-                // Put the data into the $a subfield:
-                record.insertField(RangeUtil::BIB_REF_RANGE_TAG, { { 'a', range_string }, { 'b', "biblesearch" } });
+        return true;
+outer_loop:
+        /* Intentionally empty! */;
+    }
+
+    return false;
+}
+
+
+bool ConsistsEntirelyOfLettersFollowedByAnOptionalPeriod(const std::string &utf8_string) {
+    if (utf8_string.length() > 1 and utf8_string[utf8_string.length() - 1] == '.')
+        return TextUtil::ConsistsEntirelyOfLetters(utf8_string.substr(utf8_string.length() - 1));
+
+    return TextUtil::ConsistsEntirelyOfLetters(utf8_string);
+}
+
+
+const std::set<std::string> FRENCH_MONTHS{ "janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre",
+                                           "novembre", "décembre" };
+
+
+std::vector<std::string> ExtractBibleReferenceCandidates(const std::vector<std::string> &tokens,
+                                                         const std::vector<std::vector<std::string>> &pericopes,
+                                                         const RangeUtil::BibleBookCanoniser &bible_book_canoniser,
+                                                         const RangeUtil::BibleBookToCodeMapper &bible_book_to_code_mapper)
+{
+    // See https://www.messiah.edu/download/downloads/id/1647/bible_cite.pdf and
+    // https://www.kath-theologie.uni-osnabrueck.de/fileadmin/PDF/Bibelstellen.pdf to understand the regex.
+    static const auto chapter_and_verses_matcher(RegexMatcher::RegexMatcherFactoryOrDie(
+        /*english*/"^(\\d{1,2}-\\d{1,2}|\\d{1,3}[.:]\\d{1,3}|\\d{1,2}[.:]\\d{1,3}-\\d{1,3}|\\d{1,2}[.:]\\d{1,3}(,\\d{1,3})+"
+        /*german*/"|\\d{1,2}(;\\s?\\d{1,2}(-\\d{1,2})?)*|\\d{1,2},\\d{1,3}([-.]\\d{1,3})f{0,2}+)$"));
+
+    bool possible_book_seen(false), check_for_french_date(false);
+    std::vector<std::string> bible_reference_candidates;
+    std::string bible_reference_candidate_prefix;
+    for (auto token(tokens.cbegin()); token != tokens.cend(); ++token) {
+        if (possible_book_seen) {
+            possible_book_seen = false;
+            if (chapter_and_verses_matcher->matched(*token)) {
+                if (not check_for_french_date or token == tokens.cend() - 1 or FRENCH_MONTHS.find(*(token + 1)) == FRENCH_MONTHS.cend())
+                    bible_reference_candidates.emplace_back(bible_reference_candidate_prefix + *token);
             }
+            check_for_french_date = false;
+            bible_reference_candidate_prefix.clear();
+            continue;
+        }
 
-            marc_writer->write(record);
-        } catch (const std::exception &x) {
-            LOG_ERROR("caught exception for title record w/ PPN " + record.getControlNumber() + ": " + std::string(x.what()));
+        if (IsPossibleBookNumeral(*token))
+            bible_reference_candidate_prefix = *token;
+        else if (ConsistsEntirelyOfLettersFollowedByAnOptionalPeriod(*token)) {
+            const auto canonized_token(bible_book_canoniser.canonise(*token));
+            if (bible_reference_candidate_prefix.empty() or IsPossibleBookNumeral(bible_reference_candidate_prefix))
+                bible_reference_candidate_prefix += canonized_token;
+            else
+                bible_reference_candidate_prefix = canonized_token;
+            if (IsValidBibleBook(bible_reference_candidate_prefix, bible_book_canoniser, bible_book_to_code_mapper)) {
+                possible_book_seen = true;
+                if (*token == "le")
+                    check_for_french_date = true;
+            } else {
+                check_for_french_date = false;
+                bible_reference_candidate_prefix.clear();
+            }
         }
     }
 
-    LOG_INFO("Augmented the " + RangeUtil::BIB_REF_RANGE_TAG + "$a field of " + std::to_string(augment_count)
-             + " records of a total of " + std::to_string(total_count) + " records.");
+    std::vector<std::string> lc_tokens;
+    lc_tokens.reserve(tokens.size());
+    for (const auto &token : tokens)
+        lc_tokens.emplace_back(TextUtil::UTF8ToLower(token));
+
+    for (const auto &pericope : pericopes) {
+        if (FoundTokenSubstring(pericope, lc_tokens))
+            bible_reference_candidates.emplace_back(StringUtil::Join(pericope, ' '));
+    }
+
+    return bible_reference_candidates;
+}
+
+
+bool HasGNDBibleRef(const MARC::Record &record,
+                    const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map)
+{
+    return FindGndCodes("600:610:611:630:648:651:655:689", record, gnd_codes_to_bible_ref_codes_map);
+}
+
+
+void FindBibRefCandidates(
+    MARC::Reader * const marc_reader, File * const output, const std::vector<std::vector<std::string>> &pericopes,
+    const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map)
+{
+    RangeUtil::BibleBookCanoniser bible_book_canoniser(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_canonical_form.map");
+    RangeUtil::BibleBookToCodeMapper bible_book_to_code_mapper(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_code.map");
+    unsigned total_count(0), addition_title_reference_count(0);
+    while (const MARC::Record record = marc_reader->read()) {
+        ++total_count;
+
+        if (not HasGNDBibleRef(record, gnd_codes_to_bible_ref_codes_map)) {
+            const auto candidates(ExtractBibleReferenceCandidates(TokenizeText(record.getCompleteTitle()),
+                                                                  pericopes, bible_book_canoniser, bible_book_to_code_mapper));
+            if (not candidates.empty()) {
+                ++addition_title_reference_count;
+                *output << record.getControlNumber() << ": " << record.getCompleteTitle() << "\n\t"
+                        << StringUtil::Join(candidates, '|') << '\n';
+            }
+        }
+    }
+
+    LOG_INFO("Found " + std::to_string(addition_title_reference_count) + " titles w/ possible bible references.");
+}
+
+
+void LoadEnglishPericopes(std::vector<std::vector<std::string>> * const pericopes) {
+    const auto initial_size(pericopes->size());
+    for (auto line : FileUtil::ReadLines(UBTools::GetTuelibPath() + "bibleRef/engish_pericopes")) {
+        std::vector<std::string> tokens;
+        TextUtil::UTF8ToLower(&line);
+        if (StringUtil::SplitThenTrimWhite(line, ' ', &tokens) > 0)
+            pericopes->emplace_back(std::move(tokens));
+    }
+    LOG_INFO("loaded " + std::to_string(pericopes->size() - initial_size) + " English pericopes.");
 }
 
 
@@ -425,20 +533,16 @@ void AugmentBibleRefs(MARC::Reader * const marc_reader, MARC::Writer * const mar
 
 
 int Main(int argc, char **argv) {
-    if (argc < 3)
+    if (argc != 4)
         Usage();
 
     const std::string title_input_filename(argv[1]);
     const std::string authority_input_filename(argv[2]);
-    const std::string title_output_filename(argv[3]);
-    if (unlikely(title_input_filename == title_output_filename))
-        LOG_ERROR("Title input file name equals title output file name!");
-    if (unlikely(authority_input_filename == title_output_filename))
-        LOG_ERROR("Norm data input file name equals title output file name!");
+    const std::string bib_ref_candidates_list_filename(argv[3]);
 
     auto title_reader(MARC::Reader::Factory(title_input_filename));
     auto authority_reader(MARC::Reader::Factory(authority_input_filename));
-    auto title_writer(MARC::Writer::Factory(title_output_filename));
+    auto bib_ref_candidates_writer(FileUtil::OpenOutputFileOrDie(bib_ref_candidates_list_filename));
 
     const std::string books_of_the_bible_to_code_map_filename(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_code.map");
     File books_of_the_bible_to_code_map_file(books_of_the_bible_to_code_map_filename, "r");
@@ -449,9 +553,10 @@ int Main(int argc, char **argv) {
     LoadBibleOrderMap(&books_of_the_bible_to_code_map_file, &books_of_the_bible_to_code_map);
 
     std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> gnd_codes_to_bible_ref_codes_map;
-    LoadNormData(books_of_the_bible_to_code_map, authority_reader.get(),
-                 &gnd_codes_to_bible_ref_codes_map);
-    AugmentBibleRefs(title_reader.get(), title_writer.get(), gnd_codes_to_bible_ref_codes_map);
+    std::vector<std::vector<std::string>> pericopes;
+    LoadNormData(books_of_the_bible_to_code_map, authority_reader.get(), &pericopes, &gnd_codes_to_bible_ref_codes_map);
+    LoadEnglishPericopes(&pericopes);
+    FindBibRefCandidates(title_reader.get(), bib_ref_candidates_writer.get(), pericopes, gnd_codes_to_bible_ref_codes_map);
 
     return EXIT_SUCCESS;
 }
