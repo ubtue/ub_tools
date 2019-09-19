@@ -104,4 +104,16 @@ bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start
 bool ConvertTextToTimeRange(const std::string &text, std::string * const range, const bool special_case_centuries = false);
 
 
-} // namespace MiscUtil
+/** \brief Special processing for 2 Esdras, 5 Esra and 6 Esra
+ *
+ *  The following rules are currently implemented:
+ *
+ *  1) if "book" is "5esra" we replace it with "4esra", if "chapters_and_verses" is empty we insert "1-2" o/w we keep it as is
+ *  2) if "book" is "6esra" we set it to "4esra", if "chapters_and_verses" is empty we insert "15-16" o/w we abort w/ an error message
+ *  3) if "book" is "2esdras" we set it to "4esra".  We don't modify "chapters_and_verses".
+ *  4) If "book" is none of the above, neither "book " nor "chapters_and_verses" will be modified
+ */
+void EsraSpecialProcessing(std::string * const book, std::vector<std::string> * const chapters_and_verses);
+
+
+} // namespace RangeUtil

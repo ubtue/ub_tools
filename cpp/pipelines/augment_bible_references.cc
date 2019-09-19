@@ -277,20 +277,8 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
         CreateNumberedBooks(book_name_candidate, &n_subfield_values, &books);
 
         // Special processing for 2 Esdras, 5 Esra and 6 Esra
-        for (auto &book : books) {
-            if (book == "5esra") { // an alias for 4Esra1-2
-                if (n_subfield_values.empty())
-                    n_subfield_values.emplace_back("1-2");
-                book = "4esra";
-            } else if (book == "6esra") { // an alias for 4Esra15-16
-                book = "4esra";
-                if (n_subfield_values.empty())
-                    n_subfield_values.emplace_back("15-16");
-                else // So far this case does nor appear in our data.
-                    LOG_ERROR("n_subfield_values for 6esra: " + StringUtil::Join(n_subfield_values, "++"));
-            } else if (book == "2esdras")
-                book = "4esra";
-        }
+        for (auto &book : books)
+            RangeUtil::EsraSpecialProcessing(&book, &n_subfield_values);
 
         if (not HaveBibleBookCodes(books, bible_book_to_code_map)) {
             LOG_WARNING(record.getControlNumber() + ": found no bible book code for \"" + book_name_candidate

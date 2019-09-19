@@ -690,4 +690,20 @@ bool ConvertTextToTimeRange(const std::string &text, std::string * const range, 
 }
 
 
+void EsraSpecialProcessing(std::string * const book, std::vector<std::string> * const chapters_and_verses) {
+    if (*book == "5esra") { // an alias for 4Esra1-2
+        if (chapters_and_verses->empty())
+            chapters_and_verses->emplace_back("1-2");
+        *book = "4esra";
+    } else if (*book == "6esra") { // an alias for 4Esra15-16
+        *book = "4esra";
+        if (chapters_and_verses->empty())
+            chapters_and_verses->emplace_back("15-16");
+        else // So far this case does nor appear in our data.
+            LOG_ERROR("chapters_and_verses for 6esra: " + StringUtil::Join(*chapters_and_verses, "++"));
+    } else if (*book == "2esdras")
+        *book = "4esra";
+}
+
+
 } // namespace RangeUtil
