@@ -389,7 +389,7 @@ inline bool IsPossibleBookNumeral(const std::string &book_numeral_candidate) {
 inline bool IsValidBibleBook(const std::string &bible_book_candidate, const RangeUtil::BibleBookCanoniser &bible_book_canoniser,
                              const RangeUtil::BibleBookToCodeMapper &bible_book_to_code_mapper)
 {
-    return not bible_book_to_code_mapper.mapToCode(bible_book_canoniser.canonise(bible_book_candidate)).empty();
+    return not bible_book_to_code_mapper.mapToCode(TextUtil::UTF8ToLower(bible_book_canoniser.canonise(bible_book_candidate))).empty();
 }
 
 
