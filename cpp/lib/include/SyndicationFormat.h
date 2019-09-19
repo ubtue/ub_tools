@@ -23,6 +23,7 @@
 #include <string>
 #include <unordered_map>
 #include <ctime>
+#include "TextUtil.h"
 #include "XMLParser.h"
 
 
@@ -41,6 +42,10 @@ public:
             : title_(title), description_(description), link_(link), id_(id), pub_date_(pub_date),
               dc_and_prism_data_(dc_and_prism_data)
         {
+            TextUtil::CollapseAndTrimWhitespace(&title_);
+            TextUtil::CollapseAndTrimWhitespace(&link_);
+            TextUtil::CollapseAndTrimWhitespace(&id_);
+
             if (id_.empty()) {
                 LOG_WARNING("invalid ID for RSS item! title = '" + title_ + "', link = '" + link_ + "'");
                 // use the link as the fallback option

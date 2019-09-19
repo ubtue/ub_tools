@@ -291,63 +291,76 @@ void ProcessArgs(int * const argc, char *** const argv, BSZUpload::DeliveryMode 
                 *delivery_mode_to_process = static_cast<BSZUpload::DeliveryMode>(match->second);
 
             --*argc, ++*argv;
+            continue;
         }
 
         if (StringUtil::StartsWith((*argv)[1], "--groups=")) {
             StringUtil::SplitThenTrimWhite((*argv)[1] + __builtin_strlen("--groups="), ',', groups_filter);
             --*argc, ++*argv;
+            continue;
         }
 
         if (StringUtil::StartsWith((*argv)[1], "--zeder-ids=")) {
             StringUtil::SplitThenTrimWhite((*argv)[1] + __builtin_strlen("--zeder-ids="), ',', zeder_ids_filter);
             --*argc, ++*argv;
+            continue;
         }
 
         if (std::strcmp((*argv)[1], "--force-downloads") == 0) {
             *force_downloads = true;
             --*argc, ++*argv;
+            continue;
         }
 
         if (std::strcmp((*argv)[1], "--ignore-robots-dot-txt") == 0) {
             *ignore_robots_dot_txt = true;
             --*argc, ++*argv;
+            continue;
         }
 
         const std::string MAP_DIRECTORY_FLAG_PREFIX("--map-directory=");
         if (StringUtil::StartsWith((*argv)[1], MAP_DIRECTORY_FLAG_PREFIX)) {
             *map_directory_path = (*argv)[1] + MAP_DIRECTORY_FLAG_PREFIX.length();
             --*argc, ++*argv;
+            continue;
         }
 
         const std::string OUTPUT_DIRECTORY_FLAG_PREFIX("--output-directory=");
         if (StringUtil::StartsWith((*argv)[1], OUTPUT_DIRECTORY_FLAG_PREFIX)) {
             *output_directory = (*argv)[1] + OUTPUT_DIRECTORY_FLAG_PREFIX.length();
             --*argc, ++*argv;
+            continue;
         }
 
         const std::string OUTPUT_FILENAME_FLAG_PREFIX("--output-filename=");
         if (StringUtil::StartsWith((*argv)[1], OUTPUT_FILENAME_FLAG_PREFIX)) {
             *output_filename = (*argv)[1] + OUTPUT_FILENAME_FLAG_PREFIX.length();
             --*argc, ++*argv;
+            continue;
         }
 
         const std::string OUTPUT_FORMAT_FLAG_PREFIX("--output-format=");
         if (StringUtil::StartsWith((*argv)[1], OUTPUT_FORMAT_FLAG_PREFIX)) {
             *output_format_string = (*argv)[1] + OUTPUT_FORMAT_FLAG_PREFIX.length();
             --*argc, ++*argv;
+            continue;
         }
 
         const std::string HARVEST_URL_REGEX_PREFIX("--harvest-url-regex=");
         if (StringUtil::StartsWith((*argv)[1], HARVEST_URL_REGEX_PREFIX)) {
             *harvest_url_regex = (*argv)[1] + HARVEST_URL_REGEX_PREFIX.length();
             --*argc, ++*argv;
+            continue;
         }
 
         const std::string HARVEST_SINGLE_URL_PREFIX("--harvest-single-url=");
         if (StringUtil::StartsWith((*argv)[1], HARVEST_SINGLE_URL_PREFIX)) {
             *harvest_single_url = (*argv)[1] + HARVEST_SINGLE_URL_PREFIX.length();
             --*argc, ++*argv;
+            continue;
         }
+
+        Usage();
     }
 }
 
