@@ -61,10 +61,10 @@ enum Mode { GENERATE, DIFF, MERGE };
 // class with its string identifiers.
 enum ExportField {
     TITLE,
-    ZEDER_ID, ZEDER_MODIFIED_TIMESTAMP, ZEDER_UPDATE_WINDOW,
+    ZEDER_ID, ZEDER_MODIFIED_TIMESTAMP,
     TYPE, GROUP,
     PARENT_PPN_PRINT, PARENT_PPN_ONLINE, PARENT_ISSN_PRINT, PARENT_ISSN_ONLINE,
-    ENTRY_POINT_URL, EXPECTED_LANGUAGES,
+    ENTRY_POINT_URL, EXPECTED_LANGUAGES, UPDATE_WINDOW,
     // The following fields are only used when exporting entries of type 'CRAWL'.
     EXTRACTION_REGEX, MAX_CRAWL_DEPTH
 };
@@ -108,7 +108,6 @@ ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { TITLE,                    "zts_title"                 },
     { ZEDER_ID,                 "" /* unused */             },      // stored directly in the Entry class
     { ZEDER_MODIFIED_TIMESTAMP, "" /* unused */             },      // same as above
-    { ZEDER_UPDATE_WINDOW,      "zts_update_window"         },
     { TYPE,                     "zts_type"                  },
     { GROUP,                    "zts_group"                 },
     { PARENT_PPN_PRINT,         "zts_parent_ppn_print"      },
@@ -117,13 +116,13 @@ ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { PARENT_ISSN_ONLINE,       "zts_parent_issn_online"    },
     { ENTRY_POINT_URL,          "zts_entry_point_url"       },
     { EXPECTED_LANGUAGES,       "zts_expected_languages"    },
+    { UPDATE_WINDOW,            "zts_update_window"         },
     { EXTRACTION_REGEX,         "" /* unused */             },
     { MAX_CRAWL_DEPTH,          "" /* unused */             },
 }, ini_keys_{
     { TITLE,                    "" /* exported as the section name */   },
     { ZEDER_ID,                 JournalConfig::ZederBundle::Key(JournalConfig::Zeder::ID)                   },
     { ZEDER_MODIFIED_TIMESTAMP, JournalConfig::ZederBundle::Key(JournalConfig::Zeder::MODIFIED_TIME)        },
-    { ZEDER_UPDATE_WINDOW,      JournalConfig::ZederBundle::Key(JournalConfig::Zeder::UPDATE_WINDOW)        },
     { TYPE,                     JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::TYPE)               },
     { GROUP,                    JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::GROUP)              },
     { PARENT_PPN_PRINT,         JournalConfig::PrintBundle::Key(JournalConfig::Print::PPN)                  },
@@ -132,6 +131,7 @@ ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { PARENT_ISSN_ONLINE,       JournalConfig::OnlineBundle::Key(JournalConfig::Online::ISSN)               },
     { ENTRY_POINT_URL,          JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::URL)                },
     { EXPECTED_LANGUAGES,       JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::EXPECTED_LANGUAGES) },
+    { UPDATE_WINDOW,            JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::UPDATE_WINDOW)      },
     { EXTRACTION_REGEX,         JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::EXTRACTION_REGEX)   },
     { MAX_CRAWL_DEPTH,          JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::MAX_CRAWL_DEPTH)    },
 } {}
@@ -321,7 +321,7 @@ bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFie
     if (not journal_frequency.empty()) {
         const std::string update_window(CalculateUpdateWindowFromFrequency(journal_frequency));
         if (not update_window.empty())
-            entry->setAttribute(name_resolver.getAttributeName(ZEDER_UPDATE_WINDOW), update_window);
+            entry->setAttribute(name_resolver.getAttributeName(UPDATE_WINDOW), update_window);
         else
             LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | Unable to derive a proper update window from \""
                                                                        + journal_frequency + "\"");
@@ -456,7 +456,7 @@ void ParseZederIni(const std::string &file_path, const ExportFieldNameResolver &
                    const ConversionParams &params, Zeder::EntryCollection * const zeder_config)
 {
     static const std::unordered_map<std::string, std::string> ini_key_to_attribute_map{
-        name_resolver.getIniKeyAttributeNamePair(ZEDER_UPDATE_WINDOW),
+        name_resolver.getIniKeyAttributeNamePair(UPDATE_WINDOW),
         name_resolver.getIniKeyAttributeNamePair(TYPE),
         name_resolver.getIniKeyAttributeNamePair(GROUP),
         name_resolver.getIniKeyAttributeNamePair(PARENT_PPN_PRINT),
@@ -513,7 +513,7 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
                    const Zeder::EntryCollection &zeder_config, const bool create_file_anew = false)
 {
     static const std::vector<std::string> attributes_to_export{
-        name_resolver.getAttributeName(ZEDER_UPDATE_WINDOW),
+        name_resolver.getAttributeName(UPDATE_WINDOW),
         name_resolver.getAttributeName(PARENT_PPN_PRINT),
         name_resolver.getAttributeName(PARENT_ISSN_PRINT),
         name_resolver.getAttributeName(PARENT_PPN_ONLINE),
@@ -532,7 +532,7 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
         name_resolver.getAttributeNameIniKeyPair(PARENT_ISSN_PRINT),
         name_resolver.getAttributeNameIniKeyPair(PARENT_ISSN_ONLINE),
         name_resolver.getAttributeNameIniKeyPair(ENTRY_POINT_URL),
-        name_resolver.getAttributeNameIniKeyPair(ZEDER_UPDATE_WINDOW),
+        name_resolver.getAttributeNameIniKeyPair(UPDATE_WINDOW),
         name_resolver.getAttributeNameIniKeyPair(EXPECTED_LANGUAGES),
     };
 
