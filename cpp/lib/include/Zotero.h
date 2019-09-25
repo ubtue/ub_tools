@@ -79,7 +79,7 @@ struct CustomNodeParameters {
     std::string pages_;
     std::string volume_;
     std::string license_;
-    std::string ssg_numbers_;
+    std::string ssg_number_;
     std::vector<Creator> creators_;
     std::string comment_;
     std::string date_normalized_;
@@ -115,7 +115,7 @@ struct ItemParameters {
     std::string issn_print_;
     std::string license_;
     std::vector<std::string> keywords_;
-    std::vector<std::string> ssg_numbers_;
+    BSZTransform::SSGNType ssgn_;
     std::string journal_name_;
     std::string harvest_url_;
     std::map<std::string, std::string> notes_key_value_pairs_; // Abuse of the "notes" field to pass thru non-standard values
