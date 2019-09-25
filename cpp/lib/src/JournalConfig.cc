@@ -44,7 +44,6 @@ const std::string Online::prefix("online");
 const std::unordered_map<std::string, Zeder::Entries> Zeder::key_id_resolver_map{
     { "id",            Zeder::Entries::ID            },
     { "modified_time", Zeder::Entries::MODIFIED_TIME },
-    { "update_window", Zeder::Entries::UPDATE_WINDOW },
 };
 
 
@@ -62,6 +61,7 @@ const std::unordered_map<std::string, Zotero::Entries> Zotero::key_id_resolver_m
     { "delivery_mode",      Zotero::Entries::DELIVERY_MODE      },
     { "expected_languages", Zotero::Entries::EXPECTED_LANGUAGES },
     { "crawl_url_regex",    Zotero::Entries::CRAWL_URL_REGEX    },
+    { "update_window",      Zotero::Entries::UPDATE_WINDOW      },
 };
 
 
