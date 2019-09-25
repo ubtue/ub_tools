@@ -62,6 +62,7 @@ const std::unordered_map<std::string, Zotero::Entries> Zotero::key_id_resolver_m
     { "expected_languages", Zotero::Entries::EXPECTED_LANGUAGES },
     { "crawl_url_regex",    Zotero::Entries::CRAWL_URL_REGEX    },
     { "update_window",      Zotero::Entries::UPDATE_WINDOW      },
+    { "ssgn",               Zotero::Entries::SSGN               },
 };
 
 

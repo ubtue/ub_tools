@@ -25,6 +25,7 @@
 #include <csignal>
 #include <cstring>
 #include <unistd.h>
+#include "BSZTransform.h"
 #include "IniFile.h"
 #include "JournalConfig.h"
 #include "MiscUtil.h"
@@ -64,7 +65,7 @@ enum ExportField {
     ZEDER_ID, ZEDER_MODIFIED_TIMESTAMP,
     TYPE, GROUP,
     PARENT_PPN_PRINT, PARENT_PPN_ONLINE, PARENT_ISSN_PRINT, PARENT_ISSN_ONLINE,
-    ENTRY_POINT_URL, EXPECTED_LANGUAGES, UPDATE_WINDOW,
+    ENTRY_POINT_URL, EXPECTED_LANGUAGES, UPDATE_WINDOW, SSGN,
     // The following fields are only used when exporting entries of type 'CRAWL'.
     EXTRACTION_REGEX, MAX_CRAWL_DEPTH
 };
@@ -117,6 +118,7 @@ ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { ENTRY_POINT_URL,          "zts_entry_point_url"       },
     { EXPECTED_LANGUAGES,       "zts_expected_languages"    },
     { UPDATE_WINDOW,            "zts_update_window"         },
+    { SSGN,                     "zts_ssgn"                  },
     { EXTRACTION_REGEX,         "" /* unused */             },
     { MAX_CRAWL_DEPTH,          "" /* unused */             },
 }, ini_keys_{
@@ -132,6 +134,7 @@ ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { ENTRY_POINT_URL,          JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::URL)                },
     { EXPECTED_LANGUAGES,       JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::EXPECTED_LANGUAGES) },
     { UPDATE_WINDOW,            JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::UPDATE_WINDOW)      },
+    { SSGN,                     JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::SSGN)               },
     { EXTRACTION_REGEX,         JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::EXTRACTION_REGEX)   },
     { MAX_CRAWL_DEPTH,          JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::MAX_CRAWL_DEPTH)    },
 } {}
@@ -331,6 +334,13 @@ bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFie
         auto expected_languages(entry->getAttribute("spr"));
         StringUtil::Trim(&expected_languages);
         entry->setAttribute(name_resolver.getAttributeName(EXPECTED_LANGUAGES), expected_languages);
+    }
+
+    if (entry->hasAttribute("ber")) {
+        auto ssgn(entry->getAttribute("ber"));
+        StringUtil::Trim(&ssgn);
+        if (BSZTransform::GetSSGNTypeFromString(ssgn) != BSZTransform::SSGNType::INVALID)
+            entry->setAttribute(name_resolver.getAttributeName(SSGN), ssgn);
     }
 
     // remove the original attributes

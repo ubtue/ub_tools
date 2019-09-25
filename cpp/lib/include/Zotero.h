@@ -221,10 +221,12 @@ struct SiteParams {
     std::map<std::string, std::unique_ptr<RegexMatcher>> metadata_exclusion_filters_;
     std::map<std::string, std::unique_ptr<RegexMatcher>> field_removal_filters_;
     unsigned journal_update_window_;
+    BSZTransform::SSGNType ssgn_;
 public:
     SiteParams()
         : global_params_(nullptr), group_params_(nullptr), delivery_mode_(BSZUpload::DeliveryMode::NONE),
-          force_automatic_language_detection_(false), journal_update_window_(0) {}
+          force_automatic_language_detection_(false), journal_update_window_(0), ssgn_(BSZTransform::SSGNType::INVALID)
+          {}
 };
 
 
