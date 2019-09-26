@@ -1,4 +1,4 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
 #
 # Downloads metadata from Crossref.org, generates MARC-XML from those data and uploads the MARC-XML to the BSZ.

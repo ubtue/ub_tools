@@ -1,6 +1,5 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
-
 import atexit
 import datetime
 import glob

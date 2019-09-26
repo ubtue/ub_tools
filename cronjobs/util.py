@@ -1,13 +1,10 @@
-# Python 2 module
+# Python 3 module
 # -*- coding: utf-8 -*-
-
-
-from __future__ import print_function
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from ftplib import FTP
-import ConfigParser
+import configparser
 import ctypes
 import datetime
 import glob
@@ -35,7 +32,7 @@ def SendEmail(subject, msg, sender=None, recipient=None, cc=None, priority=None,
     if recipient is None:
         recipient = default_email_recipient
     if priority is not None:
-        if type(priority) is not int:
+        if not isinstance(priority, int):
             Error("util.Sendmail called with a non-int priority!")
         if priority < 1 or priority > 5:
             Error("util.Sendmail called with a prioity that is not in [1..5]!")
@@ -61,7 +58,7 @@ def SendEmail(subject, msg, sender=None, recipient=None, cc=None, priority=None,
     message.attach(MIMEText(msg, 'plain', 'utf-8'))
 
     if attachments is not None:
-        if not type(attachments) is list:
+        if not isinstance(attachments, list):
             attachments = [ attachments ]
 
         for attachment in attachments:
@@ -183,7 +180,7 @@ def ReadTimestamp(prefix = None):
 def WriteTimestamp(prefix=None, timestamp=None):
     if prefix is None:
         prefix = os.path.basename(sys.argv[0])[:-3]
-    elif type(timestamp) is not float:
+    elif not isinstance(timestamp, float):
         raise TypeError("timestamp argument of WriteTimestamp() must be of type \"float\"!")
     if timestamp is None:
         timestamp = time.time()
@@ -205,7 +202,7 @@ def LoadConfigFile(path=None, no_error=False):
             if no_error:
                 raise OSError("in util.LoadConfigFile: can't open \"" + path + "\" for reading!")
             Error("in util.LoadConfigFile: can't open \"" + path + "\" for reading!")
-        config = ConfigParser.ConfigParser()
+        config = configparser.ConfigParser()
         config.read(path)
         return config
     except Exception as e:
