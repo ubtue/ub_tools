@@ -21,16 +21,18 @@ def GetNewBNBNumbers(list_no):
     zipped_rdf_filename = "bnbrdf_N" + str(list_no) + ".zip"
     headers = urllib.urlretrieve("https://www.bl.uk/bibliographic/bnbrdf/bnbrdf_N%d.zip"
                                  % list_no, zipped_rdf_filename)[1]
-    if headers["Content-type"] != "application/rdf":
+    if headers["Content-type"] != "application/zip":
         util.Remove(zipped_rdf_filename)
         return headers["Content-type"]
 
+    print "Downloaded " + zipped_rdf_filename
     with zipfile.ZipFile(zipped_rdf_filename, "r") as zip_file:
         zip_file.extractall()
     util.Remove(zipped_rdf_filename)
     rdf_filename = "bnbrdf_N" + str(list_no) + ".rdf"
 
     numbers = []
+    print "About to parse " + rdf_filename
     tree = ElementTree.parse(rdf_filename)
     for child in tree.iter('{http://purl.org/dc/terms/}identifier'):
         if child.text[0:2] == "GB":
@@ -68,8 +70,10 @@ def RetryGetNewBNBNumbers(list_no):
         print "Attempt #" + str(attempt)
         retval = GetNewBNBNumbers(list_no)
         if type(retval) == list:
+            print "Downloaded and extracted " + str(len(retval)) + " BNB numbers."
             return retval
         else:
+            print "Content-type of downloaded document was " + retval
             time.sleep(sleep_interval)
             sleep_interval *= 2 # Exponential backoff
     return None
