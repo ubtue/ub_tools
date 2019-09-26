@@ -706,7 +706,22 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             break;
         }
         _084_subfields.appendSubfield('2', "ssgn");
+        record->insertField("084", _084_subfields);
     }
+
+    // Abrufzeichen und ISIL
+    if (site_params_->group_params_->bsz_upload_group_ == "krimdok") {
+        record->insertField("852", { { 'a', isil } });
+        record->insertField("935", { { 'a', "mteo" } });
+    } else if (site_params_->group_params_->bsz_upload_group_ == "ixtheo" and
+               node_parameters.ssgn_ != BSZTransform::SSGNType::INVALID)
+    {
+        record->insertField("852", { { 'a', isil } });
+        record->insertField("935", { { 'a', "mkri" } });
+    }
+
+    // Zotero sigil
+    record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
 
     record->insertField("001", site_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
                         + "#" + StringUtil::ToHexString(MARC::CalcChecksum(*record)));
