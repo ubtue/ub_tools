@@ -190,21 +190,7 @@ void WriteMapValuesToFile(const std::vector<MapValue> &map_values, const MapPara
 
 
 void PushToGitHub(const std::string &issn_directory, const std::vector<std::string> &files_to_push) {
-    std::string command_line("cd " + issn_directory);
 
-    for (const auto &file : files_to_push)
-        command_line += " && git add " + file;
-
-    command_line += " && git commit -m \"Update maps: ";
-
-    for (const auto &file : files_to_push)
-        command_line += file + " ";
-
-    command_line += "\" && git pull && git push";
-
-    std::string std_out, std_err;
-    if (not ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(command_line, {}, &std_out, &std_err))
-        LOG_WARNING("Couldn't push to GitHub! \n\nstdout:\n" + std_out + "\n\nstderr:\n" + std_err);
 }
 
 
