@@ -79,7 +79,7 @@ struct CustomNodeParameters {
     std::string pages_;
     std::string volume_;
     std::string license_;
-    std::string ssg_number_;
+    std::string ssg_numbers_;
     std::vector<Creator> creators_;
     std::string comment_;
     std::string date_normalized_;
