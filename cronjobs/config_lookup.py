@@ -1,6 +1,5 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
-
 import sys
 import util
 

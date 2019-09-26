@@ -1,4 +1,4 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
 #
 # A tool that creates a pseudo complete MARC data download from the BSZ from a differential download
@@ -15,7 +15,6 @@ server_address  = smtpserv.uni-tuebingen.de
 server_user     = XXXXXX
 server_password = XXXXXX
 """
-
 
 from ftplib import FTP
 import datetime

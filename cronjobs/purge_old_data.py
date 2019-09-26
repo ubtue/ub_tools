@@ -1,4 +1,4 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
 #
 # A tool that removes old data files that contain a YYMMDD timestamp in the filename.
@@ -12,7 +12,6 @@ server_password = XXXXXX
 [PurgeFiles]
 generations_to_keep = 2
 """
-
 
 from ftplib import FTP
 import glob
@@ -36,7 +35,7 @@ def PurgeFiles(generations_to_keep, all_files):
             map_to_lists[normalised_name] = [file_name]
 
     deleted_names = ""
-    for _, file_name_list in map_to_lists.items():
+    for _, file_name_list in list(map_to_lists.items()):
         if len(file_name_list) <= generations_to_keep:
             continue
         file_name_list = sorted(file_name_list, reverse=True)
