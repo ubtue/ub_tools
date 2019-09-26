@@ -37,7 +37,7 @@ def GetNewBNBNumbers(list_no):
     for child in tree.iter('{http://purl.org/dc/terms/}identifier'):
         if child.text[0:2] == "GB":
             numbers.append(child.text)
-    #util.Remove(rdf_filename)
+    util.Remove(rdf_filename)
     return numbers
 
 
