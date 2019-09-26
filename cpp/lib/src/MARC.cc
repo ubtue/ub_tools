@@ -457,6 +457,116 @@ Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibli
 }
 
 
+std::string Record::toBinaryString() const {
+    std::string as_string;
+
+    Record::const_iterator start(begin());
+    do {
+        const bool record_is_oversized(start > begin());
+        Record::const_iterator end(start);
+        unsigned record_size(Record::LEADER_LENGTH + 2 /* end-of-directory and end-of-record */);
+        if (record_is_oversized) // Include size of the 001 field.
+            record_size += fields_.front().getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
+        while (end != this->end()
+               and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH < Record::MAX_RECORD_LENGTH))
+        {
+            record_size += end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
+            ++end;
+        }
+
+        std::string raw_record;
+        raw_record.reserve(record_size);
+        const unsigned no_of_fields(end - start + (record_is_oversized ? 1 /* for the added 001 field */ : 0));
+        AppendToStringWithLeadingZeros(raw_record, record_size, /* width = */ 5);
+        StringUtil::AppendSubstring(raw_record, leader_, 5, 12 - 5);
+        const unsigned base_address_of_data(Record::LEADER_LENGTH + no_of_fields * Record::DIRECTORY_ENTRY_LENGTH
+                                            + 1 /* end-of-directory */);
+        AppendToStringWithLeadingZeros(raw_record, base_address_of_data, /* width = */ 5);
+        StringUtil::AppendSubstring(raw_record, leader_, 17, Record::LEADER_LENGTH - 17);
+
+        // Append the directory:
+        unsigned field_start_offset(0);
+        if (record_is_oversized) {
+            raw_record += "001";
+            AppendToStringWithLeadingZeros(raw_record, fields_.front().getContents().length() + 1 /* field terminator */, 4);
+            AppendToStringWithLeadingZeros(raw_record, field_start_offset, /* width = */ 5);
+            field_start_offset += fields_.front().getContents().length() + 1 /* field terminator */;
+        }
+        for (Record::const_iterator entry(start); entry != end; ++entry) {
+            const size_t contents_length(entry->getContents().length());
+            if (unlikely(contents_length > Record::MAX_VARIABLE_FIELD_DATA_LENGTH))
+                LOG_ERROR("can't generate a directory entry w/ a field w/ data length " + std::to_string(contents_length) + "!");
+            raw_record += entry->getTag().toString();
+            AppendToStringWithLeadingZeros(raw_record, entry->getContents().length() + 1 /* field terminator */, 4);
+            AppendToStringWithLeadingZeros(raw_record, field_start_offset, /* width = */ 5);
+            field_start_offset += contents_length + 1 /* field terminator */;
+        }
+        raw_record += '\x1E'; // end-of-directory
+
+        // Now append the field data:
+        if (record_is_oversized) {
+            raw_record += fields_.front().getContents();
+            raw_record += '\x1E'; // end-of-field
+        }
+        for (Record::const_iterator entry(start); entry != end; ++entry) {
+            raw_record += entry->getContents();
+            raw_record += '\x1E'; // end-of-field
+        }
+        raw_record += '\x1D'; // end-of-record
+
+        if (as_string.empty())
+            as_string.swap(raw_record);
+        else
+            as_string += raw_record;
+
+        start = end;
+    } while (start != end());
+
+    return as_string;
+}
+
+
+std::string Record::toXmlString(const unsigned indent_amount, const MarcXmlWriter::TextConversionType text_conversion_type) const {
+    std::string as_string;
+
+    MarcXmlWriter xml_writer(&as_string, indent_amount, text_conversion_type);
+
+    xml_writer.openTag("record");
+    xml_writer.writeTagsWithData("leader", leader_, /* suppress_newline = */ true);
+    for (const auto &field : *this) {
+        if (field.isControlField())
+            xml_writer.writeTagsWithData("controlfield", { std::make_pair("tag", field.getTag().toString()) }, field.getContents(),
+                                         /* suppress_newline = */ true);
+        else { // We have a data field.
+            xml_writer.openTag("datafield",
+                               { std::make_pair("tag", field.getTag().toString()),
+                                 std::make_pair("ind1", std::string(1, field.getIndicator1())),
+                                 std::make_pair("ind2", std::string(1, field.getIndicator2()))
+                               });
+
+            const Subfields subfields(field.getSubfields());
+            for (const auto &subfield : subfields)
+                xml_writer.writeTagsWithData("subfield", { std::make_pair("code", std::string(1, subfield.code_)) },
+                                             subfield.value_, /* suppress_newline = */ true);
+
+            xml_writer.closeTag(); // Close "datafield".
+        }
+    }
+    xml_writer.closeTag(); // Close "record".
+
+    return as_string;
+}
+
+
+std::string Record::toString(const RecordFormat record_format, const unsigned indent_amount,
+                             const MarcXmlWriter::TextConversionType text_conversion_type) const
+{
+    if (record_format == RecordFormat::MARC21_BINARY)
+        return toBinaryString();
+    else
+        return toXmlString(indent_amount, text_conversion_type);
+}
+
 
 void Record::merge(const Record &other) {
     for (const auto &other_field : other)
@@ -1980,109 +2090,15 @@ void BinaryWriter::write(const Record &record) {
     std::string error_message;
     if (not record.isValid(&error_message))
         LOG_ERROR("trying to write an invalid record: " + error_message + " (Control number: " + record.getControlNumber() + ")");
-
-    Record::const_iterator start(record.begin());
-    do {
-        const bool record_is_oversized(start > record.begin());
-        Record::const_iterator end(start);
-        unsigned record_size(Record::LEADER_LENGTH + 2 /* end-of-directory and end-of-record */);
-        if (record_is_oversized) // Include size of the 001 field.
-            record_size += record.fields_.front().getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
-        while (end != record.end()
-               and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH < Record::MAX_RECORD_LENGTH))
-        {
-            record_size += end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
-            ++end;
-        }
-
-        std::string raw_record;
-        raw_record.reserve(record_size);
-        const unsigned no_of_fields(end - start + (record_is_oversized ? 1 /* for the added 001 field */ : 0));
-        AppendToStringWithLeadingZeros(raw_record, record_size, /* width = */ 5);
-        StringUtil::AppendSubstring(raw_record, record.leader_, 5, 12 - 5);
-        const unsigned base_address_of_data(Record::LEADER_LENGTH + no_of_fields * Record::DIRECTORY_ENTRY_LENGTH
-                                            + 1 /* end-of-directory */);
-        AppendToStringWithLeadingZeros(raw_record, base_address_of_data, /* width = */ 5);
-        StringUtil::AppendSubstring(raw_record, record.leader_, 17, Record::LEADER_LENGTH - 17);
-
-        // Append the directory:
-        unsigned field_start_offset(0);
-        if (record_is_oversized) {
-            raw_record += "001";
-            AppendToStringWithLeadingZeros(raw_record, record.fields_.front().getContents().length() + 1 /* field terminator */, 4);
-            AppendToStringWithLeadingZeros(raw_record, field_start_offset, /* width = */ 5);
-            field_start_offset += record.fields_.front().getContents().length() + 1 /* field terminator */;
-        }
-        for (Record::const_iterator entry(start); entry != end; ++entry) {
-            const size_t contents_length(entry->getContents().length());
-            if (unlikely(contents_length > Record::MAX_VARIABLE_FIELD_DATA_LENGTH))
-                LOG_ERROR("can't generate a directory entry w/ a field w/ data length " + std::to_string(contents_length) + "!");
-            raw_record += entry->getTag().toString();
-            AppendToStringWithLeadingZeros(raw_record, entry->getContents().length() + 1 /* field terminator */, 4);
-            AppendToStringWithLeadingZeros(raw_record, field_start_offset, /* width = */ 5);
-            field_start_offset += contents_length + 1 /* field terminator */;
-        }
-        raw_record += '\x1E'; // end-of-directory
-
-        // Now append the field data:
-        if (record_is_oversized) {
-            raw_record += record.fields_.front().getContents();
-            raw_record += '\x1E'; // end-of-field
-        }
-        for (Record::const_iterator entry(start); entry != end; ++entry) {
-            raw_record += entry->getContents();
-            raw_record += '\x1E'; // end-of-field
-        }
-        raw_record += '\x1D'; // end-of-record
-
-        output_->write(raw_record);
-
-        start = end;
-    } while (start != record.end());
-}
-
-
-XmlWriter::XmlWriter(File * const output_file, const unsigned indent_amount,
-                     const MarcXmlWriter::TextConversionType text_conversion_type)
-{
-    xml_writer_ = new MarcXmlWriter(output_file, indent_amount, text_conversion_type);
-}
-
-
-XmlWriter::XmlWriter(std::string * const output_string, const unsigned indent_amount,
-                     const MarcXmlWriter::TextConversionType text_conversion_type)
-{
-    xml_writer_ = new MarcXmlWriter(output_string, indent_amount, text_conversion_type);
+    output_->write(record.toBinaryString());
 }
 
 
 void XmlWriter::write(const Record &record) {
-    xml_writer_->openTag("record");
-
-    xml_writer_->writeTagsWithData("leader", record.leader_, /* suppress_newline = */ true);
-
-    for (const auto &field : record) {
-        if (field.isControlField())
-            xml_writer_->writeTagsWithData("controlfield", { std::make_pair("tag", field.getTag().toString()) },
-                                           field.getContents(),
-                    /* suppress_newline = */ true);
-        else { // We have a data field.
-            xml_writer_->openTag("datafield",
-                                 { std::make_pair("tag", field.getTag().toString()),
-                                   std::make_pair("ind1", std::string(1, field.getIndicator1())),
-                                   std::make_pair("ind2", std::string(1, field.getIndicator2()))
-                                 });
-
-            const Subfields subfields(field.getSubfields());
-            for (const auto &subfield : subfields)
-                xml_writer_->writeTagsWithData("subfield", { std::make_pair("code", std::string(1, subfield.code_)) },
-                                               subfield.value_, /* suppress_newline = */ true);
-
-            xml_writer_->closeTag(); // Close "datafield".
-        }
-    }
-
-    xml_writer_->closeTag(); // Close "record".
+    std::string error_message;
+    if (not record.isValid(&error_message))
+        LOG_ERROR("trying to write an invalid record: " + error_message + " (Control number: " + record.getControlNumber() + ")");
+    output_->write(record.toXmlString(indent_amount_, text_conversion_type_));
 }
 
 
