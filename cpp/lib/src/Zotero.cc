@@ -702,7 +702,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             _084_subfields.appendSubfield('a', "0");
             _084_subfields.appendSubfield('a', "1");
             break;
-        default:
+       default:
             break;
         }
         _084_subfields.appendSubfield('2', "ssgn");
@@ -713,8 +713,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     if (site_params_->group_params_->bsz_upload_group_ == "krimdok") {
         record->insertField("852", { { 'a', isil } });
         record->insertField("935", { { 'a', "mteo" } });
-    } else if (site_params_->group_params_->bsz_upload_group_ == "ixtheo" and
-               node_parameters.ssgn_ != BSZTransform::SSGNType::INVALID)
+    } else if (site_params_->group_params_->bsz_upload_group_ == "ixtheo"
+               and node_parameters.ssgn_ != BSZTransform::SSGNType::INVALID)
     {
         record->insertField("852", { { 'a', isil } });
         record->insertField("935", { { 'a', "mkri" } });
