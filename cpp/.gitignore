@@ -88,6 +88,7 @@
 /full_text_cache_monitor
 /full_text_lookup
 /full_text_stats
+/generate_issn_maps_from_zeder
 /generate_issn_to_misc_bits_map
 /generate_language_model
 /generate_large_marc_record
