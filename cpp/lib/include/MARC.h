@@ -487,6 +487,14 @@ public:
         fields_.clear();
     }
 
+    enum class RecordFormat { MARC21_BINARY, MARC_XML };
+
+    /** \brief Creates a string representation of a MARC record.
+     *  \note  "indent_amount" and "text_conversion_type" are only used if "record_format" == MARC_XML.
+     */
+    std::string toString(const RecordFormat record_format, const unsigned indent_amount = 0,
+                         const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion) const;
+
     /** \brief Adds fields of "other" to this.
      *  \note  If non-repeatable fields of "other" already exist in this they will be silently ignored.
      */
@@ -832,9 +840,11 @@ public:
      */
     std::vector<iterator> getMatchedFields(const std::string &field_or_field_and_subfield_code, RegexMatcher * const regex_matcher);
 
+    std::string toBinaryString() const;
+    std::string toXmlString(const unsigned indent_amount, const MarcXmlWriter::TextConversionType text_conversion_type) const;
+
     static std::string BibliographicLevelToString(const BibliographicLevel bibliographic_level);
 };
-
 
 
 enum class FileType { AUTO, BINARY, XML };
@@ -944,6 +954,10 @@ private:
 
 
 class Writer {
+protected:
+    File * const output_;
+protected:
+    explicit Writer(File * const output): output_(output) { }
 public:
     enum WriterMode { OVERWRITE, APPEND };
 public:
@@ -952,12 +966,12 @@ public:
     virtual void write(const Record &record) = 0;
 
     /** \return a reference to the underlying, assocaiated file. */
-    virtual File &getFile() = 0;
+    File &getFile() { return *output_; }
 
     /** \brief Flushes the buffers of the underlying File to the storage medium.
      *  \return True on success and false on failure.  Sets errno if there is a failure.
      */
-    virtual bool flush() = 0;
+    bool flush() { return output_->flush(); }
 
     /** \note If you pass in AUTO for "writer_type", "output_filename" must end in ".mrc" or ".xml"! */
     static std::unique_ptr<Writer> Factory(const std::string &output_filename, FileType writer_type = FileType::AUTO,
@@ -967,44 +981,27 @@ public:
 
 class BinaryWriter: public Writer {
     friend class Writer;
-    File * const output_;
 private:
-    BinaryWriter(File * const output): output_(output) { }
+    BinaryWriter(File * const output): Writer(output) { }
 public:
     virtual ~BinaryWriter() { delete output_; }
 
     virtual void write(const Record &record) override final;
-
-    /** \return a reference to the underlying, associated file. */
-    virtual File &getFile() override final { return *output_; }
-
-    /** \brief Flushes the buffers of the underlying File to the storage medium.
-     *  \return True on success and false on failure.  Sets errno if there is a failure.
-     */
-    virtual bool flush() override final { return output_->flush(); }
 };
 
 
 class XmlWriter: public Writer {
     friend class Writer;
-    MarcXmlWriter *xml_writer_;
+    const unsigned indent_amount_;
+    const MarcXmlWriter::TextConversionType text_conversion_type_;
 private:
-    explicit XmlWriter(File * const output_file, const unsigned indent_amount = 0,
-                       const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion);
+    explicit XmlWriter(File * const output, const unsigned indent_amount = 0,
+                       const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion)
+        : Writer(output), indent_amount_(indent_amount), text_conversion_type_(text_conversion_type) { }
 public:
-    explicit XmlWriter(std::string * const output_string, const unsigned indent_amount = 0,
-                       const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion);
-    virtual ~XmlWriter() final { delete xml_writer_; }
+    virtual ~XmlWriter() final = default;
 
     virtual void write(const Record &record) override final;
-
-    /** \return a reference to the underlying, assocaiated file. */
-    virtual File &getFile() override final { return *xml_writer_->getAssociatedOutputFile(); }
-
-    /** \brief Flushes the buffers of the underlying File to the storage medium.
-     *  \return True on success and false on failure.  Sets errno if there is a failure.
-     */
-    virtual bool flush() override final { return xml_writer_->flush(); }
 };
 
 
