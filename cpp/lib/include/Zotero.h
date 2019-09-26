@@ -115,7 +115,7 @@ struct ItemParameters {
     std::string issn_print_;
     std::string license_;
     std::vector<std::string> keywords_;
-    std::vector<std::string> ssg_numbers_;
+    BSZTransform::SSGNType ssgn_;
     std::string journal_name_;
     std::string harvest_url_;
     std::map<std::string, std::string> notes_key_value_pairs_; // Abuse of the "notes" field to pass thru non-standard values
@@ -221,10 +221,12 @@ struct SiteParams {
     std::map<std::string, std::unique_ptr<RegexMatcher>> metadata_exclusion_filters_;
     std::map<std::string, std::unique_ptr<RegexMatcher>> field_removal_filters_;
     unsigned journal_update_window_;
+    BSZTransform::SSGNType ssgn_;
 public:
     SiteParams()
         : global_params_(nullptr), group_params_(nullptr), delivery_mode_(BSZUpload::DeliveryMode::NONE),
-          force_automatic_language_detection_(false), journal_update_window_(0) {}
+          force_automatic_language_detection_(false), journal_update_window_(0), ssgn_(BSZTransform::SSGNType::INVALID)
+          {}
 };
 
 

@@ -133,10 +133,10 @@ void ReadGenericSiteAugmentParams(const IniFile &ini_file, const IniFile::Sectio
         }
     }
 
-    site_params->zeder_id_ = bundle_reader.zeder(section_name).value(JournalConfig::Zeder::ID, "");
-    site_params->journal_update_window_ = 0;
-    StringUtil::ToUnsigned(bundle_reader.zeder(section_name).value(JournalConfig::Zeder::UPDATE_WINDOW, ""),
+    site_params->zeder_id_ = bundle_reader.zeder(section_name).value(JournalConfig::Zeder::ID);
+    StringUtil::ToUnsigned(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::UPDATE_WINDOW, "0"),
                            &site_params->journal_update_window_);
+    site_params->ssgn_ = BSZTransform::GetSSGNTypeFromString(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::SSGN, ""));
 }
 
 
