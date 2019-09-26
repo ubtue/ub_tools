@@ -781,7 +781,7 @@ void MarcFormatHandler::extractCustomNodeParameters(std::shared_ptr<const JSON::
     custom_node_params->harvest_url_ = custom_object->getOptionalStringValue("harvest_url");
     custom_node_params->volume_ = custom_object->getOptionalStringValue("volume");
     custom_node_params->license_ = custom_object->getOptionalStringValue("licenseCode");
-    custom_node_params->ssg_number_ = custom_object->getOptionalStringValue("ssgNumbers");
+    custom_node_params->ssg_numbers_ = custom_object->getOptionalStringValue("ssgNumbers");
     custom_node_params->date_normalized_ = custom_object->getOptionalStringValue("date_normalized");
     custom_node_params->superior_ppn_online_ = custom_object->getOptionalStringValue("ppn_online");
     custom_node_params->superior_ppn_print_ = custom_object->getOptionalStringValue("ppn_print");
@@ -811,7 +811,7 @@ void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParamet
     if (site_params_->ssgn_ != BSZTransform::SSGNType::INVALID)
         item_parameters->ssgn_ = site_params_->ssgn_;
     else
-        item_parameters->ssgn_ = BSZTransform::GetSSGNTypeFromString(custom_node_params.ssg_number_);
+        item_parameters->ssgn_ = BSZTransform::GetSSGNTypeFromString(custom_node_params.ssg_numbers_);
 
     // Use the custom creator version if present since it may contain additional information such as a PPN
     if (custom_node_params.creators_.size())
