@@ -34,9 +34,13 @@
 namespace {
 
 
+const std::string FIND_DUPLICATE_ISSNS_FLAG("--find-duplicate-issns");
+const std::string COMMIT_AND_PUSH_FLAG("--push-to-github");
+
+
 [[noreturn]] void Usage() {
-    ::Usage("[--find-duplicate-issns] [--push-to-github] issn_map_directory <map-type=filename> <map-type=filename>...\n\n"
-            "Valid map type(s): ssg");
+    ::Usage("[" + FIND_DUPLICATE_ISSNS_FLAG + "] [" + COMMIT_AND_PUSH_FLAG + "] issn_map_directory <map-type=filename>"
+            "<map-type=filename>...\n\nValid map type(s): ssg");
 }
 
 
@@ -202,14 +206,12 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     bool find_duplicate_issns(false);
-    const std::string FIND_DUPLICATE_ISSNS_FLAG("--find-duplicate-issns");
     if (StringUtil::StartsWith(argv[1], FIND_DUPLICATE_ISSNS_FLAG)) {
         find_duplicate_issns = true;
         --argc, ++argv;
     }
 
     bool push_to_github(false);
-    const std::string COMMIT_AND_PUSH_FLAG("--push-to-github");
     if (StringUtil::StartsWith(argv[1], COMMIT_AND_PUSH_FLAG)) {
         push_to_github = true;
         --argc, ++argv;
