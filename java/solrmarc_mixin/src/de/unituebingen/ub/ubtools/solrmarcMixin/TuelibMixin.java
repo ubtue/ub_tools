@@ -248,29 +248,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return otherTitles;
     }
 
-    /**
-     * Determine Record Title Subfield
-     *
-     * @param record
-     *            the record
-     * @param subfield_code
-     * @return String nicely formatted title subfield
-     */
-    public String getTitleSubfield(final Record record, final String subfield_code) {
-        final DataField title = (DataField) record.getVariableField("245");
-        if (title == null)
-            return null;
-
-        final Subfield subfield = title.getSubfield(subfield_code.charAt(0));
-        if (subfield == null)
-            return null;
-
-        final String subfield_data = subfield.getData();
-        if (subfield_data == null)
-            return null;
-
-        return DataUtil.cleanData(subfield_data);
-    }
 
     static private Set<String> getAllSubfieldsBut(final Record record, final String fieldSpecList,
                                                   char excludeSubfield)
@@ -2931,20 +2908,6 @@ public class TuelibMixin extends SolrIndexerMixin {
                 return volumeString.split("/")[0];
         }
         return "0";
-    }
-
-
-    public Set<String> getRVKs(final Record record) {
-        final Set<String> result = new TreeSet<String>();
-
-        for (final VariableField variableField : record.getVariableFields("936")) {
-            final DataField dataField = (DataField) variableField;
-            final Subfield subfield_a = dataField.getSubfield('a');
-            if (subfield_a != null)
-                result.add(subfield_a.getData());
-        }
-
-        return result;
     }
 
 
