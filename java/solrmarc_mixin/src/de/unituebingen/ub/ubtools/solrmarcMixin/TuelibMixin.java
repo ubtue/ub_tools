@@ -2830,19 +2830,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return result;
     }
 
-    public String getZDBNumber(final Record record) {
-        final List<VariableField> _035Fields = record.getVariableFields("035");
-
-        for (final VariableField _035Field : _035Fields) {
-            DataField field = (DataField)_035Field;
-            final Subfield subfieldA = field.getSubfield('a');
-            if (subfieldA != null && subfieldA.getData().startsWith("(DE-599)ZDB"))
-                return subfieldA.getData().substring(11);
-        }
-
-        return null;
-    }
-
     public String getStartPage(final Record record) {
         final DataField _936Field = (DataField)record.getVariableField("936");
         if (_936Field == null)
