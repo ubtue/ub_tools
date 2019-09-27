@@ -203,10 +203,11 @@ void PushToGitHub(const std::string &issn_directory, const std::vector<std::stri
     FileUtil::AutoTempFile std_out, std_err;
     const auto git_path(ExecUtil::Which("git"));
     std::string std_out_buffer, std_err_buffer;
+    std::unordered_map<std::string, std::string> env_vars;
 
     // check for actual changes
     if (ExecUtil::Exec(git_path, { "status", "-z" }, /* new_stdin = */ "", std_out.getFilePath(), std_err.getFilePath(),
-                       /* timeout_in_seconds = */ 0, SIGKILL, {}, issn_directory) != EXIT_SUCCESS)
+                       /* timeout_in_seconds = */ 0, SIGKILL, env_vars, issn_directory) != EXIT_SUCCESS)
     {
         FileUtil::ReadStringOrDie(std_out.getFilePath(), &std_out_buffer);
         FileUtil::ReadStringOrDie(std_err.getFilePath(), &std_err_buffer);
@@ -222,7 +223,7 @@ void PushToGitHub(const std::string &issn_directory, const std::vector<std::stri
     // stage files for commit
     for (const auto &file : files_to_push) {
         if (ExecUtil::Exec(git_path, { "add", file }, /* new_stdin = */ "", std_out.getFilePath(), std_err.getFilePath(),
-                           /* timeout_in_seconds = */ 0, SIGKILL, {}, issn_directory) != EXIT_SUCCESS)
+                           /* timeout_in_seconds = */ 0, SIGKILL, env_vars, issn_directory) != EXIT_SUCCESS)
         {
             FileUtil::ReadStringOrDie(std_out.getFilePath(), &std_out_buffer);
             FileUtil::ReadStringOrDie(std_err.getFilePath(), &std_err_buffer);
@@ -233,7 +234,7 @@ void PushToGitHub(const std::string &issn_directory, const std::vector<std::stri
 
     // commit
     if (ExecUtil::Exec(git_path, { "commit", "-mRegenerated files from Zeder" }, /* new_stdin = */ "", std_out.getFilePath(),
-                       std_err.getFilePath(), /* timeout_in_seconds = */ 0, SIGKILL, {}, issn_directory) != EXIT_SUCCESS)
+                       std_err.getFilePath(), /* timeout_in_seconds = */ 0, SIGKILL, env_vars, issn_directory) != EXIT_SUCCESS)
     {
         FileUtil::ReadStringOrDie(std_out.getFilePath(), &std_out_buffer);
         FileUtil::ReadStringOrDie(std_err.getFilePath(), &std_err_buffer);
@@ -242,7 +243,7 @@ void PushToGitHub(const std::string &issn_directory, const std::vector<std::stri
 
     // push to remote
     if (ExecUtil::Exec(git_path, { "push" }, /* new_stdin = */ "", std_out.getFilePath(), std_err.getFilePath(),
-                       /* timeout_in_seconds = */ 0, SIGKILL, {}, issn_directory) != EXIT_SUCCESS)
+                       /* timeout_in_seconds = */ 0, SIGKILL, env_vars, issn_directory) != EXIT_SUCCESS)
     {
         FileUtil::ReadStringOrDie(std_out.getFilePath(), &std_out_buffer);
         FileUtil::ReadStringOrDie(std_err.getFilePath(), &std_err_buffer);
