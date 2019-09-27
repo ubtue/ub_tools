@@ -196,25 +196,36 @@ void WriteMapValuesToFile(const std::vector<MapValue> &map_values, const MapPara
 }
 
 
+int ExecuteGitCommand(const std::vector<std::string> &command_and_args, const std::string &working_directory,
+                      std::string * const stdout, std::string * const stderr)
+{
+    static const auto GIT_PATH(ExecUtil::Which("git"));
+
+    std::unordered_map<std::string, std::string> env_vars;
+    std::string std_out_buffer, std_err_buffer;
+    FileUtil::AutoTempFile std_out, std_err;
+
+    const auto ret_code(ExecUtil::Exec(GIT_PATH, { command_and_args }, /* new_stdin = */ "", std_out.getFilePath(),
+                                       std_err.getFilePath(), /* timeout_in_seconds = */ 0, SIGKILL, env_vars,
+                                       working_directory));
+
+    FileUtil::ReadStringOrDie(std_out.getFilePath(), stdout);
+    FileUtil::ReadStringOrDie(std_err.getFilePath(), stderr);
+
+    return ret_code;
+}
+
+
 void PushToGitHub(const std::string &issn_directory, const std::vector<std::string> &files_to_push) {
     if (files_to_push.empty())
         return;
 
-    FileUtil::AutoTempFile std_out, std_err;
-    const auto git_path(ExecUtil::Which("git"));
     std::string std_out_buffer, std_err_buffer;
-    std::unordered_map<std::string, std::string> env_vars;
 
     // check for actual changes
-    if (ExecUtil::Exec(git_path, { "status", "-z" }, /* new_stdin = */ "", std_out.getFilePath(), std_err.getFilePath(),
-                       /* timeout_in_seconds = */ 0, SIGKILL, env_vars, issn_directory) != EXIT_SUCCESS)
-    {
-        FileUtil::ReadStringOrDie(std_out.getFilePath(), &std_out_buffer);
-        FileUtil::ReadStringOrDie(std_err.getFilePath(), &std_err_buffer);
+    if (ExecuteGitCommand({ "status", "-z" }, issn_directory, &std_out_buffer, &std_err_buffer) != EXIT_SUCCESS)
         LOG_ERROR("Couldn't execute git status!\n\nstdout:\n" + std_out_buffer + "\n\nstderr:\n" + std_err_buffer);
-    }
 
-    FileUtil::ReadStringOrDie(std_out.getFilePath(), &std_out_buffer);
     if (std_out_buffer.empty()) {
         LOG_INFO("No changes to push to GitHub");
         return;
@@ -222,33 +233,22 @@ void PushToGitHub(const std::string &issn_directory, const std::vector<std::stri
 
     // stage files for commit
     for (const auto &file : files_to_push) {
-        if (ExecUtil::Exec(git_path, { "add", file }, /* new_stdin = */ "", std_out.getFilePath(), std_err.getFilePath(),
-                           /* timeout_in_seconds = */ 0, SIGKILL, env_vars, issn_directory) != EXIT_SUCCESS)
-        {
-            FileUtil::ReadStringOrDie(std_out.getFilePath(), &std_out_buffer);
-            FileUtil::ReadStringOrDie(std_err.getFilePath(), &std_err_buffer);
+        if (ExecuteGitCommand({ "add", file }, issn_directory, &std_out_buffer, &std_err_buffer) != EXIT_SUCCESS) {
             LOG_ERROR("Couldn't execute git add for file '" + file + "'!\n\nstdout:\n" + std_out_buffer
                       + "\n\nstderr:\n" + std_err_buffer);
         }
     }
 
     // commit
-    if (ExecUtil::Exec(git_path, { "commit", "-mRegenerated files from Zeder" }, /* new_stdin = */ "", std_out.getFilePath(),
-                       std_err.getFilePath(), /* timeout_in_seconds = */ 0, SIGKILL, env_vars, issn_directory) != EXIT_SUCCESS)
+    if (ExecuteGitCommand({ "commit", "-mRegenerated files from Zeder" }, issn_directory,
+                          &std_out_buffer, &std_err_buffer) != EXIT_SUCCESS)
     {
-        FileUtil::ReadStringOrDie(std_out.getFilePath(), &std_out_buffer);
-        FileUtil::ReadStringOrDie(std_err.getFilePath(), &std_err_buffer);
         LOG_ERROR("Couldn't execute git commit!\n\nstdout:\n" + std_out_buffer + "\n\nstderr:\n" + std_err_buffer);
     }
 
     // push to remote
-    if (ExecUtil::Exec(git_path, { "push" }, /* new_stdin = */ "", std_out.getFilePath(), std_err.getFilePath(),
-                       /* timeout_in_seconds = */ 0, SIGKILL, env_vars, issn_directory) != EXIT_SUCCESS)
-    {
-        FileUtil::ReadStringOrDie(std_out.getFilePath(), &std_out_buffer);
-        FileUtil::ReadStringOrDie(std_err.getFilePath(), &std_err_buffer);
+    if (ExecuteGitCommand({ "push" }, issn_directory, &std_out_buffer, &std_err_buffer) != EXIT_SUCCESS)
         LOG_ERROR("Couldn't execute git push!\n\nstdout:\n" + std_out_buffer + "\n\nstderr:\n" + std_err_buffer);
-    }
 
     LOG_INFO("Pushed " + std::to_string(files_to_push.size()) + " files to GitHub");
 }
