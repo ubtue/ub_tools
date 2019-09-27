@@ -89,6 +89,9 @@ void ParseMapPairs(int argc, char * argv[], std::map<MapType, std::string> * con
         const auto match(STRING_TO_MAP_TYPE.find(splits[0]));
         if (match == STRING_TO_MAP_TYPE.end())
             Usage();
+        else if (map_type_to_filename->find(match->second) != map_type_to_filename->end())
+            LOG_ERROR("Only one map file can be generated for each map type");
+
         map_type_to_filename->insert(std::make_pair(match->second, splits[1]));
     }
 }
@@ -192,11 +195,63 @@ void WriteMapValuesToFile(const std::vector<MapValue> &map_values, const MapPara
                  + file_path + "'");
 }
 
-/*
-void PushToGitHub(const std::string &issn_directory, const std::vector<std::string> &files_to_push) {
 
+void PushToGitHub(const std::string &issn_directory, const std::vector<std::string> &files_to_push) {
+    if (files_to_push.empty())
+        return;
+
+    FileUtil::AutoTempFile std_out, std_err;
+    const auto git_path(ExecUtil::Which("git"));
+    std::string std_out_buffer, std_err_buffer;
+
+    // check for actual changes
+    if (ExecUtil::Exec(git_path, { "status", "-z" }, /* new_stdin = */ "", std_out.getFilePath(), std_err.getFilePath(),
+                       /* timeout_in_seconds = */ 0, SIGKILL, {}, issn_directory) != EXIT_SUCCESS)
+    {
+        FileUtil::ReadStringOrDie(std_out.getFilePath(), &std_out_buffer);
+        FileUtil::ReadStringOrDie(std_err.getFilePath(), &std_err_buffer);
+        LOG_ERROR("Couldn't execute git status!\n\nstdout:\n" + std_out_buffer + "\n\nstderr:\n" + std_err_buffer);
+    }
+
+    FileUtil::ReadStringOrDie(std_out.getFilePath(), &std_out_buffer);
+    if (std_out_buffer.empty()) {
+        LOG_INFO("No changes to push to GitHub");
+        return;
+    }
+
+    // stage files for commit
+    for (const auto &file : files_to_push) {
+        if (ExecUtil::Exec(git_path, { "add", file }, /* new_stdin = */ "", std_out.getFilePath(), std_err.getFilePath(),
+                           /* timeout_in_seconds = */ 0, SIGKILL, {}, issn_directory) != EXIT_SUCCESS)
+        {
+            FileUtil::ReadStringOrDie(std_out.getFilePath(), &std_out_buffer);
+            FileUtil::ReadStringOrDie(std_err.getFilePath(), &std_err_buffer);
+            LOG_ERROR("Couldn't execute git add for file '" + file + "'!\n\nstdout:\n" + std_out_buffer
+                      + "\n\nstderr:\n" + std_err_buffer);
+        }
+    }
+
+    // commit
+    if (ExecUtil::Exec(git_path, { "commit", "-mRegenerated files from Zeder" }, /* new_stdin = */ "", std_out.getFilePath(),
+                       std_err.getFilePath(), /* timeout_in_seconds = */ 0, SIGKILL, {}, issn_directory) != EXIT_SUCCESS)
+    {
+        FileUtil::ReadStringOrDie(std_out.getFilePath(), &std_out_buffer);
+        FileUtil::ReadStringOrDie(std_err.getFilePath(), &std_err_buffer);
+        LOG_ERROR("Couldn't execute git commit!\n\nstdout:\n" + std_out_buffer + "\n\nstderr:\n" + std_err_buffer);
+    }
+
+    // push to remote
+    if (ExecUtil::Exec(git_path, { "push" }, /* new_stdin = */ "", std_out.getFilePath(), std_err.getFilePath(),
+                       /* timeout_in_seconds = */ 0, SIGKILL, {}, issn_directory) != EXIT_SUCCESS)
+    {
+        FileUtil::ReadStringOrDie(std_out.getFilePath(), &std_out_buffer);
+        FileUtil::ReadStringOrDie(std_err.getFilePath(), &std_err_buffer);
+        LOG_ERROR("Couldn't execute git push!\n\nstdout:\n" + std_out_buffer + "\n\nstderr:\n" + std_err_buffer);
+    }
+
+    LOG_INFO("Pushed " + std::to_string(files_to_push.size()) + " files to GitHub");
 }
-*/
+
 
 } // unnamed namespace
 
@@ -246,8 +301,8 @@ int Main(int argc, char *argv[]) {
             files_to_push.emplace_back(output_file);
     }
 
-//    if (push_to_github)
-//        PushToGitHub(issn_directory, files_to_push);
+   if (push_to_github)
+       PushToGitHub(issn_directory, files_to_push);
 
     return EXIT_SUCCESS;
 }
