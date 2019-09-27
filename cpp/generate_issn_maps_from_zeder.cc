@@ -188,11 +188,11 @@ void WriteMapValuesToFile(const std::vector<MapValue> &map_values, const MapPara
                  + file_path + "'");
 }
 
-
+/*
 void PushToGitHub(const std::string &issn_directory, const std::vector<std::string> &files_to_push) {
 
 }
-
+*/
 
 } // unnamed namespace
 
@@ -244,9 +244,8 @@ int Main(int argc, char *argv[]) {
             files_to_push.emplace_back(output_file);
     }
 
-    if (push_to_github)
-        PushToGitHub(issn_directory, files_to_push);
-
+//    if (push_to_github)
+//        PushToGitHub(issn_directory, files_to_push);
 
     return EXIT_SUCCESS;
 }
