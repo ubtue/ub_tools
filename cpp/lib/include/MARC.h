@@ -955,13 +955,13 @@ private:
 
 class Writer {
 protected:
-    File * const output_;
+    std::unique_ptr<File> output_;
 protected:
     explicit Writer(File * const output): output_(output) { }
 public:
     enum WriterMode { OVERWRITE, APPEND };
 public:
-    virtual ~Writer() { }
+    virtual ~Writer() = default;
 
     virtual void write(const Record &record) = 0;
 
@@ -984,7 +984,7 @@ class BinaryWriter: public Writer {
 private:
     BinaryWriter(File * const output): Writer(output) { }
 public:
-    virtual ~BinaryWriter() { delete output_; }
+    virtual ~BinaryWriter() override final = default;
 
     virtual void write(const Record &record) override final;
 };
@@ -998,7 +998,7 @@ private:
                        const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion)
         : Writer(output), xml_writer_(output, /* suppress_header_and_tailer = */false, indent_amount, text_conversion_type) { }
 public:
-    virtual ~XmlWriter() final = default;
+    virtual ~XmlWriter() override final = default;
 
     virtual void write(const Record &record) override final;
 };
