@@ -1,5 +1,6 @@
 # compiled cpp programs
 ## (here we use / at the beginning by default, so e.g. /installer is ignored, but not data/installer)
+.static_deps
 /add_additional_relbib_entries
 /add_article_cross_links
 /add_author_synonyms
