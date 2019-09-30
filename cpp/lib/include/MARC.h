@@ -841,7 +841,7 @@ public:
     std::vector<iterator> getMatchedFields(const std::string &field_or_field_and_subfield_code, RegexMatcher * const regex_matcher);
 
     std::string toBinaryString() const;
-    std::string toXmlString(const unsigned indent_amount, const MarcXmlWriter::TextConversionType text_conversion_type) const;
+    void toXmlStringHelper(MarcXmlWriter * const xml_writer) const;
 
     static std::string BibliographicLevelToString(const BibliographicLevel bibliographic_level);
 };
@@ -992,12 +992,11 @@ public:
 
 class XmlWriter: public Writer {
     friend class Writer;
-    const unsigned indent_amount_;
-    const MarcXmlWriter::TextConversionType text_conversion_type_;
+    MarcXmlWriter xml_writer_;
 private:
     explicit XmlWriter(File * const output, const unsigned indent_amount = 0,
                        const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion)
-        : Writer(output), indent_amount_(indent_amount), text_conversion_type_(text_conversion_type) { }
+        : Writer(output), xml_writer_(output, /* suppress_header_and_tailer = */false, indent_amount, text_conversion_type) { }
 public:
     virtual ~XmlWriter() final = default;
 
