@@ -2,7 +2,7 @@
  *  \brief   Declaration of the MarcXmlWriter class.
  *  \author  Dr. Johannes Ruscheinski
  *
- *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,22 +24,25 @@
 
 
 class MarcXmlWriter: public XmlWriter {
+    bool suppress_header_and_tailer_;
 public:
     /** \brief  Instantiate a MarcXmlWriter object.
-     *  \param  output_file      Where to write the generated XML to.
-     *  \param  indent_amount    How many leading spaces to add per indentation level.
-     *  \param  text_conversion_type  What kind, if any, of text conversion to apply on output.
+     *  \param  output_file                 Where to write the generated XML to.
+     *  \param  suppress_header_and_tailer  Do not write the XML prolog and the opening and closing colection tags.
+     *  \param  indent_amount               How many leading spaces to add per indentation level.
+     *  \param  text_conversion_type        What kind, if any, of text conversion to apply on output.
      */
-    explicit MarcXmlWriter(File * const output_file, const unsigned indent_amount = 0,
+    explicit MarcXmlWriter(File * const output_file, const bool suppress_header_and_tailer = false, const unsigned indent_amount = 0,
                            const TextConversionType text_conversion_type = NoConversion);
 
     /** \brief  Instantiate a MarcXmlWriter object.
-     *  \param  output_string    Where to write the generated XML to.
-     *  \param  indent_amount    How many leading spaces to add per indentation level.
-     *  \param  text_conversion_type  What kind, if any, of text conversion to apply on output.
+     *  \param  output_string               Where to write the generated XML to.
+     *  \param  suppress_header_and_tailer  Do not write the XML prolog and the opening and closing colection tags.
+     *  \param  indent_amount               How many leading spaces to add per indentation level.
+     *  \param  text_conversion_type        What kind, if any, of text conversion to apply on output.
      */
-    explicit MarcXmlWriter(std::string * const output_string, const unsigned indent_amount = 0,
-                           const TextConversionType text_conversion_type = NoConversion);
+    explicit MarcXmlWriter(std::string * const output_string, const bool suppress_header_and_tailer = false,
+                           const unsigned indent_amount = 0, const TextConversionType text_conversion_type = NoConversion);
 
     /** Destroyes an MarcXmlWriter object, closing any still open tags. */
     virtual ~MarcXmlWriter() override;

@@ -212,7 +212,7 @@ struct Online {
 using OnlineBundle = EntryBundle<Online>;
 
 struct Zeder {
-    enum Entries : EntryId { ID, MODIFIED_TIME, UPDATE_WINDOW };
+    enum Entries : EntryId { ID, MODIFIED_TIME };
 
     static const std::unordered_map<std::string, Zeder::Entries> key_id_resolver_map;
     static const std::string prefix;
@@ -223,7 +223,7 @@ using ZederBundle = EntryBundle<Zeder>;
 
 struct Zotero {
     enum Entries : EntryId { TYPE, GROUP, URL, STRPTIME_FORMAT, EXTRACTION_REGEX, REVIEW_REGEX, MAX_CRAWL_DEPTH, DELIVERY_MODE,
-                             EXPECTED_LANGUAGES, CRAWL_URL_REGEX };
+                             EXPECTED_LANGUAGES, CRAWL_URL_REGEX, UPDATE_WINDOW, SSGN };
 
     static const std::unordered_map<std::string, Zotero::Entries> key_id_resolver_map;
     static const std::string prefix;
