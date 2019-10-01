@@ -291,7 +291,7 @@ void MarcFormatHandler::identifyMissingLanguage(ItemParameters * const node_para
         if (site_params_->expected_languages_text_fields_.empty() or site_params_->expected_languages_text_fields_ == "title") {
             record_text = node_parameters->title_;
             // use naive tokenization to count tokens in the title
-            // additionaly use abstract if we have too few tokens in the title
+            // additionally use abstract if we have too few tokens in the title
             if (StringUtil::CharCount(record_text, ' ') < MINIMUM_TOKEN_COUNT) {
                 record_text += " " + node_parameters->abstract_note_;
                 LOG_DEBUG("too few tokens in title. applying heuristic on the abstract as well");
@@ -689,18 +689,39 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         record->insertField(MARC::GetIndexField(TextUtil::CollapseAndTrimWhitespace(keyword)));
 
     // SSG numbers
-    const auto ssg_numbers(node_parameters.ssg_numbers_);
-    if (not ssg_numbers.empty()) {
+    if (node_parameters.ssgn_ != BSZTransform::SSGNType::INVALID) {
         MARC::Subfields _084_subfields;
-        for (const auto ssg_number : ssg_numbers) {
-            if (ssg_number == "0$a1") {
-                _084_subfields.appendSubfield('a', "0");
-                _084_subfields.appendSubfield('a', "1");
-            } else
-                _084_subfields.appendSubfield('a', ssg_number);
+        switch(node_parameters.ssgn_) {
+        case BSZTransform::SSGNType::FG_0:
+            _084_subfields.appendSubfield('a', "0");
+            break;
+        case BSZTransform::SSGNType::FG_1:
+            _084_subfields.appendSubfield('a', "1");
+            break;
+        case BSZTransform::SSGNType::FG_01:
+            _084_subfields.appendSubfield('a', "0");
+            _084_subfields.appendSubfield('a', "1");
+            break;
+       default:
+            break;
         }
         _084_subfields.appendSubfield('2', "ssgn");
+        record->insertField("084", _084_subfields);
     }
+
+    // Abrufzeichen und ISIL
+    if (site_params_->group_params_->bsz_upload_group_ == "krimdok") {
+        record->insertField("852", { { 'a', isil } });
+        record->insertField("935", { { 'a', "mteo" } });
+    } else if (site_params_->group_params_->bsz_upload_group_ == "ixtheo"
+               and node_parameters.ssgn_ != BSZTransform::SSGNType::INVALID)
+    {
+        record->insertField("852", { { 'a', isil } });
+        record->insertField("935", { { 'a', "mkri" } });
+    }
+
+    // Zotero sigil
+    record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
 
     record->insertField("001", site_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
                         + "#" + StringUtil::ToHexString(MARC::CalcChecksum(*record)));
@@ -785,7 +806,13 @@ void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParamet
     item_parameters->journal_name_ = GetCustomValueIfNotEmpty(custom_node_params.journal_name_, item_parameters->journal_name_);
     item_parameters->harvest_url_ = GetCustomValueIfNotEmpty(custom_node_params.harvest_url_, item_parameters->harvest_url_);
     item_parameters->license_ = GetCustomValueIfNotEmpty(custom_node_params.license_, item_parameters->license_);
-    item_parameters->ssg_numbers_.emplace_back(custom_node_params.ssg_numbers_);
+
+    item_parameters->ssgn_ = BSZTransform::SSGNType::INVALID;
+    if (site_params_->ssgn_ != BSZTransform::SSGNType::INVALID)
+        item_parameters->ssgn_ = site_params_->ssgn_;
+    else
+        item_parameters->ssgn_ = BSZTransform::GetSSGNTypeFromString(custom_node_params.ssg_numbers_);
+
     // Use the custom creator version if present since it may contain additional information such as a PPN
     if (custom_node_params.creators_.size())
         item_parameters->creators_ = custom_node_params.creators_;
@@ -993,10 +1020,7 @@ void AugmentJson(const std::string &harvest_url, const std::shared_ptr<JSON::Obj
     JSON::VisitLeafNodes("root", object_node, OverrideJsonMetadata, std::ref(site_params));
 
     for (const auto &key_and_node : *object_node) {
-        if (key_and_node.first == "title") {
-            auto title_node(JSON::JSONNode::CastToStringNodeOrDie("title", key_and_node.second));
-            title_node->setValue(TextUtil::ToTitleCase(title_node->getValue()));
-        } else if (key_and_node.first == "language") {
+        if (key_and_node.first == "language") {
             language_node = JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second);
             const std::string language_json(language_node->getValue());
             const std::string language_mapped(OptionalMap(language_json,

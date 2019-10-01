@@ -222,4 +222,27 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
 }
 
 
+SSGNType GetSSGNTypeFromString(const std::string &ssgn_string) {
+    const std::map<std::string, SSGNType> ZEDER_STRINGS {
+        { "FG_0", FG_0 },
+        { "FG_1", FG_1 },
+        { "FG_0/1", FG_01 },
+    };
+    const std::map<std::string, SSGNType> MAP_STRINGS {
+        { "O", FG_0 },
+        { "0", FG_0 },
+        { "1", FG_1 },
+        { "0 1", FG_01 },
+        { "0$a1", FG_01 },
+    };
+
+    if (ZEDER_STRINGS.find(ssgn_string) != ZEDER_STRINGS.end())
+        return ZEDER_STRINGS.find(ssgn_string)->second;
+    else if (MAP_STRINGS.find(ssgn_string) != MAP_STRINGS.end())
+        return MAP_STRINGS.find(ssgn_string)->second;
+
+    return SSGNType::INVALID;
+}
+
+
 } // end namespace BSZTransform

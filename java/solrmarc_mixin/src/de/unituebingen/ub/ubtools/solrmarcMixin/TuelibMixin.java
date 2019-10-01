@@ -59,14 +59,12 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static String ISIL_PREFIX_K10PLUS = "(" + ISIL_K10PLUS + ")";
     private final static String ES_FULLTEXT_PROPERTIES_FILE = "es_fulltext.properties";
 
-    private final static Pattern ORCID_PATTERN = Pattern.compile("\\b\\d{4}-\\d{4}-\\d{4}-\\d{4}\\b");
     private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
     private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?([-–]\\d+)?");
     private final static Pattern VALID_FOUR_DIGIT_YEAR_PATTERN = Pattern.compile("\\d{4}");
     private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
-    private final static Pattern VIAF_PATTERN = Pattern.compile("viaf/(\\d+)\\b");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
     private final static Pattern SUPERIOR_PPN_PATTERN = Pattern.compile("\\s*." + ISIL_K10PLUS + ".(.*)");
@@ -250,29 +248,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return otherTitles;
     }
 
-    /**
-     * Determine Record Title Subfield
-     *
-     * @param record
-     *            the record
-     * @param subfield_code
-     * @return String nicely formatted title subfield
-     */
-    public String getTitleSubfield(final Record record, final String subfield_code) {
-        final DataField title = (DataField) record.getVariableField("245");
-        if (title == null)
-            return null;
-
-        final Subfield subfield = title.getSubfield(subfield_code.charAt(0));
-        if (subfield == null)
-            return null;
-
-        final String subfield_data = subfield.getData();
-        if (subfield_data == null)
-            return null;
-
-        return DataUtil.cleanData(subfield_data);
-    }
 
     static private Set<String> getAllSubfieldsBut(final Record record, final String fieldSpecList,
                                                   char excludeSubfield)
@@ -353,43 +328,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             return "person";
         if (record.getVariableFields("110").size() > 0)
             return "corporate";
-        return null;
-    }
-
-
-    public String getORCID(final Record record) {
-        final List<VariableField> fields = record.getVariableFields("670");
-        for (final VariableField variableField : fields) {
-            final DataField field = (DataField) variableField;
-            final Subfield subfieldA = field.getSubfield('a');
-            if (subfieldA != null && subfieldA.getData().toUpperCase().equals("ORCID")) {
-                final Subfield subfieldU = field.getSubfield('u');
-                if (subfieldU != null) {
-                    final Matcher matcher = ORCID_PATTERN.matcher(subfieldU.getData());
-                    if (matcher.find())
-                        return matcher.group(0);
-                }
-            }
-        }
-        return null;
-    }
-
-
-    public String getVIAF(final Record record) {
-        final List<VariableField> fields = record.getVariableFields("670");
-        for (final VariableField variableField : fields) {
-            final DataField field = (DataField) variableField;
-            final Subfield subfieldA = field.getSubfield('a');
-            if (subfieldA != null && subfieldA.getData().toUpperCase().equals("VIAF")) {
-                final Subfield subfieldU = field.getSubfield('u');
-                if (subfieldU != null) {
-                    final Matcher matcher = VIAF_PATTERN.matcher(subfieldU.getData());
-                    if (matcher.find()) {
-                        return matcher.group(1);
-                    }
-                }
-            }
-        }
         return null;
     }
 
@@ -510,6 +448,23 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (subfield == null)
             return null;
         return subfield.getData().substring(prefix.length());
+    }
+
+    public Set<String> getSubfieldValuesWithPrefix(final Record record, final String subfieldList, final String prefix)
+    {
+        Set<String> results = new HashSet<>();
+        SubfieldMatcher matcher = new SubfieldMatcher() {
+            public boolean matched(final Subfield subfield) {
+                return subfield.getData().startsWith(prefix);
+            }
+        };
+        final List<Subfield> subfields = getSubfieldsMatchingList(record, subfieldList, matcher);
+        for (final Subfield subfield : subfields) {
+            final String data = subfield.getData();
+            if (data.startsWith(prefix))
+                results.add(data.substring(prefix.length()));
+        }
+        return results;
     }
 
     // Map used by getPhysicalType().
@@ -1329,19 +1284,6 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    public Set<String> getAuthorPPNs(final Record record, final String fieldSpecs) {
-        final Set<String> values = SolrIndexer.instance().getFieldList(record, fieldSpecs);
-        final Set<String> ppns = new TreeSet<>();
-
-        for (final String value : values) {
-            if (value.startsWith(ISIL_PREFIX_K10PLUS))
-                ppns.add(value.substring(ISIL_PREFIX_K10PLUS.length()));
-        }
-
-        return ppns;
-    }
-
-
     /**
      * @param record
      *            the record
@@ -1596,6 +1538,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     };
 
 
+    @Deprecated
     private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
                                     Collection<String> collector, String langAbbrev) {
         getTopicsCollector(record, fieldSpec, separators, collector, langAbbrev, null);
@@ -1710,6 +1653,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *   opening_character       :== A single character to be prepended on the left side
      *   closing character       :== A single character to be appended on the right side
      */
+    @Deprecated
     private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
                                     Collection<String> collector, String langAbbrev, Predicate<DataField> includeFieldPredicate)
 
@@ -1970,7 +1914,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         // are converted to a '.'
         // $n is converted to a space if there is additional information
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
-        getTopicsCollector(record, fieldSpec, separators, topics, langAbbrev);
+        getCachedTopicsCollector(record, fieldSpec, separators, topics, langAbbrev);
         return addHonourees(record, topics, langAbbrev);
     }
 
@@ -1995,7 +1939,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getTopicFacetTranslated(final Record record, final String fieldSpecs, String separatorSpec, final String lang) {
         final Map<String, String> separators = parseTopicSeparators(separatorSpec);
         final Set<String> valuesTranslated = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, valuesTranslated, lang, _689IsOrdinarySubject);
+        getCachedTopicsCollector(record, fieldSpecs, separators, valuesTranslated, lang, _689IsOrdinarySubject);
         // The topic collector generates a chain of all specified subfields for a field
         // In some cases this is unintended behaviour since different topics are are independent
         // To ensure that those chains are broken up again, make sure to specify a triple pipe (="|||") separator for these
@@ -2239,7 +2183,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getRegionTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> region = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, region, lang, _689IsRegionSubject);
+        getCachedTopicsCollector(record, fieldSpecs, separators, region, lang, _689IsRegionSubject);
 
         if (region.size() == 0)
             region.add(UNASSIGNED_STRING);
@@ -2251,7 +2195,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getTimeTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> time = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, time, lang, _689IsTimeSubject);
+        getCachedTopicsCollector(record, fieldSpecs, separators, time, lang, _689IsTimeSubject);
 
         if (time.size() == 0)
             time.add(UNASSIGNED_STRING);
@@ -2886,19 +2830,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return result;
     }
 
-    public String getZDBNumber(final Record record) {
-        final List<VariableField> _035Fields = record.getVariableFields("035");
-
-        for (final VariableField _035Field : _035Fields) {
-            DataField field = (DataField)_035Field;
-            final Subfield subfieldA = field.getSubfield('a');
-            if (subfieldA != null && subfieldA.getData().startsWith("(DE-599)ZDB"))
-                return subfieldA.getData().substring(11);
-        }
-
-        return null;
-    }
-
     public String getStartPage(final Record record) {
         final DataField _936Field = (DataField)record.getVariableField("936");
         if (_936Field == null)
@@ -2964,20 +2895,6 @@ public class TuelibMixin extends SolrIndexerMixin {
                 return volumeString.split("/")[0];
         }
         return "0";
-    }
-
-
-    public Set<String> getRVKs(final Record record) {
-        final Set<String> result = new TreeSet<String>();
-
-        for (final VariableField variableField : record.getVariableFields("936")) {
-            final DataField dataField = (DataField) variableField;
-            final Subfield subfield_a = dataField.getSubfield('a');
-            if (subfield_a != null)
-                result.add(subfield_a.getData());
-        }
-
-        return result;
     }
 
 
@@ -3159,37 +3076,5 @@ public class TuelibMixin extends SolrIndexerMixin {
         } finally {
             response.close();
         }
-    }
-
-
-    protected String get936IndicatorUWValue(final Record record, final char subfieldCode) {
-        for (final VariableField variableField : record.getVariableFields("936")) {
-             final DataField dataField = (DataField) variableField;
-             if (Character.toLowerCase(dataField.getIndicator1()) == 'u' && Character.toLowerCase(dataField.getIndicator2()) == 'w') {
-                 final Subfield subfield = dataField.getSubfield(subfieldCode);
-                 if (subfield != null)
-                     return subfield.getData();
-             }
-         }
-         return "";
-    }
-
-
-    public String getYear(final Record record) {
-        return get936IndicatorUWValue(record, 'j');
-    }
-
-
-    public String getVolume(final Record record) {
-        return get936IndicatorUWValue(record, 'd');
-    }
-
-    public String getPages(final Record record) {
-        return get936IndicatorUWValue(record, 'h');
-    }
-
-
-    public String getIssue(final Record record) {
-        return get936IndicatorUWValue(record, 'e');
     }
 }
