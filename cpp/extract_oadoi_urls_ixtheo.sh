@@ -11,7 +11,8 @@ SPLIT_FILE_PREFIX="__x"
 
 # Generate query for this chunk
 function GenerateMongoQueryFile {
-    cat "$1" | sed -e 's/^/"/; s/$/" /' | sed -re ':a;N;$!ba;s/\n/, /g' |  sed '1i db.all_oadoi.find( { $and: [ { "doi" : { $in:  [' - | sed -e '$a] }}, {best_oa_location : { $ne : null } } ] }, { "doi": 1, "best_oa_location" : 1, "_id": 0 }).forEach(printjson);' > ${MONGO_COMMAND_FILE}
+    # From a given chunk file generate a comma separated list of dois and extract existing best_oa_location 
+    cat "$1" | sed -e 's/^/"/; s/$/" /' | sed -re ':a;N;$!ba;s/\n/, /g' |  sed '1i db.all_oadoi.find( { $and: [ { "doi" : { $in:  [' - | sed -e '$a] }}, { best_oa_location : { $ne : null } } ] }, { "doi": 1, "best_oa_location" : 1, "_id": 0 }).forEach(printjson);' > ${MONGO_COMMAND_FILE}
 }
 
 
