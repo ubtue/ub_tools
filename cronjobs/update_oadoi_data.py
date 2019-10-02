@@ -96,7 +96,7 @@ def UpdateDatabase(update_list, source_directory=None):
             print "Skipping " + filename + " since apparently already imported"
             continue
         print "Importing \"" + filename + "\""
-        #util.ExecOrDie(util.Which("import_oadois_to_mongo.sh"), filename)
+        util.ExecOrDie(util.Which("import_oadois_to_mongo.sh"), filename)
         CreateImportedSymlink(imported_symlink_full_path)
 
 
