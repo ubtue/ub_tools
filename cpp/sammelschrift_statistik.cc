@@ -36,10 +36,11 @@ namespace {
 
 struct CollectionInfo {
     std::string shortened_title_, year_;
+    bool is_toc_;
     unsigned article_count_;
 public:
-    CollectionInfo(const std::string &shortened_title, const std::string &year)
-        : shortened_title_(shortened_title), year_(year), article_count_(0) { }
+    CollectionInfo(const std::string &shortened_title, const std::string &year, const bool is_toc)
+        : shortened_title_(shortened_title), year_(year), is_toc_(is_toc), article_count_(0) { }
     CollectionInfo() = default;
     CollectionInfo(const CollectionInfo &other) = default;
 };
@@ -124,7 +125,7 @@ std::string GetDateForArticleOrReview(const MARC::Record &record) {
     for (const auto &_936_field : record.getTagRange("936")) {
         const auto j_contents(_936_field.getFirstSubfieldWithCode('j'));
         if (not j_contents.empty()) {
-            static const auto year_matcher(RegexMatcher::RegexMatcherFactoryOrDie("\\d{4}"));
+            static const auto year_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{4})"));
             if (year_matcher->matched(j_contents))
                 return (*year_matcher)[1];
         }
@@ -146,6 +147,14 @@ std::string GetDateFrom190j(const MARC::Record &record) {
 }
 
 
+bool HasCentruryOnly(const std::string &year_candidate) {
+    if (year_candidate.length() != 4 or not StringUtil::IsDigit(year_candidate[0]) or not StringUtil::IsDigit(year_candidate[1]))
+        return false;
+
+    return year_candidate[2] == 'u' and year_candidate[3] == 'u';
+}
+
+
 // Extract the sort date from the 008 field.
 std::string GetSortDate(const MARC::Record &record) {
     const auto _008_field(record.findTag("008"));
@@ -157,7 +166,7 @@ std::string GetSortDate(const MARC::Record &record) {
         return "";
 
     const auto year_candidate(_008_contents.substr(7, 4));
-    if (unlikely(not IsPossibleYear(year_candidate)))
+    if (unlikely(not HasCentruryOnly(year_candidate) and not IsPossibleYear(year_candidate)))
         LOG_ERROR("bad year in 008 field \"" + year_candidate + "\" for control number " + record.getControlNumber() + "!");
     return year_candidate;
 }
@@ -190,6 +199,19 @@ std::string GetPublicationYear(const MARC::Record &record) {
 }
 
 
+bool IsTOC(const MARC::Record &record) {
+    for (const auto &_856_field : record.getTagRange("856")) {
+        const MARC::Subfields subfields(_856_field.getSubfields());
+        for (const auto &subfield : subfields) {
+            if (subfield.code_ == '3' and (subfield.value_ == "Inhaltsverzeichnis" or subfield.value_ == "04"))
+                return true;
+        }
+    }
+
+    return false;
+}
+
+
 void ProcessRecords(const bool use_religious_studies_only, MARC::Reader * const marc_reader,
                     std::unordered_map<std::string, CollectionInfo> * const ppn_to_collection_info_map)
 {
@@ -203,12 +225,29 @@ void ProcessRecords(const bool use_religious_studies_only, MARC::Reader * const 
 
 
         ppn_to_collection_info_map->emplace(record.getControlNumber(),
-                                            CollectionInfo(GetShortenedTitle(record, 30), GetPublicationYear(record)));
+                                            CollectionInfo(GetShortenedTitle(record, 80), GetPublicationYear(record), IsTOC(record)));
 
         ++record_count;
     }
 
     LOG_INFO("Processed " + std::to_string(record_count) + " MARC record(s).");
+}
+
+
+void DetermineAttachedArticleCounts(const bool use_religious_studies_only, MARC::Reader * const marc_reader,
+                                    std::unordered_map<std::string, CollectionInfo> * const ppn_to_collection_info_map)
+{
+    while (const MARC::Record record = marc_reader->read()) {
+        if (not record.isArticle())
+            continue;
+        if (use_religious_studies_only and record.findTag("REL") == record.end())
+            continue;
+
+        const auto superior_control_number(record.getSuperiorControlNumber());
+        const auto ppn_and_collection_info(ppn_to_collection_info_map->find(superior_control_number));
+        if (ppn_and_collection_info != ppn_to_collection_info_map->end())
+            ++ppn_and_collection_info->second.article_count_;
+    }
 }
 
 
@@ -227,10 +266,15 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, CollectionInfo> ppn_to_collection_info_map;
     ProcessRecords(ssg == "relbib", marc_reader.get(), &ppn_to_collection_info_map);
 
+    marc_reader->rewind();
+
+    DetermineAttachedArticleCounts(ssg == "relbib", marc_reader.get(), &ppn_to_collection_info_map);
+
     const auto stats_output(FileUtil::OpenOutputFileOrDie(argv[3]));
     for (const auto &ppn_and_collection_info : ppn_to_collection_info_map)
         *stats_output << ppn_and_collection_info.first << ": " << ppn_and_collection_info.second.shortened_title_ << ", "
-                      << ppn_and_collection_info.second.year_ << '\n';
+                      << ppn_and_collection_info.second.year_ << ", " << (ppn_and_collection_info.second.is_toc_ ? "IHV" : "")
+                      << ", " << ppn_and_collection_info.second.article_count_ << '\n';
 
     return EXIT_SUCCESS;
 }
