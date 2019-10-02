@@ -24,13 +24,9 @@ import urllib
 import util
 
 
-TEMPORARY_TEST_CHANGEFILE = "/tmp/changefiles.json"
-
-
 def GetRemoteUpdateObjects(url, api_key):
     print "Get Changelists"
-    response = open(TEMPORARY_TEST_CHANGEFILE)
-    #response = urllib.urlopen(url + '?api_key=' + api_key)
+    response = urllib.urlopen(url + '?api_key=' + api_key)
     jdata = json.load(response)
     # Get only JSON update entries, no CSV
     json_update_objects = [item for item in jdata['list'] if item['filetype'] == 'jsonl']
