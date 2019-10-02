@@ -998,7 +998,7 @@ private:
                        const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion)
         : Writer(output), xml_writer_(output, /* suppress_header_and_tailer = */false, indent_amount, text_conversion_type) { }
 public:
-    virtual ~XmlWriter() override final = default;
+    virtual ~XmlWriter() override final;
 
     virtual void write(const Record &record) override final;
 };

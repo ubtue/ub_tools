@@ -2092,6 +2092,12 @@ void BinaryWriter::write(const Record &record) {
 }
 
 
+XmlWriter::~XmlWriter() {
+    // the MarcXmlWriter owns the File pointer as well, so we cede ownership to it entirely
+    output_.release();
+}
+
+
 void XmlWriter::write(const Record &record) {
     std::string error_message;
     if (not record.isValid(&error_message))
