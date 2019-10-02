@@ -58,6 +58,9 @@ void ExtractYearVolumeIssue(const MARC::Record &record, RecordInfo * const recor
     record_info->issue_  = ISSUE_WILDCARD;
 
     for (const auto &field : record.getTagRange("936")) {
+        if (field.getIndicator1() != 'u' or field.getIndicator2() != 'w')
+            continue;
+
         const MARC::Subfields subfields(field.getSubfields());
 
         const auto year(subfields.getFirstSubfieldWithCode('j'));
