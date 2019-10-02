@@ -505,6 +505,8 @@ public:
     inline bool isMonograph() const { return leader_[7] == 'm'; }
     inline bool isSerial() const { return leader_[7] == 's'; }
     inline bool isArticle() const { return leader_[7] == 'a' or leader_[7] == 'b'; }
+    bool isWebsite() const;
+    inline bool isReproduction() const { return getFirstField("534") != end(); }
     bool isElectronicResource() const;
     bool isPrintResource() const;
     inline bool isCorporateBody() const { return getRecordType() == RecordType::AUTHORITY and hasTag("110"); }
