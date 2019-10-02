@@ -1117,6 +1117,27 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
+    // Returns the contents of the first data field with tag "tag", indicator1 "indicator1", indicator2 "indicator2"
+    // and subfield code "subfield_code" or null if no such field and subfield were found.
+    static private String getFirstSubfieldValue(final Record record, final String tag, final char indicator1, final char indicator2,
+                                                final char subfieldCode)
+    {
+        if (tag == null || tag.length() != 3)
+            throw new IllegalArgumentException("bad tag (null or length != 3)!");
+
+        for (final VariableField variableField : record.getVariableFields(tag)) {
+            final DataField dataField = (DataField) variableField;
+            if (dataField.getIndicator1() != indicator1 || dataField.getIndicator2() != indicator2)
+                continue;
+
+            final Subfield subfield = dataField.getSubfield(subfieldCode);
+            if (subfield != null)
+                return subfield.getData();
+        }
+
+        return null;
+    }
+
     /**
      * @param record
      *            the record
@@ -1199,7 +1220,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *            the record
      */
     public String getContainerYear(final Record record) {
-        final String field_value = getFirstSubfieldValue(record, "936", 'j');
+        final String field_value = getFirstSubfieldValue(record, "936", 'u', 'w', 'j');
         if (field_value == null)
             return null;
 
