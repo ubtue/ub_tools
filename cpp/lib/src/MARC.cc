@@ -575,6 +575,19 @@ void Record::merge(const Record &other) {
 static const std::set<std::string> ELECTRONIC_CARRIER_TYPES{ "cb", "cd", "ce", "ca", "cf", "ch", "cr", "ck", "cz" };
 
 
+bool Record::isWebsite() const {
+    if (leader_.length() < 7 or leader_[6] != 'i')
+        return false;
+
+    const auto _008_field(findTag("008"));
+    if (unlikely(_008_field == end()))
+        return false;
+
+    const auto &_008_contents(_008_field->getContents());
+    return _008_contents.length() > 21 and _008_contents[21] == 'W';
+}
+
+
 bool Record::isElectronicResource() const {
     if (leader_.length() > 6 and (leader_[6] == 'a' or leader_[6] == 'm')) {
         for (const auto _007_field : getTagRange("007")) {
