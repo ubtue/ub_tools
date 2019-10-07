@@ -12,7 +12,7 @@ function ExtractDOIs {
     marc_file=$1
     doi_output=$2
     echo "Extracting from ${marc_file} to ${doi_output}"
-    marc_grep ${marc_file}  'if "0242" == "doi" extract "024a" no_label' > ${doi_output} 
+    marc_grep ${marc_file}  'if "0242" == "doi" extract "024a"' no_label > ${doi_output} 
 }
 
 
