@@ -19,7 +19,6 @@ import traceback
 import urllib.request, urllib.parse, urllib.error
 import util
 
-
 def GetChangelists(url, api_key):
     print("Get Changelists")
     response = urllib.request.urlopen(url + '?api_key=' + api_key)
@@ -80,7 +79,7 @@ def CreateImportedSymlink(filename, dest):
     os.symlink(os.getcwd() + "/" + filename, dest)
 
 
-def ImportOADOIsToMongo(update_list, source_directory=None):
+def ImportOADOIsToMongo(update_list, source_directory=None, log_file_name="/dev/stderr"):
     if not source_directory is None:
        os.chdir(source_directory)
     imported_symlinks_directory = os.getcwd() + "/imported"
@@ -90,12 +89,13 @@ def ImportOADOIsToMongo(update_list, source_directory=None):
             print("Skipping " + filename + " since apparently already imported")
             continue
         print("Importing \"" + filename + "\"")
-        util.ExecOrDie(util.Which("import_oadois_to_mongo.sh"), [ filename ], filename)
+        util.ExecOrDie(util.Which("import_oadois_to_mongo.sh"), [ filename ], log_file_name)
         CreateImportedSymlink(filename, imported_symlink_full_path)
 
 
 def Main():
     config = util.LoadConfigFile()
+    log_file_name = log_file_name = util.MakeLogFileName(sys.argv[0], util.GetLogDirectory())
     changelist_url = config.get("Unpaywall", "changelist_url")
     api_key = config.get("Unpaywall", "api_key")
     oadoi_download_directory = config.get("LocalConfig", "download_dir") 
@@ -105,7 +105,7 @@ def Main():
     local_update_files = GetLocalUpdateFiles(config, oadoi_download_directory)
     download_lists = GetAllFilesStartingAtFirstMissingLocal(remote_update_files, local_update_files)
     DownloadUpdateFiles(download_lists['download'], json_update_objects, api_key, oadoi_download_directory)
-    ImportOADOIsToMongo(GetImportFiles(config, oadoi_download_directory, oadoi_imported_directory), oadoi_download_directory)
+    ImportOADOIsToMongo(GetImportFiles(config, oadoi_download_directory, oadoi_imported_directory), oadoi_download_directory, log_file_name)
 
 
 try:
