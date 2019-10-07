@@ -505,6 +505,8 @@ public:
     inline bool isMonograph() const { return leader_[7] == 'm'; }
     inline bool isSerial() const { return leader_[7] == 's'; }
     inline bool isArticle() const { return leader_[7] == 'a' or leader_[7] == 'b'; }
+    bool isWebsite() const;
+    inline bool isReproduction() const { return getFirstField("534") != end(); }
     bool isElectronicResource() const;
     bool isPrintResource() const;
     inline bool isCorporateBody() const { return getRecordType() == RecordType::AUTHORITY and hasTag("110"); }
@@ -841,7 +843,7 @@ public:
     std::vector<iterator> getMatchedFields(const std::string &field_or_field_and_subfield_code, RegexMatcher * const regex_matcher);
 
     std::string toBinaryString() const;
-    std::string toXmlString(const unsigned indent_amount, const MarcXmlWriter::TextConversionType text_conversion_type) const;
+    void toXmlStringHelper(MarcXmlWriter * const xml_writer) const;
 
     static std::string BibliographicLevelToString(const BibliographicLevel bibliographic_level);
 };
@@ -955,13 +957,13 @@ private:
 
 class Writer {
 protected:
-    File * const output_;
+    std::unique_ptr<File> output_;
 protected:
     explicit Writer(File * const output): output_(output) { }
 public:
     enum WriterMode { OVERWRITE, APPEND };
 public:
-    virtual ~Writer() { }
+    virtual ~Writer() = default;
 
     virtual void write(const Record &record) = 0;
 
@@ -984,7 +986,7 @@ class BinaryWriter: public Writer {
 private:
     BinaryWriter(File * const output): Writer(output) { }
 public:
-    virtual ~BinaryWriter() { delete output_; }
+    virtual ~BinaryWriter() override final = default;
 
     virtual void write(const Record &record) override final;
 };
@@ -992,14 +994,13 @@ public:
 
 class XmlWriter: public Writer {
     friend class Writer;
-    const unsigned indent_amount_;
-    const MarcXmlWriter::TextConversionType text_conversion_type_;
+    MarcXmlWriter xml_writer_;
 private:
     explicit XmlWriter(File * const output, const unsigned indent_amount = 0,
                        const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion)
-        : Writer(output), indent_amount_(indent_amount), text_conversion_type_(text_conversion_type) { }
+        : Writer(output), xml_writer_(output, /* suppress_header_and_tailer = */false, indent_amount, text_conversion_type) { }
 public:
-    virtual ~XmlWriter() final = default;
+    virtual ~XmlWriter() override final;
 
     virtual void write(const Record &record) override final;
 };

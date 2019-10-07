@@ -526,35 +526,29 @@ std::string Record::toBinaryString() const {
 }
 
 
-std::string Record::toXmlString(const unsigned indent_amount, const MarcXmlWriter::TextConversionType text_conversion_type) const {
-    std::string as_string;
-
-    MarcXmlWriter xml_writer(&as_string, indent_amount, text_conversion_type);
-
-    xml_writer.openTag("record");
-    xml_writer.writeTagsWithData("leader", leader_, /* suppress_newline = */ true);
+void Record::toXmlStringHelper(MarcXmlWriter * const xml_writer) const {
+    xml_writer->openTag("record");
+    xml_writer->writeTagsWithData("leader", leader_, /* suppress_newline = */ true);
     for (const auto &field : *this) {
         if (field.isControlField())
-            xml_writer.writeTagsWithData("controlfield", { std::make_pair("tag", field.getTag().toString()) }, field.getContents(),
+            xml_writer->writeTagsWithData("controlfield", { std::make_pair("tag", field.getTag().toString()) }, field.getContents(),
                                          /* suppress_newline = */ true);
         else { // We have a data field.
-            xml_writer.openTag("datafield",
-                               { std::make_pair("tag", field.getTag().toString()),
-                                 std::make_pair("ind1", std::string(1, field.getIndicator1())),
-                                 std::make_pair("ind2", std::string(1, field.getIndicator2()))
-                               });
+            xml_writer->openTag("datafield",
+                                { std::make_pair("tag", field.getTag().toString()),
+                                  std::make_pair("ind1", std::string(1, field.getIndicator1())),
+                                  std::make_pair("ind2", std::string(1, field.getIndicator2()))
+                                });
 
             const Subfields subfields(field.getSubfields());
             for (const auto &subfield : subfields)
-                xml_writer.writeTagsWithData("subfield", { std::make_pair("code", std::string(1, subfield.code_)) },
-                                             subfield.value_, /* suppress_newline = */ true);
+                xml_writer->writeTagsWithData("subfield", { std::make_pair("code", std::string(1, subfield.code_)) },
+                                              subfield.value_, /* suppress_newline = */ true);
 
-            xml_writer.closeTag(); // Close "datafield".
+            xml_writer->closeTag(); // Close "datafield".
         }
     }
-    xml_writer.closeTag(); // Close "record".
-
-    return as_string;
+    xml_writer->closeTag(); // Close "record".
 }
 
 
@@ -563,8 +557,12 @@ std::string Record::toString(const RecordFormat record_format, const unsigned in
 {
     if (record_format == RecordFormat::MARC21_BINARY)
         return toBinaryString();
-    else
-        return toXmlString(indent_amount, text_conversion_type);
+    else {
+        std::string as_string;
+        MarcXmlWriter xml_writer(&as_string, /* suppress_header_and_tailer = */true, indent_amount, text_conversion_type);
+        toXmlStringHelper(&xml_writer);
+        return as_string;
+    }
 }
 
 
@@ -575,6 +573,19 @@ void Record::merge(const Record &other) {
 
 
 static const std::set<std::string> ELECTRONIC_CARRIER_TYPES{ "cb", "cd", "ce", "ca", "cf", "ch", "cr", "ck", "cz" };
+
+
+bool Record::isWebsite() const {
+    if (leader_.length() < 7 or leader_[6] != 'i')
+        return false;
+
+    const auto _008_field(findTag("008"));
+    if (unlikely(_008_field == end()))
+        return false;
+
+    const auto &_008_contents(_008_field->getContents());
+    return _008_contents.length() > 21 and _008_contents[21] == 'W';
+}
 
 
 bool Record::isElectronicResource() const {
@@ -2094,11 +2105,17 @@ void BinaryWriter::write(const Record &record) {
 }
 
 
+XmlWriter::~XmlWriter() {
+    // the MarcXmlWriter owns the File pointer as well, so we cede ownership to it entirely
+    output_.release();
+}
+
+
 void XmlWriter::write(const Record &record) {
     std::string error_message;
     if (not record.isValid(&error_message))
         LOG_ERROR("trying to write an invalid record: " + error_message + " (Control number: " + record.getControlNumber() + ")");
-    output_->write(record.toXmlString(indent_amount_, text_conversion_type_));
+    record.toXmlStringHelper(&xml_writer_);
 }
 
 

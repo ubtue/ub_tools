@@ -1,5 +1,6 @@
 # compiled cpp programs
 ## (here we use / at the beginning by default, so e.g. /installer is ignored, but not data/installer)
+.static_deps
 /add_additional_relbib_entries
 /add_article_cross_links
 /add_author_synonyms
@@ -88,6 +89,7 @@
 /full_text_cache_monitor
 /full_text_lookup
 /full_text_stats
+/generate_issn_maps_from_zeder
 /generate_issn_to_misc_bits_map
 /generate_language_model
 /generate_large_marc_record
@@ -142,6 +144,7 @@
 /rss_aggregator
 /rss_harvester
 /rss_feed_generator
+/sammelschrift_statistik
 /send_email
 /set_tad_access_flag
 /simple_crawler

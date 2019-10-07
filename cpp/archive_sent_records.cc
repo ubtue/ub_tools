@@ -70,6 +70,8 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
     std::string record_blob;
 
     while (const MARC::Record record = marc_reader->read()) {
+        record_blob = record.toBinaryString();
+
         const std::string hash(StringUtil::ToHexString(MARC::CalcChecksum(record)));
         const std::string url(record.getFirstSubfieldValue("856", 'u'));
         const std::string zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
