@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 #Helper program for extracting valid records and importing them them to mongo
 set -o errexit -o nounset
 
