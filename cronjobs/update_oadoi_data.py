@@ -19,6 +19,7 @@ import traceback
 import urllib.request, urllib.parse, urllib.error
 import util
 
+
 def GetChangelists(url, api_key):
     print("Get Changelists")
     response = urllib.request.urlopen(url + '?api_key=' + api_key)
@@ -93,6 +94,16 @@ def ImportOADOIsToMongo(update_list, source_directory=None, log_file_name="/dev/
         CreateImportedSymlink(filename, imported_symlink_full_path)
 
 
+def GenerateAllDOIsFile(bsz_directory, all_dois_file, log_file_name):
+    print("Extract DOI's from MARC file")
+    util.ExecOrDie(util.Which("extract_dois_from_marc.sh"), [ bsz_directory, all_dois_file ], log_file_name)
+
+
+def ExtractOADOIsURLs(all_dois_file, log_file_name):
+    print("Extract URLs for DOI's")
+    util.ExecOrDie(util.Which("extract_oadoi_urls.sh"), [all_dois_file], log_file_name)
+
+
 def Main():
     config = util.LoadConfigFile()
     log_file_name = log_file_name = util.MakeLogFileName(sys.argv[0], util.GetLogDirectory())
@@ -106,6 +117,10 @@ def Main():
     download_lists = GetAllFilesStartingAtFirstMissingLocal(remote_update_files, local_update_files)
     DownloadUpdateFiles(download_lists['download'], json_update_objects, api_key, oadoi_download_directory)
     ImportOADOIsToMongo(GetImportFiles(config, oadoi_download_directory, oadoi_imported_directory), oadoi_download_directory, log_file_name)
+    bsz_directory = config.get("LocalConfig", "bsz_directory")
+    all_dois_file = config.get("LocalConfig", "all_dois_file")
+    GenerateAllDOIsFile(bsz_directory, all_dois_file, log_file_name)
+    ExtractOADOIsURLs(all_dois_file, log_file_name)
 
 
 try:
