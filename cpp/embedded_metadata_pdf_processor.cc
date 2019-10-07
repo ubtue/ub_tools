@@ -40,9 +40,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] pdf_input full_text_output\n"
-                           << ::progname << " [--min-log-level=min_verbosity] --output-dir=output_dir pdf_input1 pdf_input2 ...\n\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("pdf_input full_text_output | --output-dir=output_dir pdf_input1 pdf_input2 ...\n");
 }
 
 
@@ -154,7 +152,7 @@ bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextD
     std::string control_number;
     if (GuessDOI(first_page_text, &(fulltext_data->doi_))
         and FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_number))
-        return true;    
+        return true;
     GuessISSN(first_page_text, &(fulltext_data->issn_));
     GuessAuthorAndTitle(pdf_document, fulltext_data);
     if (not FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_number))
