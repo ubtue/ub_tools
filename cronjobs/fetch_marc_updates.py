@@ -1,4 +1,4 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
 #
 # A tool for the automation of tarball downloads from the BSZ.
@@ -98,7 +98,7 @@ def GetListOfRemoteFiles(ftp, filename_regex, directory, download_cutoff_date):
 
     # Retry calling GetMostRecentFile() up to 3 times:
     exception = None
-    for i in xrange(3):
+    for i in range(3):
         try:
             filename_list = []
             for filename in ftp.nlst():
@@ -134,7 +134,7 @@ def DownLoadFile(ftp, remote_filename):
 def AreBothInstancesPresent(filename_regex, remote_files):
      if not remote_files:
         return True
-     matching_remote_files = filter(filename_regex.match, remote_files)
+     matching_remote_files = list(filter(filename_regex.match, remote_files))
      return True if len(matching_remote_files) % 2 == 0 else False
 
 

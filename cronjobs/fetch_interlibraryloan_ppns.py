@@ -1,7 +1,5 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
-
-
 import datetime
 import json
 import os
@@ -9,7 +7,7 @@ import re
 import sys
 import time
 import traceback
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import util
 
 
@@ -19,7 +17,7 @@ PPN_LIST_FILE    = "gvi_ppn_list-" + datetime.datetime.today().strftime('%y%m%d'
 
 
 def GetDataFromGVI(cursor_mark):
-    response = urllib.urlopen(GVI_URL + '&cursorMark=' + cursor_mark)
+    response = urllib.request.urlopen(GVI_URL + '&cursorMark=' + cursor_mark)
     try:
         jdata = json.load(response)
     except ValueError:
@@ -43,7 +41,7 @@ def WriteListFile(ppn_list):
 
 
 def ExtractNextCursorMark(jdata):
-    return urllib.quote(jdata['nextCursorMark'])
+    return urllib.parse.quote(jdata['nextCursorMark'])
 
 
 def Main():
