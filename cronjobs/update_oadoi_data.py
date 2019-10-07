@@ -58,8 +58,10 @@ def GetDownloadUrlsAndFilenames(download_list, json_update_objects, api_key):
     return { "urls": sorted(download_urls), "filenames" : sorted(filenames) }
 
 
-def GetImportFiles(download_list, json_update_objects):
-    return [item['filename'] for item in json_update_objects if item['filename'] in download_list]
+def GetImportFiles(config, oadoi_download_directory, oadoi_imported_directory):
+    downloaded_files =  GetLocalUpdateFiles(config, oadoi_download_directory)
+    imported_files = GetLocalUpdateFiles(config, oadoi_imported_directory)
+    return list(set(downloaded_files) - set(imported_files))
 
 
 def DownloadUpdateFiles(download_list, json_update_objects, api_key, target_directory=None):
@@ -103,7 +105,7 @@ def Main():
     local_update_files = GetLocalUpdateFiles(config, oadoi_download_directory)
     download_lists = GetAllFilesFromLastMissingLocal(remote_update_files, local_update_files)
     DownloadUpdateFiles(download_lists['download'], json_update_objects, api_key, oadoi_download_directory)
-    UpdateDatabase(GetImportFiles(download_lists['download'], json_update_objects), oadoi_download_directory)
+    UpdateDatabase(GetImportFiles(config, oadoi_download_directory, oadoi_imported_directory), oadoi_download_directory)
 
 
 try:
