@@ -328,6 +328,8 @@ public class TuelibMixin extends SolrIndexerMixin {
             return "person";
         if (record.getVariableFields("110").size() > 0)
             return "corporate";
+        if (record.getVariableFields("111").size() > 0)
+            return "meeting";
         return null;
     }
 
