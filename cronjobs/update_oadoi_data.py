@@ -20,7 +20,7 @@ import urllib.request, urllib.parse, urllib.error
 import util
 
 
-def GetRemoteUpdateObjects(url, api_key):
+def GetChangelists(url, api_key):
     print("Get Changelists")
     response = urllib.request.urlopen(url + '?api_key=' + api_key)
     jdata = json.load(response)
@@ -44,7 +44,7 @@ def GetLocalUpdateFiles(config, local_directory=None):
     return list(filter(changelist_file_regex.search, GetDirectoryContents()))
 
 
-def GetAllFilesFromLastMissingLocal(remote_update_list, local_update_list):
+def GetAllFilesStartingAtFirstMissingLocal(remote_update_list, local_update_list):
     # Strategy: Determine the youngest local file such that all previous files
     # are already locally present and return all younger remote files
     youngest_local = next(iter(sorted(local_update_list, reverse=True)))
@@ -80,18 +80,18 @@ def CreateImportedSymlink(filename, dest):
     os.symlink(os.getcwd() + "/" + filename, dest)
 
 
-def UpdateDatabase(update_list, source_directory=None):
+def ImportOADOIsToMongo(update_list, source_directory=None):
     if not source_directory is None:
        os.chdir(source_directory)
     imported_symlinks_directory = os.getcwd() + "/imported"
     for filename in update_list:
         imported_symlink_full_path = imported_symlinks_directory + "/" + filename
         if os.path.islink(imported_symlink_full_path):
-            print(("Skipping " + filename + " since apparently already imported"))
+            print("Skipping " + filename + " since apparently already imported")
             continue
         print("Importing \"" + filename + "\"")
-        util.ExecOrDie(util.Which("import_oadois_to_mongo.sh"), filename)
-        CreateImportedSymlink(imported_symlink_full_path)
+        util.ExecOrDie(util.Which("import_oadois_to_mongo.sh"), [ filename ], filename)
+        CreateImportedSymlink(filename, imported_symlink_full_path)
 
 
 def Main():
@@ -100,12 +100,12 @@ def Main():
     api_key = config.get("Unpaywall", "api_key")
     oadoi_download_directory = config.get("LocalConfig", "download_dir") 
     oadoi_imported_directory = oadoi_download_directory + "/imported/"
-    json_update_objects = GetRemoteUpdateObjects(changelist_url, api_key)
+    json_update_objects = GetChangelists(changelist_url, api_key)
     remote_update_files = GetRemoteUpdateFiles(json_update_objects)
     local_update_files = GetLocalUpdateFiles(config, oadoi_download_directory)
-    download_lists = GetAllFilesFromLastMissingLocal(remote_update_files, local_update_files)
+    download_lists = GetAllFilesStartingAtFirstMissingLocal(remote_update_files, local_update_files)
     DownloadUpdateFiles(download_lists['download'], json_update_objects, api_key, oadoi_download_directory)
-    UpdateDatabase(GetImportFiles(config, oadoi_download_directory, oadoi_imported_directory), oadoi_download_directory)
+    ImportOADOIsToMongo(GetImportFiles(config, oadoi_download_directory, oadoi_imported_directory), oadoi_download_directory)
 
 
 try:
