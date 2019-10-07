@@ -1,10 +1,10 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
 #
 #    @brief  A very simple black box tester for web sites.
 #    @author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
 #
-#    Copyright (C) 2015,2017 Library of the University of Tübingen
+#    Copyright (C) 2015-2019 Library of the University of Tübingen
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -34,7 +34,7 @@ import re
 import ssl
 import sys
 import traceback
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import util
 
 
@@ -45,8 +45,8 @@ def RunTest(test_name, url, timeout, expected):
     if timeout is None:
         timeout = DEFAULT_TIMEOUT
     try:
-        request = urllib2.Request(url, headers={"Accept-Language" : "de"})
-        response = urllib2.urlopen(request, timeout=timeout)
+        request = urllib.request.Request(url, headers={"Accept-Language" : "de"})
+        response = urllib.request.urlopen(request, timeout=timeout)
         page_content = response.read()
         if expected is None:
             return True
@@ -81,4 +81,4 @@ def Main():
 try:
     Main()
 except Exception as e:
-    print traceback.format_exc()
+    print(traceback.format_exc())

@@ -1,9 +1,8 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
 #
 # A tool for the automatic generation of a Beacon file.
 # (https://meta.wikimedia.org/wiki/Dynamic_links_to_external_resources)
-
 import datetime
 import os
 import re

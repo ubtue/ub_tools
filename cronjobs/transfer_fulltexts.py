@@ -1,4 +1,4 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
 # Transfers uploaded fulltexts to the fulltext server
 """
@@ -55,7 +55,7 @@ def GetExistingFiles(local_top_dir):
 
 def GetFulltextDirectoriesToTransfer(local_top_dir, fulltext_files_path):
     os.chdir(local_top_dir)
-    stripped_paths = list(map(lambda path:StripPathPrefix(path, local_top_dir), fulltext_files_path))
+    stripped_paths = list([StripPathPrefix(path, local_top_dir) for path in fulltext_files_path])
     directory_set = set(list(map(ExtractDirectories, stripped_paths)))
     return directory_set
 

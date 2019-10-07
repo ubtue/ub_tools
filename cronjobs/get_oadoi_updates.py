@@ -1,4 +1,4 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
 # Tool for downloading OADOI update files
 # Default config file
@@ -20,12 +20,12 @@ import re
 import subprocess
 import sys
 import traceback
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import util
 
 
 def GetRemoteUpdateObjects(url, api_key):
-    response = urllib.urlopen(url + '?api_key=' + api_key)
+    response = urllib.request.urlopen(url + '?api_key=' + api_key)
     jdata = json.load(response)
     # Get only JSON update entries, no CSV
     json_update_objects = [item for item in jdata['list'] if item['filetype'] == 'jsonl']
@@ -44,7 +44,7 @@ def GetLocalUpdateFiles(config, local_directory=None):
         else:
             return os.listdir(local_directory)
     changelist_file_regex = re.compile(config.get("Unpaywall", "changelist_file_regex"))
-    return filter(changelist_file_regex.search, GetDirectoryContents())
+    return list(filter(changelist_file_regex.search, GetDirectoryContents()))
 
 
 def GetAllFilesFromLastMissingLocal(remote_update_list, local_update_list):
@@ -64,7 +64,7 @@ def GetAllFilesFromLastMissingLocal(remote_update_list, local_update_list):
 
 def GetDownloadUrls(download_list, json_update_objects, api_key):
     download_urls = [item['url'] for item in json_update_objects if item['filename'] in download_list]
-    return list(map(lambda url: url.replace("YOUR_API_KEY", api_key), download_urls))
+    return list([url.replace("YOUR_API_KEY", api_key) for url in download_urls])
 
 
 def DownloadUpdateFiles(download_list, json_update_objects, api_key, target_directory=None):
@@ -72,10 +72,10 @@ def DownloadUpdateFiles(download_list, json_update_objects, api_key, target_dire
     if not target_directory is None:
        os.chdir(target_directory)
 
-    oadoi_downloader = urllib.URLopener()
+    oadoi_downloader = urllib.request.URLopener()
     for url in download_urls:
         # XXX CHANGE ME TO ACTIVE
-        print "WE WOULD RETRIEVE: " + "oadoi_downloader.retrieve(" + url + ")"
+        print("WE WOULD RETRIEVE: " + "oadoi_downloader.retrieve(" + url + ")")
 
 
 def UpdateDatabase(update_list, config, source_directory=None):
@@ -108,7 +108,7 @@ def Main():
     local_update_files = GetLocalUpdateFiles(config, working_dir)
     update_and_download_lists = GetAllFilesFromLastMissingLocal(remote_update_files, local_update_files)
     if not update_and_download_lists:
-        print "Received empty list - so nothing to do"
+        print("Received empty list - so nothing to do")
         sys.exit(0)
     DownloadUpdateFiles(update_and_download_lists['download'], json_update_objects, api_key, working_dir)
     UpdateDatabase(update_and_download_lists['update'], config)
