@@ -104,6 +104,14 @@ def ShareOADOIURLs(share_directory, urls_file):
 
 
 def Main():
+    util.default_email_sender = "update_oadoi_data@ub.uni-tuebingen.de"
+    util.default_email_recipient = "johannes.riedl@uni-tuebingen.de"
+    if len(sys.argv) != 2:
+         util.SendEmail("Create Refterm File (Kickoff Failure)",
+                        "This script must be called with one argument,\n"
+                        + "the default email recipient\n", priority=1);
+         sys.exit(-1)
+    util.default_email_recipient = sys.argv[1]
     # Download needed differential files
     config = util.LoadConfigFile()
     log_file_name = log_file_name = util.MakeLogFileName(sys.argv[0], util.GetLogDirectory())
