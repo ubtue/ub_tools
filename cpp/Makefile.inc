@@ -25,7 +25,7 @@ OBJ            = .
 MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep
 LIBS           = -L$(LIB) -lubtue -L$(LIB)/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
                  -larchive -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt -lssl -lcrypto -lpthread -ldl \
-                 -luuid -llept -ltesseract -lsqlite3 -lxerces-c
+                 -luuid -llept -ltesseract -lsqlite3 -lxerces-c -ldb
 ifneq ("$(wildcard /usr/include/selinux)","")
   CCCFLAGS += -DHAS_SELINUX_HEADERS
   LIBS += -lselinux
