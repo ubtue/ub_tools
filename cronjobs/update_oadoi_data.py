@@ -100,7 +100,7 @@ def ExtractOADOIURLs(share_directory, all_dois_file, urls_file, log_file_name):
 
 
 def ShareOADOIURLs(share_directory, urls_file):
-    copyfile(urls_file, share_directory)
+    copy2(urls_file, share_directory)
 
 
 def Main():
