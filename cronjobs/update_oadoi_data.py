@@ -104,6 +104,7 @@ def ShareOADOIURLs(share_directory, urls_file):
 
 
 def Main():
+    # Download needed differential files
     config = util.LoadConfigFile()
     log_file_name = log_file_name = util.MakeLogFileName(sys.argv[0], util.GetLogDirectory())
     changelist_url = config.get("Unpaywall", "changelist_url")
@@ -115,7 +116,9 @@ def Main():
     local_update_files = GetLocalUpdateFiles(config, oadoi_download_directory)
     download_lists = GetAllFilesStartingAtFirstMissingLocal(remote_update_files, local_update_files)
     DownloadUpdateFiles(download_lists['download'], json_update_objects, api_key, oadoi_download_directory)
+    # Update the Database
     ImportOADOIsToMongo(GetImportFiles(config, oadoi_download_directory, oadoi_imported_directory), oadoi_download_directory, log_file_name)
+    # Generate the files to be used by the pipeline
     share_directory = config.get("LocalConfig", "share_directory")
     ixtheo_dois_file = config.get("LocalConfig", "ixtheo_dois_file")
     ixtheo_urls_file = config.get("LocalConfig", "ixtheo_urls_file")
