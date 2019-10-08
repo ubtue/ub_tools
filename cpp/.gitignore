@@ -108,7 +108,6 @@
 /jop_grep
 /journal_publishing_processor
 /journal_timeliness_checker
-/kcdb_info
 /krimdok_filter
 /krimdok_marc_pipeline.sh_no_fulltext
 /krimdok_flag_pda_records
