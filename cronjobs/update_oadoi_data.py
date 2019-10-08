@@ -18,7 +18,7 @@ import sys
 import traceback
 import urllib.request, urllib.parse, urllib.error
 import util
-
+from shutil import copy2
 
 def GetChangelists(url, api_key):
     print("Get Changelists")
@@ -94,14 +94,13 @@ def ImportOADOIsToMongo(update_list, source_directory=None, log_file_name="/dev/
         CreateImportedSymlink(filename, imported_symlink_full_path)
 
 
-def GenerateAllDOIsFile(bsz_directory, all_dois_file, log_file_name):
-    print("Extract DOI's from MARC file")
-    util.ExecOrDie(util.Which("extract_dois_from_marc.sh"), [ bsz_directory, all_dois_file ], log_file_name)
-
-
-def ExtractOADOIsURLs(all_dois_file, log_file_name):
+def ExtractOADOIURLs(share_directory, all_dois_file, urls_file, log_file_name):
     print("Extract URLs for DOI's")
-    util.ExecOrDie(util.Which("extract_oadoi_urls.sh"), [all_dois_file], log_file_name)
+    util.ExecOrDie(util.Which("extract_oadoi_urls.sh"), [ share_directory + '/' + all_dois_file, urls_file ], log_file_name)
+
+
+def ShareOADOIURLs(share_directory, urls_file):
+    copyfile(urls_file, share_directory)
 
 
 def Main():
@@ -117,10 +116,15 @@ def Main():
     download_lists = GetAllFilesStartingAtFirstMissingLocal(remote_update_files, local_update_files)
     DownloadUpdateFiles(download_lists['download'], json_update_objects, api_key, oadoi_download_directory)
     ImportOADOIsToMongo(GetImportFiles(config, oadoi_download_directory, oadoi_imported_directory), oadoi_download_directory, log_file_name)
-    bsz_directory = config.get("LocalConfig", "bsz_directory")
-    all_dois_file = config.get("LocalConfig", "all_dois_file")
-    GenerateAllDOIsFile(bsz_directory, all_dois_file, log_file_name)
-    ExtractOADOIsURLs(all_dois_file, log_file_name)
+    share_directory = config.get("LocalConfig", "share_directory")
+    ixtheo_dois_file = config.get("LocalConfig", "ixtheo_dois_file")
+    ixtheo_urls_file = config.get("LocalConfig", "ixtheo_urls_file")
+    ExtractOADOIURLs(share_directory, ixtheo_dois_file, ixtheo_urls_file, log_file_name)
+    ShareOADOIURLs(share_directory, ixtheo_urls_file)
+    krimdok_dois_file = config.get("LocalConfig", "krimdok_dois_file")
+    krimdok_urls_file = config.get("LocalConfig", "krimdok_urls_file")
+    ExtractOADOIURLs(share_directory, krimdok_dois_file, krimdok_urls_file, log_file_name)
+    ShareOADOIURLs(share_directory, krimdok_urls_file)
 
 
 try:
