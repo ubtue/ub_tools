@@ -105,10 +105,7 @@ def Main():
                    + list(dirs_to_transfer))
     # Clean up on the server
     CleanUpFiles(fulltext_files)
-    email_msg_body = ("Found Files:\n\n" +
-                       string.join(fulltext_files, "\n") +
-                       "\n\nTransferred directories:\n\n" +
-                       string.join(dirs_to_transfer, "\n"))
+    email_msg_body = "Found Files:\n\n" + '\n'.join(fulltext_files) + "\n\nTransferred directories:\n\n" + '\n'.join(dirs_to_transfer)
     util.SendEmail("Transfer Fulltexts", email_msg_body, priority=5)
 
 

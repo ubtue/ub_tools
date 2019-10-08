@@ -297,7 +297,7 @@ def DownloadData(config, section, ftp, download_cutoff_date, msg):
     if len(downloaded_files) == 0:
         msg.append("No more recent file for pattern \"" + filename_regex.pattern + "\"!\n")
     else:
-        msg.append("Successfully downloaded:\n" + string.join(downloaded_files, '\n') + '\n')
+        msg.append("Successfully downloaded:\n" + '\n'.join(downloaded_files) + '\n')
         AddToCumulativeCollection(downloaded_files, config)
     return downloaded_files
 
@@ -363,7 +363,7 @@ def Main():
        else:
            msg.append("Skipping Download of \"Normdatendifferenzabzug\" since already present\n")
     CleanUpCumulativeCollection(config)
-    util.SendEmail("BSZ File Update", string.join(msg, ""), priority=5)
+    util.SendEmail("BSZ File Update", string.join(msg), priority=5)
 
 
 try:
