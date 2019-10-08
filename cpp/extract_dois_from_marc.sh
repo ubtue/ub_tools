@@ -1,9 +1,9 @@
 #!/bin/bash
-# Extract DOIs from MARC title file into output file
+# Extract DOI's from MARC title file into output file
 set -o errexit -o nounset
 
 if [ $# != 2 ]; then
-    echo Usage: $0 marc_directory output.txt
+    echo Usage: $0 marc_directory txt_output_filename
     exit 1
 fi
 
