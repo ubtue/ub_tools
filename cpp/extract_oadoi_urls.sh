@@ -3,9 +3,9 @@
 set -o errexit -o nounset
 
 DOI_FILE="$1"
+FINAL_OUTPUT_FILE="$2"
 MONGO_COMMAND_FILE="mongo_chunk_query.js"
-INTERMEDIATE_OUTPUT_FILE="oadoi_ixtheo_intermediate.json"
-FINAL_OUTPUT_FILE="oadoi_urls_ixtheo.json"
+INTERMEDIATE_OUTPUT_FILE="oadoi_intermediate.json"
 CHUNK_SIZE=10000
 SPLIT_FILE_PREFIX="__x"
 
