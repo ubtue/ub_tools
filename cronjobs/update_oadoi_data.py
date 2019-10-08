@@ -68,12 +68,12 @@ def DownloadUpdateFiles(download_list, json_update_objects, api_key, target_dire
     download_urls_and_filenames = GetDownloadUrlsAndFilenames(download_list, json_update_objects, api_key)
     if not target_directory is None:
        os.chdir(target_directory)
-       
+
     oadoi_downloader = urllib.request.URLopener()
     for url, filename in zip(download_urls_and_filenames['urls'], download_urls_and_filenames['filenames']):
         print("Downloading \"" + url + "\" to \"" + filename + "\"")
         oadoi_downloader.retrieve(url, filename)
-        
+
 
 def CreateImportedSymlink(filename, dest):
     print("Creating symlink in imported directory")
@@ -95,7 +95,7 @@ def ImportOADOIsToMongo(update_list, source_directory=None, log_file_name="/dev/
 
 
 def ExtractOADOIURLs(share_directory, all_dois_file, urls_file, log_file_name):
-    print("Extract URLs for DOI's")
+    print("Extract URLs for DOI's in " + all_dois_file)
     util.ExecOrDie(util.Which("extract_oadoi_urls.sh"), [ share_directory + '/' + all_dois_file, urls_file ], log_file_name)
 
 
@@ -108,7 +108,7 @@ def Main():
     log_file_name = log_file_name = util.MakeLogFileName(sys.argv[0], util.GetLogDirectory())
     changelist_url = config.get("Unpaywall", "changelist_url")
     api_key = config.get("Unpaywall", "api_key")
-    oadoi_download_directory = config.get("LocalConfig", "download_dir") 
+    oadoi_download_directory = config.get("LocalConfig", "download_dir")
     oadoi_imported_directory = oadoi_download_directory + "/imported/"
     json_update_objects = GetChangelists(changelist_url, api_key)
     remote_update_files = GetRemoteUpdateFiles(json_update_objects)
@@ -125,10 +125,14 @@ def Main():
     krimdok_urls_file = config.get("LocalConfig", "krimdok_urls_file")
     ExtractOADOIURLs(share_directory, krimdok_dois_file, krimdok_urls_file, log_file_name)
     ShareOADOIURLs(share_directory, krimdok_urls_file)
+    util.SendEmail("Update OADOI Data",
+                   "Successfully created \"" + ixtheo_urls_file + "\" and \""  + krimdok_urls_file +
+                   "\" in " + share_directory, priority=5)
 
 
 try:
     Main()
 except Exception as e:
     error_msg = "An unexpected error occured: " + str(e) + "\n\n" + traceback.format_exc(20)
+    util.SendEmail("Update OADOI Data", error_msg, priority=1)
     sys.stderr.write(error_msg)
