@@ -363,7 +363,7 @@ def Main():
        else:
            msg.append("Skipping Download of \"Normdatendifferenzabzug\" since already present\n")
     CleanUpCumulativeCollection(config)
-    util.SendEmail("BSZ File Update", string.join(msg), priority=5)
+    util.SendEmail("BSZ File Update", ''.join(msg), priority=5)
 
 
 try:
