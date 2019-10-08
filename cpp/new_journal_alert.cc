@@ -26,7 +26,6 @@
 #include <vector>
 #include <cstdlib>
 #include <cstring>
-#include <kchashdb.h>
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "EmailSender.h"
@@ -34,6 +33,7 @@
 #include "HtmlUtil.h"
 #include "IniFile.h"
 #include "JSON.h"
+#include "KeyValueDB.h"
 #include "Solr.h"
 #include "StringUtil.h"
 #include "Template.h"
@@ -185,7 +185,7 @@ std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode
 
 
 /** \return True if new issues were found, false o/w. */
-bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
+bool ExtractNewIssueInfos(const std::unique_ptr<KeyValueDB> &notified_db,
                           std::unordered_set<std::string> * const new_notification_ids,
                           const std::string &json_document, std::vector<NewIssueInfo> * const new_issue_infos,
                           std::string * const max_last_modification_time)
@@ -205,7 +205,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
         const std::shared_ptr<const JSON::ObjectNode> doc_obj(JSON::JSONNode::CastToObjectNodeOrDie("document object", doc));
 
         const std::string id(GetIssueId(doc_obj));
-        if (notified_db->check(id) > 0)
+        if (notified_db->keyIsPresent(id) )
             continue; // We already sent a notification for this issue.
         new_notification_ids->insert(id);
 
@@ -237,7 +237,7 @@ std::string GetEmailTemplate(const std::string user_type) {
 }
 
 
-bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
+bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
                   std::unordered_set<std::string> * const new_notification_ids, const std::string &solr_host_and_port,
                   const std::string &serial_control_number, std::string last_modification_time,
                   std::vector<NewIssueInfo> * const new_issue_infos, std::string * const max_last_modification_time)
@@ -321,7 +321,7 @@ void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &
 
 
 void ProcessSingleUser(
-    const bool debug, DbConnection * const db_connection, const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
+    const bool debug, DbConnection * const db_connection, const std::unique_ptr<KeyValueDB> &notified_db,
     const IniFile &bundles_config, std::unordered_set<std::string> * const new_notification_ids,
     const std::string &user_id, const std::string &solr_host_and_port, const std::string &hostname,
     const std::string &sender_email, const std::string &email_subject,
@@ -398,7 +398,7 @@ void ProcessSingleUser(
 }
 
 
-void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
+void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, const std::unique_ptr<KeyValueDB> &notified_db,
                           const IniFile &bundles_config, std::unordered_set<std::string> * const new_notification_ids,
                           const std::string &solr_host_and_port, const std::string &user_type, const std::string &hostname,
                           const std::string &sender_email, const std::string &email_subject)
@@ -429,33 +429,29 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
 }
 
 
-void RecordNewlyNotifiedIds(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
+void RecordNewlyNotifiedIds(const std::unique_ptr<KeyValueDB> &notified_db,
                             const std::unordered_set<std::string> &new_notification_ids)
 {
     const std::string now(TimeUtil::GetCurrentDateAndTime());
-    for (const auto &id : new_notification_ids) {
-        if (not notified_db->add(id, now))
-            LOG_ERROR("Failed to add key/value pair to database \"" + notified_db->path() + "\" ("
-                      + std::string(notified_db->error().message()) + ")!");
-    }
+    for (const auto &id : new_notification_ids)
+        notified_db->addOrReplace(id, now);
 }
 
 
-std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB(const std::string &user_type) {
+std::unique_ptr<KeyValueDB> CreateOrOpenKeyValueDB(const std::string &user_type) {
     const std::string DB_FILENAME(UBTools::GetTuelibPath() + user_type + "_notified.db");
-    std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
-    if (not (db->open(DB_FILENAME,
-                      kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
-        LOG_ERROR("failed to open or create \"" + DB_FILENAME + "\"!");
-    return db;
+    if (not FileUtil::Exists(DB_FILENAME))
+        KeyValueDB::Create(DB_FILENAME);
+
+    return std::unique_ptr<KeyValueDB>(new KeyValueDB(DB_FILENAME));
 }
 
 
 } // unnamed namespace
 
 
-// gets user subscriptions for superior works from mysql
-// uses kyotocabinet HashDB (file) to prevent entries from being sent multiple times to same user
+// gets user subscriptions for superior works from MySQL
+// uses a KeyValueDB instance to prevent entries from being sent multiple times to same user
 int Main(int argc, char **argv) {
     if (argc < 5)
         Usage();
@@ -485,15 +481,15 @@ int Main(int argc, char **argv) {
     const std::string sender_email(argv[3]);
     const std::string email_subject(argv[4]);
 
-    std::unique_ptr<kyotocabinet::HashDB> notified_db(CreateOrOpenKeyValueDB(user_type));
+    std::unique_ptr<KeyValueDB> notified_db(CreateOrOpenKeyValueDB(user_type));
 
     std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
 
     const IniFile bundles_config(UBTools::GetTuelibPath() + "journal_alert_bundles.conf");
 
     std::unordered_set<std::string> new_notification_ids;
-    ProcessSubscriptions(debug, db_connection.get(), notified_db, bundles_config, &new_notification_ids, solr_host_and_port, user_type, hostname,
-                         sender_email, email_subject);
+    ProcessSubscriptions(debug, db_connection.get(), notified_db, bundles_config, &new_notification_ids, solr_host_and_port,
+                         user_type, hostname, sender_email, email_subject);
     if (not debug)
         RecordNewlyNotifiedIds(notified_db, new_notification_ids);
 

@@ -22,9 +22,9 @@
 #include <unordered_map>
 #include <cstdlib>
 #include <cstring>
-#include <kchashdb.h>
 #include "FileUtil.h"
 #include "JSON.h"
+#include "KeyValueDB.h"
 #include "MARC.h"
 #include "Solr.h"
 #include "StringUtil.h"
@@ -41,19 +41,15 @@ namespace {
 }
 
 
-void OpenAllDBs(const std::string &old_ppns_to_new_ppns_map_directory, std::vector<kyotocabinet::HashDB *> * const dbs) {
+void OpenAllDBs(const std::string &old_ppns_to_new_ppns_map_directory, std::vector<KeyValueDB *> * const dbs) {
     FileUtil::Directory directory(old_ppns_to_new_ppns_map_directory, "\\.db$");
-    for (const auto &entry : directory) {
-        dbs->emplace_back(new kyotocabinet::HashDB);
-        if (not dbs->back()->open(entry.getName(), kyotocabinet::HashDB::OREADER))
-            LOG_ERROR("Failed to open database \"" + entry.getName() + "\" for reading ("
-                      + std::string(dbs->back()->error().message()) + ")!");
-    }
+    for (const auto &entry : directory)
+        dbs->emplace_back(new KeyValueDB(entry.getName()));
 }
 
 
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    const std::vector<std::string> &tags_and_subfield_codes, const std::vector<kyotocabinet::HashDB *> &dbs)
+                    const std::vector<std::string> &tags_and_subfield_codes, const std::vector<KeyValueDB *> &dbs)
 {
     unsigned total_record_count(0), patched_record_count(0);
     while (MARC::Record record = marc_reader->read()) {
@@ -77,8 +73,8 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 
                         for (const auto &db : dbs) {
                             std::string new_ppn;
-                            if (db->get(old_ppn_candidate, &new_ppn)) {
-                                subfield.value_ = new_ppn;
+                            if (db->keyIsPresent(old_ppn_candidate)) {
+                                subfield.value_ = db->getValue(old_ppn_candidate);
                                 patched_field = true;
                                 break;
                             }
@@ -109,7 +105,7 @@ int Main(int argc, char *argv[]) {
     if (argc < 4)
         Usage();
 
-    std::vector<kyotocabinet::HashDB *> dbs;
+    std::vector<KeyValueDB *> dbs;
     OpenAllDBs(argv[1], &dbs);
 
     std::vector<std::string> tags_and_subfield_codes;
