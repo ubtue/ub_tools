@@ -163,7 +163,8 @@ EndPhase || Abort) &
 
 
 StartPhase "Add Additional Open Access URL's"
-(add_oa_urls oadoi_urls_krimdok.json GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+OADOI_URLS_FILE="/mnt/ZE020150/FID-Entwicklung/oadoi/oadoi_urls_krimdok.json"
+(add_oa_urls ${OADOI_URLS_FILE} GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
