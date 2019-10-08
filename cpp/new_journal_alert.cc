@@ -450,8 +450,8 @@ std::unique_ptr<KeyValueDB> CreateOrOpenKeyValueDB(const std::string &user_type)
 } // unnamed namespace
 
 
-// gets user subscriptions for superior works from mysql
-// uses kyotocabinet HashDB (file) to prevent entries from being sent multiple times to same user
+// gets user subscriptions for superior works from MySQL
+// uses a KeyValueDB instance to prevent entries from being sent multiple times to same user
 int Main(int argc, char **argv) {
     if (argc < 5)
         Usage();
