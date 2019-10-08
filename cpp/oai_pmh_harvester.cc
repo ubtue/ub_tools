@@ -18,11 +18,11 @@
  */
 #include <iostream>
 #include <cctype>
-#include <kchashdb.h>
 #include "Compiler.h"
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "HttpHeader.h"
+#include "KeyValueDB.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
@@ -189,16 +189,15 @@ std::string MakeRequestURL(const std::string &base_url, const std::string &metad
 const std::string OAI_DUPS_DB_FILENAME(UBTools::GetTuelibPath() + "oai_dups.db");
 
 
-std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB() {
-    std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
-    if (not (db->open(OAI_DUPS_DB_FILENAME,
-                      kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
-        LOG_ERROR("failed to open or create \"" + OAI_DUPS_DB_FILENAME + "\"!");
-    return db;
+std::unique_ptr<KeyValueDB> CreateOrOpenKeyValueDB() {
+    if (not FileUtil::Exists(OAI_DUPS_DB_FILENAME))
+        KeyValueDB::Create(OAI_DUPS_DB_FILENAME);
+
+    return std::unique_ptr<KeyValueDB>(new KeyValueDB(OAI_DUPS_DB_FILENAME));
 }
 
 
-void GenerateValidatedOutput(kyotocabinet::HashDB * const dups_db, MARC::Reader * const marc_reader,
+void GenerateValidatedOutput(KeyValueDB * const dups_db, MARC::Reader * const marc_reader,
                              const std::string &control_number_prefix, MARC::Writer * const marc_writer)
 {
     unsigned counter(0);
@@ -208,16 +207,15 @@ void GenerateValidatedOutput(kyotocabinet::HashDB * const dups_db, MARC::Reader 
 
         if (dups_db != nullptr) {
             const std::string checksum(MARC::CalcChecksum(record));
-            if (dups_db->check(checksum) > 0) {
+            if (dups_db->keyIsPresent(checksum)) {
                 LOG_DEBUG("found a dupe w/ checksum \"" + checksum + "\".");
                 continue;
             }
-            dups_db->add(checksum, TimeUtil::GetCurrentDateAndTime());
+            dups_db->addOrReplace(checksum, TimeUtil::GetCurrentDateAndTime());
         }
 
         if (record.getControlNumber().empty()) {
-            const std::string control_number(control_number_prefix + StringUtil::Map(StringUtil::ToString(++counter, 10, 10),
-                                                                                     ' ', '0'));
+            const std::string control_number(control_number_prefix + StringUtil::Map(StringUtil::ToString(++counter, 10, 10), ' ', '0'));
             record.insertField("001", control_number);
         }
 
@@ -230,12 +228,11 @@ void GenerateValidatedOutput(kyotocabinet::HashDB * const dups_db, MARC::Reader 
 
 
 int Main(int argc, char **argv) {
-    std::unique_ptr<kyotocabinet::HashDB> dups_db;
+    std::unique_ptr<KeyValueDB> dups_db;
     if (argc > 1 and std::strcmp(argv[1], "--skip-dups") == 0) {
         dups_db = CreateOrOpenKeyValueDB();
         --argc, ++argv;
     }
-
 
     bool ignore_ssl_certificates(false);
     if (argc > 1 and std::strcmp(argv[1], "--ignore-ssl-certificates") == 0) {
