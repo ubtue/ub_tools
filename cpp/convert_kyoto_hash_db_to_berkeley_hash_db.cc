@@ -50,10 +50,15 @@ int Main(int argc, char **argv) {
 
     kyotocabinet::HashDB::Cursor *kyoto_hash_db_cursor(kyoto_hash_db.cursor());
     kyoto_hash_db_cursor->jump();
+    unsigned count(0);
     std::string key, value;
-    while (kyoto_hash_db_cursor->get(&key, &value, /* move the cursor to the next record = */true))
+    while (kyoto_hash_db_cursor->get(&key, &value, /* move the cursor to the next record = */true)) {
         berkeley_hash_db.addOrReplace(key, value);
+        ++count;
+    }
     delete kyoto_hash_db_cursor;
+
+    LOG_INFO("Converted " + std::to_string(count) + " key/value pairs.");
 
     return EXIT_SUCCESS;
 }
