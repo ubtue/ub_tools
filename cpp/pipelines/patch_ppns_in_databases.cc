@@ -26,12 +26,12 @@
 #include <vector>
 #include <cstdlib>
 #include <cstring>
-#include <kchashdb.h>
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
 #include "FileUtil.h"
+#include "KeyValueDB.h"
 #include "MapUtil.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
@@ -134,20 +134,19 @@ void DeleteFromTable(DbConnection * const db_connection, const std::string &tabl
 
 void PatchNotifiedDB(const std::string &user_type, const std::vector<PPNsAndSigil> &old_ppns_sigils_and_new_ppns) {
     const std::string DB_FILENAME(UBTools::GetTuelibPath() + user_type + "_notified.db");
-    std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
-    if (not (db->open(DB_FILENAME, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER))) {
+    if (not FileUtil::Exists(DB_FILENAME)) {
         LOG_INFO("\"" + DB_FILENAME + "\" not found!");
         return;
     }
 
+    KeyValueDB db(DB_FILENAME);
+
     unsigned updated_count(0);
     for (const auto &ppns_and_sigil : old_ppns_sigils_and_new_ppns) {
-        std::string value;
-        if (db->get(ppns_and_sigil.old_ppn_, &value)) {
-            if (unlikely(not db->remove(ppns_and_sigil.old_ppn_)))
-                LOG_ERROR("failed to remove key \"" + ppns_and_sigil.old_ppn_ + "\" from \"" + DB_FILENAME + "\"!");
-            if (unlikely(not db->add(ppns_and_sigil.old_ppn_, value)))
-                LOG_ERROR("failed to add key \"" + ppns_and_sigil.old_ppn_ + "\" from \"" + DB_FILENAME + "\"!");
+        if (db.keyIsPresent(ppns_and_sigil.old_ppn_)) {
+            const std::string value(db.getValue(ppns_and_sigil.old_ppn_));
+            db.remove(ppns_and_sigil.old_ppn_);
+            db.addOrReplace(ppns_and_sigil.new_ppn_, value);
             ++updated_count;
         }
     }
@@ -158,16 +157,19 @@ void PatchNotifiedDB(const std::string &user_type, const std::vector<PPNsAndSigi
 
 void DeleteFromNotifiedDB(const std::string &user_type, const std::unordered_set<std::string> &deletion_ppns) {
     const std::string DB_FILENAME(UBTools::GetTuelibPath() + user_type + "_notified.db");
-    std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
-    if (not (db->open(DB_FILENAME, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER))) {
+    if (not FileUtil::Exists(DB_FILENAME)) {
         LOG_INFO("\"" + DB_FILENAME + "\" not found!");
         return;
     }
 
+    KeyValueDB db(DB_FILENAME);
+
     unsigned deletion_count(0);
     for (const auto &deletion_ppn : deletion_ppns) {
-        if (db->remove(deletion_ppn))
+        if (db.keyIsPresent(deletion_ppn)) {
+            db.remove(deletion_ppn);
             ++deletion_count;
+        }
     }
 
     LOG_INFO("Deleted " + std::to_string(deletion_count) + " entries from \"" + DB_FILENAME + "\".");
