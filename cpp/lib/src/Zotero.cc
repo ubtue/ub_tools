@@ -714,12 +714,12 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     // Abrufzeichen und ISIL
     if (site_params_->group_params_->bsz_upload_group_ == "krimdok") {
         record->insertField("852", { { 'a', isil } });
-        record->insertField("935", { { 'a', "mteo" } });
+        record->insertField("935", { { 'a', "mkri" } });
     } else if (site_params_->group_params_->bsz_upload_group_ == "ixtheo"
                and node_parameters.ssgn_ != BSZTransform::SSGNType::INVALID)
     {
         record->insertField("852", { { 'a', isil } });
-        record->insertField("935", { { 'a', "mkri" } });
+        record->insertField("935", { { 'a', "mteo" } });
     }
 
     // Zotero sigil
