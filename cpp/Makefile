@@ -38,9 +38,7 @@ install: regular_install data_install
 
 regular_install: $(INSTALL_PROGS) Makefile
 	@echo "Installing programs..."
-	test $$(whoami) = root && systemctl stop system_monitor.service || true
 	cp $(INSTALL_PROGS) /usr/local/bin/
-	test $$(whoami) = root && systemctl start system_monitor.service || true
 
 data_install: Makefile data/*.conf data/*.map data/IxTheo_Notation.csv data/stopwords.* \
               data/subscriptions_email.ixtheo.template data/subscriptions_email.relbib.template \
@@ -61,8 +59,6 @@ data_install: Makefile data/*.conf data/*.map data/IxTheo_Notation.csv data/stop
 	cp -r data/translate_chainer /usr/local/var/lib/tuelib/
 	cp -r data/zotero_cgi /usr/local/var/lib/tuelib/
 	cp -r data/marc_check.rules /usr/local/var/lib/tuelib/
-	cp -r data/system_monitor.conf /usr/local/var/lib/tuelib/
-	cp -r data/system_monitor_viewer.conf /usr/local/var/lib/tuelib/
 	rm -f -r /usr/local/var/lib/tuelib/language_models
 	mkdir --parents /usr/local/var/lib/tuelib/language_models
 	cp data/language_models/*.lm /usr/local/var/lib/tuelib/language_models
