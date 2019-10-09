@@ -382,21 +382,7 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
 }
 
 
-static void GenerateAndInstallSystemMonitorServiceTemplate(const std::string &service_name) {
-    FileUtil::AutoTempDirectory temp_dir;
-
-    Template::Map names_to_values_map;
-    names_to_values_map.insertScalar("hostname", DnsUtil::GetHostname());
-    const std::string system_monitor_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
-                                                                                                + "/" + service_name + ".service.template"),
-                                                                      names_to_values_map));
-    const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
-    FileUtil::WriteStringOrDie(service_file_path, system_monitor_service);
-    SystemdUtil::InstallUnit(service_file_path);
-}
-
-
-void InstallUBTools(const bool make_install, const bool omit_systemctl, const OSSystemType os_system_type) {
+void InstallUBTools(const bool make_install, const OSSystemType os_system_type) {
     // First install iViaCore-mkdep...
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY + "/cpp/lib/mkdep");
     ExecUtil::ExecOrDie(ExecUtil::Which("make"), { "--jobs=4", "install" });
@@ -436,13 +422,6 @@ void InstallUBTools(const bool make_install, const bool omit_systemctl, const OS
     CreateUbToolsDatabase(os_system_type);
     GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
     CreateUsrLocalRun();
-
-    if (not omit_systemctl) {
-        const std::string SYSTEM_MONITOR_SERVICE("system_monitor");
-        Echo("Activating " + SYSTEM_MONITOR_SERVICE + " service...");
-        GenerateAndInstallSystemMonitorServiceTemplate(SYSTEM_MONITOR_SERVICE);
-        SystemdEnableAndRunUnit(SYSTEM_MONITOR_SERVICE);
-    }
 
     Echo("Installed ub_tools.");
 }
@@ -608,10 +587,10 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
 
 
 /**
- * Configure Solr User and SystemD services.
+ * Configure Solr User and services
  * - Create user "solr" as system user if not exists
  * - Grant permissions on relevant directories
- * - register solr and system_monitor services in systemd
+ * - register solr service in systemd
  */
 void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool install_systemctl) {
     // note: if you wanna change username, don't do it only here, also check vufind.service!
@@ -778,7 +757,7 @@ int Main(int argc, char **argv) {
         #   pragma GCC diagnostic error "-Wmaybe-uninitialized"
         #endif
     }
-    InstallUBTools(/* make_install = */ true, omit_systemctl, os_system_type);
+    InstallUBTools(/* make_install = */ true, os_system_type);
     if (not ub_tools_only)
         CreateVuFindDatabases(vufind_system_type, os_system_type);
 
