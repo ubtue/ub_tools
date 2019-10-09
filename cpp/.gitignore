@@ -154,8 +154,6 @@
 /subfield_code_replacer
 /suggest_bib_refs
 /summarize_logs
-/system_monitor
-/system_monitor_viewer
 /time_aspects_to_codes_tool
 /topo_sorter
 /translate_chainer
