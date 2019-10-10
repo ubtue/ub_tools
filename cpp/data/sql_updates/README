@@ -4,4 +4,4 @@ Place SQL schema changes here.  The file name pattern has to be as follows:
 
 where patch_level is a positive integer.
 
-Caution: table names must be qaulified by the database names, i.e. "database.table".
+Caution: table names must be qualified by the database names, i.e. "database.table".
