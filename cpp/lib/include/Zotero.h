@@ -23,7 +23,6 @@
 
 #include <memory>
 #include <ctime>
-#include <kchashdb.h>
 #include <unordered_map>
 #include "BSZTransform.h"
 #include "BSZUpload.h"
