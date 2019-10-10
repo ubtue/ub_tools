@@ -47,7 +47,7 @@ def RunTest(test_name, url, timeout, expected):
     try:
         request = urllib.request.Request(url, headers={"Accept-Language" : "de"})
         response = urllib.request.urlopen(request, timeout=timeout)
-        page_content = response.read()
+        page_content = response.read().decode('utf-8')
         if expected is None:
             return True
         return re.match(expected, page_content, re.DOTALL) is not None

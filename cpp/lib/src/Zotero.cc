@@ -570,8 +570,10 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         else
             record->insertField("700", subfields, /* indicator 1 = */'1');
 
-        const std::string _887_data("Autor in der Zoterovorlage [" + creator->last_name_ + ", " + creator->first_name_ + "] maschinell zugeordnet");
-        record->insertField("887", { { 'a', _887_data }, { '2', "ixzom" } });
+        if (not creator->ppn_.empty() or not creator->gnd_number_.empty()) {
+            const std::string _887_data("Autor in der Zoterovorlage [" + creator->last_name_ + ", " + creator->first_name_ + "] maschinell zugeordnet");
+            record->insertField("887", { { 'a', _887_data }, { '2', "ixzom" } });
+        }
 
         --num_creators_left;
     }
@@ -712,12 +714,12 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     // Abrufzeichen und ISIL
     if (site_params_->group_params_->bsz_upload_group_ == "krimdok") {
         record->insertField("852", { { 'a', isil } });
-        record->insertField("935", { { 'a', "mteo" } });
+        record->insertField("935", { { 'a', "mkri" } });
     } else if (site_params_->group_params_->bsz_upload_group_ == "ixtheo"
                and node_parameters.ssgn_ != BSZTransform::SSGNType::INVALID)
     {
         record->insertField("852", { { 'a', isil } });
-        record->insertField("935", { { 'a', "mkri" } });
+        record->insertField("935", { { 'a', "mteo" } });
     }
 
     // Zotero sigil
