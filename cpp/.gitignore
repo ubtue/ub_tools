@@ -42,6 +42,7 @@
 /control_number_guesser
 /convert_bible_references
 /convert_dakar
+/convert_kyoto_hash_db_to_berkeley_hash_db
 /convert_oai_pmh_dc_to_marc21
 /convert_tags_to_keywords
 /count_gnd_refs
