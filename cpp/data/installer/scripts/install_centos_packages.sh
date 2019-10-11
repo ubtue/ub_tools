@@ -34,6 +34,10 @@ wget --timestamping http://download.opensuse.org/repositories/security:shibbolet
 wget --timestamping https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/elasticsearch.repo
 yum --assumeyes update
 
+# tesseract repo
+dnf config-manager --add-repo https://download.opensuse.org/repositories/home:/Alexander_Pozdnyakov/CentOS_8/
+rpm --import https://build.opensuse.org/projects/home:Alexander_Pozdnyakov/public_key
+
 # basic dependencies
 InstallIfMissing "ca-certificates"
 yum --assumeyes install \
