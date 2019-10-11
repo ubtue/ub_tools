@@ -10,10 +10,10 @@ function ColorEcho {
 }
 
 function InstallIfMissing {
-    if yum list installed $1 | grep --quiet $1; then
+    if dnf list installed $1 | grep --quiet $1; then
         ColorEcho "\"$1\" already installed"
     else
-        yum --assumeyes install $1
+        dnf --assumeyes install $1
     fi
 }
 
@@ -26,16 +26,16 @@ fi
 ColorEcho "installing/updating ub_tools dependencies..."
 
 # make sure dnf config-manager plugin is installed (Docker)
-dnf install 'dnf-command(config-manager)'
+dnf --assumeyes install 'dnf-command(config-manager)'
 
 # epel-release needs to be installed first, else packages like kyotocabinet won't be found
-yum --assumeyes install curl epel-release wget
+dnf --assumeyes install curl epel-release wget
 
 # additional repos (shibboleth = libcurl-openssl-devel)
 cd /etc/yum.repos.d/
 wget --timestamping http://download.opensuse.org/repositories/security:shibboleth/CentOS_7/security:shibboleth.repo
 wget --timestamping https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/elasticsearch.repo
-yum --assumeyes update
+dnf --assumeyes update
 
 # tesseract repo
 dnf config-manager --add-repo https://download.opensuse.org/repositories/home:/Alexander_Pozdnyakov/CentOS_8/
@@ -43,7 +43,7 @@ rpm --import https://build.opensuse.org/projects/home:Alexander_Pozdnyakov/publi
 
 # basic dependencies
 InstallIfMissing "ca-certificates"
-yum --assumeyes install \
+dnf --assumeyes install \
     ant bc cifs-utils clang crontabs ftp gcc-c++ git java-*-openjdk-devel make sudo \
     curl-openssl file-devel gawk kyotocabinet kyotocabinet-devel leptonica libarchive-devel libcurl-openssl-devel libsq3-devel libuuid-devel libwebp libxml2-devel libxml2 lsof lz4 mariadb mariadb-devel mariadb-server mod_ssl mysql-utilities openjpeg-libs openssl-devel pcre-devel policycoreutils-python poppler poppler-utils unzip xerces-c-devel \
     tesseract tesseract-devel tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe rpmdevtools python3 libdb-devel
@@ -61,13 +61,13 @@ if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
 
     # special handling for php+composer: standard php needs to be replaced by php71w
     # (standard is installed as dependancy)
-    if yum list installed php71w-common | grep --quiet php71w-common; then
+    if dnf list installed php71w-common | grep --quiet php71w-common; then
         ColorEcho "PHP 7.1 already installed"
     else
         ColorEcho "replacing standard PHP with PHP 7.1"
         rpm -Uvh https://mirror.webtatic.com/yum/el7/webtatic-release.rpm
-        yum --assumeyes remove 'php-*'
-        yum --assumeyes install php71w-cli php71w-common php71w-gd php71w-intl php71w-ldap php71w-mbstring php71w-mysqlnd php71w-soap php71w-xml mod_php71w
+        dnf --assumeyes remove 'php-*'
+        dnf --assumeyes install php71w-cli php71w-common php71w-gd php71w-intl php71w-ldap php71w-mbstring php71w-mysqlnd php71w-soap php71w-xml mod_php71w
         systemctl restart httpd
     fi
 
