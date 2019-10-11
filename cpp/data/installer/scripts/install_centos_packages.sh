@@ -31,9 +31,8 @@ dnf --assumeyes install dnf-plugins-core
 # epel-release needs to be installed first, else several packages won't be found
 dnf --assumeyes install curl epel-release wget
 
-# additional repos (shibboleth = libcurl-openssl-devel, Alexander_Pozdnyakov = tesseract)
+# additional repos (Alexander_Pozdnyakov = tesseract)
 dnf config-manager --add-repo https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/elasticsearch.repo
-dnf config-manager --add-repo http://download.opensuse.org/repositories/security:shibboleth/CentOS_7/security:shibboleth.repo
 dnf config-manager --add-repo https://download.opensuse.org/repositories/home:/Alexander_Pozdnyakov/CentOS_8/
 rpm --import https://build.opensuse.org/projects/home:Alexander_Pozdnyakov/public_key
 dnf --assumeyes update
@@ -42,7 +41,7 @@ dnf --assumeyes update
 InstallIfMissing "ca-certificates"
 dnf --assumeyes install \
     ant bc cifs-utils clang crontabs ftp gcc-c++ git java-*-openjdk-devel make python3 sudo \
-    curl-openssl gawk libcurl-openssl-devel libdb-devel libsq3-devel libuuid-devel libwebp libxml2-devel libxml2 lsof lz4 mariadb mariadb-devel mariadb-server mariadb-server-utils mod_ssl openssl-devel pcre-devel policycoreutils-python-utils poppler poppler-utils rpmdevtools unzip xerces-c-devel \
+    gawk libcurl-devel libdb-devel libsq3-devel libuuid-devel libwebp libxml2-devel libxml2 lsof lz4 mariadb mariadb-devel mariadb-server mariadb-server-utils mod_ssl openssl-devel pcre-devel policycoreutils-python-utils poppler poppler-utils rpmdevtools unzip xerces-c-devel \
     tesseract tesseract-devel tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-eng tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe
 
 # PowerTools repo
