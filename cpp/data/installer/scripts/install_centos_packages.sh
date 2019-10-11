@@ -31,15 +31,12 @@ dnf --assumeyes install dnf-plugins-core
 # epel-release needs to be installed first, else packages like kyotocabinet won't be found
 dnf --assumeyes install curl epel-release wget
 
-# additional repos (shibboleth = libcurl-openssl-devel)
-cd /etc/yum.repos.d/
-wget --timestamping http://download.opensuse.org/repositories/security:shibboleth/CentOS_7/security:shibboleth.repo
-wget --timestamping https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/elasticsearch.repo
-dnf --assumeyes update
-
-# tesseract repo
+# additional repos (shibboleth = libcurl-openssl-devel, Alexander_Pozdnyakov = tesseract)
+dnf config-manager --add-repo https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/elasticsearch.repo
+dnf config-manager --add-repo http://download.opensuse.org/repositories/security:shibboleth/CentOS_7/security:shibboleth.repo
 dnf config-manager --add-repo https://download.opensuse.org/repositories/home:/Alexander_Pozdnyakov/CentOS_8/
 rpm --import https://build.opensuse.org/projects/home:Alexander_Pozdnyakov/public_key
+dnf --assumeyes update
 
 # basic dependencies
 InstallIfMissing "ca-certificates"
