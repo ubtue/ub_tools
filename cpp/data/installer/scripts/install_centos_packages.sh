@@ -37,7 +37,7 @@ yum --assumeyes update
 # basic dependencies
 InstallIfMissing "ca-certificates"
 yum --assumeyes install \
-    ant bc cifs-utils clang crontabs ftp gcc-c++.x86_64 git glibc-static java-*-openjdk-devel make sudo \
+    ant bc cifs-utils clang crontabs ftp gcc-c++.x86_64 git java-*-openjdk-devel make sudo \
     curl-openssl file-devel gawk kyotocabinet kyotocabinet-devel leptonica libarchive-devel libcurl-openssl-devel libsq3-devel libuuid-devel libwebp libxml2-devel.x86_64 libxml2 lsof lz4 mariadb mariadb-devel.x86_64 mariadb-server mod_ssl mysql-utilities openjpeg-libs openssl-devel pcre-devel policycoreutils-python poppler poppler-utils unzip xerces-c-devel \
     tesseract tesseract-devel tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe rpmdevtools python3 libdb-devel
 
