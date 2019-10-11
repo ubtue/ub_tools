@@ -28,17 +28,21 @@ ColorEcho "installing/updating ub_tools dependencies..."
 # epel-release needs to be installed first, else packages like kyotocabinet won't be found
 yum --assumeyes install curl epel-release wget
 
-# additional repos (shibboleth = libcurl-openssl-devel.x86_64)
+# additional repos (shibboleth = libcurl-openssl-devel)
 cd /etc/yum.repos.d/
 wget --timestamping http://download.opensuse.org/repositories/security:shibboleth/CentOS_7/security:shibboleth.repo
 wget --timestamping https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/elasticsearch.repo
 yum --assumeyes update
 
+# tesseract repo
+dnf config-manager --add-repo https://download.opensuse.org/repositories/home:/Alexander_Pozdnyakov/CentOS_8/
+rpm --import https://build.opensuse.org/projects/home:Alexander_Pozdnyakov/public_key
+
 # basic dependencies
 InstallIfMissing "ca-certificates"
 yum --assumeyes install \
-    ant bc cifs-utils clang crontabs ftp gcc-c++.x86_64 git glibc-static java-*-openjdk-devel make sudo \
-    curl-openssl file-devel gawk kyotocabinet kyotocabinet-devel leptonica libarchive-devel libcurl-openssl-devel libsq3-devel libuuid-devel libwebp libxml2-devel.x86_64 libxml2 lsof lz4 mariadb mariadb-devel.x86_64 mariadb-server mod_ssl mysql-utilities openjpeg-libs openssl-devel pcre-devel policycoreutils-python poppler poppler-utils unzip xerces-c-devel \
+    ant bc cifs-utils clang crontabs ftp gcc-c++ git java-*-openjdk-devel make sudo \
+    curl-openssl file-devel gawk kyotocabinet kyotocabinet-devel leptonica libarchive-devel libcurl-openssl-devel libsq3-devel libuuid-devel libwebp libxml2-devel libxml2 lsof lz4 mariadb mariadb-devel mariadb-server mod_ssl mysql-utilities openjpeg-libs openssl-devel pcre-devel policycoreutils-python poppler poppler-utils unzip xerces-c-devel \
     tesseract tesseract-devel tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe rpmdevtools python3 libdb-devel
 
 # in CentOS, there is no "tesseract-langpack-eng", it seems to be part of the default installation
