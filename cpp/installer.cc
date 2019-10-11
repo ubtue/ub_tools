@@ -219,9 +219,9 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
     case CENTOS:
         running_pids = ExecUtil::FindActivePrograms("mysqld");
         if (running_pids.size() == 0) {
-            ExecUtil::Exec("/usr/libexec/mariadb-prepare-db-dir", {});
-            pid_t pid(ExecUtil::Spawn(ExecUtil::Which("mysqld_safe"), {}));
-            ExecUtil::Exec("/usr/libexec/mariadb-wait-ready", { std::to_string(pid) });
+            ExecUtil::Exec("/usr/libexec/mysql-prepare-db-dir", {});
+            ExecUtil::Spawn("/usr/libexec/mysqld", {});
+            ExecUtil::Exec("/usr/libexec/mysql-check-upgrade", {});
         }
     }
 }
