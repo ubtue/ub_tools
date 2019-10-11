@@ -28,7 +28,7 @@ ColorEcho "installing/updating ub_tools dependencies..."
 # make sure dnf config-manager plugin is installed (Docker)
 dnf --assumeyes install dnf-plugins-core
 
-# epel-release needs to be installed first, else packages like kyotocabinet won't be found
+# epel-release needs to be installed first, else several packages won't be found
 dnf --assumeyes install curl epel-release wget
 
 # additional repos (shibboleth = libcurl-openssl-devel, Alexander_Pozdnyakov = tesseract)
@@ -42,11 +42,11 @@ dnf --assumeyes update
 InstallIfMissing "ca-certificates"
 dnf --assumeyes install \
     ant bc cifs-utils clang crontabs ftp gcc-c++ git java-*-openjdk-devel make python3 sudo \
-    curl-openssl gawk kyotocabinet kyotocabinet-devel libcurl-openssl-devel libdb-devel libsq3-devel libuuid-devel libwebp libxml2-devel libxml2 lsof lz4 mariadb mariadb-devel mariadb-server mod_ssl mysql-utilities openjpeg-libs openssl-devel pcre-devel policycoreutils-python-utils poppler poppler-utils rpmdevtools unzip xerces-c-devel \
+    curl-openssl gawk libcurl-openssl-devel libdb-devel libsq3-devel libuuid-devel libwebp libxml2-devel libxml2 lsof lz4 mariadb mariadb-devel mariadb-server mariadb-server-utils mod_ssl openssl-devel pcre-devel policycoreutils-python-utils poppler poppler-utils rpmdevtools unzip xerces-c-devel \
     tesseract tesseract-devel tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-eng tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe
 
 # PowerTools repo
-dnf --assumeyes --enablerepo=PowerTools install file-devel leptonica-devel libarchive-devel
+dnf --assumeyes --enablerepo=PowerTools install file-devel leptonica-devel libarchive-devel openjpeg2-devel
 
 ### TUEFIND ###
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
