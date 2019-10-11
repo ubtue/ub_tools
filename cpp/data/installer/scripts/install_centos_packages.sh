@@ -45,7 +45,7 @@ dnf --assumeyes install \
     tesseract tesseract-devel tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-eng tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe
 
 # PowerTools repo
-dnf --assumeyes --enablerepo=PowerTools install file-devel leptonica-devel libarchive-devel openjpeg2-devel
+dnf --assumeyes --enablerepo=PowerTools install file-devel glibc-static leptonica-devel libarchive-devel openjpeg2-devel
 
 ### TUEFIND ###
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
