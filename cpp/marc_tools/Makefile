@@ -23,7 +23,7 @@ $(PROGS): % : %.o ../lib/libubtue.a Makefile
 
 $(STATIC_PROGS): static_executables/% : %_static.o ../lib/libubtue_static.a Makefile
 	@echo "Linking static $@..."
-	@$(CCC) $(LD_FLAGS) -Wl,-Bstatic -L$(LIB) -lubtue_static -L$(LIB)/libstemmer -lstemmer -lpcre -lkyotocabinet -lmagic \
+	@$(CCC) $(LD_FLAGS) -Wl,-Bstatic -L$(LIB) -lubtue_static -L$(LIB)/libstemmer -lstemmer -lpcre -lmagic \
                  -larchive -L/usr/lib/pristine-tar/suse-bzip2/ -lbz2 -lcurl -lnghttp2 -lidn2 \
                  -lmysqlclient -lrt -llz4 -llzma -llzo2 -lxml2 -lz -lssl -lcrypto -lldap -llber -lpsl -lrtmp -lsasl2 \
                  -lgnutls -lgcrypt -lgmp -lnettle -lunistring -luuid -llept -ltesseract -lsqlite3 -lxerces-c -lxml2 -lgss -ltasn1 -lshishi \
