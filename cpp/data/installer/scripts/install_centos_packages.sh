@@ -26,7 +26,7 @@ fi
 ColorEcho "installing/updating ub_tools dependencies..."
 
 # make sure dnf config-manager plugin is installed (Docker)
-dnf --assumeyes install 'dnf-command(config-manager)'
+dnf --assumeyes install dnf-plugins-core
 
 # epel-release needs to be installed first, else packages like kyotocabinet won't be found
 dnf --assumeyes install curl epel-release wget
