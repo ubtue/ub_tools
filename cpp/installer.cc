@@ -220,7 +220,7 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
         running_pids = ExecUtil::FindActivePrograms("mysqld");
         if (running_pids.size() == 0) {
             ExecUtil::Exec("/usr/libexec/mysql-prepare-db-dir", {});
-            ExecUtil::Spawn("/usr/libexec/mysqld", {});
+            ExecUtil::Spawn(ExecUtil::Which("sudo"), { "-u", "mysql", "/usr/libexec/mysqld" });
             ExecUtil::Exec("/usr/libexec/mysql-check-upgrade", {});
         }
     }
