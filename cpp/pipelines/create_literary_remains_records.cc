@@ -77,10 +77,9 @@ void LoadAuthorGNDNumbers(
         if (not MARC::GetGNDCode(record, &gnd_number))
             continue;
 
-        std::string author_name(_100_field->getFirstSubfieldWithCode('a'));
         const auto subfield_c(_100_field->getFirstSubfieldWithCode('c'));
-        if (not subfield_c.empty())
-            author_name += subfield_c + " " + author_name;
+        const std::string author_name(not subfield_c.empty() ? _100_field->getFirstSubfieldWithCode('a') + " (" + subfield_c + ")"
+                                                             : _100_field->getFirstSubfieldWithCode('a'));
 
         std::vector<LiteraryRemainsInfo> literary_remains_infos;
         while (beacon_field != record.end() and beacon_field->getTag() == "BEA") {
