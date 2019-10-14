@@ -26,8 +26,8 @@ elif [ -e /etc/redhat-release ]; then
     echo "CentOS detected! installing dependencies..."
     cd /tmp
     if [ ! -e ./install_centos_packages.sh ]; then
-        yum --quiet --assumeyes update
-        yum --assumeyes install curl
+        dnf --quiet --assumeyes update
+        dnf --assumeyes install curl
         curl https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/scripts/install_centos_packages.sh -o ./install_centos_packages.sh
         chmod 700 ./install_centos_packages.sh
     fi
