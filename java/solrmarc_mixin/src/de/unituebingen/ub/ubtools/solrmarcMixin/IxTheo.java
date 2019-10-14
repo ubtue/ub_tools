@@ -42,7 +42,8 @@ public class IxTheo extends SolrIndexerMixin {
         return true;
     }
 
-    static void processLanguageIniFile(final File iniFile, final HashMap<String, TreeSet<String>> ixtheoNotationsToDescriptionsMap)
+    static void processLanguageIniFile(final File iniFile, final HashMap<String, TreeSet<String>> ixtheoNotationsToDescriptionsMap,
+                                       final String entryPrefix)
     {
         BufferedReader reader = null;
         try {
@@ -53,9 +54,10 @@ public class IxTheo extends SolrIndexerMixin {
         }
 
         try {
+            final int ENTRY_PREFIX_LENGTH = entryPrefix.length();
             String line;
             while ((line = reader.readLine()) != null) {
-                if (!line.startsWith("ixtheo-"))
+                if (!line.startsWith(entryPrefix))
                     continue;
 
                 final StringBuilder key = new StringBuilder();
@@ -63,9 +65,8 @@ public class IxTheo extends SolrIndexerMixin {
                 if (!parseIniFileLine(line, key, value) || value.length() < key.length() + 2 /* 1 space and at least one character */)
                     continue;
 
-                final int IXTHEO_PREFIX_LENGTH = 7;
-                final String notationCode = key.toString().substring(IXTHEO_PREFIX_LENGTH);
-                final String notationDescription = value.toString().substring(key.length() - IXTHEO_PREFIX_LENGTH).trim();
+                final String notationCode = key.toString().substring(ENTRY_PREFIX_LENGTH);
+                final String notationDescription = value.toString().substring(key.length() - ENTRY_PREFIX_LENGTH).trim();
 
                 if (!ixtheoNotationsToDescriptionsMap.containsKey(notationCode)) {
                     final TreeSet<String> newSet = new TreeSet<String>();
@@ -88,10 +89,12 @@ public class IxTheo extends SolrIndexerMixin {
 
         final File[] dir_entries = new File("/usr/local/vufind/local/tuefind/languages").listFiles();
         for (final File dir_entry : dir_entries) {
-            if (dir_entry.getName().length() != 6 || !dir_entry.getName().endsWith(".ini"))
+            if (dir_entry.getName().length() != 6 || !dir_entry.getName().endsWith(".ini")) {
+                System.err.println("Unexpected language file: " + dir_entry.getName());
                 continue;
+            }
 
-            processLanguageIniFile(dir_entry, ixtheoNotationsToDescriptionsMap);
+            processLanguageIniFile(dir_entry, ixtheoNotationsToDescriptionsMap, "ixtheo-");
         }
 
         return ixtheoNotationsToDescriptionsMap;
