@@ -49,7 +49,7 @@ public class IxTheo extends SolrIndexerMixin {
         try {
             reader = new BufferedReader(new FileReader(iniFile));
         } catch (final FileNotFoundException ex) {
-            System.err.println("can't create a BufferedReader for \"" + iniFile.getName() + "\"!");
+            logger.severe("can't create a BufferedReader for \"" + iniFile.getName() + "\"!");
             System.exit(1);
         }
 
@@ -78,7 +78,7 @@ public class IxTheo extends SolrIndexerMixin {
                 }
             }
         } catch (final IOException ex) {
-            System.err.println("We should *never* get here!");
+            logger.severe("We should *never* get here!");
             System.exit(1);
         }
     }
