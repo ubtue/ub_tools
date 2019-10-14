@@ -1,7 +1,10 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.Reader.*;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -18,26 +21,124 @@ import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 
 public class IxTheo extends SolrIndexerMixin {
     protected static Logger logger = Logger.getLogger(IxTheo.class.getName());
-    private Set<String> ixTheoNotations = null;
 
+
+    static boolean parseIniFileLine(final String line, final StringBuilder key, final StringBuilder value)
+    {
+        final int firstEqualPos = line.indexOf('=');
+        if (firstEqualPos == -1)
+            return false;
+
+        key.append(line.substring(0, firstEqualPos - 1).trim());
+
+        final String possiblyQuotedValue = line.substring(firstEqualPos + 1).trim();
+        if (possiblyQuotedValue.length() < 2 || possiblyQuotedValue.charAt(0) != '"'
+            || possiblyQuotedValue.charAt(possiblyQuotedValue.length() - 1) != '"')
+            return false;
+
+        value.append(possiblyQuotedValue.substring(1, possiblyQuotedValue.length() - 2));
+
+        return true;
+    }
+
+    static void processLanguageIniFile(final File iniFile, final HashMap<String, TreeSet<String>> ixtheoNotationsToDescriptionsMap,
+                                       final String entryPrefix)
+    {
+        BufferedReader reader = null;
+        try {
+            reader = new BufferedReader(new FileReader(iniFile));
+        } catch (final FileNotFoundException ex) {
+            logger.severe("can't create a BufferedReader for \"" + iniFile.getName() + "\"!");
+            System.exit(1);
+        }
+
+        try {
+            final int ENTRY_PREFIX_LENGTH = entryPrefix.length();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.startsWith(entryPrefix))
+                    continue;
+
+                final StringBuilder key = new StringBuilder();
+                final StringBuilder value = new StringBuilder();
+                if (!parseIniFileLine(line, key, value) || value.length() < key.length() + 2 /* 1 space and at least one character */)
+                    continue;
+
+                final String notationCode = key.toString().substring(ENTRY_PREFIX_LENGTH);
+                final String notationDescription = value.toString().substring(key.length() - ENTRY_PREFIX_LENGTH).trim();
+
+                if (!ixtheoNotationsToDescriptionsMap.containsKey(notationCode)) {
+                    final TreeSet<String> newSet = new TreeSet<String>();
+                    newSet.add(notationDescription);
+                    ixtheoNotationsToDescriptionsMap.put(notationCode, newSet);
+                } else {
+                    final TreeSet<String> set = ixtheoNotationsToDescriptionsMap.get(notationCode);
+                    set.add(notationDescription);
+                }
+            }
+        } catch (final IOException ex) {
+            logger.severe("We should *never* get here!");
+            System.exit(1);
+        }
+    }
+
+    static HashMap<String, TreeSet<String>> processLanguageIniFiles()
+    {
+        final HashMap<String, TreeSet<String>> ixtheoNotationsToDescriptionsMap = new HashMap<>();
+
+        final File[] dir_entries = new File("/usr/local/vufind/local/tuefind/languages").listFiles();
+        for (final File dir_entry : dir_entries) {
+            if (dir_entry.getName().length() != 6 || !dir_entry.getName().endsWith(".ini")) {
+                logger.warning("Unexpected language file: " + dir_entry.getName());
+                continue;
+            }
+
+            processLanguageIniFile(dir_entry, ixtheoNotationsToDescriptionsMap, "ixtheo-");
+        }
+
+        return ixtheoNotationsToDescriptionsMap;
+    }
+
+    private HashMap<String, TreeSet<String>> ixtheoNotationsToDescriptionsMap = processLanguageIniFiles();
 
     /**
      * Split the colon-separated ixTheo notation codes into individual codes and
      * return them.
      */
     public Set<String> getIxTheoNotations(final Record record) {
-        ixTheoNotations = new HashSet<>();
+        final Set<String> ixTheoNotations = new TreeSet<>();
         final List fields = record.getVariableFields("652");
-        if (fields.isEmpty()) {
+        if (fields.isEmpty())
             return ixTheoNotations;
-        }
+
         // We should only have one 652 field
         final DataField data_field = (DataField) fields.iterator().next();
         // There should always be exactly one $a subfield
         final String contents = data_field.getSubfield('a').getData();
         final String[] parts = contents.split(":");
         Collections.addAll(ixTheoNotations, parts);
+
         return ixTheoNotations;
+    }
+
+    /**
+     * Split the colon-separated ixTheo notation codes into individual codes and
+     * return them and the expanded and translated versions.
+     */
+    public Set<String> getExpandedIxTheoNotations(final Record record) {
+        final Set<String> notationCodes = getIxTheoNotations(record);
+
+        final HashSet<String> expandedIxTheoNotations = new HashSet<>();
+        for (final String notationCode : getIxTheoNotations(record)) {
+            final Set<String> notationDescriptions = ixtheoNotationsToDescriptionsMap.get(notationCode);
+            if (notationDescriptions != null) {
+                for (final String notationDescription : notationDescriptions)
+                    expandedIxTheoNotations.add(notationDescription);
+            }
+            expandedIxTheoNotations.add(notationCode);
+        }
+
+        return expandedIxTheoNotations;
     }
 
     public Set<String> getIxTheoNotationFacets(final Record record) {
