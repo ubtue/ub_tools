@@ -21,7 +21,6 @@ import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 
 public class IxTheo extends SolrIndexerMixin {
     protected static Logger logger = Logger.getLogger(IxTheo.class.getName());
-    private Set<String> ixTheoNotations = null;
 
 
     static boolean parseIniFileLine(final String line, final StringBuilder key, final StringBuilder value)
@@ -107,7 +106,7 @@ public class IxTheo extends SolrIndexerMixin {
      * return them.
      */
     public Set<String> getIxTheoNotations(final Record record) {
-        final Set<String> ixTheoNotations = new HashSet<>();
+        final Set<String> ixTheoNotations = new TreeSet<>();
         final List fields = record.getVariableFields("652");
         if (fields.isEmpty())
             return ixTheoNotations;
@@ -124,7 +123,7 @@ public class IxTheo extends SolrIndexerMixin {
 
     /**
      * Split the colon-separated ixTheo notation codes into individual codes and
-     * return them.
+     * return them and the expanded and translated versions.
      */
     public Set<String> getExpendedIxTheoNotations(final Record record) {
         final Set<String> notationCodes = getIxTheoNotations(record);
