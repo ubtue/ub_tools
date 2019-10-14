@@ -22,6 +22,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <cinttypes>
+#include <cmath>
 #include <csignal>
 #include <cstring>
 #include <unistd.h>

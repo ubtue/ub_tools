@@ -23,6 +23,9 @@
 #include <string>
 #include <vector>
 #include <mysql/mysql.h>
+#ifdef MARIADB_PORT
+#       define MYSQL_PORT MARIADB_PORT
+#endif
 #include <sqlite3.h>
 #include "DbResultSet.h"
 #include "util.h"

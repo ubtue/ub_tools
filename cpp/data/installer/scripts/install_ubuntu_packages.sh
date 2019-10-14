@@ -28,7 +28,7 @@ apt-add-repository --yes --update 'deb https://artifacts.elastic.co/packages/6.x
 apt-get --quiet --yes --allow-unauthenticated install \
     curl wget \
     ant cifs-utils clang cron gcc git locales-all make openjdk-8-jdk sudo \
-    apache2 ca-certificates kyotocabinet-utils libarchive-dev libcurl4-gnutls-dev libkyotocabinet-dev liblept5 libleptonica-dev liblz4-tool libmagic-dev libmysqlclient-dev libpcre3-dev libpoppler73 libsqlite3-dev libssl-dev libtesseract-dev libtokyocabinet-dev libwebp6 libxerces-c-dev libxml2-dev libxml2-utils mawk mysql-utilities poppler-utils unzip uuid-dev \
+    apache2 ca-certificates libarchive-dev libcurl4-gnutls-dev liblept5 libleptonica-dev liblz4-tool libmagic-dev libmysqlclient-dev libpcre3-dev libpoppler73 libsqlite3-dev libssl-dev libtesseract-dev libwebp6 libxerces-c-dev libxml2-dev libxml2-utils mawk mysql-utilities poppler-utils unzip uuid-dev \
     tesseract-ocr tesseract-ocr-bul tesseract-ocr-ces tesseract-ocr-dan tesseract-ocr-deu tesseract-ocr-eng tesseract-ocr-fin tesseract-ocr-fra tesseract-ocr-heb tesseract-ocr-hun tesseract-ocr-ita tesseract-ocr-lat tesseract-ocr-nld tesseract-ocr-nor tesseract-ocr-pol tesseract-ocr-por tesseract-ocr-rus tesseract-ocr-script-grek tesseract-ocr-slv tesseract-ocr-spa tesseract-ocr-swe libdb-dev
 
 # From 18.04 on, Java 8 needs to be enabled as well for Solr + mixins (18.04 ships with 10)
