@@ -90,7 +90,7 @@ public class IxTheo extends SolrIndexerMixin {
         final File[] dir_entries = new File("/usr/local/vufind/local/tuefind/languages").listFiles();
         for (final File dir_entry : dir_entries) {
             if (dir_entry.getName().length() != 6 || !dir_entry.getName().endsWith(".ini")) {
-                System.err.println("Unexpected language file: " + dir_entry.getName());
+                logger.warning("Unexpected language file: " + dir_entry.getName());
                 continue;
             }
 
