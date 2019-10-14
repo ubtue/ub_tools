@@ -107,27 +107,39 @@ public class IxTheo extends SolrIndexerMixin {
      * return them.
      */
     public Set<String> getIxTheoNotations(final Record record) {
-        ixTheoNotations = new HashSet<>();
+        final Set<String> ixTheoNotations = new HashSet<>();
         final List fields = record.getVariableFields("652");
-        if (fields.isEmpty()) {
+        if (fields.isEmpty())
             return ixTheoNotations;
-        }
+
         // We should only have one 652 field
         final DataField data_field = (DataField) fields.iterator().next();
         // There should always be exactly one $a subfield
         final String contents = data_field.getSubfield('a').getData();
         final String[] parts = contents.split(":");
-
-        for (final String notationCode : parts) {
-            final Set<String> notationDescriptions = ixtheoNotationsToDescriptionsMap.get(notationCode);
-            if (notationDescriptions != null) {
-                for (final String notationDescription : notationDescriptions)
-                    ixTheoNotations.add(notationDescription);
-            }
-        }
         Collections.addAll(ixTheoNotations, parts);
 
         return ixTheoNotations;
+    }
+
+    /**
+     * Split the colon-separated ixTheo notation codes into individual codes and
+     * return them.
+     */
+    public Set<String> getExpendedIxTheoNotations(final Record record) {
+        final Set<String> notationCodes = getIxTheoNotations(record);
+
+        final HashSet<String> expendedIxTheoNotations = new HashSet<>();
+        for (final String notationCode : getIxTheoNotations(record)) {
+            final Set<String> notationDescriptions = ixtheoNotationsToDescriptionsMap.get(notationCode);
+            if (notationDescriptions != null) {
+                for (final String notationDescription : notationDescriptions)
+                    expendedIxTheoNotations.add(notationDescription);
+            }
+            expendedIxTheoNotations.add(notationCode);
+        }
+
+        return expendedIxTheoNotations;
     }
 
     public Set<String> getIxTheoNotationFacets(final Record record) {
