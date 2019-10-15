@@ -33,7 +33,7 @@ bool SystemdUtil::IsAvailable() {
     if (ExecUtil::Which(SYSTEMD_EXECUTABLE).empty())
         return false;
 
-    std::unordered_set<unsigned> pids(ExecUtil::FindActivePrograms("systemd"));
+    const std::unordered_set<unsigned> pids(ExecUtil::FindActivePrograms("systemd"));
     return pids.find(1) != pids.end();
 }
 
