@@ -396,11 +396,19 @@ bool SetProcessName(char *argv0, const std::string &new_process_name) {
 
 
 std::string GetOriginalCommandNameFromPID(const pid_t pid) {
+    std::string ps_path;
+    if (FileUtil::Exists("/bin/ps"))
+        ps_path = "/bin/ps";
+    else if (FileUtil::Exists("/usr/bin/ps"))
+        ps_path = "/usr/bin/ps";
+    else
+        LOG_ERROR("Neither /bin/ps nor /usr/bin/ps can be found!");
+
     std::string stdout_output;
-    const int retcode(ExecSubcommandAndCaptureStdout("/bin/ps --pid " + std::to_string(pid) + " --no-headers -o comm",
+    const int retcode(ExecSubcommandAndCaptureStdout(ps_path + " --pid " + std::to_string(pid) + " --no-headers -o comm",
                                                      &stdout_output, /* suppress_stderr = */true));
     if (unlikely(retcode == 127))
-        LOG_ERROR("can't execute /bin/ps, maybe it is missing?");
+        LOG_ERROR("can't execute " + ps_path + "?");
 
     if (retcode == 1)
         return "";
