@@ -946,6 +946,17 @@ std::set<std::string> Record::getISSNs() const {
 }
 
 
+std::set<std::string> Record::getSuperiorISSNs() const {
+    std::set<std::string> superior_issns;
+    for (const auto field : getTagRange("773")) {
+        const std::string first_subfield_x(field.getFirstSubfieldWithCode('x'));
+        if (not first_subfield_x.empty())
+            superior_issns.emplace(first_subfield_x);
+    }
+
+    return superior_issns;
+}
+
 std::set<std::string> Record::getISBNs() const {
     std::set<std::string> isbns;
     for (const auto field : getTagRange("020")) {
