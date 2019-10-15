@@ -36,7 +36,7 @@ public class IxTheo extends SolrIndexerMixin {
             || possiblyQuotedValue.charAt(possiblyQuotedValue.length() - 1) != '"')
             return false;
 
-        value.append(possiblyQuotedValue.substring(1, possiblyQuotedValue.length() - 2));
+        value.append(possiblyQuotedValue.substring(1, possiblyQuotedValue.length() - 1));
 
         return true;
     }
