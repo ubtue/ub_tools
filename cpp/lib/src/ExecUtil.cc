@@ -413,6 +413,9 @@ std::string GetOriginalCommandNameFromPID(const pid_t pid) {
     if (retcode == 1)
         return "";
 
+    if (retcode != 0)
+        LOG_ERROR("Unexpected exit code for " + ps_path + ": " + std::to_string(retcode));
+
     return StringUtil::EndsWith(stdout_output, "\n") ? stdout_output.substr(0, stdout_output.length() - 1) : stdout_output;
 }
 
