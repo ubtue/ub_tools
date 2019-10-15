@@ -364,7 +364,8 @@ void FindActivePrograms(const std::string &program_name, std::unordered_set<unsi
     pids->clear();
 
     std::string stdout;
-    ExecSubcommandAndCaptureStdout("pgrep " + program_name, &stdout);
+    if (not ExecSubcommandAndCaptureStdout("pgrep " + program_name, &stdout))
+        LOG_ERROR("failed to execute \"" "pgrep " + program_name + "\"!");
 
     std::unordered_set<std::string> pids_strings;
     StringUtil::Split(stdout, '\n', &pids_strings, /* suppress_empty_components = */true);
