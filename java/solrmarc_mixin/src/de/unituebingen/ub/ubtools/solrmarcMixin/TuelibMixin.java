@@ -2628,13 +2628,13 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        // Records that contain the code "sodr" in 935$c should be classified as "Article" and not as "Book":
+        // Records that contain the code "so" in 935$c should be classified as "Article" and not as "Book":
         if (!formats.contains("Article")) {
             for (final VariableField variableField : _935Fields) {
                 final DataField _935Field = (DataField) variableField;
                 if (_935Field != null) {
                     for (final Subfield cSubfield : _935Field.getSubfields('c')) {
-                        if (cSubfield.getData().equals("sodr")) {
+                        if (cSubfield.getData().equals("so")) {
                             formats.remove("Book");
                             formats.add("Article");
                             break;
