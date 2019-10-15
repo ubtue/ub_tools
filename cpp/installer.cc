@@ -219,8 +219,17 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
     case CENTOS:
         running_pids = ExecUtil::FindActivePrograms("mysqld");
         if (running_pids.size() == 0) {
+            // The following calls should be similar to entries in
+            // /usr/lib/systemd/system/mariadb.service
+
+            // ExecStartPre:
+            ExecUtil::Exec("/usr/libexec/mysql-check-socket", {});
             ExecUtil::Exec("/usr/libexec/mysql-prepare-db-dir", {});
+
+            // ExecStart:
             ExecUtil::Spawn(ExecUtil::LocateOrDie("sudo"), { "-u", "mysql", "/usr/libexec/mysqld" });
+
+            // ExecStartPost:
             ExecUtil::Exec("/usr/libexec/mysql-check-upgrade", {});
         }
     }
