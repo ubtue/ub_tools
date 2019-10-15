@@ -2,7 +2,7 @@
  *  \brief  Helper functions to use with systemd
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -30,11 +30,7 @@ const std::string SYSTEMD_SERVICE_DIRECTORY("/etc/systemd/system/");
 
 
 bool SystemdUtil::IsAvailable() {
-    if (ExecUtil::Which(SYSTEMCTL_EXECUTABLE).empty())
-        return false;
-
-    const std::unordered_set<unsigned> pids(ExecUtil::FindActivePrograms("systemd"));
-    return pids.find(1) != pids.end();
+    return ExecUtil::GetOriginalCommandNameFromPID(1) == "systemd";
 }
 
 

@@ -395,4 +395,29 @@ bool SetProcessName(char *argv0, const std::string &new_process_name) {
 }
 
 
+std::string GetOriginalCommandNameFromPID(const pid_t pid) {
+    std::string ps_path;
+    if (FileUtil::Exists("/bin/ps"))
+        ps_path = "/bin/ps";
+    else if (FileUtil::Exists("/usr/bin/ps"))
+        ps_path = "/usr/bin/ps";
+    else
+        LOG_ERROR("Neither /bin/ps nor /usr/bin/ps can be found!");
+
+    std::string stdout_output;
+    const int retcode(ExecSubcommandAndCaptureStdout(ps_path + " --pid " + std::to_string(pid) + " --no-headers -o comm",
+                                                     &stdout_output, /* suppress_stderr = */true));
+    if (unlikely(retcode == 127))
+        LOG_ERROR("can't execute " + ps_path + "!");
+
+    if (retcode == 1)
+        return "";
+
+    if (retcode != 0)
+        LOG_ERROR("Unexpected exit code for " + ps_path + ": " + std::to_string(retcode));
+
+    return StringUtil::EndsWith(stdout_output, "\n") ? stdout_output.substr(0, stdout_output.length() - 1) : stdout_output;
+}
+
+
 } // namespace ExecUtil
