@@ -408,7 +408,7 @@ std::string GetOriginalCommandNameFromPID(const pid_t pid) {
     const int retcode(ExecSubcommandAndCaptureStdout(ps_path + " --pid " + std::to_string(pid) + " --no-headers -o comm",
                                                      &stdout_output, /* suppress_stderr = */true));
     if (unlikely(retcode == 127))
-        LOG_ERROR("can't execute " + ps_path + "?");
+        LOG_ERROR("can't execute " + ps_path + "!");
 
     if (retcode == 1)
         return "";
