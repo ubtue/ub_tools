@@ -33,6 +33,7 @@
 #include <string>
 #include <vector>
 #include <signal.h>
+#include <sys/types.h>
 
 
 namespace ExecUtil {
@@ -145,6 +146,11 @@ std::unordered_set<unsigned> FindActivePrograms(const std::string &program_name)
  *        length of the original process name.
  */
 bool SetProcessName(char *argv0, const std::string &new_process_name);
+
+
+/** \return The unmodified, i.e. orginal, command-name for the given PID or the empty string if no process with
+    the provided PID was found. */
+std::string GetOriginalCommandNameFromPID(const pid_t pid);
 
 
 } // namespace ExecUtil
