@@ -1406,7 +1406,7 @@ std::string ExpandTildePath(const std::string &path) {
 
 
 bool WaitForFile(const std::string &path, const unsigned timeout, const unsigned sleep_increment) {
-    TimeLimit time_limit(timeout);
+    TimeLimit time_limit(timeout * 1000);
 
     for (;;) {
         if (Exists(path))
