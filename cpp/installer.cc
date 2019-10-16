@@ -233,6 +233,10 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
             ExecUtil::Exec("/usr/libexec/mysql-check-upgrade", {});
         }
     }
+
+    const unsigned TIMEOUT(30); // seconds
+    if (not FileUtil::WaitForFile("/var/lib/mysql/mysql.sock", TIMEOUT, 5 /*seconds*/))
+        Error("can't find /var/lib/mysql/mysql.sock after " + std::to_string(TIMEOUT) + " seconds of looking!");
 }
 
 
