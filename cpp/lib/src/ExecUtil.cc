@@ -363,9 +363,31 @@ bool ShouldScheduleNewProcess() {
 void FindActivePrograms(const std::string &program_name, std::unordered_set<unsigned> * const pids) {
     pids->clear();
 
-    std::string stdout;
-    if (not ExecSubcommandAndCaptureStdout("pgrep " + program_name, &stdout))
+    FILE * const subcommand_stdout(::popen(("pgrep " + program_name + " 2>/dev/null").c_str(), "r"));
+    if (subcommand_stdout == nullptr)
         LOG_ERROR("failed to execute \"" "pgrep " + program_name + "\"!");
+
+    std::string stdout;
+    int ch;
+    while ((ch = std::getc(subcommand_stdout)) != EOF)
+        stdout += static_cast<char>(ch);
+
+    const int ret_code(::pclose(subcommand_stdout));
+    if (ret_code == -1)
+        LOG_ERROR("pclose(3) failed: " + std::string(::strerror(errno)));
+
+    switch (WEXITSTATUS(ret_code)) {
+    case 0: // We found some PIDs.
+        break;
+    case 1: // No processes matched.
+        return;
+    case 2:
+        LOG_ERROR("pgrep: Syntax error in the command line.");
+    case 3:
+        LOG_ERROR("pgrep: Fatal error: out of memory etc.");
+    default:
+        LOG_ERROR("unexpected exit code from pgrep!");
+    }
 
     std::unordered_set<std::string> pids_strings;
     StringUtil::Split(stdout, '\n', &pids_strings, /* suppress_empty_components = */true);
