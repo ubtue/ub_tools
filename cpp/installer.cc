@@ -233,6 +233,9 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
             ExecUtil::Exec("/usr/libexec/mysql-check-upgrade", {});
         }
     }
+
+    if (not FileUtil::WaitForFile("/var/lib/mysql/mysql.sock", 30 /*seconds*/, 5 /*seconds*/))
+        Error("can't find /var/lib/mysql/mysql.sock after 30 seconds of looking!");
 }
 
 
