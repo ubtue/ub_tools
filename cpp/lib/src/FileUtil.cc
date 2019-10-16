@@ -1415,7 +1415,7 @@ bool WaitForFile(const std::string &path, const unsigned timeout, const unsigned
         if (time_limit.limitExceeded())
             return false;
 
-        ::sleep(sleep_increment);
+        ::sleep(std::min((time_limit.getRemainingTime() + 500) / 1000, sleep_increment));
     }
 }
 
