@@ -57,7 +57,6 @@ if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
 
     # PHP
     dnf --assumeyes install php php-cli php-common php-gd php-intl php-json php-ldap php-mbstring php-mysqlnd php-soap php-xml
-    systemctl restart httpd
 
     # composer also needs to be installed manually to avoid php dependency problems
     if [ -e /usr/local/bin/composer ]; then

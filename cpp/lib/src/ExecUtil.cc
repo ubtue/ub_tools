@@ -363,9 +363,31 @@ bool ShouldScheduleNewProcess() {
 void FindActivePrograms(const std::string &program_name, std::unordered_set<unsigned> * const pids) {
     pids->clear();
 
-    std::string stdout;
-    if (not ExecSubcommandAndCaptureStdout("pgrep " + program_name, &stdout))
+    FILE * const subcommand_stdout(::popen(("pgrep " + program_name + " 2>/dev/null").c_str(), "r"));
+    if (subcommand_stdout == nullptr)
         LOG_ERROR("failed to execute \"" "pgrep " + program_name + "\"!");
+
+    std::string stdout;
+    int ch;
+    while ((ch = std::getc(subcommand_stdout)) != EOF)
+        stdout += static_cast<char>(ch);
+
+    const int ret_code(::pclose(subcommand_stdout));
+    if (ret_code == -1)
+        LOG_ERROR("pclose(3) failed: " + std::string(::strerror(errno)));
+
+    switch (WEXITSTATUS(ret_code)) {
+    case 0: // We found some PIDs.
+        break;
+    case 1: // No processes matched.
+        return;
+    case 2:
+        LOG_ERROR("pgrep: Syntax error in the command line.");
+    case 3:
+        LOG_ERROR("pgrep: Fatal error: out of memory etc.");
+    default:
+        LOG_ERROR("unexpected exit code from pgrep!");
+    }
 
     std::unordered_set<std::string> pids_strings;
     StringUtil::Split(stdout, '\n', &pids_strings, /* suppress_empty_components = */true);
@@ -392,6 +414,31 @@ bool SetProcessName(char *argv0, const std::string &new_process_name) {
     std::memset(argv0, 0, std::strlen(argv0));
     std::strcpy(argv0, new_process_name.c_str());
     return ::prctl(PR_SET_NAME, (unsigned long)new_process_name.c_str(), 0) == 0;
+}
+
+
+std::string GetOriginalCommandNameFromPID(const pid_t pid) {
+    std::string ps_path;
+    if (FileUtil::Exists("/bin/ps"))
+        ps_path = "/bin/ps";
+    else if (FileUtil::Exists("/usr/bin/ps"))
+        ps_path = "/usr/bin/ps";
+    else
+        LOG_ERROR("Neither /bin/ps nor /usr/bin/ps can be found!");
+
+    std::string stdout_output;
+    const int retcode(ExecSubcommandAndCaptureStdout(ps_path + " --pid " + std::to_string(pid) + " --no-headers -o comm",
+                                                     &stdout_output, /* suppress_stderr = */true));
+    if (unlikely(retcode == 127))
+        LOG_ERROR("can't execute " + ps_path + "!");
+
+    if (retcode == 1)
+        return "";
+
+    if (retcode != 0)
+        LOG_ERROR("Unexpected exit code for " + ps_path + ": " + std::to_string(retcode));
+
+    return StringUtil::EndsWith(stdout_output, "\n") ? stdout_output.substr(0, stdout_output.length() - 1) : stdout_output;
 }
 
 
