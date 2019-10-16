@@ -1275,16 +1275,23 @@ void ApplyCrawlDelay(const std::string &harvest_url, const std::shared_ptr<Harve
         {
             if (crawl_timeout_.getLimit() < harvest_parameters->default_crawl_delay_time_)
                 crawl_timeout_ = harvest_parameters->default_crawl_delay_time_;
+            else if (crawl_timeout_.getLimit() > harvest_parameters->max_crawl_delay_time_)
+                crawl_timeout_ = harvest_parameters->max_crawl_delay_time_;
         }
         CrawlDelayParams(const std::shared_ptr<HarvestParams> &harvest_parameters, const TimeLimit &crawl_timeout)
          : crawl_timeout_(crawl_timeout)
         {
             if (crawl_timeout_.getLimit() < harvest_parameters->default_crawl_delay_time_)
                 crawl_timeout_ = harvest_parameters->default_crawl_delay_time_;
+            else if (crawl_timeout_.getLimit() > harvest_parameters->max_crawl_delay_time_)
+                crawl_timeout_ = harvest_parameters->max_crawl_delay_time_;
         }
     };
 
     static std::unordered_map<std::string, CrawlDelayParams> HOSTNAME_TO_DELAY_PARAMS_MAP;
+
+    if (harvest_params->ignore_robots_dot_txt_)
+        return;
 
     const Url parsed_url(harvest_url);
     const auto hostname(parsed_url.getAuthority());
