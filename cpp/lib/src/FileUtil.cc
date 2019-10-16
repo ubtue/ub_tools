@@ -1051,11 +1051,9 @@ std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename) {
 
 
 // Hack for CentOS 7 which only has ::sync_file_range
-#ifdef IS_CENTOS
 static loff_t copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags) {
     return syscall(__NR_copy_file_range, fd_in, off_in, fd_out, off_out, len, flags);
 }
-#endif
 
 
 static bool ActualCopy(const int &from_fd, const int &to_fd, const size_t no_of_bytes_to_copy, const loff_t offset, const int whence) {
