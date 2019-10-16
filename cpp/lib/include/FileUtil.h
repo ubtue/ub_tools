@@ -544,4 +544,11 @@ std::string GetPathFromFileDescriptor(const int fd);
 std::string ExpandTildePath(const std::string &path);
 
 
+/**  \brief  Wait until a file appears.
+ *   \param  sleep_increment  For how long to suspend the current process before we look again. (In seconds.)
+ *   \return True if "path" was found before "timeout" seconds have elapsed, o/w/ false.
+ */
+bool WaitForFile(const std::string &path, const unsigned timeout, const unsigned sleep_increment = 10);
+
+
 } // namespace FileUtil

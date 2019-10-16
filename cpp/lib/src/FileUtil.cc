@@ -42,6 +42,7 @@
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
+#include "TimeLimit.h"
 #include "RegexMatcher.h"
 #include "util.h"
 
@@ -1401,6 +1402,21 @@ std::string ExpandTildePath(const std::string &path) {
         return HOME + path.substr(1);
     else
         return HOME + "/" + path.substr(1);
+}
+
+
+bool WaitForFile(const std::string &path, const unsigned timeout, const unsigned sleep_increment) {
+    TimeLimit time_limit(timeout);
+
+    for (;;) {
+        if (Exists(path))
+            return true;
+
+        if (time_limit.limitExceeded())
+            return false;
+
+        ::sleep(sleep_increment);
+    }
 }
 
 
