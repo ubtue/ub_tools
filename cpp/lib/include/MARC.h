@@ -545,6 +545,7 @@ public:
 
     std::set<std::string> getDOIs() const;
     std::set<std::string> getISSNs() const;
+    std::set<std::string> getSuperiorISSNs() const;
     std::set<std::string> getISBNs() const;
     std::set<std::string> getDDCs() const;
     std::set<std::string> getRVKs() const;

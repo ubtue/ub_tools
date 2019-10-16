@@ -924,7 +924,7 @@ std::set<std::string> Record::getAllISSNs() const {
 
 std::set<std::string> Record::getDOIs() const {
     std::set<std::string> dois;
-    for (const auto field : getTagRange("024")) {
+    for (const auto &field : getTagRange("024")) {
         const Subfields subfields(field.getSubfields());
         if (field.getIndicator1() == '7' and subfields.getFirstSubfieldWithCode('2') == "doi")
             dois.emplace(StringUtil::Trim(subfields.getFirstSubfieldWithCode('a')));
@@ -936,7 +936,7 @@ std::set<std::string> Record::getDOIs() const {
 
 std::set<std::string> Record::getISSNs() const {
     std::set<std::string> issns;
-    for (const auto field : getTagRange("022")) {
+    for (const auto &field : getTagRange("022")) {
         const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
         if (not first_subfield_a.empty())
             issns.emplace(first_subfield_a);
@@ -946,9 +946,20 @@ std::set<std::string> Record::getISSNs() const {
 }
 
 
+std::set<std::string> Record::getSuperiorISSNs() const {
+    std::set<std::string> superior_issns;
+    for (const auto &field : getTagRange("773")) {
+        const std::string first_subfield_x(field.getFirstSubfieldWithCode('x'));
+        if (not first_subfield_x.empty())
+            superior_issns.emplace(first_subfield_x);
+    }
+
+    return superior_issns;
+}
+
 std::set<std::string> Record::getISBNs() const {
     std::set<std::string> isbns;
-    for (const auto field : getTagRange("020")) {
+    for (const auto &field : getTagRange("020")) {
         const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
         if (not first_subfield_a.empty())
             isbns.emplace(first_subfield_a);
@@ -960,7 +971,7 @@ std::set<std::string> Record::getISBNs() const {
 
 std::set<std::string> Record::getDDCs() const {
     std::set<std::string> ddcs;
-    for (const auto field : getTagRange("082"))
+    for (const auto &field : getTagRange("082"))
         // Many DDC's have superfluous backslashes which are non-standard and should be removed.
         ddcs.emplace(StringUtil::RemoveChars("/", field.getFirstSubfieldWithCode('a')));
 
@@ -970,7 +981,7 @@ std::set<std::string> Record::getDDCs() const {
 
 std::set<std::string> Record::getRVKs() const {
     std::set<std::string> rvks;
-    for (const auto field : getTagRange("084")) {
+    for (const auto &field : getTagRange("084")) {
         if (field.getFirstSubfieldWithCode('2') == "rvk")
             rvks.emplace(field.getFirstSubfieldWithCode('a'));
     }
@@ -1252,8 +1263,8 @@ void Record::replaceField(const Tag &field_tag, const std::string &field_content
 
 
 bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) {
-    const auto field(std::find_if(fields_.begin(), fields_.end(),
-                                  [&field_tag](const Field &field1) -> bool { return field1.getTag() == field_tag; }));
+    const auto &field(std::find_if(fields_.begin(), fields_.end(),
+                                   [&field_tag](const Field &field1) -> bool { return field1.getTag() == field_tag; }));
     if (field == fields_.end())
         return false;
 
