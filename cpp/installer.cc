@@ -234,8 +234,9 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
         }
     }
 
-    if (not FileUtil::WaitForFile("/var/lib/mysql/mysql.sock", 30 /*seconds*/, 5 /*seconds*/))
-        Error("can't find /var/lib/mysql/mysql.sock after 30 seconds of looking!");
+    const unsigned TIMEOUT(30); // seconds
+    if (not FileUtil::WaitForFile("/var/lib/mysql/mysql.sock", TIMEOUT, 5 /*seconds*/))
+        Error("can't find /var/lib/mysql/mysql.sock after " + std::to_string(TIMEOUT) + " seconds of looking!");
 }
 
 
