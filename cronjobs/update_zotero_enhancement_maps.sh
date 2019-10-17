@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # This script updates the local zotero-enhancement-maps repository with
-# auto-generated maps and push the changes to GitHub
+# auto-generated maps and pushes the changes to GitHub
 set -o errexit -o nounset
 
-no_problems_found=1
+no_problems_found=false
 function SendEmail {
-    if [[ $no_problems_found -eq 0 ]]; then
+    if [[ $no_problems_found ]]; then
         send_email --priority=low --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
                    --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
         exit 0
@@ -55,6 +55,6 @@ generate_issn_maps_from_zeder   \
     ssg=ISSN_to_SSG.map         \
     >> "${log}" 2>&1
 
-echo "*** ZOTERO ENHANCEMENT MAPS UPDATE DONE ***" | tee --append "${log}"
-no_problems_found=0
+echo -e "*** ZOTERO ENHANCEMENT MAPS UPDATE DONE ***" | tee --append "${log}"
+no_problems_found=true
 exit 0
