@@ -96,12 +96,20 @@ void LoadAuthorGNDNumbers(
 }
 
 
-std::string NormaliseAuthorName(const std::string &author_name) {
+std::string NormaliseAuthorName(std::string author_name) {
     const auto comma_pos(author_name.find(','));
     if (comma_pos == std::string::npos)
         return author_name;
 
-    return StringUtil::TrimWhite(author_name.substr(comma_pos + 1)) + " " + StringUtil::TrimWhite(author_name.substr(0, comma_pos));
+    std::string auxillary_info;
+    const auto open_paren_pos(author_name.find('('));
+    if (open_paren_pos != std::string::npos) {
+        auxillary_info = " " + author_name.substr(open_paren_pos);
+        author_name.resize(open_paren_pos);
+    }
+
+    return StringUtil::TrimWhite(author_name.substr(comma_pos + 1)) + " " + StringUtil::TrimWhite(author_name.substr(0, comma_pos))
+           + auxillary_info;
 }
 
 
@@ -112,7 +120,7 @@ void AppendLiteraryRemainsRecords(
     unsigned creation_count(0);
     for (const auto &gnd_numbers_and_literary_remains_infos : gnd_numbers_to_literary_remains_infos_map) {
         MARC::Record new_record(MARC::Record::TypeOfRecord::MIXED_MATERIALS, MARC::Record::BibliographicLevel::COLLECTION,
-                                "LR" + StringUtil::ToString(++creation_count, /* base = */10, /* width= */6, /* padding_char = */'0'));
+                                "LR" + gnd_numbers_and_literary_remains_infos.first);
         const std::string &author_name(gnd_numbers_and_literary_remains_infos.second.front().author_name_);
         new_record.insertField("003", "PipeLineGenerated");
         new_record.insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
