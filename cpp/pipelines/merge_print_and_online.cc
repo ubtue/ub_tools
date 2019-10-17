@@ -489,11 +489,8 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
     if (field1.getTag() != field2.getTag())
         return false;
 
-    if (compare_indicators and (field1.getIndicator1() != field2.getIndicator1()
-                                or field1.getIndicator2() != field2.getIndicator2()))
-    {
+    if (compare_indicators and (field1.getIndicator1() != field2.getIndicator1() or field1.getIndicator2() != field2.getIndicator2()))
         return false;
-    }
 
     if (compare_subfields) {
         const MARC::Subfields subfields1(field1.getSubfields());
@@ -566,9 +563,31 @@ bool MergeFieldPairWithNonRepeatableFields(MARC::Record::Field * const merge_fie
 }
 
 
+// Take the 008 field with the larger "Date 2".
+void MergeFieldPair008(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field) {
+    if (unlikely(merge_field->getTag() != "008"))
+        LOG_ERROR("008 field expected!");
+
+    const auto &merge_field_contents(merge_field->getContents());
+    const auto import_field_contents(import_field.getContents());
+
+    constexpr size_t END_OF_DATE2(14); // Last character position of Date 2 in 008. See https://www.loc.gov/marc/bibliographic//bd008.html
+    if (unlikely(merge_field_contents.length() <= END_OF_DATE2))
+        LOG_ERROR("merge field has an unexpectedly short 008 field!");
+    if (unlikely(import_field_contents.length() <= END_OF_DATE2))
+        LOG_ERROR("import field has an unexpectedly short 008 field!");
+
+    const auto merge_field_date2(merge_field_contents.substr(11, 4));
+    const auto import_field_date2(import_field_contents.substr(11, 4));
+    if (merge_field_date2 < import_field_date2)
+        merge_field->setContents(import_field_contents);
+}
+
+
 // Special handling for the ISSN's.
 bool MergeFieldPair022(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field,
-                       MARC::Record * const merge_record, const MARC::Record &import_record, MARC::Record::Field * const augmented_import_field)
+                       MARC::Record * const merge_record, const MARC::Record &import_record,
+                       MARC::Record::Field * const augmented_import_field)
 {
     if (merge_field->getTag() != "022" or import_field.getTag() != "022")
         return false;
@@ -595,9 +614,7 @@ bool MergeFieldPair264(MARC::Record::Field * const merge_field, const MARC::Reco
 {
     if (merge_field->getTag() != "264" or import_field.getTag() != "264"
         or not SubfieldPrefixIsIdentical(*merge_field, import_field, {'a', 'b'}))
-    {
         return false;
-    }
 
     std::string merged_c_subfield;
     const MARC::Subfields subfields1(merge_field->getSubfields());
@@ -689,8 +706,17 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         }
 
         // From here on we only have merge candidates
+
+        //
         // Handle Control Fields
+        //
+
         MARC::Record::Field merge_field(*merge_field_pos);
+        if (import_field.getTag() == "008") {
+            MergeFieldPair008(&merge_field, import_field);
+            continue;
+        }
+
         if (MergeFieldPairWithControlFields(&merge_field, import_field)) {
             if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
                 merge_record->erase(merge_field_pos);
@@ -699,7 +725,10 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             continue;
          }
 
+        //
         // Handle fields that need special treatment
+        //
+
         MARC::Record::Field augmented_import_field("999");
         if (MergeFieldPair022(&merge_field, import_field, merge_record, *import_record, &augmented_import_field)) {
             if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
