@@ -13,7 +13,7 @@ function SendEmail {
     else
         send_email --priority=high --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
                    --subject="$0 failed on $(hostname)" \
-                   --message-body="Check the log file at /usr/local/var/log/tuefind/update_zotero_enhancement_maps.log for details."
+                   --message-body="Check the log file at /usr/local/var/log/tuefind/$0.log for details."
         echo "*** ZOTERO ENHANCEMENT MAPS UPDATE FAILED ***" | tee --append "${log}"
         exit 1
     fi
