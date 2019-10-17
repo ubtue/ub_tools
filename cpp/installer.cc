@@ -580,6 +580,8 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
             { "-i", "s/user = apache/user =  " + username + "/", php_config_filename });
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
             { "-i", "s/group = apache/group =  " + username + "/", php_config_filename });
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
+            { "-i", "s/listen.acl_users = apache,nginx/listen.acl_users = apache,nginx," + username + "/", php_config_filename });
         break;
     }
 
