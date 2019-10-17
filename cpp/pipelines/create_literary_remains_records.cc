@@ -96,12 +96,20 @@ void LoadAuthorGNDNumbers(
 }
 
 
-std::string NormaliseAuthorName(const std::string &author_name) {
+std::string NormaliseAuthorName(std::string author_name) {
     const auto comma_pos(author_name.find(','));
     if (comma_pos == std::string::npos)
         return author_name;
 
-    return StringUtil::TrimWhite(author_name.substr(comma_pos + 1)) + " " + StringUtil::TrimWhite(author_name.substr(0, comma_pos));
+    std::string auxillary_info;
+    const auto open_paren_pos(author_name.find('('));
+    if (open_paren_pos != std::string::npos) {
+        auxillary_info = " " + author_name.substr(open_paren_pos);
+        author_name.resize(open_paren_pos);
+    }
+
+    return StringUtil::TrimWhite(author_name.substr(comma_pos + 1)) + " " + StringUtil::TrimWhite(author_name.substr(0, comma_pos))
+           + auxillary_info;
 }
 
 
