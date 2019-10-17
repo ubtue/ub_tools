@@ -120,7 +120,7 @@ void AppendLiteraryRemainsRecords(
     unsigned creation_count(0);
     for (const auto &gnd_numbers_and_literary_remains_infos : gnd_numbers_to_literary_remains_infos_map) {
         MARC::Record new_record(MARC::Record::TypeOfRecord::MIXED_MATERIALS, MARC::Record::BibliographicLevel::COLLECTION,
-                                "LR" + StringUtil::ToString(++creation_count, /* base = */10, /* width= */6, /* padding_char = */'0'));
+                                "LR" + gnd_numbers_and_literary_remains_infos.first);
         const std::string &author_name(gnd_numbers_and_literary_remains_infos.second.front().author_name_);
         new_record.insertField("003", "PipeLineGenerated");
         new_record.insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
