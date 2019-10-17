@@ -359,6 +359,8 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
                 ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mysql_install_db"),
                                     { "--user=mysql", "--ldata=/var/lib/mysql/", "--basedir=/usr" });
             break;
+
+            SystemdEnableAndRunUnit("php-fpm");
         }
 
         // we need to make sure that at least mysql is running, to be able to create databases
@@ -572,6 +574,12 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
 
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
             { "-i", "s/Group apache/Group " + username + "/", config_filename });
+
+        const std::string php_config_filename("/etc/php-fpm.d/www.conf");
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
+            { "-i", "s/user = apache/user =  " + username + "/", php_config_filename });
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
+            { "-i", "s/group = apache/group =  " + username + "/", php_config_filename });
         break;
     }
 
