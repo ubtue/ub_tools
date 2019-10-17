@@ -31,13 +31,13 @@ if [ $# != 1 ]; then
     Usage
 fi
 
-email_address=$1
-working_dir=/usr/local/var/lib/tuelib/zotero-enhancement-maps
+readonly email_address=$1
+readonly working_dir=/usr/local/var/lib/tuelib/zotero-enhancement-maps
 
 # Set up the log file:
-logdir=/usr/local/var/log/tuefind
-log_filename=$(basename "$0")
-log="${logdir}/${log_filename%.*}.log"
+readonly logdir=/usr/local/var/log/tuefind
+readonly log_filename=$(basename "$0")
+readonly log="${logdir}/${log_filename%.*}.log"
 rm -f "${log}"
 
 echo -e "*** ZOTERO ENHANCEMENT MAPS UPDATE START ***\n" | tee --append "${log}"
