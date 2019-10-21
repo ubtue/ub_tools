@@ -559,6 +559,11 @@ void DedupMappedRepeatableFields(MARC::Record * const merge_record) {
             deduped_record.appendField(field);
     }
 
+    if (not deduped_fields.empty()) {
+        for (const auto &deduped_field : deduped_fields)
+            deduped_record.appendField(deduped_field);
+    }
+
     merge_record->swap(deduped_record);
 }
 
