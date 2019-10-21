@@ -481,6 +481,7 @@ public:
     }
     operator bool () const { return not fields_.empty(); }
     inline size_t size() const { return record_size_; }
+    inline void setSize(const size_t new_size) { record_size_ = new_size; } // Very dangerous!
     inline void clear() {
         record_size_  = 0;
         leader_.clear();
