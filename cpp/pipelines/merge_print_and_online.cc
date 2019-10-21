@@ -532,7 +532,6 @@ std::string GetTargetRepeatableTag(const MARC::Tag &non_repeatable_tag) {
 
 void DedupMappedRepeatableFields(MARC::Record * const merge_record) {
     MARC::Record deduped_record(merge_record->getLeader());
-    deduped_record.setSize(MARC::Record::LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */);
 
     std::set<MARC::Record::Field> deduped_fields;
     auto non_repeatable_and_repeatable_tag(non_repeatable_to_repeatable_tag_map.cbegin());
