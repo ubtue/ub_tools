@@ -134,7 +134,7 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
     }
 
     FullTextImport::WriteExtractedTextToDisk(full_text, full_text_metadata.title_, full_text_metadata.authors_, full_text_metadata.year_,
-                                             full_text_metadata.doi_, full_text_metadata.issn_, full_text_metadata.isbn_, full_text_metadata.text_type_, plain_text_output);
+                                             full_text_metadata.doi_, full_text_metadata.issn_, full_text_metadata.isbn_, full_text_metadata.text_type_, "" /* full_text_location currently not used */, plain_text_output);
 }
 
 
