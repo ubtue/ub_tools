@@ -358,7 +358,7 @@ Record::KeywordAndSynonyms &Record::KeywordAndSynonyms::swap(KeywordAndSynonyms 
 }
 
 
-Record::Record(const std::string &leader): leader_(leader) {
+Record::Record(const std::string &leader): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */), leader_(leader) {
     if (unlikely(leader_.length() != LEADER_LENGTH))
         LOG_ERROR("supposed leader has invalid length!");
 }
