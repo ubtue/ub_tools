@@ -515,10 +515,10 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
 }
 
 
-static const std::vector<std::pair<std::string,std::string>> non_repeatable_to_repeatable_tag_map({ { "100", "700" },
-                                                                                                    { "110", "710" },
-                                                                                                    { "111", "711" }
-                                                                                                  });
+static const std::vector<std::pair<std::string,std::string>> non_repeatable_to_repeatable_tag_map(
+    // Note: Second field must be in ascending order!!
+    { { "100", "700" }, { "110", "710" }, { "111", "711" }
+});
 
 
 std::string GetTargetRepeatableTag(const MARC::Tag &non_repeatable_tag) {
@@ -527,6 +527,40 @@ std::string GetTargetRepeatableTag(const MARC::Tag &non_repeatable_tag) {
             return non_repeatable_and_repeatable_tag.second;
     }
     return non_repeatable_tag.toString();
+}
+
+
+void DedupMappedRepeatableFields(MARC::Record * const merge_record) {
+    MARC::Record deduped_record(merge_record->getLeader());
+    deduped_record.setSize(MARC::Record::LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */);
+
+    std::set<MARC::Record::Field> deduped_fields;
+    auto non_repeatable_and_repeatable_tag(non_repeatable_to_repeatable_tag_map.cbegin());
+
+    for (const auto &field : *merge_record) {
+        if (non_repeatable_and_repeatable_tag == non_repeatable_to_repeatable_tag_map.cend()) {
+            if (unlikely(not deduped_fields.empty())) {
+                for (const auto &deduped_field : deduped_fields)
+                    deduped_record.appendField(deduped_field);
+                deduped_fields.clear();
+            }
+
+            deduped_record.appendField(field);
+        } else if (field.getTag() > non_repeatable_and_repeatable_tag->second) {
+            if (unlikely(not deduped_fields.empty())) {
+                for (const auto &deduped_field : deduped_fields)
+                    deduped_record.appendField(deduped_field);
+                deduped_fields.clear();
+            }
+
+            ++non_repeatable_and_repeatable_tag;
+        } else if (field.getTag() == non_repeatable_and_repeatable_tag->second)
+            deduped_fields.emplace(field);
+        else
+            deduped_record.appendField(field);
+    }
+
+    merge_record->swap(deduped_record);
 }
 
 
@@ -783,6 +817,8 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
                 LOG_ERROR("Could not merge import record " + import_record->getControlNumber());
         }
     }
+
+    DedupMappedRepeatableFields(merge_record);
 }
 
 
