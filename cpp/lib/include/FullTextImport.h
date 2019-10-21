@@ -65,10 +65,13 @@ public:
 // Line 5: <issn>
 // Line 6: <isbn>
 // Line 7: <text_type>
-// Line 8: <full_text>
+// Line 8: <full_text_location>
+// Line 9: <full_text>
 void WriteExtractedTextToDisk(const std::string &full_text, const std::string &title,
                               const std::set<std::string> &authors, const std::string &year, const std::string &doi,
-                              const std::string &issn, const std::string &isbn, const std::string &text_type, File * const output_file);
+                              const std::string &issn, const std::string &isbn, const std::string &text_type,
+                              const std::string &full_text_location, File * const output_file);
+
 
 
 // Reads in and parses a text file previously written to disk with WriteExtractedTextToDisk() into a FullTextData instance.
