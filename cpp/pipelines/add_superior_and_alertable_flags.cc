@@ -60,7 +60,7 @@ bool HasNonSuperior776SubfieldI(const MARC::Record::Field &field) {
 
 
 void LoadSuperiorPPNs(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const superior_ppns) {
-    const std::vector<std::string> TAGS{ "800", "810", "830", "773", "776"};
+    const std::vector<std::string> TAGS{ "800", "810", "830", "773" };
     while (const MARC::Record record = marc_reader->read()) {
         for (const auto &tag : TAGS) {
             for (const auto &field : record.getTagRange(tag)) {
