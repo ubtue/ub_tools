@@ -616,7 +616,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getContainerIdsWithTitles(final Record record) {
         final Set<String> containerIdsTitlesAndOptionalVolumes = new TreeSet<>();
 
-        for (final String tag : new String[] { "773", "776", "800", "810", "830" }) {
+        for (final String tag : new String[] { "773", "800", "810", "830" }) {
             for (final VariableField variableField : record.getVariableFields(tag)) {
                 final DataField field = (DataField) variableField;
                 final Subfield titleSubfield = getFirstNonEmptySubfield(field, 't', 'a');
@@ -629,10 +629,6 @@ public class TuelibMixin extends SolrIndexerMixin {
                 final String parentId = getPPNFromWSubfield(field);
                 if (parentId == null)
                     continue;
-
-                // Don't confuse cross-references w/ up-references:
-                if (IsNonSuperior776Field(field))
-                    continue; // Was not a reference to a container/superior record.
 
 
                 containerIdsTitlesAndOptionalVolumes
@@ -2944,21 +2940,13 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
     }
 
-
-    boolean IsNonSuperior776Field(DataField field) {
-        if (!field.getTag().equals("776"))
-            return false;
-        // Only if indicators are 1_ we have a superior field
-        return (field.getIndicator1() != '1');
-    }
-
     // Detect "real" superior_ppns
     public String getSuperiorPPN(final Record record) {
         // The order of the subfields matters, since 8XX can contain information about the series in which
         // an article in a volume is published but we do not want this as an immediate superior work
-        Vector<String> superiorDescriptors = new Vector<String>(Arrays.asList("773w:776w:800w:810w:830w".split(":")));
+        Vector<String> superiorDescriptors = new Vector<String>(Arrays.asList("773w:800w:810w:830w".split(":")));
         for (String superiorDescriptor : superiorDescriptors) {
-            final List<VariableField> superiorFields = record.getVariableFields(superiorDescriptor.substring(0,3));
+            final List<VariableField> superiorFields = record.getVariableFields(superiorDescriptor.substring(0, 3));
             for (final VariableField superiorField : superiorFields) {
                 final DataField field = (DataField)superiorField;
                 final char subfieldCode = superiorDescriptor.charAt(3);
@@ -2966,7 +2954,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (subfield == null)
                     continue;
                 final Matcher matcher = SUPERIOR_PPN_PATTERN.matcher(subfield.getData());
-                if (matcher.matches() && !IsNonSuperior776Field(field))
+                if (matcher.matches())
                      return matcher.group(1);
             }
         }
