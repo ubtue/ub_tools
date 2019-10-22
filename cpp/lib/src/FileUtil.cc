@@ -28,6 +28,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
+#include <ftw.h>
 #include <linux/limits.h>
 #ifdef HAS_SELINUX_HEADERS
 #   include <selinux/selinux.h>
@@ -91,13 +92,41 @@ AutoTempFile::AutoTempFile(const std::string &path_prefix, const std::string &pa
 {
     std::string path_template(path_prefix + "XXXXXX" + path_suffix);
     const int fd(::mkstemps(const_cast<char *>(path_template.c_str()), path_suffix.length()));
-    if (fd == -1) {
-        throw std::runtime_error("in AutoTempFile::AutoTempFile: mkstemps(3) for path prefix \"" + path_prefix
-                                 + "\" failed! (" + std::string(::strerror(errno)) + ")");
-    }
+    if (fd == -1)
+        LOG_ERROR("mkstemps(3) for path prefix \"" + path_prefix + "\" failed!");
 
     ::close(fd);
     path_ = path_template;
+}
+
+
+AutoTempDir::AutoTempDir(const std::string &path_prefix, bool automatically_remove)
+    : automatically_remove_(automatically_remove)
+{
+    std::string path_template(path_prefix + "XXXXXX");
+    char *path(::mkdtemp(const_cast<char *>(path_template.c_str())));
+    if (path == nullptr)
+        LOG_ERROR("mkdtemp(3) for path prefix \"" + path_prefix + "\" failed!");
+    path_ = path_template;
+}
+
+
+// Call-Back for removing temporary using
+static int
+remove_callback(const char *pathname,
+                __attribute__((unused)) const struct stat *sbuf,
+                __attribute__((unused)) int type,
+                __attribute__((unused)) struct FTW *ftwb)
+{
+    return ::remove (pathname);
+}
+
+
+AutoTempDir::~AutoTempDir() {
+    if (not path_.empty() and automatically_remove_) {
+        if (::nftw (const_cast<char *>(path_.c_str()), remove_callback, FOPEN_MAX, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) == -1)
+            LOG_ERROR("recursively removing " + path_  + " with nftw(3) failed!");
+    }
 }
 
 
