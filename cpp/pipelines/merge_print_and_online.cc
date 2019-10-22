@@ -515,10 +515,10 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
 }
 
 
-static const std::vector<std::pair<std::string,std::string>> non_repeatable_to_repeatable_tag_map(
+static const std::vector<std::pair<std::string, std::string>> non_repeatable_to_repeatable_tag_map(
     // Note: Second field must be in ascending order!!
-    { { "100", "700" }, { "110", "710" }, { "111", "711" }
-});
+    { { "100", "700" }, { "110", "710" }, { "111", "711" } }
+);
 
 
 std::string GetTargetRepeatableTag(const MARC::Tag &non_repeatable_tag) {
@@ -533,37 +533,54 @@ std::string GetTargetRepeatableTag(const MARC::Tag &non_repeatable_tag) {
 void DedupMappedRepeatableFields(MARC::Record * const merge_record) {
     MARC::Record deduped_record(merge_record->getLeader());
 
-    std::set<MARC::Record::Field> deduped_fields;
-    auto non_repeatable_and_repeatable_tag(non_repeatable_to_repeatable_tag_map.cbegin());
+    std::map<std::string, MARC::Record::Field> tag_to_non_repeat_field_map;
+    std::map<std::string, std::set<MARC::Record::Field>> tags_to_deduped_fields_map;
 
-    // Strategy: We process fields in the order of increasing tags.  When we find a tag that is a "value" in the
-    // non_repeatable_to_repeatable_tag_map we collect and dedup all the fields with that tag until we hit a field
-    // with a larger tag or the end of the fields at which point we insert what we have collected and deduplicated.
-    // This should work because, while fields with tags from the mapped space of the non_repeatable_to_repeatable_tag_map
-    // may not be in the correct order, the way we created them shoud have insured that none of them follow fields
-    // with an alphanumerically larger tag.
+    // At this point merge_record is mostly sorted with the possible exception of tags that are values in
+    // non_repeatable_to_repeatable_tag_map.  These fields, if they do occur at all, are found before all fields with higher tags
+    // and after fields with tags that are keys in non_repeatable_to_repeatable_tag_map..
+    //
+    // We now proceed to gather and deduplicate (by throwing them into a set) all the fields with tags that are values in
+    // non_repeatable_to_repeatable_tag_map and insert them into the properly ordered location after the following for-loop.
+    //
+    // An additional complication is that we want to drop those fields that are reasonably similar to fields with tags found
+    // as keys in non_repeatable_to_repeatable_tag_map.  We store those fields, as we encounter them, in tag_to_non_repeat_field_map.
     for (const auto &field : *merge_record) {
-        if (field.getTag() > non_repeatable_and_repeatable_tag->second) {
-            if (unlikely(not deduped_fields.empty())) {
-                for (const auto &deduped_field : deduped_fields)
-                    deduped_record.appendField(deduped_field);
-                deduped_fields.clear();
-            }
+        const auto non_repeatable_tag_and_repeatable_tag(
+            std::find_if(non_repeatable_to_repeatable_tag_map.cbegin(), non_repeatable_to_repeatable_tag_map.cend(),
+                         [&field](const std::pair<std::string, std::string> &non_repeatable_and_repeatable_tag)
+                             { return non_repeatable_and_repeatable_tag.first == field.getTag().toString(); }));
+        if (non_repeatable_tag_and_repeatable_tag != non_repeatable_to_repeatable_tag_map.cend())
+            tag_to_non_repeat_field_map.emplace(non_repeatable_tag_and_repeatable_tag->second, field);
+        else {
+            for (const auto &key_and_value : non_repeatable_to_repeatable_tag_map) {
+                if (key_and_value.second == field.getTag().toString()) {
+                    const auto tag_and_non_repeat_field(tag_to_non_repeat_field_map.find(field.getTag().toString()));
+                    if (tag_and_non_repeat_field == tag_to_non_repeat_field_map.cend()
+                        or field.getContents() != tag_and_non_repeat_field->second.getContents())
+                    {
+                        auto tag_and_field_set(tags_to_deduped_fields_map.find(field.getTag().toString()));
+                        if (tag_and_field_set != tags_to_deduped_fields_map.end())
+                            tag_and_field_set->second.emplace(field);
+                        else {
+                            std::set<MARC::Record::Field> new_field_set{ field };
+                            tags_to_deduped_fields_map[field.getTag().toString()] = new_field_set;
+                        }
+                    }
 
-            if (non_repeatable_and_repeatable_tag != non_repeatable_to_repeatable_tag_map.cend())
-                ++non_repeatable_and_repeatable_tag;
+                    goto loop_end;
+                }
+            }
         }
 
-        if (non_repeatable_and_repeatable_tag != non_repeatable_to_repeatable_tag_map.cend()
-            and field.getTag() == non_repeatable_and_repeatable_tag->second)
-            deduped_fields.emplace(field);
-        else
-            deduped_record.appendField(field);
+        deduped_record.appendField(field);
+loop_end:
+        /* Labels require a statement! */;
     }
 
-    if (not deduped_fields.empty()) {
-        for (const auto &deduped_field : deduped_fields)
-            deduped_record.appendField(deduped_field);
+    for (const auto &tag_and_deduped_fields : tags_to_deduped_fields_map) {
+        for (const auto &deduped_field : tag_and_deduped_fields.second)
+            deduped_record.insertField(deduped_field);
     }
 
     merge_record->swap(deduped_record);
