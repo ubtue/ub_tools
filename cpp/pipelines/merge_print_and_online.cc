@@ -543,23 +543,19 @@ void DedupMappedRepeatableFields(MARC::Record * const merge_record) {
     // may not be in the correct order, the way we created them shoud have insured that none of them follow fields
     // with an alphanumerically larger tag.
     for (const auto &field : *merge_record) {
-        if (non_repeatable_and_repeatable_tag == non_repeatable_to_repeatable_tag_map.cend()) {
+        if (field.getTag() > non_repeatable_and_repeatable_tag->second) {
             if (unlikely(not deduped_fields.empty())) {
                 for (const auto &deduped_field : deduped_fields)
                     deduped_record.appendField(deduped_field);
                 deduped_fields.clear();
             }
 
-            deduped_record.appendField(field);
-        } else if (field.getTag() > non_repeatable_and_repeatable_tag->second) {
-            if (unlikely(not deduped_fields.empty())) {
-                for (const auto &deduped_field : deduped_fields)
-                    deduped_record.appendField(deduped_field);
-                deduped_fields.clear();
-            }
+            if (non_repeatable_and_repeatable_tag != non_repeatable_to_repeatable_tag_map.cend())
+                ++non_repeatable_and_repeatable_tag;
+        }
 
-            ++non_repeatable_and_repeatable_tag;
-        } else if (field.getTag() == non_repeatable_and_repeatable_tag->second)
+        if (non_repeatable_and_repeatable_tag != non_repeatable_to_repeatable_tag_map.cend()
+            and field.getTag() == non_repeatable_and_repeatable_tag->second)
             deduped_fields.emplace(field);
         else
             deduped_record.appendField(field);
