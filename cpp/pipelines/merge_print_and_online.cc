@@ -536,7 +536,7 @@ bool FieldsProbablyRepresentTheSameEntity(const MARC::Record::Field &field1, con
         if (subfield.code_ == 'a')
             a_subfield1 = subfield.value_;
         else if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-588)"))
-            a_subfield1 = subfield.value_;
+            gnd_number1 = subfield.value_;
     }
 
     std::string a_subfield2, gnd_number2;
@@ -544,7 +544,7 @@ bool FieldsProbablyRepresentTheSameEntity(const MARC::Record::Field &field1, con
         if (subfield.code_ == 'a')
             a_subfield2 = subfield.value_;
         else if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-588)"))
-            a_subfield2 = subfield.value_;
+            gnd_number2 = subfield.value_;
     }
 
     if (not gnd_number1.empty() and not gnd_number2.empty())
