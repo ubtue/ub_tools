@@ -609,12 +609,9 @@ bool MergeFieldPairWithNonRepeatableFields(MARC::Record::Field * const merge_fie
 {
     if (merge_field->isControlField() or import_field.isControlField()
         or merge_field->isRepeatableField() or import_field.isRepeatableField())
-    {
         return false;
-    }
 
-    merge_field->setSubfields(MergeFieldContents(merge_field->getSubfields(), *merge_record,
-                                                 import_field.getSubfields(), import_record));
+    merge_field->setSubfields(MergeFieldContents(merge_field->getSubfields(), *merge_record, import_field.getSubfields(), import_record));
 
     return true;
 }
@@ -700,8 +697,7 @@ bool MergeFieldPair264(MARC::Record::Field * const merge_field, const MARC::Reco
 }
 
 
-bool MergeFieldPair936(MARC::Record::Field * const merge_field, const MARC::Record::Field import_field)
-{
+bool MergeFieldPair936(MARC::Record::Field * const merge_field, const MARC::Record::Field import_field) {
     if (merge_field->getTag() != "936" or import_field.getTag() != "936")
         return false;
 
