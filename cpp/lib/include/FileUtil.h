@@ -189,6 +189,18 @@ public:
     const std::string &getFilePath() const { return path_; }
 };
 
+/** \class AutoTempDir
+ *  \brief Creates a temp file and removes it when going out of scope.
+ */
+class AutoTempDir {
+    std::string path_;
+    bool automatically_remove_;
+public:
+    explicit AutoTempDir(const std::string &path_prefix = "/tmp/ATD", bool automatically_remove = true);
+    ~AutoTempDir();
+    const std::string &getDirPath() const { return path_; }
+};
+
 
 bool WriteString(const std::string &path, const std::string &data);
 void WriteStringOrDie(const std::string &path, const std::string &data);
