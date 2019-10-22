@@ -550,7 +550,7 @@ bool FieldsProbablyRepresentTheSameEntity(const MARC::Record::Field &field1, con
     if (not gnd_number1.empty() and not gnd_number2.empty())
         return gnd_number1 == gnd_number2;
 
-    return ::strcasecmp(TextUtil::CollapseWhitespace(&a_subfield1).c_str(), TextUtil::CollapseWhitespace(&a_subfield2).c_str());
+    return ::strcasecmp(TextUtil::CollapseWhitespace(&a_subfield1).c_str(), TextUtil::CollapseWhitespace(&a_subfield2).c_str()) == 0;
 }
 
 
