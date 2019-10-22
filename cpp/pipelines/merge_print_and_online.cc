@@ -770,7 +770,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
     merge_record->reTag("260", "264");
     import_record->reTag("260", "264");
 
-    bool clean_up_field_order_in_merged_record(false);
+    bool clean_up_field_order_and_dedup_merged_record(false);
     for (const auto &import_field : *import_record) {
         const bool import_field_repeatable(import_field.isRepeatableField());
         bool compare_indicators(import_field_repeatable), compare_subfields(import_field_repeatable);
@@ -854,7 +854,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             merge_field = import_field;
             merge_field.setTag(repeatable_tag);
             merge_record->insertFieldAtEnd(merge_field);
-            clean_up_field_order_in_merged_record = true;
+            clean_up_field_order_and_dedup_merged_record = true;
         } else {
             if (MergeFieldPairWithNonRepeatableFields(&merge_field, import_field, merge_record, *import_record))
                 merge_record->insertFieldAtEnd(merge_field);
@@ -863,7 +863,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         }
     }
 
-    if (clean_up_field_order_in_merged_record)
+    if (clean_up_field_order_and_dedup_merged_record)
         DedupMappedRepeatableFields(merge_record);
 }
 
