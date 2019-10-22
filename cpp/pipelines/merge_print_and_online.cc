@@ -536,6 +536,12 @@ void DedupMappedRepeatableFields(MARC::Record * const merge_record) {
     std::set<MARC::Record::Field> deduped_fields;
     auto non_repeatable_and_repeatable_tag(non_repeatable_to_repeatable_tag_map.cbegin());
 
+    // Strategy: We process fields in the order of increasing tags.  When we find a tag that is a "value" in the
+    // non_repeatable_to_repeatable_tag_map we collect and dedup all the fields with that tag until we hit a field
+    // with a larger tag or the end of the fields at which point we insert what we have collected and deduplicated.
+    // This should work because, while fields with tags from the mapped space of the non_repeatable_to_repeatable_tag_map
+    // may not be in the correct order, the way we created them shoud have insured that none of them follow fields
+    // with an alphanumerically larger tag.
     for (const auto &field : *merge_record) {
         if (non_repeatable_and_repeatable_tag == non_repeatable_to_repeatable_tag_map.cend()) {
             if (unlikely(not deduped_fields.empty())) {
