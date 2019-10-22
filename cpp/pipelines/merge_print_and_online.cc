@@ -530,6 +530,30 @@ std::string GetTargetRepeatableTag(const MARC::Tag &non_repeatable_tag) {
 }
 
 
+bool FieldsProbablyRepresentTheSameEntity(const MARC::Record::Field &field1, const MARC::Record::Field &field2) {
+    std::string a_subfield1, gnd_number1;
+    for (const auto &subfield : field1.getSubfields()) {
+        if (subfield.code_ == 'a')
+            a_subfield1 = subfield.value_;
+        else if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-588)"))
+            a_subfield1 = subfield.value_;
+    }
+
+    std::string a_subfield2, gnd_number2;
+    for (const auto &subfield : field2.getSubfields()) {
+        if (subfield.code_ == 'a')
+            a_subfield2 = subfield.value_;
+        else if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-588)"))
+            a_subfield2 = subfield.value_;
+    }
+
+    if (not gnd_number1.empty() and not gnd_number2.empty())
+        return gnd_number1 == gnd_number2;
+
+    return ::strcasecmp(TextUtil::CollapseWhitespace(&a_subfield1).c_str(), TextUtil::CollapseWhitespace(&a_subfield2).c_str());
+}
+
+
 void DedupMappedRepeatableFields(MARC::Record * const merge_record) {
     MARC::Record deduped_record(merge_record->getLeader());
 
@@ -557,7 +581,7 @@ void DedupMappedRepeatableFields(MARC::Record * const merge_record) {
                 if (key_and_value.second == field.getTag().toString()) {
                     const auto tag_and_non_repeat_field(tag_to_non_repeat_field_map.find(field.getTag().toString()));
                     if (tag_and_non_repeat_field == tag_to_non_repeat_field_map.cend()
-                        or field.getContents() != tag_and_non_repeat_field->second.getContents())
+                        or not FieldsProbablyRepresentTheSameEntity(field, tag_and_non_repeat_field->second))
                     {
                         auto tag_and_field_set(tags_to_deduped_fields_map.find(field.getTag().toString()));
                         if (tag_and_field_set != tags_to_deduped_fields_map.end())
