@@ -214,7 +214,7 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
         else {
             running_pids = ExecUtil::FindActivePrograms("mysqld");
             if (running_pids.size() == 0)
-                ExecUtil::Exec(ExecUtil::LocateOrDie("mysqld"), { "--daemonize" });
+                ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mysqld"), { "--daemonize" });
         }
         break;
     case CENTOS:
@@ -501,7 +501,7 @@ void GenerateXml(const std::string &filename_source, const std::string &filename
     FileUtil::DirnameAndBasename(filename_source, &dirname_source, &basename_source);
 
     Echo("Generating " + filename_target + " from " + basename_source);
-    ExecUtil::Exec(ExecUtil::LocateOrDie("xmllint"), { "--xinclude", "--format", filename_source }, "", filename_target);
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("xmllint"), { "--xinclude", "--format", filename_source }, "", filename_target);
 }
 
 
