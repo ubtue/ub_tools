@@ -40,7 +40,7 @@ const std::string COMMIT_AND_PUSH_FLAG("--push-to-github");
 
 [[noreturn]] void Usage() {
     ::Usage("[" + FIND_DUPLICATE_ISSNS_FLAG + "] [" + COMMIT_AND_PUSH_FLAG + "] issn_map_directory <map-type=filename>"
-            "<map-type=filename>...\n\nValid map type(s): ssg");
+            " <map-type=filename>...\n\nValid map type(s): ssg");
 }
 
 
