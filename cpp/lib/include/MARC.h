@@ -550,6 +550,7 @@ public:
     std::set<std::string> getISBNs() const;
     std::set<std::string> getDDCs() const;
     std::set<std::string> getRVKs() const;
+    std::set<std::string> getSSGNs() const;
 
     /** \brief  Return the extracted GND codes from the fields determined by the provided tags.
      *  \param  tags  If non-empty extract codes from the fields w/ these tags o/w extract codes from all data fields.
