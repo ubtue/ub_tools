@@ -251,12 +251,14 @@ struct HarvestParams {
     unsigned journal_harvest_interval_;
     bool force_process_feeds_with_no_pub_dates_;
     unsigned default_crawl_delay_time_;
+    unsigned max_crawl_delay_time_;
     bool skip_online_first_articles_unconditionally_;
+    bool ignore_robots_dot_txt_;
 public:
     HarvestParams()
         : harvested_url_count_(0), format_handler_(nullptr), force_downloads_(false), journal_harvest_interval_(0),
-          force_process_feeds_with_no_pub_dates_(false), default_crawl_delay_time_(0),
-          skip_online_first_articles_unconditionally_(false) {}
+          force_process_feeds_with_no_pub_dates_(false), default_crawl_delay_time_(0), max_crawl_delay_time_(0),
+          skip_online_first_articles_unconditionally_(false), ignore_robots_dot_txt_(false) {}
 };
 
 

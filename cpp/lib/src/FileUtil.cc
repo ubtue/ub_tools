@@ -40,10 +40,11 @@
 #include "Compiler.h"
 #include "FileDescriptor.h"
 #include "MiscUtil.h"
+#include "RegexMatcher.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
-#include "RegexMatcher.h"
+#include "TimeLimit.h"
 #include "util.h"
 
 
@@ -1079,11 +1080,9 @@ std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename) {
 
 
 // Hack for CentOS 7 which only has ::sync_file_range
-#ifdef IS_CENTOS
 static loff_t copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags) {
     return syscall(__NR_copy_file_range, fd_in, off_in, fd_out, off_out, len, flags);
 }
-#endif
 
 
 static bool ActualCopy(const int &from_fd, const int &to_fd, const size_t no_of_bytes_to_copy, const loff_t offset, const int whence) {
@@ -1430,6 +1429,21 @@ std::string ExpandTildePath(const std::string &path) {
         return HOME + path.substr(1);
     else
         return HOME + "/" + path.substr(1);
+}
+
+
+bool WaitForFile(const std::string &path, const unsigned timeout, const unsigned sleep_increment) {
+    TimeLimit time_limit(timeout * 1000);
+
+    for (;;) {
+        if (Exists(path))
+            return true;
+
+        if (time_limit.limitExceeded())
+            return false;
+
+        ::sleep(std::min((time_limit.getRemainingTime() + 500) / 1000, sleep_increment));
+    }
 }
 
 

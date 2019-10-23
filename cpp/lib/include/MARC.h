@@ -461,7 +461,8 @@ public:
 private:
     Record(): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */) { }
 public:
-    explicit Record(const std::string &leader); // Make an empty record that only has a leader.
+    explicit Record(const std::string &leader); // Make an empty record that only has a leader and sets the record size to
+                                                // LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */
     explicit Record(const size_t record_size, const char * const record_start);
     Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
            const std::string &control_number = "");
@@ -549,6 +550,7 @@ public:
     std::set<std::string> getISBNs() const;
     std::set<std::string> getDDCs() const;
     std::set<std::string> getRVKs() const;
+    std::set<std::string> getSSGNs() const;
 
     /** \brief  Return the extracted GND codes from the fields determined by the provided tags.
      *  \param  tags  If non-empty extract codes from the fields w/ these tags o/w extract codes from all data fields.

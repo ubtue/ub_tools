@@ -358,7 +358,7 @@ Record::KeywordAndSynonyms &Record::KeywordAndSynonyms::swap(KeywordAndSynonyms 
 }
 
 
-Record::Record(const std::string &leader): leader_(leader) {
+Record::Record(const std::string &leader): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */), leader_(leader) {
     if (unlikely(leader_.length() != LEADER_LENGTH))
         LOG_ERROR("supposed leader has invalid length!");
 }
@@ -987,6 +987,21 @@ std::set<std::string> Record::getRVKs() const {
     }
 
     return rvks;
+}
+
+
+std::set<std::string> Record::getSSGNs() const {
+    std::set<std::string> ssgns;
+    for (const auto &field : getTagRange("084")) {
+        if (field.getFirstSubfieldWithCode('2') == "ssgn") {
+            for (const auto &subfield : field.getSubfields()) {
+                if (subfield.code_ == 'a')
+                    ssgns.insert(StringUtil::TrimWhite(subfield.value_));
+            }
+        }
+    }
+
+    return ssgns;
 }
 
 
