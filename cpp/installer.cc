@@ -68,10 +68,7 @@
 
 
 [[noreturn]] void Error(const std::string &msg) {
-    if (::progname == nullptr)
-        std::cerr << "You must set \"progname\" in main() with \"progname = argv[0];\" in oder to use Error().\n";
-    else
-        std::cerr << ::progname << ": " << msg << '\n';
+    std::cerr << ::progname << ": " << msg << '\n';
     std::exit(EXIT_FAILURE);
 }
 
@@ -212,25 +209,33 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
     std::unordered_set<unsigned> running_pids;
     switch(os_system_type) {
     case UBUNTU:
-        running_pids = ExecUtil::FindActivePrograms("mysqld");
-        if (running_pids.size() == 0)
-            ExecUtil::Exec(ExecUtil::LocateOrDie("mysqld"), { "--daemonize" });
+        if (SystemdUtil::IsAvailable())
+            SystemdUtil::StartUnit("mysql");
+        else {
+            running_pids = ExecUtil::FindActivePrograms("mysqld");
+            if (running_pids.size() == 0)
+                ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mysqld"), { "--daemonize" });
+        }
         break;
     case CENTOS:
-        running_pids = ExecUtil::FindActivePrograms("mysqld");
-        if (running_pids.size() == 0) {
-            // The following calls should be similar to entries in
-            // /usr/lib/systemd/system/mariadb.service
+        if (SystemdUtil::IsAvailable())
+            SystemdUtil::StartUnit("mysqld");
+        else {
+            running_pids = ExecUtil::FindActivePrograms("mysqld");
+            if (running_pids.size() == 0) {
+                // The following calls should be similar to entries in
+                // /usr/lib/systemd/system/mariadb.service
 
-            // ExecStartPre:
-            ExecUtil::Exec("/usr/libexec/mysql-check-socket", {});
-            ExecUtil::Exec("/usr/libexec/mysql-prepare-db-dir", {});
+                // ExecStartPre:
+                ExecUtil::ExecOrDie("/usr/libexec/mysql-check-socket", {});
+                ExecUtil::ExecOrDie("/usr/libexec/mysql-prepare-db-dir", {});
 
-            // ExecStart:
-            ExecUtil::Spawn(ExecUtil::LocateOrDie("sudo"), { "-u", "mysql", "/usr/libexec/mysqld" });
+                // ExecStart:
+                ExecUtil::Spawn(ExecUtil::LocateOrDie("sudo"), { "-u", "mysql", "/usr/libexec/mysqld" });
 
-            // ExecStartPost:
-            ExecUtil::Exec("/usr/libexec/mysql-check-upgrade", {});
+                // ExecStartPost:
+                ExecUtil::ExecOrDie("/usr/libexec/mysql-check-upgrade", {});
+            }
         }
     }
 
@@ -261,12 +266,12 @@ void CreateUbToolsDatabase(const OSSystemType os_system_type) {
     const std::string sql_password(section->getString("sql_password"));
 
     if (not DbConnection::MySQLUserExists(sql_username, root_username, root_password)) {
-        std::cout << "creating ub_tools MySQL user\n";
+        Echo("creating ub_tools MySQL user");
         DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
     }
 
     if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
-        std::cout << "creating ub_tools MySQL database\n";
+        Echo("creating ub_tools MySQL database");
         DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
         DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, root_username, root_password);
@@ -285,7 +290,7 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, const OSSy
     const std::string sql_password("vufind");
 
     if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
-        std::cout << "creating " << sql_database << " database\n";
+        Echo("creating " + sql_database + " database");
         DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
         DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
@@ -306,7 +311,7 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, const OSSy
         const std::string ixtheo_username("ixtheo");
         const std::string ixtheo_password("ixtheo");
         if (not DbConnection::MySQLDatabaseExists(ixtheo_database, root_username, root_password)) {
-            std::cout << "creating " << ixtheo_database << " database\n";
+            Echo("creating " + ixtheo_database + " database");
             DbConnection::MySQLCreateDatabase(ixtheo_database, root_username, root_password);
             DbConnection::MySQLCreateUser(ixtheo_username, ixtheo_password, root_username, root_password);
             DbConnection::MySQLGrantAllPrivileges(ixtheo_database, ixtheo_username, root_username, root_password);
@@ -353,7 +358,7 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
             break;
         case CENTOS:
             apache_unit_name = "httpd";
-            mysql_unit_name = "mariadb";
+            mysql_unit_name = "mysqld";
 
             if (not FileUtil::Exists("/etc/my.cnf"))
                 ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mysql_install_db"),
@@ -363,13 +368,8 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
             SystemdEnableAndRunUnit("php-fpm");
         }
 
-        // we need to make sure that at least mysql is running, to be able to create databases
-        if (IsDockerEnvironment())
-            AssureMysqlServerIsRunning(os_system_type);
-        else if(SystemdUtil::IsAvailable()) {
-            SystemdEnableAndRunUnit(apache_unit_name);
-            SystemdEnableAndRunUnit(mysql_unit_name);
-        }
+        SystemdEnableAndRunUnit(apache_unit_name);
+        SystemdEnableAndRunUnit(mysql_unit_name);
     }
 }
 
@@ -501,7 +501,7 @@ void GenerateXml(const std::string &filename_source, const std::string &filename
     FileUtil::DirnameAndBasename(filename_source, &dirname_source, &basename_source);
 
     Echo("Generating " + filename_target + " from " + basename_source);
-    ExecUtil::Exec(ExecUtil::LocateOrDie("xmllint"), { "--xinclude", "--format", filename_source }, "", filename_target);
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("xmllint"), { "--xinclude", "--format", filename_source }, "", filename_target);
 }
 
 
@@ -733,8 +733,8 @@ int Main(int argc, char **argv) {
         if (::strcasecmp(vufind_system_type_string.c_str(), "auto") == 0) {
             vufind_system_type_string = VuFind::GetTueFindFlavour();
             if (not vufind_system_type_string.empty())
-                std::cout << "using auto-detected tuefind installation type \""
-                             + vufind_system_type_string + "\"\n";
+                Echo("using auto-detected tuefind installation type \""
+                     + vufind_system_type_string + "\"");
             else
                 Error("could not auto-detect tuefind installation type");
         }
@@ -759,6 +759,10 @@ int Main(int argc, char **argv) {
             }
         }
     }
+
+    if (not omit_systemctl and not SystemdUtil::IsAvailable())
+        Error("Systemd is not available in this environment."
+              "Please use --omit-systemctl explicitly if you want to skip service installations.");
 
     if (::geteuid() != 0)
         Error("you must execute this program as root!");
