@@ -995,11 +995,8 @@ std::set<std::string> Record::getSSGNs() const {
     for (const auto &field : getTagRange("084")) {
         if (field.getFirstSubfieldWithCode('2') == "ssgn") {
             for (const auto &subfield : field.getSubfields()) {
-                if (subfield.code_ == 'a') {
-                    std::vector<std::string> parts;
-                    if (StringUtil::SplitThenTrimWhite(subfield.value_, ',', &parts) > 0)
-                        ssgns.insert(parts.cbegin(), parts.cend());
-                }
+                if (subfield.code_ == 'a')
+                    ssgns.insert(StringUtil::TrimWhite(subfield.value_));
             }
         }
     }
