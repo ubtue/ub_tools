@@ -74,12 +74,8 @@ void CollectGNDNumbers(const std::string &authority_records_filename, std::unord
 
 
 bool HasRelBibSSGN(const MARC::Record &record) {
-    for (const auto& field : record.getTagRange("084")) {
-        const MARC::Subfields subfields(field.getSubfields());
-        if (subfields.hasSubfieldWithValue('2', "ssgn") and subfields.hasSubfieldWithValue('a', "0"))
-            return true;
-    }
-    return false;
+    const auto ssgns(record.getSSGNs());
+    return ssgns.find("0") != ssgns.cend();
 }
 
 
