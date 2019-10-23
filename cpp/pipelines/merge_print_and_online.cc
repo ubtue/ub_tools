@@ -489,11 +489,8 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
     if (field1.getTag() != field2.getTag())
         return false;
 
-    if (compare_indicators and (field1.getIndicator1() != field2.getIndicator1()
-                                or field1.getIndicator2() != field2.getIndicator2()))
-    {
+    if (compare_indicators and (field1.getIndicator1() != field2.getIndicator1() or field1.getIndicator2() != field2.getIndicator2()))
         return false;
-    }
 
     if (compare_subfields) {
         const MARC::Subfields subfields1(field1.getSubfields());
@@ -518,10 +515,10 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
 }
 
 
-static const std::vector<std::pair<std::string,std::string>> non_repeatable_to_repeatable_tag_map({ { "100", "700" },
-                                                                                                    { "110", "710" },
-                                                                                                    { "111", "711" }
-                                                                                                  });
+static const std::vector<std::pair<std::string, std::string>> non_repeatable_to_repeatable_tag_map(
+    // Note: Second field must be in ascending order!!
+    { { "100", "700" }, { "110", "710" }, { "111", "711" } }
+);
 
 
 std::string GetTargetRepeatableTag(const MARC::Tag &non_repeatable_tag) {
@@ -530,6 +527,87 @@ std::string GetTargetRepeatableTag(const MARC::Tag &non_repeatable_tag) {
             return non_repeatable_and_repeatable_tag.second;
     }
     return non_repeatable_tag.toString();
+}
+
+
+bool FieldsProbablyRepresentTheSameEntity(const MARC::Record::Field &field1, const MARC::Record::Field &field2) {
+    std::string a_subfield1, gnd_number1;
+    for (const auto &subfield : field1.getSubfields()) {
+        if (subfield.code_ == 'a')
+            a_subfield1 = subfield.value_;
+        else if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-588)"))
+            gnd_number1 = subfield.value_;
+    }
+
+    std::string a_subfield2, gnd_number2;
+    for (const auto &subfield : field2.getSubfields()) {
+        if (subfield.code_ == 'a')
+            a_subfield2 = subfield.value_;
+        else if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-588)"))
+            gnd_number2 = subfield.value_;
+    }
+
+    if (not gnd_number1.empty() and not gnd_number2.empty())
+        return gnd_number1 == gnd_number2;
+
+    return ::strcasecmp(TextUtil::CollapseWhitespace(&a_subfield1).c_str(), TextUtil::CollapseWhitespace(&a_subfield2).c_str()) == 0;
+}
+
+
+void DedupMappedRepeatableFields(MARC::Record * const merge_record) {
+    MARC::Record deduped_record(merge_record->getLeader());
+
+    std::map<std::string, MARC::Record::Field> tag_to_non_repeat_field_map;
+    std::map<std::string, std::set<MARC::Record::Field>> tags_to_deduped_fields_map;
+
+    // At this point merge_record is mostly sorted with the possible exception of tags that are values in
+    // non_repeatable_to_repeatable_tag_map.  These fields, if they do occur at all, are found before all fields with higher tags
+    // and after fields with tags that are keys in non_repeatable_to_repeatable_tag_map..
+    //
+    // We now proceed to gather and deduplicate (by throwing them into a set) all the fields with tags that are values in
+    // non_repeatable_to_repeatable_tag_map and insert them into the properly ordered location after the following for-loop.
+    //
+    // An additional complication is that we want to drop those fields that are reasonably similar to fields with tags found
+    // as keys in non_repeatable_to_repeatable_tag_map.  We store those fields, as we encounter them, in tag_to_non_repeat_field_map.
+    for (const auto &field : *merge_record) {
+        const auto non_repeatable_tag_and_repeatable_tag(
+            std::find_if(non_repeatable_to_repeatable_tag_map.cbegin(), non_repeatable_to_repeatable_tag_map.cend(),
+                         [&field](const std::pair<std::string, std::string> &non_repeatable_and_repeatable_tag)
+                             { return non_repeatable_and_repeatable_tag.first == field.getTag().toString(); }));
+        if (non_repeatable_tag_and_repeatable_tag != non_repeatable_to_repeatable_tag_map.cend())
+            tag_to_non_repeat_field_map.emplace(non_repeatable_tag_and_repeatable_tag->second, field);
+        else {
+            for (const auto &key_and_value : non_repeatable_to_repeatable_tag_map) {
+                if (key_and_value.second == field.getTag().toString()) {
+                    const auto tag_and_non_repeat_field(tag_to_non_repeat_field_map.find(field.getTag().toString()));
+                    if (tag_and_non_repeat_field == tag_to_non_repeat_field_map.cend()
+                        or not FieldsProbablyRepresentTheSameEntity(field, tag_and_non_repeat_field->second))
+                    {
+                        auto tag_and_field_set(tags_to_deduped_fields_map.find(field.getTag().toString()));
+                        if (tag_and_field_set != tags_to_deduped_fields_map.end())
+                            tag_and_field_set->second.emplace(field);
+                        else {
+                            std::set<MARC::Record::Field> new_field_set{ field };
+                            tags_to_deduped_fields_map[field.getTag().toString()] = new_field_set;
+                        }
+                    }
+
+                    goto loop_end;
+                }
+            }
+        }
+
+        deduped_record.appendField(field);
+loop_end:
+        /* Labels require a statement! */;
+    }
+
+    for (const auto &tag_and_deduped_fields : tags_to_deduped_fields_map) {
+        for (const auto &deduped_field : tag_and_deduped_fields.second)
+            deduped_record.insertField(deduped_field);
+    }
+
+    merge_record->swap(deduped_record);
 }
 
 
@@ -555,20 +633,39 @@ bool MergeFieldPairWithNonRepeatableFields(MARC::Record::Field * const merge_fie
 {
     if (merge_field->isControlField() or import_field.isControlField()
         or merge_field->isRepeatableField() or import_field.isRepeatableField())
-    {
         return false;
-    }
 
-    merge_field->setSubfields(MergeFieldContents(merge_field->getSubfields(), *merge_record,
-                                                 import_field.getSubfields(), import_record));
+    merge_field->setSubfields(MergeFieldContents(merge_field->getSubfields(), *merge_record, import_field.getSubfields(), import_record));
 
     return true;
 }
 
 
+// Take the 008 field with the larger "Date 2".
+void MergeFieldPair008(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field) {
+    if (unlikely(merge_field->getTag() != "008"))
+        LOG_ERROR("008 field expected!");
+
+    const auto &merge_field_contents(merge_field->getContents());
+    const auto import_field_contents(import_field.getContents());
+
+    constexpr size_t END_OF_DATE2(14); // Last character position of Date 2 in 008. See https://www.loc.gov/marc/bibliographic//bd008.html
+    if (unlikely(merge_field_contents.length() <= END_OF_DATE2))
+        LOG_ERROR("merge field has an unexpectedly short 008 field!");
+    if (unlikely(import_field_contents.length() <= END_OF_DATE2))
+        LOG_ERROR("import field has an unexpectedly short 008 field!");
+
+    const auto merge_field_date2(merge_field_contents.substr(11, 4));
+    const auto import_field_date2(import_field_contents.substr(11, 4));
+    if (merge_field_date2 < import_field_date2)
+        merge_field->setContents(import_field_contents);
+}
+
+
 // Special handling for the ISSN's.
 bool MergeFieldPair022(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field,
-                       MARC::Record * const merge_record, const MARC::Record &import_record, MARC::Record::Field * const augmented_import_field)
+                       MARC::Record * const merge_record, const MARC::Record &import_record,
+                       MARC::Record::Field * const augmented_import_field)
 {
     if (merge_field->getTag() != "022" or import_field.getTag() != "022")
         return false;
@@ -595,9 +692,7 @@ bool MergeFieldPair264(MARC::Record::Field * const merge_field, const MARC::Reco
 {
     if (merge_field->getTag() != "264" or import_field.getTag() != "264"
         or not SubfieldPrefixIsIdentical(*merge_field, import_field, {'a', 'b'}))
-    {
         return false;
-    }
 
     std::string merged_c_subfield;
     const MARC::Subfields subfields1(merge_field->getSubfields());
@@ -626,8 +721,7 @@ bool MergeFieldPair264(MARC::Record::Field * const merge_field, const MARC::Reco
 }
 
 
-bool MergeFieldPair936(MARC::Record::Field * const merge_field, const MARC::Record::Field import_field)
-{
+bool MergeFieldPair936(MARC::Record::Field * const merge_field, const MARC::Record::Field import_field) {
     if (merge_field->getTag() != "936" or import_field.getTag() != "936")
         return false;
 
@@ -676,6 +770,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
     merge_record->reTag("260", "264");
     import_record->reTag("260", "264");
 
+    bool clean_up_field_order_and_dedup_merged_record(false);
     for (const auto &import_field : *import_record) {
         const bool import_field_repeatable(import_field.isRepeatableField());
         bool compare_indicators(import_field_repeatable), compare_subfields(import_field_repeatable);
@@ -689,8 +784,17 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         }
 
         // From here on we only have merge candidates
+
+        //
         // Handle Control Fields
+        //
+
         MARC::Record::Field merge_field(*merge_field_pos);
+        if (import_field.getTag() == "008") {
+            MergeFieldPair008(&merge_field, import_field);
+            continue;
+        }
+
         if (MergeFieldPairWithControlFields(&merge_field, import_field)) {
             if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
                 merge_record->erase(merge_field_pos);
@@ -699,7 +803,10 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             continue;
          }
 
+        //
         // Handle fields that need special treatment
+        //
+
         MARC::Record::Field augmented_import_field("999");
         if (MergeFieldPair022(&merge_field, import_field, merge_record, *import_record, &augmented_import_field)) {
             if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
@@ -747,6 +854,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             merge_field = import_field;
             merge_field.setTag(repeatable_tag);
             merge_record->insertFieldAtEnd(merge_field);
+            clean_up_field_order_and_dedup_merged_record = true;
         } else {
             if (MergeFieldPairWithNonRepeatableFields(&merge_field, import_field, merge_record, *import_record))
                 merge_record->insertFieldAtEnd(merge_field);
@@ -754,6 +862,9 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
                 LOG_ERROR("Could not merge import record " + import_record->getControlNumber());
         }
     }
+
+    if (clean_up_field_order_and_dedup_merged_record)
+        DedupMappedRepeatableFields(merge_record);
 }
 
 
