@@ -30,7 +30,8 @@ const std::string SYSTEMD_SERVICE_DIRECTORY("/etc/systemd/system/");
 
 
 bool SystemdUtil::IsAvailable() {
-    return ExecUtil::GetOriginalCommandNameFromPID(1) == "systemd";
+    static const bool is_available(ExecUtil::GetOriginalCommandNameFromPID(1) == "systemd");
+    return is_available;
 }
 
 
