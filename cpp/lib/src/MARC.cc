@@ -990,6 +990,24 @@ std::set<std::string> Record::getRVKs() const {
 }
 
 
+std::set<std::string> Record::getSSGNs() const {
+    std::set<std::string> ssgns;
+    for (const auto &field : getTagRange("084")) {
+        if (field.getFirstSubfieldWithCode('2') == "ssgn") {
+            for (const auto &subfield : field.getSubfields()) {
+                if (subfield.code_ == 'a') {
+                    std::vector<std::string> parts;
+                    if (StringUtil::SplitThenTrimWhite(subfield.value_, ',', &parts) > 0)
+                        ssgns.insert(parts.cbegin(), parts.cend());
+                }
+            }
+        }
+    }
+
+    return ssgns;
+}
+
+
 std::set<std::string> Record::getReferencedGNDNumbers(const std::set<std::string> &tags) const {
     std::set<std::string> referenced_gnd_numbers;
     for (const auto &field : fields_) {
