@@ -227,14 +227,14 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
                 // /usr/lib/systemd/system/mariadb.service
 
                 // ExecStartPre:
-                ExecUtil::Exec("/usr/libexec/mysql-check-socket", {});
-                ExecUtil::Exec("/usr/libexec/mysql-prepare-db-dir", {});
+                ExecUtil::ExecOrDie("/usr/libexec/mysql-check-socket", {});
+                ExecUtil::ExecOrDie("/usr/libexec/mysql-prepare-db-dir", {});
 
                 // ExecStart:
                 ExecUtil::Spawn(ExecUtil::LocateOrDie("sudo"), { "-u", "mysql", "/usr/libexec/mysqld" });
 
                 // ExecStartPost:
-                ExecUtil::Exec("/usr/libexec/mysql-check-upgrade", {});
+                ExecUtil::ExecOrDie("/usr/libexec/mysql-check-upgrade", {});
             }
         }
     }
