@@ -22,6 +22,7 @@
 #include <unordered_map>
 #include "FileUtil.h"
 #include "MARC.h"
+#include "TextUtil.h"
 
 
 namespace {
@@ -129,8 +130,9 @@ void MarkArticleCollections(MARC::Reader * const reader, File * const output,
                 const auto ssgns(record.getSSGNs());
                 if (ssgns.find("0") != ssgns.cend()) {
                     const auto publication_year(GetPublicationYear(record));
-                    *output << record.getControlNumber() << ", " << ShortenTitle(record.getMainTitle(), 60) << ", "
-                            << (HasTOC(record) ? "Ja" : "Nein") << ", " << publication_year << ", "
+                    *output << TextUtil::CSVEscape(record.getControlNumber()) << ", "
+                            << TextUtil::CSVEscape(ShortenTitle(record.getMainTitle(), 60)) << ", "
+                            << TextUtil::CSVEscape((HasTOC(record) ? "Ja" : "Nein")) << ", " << publication_year << ", "
                             << collection_ppn_and_article_count->second << '\n';
                 }
             }
