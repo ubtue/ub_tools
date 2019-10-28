@@ -58,18 +58,6 @@ public:
 };
 
 
-const std::vector<EssayCollectionMatch> essay_collection_matches{
-    { "935", 'c', "fe"               },
-    { "655", 'a', "Aufsatzsammlung"  },
-    { "689", 'a', "Aufsatzsammlung"  },
-    { "655", 'a', "Festschrift"      },
-    { "655", 'a', "Konferenzschrift" },
-    { "689", 'a', "Konferenzschrift" },
-    { "689", 'a', "Kongress"         },
-    { "935", 'c', "gkko"             },
-};
-
-
 inline bool ConsistsOfDigitsOnly(const std::string &s) {
     for (const char ch : s) {
         if (not StringUtil::IsDigit(ch))
@@ -111,7 +99,7 @@ std::string ShortenTitle(const std::string &full_title, const size_t max_length)
 }
 
 
-bool IsTOC(const MARC::Record &record) {
+bool HasTOC(const MARC::Record &record) {
     for (const auto &_856_field : record.getTagRange("856")) {
         for (const auto subfield : _856_field.getSubfields()) {
             if (subfield.code_ == '3' and ::strcasecmp(subfield.value_.c_str(), "Inhaltsverzeichnis") == 0)
@@ -153,7 +141,7 @@ void MarkArticleCollections(MARC::Reader * const reader, File * const output,
                 if (ssgns.find("0") != ssgns.cend()) {
                     const auto publication_year(GetPublicationYear(record));
                     *output << record.getControlNumber() << ", " << ShortenTitle(record.getMainTitle(), 60) << ", "
-                            << (IsTOC(record) ? "Ja" : "Nein") << ", " << publication_year << ", "
+                            << (HasTOC(record) ? "Ja" : "Nein") << ", " << publication_year << ", "
                             << collection_ppn_and_article_count->second << '\n';
                 }
             }
