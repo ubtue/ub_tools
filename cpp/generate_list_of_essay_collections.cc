@@ -1,0 +1,183 @@
+/** \brief  Generates a list of religious studies essay collections.
+ *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *
+ *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <iostream>
+#include <string>
+#include <unordered_map>
+#include "FileUtil.h"
+#include "MARC.h"
+
+
+namespace {
+
+
+void CollectArticleCollectionPPNs(MARC::Reader * const reader,
+                                  std::unordered_map<std::string, unsigned> * const article_collection_ppns_and_counts)
+{
+    article_collection_ppns_and_counts->clear();
+    while (const MARC::Record record = reader->read()) {
+        if (record.isArticle()) {
+            const std::string parent_ppn(MARC::GetParentPPN(record));
+            if (parent_ppn.empty())
+                continue;
+
+            auto article_collection_ppn_and_count(article_collection_ppns_and_counts->find(parent_ppn));
+            if (article_collection_ppn_and_count == article_collection_ppns_and_counts->end())
+                article_collection_ppns_and_counts->insert({ parent_ppn, 1 });
+            else
+                ++(article_collection_ppn_and_count->second);
+        }
+    }
+}
+
+
+// If any of the following matches, we have an essay collection:
+struct EssayCollectionMatch {
+    MARC::Tag tag_;
+    char subfield_code_;
+    std::string subfield_contents_;
+public:
+    EssayCollectionMatch(const MARC::Tag &tag, const char subfield_code, const std::string &subfield_contents)
+        : tag_(tag), subfield_code_(subfield_code), subfield_contents_(subfield_contents) { }
+};
+
+
+const std::vector<EssayCollectionMatch> essay_collection_matches{
+    { "935", 'c', "fe"               },
+    { "655", 'a', "Aufsatzsammlung"  },
+    { "689", 'a', "Aufsatzsammlung"  },
+    { "655", 'a', "Festschrift"      },
+    { "655", 'a', "Konferenzschrift" },
+    { "689", 'a', "Konferenzschrift" },
+    { "689", 'a', "Kongress"         },
+    { "935", 'c', "gkko"             },
+};
+
+
+inline bool ConsistsOfDigitsOnly(const std::string &s) {
+    for (const char ch : s) {
+        if (not StringUtil::IsDigit(ch))
+            return false;
+    }
+
+    return true;
+}
+
+
+std::string GetPublicationYear(const MARC::Record &record) {
+    const auto _008_field(record.findTag("008"));
+    if (likely(_008_field != record.end())) {
+        const auto &field_contents(_008_field->getContents());
+        if (likely(field_contents.length() >= 12)) {
+            const std::string year_candidate(field_contents.substr(7, 4));
+            if (ConsistsOfDigitsOnly(year_candidate) and year_candidate != "9999")
+                return year_candidate;
+        }
+    }
+
+    const auto _190_field(record.findTag("190"));
+    if (_190_field != record.end()) {
+        const std::string year_candidate(_190_field->getFirstSubfieldWithCode('j'));
+        if (not year_candidate.empty())
+            return year_candidate;
+    }
+
+    return "????";
+}
+
+
+std::string ShortenTitle(const std::string &full_title, const size_t max_length) {
+    const auto full_title_length(full_title.length());
+    if (full_title_length <= max_length)
+        return full_title;
+
+    return full_title.substr(0, max_length - 3) + "...";
+}
+
+
+bool IsTOC(const MARC::Record &record) {
+    for (const auto &_856_field : record.getTagRange("856")) {
+        for (const auto subfield : _856_field.getSubfields()) {
+            if (subfield.code_ == '3' and ::strcasecmp(subfield.value_.c_str(), "Inhaltsverzeichnis") == 0)
+                return true;
+        }
+    }
+
+    return false;
+}
+
+
+bool IsMonographOfInterest(const MARC::Record &record) {
+    if (not record.isMonograph())
+        return false;
+
+    for (const auto &_655_field : record.getTagRange("655")) {
+        const auto a_subfield(_655_field.getFirstSubfieldWithCode('a'));
+        if (::strcasecmp(a_subfield.c_str(), "Aufsatzsammlung") == 0
+            or ::strcasecmp(a_subfield.c_str(), "Festschrift") == 0
+            or ::strcasecmp(a_subfield.c_str(), "Konferenzschrift") == 0)
+            return true;
+    }
+
+    return false;
+}
+
+
+void MarkArticleCollections(MARC::Reader * const reader, File * const output,
+                            const std::unordered_map<std::string, unsigned> &article_collection_ppns_and_counts)
+{
+    unsigned count(0);
+    while (MARC::Record record = reader->read()) {
+        if (IsMonographOfInterest(record)) {
+            const auto collection_ppn_and_article_count(article_collection_ppns_and_counts.find(record.getControlNumber()));
+            if (collection_ppn_and_article_count != article_collection_ppns_and_counts.cend()) {
+                ++count;
+
+                const auto ssgns(record.getSSGNs());
+                if (ssgns.find("0") != ssgns.cend()) {
+                    const auto publication_year(GetPublicationYear(record));
+                    *output << record.getControlNumber() << ", " << ShortenTitle(record.getMainTitle(), 60) << ", "
+                            << (IsTOC(record) ? "Ja" : "Nein") << ", " << publication_year << ", "
+                            << collection_ppn_and_article_count->second << '\n';
+                }
+            }
+        }
+    }
+
+    LOG_INFO("Found " + std::to_string(count) + " article collections.");
+}
+
+
+} // unnamed namespace
+
+
+int Main(int argc, char **argv) {
+    if (argc != 3)
+        ::Usage("marc_input list");
+
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
+    const auto output(FileUtil::OpenOutputFileOrDie(argv[2]));
+
+    std::unordered_map<std::string, unsigned> article_collection_ppns_and_counts;
+    CollectArticleCollectionPPNs(marc_reader.get(), &article_collection_ppns_and_counts);
+    marc_reader->rewind();
+    MarkArticleCollections(marc_reader.get(), output.get(), article_collection_ppns_and_counts);
+
+    return EXIT_SUCCESS;
+}
