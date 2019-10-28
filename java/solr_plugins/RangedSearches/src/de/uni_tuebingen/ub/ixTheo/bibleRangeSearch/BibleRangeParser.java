@@ -102,7 +102,7 @@ public class BibleRangeParser extends QParser {
     @Override
     public Query parse() throws SyntaxError {
         final String queryString = "bible_ranges:" + getBookPrefixQueryString(getString());
-        final QParser parser = getParser(queryString, "lucene", getReq());
+        final QParser parser = getParser(queryString, "multiLanguageQueryParser", getReq());
         final BibleRange[] ranges = getRangesFromQuery();
         return new BibleRangeQuery(parser.parse(), ranges);
     }
