@@ -47,17 +47,6 @@ void CollectArticleCollectionPPNs(MARC::Reader * const reader,
 }
 
 
-// If any of the following matches, we have an essay collection:
-struct EssayCollectionMatch {
-    MARC::Tag tag_;
-    char subfield_code_;
-    std::string subfield_contents_;
-public:
-    EssayCollectionMatch(const MARC::Tag &tag, const char subfield_code, const std::string &subfield_contents)
-        : tag_(tag), subfield_code_(subfield_code), subfield_contents_(subfield_contents) { }
-};
-
-
 inline bool ConsistsOfDigitsOnly(const std::string &s) {
     for (const char ch : s) {
         if (not StringUtil::IsDigit(ch))
