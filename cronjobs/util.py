@@ -101,9 +101,10 @@ def Warning(msg):
     Info(sys.argv[0] + ": " + msg, file=sys.stderr)
 
 
-def Info(*args, **kwargs):
-    print(*args, **kwargs)
-    sys.stdout.flush()
+def Info(*args, file=sys.stdout):
+    for arg in args:
+        print(arg, file=file, end='')
+    print(file=file, flush=True)
 
 
 # @brief Copy the contents, in order, of "files" into "target".
