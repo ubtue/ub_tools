@@ -2058,10 +2058,10 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (format.contains("Article") || (format.contains("Review") && !format.contains("Book"))) {
             final List<VariableField> _936Fields = record.getVariableFields("936");
             for (final VariableField _936VField : _936Fields) {
-                if (_936VField.getIndicator1() != 'u' || _936VField.getIndicator2() != 'w')
+                final DataField _936Field = (DataField) _936VField;
+                if (_936Field.getIndicator1() != 'u' || _936Field.getIndicator2() != 'w')
                     continue;
 
-                DataField _936Field = (DataField) _936VField;
                 final Subfield jSubfield = _936Field.getSubfield('j');
                 if (jSubfield != null) {
                     String yearOrYearRange = jSubfield.getData();
