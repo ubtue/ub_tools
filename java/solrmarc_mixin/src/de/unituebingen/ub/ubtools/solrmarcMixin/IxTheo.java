@@ -123,7 +123,7 @@ public class IxTheo extends SolrIndexerMixin {
 
     /**
      * Split the colon-separated ixTheo notation codes into individual codes and
-     * return them and the expanded and translated versions.
+     * return the expanded and translated versions.
      */
     public Set<String> getExpandedIxTheoNotations(final Record record) {
         final Set<String> notationCodes = getIxTheoNotations(record);
@@ -135,7 +135,6 @@ public class IxTheo extends SolrIndexerMixin {
                 for (final String notationDescription : notationDescriptions)
                     expandedIxTheoNotations.add(notationDescription);
             }
-            expandedIxTheoNotations.add(notationCode);
         }
 
         return expandedIxTheoNotations;
