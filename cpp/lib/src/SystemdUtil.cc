@@ -30,8 +30,11 @@ const std::string SYSTEMD_SERVICE_DIRECTORY("/etc/systemd/system/");
 
 
 bool SystemdUtil::IsAvailable() {
-    static const bool is_available(ExecUtil::GetOriginalCommandNameFromPID(1) == "systemd");
-    return is_available;
+    // Docker: systemd not running at all (+ not installed)
+    // CentOS: systemd running with pid 1
+    // Ubuntu: systemd running with random pid
+    static const std::unordered_set<unsigned> systemd_pids(ExecUtil::FindActivePrograms("systemd"));
+    return systemd_pids.size() > 0;
 }
 
 
