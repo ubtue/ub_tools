@@ -572,6 +572,33 @@ void Record::merge(const Record &other) {
 }
 
 
+bool Record::isMonograph() const {
+    for (const auto &_935_field : getTagRange("935")) {
+        for (const auto subfield : _935_field.getSubfields()) {
+            if (subfield.code_ == 'c' and subfield.value_ == "so")
+                return false;
+        }
+    }
+
+    return leader_[7] == 'm';
+}
+
+
+bool Record::isArticle() const {
+    if (leader_[7] == 'm') {
+        for (const auto &_935_field : getTagRange("935")) {
+            for (const auto subfield : _935_field.getSubfields()) {
+                if (subfield.code_ == 'c' and subfield.value_ == "so")
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    return leader_[7] == 'a' or leader_[7] == 'b';
+}
+
+
 static const std::set<std::string> ELECTRONIC_CARRIER_TYPES{ "cb", "cd", "ce", "ca", "cf", "ch", "cr", "ck", "cz" };
 
 

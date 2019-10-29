@@ -503,9 +503,9 @@ public:
     inline size_t getNumberOfFields() const { return fields_.size(); }
     inline const std::string &getLeader() const { return leader_; }
     inline bool hasValidLeader() const { return leader_.length() == LEADER_LENGTH; }
-    inline bool isMonograph() const { return leader_[7] == 'm'; }
+    bool isMonograph() const;
     inline bool isSerial() const { return leader_[7] == 's'; }
-    inline bool isArticle() const { return leader_[7] == 'a' or leader_[7] == 'b'; }
+    bool isArticle() const;
     bool isWebsite() const;
     inline bool isReproduction() const { return getFirstField("534") != end(); }
     bool isElectronicResource() const;
