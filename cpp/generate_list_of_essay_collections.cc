@@ -49,35 +49,9 @@ void CollectArticleCollectionPPNs(MARC::Reader * const reader,
 }
 
 
-inline bool ConsistsOfDigitsOnly(const std::string &s) {
-    for (const char ch : s) {
-        if (not StringUtil::IsDigit(ch))
-            return false;
-    }
-
-    return true;
-}
-
-
 std::string GetPublicationYear(const MARC::Record &record) {
-    const auto _008_field(record.findTag("008"));
-    if (likely(_008_field != record.end())) {
-        const auto &field_contents(_008_field->getContents());
-        if (likely(field_contents.length() >= 12)) {
-            const std::string year_candidate(field_contents.substr(7, 4));
-            if (ConsistsOfDigitsOnly(year_candidate) and year_candidate != "9999")
-                return year_candidate;
-        }
-    }
-
-    const auto _190_field(record.findTag("190"));
-    if (_190_field != record.end()) {
-        const std::string year_candidate(_190_field->getFirstSubfieldWithCode('j'));
-        if (not year_candidate.empty())
-            return year_candidate;
-    }
-
-    return "????";
+    const auto publication_year_candidate(record.getPublicationYear());
+    return publication_year_candidate.empty() ? "????" : publication_year_candidate;
 }
 
 

@@ -915,6 +915,47 @@ std::string Record::getSummary() const {
 }
 
 
+static inline bool ConsistsOfDigitsOnly(const std::string &s) {
+    for (const char ch : s) {
+        if (not StringUtil::IsDigit(ch))
+            return false;
+    }
+
+    return true;
+}
+
+
+std::string Record::getPublicationYear() const {
+    for (const auto &_264_field : getTagRange("264")) {
+        const auto c_subfield(_264_field.getFirstSubfieldWithCode('c'));
+        if (not c_subfield.empty()) {
+            static const auto year_matcher(RegexMatcher::RegexMatcherFactoryOrDie("\\d{4}"));
+            if (year_matcher->matched(c_subfield))
+                return (*year_matcher)[0];
+        }
+    }
+
+    const auto _008_field(findTag("008"));
+    if (likely(_008_field != end())) {
+        const auto &field_contents(_008_field->getContents());
+        if (likely(field_contents.length() >= 12)) {
+            const std::string year_candidate(field_contents.substr(7, 4));
+            if (ConsistsOfDigitsOnly(year_candidate) and year_candidate != "9999")
+                return year_candidate;
+        }
+    }
+
+    const auto _190_field(findTag("190"));
+    if (_190_field != end()) {
+        const std::string year_candidate(_190_field->getFirstSubfieldWithCode('j'));
+        if (not year_candidate.empty())
+            return year_candidate;
+    }
+
+    return "";
+}
+
+
 std::set<std::string> Record::getAllAuthors() const {
     static const std::vector<std::string> AUTHOR_TAGS { "100", "109", "700" };
 

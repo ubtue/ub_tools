@@ -538,6 +538,9 @@ public:
     /** \return A "summary" (could be an abstract etc.), if found, else the empty string. */
     std::string getSummary() const;
 
+    /** \return A guess at the publication year or the empty string if we could not find one. */
+    std::string getPublicationYear() const;
+
     /** \return All author names in fields 100$a and 700$a. */
     std::set<std::string> getAllAuthors() const;
 
