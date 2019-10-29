@@ -936,13 +936,6 @@ std::string Record::getPublicationYear() const {
         }
     }
 
-    const auto _190_field(findTag("190"));
-    if (_190_field != end()) {
-        const std::string year_candidate(_190_field->getFirstSubfieldWithCode('j'));
-        if (not year_candidate.empty())
-            return year_candidate;
-    }
-
     return "";
 }
 
