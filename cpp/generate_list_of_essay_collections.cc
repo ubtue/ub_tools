@@ -23,6 +23,7 @@
 #include "FileUtil.h"
 #include "MARC.h"
 #include "TextUtil.h"
+#include "Unicode.h"
 
 
 namespace {
@@ -120,21 +121,22 @@ bool IsMonographOfInterest(const MARC::Record &record) {
 void MarkArticleCollections(MARC::Reader * const reader, File * const output,
                             const std::unordered_map<std::string, unsigned> &article_collection_ppns_and_counts)
 {
+    *output << Unicode::UTF8_BOM;
     unsigned count(0);
     while (MARC::Record record = reader->read()) {
         if (IsMonographOfInterest(record)) {
             const auto collection_ppn_and_article_count(article_collection_ppns_and_counts.find(record.getControlNumber()));
-            if (collection_ppn_and_article_count != article_collection_ppns_and_counts.cend()) {
-                ++count;
+            const unsigned article_count((collection_ppn_and_article_count != article_collection_ppns_and_counts.cend())
+                                         ? collection_ppn_and_article_count->second : 0);
 
-                const auto ssgns(record.getSSGNs());
-                if (ssgns.find("0") != ssgns.cend()) {
-                    const auto publication_year(GetPublicationYear(record));
-                    *output << TextUtil::CSVEscape(record.getControlNumber()) << ", "
-                            << TextUtil::CSVEscape(ShortenTitle(record.getMainTitle(), 60)) << ", "
-                            << TextUtil::CSVEscape((HasTOC(record) ? "Ja" : "Nein")) << ", " << publication_year << ", "
-                            << collection_ppn_and_article_count->second << '\n';
-                }
+            const auto ssgns(record.getSSGNs());
+            if (ssgns.find("0") != ssgns.cend()) {
+                ++count;
+                const auto publication_year(GetPublicationYear(record));
+                *output << TextUtil::CSVEscape(record.getControlNumber()) << ','
+                        << TextUtil::CSVEscape(ShortenTitle(record.getMainTitle(), 60)) << ','
+                        << TextUtil::CSVEscape((HasTOC(record) ? "Ja" : "Nein")) << ',' << publication_year << ','
+                        << article_count << '\n';
             }
         }
     }
