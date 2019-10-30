@@ -359,17 +359,11 @@ StartPhase "Tag PDA candidates"
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-
-
-StartPhase "Export Subsystem Tags to VuFind SQL Database"
-(export_subsystem_ids_to_db GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
-     >> "${log}" 2>&1 && \
-EndPhase || Abort) &
 wait
 
 
 StartPhase "Cross-link Type Tagging"
-(add_cross_link_type GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+(add_cross_link_type GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
