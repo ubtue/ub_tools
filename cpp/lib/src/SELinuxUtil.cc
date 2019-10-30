@@ -82,7 +82,7 @@ void Set(const std::string &name, const bool value) {
 }
 
 
-}
+} // namespace Boolean
 
 
 namespace FileContext {
