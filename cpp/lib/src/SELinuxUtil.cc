@@ -73,15 +73,7 @@ void AssertEnabled(const std::string &caller) {
 namespace Boolean {
 
 
-std::string Bool2String(bool value) {
-    if (value)
-        return "on";
-    else
-        return "off";
-}
-
-
-void Set(const std::string &name, bool value) {
+void Set(const std::string &name, const bool value) {
     AssertEnabled(std::string(__func__));
     ExecUtil::Exec(ExecUtil::Which("setsebool"), { name, Bool2String(value) });
 }
