@@ -795,16 +795,13 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         MARC::Record::Field merge_field(*merge_field_pos);
 
         if (MergeFieldPair008(&merge_field, import_field)) {
-            merge_record->erase(merge_field_pos);
-            merge_record->insertFieldAtEnd(merge_field);
+            merge_field_pos->swap(merge_field);
             continue;
         }
 
         if (MergeFieldPairWithControlFields(&merge_field, import_field)) {
-            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
-                merge_record->erase(merge_field_pos);
-                merge_record->insertFieldAtEnd(merge_field);
-            }
+            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
+                merge_field_pos->swap(merge_field);
             continue;
          }
 
@@ -815,26 +812,21 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         MARC::Record::Field augmented_import_field("999");
         if (MergeFieldPair022(&merge_field, import_field, merge_record, *import_record, &augmented_import_field)) {
             if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
-                merge_record->erase(merge_field_pos);
-                merge_record->insertFieldAtEnd(merge_field);
+                merge_field_pos->swap(merge_field);
                 merge_record->insertFieldAtEnd(augmented_import_field);
             }
             continue;
         }
 
         if (MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)) {
-            if (GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
-                merge_record->erase(merge_field_pos);
-                merge_record->insertFieldAtEnd(merge_field);
-            }
+            if (GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
+                merge_field_pos->swap(merge_field);
             continue;
         }
 
         if (MergeFieldPair936(&merge_field, import_field)) {
-            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
-                merge_record->erase(merge_field_pos);
-                merge_record->insertFieldAtEnd(merge_field);
-            }
+            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
+                merge_field_pos->swap(merge_field);
             continue;
         }
 
@@ -846,9 +838,8 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
 
         // Handle Ordinary Repeatable Fields
         if (import_field_repeatable) {
-            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
+            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
                 merge_record->insertFieldAtEnd(import_field);
-            }
             continue;
         }
 
