@@ -43,15 +43,17 @@
  *       commas.
  */
 class Logger {
+public:
+    enum LogLevel { LL_ERROR = 1, LL_WARNING = 2, LL_INFO = 3, LL_DEBUG = 4 };
     friend Logger *LoggerInstantiator();
+protected:
     std::mutex mutex_;
     int fd_;
     bool log_process_pids_, log_no_decorations_, log_strip_call_site_;
-public:
-    enum LogLevel { LL_ERROR = 1, LL_WARNING = 2, LL_INFO = 3, LL_DEBUG = 4 };
-private:
     LogLevel min_log_level_;
+public:
     Logger();
+    virtual ~Logger() = default;
 public:
     void redirectOutput(const int new_fd) { fd_ = new_fd; }
 
