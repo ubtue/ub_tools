@@ -1754,18 +1754,18 @@ bool BinaryReader::seek(const off_t offset, const int whence) {
     } else { // Use memory-mapped I/O.
         switch (whence) {
         case SEEK_SET:
-            if (offset < 0 or static_cast<size_t>(offset) >= input_file_size_)
+            if (offset < 0 or static_cast<size_t>(offset) > input_file_size_)
                 return false;
             offset_ = offset;
             break;
         case SEEK_CUR:
             if (static_cast<ssize_t>(offset_) + offset < 0
-                or static_cast<ssize_t>(offset_) + offset >= static_cast<ssize_t>(input_file_size_))
+                or static_cast<ssize_t>(offset_) + offset > static_cast<ssize_t>(input_file_size_))
                 return false;
             offset_ += offset;
             break;
         case SEEK_END:
-            if (offset < 0 or static_cast<size_t>(offset) >= input_file_size_)
+            if (offset < 0 or static_cast<size_t>(offset) > input_file_size_)
                 return false;
             offset_ = input_file_size_ - offset;
             break;
