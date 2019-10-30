@@ -59,11 +59,14 @@ void AssertEnabled(const std::string &caller);
 namespace Boolean {
 
 
+static inline std::string Bool2String(bool value) { return value ? "on" : "off"; }
+
+
 /** \brief  Set SELinux boolean value (uses "setsebool" command) */
 void Set(const std::string &name, bool value);
 
 
-}
+} // namespace Boolean
 
 
 namespace FileContext {
