@@ -582,6 +582,8 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
             { "-i", "s/group = apache/group =  " + username + "/", php_config_filename });
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
             { "-i", "s/listen.acl_users = apache,nginx/listen.acl_users = apache,nginx," + username + "/", php_config_filename });
+
+        // SELinux für /run/php-fpm/(.*?)
         break;
     }
 
@@ -785,8 +787,15 @@ int Main(int argc, char **argv) {
         #endif
     }
     InstallUBTools(/* make_install = */ true, os_system_type);
-    if (not ub_tools_only)
+    if (not ub_tools_only) {
         CreateVuFindDatabases(vufind_system_type, os_system_type);
+
+        if (SystemdUtil::IsAvailable()) {
+            // allow httpd/php to connect to solr + mysql
+            SELinuxUtil::Boolean::Set("httpd_can_network_connect", true);
+            SELinuxUtil::Boolean::Set("httpd_can_network_connect_db", true);
+        }
+    }
 
     return EXIT_SUCCESS;
 }
