@@ -22,6 +22,7 @@
 
 #include <fstream>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include "util.h"
 
@@ -46,7 +47,9 @@ template<typename KeyType, typename ValueType> void SerialiseMap(const std::stri
         LOG_ERROR("Failed to open \"" + output_filename + "\" for writing!");
 
     for (const auto &key_and_value : map)
-        output << Escape(key_and_value.first) << '=' << Escape(key_and_value.second) << '\n';
+        output << Escape(std::is_same<KeyType, std::string>::value ? key_and_value.first : std::to_string(key_and_value.first))
+               << '=' << Escape(std::is_same<ValueType, std::string>::value ? key_and_value.second : std::to_string(key_and_value.second))
+               << '\n';
 }
 
 
