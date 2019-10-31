@@ -186,7 +186,7 @@ static void ParseFieldOrSubfieldReference(Tokenizer * const tokenizer, std::stri
                                  + Tokenizer::TokenTypeToString(token) + "\" instead!");
     const std::string string_const(tokenizer->getLastStringConstant());
 
-    static const auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("[0-9A-Z]{3}([..])?[a-z012]+"));
+    static const auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("[0-9A-Z]{3}(\\[..\\])?[a-z012]+"));
     if (not matcher->matched(string_const))
         throw std::runtime_error("\"" + Tokenizer::EscapeString(string_const) + "\" is not a valid field or subfield reference!");
     *field_or_subfield_reference = string_const;
