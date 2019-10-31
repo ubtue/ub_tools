@@ -60,7 +60,11 @@ char help_text[] =
   "    simple_query                             = simple_field_list | conditional_field_or_subfield_references\n"
   "    simple_field_list                        = field_or_subfield_reference\n"
   "                                               { \":\" field_or_subfield_reference }\n"
-  "    field_or_subfield_reference              = field_reference | subfield_reference\n"
+  "    field_or_subfield_reference              = '\"' , (field_reference | subfield_reference) '\"'\n"
+  "    subfield_field_reference                 = field_reference , subfield_code , { subfield_code }\n"
+  "    field_reference                          = tag , [ indicator_specification ]\n"
+  "    indicator_specification                  = '[' , indicator , indicator ']'\n"
+  "    indicator                                = letter_or_digit | '#'\n"
   "    conditional_field_or_subfield_references = conditional_field_or_subfield_reference\n"
   "                                               { \",\" conditional_field_or_subfield_reference }\n"
   "    conditional_field_or_subfield_reference  = \"if\" condition \"extract\"\n"
@@ -76,6 +80,7 @@ char help_text[] =
   "  operators is that the latter compares subfields within a given field while the former compares against any two\n"
   "  matching fields or subfields.  This becomes relevant when there are multiple occurrences of a field in a\n"
   "  record. \"*\" matches all fields.  Field and subfield references are strings and thus need to be quoted.\n"
+  "  The special indicator '#' is the wildcard indicator and will match any actual indicator value.\n"
   "\n"
   "  Output label format:\n"
   "    label_format = matched_field_or_subfield | control_number | control_number_and_matched_field_or_subfield\n"
@@ -227,9 +232,9 @@ bool EnqueueSubfields(const std::string &tag, const char subfield_code, const st
 bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
                          const std::unordered_multimap<std::string, const std::string> &field_to_content_map)
 {
-    const FieldOrSubfieldDescriptor comp_field_or_subfield(cond_desc.getFieldOrSubfieldReference());
-    const auto begin_end(field_to_content_map.equal_range(comp_field_or_subfield.getTag()));
-    const std::string subfield_codes(comp_field_or_subfield.getSubfieldCodes());
+    const std::string comp_field_or_subfield(cond_desc.getFieldOrSubfieldReference());
+    const auto begin_end(field_to_content_map.equal_range(comp_field_or_subfield.substr(0, MARC::Record::TAG_LENGTH)));
+    const std::string subfield_codes(comp_field_or_subfield.substr(MARC::Record::TAG_LENGTH));
     const ConditionDescriptor::CompType comp_type(cond_desc.getCompType());
     std::string err_msg;
     bool matched_at_least_one(false);
@@ -241,7 +246,7 @@ bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
                 break;
             }
             if (unlikely(not err_msg.empty()))
-                logger->error("ProcessEqualityComp: match failed (" + err_msg + ")! (1)");
+                LOG_ERROR("ProcessEqualityComp: match failed (" + err_msg + ")! (1)");
         } else  { // We need to match against a subfield's content.
             const MARC::Subfields subfields(contents);
             for (const auto &subfield : subfields) {
@@ -250,7 +255,7 @@ bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
                         matched_at_least_one = true;
                         break;
                     } else if (unlikely(not err_msg.empty()))
-                        logger->error("ProcessEqualityComp: match failed (" + err_msg + ")! (1)");
+                        LOG_ERROR("ProcessEqualityComp: match failed (" + err_msg + ")! (1)");
                 }
             }
         }
@@ -263,12 +268,12 @@ bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
 bool ProcessExistenceTest(const ConditionDescriptor &cond_desc,
                           const std::unordered_multimap<std::string, const std::string> &field_to_content_map)
 {
-    const FieldOrSubfieldDescriptor test_field_or_subfield(cond_desc.getFieldOrSubfieldReference());
+    const std::string test_field_or_subfield(cond_desc.getFieldOrSubfieldReference());
     const ConditionDescriptor::CompType comp_type(cond_desc.getCompType());
-    const auto begin_end(field_to_content_map.equal_range(test_field_or_subfield.getTag()));
+    const auto begin_end(field_to_content_map.equal_range(test_field_or_subfield.substr(0, MARC::Record::TAG_LENGTH)));
     if (begin_end.first == begin_end.second)
         return comp_type == ConditionDescriptor::IS_MISSING;
-    const std::string subfield_codes(test_field_or_subfield.getSubfieldCodes());
+    const std::string subfield_codes(test_field_or_subfield.substr(MARC::Record::TAG_LENGTH));
     if (subfield_codes.empty())
         return comp_type == ConditionDescriptor::EXISTS;
 
@@ -286,8 +291,7 @@ bool ProcessExistenceTest(const ConditionDescriptor &cond_desc,
 }
 
 
-bool ProcessConditions(const ConditionDescriptor &cond_desc,
-                       const FieldOrSubfieldDescriptor &field_or_subfield_desc,
+bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfieldDescriptor &field_or_subfield_desc,
                        const std::unordered_multimap<std::string, const std::string> &field_to_content_map,
                        std::priority_queue<TagAndContents> * const tags_and_contents)
 {
@@ -328,9 +332,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc,
         }
 
         return emitted_at_least_one;
-    } else if (comp_type == ConditionDescriptor::SINGLE_FIELD_EQUAL
-               or comp_type == ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL)
-    {
+    } else if (comp_type == ConditionDescriptor::SINGLE_FIELD_EQUAL or comp_type == ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL) {
         if (field_or_subfield_desc.isStar()) {
             for (const auto &tag_and_content : field_to_content_map)
                 tags_and_contents->push(TagAndContents(tag_and_content.first, tag_and_content.second));
@@ -363,7 +365,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc,
                             matched_at_least_one = true;
                             break;
                         } else if (unlikely(not err_msg.empty()))
-                            logger->error("Unexpected: Match failed in ProcessConditions!");
+                            LOG_ERROR("Unexpected: Match failed in ProcessConditions!");
                     }
                 }
 
@@ -383,22 +385,18 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc,
 }
 
 
-void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
-               const std::unordered_set<std::string> &control_numbers, MARC::Reader * const marc_reader,
-               const QueryDescriptor &query_desc, const OutputLabel output_format)
+void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const std::unordered_set<std::string> &control_numbers,
+               MARC::Reader * const marc_reader, const QueryDescriptor &query_desc, const OutputLabel output_format)
 {
     std::unique_ptr<MARC::Writer> marc_writer(nullptr);
     if (output_format == MARC_BINARY or output_format == MARC_XML)
-        marc_writer = MARC::Writer::Factory(
-                          "/proc/self/fd/1",
-                          (output_format == MARC_XML) ? MARC::FileType::XML : MARC::FileType::BINARY);
+        marc_writer = MARC::Writer::Factory("/proc/self/fd/1", (output_format == MARC_XML) ? MARC::FileType::XML : MARC::FileType::BINARY);
 
     std::string err_msg;
     unsigned count(0), matched_count(0), rate_counter(0);
     while (const MARC::Record record = marc_reader->read()) {
         // If we use a control number filter, only process a record if it is in our list:
-        if (not control_numbers.empty()
-            and control_numbers.find(record.getControlNumber()) == control_numbers.cend())
+        if (not control_numbers.empty() and control_numbers.find(record.getControlNumber()) == control_numbers.cend())
             continue;
 
         ++count, ++rate_counter;
@@ -413,8 +411,7 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
             const LeaderCondition &leader_cond(query_desc.getLeaderCondition());
             const std::string &leader(record.getLeader());
             if (leader.substr(leader_cond.getStartOffset(),
-                              leader_cond.getEndOffset() - leader_cond.getStartOffset() + 1)
-                != leader_cond.getMatch())
+                              leader_cond.getEndOffset() - leader_cond.getStartOffset() + 1) != leader_cond.getMatch())
                 continue;
         }
 
