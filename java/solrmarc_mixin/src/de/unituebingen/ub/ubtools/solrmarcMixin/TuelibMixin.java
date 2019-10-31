@@ -2059,7 +2059,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             final List<VariableField> _936Fields = record.getVariableFields("936");
             for (final VariableField _936VField : _936Fields) {
                 final DataField _936Field = (DataField) _936VField;
-                if (_936Field.getIndicator1() != 'u' || _936Field.getIndicator2() != 'w')
+                if (_936Field.getIndicator1() != 'b' || _936Field.getIndicator2() != 'k')
                     continue;
 
                 final Subfield jSubfield = _936Field.getSubfield('j');
