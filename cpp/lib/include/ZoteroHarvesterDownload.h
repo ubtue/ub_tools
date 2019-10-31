@@ -25,6 +25,7 @@
 #include "Downloader.h"
 #include "JSON.h"
 #include "RegexMatcher.h"
+#include "RobotsDotTxt.h"
 #include "SimpleCrawler.h"
 #include "ThreadUtil.h"
 #include "TimeLimit.h"
@@ -37,6 +38,9 @@ namespace ZoteroHarvester {
 
 
 namespace Download {
+
+
+class DownloadManager;
 
 
 namespace DirectDownload {
@@ -56,22 +60,24 @@ public:
 
 
 struct Result {
+    Util::Harvestable source_;
     std::string response_body_;
     unsigned response_code_;
     std::string error_message_;
 public:
-    Result() = default;
-    explicit Result(const std::string &response_body, unsigned response_code, const std::string error_message = "")
-     : response_body_(response_body), response_code_(response_code), error_message_(error_message) {}
-
+    explicit Result(const Util::Harvestable &source) : source_(source), response_code_(0) {}
+    Result(const Result &rhs) = default;
     inline bool isValid() const { return response_code_ == 200 and not error_message_.empty(); }
 };
 
 
 class Tasklet : public Util::Tasklet<Params, Result> {
-    static void Run(const Params &parameters, Result * const result);
+    DownloadManager * const download_manager_;
+
+    void run(const Params &parameters, Result * const result);
 public:
-    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned long> * const instance_counter, std::unique_ptr<Params> parameters);
+    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
+            DownloadManager * const download_manager, std::unique_ptr<Params> parameters);
     virtual ~Tasklet() override = default;
 };
 
@@ -79,7 +85,7 @@ public:
 } // end namespace DirectDownload
 
 
-class DownloadManager;
+template <typename Parameter, typename Result>
 class DownloadResult;
 
 
@@ -91,24 +97,27 @@ struct Params {
     std::string user_agent_;
     TimeLimit time_limit_;
     bool ignore_robots_dot_txt_;
-    DownloadManager * const download_manager_;
 public:
     explicit Params(const Util::Harvestable &download_item, const std::string user_agent, const TimeLimit time_limit,
-                    const bool ignore_robots_dot_txt, DownloadManager * const download_manager)
-     : download_item_(download_item), user_agent_(user_agent), time_limit_(time_limit), ignore_robots_dot_txt_(ignore_robots_dot_txt),
-       download_manager_(download_manager) {}
+                    const bool ignore_robots_dot_txt)
+     : download_item_(download_item), user_agent_(user_agent), time_limit_(time_limit), ignore_robots_dot_txt_(ignore_robots_dot_txt) {}
 };
 
 
 struct Result {
-    std::vector<std::unique_ptr<DownloadResult>> downloaded_urls_;
+    std::vector<std::unique_ptr<DownloadResult<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
+public:
+    Result() = default;
+    Result(const Result &rhs) = delete;
 };
 
 
 class Tasklet : public Util::Tasklet<Params, Result> {
-    static void Run(const Params &parameters, Result * const result);
+    DownloadManager * const download_manager_;
+    void run(const Params &parameters, Result * const result);
 public:
-    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned long> * const instance_counter, std::unique_ptr<Params> parameters);
+    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
+            DownloadManager * const download_manager, std::unique_ptr<Params> parameters);
     virtual ~Tasklet() override = default;
 };
 
@@ -116,35 +125,147 @@ public:
 } // end namespace Crawling
 
 
-/*
-    2 threads - One to wait for the download delay and another to
-    a cache for recently downloaded urls
-*/
+template <typename Parameter, typename Result>
+class DownloadResult {
+    enum Status { WAITING, NO_RESULT, YIELDED_RESULT, STATIC_RESULT };
+
+    std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet_;
+    std::unique_ptr<Result> result_;
+    Status status_;
+public:
+    DownloadResult(std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet)
+     : source_tasklet_(source_tasklet), status_(WAITING) {}
+    DownloadResult(std::unique_ptr<Result> result)
+     : result_(std::move(result)), status_(STATIC_RESULT) {}
+    DownloadResult(const DownloadResult<Parameter, Result> &rhs) = delete;
+
+    bool isComplete() const {
+        if (status_ == Status::STATIC_RESULT)
+            return true;
+        else switch (source_tasklet_->getStatus()) {
+        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_SUCCESS:
+        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_ERROR:
+            return true;
+        default:
+            return false;
+        }
+    };
+    bool hasResult() const {
+        if (status_ == Status::STATIC_RESULT)
+            return true;
+        else switch (source_tasklet_->getStatus()) {
+        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_SUCCESS:
+            return true;
+        default:
+            return false;
+        }
+    };
+    const std::unique_ptr<Result> &get() {
+        if (status_ == Status::WAITING) {
+            source_tasklet_->await();
+            if (hasResult()) {
+                result_.reset(source_tasklet_->yieldResult());
+                status_ = Status::YIELDED_RESULT;
+            } else
+                status_ = Status::NO_RESULT;
+        }
+
+        return result_;
+    }
+};
+
+
 class DownloadManager {
 public:
-    struct Globals {
+    struct GlobalParams {
         Url translation_server_url_;
         unsigned default_download_delay_time_;
         unsigned max_download_delay_time_;
         bool ignore_robots_txt_;
     public:
-        explicit Globals() : default_download_delay_time_(0), max_download_delay_time_(0), ignore_robots_txt_(false) {}
-    };
-
-
-
-
-
-    struct CrawlParams {
-        Util::Harvestable download_item_;
-    public:
-        explicit CrawlParams(const Util::Harvestable &download_item) : download_item_(download_item) {}
+        explicit GlobalParams() : default_download_delay_time_(0), max_download_delay_time_(0), ignore_robots_txt_(false) {}
+        GlobalParams(const GlobalParams &rhs) = default;
     };
 private:
+    struct DelayParams {
+        RobotsDotTxt robots_dot_txt_;
+        TimeLimit time_limit_;
+    public:
+        DelayParams(const std::string &robots_dot_txt, const unsigned default_download_delay_time,
+                    const unsigned max_download_delay_time)
+         : robots_dot_txt_(robots_dot_txt), time_limit_(robots_dot_txt_.getCrawlDelay("*") * 1000)
+        {
+            if (time_limit_.getLimit() < default_download_delay_time)
+                time_limit_ = default_download_delay_time;
+            else if (time_limit_.getLimit() > max_download_delay_time)
+                time_limit_ = max_download_delay_time;
 
+            time_limit_.restart();
+        }
+        DelayParams(const TimeLimit &time_limit, const unsigned default_download_delay_time,
+                    const unsigned max_download_delay_time)
+         : time_limit_(time_limit)
+        {
+            if (time_limit_.getLimit() < default_download_delay_time)
+                time_limit_ = default_download_delay_time;
+            else if (time_limit_.getLimit() > max_download_delay_time)
+                time_limit_ = max_download_delay_time;
+
+            time_limit_.restart();
+        }
+        DelayParams(const DelayParams &rhs) = default;
+    };
+
+    struct DomainData {
+        DelayParams delay_params_;
+        std::deque<std::shared_ptr<DirectDownload::Tasklet>> active_direct_downloads_;
+        std::deque<std::shared_ptr<Crawling::Tasklet>> active_crawls_;
+        std::deque<std::shared_ptr<DirectDownload::Tasklet>> queued_direct_downloads_;
+        std::deque<std::shared_ptr<Crawling::Tasklet>> queued_crawls_;
+    public:
+        DomainData(const DelayParams &delay_params) : delay_params_(delay_params) {};
+    };
+
+    struct CachedDownloadData {
+        std::string response_body_;
+        unsigned response_code_;
+        std::string error_message_;
+    };
+
+    static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 50;
+    static constexpr unsigned MAX_CRAWLING_TASKLETS        = 50;
+    static constexpr unsigned DOWNLOAD_TIMEOUT             = 30000; // in ms
+
+    GlobalParams global_params_;
+    pthread_t background_thread_;
+    ThreadUtil::ThreadSafeCounter<unsigned> direct_download_tasklet_execution_counter_;
+    ThreadUtil::ThreadSafeCounter<unsigned> crawling_tasklet_execution_counter_;
+    std::unordered_map<std::string, std::unique_ptr<DomainData>> domain_data_;
+    std::unordered_map<std::string, CachedDownloadData> cached_download_data_;
+    std::recursive_mutex cached_download_data_mutex_;
+    std::deque<std::shared_ptr<DirectDownload::Tasklet>> direct_download_queue_buffer_;
+    std::recursive_mutex direct_download_queue_buffer_mutex_;
+    std::deque<std::shared_ptr<Crawling::Tasklet>> crawling_queue_buffer_;
+    std::recursive_mutex crawling_queue_buffer_mutex_;
+
+    static void *BackgroundThreadRoutine(void * parameter);
+
+    DelayParams generateDelayParams(const Url &url);
+    DomainData *lookupDomainData(const Url &url, bool add_if_absent);
+    void processQueueBuffers();
+    void processDomainQueues(DomainData * const domain_data);
+    void cleanupCompletedTasklets(DomainData * const domain_data);
+public:
+    DownloadManager(const GlobalParams &global_params);
+    ~DownloadManager();
+
+    std::unique_ptr<DownloadResult<DirectDownload::Params, DirectDownload::Result>> directDownload(const Util::Harvestable &source,
+                                                                                                   const std::string &user_agent);
+    std::unique_ptr<DownloadResult<Crawling::Params, Crawling::Result>> crawl(const Util::Harvestable &source,
+                                                                              const std::string &user_agent);
+    void addToDownloadCache(const std::string &url, const std::string &response_body, const unsigned response_code,
+                            const std::string &error_message);
 };
-
-
 
 
 } // end namespace Download

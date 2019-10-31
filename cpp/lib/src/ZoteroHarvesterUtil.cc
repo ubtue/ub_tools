@@ -28,12 +28,12 @@ namespace ZoteroHarvester {
 namespace Util {
 
 
-static ThreadUtil::ThreadSafeCounter<unsigned> g_harvestable_counter(0);
+static ThreadUtil::ThreadSafeCounter<unsigned> harvestable_counter(0);
 
 
 Harvestable Harvestable::New(const std::string &url, const Config::JournalParams &journal) {
-    ++g_harvestable_counter;
-     return Harvestable(g_harvestable_counter, url, journal);
+    ++harvestable_counter;
+     return Harvestable(harvestable_counter, url, journal);
 }
 
 
