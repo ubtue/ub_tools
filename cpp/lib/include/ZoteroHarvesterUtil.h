@@ -46,7 +46,7 @@ private:
     Harvestable(const unsigned id, const std::string url, const Config::JournalParams &journal)
      : id_(id), url_(url), journal_(journal) {}
 public:
-    Harvestable(const Harvestable &rhs) : id_(rhs.id_), url_(rhs.url_), journal_(rhs.journal_) {}
+    Harvestable(const Harvestable &rhs) = default;
 
     static Harvestable New(const std::string &url, const Config::JournalParams &journal);
 };
@@ -56,7 +56,7 @@ template <typename Parameter, typename Result>
 class Tasklet {
     enum Status { NOT_STARTED, RUNNING, COMPLETED_SUCCESS, COMPLETED_ERROR };
 
-    static void ThreadRoutine(void * parameter) {
+    static void *ThreadRoutine(void * parameter) {
         Tasklet<Parameter, Result> * const tasklet(reinterpret_cast<Tasklet<Parameter, Result> *>(parameter));
 
         pthread_detach(pthread_self());
@@ -65,6 +65,7 @@ class Tasklet {
         pthread_key_t tls_key;
         pthread_key_create(&tls_key, nullptr);
         pthread_setspecific(tls_key, &tasklet->associated_item_);
+        ++(*tasklet->running_instance_counter_);
 
         try {
             {
@@ -78,25 +79,29 @@ class Tasklet {
             }
         } catch (const std::runtime_error &exception) {
             LOG_WARNING("exception in tasklet '" + std::to_string(tasklet->thread_id_) + "': " + exception.what()
-                        + "\ntasklet description: "  + description_);
+                        + "\ntasklet description: "  + tasklet->description_);
             {
                 std::lock_guard<std::mutex> lock(tasklet->mutex_);
                 tasklet->status_ = Status::COMPLETED_ERROR;
             }
         } catch (...) {
             LOG_WARNING("unknown exception in tasklet '" + std::to_string(tasklet->thread_id_) + "'"
-                        + "\ntasklet description: "  + description_);
+                        + "\ntasklet description: "  + tasklet->description_);
             {
                 std::lock_guard<std::mutex> lock(tasklet->mutex_);
                 tasklet->status_ = Status::COMPLETED_ERROR;
             }
         }
 
+        --(*tasklet->running_instance_counter_);
         // release thread-local data
         pthread_key_delete(tls_key);
+        pthread_exit(nullptr);
+
+        return nullptr;
     }
 
-    ThreadUtil::ThreadSafeCounter<unsigned long> * const instance_counter_;
+    ThreadUtil::ThreadSafeCounter<unsigned> * const running_instance_counter_;
     Harvestable associated_item_;
     pthread_t thread_id_;
     mutable std::mutex mutex_;
@@ -106,25 +111,18 @@ class Tasklet {
     std::unique_ptr<const Parameter> parameter_;
     std::unique_ptr<Result> result_;
 public:
-    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned long> * const instance_counter, const Harvestable associated_item,
+    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const running_instance_counter, const Harvestable associated_item,
             const std::string &description, const std::function<void(const Parameter &, Result * const)> &runnable,
             std::unique_ptr<Parameter> parameter, std::unique_ptr<Result> default_result)
-     : instance_counter_(instance_counter), associated_item_(associated_item), status_(Status::NOT_STARTED),
-       description_(description), runnable_(runnable), parameter_(parameter), result_(default_result)
-    { ++(*instance_counter_); }
+     : running_instance_counter_(running_instance_counter), associated_item_(associated_item), status_(Status::NOT_STARTED),
+       description_(description), runnable_(runnable), parameter_(std::move(parameter)), result_(std::move(default_result)) {}
     virtual ~Tasklet() {
-        if (status_ == Status::NOT_STARTED) {
-            LOG_WARNING("tasklet '" + std::to_string(thread_id_) + "' has yet to be started!"
-                      + "\ndescription:" + description_);
-        } else if (status_ == Status::RUNNING) {
+        if (::pthread_cancel(thread_id_) != 0)
+            LOG_ERROR("failed to cancel tasklet thread '" + std::to_string(thread_id_) + "'!");
+        if (status_ == Status::RUNNING) {
             LOG_WARNING("tasklet '" + std::to_string(thread_id_) + "' is still running!"
                       + "\ndescription:" + description_);
         }
-
-        if (::pthread_cancel(thread_id_) != 0)
-            LOG_ERROR("failed to cancel tasklet thread '" + std::to_string(thread_id_) + "'!");
-
-        --(*instance_counter_);
     }
 public:
     void start() {
@@ -145,6 +143,10 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
         return status_;
     }
+    inline bool isComplete() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return status_ == Status::COMPLETED_SUCCESS or status_ == Status::COMPLETED_ERROR;
+    }
     inline const Parameter &getParameter() const { return *parameter_.get(); }
     std::unique_ptr<Result> yieldResult() {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -161,7 +163,12 @@ public:
 
         return result_.release();
     }
-    void await() const {
+    void await() {
+        // wait until the tasklet has started, as the thread wouldn't allocated until it does
+        while (getStatus() == Status::NOT_STARTED) {
+            ::usleep(16 * 1000 * 1000);
+        }
+
         if (::pthread_join(thread_id_, nullptr) != 0)
             LOG_ERROR("failed to join tasklet thread '" + std::to_string(thread_id_) + "'!");
     }
