@@ -1,4 +1,4 @@
-/** \file   RegexMatcher.cc
+/** \file   MarcQueryParser.cc
  *  \brief  Implementation of the query parser for the marc_grep2 tool.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
@@ -31,7 +31,7 @@
 
 std::string LeaderCondition::toString() const {
     return "LeaderCondition: start_offset: " + std::to_string(start_offset_) + ", end_offset: "
-        + std::to_string(end_offset_) + ", match: \"" + Tokenizer::EscapeString(match_) + '"';
+           + std::to_string(end_offset_) + ", match: \"" + Tokenizer::EscapeString(match_) + '"';
 }
 
 
@@ -89,8 +89,7 @@ ConditionDescriptor::ConditionDescriptor(const std::string &field_or_subfield_re
 
 ConditionDescriptor::ConditionDescriptor(const std::string &field_or_subfield_reference, const CompType comp_type,
                                          RegexMatcher * const data_matcher)
-    : comp_type_(comp_type), field_or_subfield_reference_(field_or_subfield_reference),
-      data_matcher_(data_matcher)
+    : comp_type_(comp_type), field_or_subfield_reference_(field_or_subfield_reference), data_matcher_(data_matcher)
 {
     if (comp_type != EQUAL_EQUAL and comp_type != NOT_EQUAL and comp_type != SINGLE_FIELD_EQUAL
         and comp_type != SINGLE_FIELD_NOT_EQUAL)
@@ -114,7 +113,7 @@ std::string QueryDescriptor::toString() const {
 
 // Parses the following part of the syntax of a query:
 //   "leader[" offset_range "]=" value
-void ParseLeaderCondition(Tokenizer * const tokenizer, QueryDescriptor * const query_desc) {
+static void ParseLeaderCondition(Tokenizer * const tokenizer, QueryDescriptor * const query_desc) {
     TokenType token(tokenizer->getToken());
     if (token != LEADER_KW)
         throw std::runtime_error("Expected \"leader\" at beginning of a leader condition!");
@@ -165,7 +164,7 @@ void ParseLeaderCondition(Tokenizer * const tokenizer, QueryDescriptor * const q
 }
 
 
-void ParseSimpleFieldList(Tokenizer * const tokenizer, QueryDescriptor * const query_desc) {
+static void ParseSimpleFieldList(Tokenizer * const tokenizer, QueryDescriptor * const query_desc) {
     std::vector<std::string> field_or_subfield_candidates;
     StringUtil::Split(tokenizer->getLastStringConstant(), ':', &field_or_subfield_candidates);
 
@@ -173,21 +172,32 @@ void ParseSimpleFieldList(Tokenizer * const tokenizer, QueryDescriptor * const q
         if (field_or_subfield_candidate.length() < MARC::Record::TAG_LENGTH)
             throw std::runtime_error("\"" + field_or_subfield_candidate
                                      +"\" is not a valid field or subfield reference!");
-        query_desc->addFieldOrSubfieldDescriptor(FieldOrSubfieldDescriptor(field_or_subfield_candidate));
+        query_desc->addFieldOrSubfieldDescriptor(FieldOrSubfieldDescriptor(field_or_subfield_candidate, '\0', '\0'));
     }
 }
 
 
-void ParseFieldOrSubfieldReference(Tokenizer * const tokenizer, std::string * const field_or_subfield_reference) {
+static void ParseFieldOrSubfieldReference(Tokenizer * const tokenizer, std::string * const field_or_subfield_reference,
+                                          char * const indicator1, char * const indicator2)
+{
     const TokenType token(tokenizer->getToken());
     if (token != STRING_CONSTANT)
         throw std::runtime_error("Expected a field or subfield reference but found \""
                                  + Tokenizer::TokenTypeToString(token) + "\" instead!");
     const std::string string_const(tokenizer->getLastStringConstant());
-    if (string_const.length() < MARC::Record::TAG_LENGTH)
-        throw std::runtime_error("\"" + Tokenizer::EscapeString(string_const)
-                                 + "\" is not a valid field or subfield reference!");
+
+    static const auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("[0-9A-Z]{3}(\\[..\\])?[a-z012]+"));
+    if (not matcher->matched(string_const))
+        throw std::runtime_error("\"" + Tokenizer::EscapeString(string_const) + "\" is not a valid field or subfield reference!");
     *field_or_subfield_reference = string_const;
+
+    if (matcher->getNoOfGroups() == 0)
+        *indicator1 = *indicator2 = '#'; // wildcard
+    else {
+        const auto indicators((*matcher)[1]);
+        *indicator1 = indicators[0];
+        *indicator2 = indicators[1];
+    }
 }
 
 
@@ -213,10 +223,12 @@ ConditionDescriptor::CompType TokenToConditionDescriptorCompType(const TokenType
 //  | field_or_subfield_reference "is_missing"
 ConditionDescriptor ParseCondition(Tokenizer * const tokenizer) {
     std::string field_or_subfield_reference;
-    ParseFieldOrSubfieldReference(tokenizer, &field_or_subfield_reference);
+    char indicator1, indicator2;
+    ParseFieldOrSubfieldReference(tokenizer, &field_or_subfield_reference, &indicator1, &indicator2);
     if (field_or_subfield_reference.length() > MARC::Record::TAG_LENGTH + 1)
-        throw std::runtime_error("Can't use \"" + field_or_subfield_reference + "\" in a comparison because of "
-                                 "multiple subfield codes!");
+        throw std::runtime_error("Can't use \"" + field_or_subfield_reference + "\" in a comparison because of multiple subfield codes!");
+    if (indicator1 != '#' or indicator2 != '#')
+        throw std::runtime_error("Can't use indicators in a condition!");
 
     TokenType token(tokenizer->getToken());
     if ((token == SINGLE_FIELD_EQUAL or token == SINGLE_FIELD_NOT_EQUAL)
@@ -225,9 +237,7 @@ ConditionDescriptor ParseCondition(Tokenizer * const tokenizer) {
                                  + std::string(token == SINGLE_FIELD_EQUAL ? "===" : "!==")
                                  + " but a subfield reference is required!");
 
-    if (token == EQUAL_EQUAL or token == NOT_EQUAL or token == SINGLE_FIELD_EQUAL
-        or token == SINGLE_FIELD_NOT_EQUAL)
-    {
+    if (token == EQUAL_EQUAL or token == NOT_EQUAL or token == SINGLE_FIELD_EQUAL or token == SINGLE_FIELD_NOT_EQUAL) {
         const ConditionDescriptor::CompType comp_type(TokenToConditionDescriptorCompType(token));
         token = tokenizer->getToken();
         if (token != STRING_CONSTANT)
@@ -243,8 +253,8 @@ ConditionDescriptor ParseCondition(Tokenizer * const tokenizer) {
     else if (token == IS_MISSING_KW)
         return ConditionDescriptor(field_or_subfield_reference, ConditionDescriptor::IS_MISSING);
     else
-        throw std::runtime_error("Bad or missing condition in a conditional field or subfield reference!"
-                                 "Found " + Tokenizer::TokenTypeToString(token) + "\" instead!");
+        throw std::runtime_error("Bad or missing condition in a conditional field or subfield reference! Found "
+                                 + Tokenizer::TokenTypeToString(token) + "\" instead!");
 }
 
 
@@ -257,8 +267,8 @@ void ParseConditionalFieldOrSubfieldReference(Tokenizer * const tokenizer, Query
 
     TokenType token(tokenizer->getToken());
     if (token != IF_KW)
-        throw std::runtime_error("Expected \"if\" at start of a conditional field or subfield reference, "
-                                 "found " + Tokenizer::TokenTypeToString(token) + " instead!");
+        throw std::runtime_error("Expected \"if\" at start of a conditional field or subfield reference, found "
+                                 + Tokenizer::TokenTypeToString(token) + " instead!");
 
     const ConditionDescriptor condition_desc(ParseCondition(tokenizer));
 
@@ -272,15 +282,15 @@ void ParseConditionalFieldOrSubfieldReference(Tokenizer * const tokenizer, Query
     //
 
     token = tokenizer->getToken();
-    if (token == STAR) {
-        query_desc->addConditionalFieldOrSubfieldDescriptor(
-            condition_desc, FieldOrSubfieldDescriptor("*"));
-    } else {
+    if (token == STAR)
+        query_desc->addConditionalFieldOrSubfieldDescriptor(condition_desc, FieldOrSubfieldDescriptor("*", '\0', '\0'));
+    else {
         if (token != STRING_CONSTANT)
             throw std::runtime_error("Expected field or subfield reference after \"extract\"!");
         tokenizer->ungetToken();
         std::string field_or_subfield_candidate;
-        ParseFieldOrSubfieldReference(tokenizer, &field_or_subfield_candidate);
+        char indicator1, indicator2;
+        ParseFieldOrSubfieldReference(tokenizer, &field_or_subfield_candidate, &indicator1, &indicator2);
 
         if (condition_desc.getCompType() == ConditionDescriptor::SINGLE_FIELD_EQUAL
             or condition_desc.getCompType() == ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL)
@@ -292,12 +302,11 @@ void ParseConditionalFieldOrSubfieldReference(Tokenizer * const tokenizer, Query
                 condition_desc.getFieldOrSubfieldReference().substr(0, MARC::Record::TAG_LENGTH));
             const std::string extract_tag(field_or_subfield_candidate.substr(0, MARC::Record::TAG_LENGTH));
             if (condition_tag != extract_tag)
-                throw std::runtime_error("Extracted tag \"" + extract_tag + "\" not equal to condition tag \""
-                                         + condition_tag);
+                throw std::runtime_error("Extracted tag \"" + extract_tag + "\" not equal to condition tag \"" + condition_tag);
         }
 
         query_desc->addConditionalFieldOrSubfieldDescriptor(
-            condition_desc, FieldOrSubfieldDescriptor(field_or_subfield_candidate));
+            condition_desc, FieldOrSubfieldDescriptor(field_or_subfield_candidate, indicator1, indicator2));
     }
 }
 

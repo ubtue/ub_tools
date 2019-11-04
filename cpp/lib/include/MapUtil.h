@@ -40,7 +40,7 @@ std::string Escape(const std::string &s);
 
 /** \brief Writes "map" to "output_filename" in a format that can be red in by DeserialiseMap(). */
 template<typename KeyType, typename ValueType> void SerialiseMap(const std::string &output_filename,
-                                                                const std::unordered_map<KeyType, ValueType> &map)
+                                                                 const std::unordered_map<KeyType, ValueType> &map)
 {
     std::ofstream output(output_filename, std::ofstream::out | std::ofstream::trunc);
     if (output.fail())
