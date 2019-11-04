@@ -228,7 +228,7 @@ ConditionDescriptor ParseCondition(Tokenizer * const tokenizer) {
     if (field_or_subfield_reference.length() > MARC::Record::TAG_LENGTH + 1)
         throw std::runtime_error("Can't use \"" + field_or_subfield_reference + "\" in a comparison because of multiple subfield codes!");
     if (indicator1 != '#' or indicator2 != '#')
-        throw std::runtime_error("Can't use indicators in a comparison!");
+        throw std::runtime_error("Can't use indicators in a condition!");
 
     TokenType token(tokenizer->getToken());
     if ((token == SINGLE_FIELD_EQUAL or token == SINGLE_FIELD_NOT_EQUAL)
