@@ -373,6 +373,8 @@ public:
         void deleteAllSubfieldsWithCode(const char subfield_code);
 
         std::string getHash() const { return StringUtil::Sha1(toString()); }
+
+        inline void swap(Field &other) { tag_.swap(other.tag_); contents_.swap(other.contents_); }
     };
 
     enum class RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
