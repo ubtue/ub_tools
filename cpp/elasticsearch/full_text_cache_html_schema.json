@@ -1,0 +1,41 @@
+{
+    "settings": {
+        "analysis" : {
+            "analyzer" : {
+                "fulltext_analyzer" : {
+                    "tokenizer" : "icu_tokenizer",
+                    "filter" : ["icu_folding", "snowball_german", "lowercase"],
+                    "char_filter": ["html_char_filter"]
+                }
+            },
+            "filter" : {
+                "snowball_german" : {
+                    "type" : "snowball",
+                    "language" : "German2"
+                }
+            },
+            "char_filter": {
+               "html_char_filter": {
+                  "type": "html_strip"
+               }
+            }
+        }
+    },
+
+    "mappings": {
+       "properties": {
+           "id": {
+               "type": "keyword"
+           },
+           "page": {
+              "type": "integer"
+           },
+           "full_text" : {
+              "type" : "text",
+              "index_options" : "offsets",
+              "term_vector" : "with_positions_offsets_payloads",
+              "analyzer" : "fulltext_analyzer"
+           }
+       }
+   }
+}
