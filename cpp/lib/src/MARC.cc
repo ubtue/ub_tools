@@ -572,6 +572,33 @@ void Record::merge(const Record &other) {
 }
 
 
+bool Record::isMonograph() const {
+    for (const auto &_935_field : getTagRange("935")) {
+        for (const auto subfield : _935_field.getSubfields()) {
+            if (subfield.code_ == 'c' and subfield.value_ == "so")
+                return false;
+        }
+    }
+
+    return leader_[7] == 'm';
+}
+
+
+bool Record::isArticle() const {
+    if (leader_[7] == 'm') {
+        for (const auto &_935_field : getTagRange("935")) {
+            for (const auto subfield : _935_field.getSubfields()) {
+                if (subfield.code_ == 'c' and subfield.value_ == "so")
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    return leader_[7] == 'a' or leader_[7] == 'b';
+}
+
+
 static const std::set<std::string> ELECTRONIC_CARRIER_TYPES{ "cb", "cd", "ce", "ca", "cf", "ch", "cr", "ck", "cz" };
 
 
@@ -885,6 +912,31 @@ std::string Record::getSummary() const {
     }
 
     return summary;
+}
+
+
+static inline bool ConsistsOfDigitsOnly(const std::string &s) {
+    for (const char ch : s) {
+        if (not StringUtil::IsDigit(ch))
+            return false;
+    }
+
+    return true;
+}
+
+
+std::string Record::getPublicationYear() const {
+    const auto _008_field(findTag("008"));
+    if (likely(_008_field != end())) {
+        const auto &field_contents(_008_field->getContents());
+        if (likely(field_contents.length() >= 12)) {
+            const std::string year_candidate(field_contents.substr(7, 4));
+            if (ConsistsOfDigitsOnly(year_candidate) and year_candidate != "9999")
+                return year_candidate;
+        }
+    }
+
+    return "";
 }
 
 
@@ -1702,18 +1754,18 @@ bool BinaryReader::seek(const off_t offset, const int whence) {
     } else { // Use memory-mapped I/O.
         switch (whence) {
         case SEEK_SET:
-            if (offset < 0 or static_cast<size_t>(offset) >= input_file_size_)
+            if (offset < 0 or static_cast<size_t>(offset) > input_file_size_)
                 return false;
             offset_ = offset;
             break;
         case SEEK_CUR:
             if (static_cast<ssize_t>(offset_) + offset < 0
-                or static_cast<ssize_t>(offset_) + offset >= static_cast<ssize_t>(input_file_size_))
+                or static_cast<ssize_t>(offset_) + offset > static_cast<ssize_t>(input_file_size_))
                 return false;
             offset_ += offset;
             break;
         case SEEK_END:
-            if (offset < 0 or static_cast<size_t>(offset) >= input_file_size_)
+            if (offset < 0 or static_cast<size_t>(offset) > input_file_size_)
                 return false;
             offset_ = input_file_size_ - offset;
             break;

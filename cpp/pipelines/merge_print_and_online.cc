@@ -185,15 +185,15 @@ void CollectRecordOffsetsAndCrosslinks(const bool debug,
     if (debug) {
         std::string map_filename("ppn_to_canonical_ppn.map");
         SerializeMap(map_filename, *ppn_to_canonical_ppn_map);
-        std::cerr << "Wrote the mapping from non-canonical PPN's to canonical PPN's to \"" + map_filename + "\"!";
+        LOG_INFO("Wrote the mapping from non-canonical PPN's to canonical PPN's to \"" + map_filename + "\"!");
 
         map_filename = "canonical_ppn_to_ppn.map";
         SerializeMultimap(map_filename, *canonical_ppn_to_ppn_map);
-        std::cerr << "Wrote the mapping from canonical PPN's to non-canonical PPN's to \"" + map_filename + "\"!";
+        LOG_INFO("Wrote the mapping from canonical PPN's to non-canonical PPN's to \"" + map_filename + "\"!");
 
         map_filename = "ppn_to_offset.map";
         SerializeMap(map_filename, *ppn_to_offset_map);
-        std::cerr << "Wrote the mapping from canonical PPN's to non-canonical PPN's to \"" + map_filename + "\"!";
+        LOG_INFO("Wrote the mapping from canonical PPN's to non-canonical PPN's to \"" + map_filename + "\"!");
     }
 
     LOG_INFO("Found " + std::to_string(record_count) + " record(s).");
@@ -253,11 +253,11 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
     if (debug) {
         std::string map_filename("ppn_to_canonical_ppn2.map");
         SerializeMap(map_filename, *ppn_to_canonical_ppn_map);
-        std::cerr << "Wrote the mapping from non-canonical PPN's to canonical PPN's to \"" + map_filename + "\"!";
+        LOG_INFO("Wrote the mapping from non-canonical PPN's to canonical PPN's to \"" + map_filename + "\"!");
 
         map_filename = "canonical_ppn_to_ppn2.map";
         SerializeMultimap(map_filename, *canonical_ppn_to_ppn_map);
-        std::cerr << "Wrote the mapping from canonical PPN's to non-canonical PPN's to \"" + map_filename + "\"!";
+        LOG_INFO("Wrote the mapping from canonical PPN's to non-canonical PPN's to \"" + map_filename + "\"!");
     }
 
     LOG_INFO("Dropped " + std::to_string(dropped_count) + " cross link(s) because at least one end was not a superior work or is missing.");
@@ -642,9 +642,9 @@ bool MergeFieldPairWithNonRepeatableFields(MARC::Record::Field * const merge_fie
 
 
 // Take the 008 field with the larger "Date 2".
-void MergeFieldPair008(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field) {
-    if (unlikely(merge_field->getTag() != "008"))
-        LOG_ERROR("008 field expected!");
+bool MergeFieldPair008(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field) {
+    if (merge_field->getTag() != "008" or import_field.getTag() != "008")
+        return false;
 
     const auto &merge_field_contents(merge_field->getContents());
     const auto import_field_contents(import_field.getContents());
@@ -657,8 +657,11 @@ void MergeFieldPair008(MARC::Record::Field * const merge_field, const MARC::Reco
 
     const auto merge_field_date2(merge_field_contents.substr(11, 4));
     const auto import_field_date2(import_field_contents.substr(11, 4));
+
     if (merge_field_date2 < import_field_date2)
         merge_field->setContents(import_field_contents);
+
+    return true;
 }
 
 
@@ -790,16 +793,15 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         //
 
         MARC::Record::Field merge_field(*merge_field_pos);
-        if (import_field.getTag() == "008") {
-            MergeFieldPair008(&merge_field, import_field);
+
+        if (MergeFieldPair008(&merge_field, import_field)) {
+            merge_field_pos->swap(merge_field);
             continue;
         }
 
         if (MergeFieldPairWithControlFields(&merge_field, import_field)) {
-            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
-                merge_record->erase(merge_field_pos);
-                merge_record->insertFieldAtEnd(merge_field);
-            }
+            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
+                merge_field_pos->swap(merge_field);
             continue;
          }
 
@@ -810,26 +812,21 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         MARC::Record::Field augmented_import_field("999");
         if (MergeFieldPair022(&merge_field, import_field, merge_record, *import_record, &augmented_import_field)) {
             if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
-                merge_record->erase(merge_field_pos);
-                merge_record->insertFieldAtEnd(merge_field);
+                merge_field_pos->swap(merge_field);
                 merge_record->insertFieldAtEnd(augmented_import_field);
             }
             continue;
         }
 
         if (MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)) {
-            if (GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
-                merge_record->erase(merge_field_pos);
-                merge_record->insertFieldAtEnd(merge_field);
-            }
+            if (GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
+                merge_field_pos->swap(merge_field);
             continue;
         }
 
         if (MergeFieldPair936(&merge_field, import_field)) {
-            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
-                merge_record->erase(merge_field_pos);
-                merge_record->insertFieldAtEnd(merge_field);
-            }
+            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
+                merge_field_pos->swap(merge_field);
             continue;
         }
 
@@ -841,9 +838,8 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
 
         // Handle Ordinary Repeatable Fields
         if (import_field_repeatable) {
-            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
+            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
                 merge_record->insertFieldAtEnd(import_field);
-            }
             continue;
         }
 

@@ -22,6 +22,8 @@
 #include <unordered_map>
 #include "FileUtil.h"
 #include "MARC.h"
+#include "TextUtil.h"
+#include "Unicode.h"
 
 
 namespace {
@@ -47,35 +49,9 @@ void CollectArticleCollectionPPNs(MARC::Reader * const reader,
 }
 
 
-inline bool ConsistsOfDigitsOnly(const std::string &s) {
-    for (const char ch : s) {
-        if (not StringUtil::IsDigit(ch))
-            return false;
-    }
-
-    return true;
-}
-
-
 std::string GetPublicationYear(const MARC::Record &record) {
-    const auto _008_field(record.findTag("008"));
-    if (likely(_008_field != record.end())) {
-        const auto &field_contents(_008_field->getContents());
-        if (likely(field_contents.length() >= 12)) {
-            const std::string year_candidate(field_contents.substr(7, 4));
-            if (ConsistsOfDigitsOnly(year_candidate) and year_candidate != "9999")
-                return year_candidate;
-        }
-    }
-
-    const auto _190_field(record.findTag("190"));
-    if (_190_field != record.end()) {
-        const std::string year_candidate(_190_field->getFirstSubfieldWithCode('j'));
-        if (not year_candidate.empty())
-            return year_candidate;
-    }
-
-    return "????";
+    const auto publication_year_candidate(record.getPublicationYear());
+    return publication_year_candidate.empty() ? "????" : publication_year_candidate;
 }
 
 
@@ -119,20 +95,22 @@ bool IsMonographOfInterest(const MARC::Record &record) {
 void MarkArticleCollections(MARC::Reader * const reader, File * const output,
                             const std::unordered_map<std::string, unsigned> &article_collection_ppns_and_counts)
 {
+    *output << Unicode::UTF8_BOM;
     unsigned count(0);
     while (MARC::Record record = reader->read()) {
         if (IsMonographOfInterest(record)) {
             const auto collection_ppn_and_article_count(article_collection_ppns_and_counts.find(record.getControlNumber()));
-            if (collection_ppn_and_article_count != article_collection_ppns_and_counts.cend()) {
-                ++count;
+            const unsigned article_count((collection_ppn_and_article_count != article_collection_ppns_and_counts.cend())
+                                         ? collection_ppn_and_article_count->second : 0);
 
-                const auto ssgns(record.getSSGNs());
-                if (ssgns.find("0") != ssgns.cend()) {
-                    const auto publication_year(GetPublicationYear(record));
-                    *output << record.getControlNumber() << ", " << ShortenTitle(record.getMainTitle(), 60) << ", "
-                            << (HasTOC(record) ? "Ja" : "Nein") << ", " << publication_year << ", "
-                            << collection_ppn_and_article_count->second << '\n';
-                }
+            const auto ssgns(record.getSSGNs());
+            if (ssgns.find("0") != ssgns.cend()) {
+                ++count;
+                const auto publication_year(GetPublicationYear(record));
+                *output << TextUtil::CSVEscape(record.getControlNumber()) << '\t'
+                        << TextUtil::CSVEscape(ShortenTitle(record.getMainTitle(), 60)) << '\t'
+                        << TextUtil::CSVEscape((HasTOC(record) ? "Ja" : "Nein")) << '\t'
+                        << publication_year << '\t' << article_count << '\n';
             }
         }
     }

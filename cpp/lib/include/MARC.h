@@ -373,6 +373,8 @@ public:
         void deleteAllSubfieldsWithCode(const char subfield_code);
 
         std::string getHash() const { return StringUtil::Sha1(toString()); }
+
+        inline void swap(Field &other) { tag_.swap(other.tag_); contents_.swap(other.contents_); }
     };
 
     enum class RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
@@ -503,9 +505,9 @@ public:
     inline size_t getNumberOfFields() const { return fields_.size(); }
     inline const std::string &getLeader() const { return leader_; }
     inline bool hasValidLeader() const { return leader_.length() == LEADER_LENGTH; }
-    inline bool isMonograph() const { return leader_[7] == 'm'; }
+    bool isMonograph() const;
     inline bool isSerial() const { return leader_[7] == 's'; }
-    inline bool isArticle() const { return leader_[7] == 'a' or leader_[7] == 'b'; }
+    bool isArticle() const;
     bool isWebsite() const;
     inline bool isReproduction() const { return getFirstField("534") != end(); }
     bool isElectronicResource() const;
@@ -537,6 +539,9 @@ public:
 
     /** \return A "summary" (could be an abstract etc.), if found, else the empty string. */
     std::string getSummary() const;
+
+    /** \return A guess at the publication year or the empty string if we could not find one. */
+    std::string getPublicationYear() const;
 
     /** \return All author names in fields 100$a and 700$a. */
     std::set<std::string> getAllAuthors() const;
