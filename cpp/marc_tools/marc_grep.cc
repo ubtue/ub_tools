@@ -229,103 +229,85 @@ bool EnqueueSubfields(const std::string &tag, const char subfield_code, const st
 }
 
 
-bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
-                         const std::unordered_multimap<std::string, const std::string> &field_to_content_map)
-{
+bool ProcessEqualityComp(const ConditionDescriptor &cond_desc, const MARC::Record &record) {
     const std::string comp_field_or_subfield(cond_desc.getFieldOrSubfieldReference());
-    const auto begin_end(field_to_content_map.equal_range(comp_field_or_subfield.substr(0, MARC::Record::TAG_LENGTH)));
     const std::string subfield_codes(comp_field_or_subfield.substr(MARC::Record::TAG_LENGTH));
     const ConditionDescriptor::CompType comp_type(cond_desc.getCompType());
     std::string err_msg;
-    bool matched_at_least_one(false);
-    for (auto field(begin_end.first); field != begin_end.second; ++field) {
-        const std::string &contents(field->second);
+
+    for (const auto &field : record.getTagRange(comp_field_or_subfield.substr(0, MARC::Record::TAG_LENGTH))) {
         if (subfield_codes.empty()) { // Compare against the entire field. (Does this even make sense?)
-            if (cond_desc.getDataMatcher().matched(contents, &err_msg)) {
-                matched_at_least_one = true;
-                break;
-            }
+            if (cond_desc.getDataMatcher().matched(field.getContents(), &err_msg))
+                return comp_type == ConditionDescriptor::EQUAL_EQUAL;
             if (unlikely(not err_msg.empty()))
-                LOG_ERROR("ProcessEqualityComp: match failed (" + err_msg + ")! (1)");
+                LOG_ERROR("match failed (" + err_msg + ")! (1)");
         } else  { // We need to match against a subfield's content.
-            const MARC::Subfields subfields(contents);
-            for (const auto &subfield : subfields) {
+            for (const auto &subfield : field.getSubfields()) {
                 if (subfield.code_ == subfield_codes[0]) {
-                    if (cond_desc.getDataMatcher().matched(subfield.value_, &err_msg)) {
-                        matched_at_least_one = true;
-                        break;
-                    } else if (unlikely(not err_msg.empty()))
-                        LOG_ERROR("ProcessEqualityComp: match failed (" + err_msg + ")! (1)");
+                    if (cond_desc.getDataMatcher().matched(subfield.value_, &err_msg))
+                        return comp_type == ConditionDescriptor::EQUAL_EQUAL;
+                    else if (unlikely(not err_msg.empty()))
+                        LOG_ERROR("match failed (" + err_msg + ")! (1)");
                 }
             }
         }
     }
 
-    return (comp_type == ConditionDescriptor::EQUAL_EQUAL) ? matched_at_least_one : not matched_at_least_one;
+    return comp_type != ConditionDescriptor::EQUAL_EQUAL;
 }
 
 
-bool ProcessExistenceTest(const ConditionDescriptor &cond_desc,
-                          const std::unordered_multimap<std::string, const std::string> &field_to_content_map)
-{
+bool ProcessExistenceTest(const ConditionDescriptor &cond_desc, const MARC::Record &record) {
     const std::string test_field_or_subfield(cond_desc.getFieldOrSubfieldReference());
     const ConditionDescriptor::CompType comp_type(cond_desc.getCompType());
-    const auto begin_end(field_to_content_map.equal_range(test_field_or_subfield.substr(0, MARC::Record::TAG_LENGTH)));
-    if (begin_end.first == begin_end.second)
+    const auto tag(test_field_or_subfield.substr(0, MARC::Record::TAG_LENGTH));
+    if (not record.hasTag(tag))
         return comp_type == ConditionDescriptor::IS_MISSING;
     const std::string subfield_codes(test_field_or_subfield.substr(MARC::Record::TAG_LENGTH));
     if (subfield_codes.empty())
         return comp_type == ConditionDescriptor::EXISTS;
 
-    bool found_at_least_one(false);
-    for (auto field(begin_end.first); field != begin_end.second; ++field) {
-        const std::string &contents(field->second);
-        const MARC::Subfields subfields(contents);
-        if (subfields.hasSubfield(subfield_codes[0])) {
-            found_at_least_one = true;
-            break;
-        }
+    for (const auto &field : record.getTagRange(tag)) {
+        if (field.hasSubfield(subfield_codes[0]))
+            return comp_type == ConditionDescriptor::EXISTS;
     }
 
-    return (comp_type == ConditionDescriptor::EXISTS) ? found_at_least_one : not found_at_least_one;
+    return comp_type != ConditionDescriptor::EXISTS;
 }
 
 
-bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfieldDescriptor &field_or_subfield_desc,
-                       const std::unordered_multimap<std::string, const std::string> &field_to_content_map,
-                       std::priority_queue<TagAndContents> * const tags_and_contents)
+bool ProcessConditions(const OutputLabel output_format, const ConditionDescriptor &cond_desc,
+                       const FieldOrSubfieldDescriptor &field_or_subfield_desc,
+                       const MARC::Record &record, std::priority_queue<TagAndContents> * const tags_and_contents)
 {
     const std::string extraction_tag(field_or_subfield_desc.getTag());
-    const auto begin_end(field_to_content_map.equal_range(extraction_tag));
-    const bool extraction_tag_found(begin_end.first != begin_end.second or field_or_subfield_desc.isStar());
-    if (not extraction_tag_found)
+    if (not record.hasTag(extraction_tag))
         return false;
 
     const ConditionDescriptor::CompType comp_type(cond_desc.getCompType());
     if (comp_type == ConditionDescriptor::NO_COMPARISION
         or ((comp_type == ConditionDescriptor::EQUAL_EQUAL or comp_type == ConditionDescriptor::NOT_EQUAL)
-            and ProcessEqualityComp(cond_desc, field_to_content_map))
+            and ProcessEqualityComp(cond_desc, record))
         or ((comp_type == ConditionDescriptor::EXISTS or comp_type == ConditionDescriptor::IS_MISSING)
-            and ProcessExistenceTest(cond_desc, field_to_content_map)))
+            and ProcessExistenceTest(cond_desc, record)))
     {
         if (field_or_subfield_desc.isStar()) {
-            for (const auto &tag_and_content : field_to_content_map)
-                tags_and_contents->push(TagAndContents(tag_and_content.first, tag_and_content.second));
+            if (output_format != MARC_BINARY and output_format != MARC_XML) {
+                for (const auto &field : record)
+                    tags_and_contents->push(TagAndContents(field.getTag().toString(), field.getContents()));
+            }
             return true;
         }
 
         const std::string subfield_codes(field_or_subfield_desc.getSubfieldCodes());
         bool emitted_at_least_one(false);
-        for (auto tag_and_field_contents(begin_end.first); tag_and_field_contents != begin_end.second;
-             ++tag_and_field_contents)
-        {
+        for (const auto &field : record.getTagRange(extraction_tag)) {
             if (subfield_codes.empty()) {
-                tags_and_contents->push(TagAndContents(extraction_tag, tag_and_field_contents->second));
+                tags_and_contents->push(TagAndContents(extraction_tag, field.getContents()));
                 emitted_at_least_one = true;
             } else { // Looking for one or more subfields:
                 for (const auto &subfield_code : subfield_codes) {
-                    if (EnqueueSubfields(extraction_tag, subfield_code, tag_and_field_contents->second,
-                                         tags_and_contents))
+                    if (EnqueueSubfields(extraction_tag, subfield_code, field.getContents(), tags_and_contents))
                         emitted_at_least_one = true;
                 }
             }
@@ -334,25 +316,24 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
         return emitted_at_least_one;
     } else if (comp_type == ConditionDescriptor::SINGLE_FIELD_EQUAL or comp_type == ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL) {
         if (field_or_subfield_desc.isStar()) {
-            for (const auto &tag_and_content : field_to_content_map)
-                tags_and_contents->push(TagAndContents(tag_and_content.first, tag_and_content.second));
+            if (output_format != MARC_BINARY and output_format != MARC_XML) {
+                for (const auto &field : record)
+                    tags_and_contents->push(TagAndContents(field.getTag().toString(), field.getContents()));
+            }
             return true;
         }
 
         bool emitted_at_least_one(false);
         const char test_subfield_code(cond_desc.getFieldOrSubfieldReference()[MARC::Record::TAG_LENGTH]);
         const char extract_subfield_code(field_or_subfield_desc.getSubfieldCodes()[0]);
-        for (auto tag_and_field_contents(begin_end.first); tag_and_field_contents != begin_end.second;
-             ++tag_and_field_contents)
-        {
-            const MARC::Subfields subfields(tag_and_field_contents->second);
+        for (const auto &field : record.getTagRange(extraction_tag)) {
+            const MARC::Subfields subfields(field.getSubfields());
             if (not subfields.hasSubfield(extract_subfield_code))
                 continue;
 
             if (not subfields.hasSubfield(test_subfield_code)) {
                 if (comp_type == ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL) {
-                    if (EnqueueSubfields(extraction_tag, extract_subfield_code, tag_and_field_contents->second,
-                                         tags_and_contents))
+                    if (EnqueueSubfields(extraction_tag, extract_subfield_code, field.getContents(), tags_and_contents))
                         emitted_at_least_one = true;
                 } else
                     return false;
@@ -365,15 +346,14 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
                             matched_at_least_one = true;
                             break;
                         } else if (unlikely(not err_msg.empty()))
-                            LOG_ERROR("Unexpected: Match failed in ProcessConditions!");
+                            LOG_ERROR("Unexpected: match failed!");
                     }
                 }
 
                 if ((matched_at_least_one and comp_type == ConditionDescriptor::SINGLE_FIELD_EQUAL)
                     or (not matched_at_least_one and comp_type == ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL))
                 {
-                    if (EnqueueSubfields(extraction_tag, extract_subfield_code, tag_and_field_contents->second,
-                                         tags_and_contents))
+                    if (EnqueueSubfields(extraction_tag, extract_subfield_code, field.getContents(), tags_and_contents))
                         emitted_at_least_one = true;
                 }
             }
@@ -415,18 +395,18 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
                 continue;
         }
 
-        std::unordered_multimap<std::string, const std::string> field_to_content_map;
-        for (const auto &field : record)
-            field_to_content_map.insert(std::make_pair(field.getTag().toString(), field.getContents()));
-
         bool matched(false);
         std::priority_queue<TagAndContents> tags_and_contents;
 
         // Extract fields and subfields:
         for (const auto &cond_and_field_or_subfield : query_desc.getCondsAndFieldOrSubfieldDescs()) {
-            if (ProcessConditions(cond_and_field_or_subfield.first, cond_and_field_or_subfield.second,
-                                  field_to_content_map, &tags_and_contents))
+            if (ProcessConditions(output_format, cond_and_field_or_subfield.first, cond_and_field_or_subfield.second, record,
+                                  &tags_and_contents))
+            {
                 matched = true;
+                if (output_format == MARC_BINARY or output_format == MARC_XML)
+                    break;
+            }
         }
 
         if (matched) {
@@ -436,10 +416,9 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
                 marc_writer->write(record);
             else {
                 // Determine the control number:
-                const auto &control_number_iter(field_to_content_map.find("001"));
-                if (unlikely(control_number_iter == field_to_content_map.end()))
-                    logger->error("In FieldGrep: record has no control number!");
-                const std::string control_number(control_number_iter->second);
+                const auto control_number(record.getControlNumber());
+                if (unlikely(control_number.empty()))
+                    LOG_ERROR("record has no control number!");
 
                 Emit(control_number, output_format, &tags_and_contents);
             }
