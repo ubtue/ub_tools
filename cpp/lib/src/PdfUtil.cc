@@ -26,6 +26,7 @@
 #include "StringUtil.h"
 #include "util.h"
 
+
 namespace PdfUtil {
 
 
@@ -221,6 +222,46 @@ bool ExtractPDFInfo(const std::string &pdf_document, std::string * const pdf_out
     std::string pdfinfo_output;
     if (unlikely(not FileUtil::ReadString(pdfinfo_output_filename, pdf_output)))
         LOG_ERROR("Unable to extract pdfinfo output");
+
+    return true;
+}
+
+
+bool ExtractHTMLAsPages(const std::string &pdf_document, std::string * const output_location) {
+    static std::string pdftohtml_path;
+    if (pdftohtml_path.empty())
+        pdftohtml_path = ExecUtil::LocateOrDie("pdftohtml");
+
+    static const FileUtil::AutoTempDirectory auto_temp_dir("/tmp/ADT", true);
+    const std::string &output_dirname(auto_temp_dir.getDirectoryPath());
+
+    std::vector<std::string> pdftohtml_params { "-i" /* ignore images */,
+                                                "-c" /* generate complex output */,
+                                                "-hidden" /* force hidden text extraction */,
+                                                "-fontfullname" /* outputs the font name without any substitutions */
+                                              };
+    const std::string pdf_temp_link(output_dirname + '/' + FileUtil::GetBasename(pdf_document));
+    FileUtil::CreateSymlink(pdf_document, pdf_temp_link);
+    pdftohtml_params.emplace_back(pdf_temp_link);
+    ExecUtil::ExecOrDie(pdftohtml_path, pdftohtml_params, "" /* stdin */, "" /* stdout */, "" /* stderr */, 0 /* timeout */,
+                        SIGKILL, std::unordered_map<std::string, std::string>() /* env */, output_dirname /* working dir */);
+    *output_location = output_dirname;
+
+    // Clean up HTML
+    static std::string tidy_path;
+    if (tidy_path.empty())
+        tidy_path = ExecUtil::LocateOrDie("tidy");
+
+    FileUtil::Directory html_pages(output_dirname, ".*\\.html$");
+    for (const auto &html_page : html_pages) {
+        const std::vector<std::string> tidy_params({ "-modify" /* write back to original file */, "-quiet", html_page.getName() });
+        // return code 1 means there were only warnings
+        const int tidy_retval(ExecUtil::Exec(tidy_path, tidy_params,  "" /* stdin */, "" /* stdout */, "" /* stderr */, 0 /* timeout */,
+                        SIGKILL, std::unordered_map<std::string, std::string>() /* env */, output_dirname /* working dir */));
+        if (tidy_retval != 0 and tidy_retval != 1)
+            LOG_ERROR("Error while cleaning up " + html_page.getName());
+
+    }
 
     return true;
 }
