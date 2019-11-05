@@ -97,7 +97,7 @@ void CollectStats(
     unsigned total_item_count(0);
     for (;;) {
         std::string json_result, err_msg;
-        if (unlikely(not Solr::Query("topic_de:*", "topic_de", 0, CHUNK_SIZE, &json_result, &err_msg,
+        if (unlikely(not Solr::Query("topic_de:*", "topic_de", total_item_count, CHUNK_SIZE, &json_result, &err_msg,
                                      solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
             LOG_ERROR("Solr query failed or timed-out: " + err_msg);
 
