@@ -8,8 +8,7 @@ STATIC_TEMP= $(addprefix $(STATIC_OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
 OBJS       = $(TEMP:.cc=.o)
 STATIC_OBJS= $(STATIC_TEMP:.cc=_static.o)
 CCC        ?= clang++
-CCCFLAGS   = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow \
-             -march=$(shell gcc -march=broadwell -Q --help=target | grep -- '-mtune=' | cut -f3) -ftrapv \
+CCCFLAGS   = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -ftrapv \
              -Ilibstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
              -DETC_DIR='"/usr/local/var/lib/tuelib"'
 
