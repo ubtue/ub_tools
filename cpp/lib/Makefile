@@ -13,7 +13,7 @@ CCCFLAGS   = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native 
              -DETC_DIR='"/usr/local/var/lib/tuelib"'
 
 ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
-  CCCFLAGS += -O3
+  CCCFLAGS += -O3 -funroll-loops -fomit-frame-pointer
   OPTIMISATIONS_STATE =
 else
   CCCFLAGS += -fsanitize=address
