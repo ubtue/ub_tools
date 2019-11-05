@@ -231,7 +231,7 @@ void FullTextCache::extractAndImportHTMLPages(const std::string &id, const std::
    std::string html_export_directory;
    PdfUtil::ExtractHTMLAsPages(full_text_location, &html_export_directory);
    FileUtil::Directory html_pages(html_export_directory, ".*-\\d+\\.html");
-   for (const auto html_page : html_pages) {
+   for (const auto &html_page : html_pages) {
        static const auto page_number_matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*-(\\d+)\\.html$"));
        const std::string page_file_name(html_export_directory + '/' + html_page.getName());
        if (not page_number_matcher->matched(page_file_name))

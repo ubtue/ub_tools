@@ -28,7 +28,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
-#include <ftw.h>
 #include <linux/limits.h>
 #ifdef HAS_SELINUX_HEADERS
 #   include <selinux/selinux.h>
