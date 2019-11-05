@@ -93,6 +93,16 @@ void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::s
 }
 
 
+void SerialiseMap(const std::string &output_filename, const std::unordered_map<std::string, std::string> &map) {
+    std::ofstream output(output_filename, std::ofstream::out | std::ofstream::trunc);
+    if (output.fail())
+        LOG_ERROR("Failed to open \"" + output_filename + "\" for writing!");
+
+    for (const auto &key_and_value : map)
+        output << Escape(key_and_value.first) << '=' << Escape(key_and_value.second) << '\n';
+}
+
+
 void SerialiseMap(const std::string &output_filename, const std::unordered_multimap<std::string, std::string> &multimap) {
     std::ofstream output(output_filename, std::ofstream::out | std::ofstream::trunc);
     if (output.fail())
