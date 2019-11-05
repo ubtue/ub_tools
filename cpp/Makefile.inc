@@ -1,13 +1,14 @@
 INC            = $(LIB)/include
 LIB_SRCS       = $(LIB)/src
 CCC            ?= clang++
-CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -ftrapv \
+CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow \
+                 -march=$(shell gcc -march=broadwell -Q --help=target | grep -- '-mtune=' | cut -f3) -ftrapv \
                  -I$(LIB)/libstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
                  -DETC_DIR='"/usr/local/var/lib/tuelib"'
 
 ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
   LD_FLAGS =
-  CCCFLAGS += -O3
+  CCCFLAGS += -Ofast -funroll-loops -fomit-frame-pointer
   OPTIMISATIONS_STATE =
 else
   LD_FLAGS = -fsanitize=address
