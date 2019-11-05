@@ -93,6 +93,7 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
             break;
         case 7:
             full_text_data->text_type_ = line;
+            break;
         default:
             full_text_data->full_text_ += line + "\n";
         }
