@@ -232,8 +232,8 @@ bool ExtractHTMLAsPages(const std::string &pdf_document, std::string * const out
         pdftohtml_path = ExecUtil::LocateOrDie("pdftohtml");
 
 
-    static const FileUtil::AutoTempDir auto_temp_dir("/tmp/ADT", true);
-    const std::string &output_dirname(auto_temp_dir.getDirPath());
+    static const FileUtil::AutoTempDirectory auto_temp_dir("/tmp/ADT", true);
+    const std::string &output_dirname(auto_temp_dir.getDirectoryPath());
 
 
     std::vector<std::string> pdftohtml_params { "-i" /* ignore images */,

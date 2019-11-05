@@ -189,17 +189,27 @@ public:
     const std::string &getFilePath() const { return path_; }
 };
 
-/** \class AutoTempDir
- *  \brief Creates a temp file and removes it when going out of scope.
+
+/** \class AutoTempDirectory
+ *  \brief Creates a temp directory and removes it when going out of scope.
  */
-class AutoTempDir {
+class AutoTempDirectory {
     std::string path_;
-    bool automatically_remove_;
+    bool cleanup_if_exception_is_active_;
+    bool remove_when_out_of_scope_;
 public:
-    explicit AutoTempDir(const std::string &path_prefix = "/tmp/ATD", bool automatically_remove = true);
-    ~AutoTempDir();
-    const std::string &getDirPath() const { return path_; }
+    explicit AutoTempDirectory(const std::string &path_prefix = "/tmp/ATD",
+                               const bool cleanup_if_exception_is_active = true,
+                               const bool remove_when_out_of_scope = true);
+    AutoTempDirectory(const AutoTempDirectory &rhs) = delete;
+    ~AutoTempDirectory();
+
+    const std::string &getDirectoryPath() const { return path_; }
 };
+
+
+
+
 
 
 bool WriteString(const std::string &path, const std::string &data);
@@ -329,24 +339,6 @@ void MakeDirectoryOrDie(const std::string &path, const bool recursive = false, c
  *          for the failure.
  */
 bool RemoveDirectory(const std::string &dir_name);
-
-
-/** \class AutoTempDirectory
- *  \brief Creates a temp directory and removes it when going out of scope.
- */
-class AutoTempDirectory {
-    std::string path_;
-    bool cleanup_if_exception_is_active_;
-    bool remove_when_out_of_scope_;
-public:
-    explicit AutoTempDirectory(const std::string &path_prefix = "/tmp/ATD",
-                               const bool cleanup_if_exception_is_active = true,
-                               const bool remove_when_out_of_scope = true);
-    AutoTempDirectory(const AutoTempDirectory &rhs) = delete;
-    ~AutoTempDirectory();
-
-    const std::string &getDirectoryPath() const { return path_; }
-};
 
 
 /** \brief Removes files and possibly directories matching a regular expression pattern.
