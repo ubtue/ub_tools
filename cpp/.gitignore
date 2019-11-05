@@ -91,6 +91,7 @@
 /full_text_stats
 /generate_issn_maps_from_zeder
 /generate_issn_to_misc_bits_map
+/generate_keyword_normalizations
 /generate_language_model
 /generate_large_marc_record
 /generate_library_dependency_graph
