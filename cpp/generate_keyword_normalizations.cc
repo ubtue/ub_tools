@@ -25,7 +25,6 @@
 #include <vector>
 #include "FileUtil.h"
 #include "JSON.h"
-#include "MapUtil.h"
 #include "Solr.h"
 #include "TextUtil.h"
 #include "util.h"
@@ -114,8 +113,8 @@ void CollectStats(
 
 
 void GenerateCanonizationMap(
-    const std::unordered_map<std::string, std::vector<CapitalizationAndCount>> &lowercase_form_to_capitalizations_and_counts_map,
-    std::unordered_map<std::string, std::string> * const canonization_map)
+    File * const output,
+    const std::unordered_map<std::string, std::vector<CapitalizationAndCount>> &lowercase_form_to_capitalizations_and_counts_map)
 {
     for (const auto &lowercase_form_and_capitalizations : lowercase_form_to_capitalizations_and_counts_map) {
         const auto &capitalizations(lowercase_form_and_capitalizations.second);
@@ -131,11 +130,17 @@ void GenerateCanonizationMap(
             }
         }
 
-        const auto &canonical_capitalization(capitalizations[max_index].capitalization_);
+        std::string non_canonical_forms;
         for (unsigned i(0); i < capitalizations.size(); ++i) {
-            if (i != max_index)
-                canonization_map->emplace(capitalizations[i].capitalization_, canonical_capitalization);
+            if (i == max_index)
+                continue;
+
+            if (not non_canonical_forms.empty())
+                non_canonical_forms += '|';
+            non_canonical_forms += capitalizations[i].capitalization_;
         }
+
+        *output << non_canonical_forms << "->" << capitalizations[max_index].capitalization_ << '\n';
     }
 }
 
@@ -151,14 +156,11 @@ int Main(int argc, char **argv) {
 
     const std::string SOLR_HOST_AND_PORT(argv[1]);
     const std::string OUTPUT_FILENAME(argv[2]);
+    const auto output(FileUtil::OpenOutputFileOrDie(OUTPUT_FILENAME));
 
     std::unordered_map<std::string, std::vector<CapitalizationAndCount>> lowercase_form_to_capitalizations_and_counts_map;
     CollectStats(SOLR_HOST_AND_PORT, &lowercase_form_to_capitalizations_and_counts_map);
-
-    std::unordered_map<std::string, std::string> canonization_map;
-    GenerateCanonizationMap(lowercase_form_to_capitalizations_and_counts_map, &canonization_map);
-
-    MapUtil::SerialiseMap(OUTPUT_FILENAME, canonization_map);
+    GenerateCanonizationMap(output.get(), lowercase_form_to_capitalizations_and_counts_map);
 
     return EXIT_SUCCESS;
 }
