@@ -66,7 +66,7 @@ public:
 // Line 6: <isbn>
 // Line 7: <text_type>
 // Line 8: <full_text_location>
-// Line 9: <full_text>
+// Lines 9ff: <full_text>
 void WriteExtractedTextToDisk(const std::string &full_text, const std::string &title,
                               const std::set<std::string> &authors, const std::string &year, const std::string &doi,
                               const std::string &issn, const std::string &isbn, const std::string &text_type,
