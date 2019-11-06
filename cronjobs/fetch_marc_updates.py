@@ -352,11 +352,9 @@ def Main():
         downloaded_at_least_one_file_relevant_for_merging = True
     if DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg):
         downloaded_at_least_one_file_relevant_for_merging = True
-    if DownloadData(config, "Loeschlisten", ftp, download_cutoff_date, msg):
-        downloaded_at_least_one_file_relevant_for_merging = True
+    DownloadData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     if config.has_section("Loeschlisten2"):
-        if DownloadData(config, "Loeschlisten2", ftp, download_cutoff_date, msg):
-            downloaded_at_least_one_file_relevant_for_merging = True
+        DownloadData(config, "Loeschlisten2", ftp, download_cutoff_date, msg)
     if config.has_section("Hinweisabzug"):
         if DownloadData(config, "Hinweisabzug", ftp, "000000", msg):
             downloaded_at_least_one_file_relevant_for_merging = True
