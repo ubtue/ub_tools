@@ -346,9 +346,12 @@ def Main():
 
     download_cutoff_date = IncrementStringDate(GetCutoffDateForDownloads(config))
     complete_data_filenames = DownloadCompleteData(config, ftp, download_cutoff_date, msg)
+    downloaded_at_least_some_new_titles = False
     if complete_data_filenames is not None:
         download_cutoff_date = ExtractDateFromFilename(complete_data_filenames[0])
-    DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
+        downloaded_at_least_some_new_titles = True
+    if DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg):
+        downloaded_at_least_some_new_titles = True
     DownloadData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     if config.has_section("Loeschlisten2"):
         DownloadData(config, "Loeschlisten2", ftp, download_cutoff_date, msg)
@@ -363,6 +366,8 @@ def Main():
        else:
            msg.append("Skipping Download of \"Normdatendifferenzabzug\" since already present\n")
     CleanUpCumulativeCollection(config)
+    if downloaded_at_least_some_new_titles:
+        util.Touch("/tmp/bsz_download_happened") # Must be the same path as in the merge script!
     util.SendEmail("BSZ File Update", ''.join(msg), priority=5)
 
 
