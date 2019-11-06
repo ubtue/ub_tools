@@ -100,14 +100,12 @@ StartPhase "Swap and Delete PPN's in Various Databases"
 EndPhase || Abort) &
 
 
-StartPhase "Drop Records Containing mtex in 935" \
-           "\n\tFilter out Self-referential 856 Fields" \
+StartPhase "Filter out Self-referential 856 Fields" \
            "\n\tRemove Sorting Chars From Title Subfields" \
            "\n\tRemove blmsh Subject Heading Terms" \
            "\n\tFix Local Keyword Capitalisations"
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-    --drop 935a:mtex \
     --remove-fields '856u:ixtheo\.de' \
     --remove-fields 'LOK:086630(.*)\x{1F}x' `# Remove internal bibliographic comments`  \
     --filter-chars 130a:240a:245a '@' \
