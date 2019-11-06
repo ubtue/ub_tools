@@ -4,7 +4,7 @@
             "analyzer" : {
                 "fulltext_analyzer" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : ["icu_folding", "snowball_german", "lowercase"],
+                    "filter" : ["icu_folding", "snowball_german", "lowercase", "synonym_graph" ],
                     "char_filter": ["html_char_filter"]
                 }
             },
@@ -12,6 +12,10 @@
                 "snowball_german" : {
                     "type" : "snowball",
                     "language" : "German2"
+                },
+                "synonym_graph" : {
+                    "type" : "synonym_graph",
+                    "synonyms_path" : "synonyms.txt"
                 }
             },
             "char_filter": {
