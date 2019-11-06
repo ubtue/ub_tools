@@ -346,29 +346,27 @@ def Main():
 
     download_cutoff_date = IncrementStringDate(GetCutoffDateForDownloads(config))
     complete_data_filenames = DownloadCompleteData(config, ftp, download_cutoff_date, msg)
-    downloaded_at_least_one_file_relevant_for_merging = False
+    downloaded_at_least_some_new_titles = False
     if complete_data_filenames is not None:
         download_cutoff_date = ExtractDateFromFilename(complete_data_filenames[0])
-        downloaded_at_least_one_file_relevant_for_merging = True
+        downloaded_at_least_some_new_titles = True
     if DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg):
-        downloaded_at_least_one_file_relevant_for_merging = True
+        downloaded_at_least_some_new_titles = True
     DownloadData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     if config.has_section("Loeschlisten2"):
         DownloadData(config, "Loeschlisten2", ftp, download_cutoff_date, msg)
     if config.has_section("Hinweisabzug"):
-        if DownloadData(config, "Hinweisabzug", ftp, "000000", msg):
-            downloaded_at_least_one_file_relevant_for_merging = True
+        DownloadData(config, "Hinweisabzug", ftp, "000000", msg)
     if config.has_section("Errors"):
         DownloadData(config, "Errors", ftp, download_cutoff_date, msg)
     incremental_authority_cutoff_date =  ShiftDateToTenDaysBefore(download_cutoff_date)
     if config.has_section("Normdatendifferenzabzug"):
        if (not CurrentIncrementalAuthorityDumpPresent(config, incremental_authority_cutoff_date)):
-           if DownloadData(config, "Normdatendifferenzabzug", ftp, incremental_authority_cutoff_date, msg):
-               downloaded_at_least_one_file_relevant_for_merging = True
+           DownloadData(config, "Normdatendifferenzabzug", ftp, incremental_authority_cutoff_date, msg)
        else:
            msg.append("Skipping Download of \"Normdatendifferenzabzug\" since already present\n")
     CleanUpCumulativeCollection(config)
-    if downloaded_at_least_one_file_relevant_for_merging:
+    if downloaded_at_least_some_new_titles:
         util.Touch("/tmp/bsz_download_happened") # Must be the same path as in the merge script!
     util.SendEmail("BSZ File Update", ''.join(msg), priority=5)
 
