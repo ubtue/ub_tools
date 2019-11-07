@@ -10,7 +10,7 @@ OUTPUT_FILE="synonyms.txt"
 #Make sure "join" and "sort" have the same idea of sorted
 
 # Generate a merged file form the extracted translation files
-for translation_file in $normdata_translations_*.txt
+for translation_file in normdata_translations_*.txt
 do
      join -t '|' -j 1 -a 1 -a 2  --nocheck-order <(sort ${STAGE_FILE})  <(sort ${translation_file}) > ${STAGE_TMP_FILE}
      mv ${STAGE_TMP_FILE} ${STAGE_FILE}
