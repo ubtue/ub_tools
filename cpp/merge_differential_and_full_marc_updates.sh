@@ -56,7 +56,7 @@ email_address=$1
 MUTEX_FILE=/tmp/bsz_download_happened # Must be the same path as in fetch_marc_updates.py!
 if [ ! -e $MUTEX_FILE ]; then
     send_email --recipients="$email_address" --subject="Mutex file not found on $(hostname)" \
-               --message-body="$MUTEX_FILE is missing => new data was probably not downloaded!"
+               --message-body="$MUTEX_FILE"' is missing => new data was probably not downloaded!'
     exit 0
 fi
 
