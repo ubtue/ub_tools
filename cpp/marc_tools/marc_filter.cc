@@ -802,11 +802,37 @@ unsigned TestAndConvertCount(char ***argvp) {
 }
 
 
+// Sort "subfield_specs" by increasing tag and coalesce specs with the same tag.
+void NormalizeSubfieldSpecs(std::vector<std::string> * const subfield_specs) {
+    std::sort(subfield_specs->begin(), subfield_specs->end());
+
+    std::vector<std::string> coalesced_specs;
+    coalesced_specs.reserve(subfield_specs->size());
+
+    std::string current_tag;
+
+    for (const auto &subfield_spec : *subfield_specs) {
+        const std::string tag(subfield_spec.substr(0, MARC::Record::TAG_LENGTH));
+        if (tag != current_tag)
+            coalesced_specs.emplace_back(subfield_spec);
+        else {
+            for (const char subfield_code : subfield_spec.substr(MARC::Record::TAG_LENGTH)) {
+                if (std::strchr(coalesced_specs.back().c_str() + MARC::Record::TAG_LENGTH, subfield_code) == nullptr)
+                    coalesced_specs.back() += subfield_code;
+            }
+        }
+    }
+
+    coalesced_specs.swap(*subfield_specs);
+}
+
+
 void ExtractSubfieldSpecs(const std::string &command, char ***argvp, std::vector<std::string> * const subfield_specs) {
     ++*argvp;
     StringUtil::Split(std::string(**argvp), ':', subfield_specs, /* suppress_empty_components = */true);
     if (not ArePlausibleSubfieldSpecs(*subfield_specs))
         LOG_ERROR("bad subfield specifications \"" + std::string(**argvp) + "\" for " + command + "!");
+    NormalizeSubfieldSpecs(subfield_specs);
     ++*argvp;
 }
 
