@@ -23,7 +23,38 @@
 #include "util.h"
 
 
-bool RegexMatcher::utf8_configured_;
+static bool CheckPCREUTF8Compatibility() {
+    int utf8_available;
+    if (::pcre_config(PCRE_CONFIG_UTF8, reinterpret_cast<void *>(&utf8_available)) == PCRE_ERROR_BADOPTION
+        or utf8_available != 1)
+    {
+        LOG_ERROR("This version of the PCRE library does not support UTF8!");
+    }
+
+    return true;
+}
+
+
+static const bool dummy_variable(CheckPCREUTF8Compatibility());
+
+
+ThreadSafeRegexMatcher::MatchResult::MatchResult(const std::string &subject)
+ : subject_(subject), matched_(false), match_count_(0)
+{
+    substr_indices_.resize(ThreadSafeRegexMatcher::MAX_SUBSTRING_MATCHES * 3);
+}
+
+
+std::string ThreadSafeRegexMatcher::MatchResult::operator[](const unsigned group) const {
+    if (unlikely(group >= match_count_)) {
+        throw std::out_of_range("in ThreadSafeRegexMatcher::MatchResult::operator[]: group("
+                                + std::to_string(group) + ") >= " + std::to_string(match_count_) + "!");
+    }
+
+    const unsigned first_index(group * 2);
+    const unsigned substring_length(substr_indices_[first_index + 1] - substr_indices_[first_index]);
+    return (substring_length == 0) ? "" : subject_.substr(substr_indices_[first_index], substring_length);
+}
 
 
 bool CompileRegex(const std::string &pattern, const unsigned options, ::pcre **pcre_arg,
@@ -64,6 +95,83 @@ bool CompileRegex(const std::string &pattern, const unsigned options, ::pcre **p
 
     return true;
 }
+
+
+ThreadSafeRegexMatcher::ThreadSafeRegexMatcher(const std::string &pattern, const unsigned options)
+ : pattern_(pattern), options_(options), pcre_data_(new PcreData)
+{
+    std::string err_msg;
+    if (not CompileRegex(pattern_, options_, &pcre_data_->pcre_, &pcre_data_->pcre_extra_, &err_msg)) {
+        if (err_msg.empty())
+            LOG_ERROR("failed to compile pattern: \"" + pattern + "\"" + (err_msg.empty() ? "" : ": " + err_msg));
+    }
+}
+
+
+ThreadSafeRegexMatcher::MatchResult ThreadSafeRegexMatcher::match(
+    const std::string &subject, const size_t subject_start_offset, size_t * const start_pos,
+    size_t * const end_pos) const
+{
+    MatchResult match_result(subject);
+    const int retcode(::pcre_exec(pcre_data_->pcre_, pcre_data_->pcre_extra_, subject.data(), subject.length(),
+                      subject_start_offset, 0, &match_result.substr_indices_[0], match_result.substr_indices_.size()));
+
+    if (retcode == 0) {
+        LOG_ERROR("Too many captured substrings! (We only support " + std::to_string(match_result.substr_indices_.size() / 3 - 1)
+                  + " substrings.)");
+    }
+
+    if (retcode > 0) {
+        match_result.match_count_ = retcode;
+        match_result.matched_ = true;
+        if (start_pos != nullptr)
+            *start_pos = match_result.substr_indices_[0];
+        if (end_pos != nullptr)
+            *end_pos = match_result.substr_indices_[1];
+    }
+
+    if (retcode != PCRE_ERROR_NOMATCH) {
+        if (retcode == PCRE_ERROR_BADUTF8)
+            LOG_ERROR("A \"subject\" with invalid UTF-8 was passed into ThreadSafeRegexMatcher::match()! subject: " + subject);
+        else
+            LOG_ERROR("Unknown PCRE error for subject '" + subject + "' and pattern '" + pattern_ + "'");
+    }
+
+    return match_result;
+}
+
+
+std::string ThreadSafeRegexMatcher::replaceAll(const std::string &subject, const std::string &replacement) const {
+    auto match_result(match(subject));
+    if (not match_result)
+        return subject;
+
+    std::string replaced_string;
+    // the matches need to be sequentially sorted from left to right
+    size_t subject_start_offset(0), match_start_offset(0), match_end_offset(0);
+    while (subject_start_offset < subject.length()) {
+        match_result = match(subject, subject_start_offset, &match_start_offset, &match_end_offset);
+        if (not match_result)
+            break;
+
+        if (subject_start_offset == match_start_offset and subject_start_offset == match_end_offset) {
+            replaced_string += subject[subject_start_offset++];
+            continue;
+        }
+
+        replaced_string += subject.substr(subject_start_offset, match_start_offset - subject_start_offset);
+        replaced_string += replacement;
+        subject_start_offset = match_end_offset;
+    }
+
+    while (subject_start_offset < subject.length())
+        replaced_string += subject[subject_start_offset++];
+
+    return replaced_string;
+}
+
+
+bool RegexMatcher::utf8_configured_;
 
 
 RegexMatcher *RegexMatcher::RegexMatcherFactory(const std::string &pattern, std::string * const err_msg,

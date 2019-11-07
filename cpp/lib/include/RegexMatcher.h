@@ -20,14 +20,71 @@
 #pragma once
 
 
+#include <memory>
 #include <string>
 #include <stdexcept>
 #include <vector>
 #include <pcre.h>
 
 
-/** \class RegexMatcher
- *  \brief Wrapper class for simple use cases of the PCRE library and UTF-8 strings.
+class ThreadSafeRegexMatcher {
+public:
+    class MatchResult {
+        friend class ThreadSafeRegexMatcher;
+
+        std::string subject_;
+        bool matched_;
+        unsigned match_count_;
+        std::vector<int> substr_indices_;
+    public:
+        MatchResult(const std::string &subject);
+        MatchResult(const MatchResult &) = default;
+        MatchResult(MatchResult &&) = default;
+        MatchResult &operator=(const MatchResult &) = default;
+
+        inline operator bool() const { return matched_; }
+        inline unsigned size() const { return match_count_; }
+        std::string operator[](const unsigned group) const;
+    };
+
+    friend class MatchResult;
+
+    // We need this wrapper class to use the incomplete
+    // PCRE types with the STL smart pointers
+    struct PcreData {
+        ::pcre *pcre_;
+        ::pcre_extra *pcre_extra_;
+    public:
+        PcreData() : pcre_(nullptr), pcre_extra_(nullptr) {}
+        ~PcreData() {
+            ::pcre_free_study(pcre_extra_);
+            ::pcre_free(pcre_);
+        }
+    };
+
+    enum Option { CASE_INSENSITIVE = 2, MULTILINE = 4 };
+private:
+    static constexpr size_t MAX_SUBSTRING_MATCHES = 20;
+
+    const std::string pattern_;
+    const unsigned options_;
+    std::shared_ptr<PcreData> pcre_data_;
+public:
+    ThreadSafeRegexMatcher(const std::string &pattern, const unsigned options = 0);
+    ThreadSafeRegexMatcher(const ThreadSafeRegexMatcher &rhs)
+     : pattern_(rhs.pattern_), options_(rhs.options_), pcre_data_(rhs.pcre_data_) {};
+    MatchResult &operator=(const MatchResult &) = delete;
+
+    MatchResult match(const std::string &subject, const size_t subject_start_offset = 0,
+                      size_t * const start_pos = nullptr, size_t * const end_pos = nullptr) const;
+    std::string replaceAll(const std::string &subject, const std::string &replacement) const;
+};
+
+
+
+/** \class (DEPRECATED) RegexMatcher
+ *  \brief DEPRECATED. Use ThreadSafeRegexMatcher instead.
+           Wrapper class for simple use cases of the PCRE library and UTF-8 strings.
  */
 class RegexMatcher {
     static bool utf8_configured_;
