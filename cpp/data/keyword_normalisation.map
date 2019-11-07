@@ -1,6 +1,5 @@
-# Format: regex -> replacement
-# .^$*+?()[{\|  must be escaped by '\' outside character classes
-# ^-]\ must be escaped by '\' inside character classes
+# Format: string1|string2|...|stringN -> replacement
+# | and backslashes inside the strings must be escaped with a backslash
 ISLAM|islam->Islam
 reformation|REFORMATION->Reformation
 catholic|CATHOLIC->Catholic
