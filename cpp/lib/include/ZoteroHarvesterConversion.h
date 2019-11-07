@@ -23,6 +23,7 @@
 #include <set>
 #include <unordered_map>
 #include "JSON.h"
+#include "MARC.h"
 #include "RegexMatcher.h"
 #include "ZoteroHarvesterConfig.h"
 #include "ZoteroHarvesterUtil.h"
@@ -66,6 +67,18 @@ struct MetadataRecord {
     std::vector<std::string> keywords_;
     std::map<std::string, std::string> custom_metadata_;
 };
+
+
+void PostprocessTranslationServerResponse(const Util::Harvestable &download_item,
+                                          std::shared_ptr<JSON::ArrayNode> * const response_json_array);
+
+
+void ConvertZoteroItemToMetadataRecord(const Util::Harvestable &download_item,
+                                       const std::shared_ptr<JSON::JSONNode> &zotero_item,
+                                       MetadataRecord * const metadata_record);
+
+
+void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record, MARC::Record * const marc_record);
 
 
 } // end namespace Conversion

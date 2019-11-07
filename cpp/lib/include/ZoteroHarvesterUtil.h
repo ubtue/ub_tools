@@ -38,7 +38,7 @@ namespace Util {
 
 
 struct Harvestable {
-    // Sortable unique ID that indicates the position of the harvestable item in the global harvst queue
+    // Sortable unique ID that indicates the position of the harvestable item in the global harvest queue
     const unsigned id_;
     const Url url_;
     const Config::JournalParams &journal_;
@@ -52,6 +52,62 @@ public:
 };
 
 
+template <typename T>
+class ThreadLocal {
+    pthread_key_t key_;
+    const std::function<std::unique_ptr<T>()> initializer_;
+
+    static void Destructor(void *data) {
+        std::unique_ptr<T> wrapper(reinterpret_cast<T *>(data));
+    }
+public:
+    ThreadLocal(const std::function<std::unique_ptr<T>()> &&initialzer)
+     : initializer_(initialzer)
+    {
+        if (pthread_key_create(&key_, &Destructor) != 0)
+            LOG_ERROR("could not create thread local data key");
+    }
+    ~ThreadLocal() {
+        if (pthread_key_delete(key_) != 0)
+            LOG_ERROR("could not delete thread local data key");
+    }
+    ThreadLocal(const ThreadLocal<T> &) = delete;
+    ThreadLocal<T> &operator=(const ThreadLocal<T> &) = delete;
+
+    T *get() {
+        auto thread_data(pthread_getspecific(key_));
+        if (thread_data == nullptr) {
+            auto new_data(initializer_());
+            if (pthread_setspecific(key_, new_data.get()) != 0)
+                LOG_ERROR("could not set thread local data for thread " + std::to_string(pthread_self()));
+            thread_data = new_data.release();
+        }
+
+        return reinterpret_cast<T *>(thread_data);
+    }
+    T &operator*() {
+        return *get();
+    }
+    T *operator->() {
+        return get();
+    }
+};
+
+
+class TaskletContextManager {
+    pthread_key_t tls_key_;
+public:
+    TaskletContextManager();
+    ~TaskletContextManager();
+
+    void setTaskletContext(const Harvestable &download_item) const;
+    const Harvestable &getTaskletContext() const;
+};
+
+
+extern const TaskletContextManager TASKLET_CONTEXT_MANAGER;
+
+
 template <typename Parameter, typename Result>
 class Tasklet {
     enum Status { NOT_STARTED, RUNNING, COMPLETED_SUCCESS, COMPLETED_ERROR };
@@ -60,11 +116,7 @@ class Tasklet {
         Tasklet<Parameter, Result> * const tasklet(reinterpret_cast<Tasklet<Parameter, Result> *>(parameter));
 
         pthread_detach(pthread_self());
-
-        // set thread-local data
-        pthread_key_t tls_key;
-        pthread_key_create(&tls_key, nullptr);
-        pthread_setspecific(tls_key, &tasklet->associated_item_);
+        TASKLET_CONTEXT_MANAGER.setTaskletContext(tasklet->associated_item_);
         ++(*tasklet->running_instance_counter_);
 
         try {
@@ -94,8 +146,6 @@ class Tasklet {
         }
 
         --(*tasklet->running_instance_counter_);
-        // release thread-local data
-        pthread_key_delete(tls_key);
         pthread_exit(nullptr);
 
         return nullptr;
@@ -178,11 +228,8 @@ public:
 /** Wrapper around the default logger to facilitate order-preserving
  *  logging in multi-threaded Zotero Harvester contexts.
  */
- class Logger : public ::Logger {
-     struct Context {
-         const Config::JournalParams * current_journal_;
-         std::string current_url_;
-     };
+class Logger : public ::Logger {
+
 public:
     // Replaces the global logger instance with one of this class
     static void Init();

@@ -18,6 +18,7 @@
 */
 
 #include "StringUtil.h"
+#include "SyndicationFormat.h"
 #include "ZoteroHarvesterDownload.h"
 #include "util.h"
 
@@ -143,6 +144,67 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 } // end namespace Crawling
 
 
+namespace RSS {
+
+
+void Tasklet::run(const Params &parameters, Result * const result) {
+    std::unique_ptr<SyndicationFormat> syndication_format;
+    std::string syndication_format_parse_err_msg;
+    SyndicationFormat::AugmentParams syndication_format_augment_parameters;
+    syndication_format_augment_parameters.strptime_format_ = parameters.download_item_.journal_.strptime_format_string_;
+
+    if (not parameters.feed_contents_.empty()) {
+        syndication_format.reset(SyndicationFormat::Factory(parameters.feed_contents_, syndication_format_augment_parameters,
+                                &syndication_format_parse_err_msg).release());
+    } else {
+        Downloader::Params downloader_params;
+        downloader_params.user_agent_ = parameters.user_agent_;
+
+        Downloader downloader(parameters.download_item_.url_.toString(), downloader_params);
+        if (downloader.anErrorOccurred()) {
+            LOG_WARNING("could not download RSS feed '" + parameters.download_item_.url_.toString() + "'!");
+            return;
+        }
+
+        syndication_format.reset(SyndicationFormat::Factory(downloader.getMessageBody(), syndication_format_augment_parameters,
+                                 &syndication_format_parse_err_msg).release());
+    }
+
+    if (syndication_format == nullptr) {
+        LOG_WARNING("problem parsing XML document for RSS feed '" + parameters.download_item_.url_.toString() + "': "
+                    + syndication_format_parse_err_msg);
+        return;
+    }
+
+    LOG_DEBUG(parameters.download_item_.url_.toString() + " (" + syndication_format->getFormatName() + "):");
+    LOG_DEBUG("\tTitle: " + syndication_format->getTitle());
+    LOG_DEBUG("\tLink: " + syndication_format->getLink());
+    LOG_DEBUG("\tDescription: " + syndication_format->getDescription());
+
+    for (const auto &item : *syndication_format) {
+        const auto item_id(item.getId());
+        const std::string title(item.getTitle());
+        if (not title.empty())
+            LOG_DEBUG("\n\nFeed Item: " + title);
+
+        const auto new_download_item(Util::Harvestable::New(item.getLink(), parameters.download_item_.journal_));
+        result->downloaded_items_.emplace_back(download_manager_->directDownload(new_download_item, parameters.user_agent_));
+    }
+}
+
+
+Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
+                 std::unique_ptr<Params> parameters)
+ : Util::Tasklet<Params, Result>(instance_counter, parameters->download_item_,
+                                 "RSS: " + parameters->download_item_.url_.toString(),
+                                 std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
+                                 std::move(parameters), std::unique_ptr<Result>(new Result())),
+   download_manager_(download_manager) {}
+
+
+} // end namespace RSS
+
+
 void *DownloadManager::BackgroundThreadRoutine(void * parameter) {
     static const unsigned BACKGROUND_THREAD_SLEEP_TIME(16 * 1000 * 1000);   // in ms
 
@@ -230,18 +292,30 @@ void DownloadManager::processQueueBuffers() {
             crawling_queue_buffer_.pop_front();
         }
     }
+
+    {
+        std::lock_guard<std::recursive_mutex> rss_queue_buffer_lock(rss_queue_buffer_mutex_);
+        while (not rss_queue_buffer_.empty()) {
+            std::shared_ptr<RSS::Tasklet> tasklet(rss_queue_buffer_.front());
+            auto domain_data(lookupDomainData(tasklet->getParameter().download_item_.url_, /* add_if_absent = */ true));
+            domain_data->queued_rss_feeds_.emplace_back(tasklet);
+
+            rss_queue_buffer_.pop_front();
+        }
+    }
 }
 
 
 void DownloadManager::processDomainQueues(DomainData * const domain_data) {
     // apply download delays and create tasklets for downloads/crawls
     if (direct_download_tasklet_execution_counter_ == MAX_DIRECT_DOWNLOAD_TASKLETS
-        and crawling_tasklet_execution_counter_ == MAX_CRAWLING_TASKLETS)
+        and crawling_tasklet_execution_counter_ == MAX_CRAWLING_TASKLETS
+        and rss_tasklet_execution_counter_ == MAX_RSS_TASKLETS)
     {
         return;
     }
 
-    if (domain_data->queued_direct_downloads_.empty() and domain_data->queued_crawls_.empty())
+    if (domain_data->queued_direct_downloads_.empty() and domain_data->queued_crawls_.empty() and domain_data->queued_rss_feeds_.empty())
         return;
     else if (not global_params_.ignore_robots_txt_ and not domain_data->delay_params_.time_limit_.limitExceeded())
         return;
@@ -257,6 +331,11 @@ void DownloadManager::processDomainQueues(DomainData * const domain_data) {
     domain_data->active_crawls_.emplace_back(crawling_tasklet);
     domain_data->queued_crawls_.pop_front();
     crawling_tasklet->start();
+
+    std::shared_ptr<RSS::Tasklet> rss_tasklet(domain_data->queued_rss_feeds_.front());
+    domain_data->active_rss_feeds_.emplace_back(rss_tasklet);
+    domain_data->queued_rss_feeds_.pop_front();
+    rss_tasklet->start();
 }
 
 
@@ -272,6 +351,14 @@ void DownloadManager::cleanupCompletedTasklets(DomainData * const domain_data) {
     for (auto iter(domain_data->active_crawls_.begin()); iter != domain_data->active_crawls_.end();) {
         if ((*iter)->isComplete()) {
             iter = domain_data->active_crawls_.erase(iter);
+            continue;
+        }
+        ++iter;
+    }
+
+    for (auto iter(domain_data->active_rss_feeds_.begin()); iter != domain_data->active_rss_feeds_.end();) {
+        if ((*iter)->isComplete()) {
+            iter = domain_data->active_rss_feeds_.erase(iter);
             continue;
         }
         ++iter;
@@ -342,6 +429,25 @@ std::unique_ptr<DownloadResult<Crawling::Params, Crawling::Result>> DownloadMana
 
     std::unique_ptr<DownloadResult<Crawling::Params, Crawling::Result>>
         download_result(new DownloadResult<Crawling::Params, Crawling::Result>(new_tasklet));
+    return download_result;
+}
+
+
+std::unique_ptr<DownloadResult<RSS::Params, RSS::Result>> DownloadManager::rss(const Util::Harvestable &source,
+                                                                               const std::string &user_agent,
+                                                                               const std::string &feed_contents)
+{
+    std::unique_ptr<RSS::Params> parameters(new RSS::Params(source, user_agent, feed_contents));
+    std::shared_ptr<RSS::Tasklet> new_tasklet(new RSS::Tasklet(&rss_tasklet_execution_counter_,
+                                              this, std::move(parameters)));
+
+    {
+        std::lock_guard<std::recursive_mutex> queue_buffer_lock(rss_queue_buffer_mutex_);
+        rss_queue_buffer_.emplace_back(new_tasklet);
+    }
+
+    std::unique_ptr<DownloadResult<RSS::Params, RSS::Result>>
+        download_result(new DownloadResult<RSS::Params, RSS::Result>(new_tasklet));
     return download_result;
 }
 

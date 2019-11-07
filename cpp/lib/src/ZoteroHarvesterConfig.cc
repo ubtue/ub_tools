@@ -126,7 +126,7 @@ std::string GroupParams::GetINIKeyString(const INIKey ini_key) {
 }
 
 
-JournalParams::JournalParams(const IniFile::Section &journal_section) {
+JournalParams::JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params) {
     zeder_id_ = journal_section.getUnsigned(GetINIKeyString(ZEDER_ID));
     name_ = journal_section.getSectionName();
     group_ = journal_section.getString(GetINIKeyString(GROUP));
@@ -138,11 +138,17 @@ JournalParams::JournalParams(const IniFile::Section &journal_section) {
     issn_.online_ = journal_section.getString(GetINIKeyString(ONLINE_ISSN), "");
     issn_.print_ = journal_section.getString(GetINIKeyString(PRINT_ISSN), "");
     strptime_format_string_ = journal_section.getString(GetINIKeyString(STRPTIME_FORMAT_STRING), "");
+    if (not global_params.strptime_format_string_.empty()) {
+        if (not strptime_format_string_.empty())
+            strptime_format_string_ += '|';
+
+        strptime_format_string_ += global_params.strptime_format_string_;
+    }
     update_window_ = journal_section.getUnsigned(GetINIKeyString(UPDATE_WINDOW), 0);
 
     const auto review_regex(journal_section.getString(GetINIKeyString(REVIEW_REGEX), ""));
     if (not review_regex.empty())
-        review_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(review_regex));
+        review_regex_.reset(new ThreadSafeRegexMatcher(review_regex));
 
     language_params_.force_automatic_language_detection_ = false;
     auto expected_languages(journal_section.getString(GetINIKeyString(EXPECTED_LANGUAGES), ""));
@@ -160,11 +166,11 @@ JournalParams::JournalParams(const IniFile::Section &journal_section) {
     crawl_params_.max_crawl_depth_ = journal_section.getUnsigned(GetINIKeyString(CRAWL_MAX_DEPTH), 1);
     const auto extraction_regex(journal_section.getString(GetINIKeyString(CRAWL_EXTRACTION_REGEX), ""));
     if (not extraction_regex.empty())
-        crawl_params_.extraction_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(extraction_regex));
+        crawl_params_.extraction_regex_.reset(new ThreadSafeRegexMatcher(extraction_regex));
 
     const auto crawl_regex(journal_section.getString(GetINIKeyString(CRAWL_URL_REGEX), ""));
     if (not crawl_regex.empty())
-        crawl_params_.crawl_url_regex_.reset(RegexMatcher::RegexMatcherFactoryOrDie(crawl_regex));
+        crawl_params_.crawl_url_regex_.reset(new ThreadSafeRegexMatcher(crawl_regex));
 
     // repeatable fields
     for (const auto &entry : journal_section) {
@@ -174,7 +180,7 @@ JournalParams::JournalParams(const IniFile::Section &journal_section) {
         } else if (StringUtil::StartsWith(entry.name_, "suppress_metadata_")) {
             const auto field_name(entry.name_.substr(__builtin_strlen("suppress_metadata_")));
             zotero_metadata_params_.fields_to_suppress_.insert(std::make_pair(field_name,
-                                                               std::unique_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactoryOrDie(entry.value_))));
+                                                               std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
         } else if (StringUtil::StartsWith(entry.name_, "add_field"))
             marc_metadata_params_.fields_to_add_.emplace_back(entry.value_);
         else if (StringUtil::StartsWith(entry.name_, "exclude_if_field_")) {
@@ -183,18 +189,18 @@ JournalParams::JournalParams(const IniFile::Section &journal_section) {
                 LOG_ERROR("invalid exclusion field name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
 
             marc_metadata_params_.exclusion_filters_.insert(std::make_pair(field_name,
-                                                            std::unique_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactoryOrDie(entry.value_))));
+                                                            std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
         } else if (StringUtil::StartsWith(entry.name_, "exclude_if_metadata_")) {
             const auto metadata_name(entry.name_.substr(__builtin_strlen("exclude_if_metadata_")));
             zotero_metadata_params_.exclusion_filters_.insert(std::make_pair(metadata_name,
-                                                              std::unique_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactoryOrDie(entry.value_))));
+                                                              std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
         } else if (StringUtil::StartsWith(entry.name_, "remove_field_")) {
             const auto field_name(entry.name_.substr(__builtin_strlen("remove_field_")));
             if (field_name.length() != MARC::Record::TAG_LENGTH + 1)
                 LOG_ERROR("invalid removal filter name '" + field_name + "'! expected format: <tag><subfield_code>");
 
             marc_metadata_params_.fields_to_remove_.insert(std::make_pair(field_name,
-                                                           std::unique_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactoryOrDie(entry.value_))));
+                                                           std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
         }
     }
 }
