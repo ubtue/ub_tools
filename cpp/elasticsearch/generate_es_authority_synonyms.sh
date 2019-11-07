@@ -7,8 +7,6 @@ OUTPUT_FILE="synonyms.txt"
 > ${OUTPUT_FILE}
 > ${STAGE_FILE}
 
-#Make sure "join" and "sort" have the same idea of sorted
-
 # Generate a merged file form the extracted translation files
 for translation_file in normdata_translations_*.txt
 do
