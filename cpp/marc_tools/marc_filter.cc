@@ -72,6 +72,7 @@ void Usage() {
               << "             or\n"
               << "           --replace subfield_specs map_file\n"
               << "             every line in \"map_file\" must either start with a hash character in which case it is\n"
+              << "             ignored or lines that look like \"regex->replacement\" followed by a newline.\n"
               << "           --replace-strings subfield_specs map_file\n"
               << "             every line in \"map_file\" must either start with a hash character in which case it is\n"
               << "             ignored or lines that look like \"string1|string2|...|stringN->replacement\" followed by a newline.\n"
