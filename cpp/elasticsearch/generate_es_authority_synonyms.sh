@@ -12,7 +12,6 @@ OUTPUT_FILE="synonyms.txt"
 # Generate a merged file form the extracted translation files
 for translation_file in $normdata_translations_*.txt
 do
-     #echo $translation_file
      join -t '|' -j 1 -a 1 -a 2  --nocheck-order <(sort ${STAGE_FILE})  <(sort ${translation_file}) > ${STAGE_TMP_FILE}
      mv ${STAGE_TMP_FILE} ${STAGE_FILE}
 done
