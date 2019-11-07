@@ -125,6 +125,40 @@ public:
 } // end namespace Crawling
 
 
+namespace RSS {
+
+
+struct Params {
+    Util::Harvestable download_item_;
+    std::string user_agent_;
+    std::string feed_contents_;
+public:
+    explicit Params(const Util::Harvestable &download_item, const std::string user_agent, const std::string &feed_contents)
+     : download_item_(download_item), user_agent_(user_agent), feed_contents_(feed_contents) {}
+};
+
+
+struct Result {
+    std::vector<std::unique_ptr<DownloadResult<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
+public:
+    Result() = default;
+    Result(const Result &rhs) = delete;
+};
+
+
+class Tasklet : public Util::Tasklet<Params, Result> {
+    DownloadManager * const download_manager_;
+    void run(const Params &parameters, Result * const result);
+public:
+    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
+            DownloadManager * const download_manager, std::unique_ptr<Params> parameters);
+    virtual ~Tasklet() override = default;
+};
+
+
+} // end namespace RSS
+
+
 template <typename Parameter, typename Result>
 class DownloadResult {
     enum Status { WAITING, NO_RESULT, YIELDED_RESULT, STATIC_RESULT };
@@ -219,9 +253,11 @@ private:
     struct DomainData {
         DelayParams delay_params_;
         std::deque<std::shared_ptr<DirectDownload::Tasklet>> active_direct_downloads_;
-        std::deque<std::shared_ptr<Crawling::Tasklet>> active_crawls_;
         std::deque<std::shared_ptr<DirectDownload::Tasklet>> queued_direct_downloads_;
+        std::deque<std::shared_ptr<Crawling::Tasklet>> active_crawls_;
         std::deque<std::shared_ptr<Crawling::Tasklet>> queued_crawls_;
+        std::deque<std::shared_ptr<RSS::Tasklet>> active_rss_feeds_;
+        std::deque<std::shared_ptr<RSS::Tasklet>> queued_rss_feeds_;
     public:
         DomainData(const DelayParams &delay_params) : delay_params_(delay_params) {};
     };
@@ -234,12 +270,14 @@ private:
 
     static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 50;
     static constexpr unsigned MAX_CRAWLING_TASKLETS        = 50;
+    static constexpr unsigned MAX_RSS_TASKLETS             = 50;
     static constexpr unsigned DOWNLOAD_TIMEOUT             = 30000; // in ms
 
     GlobalParams global_params_;
     pthread_t background_thread_;
     ThreadUtil::ThreadSafeCounter<unsigned> direct_download_tasklet_execution_counter_;
     ThreadUtil::ThreadSafeCounter<unsigned> crawling_tasklet_execution_counter_;
+    ThreadUtil::ThreadSafeCounter<unsigned> rss_tasklet_execution_counter_;
     std::unordered_map<std::string, std::unique_ptr<DomainData>> domain_data_;
     std::unordered_map<std::string, CachedDownloadData> cached_download_data_;
     std::recursive_mutex cached_download_data_mutex_;
@@ -247,6 +285,8 @@ private:
     std::recursive_mutex direct_download_queue_buffer_mutex_;
     std::deque<std::shared_ptr<Crawling::Tasklet>> crawling_queue_buffer_;
     std::recursive_mutex crawling_queue_buffer_mutex_;
+    std::deque<std::shared_ptr<RSS::Tasklet>> rss_queue_buffer_;
+    std::recursive_mutex rss_queue_buffer_mutex_;
 
     static void *BackgroundThreadRoutine(void * parameter);
 
@@ -263,6 +303,10 @@ public:
                                                                                                    const std::string &user_agent);
     std::unique_ptr<DownloadResult<Crawling::Params, Crawling::Result>> crawl(const Util::Harvestable &source,
                                                                               const std::string &user_agent);
+
+    std::unique_ptr<DownloadResult<RSS::Params, RSS::Result>> rss(const Util::Harvestable &source,
+                                                                  const std::string &user_agent,
+                                                                  const std::string &feed_contents = "");
     void addToDownloadCache(const std::string &url, const std::string &response_body, const unsigned response_code,
                             const std::string &error_message);
 };

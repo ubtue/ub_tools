@@ -142,7 +142,7 @@ struct JournalParams {
     } issn_;
     std::string strptime_format_string_;
     unsigned update_window_;
-    std::unique_ptr<RegexMatcher> review_regex_;
+    std::unique_ptr<ThreadSafeRegexMatcher> review_regex_;
     struct {
         std::set<std::string> expected_languages_;
         std::string source_text_fields_;
@@ -150,22 +150,22 @@ struct JournalParams {
     } language_params_;
     struct {
         unsigned max_crawl_depth_;
-        std::unique_ptr<RegexMatcher> extraction_regex_;
-        std::unique_ptr<RegexMatcher> crawl_url_regex_;
+        std::unique_ptr<ThreadSafeRegexMatcher> extraction_regex_;
+        std::unique_ptr<ThreadSafeRegexMatcher> crawl_url_regex_;
     } crawl_params_;
 
     struct {
-        std::map<std::string, std::unique_ptr<RegexMatcher>> fields_to_suppress_;
+        std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> fields_to_suppress_;
         std::map<std::string, std::string> fields_to_override_;
-        std::map<std::string, std::unique_ptr<RegexMatcher>> exclusion_filters_;
+        std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
     } zotero_metadata_params_;
     struct {
         std::vector<std::string> fields_to_add_;
-        std::map<std::string, std::unique_ptr<RegexMatcher>> fields_to_remove_;
-        std::map<std::string, std::unique_ptr<RegexMatcher>> exclusion_filters_;
+        std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> fields_to_remove_;
+        std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
     } marc_metadata_params_;
 public:
-    explicit JournalParams(const IniFile::Section &journal_section);
+    explicit JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);
 
     static std::string GetINIKeyString(const INIKey ini_key);
 private:

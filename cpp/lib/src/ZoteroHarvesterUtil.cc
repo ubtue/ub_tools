@@ -37,6 +37,35 @@ Harvestable Harvestable::New(const std::string &url, const Config::JournalParams
 }
 
 
+TaskletContextManager::TaskletContextManager() {
+    if (pthread_key_create(&tls_key_, nullptr) != 0)
+        LOG_ERROR("could not create tasklet context thread local key");
+}
+
+
+TaskletContextManager::~TaskletContextManager() {
+    if (pthread_key_delete(tls_key_) != 0)
+        LOG_ERROR("could not delete tasklet context thread local key");
+}
+
+
+void TaskletContextManager::setTaskletContext(const Harvestable &download_item) const {
+    const auto tasklet_data(pthread_getspecific(tls_key_));
+    if (tasklet_data != nullptr)
+        LOG_ERROR("tasklet local data already set for thread " + std::to_string(pthread_self()));
+
+    if (pthread_setspecific(tls_key_, const_cast<Harvestable *>(&download_item)) != 0)
+        LOG_ERROR("could not set tasklet local data for thread " + std::to_string(pthread_self()));
+}
+
+
+const Harvestable &TaskletContextManager::getTaskletContext() const {
+    return *reinterpret_cast<Harvestable *>(pthread_getspecific(tls_key_));
+}
+
+
+const TaskletContextManager TASKLET_CONTEXT_MANAGER;
+
 
 } // end namespace Util
 
