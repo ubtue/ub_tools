@@ -174,19 +174,15 @@ private:
 
 
 class EnhancementMaps {
-    std::unordered_map<std::string, std::string> ISSN_to_language_;
     std::unordered_map<std::string, std::string> ISSN_to_license_;
     std::unordered_map<std::string, std::string> ISSN_to_SSG_;
-    std::unordered_map<std::string, std::string> ISSN_to_volume_;
 
     std::string lookup(const std::string &issn, const std::unordered_map<std::string, std::string> &map) const;
 public:
     explicit EnhancementMaps(const std::string &enhancement_map_directory);
 
-    std::string lookupLanguage(const std::string &issn) const;
     std::string lookupLicense(const std::string &issn) const;
     std::string lookupSSG(const std::string &issn) const;
-    std::string lookupVolume(const std::string &issn) const;
 };
 
 
