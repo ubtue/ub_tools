@@ -812,10 +812,10 @@ void NormalizeSubfieldSpecs(std::vector<std::string> * const subfield_specs) {
     std::string current_tag;
 
     for (const auto &subfield_spec : *subfield_specs) {
-        const std::string tag(subfield_spec.substr(0, MARC::Record::TAG_LENGTH));
+        std::string tag(subfield_spec.substr(0, MARC::Record::TAG_LENGTH));
         if (tag != current_tag) {
             coalesced_specs.emplace_back(subfield_spec);
-            current_tag = subfield_spec.substr(0, MARC::Record::TAG_LENGTH);
+            current_tag.swap(tag);
         } else {
             for (const char subfield_code : subfield_spec.substr(MARC::Record::TAG_LENGTH)) {
                 if (std::strchr(coalesced_specs.back().c_str() + MARC::Record::TAG_LENGTH, subfield_code) == nullptr)
