@@ -818,7 +818,7 @@ void NormalizeSubfieldSpecs(std::vector<std::string> * const subfield_specs) {
             current_tag.swap(tag);
         } else {
             for (const char subfield_code : subfield_spec.substr(MARC::Record::TAG_LENGTH)) {
-                if (std::strchr(coalesced_specs.back().c_str() + MARC::Record::TAG_LENGTH, subfield_code) == nullptr)
+                if (coalesced_specs.back().find(subfield_code, MARC::Record::TAG_LENGTH) == std::string::npos)
                     coalesced_specs.back() += subfield_code;
             }
         }
