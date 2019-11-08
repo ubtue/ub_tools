@@ -945,6 +945,7 @@ void ProcessReplaceStringsCommand(char ***argvp, std::vector<FilterDescriptor> *
     if (**argvp == nullptr or StringUtil::StartsWith(**argvp, "--"))
         LOG_ERROR("missing map-filename arg after --replace-strings!");
     const std::string map_filename(**argvp);
+    ++*argvp;
 
     std::unordered_map<std::string, std::string> originals_to_replacements_map;
     LoadStringsToStringsMapFile(map_filename, &originals_to_replacements_map);
