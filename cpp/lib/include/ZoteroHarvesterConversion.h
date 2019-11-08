@@ -36,7 +36,9 @@ namespace Conversion {
 
 
 struct MetadataRecord {
-    enum SSGType { INVALID, FG_0, FG_1, FG_01, KRIM_21 };
+    enum class SSGType { INVALID, FG_0, FG_1, FG_01, FG_21 };
+
+    enum class SuperiorType { INVALID, PRINT, ONLINE };
 
     struct Creator {
         std::string first_name_;
@@ -46,6 +48,9 @@ struct MetadataRecord {
         std::string type_;
         std::string ppn_;
         std::string gnd_number_;
+    public:
+        Creator(const std::string &first_name, const std::string &last_name, const std::string &type)
+         : first_name_(first_name), last_name_(last_name), type_(type) {}
     };
 
     std::string item_type_;
@@ -63,9 +68,13 @@ struct MetadataRecord {
     std::string url_;
     std::string issn_;
     std::string license_;
+    std::string superior_ppn_;
+    SuperiorType superior_type_;
     SSGType ssg_;
     std::vector<std::string> keywords_;
     std::map<std::string, std::string> custom_metadata_;
+public:
+    explicit MetadataRecord() : superior_type_(SuperiorType::INVALID), ssg_(SSGType::INVALID) {}
 };
 
 
@@ -73,12 +82,23 @@ void PostprocessTranslationServerResponse(const Util::Harvestable &download_item
                                           std::shared_ptr<JSON::ArrayNode> * const response_json_array);
 
 
-void ConvertZoteroItemToMetadataRecord(const Util::Harvestable &download_item,
-                                       const std::shared_ptr<JSON::JSONNode> &zotero_item,
+bool ZoteroItemMatchesExclusionFilters(const Util::Harvestable &download_item,
+                                       const std::shared_ptr<JSON::ObjectNode> &zotero_item);
+
+
+void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &zotero_item,
                                        MetadataRecord * const metadata_record);
 
 
-void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record, MARC::Record * const marc_record);
+void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params,
+                           const Config::GroupParams &group_params, const Config::EnhancementMaps &enhancement_maps);
+
+
+void GenerateMarcRecordFromMetadataRecord(const Util::Harvestable &download_item, const MetadataRecord &metadata_record,
+                                          const Config::GroupParams &group_params, MARC::Record * const marc_record);
+
+
+bool MarcRecordMatchesExclusionFilters(const Util::Harvestable &download_item, MARC::Record * const marc_record);
 
 
 } // end namespace Conversion

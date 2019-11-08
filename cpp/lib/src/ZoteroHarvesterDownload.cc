@@ -123,7 +123,9 @@ void Tasklet::run(const Params &parameters, Result * const result) {
     while (crawler.getNextPage(&page_details)) {
         if (page_details.error_message_.empty()) {
             const auto url(page_details.url_);
-            if (parameters.download_item_.journal_.crawl_params_.extraction_regex_->matched(url)) {
+            if (parameters.download_item_.journal_.crawl_params_.extraction_regex_ == nullptr
+                or parameters.download_item_.journal_.crawl_params_.extraction_regex_->match(url))
+            {
                 const auto new_download_item(Util::Harvestable::New(page_details.url_, parameters.download_item_.journal_));
                 result->downloaded_items_.emplace_back(download_manager_->directDownload(new_download_item, parameters.user_agent_));
             }

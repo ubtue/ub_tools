@@ -236,10 +236,8 @@ std::string JournalParams::GetINIKeyString(const INIKey ini_key) {
 
 
 EnhancementMaps::EnhancementMaps(const std::string &enhancement_map_directory) {
-    MapUtil::DeserialiseMap(enhancement_map_directory + "/language_to_language_code.map", &ISSN_to_language_);
     MapUtil::DeserialiseMap(enhancement_map_directory + "/ISSN_to_licence.map", &ISSN_to_license_);
     MapUtil::DeserialiseMap(enhancement_map_directory + "/ISSN_to_SSG.map", &ISSN_to_SSG_);
-    MapUtil::DeserialiseMap(enhancement_map_directory + "/ISSN_to_volume.map", &ISSN_to_volume_);
 }
 
 
@@ -251,11 +249,6 @@ std::string EnhancementMaps::lookup(const std::string &issn, const std::unordere
 }
 
 
-std::string EnhancementMaps::lookupLanguage(const std::string &issn) const {
-    return lookup(issn, ISSN_to_language_);
-}
-
-
 std::string EnhancementMaps::lookupLicense(const std::string &issn) const {
     return lookup(issn, ISSN_to_license_);
 }
@@ -263,11 +256,6 @@ std::string EnhancementMaps::lookupLicense(const std::string &issn) const {
 
 std::string EnhancementMaps::lookupSSG(const std::string &issn) const {
     return lookup(issn, ISSN_to_SSG_);
-}
-
-
-std::string EnhancementMaps::lookupVolume(const std::string &issn) const {
-    return lookup(issn, ISSN_to_volume_);
 }
 
 

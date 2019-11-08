@@ -62,7 +62,7 @@ public:
         }
     };
 
-    enum Option { CASE_INSENSITIVE = 2, MULTILINE = 4 };
+    enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4 };
 private:
     static constexpr size_t MAX_SUBSTRING_MATCHES = 20;
 
@@ -70,11 +70,12 @@ private:
     const unsigned options_;
     std::shared_ptr<PcreData> pcre_data_;
 public:
-    ThreadSafeRegexMatcher(const std::string &pattern, const unsigned options = 0);
+    ThreadSafeRegexMatcher(const std::string &pattern, const unsigned options = ENABLE_UTF8);
     ThreadSafeRegexMatcher(const ThreadSafeRegexMatcher &rhs)
      : pattern_(rhs.pattern_), options_(rhs.options_), pcre_data_(rhs.pcre_data_) {};
     MatchResult &operator=(const MatchResult &) = delete;
 
+    inline const std::string &getPattern() const { return pattern_; }
     MatchResult match(const std::string &subject, const size_t subject_start_offset = 0,
                       size_t * const start_pos = nullptr, size_t * const end_pos = nullptr) const;
     std::string replaceAll(const std::string &subject, const std::string &replacement) const;
