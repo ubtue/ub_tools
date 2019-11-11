@@ -125,7 +125,7 @@ std::string GetIssueTitle(const std::string &id, const std::shared_ptr<const JSO
 
 
 inline std::string GetIssueSubtitle(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
-    return JSON::LookupString("/title", doc_obj, /* default_value = */ "");
+    return JSON::LookupString("/title_sub", doc_obj, /* default_value = */ "");
 }
 
 
