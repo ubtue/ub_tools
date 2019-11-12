@@ -171,7 +171,7 @@ static void ParseSimpleFieldList(Tokenizer * const tokenizer, QueryDescriptor * 
     for (const auto &field_or_subfield_candidate : field_or_subfield_candidates) {
         if (field_or_subfield_candidate.length() < MARC::Record::TAG_LENGTH)
             throw std::runtime_error("\"" + field_or_subfield_candidate
-                                     +"\" is not a valid field or subfield reference!");
+                                     + "\" is not a valid field or subfield reference! (1)");
         query_desc->addFieldOrSubfieldDescriptor(FieldOrSubfieldDescriptor(field_or_subfield_candidate, '\0', '\0'));
     }
 }
@@ -186,9 +186,9 @@ static void ParseFieldOrSubfieldReference(Tokenizer * const tokenizer, std::stri
                                  + Tokenizer::TokenTypeToString(token) + "\" instead!");
     const std::string string_const(tokenizer->getLastStringConstant());
 
-    static const auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("[0-9A-Z]{3}(\\[..\\])?[a-z012]+"));
+    static const auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("[0-9A-Z]{3}(\\[..\\])?[a-z012]*"));
     if (not matcher->matched(string_const))
-        throw std::runtime_error("\"" + Tokenizer::EscapeString(string_const) + "\" is not a valid field or subfield reference!");
+        throw std::runtime_error("\"" + Tokenizer::EscapeString(string_const) + "\" is not a valid field or subfield reference! (2)");
     *field_or_subfield_reference = string_const;
 
     if (matcher->getNoOfGroups() == 0)
