@@ -52,6 +52,7 @@ public class MultiLanguageQueryParser extends QParser {
     private Query newQuery;
     private Pattern LOCAL_PARAMS_PATTERN = Pattern.compile("(\\{![^}]*\\})");
     private Pattern RANGE_QUERY_PATTERN = Pattern.compile("[\\[\\{](.*)\\s+TO\\s+(.*)[\\]\\}]");
+    private Pattern FIELD_WITH_BOOST_PATTERN = Pattern.compile("(.*)\\^(\\d+)");
 
 
     public MultiLanguageQueryParser(final String searchString, final SolrParams localParams, final SolrParams params,
@@ -189,6 +190,28 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
+    /*
+     * Extract boost from field description
+     */
+    private String extractBoostFromFieldAndBoost(String param) {
+        Matcher matcher = FIELD_WITH_BOOST_PATTERN.matcher(param);
+        if (matcher.matches())
+            return matcher.group(2);
+        return "";
+    }
+
+
+    /*
+     * Extract only the field from a field description that might also include a boost
+     */
+    private String extractFieldFromFieldAndBoost(String param) {
+        Matcher matcher = FIELD_WITH_BOOST_PATTERN.matcher(param);
+        if (matcher.matches())
+            return matcher.group(1);
+        return param;
+    }
+
+
     private void handleDismaxParser(String[] queryFields, String lang, IndexSchema schema) {
         StringBuilder stringBuilder = new StringBuilder();
         // Only replace parameters if qf is indeed set
@@ -199,9 +222,12 @@ public class MultiLanguageQueryParser extends QParser {
             String[] singleParams = param.split(" ");
             int i = 0;
             for (final String singleParam : singleParams) {
-                String newFieldName = singleParam + "_" + lang;
-                newFieldName = (schema.getFieldOrNull(newFieldName) != null) ? newFieldName : singleParam;
-                stringBuilder.append(newFieldName);
+                // Derive new field and handle boost appropriately
+                final String fieldName = extractFieldFromFieldAndBoost(singleParam);
+                String newFieldName = fieldName + "_" + lang;
+                newFieldName = (schema.getFieldOrNull(newFieldName) != null) ? newFieldName : fieldName;
+                final String boost = extractBoostFromFieldAndBoost(singleParam);
+                stringBuilder.append(newFieldName + (!boost.isEmpty() ? "^" + boost : ""));
                 if (++i < singleParams.length)
                     stringBuilder.append(" ");
             }
