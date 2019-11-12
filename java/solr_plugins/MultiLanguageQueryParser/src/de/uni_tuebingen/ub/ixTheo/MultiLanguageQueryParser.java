@@ -132,9 +132,36 @@ public class MultiLanguageQueryParser extends QParser {
                     newParams.remove("fq", filterQuery);
                     newParams.add("fq", newFilterQuery);
                 } else
-                    throw new MultiLanguageQueryParserException("Cannot appropriately rewrite " + filterQuery);
+                    throw new MultiLanguageQueryParserException("Cannot appropriately rewrite filter query" + filterQuery);
             }
         }
+
+
+        // Handle explainOther parameters (needed for fulltext synonyms)
+        final String[] explainOtherQueries = newParams.getParams("explainOther");
+        if (explainOtherQueries != null && explainOtherQueries.length > 0) {
+            for (final String explainOtherQuery : explainOtherQueries) {
+                final String[] fieldNameAndValues = explainOtherQuery.split(":");
+                final int fieldNameAndValuesLength = fieldNameAndValues.length;
+                // try to replace any field left to a colon
+                if (fieldNameAndValuesLength >= 2) {
+                    String newExplainOtherQuery = new String();
+                    for (int i = 0; i < fieldNameAndValuesLength - 1; ++i) {
+                         final String newFieldExpression = fieldNameAndValues[i] + "_" + lang;
+                         final String newFieldName = newFieldExpression.replaceAll("(\\{.*\\}|^\\(|.*\\s+)", ""); // see explanation in the filter branch
+                         if (schema.getFieldOrNull(newFieldName) != null)
+                             newExplainOtherQuery += newFieldExpression + ":";
+                         else
+                             newExplainOtherQuery += fieldNameAndValues[i] + ":";
+                    }
+                    newExplainOtherQuery += fieldNameAndValues[fieldNameAndValuesLength - 1];
+                    newParams.remove("explainOther", explainOtherQuery);
+                    newParams.add("explainOther", newExplainOtherQuery);
+                } else
+                    throw new MultiLanguageQueryParserException("Cannot appropriately rewrite explainOther query" + explainOtherQuery);
+            }
+        }
+
 
         // Handling for [e]dismax
         if (useDismax)
