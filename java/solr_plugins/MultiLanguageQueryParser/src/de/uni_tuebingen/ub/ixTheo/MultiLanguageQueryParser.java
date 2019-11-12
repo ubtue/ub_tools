@@ -108,61 +108,25 @@ public class MultiLanguageQueryParser extends QParser {
             this.newRequest.setParams(newParams);
         }
 
-
         // Handle filter queries
         final String[] filterQueries = newParams.getParams("fq");
         if (filterQueries != null && filterQueries.length > 0) {
             for (final String filterQuery : filterQueries) {
-                final String[] fieldNameAndFilterValues = filterQuery.split(":");
-                final int fieldNameAndFilterValuesLength = fieldNameAndFilterValues.length;
-                // The usual case is an ordinary expression made up of a field + ":" + query
-                // Moreover, we can have complex (i.e. parenthesized) expressions on the right hand side
-                // so we try to replace any field left to a colon
-                if (fieldNameAndFilterValuesLength >= 2) {
-                    String newFilterQuery = new String();
-                    for (int i = 0; i < fieldNameAndFilterValuesLength - 1; ++i) {
-                         final String newFieldExpression = fieldNameAndFilterValues[i] + "_" + lang;
-                         //Strip potential local parameters or a leading opening bracket of any tokens to the left
-                         final String newFieldName = newFieldExpression.replaceAll("(\\{.*\\}|^\\(|.*\\s+)", "");
-                         if (schema.getFieldOrNull(newFieldName) != null)
-                             newFilterQuery += newFieldExpression + ":";
-                         else
-                             newFilterQuery += fieldNameAndFilterValues[i] + ":";
-                    }
-                    newFilterQuery += fieldNameAndFilterValues[fieldNameAndFilterValuesLength - 1];
-                    newParams.remove("fq", filterQuery);
-                    newParams.add("fq", newFilterQuery);
-                } else
-                    throw new MultiLanguageQueryParserException("Cannot appropriately rewrite filter query" + filterQuery);
+                final String newFilterQuery = rewriteFieldsInExpression(filterQuery);
+                newParams.remove("fq", filterQuery);
+                newParams.add("fq", newFilterQuery);
             }
         }
-
 
         // Handle explainOther parameters (needed for fulltext synonyms)
         final String[] explainOtherQueries = newParams.getParams("explainOther");
         if (explainOtherQueries != null && explainOtherQueries.length > 0) {
             for (final String explainOtherQuery : explainOtherQueries) {
-                final String[] fieldNameAndValues = explainOtherQuery.split(":");
-                final int fieldNameAndValuesLength = fieldNameAndValues.length;
-                // try to replace any field left to a colon
-                if (fieldNameAndValuesLength >= 2) {
-                    String newExplainOtherQuery = new String();
-                    for (int i = 0; i < fieldNameAndValuesLength - 1; ++i) {
-                         final String newFieldExpression = fieldNameAndValues[i] + "_" + lang;
-                         final String newFieldName = newFieldExpression.replaceAll("(\\{.*\\}|^\\(|.*\\s+)", ""); // see explanation in the filter branch
-                         if (schema.getFieldOrNull(newFieldName) != null)
-                             newExplainOtherQuery += newFieldExpression + ":";
-                         else
-                             newExplainOtherQuery += fieldNameAndValues[i] + ":";
-                    }
-                    newExplainOtherQuery += fieldNameAndValues[fieldNameAndValuesLength - 1];
-                    newParams.remove("explainOther", explainOtherQuery);
-                    newParams.add("explainOther", newExplainOtherQuery);
-                } else
-                    throw new MultiLanguageQueryParserException("Cannot appropriately rewrite explainOther query" + explainOtherQuery);
+                 final String newExplainOtherQuery = rewriteFieldsInExpression(explainOtherQuery);
+                 newParams.remove("explainOther", explainOtherQuery);
+                 newParams.add("explainOther", newExplainOtherQuery);
             }
         }
-
 
         // Handling for [e]dismax
         if (useDismax)
@@ -171,6 +135,34 @@ public class MultiLanguageQueryParser extends QParser {
         else
             handleLuceneParser(query, request, lang, schema);
     }
+
+
+    /*
+     * Helper to rewrite fields in expression
+     */
+    private String rewriteFieldsInExpression(final String expression) throws MultiLanguageQueryParserException {
+        final String[] fieldNamesAndArguments = expression.split(":");
+        final int fieldNamesAndArgumentsLength = fieldNamesAndArguments.length;
+        // The usual case is an ordinary expression made up of a field + ":" + query
+        // Moreover, we can have complex (i.e. parenthesized) expressions on the right hand side
+        // so we try to replace any field left to a colon
+        if (fieldNamesAndArgumentsLength >= 2) {
+            StringBuilder newExpression = new StringBuilder();
+            for (int i = 0; i < fieldNamesAndArgumentsLength - 1; ++i) {
+                 final String newFieldExpression = fieldNamesAndArguments[i] + "_" + lang;
+                 // Strip local parameters, opening brackets or other irrelevant tokens to the left
+                 final String newFieldName = newFieldExpression.replaceAll("(\\{.*\\}|^\\(|.*\\s+)", "");
+                 if (schema.getFieldOrNull(newFieldName) != null)
+                     newExpression.append(newFieldExpression + ":");
+                 else
+                     newExpression.append(fieldNamesAndArguments[i] + ":");
+            }
+            newExpression.append(fieldNamesAndArguments[fieldNamesAndArgumentsLength - 1]); // No modifications needed
+            return newExpression.toString();
+        } else
+            throw new MultiLanguageQueryParserException("Cannot appropriately rewrite expression \"" + expression + "\"");
+    }
+
 
 
     /*
