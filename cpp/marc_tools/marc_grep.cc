@@ -281,7 +281,7 @@ bool ProcessConditions(const OutputLabel output_format, const ConditionDescripto
                        const MARC::Record &record, std::priority_queue<TagAndContents> * const tags_and_contents)
 {
     const std::string extraction_tag(field_or_subfield_desc.getTag());
-    if (not record.hasTag(extraction_tag))
+    if (extraction_tag != "*" and not record.hasTag(extraction_tag))
         return false;
 
     const ConditionDescriptor::CompType comp_type(cond_desc.getCompType());
