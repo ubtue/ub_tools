@@ -131,5 +131,5 @@ else
 fi
 
 
-rm --force $MUTEX_F
+rm --force $MUTEX_FILE
 no_problems_found=0
