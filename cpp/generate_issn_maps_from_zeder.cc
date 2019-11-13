@@ -239,7 +239,7 @@ void PushToGitHub(const std::string &issn_directory, const std::vector<std::stri
     }
 
     // commit
-    if (ExecuteGitCommand({ "commit", "-mRegenerated files from Zeder" }, issn_directory,
+    if (ExecuteGitCommand({ "commit", "--author=\"ubtue_robot <>\"", "-mRegenerated files from Zeder" }, issn_directory,
                           &std_out_buffer, &std_err_buffer) != EXIT_SUCCESS)
     {
         LOG_ERROR("Couldn't execute git commit!\n\nstdout:\n" + std_out_buffer + "\n\nstderr:\n" + std_err_buffer);
