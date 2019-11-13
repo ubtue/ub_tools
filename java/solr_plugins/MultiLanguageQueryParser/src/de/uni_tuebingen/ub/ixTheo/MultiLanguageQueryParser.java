@@ -138,7 +138,7 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     /*
-     * Helper to rewrite fields in expression
+     * Helper to rewrite existing generic fields to their localized counterparts in parameter expression
      */
     private String rewriteFieldsInExpression(final String expression) throws MultiLanguageQueryParserException {
         final String[] fieldNamesAndArguments = expression.split(":");
@@ -185,7 +185,7 @@ public class MultiLanguageQueryParser extends QParser {
     /*
      * Extract boost from field description
      */
-    private String extractBoostFromFieldAndBoost(String param) {
+    private String extractBoostFromFieldAndBoost(final String param) {
         Matcher matcher = FIELD_WITH_BOOST_PATTERN.matcher(param);
         if (matcher.matches())
             return matcher.group(2);
@@ -196,7 +196,7 @@ public class MultiLanguageQueryParser extends QParser {
     /*
      * Extract only the field from a field description that might also include a boost
      */
-    private String extractFieldFromFieldAndBoost(String param) {
+    private String extractFieldFromFieldAndBoost(final String param) {
         Matcher matcher = FIELD_WITH_BOOST_PATTERN.matcher(param);
         if (matcher.matches())
             return matcher.group(1);
@@ -204,14 +204,14 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
-    private void handleDismaxParser(String[] queryFields, String lang, IndexSchema schema) {
+    private void handleDismaxParser(final String[] queryFields, final String lang, final IndexSchema schema) {
         StringBuilder stringBuilder = new StringBuilder();
         // Only replace parameters if qf is indeed set
         if (newParams.get("qf") == null)
             return;
         for (final String param : queryFields) {
             newParams.remove("qf", param);
-            String[] singleParams = param.split(" ");
+            final String[] singleParams = param.split(" ");
             int i = 0;
             for (final String singleParam : singleParams) {
                 // Derive new field and handle boost appropriately
@@ -221,7 +221,7 @@ public class MultiLanguageQueryParser extends QParser {
                 final String boost = extractBoostFromFieldAndBoost(singleParam);
                 stringBuilder.append(newFieldName + (!boost.isEmpty() ? "^" + boost : ""));
                 if (++i < singleParams.length)
-                    stringBuilder.append(" ");
+                    stringBuilder.append(' ');
             }
          }
          newParams.add("qf", stringBuilder.toString());
