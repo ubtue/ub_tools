@@ -112,11 +112,11 @@ public:
              const unsigned zeder_id, const std::string &value)
      : issn_(issn), journal_title_(journal_title), zeder_instance_(zeder_instance), zeder_id_(zeder_id), value_(value) {}
 
-    bool operator<(const MapValue &rhs) {
-        if (zeder_instance_ == rhs.zeder_instance_)
-            return zeder_id_ < rhs.zeder_id_;
+    static bool Comparator(const MapValue &a, const MapValue &b) {
+        if (a.zeder_instance_ == b.zeder_instance_)
+            return a.zeder_id_ < b.zeder_id_;
         else
-            return zeder_instance_ < rhs.zeder_instance_;
+            return a.zeder_instance_ < b.zeder_instance_;
     }
 };
 
@@ -295,7 +295,7 @@ int Main(int argc, char *argv[]) {
         map_values.clear();
         GenerateISSNMap("IxTheo", entries_ixtheo, map_params, &map_values);
         GenerateISSNMap("KrimDok", entries_krimdok, map_params, &map_values);
-        std::sort(map_values.begin(), map_values.end());
+        std::sort(map_values.begin(), map_values.end(), MapValue::Comparator);
 
         if (find_duplicate_issns)
             FindDuplicateISSNs(map_values);
