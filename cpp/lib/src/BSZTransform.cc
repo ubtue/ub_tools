@@ -227,6 +227,8 @@ SSGNType GetSSGNTypeFromString(const std::string &ssgn_string) {
         { "FG_0", FG_0 },
         { "FG_1", FG_1 },
         { "FG_0/1", FG_01 },
+        { "FG_2,1", FG_21 },
+        { "FID-KRIM-DE-21", FG_21 }
     };
     const std::map<std::string, SSGNType> MAP_STRINGS {
         { "O", FG_0 },
@@ -234,6 +236,7 @@ SSGNType GetSSGNTypeFromString(const std::string &ssgn_string) {
         { "1", FG_1 },
         { "0 1", FG_01 },
         { "0$a1", FG_01 },
+        { "FID-KRIM-DE-21", FG_21 }
     };
 
     if (ZEDER_STRINGS.find(ssgn_string) != ZEDER_STRINGS.end())
