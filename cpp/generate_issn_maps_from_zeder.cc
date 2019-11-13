@@ -108,7 +108,7 @@ struct MapValue {
     unsigned zeder_id_;
     std::string value_;
 public:
-    MapValue(const std::string &issn, const std::string journal_title, const std::string &zeder_instance,
+    MapValue(const std::string &issn, const std::string &journal_title, const std::string &zeder_instance,
              const unsigned zeder_id, const std::string &value)
      : issn_(issn), journal_title_(journal_title), zeder_instance_(zeder_instance), zeder_id_(zeder_id), value_(value) {}
 
@@ -183,11 +183,11 @@ void FindDuplicateISSNs(const std::vector<MapValue> &map_values) {
 
 
 void WriteMapValuesToFile(const std::vector<MapValue> &map_values, const MapParams &map_params, const std::string &file_path) {
-    auto output(FileUtil::OpenOutputFileOrDie(file_path));
+    const auto output(FileUtil::OpenOutputFileOrDie(file_path));
 
     for (const auto &value : map_values) {
         output->writeln(value.issn_ + "=" + value.value_ + " # (" + std::to_string(value.zeder_id_) + " | "
-                       + value.zeder_instance_ + ") " + value.journal_title_);
+                        + value.zeder_instance_ + ") " + value.journal_title_);
     }
 
     LOG_INFO("Wrote " + std::to_string(map_values.size()) + " entries to " + map_params.type_string_ + " map '"
