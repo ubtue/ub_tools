@@ -75,7 +75,7 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
                            std::string * const affix);
 
 
-enum SSGNType { INVALID, FG_0, FG_1, FG_01 };
+enum SSGNType { INVALID, FG_0, FG_1, FG_01, FG_21 };
 
 
 SSGNType GetSSGNTypeFromString(const std::string &ssgn_string);
