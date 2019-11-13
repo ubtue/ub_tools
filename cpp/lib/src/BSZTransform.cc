@@ -234,7 +234,6 @@ SSGNType GetSSGNTypeFromString(const std::string &ssgn_string) {
         { "O", FG_0 },
         { "0", FG_0 },
         { "1", FG_1 },
-        { "1", FG_1 },
         { "0 1", FG_01 },
         { "0$a1", FG_01 },
         { "FID-KRIM-DE-21", FG_21 }
