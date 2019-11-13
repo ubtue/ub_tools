@@ -704,7 +704,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             _084_subfields.appendSubfield('a', "0");
             _084_subfields.appendSubfield('a', "1");
             break;
-        case BSZTransform::SSGNType::KRIM_21:
+        case BSZTransform::SSGNType::FG_21:
             _084_subfields.appendSubfield('a', "2,1");
             break;
         default:

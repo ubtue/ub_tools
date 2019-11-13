@@ -54,17 +54,9 @@ struct MapParams {
 };
 
 
-std::string ZederToMapValueSSGN(const std::string &zeder_value, const unsigned zeder_id) {
-    switch (BSZTransform::GetSSGNTypeFromString(zeder_value)) {
-    case BSZTransform::SSGNType::FG_0:
-        return "0";
-    case BSZTransform::SSGNType::FG_1:
-        return "1";
-    case BSZTransform::SSGNType::FG_01:
-        return "0/1";
-    case BSZTransform::SSGNType::INVALID:
-        LOG_ERROR("invalid Zeder value for SSGN '" + zeder_value + "' (Zeder ID: " + std::to_string(zeder_id) + ")");
-    }
+std::string ZederToMapValueSSGN(const std::string &zeder_value, const unsigned /* zeder_id */) {
+    // use the same string as in Zeder
+    return zeder_value;
 }
 
 
@@ -112,22 +104,29 @@ void DownloadFullDumpFromZeder(Zeder::Flavour flavour, Zeder::EntryCollection * 
 struct MapValue {
     std::string issn_;              // print or online
     std::string journal_title_;
+    std::string zeder_instance_;
     unsigned zeder_id_;
     std::string value_;
+public:
+    MapValue(const std::string issn, const std::string journal_title, const std::string &zeder_instance,
+             const unsigned zeder_id, const std::string &value)
+     : issn_(issn), journal_title_(journal_title), zeder_instance_(zeder_instance), zeder_id_(zeder_id), value_(value) {}
 
-    MapValue(const std::string issn, const std::string journal_title, const unsigned zeder_id, const std::string &value)
-     : issn_(issn), journal_title_(journal_title), zeder_id_(zeder_id), value_(value) {}
+    bool operator<(const MapValue &rhs) {
+        if (zeder_instance_ == rhs.zeder_instance_)
+            return zeder_id_ < rhs.zeder_id_;
+        else
+            return zeder_instance_ < rhs.zeder_instance_;
+    }
 };
 
 
-void GenerateISSNMap(Zeder::EntryCollection &entries, const MapParams &params,
+void GenerateISSNMap(const std::string &zeder_instance, Zeder::EntryCollection &entries, const MapParams &params,
                      std::vector<MapValue> * const map_values)
 {
     static const std::string ZEDER_TITLE_COLUMN("tit");
     static const std::string ZEDER_ISSN_COLUMN("issn");
     static const std::string ZEDER_ESSN_COLUMN("essn");
-
-    map_values->clear();
 
     for (const auto &entry : entries) {
         const auto zeder_value(entry.getAttribute(params.zeder_column_, ""));
@@ -153,7 +152,7 @@ void GenerateISSNMap(Zeder::EntryCollection &entries, const MapParams &params,
 
         for (const auto &issn : issns) {
             const auto converted_value(params.convert_zeder_value_to_map_value_(zeder_value, entry.getId()));
-            map_values->emplace_back(issn, entry.getAttribute(ZEDER_TITLE_COLUMN),
+            map_values->emplace_back(issn, entry.getAttribute(ZEDER_TITLE_COLUMN), zeder_instance,
                                      entry.getId(), converted_value);
         }
     }
@@ -162,10 +161,10 @@ void GenerateISSNMap(Zeder::EntryCollection &entries, const MapParams &params,
 
 void FindDuplicateISSNs(const std::vector<MapValue> &map_values) {
     std::unordered_set<std::string> processed_issns;
-    std::unordered_multimap<std::string, unsigned> processed_values;
+    std::unordered_multimap<std::string, std::pair<std::string, unsigned>> processed_values;
 
     for (const auto &value : map_values) {
-        processed_values.insert(std::make_pair(value.issn_, value.zeder_id_));
+        processed_values.insert(std::make_pair(value.issn_, std::make_pair(value.zeder_instance_, value.zeder_id_)));
         processed_issns.insert(value.issn_);
     }
 
@@ -175,7 +174,7 @@ void FindDuplicateISSNs(const std::vector<MapValue> &map_values) {
 
             std::string warning_message("ISSN '" + issn + "' found in multiple Zeder entries: ");
             for (auto itr(range.first); itr != range.second; ++itr)
-                warning_message += std::to_string(itr->second) + " ";
+                warning_message += std::to_string(itr->second.second) + " (" + itr->second.first + ") ";
 
             LOG_WARNING(warning_message);
         }
@@ -187,8 +186,8 @@ void WriteMapValuesToFile(const std::vector<MapValue> &map_values, const MapPara
     File output(file_path, "w");
 
     for (const auto &value : map_values) {
-        output.writeln(value.issn_ + "=" + value.value_ + " # (" + std::to_string(value.zeder_id_) + ") "
-                       + value.journal_title_);
+        output.writeln(value.issn_ + "=" + value.value_ + " # (" + std::to_string(value.zeder_id_) + " | "
+                       + value.zeder_instance_ + ") " + value.journal_title_);
     }
 
     LOG_INFO("Wrote " + std::to_string(map_values.size()) + " entries to " + map_params.type_string_ + " map '"
@@ -282,8 +281,9 @@ int Main(int argc, char *argv[]) {
     std::map<MapType, std::string> map_filename_pairs;
     ParseMapPairs(argc, argv, &map_filename_pairs);
 
-    Zeder::EntryCollection entries;
-    DownloadFullDumpFromZeder(Zeder::Flavour::IXTHEO, &entries);
+    Zeder::EntryCollection entries_ixtheo, entries_krimdok;
+    DownloadFullDumpFromZeder(Zeder::Flavour::IXTHEO, &entries_ixtheo);
+    DownloadFullDumpFromZeder(Zeder::Flavour::KRIMDOK, &entries_krimdok);
 
     std::vector<MapValue> map_values;
     std::vector<std::string> files_to_push;
@@ -292,7 +292,11 @@ int Main(int argc, char *argv[]) {
         const auto &map_params(MAP_TYPE_TO_PARAMS.at(map_filename_pair.first));
         const std::string output_file(issn_directory + "/" + map_filename_pair.second);
 
-        GenerateISSNMap(entries, map_params, &map_values);
+        map_values.clear();
+        GenerateISSNMap("IxTheo", entries_ixtheo, map_params, &map_values);
+        GenerateISSNMap("KrimDok", entries_krimdok, map_params, &map_values);
+        std::sort(map_values.begin(), map_values.end());
+
         if (find_duplicate_issns)
             FindDuplicateISSNs(map_values);
 
