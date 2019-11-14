@@ -2,7 +2,7 @@
  *  \brief  Declarations of the archive processing functions and classes.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -77,16 +77,25 @@ class Writer {
     std::unordered_set<std::string> already_seen_archive_names_;
 public:
     enum class FileType { AUTO, TAR, GZIPPED_TAR };
+    enum class EntryType { REGULAR_FILE };
 public:
     // \param archive_write_options  Currently supported is only "compression-level" for gzipped archives!
     explicit Writer(const std::string &archive_file_name, const std::string &archive_write_options,
-			   const FileType file_type = FileType::AUTO);
+                    const FileType file_type = FileType::AUTO);
 
     explicit Writer(const std::string &archive_file_name, const FileType file_type = FileType::AUTO)
         : Writer(archive_file_name, "", file_type) { }
     ~Writer();
 
     void add(const std::string &filename, std::string archive_name = "");
+
+    //
+    // First you need to call addEntry() and then write() at least once.  Make sure that the number of bytes written with write() is what
+    // you first passed into addEntry()!
+    //
+    void addEntry(const std::string &filename, const int64_t size, const mode_t mode = 0644,
+                  const EntryType entry_type = EntryType::REGULAR_FILE);
+    void write(char * const buffer, const size_t size);
 };
 
 

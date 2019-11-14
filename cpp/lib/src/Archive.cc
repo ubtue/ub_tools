@@ -121,7 +121,7 @@ bool Reader::extractEntry(const std::string &member_name, std::string output_fil
 
         ::close(to_fd);
     }
-    
+
     return false;
 }
 
@@ -187,7 +187,7 @@ void Writer::add(const std::string &filename, std::string archive_name) {
         LOG_ERROR("stat(2) on \"" + filename + "\" failed: " + std::string(::strerror(errno)));
 
     if (archive_entry_ == nullptr)
-        archive_entry_ = archive_entry_new();
+        archive_entry_ = ::archive_entry_new();
     else
         ::archive_entry_clear(archive_entry_);
     ::archive_entry_set_pathname(archive_entry_, archive_name.c_str());
@@ -208,6 +208,28 @@ void Writer::add(const std::string &filename, std::string archive_name) {
         if (unlikely(::archive_write_data(archive_handle_, buffer, count) != static_cast<const ssize_t>(count)))
             LOG_ERROR("archive_write_data(3) failed: " + std::string(::archive_error_string(archive_handle_)));
     }
+}
+
+
+void Writer::addEntry(const std::string &filename, const int64_t size, const mode_t mode, const EntryType entry_type) {
+    if (archive_entry_ != nullptr)
+        ::archive_entry_clear(archive_entry_);
+    else
+        archive_entry_ = ::archive_entry_new();
+
+    ::archive_entry_set_pathname(archive_entry_, filename.c_str());
+    ::archive_entry_set_size(archive_entry_, size);
+    if (entry_type == EntryType::REGULAR_FILE)
+        ::archive_entry_set_filetype(archive_entry_, AE_IFREG);
+    else
+        LOG_ERROR("unsupported entry type: " + std::to_string(static_cast<int>(entry_type)) + "!");
+    ::archive_entry_set_perm(archive_entry_, mode);
+}
+
+
+void Writer::write(char * const buffer, const size_t size) {
+    if (::archive_write_data(archive_handle_, buffer, size) < 0)
+        LOG_ERROR("archive_write_data failed!");
 }
 
 
@@ -234,7 +256,7 @@ void UnpackArchive(const std::string &archive_name, const std::string &directory
                 LOG_ERROR("failed to write data to \"" + output->getPath() + "\"! (No room?)");
         }
     }
-    
+
 }
 
 
