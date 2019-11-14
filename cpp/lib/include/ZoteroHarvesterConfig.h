@@ -60,6 +60,8 @@ struct GlobalParams {
     } rss_harvester_operation_params_;
 public:
     explicit GlobalParams(const IniFile::Section &config_section);
+    GlobalParams(const GlobalParams &rhs) = delete;
+    GlobalParams &operator=(const GlobalParams &rhs) = delete;
 
     static std::string GetINIKeyString(const INIKey ini_key);
 private:
@@ -98,6 +100,8 @@ struct GroupParams {
     std::string author_gnd_lookup_query_params_;
 public:
     explicit GroupParams(const IniFile::Section &group_section);
+    GroupParams(const GroupParams &rhs) = delete;
+    GroupParams &operator=(const GroupParams &rhs) = delete;
 
     static std::string GetINIKeyString(const INIKey ini_key);
 private:
@@ -166,6 +170,8 @@ struct JournalParams {
     } marc_metadata_params_;
 public:
     explicit JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);
+    JournalParams(const GroupParams &rhs) = delete;
+    JournalParams &operator=(const GroupParams &rhs) = delete;
 
     static std::string GetINIKeyString(const INIKey ini_key);
 private:

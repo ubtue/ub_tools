@@ -18,7 +18,6 @@
 */
 
 #include "StringUtil.h"
-#include "SyndicationFormat.h"
 #include "ZoteroHarvesterDownload.h"
 #include "util.h"
 
@@ -149,16 +148,66 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 namespace RSS {
 
 
+bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Config::JournalParams &journal_params,
+                                     const SyndicationFormat::AugmentParams &syndication_format_site_params) const
+{
+    if (force_downloads_)
+        return true;
+
+    const auto last_harvest_timestamp(upload_tracker_.getLastUploadTime(journal_params.name_));
+    if (last_harvest_timestamp == TimeUtil::BAD_TIME_T) {
+        LOG_DEBUG("feed will be harvested for the first time");
+        return true;
+    } else {
+        const auto diff((time(nullptr) - last_harvest_timestamp) / 86400);
+        if (unlikely(diff < 0))
+            LOG_ERROR("unexpected negative time difference '" + std::to_string(diff) + "'");
+
+        const auto harvest_threshold(journal_params.update_window_ > 0 ? journal_params.update_window_ : feed_harvest_interval_);
+        LOG_DEBUG("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
+        LOG_DEBUG("feed harvest threshold: " + std::to_string(harvest_threshold) + " days | diff: " + std::to_string(diff) + " days");
+
+        if (diff >= harvest_threshold) {
+            LOG_DEBUG("feed older than " + std::to_string(harvest_threshold) +
+                      " days. flagging for mandatory harvesting");
+            return true;
+        }
+    }
+
+    // needs to be parsed again as iterating over a SyndicationFormat instance will consume its items
+    std::string err_msg;
+    const auto syndication_format(SyndicationFormat::Factory(feed_contents, syndication_format_site_params, &err_msg));
+    if (syndication_format == nullptr) {
+        LOG_WARNING("problem parsing XML document for RSS feed '" + getParameter().download_item_.url_.toString() + "': "
+                    + err_msg);
+        return false;
+    }
+
+    for (const auto &item : *syndication_format) {
+        const auto pub_date(item.getPubDate());
+        if (force_process_feeds_with_no_pub_dates_ and pub_date == TimeUtil::BAD_TIME_T) {
+            LOG_DEBUG("URL '" + item.getLink() + "' has no publication timestamp. flagging for harvesting");
+            return true;
+        } else if (pub_date != TimeUtil::BAD_TIME_T and std::difftime(item.getPubDate(), last_harvest_timestamp) > 0) {
+            LOG_DEBUG("URL '" + item.getLink() + "' was added/updated since the last harvest of this RSS feed. flagging for harvesting");
+            return true;
+        }
+    }
+
+    LOG_INFO("no new, harvestable entries in feed. skipping...");
+    return false;
+}
+
+
 void Tasklet::run(const Params &parameters, Result * const result) {
     std::unique_ptr<SyndicationFormat> syndication_format;
-    std::string syndication_format_parse_err_msg;
+    std::string feed_contents, syndication_format_parse_err_msg;
     SyndicationFormat::AugmentParams syndication_format_augment_parameters;
     syndication_format_augment_parameters.strptime_format_ = parameters.download_item_.journal_.strptime_format_string_;
 
-    if (not parameters.feed_contents_.empty()) {
-        syndication_format.reset(SyndicationFormat::Factory(parameters.feed_contents_, syndication_format_augment_parameters,
-                                &syndication_format_parse_err_msg).release());
-    } else {
+    if (not parameters.feed_contents_.empty())
+        feed_contents = parameters.feed_contents_;
+    else {
         Downloader::Params downloader_params;
         downloader_params.user_agent_ = parameters.user_agent_;
 
@@ -168,9 +217,14 @@ void Tasklet::run(const Params &parameters, Result * const result) {
             return;
         }
 
-        syndication_format.reset(SyndicationFormat::Factory(downloader.getMessageBody(), syndication_format_augment_parameters,
-                                 &syndication_format_parse_err_msg).release());
+        feed_contents = downloader.getMessageBody();
     }
+
+    if (not feedNeedsToBeHarvested(feed_contents, parameters.download_item_.journal_, syndication_format_augment_parameters))
+        return;
+
+    syndication_format.reset(SyndicationFormat::Factory(feed_contents, syndication_format_augment_parameters,
+                                 &syndication_format_parse_err_msg).release());
 
     if (syndication_format == nullptr) {
         LOG_WARNING("problem parsing XML document for RSS feed '" + parameters.download_item_.url_.toString() + "': "
@@ -196,12 +250,14 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
 
 Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
-                 std::unique_ptr<Params> parameters)
+                 std::unique_ptr<Params> parameters, const Util::UploadTracker &upload_tracker, const bool force_downloads,
+                 const unsigned feed_harvest_interval, const bool force_process_feeds_with_no_pub_dates)
  : Util::Tasklet<Params, Result>(instance_counter, parameters->download_item_,
                                  "RSS: " + parameters->download_item_.url_.toString(),
                                  std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
                                  std::move(parameters), std::unique_ptr<Result>(new Result())),
-   download_manager_(download_manager) {}
+   download_manager_(download_manager), upload_tracker_(upload_tracker), force_downloads_(force_downloads),
+   feed_harvest_interval_(feed_harvest_interval), force_process_feeds_with_no_pub_dates_(force_process_feeds_with_no_pub_dates) {}
 
 
 } // end namespace RSS
@@ -369,7 +425,7 @@ void DownloadManager::cleanupCompletedTasklets(DomainData * const domain_data) {
 
 
 DownloadManager::DownloadManager(const GlobalParams &global_params)
- : global_params_(global_params)
+ : global_params_(global_params), upload_tracker_(std::unique_ptr<DbConnection>(new DbConnection))
 {
     if (::pthread_create(&background_thread_, nullptr, BackgroundThreadRoutine, this) != 0)
             LOG_ERROR("background download manager thread creation failed!");
@@ -441,7 +497,9 @@ std::unique_ptr<DownloadResult<RSS::Params, RSS::Result>> DownloadManager::rss(c
 {
     std::unique_ptr<RSS::Params> parameters(new RSS::Params(source, user_agent, feed_contents));
     std::shared_ptr<RSS::Tasklet> new_tasklet(new RSS::Tasklet(&rss_tasklet_execution_counter_,
-                                              this, std::move(parameters)));
+                                              this, std::move(parameters), upload_tracker_, global_params_.force_downloads_,
+                                              global_params_.rss_feed_harvest_interval_,
+                                              global_params_.force_process_rss_feeds_with_no_pub_dates_));
 
     {
         std::lock_guard<std::recursive_mutex> queue_buffer_lock(rss_queue_buffer_mutex_);
