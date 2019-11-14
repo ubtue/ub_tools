@@ -27,6 +27,7 @@
 #include "RegexMatcher.h"
 #include "RobotsDotTxt.h"
 #include "SimpleCrawler.h"
+#include "SyndicationFormat.h"
 #include "ThreadUtil.h"
 #include "TimeLimit.h"
 #include "Url.h"
@@ -148,10 +149,18 @@ public:
 
 class Tasklet : public Util::Tasklet<Params, Result> {
     DownloadManager * const download_manager_;
+    const Util::UploadTracker &upload_tracker_;
+    bool force_downloads_;
+    unsigned feed_harvest_interval_;
+    bool force_process_feeds_with_no_pub_dates_;
+
     void run(const Params &parameters, Result * const result);
+    bool feedNeedsToBeHarvested(const std::string &feed_contents, const Config::JournalParams &journal_params,
+                                const SyndicationFormat::AugmentParams &syndication_format_site_params) const;
 public:
-    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
-            DownloadManager * const download_manager, std::unique_ptr<Params> parameters);
+    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
+            std::unique_ptr<Params> parameters, const Util::UploadTracker &upload_tracker, const bool force_downloads,
+            const unsigned feed_harvest_interval, const bool force_process_feeds_with_no_pub_dates);
     virtual ~Tasklet() override = default;
 };
 
@@ -215,9 +224,18 @@ public:
         Url translation_server_url_;
         unsigned default_download_delay_time_;
         unsigned max_download_delay_time_;
+        unsigned rss_feed_harvest_interval_;
+        bool force_process_rss_feeds_with_no_pub_dates_;
         bool ignore_robots_txt_;
+        bool force_downloads_;
     public:
-        explicit GlobalParams() : default_download_delay_time_(0), max_download_delay_time_(0), ignore_robots_txt_(false) {}
+        GlobalParams(const Config::GlobalParams &config_global_params)
+         : translation_server_url_(config_global_params.translation_server_url_),
+           default_download_delay_time_(config_global_params.download_delay_params_.default_delay_),
+           max_download_delay_time_(config_global_params.download_delay_params_.max_delay_),
+           rss_feed_harvest_interval_(config_global_params.rss_harvester_operation_params_.harvest_interval_),
+           force_process_rss_feeds_with_no_pub_dates_(config_global_params.rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_),
+           ignore_robots_txt_(false), force_downloads_(false) {}
         GlobalParams(const GlobalParams &rhs) = default;
     };
 private:
@@ -287,6 +305,7 @@ private:
     std::recursive_mutex crawling_queue_buffer_mutex_;
     std::deque<std::shared_ptr<RSS::Tasklet>> rss_queue_buffer_;
     std::recursive_mutex rss_queue_buffer_mutex_;
+    Util::UploadTracker upload_tracker_;
 
     static void *BackgroundThreadRoutine(void * parameter);
 

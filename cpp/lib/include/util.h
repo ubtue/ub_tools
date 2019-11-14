@@ -51,6 +51,8 @@ protected:
     int fd_;
     bool log_process_pids_, log_no_decorations_, log_strip_call_site_;
     LogLevel min_log_level_;
+
+    void formatMessage(const std::string &level, std::string * const msg);
 public:
     Logger();
     virtual ~Logger() = default;
@@ -61,20 +63,20 @@ public:
     LogLevel getMinimumLogLevel() const { return min_log_level_; }
 
     //* Emits "msg" and then calls exit(3), also generates a call stack trace if the environment variable BACKTRACE has been set.
-    [[noreturn]] void error(const std::string &msg) __attribute__((noreturn));
-    [[noreturn]] inline void error(const std::string &function_name, const std::string &msg) __attribute__((noreturn))
+    [[noreturn]] virtual void error(const std::string &msg) __attribute__((noreturn));
+    [[noreturn]] virtual void error(const std::string &function_name, const std::string &msg) __attribute__((noreturn))
         { error("in " + function_name + ": " + msg); }
 
-    void warning(const std::string &msg);
+    virtual void warning(const std::string &msg);
     inline void warning(const std::string &function_name, const std::string &msg) { warning("in " + function_name + ": " + msg); }
 
-    void info(const std::string &msg);
+    virtual void info(const std::string &msg);
     inline void info(const std::string &function_name, const std::string &msg) { info("in " + function_name + ": " + msg); }
 
     /** \note Only writes actual log messages if the environment variable "UTIL_LOG_DEBUG" exists and is set
      *  to "true"!
      */
-    void debug(const std::string &msg);
+    virtual void debug(const std::string &msg);
     inline void debug(const std::string &function_name, const std::string &msg) { debug("in " + function_name + ": " + msg); }
 
     //* \note Aborts if ""level_candidate" is not one of "ERROR", "WARNING", "INFO" or "DEBUG".
@@ -82,8 +84,8 @@ public:
 
     // \brief Returns a string representation of "log_level".
     static std::string LogLevelToString(const LogLevel log_level);
-private:
-    void writeString(const std::string &level, std::string msg);
+protected:
+    virtual void writeString(const std::string &level, std::string msg, const bool format_message = true);
 };
 extern Logger *logger;
 

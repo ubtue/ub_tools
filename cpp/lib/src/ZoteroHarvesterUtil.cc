@@ -17,7 +17,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "MiscUtil.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include "ZoteroHarvesterUtil.h"
 #include "util.h"
 
@@ -37,6 +39,125 @@ Harvestable Harvestable::New(const std::string &url, const Config::JournalParams
 }
 
 
+void ZoteroLogger::queueMessage(const std::string &level, std::string msg, const TaskletContext &tasklet_context) {
+    std::lock_guard<std::mutex> locker(active_context_mutex_);
+
+    auto match(active_contexts_.find(tasklet_context.associated_item_.id_));
+    if (match == active_contexts_.end())
+        error("message from unknown tasklet!");
+
+    formatMessage(level, &msg);
+    match->second.buffer_ += msg;
+}
+
+
+void ZoteroLogger::error(const std::string &msg) {
+    // this is unrecoverable, so print out a preamble with Zotero related info before displaying
+    // the actual error message and terminating the process
+
+    const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
+    if (context == nullptr)
+        ::Logger::error(msg);       // pass-through
+
+    std::string preamble;
+    preamble += "ZOTERO debug info:\n";
+    preamble += "\tparent tasklet: " + context->description_ + " (handle: " + std::to_string(pthread_self()) + ")\n";
+    preamble += "\titem:\n";
+    preamble += "\t\tid: " + std::to_string(context->associated_item_.id_) + "\n";
+    preamble += "\t\tjournal: " + context->associated_item_.journal_.name_ + " ("
+                + context->associated_item_.journal_.group_ + "|" + std::to_string(context->associated_item_.journal_.zeder_id_)
+                + ")\n";
+    preamble += "\t\turl: " + context->associated_item_.url_.toString() + "\n\n";
+
+    // flush the tasklet's buffer
+    std::lock_guard<std::mutex> locker(active_context_mutex_);
+    auto match(active_contexts_.find(context->associated_item_.id_));
+    if (match == active_contexts_.end())
+        ::Logger::error("double-fault! message from unknown tasklet! original message:\n\n" + preamble + msg);
+    else
+        preamble += match->second.buffer_;
+
+    ::Logger::error(preamble + msg);
+}
+
+
+void ZoteroLogger::warning(const std::string &msg) {
+    if (min_log_level_ < LL_WARNING)
+        return;
+
+    const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
+    if (context == nullptr) {
+        ::Logger::warning(msg);       // pass-through
+        return;
+    }
+
+    queueMessage("WARN", msg, *context);
+}
+
+
+void ZoteroLogger::info(const std::string &msg) {
+    if (min_log_level_ < LL_INFO)
+        return;
+
+    const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
+    if (context == nullptr) {
+        ::Logger::info(msg);       // pass-through
+        return;
+    }
+
+    queueMessage("INFO", msg, *context);
+}
+
+
+void ZoteroLogger::debug(const std::string &msg) {
+    if ((min_log_level_ < LL_DEBUG) and (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") != "true"))
+        return;
+
+    const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
+    if (context == nullptr) {
+        ::Logger::debug(msg);       // pass-through
+        return;
+    }
+
+    queueMessage("DEBUG", msg, *context);
+}
+
+
+void ZoteroLogger::pushContext(const Util::Harvestable &context_item) {
+    std::lock_guard<std::mutex> locker(active_context_mutex_);
+
+    auto match(active_contexts_.find(context_item.id_));
+    if (match != active_contexts_.end())
+        error("Harvestable " + std::to_string(context_item.id_) + " (" + context_item.url_.toString() + ") already registered");
+
+    active_contexts_.emplace(context_item.id_, context_item);
+}
+
+
+void ZoteroLogger::popContext(const Util::Harvestable &context_item) {
+    std::lock_guard<std::mutex> locker(active_context_mutex_);
+
+    auto match(active_contexts_.find(context_item.id_));
+    if (match == active_contexts_.end())
+        error("Harvestable " + std::to_string(context_item.id_) + " (" + context_item.url_.toString() + ") not registered");
+
+    // flush buffer contents and remove the context
+    writeString("", match->second.buffer_, /* format_message = */ false);
+    active_contexts_.erase(match);
+
+    // write the current status
+    writeString("INFO", "\n\nZotero Status: " + std::to_string(active_contexts_.size()) + " active tasklets\n\n");
+}
+
+
+void ZoteroLogger::Init() {
+    delete logger;
+    logger = new Logger();
+
+    LOG_INFO("Zotero Logger initialized!");
+}
+
+
 TaskletContextManager::TaskletContextManager() {
     if (pthread_key_create(&tls_key_, nullptr) != 0)
         LOG_ERROR("could not create tasklet context thread local key");
@@ -49,22 +170,91 @@ TaskletContextManager::~TaskletContextManager() {
 }
 
 
-void TaskletContextManager::setTaskletContext(const Harvestable &download_item) const {
+void TaskletContextManager::setThreadLocalContext(const TaskletContext &context) const {
     const auto tasklet_data(pthread_getspecific(tls_key_));
     if (tasklet_data != nullptr)
         LOG_ERROR("tasklet local data already set for thread " + std::to_string(pthread_self()));
 
-    if (pthread_setspecific(tls_key_, const_cast<Harvestable *>(&download_item)) != 0)
+    if (pthread_setspecific(tls_key_, const_cast<TaskletContext *>(&context)) != 0)
         LOG_ERROR("could not set tasklet local data for thread " + std::to_string(pthread_self()));
 }
 
 
-const Harvestable &TaskletContextManager::getTaskletContext() const {
-    return *reinterpret_cast<Harvestable *>(pthread_getspecific(tls_key_));
+TaskletContext *TaskletContextManager::getThreadLocalContext() const {
+    return reinterpret_cast<TaskletContext *>(pthread_getspecific(tls_key_));
 }
 
 
 const TaskletContextManager TASKLET_CONTEXT_MANAGER;
+
+
+inline static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::Entry * const entry) {
+    if (row.empty())
+        LOG_ERROR("Couldn't extract DeliveryTracker entry from empty DbRow");
+
+    entry->url_ = row["url"];
+    entry->delivered_at_ = SqlUtil::DatetimeToTimeT(row["delivered_at"]);
+    entry->journal_name_ = row["journal_name"];
+    entry->hash_ = row["hash"];
+}
+
+
+bool UploadTracker::hasAlreadyBeenUploaded(const std::string &url, const std::string &hash, Entry * const entry) const {
+    std::string truncated_url(url);
+    truncateURL(&truncated_url);
+
+    db_connection_->queryOrDie("SELECT url, delivered_at, journal_name, hash FROM delivered_marc_records WHERE url='"
+                               + db_connection_->escapeString(truncated_url) + "'");
+    auto result_set(db_connection_->getLastResultSet());
+    if (result_set.empty())
+        return false;
+
+    const auto first_row(result_set.getNextRow());
+    Entry temp_entry;
+    UpdateUploadTrackerEntryFromDbRow(first_row, &temp_entry);
+
+    if (hash != "" and hash != temp_entry.hash_)
+        return false;
+
+    if (entry)
+        UpdateUploadTrackerEntryFromDbRow(first_row, entry);
+
+    return true;
+}
+
+
+size_t UploadTracker::listOutdatedJournals(const unsigned cutoff_days,
+                                           std::unordered_map<std::string, time_t> * const outdated_journals)
+{
+    db_connection_->queryOrDie("SELECT url, delivered_at, journal_name, hash FROM harvested_urls"
+                               "WHERE last_harvest_time < DATEADD(day, -" + std::to_string(cutoff_days) + ", GETDATE())");
+    auto result_set(db_connection_->getLastResultSet());
+    Entry temp_entry;
+    while (const DbRow row = result_set.getNextRow()) {
+        UpdateUploadTrackerEntryFromDbRow(row, &temp_entry);
+
+        auto match(outdated_journals->find(temp_entry.journal_name_));
+        if (match != outdated_journals->end()) {
+            // save the most recent timestamp
+            if (match->second < temp_entry.delivered_at_)
+               match->second = temp_entry.delivered_at_;
+        } else
+            (*outdated_journals)[temp_entry.journal_name_] = temp_entry.delivered_at_;
+    }
+
+    return outdated_journals->size();
+}
+
+
+time_t UploadTracker::getLastUploadTime(const std::string &journal_name) const {
+    db_connection_->queryOrDie("SELECT delivered_at FROM delivered_marc_records WHERE journal_name='" +
+                                db_connection_->escapeString(journal_name) + "' ORDER BY delivered_at DESC");
+    auto result_set(db_connection_->getLastResultSet());
+    if (result_set.empty())
+        return TimeUtil::BAD_TIME_T;
+
+    return SqlUtil::DatetimeToTimeT(result_set.getNextRow()["delivered_at"]);
+}
 
 
 } // end namespace Util
