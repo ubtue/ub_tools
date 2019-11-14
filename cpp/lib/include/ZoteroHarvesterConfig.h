@@ -59,9 +59,9 @@ struct GlobalParams {
         bool force_process_feeds_with_no_pub_dates_;
     } rss_harvester_operation_params_;
 public:
-    explicit GlobalParams(const IniFile::Section &config_section);
-    GlobalParams(const GlobalParams &rhs) = delete;
-    GlobalParams &operator=(const GlobalParams &rhs) = delete;
+    GlobalParams(const IniFile::Section &config_section);
+    GlobalParams(const GlobalParams &rhs) = default;
+    GlobalParams &operator=(const GlobalParams &rhs) = default;
 
     static std::string GetINIKeyString(const INIKey ini_key);
 private:
@@ -99,9 +99,9 @@ struct GroupParams {
     std::string author_ppn_lookup_url_;
     std::string author_gnd_lookup_query_params_;
 public:
-    explicit GroupParams(const IniFile::Section &group_section);
-    GroupParams(const GroupParams &rhs) = delete;
-    GroupParams &operator=(const GroupParams &rhs) = delete;
+    GroupParams(const IniFile::Section &group_section);
+    GroupParams(const GroupParams &rhs) = default;
+    GroupParams &operator=(const GroupParams &rhs) = default;
 
     static std::string GetINIKeyString(const INIKey ini_key);
 private:
@@ -169,7 +169,7 @@ struct JournalParams {
         std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
     } marc_metadata_params_;
 public:
-    explicit JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);
+    JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);
     JournalParams(const GroupParams &rhs) = delete;
     JournalParams &operator=(const GroupParams &rhs) = delete;
 
@@ -185,7 +185,10 @@ class EnhancementMaps {
 
     std::string lookup(const std::string &issn, const std::unordered_map<std::string, std::string> &map) const;
 public:
-    explicit EnhancementMaps(const std::string &enhancement_map_directory);
+    explicit EnhancementMaps() = default;
+    EnhancementMaps(const std::string &enhancement_map_directory);
+    EnhancementMaps(const EnhancementMaps &rhs) = default;
+    EnhancementMaps& operator=(const EnhancementMaps &rhs) = default;
 
     std::string lookupLicense(const std::string &issn) const;
     std::string lookupSSG(const std::string &issn) const;

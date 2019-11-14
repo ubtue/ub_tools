@@ -25,6 +25,7 @@
 #include "JSON.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
+#include "ThreadUtil.h"
 #include "ZoteroHarvesterConfig.h"
 #include "ZoteroHarvesterUtil.h"
 
@@ -99,6 +100,38 @@ void GenerateMarcRecordFromMetadataRecord(const Util::Harvestable &download_item
 
 
 bool MarcRecordMatchesExclusionFilters(const Util::Harvestable &download_item, MARC::Record * const marc_record);
+
+
+struct ConversionParams {
+    Util::Harvestable download_item_;
+    std::string json_metadata_;
+    bool force_downloads_;
+    bool skip_online_first_articles_unconditonally_;
+    const Config::GroupParams &group_params_;
+    const Config::EnhancementMaps &enhancement_maps_;
+public:
+    ConversionParams(const Util::Harvestable &download_item, const std::string &json_metadata, const bool force_downloads,
+                     const bool skip_online_first_articles_unconditonally, const Config::GroupParams &group_params,
+                     const Config::EnhancementMaps &enhancement_maps)
+     : download_item_(download_item), json_metadata_(json_metadata), force_downloads_(force_downloads),
+       skip_online_first_articles_unconditonally_(skip_online_first_articles_unconditonally),
+       group_params_(group_params), enhancement_maps_(enhancement_maps) {}
+};
+
+
+struct ConversionResult {
+    std::vector<std::unique_ptr<MARC::Record>> marc_records_;
+};
+
+
+class ConversionTasklet : public Util::Tasklet<ConversionParams, ConversionResult> {
+    void run(const ConversionParams &parameters, ConversionResult * const result);
+public:
+    ConversionTasklet(std::unique_ptr<ConversionParams> parameters);
+    virtual ~ConversionTasklet() override = default;
+
+    static unsigned GetRunningInstanceCount();
+};
 
 
 } // end namespace Conversion
