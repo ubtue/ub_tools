@@ -224,6 +224,7 @@ void Writer::addEntry(const std::string &filename, const int64_t size, const mod
     else
         LOG_ERROR("unsupported entry type: " + std::to_string(static_cast<int>(entry_type)) + "!");
     ::archive_entry_set_perm(archive_entry_, mode);
+    ::archive_write_header(archive_handle_, archive_entry_);
 }
 
 
