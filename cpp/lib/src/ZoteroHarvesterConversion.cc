@@ -422,19 +422,9 @@ MetadataRecord::SSGType GetSSGTypeFromString(const std::string &ssg_string) {
         { "FG_0/1", MetadataRecord::SSGType::FG_01 },
         { "FG_2,1", MetadataRecord::SSGType::FG_21 },
     };
-    const std::map<std::string, MetadataRecord::SSGType> ENHANCEMENT_MAP_STRINGS {
-        { "O", MetadataRecord::SSGType::FG_0 },
-        { "0", MetadataRecord::SSGType::FG_0 },
-        { "1", MetadataRecord::SSGType::FG_1 },
-        { "0 1", MetadataRecord::SSGType::FG_01 },
-        { "0$a1", MetadataRecord::SSGType::FG_01 },
-        { "FID-KRIM-DE-21", MetadataRecord::SSGType::FG_21 }
-    };
 
     if (ZEDER_STRINGS.find(ssg_string) != ZEDER_STRINGS.end())
         return ZEDER_STRINGS.find(ssg_string)->second;
-    else if (ENHANCEMENT_MAP_STRINGS.find(ssg_string) != ENHANCEMENT_MAP_STRINGS.end())
-        return ENHANCEMENT_MAP_STRINGS.find(ssg_string)->second;
 
     return MetadataRecord::SSGType::INVALID;
 }
@@ -946,6 +936,93 @@ bool MarcRecordMatchesExclusionFilters(const Util::Harvestable &download_item, M
     return found_match;
 }
 
+
+ThreadUtil::ThreadSafeCounter<unsigned> conversion_tasklet_instance_counter;
+
+
+const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST {
+    "journalArticle", "magazineArticle"
+};
+
+
+bool ExcludeOnlineFirstRecord(const MetadataRecord &metadata_record, const ConversionParams &parameters) {
+    if (std::find(VALID_ITEM_TYPES_FOR_ONLINE_FIRST.begin(),
+                  VALID_ITEM_TYPES_FOR_ONLINE_FIRST.end(),
+                  metadata_record.item_type_) == VALID_ITEM_TYPES_FOR_ONLINE_FIRST.end())
+    {
+        return false;
+    }
+
+    if (metadata_record.issue_.empty() and metadata_record.volume_.empty()
+        and not parameters.force_downloads_)
+    {
+        if (parameters.skip_online_first_articles_unconditonally_) {
+            LOG_DEBUG("Skipping: online-first article unconditionally");
+            return true;
+        } else if (metadata_record.doi_.empty()) {
+            LOG_DEBUG("Skipping: online-first article without a DOI");
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult * const result) {
+    std::shared_ptr<JSON::JSONNode> tree_root;
+    JSON::Parser json_parser(parameters.json_metadata_);
+
+    if (not json_parser.parse(&tree_root)) {
+        LOG_WARNING("failed to parse JSON: " + json_parser.getErrorMessage());
+        return;
+    }
+
+    const auto &download_item(parameters.download_item_);
+    auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
+    PostprocessTranslationServerResponse(parameters.download_item_, &array_node);
+
+    for (const auto &entry : *array_node) {
+        const auto json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
+
+        try {
+            if (ZoteroItemMatchesExclusionFilters(download_item, json_object))
+                continue;
+
+            MetadataRecord new_metadata_record;
+            ConvertZoteroItemToMetadataRecord(json_object, &new_metadata_record);
+            AugmentMetadataRecord(&new_metadata_record, download_item.journal_, parameters.group_params_,
+                                  parameters.enhancement_maps_);
+
+            if (ExcludeOnlineFirstRecord(new_metadata_record, parameters))
+                continue;
+
+            // a dummy record that will be replaced subsequently
+            std::unique_ptr<MARC::Record> new_marc_record(new MARC::Record(std::string(MARC::Record::LEADER_LENGTH, ' ')));
+            GenerateMarcRecordFromMetadataRecord(download_item, new_metadata_record, parameters.group_params_,
+                                                 new_marc_record.get());
+
+            if (MarcRecordMatchesExclusionFilters(download_item, new_marc_record.get()))
+                continue;
+
+            result->marc_records_.emplace_back(new_marc_record.release());
+        } catch (const std::exception &x) {
+            LOG_WARNING("couldn't convert record: " + std::string(x.what()));
+        }
+    }
+}
+
+
+ConversionTasklet::ConversionTasklet(std::unique_ptr<ConversionParams> parameters)
+ : Util::Tasklet<ConversionParams, ConversionResult>(&conversion_tasklet_instance_counter, parameters->download_item_,
+                                                     "Conversion: " + parameters->download_item_.url_.toString(),
+                                                     std::bind(&ConversionTasklet::run, this, std::placeholders::_1, std::placeholders::_2),
+                                                     std::move(parameters), std::unique_ptr<ConversionResult>(new ConversionResult())) {}
+
+
+unsigned ConversionTasklet::GetRunningInstanceCount() {
+    return conversion_tasklet_instance_counter;
+}
 
 
 } // end namespace Conversion
