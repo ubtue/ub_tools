@@ -47,6 +47,10 @@ dnf --assumeyes install \
 # PowerTools repo
 dnf --assumeyes --enablerepo=PowerTools install file-devel glibc-static leptonica-devel libarchive-devel openjpeg2-devel
 
+# g++, clang++ etc.
+dnf --assumeyes group install "Development Tools"
+dnf --assumeyes install llvm-toolset
+
 ### TUEFIND ###
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
