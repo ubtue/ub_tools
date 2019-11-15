@@ -212,8 +212,6 @@ int Main(int argc, char *argv[]) {
     HarvesterConfigData harvester_config;
     LoadHarvesterConfig(commandline_args.config_path_, &harvester_config);
 
-
-
     for (const auto &journal : harvester_config.journal_params_) {
         bool skip_journal(false);
 
