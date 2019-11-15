@@ -51,6 +51,9 @@ dnf --assumeyes --enablerepo=PowerTools install file-devel glibc-static leptonic
 dnf --assumeyes group install "Development Tools"
 dnf --assumeyes install llvm-toolset
 
+# Make Johannes happy :-)
+dnf --assumeyes install tmux emacs
+
 ### TUEFIND ###
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
