@@ -262,7 +262,7 @@ public:
         return result_.release();
     }
     void await() {
-        // wait until the tasklet has started, as the thread wouldn't allocated until it does
+        // wait until the tasklet has started, as the thread won't be allocated until it does
         while (getStatus() == Status::NOT_STARTED) {
             ::usleep(16 * 1000 * 1000);
         }
