@@ -42,10 +42,17 @@ InstallIfMissing "ca-certificates"
 dnf --assumeyes install \
     ant bc cifs-utils clang crontabs ftp gcc-c++ glibc-langpack-en git java-1.8.0-openjdk-devel make python3 sudo \
     gawk libcurl-devel libdb-devel libsq3-devel libuuid-devel libwebp libxml2-devel libxml2 lsof lz4 mariadb mariadb-devel mariadb-server mariadb-server-utils mod_ssl openssl-devel pcre-devel policycoreutils-python-utils poppler poppler-utils rpmdevtools unzip xerces-c-devel \
-    tesseract tesseract-devel tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-eng tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe expect-devel
+    tesseract tesseract-devel tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-eng tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe libcurl-devel
 
 # PowerTools repo
 dnf --assumeyes --enablerepo=PowerTools install file-devel glibc-static leptonica-devel libarchive-devel openjpeg2-devel
+
+# g++, clang++ etc.
+dnf --assumeyes group install "Development Tools"
+dnf --assumeyes install llvm-toolset
+
+# Make Johannes happy :-)
+dnf --assumeyes install tmux emacs
 
 ### TUEFIND ###
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then

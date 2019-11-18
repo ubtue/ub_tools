@@ -86,6 +86,10 @@ cd "$extraction_directory"
 tar xzf ../"$input_filename"
 cd -
 
+if [[ "$(generate_merge_order | wc --lines=1)" == 1 && "${input_filename:0:8}" = "SA-MARC-" ]]; then
+    generate_complete_dumpfile "$input_filename" "$target_filename"
+fi
+
 input_directory=$extraction_directory
 
 declare -i counter=0
