@@ -4,7 +4,7 @@
             "analyzer" : {
                 "fulltext_analyzer" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_all" ],
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase" ],
                     "char_filter": [ "html_char_filter" ]
                 },
                 "synonyms_all" : {
