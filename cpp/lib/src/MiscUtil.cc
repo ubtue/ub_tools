@@ -27,6 +27,7 @@
  */
 
 #include "MiscUtil.h"
+#include <algorithm>
 #include <map>
 #include <queue>
 #include <set>
@@ -627,6 +628,26 @@ unsigned LevenshteinDistance(const std::string &s1, const std::string &s2) {
 
 unsigned LevenshteinDistance(const std::wstring &s1, const std::wstring &s2) {
     return LevenshteinDistance<std::wstring>(s1, s2);
+}
+
+
+bool AddToPATH(const std::string &new_directory_path, const PreferredPathLocation preferred_path_location) {
+    if (new_directory_path.empty() or new_directory_path[0] != '/')
+        LOG_ERROR("we only support adding absolute paths to $PATH!");
+
+    const auto PATH(SafeGetEnv("PATH"));
+
+    std::vector<std::string> path_components;
+    StringUtil::Split(PATH, ':', &path_components);
+    if (std::find(path_components.cbegin(), path_components.cend(), new_directory_path) != path_components.cend())
+        return false;
+
+    if (preferred_path_location == PreferredPathLocation::LEADING)
+        SetEnv("PATH", new_directory_path + ":" + PATH);
+    else
+        SetEnv("PATH", PATH + ":" + new_directory_path);
+
+    return true;
 }
 
 
