@@ -39,11 +39,11 @@ EOF
 function CleanUp {
    file=${1}
    # Remove specifications that most probably do not occur in fulltext
-   sed --in-place --regexp-extended --expression 's/[[:space:]]*<.*>[[:space:]]*//g' $file
+   sed --in-place --regexp-extended --expression 's/[[:space:]]*<[^>]+>[[:space:]]*//g' $file
    # Remove erroneous newline/tab sequences
    sed --in-place  --regexp-extended --expression 's/(\\n|\\t)+//g' $file
    # Replace synonym separator #
-   sed --in-place --regexp-extended --expression 's/#/,/g' $file
+   sed --in-place --regexp-extended --expression 's/#/, /g' $file
 }
 
 #German synonyms
@@ -54,7 +54,7 @@ GetGermanSynonyms > ${outfile_de}
 
 #Synonyms for translated languages
 for lang in "eng" "fre" "gre" "ita" "por" "rus" "spa"; do
-   outfile=${outdir}/synonyms_${langmap[$lang]}
+   outfile=${outdir}/synonyms_${langmap[$lang]}.txt
    echo "Creating ${outfile}"
    GetSynonymsForLanguage $lang > ${outfile}
    CleanUp ${outfile}
