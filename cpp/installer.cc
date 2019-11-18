@@ -773,6 +773,9 @@ int Main(int argc, char **argv) {
     // correct PHP version for composer dependancies
     InstallSoftwareDependencies(os_system_type, vufind_system_type_string, ub_tools_only, not omit_systemctl);
 
+    // Where to find our own stuff:
+    MiscUtil::AddToPATH("/usr/local/bin/", MiscUtil::PreferredPathLocation::LEADING);
+
     if (not ub_tools_only) {
         MountDeptDriveOrDie(vufind_system_type);
         DownloadVuFind();
