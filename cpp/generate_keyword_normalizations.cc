@@ -44,7 +44,7 @@ public:
 
 
 unsigned ProcessJSON(
-    const std::string &json_result,
+    const std::string &json_result, const std::string &solr_field,
     std::unordered_map<std::string, std::vector<CapitalizationAndCount>> * const lowercase_form_to_capitalizations_and_counts_map)
 {
     JSON::Parser parser(json_result);
@@ -60,7 +60,7 @@ unsigned ProcessJSON(
     for (const auto &item : *docs_node) {
         ++item_count;
         const auto item_object(JSON::JSONNode::CastToObjectNodeOrDie("item", item));
-        const auto topic_de(item_object->getArrayNode("topic_de"));
+        const auto topic_de(item_object->getArrayNode(solr_field));
 
         for (const auto &single_topic : *topic_de) {
             const auto single_topic_string(JSON::JSONNode::CastToStringNodeOrDie("single_topic_string", single_topic));
@@ -88,7 +88,7 @@ unsigned ProcessJSON(
 
 
 void CollectStats(
-    const std::string &solr_host_and_port,
+    const std::string &solr_host_and_port, const std::string &solr_field,
     std::unordered_map<std::string, std::vector<CapitalizationAndCount>> * const lowercase_form_to_capitalizations_and_counts_map)
 {
     const unsigned CHUNK_SIZE(5000);
@@ -96,11 +96,11 @@ void CollectStats(
     unsigned total_item_count(0);
     for (;;) {
         std::string json_result, err_msg;
-        if (unlikely(not Solr::Query("topic_de:*", "topic_de", total_item_count, CHUNK_SIZE, &json_result, &err_msg,
+        if (unlikely(not Solr::Query(solr_field + ":*", solr_field, total_item_count, CHUNK_SIZE, &json_result, &err_msg,
                                      solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
             LOG_ERROR("Solr query failed or timed-out: " + err_msg);
 
-        const unsigned item_count(ProcessJSON(json_result, lowercase_form_to_capitalizations_and_counts_map));
+        const unsigned item_count(ProcessJSON(json_result, solr_field, lowercase_form_to_capitalizations_and_counts_map));
         total_item_count += item_count;
         LOG_INFO("Item count so far: " + std::to_string(total_item_count));
         if (item_count < CHUNK_SIZE) {
@@ -159,7 +159,8 @@ int Main(int argc, char **argv) {
     const auto output(FileUtil::OpenOutputFileOrDie(OUTPUT_FILENAME));
 
     std::unordered_map<std::string, std::vector<CapitalizationAndCount>> lowercase_form_to_capitalizations_and_counts_map;
-    CollectStats(SOLR_HOST_AND_PORT, &lowercase_form_to_capitalizations_and_counts_map);
+    CollectStats(SOLR_HOST_AND_PORT, "topic_de", &lowercase_form_to_capitalizations_and_counts_map);
+    CollectStats(SOLR_HOST_AND_PORT, "topic_en", &lowercase_form_to_capitalizations_and_counts_map);
     GenerateCanonizationMap(output.get(), lowercase_form_to_capitalizations_and_counts_map);
 
     return EXIT_SUCCESS;
