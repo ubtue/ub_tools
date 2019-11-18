@@ -1472,10 +1472,11 @@ public class TuelibMixin extends SolrIndexerMixin {
             String[] subtopics = topic.split("\\\\/");
             int i = 0;
             for (String subtopic : subtopics) {
+                subtopic = subtopic.trim();
                 subtopics[i] = (translation_map.get(subtopic) != null) ? translation_map.get(subtopic) : subtopic;
                 ++i;
             }
-            topic = Utils.join(new HashSet<String>(Arrays.asList(subtopics)), "/");
+            topic = Utils.join(new HashSet<String>(Arrays.asList(subtopics)), " / ");
         }
         // If we have a topic and a following number, try to separate the word and join it afterwards
         // This is especially important for time informations where we provide special treatment
