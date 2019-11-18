@@ -1,4 +1,4 @@
-# Extract authority synonyms from translator database and create synonym 
+# Extract authority synonyms from translator database and create synonym
 # files usable in Solr and Elasticsearch
 #!/bin/bash
 
@@ -14,7 +14,7 @@ declare -A langmap=(["eng"]="en" ["fre"]="fr" ["ger"]="de" ["gre"]="el"  ["ita"]
 
 function GetGermanSynonyms {
     lang='ger'
-    sshpass -p ${db_password} mysql -u ${db_user} -p -N ${db} <<EOF
+    sshpass -p ${db_password} mysql --user=${db_user} --password --skip-column-names ${db} <<EOF
     SELECT GROUP_CONCAT(translation) FROM keyword_translations WHERE language_code='${lang}'
     AND gnd_code IN (SELECT gnd_code FROM keyword_translations WHERE language_code='${lang}' AND status='reliable') GROUP BY gnd_code;
 EOF
@@ -23,14 +23,14 @@ EOF
 
 function GetSynonymsForLanguage {
    lang=${1}
-   sshpass -p "${db_password}" mysql -u "${db_user}" -p -N ${db} <<EOF
+   sshpass -p "${db_password}" mysql --user="${db_user}" --password --skip-column-names ${db} <<EOF
    SELECT GROUP_CONCAT(translation) FROM keyword_translations WHERE language_code='${lang}' GROUP BY gnd_code;
 EOF
 }
 
 
 function GetAllSynonyms {
-   sshpass -p "${db_password}" mysql -u "${db_user}" -p -N ${db} <<EOF
+   sshpass -p "${db_password}" mysql --user="${db_user}" --password --skip-column-names ${db} <<EOF
    SELECT GROUP_CONCAT(translation) FROM keyword_translations GROUP BY gnd_code;
 EOF
 }
@@ -39,11 +39,11 @@ EOF
 function CleanUp {
    file=${1}
    # Remove specifications that most probably do not occur in fulltext
-   sed --in-place -r --expression 's/[[:space:]]*<.*>[[:space:]]*//g' $file
+   sed --in-place --regexp-extended --expression 's/[[:space:]]*<.*>[[:space:]]*//g' $file
    # Remove erroneous newline/tab sequences
-   sed --in-place --expression 's;(\t)+;;g' $file
+   sed --in-place  --regexp-extended --expression 's/(\\n|\\t)+//g' $file
    # Replace synonym separator #
-   sed --in-place -r --expression 's/#/,/g' $file
+   sed --in-place --regexp-extended --expression 's/#/,/g' $file
 }
 
 #German synonyms
