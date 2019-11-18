@@ -1745,8 +1745,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         getCachedTopicsCollector(record, fieldSpec, separators, collector, langAbbrev, null);
     }
 
-
-
     /**
      * Generic function for topics that abstracts from a set or list collector
      * It is based on original SolrIndex.getAllSubfieldsCollector but allows to
@@ -1767,9 +1765,9 @@ public class TuelibMixin extends SolrIndexerMixin {
      *   opening_character       :== A single character to be prepended on the left side
      *   closing character       :== A single character to be appended on the right side
      */
-    private void getCachedTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
-                                          Collection<String> collector, String langAbbrev, Predicate<DataField> includeFieldPredicate)
-
+    private void getCachedTopicsCollector(final Record record, String fieldSpec, final Map<String, String> separators,
+                                          final Collection<String> collector, final String langAbbrev,
+					  final Predicate<DataField> includeFieldPredicate)
     {
         final String cacheKey = fieldSpec;
         Collection<Collection<Topic>> subcollector = new ArrayList<>();
@@ -1778,44 +1776,44 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (collectedTopicsCache.containsKey(cacheKey)) {
             subcollector = collectedTopicsCache.get(cacheKey);
         } else {
-            String[] fldTags = fieldSpec.split(":");
-            String fldTag;
-            String subfldTags;
+            String[] fieldTags = fieldSpec.split(":");
+            String fieldTag;
+            String subfieldTags;
             List<VariableField> marcFieldList;
 
-            for (final String fldTagsEntry : fldTags) {
+            for (final String fieldTagsEntry : fieldTags) {
                 // Check to ensure tag length is at least 3 characters
-                if (fldTagsEntry.length() < 3) {
+                if (fieldTagsEntry.length() < 3) {
                     continue;
                 }
 
                 // Handle "Lokaldaten" appropriately
-                if (fldTagsEntry.substring(0, 3).equals("LOK")) {
+                if (fieldTagsEntry.substring(0, 3).equals("LOK")) {
 
-                    if (fldTagsEntry.substring(3, 6).length() < 3) {
-                        logger.severe("Invalid tag for \"Lokaldaten\": " + fldTagsEntry);
+                    if (fieldTagsEntry.substring(3, 6).length() < 3) {
+                        logger.severe("Invalid tag for \"Lokaldaten\": " + fieldTagsEntry);
                         continue;
                     }
                     // Save LOK-Subfield
                     // Currently we do not support specifying an indicator
-                    fldTag = fldTagsEntry.substring(0, 6);
-                    subfldTags = fldTagsEntry.substring(6);
+                    fieldTag = fieldTagsEntry.substring(0, 6);
+                    subfieldTags = fieldTagsEntry.substring(6);
                 } else {
-                    fldTag = fldTagsEntry.substring(0, 3);
-                    subfldTags = fldTagsEntry.substring(3);
+                    fieldTag = fieldTagsEntry.substring(0, 3);
+                    subfieldTags = fieldTagsEntry.substring(3);
                 }
                 // Case 1: We have a LOK-Field
-                if (fldTag.startsWith("LOK")) {
+                if (fieldTag.startsWith("LOK")) {
                     // Get subfield 0 since the "subtag" is saved here
                     marcFieldList = record.getVariableFields("LOK");
                     if (!marcFieldList.isEmpty())
-                        extractCachedTopicsHelper(marcFieldList, separators, subcollector, fldTag, subfldTags, includeFieldPredicate);
+                        extractCachedTopicsHelper(marcFieldList, separators, subcollector, fieldTag, subfieldTags, includeFieldPredicate);
                 }
                 // Case 2: We have an ordinary MARC field
                 else {
-                    marcFieldList = record.getVariableFields(fldTag);
+                    marcFieldList = record.getVariableFields(fieldTag);
                     if (!marcFieldList.isEmpty())
-                        extractCachedTopicsHelper(marcFieldList, separators, subcollector, fldTag, subfldTags, includeFieldPredicate);
+                        extractCachedTopicsHelper(marcFieldList, separators, subcollector, fieldTag, subfieldTags, includeFieldPredicate);
                 }
             }
 
@@ -1866,10 +1864,12 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Abstract out topic extract from LOK and ordinary field handling
      */
-    private void extractCachedTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<Collection<Topic>> collector,
-                                           final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate)
+    private void extractCachedTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators,
+					   final Collection<Collection<Topic>> collector, final String fieldTag, final String subfieldTags,
+					   final Predicate<DataField> includeFieldPredicate)
     {
-        final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "[a-z]" : extractNormalizedSubfieldPatternHelper(subfldTags));
+        final Pattern subfieldPattern = Pattern.compile(subfieldTags.length() == 0 ? "[a-z]"
+							                         : extractNormalizedSubfieldPatternHelper(subfieldTags));
 
         for (final VariableField vf : marcFieldList) {
             final ArrayList<Topic> topicParts = new ArrayList<>();
@@ -1879,8 +1879,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 continue;
             final List<Subfield> subfields = marcField.getSubfields();
 
-            // Case 1: The separator specification is empty thus we
-            // add the subfields individually
+            // Case 1: The separator specification is empty thus we add the subfields individually
             if (separators.get("default").equals("")) {
                 for (final Subfield subfield : subfields) {
                     if (Character.isDigit(subfield.getCode()))
@@ -1890,8 +1889,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                         topicParts.add(new Topic(term));
                 }
             }
-            // Case 2: Generate a complex string using the
-            // separators
+            // Case 2: Generate a complex string using the separators
             else {
                 for (final Subfield subfield : subfields) {
                     char subfieldCode = subfield.getCode();
@@ -1923,7 +1921,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (topicParts.size() > 0)
                 collector.add(topicParts);
         }
-
     } // end extractTopicsHelper
 
     public Set<String> getTopics(final Record record, String fieldSpec, String separatorSpec, String langAbbrev)
