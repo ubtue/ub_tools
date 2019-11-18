@@ -98,7 +98,7 @@ def GetListOfRemoteFiles(ftp, filename_regex, directory, download_cutoff_date):
 
     # Retry calling GetMostRecentFile() up to 3 times:
     exception = None
-    for i in range(3):
+    for attempt_number in range(3):
         try:
             filename_list = []
             for filename in ftp.nlst():
@@ -108,7 +108,7 @@ def GetListOfRemoteFiles(ftp, filename_regex, directory, download_cutoff_date):
             return filename_list
         except Exception as e:
             exception = e
-            time.sleep(10 * (i + 1))
+            time.sleep(10 * (attempt_number + 1))
     raise exception
 
 

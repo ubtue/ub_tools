@@ -22,11 +22,17 @@ from shutil import copy2
 
 def GetChangelists(url, api_key):
     print("Get Changelists")
-    response = urllib.request.urlopen(url + '?api_key=' + api_key)
-    jdata = json.load(response)
-    # Get only JSON update entries, no CSV
-    json_update_objects = [item for item in jdata['list'] if item['filetype'] == 'jsonl']
-    return json_update_objects
+    for attempt_number in range(3):
+        try:
+            response = urllib.request.urlopen(url + '?api_key=' + api_key)
+            jdata = json.load(response)
+            # Get only JSON update entries, no CSV
+            json_update_objects = [item for item in jdata['list'] if item['filetype'] == 'jsonl']
+            return json_update_objects
+        except Exception as e:
+            exception = e
+            time.sleep(10 * (attempt_number + 1))
+    raise exception
 
 
 def GetRemoteUpdateFiles(json_update_objects):
