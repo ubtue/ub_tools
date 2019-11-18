@@ -191,14 +191,13 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
         const std::string role_account(vufind_system_type == KRIMDOK ? "qubob15" : "qubob16");
         const std::string password(MiscUtil::GetPassword("Enter password for " + role_account));
         const std::string credentials_file("/root/.smbcredentials");
-        if (unlikely(not FileUtil::WriteString(credentials_file, "username=" + role_account + "\npassword=" + password
-                                              + "\n")))
+        if (unlikely(not FileUtil::WriteString(credentials_file, "username=" + role_account + "\npassword=" + password + "\n")))
             Error("failed to write " + credentials_file + "!");
         if (not FileContainsLineStartingWith("/etc/fstab", "//sn00.zdv.uni-tuebingen.de/ZE020150"))
             FileUtil::AppendStringToFile("/etc/fstab",
-                                        "//sn00.zdv.uni-tuebingen.de/ZE020150 " + MOUNT_POINT + " cifs "
-                                        "credentials=/root/.smbcredentials,workgroup=uni-tuebingen.de,uid=root,"
-                                        "gid=root,vers=1.0,auto 0 0");
+                                         "//sn00.zdv.uni-tuebingen.de/ZE020150 " + MOUNT_POINT + " cifs "
+                                         "credentials=/root/.smbcredentials,workgroup=uni-tuebingen.de,uid=root,"
+                                         "gid=root,vers=1.0,auto 0 0");
         ExecUtil::ExecOrDie("/bin/mount", { MOUNT_POINT });
         Echo("Successfully mounted the department drive.");
     }
@@ -218,9 +217,10 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
         }
         break;
     case CENTOS:
-        if (SystemdUtil::IsAvailable())
-            SystemdUtil::StartUnit("mysqld");
-        else {
+        if (SystemdUtil::IsAvailable()) {
+            SystemdUtil::EnableUnit("mariadb");
+            SystemdUtil::StartUnit("mariadb");
+        } else {
             running_pids = ExecUtil::FindActivePrograms("mysqld");
             if (running_pids.size() == 0) {
                 // The following calls should be similar to entries in
