@@ -22,7 +22,7 @@ from shutil import copy2
 
 def GetChangelists(url, api_key):
     print("Get Changelists")
-    for i in range(3):
+    for attempt_number in range(3):
         try:
             response = urllib.request.urlopen(url + '?api_key=' + api_key)
             jdata = json.load(response)
@@ -31,7 +31,7 @@ def GetChangelists(url, api_key):
             return json_update_objects
         except Exception as e:
             exception = e
-            time.sleep(10 * (i + 1))
+            time.sleep(10 * (attempt_number + 1))
     raise exception
 
 
