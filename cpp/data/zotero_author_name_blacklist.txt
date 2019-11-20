@@ -515,7 +515,6 @@ OPL
 OPraem
 OpSDN
 OR
-Or
 ORC
 ORC
 OrJMI
