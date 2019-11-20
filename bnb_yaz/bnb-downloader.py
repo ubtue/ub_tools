@@ -9,6 +9,7 @@ import pexpect
 import pipes
 import process_util
 import re
+import sys
 import time
 import traceback
 import urllib.request
@@ -19,7 +20,15 @@ import zipfile
 
 def GetNewBNBNumbers(list_no):
     zipped_rdf_filename = "bnbrdf_N" + str(list_no) + ".zip"
-    headers = urllib.request.urlretrieve("https://www.bl.uk/bibliographic/bnbrdf/bnbrdf_N%d.zip" % list_no, zipped_rdf_filename)[1]
+    try:
+        headers = urllib.request.urlretrieve("https://www.bl.uk/bibliographic/bnbrdf/bnbrdf_N%d.zip" % list_no, zipped_rdf_filename)[1]
+    except urllib.error.URLError as url_error:
+        return []
+    except urllib.error.HTTPError as http_error:
+        print("HTTP error reason: " + http_error.reason)
+        print("HTTP headers: " + str(http_error.headers))
+        sys.exit(-2)
+        
     if headers["Content-type"] != "application/zip":
         util.Remove(zipped_rdf_filename)
         return headers["Content-type"]
@@ -70,7 +79,7 @@ def RetryGetNewBNBNumbers(list_no):
         retval = GetNewBNBNumbers(list_no)
         if type(retval) == list:
             print("Downloaded and extracted " + str(len(retval)) + " BNB numbers.")
-            return retval
+            return None if len(list) == 0 else list
         else:
             print("Content-type of downloaded document was " + retval)
             time.sleep(sleep_interval)
