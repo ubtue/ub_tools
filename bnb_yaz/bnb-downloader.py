@@ -79,7 +79,7 @@ def RetryGetNewBNBNumbers(list_no):
         retval = GetNewBNBNumbers(list_no)
         if type(retval) == list:
             print("Downloaded and extracted " + str(len(retval)) + " BNB numbers.")
-            return None if len(list) == 0 else list
+            return None if len(retval) == 0 else retval
         else:
             print("Content-type of downloaded document was " + retval)
             time.sleep(sleep_interval)
