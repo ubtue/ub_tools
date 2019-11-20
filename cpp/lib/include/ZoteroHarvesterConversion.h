@@ -127,10 +127,48 @@ struct ConversionResult {
 class ConversionTasklet : public Util::Tasklet<ConversionParams, ConversionResult> {
     void run(const ConversionParams &parameters, ConversionResult * const result);
 public:
-    ConversionTasklet(std::unique_ptr<ConversionParams> parameters);
+    ConversionTasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
+                      std::unique_ptr<ConversionParams> parameters);
     virtual ~ConversionTasklet() override = default;
+};
 
-    static unsigned GetRunningInstanceCount();
+
+class ConversionManager {
+public:
+    struct GlobalParams {
+        bool force_downloads_;
+        bool skip_online_first_articles_unconditonally_;
+        const Config::EnhancementMaps &enhancement_maps_;
+    public:
+        GlobalParams(const bool force_downloads, const bool skip_online_first_articles_unconditonally,
+                     const Config::EnhancementMaps &enhancement_maps)
+         : force_downloads_(force_downloads),
+           skip_online_first_articles_unconditonally_(skip_online_first_articles_unconditonally),
+           enhancement_maps_(enhancement_maps) {}
+        GlobalParams(const GlobalParams &rhs) = default;
+    };
+private:
+    static constexpr unsigned MAX_CONVERSION_TASKLETS = 12;
+
+    GlobalParams global_params_;
+    pthread_t background_thread_;
+    ThreadUtil::ThreadSafeCounter<unsigned> conversion_tasklet_execution_counter_;
+    std::deque<std::shared_ptr<ConversionTasklet>> active_conversions_;
+    std::deque<std::shared_ptr<ConversionTasklet>> conversion_queue_;
+    std::mutex conversion_queue_mutex_;
+
+    static void *BackgroundThreadRoutine(void * parameter);
+
+    void processQueue();
+    void cleanupCompletedTasklets();
+public:
+    ConversionManager(const GlobalParams &global_params);
+    ~ConversionManager();
+
+    std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> convert(const Util::Harvestable &source,
+                                                                              const std::string &json_metadata,
+                                                                              const Config::GroupParams &group_params);
+    inline bool conversionInProgress() const { return conversion_tasklet_execution_counter_ != 0; }
 };
 
 

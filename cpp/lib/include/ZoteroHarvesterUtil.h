@@ -273,6 +273,56 @@ public:
 };
 
 
+template <typename Parameter, typename Result>
+class Future {
+    enum Status { WAITING, NO_RESULT, YIELDED_RESULT, STATIC_RESULT };
+
+    std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet_;
+    std::unique_ptr<Result> result_;
+    Status status_;
+public:
+    Future(std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet)
+     : source_tasklet_(source_tasklet), status_(WAITING) {}
+    Future(std::unique_ptr<Result> result)
+     : result_(std::move(result)), status_(STATIC_RESULT) {}
+    Future(const Future<Parameter, Result> &rhs) = delete;
+
+    bool isComplete() const {
+        if (status_ == Status::STATIC_RESULT)
+            return true;
+        else switch (source_tasklet_->getStatus()) {
+        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_SUCCESS:
+        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_ERROR:
+            return true;
+        default:
+            return false;
+        }
+    };
+    bool hasResult() const {
+        if (status_ == Status::STATIC_RESULT)
+            return true;
+        else switch (source_tasklet_->getStatus()) {
+        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_SUCCESS:
+            return true;
+        default:
+            return false;
+        }
+    };
+    const std::unique_ptr<Result> &get() {
+        if (status_ == Status::WAITING) {
+            source_tasklet_->await();
+            if (hasResult()) {
+                result_.reset(source_tasklet_->yieldResult());
+                status_ = Status::YIELDED_RESULT;
+            } else
+                status_ = Status::NO_RESULT;
+        }
+
+        return result_;
+    }
+};
+
+
 // Tracks harvested records that have been uploaded to the BSZ server.
 class UploadTracker {
     std::unique_ptr<DbConnection> db_connection_;

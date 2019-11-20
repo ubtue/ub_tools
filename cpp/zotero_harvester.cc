@@ -33,6 +33,9 @@
 namespace {
 
 
+using namespace ZoteroHarvester;
+
+
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [options] config_file_path selection_mode selection_args\n"
               << "\n"
@@ -60,11 +63,11 @@ struct CommandLineArgs {
     std::string config_path_;
     SelectionMode selection_mode_;
     std::set<std::string> selected_journals_;
-    ZoteroHarvester::Config::UploadOperation selected_upload_operation_;
+    Config::UploadOperation selected_upload_operation_;
 public:
     explicit CommandLineArgs() : force_downloads_(false), ignore_robots_dot_txt_(false),
         output_directory_("/tmp/zotero_harvester/"), selection_mode_(INVALID),
-        selected_upload_operation_(ZoteroHarvester::Config::UploadOperation::NONE)
+        selected_upload_operation_(Config::UploadOperation::NONE)
     {
         static const std::string TIME_FORMAT_STRING("%Y-%m-%d %T");
 
@@ -78,8 +81,6 @@ public:
 
 
 void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs * const commandline_args) {
-
-
     while (StringUtil::StartsWith((*argv)[1], "--")) {
         if (std::strcmp((*argv)[1], "--force-downloads") == 0) {
             commandline_args->force_downloads_ = true;
@@ -132,13 +133,13 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
         switch (commandline_args->selection_mode_) {
         case CommandLineArgs::SelectionMode::UPLOAD:
         {
-            auto upload_op(ZoteroHarvester::Config::STRING_TO_UPLOAD_OPERATION_MAP.find(current_arg));
-            if (upload_op != ZoteroHarvester::Config::STRING_TO_UPLOAD_OPERATION_MAP.end())
-                commandline_args->selected_upload_operation_ = static_cast<ZoteroHarvester::Config::UploadOperation>(upload_op->second);
+            auto upload_op(Config::STRING_TO_UPLOAD_OPERATION_MAP.find(current_arg));
+            if (upload_op != Config::STRING_TO_UPLOAD_OPERATION_MAP.end())
+                commandline_args->selected_upload_operation_ = static_cast<Config::UploadOperation>(upload_op->second);
             return; // intentional early return
         }
         case CommandLineArgs::SelectionMode::JOURNAL:
-            commandline_args->selected_journals_.emplace_back(current_arg);
+            commandline_args->selected_journals_.emplace(current_arg);
             break;
         default:
             LOG_ERROR("unknown selection mode");
@@ -148,15 +149,13 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
 
 
 struct HarvesterConfigData {
-    std::unique_ptr<ZoteroHarvester::Config::GlobalParams> global_params_;
-    std::vector<std::unique_ptr<ZoteroHarvester::Config::GroupParams>> group_params_;
-    std::vector<std::unique_ptr<ZoteroHarvester::Config::JournalParams>> journal_params_;
-    std::unique_ptr<ZoteroHarvester::Config::EnhancementMaps> enhancement_maps;
-    std::map<std::string, const ZoteroHarvester::Config::GroupParams&> group_name_to_group_params_map_;
+    std::unique_ptr<Config::GlobalParams> global_params_;
+    std::vector<std::unique_ptr<Config::GroupParams>> group_params_;
+    std::vector<std::unique_ptr<Config::JournalParams>> journal_params_;
+    std::unique_ptr<Config::EnhancementMaps> enhancement_maps;
+    std::map<std::string, const Config::GroupParams&> group_name_to_group_params_map_;
 
-    inline const ZoteroHarvester::Config::GroupParams &
-        lookupJournalGroup(const ZoteroHarvester::Config::JournalParams &journal_params) const
-    {
+    inline const Config::GroupParams & lookupJournalGroup(const Config::JournalParams &journal_params) const {
         return group_name_to_group_params_map_.find(journal_params.group_)->second;
     }
 };
@@ -165,13 +164,13 @@ struct HarvesterConfigData {
 void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * const harvester_config) {
     const IniFile ini(config_path);
 
-    harvester_config->global_params_.reset(new ZoteroHarvester::Config::GlobalParams(*ini.getSection("")));
+    harvester_config->global_params_.reset(new Config::GlobalParams(*ini.getSection("")));
 
     std::set<std::string> group_names;
     StringUtil::Split(harvester_config->global_params_->group_names_, ',', &group_names, /* suppress_empty_components = */ true);
 
     for (const auto &group_name : group_names) {
-        const auto new_group(new ZoteroHarvester::Config::GroupParams(*ini.getSection(group_name)));
+        const auto new_group(new Config::GroupParams(*ini.getSection(group_name)));
         harvester_config->group_params_.emplace_back(new_group);
         harvester_config->group_name_to_group_params_map_.emplace(group_name, *new_group);
     }
@@ -182,21 +181,31 @@ void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * c
         else if (group_names.find(section.getSectionName()) != group_names.end())
             continue;
 
-        harvester_config->journal_params_.emplace_back(new ZoteroHarvester::Config::JournalParams(section,
+        harvester_config->journal_params_.emplace_back(new Config::JournalParams(section,
                                                        *harvester_config->global_params_));
     }
 
     harvester_config->enhancement_maps.reset(
-        new ZoteroHarvester::Config::EnhancementMaps(harvester_config->global_params_->enhancement_maps_directory_));
+        new Config::EnhancementMaps(harvester_config->global_params_->enhancement_maps_directory_));
 }
 
 
-const unsigned MAX_CONVERSION_TASKLETS(12);
-
-
-struct JournalDataStore {
-
+struct JournalDatastore {
+    const Config::JournalParams &journal_params_;
+    std::deque<std::unique_ptr<Util::Future<Download::DirectDownload::Params, Download::DirectDownload::Result>>>
+        queued_downloads_;
+    std::deque<std::unique_ptr<Util::Future<Download::Crawling::Params, Download::Crawling::Result>>>
+        queued_crawls_;
+    std::deque<std::unique_ptr<Util::Future<Download::RSS::Params, Download::RSS::Result>>>
+        queued_rss_feeds_;
+    std::deque<std::unique_ptr<Util::Future<Conversion::ConversionParams, Conversion::ConversionResult>>>
+        queued_marc_records_;
+public:
+    JournalDatastore(const Config::JournalParams &journal_params) : journal_params_(journal_params) {}
 };
+
+
+std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::JournalParams &journal_params) {}
 
 
 } // unnamed namespace
@@ -206,17 +215,33 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
+    Util::ZoteroLogger::Init();
+
     CommandLineArgs commandline_args;
     ParseCommandLineArgs(&argc, &argv, &commandline_args);
 
     HarvesterConfigData harvester_config;
     LoadHarvesterConfig(commandline_args.config_path_, &harvester_config);
 
+    Download::DownloadManager::GlobalParams download_manager_params(*harvester_config.global_params_);
+    download_manager_params.force_downloads_ = commandline_args.force_downloads_;
+    download_manager_params.ignore_robots_txt_ = commandline_args.ignore_robots_dot_txt_;
+    Download::DownloadManager download_manager(download_manager_params);
+
+    Conversion::ConversionManager::GlobalParams conversion_manager_params(commandline_args.force_downloads_,
+                                                                          harvester_config.global_params_->skip_online_first_articles_unconditonally_,
+                                                                          *harvester_config.enhancement_maps);
+    Conversion::ConversionManager conversion_manager(conversion_manager_params);
+
+    std::vector<std::unique_ptr<JournalDatastore>> journal_datastores;
+    journal_datastores.reserve(harvester_config.journal_params_.size());
+
+    // Step 1: Queue downloads for all selected journals
     for (const auto &journal : harvester_config.journal_params_) {
         bool skip_journal(false);
 
         if (commandline_args.selection_mode_ == CommandLineArgs::SelectionMode::UPLOAD
-            and commandline_args.selected_upload_operation_ != ZoteroHarvester::Config::UploadOperation::NONE
+            and commandline_args.selected_upload_operation_ != Config::UploadOperation::NONE
             and journal->upload_operation_ != commandline_args.selected_upload_operation_)
         {
             skip_journal = true;
@@ -231,8 +256,34 @@ int Main(int argc, char *argv[]) {
             continue;
 
         const auto &group_params(harvester_config.lookupJournalGroup(*journal.get()));
+        std::unique_ptr<JournalDatastore> current_journal_datastore(new JournalDatastore(*journal));
+        const auto download_item(Util::Harvestable::New(journal->entry_point_url_, *journal));
 
+        switch (journal->harvester_operation_) {
+        case Config::HarvesterOperation::DIRECT:
+        {
+            auto future(download_manager.directDownload(download_item, group_params.user_agent_));
+            current_journal_datastore->queued_downloads_.emplace_back(future.release());
+            break;
+        }
+        case Config::HarvesterOperation::RSS:
+        {
+            auto future(download_manager.rss(download_item, group_params.user_agent_));
+            current_journal_datastore->queued_rss_feeds_.emplace_back(future.release());
+            break;
+        }
+        case Config::HarvesterOperation::CRAWL:
+        {
+            auto future(download_manager.crawl(download_item, group_params.user_agent_));
+            current_journal_datastore->queued_crawls_.emplace_back(future.release());
+            break;
+        }
+        }
+
+        journal_datastores.emplace_back(std::move(current_journal_datastore));
     }
+
+    // Step 2:
 
 
     return EXIT_SUCCESS;
