@@ -937,9 +937,6 @@ bool MarcRecordMatchesExclusionFilters(const Util::Harvestable &download_item, M
 }
 
 
-ThreadUtil::ThreadSafeCounter<unsigned> conversion_tasklet_instance_counter;
-
-
 const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST {
     "journalArticle", "magazineArticle"
 };
@@ -963,6 +960,25 @@ bool ExcludeOnlineFirstRecord(const MetadataRecord &metadata_record, const Conve
             LOG_DEBUG("Skipping: online-first article without a DOI");
             return true;
         }
+    }
+
+    return false;
+}
+
+
+bool ExcludeEarlyViewRecord(const MetadataRecord &metadata_record, const ConversionParams &parameters) {
+    if (std::find(VALID_ITEM_TYPES_FOR_ONLINE_FIRST.begin(),
+                  VALID_ITEM_TYPES_FOR_ONLINE_FIRST.end(),
+                  metadata_record.item_type_) == VALID_ITEM_TYPES_FOR_ONLINE_FIRST.end())
+    {
+        return false;
+    }
+
+    if ((metadata_record.issue_ == "n/a" or metadata_record.volume_ == "n/a")
+        and not parameters.force_downloads_)
+    {
+        LOG_DEBUG("Skipping: early-view article");
+        return true;
     }
 
     return false;
@@ -996,6 +1012,8 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
 
             if (ExcludeOnlineFirstRecord(new_metadata_record, parameters))
                 continue;
+            else if (ExcludeEarlyViewRecord(new_metadata_record, parameters))
+                continue;
 
             // a dummy record that will be replaced subsequently
             std::unique_ptr<MARC::Record> new_marc_record(new MARC::Record(std::string(MARC::Record::LEADER_LENGTH, ' ')));
@@ -1013,15 +1031,91 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
 }
 
 
-ConversionTasklet::ConversionTasklet(std::unique_ptr<ConversionParams> parameters)
- : Util::Tasklet<ConversionParams, ConversionResult>(&conversion_tasklet_instance_counter, parameters->download_item_,
+ConversionTasklet::ConversionTasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
+                                     std::unique_ptr<ConversionParams> parameters)
+ : Util::Tasklet<ConversionParams, ConversionResult>(instance_counter, parameters->download_item_,
                                                      "Conversion: " + parameters->download_item_.url_.toString(),
                                                      std::bind(&ConversionTasklet::run, this, std::placeholders::_1, std::placeholders::_2),
                                                      std::move(parameters), std::unique_ptr<ConversionResult>(new ConversionResult())) {}
 
 
-unsigned ConversionTasklet::GetRunningInstanceCount() {
-    return conversion_tasklet_instance_counter;
+
+void *ConversionManager::BackgroundThreadRoutine(void * parameter) {
+    static const unsigned BACKGROUND_THREAD_SLEEP_TIME(32 * 1000 * 1000);   // ms -> us
+
+    ConversionManager * const conversion_manager(reinterpret_cast<ConversionManager *>(parameter));
+    pthread_detach(pthread_self());
+
+    while (true) {
+        conversion_manager->processQueue();
+        conversion_manager->cleanupCompletedTasklets();
+
+        ::usleep(BACKGROUND_THREAD_SLEEP_TIME);
+    }
+
+    pthread_exit(nullptr);
+    return nullptr;
+}
+
+
+void ConversionManager::processQueue() {
+    if (conversion_tasklet_execution_counter_ == MAX_CONVERSION_TASKLETS)
+        return;
+
+    std::lock_guard<std::mutex> conversion_queue_lock(conversion_queue_mutex_);
+    while (not conversion_queue_.empty()) {
+        std::shared_ptr<ConversionTasklet> tasklet(conversion_queue_.front());
+        active_conversions_.emplace_back(tasklet);
+        tasklet->start();
+
+        conversion_queue_.pop_front();
+    }
+}
+
+
+void ConversionManager::cleanupCompletedTasklets() {
+    for (auto iter(active_conversions_.begin()); iter != active_conversions_.end();) {
+        if ((*iter)->isComplete()) {
+            iter = active_conversions_.erase(iter);
+            continue;
+        }
+        ++iter;
+    }
+}
+
+
+ConversionManager::ConversionManager(const GlobalParams &global_params)
+ : global_params_(global_params)
+{
+    if (::pthread_create(&background_thread_, nullptr, BackgroundThreadRoutine, this) != 0)
+            LOG_ERROR("background conversion manager thread creation failed!");
+}
+
+
+ConversionManager::~ConversionManager() {
+    if (::pthread_cancel(background_thread_) != 0)
+        LOG_ERROR("failed to cancel background conversion manager thread '" + std::to_string(background_thread_) + "'!");
+}
+
+
+std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> ConversionManager::convert(const Util::Harvestable &source,
+                                                                                             const std::string &json_metadata,
+                                                                                             const Config::GroupParams &group_params)
+{
+    std::unique_ptr<ConversionParams> parameters(new ConversionParams(source, json_metadata, global_params_.force_downloads_,
+                                                 global_params_.skip_online_first_articles_unconditonally_, group_params,
+                                                 global_params_.enhancement_maps_));
+    std::shared_ptr<ConversionTasklet> new_tasklet(new ConversionTasklet(&conversion_tasklet_execution_counter_,
+                                                   std::move(parameters)));
+
+    {
+        std::lock_guard<std::mutex> conversion_queue_lock(conversion_queue_mutex_);
+        conversion_queue_.emplace_back(new_tasklet);
+    }
+
+    std::unique_ptr<Util::Future<ConversionParams, ConversionResult>>
+        conversion_result(new Util::Future<ConversionParams, ConversionResult>(new_tasklet));
+    return conversion_result;
 }
 
 

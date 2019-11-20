@@ -86,10 +86,6 @@ public:
 } // end namespace DirectDownload
 
 
-template <typename Parameter, typename Result>
-class DownloadResult;
-
-
 namespace Crawling {
 
 
@@ -106,7 +102,7 @@ public:
 
 
 struct Result {
-    std::vector<std::unique_ptr<DownloadResult<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
+    std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
 public:
     Result() = default;
     Result(const Result &rhs) = delete;
@@ -140,7 +136,7 @@ public:
 
 
 struct Result {
-    std::vector<std::unique_ptr<DownloadResult<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
+    std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
 public:
     Result() = default;
     Result(const Result &rhs) = delete;
@@ -318,16 +314,20 @@ public:
     DownloadManager(const GlobalParams &global_params);
     ~DownloadManager();
 
-    std::unique_ptr<DownloadResult<DirectDownload::Params, DirectDownload::Result>> directDownload(const Util::Harvestable &source,
-                                                                                                   const std::string &user_agent);
-    std::unique_ptr<DownloadResult<Crawling::Params, Crawling::Result>> crawl(const Util::Harvestable &source,
-                                                                              const std::string &user_agent);
+    std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>> directDownload(const Util::Harvestable &source,
+                                                                                                 const std::string &user_agent);
+    std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> crawl(const Util::Harvestable &source,
+                                                                            const std::string &user_agent);
 
-    std::unique_ptr<DownloadResult<RSS::Params, RSS::Result>> rss(const Util::Harvestable &source,
-                                                                  const std::string &user_agent,
-                                                                  const std::string &feed_contents = "");
+    std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> rss(const Util::Harvestable &source,
+                                                                const std::string &user_agent,
+                                                                const std::string &feed_contents = "");
     void addToDownloadCache(const std::string &url, const std::string &response_body, const unsigned response_code,
                             const std::string &error_message);
+    inline bool downloadInProgress() const {
+        return direct_download_tasklet_execution_counter_ != 0 or crawling_tasklet_execution_counter_ != 0
+               or rss_tasklet_execution_counter_ != 0;
+    }
 };
 
 

@@ -264,7 +264,7 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 
 
 void *DownloadManager::BackgroundThreadRoutine(void * parameter) {
-    static const unsigned BACKGROUND_THREAD_SLEEP_TIME(16 * 1000 * 1000);   // in ms
+    static const unsigned BACKGROUND_THREAD_SLEEP_TIME(32 * 1000 * 1000);   // ms -> us
 
     DownloadManager * const download_manager(reinterpret_cast<DownloadManager *>(parameter));
     pthread_detach(pthread_self());
@@ -438,7 +438,7 @@ DownloadManager::~DownloadManager() {
 }
 
 
-std::unique_ptr<DownloadResult<DirectDownload::Params, DirectDownload::Result>>
+std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
     DownloadManager::directDownload(const Util::Harvestable &source, const std::string &user_agent)
 {
     // check if we have a cached response and return it immediately, if any
@@ -449,8 +449,8 @@ std::unique_ptr<DownloadResult<DirectDownload::Params, DirectDownload::Result>>
         cached_result->response_code_ = cache_hit->second.response_code_;
         cached_result->error_message_ = cache_hit->second.error_message_;
 
-        std::unique_ptr<DownloadResult<DirectDownload::Params, DirectDownload::Result>>
-            download_result(new DownloadResult<DirectDownload::Params, DirectDownload::Result>(std::move(cached_result)));
+        std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
+            download_result(new Util::Future<DirectDownload::Params, DirectDownload::Result>(std::move(cached_result)));
         return download_result;
     }
 
@@ -466,14 +466,14 @@ std::unique_ptr<DownloadResult<DirectDownload::Params, DirectDownload::Result>>
         direct_download_queue_buffer_.emplace_back(new_tasklet);
     }
 
-    std::unique_ptr<DownloadResult<DirectDownload::Params, DirectDownload::Result>>
-        download_result(new DownloadResult<DirectDownload::Params, DirectDownload::Result>(new_tasklet));
+    std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
+        download_result(new Util::Future<DirectDownload::Params, DirectDownload::Result>(new_tasklet));
     return download_result;
 }
 
 
-std::unique_ptr<DownloadResult<Crawling::Params, Crawling::Result>> DownloadManager::crawl(const Util::Harvestable &source,
-                                                                                           const std::string &user_agent)
+std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> DownloadManager::crawl(const Util::Harvestable &source,
+                                                                                         const std::string &user_agent)
 {
     std::unique_ptr<Crawling::Params> parameters(new Crawling::Params(source, user_agent, DOWNLOAD_TIMEOUT,
                                                  global_params_.ignore_robots_txt_));
@@ -485,15 +485,15 @@ std::unique_ptr<DownloadResult<Crawling::Params, Crawling::Result>> DownloadMana
         crawling_queue_buffer_.emplace_back(new_tasklet);
     }
 
-    std::unique_ptr<DownloadResult<Crawling::Params, Crawling::Result>>
-        download_result(new DownloadResult<Crawling::Params, Crawling::Result>(new_tasklet));
+    std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>>
+        download_result(new Util::Future<Crawling::Params, Crawling::Result>(new_tasklet));
     return download_result;
 }
 
 
-std::unique_ptr<DownloadResult<RSS::Params, RSS::Result>> DownloadManager::rss(const Util::Harvestable &source,
-                                                                               const std::string &user_agent,
-                                                                               const std::string &feed_contents)
+std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> DownloadManager::rss(const Util::Harvestable &source,
+                                                                             const std::string &user_agent,
+                                                                             const std::string &feed_contents)
 {
     std::unique_ptr<RSS::Params> parameters(new RSS::Params(source, user_agent, feed_contents));
     std::shared_ptr<RSS::Tasklet> new_tasklet(new RSS::Tasklet(&rss_tasklet_execution_counter_,
@@ -506,8 +506,8 @@ std::unique_ptr<DownloadResult<RSS::Params, RSS::Result>> DownloadManager::rss(c
         rss_queue_buffer_.emplace_back(new_tasklet);
     }
 
-    std::unique_ptr<DownloadResult<RSS::Params, RSS::Result>>
-        download_result(new DownloadResult<RSS::Params, RSS::Result>(new_tasklet));
+    std::unique_ptr<Util::Future<RSS::Params, RSS::Result>>
+        download_result(new Util::Future<RSS::Params, RSS::Result>(new_tasklet));
     return download_result;
 }
 
