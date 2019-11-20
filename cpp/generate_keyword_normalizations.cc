@@ -177,8 +177,7 @@ int Main(int argc, char **argv) {
     const auto output(FileUtil::OpenOutputFileOrDie(OUTPUT_FILENAME));
 
     std::unordered_map<std::string, std::vector<CapitalizationAndCount>> lowercase_form_to_capitalizations_and_counts_map;
-    CollectStats(SOLR_HOST_AND_PORT, "topic_de", &lowercase_form_to_capitalizations_and_counts_map);
-    CollectStats(SOLR_HOST_AND_PORT, "topic_en", &lowercase_form_to_capitalizations_and_counts_map);
+    CollectStats(SOLR_HOST_AND_PORT, "topic_facet_de", &lowercase_form_to_capitalizations_and_counts_map);
     GenerateCanonizationMap(output.get(), lowercase_form_to_capitalizations_and_counts_map);
 
     return EXIT_SUCCESS;
