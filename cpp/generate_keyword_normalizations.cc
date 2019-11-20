@@ -26,6 +26,7 @@
 #include "FileUtil.h"
 #include "JSON.h"
 #include "Solr.h"
+#include "StringUtil.h"
 #include "TextUtil.h"
 #include "util.h"
 
@@ -112,6 +113,18 @@ void CollectStats(
 }
 
 
+bool IsInitialCapsVersion(const std::string &keyphrase) {
+    std::vector<std::string> words;
+    StringUtil::SplitThenTrimWhite(keyphrase, ' ', &words);
+    for (const auto &word : words) {
+        if (word != TextUtil::InitialCaps(word))
+            return false;
+    }
+
+    return true;
+}
+
+
 void GenerateCanonizationMap(
     File * const output,
     const std::unordered_map<std::string, std::vector<CapitalizationAndCount>> &lowercase_form_to_capitalizations_and_counts_map)
@@ -122,17 +135,22 @@ void GenerateCanonizationMap(
             continue;
 
         // Pick a capitalization with the highest occurrence count:
-        unsigned max_index(0), max_count(0);
+        unsigned canonical_index(0), max_count(0);
         for (unsigned i(0); i < capitalizations.size(); ++i) {
+            if (IsInitialCapsVersion(capitalizations[i].capitalization_)) {
+                canonical_index = i;
+                break;
+            }
+
             if (capitalizations[i].count_ > max_count) {
                 max_count = capitalizations[i].count_;
-                max_index = i;
+                canonical_index = i;
             }
         }
 
         std::string non_canonical_forms;
         for (unsigned i(0); i < capitalizations.size(); ++i) {
-            if (i == max_index)
+            if (i == canonical_index)
                 continue;
 
             if (not non_canonical_forms.empty())
@@ -140,7 +158,7 @@ void GenerateCanonizationMap(
             non_canonical_forms += capitalizations[i].capitalization_;
         }
 
-        *output << non_canonical_forms << "->" << capitalizations[max_index].capitalization_ << '\n';
+        *output << non_canonical_forms << "->" << capitalizations[canonical_index].capitalization_ << '\n';
     }
 }
 
