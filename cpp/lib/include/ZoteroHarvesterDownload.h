@@ -48,12 +48,12 @@ namespace DirectDownload {
 
 
 struct Params {
-    Util::Harvestable download_item_;
+    Util::HarvestableItem download_item_;
     Url translation_server_url_;
     std::string user_agent_;
     TimeLimit time_limit_;
 public:
-    explicit Params(const Util::Harvestable &download_item, const std::string &translation_server_url,
+    explicit Params(const Util::HarvestableItem &download_item, const std::string &translation_server_url,
                     const std::string user_agent, const TimeLimit time_limit)
      : download_item_(download_item), translation_server_url_(translation_server_url), user_agent_(user_agent),
        time_limit_(time_limit) {}
@@ -61,12 +61,12 @@ public:
 
 
 struct Result {
-    Util::Harvestable source_;
+    Util::HarvestableItem source_;
     std::string response_body_;
     unsigned response_code_;
     std::string error_message_;
 public:
-    explicit Result(const Util::Harvestable &source) : source_(source), response_code_(0) {}
+    explicit Result(const Util::HarvestableItem &source) : source_(source), response_code_(0) {}
     Result(const Result &rhs) = default;
     inline bool isValid() const { return response_code_ == 200 and not error_message_.empty(); }
 };
@@ -90,14 +90,16 @@ namespace Crawling {
 
 
 struct Params {
-    Util::Harvestable download_item_;
+    Util::HarvestableItem download_item_;
     std::string user_agent_;
     TimeLimit time_limit_;
     bool ignore_robots_dot_txt_;
+    Util::HarvestableItemManager * const harvestable_manager_;
 public:
-    explicit Params(const Util::Harvestable &download_item, const std::string user_agent, const TimeLimit time_limit,
-                    const bool ignore_robots_dot_txt)
-     : download_item_(download_item), user_agent_(user_agent), time_limit_(time_limit), ignore_robots_dot_txt_(ignore_robots_dot_txt) {}
+    explicit Params(const Util::HarvestableItem &download_item, const std::string user_agent, const TimeLimit time_limit,
+                    const bool ignore_robots_dot_txt, Util::HarvestableItemManager * const harvestable_manager)
+     : download_item_(download_item), user_agent_(user_agent), time_limit_(time_limit),
+       ignore_robots_dot_txt_(ignore_robots_dot_txt), harvestable_manager_(harvestable_manager) {}
 };
 
 
@@ -126,12 +128,15 @@ namespace RSS {
 
 
 struct Params {
-    Util::Harvestable download_item_;
+    Util::HarvestableItem download_item_;
     std::string user_agent_;
     std::string feed_contents_;
+    Util::HarvestableItemManager * const harvestable_manager_;
 public:
-    explicit Params(const Util::Harvestable &download_item, const std::string user_agent, const std::string &feed_contents)
-     : download_item_(download_item), user_agent_(user_agent), feed_contents_(feed_contents) {}
+    explicit Params(const Util::HarvestableItem &download_item, const std::string user_agent, const std::string &feed_contents,
+                    Util::HarvestableItemManager * const harvestable_manager)
+     : download_item_(download_item), user_agent_(user_agent), feed_contents_(feed_contents),
+       harvestable_manager_(harvestable_manager) {}
 };
 
 
@@ -164,56 +169,6 @@ public:
 } // end namespace RSS
 
 
-template <typename Parameter, typename Result>
-class DownloadResult {
-    enum Status { WAITING, NO_RESULT, YIELDED_RESULT, STATIC_RESULT };
-
-    std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet_;
-    std::unique_ptr<Result> result_;
-    Status status_;
-public:
-    DownloadResult(std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet)
-     : source_tasklet_(source_tasklet), status_(WAITING) {}
-    DownloadResult(std::unique_ptr<Result> result)
-     : result_(std::move(result)), status_(STATIC_RESULT) {}
-    DownloadResult(const DownloadResult<Parameter, Result> &rhs) = delete;
-
-    bool isComplete() const {
-        if (status_ == Status::STATIC_RESULT)
-            return true;
-        else switch (source_tasklet_->getStatus()) {
-        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_SUCCESS:
-        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_ERROR:
-            return true;
-        default:
-            return false;
-        }
-    };
-    bool hasResult() const {
-        if (status_ == Status::STATIC_RESULT)
-            return true;
-        else switch (source_tasklet_->getStatus()) {
-        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_SUCCESS:
-            return true;
-        default:
-            return false;
-        }
-    };
-    const std::unique_ptr<Result> &get() {
-        if (status_ == Status::WAITING) {
-            source_tasklet_->await();
-            if (hasResult()) {
-                result_.reset(source_tasklet_->yieldResult());
-                status_ = Status::YIELDED_RESULT;
-            } else
-                status_ = Status::NO_RESULT;
-        }
-
-        return result_;
-    }
-};
-
-
 class DownloadManager {
 public:
     struct GlobalParams {
@@ -224,14 +179,15 @@ public:
         bool force_process_rss_feeds_with_no_pub_dates_;
         bool ignore_robots_txt_;
         bool force_downloads_;
+        Util::HarvestableItemManager * const harvestable_manager_;
     public:
-        GlobalParams(const Config::GlobalParams &config_global_params)
+        GlobalParams(const Config::GlobalParams &config_global_params, Util::HarvestableItemManager * const harvestable_manager)
          : translation_server_url_(config_global_params.translation_server_url_),
            default_download_delay_time_(config_global_params.download_delay_params_.default_delay_),
            max_download_delay_time_(config_global_params.download_delay_params_.max_delay_),
            rss_feed_harvest_interval_(config_global_params.rss_harvester_operation_params_.harvest_interval_),
            force_process_rss_feeds_with_no_pub_dates_(config_global_params.rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_),
-           ignore_robots_txt_(false), force_downloads_(false) {}
+           ignore_robots_txt_(false), force_downloads_(false), harvestable_manager_(harvestable_manager) {}
         GlobalParams(const GlobalParams &rhs) = default;
     };
 private:
@@ -314,12 +270,12 @@ public:
     DownloadManager(const GlobalParams &global_params);
     ~DownloadManager();
 
-    std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>> directDownload(const Util::Harvestable &source,
+    std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>> directDownload(const Util::HarvestableItem &source,
                                                                                                  const std::string &user_agent);
-    std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> crawl(const Util::Harvestable &source,
+    std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> crawl(const Util::HarvestableItem &source,
                                                                             const std::string &user_agent);
 
-    std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> rss(const Util::Harvestable &source,
+    std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> rss(const Util::HarvestableItem &source,
                                                                 const std::string &user_agent,
                                                                 const std::string &feed_contents = "");
     void addToDownloadCache(const std::string &url, const std::string &response_body, const unsigned response_code,

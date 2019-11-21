@@ -125,7 +125,8 @@ void Tasklet::run(const Params &parameters, Result * const result) {
             if (parameters.download_item_.journal_.crawl_params_.extraction_regex_ == nullptr
                 or parameters.download_item_.journal_.crawl_params_.extraction_regex_->match(url))
             {
-                const auto new_download_item(Util::Harvestable::New(page_details.url_, parameters.download_item_.journal_));
+                const auto new_download_item(parameters.harvestable_manager_->newHarvestableItem(page_details.url_,
+                                                                                                 parameters.download_item_.journal_));
                 result->downloaded_items_.emplace_back(download_manager_->directDownload(new_download_item, parameters.user_agent_));
             }
         }
@@ -224,7 +225,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
         return;
 
     syndication_format.reset(SyndicationFormat::Factory(feed_contents, syndication_format_augment_parameters,
-                                 &syndication_format_parse_err_msg).release());
+                             &syndication_format_parse_err_msg).release());
 
     if (syndication_format == nullptr) {
         LOG_WARNING("problem parsing XML document for RSS feed '" + parameters.download_item_.url_.toString() + "': "
@@ -243,7 +244,8 @@ void Tasklet::run(const Params &parameters, Result * const result) {
         if (not title.empty())
             LOG_DEBUG("\n\nFeed Item: " + title);
 
-        const auto new_download_item(Util::Harvestable::New(item.getLink(), parameters.download_item_.journal_));
+        const auto new_download_item(parameters.harvestable_manager_->newHarvestableItem(item.getLink(),
+                                                                                         parameters.download_item_.journal_));
         result->downloaded_items_.emplace_back(download_manager_->directDownload(new_download_item, parameters.user_agent_));
     }
 }
@@ -264,7 +266,7 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 
 
 void *DownloadManager::BackgroundThreadRoutine(void * parameter) {
-    static const unsigned BACKGROUND_THREAD_SLEEP_TIME(32 * 1000 * 1000);   // ms -> us
+    static const unsigned BACKGROUND_THREAD_SLEEP_TIME(1 * 1000 * 1000);   // sec -> us
 
     DownloadManager * const download_manager(reinterpret_cast<DownloadManager *>(parameter));
     pthread_detach(pthread_self());
@@ -439,7 +441,7 @@ DownloadManager::~DownloadManager() {
 
 
 std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
-    DownloadManager::directDownload(const Util::Harvestable &source, const std::string &user_agent)
+    DownloadManager::directDownload(const Util::HarvestableItem &source, const std::string &user_agent)
 {
     // check if we have a cached response and return it immediately, if any
     const auto cache_hit(cached_download_data_.find(source.url_.toString()));
@@ -472,11 +474,11 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
 }
 
 
-std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> DownloadManager::crawl(const Util::Harvestable &source,
+std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> DownloadManager::crawl(const Util::HarvestableItem &source,
                                                                                          const std::string &user_agent)
 {
     std::unique_ptr<Crawling::Params> parameters(new Crawling::Params(source, user_agent, DOWNLOAD_TIMEOUT,
-                                                 global_params_.ignore_robots_txt_));
+                                                 global_params_.ignore_robots_txt_, global_params_.harvestable_manager_));
     std::shared_ptr<Crawling::Tasklet> new_tasklet(new Crawling::Tasklet(&direct_download_tasklet_execution_counter_,
                                                    this, std::move(parameters)));
 
@@ -491,11 +493,11 @@ std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> DownloadManage
 }
 
 
-std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> DownloadManager::rss(const Util::Harvestable &source,
+std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> DownloadManager::rss(const Util::HarvestableItem &source,
                                                                              const std::string &user_agent,
                                                                              const std::string &feed_contents)
 {
-    std::unique_ptr<RSS::Params> parameters(new RSS::Params(source, user_agent, feed_contents));
+    std::unique_ptr<RSS::Params> parameters(new RSS::Params(source, user_agent, feed_contents, global_params_.harvestable_manager_));
     std::shared_ptr<RSS::Tasklet> new_tasklet(new RSS::Tasklet(&rss_tasklet_execution_counter_,
                                               this, std::move(parameters), upload_tracker_, global_params_.force_downloads_,
                                               global_params_.rss_feed_harvest_interval_,
