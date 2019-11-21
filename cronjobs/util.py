@@ -7,6 +7,7 @@ from ftplib import FTP
 import configparser
 import ctypes
 import datetime
+import email
 import glob
 import inspect
 import mmap
@@ -19,6 +20,51 @@ import struct
 import sys
 import tarfile
 import time
+import urllib.request
+
+
+def HTTPDateToSecondsRelativetoUnixEpoch(http_date: str) -> int:
+    return email.utils.mktime_tz(email.utils.parsedate_tz(http_date))
+
+
+class RetrieveFileByURLReturnCode(enum.Enum):
+    SUCCESS = 0
+    TIMEOUT = 1
+    URL_NOT_FOUND = 2
+    HTTP_ERROR = 3
+    UNSPECIFIED_ERROR = 4
+
+
+def RetrieveFileByURL(url: str, timeout: int) -> RetrieveFileByURLReturnCode:
+    deadline: int = time.time() + timeout
+    attempt_no: int = 0
+    while time.time() < deadline:
+        try:
+            headers = urllib.request.urlretrieve(url)[1]
+            return RetrieveFileByURLReturnCode.SUCCESS
+        except urllib.error.HTTPError as http_error:
+            return RetrieveFileByURLReturnCode.URL_NOT_FOUND
+        except urllib.error.HTTPError as http_error:
+            if http_error.code != 429:
+                print("HTTP error reason: " + http_error.reason)
+                print("HTTP headers: " + str(http_error.headers))
+                return RetrieveFileByURLReturnCode.HTTP_ERROR
+            if http_error.headers["Retry-After"]:
+                timeout_or_date: str = http_error.headers["Retry-After"]
+                try:
+                    sleep_interval = int(http_error.headers["Retry-After"])
+                except:
+                    sleep_interval = HTTPDateToSecondsRelativetoUnixEpoch(http_error.headers["Retry-After"]) - time.time()
+                if time.time() + sleep_interval > deadline:
+                    return RetrieveFileByURLReturnCode.TIMEOUT
+        except:
+            return RetrieveFileByURLReturnCode.UNSPECIFIED_ERROR
+
+        if 'sleep_interval' not in locals():
+            sleep_interval: int = max(0, min(deadline - time.time(), 10 * 2 ** attempt_no))
+        attempt_no += 1
+        time.sleep(sleep_interval)
+    return RetrieveFileByURLReturnCode.TIMEOUT
 
 
 default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
