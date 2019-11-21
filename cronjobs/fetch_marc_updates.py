@@ -56,6 +56,7 @@ import traceback
 import util
 import shutil
 import string
+import tempfile
 
 
 # Returns "yymmdd_string" incremented by one day unless it equals "000000" (= minus infinity).
@@ -298,7 +299,6 @@ def DownloadData(config, section, ftp, download_cutoff_date, msg):
         msg.append("No more recent file for pattern \"" + filename_regex.pattern + "\"!\n")
     else:
         msg.append("Successfully downloaded:\n" + '\n'.join(downloaded_files) + '\n')
-        AddToCumulativeCollection(downloaded_files, config)
     return downloaded_files
 
 
@@ -343,28 +343,39 @@ def Main():
 
     ftp = util.FTPLogin(ftp_host, ftp_user, ftp_passwd)
     msg = []
-
+    tempdir = tempfile.TemporaryDirectory()
+    bsz_dir = os.getcwd()
+    os.chdir(tempdir.name)
     download_cutoff_date = IncrementStringDate(GetCutoffDateForDownloads(config))
     complete_data_filenames = DownloadCompleteData(config, ftp, download_cutoff_date, msg)
+    all_downloaded_files = [] if complete_data_filenames == None else complete_data_filenames
     downloaded_at_least_some_new_titles = False
     if complete_data_filenames is not None:
         download_cutoff_date = ExtractDateFromFilename(complete_data_filenames[0])
         downloaded_at_least_some_new_titles = True
-    if DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg):
+    all_downloaded_files += DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
+    if all_downloaded_files is not []:
         downloaded_at_least_some_new_titles = True
-    DownloadData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
+    all_downloaded_files += DownloadData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     if config.has_section("Loeschlisten2"):
-        DownloadData(config, "Loeschlisten2", ftp, download_cutoff_date, msg)
+        all_downloaded_files += DownloadData(config, "Loeschlisten2", ftp, download_cutoff_date, msg)
     if config.has_section("Hinweisabzug"):
         DownloadData(config, "Hinweisabzug", ftp, "000000", msg)
     if config.has_section("Errors"):
-        DownloadData(config, "Errors", ftp, download_cutoff_date, msg)
+        all_downloaded_files += DownloadData(config, "Errors", ftp, download_cutoff_date, msg)
     incremental_authority_cutoff_date =  ShiftDateToTenDaysBefore(download_cutoff_date)
     if config.has_section("Normdatendifferenzabzug"):
        if (not CurrentIncrementalAuthorityDumpPresent(config, incremental_authority_cutoff_date)):
-           DownloadData(config, "Normdatendifferenzabzug", ftp, incremental_authority_cutoff_date, msg)
+           all_downloaded_files += DownloadData(config, "Normdatendifferenzabzug", ftp, incremental_authority_cutoff_date, msg)
        else:
            msg.append("Skipping Download of \"Normdatendifferenzabzug\" since already present\n")
+    try:
+        for downloaded_file in all_downloaded_files:
+            shutil.move(downloaded_file, bsz_dir)
+    except Exception as e:
+        util.Error("Moving a downloaded file to the BSZ download directory failed! (" + str(e) + ")")
+
+    AddToCumulativeCollection(all_downloaded_files, config)
     CleanUpCumulativeCollection(config)
     if downloaded_at_least_some_new_titles:
         util.Touch("/tmp/bsz_download_happened") # Must be the same path as in the merge script!
