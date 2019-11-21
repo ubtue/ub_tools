@@ -73,7 +73,7 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
  : Util::Tasklet<Params, Result>(instance_counter, parameters->download_item_,
                                  "DirectDownload: " + parameters->download_item_.url_.toString(),
                                  std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
-                                 std::move(parameters), std::unique_ptr<Result>(new Result(parameters->download_item_))),
+                                 std::unique_ptr<Result>(new Result(parameters->download_item_)), std::move(parameters)),
    download_manager_(download_manager) {}
 
 
@@ -139,7 +139,7 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
  : Util::Tasklet<Params, Result>(instance_counter, parameters->download_item_,
                                  "Crawling: " + parameters->download_item_.url_.toString(),
                                  std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
-                                 std::move(parameters), std::unique_ptr<Result>(new Result())),
+                                 std::unique_ptr<Result>(new Result()), std::move(parameters)),
    download_manager_(download_manager) {}
 
 
@@ -257,7 +257,7 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
  : Util::Tasklet<Params, Result>(instance_counter, parameters->download_item_,
                                  "RSS: " + parameters->download_item_.url_.toString(),
                                  std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
-                                 std::move(parameters), std::unique_ptr<Result>(new Result())),
+                                 std::unique_ptr<Result>(new Result()), std::move(parameters)),
    download_manager_(download_manager), upload_tracker_(upload_tracker), force_downloads_(force_downloads),
    feed_harvest_interval_(feed_harvest_interval), force_process_feeds_with_no_pub_dates_(force_process_feeds_with_no_pub_dates) {}
 
@@ -301,7 +301,7 @@ DownloadManager::DelayParams DownloadManager::generateDelayParams(const Url &url
     DelayParams new_delay_params(robots_txt_downloader.getMessageBody(), global_params_.default_download_delay_time_,
                                  global_params_.max_download_delay_time_);
 
-    LOG_INFO("set crawl-delay for domain '" + hostname + "' to " +
+    LOG_DEBUG("set crawl-delay for domain '" + hostname + "' to " +
              std::to_string(new_delay_params.time_limit_.getLimit()) + " ms");
     return new_delay_params;
 }
@@ -368,34 +368,38 @@ void DownloadManager::processQueueBuffers() {
 
 void DownloadManager::processDomainQueues(DomainData * const domain_data) {
     // apply download delays and create tasklets for downloads/crawls
-    if (direct_download_tasklet_execution_counter_ == MAX_DIRECT_DOWNLOAD_TASKLETS
-        and crawling_tasklet_execution_counter_ == MAX_CRAWLING_TASKLETS
-        and rss_tasklet_execution_counter_ == MAX_RSS_TASKLETS)
-    {
+    if (not global_params_.ignore_robots_txt_ and not domain_data->delay_params_.time_limit_.limitExceeded())
+        return;
+
+    if (not domain_data->queued_direct_downloads_.empty() and direct_download_tasklet_execution_counter_ < MAX_DIRECT_DOWNLOAD_TASKLETS) {
+        std::shared_ptr<DirectDownload::Tasklet> direct_download_tasklet(domain_data->queued_direct_downloads_.front());
+        domain_data->active_direct_downloads_.emplace_back(direct_download_tasklet);
+        domain_data->queued_direct_downloads_.pop_front();
+        direct_download_tasklet->start();
+
+        domain_data->delay_params_.time_limit_.restart();
         return;
     }
 
-    if (domain_data->queued_direct_downloads_.empty() and domain_data->queued_crawls_.empty() and domain_data->queued_rss_feeds_.empty())
+    if (not domain_data->queued_crawls_.empty() and crawling_tasklet_execution_counter_ < MAX_CRAWLING_TASKLETS) {
+        std::shared_ptr<Crawling::Tasklet> crawling_tasklet(domain_data->queued_crawls_.front());
+        domain_data->active_crawls_.emplace_back(crawling_tasklet);
+        domain_data->queued_crawls_.pop_front();
+        crawling_tasklet->start();
+
+        domain_data->delay_params_.time_limit_.restart();
         return;
-    else if (not global_params_.ignore_robots_txt_ and not domain_data->delay_params_.time_limit_.limitExceeded())
+    }
+
+    if (not domain_data->queued_rss_feeds_.empty() and rss_tasklet_execution_counter_ < MAX_RSS_TASKLETS) {
+        std::shared_ptr<RSS::Tasklet> rss_tasklet(domain_data->queued_rss_feeds_.front());
+        domain_data->active_rss_feeds_.emplace_back(rss_tasklet);
+        domain_data->queued_rss_feeds_.pop_front();
+        rss_tasklet->start();
+
+        domain_data->delay_params_.time_limit_.restart();
         return;
-
-    domain_data->delay_params_.time_limit_.restart();
-
-    std::shared_ptr<DirectDownload::Tasklet> direct_download_tasklet(domain_data->queued_direct_downloads_.front());
-    domain_data->active_direct_downloads_.emplace_back(direct_download_tasklet);
-    domain_data->queued_direct_downloads_.pop_front();
-    direct_download_tasklet->start();
-
-    std::shared_ptr<Crawling::Tasklet> crawling_tasklet(domain_data->queued_crawls_.front());
-    domain_data->active_crawls_.emplace_back(crawling_tasklet);
-    domain_data->queued_crawls_.pop_front();
-    crawling_tasklet->start();
-
-    std::shared_ptr<RSS::Tasklet> rss_tasklet(domain_data->queued_rss_feeds_.front());
-    domain_data->active_rss_feeds_.emplace_back(rss_tasklet);
-    domain_data->queued_rss_feeds_.pop_front();
-    rss_tasklet->start();
+    }
 }
 
 

@@ -173,29 +173,36 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
         crawl_params_.crawl_url_regex_.reset(new ThreadSafeRegexMatcher(crawl_regex));
 
     // repeatable fields
+    static const auto PREFIX_OVERRIDE_JSON_FIELD("override_json_field_");
+    static const auto PREFIX_SUPPRESS_JSON_FIELD("suppress_json_field_");
+    static const auto PREFIX_EXCLUDE_JSON_FIELD("exclude_if_json_field_");
+    static const auto PREFIX_ADD_MARC_FIELD("add_marc_field_");
+    static const auto PREFIX_REMOVE_MARC_FIELD("remove_marc_field_");
+    static const auto PREFIX_EXCLUDE_MARC_FIELD("exclude_if_marc_field_");
+
     for (const auto &entry : journal_section) {
-        if (StringUtil::StartsWith(entry.name_, "override_metadata_")) {
-            const auto field_name(entry.name_.substr(__builtin_strlen("override_metadata_")));
+        if (StringUtil::StartsWith(entry.name_, PREFIX_OVERRIDE_JSON_FIELD)) {
+            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_OVERRIDE_JSON_FIELD)));
             zotero_metadata_params_.fields_to_override_.insert(std::make_pair(field_name, entry.value_));
-        } else if (StringUtil::StartsWith(entry.name_, "suppress_metadata_")) {
-            const auto field_name(entry.name_.substr(__builtin_strlen("suppress_metadata_")));
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_SUPPRESS_JSON_FIELD)) {
+            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_SUPPRESS_JSON_FIELD)));
             zotero_metadata_params_.fields_to_suppress_.insert(std::make_pair(field_name,
                                                                std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
-        } else if (StringUtil::StartsWith(entry.name_, "add_field"))
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD))
             marc_metadata_params_.fields_to_add_.emplace_back(entry.value_);
-        else if (StringUtil::StartsWith(entry.name_, "exclude_if_field_")) {
-            const auto field_name(entry.name_.substr(__builtin_strlen("exclude_if_field_")));
+        else if (StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_MARC_FIELD)) {
+            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_EXCLUDE_MARC_FIELD)));
             if (field_name.length() != MARC::Record::TAG_LENGTH and field_name.length() != MARC::Record::TAG_LENGTH + 1)
                 LOG_ERROR("invalid exclusion field name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
 
             marc_metadata_params_.exclusion_filters_.insert(std::make_pair(field_name,
                                                             std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
-        } else if (StringUtil::StartsWith(entry.name_, "exclude_if_metadata_")) {
-            const auto metadata_name(entry.name_.substr(__builtin_strlen("exclude_if_metadata_")));
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_JSON_FIELD)) {
+            const auto metadata_name(entry.name_.substr(__builtin_strlen(PREFIX_EXCLUDE_JSON_FIELD)));
             zotero_metadata_params_.exclusion_filters_.insert(std::make_pair(metadata_name,
                                                               std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
-        } else if (StringUtil::StartsWith(entry.name_, "remove_field_")) {
-            const auto field_name(entry.name_.substr(__builtin_strlen("remove_field_")));
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_FIELD)) {
+            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_REMOVE_MARC_FIELD)));
             if (field_name.length() != MARC::Record::TAG_LENGTH + 1)
                 LOG_ERROR("invalid removal filter name '" + field_name + "'! expected format: <tag><subfield_code>");
 

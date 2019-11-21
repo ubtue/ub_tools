@@ -1036,7 +1036,7 @@ ConversionTasklet::ConversionTasklet(ThreadUtil::ThreadSafeCounter<unsigned> * c
  : Util::Tasklet<ConversionParams, ConversionResult>(instance_counter, parameters->download_item_,
                                                      "Conversion: " + parameters->download_item_.url_.toString(),
                                                      std::bind(&ConversionTasklet::run, this, std::placeholders::_1, std::placeholders::_2),
-                                                     std::move(parameters), std::unique_ptr<ConversionResult>(new ConversionResult())) {}
+                                                     std::unique_ptr<ConversionResult>(new ConversionResult()), std::move(parameters)) {}
 
 
 
