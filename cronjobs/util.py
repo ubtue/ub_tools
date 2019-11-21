@@ -9,6 +9,7 @@ import configparser
 import ctypes
 import datetime
 import email
+import enum
 import glob
 import inspect
 import mmap
