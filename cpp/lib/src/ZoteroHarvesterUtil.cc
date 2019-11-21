@@ -30,20 +30,14 @@ namespace ZoteroHarvester {
 namespace Util {
 
 
-HarvestableItemManager::HarvestableItemManager(const std::vector<const Config::JournalParams &> &journal_params) {
-    for (const auto &journal_param : journal_params)
-        counters_.emplace(journal_param, 0);
-}
-
-
 HarvestableItemManager::HarvestableItemManager(const std::vector<std::unique_ptr<Config::JournalParams>> &journal_params) {
     for (const auto &journal_param : journal_params)
-        counters_.emplace(*journal_param, 0);
+        counters_.emplace(journal_param.get(), 0);
 }
 
 
 HarvestableItem HarvestableItemManager::newHarvestableItem(const std::string &url, const Config::JournalParams &journal_params) {
-    auto match(counters_.find(journal_params));
+    auto match(counters_.find(&journal_params));
     if (match == counters_.end())
         LOG_ERROR("couldn't fetch harvestable item ID for unknown journal '" + journal_params.name_ + "'");
 

@@ -156,7 +156,7 @@ struct HarvesterConfigData {
     std::vector<std::unique_ptr<Config::GroupParams>> group_params_;
     std::vector<std::unique_ptr<Config::JournalParams>> journal_params_;
     std::unique_ptr<Config::EnhancementMaps> enhancement_maps;
-    std::map<std::string, const Config::GroupParams&> group_name_to_group_params_map_;
+    std::map<std::string, const std::reference_wrapper<Config::GroupParams>> group_name_to_group_params_map_;
 
     inline const Config::GroupParams & lookupJournalGroup(const Config::JournalParams &journal_params) const {
         return group_name_to_group_params_map_.find(journal_params.group_)->second;
@@ -295,11 +295,11 @@ bool ConversionResultsComparator(const std::unique_ptr<Util::Future<Conversion::
 class OutputFileCache {
     std::string output_filename_;
     std::string output_directory_;
-    std::map<const Config::GroupParams &, std::unique_ptr<MARC::Writer>> output_marc_writers_;
+    std::map<const Config::GroupParams *, std::unique_ptr<MARC::Writer>> output_marc_writers_;
 public:
     OutputFileCache(const CommandLineArgs &commandline_args, const HarvesterConfigData &harvester_config);
 
-    const std::unique_ptr<MARC::Writer> &getWriter(const Config::GroupParams &group_params) const;
+    const std::unique_ptr<MARC::Writer> &getWriter(const Config::GroupParams &group_params);
 };
 
 
@@ -307,12 +307,12 @@ OutputFileCache::OutputFileCache(const CommandLineArgs &commandline_args, const 
  : output_filename_(commandline_args.output_filename_), output_directory_(commandline_args.output_directory_)
 {
     for (const auto &group_param : harvester_config.group_params_)
-        output_marc_writers_.emplace(*group_param, nullptr);
+        output_marc_writers_.emplace(group_param.get(), nullptr);
 }
 
 
-const std::unique_ptr<MARC::Writer> &OutputFileCache::getWriter(const Config::GroupParams &group_params) const {
-    auto match(output_marc_writers_.find(group_params));
+const std::unique_ptr<MARC::Writer> &OutputFileCache::getWriter(const Config::GroupParams &group_params) {
+    auto match(output_marc_writers_.find(&group_params));
     if (match == output_marc_writers_.end())
         LOG_ERROR("couldn't find output file writer for unknown group '" + group_params.name_ + "'");
 
@@ -325,7 +325,7 @@ const std::unique_ptr<MARC::Writer> &OutputFileCache::getWriter(const Config::Gr
 }
 
 
-void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, const OutputFileCache &outputfile_cache,
+void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, OutputFileCache * const outputfile_cache,
                                   unsigned * const num_converted_records)
 {
     // sort the conversion results in the order in which they were queued
@@ -351,7 +351,7 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, co
             LOG_DEBUG("writing " + std::to_string(active_conversion->getResult().marc_records_.size()) + " records for "
                     "harvestable item " + std::to_string(current_converted_item_id));
 
-            const auto &writer(outputfile_cache.getWriter(active_conversion->getParameter().group_params_));
+            const auto &writer(outputfile_cache->getWriter(active_conversion->getParameter().group_params_));
             for (const auto &record : active_conversion->getResult().marc_records_)
                 writer->write(*record);
 
@@ -428,7 +428,7 @@ int Main(int argc, char *argv[]) {
         for (auto &journal_datastore : journal_datastores) {
             EnqueueCrawlAndRssResults(journal_datastore.get(), &jobs_running);
             EnqueueCompletedDownloadsForConversion(journal_datastore.get(), &jobs_running, &conversion_manager, harvester_config);
-            WriteConversionResultsToDisk(journal_datastore.get(), output_file_cache, &num_converted_records);
+            WriteConversionResultsToDisk(journal_datastore.get(), &output_file_cache, &num_converted_records);
 
             if (not jobs_running)
                 jobs_running = not journal_datastore->queued_downloads_.empty() or not journal_datastore->queued_marc_records_.empty();
@@ -437,7 +437,7 @@ int Main(int argc, char *argv[]) {
         ::usleep(BUSY_LOOP_THREAD_SLEEP_TIME);
     }
 
-    LOG_INFO("Harvested " + std::to_string() + " records");
+    LOG_INFO("Harvested " + std::to_string(num_converted_records) + " records");
 
     return EXIT_SUCCESS;
 }
