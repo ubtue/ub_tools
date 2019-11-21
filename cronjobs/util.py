@@ -42,7 +42,7 @@ def RetrieveFileByURL(url: str, timeout: int) -> RetrieveFileByURLReturnCode:
         try:
             headers = urllib.request.urlretrieve(url)[1]
             return RetrieveFileByURLReturnCode.SUCCESS
-        except urllib.error.URLError as http_error:
+        except urllib.error.URLError:
             return RetrieveFileByURLReturnCode.URL_NOT_FOUND
         except urllib.error.HTTPError as http_error:
             if http_error.code != 429:
