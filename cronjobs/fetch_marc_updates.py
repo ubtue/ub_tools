@@ -373,7 +373,7 @@ def Main():
         for downloaded_file in all_downloaded_files:
             shutil.move(downloaded_file, bsz_dir)
     except Exception as e:
-        util.Error("Copying downloaded file to BSZ download directory failed! (" + str(e) + ")")
+        util.Error("Moving a downloaded file to the BSZ download directory failed! (" + str(e) + ")")
 
     AddToCumulativeCollection(all_downloaded_files, config)
     CleanUpCumulativeCollection(config)
