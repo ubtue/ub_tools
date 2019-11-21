@@ -37,7 +37,7 @@ namespace Conversion {
 
 
 void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                          const Util::Harvestable &download_item)
+                          const Util::HarvestableItem &download_item)
 {
     const auto suppression_regex(download_item.journal_.zotero_metadata_params_.fields_to_suppress_.find(node_name));
     if (suppression_regex != download_item.journal_.zotero_metadata_params_.fields_to_suppress_.end()) {
@@ -55,7 +55,7 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
 
 
 void OverrideJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                          const Util::Harvestable &download_item)
+                          const Util::HarvestableItem &download_item)
 {
     const std::string ORIGINAL_VALUE_SPECIFIER("%org%");
     const auto override_pattern(download_item.journal_.zotero_metadata_params_.fields_to_override_.find(node_name));
@@ -74,7 +74,7 @@ void OverrideJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
 }
 
 
-void PostprocessTranslationServerResponse(const Util::Harvestable &download_item,
+void PostprocessTranslationServerResponse(const Util::HarvestableItem &download_item,
                                           std::shared_ptr<JSON::ArrayNode> * const response_json_array)
 {
     // 'response_json_array' is a JSON array of metadata objects pertaining to individual URLs
@@ -117,7 +117,7 @@ void PostprocessTranslationServerResponse(const Util::Harvestable &download_item
 }
 
 
-bool ZoteroItemMatchesExclusionFilters(const Util::Harvestable &download_item,
+bool ZoteroItemMatchesExclusionFilters(const Util::HarvestableItem &download_item,
                                        const std::shared_ptr<JSON::ObjectNode> &zotero_item)
 {
     if (download_item.journal_.zotero_metadata_params_.exclusion_filters_.empty())
@@ -686,7 +686,7 @@ const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP {
 };
 
 
-void GenerateMarcRecordFromMetadataRecord(const Util::Harvestable &download_item, const MetadataRecord &metadata_record,
+void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_item, const MetadataRecord &metadata_record,
                                           const Config::GroupParams &group_params, MARC::Record * const marc_record)
 {
     const auto &item_type(metadata_record.item_type_);
@@ -918,7 +918,7 @@ void GenerateMarcRecordFromMetadataRecord(const Util::Harvestable &download_item
 }
 
 
-bool MarcRecordMatchesExclusionFilters(const Util::Harvestable &download_item, MARC::Record * const marc_record) {
+bool MarcRecordMatchesExclusionFilters(const Util::HarvestableItem &download_item, MARC::Record * const marc_record) {
     bool found_match(false);
     std::string exclusion_string;
 
@@ -1041,7 +1041,7 @@ ConversionTasklet::ConversionTasklet(ThreadUtil::ThreadSafeCounter<unsigned> * c
 
 
 void *ConversionManager::BackgroundThreadRoutine(void * parameter) {
-    static const unsigned BACKGROUND_THREAD_SLEEP_TIME(32 * 1000 * 1000);   // ms -> us
+    static const unsigned BACKGROUND_THREAD_SLEEP_TIME(1 * 1000 * 1000);   // sec -> us
 
     ConversionManager * const conversion_manager(reinterpret_cast<ConversionManager *>(parameter));
     pthread_detach(pthread_self());
@@ -1098,7 +1098,7 @@ ConversionManager::~ConversionManager() {
 }
 
 
-std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> ConversionManager::convert(const Util::Harvestable &source,
+std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> ConversionManager::convert(const Util::HarvestableItem &source,
                                                                                              const std::string &json_metadata,
                                                                                              const Config::GroupParams &group_params)
 {

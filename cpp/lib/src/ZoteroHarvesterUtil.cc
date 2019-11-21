@@ -30,12 +30,24 @@ namespace ZoteroHarvester {
 namespace Util {
 
 
-static ThreadUtil::ThreadSafeCounter<unsigned> harvestable_counter(0);
+HarvestableItemManager::HarvestableItemManager(const std::vector<const Config::JournalParams &> &journal_params) {
+    for (const auto &journal_param : journal_params)
+        counters_.emplace(journal_param, 0);
+}
 
 
-Harvestable Harvestable::New(const std::string &url, const Config::JournalParams &journal) {
-    ++harvestable_counter;
-     return Harvestable(harvestable_counter, url, journal);
+HarvestableItemManager::HarvestableItemManager(const std::vector<std::unique_ptr<Config::JournalParams>> &journal_params) {
+    for (const auto &journal_param : journal_params)
+        counters_.emplace(*journal_param, 0);
+}
+
+
+HarvestableItem HarvestableItemManager::newHarvestableItem(const std::string &url, const Config::JournalParams &journal_params) {
+    auto match(counters_.find(journal_params));
+    if (match == counters_.end())
+        LOG_ERROR("couldn't fetch harvestable item ID for unknown journal '" + journal_params.name_ + "'");
+
+    return HarvestableItem(++match->second, url, journal_params);
 }
 
 
@@ -123,7 +135,7 @@ void ZoteroLogger::debug(const std::string &msg) {
 }
 
 
-void ZoteroLogger::pushContext(const Util::Harvestable &context_item) {
+void ZoteroLogger::pushContext(const Util::HarvestableItem &context_item) {
     std::lock_guard<std::mutex> locker(active_context_mutex_);
 
     auto match(active_contexts_.find(context_item.id_));
@@ -134,7 +146,7 @@ void ZoteroLogger::pushContext(const Util::Harvestable &context_item) {
 }
 
 
-void ZoteroLogger::popContext(const Util::Harvestable &context_item) {
+void ZoteroLogger::popContext(const Util::HarvestableItem &context_item) {
     std::lock_guard<std::mutex> locker(active_context_mutex_);
 
     auto match(active_contexts_.find(context_item.id_));

@@ -39,18 +39,32 @@ namespace ZoteroHarvester {
 namespace Util {
 
 
-struct Harvestable {
-    // Sortable unique ID that indicates the position of the harvestable item in the global harvest queue
+class HarvestableItemManager;
+
+
+struct HarvestableItem {
+    friend class HarvestableItemManager;
+
+    // Sortable unique ID that indicates the position of the harvestable item in a specific journal's harvest queue
     const unsigned id_;
     const Url url_;
     const Config::JournalParams &journal_;
 private:
-    Harvestable(const unsigned id, const std::string url, const Config::JournalParams &journal)
+    HarvestableItem(const unsigned id, const std::string &url, const Config::JournalParams &journal)
      : id_(id), url_(url), journal_(journal) {}
 public:
-    Harvestable(const Harvestable &rhs) = default;
+    HarvestableItem(const HarvestableItem &rhs) = default;
+    HarvestableItem &operator=(const HarvestableItem &rhs) = delete;
+};
 
-    static Harvestable New(const std::string &url, const Config::JournalParams &journal);
+
+class HarvestableItemManager {
+    std::unordered_map<const Config::JournalParams &, ThreadUtil::ThreadSafeCounter<unsigned>> counters_;
+public:
+    HarvestableItemManager(const std::vector<const Config::JournalParams &> &journal_params);
+    HarvestableItemManager(const std::vector<std::unique_ptr<Config::JournalParams>> &journal_params);
+
+    HarvestableItem newHarvestableItem(const std::string &url, const Config::JournalParams &journal_params);
 };
 
 
@@ -62,10 +76,10 @@ class ZoteroLogger : public ::Logger {
     struct ContextData {
         static constexpr unsigned BUFFER_SIZE = 64 * 1024;
 
-        Util::Harvestable item_;
+        Util::HarvestableItem item_;
         std::string buffer_;
     public:
-        explicit ContextData(const Util::Harvestable &item) : item_(item)
+        explicit ContextData(const Util::HarvestableItem &item) : item_(item)
          { buffer_.reserve(static_cast<size_t>(BUFFER_SIZE)); }
     };
 
@@ -81,61 +95,19 @@ public:
     virtual void warning(const std::string &msg) override;
     virtual void info(const std::string &msg) override;
     virtual void debug(const std::string &msg) override;
-    void pushContext(const Util::Harvestable &context_item);
-    void popContext(const Util::Harvestable &context_item);
+    void pushContext(const Util::HarvestableItem &context_item);
+    void popContext(const Util::HarvestableItem &context_item);
 
     // Replaces the global logger instance with one of this class
     static void Init();
  };
 
 
-template <typename T>
-class ThreadLocal {
-    pthread_key_t key_;
-    const std::function<std::unique_ptr<T>()> initializer_;
-
-    static void Destructor(void *data) {
-        std::unique_ptr<T> wrapper(reinterpret_cast<T *>(data));
-    }
-public:
-    ThreadLocal(const std::function<std::unique_ptr<T>()> &&initialzer)
-     : initializer_(initialzer)
-    {
-        if (pthread_key_create(&key_, &Destructor) != 0)
-            LOG_ERROR("could not create thread local data key");
-    }
-    ~ThreadLocal() {
-        if (pthread_key_delete(key_) != 0)
-            LOG_ERROR("could not delete thread local data key");
-    }
-    ThreadLocal(const ThreadLocal<T> &) = delete;
-    ThreadLocal<T> &operator=(const ThreadLocal<T> &) = delete;
-
-    T *get() {
-        auto thread_data(pthread_getspecific(key_));
-        if (thread_data == nullptr) {
-            auto new_data(initializer_());
-            if (pthread_setspecific(key_, new_data.get()) != 0)
-                LOG_ERROR("could not set thread local data for thread " + std::to_string(pthread_self()));
-            thread_data = new_data.release();
-        }
-
-        return reinterpret_cast<T *>(thread_data);
-    }
-    T &operator*() {
-        return *get();
-    }
-    T *operator->() {
-        return get();
-    }
-};
-
-
 struct TaskletContext {
-    const Harvestable associated_item_;
+    const HarvestableItem associated_item_;
     const std::string description_;
 public:
-    TaskletContext(const Harvestable &associated_item, const std::string &description)
+    TaskletContext(const HarvestableItem &associated_item, const std::string &description)
      : associated_item_(associated_item), description_(description) {}
 };
 
@@ -209,7 +181,7 @@ class Tasklet {
     std::unique_ptr<const Parameter> parameter_;
     std::unique_ptr<Result> result_;
 public:
-    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const running_instance_counter, const Harvestable &associated_item,
+    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const running_instance_counter, const HarvestableItem &associated_item,
             const std::string &description, const std::function<void(const Parameter &, Result * const)> &runnable,
             std::unique_ptr<Parameter> parameter, std::unique_ptr<Result> default_result)
      : context_(associated_item, description), running_instance_counter_(running_instance_counter), status_(Status::NOT_STARTED),
@@ -308,7 +280,7 @@ public:
             return false;
         }
     };
-    const std::unique_ptr<Result> &get() {
+    Result &getResult() {
         if (status_ == Status::WAITING) {
             source_tasklet_->await();
             if (hasResult()) {
@@ -318,8 +290,9 @@ public:
                 status_ = Status::NO_RESULT;
         }
 
-        return result_;
+        return *result_;
     }
+    inline const Parameter &getParameter() const { return source_tasklet_->getParameter(); }
 };
 
 

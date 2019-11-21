@@ -79,11 +79,11 @@ public:
 };
 
 
-void PostprocessTranslationServerResponse(const Util::Harvestable &download_item,
+void PostprocessTranslationServerResponse(const Util::HarvestableItem &download_item,
                                           std::shared_ptr<JSON::ArrayNode> * const response_json_array);
 
 
-bool ZoteroItemMatchesExclusionFilters(const Util::Harvestable &download_item,
+bool ZoteroItemMatchesExclusionFilters(const Util::HarvestableItem &download_item,
                                        const std::shared_ptr<JSON::ObjectNode> &zotero_item);
 
 
@@ -95,22 +95,22 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
                            const Config::GroupParams &group_params, const Config::EnhancementMaps &enhancement_maps);
 
 
-void GenerateMarcRecordFromMetadataRecord(const Util::Harvestable &download_item, const MetadataRecord &metadata_record,
+void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_item, const MetadataRecord &metadata_record,
                                           const Config::GroupParams &group_params, MARC::Record * const marc_record);
 
 
-bool MarcRecordMatchesExclusionFilters(const Util::Harvestable &download_item, MARC::Record * const marc_record);
+bool MarcRecordMatchesExclusionFilters(const Util::HarvestableItem &download_item, MARC::Record * const marc_record);
 
 
 struct ConversionParams {
-    Util::Harvestable download_item_;
+    Util::HarvestableItem download_item_;
     std::string json_metadata_;
     bool force_downloads_;
     bool skip_online_first_articles_unconditonally_;
     const Config::GroupParams &group_params_;
     const Config::EnhancementMaps &enhancement_maps_;
 public:
-    ConversionParams(const Util::Harvestable &download_item, const std::string &json_metadata, const bool force_downloads,
+    ConversionParams(const Util::HarvestableItem &download_item, const std::string &json_metadata, const bool force_downloads,
                      const bool skip_online_first_articles_unconditonally, const Config::GroupParams &group_params,
                      const Config::EnhancementMaps &enhancement_maps)
      : download_item_(download_item), json_metadata_(json_metadata), force_downloads_(force_downloads),
@@ -165,7 +165,7 @@ public:
     ConversionManager(const GlobalParams &global_params);
     ~ConversionManager();
 
-    std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> convert(const Util::Harvestable &source,
+    std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> convert(const Util::HarvestableItem &source,
                                                                               const std::string &json_metadata,
                                                                               const Config::GroupParams &group_params);
     inline bool conversionInProgress() const { return conversion_tasklet_execution_counter_ != 0; }
