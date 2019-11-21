@@ -20,19 +20,12 @@ import zipfile
 
 def GetNewBNBNumbers(list_no):
     zipped_rdf_filename = "bnbrdf_N" + str(list_no) + ".zip"
-    try:
-        headers = urllib.request.urlretrieve("https://www.bl.uk/bibliographic/bnbrdf/bnbrdf_N%d.zip" % list_no, zipped_rdf_filename)[1]
-    except urllib.error.URLError as url_error:
+    retcode = util.RetrieveFileByURL("https://www.bl.uk/bibliographic/bnbrdf/bnbrdf_N%d.zip" % list_no, 200,
+                                     [ "application/zip" ])
+    if retcode == util.RetrieveFileByURLReturnCode.URL_NOT_FOUND:
         return []
-    except urllib.error.HTTPError as http_error:
-        print("HTTP error reason: " + http_error.reason)
-        print("HTTP headers: " + str(http_error.headers))
-        sys.exit(-2)
-        
-    if headers["Content-type"] != "application/zip":
-        util.Remove(zipped_rdf_filename)
-        return headers["Content-type"]
-
+    if retcode != util.RetrieveFileByURLReturnCode.SUCCESS:
+        util.Error("util.RetrieveFileByURL() failed w/ return code " + str(retcode))
     print("Downloaded " + zipped_rdf_filename)
     with zipfile.ZipFile(zipped_rdf_filename, "r") as zip_file:
         zip_file.extractall()
