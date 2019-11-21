@@ -59,9 +59,8 @@ public:
 
 
 class HarvestableItemManager {
-    std::unordered_map<const Config::JournalParams &, ThreadUtil::ThreadSafeCounter<unsigned>> counters_;
+    std::unordered_map<const Config::JournalParams *, ThreadUtil::ThreadSafeCounter<unsigned>> counters_;
 public:
-    HarvestableItemManager(const std::vector<const Config::JournalParams &> &journal_params);
     HarvestableItemManager(const std::vector<std::unique_ptr<Config::JournalParams>> &journal_params);
 
     HarvestableItem newHarvestableItem(const std::string &url, const Config::JournalParams &journal_params);
@@ -126,8 +125,13 @@ public:
 extern const TaskletContextManager TASKLET_CONTEXT_MANAGER;
 
 
+template <typename Parameter, typename Result> class Future;
+
+
 template <typename Parameter, typename Result>
 class Tasklet {
+    friend class Future<Parameter, Result>;
+
     enum Status { NOT_STARTED, RUNNING, COMPLETED_SUCCESS, COMPLETED_ERROR };
 
     static void *ThreadRoutine(void * parameter) {
@@ -221,7 +225,7 @@ public:
     std::unique_ptr<Result> yieldResult() {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        if (status_ != Status::COMPLETION_SUCCESS) {
+        if (status_ != Status::COMPLETED_SUCCESS) {
             LOG_ERROR("tasklet '" + std::to_string(thread_id_) + "' has no result!"
                       + "\nstatus = " + std::to_string(status_) + "\ndescription:" + context_.description_);
         }
@@ -231,7 +235,7 @@ public:
                       + "\ndescription:" + context_.description_);
         }
 
-        return result_.release();
+        return std::move(result_);
     }
     void await() {
         // wait until the tasklet has started, as the thread won't be allocated until it does
@@ -284,7 +288,7 @@ public:
         if (status_ == Status::WAITING) {
             source_tasklet_->await();
             if (hasResult()) {
-                result_.reset(source_tasklet_->yieldResult());
+                result_.reset(source_tasklet_->yieldResult().release());
                 status_ = Status::YIELDED_RESULT;
             } else
                 status_ = Status::NO_RESULT;
