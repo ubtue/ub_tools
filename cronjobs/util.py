@@ -4,6 +4,7 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from ftplib import FTP
+from typing import List
 import configparser
 import ctypes
 import datetime
@@ -33,14 +34,25 @@ class RetrieveFileByURLReturnCode(enum.Enum):
     URL_NOT_FOUND = 2
     HTTP_ERROR = 3
     UNSPECIFIED_ERROR = 4
+    BAD_CONTENT_TYPE = 5
 
 
-def RetrieveFileByURL(url: str, timeout: int) -> RetrieveFileByURLReturnCode:
+# @brief Fetch a file given a URL
+# @param url                    The URL to fetch.
+# @param timeout                Give up if it takes longer than this many seconds to retrieve the file.
+# @param accepted_content_types If non-empty, a list of acceptable content types.  If empty, anything will be accepted.
+def RetrieveFileByURL(url: str, timeout: int, accepted_content_types: List[str] = []) -> RetrieveFileByURLReturnCode:
     deadline: int = time.time() + timeout
     attempt_no: int = 0
     while time.time() < deadline:
         try:
             headers = urllib.request.urlretrieve(url)[1]
+            if accepted_content_types:
+                content_type: str = headers["Content-type"].lower()
+                for accepted_content_type in accepted_content_types:
+                    if accepted_content_type.lower() == content_type:
+                        return RetrieveFileByURLReturnCode.SUCCESS
+                return RetrieveFileByURLReturnCode.BAD_CONTENT_TYPE
             return RetrieveFileByURLReturnCode.SUCCESS
         except urllib.error.URLError:
             return RetrieveFileByURLReturnCode.URL_NOT_FOUND
