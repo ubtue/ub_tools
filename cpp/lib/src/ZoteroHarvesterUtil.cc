@@ -158,7 +158,7 @@ void ZoteroLogger::popContext(const Util::HarvestableItem &context_item) {
 
 void ZoteroLogger::Init() {
     delete logger;
-    logger = new Logger();
+    logger = new ZoteroLogger();
 
     LOG_INFO("Zotero Logger initialized!");
 }

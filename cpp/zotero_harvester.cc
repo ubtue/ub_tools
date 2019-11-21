@@ -234,6 +234,7 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
     }
     }
 
+    LOG_INFO("queued new journal: " + journal_params.name_ + " | " + Config::HARVESTER_OPERATION_TO_STRING_MAP.at(journal_params.harvester_operation_) + " @ " + journal_params.entry_point_url_);
     return current_journal_datastore;
 }
 
@@ -407,7 +408,7 @@ int Main(int argc, char *argv[]) {
             skip_journal = true;
         } else if (commandline_args.selection_mode_ == CommandLineArgs::SelectionMode::JOURNAL
                    and not commandline_args.selected_journals_.empty()
-                   and commandline_args.selected_journals_.find(journal->name_) != commandline_args.selected_journals_.end())
+                   and commandline_args.selected_journals_.find(journal->name_) == commandline_args.selected_journals_.end())
         {
             skip_journal = true;
         }
@@ -433,6 +434,9 @@ int Main(int argc, char *argv[]) {
             if (not jobs_running)
                 jobs_running = not journal_datastore->queued_downloads_.empty() or not journal_datastore->queued_marc_records_.empty();
         }
+
+        if (not jobs_running)
+            break;
 
         ::usleep(BUSY_LOOP_THREAD_SLEEP_TIME);
     }

@@ -182,20 +182,21 @@ class Tasklet {
     mutable std::mutex mutex_;
     Status status_;
     const std::function<void(const Parameter &, Result * const)> runnable_;
-    std::unique_ptr<const Parameter> parameter_;
     std::unique_ptr<Result> result_;
+    std::unique_ptr<const Parameter> parameter_;
 public:
     Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const running_instance_counter, const HarvestableItem &associated_item,
             const std::string &description, const std::function<void(const Parameter &, Result * const)> &runnable,
-            std::unique_ptr<Parameter> parameter, std::unique_ptr<Result> default_result)
+            std::unique_ptr<Result> default_result, std::unique_ptr<Parameter> parameter)
      : context_(associated_item, description), running_instance_counter_(running_instance_counter), status_(Status::NOT_STARTED),
-       runnable_(runnable), parameter_(std::move(parameter)), result_(std::move(default_result)) {}
+       runnable_(runnable), result_(std::move(default_result)), parameter_(std::move(parameter)) {}
     virtual ~Tasklet() {
-        if (::pthread_cancel(thread_id_) != 0)
-            LOG_ERROR("failed to cancel tasklet thread '" + std::to_string(thread_id_) + "'!");
-        if (status_ == Status::RUNNING) {
+        if (not isComplete()) {
             LOG_WARNING("tasklet '" + std::to_string(thread_id_) + "' is still running!"
                       + "\ndescription:" + context_.description_);
+
+            if (::pthread_cancel(thread_id_) != 0)
+                LOG_ERROR("failed to cancel tasklet thread '" + std::to_string(thread_id_) + "'!");
         }
     }
 public:
@@ -240,11 +241,17 @@ public:
     void await() {
         // wait until the tasklet has started, as the thread won't be allocated until it does
         while (getStatus() == Status::NOT_STARTED) {
-            ::usleep(16 * 1000 * 1000);
+            ::usleep(32 * 1000);
         }
 
-        if (::pthread_join(thread_id_, nullptr) != 0)
-            LOG_ERROR("failed to join tasklet thread '" + std::to_string(thread_id_) + "'!");
+        if (isComplete())
+            return;
+
+        const auto ret_code(::pthread_join(thread_id_, nullptr));
+        if (ret_code != 0) {
+            LOG_ERROR("failed to join tasklet thread '" + std::to_string(thread_id_) + "'!"
+                      " result = " + std::to_string(ret_code));
+        }
     }
 };
 
