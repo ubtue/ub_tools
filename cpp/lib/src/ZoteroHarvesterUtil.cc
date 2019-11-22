@@ -19,6 +19,7 @@
 
 #include "MiscUtil.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "TimeUtil.h"
 #include "ZoteroHarvesterUtil.h"
 #include "util.h"
@@ -28,6 +29,16 @@ namespace ZoteroHarvester {
 
 
 namespace Util {
+
+
+std::string HarvestableItem::toString() const {
+    std::string out(std::to_string(id_));
+    std::string journal_name(TextUtil::CollapseAndTrimWhitespace(journal_.name_));
+    TextUtil::UnicodeTruncate(&journal_name, 20);
+
+    out += "[" + journal_name + "...] | " + url_.toString();
+    return out;
+}
 
 
 HarvestableItemManager::HarvestableItemManager(const std::vector<std::unique_ptr<Config::JournalParams>> &journal_params) {
@@ -148,11 +159,9 @@ void ZoteroLogger::popContext(const Util::HarvestableItem &context_item) {
         error("Harvestable " + std::to_string(context_item.id_) + " (" + context_item.url_.toString() + ") not registered");
 
     // flush buffer contents and remove the context
+    match->second.buffer_ += "\n\n";
     writeString("", match->second.buffer_, /* format_message = */ false);
     active_contexts_.erase(match);
-
-    // write the current status
-    writeString("INFO", "\n\nZotero Status: " + std::to_string(active_contexts_.size()) + " active tasklets\n\n");
 }
 
 

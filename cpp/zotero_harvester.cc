@@ -320,8 +320,10 @@ const std::unique_ptr<MARC::Writer> &OutputFileCache::getWriter(const Config::Gr
     if (match->second != nullptr)
         return match->second;
 
-    const auto output_filepath(output_directory_ + "/" + group_params.bsz_upload_group_ + "/" + output_filename_);
-    match->second.reset(MARC::Writer::Factory(output_filepath).release());
+    const auto output_file_directory(output_directory_ + "/" + group_params.bsz_upload_group_ + "/");
+    FileUtil::MakeDirectory(output_file_directory, true);
+
+    match->second.reset(MARC::Writer::Factory(output_file_directory + output_filename_).release());
     return match->second;
 }
 
@@ -350,7 +352,7 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
 
         if (not active_conversion->getResult().marc_records_.empty()) {
             LOG_DEBUG("writing " + std::to_string(active_conversion->getResult().marc_records_.size()) + " records for "
-                    "harvestable item " + std::to_string(current_converted_item_id));
+                    "item " + active_conversion->getParameter().download_item_.toString());
 
             const auto &writer(outputfile_cache->getWriter(active_conversion->getParameter().group_params_));
             for (const auto &record : active_conversion->getResult().marc_records_)
@@ -420,7 +422,7 @@ int Main(int argc, char *argv[]) {
         journal_datastores.emplace_back(std::move(current_journal_datastore));
     }
 
-    static const unsigned BUSY_LOOP_THREAD_SLEEP_TIME(2 * 1000 * 1000);   // sec -> us
+    static const unsigned BUSY_LOOP_THREAD_SLEEP_TIME(64 * 1000);   // ms -> us
     unsigned num_converted_records(0);
 
     while (true) {

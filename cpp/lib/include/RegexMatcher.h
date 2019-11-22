@@ -36,6 +36,7 @@ public:
         bool matched_;
         unsigned match_count_;
         std::vector<int> substr_indices_;
+        std::string error_message_;
     public:
         MatchResult(const std::string &subject);
         MatchResult(const MatchResult &) = default;

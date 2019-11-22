@@ -32,18 +32,22 @@ namespace DirectDownload {
 
 
 static void PostToTranslationServer(const Url &translation_server_url, const TimeLimit &time_limit, const std::string &user_agent,
-                                    const std::string &request_body, std::string * const response_body, unsigned * response_code,
+                                    const std::string &request_body, const bool request_is_json, std::string * const response_body, unsigned * response_code,
                                     std::string * const error_message)
 {
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = user_agent;
-    downloader_params.additional_headers_ = { "Accept: application/json", "Content-Type: text/plain" };
+    downloader_params.additional_headers_ = { "Accept: application/json",
+                                              std::string("Content-Type: ") + (request_is_json ? "application/json" : "text/plain") };
     downloader_params.post_data_ = request_body;
 
-    Downloader downloader(translation_server_url.toString() + "/web", downloader_params, time_limit);
+    const Url endpoint_url(translation_server_url.toString() + "/web");
+    Downloader downloader(endpoint_url, downloader_params, time_limit);
     if (downloader.anErrorOccurred()) {
         *response_code = 0;
         *error_message = downloader.getLastErrorMessage();
+
+        LOG_DEBUG("failed to fetch response from the translation server! error: " + *error_message);
         return;
     }
 
@@ -53,14 +57,18 @@ static void PostToTranslationServer(const Url &translation_server_url, const Tim
 
 
 void Tasklet::run(const Params &parameters, Result * const result) {
+    LOG_INFO("Harvesting URL " + parameters.download_item_.toString());
+
     PostToTranslationServer(parameters.translation_server_url_, parameters.time_limit_, parameters.user_agent_,
-                            parameters.download_item_.url_, &result->response_body_, &result->response_code_, &result->error_message_);
+                            parameters.download_item_.url_, /* request_is_json = */ false, &result->response_body_,
+                            &result->response_code_, &result->error_message_);
 
     // 300 => multiple matches found, try to harvest children (send the response_body right back to the server, to get all of them)
     if (result->response_code_ == 300) {
         LOG_DEBUG("multiple articles found => trying to harvest children");
         PostToTranslationServer(parameters.translation_server_url_, parameters.time_limit_, parameters.user_agent_,
-                                result->response_body_, &result->response_body_, &result->response_code_, &result->error_message_);
+                                result->response_body_, /* request_is_json = */ true, &result->response_body_,
+                                &result->response_code_, &result->error_message_);
     }
 
     download_manager_->addToDownloadCache(parameters.download_item_.url_.toString(), result->response_body_,
@@ -84,6 +92,8 @@ namespace Crawling {
 
 
 void Tasklet::run(const Params &parameters, Result * const result) {
+    LOG_INFO("Crawling URL " + parameters.download_item_.toString());
+
     // The crawler implementation is different from the direct download implemenation in that
     // the meat of the cralwer is implemented in the generic SimpleCrawler class. This means it
     // cannot be coupled to the download waiting/caching infrastructure offered by the DownloadManager
@@ -114,7 +124,6 @@ void Tasklet::run(const Params &parameters, Result * const result) {
         site_desc.url_regex_matcher_.reset(RegexMatcher::RegexMatcherFactoryOrDie(crawl_url_regex_str));
     }
 
-    LOG_DEBUG("\n\nStarting crawl at base URL: " +  parameters.download_item_.url_.toString());
 
     SimpleCrawler crawler(site_desc, crawler_params);
     SimpleCrawler::PageDetails page_details;
@@ -201,6 +210,8 @@ bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Con
 
 
 void Tasklet::run(const Params &parameters, Result * const result) {
+    LOG_INFO("Harvesting feed " + parameters.download_item_.toString());
+
     std::unique_ptr<SyndicationFormat> syndication_format;
     std::string feed_contents, syndication_format_parse_err_msg;
     SyndicationFormat::AugmentParams syndication_format_augment_parameters;
@@ -233,19 +244,10 @@ void Tasklet::run(const Params &parameters, Result * const result) {
         return;
     }
 
-    LOG_DEBUG(parameters.download_item_.url_.toString() + " (" + syndication_format->getFormatName() + "):");
     LOG_DEBUG("\tTitle: " + syndication_format->getTitle());
-    LOG_DEBUG("\tLink: " + syndication_format->getLink());
-    LOG_DEBUG("\tDescription: " + syndication_format->getDescription());
 
     for (const auto &item : *syndication_format) {
-        const auto item_id(item.getId());
-        const std::string title(item.getTitle());
-        if (not title.empty())
-            LOG_DEBUG("\n\nFeed Item: " + title);
-
-        const auto new_download_item(parameters.harvestable_manager_->newHarvestableItem(item.getLink(),
-                                                                                         parameters.download_item_.journal_));
+        const auto new_download_item(parameters.harvestable_manager_->newHarvestableItem(item.getLink(), parameters.download_item_.journal_));
         result->downloaded_items_.emplace_back(download_manager_->directDownload(new_download_item, parameters.user_agent_));
     }
 }
@@ -266,7 +268,7 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 
 
 void *DownloadManager::BackgroundThreadRoutine(void * parameter) {
-    static const unsigned BACKGROUND_THREAD_SLEEP_TIME(1 * 1000 * 1000);   // sec -> us
+    static const unsigned BACKGROUND_THREAD_SLEEP_TIME(32 * 1000);   // ms -> us
 
     DownloadManager * const download_manager(reinterpret_cast<DownloadManager *>(parameter));
     pthread_detach(pthread_self());
@@ -301,8 +303,8 @@ DownloadManager::DelayParams DownloadManager::generateDelayParams(const Url &url
     DelayParams new_delay_params(robots_txt_downloader.getMessageBody(), global_params_.default_download_delay_time_,
                                  global_params_.max_download_delay_time_);
 
-    LOG_DEBUG("set crawl-delay for domain '" + hostname + "' to " +
-             std::to_string(new_delay_params.time_limit_.getLimit()) + " ms");
+//    LOG_DEBUG("set crawl-delay for domain '" + hostname + "' to " +
+//              std::to_string(new_delay_params.time_limit_.getLimit()) + " ms");
     return new_delay_params;
 }
 
@@ -441,6 +443,12 @@ DownloadManager::DownloadManager(const GlobalParams &global_params)
 DownloadManager::~DownloadManager() {
     if (::pthread_cancel(background_thread_) != 0)
         LOG_ERROR("failed to cancel background download manager thread '" + std::to_string(background_thread_) + "'!");
+
+    domain_data_.clear();
+    cached_download_data_.clear();
+    direct_download_queue_buffer_.clear();
+    rss_queue_buffer_.clear();
+    crawling_queue_buffer_.clear();
 }
 
 
@@ -459,7 +467,6 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
             download_result(new Util::Future<DirectDownload::Params, DirectDownload::Result>(std::move(cached_result)));
         return download_result;
     }
-
 
     std::unique_ptr<DirectDownload::Params> parameters(new DirectDownload::Params(source,
                                                        global_params_.translation_server_url_.toString(), user_agent,

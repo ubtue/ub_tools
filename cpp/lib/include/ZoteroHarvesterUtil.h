@@ -53,8 +53,11 @@ private:
     HarvestableItem(const unsigned id, const std::string &url, const Config::JournalParams &journal)
      : id_(id), url_(url), journal_(journal) {}
 public:
+    ~HarvestableItem() = default;
     HarvestableItem(const HarvestableItem &rhs) = default;
     HarvestableItem &operator=(const HarvestableItem &rhs) = delete;
+
+    std::string toString() const;
 };
 
 
