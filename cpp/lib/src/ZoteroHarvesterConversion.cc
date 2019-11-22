@@ -36,6 +36,82 @@ namespace ZoteroHarvester {
 namespace Conversion {
 
 
+std::string MetadataRecord::toString() const {
+    std::string out("MetadataRecord {\n");
+
+    out += "\turl: " + url_ + ",\n";
+    out += "\titem_type: " + item_type_ + ",\n";
+    out += "\ttitle: " + title_ + ",\n";
+    if (not short_title_.empty())
+        out += "\tshort_title: " + short_title_ + ",\n";
+    if (not abstract_note_.empty())
+        out += "\tabstract_note: " + abstract_note_ + ",\n";
+    if (not publication_title_.empty())
+        out += "\tpublication_title: " + publication_title_ + ",\n";
+    if (not volume_.empty())
+        out += "\tvolume: " + volume_ + ",\n";
+    if (not issue_.empty())
+        out += "\tissue: " + issue_ + ",\n";
+    if (not pages_.empty())
+        out += "\tpages: " + pages_ + ",\n";
+    if (not date_.empty())
+        out += "\tdate: " + date_ + ",\n";
+    if (not doi_.empty())
+        out += "\tdoi: " + doi_ + ",\n";
+    if (not language_.empty())
+        out += "\tlanguage: " + language_ + ",\n";
+    if (not issn_.empty())
+        out += "\tissn: " + issn_ + ",\n";
+    if (not license_.empty())
+        out += "\tlicense: " + license_ + ",\n";
+    if (not superior_ppn_.empty())
+        out += "\tsuperior_ppn: " + superior_ppn_ + ",\n";
+    out += "\tsuperior_type: " + std::to_string(static_cast<int>(superior_type_)) + ",\n";
+    out += "\tssg: " + std::to_string(static_cast<int>(ssg_)) + ",\n";
+
+    if (not creators_.empty()) {
+        std::string creators("creators: [\n");
+        for (const auto &creator : creators_) {
+            creators += "\t\t{\n";
+            creators += "\t\t\tfirst_name: " + creator.first_name_ + ",\n";
+            creators += "\t\t\tlast_name: " + creator.last_name_ + ",\n";
+            creators += "\t\t\ttype: " + creator.type_ + ",\n";
+            if (not creator.affix_.empty())
+                creators += "\t\t\taffix: " + creator.affix_ + ",\n";
+            if (not creator.title_.empty())
+                creators += "\t\t\ttitle: " + creator.title_ + ",\n";
+            if (not creator.ppn_.empty())
+                creators += "\t\t\tppn: " + creator.ppn_ + ",\n";
+            if (not creator.gnd_number_.empty())
+                creators += "\t\t\tgnd_number: " + creator.gnd_number_ + ",\n";
+            creators += "\t\t},\n";
+        }
+        creators += "\t]";
+        out += "\t" + creators + ",\n";
+    }
+
+    if (not keywords_.empty()) {
+        std::string keywords("keywords: [ ");
+        for (const auto &keyword : keywords_)
+            keywords += keyword + ", ";
+        TextUtil::UnicodeTruncate(&keywords, keywords.size() - 2);
+        keywords += " ]";
+        out += "\t" + keywords + ",\n";
+    }
+
+    if (not custom_metadata_.empty()) {
+        std::string custom_metadata("custom_metadata: [\n");
+        for (const auto &metadata : custom_metadata_)
+            custom_metadata += "\t\t{ " + metadata.first + ", " + metadata.second + " },\n";
+        custom_metadata += "\t\t]";
+        out += "\t" + custom_metadata + ",\n";
+    }
+
+    out += "\n}";
+    return out;
+}
+
+
 void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
                           const Util::HarvestableItem &download_item)
 {
@@ -1012,6 +1088,8 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
             ConvertZoteroItemToMetadataRecord(json_object, &new_metadata_record);
             AugmentMetadataRecord(&new_metadata_record, download_item.journal_, parameters.group_params_,
                                   parameters.enhancement_maps_);
+
+            LOG_DEBUG("Augmented metadata record: " + new_metadata_record.toString());
 
             if (ExcludeOnlineFirstRecord(new_metadata_record, parameters))
                 continue;

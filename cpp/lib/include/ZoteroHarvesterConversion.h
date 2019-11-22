@@ -76,6 +76,8 @@ struct MetadataRecord {
     std::map<std::string, std::string> custom_metadata_;
 public:
     explicit MetadataRecord() : superior_type_(SuperiorType::INVALID), ssg_(SSGType::INVALID) {}
+
+    std::string toString() const;
 };
 
 
