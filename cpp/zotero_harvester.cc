@@ -234,7 +234,7 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
     }
     }
 
-    LOG_INFO("queued new journal: " + journal_params.name_ + " | " + Config::HARVESTER_OPERATION_TO_STRING_MAP.at(journal_params.harvester_operation_) + " @ " + journal_params.entry_point_url_);
+    LOG_INFO("Queued journal '" + journal_params.name_ + "' | " + Config::HARVESTER_OPERATION_TO_STRING_MAP.at(journal_params.harvester_operation_) + " @ " + journal_params.entry_point_url_);
     return current_journal_datastore;
 }
 
@@ -351,7 +351,7 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
             break;
 
         if (not active_conversion->getResult().marc_records_.empty()) {
-            LOG_DEBUG("writing " + std::to_string(active_conversion->getResult().marc_records_.size()) + " records for "
+            LOG_INFO("Writing " + std::to_string(active_conversion->getResult().marc_records_.size()) + " record(s) for "
                     "item " + active_conversion->getParameter().download_item_.toString());
 
             const auto &writer(outputfile_cache->getWriter(active_conversion->getParameter().group_params_));

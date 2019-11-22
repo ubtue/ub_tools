@@ -244,7 +244,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
         return;
     }
 
-    LOG_DEBUG("\tTitle: " + syndication_format->getTitle());
+    LOG_DEBUG("Title: " + syndication_format->getTitle());
 
     for (const auto &item : *syndication_format) {
         const auto new_download_item(parameters.harvestable_manager_->newHarvestableItem(item.getLink(), parameters.download_item_.journal_));
