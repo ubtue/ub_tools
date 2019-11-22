@@ -23,6 +23,7 @@ RUN php /usr/local/vufind/util/cssBuilder.php
 # expose solr & import example marc data
 EXPOSE 8080
 ADD data.mrc /usr/local/ub_tools/bsz_daten/data.mrc
+RUN /usr/local/vufind/solr/vufind/biblio/conf/touch_synonyms.sh ixtheo
 RUN source /etc/profile.d/vufind.sh \
     && sudo -u solr /usr/local/vufind/solr.sh start \
     && /usr/local/vufind/import-marc.sh /usr/local/ub_tools/bsz_daten/data.mrc
