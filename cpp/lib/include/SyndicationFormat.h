@@ -47,7 +47,6 @@ public:
             TextUtil::CollapseAndTrimWhitespace(&id_);
 
             if (id_.empty()) {
-                LOG_WARNING("invalid ID for RSS item! title = '" + title_ + "', link = '" + link_ + "'");
                 // use the link as the fallback option
                 id_ = link_;
             }

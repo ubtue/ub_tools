@@ -68,7 +68,7 @@ struct Result {
 public:
     explicit Result(const Util::HarvestableItem &source) : source_(source), response_code_(0) {}
     Result(const Result &rhs) = default;
-    inline bool isValid() const { return response_code_ == 200 and not error_message_.empty(); }
+    inline bool isValid() const { return response_code_ == 200 and error_message_.empty(); }
 };
 
 
@@ -230,6 +230,7 @@ private:
         std::deque<std::shared_ptr<RSS::Tasklet>> queued_rss_feeds_;
     public:
         DomainData(const DelayParams &delay_params) : delay_params_(delay_params) {};
+        ~DomainData() = default;
     };
 
     struct CachedDownloadData {

@@ -128,13 +128,15 @@ ThreadSafeRegexMatcher::MatchResult ThreadSafeRegexMatcher::match(
             *start_pos = match_result.substr_indices_[0];
         if (end_pos != nullptr)
             *end_pos = match_result.substr_indices_[1];
+
+        return match_result;
     }
 
     if (retcode != PCRE_ERROR_NOMATCH) {
         if (retcode == PCRE_ERROR_BADUTF8)
-            LOG_ERROR("A \"subject\" with invalid UTF-8 was passed into ThreadSafeRegexMatcher::match()! subject: " + subject);
+            match_result.error_message_ = "invalid UTF-8 in subject";
         else
-            LOG_ERROR("Unknown PCRE error for subject '" + subject + "' and pattern '" + pattern_ + "'");
+            match_result.error_message_ = "unknown PCRE error for pattern '" + pattern_ + "': " + std::to_string(retcode);
     }
 
     return match_result;

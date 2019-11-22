@@ -283,7 +283,7 @@ ThreadSafeRegexMatcher InitializeBlacklistedAuthorTokenMatcher() {
     }
     match_pattern += ")\\b";
 
-   return ThreadSafeRegexMatcher(match_pattern);
+   return ThreadSafeRegexMatcher(match_pattern, ThreadSafeRegexMatcher::ENABLE_UTF8);
 }
 
 
@@ -432,6 +432,7 @@ MetadataRecord::SSGType GetSSGTypeFromString(const std::string &ssg_string) {
 
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
+const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
 
 
 void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params,
@@ -456,14 +457,14 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
     auto page_match(PAGE_RANGE_MATCHER.match(StringUtil::ToUpper(pages)));
     if (page_match) {
         std::string converted_pages;
-        if (TextUtil::IsRomanNumeral(page_match[1]))
+        if (PAGE_ROMAN_NUMERAL_MATCHER.match(page_match[1]))
             converted_pages += std::to_string(StringUtil::RomanNumeralToDecimal(page_match[1]));
         else
             converted_pages += page_match[1];
 
         converted_pages += "-";
 
-        if (TextUtil::IsRomanNumeral(page_match[2]))
+        if (PAGE_ROMAN_NUMERAL_MATCHER.match(page_match[2]))
             converted_pages += std::to_string(StringUtil::RomanNumeralToDecimal(page_match[2]));
         else
             converted_pages += page_match[2];
@@ -986,6 +987,8 @@ bool ExcludeEarlyViewRecord(const MetadataRecord &metadata_record, const Convers
 
 
 void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult * const result) {
+    LOG_INFO("Converting item " + parameters.download_item_.toString());
+
     std::shared_ptr<JSON::JSONNode> tree_root;
     JSON::Parser json_parser(parameters.json_metadata_);
 
@@ -1041,7 +1044,7 @@ ConversionTasklet::ConversionTasklet(ThreadUtil::ThreadSafeCounter<unsigned> * c
 
 
 void *ConversionManager::BackgroundThreadRoutine(void * parameter) {
-    static const unsigned BACKGROUND_THREAD_SLEEP_TIME(1 * 1000 * 1000);   // sec -> us
+    static const unsigned BACKGROUND_THREAD_SLEEP_TIME(16 * 1000);   // ms -> us
 
     ConversionManager * const conversion_manager(reinterpret_cast<ConversionManager *>(parameter));
     pthread_detach(pthread_self());
@@ -1095,6 +1098,9 @@ ConversionManager::ConversionManager(const GlobalParams &global_params)
 ConversionManager::~ConversionManager() {
     if (::pthread_cancel(background_thread_) != 0)
         LOG_ERROR("failed to cancel background conversion manager thread '" + std::to_string(background_thread_) + "'!");
+
+    active_conversions_.clear();
+    conversion_queue_.clear();
 }
 
 
