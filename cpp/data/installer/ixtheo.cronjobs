@@ -23,7 +23,7 @@ LOG_DIR=/usr/local/var/log/tuefind
 0 19 * * 6 "$VUFIND_HOME/util/tuefind_generate_sitemap.sh" "ixtheo"
 0 20 * * * cd "$BSZ_DATEN" && "$BIN/generate_beacon_file.py" "$EMAIL" "/usr/local/ub_tools/cpp/data/ixtheo-beacon.header" "$VUFIND_HOME/public/docs/ixtheo-beacon.txt" > "$LOG_DIR/generate_beacon_file.log" 2>&1
 30 20 * * * cd "$BSZ_DATEN" && "$BIN/generate_beacon_file.py" "$EMAIL" "/usr/local/ub_tools/cpp/data/relbib-beacon.header" "$VUFIND_HOME/public/relbib_docs/relbib-beacon.txt" > "$LOG_DIR/generate_beacon_file.log" 2>&1
-0 21 * * 7 systemctl restart vufind
+0 21 * * 3,7 systemctl restart vufind
 20 21 * * 7 "$BIN/collect_solr_stats_data.py" "$EMAIL" ixtheo > "$LOG_DIR/collect_solr_stats_data-ixtheo.log" 2>&1
 40 21 * * 7 "$BIN/collect_solr_stats_data.py" "$EMAIL" relbib > "$LOG_DIR/collect_solr_stats_data-relbib.log" 2>&1
 0 22 * * * "$BIN/new_journal_alert" ixtheo {ixtheo_host} "IxTheo Team<no-reply@ub.uni-tuebingen.de>" "IxTheo Subscriptions" > "$LOG_DIR/new_journal_alert_ixtheo.log" 2>&1
