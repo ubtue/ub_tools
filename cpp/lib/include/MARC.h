@@ -854,7 +854,7 @@ public:
     std::string toBinaryString() const;
     void toXmlStringHelper(MarcXmlWriter * const xml_writer) const;
 
-    static std::string BibliographicLevelToString(const BibliographicLevel bibliographic_level);
+    static char BibliographicLevelToChar(const BibliographicLevel bibliographic_level);
 };
 
 

@@ -622,8 +622,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
 
     // Review-specific modifications
     if (item_type == "review") {
-        auto &leader(record->getLeader());
-        leader[5] = 'n', leader[6] = 'a', leader[7] = 'b';
+        record->getLeader()[7] = MARC::Record::BibliographicLevelToChar(MARC::Record::SERIAL_COMPONENT_PART);
         record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" }, { '2', "gnd-content" } },
                             /* indicator1 = */' ', /* indicator2 = */'7');
     }
