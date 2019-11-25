@@ -34,6 +34,7 @@
 #include "IniFile.h"
 #include "MARC.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
 
@@ -46,7 +47,9 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--generate-list|--augment-db] authority_data" << '\n';
+    std::cerr << "Usage: " << ::progname << " --generate-list authority_data" << '\n' <<
+                                            " --augment-db authority_data [find_of_discovery_map_file]" << '\n';
+
     std::cerr << "       no operation mode means --augment-db\n";
     std::exit(EXIT_FAILURE);
 }
@@ -255,13 +258,40 @@ void GetCICGNDResultMap(DbConnection &db_connection,
     }
 }
 
+auto ExtractPPNAndDiscoverAbbrev = [](const std::vector<std::string> line) { return std::make_pair(line[0], line[1]); };
+
+void GetFindDiscoveryMap(const std::string &find_discovery_filename, std::unordered_map<std::string, std::string> * const find_discovery_map) {
+    std::vector<std::vector<std::string>> discovery_lines;
+    TextUtil::ParseCSVFileOrDie(find_discovery_filename, &discovery_lines);
+    std::transform(discovery_lines.begin(), discovery_lines.end(), std::inserter(*find_discovery_map, find_discovery_map->begin()),
+                   ExtractPPNAndDiscoverAbbrev);
+}
+
+
+std::string ExtractAndFormatSource(const std::string &candidate, const std::string additional_information) {
+    // Try to extract volume, year and pages
+    std::string source(StringUtil::Trim(candidate));
+    StringUtil::Map(&source, ",()=;", "     ");
+    std::vector<std::string> components;
+    StringUtil::Split(source, ' ', &components, true);
+    if (components.size() == 3)
+        return StringUtil::Join(components, ", ");
+    // Try to extract a year from the left side of the original match
+    std::regex plausible_year("\\b[12][901][0-9][0-9]\\b");
+    std::smatch match;
+    if (regex_search(additional_information, match, plausible_year))
+        components.emplace_back(match.str());
+    return StringUtil::Join(components, ", ");
+}
+
 
 void AugmentDBEntries(DbConnection &db_connection,
                       const std::unordered_map<std::string,std::string> &author_to_gnds_result_map,
                       const std::unordered_map<std::string,std::string> &keyword_to_gnds_result_map,
-                      const std::unordered_map<std::string,std::string> &cic_to_gnd_result_map) {
+                      const std::unordered_map<std::string,std::string> &cic_to_gnd_result_map,
+                      const std::unordered_map<std::string,std::string> &find_discovery_map) {
     // Iterate over Database
-    const std::string ikr_query("SELECT id,autor,stichwort,cicbezug FROM ikr");
+    const std::string ikr_query("SELECT id,autor,stichwort,cicbezug, fundstelle FROM ikr");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(ikr_query, &db_connection));
     while (const DbRow db_row = result_set.getNextRow()) {
         // Authors
@@ -316,10 +346,27 @@ void AugmentDBEntries(DbConnection &db_connection,
         // Only write back non-empty string if we have at least one reasonable entry
         const std::string c_gnd_content(cic_gnd_seen ? StringUtil::Join(cic_gnd_numbers, ";") : "");
 
+
+        // Fundstellen
+        const std::string fundstelle(db_row["fundstelle"]);
+        std::string f_ppn;
+        std::string f_quelle;
+        for (const auto &entry :  find_discovery_map) {
+            std::regex circumscription("\\b(" + entry.second + ")\\b"); // Make sure "Kanon" does not match "Kanonica"...
+            std::smatch match;
+            if (std::regex_search(fundstelle, match, circumscription)) {
+                f_ppn = entry.first;
+                f_quelle = ExtractAndFormatSource(match.suffix(), match.prefix());
+                break;
+            }
+        }
+
+
         // Write back the new entries
         const std::string id(db_row["id"]);
         const std::string update_row_query("UPDATE ikr SET a_gnd=\"" +  a_gnd_content + "\", s_gnd=\""
-                                           + s_gnd_content + "\",c_gnd=\"" + c_gnd_content + "\""
+                                           + s_gnd_content + "\",c_gnd=\"" + c_gnd_content + "\",f_ppn=\"" + f_ppn +
+                                           "\", f_quelle=\"" + f_quelle + "\""
                                            + " WHERE id=" + id);
         db_connection.queryOrDie(update_row_query);
     }
@@ -335,20 +382,27 @@ int Main(int argc, char **argv) {
      bool generate_list(false);
      bool skip_empty(true); //Do no insert entries without matches the final lookup lists
      bool generate_gnd_link(false); // Export GND numbers as links
+     bool use_find_discovery_map(false);
 
-     if (argc == 3 and (std::strcmp(argv[1], "--generate-list") != 0 and std::strcmp(argv[1], "--augment-db") != 0))
-         Usage();
+     if (std::strcmp(argv[1], "--augment-db") == 0)
+         --argc, ++argv;
 
      if (std::strcmp(argv[1], "--generate-list") == 0) {
         generate_list=true;
         skip_empty=false;
         generate_gnd_link=true;
-        ++argc, ++argv;
+        --argc, ++argv;
      }
 
+     if (argc < 2)
+         Usage();
 
      const std::string authority_file(argv[1]);
-
+     std::string find_discovery_map_filename;
+     if (argc == 3) {
+          find_discovery_map_filename = argv[2];
+          use_find_discovery_map = true;
+     }
 
      const IniFile ini_file(CONF_FILE_PATH);
      const std::string sql_database(ini_file.getString("Database", "sql_database"));
@@ -380,7 +434,11 @@ int Main(int argc, char **argv) {
          std::ofstream cic_out("/tmp/cic_list.txt");
          for (const auto &cic_and_gnds : cic_to_gnd_result_map)
              cic_out << cic_and_gnds.first << "|" << cic_and_gnds.second << '\n';
-     } else
-         AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map);
+     } else {
+         std::unordered_map<std::string, std::string> find_discovery_map;
+         if (use_find_discovery_map)
+             GetFindDiscoveryMap(find_discovery_map_filename, &find_discovery_map);
+         AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map, find_discovery_map);
+     }
      return EXIT_SUCCESS;
 }
