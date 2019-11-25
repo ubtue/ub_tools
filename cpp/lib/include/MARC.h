@@ -504,6 +504,7 @@ public:
     void merge(const Record &other);
     inline size_t getNumberOfFields() const { return fields_.size(); }
     inline const std::string &getLeader() const { return leader_; }
+    inline std::string &getLeader() { return leader_; }
     inline bool hasValidLeader() const { return leader_.length() == LEADER_LENGTH; }
     bool isMonograph() const;
     inline bool isSerial() const { return leader_[7] == 's'; }
