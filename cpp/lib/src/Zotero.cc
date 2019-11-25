@@ -1267,6 +1267,11 @@ bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry, const
                 return false;
             }
         }
+
+        if ((issue == "n/a" or volume == "n/a") and not harvest_params->force_downloads_) {
+            LOG_DEBUG("Skipping: early-view article");
+            return false;
+        }
     }
 
     return true;
