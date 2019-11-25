@@ -174,7 +174,7 @@ def AddToCumulativeCollection(downloaded_files, config):
 
     try:
         for downloaded_file in downloaded_files:
-            shutil.copy(downloaded_file, output_directory)
+            shutil.move(downloaded_file, output_directory)
     except Exception as e:
         util.Error("Adding file to cumulative collection failed! (" + str(e) + ")")
 
@@ -371,7 +371,7 @@ def Main():
            msg.append("Skipping Download of \"Normdatendifferenzabzug\" since already present\n")
     try:
         for downloaded_file in all_downloaded_files:
-            shutil.move(downloaded_file, bsz_dir)
+            shutil.copy(downloaded_file, bsz_dir)
     except Exception as e:
         util.Error("Moving a downloaded file to the BSZ download directory failed! (" + str(e) + ")")
 
