@@ -571,7 +571,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             record->insertField("700", subfields, /* indicator 1 = */'1');
 
         if (not creator->ppn_.empty() or not creator->gnd_number_.empty()) {
-            const std::string _887_data("Autor in der Zoterovorlage [" + creator->last_name_ + ", " + creator->first_name_ + "] maschinell zugeordnet");
+            const std::string _887_data("Autor in der Zoterovorlage [" + creator->last_name_ + ", " + creator->first_name_
+                                        + "] maschinell zugeordnet");
             record->insertField("887", { { 'a', _887_data }, { '2', "ixzom" } });
         }
 
@@ -620,8 +621,12 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     }
 
     // Review-specific modifications
-    if (item_type == "review")
-        record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" } }, /* indicator1 = */' ', /* indicator2 = */'7');
+    if (item_type == "review") {
+        auto &leader(record->getLeader());
+        leader[5] = 'n', leader[6] = 'a', leader[7] = 'b';
+        record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" }, { '2', "gnd-content" } },
+                            /* indicator1 = */' ', /* indicator2 = */'7');
+    }
 
     // License data
     const std::string license(node_parameters.license_);
@@ -983,7 +988,7 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
         const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
         if (suppression_regex->second->matched(string_node->getValue())) {
             LOG_DEBUG("suppression regex '" + suppression_regex->second->getPattern() +
-                        "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
+                      "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
             string_node->setValue("");
         }
     }
