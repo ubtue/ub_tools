@@ -423,24 +423,24 @@ static std::string TypeOfRecordToString(const Record::TypeOfRecord type_of_recor
 }
 
 
-std::string Record::BibliographicLevelToString(const Record::BibliographicLevel bibliographic_level) {
+char Record::BibliographicLevelToChar(const Record::BibliographicLevel bibliographic_level) {
     switch (bibliographic_level) {
     case Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART:
-        return std::string(1, 'a');
+        return 'a';
     case Record::BibliographicLevel::SERIAL_COMPONENT_PART:
-        return std::string(1, 'b');
+        return 'b';
     case Record::BibliographicLevel::COLLECTION:
-        return std::string(1, 'c');
+        return 'c';
     case Record::BibliographicLevel::SUBUNIT:
-        return std::string(1, 'd');
+        return 'd';
     case Record::BibliographicLevel::INTEGRATING_RESOURCE:
-        return std::string(1, 'i');
+        return 'i';
     case Record::BibliographicLevel::MONOGRAPH_OR_ITEM:
-        return std::string(1, 'm');
+        return 'm';
     case Record::BibliographicLevel::SERIAL:
-        return std::string(1, 's');
+        return 's';
     case Record::BibliographicLevel::UNDEFINED:
-        return std::string(1, ' ');
+        return ' ';
     default:
         LOG_ERROR("unknown bibliographic level: " + std::to_string(static_cast<int>(bibliographic_level)) + "!");
     }
@@ -449,7 +449,7 @@ std::string Record::BibliographicLevelToString(const Record::BibliographicLevel 
 Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
                const std::string &control_number)
 {
-    leader_ = "00000" "n" + TypeOfRecordToString(type_of_record) + BibliographicLevelToString(bibliographic_level)
+    leader_ = "00000" "n" + TypeOfRecordToString(type_of_record) + std::string(1, BibliographicLevelToChar(bibliographic_level))
               + " a22004452  4500";
 
     if (not control_number.empty())
@@ -714,7 +714,7 @@ enum Record::BibliographicLevel Record::getBibliographicLevel() {
 
 
 void Record::setBibliographicLevel(const Record::BibliographicLevel new_bibliographic_level) {
-    leader_[7] = BibliographicLevelToString(new_bibliographic_level)[0];
+    leader_[7] = BibliographicLevelToChar(new_bibliographic_level);
 }
 
 

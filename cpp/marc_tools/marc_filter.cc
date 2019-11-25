@@ -666,7 +666,7 @@ void Filter(const std::vector<FilterDescriptor> &filters, MARC::Reader * const m
                 }
             } else if (filter.getFilterType() == FilterType::DROP_BIBLIOGRAPHIC_LEVEL) {
                 if (std::strchr(filter.getBiblioLevels().c_str(),
-                                MARC::Record::BibliographicLevelToString(record.getBibliographicLevel())[0])
+                                MARC::Record::BibliographicLevelToChar(record.getBibliographicLevel()))
                     != nullptr)
                 {
                     deleted_record = true;
@@ -674,7 +674,7 @@ void Filter(const std::vector<FilterDescriptor> &filters, MARC::Reader * const m
                 }
             } else if (filter.getFilterType() == FilterType::KEEP_BIBLIOGRAPHIC_LEVEL) {
                 if (std::strchr(filter.getBiblioLevels().c_str(),
-                                MARC::Record::BibliographicLevelToString(record.getBibliographicLevel())[0])
+                                MARC::Record::BibliographicLevelToChar(record.getBibliographicLevel()))
                     != nullptr)
                 {
                     deleted_record = true;
