@@ -107,11 +107,11 @@ bool StartPageLessThan(const std::string &start_page1, const std::string &start_
 
 
 bool NewIssueInfo::operator<(const NewIssueInfo &rhs) const {
-    if (series_title_ > rhs.series_title_)
+    if (series_title_ < rhs.series_title_)
         return true;
-    if (volume_ > rhs.volume_)
+    if (volume_ < rhs.volume_)
         return true;
-    if (year_ > rhs.year_)
+    if (year_ < rhs.year_)
         return true;
     if (StartPageLessThan(start_page_, rhs.start_page_))
         return true;
