@@ -402,6 +402,8 @@ void AugmentDBEntries(DbConnection &db_connection,
         }
 
         // Bishops role and year to personal GND
+        // In this context we hopefully don't have clashes if we split on comma
+        StringUtil::SplitThenTrimWhite(author_row, ";,", &authors_in_row);
         const std::string year_row(db_row["jahr"]);
         std::vector<std::string> bishop_gnds;
         for (const auto &one_author : authors_in_row) {
