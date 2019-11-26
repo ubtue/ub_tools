@@ -339,9 +339,9 @@ void AugmentDBEntries(DbConnection &db_connection,
         std::vector<std::string> authors_in_row;
         std::vector<std::string> author_gnd_numbers;
         bool author_gnd_seen(false);
-        StringUtil::Split(author_row, ';', &authors_in_row, /* suppress_empty_components = */true);
+        StringUtil::SplitThenTrimWhite(author_row, ';', &authors_in_row, /* suppress_empty_components = */true);
         for (const auto &one_author : authors_in_row) {
-             const auto author_gnds(author_to_gnds_result_map.find(StringUtil::TrimWhite(one_author)));
+             const auto author_gnds(author_to_gnds_result_map.find(one_author));
              if (author_gnds != author_to_gnds_result_map.cend()) {
                  author_gnd_numbers.emplace_back(author_gnds->second);
                  author_gnd_seen = true;
