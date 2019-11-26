@@ -21,6 +21,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -41,14 +42,14 @@
 
 const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "dakar.conf");
 const std::string NOT_AVAILABLE("N/A");
-
+typedef std::tuple<std::string, unsigned, unsigned> gnd_role_and_year;
 
 namespace {
 
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " --generate-list authority_data" << '\n' <<
-                                            " --augment-db authority_data [find_of_discovery_map_file]" << '\n';
+                                            " --augment-db authority_data [find_of_discovery_map_file bishop_rewrite_map official_rewrite_map" << '\n';
 
     std::cerr << "       no operation mode means --augment-db\n";
     std::exit(EXIT_FAILURE);
@@ -259,14 +260,44 @@ void GetCICGNDResultMap(DbConnection &db_connection,
 }
 
 auto ExtractPPNAndDiscoverAbbrev = [](const std::vector<std::string> line) { return std::make_pair(line[0], line[1]); };
+auto ExtractBishopRoleYearAndGND = [](const std::vector<std::string> line) { std::vector<std::string> years;
+                                                                             StringUtil::Split(line[3], '-', &years);
+                                                                             unsigned year_lower(years.size() >= 1 and not years[0].empty() ? std::atoi(years[0].c_str()) : 0);
+                                                                             unsigned year_upper(years.size() == 2 and not years[1].empty() ? std::atoi(years[1].c_str()) : 2019);
+                                                                             return std::make_pair(line[0], std::make_tuple(line[2], year_lower, year_upper)); };
 
-void GetFindDiscoveryMap(const std::string &find_discovery_filename, std::unordered_map<std::string, std::string> * const find_discovery_map) {
-    std::vector<std::vector<std::string>> discovery_lines;
-    TextUtil::ParseCSVFileOrDie(find_discovery_filename, &discovery_lines);
-    std::transform(discovery_lines.begin(), discovery_lines.end(), std::inserter(*find_discovery_map, find_discovery_map->begin()),
-                   ExtractPPNAndDiscoverAbbrev);
+
+void GenericGenerateTupleMultiMapFromCSV(std::string csv_filename, std::unordered_multimap<std::string, gnd_role_and_year> * const map,
+                                    std::function<std::pair<std::string, gnd_role_and_year>(const std::vector<std::string>)> extractor) {
+    std::vector<std::vector<std::string>> lines;
+    TextUtil::ParseCSVFileOrDie(csv_filename, &lines);
+    std::transform(lines.begin(), lines.end(), std::inserter(*map, map->begin()), extractor);
 }
 
+
+void GenericGenerateMapFromCSV(std::string csv_filename, std::unordered_map<std::string, std::string> * const map,
+                               std::function<std::pair<std::string,std::string>(const std::vector<std::string>)> extractor) {
+    std::vector<std::vector<std::string>> lines;
+    TextUtil::ParseCSVFileOrDie(csv_filename, &lines);
+    std::transform(lines.begin(), lines.end(), std::inserter(*map, map->begin()), extractor);
+}
+
+
+void GetFindDiscoveryMap(const std::string &find_discovery_filename, std::unordered_map<std::string, std::string> * const find_discovery_map) {
+    GenericGenerateMapFromCSV(find_discovery_filename, find_discovery_map, ExtractPPNAndDiscoverAbbrev);
+}
+
+
+void GetBishopMap(const std::string &bishop_map_filename, std::unordered_multimap<std::string, gnd_role_and_year> * const bishop_map) {
+     GenericGenerateTupleMultiMapFromCSV(bishop_map_filename, bishop_map, ExtractBishopRoleYearAndGND);
+}
+
+
+void GetOfficialsMap(const std::string &officials_map_filename, std::unordered_map<std::string, std::string> * const officials_map) {
+    (void) officials_map_filename;
+    (void) officials_map;
+
+}
 
 std::string ExtractAndFormatSource(const std::string &candidate, const std::string additional_information) {
     // Try to extract volume, year and pages
@@ -289,9 +320,10 @@ void AugmentDBEntries(DbConnection &db_connection,
                       const std::unordered_map<std::string,std::string> &author_to_gnds_result_map,
                       const std::unordered_map<std::string,std::string> &keyword_to_gnds_result_map,
                       const std::unordered_map<std::string,std::string> &cic_to_gnd_result_map,
-                      const std::unordered_map<std::string,std::string> &find_discovery_map) {
+                      const std::unordered_map<std::string,std::string> &find_discovery_map,
+                      const std::unordered_multimap<std::string, gnd_role_and_year> &bishop_map) {
     // Iterate over Database
-    const std::string ikr_query("SELECT id,autor,stichwort,cicbezug, fundstelle FROM ikr");
+    const std::string ikr_query("SELECT id,autor,stichwort,cicbezug,fundstelle,jahr FROM ikr");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(ikr_query, &db_connection));
     while (const DbRow db_row = result_set.getNextRow()) {
         // Authors
@@ -309,7 +341,7 @@ void AugmentDBEntries(DbConnection &db_connection,
                  author_gnd_numbers.emplace_back(NOT_AVAILABLE);
         }
         // Only write back non-empty string if we have at least one reasonable entry
-        const std::string a_gnd_content(author_gnd_seen ? StringUtil::Join(author_gnd_numbers, ";") : "");
+        std::string a_gnd_content(author_gnd_seen ? StringUtil::Join(author_gnd_numbers, ";") : "");
 
         // Keywords
         const std::string keyword_row(db_row["stichwort"]);
@@ -348,18 +380,37 @@ void AugmentDBEntries(DbConnection &db_connection,
 
 
         // Fundstellen
-        const std::string fundstelle(db_row["fundstelle"]);
+        const std::string fundstelle_row(db_row["fundstelle"]);
         std::string f_ppn;
         std::string f_quelle;
         for (const auto &entry :  find_discovery_map) {
             std::regex circumscription("\\b(" + entry.second + ")\\b"); // Make sure "Kanon" does not match "Kanonica"...
             std::smatch match;
-            if (std::regex_search(fundstelle, match, circumscription)) {
+            if (std::regex_search(fundstelle_row, match, circumscription)) {
                 f_ppn = entry.first;
                 f_quelle = ExtractAndFormatSource(match.suffix(), match.prefix());
                 break;
             }
         }
+
+        // Bishops role and year to personal GND
+        const std::string year_row(db_row["jahr"]);
+        std::vector<std::string> bishop_gnds;
+        for (const auto &one_author : authors_in_row) {
+             auto match_range(bishop_map.equal_range(one_author));
+             for (auto gnd_and_years(match_range.first); gnd_and_years != match_range.second; ++gnd_and_years) {
+                 unsigned year(std::atoi(year_row.c_str()));
+                 if (std::get<1>(gnd_and_years->second) <= year and std::get<2>(gnd_and_years->second) >= year) {
+                     const std::string gnd(std::get<0>(gnd_and_years->second));
+                     bishop_gnds.emplace_back(gnd);
+                     break;
+                 }
+             }
+        }
+
+        if (not bishop_gnds.empty())
+            a_gnd_content = StringUtil::Join(bishop_gnds, ',');
+
 
 
         // Write back the new entries
@@ -382,7 +433,9 @@ int Main(int argc, char **argv) {
      bool generate_list(false);
      bool skip_empty(true); //Do no insert entries without matches the final lookup lists
      bool generate_gnd_link(false); // Export GND numbers as links
-     bool use_find_discovery_map(false);
+     bool use_find_discovery_map(false); //Extract GND and vol, year, pages information
+     bool use_bishop_map(false); // Map bishops as editors to their GND depending on their tenure
+     bool use_officials_map(false); // Map officials to their GND
 
      if (std::strcmp(argv[1], "--augment-db") == 0)
          --argc, ++argv;
@@ -394,15 +447,26 @@ int Main(int argc, char **argv) {
         --argc, ++argv;
      }
 
-     if (argc < 2)
+     if (argc < 2 and not generate_list)
          Usage();
 
      const std::string authority_file(argv[1]);
-     std::string find_discovery_map_filename;
-     if (argc == 3) {
-          find_discovery_map_filename = argv[2];
-          use_find_discovery_map = true;
-     }
+     --argc, ++argv;
+
+     if (argc < 1 or argc != 4)
+         Usage();
+
+     const std::string find_discovery_map_filename(argv[1]);
+     use_find_discovery_map = true;
+     --argc, ++argv;
+
+     const std::string bishop_map_filename(argv[1]);
+     use_bishop_map = true;
+     --argc, ++argv;
+
+     const std::string officials_map_filename(argv[1]);
+     use_officials_map = true;
+
 
      const IniFile ini_file(CONF_FILE_PATH);
      const std::string sql_database(ini_file.getString("Database", "sql_database"));
@@ -438,7 +502,13 @@ int Main(int argc, char **argv) {
          std::unordered_map<std::string, std::string> find_discovery_map;
          if (use_find_discovery_map)
              GetFindDiscoveryMap(find_discovery_map_filename, &find_discovery_map);
-         AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map, find_discovery_map);
+         std::unordered_multimap<std::string, gnd_role_and_year> bishop_map;
+         if (use_bishop_map)
+             GetBishopMap(bishop_map_filename, &bishop_map);
+         std::unordered_map<std::string, std::string> officials_map;
+         if (use_officials_map)
+             GetOfficialsMap(officials_map_filename, &officials_map);
+         AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map, find_discovery_map, bishop_map);
      }
      return EXIT_SUCCESS;
 }
