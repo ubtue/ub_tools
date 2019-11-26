@@ -384,7 +384,7 @@ void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &
     std::vector<std::string> bundle_ppns;
     StringUtil::SplitThenTrim(bundle_ppns_string, "," , " \t", &bundle_ppns);
     for (const auto &bundle_ppn : bundle_ppns)
-            control_numbers->emplace_back(bundle_ppn);
+        control_numbers->emplace_back(bundle_ppn);
 }
 
 
