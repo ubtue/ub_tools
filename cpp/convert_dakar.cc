@@ -35,6 +35,7 @@
 #include "DbRow.h"
 #include "IniFile.h"
 #include "MARC.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "UBTools.h"
@@ -393,12 +394,11 @@ void AugmentDBEntries(DbConnection &db_connection,
         const std::string fundstelle_row(db_row["fundstelle"]);
         std::string f_ppn;
         std::string f_quelle;
-        for (const auto &entry :  find_discovery_map) {
-            std::regex circumscription("\\b(" + entry.second + ")\\b"); // Make sure "Kanon" does not match "Kanonica"...
-            std::smatch match;
-            if (std::regex_search(fundstelle_row, match, circumscription)) {
+        for (const auto &entry : find_discovery_map) {
+            size_t start, end;
+            if (RegexMatcher::Matched("(?<!\\pL)" + entry.second + "(?!\\pL)", fundstelle_row, RegexMatcher::ENABLE_UTF8, nullptr, &start, &end)) {
                 f_ppn = entry.first;
-                f_quelle = ExtractAndFormatSource(match.suffix(), match.prefix());
+                f_quelle = ExtractAndFormatSource(fundstelle_row.substr(end, std::string::npos), fundstelle_row.substr(0, start));
                 break;
             }
         }
