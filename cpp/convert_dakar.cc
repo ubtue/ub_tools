@@ -261,10 +261,18 @@ void GetCICGNDResultMap(DbConnection &db_connection,
 
 auto ExtractPPNAndDiscoverAbbrev = [](const std::vector<std::string> line) { return std::make_pair(line[0], line[1]); };
 auto ExtractBishopRoleYearAndGND = [](const std::vector<std::string> line) { std::vector<std::string> years;
-                                                                             StringUtil::Split(line[3], '-', &years);
+                                                                             const std::string years_expression(line.size() >= 4 ? line[3] : "");
+                                                                             StringUtil::Split(years_expression, '-', &years);
                                                                              unsigned year_lower(years.size() >= 1 and not years[0].empty() ? std::atoi(years[0].c_str()) : 0);
                                                                              unsigned year_upper(years.size() == 2 and not years[1].empty() ? std::atoi(years[1].c_str()) : 2019);
                                                                              return std::make_pair(line[0], std::make_tuple(line[2], year_lower, year_upper)); };
+auto ExtractOfficialRoleYearAndGND = [](const std::vector<std::string> line) { std::vector<std::string> years;
+                                                                             const std::string years_expression(line.size() >= 3 ? line[2] : "");
+                                                                             StringUtil::Split(years_expression, '-', &years);
+                                                                             //StringUtil::Split(std::string("TEST"), '-', &years);
+                                                                             unsigned year_lower(years.size() >= 1 and not years[0].empty() ? std::atoi(years[0].c_str()) : 0);
+                                                                             unsigned year_upper(years.size() == 2 and not years[1].empty() ? std::atoi(years[1].c_str()) : 2019);
+                                                                             return std::make_pair(line[0], std::make_tuple(line[1], year_lower, year_upper)); };
 
 
 void GenericGenerateTupleMultiMapFromCSV(std::string csv_filename, std::unordered_multimap<std::string, gnd_role_and_year> * const map,
@@ -293,10 +301,8 @@ void GetBishopMap(const std::string &bishop_map_filename, std::unordered_multima
 }
 
 
-void GetOfficialsMap(const std::string &officials_map_filename, std::unordered_map<std::string, std::string> * const officials_map) {
-    (void) officials_map_filename;
-    (void) officials_map;
-
+void GetOfficialsMap(const std::string &officials_map_filename, std::unordered_multimap<std::string, gnd_role_and_year> * const officials_map) {
+     GenericGenerateTupleMultiMapFromCSV(officials_map_filename, officials_map, ExtractOfficialRoleYearAndGND);
 }
 
 std::string ExtractAndFormatSource(const std::string &candidate, const std::string additional_information) {
@@ -321,7 +327,9 @@ void AugmentDBEntries(DbConnection &db_connection,
                       const std::unordered_map<std::string,std::string> &keyword_to_gnds_result_map,
                       const std::unordered_map<std::string,std::string> &cic_to_gnd_result_map,
                       const std::unordered_map<std::string,std::string> &find_discovery_map,
-                      const std::unordered_multimap<std::string, gnd_role_and_year> &bishop_map) {
+                      const std::unordered_multimap<std::string, gnd_role_and_year> &bishop_map,
+                      const std::unordered_multimap<std::string, gnd_role_and_year> &officials_map) {
+
     // Iterate over Database
     const std::string ikr_query("SELECT id,autor,stichwort,cicbezug,fundstelle,jahr FROM ikr");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(ikr_query, &db_connection));
@@ -407,9 +415,29 @@ void AugmentDBEntries(DbConnection &db_connection,
                  }
              }
         }
+        if (not bishop_gnds.empty()) {
+            const std::string gnds(StringUtil::Join(bishop_gnds, ','));
+            a_gnd_content = not a_gnd_content.empty() ? a_gnd_content + ',' + gnds : gnds;
+        }
 
-        if (not bishop_gnds.empty())
-            a_gnd_content = StringUtil::Join(bishop_gnds, ',');
+
+        // Officials role to personal GND
+        std::vector<std::string> officials_gnds;
+        for (const auto &one_author : authors_in_row) {
+            auto match_range(officials_map.equal_range(one_author));
+             for (auto gnd_and_years(match_range.first); gnd_and_years != match_range.second; ++gnd_and_years) {
+                 unsigned year(std::atoi(year_row.c_str()));
+                 if (std::get<1>(gnd_and_years->second) <= year and std::get<2>(gnd_and_years->second) >= year) {
+                     const std::string gnd(std::get<0>(gnd_and_years->second));
+                         officials_gnds.emplace_back(gnd);
+                         break;
+                 }
+             }
+        }
+        if (not officials_gnds.empty()) {
+            const std::string gnds(StringUtil::Join(officials_gnds, ','));
+            a_gnd_content = not a_gnd_content.empty() ? a_gnd_content + ',' + gnds : gnds;
+        }
 
 
 
@@ -505,10 +533,10 @@ int Main(int argc, char **argv) {
          std::unordered_multimap<std::string, gnd_role_and_year> bishop_map;
          if (use_bishop_map)
              GetBishopMap(bishop_map_filename, &bishop_map);
-         std::unordered_map<std::string, std::string> officials_map;
+         std::unordered_multimap<std::string, gnd_role_and_year> officials_map;
          if (use_officials_map)
              GetOfficialsMap(officials_map_filename, &officials_map);
-         AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map, find_discovery_map, bishop_map);
+         AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map, find_discovery_map, bishop_map, officials_map);
      }
      return EXIT_SUCCESS;
 }
