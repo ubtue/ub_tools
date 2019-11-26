@@ -298,6 +298,11 @@ bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
 }
 
 
+inline std::string CapitalizedUserType(const std::string &user_type) {
+    return user_type == "ixtheo" ? "IxTheo" : "KrimDok";
+}
+
+
 std::string GenerateEmailContents(const std::string &user_type, const std::string &name_of_user, const std::string &vufind_host,
                                   const std::vector<NewIssueInfo> &new_issue_infos)
 {
@@ -322,6 +327,7 @@ std::string GenerateEmailContents(const std::string &user_type, const std::strin
                 email_contents += "</ul>\n";
             email_contents += "<li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
             last_volume_year_and_issue = volume_year_and_issue;
+            email_contents += "<ul>\n";
         }
 
         const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
@@ -334,7 +340,7 @@ std::string GenerateEmailContents(const std::string &user_type, const std::strin
     email_contents += "</ul>\n"; // end journal list
     email_contents += "<br />\n"
                       "Sincerely,<br />\n"
-                      "The IxTheo Team\n"
+                      "The " + CapitalizedUserType(user_type) + " Team\n"
                       "<br />--<br />\n"
                       "If you have questions regarding this service please contact\n"
                       "<a href=\"mailto:" + user_type + "@ub.uni-tuebingen.de\">" + user_type + "@ub.uni-tuebingen.de</a>.\n";
