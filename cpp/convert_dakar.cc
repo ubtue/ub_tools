@@ -26,6 +26,7 @@
 #include <iostream>
 #include <map>
 #include <regex>
+#include <stdio.h>
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
@@ -264,14 +265,15 @@ auto ExtractBishopRoleYearAndGND = [](const std::vector<std::string> line) { std
                                                                              const std::string years_expression(line.size() >= 4 ? line[3] : "");
                                                                              StringUtil::Split(years_expression, '-', &years);
                                                                              unsigned year_lower(years.size() >= 1 and not years[0].empty() ? std::atoi(years[0].c_str()) : 0);
-                                                                             unsigned year_upper(years.size() == 2 and not years[1].empty() ? std::atoi(years[1].c_str()) : 2019);
+                                                                             unsigned year_upper(years.size() == 2 and not years[1].empty() ? std::atoi(years[1].c_str()) : 
+                                                                                                 std::atoi(__DATE__ + 7) /*this is the current year*/);
                                                                              return std::make_pair(line[0], std::make_tuple(line[2], year_lower, year_upper)); };
 auto ExtractOfficialRoleYearAndGND = [](const std::vector<std::string> line) { std::vector<std::string> years;
                                                                              const std::string years_expression(line.size() >= 3 ? line[2] : "");
                                                                              StringUtil::Split(years_expression, '-', &years);
-                                                                             //StringUtil::Split(std::string("TEST"), '-', &years);
                                                                              unsigned year_lower(years.size() >= 1 and not years[0].empty() ? std::atoi(years[0].c_str()) : 0);
-                                                                             unsigned year_upper(years.size() == 2 and not years[1].empty() ? std::atoi(years[1].c_str()) : 2019);
+                                                                             unsigned year_upper(years.size() == 2 and not years[1].empty() ? std::atoi(years[1].c_str()) :
+                                                                                                 std::atoi(__DATE__ + 7) /*this is the current year*/);
                                                                              return std::make_pair(line[0], std::make_tuple(line[1], year_lower, year_upper)); };
 
 
