@@ -63,6 +63,8 @@ if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
         if ! /usr/share/elasticsearch/bin/elasticsearch-plugin list | grep --quiet analysis-icu; then
             /usr/share/elasticsearch/bin/elasticsearch-plugin install analysis-icu
         fi
+        mkdir -p /etc/elasticsearch/synonyms
+        for i in all de en fr it es pt ru el hans hant; do touch /etc/elasticsearch/synonyms/synonyms_$i.txt; done
     fi
 
     # PHP
