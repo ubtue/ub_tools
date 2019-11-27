@@ -2859,6 +2859,8 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     public String getStartPage(final Record record) {
         final String pages = getPages(record);
+        if (pages == null)
+            return null;
         final Matcher matcher = PAGE_MATCH_PATTERN.matcher(pages);
         if (matcher.matches())
             return matcher.group(1);
@@ -2867,6 +2869,8 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     public String getEndPage(final Record record) {
         final String pages = getPages(record);
+        if (pages == null)
+            return null;
         final Matcher matcher = PAGE_MATCH_PATTERN.matcher(pages);
         if (matcher.matches()) {
             if (matcher.group(3) != null && !matcher.group(3).isEmpty())
